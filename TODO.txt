@@ -1,9 +1,0 @@
-
-Belasting
-- Kleur of waarde
-
-Vensters
-- Scrollen na resize
-- Selecteren
-
-Vormpjes
