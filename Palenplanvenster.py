@@ -171,6 +171,27 @@ class Window(tk.Frame):
         self.undo_x = x
         self.undo_visible = False
 
+        x += 70
+
+        y = 0
+
+        text = os.path.basename(os.getcwd()) # folder name
+        self.project_name_label = tk.Label(self.plotFrame, text=text, font = ('Helvetica', 13))
+        self.project_name_label.place(x=x, y=y)
+        y += 30 
+
+        text = self.palenplan.benuttingsgraad_totaal_str()
+        self.benuttingsgraad_label = tk.Label(self.plotFrame, text=text, font = ('Helvetica', 10))
+        self.benuttingsgraad_label.place(x=x, y=y)
+        y += 30 
+
+        text = self.palenplan.kosten_totaal_str()
+        self.kosten_label = tk.Label(self.plotFrame, text=text, font = ('Helvetica', 10))
+        self.kosten_label.place(x=x, y=y)
+        y += 30 
+
+
+
     def show_undo(self):
         text = '\N{ANTICLOCKWISE GAPPED CIRCLE ARROW}'
         self.undobutton = tk.Button(self.plotFrame, text=text,
@@ -477,10 +498,8 @@ class Window(tk.Frame):
        
         
     def update_plot(self):
-        self.totale_kosten_text.set_text(\
-                    self.palenplan.kosten_totaal_str())
-        self.totale_benuttingsgraad_text.set_text(\
-                    self.palenplan.benuttingsgraad_totaal_str())
+        self.kosten_label.config(text = self.palenplan.kosten_totaal_str())
+        self.benuttingsgraad_label.config(text=self.palenplan.benuttingsgraad_totaal_str())
         for artist in self.legend_artists:
             artist.remove()
             del artist
@@ -750,22 +769,6 @@ class Window(tk.Frame):
             b.marker.set_visible(False)
             b.mark_red(self)
             b.red_marker.set_visible(False)
-
-        self.totale_kosten_text = self.ax.text(1, 1, 
-              self.palenplan.kosten_totaal_str(),
-              horizontalalignment='center',
-              verticalalignment='center',
-              fontsize = 4,   
-              transform = self.ax.transAxes)
-        self.artists.append(self.totale_kosten_text)
-        
-        self.totale_benuttingsgraad_text = self.ax.text(0, 1, 
-                  self.palenplan.benuttingsgraad_totaal_str(),
-                  horizontalalignment='center',
-                  verticalalignment='center',
-                  fontsize = 4,   
-                  transform = self.ax.transAxes)
-        self.artists.append(self.totale_benuttingsgraad_text)
         
         
     def legend(self):
