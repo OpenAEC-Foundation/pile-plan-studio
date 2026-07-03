@@ -13,8 +13,9 @@ import matplotlib.patches as mpatches
 from matplotlib.widgets import LassoSelector
 from matplotlib.path import Path
 from matplotlib.backend_bases import key_press_handler
-from matplotlib import cm
+from matplotlib import colormaps
 from Colormap import cmap_map
+from Datamap import data_path, vraag_datamap
 import os
 from time import time
 
@@ -277,7 +278,7 @@ class Window(tk.Frame):
     def lock(self, belastinglocaties):
         if not [b for b in belastinglocaties if not b.locked]:
             return None
-        locked = list(np.array(pd.read_excel("Vergrendeld.xlsx", 
+        locked = list(np.array(pd.read_excel(data_path("Vergrendeld.xlsx"), 
                                 sheet_name="Vergrendeld", header=None)))
         
         for b in belastinglocaties:
@@ -293,13 +294,13 @@ class Window(tk.Frame):
         self.update_palenplan_lock()
             
         dataframe = pd.DataFrame(np.array(locked))
-        dataframe.to_excel("Vergrendeld.xlsx", sheet_name='Vergrendeld', 
+        dataframe.to_excel(data_path("Vergrendeld.xlsx"), sheet_name='Vergrendeld', 
                      index=False, header=False)
         
     def unlock(self, belastinglocaties):
         if not [b for b in belastinglocaties if b.locked]:
             return None
-        locked = list(np.array(pd.read_excel("Vergrendeld.xlsx", 
+        locked = list(np.array(pd.read_excel(data_path("Vergrendeld.xlsx"), 
                                 sheet_name="Vergrendeld", header=None)))
         
         for b in belastinglocaties:
@@ -318,7 +319,7 @@ class Window(tk.Frame):
         self.update_palenplan_lock()
     
         dataframe = pd.DataFrame(locked)
-        dataframe.to_excel("Vergrendeld.xlsx", sheet_name='Vergrendeld', 
+        dataframe.to_excel(data_path("Vergrendeld.xlsx"), sheet_name='Vergrendeld', 
                      index=False, header=False)
     
     def toggle_graad(self):
@@ -417,14 +418,14 @@ class Window(tk.Frame):
                              props = props)
         
         self.sonderingen_visible = True
-        self.colormap = cm.get_cmap('Reds')
+        self.colormap = colormaps['Reds']
         self.kleurgraad = 0
         self.legend_switched = False
         self.fed_text = False
         self.graad_text = False
         self.text_distance = 1
         
-        self.ppn_cmap = cmap_map(lambda x: x*0.7, cm.get_cmap('hsv'))
+        self.ppn_cmap = cmap_map(lambda x: x*0.7, colormaps['hsv'])
         
         self.canvas.draw()
         
@@ -606,7 +607,7 @@ class Window(tk.Frame):
             waarde = float(event.artist.obj.get_label())
             
             if not self.shift_is_held:
-                configuraties = list(np.array(pd.read_excel('Configuraties.xlsx', 
+                configuraties = list(np.array(pd.read_excel(data_path('Configuraties.xlsx'), 
                                      sheet_name='Configuraties', 
                                      header=None)))
                 waarden = [c[0] for c in configuraties]
@@ -628,7 +629,7 @@ class Window(tk.Frame):
                             text.set_color('lightgrey')
                         
                 dataframe = pd.DataFrame(np.array([[waarde] for waarde in waarden]))
-                dataframe.to_excel("Configuraties.xlsx", sheet_name='Configuraties', 
+                dataframe.to_excel(data_path("Configuraties.xlsx"), sheet_name='Configuraties', 
                              index=False, header=False)
             
                 self.canvas.draw()
@@ -901,6 +902,7 @@ class BusyManager:
 def main():
     
     root = tk.Tk()
+    vraag_datamap(root)
     app = Window(root)
     root.mainloop()
 
