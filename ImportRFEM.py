@@ -1,14 +1,14 @@
 import pandas as pd
 import numpy as np
 import csv
-from Datamap import data_path
+from Projectmap import project_path
 
 excel_file = 'Export RFEM.xlsx'
 
 
 def import_rfem():
-    coordinatensheet = np.array(pd.read_excel(data_path(excel_file), sheet_name=0))[1:]
-    belastingensheet = np.array(pd.read_excel(data_path(excel_file), sheet_name=1))[1:]
+    coordinatensheet = np.array(pd.read_excel(project_path(excel_file), sheet_name=0))[1:]
+    belastingensheet = np.array(pd.read_excel(project_path(excel_file), sheet_name=1))[1:]
     
     coordinatenknopen = [rij[0] for rij in coordinatensheet if not 
                       np.isnan(rij[4]) and not np.isnan(rij[5])]
@@ -35,7 +35,7 @@ def import_rfem():
     return knopen, coordinaten, belastingen
 
 def write_csv(knopen, coordinaten, belastingen):
-    with open(data_path('Belastinglocaties.csv'), mode='w', 
+    with open(project_path('Belastinglocaties.csv'), mode='w', 
            newline = '') as file:
         writer = csv.writer(file, delimiter=',')
         for i in range(len(knopen)):

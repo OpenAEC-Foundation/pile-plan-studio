@@ -4,12 +4,12 @@ from Sonderingenselectie import sonderingenselectie
 import pandas as pd
 import numpy as np
 from numpy import inf
-from Datamap import data_path
+from Projectmap import project_path
     
 def importeer_draagvermogens():
 
     #Import excel met draagvermogen
-    excel_file = data_path("Draagvermogens.xlsx")
+    excel_file = project_path("Draagvermogens.xlsx")
     sht_d = pd.read_excel(excel_file, sheet_name=0)
     draagvermogens = list()
     
@@ -88,7 +88,7 @@ def voeg_palen_toe(belastinglocatie, app):
                        belastinglocatie.geen_opties.append(paal)
 
 def lock(belastinglocaties, app):
-    locked = np.array(pd.read_excel(data_path("Vergrendeld.xlsx"), 
+    locked = np.array(pd.read_excel(project_path("Vergrendeld.xlsx"), 
                                  sheet_name='Vergrendeld', header=None))
     
     namen = [row[0] for row in locked]
@@ -109,7 +109,7 @@ def lock(belastinglocaties, app):
                 b.marked_red = True
 
 def bepaal_uitgesloten_configuraties():
-    configuraties = list(np.array(pd.read_excel(data_path("Configuraties.xlsx"), 
+    configuraties = list(np.array(pd.read_excel(project_path("Configuraties.xlsx"), 
                                 sheet_name="Configuraties", header=None)))
     waarden = [c[0] for c in configuraties]
 
@@ -139,4 +139,3 @@ def paalopties(app):
     palenplan = Palenplan(vind_paalopties(belastinglocaties, 
                                        draagvermogens, app))
     return palenplan
-

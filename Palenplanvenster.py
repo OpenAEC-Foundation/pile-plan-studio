@@ -15,7 +15,7 @@ from matplotlib.path import Path
 from matplotlib.backend_bases import key_press_handler
 from matplotlib import colormaps
 from Colormap import cmap_map
-from Datamap import data_path, vraag_datamap
+from Projectmap import project_path, vraag_projectmap
 import os
 from time import time
 
@@ -278,7 +278,7 @@ class Window(tk.Frame):
     def lock(self, belastinglocaties):
         if not [b for b in belastinglocaties if not b.locked]:
             return None
-        locked = list(np.array(pd.read_excel(data_path("Vergrendeld.xlsx"), 
+        locked = list(np.array(pd.read_excel(project_path("Vergrendeld.xlsx"), 
                                 sheet_name="Vergrendeld", header=None)))
         
         for b in belastinglocaties:
@@ -294,13 +294,13 @@ class Window(tk.Frame):
         self.update_palenplan_lock()
             
         dataframe = pd.DataFrame(np.array(locked))
-        dataframe.to_excel(data_path("Vergrendeld.xlsx"), sheet_name='Vergrendeld', 
+        dataframe.to_excel(project_path("Vergrendeld.xlsx"), sheet_name='Vergrendeld', 
                      index=False, header=False)
         
     def unlock(self, belastinglocaties):
         if not [b for b in belastinglocaties if b.locked]:
             return None
-        locked = list(np.array(pd.read_excel(data_path("Vergrendeld.xlsx"), 
+        locked = list(np.array(pd.read_excel(project_path("Vergrendeld.xlsx"), 
                                 sheet_name="Vergrendeld", header=None)))
         
         for b in belastinglocaties:
@@ -319,7 +319,7 @@ class Window(tk.Frame):
         self.update_palenplan_lock()
     
         dataframe = pd.DataFrame(locked)
-        dataframe.to_excel(data_path("Vergrendeld.xlsx"), sheet_name='Vergrendeld', 
+        dataframe.to_excel(project_path("Vergrendeld.xlsx"), sheet_name='Vergrendeld', 
                      index=False, header=False)
     
     def toggle_graad(self):
@@ -607,7 +607,7 @@ class Window(tk.Frame):
             waarde = float(event.artist.obj.get_label())
             
             if not self.shift_is_held:
-                configuraties = list(np.array(pd.read_excel(data_path('Configuraties.xlsx'), 
+                configuraties = list(np.array(pd.read_excel(project_path('Configuraties.xlsx'), 
                                      sheet_name='Configuraties', 
                                      header=None)))
                 waarden = [c[0] for c in configuraties]
@@ -629,7 +629,7 @@ class Window(tk.Frame):
                             text.set_color('lightgrey')
                         
                 dataframe = pd.DataFrame(np.array([[waarde] for waarde in waarden]))
-                dataframe.to_excel(data_path("Configuraties.xlsx"), sheet_name='Configuraties', 
+                dataframe.to_excel(project_path("Configuraties.xlsx"), sheet_name='Configuraties', 
                              index=False, header=False)
             
                 self.canvas.draw()
@@ -902,7 +902,7 @@ class BusyManager:
 def main():
     
     root = tk.Tk()
-    vraag_datamap(root)
+    vraag_projectmap(root)
     app = Window(root)
     root.mainloop()
 

@@ -3,18 +3,18 @@ import ImportRFEM
 import pandas as pd
 import numpy as np
 import csv
-from Datamap import data_path
+from Projectmap import project_path
 
 
 def lees_instellingen():
-    instellingen = np.array(pd.read_excel(data_path("Sonderingsinstellingen.xlsx"), 
+    instellingen = np.array(pd.read_excel(project_path("Sonderingsinstellingen.xlsx"), 
                                           sheet_name=0, header=None))
     return instellingen[0,1], instellingen[1,1], instellingen[2,1]
 
 def importeer():
     ImportRFEM.main()
     #Importeren belastinglocaties
-    with open(data_path('Belastinglocaties.csv')) as csvfile:
+    with open(project_path('Belastinglocaties.csv')) as csvfile:
         csvlist = csv.reader(csvfile, delimiter=',')
         belastinglocaties = list(csvlist)
     
@@ -23,7 +23,7 @@ def importeer():
         belastinglocaties[i] = Belastinglocatie(*belastinglocatie)
             
     #Importeren sonderingen    
-    sonderingen_array = np.array(pd.read_excel(data_path("Sonderingen.xlsx"), 
+    sonderingen_array = np.array(pd.read_excel(project_path("Sonderingen.xlsx"), 
                                             sheet_name=0, header=None))
     sonderingen_array = np.array([row[0:3] for row in sonderingen_array])
     

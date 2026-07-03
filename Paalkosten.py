@@ -2,7 +2,7 @@
 import math
 import pandas as pd
 import numpy as np
-from Datamap import data_path
+from Projectmap import project_path
 
 rond = []
 kuub_kosten_dict = {}
@@ -15,7 +15,7 @@ def laad_paalkosten():
     if kuub_kosten_dict:
         return
 
-    sheet = np.array(pd.read_excel(data_path('Paalkosten.xlsx'), sheet_name=0))
+    sheet = np.array(pd.read_excel(project_path('Paalkosten.xlsx'), sheet_name=0))
     rond[:] = [row[0] for row in sheet if row[1] == 'rond']
     kuub_kosten_dict.update({row[0]: row[2] for row in sheet})
     peil = sheet[0, 3]
