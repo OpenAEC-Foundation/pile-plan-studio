@@ -258,7 +258,8 @@ class Window(tk.Frame):
                     palen = []
                     for b in self.bs:
                         alle_palen = b.palen + b.geen_opties
-                        palen.append(alle_palen[alle_palen.index(p)])
+                        if p in alle_palen:
+                            palen.append(alle_palen[alle_palen.index(p)])
                     aantal = sum([p.aantal for p in palen])
                     benuttingsgraad = max([p.benuttingsgraad for p in palen])
                     totaal_paal = Paal(aantal, p.ppn, p.afmeting, benuttingsgraad)

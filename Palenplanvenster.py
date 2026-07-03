@@ -367,6 +367,7 @@ class Window(tk.Frame):
         
         self.fig = Figure(dpi=500)
         self.ax = self.fig.add_subplot(111)
+        self.fig.subplots_adjust(left=0, right=1, bottom=0, top=1)
         self.ax.set_axis_off()
         self.canvas = FigureCanvasTkAgg(self.fig, master=self.plotFrame)
         self.toolbar = NavigationToolbar2Tk(self.canvas, self.plotFrame)
@@ -375,6 +376,7 @@ class Window(tk.Frame):
         self.shift_is_held = False
             
         self.canvas.mpl_connect('pick_event', self.onpick)
+        self.fig.canvas.mpl_connect('pick_event', self.onpick)
         self.time = time()
         self.app = False
         self.sonderingsvenster = False
@@ -389,9 +391,9 @@ class Window(tk.Frame):
         self.canvas_widget = self.canvas.get_tk_widget()
         self.canvas_widget.pack(expand=True, fill=tk.BOTH)
         
-        lineprops = {'color': 'grey', 'linewidth': 0.5, 'alpha': 0.8}
+        props = {'color': 'grey', 'linewidth': 0.5, 'alpha': 0.8}
         self.lasso = LassoSelector(ax=self.ax, onselect=self.onselect, 
-                             props = lineprops)
+                             props = props)
         
         self.sonderingen_visible = True
         self.colormap = cm.get_cmap('Reds')
@@ -573,7 +575,7 @@ class Window(tk.Frame):
             self.plot_sonderinglines()
             self.app = palenvenster(self)
  
-        elif str(type(event.artist.obj)) == "<class 'Classes.Sondering'>":
+        elif str(type(event.artist.obj)) == "<class 'Classes.Sondering'>" and self.sonderingen_visible:
             try:
                 self.sonderingsvenster.onclose()
             except:
@@ -611,6 +613,7 @@ class Window(tk.Frame):
                              index=False, header=False)
             
                 self.canvas.draw()
+                self.fig.canvas.draw()
                 
             else:
                 self.selectie_waarde([waarde])
@@ -657,6 +660,7 @@ class Window(tk.Frame):
             self.app = palenvenster(self)
         self.update_plot()
         self.canvas.draw()
+        self.fig.canvas.draw()
     
     def select_all(self, event):
         if self.app:
@@ -689,7 +693,7 @@ class Window(tk.Frame):
         
         self.ax.set_axis_off()
         folder_name = os.path.basename(os.getcwd())
-        self.ax.set_title(folder_name, fontsize=5)
+        #self.ax.set_title(folder_name, fontsize=5)
         
         self.sonderingen = Sondering.instances
         for sondering in self.sonderingen:
@@ -737,7 +741,7 @@ class Window(tk.Frame):
             b.plot.set_markeredgecolor('black')
                 
         for b in self.palenplan.geen_opties:
-            b.plot = self.ax.plot(b.x, b.y, 'x', color='lightgrey', ms=3*self.size)[0]
+            b.plot = self.ax.plot(b.x, b.y, 'x', color='lightgrey', ms=3*self.size, clip_on=False)[0]
             b.plot.set_picker(True)
             b.plot.set_pickradius(1.5)
             b.plot.obj = b
@@ -800,12 +804,11 @@ class Window(tk.Frame):
                 ppn_markers.append(ppn_marker)
         
         ppn_markers.sort(key = lambda x: float(x.get_label()), reverse=True)
-        ppn_legend = self.ax.legend(handles=ppn_markers, loc='upper right',
-                                   bbox_to_anchor=[0, 0.95], prop={'size': 3})
+        ppn_legend = self.fig.legend(handles=ppn_markers, loc='outside center left', prop={'size': 2.5})
         self.ax.add_artist(ppn_legend)
         self.legend_artists.append(ppn_legend)
         
-        for artist in ppn_legend.legendHandles:
+        for artist in ppn_legend.legend_handles:
             artist.set_picker(5)
             artist.obj = artist
 
@@ -843,15 +846,12 @@ class Window(tk.Frame):
                          c=color, label=str(afmeting), s=markersize)
                 afmeting_markers.append(afmeting_marker)
                 
-        afmeting_legend = self.ax.legend(handles=afmeting_markers, 
-                                   loc='upper left',
-                                   bbox_to_anchor=[1, 0.95],
-                                   prop={'size': 3})
+        afmeting_legend = self.fig.legend(handles=afmeting_markers, loc='outside lower left', prop={'size': 2.5})
         #Niet opnieuw ax.add_artist: dan runt picker twee keer!
         self.legend_artists.append(afmeting_legend)
         
         
-        for artist in afmeting_legend.legendHandles:
+        for artist in afmeting_legend.legend_handles:
             artist.set_picker(5)
             artist.obj = artist
         

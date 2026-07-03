@@ -166,7 +166,7 @@ class Belastinglocatie(Coordinaten):
         fillstyle = ['full', 'top', 'full'][int(main.kleurgraad)]
         self.plot = main.ax.plot(self.x, self.y, marker=vorm, color=kleur, 
                                  ms=5*main.size, mew=0.4*main.size, mec='none', 
-                                 fillstyle=fillstyle, mfcalt = kleur2)[0]
+                                 fillstyle=fillstyle, mfcalt = kleur2, clip_on=False)[0]
         if main.kleurgraad == 2:
             self.swap_colors()
         
