@@ -1,21 +1,36 @@
 # Pile Plan Studio
 
-This repository contains version 2 of the pile planning tool.
+Pile Plan Studio is a desktop application for exploring and assigning pile
+configurations for structural load points. The app focuses on making the
+engineering data visible and traceable: load points, CPTs, bearing capacities,
+allowed pile options, utilization, governing CPTs, and estimated pile costs.
 
-Version 2 is being developed in English as an OpenAEC-oriented Rust + Tauri
-application:
+The project is developed in English as an OpenAEC-oriented Rust + Tauri
+application with a lightweight TypeScript frontend.
 
-- `crates/pile-plan-core`: Rust domain and pile option calculation core.
-- `apps/pile-plan-studio`: Vanilla TypeScript + Tauri desktop shell.
-- `docs/v2-direction.md`: product and architecture direction.
+## Repository Layout
 
-Run the Rust core tests:
+- `crates/pile-plan-core`: Rust domain model and pile option calculation core.
+- `apps/pile-plan-studio`: Vanilla TypeScript frontend and Tauri desktop shell.
+- `sample_project`: Small sample project data used by the application.
+- `docs`: Product and architecture notes.
+
+## Development
+
+Run the Rust core tests from the repository root:
 
 ```powershell
 cargo test
 ```
 
-Build the TypeScript frontend:
+Run the frontend tests:
+
+```powershell
+cd apps\pile-plan-studio
+npm test
+```
+
+Build the frontend:
 
 ```powershell
 cd apps\pile-plan-studio
@@ -23,5 +38,6 @@ npm install
 npm run build
 ```
 
-The v2 frontend expects a modern Node.js runtime. Node 20 LTS or newer is
-recommended.
+The frontend expects a modern Node.js runtime. Node 20 LTS or newer is
+recommended. Install dependencies once with `npm install` before running tests
+or builds.
