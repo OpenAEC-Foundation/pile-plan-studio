@@ -1,20 +1,6 @@
 # Pile Plan Studio
 
-This repository contains two generations of the pile planning tool.
-
-## Legacy Python App
-
-The original Python/Tkinter application lives in `legacy/`. It is kept as a
-working reference while version 2 is developed.
-
-Run the legacy app from the repository root:
-
-```powershell
-.venv\Scripts\activate
-python legacy\Palenplanvenster.py
-```
-
-## Version 2
+This repository contains version 2 of the pile planning tool.
 
 Version 2 is being developed in English as an OpenAEC-oriented Rust + Tauri
 application:
