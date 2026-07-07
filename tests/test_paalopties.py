@@ -1,6 +1,10 @@
+import os
+import sys
 from types import SimpleNamespace
 from unittest.mock import patch
 import unittest
+
+sys.path.insert(0, os.path.abspath("legacy"))
 
 from Classes import Belastinglocatie, Configuratie, Paal, Sondering, Sonderingsmeting
 from Paalopties import is_paal_optie, sonderingsmetingen, voeg_palen_toe

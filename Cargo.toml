@@ -1,0 +1,4 @@
+[workspace]
+members = ["crates/pile-plan-core"]
+exclude = ["apps/pile-plan-studio/src-tauri"]
+resolver = "2"

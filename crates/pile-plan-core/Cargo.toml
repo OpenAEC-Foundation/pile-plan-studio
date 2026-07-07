@@ -1,0 +1,8 @@
+[package]
+name = "pile-plan-core"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+name = "pile_plan_core"
+path = "src/lib.rs"

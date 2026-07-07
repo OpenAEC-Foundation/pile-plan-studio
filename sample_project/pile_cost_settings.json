@@ -1,0 +1,16 @@
+{
+  "schema_version": 1,
+  "pile_head_level_m": -3.5,
+  "items": [
+    { "pile_size_mm": 273, "shape": "round", "cost_per_m3_eur": 235 },
+    { "pile_size_mm": 356, "shape": "round", "cost_per_m3_eur": 190 },
+    { "pile_size_mm": 380, "shape": "round", "cost_per_m3_eur": 180 },
+    { "pile_size_mm": 250, "shape": "square", "cost_per_m3_eur": 250 },
+    { "pile_size_mm": 290, "shape": "square", "cost_per_m3_eur": 220 },
+    { "pile_size_mm": 320, "shape": "square", "cost_per_m3_eur": 205 },
+    { "pile_size_mm": 350, "shape": "square", "cost_per_m3_eur": 192 },
+    { "pile_size_mm": 400, "shape": "square", "cost_per_m3_eur": 180 },
+    { "pile_size_mm": 420, "shape": "square", "cost_per_m3_eur": 175 },
+    { "pile_size_mm": 450, "shape": "square", "cost_per_m3_eur": 170 }
+  ]
+}

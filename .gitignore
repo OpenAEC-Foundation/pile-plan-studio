@@ -1,2 +1,7 @@
 __pycache__/
 .venv/
+target/
+node_modules/
+dist/
+apps/*/src-tauri/target/
+*.log
