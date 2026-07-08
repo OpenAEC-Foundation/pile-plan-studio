@@ -1,0 +1,15 @@
+{
+  "name": "pile-plan-wasm",
+  "type": "module",
+  "version": "0.1.0",
+  "files": [
+    "pile_plan_wasm_bg.wasm",
+    "pile_plan_wasm.js",
+    "pile_plan_wasm.d.ts"
+  ],
+  "main": "pile_plan_wasm.js",
+  "types": "pile_plan_wasm.d.ts",
+  "sideEffects": [
+    "./snippets/*"
+  ]
+}

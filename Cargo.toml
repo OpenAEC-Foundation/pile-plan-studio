@@ -1,4 +1,4 @@
 [workspace]
-members = ["crates/pile-plan-core"]
+members = ["crates/pile-plan-core", "crates/pile-plan-wasm"]
 exclude = ["apps/pile-plan-studio/src-tauri"]
 resolver = "2"

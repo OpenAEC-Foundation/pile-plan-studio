@@ -20,9 +20,7 @@ pub fn calculate_pile_option(
     for cpt in selected_cpts {
         let capacity = bearing_capacities
             .iter()
-            .find(|capacity| {
-                capacity.cpt_id == cpt.id && capacity.configuration == *configuration
-            })?
+            .find(|capacity| capacity.cpt_id == cpt.id && capacity.configuration == *configuration)?
             .value;
 
         if capacity < governing_capacity {

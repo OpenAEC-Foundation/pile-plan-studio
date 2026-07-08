@@ -1,4 +1,4 @@
-import type { PileShape } from "./projectData.ts";
+import type { PileShape } from "./projectTypes.ts";
 
 const SYMBOL_STROKE = "#172026";
 const SYMBOL_STROKE_WIDTH = 2.4;

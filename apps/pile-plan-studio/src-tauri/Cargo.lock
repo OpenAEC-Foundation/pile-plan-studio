@@ -2126,12 +2126,16 @@ dependencies = [
 [[package]]
 name = "pile-plan-core"
 version = "0.1.0"
+dependencies = [
+ "serde",
+]
 
 [[package]]
 name = "pile-plan-studio"
 version = "0.1.0"
 dependencies = [
  "pile-plan-core",
+ "serde",
  "tauri",
  "tauri-build",
 ]

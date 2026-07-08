@@ -1,5 +1,5 @@
-export const DEFAULT_RIGHT_PANEL_WIDTH = 760;
-export const MIN_RIGHT_PANEL_WIDTH = 620;
+export const DEFAULT_RIGHT_PANEL_WIDTH = 620;
+export const MIN_RIGHT_PANEL_WIDTH = 360;
 export const MAX_RIGHT_PANEL_WIDTH = 980;
 
 export function clampRightPanelWidth(width: number): number {

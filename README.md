@@ -15,6 +15,13 @@ application with a lightweight TypeScript frontend.
 - `sample_project`: Small sample project data used by the application.
 - `docs`: Product and architecture notes.
 
+The intended architecture follows the OpenAEC model: engineering calculations
+live in the Rust core, while TypeScript stays focused on viewer state,
+interaction, and rendering. See `docs/architecture.md` for the project boundary.
+
+The browser build uses a thin WASM wrapper around the same Rust core. The Tauri
+desktop app calls the core through native commands.
+
 ## Development
 
 Run the Rust core tests from the repository root:
@@ -36,6 +43,20 @@ Build the frontend:
 cd apps\pile-plan-studio
 npm install
 npm run build
+```
+
+Run the browser preview:
+
+```powershell
+cd apps\pile-plan-studio
+npm run dev
+```
+
+Run the desktop app:
+
+```powershell
+cd apps\pile-plan-studio
+npm run tauri dev
 ```
 
 The frontend expects a modern Node.js runtime. Node 20 LTS or newer is

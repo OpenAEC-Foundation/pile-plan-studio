@@ -4,9 +4,11 @@
   "version": "0.1.0",
   "type": "module",
   "scripts": {
+    "build:wasm": "wasm-pack build ../../crates/pile-plan-wasm --target web --out-dir ../../apps/pile-plan-studio/src/wasm/pile-plan-wasm && node ../../tools/allow_wasm_package.mjs",
+    "predev": "npm run build:wasm",
     "dev": "vite --host 127.0.0.1",
     "test": "node --test src/*.test.ts",
-    "build": "tsc && vite build",
+    "build": "npm run build:wasm && tsc && vite build",
     "tauri": "tauri"
   },
   "dependencies": {

@@ -1,35 +1,103 @@
 import "./styles.css";
 
-import bearingCapacitiesJson from "../../../sample_project/bearing_capacities.json";
-import cptsJson from "../../../sample_project/cpts.json";
-import loadPointsJson from "../../../sample_project/load_points.json";
-import pileCostSettingsJson from "../../../sample_project/pile_cost_settings.json";
+import sampleProjectText from "../../../sample_project/sample_project.ifcpp?raw";
 
 import {
-  buildPileOptionsByLoadPoint,
-  calculatePileCost,
-  chooseDefaultPileOption,
-  createBearingCapacityIndex,
-  formatNumber,
-  getBearingCapacityRowsForCpt,
-  getConfigurationStyle,
-  getLegendItems,
-  getBearingCapacitySummary,
-  getProjectBounds,
-  getSelectedCpts,
-  projectPoint,
   type BearingCapacity,
+  type CptBearingCapacityRow,
   type Cpt,
   type CptSelectionAlgorithm,
   type CptSelectionSettings,
-  type JsonList,
   type PileConfigurationOption,
   type PileCostSettings,
   type PileCostShape,
   type LoadPoint,
-} from "./projectData";
+  type SelectedCpt,
+} from "./projectTypes";
+import {
+  filterActivePileOptions,
+  getUsedPileConfigurations,
+  isPileConfigurationActive,
+  shouldDisableActivePileConfigurationToggle,
+  toggleActivePileConfiguration,
+} from "./activePileConfigurations";
+import {
+  calculatePileCostCore,
+  calculatePileOptionsCore,
+  calculateSelectedCptsCore,
+  chooseDefaultPileOptionCore,
+  getBearingCapacityRowsForCptCore,
+  greedyOptimizeCore,
+  importProjectFromFilesCore,
+  isTauriRuntime,
+} from "./coreClient";
+import { getSelectedCptTableModel } from "./cptSelectionTable";
+import { formatNumber, formatOptionalNumber } from "./formatting";
+import { getConfigurationStyle, getLegendItems } from "./legend";
+import {
+  areImportFileAssignmentsComplete,
+  emptyImportFileAssignments,
+  inferImportFileAssignments,
+  type ImportFileAssignments,
+  type ImportFileRole,
+} from "./importFiles";
+import { getPointIdsInRectangle } from "./lassoSelection";
+import { getLoadPointMarkerInvalidVisual } from "./loadPointMarker";
+import { getCptMarkerLayerClass, getLoadPointMarkerLayerClass } from "./mapMarkerLayer";
+import { shouldStartMapPan } from "./mapInteraction";
+import { aggregatePileOptionsForLoadPoints } from "./pileOptionAggregation";
+import { getUseColumnLabel } from "./pileOptionColumns";
+import { getPileOptionStatus } from "./pileOptionStatus";
+import { summarizeOptimizationRun, type OptimizationRunSummary } from "./optimizationSummary";
+import {
+  getLoadPointIdsForLegendSelection,
+  shouldHighlightGoverningCpt,
+  toggleLegendSelectionFilter,
+  type LegendSelectionFilter,
+} from "./legendSelection";
+import {
+  buildMaxOptimizationUiSettings,
+  buildGreedyOptimizationSettings,
+  clampMaxDifferentConfigurations,
+  clampOptimizationUiSettingsToActiveConfigurations,
+  createOptimizationLimitAutoState,
+  type OptimizationLimitAutoState,
+  reconcileOptimizationUiSettingsWithActiveConfigurations,
+  snapSliderValueToInteger,
+  type OptimizationUiSettings,
+} from "./optimizationSettings";
+import {
+  PILE_OPTION_COLUMNS,
+  createEmptyPileOptionFilters,
+  getNextPileOptionSortState,
+  getPileOptionFilterValues,
+  getPileOptionTableRows,
+  type PileOptionFilterState,
+  type PileOptionSortState,
+  type PileOptionTableColumn,
+  type SortablePileOptionTableColumn,
+  type PileOptionTableRow,
+} from "./pileOptionTable";
 import { renderPileSymbol } from "./pileSymbols";
 import { DEFAULT_RIGHT_PANEL_WIDTH, resizeRightPanelWidth } from "./panelLayout";
+import {
+  applyDefaultPileCostSettings,
+  createIfcppProject,
+  loadIfcppProjectData,
+  type LoadedProjectData,
+} from "./projectFile";
+import { summarizeProjectCosts } from "./projectCostSummary";
+import { getRightPanelView } from "./rightPanelView";
+import {
+  addLoadPointsToSelection,
+  clearSelection,
+  openCpt,
+  selectLoadPoint,
+  switchRightPanelMode,
+  type RightPanelMode,
+  type SelectionState,
+} from "./selectionState";
+import { getProjectBounds, projectPoint } from "./viewerGeometry";
 import { clampScale, panViewport, zoomViewportAtPoint, type Viewport } from "./viewport";
 
 const app = document.querySelector<HTMLDivElement>("#app");
@@ -39,73 +107,250 @@ if (!app) {
 }
 
 const appRoot = app;
-const loadPoints = (loadPointsJson as JsonList<LoadPoint>).items;
-const cpts = (cptsJson as JsonList<Cpt>).items;
-const bearingCapacities = (bearingCapacitiesJson as JsonList<BearingCapacity>).items;
-const bearingCapacityIndex = createBearingCapacityIndex(bearingCapacities);
-const bounds = getProjectBounds(loadPoints, cpts);
-const legendItems = getLegendItems(bearingCapacities);
-const DEFAULT_CPT_SELECTION_SETTINGS: CptSelectionSettings = {
-  algorithm: "quadrants",
-  maxDistanceM: 25,
-  maxAngleDegrees: 120,
-};
-
-type RightPanelMode = "load-point" | "cpt-settings" | "cost-settings" | "cpt-frds";
+let projectData = loadIfcppProjectData(sampleProjectText);
+let loadPoints = projectData.loadPoints;
+let cpts = projectData.cpts;
+let bearingCapacities = projectData.bearingCapacities;
+let bounds = getProjectBounds(loadPoints, cpts);
+let legendItems = getLegendItems(bearingCapacities);
+let availablePileSizes = [...new Set(bearingCapacities.map((capacity) => capacity.pile_size_mm))]
+  .sort((left, right) => left - right);
+let availablePileTipLevels = [...new Set(bearingCapacities.map((capacity) => capacity.pile_tip_level_m))]
+  .sort((left, right) => right - left);
 type CptSettingsScope = "all" | "current";
 type CptSelectionEditDraft = {
   loadPointId: number;
   cptIds: Set<number>;
 };
 
-let globalCptSelectionSettings: CptSelectionSettings = { ...DEFAULT_CPT_SELECTION_SETTINGS };
-let pileCostSettings: PileCostSettings = structuredClone(pileCostSettingsJson as PileCostSettings);
+let globalCptSelectionSettings: CptSelectionSettings = { ...projectData.globalCptSelectionSettings };
+let pileCostSettings: PileCostSettings = structuredClone(projectData.pileCostSettings);
 let cptSettingsScope: CptSettingsScope = "all";
+let activePileSizes = availablePileSizes;
+let activePileTipLevels = availablePileTipLevels;
+let optimizationSettings: OptimizationUiSettings = buildMaxOptimizationUiSettings({
+  pileSizes: activePileSizes,
+  pileTipLevels: activePileTipLevels,
+});
+let optimizationLimitAutoState: OptimizationLimitAutoState = createOptimizationLimitAutoState(true);
+let legendSelectionFilter: LegendSelectionFilter = { pileSizes: [], pileTipLevels: [] };
+let lastOptimizationSummary: OptimizationRunSummary | null = null;
 let cptSelectionEditDraft: CptSelectionEditDraft | null = null;
-const cptSelectionSettingsByLoadPoint = new Map<number, CptSelectionSettings>();
-const manualCptIdsByLoadPoint = new Map<number, number[]>();
-let pileOptionsByLoadPointId = buildPileOptions();
-let selectedLoadPointId = loadPoints[0]?.id ?? 0;
+const cptSelectionSettingsByLoadPoint = new Map<number, CptSelectionSettings>(projectData.cptSelectionSettingsByLoadPoint);
+const manualCptIdsByLoadPoint = new Map<number, number[]>(projectData.manualCptIdsByLoadPoint);
+let pileOptionsByLoadPointId = new Map<number, PileConfigurationOption[]>();
+let selectedCptsByLoadPointId = new Map<number, SelectedCpt[]>();
+let defaultPileOptionByLoadPointId = new Map<number, PileConfigurationOption | null>();
+let pileCostByOptionKey = new Map<string, number | null>();
+let cptFrdRowsByCptId = new Map<number, CptBearingCapacityRow[]>();
+let selectedLoadPointId: number | null = loadPoints[0]?.id ?? null;
+let selectedLoadPointIds: number[] = loadPoints[0] ? [loadPoints[0].id] : [];
 let selectedCptId: number | null = null;
 let rightPanelMode: RightPanelMode = "load-point";
 let viewport: Viewport = { scale: 1, offsetX: 0, offsetY: 0 };
-let dragState: { x: number; y: number } | null = null;
+let pileOptionFilters: PileOptionFilterState = createEmptyPileOptionFilters();
+let pileOptionSort: PileOptionSortState = null;
+let openPileOptionFilterColumn: SortablePileOptionTableColumn | null = null;
+let projectImportMessage: string | null = null;
+let isImportDialogOpen = false;
+let importFileAssignments: ImportFileAssignments<File> = emptyImportFileAssignments<File>();
+let isShiftKeyPressed = false;
+let dragState:
+  | { mode: "pan"; x: number; y: number; startX: number; startY: number; hasMoved: boolean }
+  | { mode: "lasso"; startX: number; startY: number; endX: number; endY: number; hasMoved: boolean; box: HTMLDivElement }
+  | null = null;
 let rightPanelWidth = DEFAULT_RIGHT_PANEL_WIDTH;
 let panelResizeState: { startX: number; startWidth: number } | null = null;
-const selectedPileOptions = new Map<number, string>();
+const selectedPileOptions = new Map<number, string>(projectData.selectedPileOptionKeysByLoadPoint);
 const chosenPileOptionByLoadPointId = new Map<number, PileConfigurationOption | null>();
+const NO_PILE_OPTION_KEY = "__no_pile__";
 
-function buildPileOptions(): Map<number, PileConfigurationOption[]> {
-  return buildPileOptionsByLoadPoint({
-    loadPoints,
-    cpts,
-    bearingCapacities,
-    bearingCapacityIndex,
-    cptSelectionSettings: getCptSelectionSettingsForLoadPoint,
-    manualCptIdsByLoadPoint,
+async function loadProjectData(nextProjectData: LoadedProjectData): Promise<void> {
+  projectData = nextProjectData;
+  loadPoints = projectData.loadPoints;
+  cpts = projectData.cpts;
+  bearingCapacities = projectData.bearingCapacities;
+  bounds = getProjectBounds(loadPoints, cpts);
+  legendItems = getLegendItems(bearingCapacities);
+  availablePileSizes = [...new Set(bearingCapacities.map((capacity) => capacity.pile_size_mm))]
+    .sort((left, right) => left - right);
+  availablePileTipLevels = [...new Set(bearingCapacities.map((capacity) => capacity.pile_tip_level_m))]
+    .sort((left, right) => right - left);
+  globalCptSelectionSettings = { ...projectData.globalCptSelectionSettings };
+  pileCostSettings = structuredClone(projectData.pileCostSettings);
+  cptSettingsScope = "all";
+  activePileSizes = projectData.activePileSizes.length > 0 ? projectData.activePileSizes : availablePileSizes;
+  activePileTipLevels = projectData.activePileTipLevels.length > 0
+    ? projectData.activePileTipLevels
+    : availablePileTipLevels;
+  optimizationSettings = buildMaxOptimizationUiSettings({
+    pileSizes: activePileSizes,
+    pileTipLevels: activePileTipLevels,
   });
+  optimizationLimitAutoState = createOptimizationLimitAutoState(true);
+  legendSelectionFilter = { pileSizes: [], pileTipLevels: [] };
+  lastOptimizationSummary = null;
+  cptSelectionEditDraft = null;
+  cptSelectionSettingsByLoadPoint.clear();
+  projectData.cptSelectionSettingsByLoadPoint.forEach((settings, loadPointId) => {
+    cptSelectionSettingsByLoadPoint.set(loadPointId, settings);
+  });
+  manualCptIdsByLoadPoint.clear();
+  projectData.manualCptIdsByLoadPoint.forEach((cptIds, loadPointId) => {
+    manualCptIdsByLoadPoint.set(loadPointId, cptIds);
+  });
+  selectedPileOptions.clear();
+  projectData.selectedPileOptionKeysByLoadPoint.forEach((optionKey, loadPointId) => {
+    selectedPileOptions.set(loadPointId, optionKey);
+  });
+  pileOptionsByLoadPointId = new Map();
+  selectedCptsByLoadPointId = new Map();
+  defaultPileOptionByLoadPointId = new Map();
+  pileCostByOptionKey = new Map();
+  cptFrdRowsByCptId = new Map();
+  selectedLoadPointId = loadPoints[0]?.id ?? null;
+  selectedLoadPointIds = loadPoints[0] ? [loadPoints[0].id] : [];
+  selectedCptId = null;
+  rightPanelMode = "load-point";
+  viewport = { scale: 1, offsetX: 0, offsetY: 0 };
+  pileOptionFilters = createEmptyPileOptionFilters();
+  pileOptionSort = null;
+  openPileOptionFilterColumn = null;
+  chosenPileOptionByLoadPointId.clear();
+
+  await rebuildCoreAnalysis();
+  syncActiveConfigurationsToUsedPileChoices();
 }
 
-function updateCptSelectionSettings(nextSettings: CptSelectionSettings): void {
-  if (cptSettingsScope === "all") {
+async function rebuildCoreAnalysis(): Promise<void> {
+  const [pileOptions, selectedCptsEntries, cptRowsEntries] = await Promise.all([
+    calculatePileOptionsCore({
+      loadPoints,
+      cpts,
+      bearingCapacities,
+      globalSettings: globalCptSelectionSettings,
+      settingsByLoadPoint: cptSelectionSettingsByLoadPoint,
+      manualCptIdsByLoadPoint,
+    }),
+    Promise.all(
+      loadPoints.map(async (loadPoint) => [
+        loadPoint.id,
+        await calculateSelectedCptsCore({
+          loadPoint,
+          cpts,
+          settings: getCptSelectionSettingsForLoadPoint(loadPoint),
+          manualCptIds: manualCptIdsByLoadPoint.get(loadPoint.id),
+        }),
+      ] as const),
+    ),
+    Promise.all(
+      cpts.map(async (cpt) => [
+        cpt.id,
+        await getBearingCapacityRowsForCptCore({ bearingCapacities, cptId: cpt.id }),
+      ] as const),
+    ),
+  ]);
+
+  pileOptionsByLoadPointId = pileOptions;
+  selectedCptsByLoadPointId = new Map(selectedCptsEntries);
+  cptFrdRowsByCptId = new Map(cptRowsEntries);
+
+  await rebuildCostAndDefaultCaches();
+}
+
+function getSelectionState(): SelectionState {
+  return {
+    selectedLoadPointId,
+    selectedLoadPointIds,
+    selectedCptId,
+    rightPanelMode,
+  };
+}
+
+function setSelectionState(nextState: SelectionState): void {
+  selectedLoadPointId = nextState.selectedLoadPointId;
+  selectedLoadPointIds = nextState.selectedLoadPointIds;
+  selectedCptId = nextState.selectedCptId;
+  rightPanelMode = nextState.rightPanelMode;
+}
+
+async function updateCptSelectionSettings(nextSettings: CptSelectionSettings): Promise<void> {
+  if (cptSettingsScope === "all" || selectedLoadPointId === null) {
     globalCptSelectionSettings = nextSettings;
     cptSelectionSettingsByLoadPoint.clear();
   } else {
     cptSelectionSettingsByLoadPoint.set(selectedLoadPointId, nextSettings);
   }
 
-  pileOptionsByLoadPointId = buildPileOptions();
+  await rebuildCoreAnalysis();
   chosenPileOptionByLoadPointId.clear();
 }
 
-function rebuildPileOptionCache(): void {
-  pileOptionsByLoadPointId = buildPileOptions();
+async function rebuildPileOptionCache(): Promise<void> {
+  await rebuildCoreAnalysis();
   chosenPileOptionByLoadPointId.clear();
 }
 
-function updatePileCostSettings(nextSettings: PileCostSettings): void {
+async function updatePileCostSettings(nextSettings: PileCostSettings): Promise<void> {
   pileCostSettings = nextSettings;
+  await rebuildCostAndDefaultCaches();
   chosenPileOptionByLoadPointId.clear();
+}
+
+async function rebuildCostAndDefaultCaches(): Promise<void> {
+  const uniqueOptions = [
+    ...new Map(
+      [...pileOptionsByLoadPointId.values()]
+        .flat()
+        .map((option) => [optionKey(option), option]),
+    ).values(),
+  ];
+  const costEntries = await Promise.all(
+    uniqueOptions.map(async (option) => [
+      optionKey(option),
+      await calculatePileCostCore({
+        pileSizeMm: option.pile_size_mm,
+        pileTipLevelM: option.pile_tip_level_m,
+        settings: pileCostSettings,
+      }),
+    ] as const),
+  );
+  const defaultEntries = await Promise.all(
+    loadPoints.map(async (loadPoint) => [
+      loadPoint.id,
+      await chooseDefaultPileOptionCore({
+        options: getPileOptions(loadPoint),
+        settings: pileCostSettings,
+      }),
+    ] as const),
+  );
+
+  pileCostByOptionKey = new Map(costEntries);
+  defaultPileOptionByLoadPointId = new Map(defaultEntries);
+}
+
+function syncActiveConfigurationsToUsedPileChoices(): void {
+  const used = getUsedPileConfigurations(loadPoints.map(getChosenPileOption));
+
+  if (used.pileSizes.length > 0) {
+    activePileSizes = used.pileSizes;
+  }
+
+  if (used.pileTipLevels.length > 0) {
+    activePileTipLevels = used.pileTipLevels;
+  }
+
+  syncOptimizationLimitsToActiveConfigurations();
+}
+
+function syncOptimizationLimitsToActiveConfigurations(): void {
+  const reconciled = reconcileOptimizationUiSettingsWithActiveConfigurations({
+    uiSettings: optimizationSettings,
+    active: getActivePileConfigurations(),
+    autoState: optimizationLimitAutoState,
+  });
+  optimizationSettings = reconciled.uiSettings;
+  optimizationLimitAutoState = reconciled.autoState;
 }
 
 function getCptSelectionSettingsForLoadPoint(loadPoint: LoadPoint): CptSelectionSettings {
@@ -119,16 +364,25 @@ function getActiveCptSelectionSettings(): CptSelectionSettings {
 }
 
 function getSelectedCptsForLoadPoint(loadPoint: LoadPoint) {
-  return getSelectedCpts(
-    loadPoint,
-    cpts,
-    getCptSelectionSettingsForLoadPoint(loadPoint),
-    manualCptIdsByLoadPoint.get(loadPoint.id),
-  );
+  return selectedCptsByLoadPointId.get(loadPoint.id) ?? [];
 }
 
 function getPileOptions(loadPoint: LoadPoint): PileConfigurationOption[] {
   return pileOptionsByLoadPointId.get(loadPoint.id) ?? [];
+}
+
+function getActivePileConfigurations() {
+  return {
+    pileSizes: activePileSizes,
+    pileTipLevels: activePileTipLevels,
+  };
+}
+
+function getSelectedLoadPoints(): LoadPoint[] {
+  return selectedLoadPointIds.flatMap((loadPointId) => {
+    const loadPoint = loadPoints.find((item) => item.id === loadPointId);
+    return loadPoint ? [loadPoint] : [];
+  });
 }
 
 function optionKey(option: Pick<PileConfigurationOption, "pile_size_mm" | "pile_tip_level_m">): string {
@@ -143,8 +397,12 @@ function getChosenPileOption(loadPoint: LoadPoint): PileConfigurationOption | nu
 
   const options = getPileOptions(loadPoint);
   const selectedKey = selectedPileOptions.get(loadPoint.id);
+  if (selectedKey === NO_PILE_OPTION_KEY) {
+    chosenPileOptionByLoadPointId.set(loadPoint.id, null);
+    return null;
+  }
   const selectedOption = selectedKey ? options.find((option) => optionKey(option) === selectedKey) : undefined;
-  const fallbackOption = chooseDefaultPileOption(options, pileCostSettings);
+  const fallbackOption = defaultPileOptionByLoadPointId.get(loadPoint.id) ?? null;
 
   const chosenOption = selectedOption ?? fallbackOption ?? null;
   chosenPileOptionByLoadPointId.set(loadPoint.id, chosenOption);
@@ -152,29 +410,39 @@ function getChosenPileOption(loadPoint: LoadPoint): PileConfigurationOption | nu
   return chosenOption;
 }
 
-function renderMap(selectedLoadPoint: LoadPoint): string {
-  const selectedCpts = getSelectedCptsForLoadPoint(selectedLoadPoint);
-  const chosenOption = getChosenPileOption(selectedLoadPoint);
+function renderMap(selectedLoadPoints: LoadPoint[]): string {
+  const primaryLoadPoint = selectedLoadPoints[0] ?? null;
+  const selectedLoadPointIdSet = new Set(selectedLoadPoints.map((loadPoint) => loadPoint.id));
+  const selectedCpts = getUnionSelectedCpts(selectedLoadPoints);
   const activeCptSelectionDraft =
-    cptSelectionEditDraft?.loadPointId === selectedLoadPoint.id ? cptSelectionEditDraft : null;
+    primaryLoadPoint && cptSelectionEditDraft?.loadPointId === primaryLoadPoint.id ? cptSelectionEditDraft : null;
   const isEditingCptSelection = activeCptSelectionDraft !== null;
   const selectedCptIds = isEditingCptSelection
     ? activeCptSelectionDraft.cptIds
     : new Set(selectedCpts.map((item) => item.cpt.id));
+  const governingCptId = getHighlightedGoverningCptId(selectedLoadPoints, [...selectedCptIds]);
   const loadPointMarkers = loadPoints
     .map((loadPoint) => {
       const point = projectPoint(loadPoint, bounds);
-      const isSelected = loadPoint.id === selectedLoadPoint.id;
+      const isSelected = selectedLoadPointIdSet.has(loadPoint.id);
       const chosenOption = getChosenPileOption(loadPoint);
       const style = chosenOption ? getConfigurationStyle(chosenOption, legendItems) : null;
+      const invalidVisual = getLoadPointMarkerInvalidVisual(chosenOption);
+      const isOutsideActiveConfiguration = chosenOption
+        ? !isPileConfigurationActive(chosenOption, getActivePileConfigurations())
+        : false;
       return `
         <button
-          class="map-marker load-point-marker${isSelected ? " is-selected" : ""}${chosenOption?.isOption === false ? " is-invalid" : ""}"
+          class="map-marker load-point-marker${getLoadPointMarkerLayerClass(isSelected)}${isSelected ? " is-selected" : ""}${invalidVisual.className}${chosenOption ? "" : " has-no-pile"}${isOutsideActiveConfiguration ? " is-outside-active-config" : ""}"
           data-load-point-id="${loadPoint.id}"
-          style="left: ${point.x}%; top: ${point.y}%"
+          style="left: ${point.x}%; top: ${point.y}%; ${invalidVisual.style}"
           title="${loadPoint.name}"
           aria-label="${loadPoint.name}, ${loadPoint.design_load_kn} kN"
-        >${renderPileSymbol(style?.shape ?? "circle", style?.color ?? "#ffffff")}</button>
+        >${
+          chosenOption
+            ? renderPileSymbol(style?.shape ?? "circle", style?.color ?? "#ffffff")
+            : `<span class="no-pile-cross" aria-hidden="true">×</span>`
+        }</button>
       `;
     })
     .join("");
@@ -183,15 +451,15 @@ function renderMap(selectedLoadPoint: LoadPoint): string {
     .map((cpt) => {
       const point = projectPoint(cpt, bounds);
       const isSelected = selectedCptIds.has(cpt.id);
-      const isGoverning = chosenOption?.governing_cpt_id === cpt.id;
+      const isGoverning = governingCptId === cpt.id;
       return `
         <button
-          class="map-marker cpt-marker${isSelected ? " is-selected" : ""}${isEditingCptSelection ? " is-editable" : ""}${isGoverning ? " is-governing" : ""}${selectedCptId === cpt.id ? " is-open" : ""}"
+          class="map-marker cpt-marker${getCptMarkerLayerClass(isSelected)}${isSelected ? " is-selected" : ""}${isEditingCptSelection ? " is-editable" : ""}${isGoverning ? " is-governing" : ""}${selectedCptId === cpt.id ? " is-open" : ""}"
           type="button"
           data-cpt-id="${cpt.id}"
           style="left: ${point.x}%; top: ${point.y}%"
           title="${cpt.name}"
-        >${cpt.id}</button>
+        ><span class="cpt-marker-label">${cpt.id}</span></button>
       `;
     })
     .join("");
@@ -211,6 +479,32 @@ function renderMap(selectedLoadPoint: LoadPoint): string {
   `;
 }
 
+function getUnionSelectedCpts(selectedLoadPoints: LoadPoint[]): SelectedCpt[] {
+  const cptsById = new Map<number, SelectedCpt>();
+
+  selectedLoadPoints.forEach((loadPoint) => {
+    getSelectedCptsForLoadPoint(loadPoint).forEach((selection) => {
+      cptsById.set(selection.cpt.id, selection);
+    });
+  });
+
+  return [...cptsById.values()];
+}
+
+function getHighlightedGoverningCptId(selectedLoadPoints: LoadPoint[], activeSelectedCptIds: number[]): number | null {
+  const chosenKey = getChosenPileOptionKeyForSelection(selectedLoadPoints);
+
+  if (!chosenKey || selectedLoadPoints.length === 0) {
+    return null;
+  }
+
+  const governingCptId = getPileOptionsForSelection(selectedLoadPoints)
+    .find((option) => optionKey(option) === chosenKey)
+    ?.governing_cpt_id ?? null;
+
+  return shouldHighlightGoverningCpt(governingCptId, activeSelectedCptIds) ? governingCptId : null;
+}
+
 function renderSelectedCptDetails(selectedLoadPoint: LoadPoint): string {
   const selectedCpts = getSelectedCptsForLoadPoint(selectedLoadPoint);
 
@@ -220,79 +514,184 @@ function renderSelectedCptDetails(selectedLoadPoint: LoadPoint): string {
 
   return selectedCpts
     .map((selection) => {
-      const summary = getBearingCapacitySummary(bearingCapacities, selection.cpt.id);
+      const rows = cptFrdRowsByCptId.get(selection.cpt.id) ?? [];
+      const frds = rows.map((row) => row.frd_kn);
       const distanceM = selection.distance_mm / 1000;
+      const frdRange = frds.length
+        ? `${formatNumber(Math.min(...frds))}-${formatNumber(Math.max(...frds))} kN`
+        : "-";
 
       return `
         <tr>
           <td>${selection.label}</td>
           <td>${renderCptLink(selection.cpt)}</td>
           <td>${formatNumber(distanceM)} m</td>
-          <td>${formatNumber(summary.minFrdKn)}-${formatNumber(summary.maxFrdKn)} kN</td>
+          <td>${frdRange}</td>
         </tr>
       `;
     })
     .join("");
 }
 
-function renderPileOptionRows(selectedLoadPoint: LoadPoint): string {
-  const options = getPileOptions(selectedLoadPoint);
-  const chosenOption = getChosenPileOption(selectedLoadPoint);
-  const chosenKey = selectedPileOptions.get(selectedLoadPoint.id) ?? (chosenOption ? optionKey(chosenOption) : "");
+type RenderablePileOptionTableRow = PileOptionTableRow & {
+  governingHtml: string;
+  statusClassName: string;
+  symbolHtml: string;
+};
 
-  return options
-    .map((option) => {
-      const status = option.isOption ? "OK" : "Not OK";
-      const missing = option.missing_cpt_ids.length ? `Missing CPT ${option.missing_cpt_ids.join(", ")}` : "";
-      const governingCpt = option.governing_cpt_id
-        ? cpts.find((cpt) => cpt.id === option.governing_cpt_id) ?? null
-        : null;
-      const governing = governingCpt ? renderCptLink(governingCpt) : "-";
-      const utilization = option.utilization === null ? "-" : `${formatNumber(option.utilization * 100)}%`;
-      const frd = option.governing_frd_kn === null ? "-" : `${formatNumber(option.governing_frd_kn)} kN`;
-      const cost = calculatePileCost(option, pileCostSettings);
-      const key = optionKey(option);
+function getRenderablePileOptionRows(selectedLoadPoints: LoadPoint[]): RenderablePileOptionTableRow[] {
+  const options = getPileOptionsForSelection(selectedLoadPoints);
 
+  return options.map((option) => {
+    const status = getPileOptionStatus(option);
+    const governingCpt = option.governing_cpt_id
+      ? cpts.find((cpt) => cpt.id === option.governing_cpt_id) ?? null
+      : null;
+    const governingLabel = governingCpt?.name ?? "-";
+    const governingHtml = governingCpt ? renderCptLink(governingCpt) : "-";
+    const utilization = formatOptionalNumber(option.utilization, "%", 100);
+    const frd = formatOptionalNumber(option.governing_frd_kn, " kN");
+    const key = optionKey(option);
+    const cost = pileCostByOptionKey.get(key) ?? null;
+    const style = getConfigurationStyle(option, legendItems);
+    const sizeLabel = `${formatNumber(option.pile_size_mm)} mm`;
+    const tipLabel = `${formatNumber(option.pile_tip_level_m)} m`;
+
+    return {
+      costLabel: cost === null ? "-" : formatCurrency(cost),
+      costValue: cost,
+      frdLabel: frd,
+      frdValue: option.governing_frd_kn,
+      governingHtml,
+      governingLabel,
+      key,
+      sizeLabel,
+      sizeValue: option.pile_size_mm,
+      statusClassName: status.className,
+      statusLabel: status.label,
+      symbolHtml: renderPileSymbol(style.shape, style.color),
+      symbolLabel: `${sizeLabel} ${tipLabel}`,
+      tipLabel,
+      tipValue: option.pile_tip_level_m,
+      useLabel: utilization,
+      useValue: option.utilization,
+    };
+  });
+}
+
+function renderPileOptionRows(selectedLoadPoints: LoadPoint[]): string {
+  const chosenKey = getChosenPileOptionKeyForSelection(selectedLoadPoints);
+  const rows = getPileOptionTableRows(getRenderablePileOptionRows(selectedLoadPoints), pileOptionFilters, pileOptionSort);
+
+  if (rows.length === 0) {
+    return `<tr><td colspan="${PILE_OPTION_COLUMNS.length}" class="empty-table-cell">No pile options match the filters.</td></tr>`;
+  }
+
+  return rows
+    .map((row) => {
       return `
-        <tr class="pile-option-row${key === chosenKey ? " is-chosen" : ""}" data-pile-option-key="${key}">
-          <td>${formatNumber(option.pile_size_mm)} mm</td>
-          <td>${formatNumber(option.pile_tip_level_m)} m</td>
-          <td><span class="status-pill ${option.isOption ? "is-ok" : "is-not-ok"}">${status}</span></td>
-          <td>${governing}</td>
-          <td>${frd}</td>
-          <td>${utilization}</td>
-          <td>${cost === null ? "-" : formatCurrency(cost)}</td>
-          <td>${missing}</td>
+        <tr class="pile-option-row${row.key === chosenKey ? " is-chosen" : ""}" data-pile-option-key="${row.key}">
+          <td class="pile-option-symbol-cell">${row.symbolHtml}</td>
+          <td>${row.sizeLabel}</td>
+          <td>${row.tipLabel}</td>
+          <td><span class="status-pill ${row.statusClassName}">${row.statusLabel}</span></td>
+          <td>${row.costLabel}</td>
+          <td>${row.useLabel}</td>
+          <td>${row.governingHtml}</td>
+          <td>${row.frdLabel}</td>
         </tr>
       `;
     })
     .join("");
+}
+
+function isSortablePileOptionColumn(column: PileOptionTableColumn): column is SortablePileOptionTableColumn {
+  return column !== "symbol";
+}
+
+function getPileOptionsForSelection(selectedLoadPoints: LoadPoint[]): PileConfigurationOption[] {
+  const options = selectedLoadPoints.length <= 1
+    ? selectedLoadPoints[0] ? getPileOptions(selectedLoadPoints[0]) : []
+    : aggregatePileOptionsForLoadPoints(selectedLoadPoints.map((loadPoint) => getPileOptions(loadPoint)));
+
+  return filterActivePileOptions(options, getActivePileConfigurations());
+}
+
+function getChosenPileOptionKeyForSelection(selectedLoadPoints: LoadPoint[]): string {
+  const selectedKeys = selectedLoadPoints.map((loadPoint) => {
+    const chosenOption = getChosenPileOption(loadPoint);
+    return selectedPileOptions.get(loadPoint.id) ?? (chosenOption ? optionKey(chosenOption) : "");
+  });
+  const firstKey = selectedKeys[0] ?? "";
+
+  return selectedKeys.every((key) => key === firstKey) ? firstKey : "";
+}
+
+function getOptimizationTargetLoadPointIds(): number[] {
+  if (optimizationSettings.targetScope === "selected") {
+    return [...selectedLoadPointIds];
+  }
+
+  return loadPoints.map((loadPoint) => loadPoint.id);
+}
+
+function getPileOptionsByLoadPointIds(loadPointIds: number[]): Map<number, PileConfigurationOption[]> {
+  return new Map(
+    loadPointIds.map((loadPointId) => [
+      loadPointId,
+      pileOptionsByLoadPointId.get(loadPointId) ?? [],
+    ]),
+  );
 }
 
 function renderSymbolLegend(): string {
   const shapeItems = legendItems.pileSizes
-    .map(
-      (item) => `
-        <span class="symbol-legend-item">
+    .map((item) => {
+      const isActive = activePileSizes.includes(item.value);
+      const isSelectionFilter = legendSelectionFilter.pileSizes.includes(item.value);
+      const disabled = shouldDisableActivePileConfigurationToggle(getActivePileConfigurations(), "size", item.value);
+      return `
+        <button
+          class="symbol-legend-item legend-toggle${isActive ? " is-active" : " is-inactive"}${isSelectionFilter ? " is-selection-filter" : ""}"
+          type="button"
+          data-legend-toggle="size"
+          data-legend-value="${item.value}"
+          aria-pressed="${isActive}"
+          ${disabled ? "disabled" : ""}
+        >
           ${renderPileSymbol(item.shape, "#ffffff")}
           ${formatNumber(item.value)} mm
-        </span>
-      `,
-    )
+        </button>
+      `;
+    })
     .join("");
   const colorItems = legendItems.pileTipLevels
-    .map(
-      (item) => `
-        <span class="symbol-legend-item">
+    .map((item) => {
+      const isActive = activePileTipLevels.includes(item.value);
+      const isSelectionFilter = legendSelectionFilter.pileTipLevels.includes(item.value);
+      const disabled = shouldDisableActivePileConfigurationToggle(getActivePileConfigurations(), "tip", item.value);
+      return `
+        <button
+          class="symbol-legend-item legend-toggle${isActive ? " is-active" : " is-inactive"}${isSelectionFilter ? " is-selection-filter" : ""}"
+          type="button"
+          data-legend-toggle="tip"
+          data-legend-value="${item.value}"
+          aria-pressed="${isActive}"
+          ${disabled ? "disabled" : ""}
+        >
           <i class="color-swatch" style="--pile-color: ${item.color}"></i>
           ${formatNumber(item.value)} m
-        </span>
-      `,
-    )
+        </button>
+      `;
+    })
     .join("");
 
   return `
     <div class="symbol-legend" aria-label="Pile symbol legend">
+      <div class="symbol-legend-actions">
+        <button class="secondary-action compact-action" type="button" data-legend-action="all-on">All On</button>
+        <button class="secondary-action compact-action" type="button" data-legend-action="all-off">All Off</button>
+      </div>
       <div>
         <strong>Size</strong>
         ${shapeItems}
@@ -305,35 +704,278 @@ function renderSymbolLegend(): string {
   `;
 }
 
-function renderRightPanel(selectedLoadPoint: LoadPoint): string {
-  if (rightPanelMode === "cpt-settings") {
-    return renderCptSettingsPanel();
-  }
-  if (rightPanelMode === "cost-settings") {
-    return renderCostSettingsPanel();
-  }
-  if (rightPanelMode === "cpt-frds") {
-    return renderCptFrdPanel(selectedLoadPoint);
-  }
+function renderProjectCostSummary(): string {
+  const costs = loadPoints.map((loadPoint) => {
+    const chosenOption = getChosenPileOption(loadPoint);
+    return chosenOption ? pileCostByOptionKey.get(optionKey(chosenOption)) : null;
+  });
+  const summary = summarizeProjectCosts(costs);
+  const missingText =
+    summary.missingCount > 0 ? `<span>${summary.missingCount} load point${summary.missingCount === 1 ? "" : "s"} without cost</span>` : "";
 
-  return renderLoadPointPanel(selectedLoadPoint);
+  return `
+    <div class="project-cost-summary" aria-label="Total project cost">
+      <strong>Total Cost</strong>
+      <span>${formatCurrency(summary.totalCost)}</span>
+      ${missingText}
+    </div>
+  `;
 }
 
-function renderCptFrdPanel(selectedLoadPoint: LoadPoint): string {
-  const cpt = cpts.find((item) => item.id === selectedCptId) ?? null;
+function createCurrentIfcppProject() {
+  const currentPileChoices = new Map(
+    loadPoints.map((loadPoint) => {
+      const chosenOption = getChosenPileOption(loadPoint);
+      return [loadPoint.id, chosenOption ? optionKey(chosenOption) : NO_PILE_OPTION_KEY] as const;
+    }),
+  );
 
-  if (!cpt) {
-    return `
-      <div class="panel-heading">
-        <h2>CPT</h2>
-        <button class="secondary-action compact-action" type="button" data-panel-mode="load-point">Load Point Information</button>
-      </div>
-      <p>No CPT selected.</p>
-    `;
+  return createIfcppProject({
+    name: projectData.name,
+    loadPoints,
+    cpts,
+    bearingCapacities,
+    globalCptSelectionSettings,
+    cptSelectionSettingsByLoadPoint,
+    pileCostSettings,
+    optimizationSettings: buildGreedyOptimizationSettings({
+      activePileSizes,
+      activePileTipLevels,
+      uiSettings: optimizationSettings,
+      baselineOptions: [],
+    }),
+    activePileSizes,
+    activePileTipLevels,
+    selectedPileOptionKeysByLoadPoint: currentPileChoices,
+    manualCptIdsByLoadPoint,
+  });
+}
+
+async function importProjectFiles(assignments: ImportFileAssignments<File>): Promise<void> {
+  const loadPointsFile = assignments["load-points"];
+  const cptsFile = assignments.cpts;
+  const bearingCapacitiesFile = assignments["bearing-capacities"];
+
+  if (!loadPointsFile || !cptsFile || !bearingCapacitiesFile) {
+    throw new Error("Choose a load points file, CPT coordinates file and bearing capacities file.");
   }
 
-  const selectedCptIds = new Set(getSelectedCptsForLoadPoint(selectedLoadPoint).map((selection) => selection.cpt.id));
-  const rows = getBearingCapacityRowsForCpt(bearingCapacities, cpt.id);
+  const project = await importProjectFromFilesCore({
+    projectName: "Imported Project",
+    loadPointsCsv: await loadPointsFile.text(),
+    cptsXlsx: new Uint8Array(await cptsFile.arrayBuffer()),
+    bearingCapacitiesXlsx: new Uint8Array(await bearingCapacitiesFile.arrayBuffer()),
+  });
+
+  await loadProjectData(loadIfcppProjectData(applyDefaultPileCostSettings(project, pileCostSettings)));
+}
+
+function downloadCurrentIfcppProject(): void {
+  const ifcppText = JSON.stringify(createCurrentIfcppProject(), null, 2);
+  const blob = new Blob([ifcppText], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = `${projectData.name.trim().replace(/[^a-z0-9-_]+/gi, "-") || "pile-plan-project"}.ifcpp`;
+  link.style.display = "none";
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+function renderImportDialog(): string {
+  if (!isImportDialogOpen) {
+    return "";
+  }
+
+  return `
+    <div class="modal-backdrop" role="presentation">
+      <section class="import-dialog" role="dialog" aria-modal="true" aria-labelledby="import-dialog-title">
+        <div class="panel-heading">
+          <h2 id="import-dialog-title">Import Project</h2>
+          <button class="secondary-action compact-action" type="button" data-import-dialog-action="close">Close</button>
+        </div>
+        <p class="supporting-text">
+          Select three files at once to auto-fill the roles, or choose each file separately.
+        </p>
+        <div class="settings-actions">
+          <button class="secondary-action" type="button" data-import-dialog-action="choose-all">Choose Files</button>
+          <input class="visually-hidden" type="file" accept=".csv,.xlsx" multiple data-import-file-input="all">
+        </div>
+        <div class="import-file-list">
+          ${renderImportFileRow("load-points", "Load points", "CSV with id, x, y and FED")}
+          ${renderImportFileRow("cpts", "CPT coordinates", "Excel with CPT id, x and y")}
+          ${renderImportFileRow("bearing-capacities", "Bearing capacities", "Excel with CPT, tip, size and FRD")}
+        </div>
+        <div class="settings-actions">
+          <button
+            class="primary-action"
+            type="button"
+            data-import-dialog-action="import"
+            ${areImportFileAssignmentsComplete(importFileAssignments) ? "" : "disabled"}
+          >Import</button>
+        </div>
+      </section>
+    </div>
+  `;
+}
+
+function renderImportFileRow(role: ImportFileRole, label: string, description: string): string {
+  const file = importFileAssignments[role];
+
+  return `
+    <div class="import-file-row">
+      <div>
+        <strong>${label}</strong>
+        <span>${description}</span>
+        <em>${file ? escapeHtml(file.name) : "No file selected"}</em>
+      </div>
+      <div class="import-file-actions">
+        <button class="secondary-action compact-action" type="button" data-import-file-role="${role}">Choose</button>
+        <button class="secondary-action compact-action" type="button" data-import-clear-role="${role}" ${file ? "" : "disabled"}>Clear</button>
+        <input class="visually-hidden" type="file" accept="${role === "load-points" ? ".csv" : ".xlsx"}" data-import-file-input="${role}">
+      </div>
+    </div>
+  `;
+}
+
+function isImportFileRole(value: string | undefined): value is ImportFileRole {
+  return value === "load-points" || value === "cpts" || value === "bearing-capacities";
+}
+
+function renderRightPanel(selectedLoadPoints: LoadPoint[]): string {
+  const view = getRightPanelView({
+    rightPanelMode,
+  });
+  const content =
+    view === "cpt-settings"
+      ? renderCptSettingsPanel()
+      : view === "cost-settings"
+        ? renderCostSettingsPanel()
+        : view === "optimization-settings"
+          ? renderOptimizationSettingsPanel()
+        : view === "cpts"
+          ? renderCptsPanel(selectedLoadPoints)
+          : renderLoadPointPanel(selectedLoadPoints);
+
+  return `
+    <div class="right-panel-shell">
+      ${renderRightPanelTabs()}
+      <div class="right-panel-content">
+        ${content}
+      </div>
+    </div>
+  `;
+}
+
+function renderRightPanelTabs(): string {
+  return `
+    <div class="right-panel-tabs" role="tablist" aria-label="Right panel view">
+      ${renderRightPanelTab("load-point", "Load Point")}
+      ${renderRightPanelTab("cpts", "CPTs")}
+      ${renderRightPanelTab("cpt-settings", "CPT Settings")}
+      ${renderRightPanelTab("cost-settings", "Cost Settings")}
+      ${renderRightPanelTab("optimization-settings", "Optimization")}
+    </div>
+  `;
+}
+
+function renderRightPanelTab(mode: RightPanelMode, label: string): string {
+  return `
+    <button
+      class="${rightPanelMode === mode ? "is-selected" : ""}"
+      type="button"
+      data-panel-mode="${mode}"
+      role="tab"
+      aria-selected="${rightPanelMode === mode}"
+    >${label}</button>
+  `;
+}
+
+function renderNoSelectionPanel(title = "No Load Point Selected", body = "Select a load point in the viewer to inspect pile options."): string {
+  return `
+    <div class="empty-panel">
+      <h2>${title}</h2>
+      <p>${body}</p>
+    </div>
+  `;
+}
+
+function renderCptsPanel(selectedLoadPoints: LoadPoint[]): string {
+  const cpt = cpts.find((item) => item.id === selectedCptId) ?? null;
+
+  if (cpt) {
+    return renderCptFrdPanel(cpt);
+  }
+
+  if (selectedLoadPoints.length === 0) {
+    return renderNoSelectionPanel("No CPTs Selected", "Select a load point to see its selected CPTs, or click a CPT in the viewer.");
+  }
+
+  return renderSelectedCptsPanel(selectedLoadPoints);
+}
+
+function renderSelectedCptsPanel(selectedLoadPoints: LoadPoint[]): string {
+  const tableModel = getSelectedCptTableModel(
+    selectedLoadPoints.map((loadPoint) => ({
+      loadPoint,
+      selectedCpts: getSelectedCptsForLoadPoint(loadPoint),
+    })),
+  );
+
+  if (tableModel.rows.length === 0) {
+    return renderNoSelectionPanel("No CPTs Available", "No selected CPTs are available for the current load point selection.");
+  }
+
+  const columns = [...tableModel.columns, "FRd range"];
+  const rows = tableModel.rows
+    .map((row) => {
+      const cptRows = cptFrdRowsByCptId.get(row.cpt.id) ?? [];
+      const frds = cptRows.map((cptRow) => cptRow.frd_kn);
+      const frdRange = frds.length
+        ? `${formatNumber(Math.min(...frds))}-${formatNumber(Math.max(...frds))} kN`
+        : "-";
+      const cells = row.values.map((value, index) => {
+        const column = tableModel.columns[index];
+
+        if (column === "CPT") {
+          return `<td>${renderCptLink(row.cpt)}</td>`;
+        }
+
+        return `<td>${escapeHtml(value)}</td>`;
+      });
+
+      return `
+        <tr>
+          ${cells.join("")}
+          <td>${frdRange}</td>
+        </tr>
+      `;
+    })
+    .join("");
+  const headerCells = columns.map((column) => `<th>${column}</th>`).join("");
+
+  return `
+    <div class="panel-heading">
+      <h2>${selectedLoadPoints.length > 1 ? "Selected - CPTs" : `${selectedLoadPoints[0].name} - CPTs`}</h2>
+    </div>
+
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            ${headerCells}
+          </tr>
+        </thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>
+  `;
+}
+
+function renderCptFrdPanel(cpt: Cpt): string {
+  const rows = cptFrdRowsByCptId.get(cpt.id) ?? [];
   const rowHtml = rows
     .map(
       (row) => `
@@ -349,11 +991,6 @@ function renderCptFrdPanel(selectedLoadPoint: LoadPoint): string {
   return `
     <div class="panel-heading">
       <h2>${cpt.name}</h2>
-      ${
-        selectedCptIds.has(cpt.id)
-          ? `<button class="secondary-action compact-action" type="button" data-panel-mode="load-point">Back to Load Point</button>`
-          : `<button class="secondary-action compact-action" type="button" data-panel-mode="load-point">Load Point Information</button>`
-      }
     </div>
 
     <dl class="detail-grid">
@@ -387,66 +1024,120 @@ function renderCptLink(cpt: Cpt): string {
   return `<button class="text-link" type="button" data-open-cpt-id="${cpt.id}">${cpt.name}</button>`;
 }
 
-function renderLoadPointPanel(selectedLoadPoint: LoadPoint): string {
-  const activeSettings = getCptSelectionSettingsForLoadPoint(selectedLoadPoint);
+function renderPileOptionTableHeaders(selectedLoadPoints: LoadPoint[]): string {
+  const tableRows = getRenderablePileOptionRows(selectedLoadPoints);
+  const headerCells = PILE_OPTION_COLUMNS.map((column) => {
+    if (column.key === "symbol") {
+      return `<th class="symbol-header" aria-label="Symbol"></th>`;
+    }
+
+    const label = column.key === "use" ? getUseColumnLabel(selectedLoadPoints.length) : column.label;
+    const sortMark = pileOptionSort?.column === column.key ? (pileOptionSort.direction === "asc" ? "↑" : "↓") : "";
+    const filterValues = getPileOptionFilterValues(tableRows, column.key);
+    const selectedFilters = pileOptionFilters[column.key];
+    const hasActiveFilter = selectedFilters.length > 0;
+
+    return `
+      <th class="filterable-header">
+        <button class="table-sort-button" type="button" data-pile-option-sort="${column.key}" aria-label="Sort by ${label}">
+          <span>${label}</span>
+          <span aria-hidden="true">${sortMark}</span>
+        </button>
+        <button
+          class="table-filter-button${hasActiveFilter ? " is-active" : ""}"
+          type="button"
+          data-pile-option-filter-menu="${column.key}"
+          aria-label="Filter ${label}"
+          aria-expanded="${openPileOptionFilterColumn === column.key}"
+        >▾</button>
+        ${
+          openPileOptionFilterColumn === column.key
+            ? renderPileOptionFilterMenu(column.key, filterValues, selectedFilters)
+            : ""
+        }
+      </th>
+    `;
+  }).join("");
+
+  return `<tr>${headerCells}</tr>`;
+}
+
+function renderPileOptionFilterMenu(
+  column: SortablePileOptionTableColumn,
+  filterValues: string[],
+  selectedFilters: string[],
+): string {
+  return `
+    <div class="table-filter-menu" data-pile-option-filter-panel="${column}">
+      <div class="table-filter-menu-actions">
+        <button type="button" data-pile-option-filter-select-all="${column}">All</button>
+        <button type="button" data-pile-option-filter-clear="${column}">Clear</button>
+      </div>
+      <div class="table-filter-menu-options">
+        ${filterValues
+          .map((value) => {
+            const checked = selectedFilters.includes(value);
+            return `
+              <label>
+                <input
+                  type="checkbox"
+                  ${checked ? "checked" : ""}
+                  data-pile-option-filter-value="${column}"
+                  value="${escapeHtmlAttribute(value)}"
+                >
+                <span>${escapeHtml(value)}</span>
+              </label>
+            `;
+          })
+          .join("")}
+      </div>
+    </div>
+  `;
+}
+
+function renderLoadPointPanel(selectedLoadPoints: LoadPoint[]): string {
+  if (selectedLoadPoints.length === 0) {
+    return renderNoSelectionPanel();
+  }
+
+  const selectedLoadPoint = selectedLoadPoints[0];
+  const hasMultipleLoadPoints = selectedLoadPoints.length > 1;
 
   return `
     <div class="load-point-panel">
       <div class="panel-heading">
-        <h2>${selectedLoadPoint.name}</h2>
-        <div class="panel-actions">
-          <button class="secondary-action compact-action" type="button" data-panel-mode="cpt-settings">CPT Settings</button>
-          <button class="secondary-action compact-action" type="button" data-panel-mode="cost-settings">Cost Settings</button>
-        </div>
+        <h2>${hasMultipleLoadPoints ? `${selectedLoadPoints.length} Load Points Selected` : selectedLoadPoint.name}</h2>
       </div>
 
-      <dl class="detail-grid">
-        <div class="fed-detail">
-          <dt>FED</dt>
-          <dd>${formatNumber(selectedLoadPoint.design_load_kn)} kN</dd>
-        </div>
-        <div>
-          <dt>X</dt>
-          <dd>${formatNumber(selectedLoadPoint.x_mm)} mm</dd>
-        </div>
-        <div>
-          <dt>Y</dt>
-          <dd>${formatNumber(selectedLoadPoint.y_mm)} mm</dd>
-        </div>
-      </dl>
+      ${
+        hasMultipleLoadPoints
+          ? `<p class="supporting-text">Pile options are OK only when every selected load point allows the same configuration.</p>`
+          : `
+            <dl class="detail-grid">
+              <div class="fed-detail">
+                <dt>FED</dt>
+                <dd>${formatNumber(selectedLoadPoint.design_load_kn)} kN</dd>
+              </div>
+              <div>
+                <dt>X</dt>
+                <dd>${formatNumber(selectedLoadPoint.x_mm)} mm</dd>
+              </div>
+              <div>
+                <dt>Y</dt>
+                <dd>${formatNumber(selectedLoadPoint.y_mm)} mm</dd>
+              </div>
+            </dl>
 
-      <h3>Selected CPTs</h3>
-      <p class="supporting-text">Maximum selection distance: ${formatNumber(activeSettings.maxDistanceM)} m.</p>
-      <div class="table-wrap">
-        <table>
-          <thead>
-            <tr>
-              <th>Selection</th>
-              <th>CPT</th>
-              <th>Distance</th>
-              <th>FRd range</th>
-            </tr>
-          </thead>
-          <tbody>${renderSelectedCptDetails(selectedLoadPoint)}</tbody>
-        </table>
-      </div>
+          `
+      }
 
       <h3>Pile Options</h3>
       <div class="table-wrap pile-options-wrap">
         <table>
           <thead>
-            <tr>
-              <th>Size</th>
-              <th>Tip</th>
-              <th>Status</th>
-              <th>Governing</th>
-              <th>FRd min</th>
-              <th>Use</th>
-              <th>Cost</th>
-              <th>Note</th>
-            </tr>
+            ${renderPileOptionTableHeaders(selectedLoadPoints)}
           </thead>
-          <tbody>${renderPileOptionRows(selectedLoadPoint)}</tbody>
+          <tbody>${renderPileOptionRows(selectedLoadPoints)}</tbody>
         </table>
       </div>
     </div>
@@ -464,7 +1155,6 @@ function renderCptSettingsPanel(): string {
   return `
     <div class="panel-heading">
       <h2>CPT Settings</h2>
-      <button class="secondary-action compact-action" type="button" data-panel-mode="load-point">Load Point Information</button>
     </div>
 
     <div class="settings-group">
@@ -570,7 +1260,6 @@ function renderCostSettingsPanel(): string {
   return `
     <div class="panel-heading">
       <h2>Cost Settings</h2>
-      <button class="secondary-action compact-action" type="button" data-panel-mode="load-point">Load Point Information</button>
     </div>
 
     <div class="settings-group">
@@ -593,6 +1282,135 @@ function renderCostSettingsPanel(): string {
         </thead>
         <tbody>${rows}</tbody>
       </table>
+    </div>
+  `;
+}
+
+function renderOptimizationSettingsPanel(): string {
+  const effectiveSettings = clampOptimizationUiSettingsToActiveConfigurations(optimizationSettings, getActivePileConfigurations());
+  const maxDifferentSizeLimit = activePileSizes.length;
+  const maxDifferentTipLimit = activePileTipLevels.length;
+  const maxConfigurationLimit = effectiveSettings.maxDifferentSizes * effectiveSettings.maxDifferentTips;
+  const minimumSizeLimit = maxDifferentSizeLimit === 0 ? 0 : 1;
+  const minimumTipLimit = maxDifferentTipLimit === 0 ? 0 : 1;
+  const minimumConfigurationLimit = maxConfigurationLimit === 0 ? 0 : 1;
+  const selectedCount = selectedLoadPointIds.length;
+  return `
+    <div class="panel-heading">
+      <h2>Optimization Settings</h2>
+    </div>
+
+    <div class="settings-group">
+      <p class="supporting-text">
+        The greedy optimizer adds pile configurations one by one. Each step chooses the configuration that gives the best
+        coverage and cost improvement within the active legend toggles and the limits below.
+      </p>
+    </div>
+
+    <div class="settings-group">
+      <h3>Optimize</h3>
+      <div class="segmented-control" role="group" aria-label="Optimization target">
+        <button class="${optimizationSettings.targetScope === "all" ? "is-selected" : ""}" type="button" data-optimization-choice="targetScope" data-optimization-value="all">All load points</button>
+        <button class="${optimizationSettings.targetScope === "selected" ? "is-selected" : ""}" type="button" data-optimization-choice="targetScope" data-optimization-value="selected">Selected (${selectedCount})</button>
+      </div>
+    </div>
+
+    <div class="settings-group${optimizationSettings.targetScope === "selected" ? "" : " is-muted"}">
+      <h3>Limits Apply To</h3>
+      <div class="segmented-control" role="group" aria-label="Optimization limit scope">
+        <button class="${optimizationSettings.limitScope === "target" ? "is-selected" : ""}" type="button" data-optimization-choice="limitScope" data-optimization-value="target" ${optimizationSettings.targetScope === "selected" ? "" : "disabled"}>Optimized points</button>
+        <button class="${optimizationSettings.limitScope === "whole-plan" ? "is-selected" : ""}" type="button" data-optimization-choice="limitScope" data-optimization-value="whole-plan" ${optimizationSettings.targetScope === "selected" ? "" : "disabled"}>Whole plan</button>
+      </div>
+    </div>
+
+    <div class="settings-group">
+      <label class="field-label slider-label" for="max-pile-sizes">
+        <span>Max different sizes</span>
+        <strong data-optimization-slider-value="maxDifferentSizes">${effectiveSettings.maxDifferentSizes}</strong>
+      </label>
+      <div class="slider-field">
+        <input
+          id="max-pile-sizes"
+          type="range"
+          min="${minimumSizeLimit}"
+          max="${maxDifferentSizeLimit}"
+          step="any"
+          value="${effectiveSettings.maxDifferentSizes}"
+          data-optimization-number="maxDifferentSizes"
+          ${maxDifferentSizeLimit === 0 ? "disabled" : ""}
+        >
+      </div>
+    </div>
+
+    <div class="settings-group">
+      <label class="field-label slider-label" for="max-pile-tip-levels">
+        <span>Max different tips</span>
+        <strong data-optimization-slider-value="maxDifferentTips">${effectiveSettings.maxDifferentTips}</strong>
+      </label>
+      <div class="slider-field">
+        <input
+          id="max-pile-tip-levels"
+          type="range"
+          min="${minimumTipLimit}"
+          max="${maxDifferentTipLimit}"
+          step="any"
+          value="${effectiveSettings.maxDifferentTips}"
+          data-optimization-number="maxDifferentTips"
+          ${maxDifferentTipLimit === 0 ? "disabled" : ""}
+        >
+      </div>
+    </div>
+
+    <div class="settings-group">
+      <label class="field-label slider-label" for="max-pile-configurations">
+        <span>Max different configurations</span>
+        <strong data-optimization-slider-value="maxDifferentConfigurations">${effectiveSettings.maxDifferentConfigurations}</strong>
+      </label>
+      <div class="slider-field">
+        <input
+          id="max-pile-configurations"
+          type="range"
+          min="${minimumConfigurationLimit}"
+          max="${maxConfigurationLimit}"
+          step="any"
+          value="${effectiveSettings.maxDifferentConfigurations}"
+          data-optimization-number="maxDifferentConfigurations"
+          ${maxConfigurationLimit === 0 ? "disabled" : ""}
+        >
+      </div>
+    </div>
+
+    <div class="settings-group">
+      <h3>Active Configurations</h3>
+      <p class="supporting-text">
+        Uses ${activePileSizes.length} active size${activePileSizes.length === 1 ? "" : "s"} and ${activePileTipLevels.length}
+        active tip level${activePileTipLevels.length === 1 ? "" : "s"} from the legend.
+      </p>
+    </div>
+
+    <div class="settings-actions">
+      <button class="primary-action" type="button" data-optimization-action="run">Run Greedy Optimization</button>
+    </div>
+
+    ${renderOptimizationRunSummary()}
+  `;
+}
+
+function renderOptimizationRunSummary(): string {
+  if (!lastOptimizationSummary) {
+    return "";
+  }
+
+  const unchangedMessage =
+    lastOptimizationSummary.changedCount === 0
+      ? "<p>Current pile choices already match these optimization settings.</p>"
+      : "";
+
+  return `
+    <div class="optimization-summary">
+      <strong>Applied to ${lastOptimizationSummary.appliedCount} load points.</strong>
+      <p>${lastOptimizationSummary.changedCount} changed.</p>
+      ${unchangedMessage}
     </div>
   `;
 }
@@ -643,7 +1461,7 @@ function renderMaximumAngleSketch(): string {
 }
 
 function render(): void {
-  const selectedLoadPoint = loadPoints.find((loadPoint) => loadPoint.id === selectedLoadPointId) ?? loadPoints[0];
+  const selectedLoadPoints = getSelectedLoadPoints();
 
   appRoot.innerHTML = `
     <section class="workspace">
@@ -652,12 +1470,19 @@ function render(): void {
           <p class="eyebrow">OpenAEC concept</p>
           <h1>Pile Plan Studio</h1>
         </div>
-        <button class="secondary-action" type="button">Sample Project</button>
+        <div class="project-actions">
+          <span class="project-name">${escapeHtml(projectData.name)}</span>
+          <button class="secondary-action" type="button" data-project-action="import">Import Project</button>
+          <button class="secondary-action" type="button" data-project-action="download">Download IFCPP</button>
+        </div>
       </header>
+      ${projectImportMessage ? `<div class="project-message">${escapeHtml(projectImportMessage)}</div>` : ""}
+      ${renderImportDialog()}
 
       <section class="layout" style="--right-panel-width: ${rightPanelWidth}px">
         <section class="canvas-area" aria-label="Project data map">
           <div class="canvas-header">
+            ${renderProjectCostSummary()}
             <div class="zoom-controls" aria-label="Map zoom controls">
               <button type="button" data-zoom-action="out" aria-label="Zoom out">-</button>
               <span data-zoom-value>${Math.round(viewport.scale * 100)}%</span>
@@ -665,40 +1490,131 @@ function render(): void {
             </div>
           </div>
           ${renderSymbolLegend()}
-          ${renderMap(selectedLoadPoint)}
+          ${renderMap(selectedLoadPoints)}
         </section>
 
         <div class="layout-resizer" role="separator" aria-label="Resize right panel" aria-orientation="vertical"></div>
 
         <aside class="panel right-panel">
-          ${renderRightPanel(selectedLoadPoint)}
+          ${renderRightPanel(selectedLoadPoints)}
         </aside>
       </section>
     </section>
   `;
 
   appRoot.querySelectorAll<HTMLButtonElement>("[data-load-point-id]").forEach((button) => {
-    button.addEventListener("click", () => {
+    button.addEventListener("click", (event) => {
       if (cptSelectionEditDraft) {
         return;
       }
 
-      selectedLoadPointId = Number(button.dataset.loadPointId);
+      const loadPointId = Number(button.dataset.loadPointId);
+      setSelectionState(
+        event.shiftKey
+          ? addLoadPointsToSelection(getSelectionState(), [loadPointId], { toggle: true })
+          : selectLoadPoint(getSelectionState(), loadPointId),
+      );
+      legendSelectionFilter = { pileSizes: [], pileTipLevels: [] };
+      syncActiveConfigurationsToUsedPileChoices();
       cptSelectionEditDraft = null;
       render();
     });
   });
 
+  appRoot.querySelector<HTMLButtonElement>("[data-project-action='import']")?.addEventListener("click", () => {
+    isImportDialogOpen = true;
+    projectImportMessage = null;
+    render();
+  });
+  appRoot.querySelector<HTMLButtonElement>("[data-project-action='download']")?.addEventListener("click", () => {
+    try {
+      projectImportMessage = null;
+      downloadCurrentIfcppProject();
+    } catch (error) {
+      projectImportMessage = error instanceof Error ? error.message : "Could not download IFCPP project.";
+      render();
+    }
+  });
+
+  appRoot.querySelector<HTMLButtonElement>("[data-import-dialog-action='close']")?.addEventListener("click", () => {
+    isImportDialogOpen = false;
+    render();
+  });
+  appRoot.querySelector<HTMLButtonElement>("[data-import-dialog-action='choose-all']")?.addEventListener("click", () => {
+    appRoot.querySelector<HTMLInputElement>("[data-import-file-input='all']")?.click();
+  });
+  appRoot.querySelector<HTMLInputElement>("[data-import-file-input='all']")?.addEventListener("change", (event) => {
+    const input = event.currentTarget;
+    if (!(input instanceof HTMLInputElement) || !input.files || input.files.length === 0) {
+      return;
+    }
+    importFileAssignments = inferImportFileAssignments([...input.files], importFileAssignments);
+    input.value = "";
+    render();
+  });
+  appRoot.querySelectorAll<HTMLButtonElement>("[data-import-file-role]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const role = button.dataset.importFileRole;
+      if (isImportFileRole(role)) {
+        appRoot.querySelector<HTMLInputElement>(`[data-import-file-input="${role}"]`)?.click();
+      }
+    });
+  });
+  appRoot.querySelectorAll<HTMLInputElement>("[data-import-file-input]").forEach((input) => {
+    input.addEventListener("change", () => {
+      const role = input.dataset.importFileInput;
+      if (!isImportFileRole(role) || !input.files?.[0]) {
+        return;
+      }
+      importFileAssignments = { ...importFileAssignments, [role]: input.files[0] };
+      input.value = "";
+      render();
+    });
+  });
+  appRoot.querySelectorAll<HTMLButtonElement>("[data-import-clear-role]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const role = button.dataset.importClearRole;
+      if (!isImportFileRole(role)) {
+        return;
+      }
+      importFileAssignments = { ...importFileAssignments, [role]: null };
+      render();
+    });
+  });
+  appRoot.querySelector<HTMLButtonElement>("[data-import-dialog-action='import']")?.addEventListener("click", async () => {
+    if (!areImportFileAssignmentsComplete(importFileAssignments)) {
+      projectImportMessage = "Choose all three import files before importing.";
+      render();
+      return;
+    }
+
+    try {
+      projectImportMessage = "Importing project...";
+      render();
+      await importProjectFiles(importFileAssignments);
+      projectImportMessage = "Project imported.";
+      isImportDialogOpen = false;
+      importFileAssignments = emptyImportFileAssignments<File>();
+    } catch (error) {
+      projectImportMessage = error instanceof Error ? error.message : "Could not import project files.";
+    } finally {
+      render();
+    }
+  });
+
   appRoot.querySelectorAll<HTMLButtonElement>("[data-panel-mode]").forEach((button) => {
     button.addEventListener("click", () => {
-      rightPanelMode =
+      const nextPanelMode =
         button.dataset.panelMode === "cpt-settings"
           ? "cpt-settings"
           : button.dataset.panelMode === "cost-settings"
             ? "cost-settings"
-            : button.dataset.panelMode === "cpt-frds"
-              ? "cpt-frds"
+            : button.dataset.panelMode === "optimization-settings"
+              ? "optimization-settings"
+              : button.dataset.panelMode === "cpts"
+                ? "cpts"
             : "load-point";
+      setSelectionState(switchRightPanelMode(getSelectionState(), nextPanelMode));
       render();
     });
   });
@@ -706,14 +1622,96 @@ function render(): void {
   appRoot.querySelectorAll<HTMLButtonElement>("[data-open-cpt-id]").forEach((button) => {
     button.addEventListener("click", (event) => {
       event.stopPropagation();
-      selectedCptId = Number(button.dataset.openCptId);
-      rightPanelMode = "cpt-frds";
+      setSelectionState(openCpt(getSelectionState(), Number(button.dataset.openCptId)));
+      render();
+    });
+  });
+
+  appRoot.querySelectorAll<HTMLButtonElement>("[data-pile-option-sort]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const column = button.dataset.pileOptionSort as PileOptionTableColumn | undefined;
+
+      if (!column || !isSortablePileOptionColumn(column)) {
+        return;
+      }
+
+      pileOptionSort = getNextPileOptionSortState(pileOptionSort, column);
+      render();
+    });
+  });
+
+  appRoot.querySelectorAll<HTMLButtonElement>("[data-pile-option-filter-menu]").forEach((button) => {
+    button.addEventListener("click", (event) => {
+      event.stopPropagation();
+      const column = button.dataset.pileOptionFilterMenu as PileOptionTableColumn | undefined;
+
+      if (!column || !isSortablePileOptionColumn(column)) {
+        return;
+      }
+
+      openPileOptionFilterColumn = openPileOptionFilterColumn === column ? null : column;
+      render();
+    });
+  });
+
+  appRoot.querySelectorAll<HTMLInputElement>("[data-pile-option-filter-value]").forEach((input) => {
+    input.addEventListener("click", (event) => {
+      event.stopPropagation();
+    });
+    input.addEventListener("change", () => {
+      const column = input.dataset.pileOptionFilterValue as PileOptionTableColumn | undefined;
+
+      if (!column || !isSortablePileOptionColumn(column)) {
+        return;
+      }
+
+      const selectedValues = new Set(pileOptionFilters[column]);
+      if (input.checked) {
+        selectedValues.add(input.value);
+      } else {
+        selectedValues.delete(input.value);
+      }
+      pileOptionFilters = { ...pileOptionFilters, [column]: [...selectedValues] };
+      openPileOptionFilterColumn = column;
+      render();
+    });
+  });
+
+  appRoot.querySelectorAll<HTMLButtonElement>("[data-pile-option-filter-clear]").forEach((button) => {
+    button.addEventListener("click", (event) => {
+      event.stopPropagation();
+      const column = button.dataset.pileOptionFilterClear as PileOptionTableColumn | undefined;
+
+      if (!column || !isSortablePileOptionColumn(column)) {
+        return;
+      }
+
+      pileOptionFilters = { ...pileOptionFilters, [column]: [] };
+      openPileOptionFilterColumn = column;
+      render();
+    });
+  });
+
+  appRoot.querySelectorAll<HTMLButtonElement>("[data-pile-option-filter-select-all]").forEach((button) => {
+    button.addEventListener("click", (event) => {
+      event.stopPropagation();
+      const column = button.dataset.pileOptionFilterSelectAll as PileOptionTableColumn | undefined;
+
+      if (!column || !isSortablePileOptionColumn(column)) {
+        return;
+      }
+
+      pileOptionFilters = {
+        ...pileOptionFilters,
+        [column]: getPileOptionFilterValues(getRenderablePileOptionRows(selectedLoadPoints), column),
+      };
+      openPileOptionFilterColumn = column;
       render();
     });
   });
 
   appRoot.querySelectorAll<HTMLInputElement | HTMLSelectElement>("[data-cost-global-setting]").forEach((input) => {
-    input.addEventListener("change", () => {
+    input.addEventListener("change", async () => {
       const value = Number(input.value);
 
       if (!Number.isFinite(value)) {
@@ -721,7 +1719,7 @@ function render(): void {
         return;
       }
 
-      updatePileCostSettings({
+      await updatePileCostSettings({
         ...pileCostSettings,
         pile_head_level_m: value,
       });
@@ -729,12 +1727,234 @@ function render(): void {
     });
   });
 
+  appRoot.querySelectorAll<HTMLButtonElement>("[data-legend-toggle]").forEach((button) => {
+    button.addEventListener("click", (event) => {
+      const value = Number(button.dataset.legendValue);
+      const kind = button.dataset.legendToggle;
+
+      if (!Number.isFinite(value)) {
+        return;
+      }
+
+      if ((event.shiftKey || isShiftKeyPressed) && (kind === "size" || kind === "tip")) {
+        legendSelectionFilter = toggleLegendSelectionFilter(legendSelectionFilter, kind, value);
+        const selectedIds = getLoadPointIdsForLegendSelection(
+          new Map(loadPoints.map((loadPoint) => [loadPoint.id, getChosenPileOption(loadPoint)])),
+          legendSelectionFilter,
+        );
+
+        setSelectionState(
+          selectedIds.length > 0
+            ? {
+              ...getSelectionState(),
+              selectedLoadPointId: selectedIds[0] ?? null,
+              selectedLoadPointIds: selectedIds,
+              selectedCptId: null,
+            }
+            : clearSelection(getSelectionState()),
+        );
+        cptSelectionEditDraft = null;
+        render();
+        return;
+      }
+
+      if (kind === "size") {
+        const nextActive = toggleActivePileConfiguration(getActivePileConfigurations(), "size", value);
+        activePileSizes = nextActive.pileSizes;
+      }
+
+      if (kind === "tip") {
+        const nextActive = toggleActivePileConfiguration(getActivePileConfigurations(), "tip", value);
+        activePileTipLevels = nextActive.pileTipLevels;
+      }
+
+      syncOptimizationLimitsToActiveConfigurations();
+      lastOptimizationSummary = null;
+      render();
+    });
+  });
+
+  appRoot.querySelectorAll<HTMLButtonElement>("[data-legend-action]").forEach((button) => {
+    button.addEventListener("click", () => {
+      if (button.dataset.legendAction === "all-on") {
+        activePileSizes = availablePileSizes;
+        activePileTipLevels = availablePileTipLevels;
+      }
+
+      if (button.dataset.legendAction === "all-off") {
+        activePileSizes = [];
+        activePileTipLevels = [];
+      }
+
+      legendSelectionFilter = { pileSizes: [], pileTipLevels: [] };
+      syncOptimizationLimitsToActiveConfigurations();
+      lastOptimizationSummary = null;
+      render();
+    });
+  });
+
+  appRoot.querySelectorAll<HTMLInputElement>("[data-optimization-number]").forEach((input) => {
+    const updateOptimizationNumber = (shouldRender: boolean) => {
+      const rawValue = Number(input.value);
+
+      if (!Number.isFinite(rawValue)) {
+        if (shouldRender) {
+          render();
+        }
+        return;
+      }
+
+      if (input.dataset.optimizationNumber === "maxDifferentSizes") {
+        optimizationLimitAutoState = { ...optimizationLimitAutoState, maxDifferentSizes: false };
+        const maxDifferentSizes = snapSliderValueToInteger(
+          rawValue,
+          activePileSizes.length === 0 ? 0 : 1,
+          activePileSizes.length,
+        );
+        optimizationSettings = {
+          ...optimizationSettings,
+          maxDifferentSizes,
+          maxDifferentConfigurations: clampMaxDifferentConfigurations(
+            optimizationSettings.maxDifferentConfigurations,
+            activePileSizes.length * activePileTipLevels.length,
+            1,
+          ),
+        };
+        syncOptimizationLimitsToActiveConfigurations();
+        lastOptimizationSummary = null;
+        updateOptimizationSliderValue("maxDifferentSizes", optimizationSettings.maxDifferentSizes);
+      }
+
+      if (input.dataset.optimizationNumber === "maxDifferentTips") {
+        optimizationLimitAutoState = { ...optimizationLimitAutoState, maxDifferentTips: false };
+        const maxDifferentTips = snapSliderValueToInteger(
+          rawValue,
+          activePileTipLevels.length === 0 ? 0 : 1,
+          activePileTipLevels.length,
+        );
+        optimizationSettings = {
+          ...optimizationSettings,
+          maxDifferentTips,
+          maxDifferentConfigurations: clampMaxDifferentConfigurations(
+            optimizationSettings.maxDifferentConfigurations,
+            activePileSizes.length * activePileTipLevels.length,
+            1,
+          ),
+        };
+        syncOptimizationLimitsToActiveConfigurations();
+        lastOptimizationSummary = null;
+        updateOptimizationSliderValue("maxDifferentTips", optimizationSettings.maxDifferentTips);
+      }
+
+      if (input.dataset.optimizationNumber === "maxDifferentConfigurations") {
+        optimizationLimitAutoState = { ...optimizationLimitAutoState, maxDifferentConfigurations: false };
+        const maxDifferentConfigurations = snapSliderValueToInteger(
+          rawValue,
+          activePileSizes.length * activePileTipLevels.length === 0 ? 0 : 1,
+          activePileSizes.length * activePileTipLevels.length,
+        );
+        optimizationSettings = {
+          ...optimizationSettings,
+          maxDifferentConfigurations: clampMaxDifferentConfigurations(
+            maxDifferentConfigurations,
+            activePileSizes.length * activePileTipLevels.length,
+            1,
+          ),
+        };
+        syncOptimizationLimitsToActiveConfigurations();
+        lastOptimizationSummary = null;
+        updateOptimizationSliderValue("maxDifferentConfigurations", optimizationSettings.maxDifferentConfigurations);
+      }
+
+      if (shouldRender) {
+        render();
+      }
+    };
+    input.addEventListener("input", () => updateOptimizationNumber(false));
+    input.addEventListener("change", () => updateOptimizationNumber(true));
+  });
+
+  appRoot.querySelectorAll<HTMLButtonElement>("[data-optimization-choice]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const choice = button.dataset.optimizationChoice;
+      const value = button.dataset.optimizationValue;
+
+      if (choice === "targetScope") {
+        optimizationSettings = {
+          ...optimizationSettings,
+          targetScope: value === "selected" ? "selected" : "all",
+          limitScope: value === "selected" ? optimizationSettings.limitScope : "target",
+        };
+        lastOptimizationSummary = null;
+      }
+
+      if (choice === "limitScope" && optimizationSettings.targetScope === "selected") {
+        optimizationSettings = {
+          ...optimizationSettings,
+          limitScope: value === "whole-plan" ? "whole-plan" : "target",
+        };
+        lastOptimizationSummary = null;
+      }
+
+      render();
+    });
+  });
+
+  appRoot.querySelectorAll<HTMLButtonElement>("[data-optimization-action]").forEach((button) => {
+    button.addEventListener("click", async () => {
+      if (button.dataset.optimizationAction !== "run") {
+        return;
+      }
+
+      syncOptimizationLimitsToActiveConfigurations();
+      const previousChoiceKeys = new Map(
+        loadPoints.map((loadPoint) => {
+          const chosenOption = getChosenPileOption(loadPoint);
+          return [loadPoint.id, chosenOption ? optionKey(chosenOption) : ""];
+        }),
+      );
+      const optimizedLoadPointIds = getOptimizationTargetLoadPointIds();
+      const choices = await greedyOptimizeCore({
+        optionsByLoadPoint: getPileOptionsByLoadPointIds(optimizedLoadPointIds),
+        costSettings: pileCostSettings,
+        settings: buildGreedyOptimizationSettings({
+          activePileSizes,
+          activePileTipLevels,
+          uiSettings: optimizationSettings,
+          baselineOptions: optimizationSettings.targetScope === "selected" && optimizationSettings.limitScope === "whole-plan"
+            ? loadPoints
+              .filter((loadPoint) => !optimizedLoadPointIds.includes(loadPoint.id))
+              .map(getChosenPileOption)
+            : [],
+        }),
+      });
+
+      const choiceLoadPointIds = new Set(choices.map((choice) => choice.load_point_id));
+      const clearedLoadPointIds: number[] = [];
+      optimizedLoadPointIds.forEach((loadPointId) => {
+        if (!choiceLoadPointIds.has(loadPointId)) {
+          selectedPileOptions.set(loadPointId, NO_PILE_OPTION_KEY);
+          chosenPileOptionByLoadPointId.delete(loadPointId);
+          clearedLoadPointIds.push(loadPointId);
+        }
+      });
+      lastOptimizationSummary = summarizeOptimizationRun(previousChoiceKeys, choices, clearedLoadPointIds);
+      choices.forEach((choice) => {
+        selectedPileOptions.set(choice.load_point_id, `${choice.pile_size_mm}|${choice.pile_tip_level_m}`);
+        chosenPileOptionByLoadPointId.delete(choice.load_point_id);
+      });
+      syncActiveConfigurationsToUsedPileChoices();
+      legendSelectionFilter = { pileSizes: [], pileTipLevels: [] };
+      render();
+    });
+  });
+
   appRoot.querySelectorAll<HTMLInputElement | HTMLSelectElement>("[data-cost-size]").forEach((input) => {
-    input.addEventListener("change", () => {
+    input.addEventListener("change", async () => {
       const pileSizeMm = Number(input.dataset.costSize);
       const setting = input.dataset.costSetting;
 
-      updatePileCostSettings({
+      await updatePileCostSettings({
         ...pileCostSettings,
         items: pileCostSettings.items.map((item) => {
           if (item.pile_size_mm !== pileSizeMm) {
@@ -754,15 +1974,15 @@ function render(): void {
   });
 
   appRoot.querySelectorAll<HTMLButtonElement>("[data-cpt-settings-scope]").forEach((button) => {
-    button.addEventListener("click", () => {
+    button.addEventListener("click", async () => {
       cptSettingsScope = button.dataset.cptSettingsScope === "current" ? "current" : "all";
       render();
     });
   });
 
   appRoot.querySelectorAll<HTMLButtonElement>("[data-cpt-algorithm]").forEach((button) => {
-    button.addEventListener("click", () => {
-      updateCptSelectionSettings({
+    button.addEventListener("click", async () => {
+      await updateCptSelectionSettings({
         ...getActiveCptSelectionSettings(),
         algorithm: button.dataset.cptAlgorithm === "maximum-angle" ? "maximum-angle" : "quadrants",
       });
@@ -771,7 +1991,7 @@ function render(): void {
   });
 
   appRoot.querySelectorAll<HTMLInputElement>("[data-cpt-setting]").forEach((input) => {
-    input.addEventListener("change", () => {
+    input.addEventListener("change", async () => {
       const value = Number(input.value);
 
       if (!Number.isFinite(value)) {
@@ -780,14 +2000,14 @@ function render(): void {
       }
 
       if (input.dataset.cptSetting === "maxDistanceM") {
-        updateCptSelectionSettings({
+        await updateCptSelectionSettings({
           ...getActiveCptSelectionSettings(),
           maxDistanceM: Math.max(0, value),
         });
       }
 
       if (input.dataset.cptSetting === "maxAngleDegrees") {
-        updateCptSelectionSettings({
+        await updateCptSelectionSettings({
           ...getActiveCptSelectionSettings(),
           maxAngleDegrees: Math.min(360, Math.max(1, value)),
         });
@@ -798,10 +2018,14 @@ function render(): void {
   });
 
   appRoot.querySelectorAll<HTMLButtonElement>("[data-cpt-selection-action]").forEach((button) => {
-    button.addEventListener("click", () => {
+    button.addEventListener("click", async () => {
       const action = button.dataset.cptSelectionAction;
 
       if (action === "edit") {
+        if (selectedLoadPointId === null) {
+          render();
+          return;
+        }
         const selectedLoadPoint = loadPoints.find((loadPoint) => loadPoint.id === selectedLoadPointId) ?? loadPoints[0];
         const selectedCptIds = manualCptIdsByLoadPoint.get(selectedLoadPointId)
           ?? getSelectedCptsForLoadPoint(selectedLoadPoint).map((selection) => selection.cpt.id);
@@ -811,20 +2035,24 @@ function render(): void {
         };
       }
 
-      if (action === "save" && cptSelectionEditDraft?.loadPointId === selectedLoadPointId) {
+      if (
+        action === "save"
+        && selectedLoadPointId !== null
+        && cptSelectionEditDraft?.loadPointId === selectedLoadPointId
+      ) {
         manualCptIdsByLoadPoint.set(selectedLoadPointId, [...cptSelectionEditDraft.cptIds]);
         cptSelectionEditDraft = null;
-        rebuildPileOptionCache();
+        await rebuildPileOptionCache();
       }
 
       if (action === "cancel") {
         cptSelectionEditDraft = null;
       }
 
-      if (action === "clear") {
+      if (action === "clear" && selectedLoadPointId !== null) {
         manualCptIdsByLoadPoint.delete(selectedLoadPointId);
         cptSelectionEditDraft = null;
-        rebuildPileOptionCache();
+        await rebuildPileOptionCache();
       }
 
       render();
@@ -834,8 +2062,7 @@ function render(): void {
   appRoot.querySelectorAll<HTMLButtonElement>("[data-cpt-id]").forEach((button) => {
     button.addEventListener("click", () => {
       if (!cptSelectionEditDraft || cptSelectionEditDraft.loadPointId !== selectedLoadPointId) {
-        selectedCptId = Number(button.dataset.cptId);
-        rightPanelMode = "cpt-frds";
+        setSelectionState(openCpt(getSelectionState(), Number(button.dataset.cptId)));
         render();
         return;
       }
@@ -853,13 +2080,19 @@ function render(): void {
   });
 
   appRoot.querySelectorAll<HTMLTableRowElement>("[data-pile-option-key]").forEach((row) => {
-    row.addEventListener("click", () => {
-      const key = row.dataset.pileOptionKey;
-      if (!key) {
+    row.addEventListener("click", (event) => {
+      if (event.target instanceof HTMLElement && event.target.closest("button, input")) {
         return;
       }
-      selectedPileOptions.set(selectedLoadPointId, key);
-      chosenPileOptionByLoadPointId.delete(selectedLoadPointId);
+
+      const key = row.dataset.pileOptionKey;
+      if (!key || selectedLoadPointIds.length === 0) {
+        return;
+      }
+      selectedLoadPointIds.forEach((loadPointId) => {
+        selectedPileOptions.set(loadPointId, key);
+        chosenPileOptionByLoadPointId.delete(loadPointId);
+      });
       render();
     });
   });
@@ -929,11 +2162,25 @@ function render(): void {
   });
 
   mapShell?.addEventListener("pointerdown", (event) => {
+    if (isMapLassoPointerDown(event)) {
+      event.preventDefault();
+      const rect = mapShell.getBoundingClientRect();
+      const startX = event.clientX - rect.left;
+      const startY = event.clientY - rect.top;
+      const box = document.createElement("div");
+      box.className = "lasso-box";
+      mapShell.appendChild(box);
+      dragState = { mode: "lasso", startX, startY, endX: startX, endY: startY, hasMoved: false, box };
+      updateLassoBox(dragState);
+      mapShell.setPointerCapture(event.pointerId);
+      return;
+    }
+
     if (!isMapPanPointerDown(event)) {
       return;
     }
     event.preventDefault();
-    dragState = { x: event.clientX, y: event.clientY };
+    dragState = { mode: "pan", x: event.clientX, y: event.clientY, startX: event.clientX, startY: event.clientY, hasMoved: false };
     mapShell.setPointerCapture(event.pointerId);
     mapShell.classList.add("is-panning");
   });
@@ -943,46 +2190,115 @@ function render(): void {
       return;
     }
 
+    if (dragState.mode === "lasso") {
+      const rect = mapShell.getBoundingClientRect();
+      dragState.endX = event.clientX - rect.left;
+      dragState.endY = event.clientY - rect.top;
+      dragState.hasMoved =
+        dragState.hasMoved || Math.hypot(dragState.endX - dragState.startX, dragState.endY - dragState.startY) > 4;
+      updateLassoBox(dragState);
+      return;
+    }
+
     viewport = panViewport(viewport, {
       deltaX: event.clientX - dragState.x,
       deltaY: event.clientY - dragState.y,
     });
-    dragState = { x: event.clientX, y: event.clientY };
+    const movedDistance = Math.hypot(event.clientX - dragState.startX, event.clientY - dragState.startY);
+    dragState = {
+      ...dragState,
+      x: event.clientX,
+      y: event.clientY,
+      hasMoved: dragState.hasMoved || movedDistance > 4,
+    };
     updateViewportDisplay();
   });
 
   mapShell?.addEventListener("pointerup", (event) => {
+    if (dragState?.mode === "lasso") {
+      const selectedIds = dragState.hasMoved ? getLoadPointIdsInLasso(mapShell, dragState) : [];
+      dragState.box.remove();
+      dragState = null;
+      mapShell.releasePointerCapture(event.pointerId);
+      if (selectedIds.length > 0) {
+        setSelectionState(addLoadPointsToSelection(getSelectionState(), selectedIds));
+        legendSelectionFilter = { pileSizes: [], pileTipLevels: [] };
+        syncActiveConfigurationsToUsedPileChoices();
+        cptSelectionEditDraft = null;
+        render();
+      }
+      return;
+    }
+
+    const shouldClearSelection = dragState !== null && !dragState.hasMoved && event.button === 0;
     dragState = null;
     mapShell.releasePointerCapture(event.pointerId);
     mapShell.classList.remove("is-panning");
+    if (shouldClearSelection) {
+      legendSelectionFilter = { pileSizes: [], pileTipLevels: [] };
+      setSelectionState(clearSelection(getSelectionState()));
+      syncActiveConfigurationsToUsedPileChoices();
+      cptSelectionEditDraft = null;
+      render();
+    }
   });
 
   mapShell?.addEventListener("pointercancel", () => {
+    if (dragState?.mode === "lasso") {
+      dragState.box.remove();
+    }
     dragState = null;
     mapShell.classList.remove("is-panning");
   });
 
-  mapShell?.addEventListener("contextmenu", (event) => {
-    event.preventDefault();
+  document.onkeydown = (event) => {
+    if (event.key === "Shift") {
+      isShiftKeyPressed = true;
+      return;
+    }
+
+    if (event.key !== "Escape") {
+      return;
+    }
+
+    legendSelectionFilter = { pileSizes: [], pileTipLevels: [] };
+    setSelectionState(clearSelection(getSelectionState()));
+    syncActiveConfigurationsToUsedPileChoices();
+    cptSelectionEditDraft = null;
+    render();
+  };
+
+  document.onkeyup = (event) => {
+    if (event.key === "Shift") {
+      isShiftKeyPressed = false;
+    }
+  };
+
+  appRoot.addEventListener("click", (event) => {
+    if (event.target instanceof HTMLElement && event.target.closest(".table-filter-menu, .table-filter-button")) {
+      return;
+    }
+
+    if (openPileOptionFilterColumn !== null) {
+      openPileOptionFilterColumn = null;
+      render();
+    }
   });
 }
 
 function isMapPanPointerDown(event: PointerEvent): boolean {
-  if (event.button === 2) {
-    return true;
-  }
+  return shouldStartMapPan({
+    button: event.button,
+    targetIsInteractive: event.shiftKey || isMapInteractionTarget(event.target),
+  });
+}
 
-  if (event.button !== 0) {
-    return false;
-  }
+function isMapLassoPointerDown(event: PointerEvent): boolean {
+  return event.button === 0 && event.shiftKey && !isMapInteractionTarget(event.target);
+}
 
-  const target = event.target;
-
-  if (!(target instanceof Element)) {
-    return true;
-  }
-
-  return !target.closest(".map-marker, button, input, select, textarea");
+function isMapInteractionTarget(target: EventTarget | null): boolean {
+  return target instanceof Element && target.closest(".map-marker, button, input, select, textarea") !== null;
 }
 
 function updateViewportDisplay(): void {
@@ -1006,6 +2322,43 @@ function updateLayoutDisplay(): void {
   }
 }
 
+function updateOptimizationSliderValue(setting: keyof OptimizationUiSettings, value: number): void {
+  const label = appRoot.querySelector<HTMLElement>(`[data-optimization-slider-value="${setting}"]`);
+
+  if (label) {
+    label.textContent = String(value);
+  }
+}
+
+function updateLassoBox(lasso: Extract<NonNullable<typeof dragState>, { mode: "lasso" }>): void {
+  const left = Math.min(lasso.startX, lasso.endX);
+  const top = Math.min(lasso.startY, lasso.endY);
+  const width = Math.abs(lasso.endX - lasso.startX);
+  const height = Math.abs(lasso.endY - lasso.startY);
+
+  lasso.box.style.left = `${left}px`;
+  lasso.box.style.top = `${top}px`;
+  lasso.box.style.width = `${width}px`;
+  lasso.box.style.height = `${height}px`;
+}
+
+function getLoadPointIdsInLasso(
+  mapShell: HTMLElement,
+  lasso: Extract<NonNullable<typeof dragState>, { mode: "lasso" }>,
+): number[] {
+  const shellRect = mapShell.getBoundingClientRect();
+  const points = [...mapShell.querySelectorAll<HTMLElement>("[data-load-point-id]")].map((marker) => {
+    const rect = marker.getBoundingClientRect();
+    return {
+      id: Number(marker.dataset.loadPointId),
+      x: rect.left + rect.width / 2 - shellRect.left,
+      y: rect.top + rect.height / 2 - shellRect.top,
+    };
+  });
+
+  return getPointIdsInRectangle(points, lasso);
+}
+
 function formatCurrency(value: number): string {
   return new Intl.NumberFormat("en-US", {
     currency: "EUR",
@@ -1014,4 +2367,43 @@ function formatCurrency(value: number): string {
   }).format(value);
 }
 
-render();
+function escapeHtmlAttribute(value: string): string {
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/"/g, "&quot;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+}
+
+function escapeHtml(value: string): string {
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+}
+
+async function initialize(): Promise<void> {
+  appRoot.innerHTML = `
+    <section class="workspace">
+      <div class="empty-panel">
+        <h2>Loading Project</h2>
+        <p>${isTauriRuntime() ? "Starting Rust analysis core." : "Starting browser preview core."}</p>
+      </div>
+    </section>
+  `;
+  await rebuildCoreAnalysis();
+  syncActiveConfigurationsToUsedPileChoices();
+  render();
+}
+
+initialize().catch((error: unknown) => {
+  console.error(error);
+  appRoot.innerHTML = `
+    <section class="workspace">
+      <div class="empty-panel">
+        <h2>Project Could Not Load</h2>
+        <p>The analysis core returned an error. Check the developer console for details.</p>
+      </div>
+    </section>
+  `;
+});
