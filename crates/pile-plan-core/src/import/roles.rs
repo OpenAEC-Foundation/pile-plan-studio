@@ -2,7 +2,7 @@ use std::collections::{BTreeSet, HashMap, HashSet};
 
 use crate::{ProjectBearingCapacity, ProjectCpt, ProjectLoadPoint};
 
-use super::{ImportError, SourceTable, TableCell};
+use super::{ImportError, SourceRow, SourceTable, TableCell};
 
 pub fn parse_load_points(table: &SourceTable) -> Result<Vec<ProjectLoadPoint>, ImportError> {
     data_rows(table, 4, "load points")?
@@ -152,24 +152,23 @@ fn data_rows<'a>(
         table
             .rows
             .first()
-            .and_then(|row| row.first())
+            .and_then(|row| row.cells.first())
             .is_some_and(|cell| parse_u32(cell).is_err()),
     );
-    for (index, row) in table.rows.iter().enumerate().skip(first_data_index) {
-        if row.len() < columns {
+    for row in table.rows.iter().skip(first_data_index) {
+        if row.cells.len() < columns {
             return Err(ImportError::Validation(format!(
                 "{role} row {} has {} columns, expected at least {columns}",
-                index + 1,
-                row.len()
+                row.number,
+                row.cells.len()
             )));
         }
     }
     Ok(table
         .rows
         .iter()
-        .enumerate()
         .skip(first_data_index)
-        .map(|(index, row)| (index + 1, row.as_slice())))
+        .map(|row: &SourceRow| (row.number, row.cells.as_slice())))
 }
 
 fn cell_u32(row: &[TableCell], row_number: usize, column: usize) -> Result<u32, ImportError> {

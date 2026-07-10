@@ -16,7 +16,9 @@ pub use roles::{
     parse_bearing_capacities, parse_cpts, parse_load_points, reconcile_imported_inputs,
     validate_imported_inputs, ImportReconciliation,
 };
-pub use table::{read_source_table, SourceFormat, SourceTable, TableCell};
+pub use table::{
+    read_source_table, SourceFormat, SourceLocation, SourceRow, SourceTable, TableCell,
+};
 
 pub struct ProjectImportSources<'a> {
     pub project_name: String,
@@ -395,8 +397,22 @@ mod tests {
         let table =
             read_source_table("loads.csv", SourceFormat::Csv, b"1,\"9,450\",4700,79\n\n").unwrap();
 
+        assert_eq!(table.file_name, "loads.csv");
         assert_eq!(table.rows.len(), 1);
-        assert_eq!(table.rows[0][1].as_text(), "9,450");
+        assert_eq!(table.rows[0].number, 1);
+        assert_eq!(table.rows[0].cells[1].as_text(), "9,450");
+    }
+
+    #[test]
+    fn source_table_preserves_physical_rows_around_empty_rows() {
+        let table = read_source_table(
+            "loads.csv",
+            SourceFormat::Csv,
+            b"1,0,0,100\n\n2,1,1,200\n",
+        )
+        .unwrap();
+
+        assert_eq!(table.rows[1].number, 3);
     }
 
     #[test]
@@ -609,8 +625,16 @@ mod tests {
 
     fn source_table(rows: Vec<Vec<TableCell>>) -> SourceTable {
         SourceTable {
+            file_name: "test.csv".to_string(),
             sheet_name: None,
-            rows,
+            rows: rows
+                .into_iter()
+                .enumerate()
+                .map(|(index, cells)| SourceRow {
+                    number: index + 1,
+                    cells,
+                })
+                .collect(),
         }
     }
 

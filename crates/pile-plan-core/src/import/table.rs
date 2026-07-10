@@ -36,9 +36,42 @@ impl TableCell {
 }
 
 #[derive(Clone, Debug, PartialEq)]
-pub struct SourceTable {
+pub struct SourceLocation {
+    pub file_name: String,
     pub sheet_name: Option<String>,
-    pub rows: Vec<Vec<TableCell>>,
+    pub row: Option<usize>,
+    pub column: Option<usize>,
+    pub column_name: Option<&'static str>,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct SourceRow {
+    pub number: usize,
+    pub cells: Vec<TableCell>,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct SourceTable {
+    pub file_name: String,
+    pub sheet_name: Option<String>,
+    pub rows: Vec<SourceRow>,
+}
+
+impl SourceTable {
+    pub fn location(
+        &self,
+        row: Option<usize>,
+        column: Option<usize>,
+        column_name: Option<&'static str>,
+    ) -> SourceLocation {
+        SourceLocation {
+            file_name: self.file_name.clone(),
+            sheet_name: self.sheet_name.clone(),
+            row,
+            column,
+            column_name,
+        }
+    }
 }
 
 pub fn read_source_table(
@@ -64,12 +97,29 @@ fn read_csv(file_name: &str, bytes: &[u8]) -> Result<SourceTable, ImportError> {
     let mut rows = Vec::new();
     for record in reader.records() {
         let record = record.map_err(|error| ImportError::Csv(error.to_string()))?;
+        let row_number = record
+            .position()
+            .map(|position| {
+                let mut start = position.byte() as usize;
+                while matches!(bytes.get(start), Some(b'\r' | b'\n')) {
+                    start += 1;
+                }
+                bytes[..start]
+                    .iter()
+                    .filter(|&&byte| byte == b'\n')
+                    .count()
+                    + 1
+            })
+            .unwrap_or(rows.len() + 1);
         let row: Vec<_> = record
             .iter()
             .map(|value| TableCell::Text(value.to_string()))
             .collect();
         if !row.iter().all(TableCell::is_empty) {
-            rows.push(row);
+            rows.push(SourceRow {
+                number: row_number,
+                cells: row,
+            });
         }
     }
 
@@ -78,6 +128,7 @@ fn read_csv(file_name: &str, bytes: &[u8]) -> Result<SourceTable, ImportError> {
     }
 
     Ok(SourceTable {
+        file_name: file_name.to_string(),
         sheet_name: None,
         rows,
     })
@@ -94,13 +145,18 @@ fn read_xlsx(file_name: &str, bytes: &[u8]) -> Result<SourceTable, ImportError> 
         let range = workbook
             .worksheet_range(&sheet_name)
             .map_err(|error| ImportError::Excel(error.to_string()))?;
-        let rows: Vec<Vec<TableCell>> = range
+        let rows: Vec<SourceRow> = range
             .rows()
-            .map(|row| row.iter().map(from_excel_cell).collect())
-            .filter(|row: &Vec<TableCell>| !row.iter().all(TableCell::is_empty))
+            .enumerate()
+            .map(|(index, row)| SourceRow {
+                number: index + 1,
+                cells: row.iter().map(from_excel_cell).collect(),
+            })
+            .filter(|row| !row.cells.iter().all(TableCell::is_empty))
             .collect();
         if !rows.is_empty() {
             return Ok(SourceTable {
+                file_name: file_name.to_string(),
                 sheet_name: Some(sheet_name),
                 rows,
             });
