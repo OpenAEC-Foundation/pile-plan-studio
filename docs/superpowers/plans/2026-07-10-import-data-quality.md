@@ -13,9 +13,9 @@
 - Do not emit warnings for partially missing pile configurations.
 - Keep CPTs without capacities so normal pile-option logic yields `Missing`.
 - Ignore capacities for CPTs absent from the coordinate source.
-- Collapse exact duplicate capacity keys and reject conflicting duplicates.
+- Collapse exact duplicate capacity keys; select the lowest FRD for conflicting duplicates and warn.
 - Treat the capacity key as CPT ID, pile size, and millimetre-scaled tip level.
-- Reject pile size zero and FRD below zero; allow FRD zero.
+- Reject pile size zero; allow finite negative and zero FRD values.
 
 ---
 
@@ -29,7 +29,7 @@
 - Produces: `reconcile_imported_inputs(load_points, cpts, capacities) -> Result<ImportReconciliation, ImportError>`.
 - `ImportReconciliation` contains cleaned capacities, ignored orphan row count/IDs, deduplicated row count, and CPT IDs without capacities.
 
-- [ ] Add failing tests for orphan rows, CPTs without capacities, exact duplicates, conflicting duplicates, zero size, negative FRD, and no missing-configuration warnings.
+- [ ] Add failing tests for orphan rows, CPTs without capacities, exact duplicates, lowest-FRD conflict resolution, zero size, finite negative FRD, and no missing-configuration warnings.
 - [ ] Run `cargo test -p pile-plan-core import -- --nocapture` and confirm the new tests fail for the intended missing behavior.
 - [ ] Implement reconciliation with a sorted capacity key and stable output order.
 - [ ] Replace the existing unknown-CPT hard failure in both generic and compatibility import paths.
@@ -70,4 +70,3 @@
 - [ ] Run `npx tsc -p apps/pile-plan-studio/tsconfig.json --noEmit; npm test --prefix apps/pile-plan-studio`.
 - [ ] Run `npm run build:react --prefix apps/pile-plan-studio` and inspect the live import panel for errors.
 - [ ] Commit with `git commit -m "feat: show import reconciliation summary"`.
-

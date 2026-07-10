@@ -41,7 +41,9 @@ floating-point comparison noise.
 
 - Exact duplicates with the same FRD are reduced to one row and summarized in
   a warning.
-- Duplicate keys with different FRD values are ambiguous and block import.
+- Duplicate keys with different FRD values are reduced to the lowest FRD. The
+  import records the number of conflicting keys in a warning so this
+  conservative choice remains visible and auditable.
 
 ### Invalid values
 
@@ -49,14 +51,15 @@ Import is blocked for:
 
 - non-finite numeric values;
 - pile size equal to zero;
-- FRD below zero;
 - duplicate load-point IDs;
 - duplicate CPT IDs;
 - empty sources or rows with insufficient columns.
 
-`FRD = 0` remains valid because it unambiguously represents no available
-resistance. Load values at or below zero are retained for now; support and
-interpretation of tensile loads is outside this validation step.
+Negative and zero FRD values remain valid. A negative FRD can be a legitimate
+net result when negative skin friction exceeds positive resistance. Because an
+FRD record exists, the pile option becomes `Not OK` rather than `Missing`.
+Load values at or below zero are retained for now; support and interpretation
+of tensile loads is outside this validation step.
 
 ## Warning placement
 
@@ -91,10 +94,9 @@ Rust tests cover:
 - CPTs without capacities are retained and summarized;
 - selecting a CPT without capacities produces `Missing` pile options;
 - exact duplicate capacity rows collapse to one;
-- conflicting duplicate capacity rows block import;
-- zero pile size and negative FRD block import;
+- conflicting duplicate capacity keys select the lowest FRD and warn;
+- zero pile size blocks import while negative FRD remains available as `Not OK`;
 - missing configurations are not emitted as import warnings.
 
 Frontend tests cover rendering the successful import summary and keeping the
 summary available without treating warnings as errors.
-

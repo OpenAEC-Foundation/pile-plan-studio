@@ -13,7 +13,8 @@ mod roles;
 mod table;
 
 pub use roles::{
-    parse_bearing_capacities, parse_cpts, parse_load_points, validate_imported_inputs,
+    parse_bearing_capacities, parse_cpts, parse_load_points, reconcile_imported_inputs,
+    validate_imported_inputs, ImportReconciliation,
 };
 pub use table::{read_source_table, SourceFormat, SourceTable, TableCell};
 
@@ -85,39 +86,36 @@ pub fn import_project_from_sources(
     let load_points = import_load_points_csv(sources.load_points_csv)?;
     let cpts = import_cpts_xlsx(sources.cpts_xlsx)?;
     let bearing_capacities = import_bearing_capacities_xlsx(sources.bearing_capacities_xlsx)?;
-    validate_imported_inputs(&load_points, &cpts, &bearing_capacities)?;
+    let reconciliation = reconcile_imported_inputs(&load_points, &cpts, bearing_capacities)?;
+    let mut import_log = vec![
+        import_log_entry(
+            "Belastinglocaties.csv",
+            None,
+            &[
+                ("id", "id"),
+                ("x", "x_mm"),
+                ("y", "y_mm"),
+                ("FED", "design_load_kn"),
+            ],
+        ),
+        import_log_entry(
+            "Sonderingen.xlsx",
+            Some("first worksheet"),
+            &[("id", "id"), ("x", "x_mm"), ("y", "y_mm")],
+        ),
+        import_log_entry(
+            "Draagvermogens.xlsx",
+            Some("first worksheet"),
+            capacity_columns(),
+        ),
+    ];
+    import_log[2].warnings = reconciliation_warnings(&reconciliation);
     Ok(build_imported_project(
         sources.project_name,
         load_points,
         cpts,
-        bearing_capacities,
-        vec![
-            import_log_entry(
-                "Belastinglocaties.csv",
-                None,
-                &[
-                    ("id", "id"),
-                    ("x", "x_mm"),
-                    ("y", "y_mm"),
-                    ("FED", "design_load_kn"),
-                ],
-            ),
-            import_log_entry(
-                "Sonderingen.xlsx",
-                Some("first worksheet"),
-                &[("id", "id"), ("x", "x_mm"), ("y", "y_mm")],
-            ),
-            import_log_entry(
-                "Draagvermogens.xlsx",
-                Some("first worksheet"),
-                &[
-                    ("nummer", "cpt_id"),
-                    ("ppn", "pile_tip_level_m"),
-                    ("afm", "pile_size_mm"),
-                    ("FRd", "frd_kn"),
-                ],
-            ),
-        ],
+        reconciliation.bearing_capacities,
+        import_log,
     ))
 }
 
@@ -142,21 +140,23 @@ pub fn import_project_from_generic_sources(
     let load_points = parse_load_points(&load_table)?;
     let cpts = parse_cpts(&cpt_table)?;
     let bearing_capacities = parse_bearing_capacities(&capacity_table)?;
-    validate_imported_inputs(&load_points, &cpts, &bearing_capacities)?;
+    let reconciliation = reconcile_imported_inputs(&load_points, &cpts, bearing_capacities)?;
+    let mut capacity_log = provenance_entry(
+        capacity_source,
+        capacity_table.sheet_name,
+        capacity_columns(),
+    );
+    capacity_log.warnings = reconciliation_warnings(&reconciliation);
 
     Ok(build_imported_project(
         project_name.to_string(),
         load_points,
         cpts,
-        bearing_capacities,
+        reconciliation.bearing_capacities,
         vec![
             provenance_entry(load_source, load_table.sheet_name, load_point_columns()),
             provenance_entry(cpt_source, cpt_table.sheet_name, cpt_columns()),
-            provenance_entry(
-                capacity_source,
-                capacity_table.sheet_name,
-                capacity_columns(),
-            ),
+            capacity_log,
         ],
     ))
 }
@@ -291,6 +291,44 @@ fn capacity_columns() -> &'static [(&'static str, &'static str)] {
     ]
 }
 
+fn reconciliation_warnings(reconciliation: &ImportReconciliation) -> Vec<String> {
+    let mut warnings = Vec::new();
+    if reconciliation.ignored_orphan_rows > 0 {
+        warnings.push(format!(
+            "Ignored {} bearing-capacity row(s) for {} CPT(s) without coordinates: {}",
+            reconciliation.ignored_orphan_rows,
+            reconciliation.ignored_orphan_cpt_ids.len(),
+            join_ids(&reconciliation.ignored_orphan_cpt_ids)
+        ));
+    }
+    if reconciliation.deduplicated_rows > 0 {
+        warnings.push(format!(
+            "Deduplicated {} exact bearing-capacity row(s)",
+            reconciliation.deduplicated_rows
+        ));
+    }
+    if reconciliation.conflicting_duplicate_keys > 0 {
+        warnings.push(format!(
+            "Selected the lowest FRD for {} conflicting duplicate bearing-capacity key(s)",
+            reconciliation.conflicting_duplicate_keys
+        ));
+    }
+    if !reconciliation.cpt_ids_without_capacities.is_empty() {
+        warnings.push(format!(
+            "CPTs without bearing capacities: {}. Pile options using these CPTs will be Missing.",
+            join_ids(&reconciliation.cpt_ids_without_capacities)
+        ));
+    }
+    warnings
+}
+
+fn join_ids(ids: &[u32]) -> String {
+    ids.iter()
+        .map(u32::to_string)
+        .collect::<Vec<_>>()
+        .join(", ")
+}
+
 pub fn import_load_points_csv(input: &str) -> Result<Vec<ProjectLoadPoint>, ImportError> {
     let table = read_source_table("Belastinglocaties.csv", SourceFormat::Csv, input.as_bytes())?;
     parse_load_points(&table)
@@ -406,7 +444,7 @@ mod tests {
     }
 
     #[test]
-    fn imported_inputs_reject_unknown_capacity_cpt_references() {
+    fn reconciliation_ignores_orphans_deduplicates_and_keeps_cpts_without_capacities() {
         let loads = parse_load_points(&source_table(vec![vec![
             text("1"),
             text("0"),
@@ -414,17 +452,86 @@ mod tests {
             text("100"),
         ]]))
         .unwrap();
-        let cpts = parse_cpts(&source_table(vec![vec![text("61"), text("0"), text("0")]])).unwrap();
-        let capacities = parse_bearing_capacities(&source_table(vec![vec![
-            text("62"),
-            text("-17.5"),
-            text("290"),
-            text("700"),
-        ]]))
+        let cpts = parse_cpts(&source_table(vec![
+            vec![text("61"), text("0"), text("0")],
+            vec![text("63"), text("1000"), text("1000")],
+        ]))
+        .unwrap();
+        let capacities = parse_bearing_capacities(&source_table(vec![
+            vec![text("62"), text("-17.5"), text("290"), text("700")],
+            vec![text("61"), text("-17.5"), text("290"), text("672")],
+            vec![text("61"), text("-17.5"), text("290"), text("672")],
+        ]))
         .unwrap();
 
-        let error = validate_imported_inputs(&loads, &cpts, &capacities).unwrap_err();
-        assert!(error.to_string().contains("unknown CPT 62"));
+        let result = reconcile_imported_inputs(&loads, &cpts, capacities).unwrap();
+        assert_eq!(result.bearing_capacities.len(), 1);
+        assert_eq!(result.ignored_orphan_rows, 1);
+        assert_eq!(result.ignored_orphan_cpt_ids, vec![62]);
+        assert_eq!(result.deduplicated_rows, 1);
+        assert_eq!(result.cpt_ids_without_capacities, vec![63]);
+    }
+
+    #[test]
+    fn reconciliation_uses_lowest_conflicting_duplicate_capacity() {
+        let loads = vec![ProjectLoadPoint {
+            id: 1,
+            name: "Load point 1".into(),
+            x_mm: 0.0,
+            y_mm: 0.0,
+            design_load_kn: 100.0,
+        }];
+        let cpts = vec![ProjectCpt {
+            id: 61,
+            name: "CPT 61".into(),
+            x_mm: 0.0,
+            y_mm: 0.0,
+        }];
+        let capacities = vec![
+            ProjectBearingCapacity {
+                cpt_id: 61,
+                pile_tip_level_m: -17.5,
+                pile_size_mm: 290,
+                frd_kn: 672.0,
+            },
+            ProjectBearingCapacity {
+                cpt_id: 61,
+                pile_tip_level_m: -17.5,
+                pile_size_mm: 290,
+                frd_kn: 700.0,
+            },
+        ];
+
+        let result = reconcile_imported_inputs(&loads, &cpts, capacities).unwrap();
+        assert_eq!(result.bearing_capacities.len(), 1);
+        assert_eq!(result.bearing_capacities[0].frd_kn, 672.0);
+        assert_eq!(result.conflicting_duplicate_keys, 1);
+    }
+
+    #[test]
+    fn reconciliation_keeps_finite_negative_frd() {
+        let loads = vec![ProjectLoadPoint {
+            id: 1,
+            name: "Load point 1".into(),
+            x_mm: 0.0,
+            y_mm: 0.0,
+            design_load_kn: 100.0,
+        }];
+        let cpts = vec![ProjectCpt {
+            id: 50,
+            name: "CPT 50".into(),
+            x_mm: 0.0,
+            y_mm: 0.0,
+        }];
+        let capacities = vec![ProjectBearingCapacity {
+            cpt_id: 50,
+            pile_tip_level_m: -17.5,
+            pile_size_mm: 290,
+            frd_kn: -42.0,
+        }];
+
+        let result = reconcile_imported_inputs(&loads, &cpts, capacities).unwrap();
+        assert_eq!(result.bearing_capacities[0].frd_kn, -42.0);
     }
 
     #[test]
@@ -463,6 +570,41 @@ mod tests {
             project.import_log[0].schema_version.as_deref(),
             Some("fixed-1")
         );
+    }
+
+    #[test]
+    fn generic_import_records_reconciliation_warnings() {
+        let sources = vec![
+            csv_source(ImportRole::LoadPoints, "loads.csv", "1,0,0,100\n"),
+            csv_source(ImportRole::Cpts, "cpts.csv", "61,0,0\n63,1000,1000\n"),
+            csv_source(
+                ImportRole::BearingCapacities,
+                "capacities.csv",
+                "62,-17.5,290,700\n61,-17.5,290,672\n61,-17.5,290,672\n",
+            ),
+        ];
+
+        let project = import_project_from_generic_sources("Warnings", &sources).unwrap();
+        assert_eq!(project.inputs.bearing_capacities.len(), 1);
+        let warnings = &project.import_log[2].warnings;
+        assert!(warnings
+            .iter()
+            .any(|warning| warning.contains("Ignored 1 bearing-capacity row")));
+        assert!(warnings
+            .iter()
+            .any(|warning| warning.contains("Deduplicated 1")));
+        assert!(warnings
+            .iter()
+            .any(|warning| warning.contains("CPTs without bearing capacities: 63")));
+    }
+
+    fn csv_source(role: ImportRole, file_name: &str, contents: &str) -> ImportSource {
+        ImportSource {
+            role,
+            file_name: file_name.to_string(),
+            format: SourceFormat::Csv,
+            bytes: contents.as_bytes().to_vec(),
+        }
     }
 
     fn source_table(rows: Vec<Vec<TableCell>>) -> SourceTable {
@@ -505,12 +647,16 @@ mod tests {
         assert_eq!(project.schema, "IFCPP");
         assert_eq!(project.inputs.load_points.len(), 328);
         assert_eq!(project.inputs.cpts.len(), 77);
-        assert_eq!(project.inputs.bearing_capacities.len(), 2340);
+        assert_eq!(project.inputs.bearing_capacities.len(), 2208);
         assert_eq!(project.inputs.cpts[0].name, "CPT 1");
         assert_eq!(project.inputs.bearing_capacities[0].cpt_id, 1);
         assert_eq!(project.inputs.bearing_capacities[0].pile_size_mm, 290);
         assert_eq!(project.inputs.bearing_capacities[0].pile_tip_level_m, -17.5);
         assert_eq!(project.inputs.bearing_capacities[0].frd_kn, 672.0);
         assert_eq!(project.import_log.len(), 3);
+        assert!(project.import_log[2]
+            .warnings
+            .iter()
+            .any(|warning| warning.contains("132 conflicting duplicate")));
     }
 }

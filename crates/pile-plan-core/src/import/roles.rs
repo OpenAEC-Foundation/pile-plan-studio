@@ -1,4 +1,4 @@
-use std::collections::HashSet;
+use std::collections::{BTreeSet, HashMap, HashSet};
 
 use crate::{ProjectBearingCapacity, ProjectCpt, ProjectLoadPoint};
 
@@ -55,15 +55,90 @@ pub fn validate_imported_inputs(
 ) -> Result<(), ImportError> {
     reject_duplicate_ids(load_points.iter().map(|item| item.id), "load point")?;
     reject_duplicate_ids(cpts.iter().map(|item| item.id), "CPT")?;
+    validate_capacity_values(capacities)?;
+    Ok(())
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct ImportReconciliation {
+    pub bearing_capacities: Vec<ProjectBearingCapacity>,
+    pub ignored_orphan_rows: usize,
+    pub ignored_orphan_cpt_ids: Vec<u32>,
+    pub deduplicated_rows: usize,
+    pub conflicting_duplicate_keys: usize,
+    pub cpt_ids_without_capacities: Vec<u32>,
+}
+
+pub fn reconcile_imported_inputs(
+    load_points: &[ProjectLoadPoint],
+    cpts: &[ProjectCpt],
+    capacities: Vec<ProjectBearingCapacity>,
+) -> Result<ImportReconciliation, ImportError> {
+    validate_imported_inputs(load_points, cpts, &capacities)?;
     let cpt_ids: HashSet<_> = cpts.iter().map(|item| item.id).collect();
-    if let Some(capacity) = capacities
-        .iter()
-        .find(|item| !cpt_ids.contains(&item.cpt_id))
-    {
-        return Err(ImportError::Validation(format!(
-            "Bearing capacity references unknown CPT {}",
-            capacity.cpt_id
-        )));
+    let mut orphan_ids = BTreeSet::new();
+    let mut ignored_orphan_rows = 0;
+    let mut deduplicated_rows = 0;
+    let mut conflicting_keys = BTreeSet::new();
+    let mut key_indexes: HashMap<(u32, u32, i64), usize> = HashMap::new();
+    let mut bearing_capacities: Vec<ProjectBearingCapacity> = Vec::new();
+
+    for capacity in capacities {
+        if !cpt_ids.contains(&capacity.cpt_id) {
+            ignored_orphan_rows += 1;
+            orphan_ids.insert(capacity.cpt_id);
+            continue;
+        }
+        let key = (
+            capacity.cpt_id,
+            capacity.pile_size_mm,
+            (capacity.pile_tip_level_m * 1000.0).round() as i64,
+        );
+        if let Some(&index) = key_indexes.get(&key) {
+            let existing = &bearing_capacities[index];
+            if (existing.frd_kn - capacity.frd_kn).abs() > f64::EPSILON {
+                conflicting_keys.insert(key);
+                if capacity.frd_kn < existing.frd_kn {
+                    bearing_capacities[index] = capacity;
+                }
+                continue;
+            }
+            deduplicated_rows += 1;
+        } else {
+            key_indexes.insert(key, bearing_capacities.len());
+            bearing_capacities.push(capacity);
+        }
+    }
+
+    let cpts_with_capacities: HashSet<_> =
+        bearing_capacities.iter().map(|item| item.cpt_id).collect();
+    let mut cpt_ids_without_capacities: Vec<_> =
+        cpt_ids.difference(&cpts_with_capacities).copied().collect();
+    cpt_ids_without_capacities.sort_unstable();
+
+    Ok(ImportReconciliation {
+        bearing_capacities,
+        ignored_orphan_rows,
+        ignored_orphan_cpt_ids: orphan_ids.into_iter().collect(),
+        deduplicated_rows,
+        conflicting_duplicate_keys: conflicting_keys.len(),
+        cpt_ids_without_capacities,
+    })
+}
+
+fn validate_capacity_values(capacities: &[ProjectBearingCapacity]) -> Result<(), ImportError> {
+    for capacity in capacities {
+        if capacity.pile_size_mm == 0 {
+            return Err(ImportError::Validation(
+                "Pile size must be greater than zero".to_string(),
+            ));
+        }
+        if !capacity.frd_kn.is_finite() {
+            return Err(ImportError::Validation(format!(
+                "FRD must be a finite value for CPT {}",
+                capacity.cpt_id
+            )));
+        }
     }
     Ok(())
 }
