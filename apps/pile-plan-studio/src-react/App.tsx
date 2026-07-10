@@ -17,7 +17,7 @@ import {
   importProjectFromFilesCore,
 } from "../src/coreClient";
 import type { ImportSourceInput } from "../src/coreImportContract";
-import { applyDefaultPileCostSettings, createIfcppProject } from "../src/projectFile";
+import { applyDefaultPileCostSettings, createIfcppProject, getImportSummary } from "../src/projectFile";
 import { writeIfcppProjectCore } from "../src/coreClient";
 import { createInitialProjectState } from "./domain/projectState";
 import { getSetting } from "./store";
@@ -207,6 +207,7 @@ export default function App() {
           const project = await importProjectFromFilesCore({ projectName, sources });
           const withCosts = applyDefaultPileCostSettings(project, projectState.pileCostSettings);
           setProjectState(createInitialProjectState(withCosts));
+          return getImportSummary(project);
         }}
         onOpenProjectFile={async (file: File) => {
           const project = createInitialProjectState(await file.text());

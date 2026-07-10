@@ -4,6 +4,7 @@ import { useRecentFiles, type RecentFile } from "../../../hooks/useRecentFiles";
 import ExtensionManagerPanel from "./ExtensionManagerPanel";
 import ProjectImportPanel from "../../domain/ProjectImportPanel";
 import type { ImportSourceInput } from "../../../../src/coreImportContract";
+import type { ImportSummary } from "../../../../src/projectFile";
 import "./Backstage.css";
 
 const ICONS = {
@@ -59,7 +60,7 @@ interface BackstageProps {
   onClose: () => void;
   onOpenSettings: () => void;
   onOpenFile?: (path: string) => void;
-  onImportProject: (projectName: string, sources: ImportSourceInput[]) => Promise<void>;
+  onImportProject: (projectName: string, sources: ImportSourceInput[]) => Promise<ImportSummary>;
   onOpenProjectFile: (file: File) => Promise<void>;
   onDownloadProject: () => Promise<void>;
 }
@@ -211,8 +212,7 @@ export default function Backstage({ open, onClose, onOpenSettings, onOpenFile, o
           )}
           {activePanel === "about" && <AboutPanel />}
           {activePanel === "import" && <ProjectImportPanel onImportProject={async (name, sources) => {
-            await onImportProject(name, sources);
-            onClose();
+            return onImportProject(name, sources);
           }} />}
           {activePanel === "export" && <ExportPanel onDownloadProject={onDownloadProject} />}
           {activePanel === "extensions" && <ExtensionManagerPanel />}

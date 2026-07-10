@@ -8,6 +8,7 @@ import {
   type ImportFileRole,
 } from "../../../src/importFiles.ts";
 import type { ImportSourceInput } from "../../../src/coreImportContract.ts";
+import type { ImportSummary } from "../../../src/projectFile.ts";
 import "./projectImport.css";
 
 const ROLES: Array<{ role: ImportFileRole; label: string; columns: string }> = [
@@ -19,7 +20,7 @@ const ROLES: Array<{ role: ImportFileRole; label: string; columns: string }> = [
 export default function ProjectImportPanel({
   onImportProject,
 }: {
-  onImportProject: (projectName: string, sources: ImportSourceInput[]) => Promise<void>;
+  onImportProject: (projectName: string, sources: ImportSourceInput[]) => Promise<ImportSummary>;
 }) {
   const [projectName, setProjectName] = useState("Imported Project");
   const [assignments, setAssignments] = useState<ImportFileAssignments<File>>(
@@ -27,6 +28,7 @@ export default function ProjectImportPanel({
   );
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [summary, setSummary] = useState<ImportSummary | null>(null);
 
   const assignFiles = (files: File[]) => {
     setAssignments((current) => inferImportFileAssignments(files, current));
@@ -44,7 +46,7 @@ export default function ProjectImportPanel({
         if (!format) throw new Error(`Unsupported file format: ${file.name}`);
         return { role, fileName: file.name, format, bytes: new Uint8Array(await file.arrayBuffer()) };
       }));
-      await onImportProject(projectName.trim() || "Imported Project", sources);
+      setSummary(await onImportProject(projectName.trim() || "Imported Project", sources));
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : String(reason));
     } finally {
@@ -81,6 +83,15 @@ export default function ProjectImportPanel({
         ))}
       </div>
       {error && <p className="project-import-error" role="alert">{error}</p>}
+      {summary && (
+        <section className="project-import-summary" aria-label="Import summary">
+          <strong>Import completed</strong>
+          <span>{summary.loadPointCount.toLocaleString()} load points · {summary.cptCount.toLocaleString()} CPTs · {summary.bearingCapacityCount.toLocaleString()} bearing capacities</span>
+          {summary.warnings.length > 0 && (
+            <ul>{summary.warnings.map((warning) => <li key={warning}>{warning}</li>)}</ul>
+          )}
+        </section>
+      )}
       <button className="project-import-submit" type="button" disabled={busy || !areImportFileAssignmentsComplete(assignments)} onClick={importProject}>
         {busy ? "Importing..." : "Import project"}
       </button>

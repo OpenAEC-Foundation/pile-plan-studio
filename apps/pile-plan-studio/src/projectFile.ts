@@ -61,8 +61,27 @@ export type IfcppProject = {
     selected_piles: Record<string, IfcppSelectedPileChoice>;
       manual_cpt_selections: Record<string, number[]>;
   };
-  import_log?: unknown[];
+  import_log?: Array<{
+    source_file?: string;
+    warnings?: string[];
+  }>;
 };
+
+export type ImportSummary = {
+  loadPointCount: number;
+  cptCount: number;
+  bearingCapacityCount: number;
+  warnings: string[];
+};
+
+export function getImportSummary(project: IfcppProject): ImportSummary {
+  return {
+    loadPointCount: project.inputs.load_points.length,
+    cptCount: project.inputs.cpts.length,
+    bearingCapacityCount: project.inputs.bearing_capacities.length,
+    warnings: (project.import_log ?? []).flatMap((entry) => entry.warnings ?? []),
+  };
+}
 
 export type LoadedProjectData = {
   name: string;

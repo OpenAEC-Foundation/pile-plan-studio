@@ -6,6 +6,7 @@ import {
   applyDefaultPileCostSettings,
   createIfcppProject,
   loadIfcppProjectData,
+  getImportSummary,
   type IfcppProject,
 } from "./projectFile.ts";
 
@@ -72,6 +73,20 @@ function projectFixture(): IfcppProject {
 }
 
 describe("IFCPP project loading", () => {
+  it("summarizes imported counts and persisted warnings", () => {
+    const project = projectFixture();
+    project.import_log = [{
+      source_file: "capacities.csv",
+      warnings: ["Ignored 2 bearing-capacity rows", "CPTs without bearing capacities: 63"],
+    }];
+
+    assert.deepEqual(getImportSummary(project), {
+      loadPointCount: 1,
+      cptCount: 1,
+      bearingCapacityCount: 1,
+      warnings: ["Ignored 2 bearing-capacity rows", "CPTs without bearing capacities: 63"],
+    });
+  });
   it("loads app data from an IFCPP project", () => {
     const data = loadIfcppProjectData(projectFixture());
 

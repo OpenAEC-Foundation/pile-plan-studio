@@ -10,4 +10,6 @@
 .project-import-replace { position: relative; cursor: pointer; }
 .project-import-replace input { position: absolute; width: 1px; height: 1px; opacity: 0; }
 .project-import-error { color: #b42318; margin: 0; white-space: pre-wrap; }
+.project-import-summary { display: grid; gap: 6px; padding: 10px 0; border-top: 1px solid var(--theme-border); }
+.project-import-summary ul { margin: 0; padding-left: 20px; color: var(--theme-text-muted); }
 .project-import-submit { justify-self: start; }
