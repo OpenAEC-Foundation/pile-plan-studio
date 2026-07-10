@@ -30,7 +30,7 @@ impl TableCell {
         }
     }
 
-    fn is_empty(&self) -> bool {
+    pub(crate) fn is_empty(&self) -> bool {
         matches!(self, Self::Empty) || matches!(self, Self::Text(value) if value.trim().is_empty())
     }
 }

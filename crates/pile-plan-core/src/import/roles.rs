@@ -79,7 +79,20 @@ pub fn parse_cpts(table: &SourceTable) -> Result<Vec<ProjectCpt>, ImportError> {
 pub fn parse_bearing_capacities(
     table: &SourceTable,
 ) -> Result<Vec<ProjectBearingCapacity>, ImportError> {
+    Ok(parse_bearing_capacities_with_diagnostics(table)?.bearing_capacities)
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct BearingCapacityParseResult {
+    pub bearing_capacities: Vec<ProjectBearingCapacity>,
+    pub empty_frd_rows: Vec<usize>,
+}
+
+pub fn parse_bearing_capacities_with_diagnostics(
+    table: &SourceTable,
+) -> Result<BearingCapacityParseResult, ImportError> {
     let mut result = Vec::new();
+    let mut empty_frd_rows = Vec::new();
     for row in data_rows(table, 4, "bearing capacities")? {
         let pile_size_mm = cell_u32(table, row, SIZE)?;
         if pile_size_mm == 0 {
@@ -88,6 +101,11 @@ pub fn parse_bearing_capacities(
                 message: "value must be greater than zero",
             });
         }
+        let frd_cell = cell(row, FRD, &cell_location(table, row, FRD))?;
+        if frd_cell.is_empty() {
+            empty_frd_rows.push(row.number);
+            continue;
+        }
         result.push(ProjectBearingCapacity {
             cpt_id: cell_u32(table, row, CPT_ID)?,
             pile_tip_level_m: cell_f64(table, row, TIP)?,
@@ -95,7 +113,10 @@ pub fn parse_bearing_capacities(
             frd_kn: cell_f64(table, row, FRD)?,
         });
     }
-    Ok(result)
+    Ok(BearingCapacityParseResult {
+        bearing_capacities: result,
+        empty_frd_rows,
+    })
 }
 
 fn reject_duplicate_source_id(

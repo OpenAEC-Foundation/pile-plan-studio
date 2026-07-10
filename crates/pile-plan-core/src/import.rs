@@ -13,8 +13,9 @@ mod roles;
 mod table;
 
 pub use roles::{
-    parse_bearing_capacities, parse_cpts, parse_load_points, reconcile_imported_inputs,
-    validate_imported_inputs, ImportReconciliation,
+    parse_bearing_capacities, parse_bearing_capacities_with_diagnostics, parse_cpts,
+    parse_load_points, reconcile_imported_inputs, validate_imported_inputs,
+    BearingCapacityParseResult, ImportReconciliation,
 };
 pub use table::{
     read_source_table, SourceFormat, SourceLocation, SourceRow, SourceTable, TableCell,
@@ -516,11 +517,24 @@ mod tests {
         )
         .unwrap();
 
-        let error = parse_bearing_capacities(&table).unwrap_err();
-        assert_eq!(
-            error.to_string(),
-            "capacities.csv, row 2, FRD (column 4): value is empty; expected a number."
-        );
+        let result = parse_bearing_capacities_with_diagnostics(&table).unwrap();
+        assert!(result.bearing_capacities.is_empty());
+        assert_eq!(result.empty_frd_rows, vec![2]);
+    }
+
+    #[test]
+    fn empty_frd_does_not_hide_valid_capacity_for_same_configuration() {
+        let table = read_source_table(
+            "capacities.csv",
+            SourceFormat::Csv,
+            b"CPT ID,Tip,Size,FRD\n61,-17.5,290,\n61,-17.5,290,672\n",
+        )
+        .unwrap();
+
+        let result = parse_bearing_capacities_with_diagnostics(&table).unwrap();
+        assert_eq!(result.empty_frd_rows, vec![2]);
+        assert_eq!(result.bearing_capacities.len(), 1);
+        assert_eq!(result.bearing_capacities[0].frd_kn, 672.0);
     }
 
     #[test]
