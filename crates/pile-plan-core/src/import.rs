@@ -181,8 +181,14 @@ pub fn import_project_from_sources(
 ) -> Result<PilePlanProject, ImportError> {
     let load_points = import_load_points_csv(sources.load_points_csv)?;
     let cpts = import_cpts_xlsx(sources.cpts_xlsx)?;
-    let bearing_capacities = import_bearing_capacities_xlsx(sources.bearing_capacities_xlsx)?;
-    let reconciliation = reconcile_imported_inputs(&load_points, &cpts, bearing_capacities)?;
+    let capacity_table = read_source_table(
+        "Draagvermogens.xlsx",
+        SourceFormat::Xlsx,
+        sources.bearing_capacities_xlsx,
+    )?;
+    let capacity_parse = parse_bearing_capacities_with_diagnostics(&capacity_table)?;
+    let reconciliation =
+        reconcile_imported_inputs(&load_points, &cpts, capacity_parse.bearing_capacities)?;
     let mut import_log = vec![
         import_log_entry(
             "Belastinglocaties.csv",
@@ -205,7 +211,11 @@ pub fn import_project_from_sources(
             capacity_columns(),
         ),
     ];
-    import_log[2].warnings = reconciliation_warnings(&reconciliation);
+    import_log[2].warnings = import_warnings(
+        &capacity_table,
+        &capacity_parse.empty_frd_rows,
+        &reconciliation,
+    );
     Ok(build_imported_project(
         sources.project_name,
         load_points,
@@ -235,14 +245,19 @@ pub fn import_project_from_generic_sources(
     )?;
     let load_points = parse_load_points(&load_table)?;
     let cpts = parse_cpts(&cpt_table)?;
-    let bearing_capacities = parse_bearing_capacities(&capacity_table)?;
-    let reconciliation = reconcile_imported_inputs(&load_points, &cpts, bearing_capacities)?;
+    let capacity_parse = parse_bearing_capacities_with_diagnostics(&capacity_table)?;
+    let reconciliation =
+        reconcile_imported_inputs(&load_points, &cpts, capacity_parse.bearing_capacities)?;
     let mut capacity_log = provenance_entry(
         capacity_source,
-        capacity_table.sheet_name,
+        capacity_table.sheet_name.clone(),
         capacity_columns(),
     );
-    capacity_log.warnings = reconciliation_warnings(&reconciliation);
+    capacity_log.warnings = import_warnings(
+        &capacity_table,
+        &capacity_parse.empty_frd_rows,
+        &reconciliation,
+    );
 
     Ok(build_imported_project(
         project_name.to_string(),
@@ -419,6 +434,43 @@ fn reconciliation_warnings(reconciliation: &ImportReconciliation) -> Vec<String>
         ));
     }
     warnings
+}
+
+fn import_warnings(
+    capacity_table: &SourceTable,
+    empty_frd_rows: &[usize],
+    reconciliation: &ImportReconciliation,
+) -> Vec<String> {
+    let mut warnings = Vec::new();
+    if !empty_frd_rows.is_empty() {
+        warnings.push(empty_frd_warning(capacity_table, empty_frd_rows));
+    }
+    warnings.extend(reconciliation_warnings(reconciliation));
+    warnings
+}
+
+fn empty_frd_warning(table: &SourceTable, rows: &[usize]) -> String {
+    let source = match &table.sheet_name {
+        Some(sheet_name) => format!("{} > {sheet_name}", table.file_name),
+        None => table.file_name.clone(),
+    };
+    let shown_rows = rows
+        .iter()
+        .take(10)
+        .map(usize::to_string)
+        .collect::<Vec<_>>()
+        .join(", ");
+    let remaining = rows.len().saturating_sub(10);
+    let row_list = if remaining > 0 {
+        format!("{shown_rows}; and {remaining} more")
+    } else {
+        shown_rows
+    };
+    let row_label = if rows.len() == 1 { "row" } else { "rows" };
+    format!(
+        "Ignored {} bearing-capacity {row_label} with an empty FRD in {source} (rows {row_list}). These configurations are treated as Missing.",
+        rows.len()
+    )
 }
 
 fn join_ids(ids: &[u32]) -> String {
@@ -832,6 +884,28 @@ mod tests {
         assert!(warnings
             .iter()
             .any(|warning| warning.contains("CPTs without bearing capacities: 63")));
+    }
+
+    #[test]
+    fn empty_frd_rows_are_persisted_as_one_bounded_warning() {
+        let capacity_rows = (0..11)
+            .map(|index| format!("61,-{},290,\n", 17.5 + index as f64 / 10.0))
+            .collect::<String>();
+        let sources = vec![
+            csv_source(ImportRole::LoadPoints, "loads.csv", "1,0,0,100\n"),
+            csv_source(ImportRole::Cpts, "cpts.csv", "61,0,0\n"),
+            csv_source(
+                ImportRole::BearingCapacities,
+                "capacities.csv",
+                &capacity_rows,
+            ),
+        ];
+
+        let project = import_project_from_generic_sources("Empty FRD", &sources).unwrap();
+        assert!(project.inputs.bearing_capacities.is_empty());
+        assert!(project.import_log[2].warnings.iter().any(|warning| warning ==
+            "Ignored 11 bearing-capacity rows with an empty FRD in capacities.csv (rows 1, 2, 3, 4, 5, 6, 7, 8, 9, 10; and 1 more). These configurations are treated as Missing."
+        ));
     }
 
     fn csv_source(role: ImportRole, file_name: &str, contents: &str) -> ImportSource {
