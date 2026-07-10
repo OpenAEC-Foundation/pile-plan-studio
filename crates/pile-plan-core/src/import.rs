@@ -1,18 +1,18 @@
-use std::collections::HashMap;
-use std::fmt;
-use std::io::Cursor;
-
-use calamine::{Data, Reader, Xlsx};
-
 use crate::{
     CptSelectionAlgorithm, CptSelectionSettings, GreedyOptimizationSettings, PileCostSettings,
     PilePlanProject, ProjectApplication, ProjectBearingCapacity, ProjectCpt, ProjectImportLogEntry,
     ProjectInputs, ProjectLoadPoint, ProjectMetadata, ProjectSettings, ProjectUnits,
     ProjectUserState,
 };
+use std::collections::HashMap;
+use std::fmt;
 
+mod roles;
 mod table;
 
+pub use roles::{
+    parse_bearing_capacities, parse_cpts, parse_load_points, validate_imported_inputs,
+};
 pub use table::{read_source_table, SourceFormat, SourceTable, TableCell};
 
 pub struct ProjectImportSources<'a> {
@@ -36,6 +36,7 @@ pub enum ImportError {
         value: String,
         expected: &'static str,
     },
+    Validation(String),
 }
 
 impl fmt::Display for ImportError {
@@ -53,6 +54,7 @@ impl fmt::Display for ImportError {
             Self::InvalidValue { value, expected } => {
                 write!(formatter, "Invalid value '{value}', expected {expected}")
             }
+            Self::Validation(message) => formatter.write_str(message),
         }
     }
 }
@@ -158,122 +160,20 @@ pub fn import_project_from_sources(
 }
 
 pub fn import_load_points_csv(input: &str) -> Result<Vec<ProjectLoadPoint>, ImportError> {
-    input
-        .lines()
-        .enumerate()
-        .filter_map(|(index, line)| {
-            let trimmed = line.trim();
-            if trimmed.is_empty() {
-                None
-            } else {
-                Some(parse_load_point_row(index + 1, trimmed))
-            }
-        })
-        .collect()
+    let table = read_source_table("Belastinglocaties.csv", SourceFormat::Csv, input.as_bytes())?;
+    parse_load_points(&table)
 }
 
 pub fn import_cpts_xlsx(input: &[u8]) -> Result<Vec<ProjectCpt>, ImportError> {
-    let rows = first_worksheet_rows(input, "Sonderingen.xlsx")?;
-    rows.iter()
-        .enumerate()
-        .filter(|(_, row)| !row.iter().all(is_empty_cell))
-        .map(|(row_index, row)| {
-            let id = parse_cell_u32(cell(row, row_index + 1, 1)?)?;
-            Ok(ProjectCpt {
-                id,
-                name: format!("CPT {id}"),
-                x_mm: parse_cell_f64(cell(row, row_index + 1, 2)?)?,
-                y_mm: parse_cell_f64(cell(row, row_index + 1, 3)?)?,
-            })
-        })
-        .collect()
+    let table = read_source_table("Sonderingen.xlsx", SourceFormat::Xlsx, input)?;
+    parse_cpts(&table)
 }
 
 pub fn import_bearing_capacities_xlsx(
     input: &[u8],
 ) -> Result<Vec<ProjectBearingCapacity>, ImportError> {
-    let rows = first_worksheet_rows(input, "Draagvermogens.xlsx")?;
-    rows.iter()
-        .enumerate()
-        .skip(1)
-        .filter(|(_, row)| !row.iter().all(is_empty_cell))
-        .map(|(row_index, row)| {
-            Ok(ProjectBearingCapacity {
-                cpt_id: parse_cell_u32(cell(row, row_index + 1, 1)?)?,
-                pile_tip_level_m: parse_cell_f64(cell(row, row_index + 1, 2)?)?,
-                pile_size_mm: parse_cell_u32(cell(row, row_index + 1, 3)?)?,
-                frd_kn: parse_cell_f64(cell(row, row_index + 1, 4)?)?,
-            })
-        })
-        .collect()
-}
-
-fn parse_load_point_row(row_number: usize, line: &str) -> Result<ProjectLoadPoint, ImportError> {
-    let columns: Vec<&str> = line.split(',').map(str::trim).collect();
-    if columns.len() != 4 {
-        return Err(ImportError::Csv(format!(
-            "row {row_number} has {} columns, expected 4",
-            columns.len()
-        )));
-    }
-
-    let id = parse_str_u32(columns[0])?;
-    Ok(ProjectLoadPoint {
-        id,
-        name: format!("Load point {id}"),
-        x_mm: parse_str_f64(columns[1])?,
-        y_mm: parse_str_f64(columns[2])?,
-        design_load_kn: parse_str_f64(columns[3])?,
-    })
-}
-
-fn first_worksheet_rows(input: &[u8], workbook_name: &str) -> Result<Vec<Vec<Data>>, ImportError> {
-    let cursor = Cursor::new(input.to_vec());
-    let mut workbook = Xlsx::new(cursor).map_err(|error| ImportError::Excel(error.to_string()))?;
-    let range = workbook
-        .worksheet_range_at(0)
-        .ok_or_else(|| ImportError::MissingWorksheet(workbook_name.to_string()))?
-        .map_err(|error| ImportError::Excel(error.to_string()))?;
-
-    Ok(range.rows().map(|row| row.to_vec()).collect())
-}
-
-fn cell(row: &[Data], row_number: usize, column_number: usize) -> Result<&Data, ImportError> {
-    row.get(column_number - 1).ok_or(ImportError::MissingCell {
-        row: row_number,
-        column: column_number,
-    })
-}
-
-fn is_empty_cell(cell: &Data) -> bool {
-    matches!(cell, Data::Empty) || cell.to_string().trim().is_empty()
-}
-
-fn parse_cell_u32(cell: &Data) -> Result<u32, ImportError> {
-    parse_str_u32(&cell.to_string())
-}
-
-fn parse_cell_f64(cell: &Data) -> Result<f64, ImportError> {
-    parse_str_f64(&cell.to_string())
-}
-
-fn parse_str_u32(value: &str) -> Result<u32, ImportError> {
-    let number = parse_str_f64(value)?;
-    if !number.is_finite() || number.fract().abs() > f64::EPSILON || number < 0.0 {
-        return Err(ImportError::InvalidValue {
-            value: value.to_string(),
-            expected: "a positive integer",
-        });
-    }
-
-    Ok(number as u32)
-}
-
-fn parse_str_f64(value: &str) -> Result<f64, ImportError> {
-    value.parse::<f64>().map_err(|_| ImportError::InvalidValue {
-        value: value.to_string(),
-        expected: "a number",
-    })
+    let table = read_source_table("Draagvermogens.xlsx", SourceFormat::Xlsx, input)?;
+    parse_bearing_capacities(&table)
 }
 
 fn unique_sorted_pile_sizes(bearing_capacities: &[ProjectBearingCapacity]) -> Vec<u32> {
@@ -324,6 +224,87 @@ mod tests {
 
         assert_eq!(table.rows.len(), 1);
         assert_eq!(table.rows[0][1].as_text(), "9,450");
+    }
+
+    #[test]
+    fn role_parsers_treat_text_and_numeric_cells_equally() {
+        let text_loads = source_table(vec![vec![
+            text("15"),
+            text("9450"),
+            text("4700"),
+            text("79"),
+        ]]);
+        let numeric_loads = source_table(vec![vec![
+            number(15.0),
+            number(9450.0),
+            number(4700.0),
+            number(79.0),
+        ]]);
+        assert_eq!(
+            parse_load_points(&text_loads).unwrap(),
+            parse_load_points(&numeric_loads).unwrap()
+        );
+
+        let text_cpts = source_table(vec![vec![text("61"), text("1000"), text("2000")]]);
+        let numeric_cpts = source_table(vec![vec![number(61.0), number(1000.0), number(2000.0)]]);
+        assert_eq!(
+            parse_cpts(&text_cpts).unwrap(),
+            parse_cpts(&numeric_cpts).unwrap()
+        );
+
+        let text_capacities = source_table(vec![vec![
+            text("61"),
+            text("-17.5"),
+            text("290"),
+            text("672"),
+        ]]);
+        let numeric_capacities = source_table(vec![vec![
+            number(61.0),
+            number(-17.5),
+            number(290.0),
+            number(672.0),
+        ]]);
+        assert_eq!(
+            parse_bearing_capacities(&text_capacities).unwrap(),
+            parse_bearing_capacities(&numeric_capacities).unwrap()
+        );
+    }
+
+    #[test]
+    fn imported_inputs_reject_unknown_capacity_cpt_references() {
+        let loads = parse_load_points(&source_table(vec![vec![
+            text("1"),
+            text("0"),
+            text("0"),
+            text("100"),
+        ]]))
+        .unwrap();
+        let cpts = parse_cpts(&source_table(vec![vec![text("61"), text("0"), text("0")]])).unwrap();
+        let capacities = parse_bearing_capacities(&source_table(vec![vec![
+            text("62"),
+            text("-17.5"),
+            text("290"),
+            text("700"),
+        ]]))
+        .unwrap();
+
+        let error = validate_imported_inputs(&loads, &cpts, &capacities).unwrap_err();
+        assert!(error.to_string().contains("unknown CPT 62"));
+    }
+
+    fn source_table(rows: Vec<Vec<TableCell>>) -> SourceTable {
+        SourceTable {
+            sheet_name: None,
+            rows,
+        }
+    }
+
+    fn text(value: &str) -> TableCell {
+        TableCell::Text(value.to_string())
+    }
+
+    fn number(value: f64) -> TableCell {
+        TableCell::Number(value)
     }
 
     #[test]
