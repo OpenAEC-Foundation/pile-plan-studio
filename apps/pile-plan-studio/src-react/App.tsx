@@ -17,7 +17,8 @@ import {
   importProjectFromFilesCore,
 } from "../src/coreClient";
 import type { ImportSourceInput } from "../src/coreImportContract";
-import { applyDefaultPileCostSettings } from "../src/projectFile";
+import { applyDefaultPileCostSettings, createIfcppProject } from "../src/projectFile";
+import { writeIfcppProjectCore } from "../src/coreClient";
 import { createInitialProjectState } from "./domain/projectState";
 import { getSetting } from "./store";
 import { optionKey } from "./components/domain/rightPanelModel";
@@ -32,6 +33,30 @@ export default function App() {
   const [backstageOpen, setBackstageOpen] = useState(false);
   const [feedbackOpen, setFeedbackOpen] = useState(false);
   const [theme, setTheme] = useState("light");
+
+  const downloadProject = async () => {
+    const project = createIfcppProject({
+      name: projectState.name,
+      loadPoints: projectState.loadPoints,
+      cpts: projectState.cpts,
+      bearingCapacities: projectState.bearingCapacities,
+      globalCptSelectionSettings: projectState.globalCptSelectionSettings,
+      cptSelectionSettingsByLoadPoint: projectState.cptSelectionSettingsByLoadPoint,
+      pileCostSettings: projectState.pileCostSettings,
+      optimizationSettings: projectState.optimizationSettings,
+      activePileSizes: projectState.activePileSizes,
+      activePileTipLevels: projectState.activePileTipLevels,
+      selectedPileOptionKeysByLoadPoint: projectState.selectedPileOptionKeysByLoadPoint,
+      manualCptIdsByLoadPoint: projectState.manualCptIdsByLoadPoint,
+    });
+    const text = await writeIfcppProjectCore(project);
+    const url = URL.createObjectURL(new Blob([text], { type: "application/json" }));
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `${projectState.name.replace(/[^a-z0-9-_]+/gi, "-") || "pile-plan-project"}.ifcpp`;
+    link.click();
+    URL.revokeObjectURL(url);
+  };
 
   useEffect(() => {
     getSetting("theme", "light").then((saved) => {
@@ -183,6 +208,11 @@ export default function App() {
           const withCosts = applyDefaultPileCostSettings(project, projectState.pileCostSettings);
           setProjectState(createInitialProjectState(withCosts));
         }}
+        onOpenProjectFile={async (file: File) => {
+          const project = createInitialProjectState(await file.text());
+          setProjectState(project);
+        }}
+        onDownloadProject={downloadProject}
       />
       <SettingsDialog
         open={settingsOpen}

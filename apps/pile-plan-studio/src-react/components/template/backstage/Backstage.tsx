@@ -60,9 +60,11 @@ interface BackstageProps {
   onOpenSettings: () => void;
   onOpenFile?: (path: string) => void;
   onImportProject: (projectName: string, sources: ImportSourceInput[]) => Promise<void>;
+  onOpenProjectFile: (file: File) => Promise<void>;
+  onDownloadProject: () => Promise<void>;
 }
 
-export default function Backstage({ open, onClose, onOpenSettings, onOpenFile, onImportProject }: BackstageProps) {
+export default function Backstage({ open, onClose, onOpenSettings, onOpenFile, onImportProject, onOpenProjectFile, onDownloadProject }: BackstageProps) {
   const { t } = useTranslation("backstage");
   const [activePanel, setActivePanel] = useState<string>("none");
   const { recentFiles, removeRecentFile, clearRecentFiles } = useRecentFiles();
@@ -119,7 +121,7 @@ export default function Backstage({ open, onClose, onOpenSettings, onOpenFile, o
             icon={ICONS.new}
             label={t("new")}
             shortcut="Ctrl+N"
-            onClick={() => actionAndClose()}
+            onClick={() => void onDownloadProject().then(onClose)}
           />
           <MenuItem
             icon={ICONS.open}
@@ -132,7 +134,7 @@ export default function Backstage({ open, onClose, onOpenSettings, onOpenFile, o
             icon={ICONS.save}
             label={t("save")}
             shortcut="Ctrl+S"
-            onClick={() => actionAndClose()}
+            onClick={() => void onDownloadProject().then(onClose)}
           />
           <MenuItem
             icon={ICONS.saveAs}
@@ -201,6 +203,10 @@ export default function Backstage({ open, onClose, onOpenSettings, onOpenFile, o
               onOpenFile={(path) => { onClose(); onOpenFile?.(path); }}
               onRemoveFile={removeRecentFile}
               onClearAll={clearRecentFiles}
+              onOpenProjectFile={async (file) => {
+                await onOpenProjectFile(file);
+                onClose();
+              }}
             />
           )}
           {activePanel === "about" && <AboutPanel />}
@@ -208,7 +214,7 @@ export default function Backstage({ open, onClose, onOpenSettings, onOpenFile, o
             await onImportProject(name, sources);
             onClose();
           }} />}
-          {activePanel === "export" && <ExportPanel />}
+          {activePanel === "export" && <ExportPanel onDownloadProject={onDownloadProject} />}
           {activePanel === "extensions" && <ExtensionManagerPanel />}
         </div>
       )}
@@ -307,11 +313,13 @@ function OpenPanel({
   onOpenFile,
   onRemoveFile,
   onClearAll,
+  onOpenProjectFile,
 }: {
   recentFiles: RecentFile[];
   onOpenFile: (path: string) => void;
   onRemoveFile: (path: string) => void;
   onClearAll: () => void;
+  onOpenProjectFile: (file: File) => Promise<void>;
 }) {
   const { t } = useTranslation("backstage");
 
@@ -362,6 +370,16 @@ function OpenPanel({
           </button>
         )}
       </div>
+      <label className="bs-export-card" style={{ cursor: "pointer", marginBottom: 16 }}>
+        <div className="bs-export-card-info">
+          <h3>Choose IFCPP project</h3>
+          <p>Open a project file from this device.</p>
+        </div>
+        <input type="file" accept=".ifcpp,application/json" style={{ display: "none" }} onChange={(event) => {
+          const file = event.target.files?.[0];
+          if (file) void onOpenProjectFile(file);
+        }} />
+      </label>
       {recentFiles.length === 0 ? (
         <p style={{ color: "var(--theme-text-muted, #888)", fontStyle: "italic" }}>
           {t("openPanel.noRecent", "No recent files")}
@@ -422,13 +440,13 @@ function OpenPanel({
   );
 }
 
-function ExportPanel() {
+function ExportPanel({ onDownloadProject }: { onDownloadProject: () => Promise<void> }) {
   const { t } = useTranslation("backstage");
   return (
     <div className="bs-export-panel">
       <h2 className="bs-export-title">{t("exportPanel.title")}</h2>
       <div className="bs-export-cards">
-        <div className="bs-export-card">
+        <button type="button" className="bs-export-card" onClick={() => void onDownloadProject()}>
           <div className="bs-export-card-icon">
             <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
               <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" />
@@ -436,10 +454,10 @@ function ExportPanel() {
             </svg>
           </div>
           <div className="bs-export-card-info">
-            <h3>{t("exportPanel.asPdf")}</h3>
-            <p>{t("exportPanel.asPdfDesc")}</p>
+            <h3>Download IFCPP</h3>
+            <p>Save the complete project and current choices.</p>
           </div>
-        </div>
+        </button>
         <div className="bs-export-card">
           <div className="bs-export-card-icon">
             <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
