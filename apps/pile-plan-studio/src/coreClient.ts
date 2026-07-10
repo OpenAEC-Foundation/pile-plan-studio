@@ -24,6 +24,7 @@ import {
   type SelectedCpt,
 } from "./projectTypes";
 import type { IfcppProject } from "./projectFile.ts";
+import { toCoreImportSource, type ImportSourceInput } from "./coreImportContract.ts";
 
 type CorePileConfigurationOption = Omit<PileConfigurationOption, "isOption"> & {
   is_option: boolean;
@@ -210,17 +211,17 @@ export async function greedyOptimizeCore(input: {
 
 export async function importProjectFromFilesCore(input: {
   projectName: string;
-  loadPointsCsv: string;
-  cptsXlsx: Uint8Array;
-  bearingCapacitiesXlsx: Uint8Array;
+  sources: ImportSourceInput[];
 }): Promise<IfcppProject> {
-  await initializeWasm();
-  return import_project_from_files({
+  const request = {
     project_name: input.projectName,
-    load_points_csv: input.loadPointsCsv,
-    cpts_xlsx: input.cptsXlsx,
-    bearing_capacities_xlsx: input.bearingCapacitiesXlsx,
-  }) as IfcppProject;
+    sources: input.sources.map(toCoreImportSource),
+  };
+  if (!isTauriRuntime()) {
+    await initializeWasm();
+    return import_project_from_files(request) as IfcppProject;
+  }
+  return invoke<IfcppProject>("import_project_from_files", { request });
 }
 
 export async function writeIfcppProjectCore(project: IfcppProject): Promise<string> {

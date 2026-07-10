@@ -1,9 +1,10 @@
 use pile_plan_core::{
     bearing_capacity_rows_for_cpt, build_pile_options_by_load_point, calculate_pile_cost,
-    choose_default_pile_option, greedy_optimize_pile_choices, selected_cpts,
+    choose_default_pile_option, greedy_optimize_pile_choices, import_project_from_generic_sources,
+    selected_cpts,
     CptSelectionSettings, GreedyOptimizationSettings, GreedyOptimizedPileChoice,
     PileConfigurationOption, PileCostSettings, ProjectBearingCapacity, ProjectCpt,
-    ProjectLoadPoint, SelectedCpt,
+    ImportSource, PilePlanProject, ProjectLoadPoint, SelectedCpt,
 };
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -50,6 +51,12 @@ struct GreedyOptimizationRequest {
     options_by_load_point: HashMap<u32, Vec<PileConfigurationOption>>,
     cost_settings: PileCostSettings,
     settings: GreedyOptimizationSettings,
+}
+
+#[derive(Debug, Deserialize)]
+struct ImportProjectRequest {
+    project_name: String,
+    sources: Vec<ImportSource>,
 }
 
 #[derive(Debug, Serialize)]
@@ -120,6 +127,12 @@ fn greedy_optimize(request: GreedyOptimizationRequest) -> Vec<GreedyOptimizedPil
     )
 }
 
+#[tauri::command(rename_all = "snake_case")]
+fn import_project_from_files(request: ImportProjectRequest) -> Result<PilePlanProject, String> {
+    import_project_from_generic_sources(&request.project_name, &request.sources)
+        .map_err(|error| error.to_string())
+}
+
 fn main() {
     tauri::Builder::default()
         .invoke_handler(tauri::generate_handler![
@@ -129,6 +142,7 @@ fn main() {
             choose_default_option,
             cpt_frd_rows,
             greedy_optimize,
+            import_project_from_files,
         ])
         .run(tauri::generate_context!())
         .expect("failed to run Pile Plan Studio");
