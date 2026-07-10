@@ -2,18 +2,33 @@ use std::collections::{BTreeSet, HashMap, HashSet};
 
 use crate::{ProjectBearingCapacity, ProjectCpt, ProjectLoadPoint};
 
-use super::{ImportError, SourceRow, SourceTable, TableCell};
+use super::{ImportError, SourceLocation, SourceRow, SourceTable, TableCell};
+
+#[derive(Clone, Copy)]
+struct Column {
+    number: usize,
+    name: &'static str,
+}
+
+const ID: Column = Column { number: 1, name: "ID" };
+const X: Column = Column { number: 2, name: "X" };
+const Y: Column = Column { number: 3, name: "Y" };
+const FED: Column = Column { number: 4, name: "FED" };
+const CPT_ID: Column = Column { number: 1, name: "CPT ID" };
+const TIP: Column = Column { number: 2, name: "Tip" };
+const SIZE: Column = Column { number: 3, name: "Size" };
+const FRD: Column = Column { number: 4, name: "FRD" };
 
 pub fn parse_load_points(table: &SourceTable) -> Result<Vec<ProjectLoadPoint>, ImportError> {
     data_rows(table, 4, "load points")?
-        .map(|(row_number, row)| {
-            let id = cell_u32(row, row_number, 1)?;
+        .map(|row| {
+            let id = cell_u32(table, row, ID)?;
             Ok(ProjectLoadPoint {
                 id,
                 name: format!("Load point {id}"),
-                x_mm: cell_f64(row, row_number, 2)?,
-                y_mm: cell_f64(row, row_number, 3)?,
-                design_load_kn: cell_f64(row, row_number, 4)?,
+                x_mm: cell_f64(table, row, X)?,
+                y_mm: cell_f64(table, row, Y)?,
+                design_load_kn: cell_f64(table, row, FED)?,
             })
         })
         .collect()
@@ -21,13 +36,13 @@ pub fn parse_load_points(table: &SourceTable) -> Result<Vec<ProjectLoadPoint>, I
 
 pub fn parse_cpts(table: &SourceTable) -> Result<Vec<ProjectCpt>, ImportError> {
     data_rows(table, 3, "CPTs")?
-        .map(|(row_number, row)| {
-            let id = cell_u32(row, row_number, 1)?;
+        .map(|row| {
+            let id = cell_u32(table, row, ID)?;
             Ok(ProjectCpt {
                 id,
                 name: format!("CPT {id}"),
-                x_mm: cell_f64(row, row_number, 2)?,
-                y_mm: cell_f64(row, row_number, 3)?,
+                x_mm: cell_f64(table, row, X)?,
+                y_mm: cell_f64(table, row, Y)?,
             })
         })
         .collect()
@@ -37,12 +52,12 @@ pub fn parse_bearing_capacities(
     table: &SourceTable,
 ) -> Result<Vec<ProjectBearingCapacity>, ImportError> {
     data_rows(table, 4, "bearing capacities")?
-        .map(|(row_number, row)| {
+        .map(|row| {
             Ok(ProjectBearingCapacity {
-                cpt_id: cell_u32(row, row_number, 1)?,
-                pile_tip_level_m: cell_f64(row, row_number, 2)?,
-                pile_size_mm: cell_u32(row, row_number, 3)?,
-                frd_kn: cell_f64(row, row_number, 4)?,
+                cpt_id: cell_u32(table, row, CPT_ID)?,
+                pile_tip_level_m: cell_f64(table, row, TIP)?,
+                pile_size_mm: cell_u32(table, row, SIZE)?,
+                frd_kn: cell_f64(table, row, FRD)?,
             })
         })
         .collect()
@@ -147,44 +162,49 @@ fn data_rows<'a>(
     table: &'a SourceTable,
     columns: usize,
     role: &'static str,
-) -> Result<impl Iterator<Item = (usize, &'a [TableCell])>, ImportError> {
+) -> Result<impl Iterator<Item = &'a SourceRow>, ImportError> {
     let first_data_index = usize::from(
         table
             .rows
             .first()
             .and_then(|row| row.cells.first())
-            .is_some_and(|cell| parse_u32(cell).is_err()),
+            .is_some_and(|cell| cell.as_text().parse::<f64>().is_err()),
     );
     for row in table.rows.iter().skip(first_data_index) {
         if row.cells.len() < columns {
-            return Err(ImportError::Validation(format!(
-                "{role} row {} has {} columns, expected at least {columns}",
-                row.number,
-                row.cells.len()
-            )));
+            return Err(ImportError::InvalidRow {
+                location: table.location(Some(row.number), None, None),
+                role,
+                actual_columns: row.cells.len(),
+                expected_columns: columns,
+            });
         }
     }
     Ok(table
         .rows
         .iter()
         .skip(first_data_index)
-        .map(|row: &SourceRow| (row.number, row.cells.as_slice())))
+        .map(|row: &SourceRow| row))
 }
 
-fn cell_u32(row: &[TableCell], row_number: usize, column: usize) -> Result<u32, ImportError> {
-    parse_u32(cell(row, row_number, column)?)
+fn cell_u32(table: &SourceTable, row: &SourceRow, column: Column) -> Result<u32, ImportError> {
+    let location = cell_location(table, row, column);
+    parse_u32(cell(row, column, &location)?, location)
 }
 
-fn cell_f64(row: &[TableCell], row_number: usize, column: usize) -> Result<f64, ImportError> {
-    let value = cell(row, row_number, column)?.as_text();
+fn cell_f64(table: &SourceTable, row: &SourceRow, column: Column) -> Result<f64, ImportError> {
+    let location = cell_location(table, row, column);
+    let value = cell(row, column, &location)?.as_text();
     let number = value
         .parse::<f64>()
         .map_err(|_| ImportError::InvalidValue {
+            location: location.clone(),
             value: value.clone(),
             expected: "a number",
         })?;
     if !number.is_finite() {
         return Err(ImportError::InvalidValue {
+            location,
             value,
             expected: "a finite number",
         });
@@ -192,11 +212,12 @@ fn cell_f64(row: &[TableCell], row_number: usize, column: usize) -> Result<f64, 
     Ok(number)
 }
 
-fn parse_u32(cell: &TableCell) -> Result<u32, ImportError> {
+fn parse_u32(cell: &TableCell, location: SourceLocation) -> Result<u32, ImportError> {
     let value = cell.as_text();
     let number = value
         .parse::<f64>()
         .map_err(|_| ImportError::InvalidValue {
+            location: location.clone(),
             value: value.clone(),
             expected: "a positive integer",
         })?;
@@ -206,6 +227,7 @@ fn parse_u32(cell: &TableCell) -> Result<u32, ImportError> {
         || number > u32::MAX as f64
     {
         return Err(ImportError::InvalidValue {
+            location,
             value,
             expected: "a positive integer",
         });
@@ -213,11 +235,20 @@ fn parse_u32(cell: &TableCell) -> Result<u32, ImportError> {
     Ok(number as u32)
 }
 
-fn cell(row: &[TableCell], row_number: usize, column: usize) -> Result<&TableCell, ImportError> {
-    row.get(column - 1).ok_or(ImportError::MissingCell {
-        row: row_number,
-        column,
-    })
+fn cell<'a>(
+    row: &'a SourceRow,
+    column: Column,
+    location: &SourceLocation,
+) -> Result<&'a TableCell, ImportError> {
+    row.cells
+        .get(column.number - 1)
+        .ok_or_else(|| ImportError::MissingCell {
+            location: location.clone(),
+        })
+}
+
+fn cell_location(table: &SourceTable, row: &SourceRow, column: Column) -> SourceLocation {
+    table.location(Some(row.number), Some(column.number), Some(column.name))
 }
 
 fn reject_duplicate_ids(

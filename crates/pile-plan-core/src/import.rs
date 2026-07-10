@@ -50,12 +50,18 @@ pub enum ImportError {
     EmptySource(String),
     MissingWorksheet(String),
     MissingCell {
-        row: usize,
-        column: usize,
+        location: SourceLocation,
     },
     InvalidValue {
+        location: SourceLocation,
         value: String,
         expected: &'static str,
+    },
+    InvalidRow {
+        location: SourceLocation,
+        role: &'static str,
+        actual_columns: usize,
+        expected_columns: usize,
     },
     Validation(String),
 }
@@ -69,15 +75,60 @@ impl fmt::Display for ImportError {
             Self::MissingWorksheet(workbook) => {
                 write!(formatter, "Workbook has no readable worksheet: {workbook}")
             }
-            Self::MissingCell { row, column } => {
-                write!(formatter, "Missing cell at row {row}, column {column}")
+            Self::MissingCell { location } => {
+                write_location(formatter, location)?;
+                formatter.write_str(": cell is missing.")
             }
-            Self::InvalidValue { value, expected } => {
-                write!(formatter, "Invalid value '{value}', expected {expected}")
+            Self::InvalidValue {
+                location,
+                value,
+                expected,
+            } => {
+                write_location(formatter, location)?;
+                if value.trim().is_empty() {
+                    write!(formatter, ": value is empty; expected {expected}.")
+                } else {
+                    write!(
+                        formatter,
+                        ": invalid value '{value}'; expected {expected}."
+                    )
+                }
+            }
+            Self::InvalidRow {
+                location,
+                role,
+                actual_columns,
+                expected_columns,
+            } => {
+                write_location(formatter, location)?;
+                write!(
+                    formatter,
+                    ": {role} row has {actual_columns} columns; expected at least {expected_columns}."
+                )
             }
             Self::Validation(message) => formatter.write_str(message),
         }
     }
+}
+
+fn write_location(
+    formatter: &mut fmt::Formatter<'_>,
+    location: &SourceLocation,
+) -> fmt::Result {
+    formatter.write_str(&location.file_name)?;
+    if let Some(sheet_name) = &location.sheet_name {
+        write!(formatter, " > {sheet_name}")?;
+    }
+    if let Some(row) = location.row {
+        write!(formatter, ", row {row}")?;
+    }
+    if let Some(column_name) = location.column_name {
+        write!(formatter, ", {column_name}")?;
+    }
+    if let Some(column) = location.column {
+        write!(formatter, " (column {column})")?;
+    }
+    Ok(())
 }
 
 impl std::error::Error for ImportError {}
@@ -413,6 +464,56 @@ mod tests {
         .unwrap();
 
         assert_eq!(table.rows[1].number, 3);
+    }
+
+    #[test]
+    fn reports_empty_capacity_value_with_csv_location() {
+        let table = read_source_table(
+            "capacities.csv",
+            SourceFormat::Csv,
+            b"CPT ID,Tip,Size,FRD\n61,-17.5,290,\n",
+        )
+        .unwrap();
+
+        let error = parse_bearing_capacities(&table).unwrap_err();
+        assert_eq!(
+            error.to_string(),
+            "capacities.csv, row 2, FRD (column 4): value is empty; expected a number."
+        );
+    }
+
+    #[test]
+    fn reports_invalid_capacity_value_with_excel_location() {
+        let table = SourceTable {
+            file_name: "capacities.xlsx".to_string(),
+            sheet_name: Some("Sheet1".to_string()),
+            rows: vec![SourceRow {
+                number: 84,
+                cells: vec![text("61"), text("-17.5"), text("290"), text("abc")],
+            }],
+        };
+
+        let error = parse_bearing_capacities(&table).unwrap_err();
+        assert_eq!(
+            error.to_string(),
+            "capacities.xlsx > Sheet1, row 84, FRD (column 4): invalid value 'abc'; expected a number."
+        );
+    }
+
+    #[test]
+    fn reports_short_row_with_source_location() {
+        let table = read_source_table(
+            "loads.csv",
+            SourceFormat::Csv,
+            b"ID,X,Y,FED\n1,100,200\n",
+        )
+        .unwrap();
+
+        let error = parse_load_points(&table).unwrap_err();
+        assert_eq!(
+            error.to_string(),
+            "loads.csv, row 2: load points row has 3 columns; expected at least 4."
+        );
     }
 
     #[test]
