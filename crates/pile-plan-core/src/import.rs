@@ -7,6 +7,8 @@ use crate::{
 use std::collections::HashMap;
 use std::fmt;
 
+use serde::{Deserialize, Serialize};
+
 mod roles;
 mod table;
 
@@ -20,6 +22,22 @@ pub struct ProjectImportSources<'a> {
     pub load_points_csv: &'a str,
     pub cpts_xlsx: &'a [u8],
     pub bearing_capacities_xlsx: &'a [u8],
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, Eq, Hash, PartialEq, Serialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum ImportRole {
+    LoadPoints,
+    Cpts,
+    BearingCapacities,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+pub struct ImportSource {
+    pub role: ImportRole,
+    pub file_name: String,
+    pub format: SourceFormat,
+    pub bytes: Vec<u8>,
 }
 
 #[derive(Debug)]
@@ -67,10 +85,92 @@ pub fn import_project_from_sources(
     let load_points = import_load_points_csv(sources.load_points_csv)?;
     let cpts = import_cpts_xlsx(sources.cpts_xlsx)?;
     let bearing_capacities = import_bearing_capacities_xlsx(sources.bearing_capacities_xlsx)?;
+    validate_imported_inputs(&load_points, &cpts, &bearing_capacities)?;
+    Ok(build_imported_project(
+        sources.project_name,
+        load_points,
+        cpts,
+        bearing_capacities,
+        vec![
+            import_log_entry(
+                "Belastinglocaties.csv",
+                None,
+                &[
+                    ("id", "id"),
+                    ("x", "x_mm"),
+                    ("y", "y_mm"),
+                    ("FED", "design_load_kn"),
+                ],
+            ),
+            import_log_entry(
+                "Sonderingen.xlsx",
+                Some("first worksheet"),
+                &[("id", "id"), ("x", "x_mm"), ("y", "y_mm")],
+            ),
+            import_log_entry(
+                "Draagvermogens.xlsx",
+                Some("first worksheet"),
+                &[
+                    ("nummer", "cpt_id"),
+                    ("ppn", "pile_tip_level_m"),
+                    ("afm", "pile_size_mm"),
+                    ("FRd", "frd_kn"),
+                ],
+            ),
+        ],
+    ))
+}
+
+pub fn import_project_from_generic_sources(
+    project_name: &str,
+    sources: &[ImportSource],
+) -> Result<PilePlanProject, ImportError> {
+    let load_source = source_for_role(sources, ImportRole::LoadPoints)?;
+    let cpt_source = source_for_role(sources, ImportRole::Cpts)?;
+    let capacity_source = source_for_role(sources, ImportRole::BearingCapacities)?;
+    let load_table = read_source_table(
+        &load_source.file_name,
+        load_source.format,
+        &load_source.bytes,
+    )?;
+    let cpt_table = read_source_table(&cpt_source.file_name, cpt_source.format, &cpt_source.bytes)?;
+    let capacity_table = read_source_table(
+        &capacity_source.file_name,
+        capacity_source.format,
+        &capacity_source.bytes,
+    )?;
+    let load_points = parse_load_points(&load_table)?;
+    let cpts = parse_cpts(&cpt_table)?;
+    let bearing_capacities = parse_bearing_capacities(&capacity_table)?;
+    validate_imported_inputs(&load_points, &cpts, &bearing_capacities)?;
+
+    Ok(build_imported_project(
+        project_name.to_string(),
+        load_points,
+        cpts,
+        bearing_capacities,
+        vec![
+            provenance_entry(load_source, load_table.sheet_name, load_point_columns()),
+            provenance_entry(cpt_source, cpt_table.sheet_name, cpt_columns()),
+            provenance_entry(
+                capacity_source,
+                capacity_table.sheet_name,
+                capacity_columns(),
+            ),
+        ],
+    ))
+}
+
+fn build_imported_project(
+    project_name: String,
+    load_points: Vec<ProjectLoadPoint>,
+    cpts: Vec<ProjectCpt>,
+    bearing_capacities: Vec<ProjectBearingCapacity>,
+    import_log: Vec<ProjectImportLogEntry>,
+) -> PilePlanProject {
     let active_pile_sizes = unique_sorted_pile_sizes(&bearing_capacities);
     let active_pile_tip_levels = unique_sorted_tip_levels(&bearing_capacities);
-
-    Ok(PilePlanProject {
+    PilePlanProject {
         schema: "IFCPP".to_string(),
         schema_version: 1,
         application: ProjectApplication {
@@ -78,7 +178,7 @@ pub fn import_project_from_sources(
             version: "0.1.0-alpha".to_string(),
         },
         metadata: ProjectMetadata {
-            name: sources.project_name,
+            name: project_name,
             author: None,
             organization: None,
             created_at: None,
@@ -129,34 +229,66 @@ pub fn import_project_from_sources(
             selected_piles: HashMap::new(),
             manual_cpt_selections: HashMap::new(),
         },
-        import_log: vec![
-            import_log_entry(
-                "Belastinglocaties.csv",
-                None,
-                &[
-                    ("id", "id"),
-                    ("x", "x_mm"),
-                    ("y", "y_mm"),
-                    ("FED", "design_load_kn"),
-                ],
-            ),
-            import_log_entry(
-                "Sonderingen.xlsx",
-                Some("first worksheet"),
-                &[("id", "id"), ("x", "x_mm"), ("y", "y_mm")],
-            ),
-            import_log_entry(
-                "Draagvermogens.xlsx",
-                Some("first worksheet"),
-                &[
-                    ("nummer", "cpt_id"),
-                    ("ppn", "pile_tip_level_m"),
-                    ("afm", "pile_size_mm"),
-                    ("FRd", "frd_kn"),
-                ],
-            ),
-        ],
-    })
+        import_log,
+    }
+}
+
+fn source_for_role(
+    sources: &[ImportSource],
+    role: ImportRole,
+) -> Result<&ImportSource, ImportError> {
+    let mut matches = sources.iter().filter(|source| source.role == role);
+    let source = matches
+        .next()
+        .ok_or_else(|| ImportError::Validation(format!("Missing import source for {role:?}")))?;
+    if matches.next().is_some() {
+        return Err(ImportError::Validation(format!(
+            "Multiple import sources for {role:?}"
+        )));
+    }
+    Ok(source)
+}
+
+fn provenance_entry(
+    source: &ImportSource,
+    sheet_name: Option<String>,
+    columns: &[(&str, &str)],
+) -> ProjectImportLogEntry {
+    ProjectImportLogEntry {
+        source_file: source.file_name.clone(),
+        imported_at: None,
+        sheet_name,
+        mapped_columns: columns
+            .iter()
+            .map(|(from, to)| ((*from).to_string(), (*to).to_string()))
+            .collect(),
+        warnings: vec![],
+        source_role: Some(source.role),
+        source_format: Some(source.format),
+        schema_version: Some("fixed-1".to_string()),
+    }
+}
+
+fn load_point_columns() -> &'static [(&'static str, &'static str)] {
+    &[
+        ("id", "id"),
+        ("x", "x_mm"),
+        ("y", "y_mm"),
+        ("FED", "design_load_kn"),
+    ]
+}
+
+fn cpt_columns() -> &'static [(&'static str, &'static str)] {
+    &[("id", "id"), ("x", "x_mm"), ("y", "y_mm")]
+}
+
+fn capacity_columns() -> &'static [(&'static str, &'static str)] {
+    &[
+        ("nummer", "cpt_id"),
+        ("ppn", "pile_tip_level_m"),
+        ("afm", "pile_size_mm"),
+        ("FRd", "frd_kn"),
+    ]
 }
 
 pub fn import_load_points_csv(input: &str) -> Result<Vec<ProjectLoadPoint>, ImportError> {
@@ -210,6 +342,9 @@ fn import_log_entry(
             .map(|(source, target)| (source.to_string(), target.to_string()))
             .collect(),
         warnings: vec![],
+        source_role: None,
+        source_format: None,
+        schema_version: None,
     }
 }
 
@@ -290,6 +425,44 @@ mod tests {
 
         let error = validate_imported_inputs(&loads, &cpts, &capacities).unwrap_err();
         assert!(error.to_string().contains("unknown CPT 62"));
+    }
+
+    #[test]
+    fn generic_sources_import_atomically_and_record_provenance() {
+        let sources = vec![
+            ImportSource {
+                role: ImportRole::LoadPoints,
+                file_name: "loads.csv".to_string(),
+                format: SourceFormat::Csv,
+                bytes: include_bytes!("../../../sample_project/Belastinglocaties.csv").to_vec(),
+            },
+            ImportSource {
+                role: ImportRole::Cpts,
+                file_name: "cpts.xlsx".to_string(),
+                format: SourceFormat::Xlsx,
+                bytes: include_bytes!("../../../sample_project/Sonderingen.xlsx").to_vec(),
+            },
+            ImportSource {
+                role: ImportRole::BearingCapacities,
+                file_name: "capacities.xlsx".to_string(),
+                format: SourceFormat::Xlsx,
+                bytes: include_bytes!("../../../sample_project/Draagvermogens.xlsx").to_vec(),
+            },
+        ];
+
+        let project = import_project_from_generic_sources("Mixed Project", &sources).unwrap();
+
+        assert_eq!(project.metadata.name, "Mixed Project");
+        assert_eq!(project.import_log[0].source_file, "loads.csv");
+        assert_eq!(
+            project.import_log[0].source_role,
+            Some(ImportRole::LoadPoints)
+        );
+        assert_eq!(project.import_log[0].source_format, Some(SourceFormat::Csv));
+        assert_eq!(
+            project.import_log[0].schema_version.as_deref(),
+            Some("fixed-1")
+        );
     }
 
     fn source_table(rows: Vec<Vec<TableCell>>) -> SourceTable {

@@ -169,6 +169,9 @@ mod tests {
                 sheet_name: None,
                 mapped_columns: Default::default(),
                 warnings: vec![],
+                source_role: None,
+                source_format: None,
+                schema_version: None,
             }],
         }
     }
