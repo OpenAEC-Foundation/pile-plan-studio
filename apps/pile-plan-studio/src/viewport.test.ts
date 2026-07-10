@@ -1,7 +1,13 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 
-import { panViewport, zoomViewportAtPoint, type Viewport } from "./viewport.ts";
+import {
+  getViewportTransform,
+  panViewport,
+  projectViewPointToScreen,
+  zoomViewportAtPoint,
+  type Viewport,
+} from "./viewport.ts";
 
 describe("viewport interaction helpers", () => {
   it("zooms around the cursor position", () => {
@@ -27,5 +33,26 @@ describe("viewport interaction helpers", () => {
       offsetX: -5,
       offsetY: 30,
     });
+  });
+
+  it("projects a viewer point to screen pixels without scaling the marker itself", () => {
+    assert.deepEqual(
+      projectViewPointToScreen(
+        { x: 25, y: 40 },
+        { width: 1000, height: 500 },
+        { scale: 1.5, offsetX: -20, offsetY: 30 },
+      ),
+      {
+        x: 355,
+        y: 330,
+      },
+    );
+  });
+
+  it("formats a viewport as one stage transform", () => {
+    assert.equal(
+      getViewportTransform({ scale: 1.75, offsetX: -120, offsetY: 45 }),
+      "translate(-120px, 45px) scale(1.75)",
+    );
   });
 });

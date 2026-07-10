@@ -1,0 +1,39 @@
+{
+  "tabs": {
+    "file": "File",
+    "project": "Project",
+    "plan": "Plan",
+    "optimize": "Optimize",
+    "view": "View"
+  },
+  "project": {
+    "overview": "Project",
+    "settings": "Project settings",
+    "sources": "Sources",
+    "checks": "Checks",
+    "validate": "Validate project",
+    "refreshSources": "Refresh sources"
+  },
+  "plan": {
+    "inspect": "Inspect",
+    "loadPoints": "Load points",
+    "cpts": "CPTs",
+    "settings": "Settings",
+    "cptSettings": "CPT settings",
+    "costSettings": "Cost settings"
+  },
+  "optimize": {
+    "greedy": "Greedy optimization",
+    "run": "Run",
+    "settings": "Settings"
+  },
+  "view": {
+    "map": "Map",
+    "fit": "Fit project",
+    "legend": "Legend",
+    "panels": "Panels",
+    "undo": "Undo",
+    "redo": "Redo",
+    "help": "Help"
+  }
+}

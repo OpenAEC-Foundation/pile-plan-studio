@@ -38,3 +38,18 @@ export function panViewport(
 export function clampScale(scale: number): number {
   return Math.min(5, Math.max(0.8, Number(scale.toFixed(2))));
 }
+
+export function projectViewPointToScreen(
+  point: { x: number; y: number },
+  canvasSize: { width: number; height: number },
+  viewport: Viewport,
+): { x: number; y: number } {
+  return {
+    x: (point.x / 100) * canvasSize.width * viewport.scale + viewport.offsetX,
+    y: (point.y / 100) * canvasSize.height * viewport.scale + viewport.offsetY,
+  };
+}
+
+export function getViewportTransform(viewport: Viewport): string {
+  return `translate(${viewport.offsetX}px, ${viewport.offsetY}px) scale(${viewport.scale})`;
+}
