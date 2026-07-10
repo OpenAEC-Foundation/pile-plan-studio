@@ -11,6 +11,10 @@ use crate::{
     ProjectUserState,
 };
 
+mod table;
+
+pub use table::{read_source_table, SourceFormat, SourceTable, TableCell};
+
 pub struct ProjectImportSources<'a> {
     pub project_name: String,
     pub load_points_csv: &'a str,
@@ -22,6 +26,7 @@ pub struct ProjectImportSources<'a> {
 pub enum ImportError {
     Csv(String),
     Excel(String),
+    EmptySource(String),
     MissingWorksheet(String),
     MissingCell {
         row: usize,
@@ -38,6 +43,7 @@ impl fmt::Display for ImportError {
         match self {
             Self::Csv(message) => write!(formatter, "Invalid CSV import: {message}"),
             Self::Excel(message) => write!(formatter, "Invalid Excel import: {message}"),
+            Self::EmptySource(source) => write!(formatter, "Import source is empty: {source}"),
             Self::MissingWorksheet(workbook) => {
                 write!(formatter, "Workbook has no readable worksheet: {workbook}")
             }
@@ -310,6 +316,15 @@ fn import_log_entry(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn csv_source_table_preserves_quoted_cells_and_skips_empty_rows() {
+        let table =
+            read_source_table("loads.csv", SourceFormat::Csv, b"1,\"9,450\",4700,79\n\n").unwrap();
+
+        assert_eq!(table.rows.len(), 1);
+        assert_eq!(table.rows[0][1].as_text(), "9,450");
+    }
 
     #[test]
     fn imports_load_points_from_simple_csv_without_header() {
