@@ -10,57 +10,113 @@ struct Column {
     name: &'static str,
 }
 
-const ID: Column = Column { number: 1, name: "ID" };
-const X: Column = Column { number: 2, name: "X" };
-const Y: Column = Column { number: 3, name: "Y" };
-const FED: Column = Column { number: 4, name: "FED" };
-const CPT_ID: Column = Column { number: 1, name: "CPT ID" };
-const TIP: Column = Column { number: 2, name: "Tip" };
-const SIZE: Column = Column { number: 3, name: "Size" };
-const FRD: Column = Column { number: 4, name: "FRD" };
+const ID: Column = Column {
+    number: 1,
+    name: "ID",
+};
+const X: Column = Column {
+    number: 2,
+    name: "X",
+};
+const Y: Column = Column {
+    number: 3,
+    name: "Y",
+};
+const FED: Column = Column {
+    number: 4,
+    name: "FED",
+};
+const CPT_ID: Column = Column {
+    number: 1,
+    name: "CPT ID",
+};
+const TIP: Column = Column {
+    number: 2,
+    name: "Tip",
+};
+const SIZE: Column = Column {
+    number: 3,
+    name: "Size",
+};
+const FRD: Column = Column {
+    number: 4,
+    name: "FRD",
+};
 
 pub fn parse_load_points(table: &SourceTable) -> Result<Vec<ProjectLoadPoint>, ImportError> {
-    data_rows(table, 4, "load points")?
-        .map(|row| {
-            let id = cell_u32(table, row, ID)?;
-            Ok(ProjectLoadPoint {
-                id,
-                name: format!("Load point {id}"),
-                x_mm: cell_f64(table, row, X)?,
-                y_mm: cell_f64(table, row, Y)?,
-                design_load_kn: cell_f64(table, row, FED)?,
-            })
-        })
-        .collect()
+    let mut result = Vec::new();
+    let mut seen = HashMap::new();
+    for row in data_rows(table, 4, "load points")? {
+        let id = cell_u32(table, row, ID)?;
+        reject_duplicate_source_id(table, row, ID, id, "load point", &mut seen)?;
+        result.push(ProjectLoadPoint {
+            id,
+            name: format!("Load point {id}"),
+            x_mm: cell_f64(table, row, X)?,
+            y_mm: cell_f64(table, row, Y)?,
+            design_load_kn: cell_f64(table, row, FED)?,
+        });
+    }
+    Ok(result)
 }
 
 pub fn parse_cpts(table: &SourceTable) -> Result<Vec<ProjectCpt>, ImportError> {
-    data_rows(table, 3, "CPTs")?
-        .map(|row| {
-            let id = cell_u32(table, row, ID)?;
-            Ok(ProjectCpt {
-                id,
-                name: format!("CPT {id}"),
-                x_mm: cell_f64(table, row, X)?,
-                y_mm: cell_f64(table, row, Y)?,
-            })
-        })
-        .collect()
+    let mut result = Vec::new();
+    let mut seen = HashMap::new();
+    for row in data_rows(table, 3, "CPTs")? {
+        let id = cell_u32(table, row, ID)?;
+        reject_duplicate_source_id(table, row, ID, id, "CPT", &mut seen)?;
+        result.push(ProjectCpt {
+            id,
+            name: format!("CPT {id}"),
+            x_mm: cell_f64(table, row, X)?,
+            y_mm: cell_f64(table, row, Y)?,
+        });
+    }
+    Ok(result)
 }
 
 pub fn parse_bearing_capacities(
     table: &SourceTable,
 ) -> Result<Vec<ProjectBearingCapacity>, ImportError> {
-    data_rows(table, 4, "bearing capacities")?
-        .map(|row| {
-            Ok(ProjectBearingCapacity {
-                cpt_id: cell_u32(table, row, CPT_ID)?,
-                pile_tip_level_m: cell_f64(table, row, TIP)?,
-                pile_size_mm: cell_u32(table, row, SIZE)?,
-                frd_kn: cell_f64(table, row, FRD)?,
-            })
-        })
-        .collect()
+    let mut result = Vec::new();
+    for row in data_rows(table, 4, "bearing capacities")? {
+        let pile_size_mm = cell_u32(table, row, SIZE)?;
+        if pile_size_mm == 0 {
+            return Err(ImportError::InvalidConstraint {
+                location: cell_location(table, row, SIZE),
+                message: "value must be greater than zero",
+            });
+        }
+        result.push(ProjectBearingCapacity {
+            cpt_id: cell_u32(table, row, CPT_ID)?,
+            pile_tip_level_m: cell_f64(table, row, TIP)?,
+            pile_size_mm,
+            frd_kn: cell_f64(table, row, FRD)?,
+        });
+    }
+    Ok(result)
+}
+
+fn reject_duplicate_source_id(
+    table: &SourceTable,
+    row: &SourceRow,
+    column: Column,
+    id: u32,
+    label: &'static str,
+    seen: &mut HashMap<u32, SourceLocation>,
+) -> Result<(), ImportError> {
+    let location = cell_location(table, row, column);
+    if let Some(first_location) = seen.get(&id) {
+        return Err(ImportError::DuplicateId {
+            location,
+            first_location: first_location.clone(),
+            label,
+            id,
+        });
+    }
+    seen.insert(id, location);
+    Ok(())
 }
 
 pub fn validate_imported_inputs(

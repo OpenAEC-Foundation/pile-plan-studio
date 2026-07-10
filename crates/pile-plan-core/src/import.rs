@@ -45,8 +45,14 @@ pub struct ImportSource {
 
 #[derive(Debug)]
 pub enum ImportError {
-    Csv(String),
-    Excel(String),
+    Csv {
+        file_name: String,
+        message: String,
+    },
+    Excel {
+        file_name: String,
+        message: String,
+    },
     EmptySource(String),
     MissingWorksheet(String),
     MissingCell {
@@ -63,14 +69,28 @@ pub enum ImportError {
         actual_columns: usize,
         expected_columns: usize,
     },
+    InvalidConstraint {
+        location: SourceLocation,
+        message: &'static str,
+    },
+    DuplicateId {
+        location: SourceLocation,
+        first_location: SourceLocation,
+        label: &'static str,
+        id: u32,
+    },
     Validation(String),
 }
 
 impl fmt::Display for ImportError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::Csv(message) => write!(formatter, "Invalid CSV import: {message}"),
-            Self::Excel(message) => write!(formatter, "Invalid Excel import: {message}"),
+            Self::Csv { file_name, message } => {
+                write!(formatter, "{file_name}: invalid CSV data: {message}")
+            }
+            Self::Excel { file_name, message } => {
+                write!(formatter, "{file_name}: invalid Excel workbook: {message}")
+            }
             Self::EmptySource(source) => write!(formatter, "Import source is empty: {source}"),
             Self::MissingWorksheet(workbook) => {
                 write!(formatter, "Workbook has no readable worksheet: {workbook}")
@@ -88,10 +108,7 @@ impl fmt::Display for ImportError {
                 if value.trim().is_empty() {
                     write!(formatter, ": value is empty; expected {expected}.")
                 } else {
-                    write!(
-                        formatter,
-                        ": invalid value '{value}'; expected {expected}."
-                    )
+                    write!(formatter, ": invalid value '{value}'; expected {expected}.")
                 }
             }
             Self::InvalidRow {
@@ -106,15 +123,30 @@ impl fmt::Display for ImportError {
                     ": {role} row has {actual_columns} columns; expected at least {expected_columns}."
                 )
             }
+            Self::InvalidConstraint { location, message } => {
+                write_location(formatter, location)?;
+                write!(formatter, ": {message}.")
+            }
+            Self::DuplicateId {
+                location,
+                first_location,
+                label,
+                id,
+            } => {
+                write_location(formatter, location)?;
+                write!(formatter, ": duplicate {label} ID {id}")?;
+                if let Some(row) = first_location.row {
+                    write!(formatter, "; first defined at row {row}.")?;
+                    return Ok(());
+                }
+                formatter.write_str(".")
+            }
             Self::Validation(message) => formatter.write_str(message),
         }
     }
 }
 
-fn write_location(
-    formatter: &mut fmt::Formatter<'_>,
-    location: &SourceLocation,
-) -> fmt::Result {
+fn write_location(formatter: &mut fmt::Formatter<'_>, location: &SourceLocation) -> fmt::Result {
     formatter.write_str(&location.file_name)?;
     if let Some(sheet_name) = &location.sheet_name {
         write!(formatter, " > {sheet_name}")?;
@@ -132,6 +164,16 @@ fn write_location(
 }
 
 impl std::error::Error for ImportError {}
+
+impl ImportRole {
+    fn label(self) -> &'static str {
+        match self {
+            Self::LoadPoints => "load points",
+            Self::Cpts => "CPTs",
+            Self::BearingCapacities => "bearing capacities",
+        }
+    }
+}
 
 pub fn import_project_from_sources(
     sources: ProjectImportSources<'_>,
@@ -291,12 +333,15 @@ fn source_for_role(
     role: ImportRole,
 ) -> Result<&ImportSource, ImportError> {
     let mut matches = sources.iter().filter(|source| source.role == role);
-    let source = matches
-        .next()
-        .ok_or_else(|| ImportError::Validation(format!("Missing import source for {role:?}")))?;
-    if matches.next().is_some() {
+    let source = matches.next().ok_or_else(|| {
+        ImportError::Validation(format!("Missing import source for {}.", role.label()))
+    })?;
+    if let Some(other) = matches.next() {
         return Err(ImportError::Validation(format!(
-            "Multiple import sources for {role:?}"
+            "Multiple import sources assigned to {}: {}, {}.",
+            role.label(),
+            source.file_name,
+            other.file_name
         )));
     }
     Ok(source)
@@ -456,12 +501,8 @@ mod tests {
 
     #[test]
     fn source_table_preserves_physical_rows_around_empty_rows() {
-        let table = read_source_table(
-            "loads.csv",
-            SourceFormat::Csv,
-            b"1,0,0,100\n\n2,1,1,200\n",
-        )
-        .unwrap();
+        let table =
+            read_source_table("loads.csv", SourceFormat::Csv, b"1,0,0,100\n\n2,1,1,200\n").unwrap();
 
         assert_eq!(table.rows[1].number, 3);
     }
@@ -502,18 +543,82 @@ mod tests {
 
     #[test]
     fn reports_short_row_with_source_location() {
-        let table = read_source_table(
-            "loads.csv",
-            SourceFormat::Csv,
-            b"ID,X,Y,FED\n1,100,200\n",
-        )
-        .unwrap();
+        let table =
+            read_source_table("loads.csv", SourceFormat::Csv, b"ID,X,Y,FED\n1,100,200\n").unwrap();
 
         let error = parse_load_points(&table).unwrap_err();
         assert_eq!(
             error.to_string(),
             "loads.csv, row 2: load points row has 3 columns; expected at least 4."
         );
+    }
+
+    #[test]
+    fn reports_duplicate_load_point_id_with_both_rows() {
+        let table = read_source_table(
+            "loads.csv",
+            SourceFormat::Csv,
+            b"ID,X,Y,FED\n42,0,0,100\n42,1,1,200\n",
+        )
+        .unwrap();
+
+        let error = parse_load_points(&table).unwrap_err();
+        assert_eq!(
+            error.to_string(),
+            "loads.csv, row 3, ID (column 1): duplicate load point ID 42; first defined at row 2."
+        );
+    }
+
+    #[test]
+    fn reports_zero_pile_size_at_its_source_cell() {
+        let table = read_source_table(
+            "capacities.csv",
+            SourceFormat::Csv,
+            b"CPT ID,Tip,Size,FRD\n61,-17.5,0,672\n",
+        )
+        .unwrap();
+
+        let error = parse_bearing_capacities(&table).unwrap_err();
+        assert_eq!(
+            error.to_string(),
+            "capacities.csv, row 2, Size (column 3): value must be greater than zero."
+        );
+    }
+
+    #[test]
+    fn reports_missing_import_role_with_user_facing_name() {
+        let sources = vec![csv_source(
+            ImportRole::LoadPoints,
+            "loads.csv",
+            "1,0,0,100\n",
+        )];
+
+        let error = import_project_from_generic_sources("Missing", &sources).unwrap_err();
+        assert_eq!(error.to_string(), "Missing import source for CPTs.");
+    }
+
+    #[test]
+    fn reports_duplicate_import_role_with_file_names() {
+        let sources = vec![
+            csv_source(ImportRole::LoadPoints, "loads-a.csv", "1,0,0,100\n"),
+            csv_source(ImportRole::LoadPoints, "loads-b.csv", "2,0,0,100\n"),
+        ];
+
+        let error = source_for_role(&sources, ImportRole::LoadPoints).unwrap_err();
+        assert_eq!(
+            error.to_string(),
+            "Multiple import sources assigned to load points: loads-a.csv, loads-b.csv."
+        );
+    }
+
+    #[test]
+    fn reports_invalid_excel_with_file_name() {
+        let error =
+            read_source_table("broken.xlsx", SourceFormat::Xlsx, b"not an xlsx").unwrap_err();
+
+        assert!(error
+            .to_string()
+            .starts_with("broken.xlsx: invalid Excel workbook:"));
     }
 
     #[test]

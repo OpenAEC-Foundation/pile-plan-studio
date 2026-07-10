@@ -96,7 +96,10 @@ fn read_csv(file_name: &str, bytes: &[u8]) -> Result<SourceTable, ImportError> {
         .from_reader(bytes);
     let mut rows = Vec::new();
     for record in reader.records() {
-        let record = record.map_err(|error| ImportError::Csv(error.to_string()))?;
+        let record = record.map_err(|error| ImportError::Csv {
+            file_name: file_name.to_string(),
+            message: error.to_string(),
+        })?;
         let row_number = record
             .position()
             .map(|position| {
@@ -104,11 +107,7 @@ fn read_csv(file_name: &str, bytes: &[u8]) -> Result<SourceTable, ImportError> {
                 while matches!(bytes.get(start), Some(b'\r' | b'\n')) {
                     start += 1;
                 }
-                bytes[..start]
-                    .iter()
-                    .filter(|&&byte| byte == b'\n')
-                    .count()
-                    + 1
+                bytes[..start].iter().filter(|&&byte| byte == b'\n').count() + 1
             })
             .unwrap_or(rows.len() + 1);
         let row: Vec<_> = record
@@ -140,11 +139,17 @@ fn read_xlsx(file_name: &str, bytes: &[u8]) -> Result<SourceTable, ImportError> 
     }
 
     let mut workbook: Xlsx<_> =
-        Xlsx::new(Cursor::new(bytes)).map_err(|error| ImportError::Excel(error.to_string()))?;
+        Xlsx::new(Cursor::new(bytes)).map_err(|error| ImportError::Excel {
+            file_name: file_name.to_string(),
+            message: error.to_string(),
+        })?;
     for sheet_name in workbook.sheet_names().to_vec() {
         let range = workbook
             .worksheet_range(&sheet_name)
-            .map_err(|error| ImportError::Excel(error.to_string()))?;
+            .map_err(|error| ImportError::Excel {
+                file_name: file_name.to_string(),
+                message: error.to_string(),
+            })?;
         let rows: Vec<SourceRow> = range
             .rows()
             .enumerate()
