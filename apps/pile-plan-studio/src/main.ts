@@ -38,6 +38,7 @@ import {
   areImportFileAssignmentsComplete,
   emptyImportFileAssignments,
   inferImportFileAssignments,
+  getImportFileFormat,
   type ImportFileAssignments,
   type ImportFileRole,
 } from "./importFiles";
@@ -762,12 +763,20 @@ async function importProjectFiles(assignments: ImportFileAssignments<File>): Pro
 
   const project = await importProjectFromFilesCore({
     projectName: "Imported Project",
-    loadPointsCsv: await loadPointsFile.text(),
-    cptsXlsx: new Uint8Array(await cptsFile.arrayBuffer()),
-    bearingCapacitiesXlsx: new Uint8Array(await bearingCapacitiesFile.arrayBuffer()),
+    sources: await Promise.all([
+      importSource("load-points", loadPointsFile),
+      importSource("cpts", cptsFile),
+      importSource("bearing-capacities", bearingCapacitiesFile),
+    ]),
   });
 
   await loadProjectData(loadIfcppProjectData(applyDefaultPileCostSettings(project, pileCostSettings)));
+}
+
+async function importSource(role: ImportFileRole, file: File) {
+  const format = getImportFileFormat(file.name);
+  if (!format) throw new Error(`Unsupported import file: ${file.name}`);
+  return { role, fileName: file.name, format, bytes: new Uint8Array(await file.arrayBuffer()) };
 }
 
 function downloadCurrentIfcppProject(): void {

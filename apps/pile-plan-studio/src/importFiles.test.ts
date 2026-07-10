@@ -6,9 +6,19 @@ import {
   emptyImportFileAssignments,
   inferImportFileAssignments,
   inferImportFileRole,
+  getImportFileFormat,
 } from "./importFiles.ts";
 
 describe("import file assignments", () => {
+  it("supports CSV and XLSX independently from the suggested role", () => {
+    assert.equal(inferImportFileRole("belastinglocaties.xlsx"), "load-points");
+    assert.equal(inferImportFileRole("sonderingen.csv"), "cpts");
+    assert.equal(inferImportFileRole("draagvermogens.csv"), "bearing-capacities");
+    assert.equal(inferImportFileRole("anything.csv"), null);
+    assert.equal(getImportFileFormat("anything.csv"), "csv");
+    assert.equal(getImportFileFormat("anything.xlsx"), "xlsx");
+    assert.equal(getImportFileFormat("anything.xls"), null);
+  });
   it("infers file roles from common project file names", () => {
     assert.equal(inferImportFileRole("Belastinglocaties.csv"), "load-points");
     assert.equal(inferImportFileRole("Sonderingen.xlsx"), "cpts");

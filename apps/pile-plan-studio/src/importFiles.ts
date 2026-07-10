@@ -33,12 +33,12 @@ export function inferImportFileAssignments<TFile extends NamedImportFile>(
 export function inferImportFileRole(fileName: string): ImportFileRole | null {
   const normalized = fileName.toLowerCase();
 
-  if (normalized.endsWith(".csv")) {
-    return "load-points";
+  if (!getImportFileFormat(normalized)) {
+    return null;
   }
 
-  if (!normalized.endsWith(".xlsx")) {
-    return null;
+  if (normalized.includes("belasting") || normalized.includes("load-point") || normalized.includes("load_point")) {
+    return "load-points";
   }
 
   if (normalized.includes("sonder") || normalized.includes("cpt")) {
@@ -49,6 +49,13 @@ export function inferImportFileRole(fileName: string): ImportFileRole | null {
     return "bearing-capacities";
   }
 
+  return null;
+}
+
+export function getImportFileFormat(fileName: string): "csv" | "xlsx" | null {
+  const normalized = fileName.toLowerCase();
+  if (normalized.endsWith(".csv")) return "csv";
+  if (normalized.endsWith(".xlsx")) return "xlsx";
   return null;
 }
 
