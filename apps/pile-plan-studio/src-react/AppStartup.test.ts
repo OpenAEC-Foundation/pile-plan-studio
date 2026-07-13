@@ -59,4 +59,14 @@ describe("React app startup", () => {
       /selectedPileOptionKeysByLoadPoint:\s*choices,[\s\S]*?defaultPileSelectionPending:\s*false/,
     );
   });
+
+  it("runs greedy optimization through the shared Rust and WASM core", () => {
+    const source = readFileSync(resolve(import.meta.dirname, "App.tsx"), "utf8");
+
+    assert.match(source, /greedyOptimizeCore/);
+    assert.match(source, /buildGreedyOptimizationSettings/);
+    assert.match(source, /applyOptimizationChoices/);
+    assert.match(source, /optimizationRunning:\s*true/);
+    assert.match(source, /onRunOptimization=\{runGreedyOptimization\}/);
+  });
 });

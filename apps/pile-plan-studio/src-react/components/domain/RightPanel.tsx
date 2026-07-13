@@ -33,6 +33,7 @@ import {
 } from "./cptSettingsModel.ts";
 import { commitCostInput, updatePileCostItem, updatePileHeadLevel } from "./costSettingsModel.ts";
 import { setSetting } from "../../store.ts";
+import OptimizationPanel from "./OptimizationPanel.tsx";
 import "./rightPanel.css";
 
 const PILE_COST_DEFAULTS_KEY = "pile-cost-defaults";
@@ -40,9 +41,10 @@ const PILE_COST_DEFAULTS_KEY = "pile-cost-defaults";
 type Props = {
   state: ProjectState;
   onStateChange: (nextState: ProjectState) => void;
+  onRunOptimization?: () => void;
 };
 
-export default function RightPanel({ state, onStateChange }: Props) {
+export default function RightPanel({ state, onStateChange, onRunOptimization = () => undefined }: Props) {
   const selectedLoadPoints = getSelectedLoadPoints(state);
   const selectedLabel = selectedLoadPoints.length === 1
     ? formatLoadPointPanelTitle(selectedLoadPoints[0].name)
@@ -55,8 +57,11 @@ export default function RightPanel({ state, onStateChange }: Props) {
         <PanelTab label="CPTs" mode="cpts" state={state} onStateChange={onStateChange} />
         <PanelTab label="CPT settings" mode="cpt-settings" state={state} onStateChange={onStateChange} />
         <PanelTab label="Cost settings" mode="cost-settings" state={state} onStateChange={onStateChange} />
+        <PanelTab label="Optimization" mode="optimization-settings" state={state} onStateChange={onStateChange} />
       </div>
-      {state.rightPanelMode === "cost-settings" ? (
+      {state.rightPanelMode === "optimization-settings" ? (
+        <OptimizationPanel state={state} onStateChange={onStateChange} onRunOptimization={onRunOptimization} />
+      ) : state.rightPanelMode === "cost-settings" ? (
         <CostSettingsPanel state={state} onStateChange={onStateChange} />
       ) : state.rightPanelMode === "cpt-settings" ? (
         <CptSettingsPanel state={state} onStateChange={onStateChange} />

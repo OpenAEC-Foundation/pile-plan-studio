@@ -11,6 +11,8 @@ import type {
 } from "../../src/projectTypes.ts";
 import type { Viewport } from "../../src/viewport.ts";
 import type { LegendSelectionFilter } from "../../src/legendSelection.ts";
+import type { OptimizationRunSummary } from "../../src/optimizationSummary.ts";
+import type { OptimizationLimitScope, OptimizationTargetScope } from "../components/domain/optimizationPanelModel.ts";
 
 export type InputSourceKind = "load_points" | "cpts" | "bearing_capacities";
 export type InputSourceStatus = "snapshot-only" | "linked" | "missing" | "changed";
@@ -54,6 +56,11 @@ export type ProjectState = LoadedProjectData & {
   analysisError: string | null;
   defaultPileSelectionPending: boolean;
   legendSelectionFilter: LegendSelectionFilter;
+  optimizationTargetScope: OptimizationTargetScope;
+  optimizationLimitScope: OptimizationLimitScope;
+  optimizationRunning: boolean;
+  optimizationError: string | null;
+  optimizationSummary: OptimizationRunSummary | null;
 };
 
 type InitialProjectStateOptions = {
@@ -107,5 +114,10 @@ export function createInitialProjectState(
     analysisError: null,
     defaultPileSelectionPending: options.initializeDefaultPiles,
     legendSelectionFilter: { pileSizes: [], pileTipLevels: [] },
+    optimizationTargetScope: "all",
+    optimizationLimitScope: "target",
+    optimizationRunning: false,
+    optimizationError: null,
+    optimizationSummary: null,
   };
 }

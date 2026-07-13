@@ -26,9 +26,18 @@ const TABS: TabId[] = ["project", "plan", "optimize", "view"];
 interface RibbonProps {
   onFileTabClick?: () => void;
   onSettingsClick?: () => void;
+  onOpenOptimizationSettings?: () => void;
+  onRunOptimization?: () => void;
+  optimizationDisabled?: boolean;
 }
 
-export default function Ribbon({ onFileTabClick, onSettingsClick }: RibbonProps) {
+export default function Ribbon({
+  onFileTabClick,
+  onSettingsClick,
+  onOpenOptimizationSettings,
+  onRunOptimization,
+  optimizationDisabled = false,
+}: RibbonProps) {
   const { t, i18n } = useTranslation("ribbon");
   const [activeTab, setActiveTab] = useState<TabId>("project");
   const tabsRef = useRef<HTMLDivElement>(null);
@@ -115,8 +124,8 @@ export default function Ribbon({ onFileTabClick, onSettingsClick }: RibbonProps)
           <div className="ribbon-content">
             <div className="ribbon-groups">
               <RibbonGroup label={t("optimize.greedy")}>
-                <RibbonButton icon={viewerFitIcon} label={t("optimize.run")} disabled />
-                <RibbonButton icon={settingsIcon} label={t("optimize.settings")} disabled />
+                <RibbonButton icon={viewerFitIcon} label={t("optimize.run")} disabled={optimizationDisabled} onClick={onRunOptimization} />
+                <RibbonButton icon={settingsIcon} label={t("optimize.settings")} onClick={onOpenOptimizationSettings} />
               </RibbonGroup>
             </div>
           </div>

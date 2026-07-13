@@ -13,6 +13,7 @@ import {
   calculatePileCostCore,
   calculateProjectAnalysisCore,
   chooseDefaultPileOptionsCore,
+  greedyOptimizeCore,
   importProjectFromFilesCore,
 } from "../src/coreClient";
 import type { ImportSourceInput } from "../src/coreImportContract";
@@ -22,6 +23,13 @@ import { createInitialProjectState } from "./domain/projectState";
 import { getSetting } from "./store";
 import { optionKey } from "./components/domain/rightPanelModel";
 import type { PileCostSettings } from "../src/projectTypes";
+import { buildGreedyOptimizationSettings } from "../src/optimizationSettings";
+import {
+  applyOptimizationChoices,
+  clampOptimizationLimits,
+  getOptimizationTargetIds,
+} from "./components/domain/optimizationPanelModel";
+import { switchRightPanelMode } from "../src/selectionState";
 
 const PILE_COST_DEFAULTS_KEY = "pile-cost-defaults";
 
@@ -205,6 +213,95 @@ export default function App() {
     };
   }, [projectState.pileCostSettings, projectState.pileOptionsByLoadPointId]);
 
+  const runGreedyOptimization = async () => {
+    const snapshot = projectState;
+    const targetIds = getOptimizationTargetIds(
+      snapshot.optimizationTargetScope,
+      snapshot.loadPoints.map((loadPoint) => loadPoint.id),
+      snapshot.selectedLoadPointIds,
+    );
+    if (
+      snapshot.optimizationRunning
+      || targetIds.length === 0
+      || snapshot.activePileSizes.length === 0
+      || snapshot.activePileTipLevels.length === 0
+    ) {
+      return;
+    }
+
+    const targetSet = new Set(targetIds);
+    const chosenOption = (loadPointId: number) => {
+      const chosenKey = snapshot.selectedPileOptionKeysByLoadPoint.get(loadPointId);
+      return snapshot.pileOptionsByLoadPointId.get(loadPointId)
+        ?.find((option) => optionKey(option) === chosenKey) ?? null;
+    };
+    const limits = clampOptimizationLimits({
+      sizes: snapshot.optimizationSettings.max_pile_sizes,
+      tips: snapshot.optimizationSettings.max_pile_tip_levels,
+      configurations: snapshot.optimizationSettings.max_pile_configurations,
+    }, snapshot.activePileSizes, snapshot.activePileTipLevels);
+    const settings = buildGreedyOptimizationSettings({
+      activePileSizes: snapshot.activePileSizes,
+      activePileTipLevels: snapshot.activePileTipLevels,
+      uiSettings: {
+        targetScope: snapshot.optimizationTargetScope,
+        limitScope: snapshot.optimizationLimitScope,
+        maxDifferentSizes: limits.sizes,
+        maxDifferentTips: limits.tips,
+        maxDifferentConfigurations: limits.configurations,
+      },
+      baselineOptions: snapshot.loadPoints
+        .filter((loadPoint) => !targetSet.has(loadPoint.id))
+        .map((loadPoint) => chosenOption(loadPoint.id)),
+    });
+    const optionsByLoadPoint = new Map(targetIds.map((id) => [
+      id,
+      snapshot.pileOptionsByLoadPointId.get(id) ?? [],
+    ]));
+
+    setProjectState((current) => ({
+      ...current,
+      optimizationSettings: settings,
+      optimizationRunning: true,
+      optimizationError: null,
+      optimizationSummary: null,
+    }));
+
+    try {
+      const choices = await greedyOptimizeCore({
+        optionsByLoadPoint,
+        costSettings: snapshot.pileCostSettings,
+        settings,
+      });
+      const applied = applyOptimizationChoices({
+        previousChoices: snapshot.selectedPileOptionKeysByLoadPoint,
+        targetIds,
+        choices,
+      });
+      setProjectState((current) => current.analysisRequest !== snapshot.analysisRequest ? current : ({
+        ...current,
+        selectedPileOptionKeysByLoadPoint: applied.choices,
+        activePileSizes: applied.activePileSizes,
+        activePileTipLevels: applied.activePileTipLevels,
+        optimizationSettings: settings,
+        optimizationRunning: false,
+        optimizationError: null,
+        optimizationSummary: applied.summary,
+      }));
+    } catch (error) {
+      setProjectState((current) => current.analysisRequest !== snapshot.analysisRequest ? current : ({
+        ...current,
+        optimizationRunning: false,
+        optimizationError: error instanceof Error ? error.message : String(error),
+      }));
+    }
+  };
+
+  const optimizationDisabled = projectState.optimizationRunning
+    || projectState.activePileSizes.length === 0
+    || projectState.activePileTipLevels.length === 0
+    || (projectState.optimizationTargetScope === "selected" && projectState.selectedLoadPointIds.length === 0);
+
   return (
     <>
       <div className="app-shell" data-testid="openaec-shell">
@@ -212,6 +309,12 @@ export default function App() {
         <Ribbon
           onFileTabClick={() => setBackstageOpen(true)}
           onSettingsClick={() => setSettingsOpen(true)}
+          onOpenOptimizationSettings={() => setProjectState((current) => ({
+            ...current,
+            ...switchRightPanelMode(current, "optimization-settings"),
+          }))}
+          onRunOptimization={runGreedyOptimization}
+          optimizationDisabled={optimizationDisabled}
         />
         <div className="app-content">
           <aside className="project-explorer" aria-label="Project explorer">
@@ -242,7 +345,11 @@ export default function App() {
           <main className="workspace" aria-label="Pile plan workspace">
             <PilePlanWorkspace state={projectState} onStateChange={setProjectState} />
           </main>
-          <RightPanel state={projectState} onStateChange={setProjectState} />
+          <RightPanel
+            state={projectState}
+            onStateChange={setProjectState}
+            onRunOptimization={runGreedyOptimization}
+          />
         </div>
         <StatusBar />
       </div>
