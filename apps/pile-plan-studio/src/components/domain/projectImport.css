@@ -1,0 +1,15 @@
+.project-import-panel { max-width: 760px; display: grid; gap: 16px; }
+.project-import-panel h2 { margin: 0; }
+.project-import-name, .project-import-bulk { display: grid; gap: 6px; }
+.project-import-name input { width: min(420px, 100%); }
+.project-import-sources { border-top: 1px solid var(--theme-border); }
+.project-import-source { min-height: 58px; display: grid; grid-template-columns: minmax(150px, 1fr) minmax(180px, 2fr) auto auto; align-items: center; gap: 10px; border-bottom: 1px solid var(--theme-border); }
+.project-import-source div { display: grid; }
+.project-import-source small { color: var(--theme-text-muted); }
+.project-import-source > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.project-import-replace { position: relative; cursor: pointer; }
+.project-import-replace input { position: absolute; width: 1px; height: 1px; opacity: 0; }
+.project-import-error { color: #b42318; margin: 0; white-space: pre-wrap; }
+.project-import-summary { display: grid; gap: 6px; padding: 10px 0; border-top: 1px solid var(--theme-border); }
+.project-import-summary ul { margin: 0; padding-left: 20px; color: var(--theme-text-muted); }
+.project-import-submit { justify-self: start; }

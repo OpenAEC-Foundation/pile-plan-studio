@@ -1,0 +1,39 @@
+{
+  "tabs": {
+    "file": "Bestand",
+    "project": "Project",
+    "plan": "Plan",
+    "optimize": "Optimaliseren",
+    "view": "Weergave"
+  },
+  "project": {
+    "overview": "Project",
+    "settings": "Projectinstellingen",
+    "sources": "Bronnen",
+    "checks": "Controles",
+    "validate": "Project valideren",
+    "refreshSources": "Bronnen verversen"
+  },
+  "plan": {
+    "inspect": "Inspecteren",
+    "loadPoints": "Belastingen",
+    "cpts": "Sonderingen",
+    "settings": "Instellingen",
+    "cptSettings": "Sonderingen",
+    "costSettings": "Kosten"
+  },
+  "optimize": {
+    "greedy": "Greedy optimalisatie",
+    "run": "Uitvoeren",
+    "settings": "Instellingen"
+  },
+  "view": {
+    "map": "Kaart",
+    "fit": "Project passend",
+    "legend": "Legenda",
+    "panels": "Panelen",
+    "undo": "Ongedaan",
+    "redo": "Opnieuw",
+    "help": "Help"
+  }
+}

@@ -281,10 +281,16 @@ Manual alpha verification should cover:
 - Add mapping and validation models.
 - Create `.ifcpp` from imported Excel data.
 
-### Milestone 5: OpenAEC Styling
+### Milestone 5: OpenAEC Template Migration
 
-- Introduce OpenAEC tokens.
-- Align typography, colors, panels, buttons, and status areas.
+- Completed: the OpenAEC `Tauri+React` frontend is the official browser and
+  Tauri interface. The temporary parallel Vanilla frontend has been removed.
+- Use the OpenAEC shell structure: title bar, ribbon, backstage, side panels,
+  status bar, themes, and i18n.
+- Include the left project explorer from the start, even if it is initially
+  empty.
+- Keep Rust/WASM as the calculation core and avoid duplicate TypeScript
+  calculations.
 - Keep the map/data workspace as the first screen.
 
 ### Milestone 6: Alpha Hardening

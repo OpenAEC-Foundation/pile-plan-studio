@@ -5,3 +5,4 @@ node_modules/
 dist/
 apps/*/src-tauri/target/
 *.log
+OpenAEC-style-book-main/

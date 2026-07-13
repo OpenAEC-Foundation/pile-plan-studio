@@ -10,7 +10,8 @@
     "resolveJsonModule": true,
     "isolatedModules": true,
     "noEmit": true,
-    "strict": true
+    "strict": true,
+    "jsx": "react-jsx"
   },
   "include": ["src", "../../sample_project/*.json"],
   "exclude": ["src/**/*.test.ts"]

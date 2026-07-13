@@ -1,14 +1,24 @@
-use std::collections::HashMap;
-use std::fmt;
-use std::io::Cursor;
-
-use calamine::{Data, Reader, Xlsx};
-
 use crate::{
     CptSelectionAlgorithm, CptSelectionSettings, GreedyOptimizationSettings, PileCostSettings,
     PilePlanProject, ProjectApplication, ProjectBearingCapacity, ProjectCpt, ProjectImportLogEntry,
     ProjectInputs, ProjectLoadPoint, ProjectMetadata, ProjectSettings, ProjectUnits,
     ProjectUserState,
+};
+use std::collections::HashMap;
+use std::fmt;
+
+use serde::{Deserialize, Serialize};
+
+mod roles;
+mod table;
+
+pub use roles::{
+    parse_bearing_capacities, parse_bearing_capacities_with_diagnostics, parse_cpts,
+    parse_load_points, reconcile_imported_inputs, validate_imported_inputs,
+    BearingCapacityParseResult, ImportReconciliation,
+};
+pub use table::{
+    read_source_table, SourceFormat, SourceLocation, SourceRow, SourceTable, TableCell,
 };
 
 pub struct ProjectImportSources<'a> {
@@ -18,51 +28,260 @@ pub struct ProjectImportSources<'a> {
     pub bearing_capacities_xlsx: &'a [u8],
 }
 
+#[derive(Clone, Copy, Debug, Deserialize, Eq, Hash, PartialEq, Serialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum ImportRole {
+    LoadPoints,
+    Cpts,
+    BearingCapacities,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+pub struct ImportSource {
+    pub role: ImportRole,
+    pub file_name: String,
+    pub format: SourceFormat,
+    pub bytes: Vec<u8>,
+}
+
 #[derive(Debug)]
 pub enum ImportError {
-    Csv(String),
-    Excel(String),
+    Csv {
+        file_name: String,
+        message: String,
+    },
+    Excel {
+        file_name: String,
+        message: String,
+    },
+    EmptySource(String),
     MissingWorksheet(String),
     MissingCell {
-        row: usize,
-        column: usize,
+        location: SourceLocation,
     },
     InvalidValue {
+        location: SourceLocation,
         value: String,
         expected: &'static str,
     },
+    InvalidRow {
+        location: SourceLocation,
+        role: &'static str,
+        actual_columns: usize,
+        expected_columns: usize,
+    },
+    InvalidConstraint {
+        location: SourceLocation,
+        message: &'static str,
+    },
+    DuplicateId {
+        location: SourceLocation,
+        first_location: SourceLocation,
+        label: &'static str,
+        id: u32,
+    },
+    Validation(String),
 }
 
 impl fmt::Display for ImportError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::Csv(message) => write!(formatter, "Invalid CSV import: {message}"),
-            Self::Excel(message) => write!(formatter, "Invalid Excel import: {message}"),
+            Self::Csv { file_name, message } => {
+                write!(formatter, "{file_name}: invalid CSV data: {message}")
+            }
+            Self::Excel { file_name, message } => {
+                write!(formatter, "{file_name}: invalid Excel workbook: {message}")
+            }
+            Self::EmptySource(source) => write!(formatter, "Import source is empty: {source}"),
             Self::MissingWorksheet(workbook) => {
                 write!(formatter, "Workbook has no readable worksheet: {workbook}")
             }
-            Self::MissingCell { row, column } => {
-                write!(formatter, "Missing cell at row {row}, column {column}")
+            Self::MissingCell { location } => {
+                write_location(formatter, location)?;
+                formatter.write_str(": cell is missing.")
             }
-            Self::InvalidValue { value, expected } => {
-                write!(formatter, "Invalid value '{value}', expected {expected}")
+            Self::InvalidValue {
+                location,
+                value,
+                expected,
+            } => {
+                write_location(formatter, location)?;
+                if value.trim().is_empty() {
+                    write!(formatter, ": value is empty; expected {expected}.")
+                } else {
+                    write!(formatter, ": invalid value '{value}'; expected {expected}.")
+                }
             }
+            Self::InvalidRow {
+                location,
+                role,
+                actual_columns,
+                expected_columns,
+            } => {
+                write_location(formatter, location)?;
+                write!(
+                    formatter,
+                    ": {role} row has {actual_columns} columns; expected at least {expected_columns}."
+                )
+            }
+            Self::InvalidConstraint { location, message } => {
+                write_location(formatter, location)?;
+                write!(formatter, ": {message}.")
+            }
+            Self::DuplicateId {
+                location,
+                first_location,
+                label,
+                id,
+            } => {
+                write_location(formatter, location)?;
+                write!(formatter, ": duplicate {label} ID {id}")?;
+                if let Some(row) = first_location.row {
+                    write!(formatter, "; first defined at row {row}.")?;
+                    return Ok(());
+                }
+                formatter.write_str(".")
+            }
+            Self::Validation(message) => formatter.write_str(message),
         }
     }
 }
 
+fn write_location(formatter: &mut fmt::Formatter<'_>, location: &SourceLocation) -> fmt::Result {
+    formatter.write_str(&location.file_name)?;
+    if let Some(sheet_name) = &location.sheet_name {
+        write!(formatter, " > {sheet_name}")?;
+    }
+    if let Some(row) = location.row {
+        write!(formatter, ", row {row}")?;
+    }
+    if let Some(column_name) = location.column_name {
+        write!(formatter, ", {column_name}")?;
+    }
+    if let Some(column) = location.column {
+        write!(formatter, " (column {column})")?;
+    }
+    Ok(())
+}
+
 impl std::error::Error for ImportError {}
+
+impl ImportRole {
+    fn label(self) -> &'static str {
+        match self {
+            Self::LoadPoints => "load points",
+            Self::Cpts => "CPTs",
+            Self::BearingCapacities => "bearing capacities",
+        }
+    }
+}
 
 pub fn import_project_from_sources(
     sources: ProjectImportSources<'_>,
 ) -> Result<PilePlanProject, ImportError> {
     let load_points = import_load_points_csv(sources.load_points_csv)?;
     let cpts = import_cpts_xlsx(sources.cpts_xlsx)?;
-    let bearing_capacities = import_bearing_capacities_xlsx(sources.bearing_capacities_xlsx)?;
+    let capacity_table = read_source_table(
+        "Draagvermogens.xlsx",
+        SourceFormat::Xlsx,
+        sources.bearing_capacities_xlsx,
+    )?;
+    let capacity_parse = parse_bearing_capacities_with_diagnostics(&capacity_table)?;
+    let reconciliation =
+        reconcile_imported_inputs(&load_points, &cpts, capacity_parse.bearing_capacities)?;
+    let mut import_log = vec![
+        import_log_entry(
+            "Belastinglocaties.csv",
+            None,
+            &[
+                ("id", "id"),
+                ("x", "x_mm"),
+                ("y", "y_mm"),
+                ("FED", "design_load_kn"),
+            ],
+        ),
+        import_log_entry(
+            "Sonderingen.xlsx",
+            Some("first worksheet"),
+            &[("id", "id"), ("x", "x_mm"), ("y", "y_mm")],
+        ),
+        import_log_entry(
+            "Draagvermogens.xlsx",
+            Some("first worksheet"),
+            capacity_columns(),
+        ),
+    ];
+    import_log[2].warnings = import_warnings(
+        &capacity_table,
+        &capacity_parse.empty_frd_rows,
+        &reconciliation,
+    );
+    Ok(build_imported_project(
+        sources.project_name,
+        load_points,
+        cpts,
+        reconciliation.bearing_capacities,
+        import_log,
+    ))
+}
+
+pub fn import_project_from_generic_sources(
+    project_name: &str,
+    sources: &[ImportSource],
+) -> Result<PilePlanProject, ImportError> {
+    let load_source = source_for_role(sources, ImportRole::LoadPoints)?;
+    let cpt_source = source_for_role(sources, ImportRole::Cpts)?;
+    let capacity_source = source_for_role(sources, ImportRole::BearingCapacities)?;
+    let load_table = read_source_table(
+        &load_source.file_name,
+        load_source.format,
+        &load_source.bytes,
+    )?;
+    let cpt_table = read_source_table(&cpt_source.file_name, cpt_source.format, &cpt_source.bytes)?;
+    let capacity_table = read_source_table(
+        &capacity_source.file_name,
+        capacity_source.format,
+        &capacity_source.bytes,
+    )?;
+    let load_points = parse_load_points(&load_table)?;
+    let cpts = parse_cpts(&cpt_table)?;
+    let capacity_parse = parse_bearing_capacities_with_diagnostics(&capacity_table)?;
+    let reconciliation =
+        reconcile_imported_inputs(&load_points, &cpts, capacity_parse.bearing_capacities)?;
+    let mut capacity_log = provenance_entry(
+        capacity_source,
+        capacity_table.sheet_name.clone(),
+        capacity_columns(),
+    );
+    capacity_log.warnings = import_warnings(
+        &capacity_table,
+        &capacity_parse.empty_frd_rows,
+        &reconciliation,
+    );
+
+    Ok(build_imported_project(
+        project_name.to_string(),
+        load_points,
+        cpts,
+        reconciliation.bearing_capacities,
+        vec![
+            provenance_entry(load_source, load_table.sheet_name, load_point_columns()),
+            provenance_entry(cpt_source, cpt_table.sheet_name, cpt_columns()),
+            capacity_log,
+        ],
+    ))
+}
+
+fn build_imported_project(
+    project_name: String,
+    load_points: Vec<ProjectLoadPoint>,
+    cpts: Vec<ProjectCpt>,
+    bearing_capacities: Vec<ProjectBearingCapacity>,
+    import_log: Vec<ProjectImportLogEntry>,
+) -> PilePlanProject {
     let active_pile_sizes = unique_sorted_pile_sizes(&bearing_capacities);
     let active_pile_tip_levels = unique_sorted_tip_levels(&bearing_capacities);
-
-    Ok(PilePlanProject {
+    PilePlanProject {
         schema: "IFCPP".to_string(),
         schema_version: 1,
         application: ProjectApplication {
@@ -70,7 +289,7 @@ pub fn import_project_from_sources(
             version: "0.1.0-alpha".to_string(),
         },
         metadata: ProjectMetadata {
-            name: sources.project_name,
+            name: project_name,
             author: None,
             organization: None,
             created_at: None,
@@ -121,153 +340,161 @@ pub fn import_project_from_sources(
             selected_piles: HashMap::new(),
             manual_cpt_selections: HashMap::new(),
         },
-        import_log: vec![
-            import_log_entry(
-                "Belastinglocaties.csv",
-                None,
-                &[
-                    ("id", "id"),
-                    ("x", "x_mm"),
-                    ("y", "y_mm"),
-                    ("FED", "design_load_kn"),
-                ],
-            ),
-            import_log_entry(
-                "Sonderingen.xlsx",
-                Some("first worksheet"),
-                &[("id", "id"), ("x", "x_mm"), ("y", "y_mm")],
-            ),
-            import_log_entry(
-                "Draagvermogens.xlsx",
-                Some("first worksheet"),
-                &[
-                    ("nummer", "cpt_id"),
-                    ("ppn", "pile_tip_level_m"),
-                    ("afm", "pile_size_mm"),
-                    ("FRd", "frd_kn"),
-                ],
-            ),
-        ],
-    })
+        import_log,
+    }
+}
+
+fn source_for_role(
+    sources: &[ImportSource],
+    role: ImportRole,
+) -> Result<&ImportSource, ImportError> {
+    let mut matches = sources.iter().filter(|source| source.role == role);
+    let source = matches.next().ok_or_else(|| {
+        ImportError::Validation(format!("Missing import source for {}.", role.label()))
+    })?;
+    if let Some(other) = matches.next() {
+        return Err(ImportError::Validation(format!(
+            "Multiple import sources assigned to {}: {}, {}.",
+            role.label(),
+            source.file_name,
+            other.file_name
+        )));
+    }
+    Ok(source)
+}
+
+fn provenance_entry(
+    source: &ImportSource,
+    sheet_name: Option<String>,
+    columns: &[(&str, &str)],
+) -> ProjectImportLogEntry {
+    ProjectImportLogEntry {
+        source_file: source.file_name.clone(),
+        imported_at: None,
+        sheet_name,
+        mapped_columns: columns
+            .iter()
+            .map(|(from, to)| ((*from).to_string(), (*to).to_string()))
+            .collect(),
+        warnings: vec![],
+        source_role: Some(source.role),
+        source_format: Some(source.format),
+        schema_version: Some("fixed-1".to_string()),
+    }
+}
+
+fn load_point_columns() -> &'static [(&'static str, &'static str)] {
+    &[
+        ("id", "id"),
+        ("x", "x_mm"),
+        ("y", "y_mm"),
+        ("FED", "design_load_kn"),
+    ]
+}
+
+fn cpt_columns() -> &'static [(&'static str, &'static str)] {
+    &[("id", "id"), ("x", "x_mm"), ("y", "y_mm")]
+}
+
+fn capacity_columns() -> &'static [(&'static str, &'static str)] {
+    &[
+        ("nummer", "cpt_id"),
+        ("ppn", "pile_tip_level_m"),
+        ("afm", "pile_size_mm"),
+        ("FRd", "frd_kn"),
+    ]
+}
+
+fn reconciliation_warnings(reconciliation: &ImportReconciliation) -> Vec<String> {
+    let mut warnings = Vec::new();
+    if reconciliation.ignored_orphan_rows > 0 {
+        warnings.push(format!(
+            "Ignored {} bearing-capacity row(s) for {} CPT(s) without coordinates: {}",
+            reconciliation.ignored_orphan_rows,
+            reconciliation.ignored_orphan_cpt_ids.len(),
+            join_ids(&reconciliation.ignored_orphan_cpt_ids)
+        ));
+    }
+    if reconciliation.deduplicated_rows > 0 {
+        warnings.push(format!(
+            "Deduplicated {} exact bearing-capacity row(s)",
+            reconciliation.deduplicated_rows
+        ));
+    }
+    if reconciliation.conflicting_duplicate_keys > 0 {
+        warnings.push(format!(
+            "Selected the lowest FRD for {} conflicting duplicate bearing-capacity key(s)",
+            reconciliation.conflicting_duplicate_keys
+        ));
+    }
+    if !reconciliation.cpt_ids_without_capacities.is_empty() {
+        warnings.push(format!(
+            "CPTs without bearing capacities: {}. Pile options using these CPTs will be Missing.",
+            join_ids(&reconciliation.cpt_ids_without_capacities)
+        ));
+    }
+    warnings
+}
+
+fn import_warnings(
+    capacity_table: &SourceTable,
+    empty_frd_rows: &[usize],
+    reconciliation: &ImportReconciliation,
+) -> Vec<String> {
+    let mut warnings = Vec::new();
+    if !empty_frd_rows.is_empty() {
+        warnings.push(empty_frd_warning(capacity_table, empty_frd_rows));
+    }
+    warnings.extend(reconciliation_warnings(reconciliation));
+    warnings
+}
+
+fn empty_frd_warning(table: &SourceTable, rows: &[usize]) -> String {
+    let source = match &table.sheet_name {
+        Some(sheet_name) => format!("{} > {sheet_name}", table.file_name),
+        None => table.file_name.clone(),
+    };
+    let shown_rows = rows
+        .iter()
+        .take(10)
+        .map(usize::to_string)
+        .collect::<Vec<_>>()
+        .join(", ");
+    let remaining = rows.len().saturating_sub(10);
+    let row_list = if remaining > 0 {
+        format!("{shown_rows}; and {remaining} more")
+    } else {
+        shown_rows
+    };
+    let row_label = if rows.len() == 1 { "row" } else { "rows" };
+    format!(
+        "Ignored {} bearing-capacity {row_label} with an empty FRD in {source} (rows {row_list}). These configurations are treated as Missing.",
+        rows.len()
+    )
+}
+
+fn join_ids(ids: &[u32]) -> String {
+    ids.iter()
+        .map(u32::to_string)
+        .collect::<Vec<_>>()
+        .join(", ")
 }
 
 pub fn import_load_points_csv(input: &str) -> Result<Vec<ProjectLoadPoint>, ImportError> {
-    input
-        .lines()
-        .enumerate()
-        .filter_map(|(index, line)| {
-            let trimmed = line.trim();
-            if trimmed.is_empty() {
-                None
-            } else {
-                Some(parse_load_point_row(index + 1, trimmed))
-            }
-        })
-        .collect()
+    let table = read_source_table("Belastinglocaties.csv", SourceFormat::Csv, input.as_bytes())?;
+    parse_load_points(&table)
 }
 
 pub fn import_cpts_xlsx(input: &[u8]) -> Result<Vec<ProjectCpt>, ImportError> {
-    let rows = first_worksheet_rows(input, "Sonderingen.xlsx")?;
-    rows.iter()
-        .enumerate()
-        .filter(|(_, row)| !row.iter().all(is_empty_cell))
-        .map(|(row_index, row)| {
-            let id = parse_cell_u32(cell(row, row_index + 1, 1)?)?;
-            Ok(ProjectCpt {
-                id,
-                name: format!("CPT {id}"),
-                x_mm: parse_cell_f64(cell(row, row_index + 1, 2)?)?,
-                y_mm: parse_cell_f64(cell(row, row_index + 1, 3)?)?,
-            })
-        })
-        .collect()
+    let table = read_source_table("Sonderingen.xlsx", SourceFormat::Xlsx, input)?;
+    parse_cpts(&table)
 }
 
 pub fn import_bearing_capacities_xlsx(
     input: &[u8],
 ) -> Result<Vec<ProjectBearingCapacity>, ImportError> {
-    let rows = first_worksheet_rows(input, "Draagvermogens.xlsx")?;
-    rows.iter()
-        .enumerate()
-        .skip(1)
-        .filter(|(_, row)| !row.iter().all(is_empty_cell))
-        .map(|(row_index, row)| {
-            Ok(ProjectBearingCapacity {
-                cpt_id: parse_cell_u32(cell(row, row_index + 1, 1)?)?,
-                pile_tip_level_m: parse_cell_f64(cell(row, row_index + 1, 2)?)?,
-                pile_size_mm: parse_cell_u32(cell(row, row_index + 1, 3)?)?,
-                frd_kn: parse_cell_f64(cell(row, row_index + 1, 4)?)?,
-            })
-        })
-        .collect()
-}
-
-fn parse_load_point_row(row_number: usize, line: &str) -> Result<ProjectLoadPoint, ImportError> {
-    let columns: Vec<&str> = line.split(',').map(str::trim).collect();
-    if columns.len() != 4 {
-        return Err(ImportError::Csv(format!(
-            "row {row_number} has {} columns, expected 4",
-            columns.len()
-        )));
-    }
-
-    let id = parse_str_u32(columns[0])?;
-    Ok(ProjectLoadPoint {
-        id,
-        name: format!("Load point {id}"),
-        x_mm: parse_str_f64(columns[1])?,
-        y_mm: parse_str_f64(columns[2])?,
-        design_load_kn: parse_str_f64(columns[3])?,
-    })
-}
-
-fn first_worksheet_rows(input: &[u8], workbook_name: &str) -> Result<Vec<Vec<Data>>, ImportError> {
-    let cursor = Cursor::new(input.to_vec());
-    let mut workbook = Xlsx::new(cursor).map_err(|error| ImportError::Excel(error.to_string()))?;
-    let range = workbook
-        .worksheet_range_at(0)
-        .ok_or_else(|| ImportError::MissingWorksheet(workbook_name.to_string()))?
-        .map_err(|error| ImportError::Excel(error.to_string()))?;
-
-    Ok(range.rows().map(|row| row.to_vec()).collect())
-}
-
-fn cell(row: &[Data], row_number: usize, column_number: usize) -> Result<&Data, ImportError> {
-    row.get(column_number - 1).ok_or(ImportError::MissingCell {
-        row: row_number,
-        column: column_number,
-    })
-}
-
-fn is_empty_cell(cell: &Data) -> bool {
-    matches!(cell, Data::Empty) || cell.to_string().trim().is_empty()
-}
-
-fn parse_cell_u32(cell: &Data) -> Result<u32, ImportError> {
-    parse_str_u32(&cell.to_string())
-}
-
-fn parse_cell_f64(cell: &Data) -> Result<f64, ImportError> {
-    parse_str_f64(&cell.to_string())
-}
-
-fn parse_str_u32(value: &str) -> Result<u32, ImportError> {
-    let number = parse_str_f64(value)?;
-    if !number.is_finite() || number.fract().abs() > f64::EPSILON || number < 0.0 {
-        return Err(ImportError::InvalidValue {
-            value: value.to_string(),
-            expected: "a positive integer",
-        });
-    }
-
-    Ok(number as u32)
-}
-
-fn parse_str_f64(value: &str) -> Result<f64, ImportError> {
-    value.parse::<f64>().map_err(|_| ImportError::InvalidValue {
-        value: value.to_string(),
-        expected: "a number",
-    })
+    let table = read_source_table("Draagvermogens.xlsx", SourceFormat::Xlsx, input)?;
+    parse_bearing_capacities(&table)
 }
 
 fn unique_sorted_pile_sizes(bearing_capacities: &[ProjectBearingCapacity]) -> Vec<u32> {
@@ -304,12 +531,414 @@ fn import_log_entry(
             .map(|(source, target)| (source.to_string(), target.to_string()))
             .collect(),
         warnings: vec![],
+        source_role: None,
+        source_format: None,
+        schema_version: None,
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn csv_source_table_preserves_quoted_cells_and_skips_empty_rows() {
+        let table =
+            read_source_table("loads.csv", SourceFormat::Csv, b"1,\"9,450\",4700,79\n\n").unwrap();
+
+        assert_eq!(table.file_name, "loads.csv");
+        assert_eq!(table.rows.len(), 1);
+        assert_eq!(table.rows[0].number, 1);
+        assert_eq!(table.rows[0].cells[1].as_text(), "9,450");
+    }
+
+    #[test]
+    fn source_table_preserves_physical_rows_around_empty_rows() {
+        let table =
+            read_source_table("loads.csv", SourceFormat::Csv, b"1,0,0,100\n\n2,1,1,200\n").unwrap();
+
+        assert_eq!(table.rows[1].number, 3);
+    }
+
+    #[test]
+    fn reports_empty_capacity_value_with_csv_location() {
+        let table = read_source_table(
+            "capacities.csv",
+            SourceFormat::Csv,
+            b"CPT ID,Tip,Size,FRD\n61,-17.5,290,\n",
+        )
+        .unwrap();
+
+        let result = parse_bearing_capacities_with_diagnostics(&table).unwrap();
+        assert!(result.bearing_capacities.is_empty());
+        assert_eq!(result.empty_frd_rows, vec![2]);
+    }
+
+    #[test]
+    fn empty_frd_does_not_hide_valid_capacity_for_same_configuration() {
+        let table = read_source_table(
+            "capacities.csv",
+            SourceFormat::Csv,
+            b"CPT ID,Tip,Size,FRD\n61,-17.5,290,\n61,-17.5,290,672\n",
+        )
+        .unwrap();
+
+        let result = parse_bearing_capacities_with_diagnostics(&table).unwrap();
+        assert_eq!(result.empty_frd_rows, vec![2]);
+        assert_eq!(result.bearing_capacities.len(), 1);
+        assert_eq!(result.bearing_capacities[0].frd_kn, 672.0);
+    }
+
+    #[test]
+    fn reports_invalid_capacity_value_with_excel_location() {
+        let table = SourceTable {
+            file_name: "capacities.xlsx".to_string(),
+            sheet_name: Some("Sheet1".to_string()),
+            rows: vec![SourceRow {
+                number: 84,
+                cells: vec![text("61"), text("-17.5"), text("290"), text("abc")],
+            }],
+        };
+
+        let error = parse_bearing_capacities(&table).unwrap_err();
+        assert_eq!(
+            error.to_string(),
+            "capacities.xlsx > Sheet1, row 84, FRD (column 4): invalid value 'abc'; expected a number."
+        );
+    }
+
+    #[test]
+    fn reports_short_row_with_source_location() {
+        let table =
+            read_source_table("loads.csv", SourceFormat::Csv, b"ID,X,Y,FED\n1,100,200\n").unwrap();
+
+        let error = parse_load_points(&table).unwrap_err();
+        assert_eq!(
+            error.to_string(),
+            "loads.csv, row 2: load points row has 3 columns; expected at least 4."
+        );
+    }
+
+    #[test]
+    fn reports_duplicate_load_point_id_with_both_rows() {
+        let table = read_source_table(
+            "loads.csv",
+            SourceFormat::Csv,
+            b"ID,X,Y,FED\n42,0,0,100\n42,1,1,200\n",
+        )
+        .unwrap();
+
+        let error = parse_load_points(&table).unwrap_err();
+        assert_eq!(
+            error.to_string(),
+            "loads.csv, row 3, ID (column 1): duplicate load point ID 42; first defined at row 2."
+        );
+    }
+
+    #[test]
+    fn reports_zero_pile_size_at_its_source_cell() {
+        let table = read_source_table(
+            "capacities.csv",
+            SourceFormat::Csv,
+            b"CPT ID,Tip,Size,FRD\n61,-17.5,0,672\n",
+        )
+        .unwrap();
+
+        let error = parse_bearing_capacities(&table).unwrap_err();
+        assert_eq!(
+            error.to_string(),
+            "capacities.csv, row 2, Size (column 3): value must be greater than zero."
+        );
+    }
+
+    #[test]
+    fn reports_missing_import_role_with_user_facing_name() {
+        let sources = vec![csv_source(
+            ImportRole::LoadPoints,
+            "loads.csv",
+            "1,0,0,100\n",
+        )];
+
+        let error = import_project_from_generic_sources("Missing", &sources).unwrap_err();
+        assert_eq!(error.to_string(), "Missing import source for CPTs.");
+    }
+
+    #[test]
+    fn reports_duplicate_import_role_with_file_names() {
+        let sources = vec![
+            csv_source(ImportRole::LoadPoints, "loads-a.csv", "1,0,0,100\n"),
+            csv_source(ImportRole::LoadPoints, "loads-b.csv", "2,0,0,100\n"),
+        ];
+
+        let error = source_for_role(&sources, ImportRole::LoadPoints).unwrap_err();
+        assert_eq!(
+            error.to_string(),
+            "Multiple import sources assigned to load points: loads-a.csv, loads-b.csv."
+        );
+    }
+
+    #[test]
+    fn reports_invalid_excel_with_file_name() {
+        let error =
+            read_source_table("broken.xlsx", SourceFormat::Xlsx, b"not an xlsx").unwrap_err();
+
+        assert!(error
+            .to_string()
+            .starts_with("broken.xlsx: invalid Excel workbook:"));
+    }
+
+    #[test]
+    fn role_parsers_treat_text_and_numeric_cells_equally() {
+        let text_loads = source_table(vec![vec![
+            text("15"),
+            text("9450"),
+            text("4700"),
+            text("79"),
+        ]]);
+        let numeric_loads = source_table(vec![vec![
+            number(15.0),
+            number(9450.0),
+            number(4700.0),
+            number(79.0),
+        ]]);
+        assert_eq!(
+            parse_load_points(&text_loads).unwrap(),
+            parse_load_points(&numeric_loads).unwrap()
+        );
+
+        let text_cpts = source_table(vec![vec![text("61"), text("1000"), text("2000")]]);
+        let numeric_cpts = source_table(vec![vec![number(61.0), number(1000.0), number(2000.0)]]);
+        assert_eq!(
+            parse_cpts(&text_cpts).unwrap(),
+            parse_cpts(&numeric_cpts).unwrap()
+        );
+
+        let text_capacities = source_table(vec![vec![
+            text("61"),
+            text("-17.5"),
+            text("290"),
+            text("672"),
+        ]]);
+        let numeric_capacities = source_table(vec![vec![
+            number(61.0),
+            number(-17.5),
+            number(290.0),
+            number(672.0),
+        ]]);
+        assert_eq!(
+            parse_bearing_capacities(&text_capacities).unwrap(),
+            parse_bearing_capacities(&numeric_capacities).unwrap()
+        );
+    }
+
+    #[test]
+    fn reconciliation_ignores_orphans_deduplicates_and_keeps_cpts_without_capacities() {
+        let loads = parse_load_points(&source_table(vec![vec![
+            text("1"),
+            text("0"),
+            text("0"),
+            text("100"),
+        ]]))
+        .unwrap();
+        let cpts = parse_cpts(&source_table(vec![
+            vec![text("61"), text("0"), text("0")],
+            vec![text("63"), text("1000"), text("1000")],
+        ]))
+        .unwrap();
+        let capacities = parse_bearing_capacities(&source_table(vec![
+            vec![text("62"), text("-17.5"), text("290"), text("700")],
+            vec![text("61"), text("-17.5"), text("290"), text("672")],
+            vec![text("61"), text("-17.5"), text("290"), text("672")],
+        ]))
+        .unwrap();
+
+        let result = reconcile_imported_inputs(&loads, &cpts, capacities).unwrap();
+        assert_eq!(result.bearing_capacities.len(), 1);
+        assert_eq!(result.ignored_orphan_rows, 1);
+        assert_eq!(result.ignored_orphan_cpt_ids, vec![62]);
+        assert_eq!(result.deduplicated_rows, 1);
+        assert_eq!(result.cpt_ids_without_capacities, vec![63]);
+    }
+
+    #[test]
+    fn reconciliation_uses_lowest_conflicting_duplicate_capacity() {
+        let loads = vec![ProjectLoadPoint {
+            id: 1,
+            name: "Load point 1".into(),
+            x_mm: 0.0,
+            y_mm: 0.0,
+            design_load_kn: 100.0,
+        }];
+        let cpts = vec![ProjectCpt {
+            id: 61,
+            name: "CPT 61".into(),
+            x_mm: 0.0,
+            y_mm: 0.0,
+        }];
+        let capacities = vec![
+            ProjectBearingCapacity {
+                cpt_id: 61,
+                pile_tip_level_m: -17.5,
+                pile_size_mm: 290,
+                frd_kn: 672.0,
+            },
+            ProjectBearingCapacity {
+                cpt_id: 61,
+                pile_tip_level_m: -17.5,
+                pile_size_mm: 290,
+                frd_kn: 700.0,
+            },
+        ];
+
+        let result = reconcile_imported_inputs(&loads, &cpts, capacities).unwrap();
+        assert_eq!(result.bearing_capacities.len(), 1);
+        assert_eq!(result.bearing_capacities[0].frd_kn, 672.0);
+        assert_eq!(result.conflicting_duplicate_keys, 1);
+    }
+
+    #[test]
+    fn reconciliation_keeps_finite_negative_frd() {
+        let loads = vec![ProjectLoadPoint {
+            id: 1,
+            name: "Load point 1".into(),
+            x_mm: 0.0,
+            y_mm: 0.0,
+            design_load_kn: 100.0,
+        }];
+        let cpts = vec![ProjectCpt {
+            id: 50,
+            name: "CPT 50".into(),
+            x_mm: 0.0,
+            y_mm: 0.0,
+        }];
+        let capacities = vec![ProjectBearingCapacity {
+            cpt_id: 50,
+            pile_tip_level_m: -17.5,
+            pile_size_mm: 290,
+            frd_kn: -42.0,
+        }];
+
+        let result = reconcile_imported_inputs(&loads, &cpts, capacities).unwrap();
+        assert_eq!(result.bearing_capacities[0].frd_kn, -42.0);
+    }
+
+    #[test]
+    fn generic_sources_import_atomically_and_record_provenance() {
+        let sources = vec![
+            ImportSource {
+                role: ImportRole::LoadPoints,
+                file_name: "loads.csv".to_string(),
+                format: SourceFormat::Csv,
+                bytes: include_bytes!("../../../sample_project/Belastinglocaties.csv").to_vec(),
+            },
+            ImportSource {
+                role: ImportRole::Cpts,
+                file_name: "cpts.xlsx".to_string(),
+                format: SourceFormat::Xlsx,
+                bytes: include_bytes!("../../../sample_project/Sonderingen.xlsx").to_vec(),
+            },
+            ImportSource {
+                role: ImportRole::BearingCapacities,
+                file_name: "capacities.xlsx".to_string(),
+                format: SourceFormat::Xlsx,
+                bytes: include_bytes!("../../../sample_project/Draagvermogens.xlsx").to_vec(),
+            },
+        ];
+
+        let project = import_project_from_generic_sources("Mixed Project", &sources).unwrap();
+
+        assert_eq!(project.metadata.name, "Mixed Project");
+        assert_eq!(project.import_log[0].source_file, "loads.csv");
+        assert_eq!(
+            project.import_log[0].source_role,
+            Some(ImportRole::LoadPoints)
+        );
+        assert_eq!(project.import_log[0].source_format, Some(SourceFormat::Csv));
+        assert_eq!(
+            project.import_log[0].schema_version.as_deref(),
+            Some("fixed-1")
+        );
+    }
+
+    #[test]
+    fn generic_import_records_reconciliation_warnings() {
+        let sources = vec![
+            csv_source(ImportRole::LoadPoints, "loads.csv", "1,0,0,100\n"),
+            csv_source(ImportRole::Cpts, "cpts.csv", "61,0,0\n63,1000,1000\n"),
+            csv_source(
+                ImportRole::BearingCapacities,
+                "capacities.csv",
+                "62,-17.5,290,700\n61,-17.5,290,672\n61,-17.5,290,672\n",
+            ),
+        ];
+
+        let project = import_project_from_generic_sources("Warnings", &sources).unwrap();
+        assert_eq!(project.inputs.bearing_capacities.len(), 1);
+        let warnings = &project.import_log[2].warnings;
+        assert!(warnings
+            .iter()
+            .any(|warning| warning.contains("Ignored 1 bearing-capacity row")));
+        assert!(warnings
+            .iter()
+            .any(|warning| warning.contains("Deduplicated 1")));
+        assert!(warnings
+            .iter()
+            .any(|warning| warning.contains("CPTs without bearing capacities: 63")));
+    }
+
+    #[test]
+    fn empty_frd_rows_are_persisted_as_one_bounded_warning() {
+        let capacity_rows = (0..11)
+            .map(|index| format!("61,-{},290,\n", 17.5 + index as f64 / 10.0))
+            .collect::<String>();
+        let sources = vec![
+            csv_source(ImportRole::LoadPoints, "loads.csv", "1,0,0,100\n"),
+            csv_source(ImportRole::Cpts, "cpts.csv", "61,0,0\n"),
+            csv_source(
+                ImportRole::BearingCapacities,
+                "capacities.csv",
+                &capacity_rows,
+            ),
+        ];
+
+        let project = import_project_from_generic_sources("Empty FRD", &sources).unwrap();
+        assert!(project.inputs.bearing_capacities.is_empty());
+        assert!(project.import_log[2].warnings.iter().any(|warning| warning ==
+            "Ignored 11 bearing-capacity rows with an empty FRD in capacities.csv (rows 1, 2, 3, 4, 5, 6, 7, 8, 9, 10; and 1 more). These configurations are treated as Missing."
+        ));
+    }
+
+    fn csv_source(role: ImportRole, file_name: &str, contents: &str) -> ImportSource {
+        ImportSource {
+            role,
+            file_name: file_name.to_string(),
+            format: SourceFormat::Csv,
+            bytes: contents.as_bytes().to_vec(),
+        }
+    }
+
+    fn source_table(rows: Vec<Vec<TableCell>>) -> SourceTable {
+        SourceTable {
+            file_name: "test.csv".to_string(),
+            sheet_name: None,
+            rows: rows
+                .into_iter()
+                .enumerate()
+                .map(|(index, cells)| SourceRow {
+                    number: index + 1,
+                    cells,
+                })
+                .collect(),
+        }
+    }
+
+    fn text(value: &str) -> TableCell {
+        TableCell::Text(value.to_string())
+    }
+
+    fn number(value: f64) -> TableCell {
+        TableCell::Number(value)
+    }
 
     #[test]
     fn imports_load_points_from_simple_csv_without_header() {
@@ -336,12 +965,16 @@ mod tests {
         assert_eq!(project.schema, "IFCPP");
         assert_eq!(project.inputs.load_points.len(), 328);
         assert_eq!(project.inputs.cpts.len(), 77);
-        assert_eq!(project.inputs.bearing_capacities.len(), 2340);
+        assert_eq!(project.inputs.bearing_capacities.len(), 2208);
         assert_eq!(project.inputs.cpts[0].name, "CPT 1");
         assert_eq!(project.inputs.bearing_capacities[0].cpt_id, 1);
         assert_eq!(project.inputs.bearing_capacities[0].pile_size_mm, 290);
         assert_eq!(project.inputs.bearing_capacities[0].pile_tip_level_m, -17.5);
         assert_eq!(project.inputs.bearing_capacities[0].frd_kn, 672.0);
         assert_eq!(project.import_log.len(), 3);
+        assert!(project.import_log[2]
+            .warnings
+            .iter()
+            .any(|warning| warning.contains("132 conflicting duplicate")));
     }
 }

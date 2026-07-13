@@ -7,18 +7,20 @@ pub mod project;
 
 pub use analysis::{
     bearing_capacity_rows_for_cpt, bearing_capacity_summary, build_pile_options_by_load_point,
-    calculate_pile_cost, choose_default_pile_option, greedy_optimize_pile_choices,
-    manually_selected_cpts, pile_configuration_options, selected_cpts,
-    selected_cpts_by_maximum_angle, selected_cpts_by_quadrant,
-    BearingCapacity as ProjectBearingCapacity, BearingCapacitySummary, Cpt as ProjectCpt,
-    CptBearingCapacityRow, CptSelectionAlgorithm, CptSelectionSettings, GreedyOptimizationSettings,
-    GreedyOptimizedPileChoice, LoadPoint as ProjectLoadPoint, PileConfigurationKey,
-    PileConfigurationOption, PileCostSettings, PileCostSettingsItem, PileCostShape, SelectedCpt,
+    build_project_analysis, calculate_pile_cost, choose_default_pile_option,
+    choose_default_pile_options, greedy_optimize_pile_choices, manually_selected_cpts,
+    pile_configuration_options, selected_cpts, selected_cpts_by_maximum_angle,
+    selected_cpts_by_quadrant, BearingCapacity as ProjectBearingCapacity, BearingCapacitySummary,
+    Cpt as ProjectCpt, CptBearingCapacityRow, CptSelectionAlgorithm, CptSelectionSettings,
+    GreedyOptimizationSettings, GreedyOptimizedPileChoice, LoadPoint as ProjectLoadPoint,
+    PileConfigurationKey, PileConfigurationOption, PileCostSettings, PileCostSettingsItem,
+    PileCostShape, ProjectAnalysisResult, SelectedCpt,
 };
 pub use ifcpp::{read_ifcpp_str, validate_ifcpp_project, write_ifcpp_string, IfcppError};
 pub use import::{
     import_bearing_capacities_xlsx, import_cpts_xlsx, import_load_points_csv,
-    import_project_from_sources, ImportError, ProjectImportSources,
+    import_project_from_generic_sources, import_project_from_sources, ImportError, ImportRole,
+    ImportSource, ProjectImportSources, SourceFormat,
 };
 pub use pile_options::{calculate_pile_option, find_pile_options};
 pub use project::{

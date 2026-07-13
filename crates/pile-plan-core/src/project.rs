@@ -2,6 +2,8 @@ use std::collections::HashMap;
 
 use serde::{Deserialize, Serialize};
 
+use crate::import::{ImportRole, SourceFormat};
+
 use crate::analysis::{
     BearingCapacity, Cpt, CptSelectionSettings, GreedyOptimizationSettings, LoadPoint,
     PileConfigurationKey, PileCostSettings,
@@ -90,6 +92,12 @@ pub struct ProjectImportLogEntry {
     pub sheet_name: Option<String>,
     pub mapped_columns: HashMap<String, String>,
     pub warnings: Vec<String>,
+    #[serde(default)]
+    pub source_role: Option<ImportRole>,
+    #[serde(default)]
+    pub source_format: Option<SourceFormat>,
+    #[serde(default)]
+    pub schema_version: Option<String>,
 }
 
 #[cfg(test)]
@@ -246,6 +254,9 @@ mod tests {
                 sheet_name: Some("Sheet1".to_string()),
                 mapped_columns: HashMap::from([("FRD".to_string(), "frd_kn".to_string())]),
                 warnings: vec!["Example warning".to_string()],
+                source_role: None,
+                source_format: None,
+                schema_version: None,
             }],
         }
     }

@@ -1,0 +1,50 @@
+{
+  "file": "File",
+  "new": "New project",
+  "open": "Open project",
+  "save": "Save project",
+  "saveAs": "Save project as...",
+  "print": "Print",
+  "import": "Import sources",
+  "export": "Download IFCPP",
+  "preferences": "Preferences",
+  "about": "About",
+  "exit": "Exit",
+  "aboutPanel": {
+    "title": "About",
+    "appName": "Pile Plan Studio",
+    "version": "Version",
+    "tagline": "Build free. Build together.",
+    "description": "An OpenAEC-style desktop application for pile planning, project input sources, and IFCPP project files.",
+    "companyName": "OpenAEC Foundation",
+    "companyDescription": "The built environment belongs to everyone. The OpenAEC Foundation develops and maintains free, open-source software for architecture, engineering and construction — so that knowledge and tools are shared, not locked away. Our core values: Open by default · Build together · Own your tools · Ship it.",
+    "website": "open-aec.com",
+    "github": "GitHub",
+    "license": "License",
+    "stichting": "Stichting OpenAEC Foundation (NL)",
+    "copyright": "© 2026 OpenAEC Foundation. Code: MIT. Content: CC BY-SA 4.0."
+  },
+  "importPanel": {
+    "title": "Import sources",
+    "fromFile": "Import source files",
+    "fromFileDesc": "Import load points, CPT locations, and bearing capacities into the project.",
+    "fromTemplate": "Manage source mappings",
+    "fromTemplateDesc": "Review how source columns connect to the project model. Full source management follows later."
+  },
+  "extensions": "Extensions",
+  "extInstalled": "Installed",
+  "extBrowse": "Browse Catalog",
+  "extSearchPlaceholder": "Search extensions...",
+  "extInstallFile": "Install from file",
+  "extInstalledBadge": "Installed",
+  "extInstallBtn": "Install",
+  "exportPanel": {
+    "title": "Export / Download",
+    "asPdf": "Download IFCPP",
+    "asPdfDesc": "Download the current project as an IFCPP project file.",
+    "asImage": "Export view image",
+    "asImageDesc": "Export the current pile plan view as an image later.",
+    "asHtml": "Export report",
+    "asHtmlDesc": "Export project reports in a later workflow."
+  }
+}

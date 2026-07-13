@@ -1,11 +1,12 @@
 use std::collections::HashMap;
 
 use pile_plan_core::{
-    bearing_capacity_rows_for_cpt, build_pile_options_by_load_point, calculate_pile_cost,
-    choose_default_pile_option, greedy_optimize_pile_choices, import_project_from_sources,
-    selected_cpts, write_ifcpp_string, CptSelectionSettings, GreedyOptimizationSettings,
-    GreedyOptimizedPileChoice, PileConfigurationOption, PileCostSettings, PilePlanProject,
-    ProjectBearingCapacity, ProjectCpt, ProjectImportSources, ProjectLoadPoint,
+    bearing_capacity_rows_for_cpt, build_pile_options_by_load_point, build_project_analysis,
+    calculate_pile_cost, choose_default_pile_option, choose_default_pile_options,
+    greedy_optimize_pile_choices, import_project_from_generic_sources, selected_cpts,
+    write_ifcpp_string, CptSelectionSettings, GreedyOptimizationSettings,
+    GreedyOptimizedPileChoice, ImportSource, PileConfigurationKey, PileConfigurationOption,
+    PileCostSettings, PilePlanProject, ProjectBearingCapacity, ProjectCpt, ProjectLoadPoint,
 };
 use serde::{Deserialize, Serialize};
 use wasm_bindgen::prelude::*;
@@ -29,6 +30,17 @@ pub struct PileOptionsRequest {
 }
 
 #[derive(Debug, Deserialize)]
+pub struct ProjectAnalysisRequest {
+    pub load_points: Vec<ProjectLoadPoint>,
+    pub cpts: Vec<ProjectCpt>,
+    pub bearing_capacities: Vec<ProjectBearingCapacity>,
+    pub global_settings: CptSelectionSettings,
+    pub settings_by_load_point: HashMap<u32, CptSelectionSettings>,
+    pub manual_cpt_ids_by_load_point: HashMap<u32, Vec<u32>>,
+    pub include_cpt_frd_rows: bool,
+}
+
+#[derive(Debug, Deserialize)]
 pub struct PileCostRequest {
     pub pile_size_mm: u32,
     pub pile_tip_level_m: f64,
@@ -39,6 +51,12 @@ pub struct PileCostRequest {
 pub struct DefaultPileOptionRequest {
     pub options: Vec<PileConfigurationOption>,
     pub settings: PileCostSettings,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct DefaultPileOptionsRequest {
+    pub options_by_load_point: HashMap<u32, Vec<PileConfigurationOption>>,
+    pub cost_settings: PileCostSettings,
 }
 
 #[derive(Debug, Deserialize)]
@@ -57,9 +75,7 @@ pub struct GreedyOptimizationRequest {
 #[derive(Debug, Deserialize)]
 pub struct ImportProjectRequest {
     pub project_name: String,
-    pub load_points_csv: String,
-    pub cpts_xlsx: Vec<u8>,
-    pub bearing_capacities_xlsx: Vec<u8>,
+    pub sources: Vec<ImportSource>,
 }
 
 #[derive(Debug, Serialize)]
@@ -99,6 +115,26 @@ pub fn calculate_pile_options(request: JsValue) -> Result<JsValue, JsValue> {
 }
 
 #[wasm_bindgen]
+pub fn calculate_project_analysis(request: JsValue) -> Result<JsValue, JsValue> {
+    let request: ProjectAnalysisRequest = from_js_value(request)?;
+    let result = build_project_analysis(
+        &request.load_points,
+        &request.cpts,
+        &request.bearing_capacities,
+        |load_point| {
+            request
+                .settings_by_load_point
+                .get(&load_point.id)
+                .cloned()
+                .unwrap_or_else(|| request.global_settings.clone())
+        },
+        &request.manual_cpt_ids_by_load_point,
+        request.include_cpt_frd_rows,
+    );
+    to_js_value(&result)
+}
+
+#[wasm_bindgen]
 pub fn calculate_pile_option_cost(request: JsValue) -> Result<JsValue, JsValue> {
     let request: PileCostRequest = from_js_value(request)?;
     to_js_value(&PileCostResponse {
@@ -114,6 +150,14 @@ pub fn calculate_pile_option_cost(request: JsValue) -> Result<JsValue, JsValue> 
 pub fn choose_default_option(request: JsValue) -> Result<JsValue, JsValue> {
     let request: DefaultPileOptionRequest = from_js_value(request)?;
     to_js_value(&choose_default_pile_option(&request.options, &request.settings).cloned())
+}
+
+#[wasm_bindgen]
+pub fn choose_default_options(request: JsValue) -> Result<JsValue, JsValue> {
+    let request: DefaultPileOptionsRequest = from_js_value(request)?;
+    let choices: HashMap<u32, PileConfigurationKey> =
+        choose_default_pile_options(&request.options_by_load_point, &request.cost_settings);
+    to_js_value(&choices)
 }
 
 #[wasm_bindgen]
@@ -140,13 +184,8 @@ pub fn greedy_optimize(request: JsValue) -> Result<JsValue, JsValue> {
 #[wasm_bindgen]
 pub fn import_project_from_files(request: JsValue) -> Result<JsValue, JsValue> {
     let request: ImportProjectRequest = from_js_value(request)?;
-    let project = import_project_from_sources(ProjectImportSources {
-        project_name: request.project_name,
-        load_points_csv: &request.load_points_csv,
-        cpts_xlsx: &request.cpts_xlsx,
-        bearing_capacities_xlsx: &request.bearing_capacities_xlsx,
-    })
-    .map_err(to_error_value)?;
+    let project = import_project_from_generic_sources(&request.project_name, &request.sources)
+        .map_err(to_error_value)?;
 
     to_js_value(&project)
 }
@@ -212,5 +251,38 @@ mod tests {
         );
 
         assert_eq!(selected[0].cpt.id, 11);
+    }
+
+    #[test]
+    fn project_analysis_request_supports_optional_cpt_rows() {
+        let request = ProjectAnalysisRequest {
+            load_points: vec![],
+            cpts: vec![],
+            bearing_capacities: vec![],
+            global_settings: CptSelectionSettings {
+                algorithm: CptSelectionAlgorithm::Quadrants,
+                max_distance_m: 25.0,
+                max_angle_degrees: 120.0,
+            },
+            settings_by_load_point: HashMap::new(),
+            manual_cpt_ids_by_load_point: HashMap::new(),
+            include_cpt_frd_rows: false,
+        };
+
+        assert!(!request.include_cpt_frd_rows);
+    }
+
+    #[test]
+    fn default_pile_options_request_accepts_grouped_options() {
+        let request = DefaultPileOptionsRequest {
+            options_by_load_point: HashMap::from([(1, vec![])]),
+            cost_settings: PileCostSettings {
+                schema_version: 1,
+                pile_head_level_m: 0.0,
+                items: vec![],
+            },
+        };
+
+        assert!(request.options_by_load_point.contains_key(&1));
     }
 }
