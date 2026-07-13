@@ -137,6 +137,7 @@ describe("IFCPP project loading", () => {
       pile_size_mm: 290,
       pile_tip_level_m_key: -18000,
     });
+    assert.deepEqual(project.user_state.selected_piles["1"].external_references, []);
   });
 
   it("uses default pile cost settings when imported project has no pile costs", () => {

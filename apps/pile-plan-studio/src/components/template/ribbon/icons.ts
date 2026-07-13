@@ -38,6 +38,10 @@ export const extensionManageIcon = `<svg fill="none" stroke="currentColor" viewB
 // Project Settings icon
 export const projectIcon = `<svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"/></svg>`;
 
+export const loadPointIcon = `<svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-width="2" d="M12 3v13m-4-4 4 4 4-4"/><circle cx="12" cy="19" r="2" stroke-width="2"/></svg>`;
+export const cptIcon = `<svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linejoin="round" stroke-width="2" d="M4 5h16l-8 14L4 5z"/><path stroke-linecap="round" stroke-width="1.5" d="M9 9h6m-4 3h2"/></svg>`;
+export const optimizeIcon = `<svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><circle cx="5" cy="6" r="2" stroke-width="2"/><circle cx="5" cy="12" r="2" stroke-width="2"/><circle cx="5" cy="18" r="2" stroke-width="2"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 6h3l3 6 3-6h2M8 12h3m-3 6h3l3-6 3 6h2"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m17 6 2 0-1-2m-1 14h2l-1 2"/></svg>`;
+
 // Clipboard
 export const pasteIcon = `<svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>`;
 export const cutIcon = `<svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><circle cx="6" cy="6" r="3" stroke-width="2"/><circle cx="6" cy="18" r="3" stroke-width="2"/><line x1="20" y1="4" x2="8.12" y2="15.88" stroke-width="2" stroke-linecap="round"/><line x1="14.47" y1="14.48" x2="20" y2="20" stroke-width="2" stroke-linecap="round"/><line x1="8.12" y1="8.12" x2="12" y2="12" stroke-width="2" stroke-linecap="round"/></svg>`;

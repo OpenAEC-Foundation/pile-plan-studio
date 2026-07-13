@@ -1,7 +1,7 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 
-import { toStringKeyedRecord, toWasmNumberKeyedMap } from "./coreSerialization.ts";
+import { toStringKeyedRecord, toWasmNumberKeyedMap, toWasmNumberKeyedRecord } from "./coreSerialization.ts";
 
 describe("core serialization", () => {
   it("keeps numeric ids as numeric Map keys for WASM requests", () => {
@@ -16,5 +16,12 @@ describe("core serialization", () => {
 
     assert.deepEqual(Object.keys(result), ["15"]);
     assert.deepEqual(result["15"], ["option"]);
+  });
+
+  it("converts persisted string ids back to numeric WASM map keys", () => {
+    const result = toWasmNumberKeyedRecord({ "15": [61, 62] });
+
+    assert.deepEqual(result.get(15), [61, 62]);
+    assert.equal(result.has("15" as unknown as number), false);
   });
 });

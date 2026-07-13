@@ -2,6 +2,7 @@
   "name": "pile-plan-studio",
   "private": true,
   "version": "0.1.0",
+  "license": "LGPL-3.0-or-later",
   "type": "module",
   "scripts": {
     "build:wasm": "wasm-pack build ../../crates/pile-plan-wasm --target web --out-dir ../../apps/pile-plan-studio/src/core/wasm/pile-plan-wasm && node ../../tools/allow_wasm_package.mjs src/core/wasm/pile-plan-wasm",

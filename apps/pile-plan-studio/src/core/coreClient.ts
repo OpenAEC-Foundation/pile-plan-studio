@@ -11,7 +11,7 @@ import initWasm, {
   import_project_from_files,
   write_ifcpp_project,
 } from "./wasm/pile-plan-wasm/pile_plan_wasm.js";
-import { toStringKeyedRecord, toWasmNumberKeyedMap } from "./coreSerialization.ts";
+import { toStringKeyedRecord, toWasmNumberKeyedMap, toWasmNumberKeyedRecord } from "./coreSerialization.ts";
 import {
   corePileOptionsMapToFrontend,
   fromCorePileOption,
@@ -299,7 +299,18 @@ export async function importProjectFromFilesCore(input: {
 
 export async function writeIfcppProjectCore(project: IfcppProject): Promise<string> {
   await initializeWasm();
-  return write_ifcpp_project(project);
+  return write_ifcpp_project({
+    ...project,
+    settings: {
+      ...project.settings,
+      cpt_selection_by_load_point: toWasmNumberKeyedRecord(project.settings.cpt_selection_by_load_point),
+    },
+    user_state: {
+      ...project.user_state,
+      selected_piles: toWasmNumberKeyedRecord(project.user_state.selected_piles),
+      manual_cpt_selections: toWasmNumberKeyedRecord(project.user_state.manual_cpt_selections),
+    },
+  });
 }
 
 function initializeWasm(): Promise<void> {

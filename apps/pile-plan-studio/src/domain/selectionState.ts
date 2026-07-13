@@ -1,4 +1,4 @@
-export type RightPanelMode = "load-point" | "cpts" | "cpt-settings" | "cost-settings" | "optimization-settings";
+export type RightPanelMode = "load-point" | "cpts" | "cpt-settings" | "cost-settings";
 
 export type SelectionState = {
   selectedLoadPointId: number | null;

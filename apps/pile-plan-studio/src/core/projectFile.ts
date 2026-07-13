@@ -22,6 +22,7 @@ type IfcppCptSelectionSettings = {
 
 type IfcppSelectedPileChoice = {
   pile: PileConfigurationKey | null;
+  external_references: unknown[];
 };
 
 export type IfcppProject = {
@@ -196,7 +197,10 @@ export function createIfcppProject(input: {
     user_state: {
       selected_piles: Object.fromEntries(
         [...input.selectedPileOptionKeysByLoadPoint.entries()]
-          .map(([loadPointId, optionKey]) => [String(loadPointId), { pile: optionKeyToPileConfigurationKey(optionKey) }]),
+          .map(([loadPointId, optionKey]) => [String(loadPointId), {
+            pile: optionKeyToPileConfigurationKey(optionKey),
+            external_references: [],
+          }]),
       ),
       manual_cpt_selections: Object.fromEntries(
         [...input.manualCptIdsByLoadPoint.entries()].map(([loadPointId, cptIds]) => [String(loadPointId), cptIds]),

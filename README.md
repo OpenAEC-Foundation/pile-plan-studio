@@ -1,67 +1,142 @@
 # Pile Plan Studio
 
-Pile Plan Studio is a desktop application for exploring and assigning pile
-configurations for structural load points. The app focuses on making the
-engineering data visible and traceable: load points, CPTs, bearing capacities,
-allowed pile options, utilization, governing CPTs, and estimated pile costs.
+Pile Plan Studio is an open-source engineering tool for exploring and assigning
+pile configurations to structural load points. It brings load points, CPTs,
+foundation advice, pile options, utilization, governing CPTs, and estimated
+costs together in one interactive plan.
 
-The project is developed in English as an OpenAEC-oriented Rust + Tauri
-application with a React and TypeScript frontend.
+The calculation core is written in Rust. The same core runs natively in the
+Tauri desktop application and through WebAssembly in the browser.
 
-## Repository Layout
+## Alpha Status
 
-- `crates/pile-plan-core`: Rust domain model and pile option calculation core.
-- `apps/pile-plan-studio`: React frontend, WASM adapter, and Tauri desktop shell.
-- `sample_project`: Small sample project data used by the application.
-- `docs`: Product and architecture notes.
+Pile Plan Studio is currently available as a public alpha. The application is
+ready for exploration and early project testing, but its workflows and IFCPP
+project format may still change.
 
-The intended architecture follows the OpenAEC model: engineering calculations
-live in the Rust core, while React and TypeScript stay focused on application
-state, interaction, and rendering. See `docs/architecture.md` for the project
-boundary.
+**Engineering results produced by this alpha require verification by a qualified
+professional.** Pile Plan Studio is decision support and does not replace the
+engineer's responsibility for the foundation design.
 
-The browser build uses a thin WASM wrapper around the same Rust core. The Tauri
-desktop app calls the core through native commands.
+## What You Can Do
+
+- Open the included sample project and inspect the pile plan immediately.
+- Import load points, CPT coordinates, and foundation advice from CSV or XLSX.
+- Select CPTs automatically by quadrant or maximum-angle rules.
+- Override the CPT selection for individual load points.
+- Inspect valid, insufficient, and missing pile options per load point.
+- Assign pile configurations manually or to multiple load points at once.
+- Compare utilization, governing CPT, and estimated cost.
+- Run the current greedy optimizer with configuration limits.
+- Save and reopen the complete project as IFCPP.
+
+### Selecting Load Points
+
+- Click a load point to select it.
+- Use **Shift+click** to add a load point to the selection or remove an already
+  selected load point.
+- Use **Shift+drag** on empty viewer space to draw a lasso and select all load
+  points inside it.
+- Press **Escape** or click empty viewer space to clear the selection.
+
+## Try or Install
+
+The browser demo is the primary way to explore the alpha and opens directly with
+the sample project. Its public OpenAEC URL is added here when deployment is
+active.
+
+Signed Windows x64 installers are published on the
+[GitHub Releases page](https://github.com/OpenAEC-Foundation/pile-plan-studio/releases).
+The browser and desktop application use the same Rust calculation core.
+
+## Supported Project Data
+
+Pile Plan Studio imports three source roles:
+
+| Role | Required content | Formats |
+| --- | --- | --- |
+| Load points | ID, X, Y, FED | CSV, XLSX |
+| CPTs | ID, X, Y | CSV, XLSX |
+| Foundation advice | CPT ID, pile tip level, pile size, R<sub>c;net;d</sub> | CSV, XLSX |
+
+The three files can be selected together and assigned to their roles before
+import. Imported data, project settings, selected piles, and manual CPT choices
+are stored in an `.ifcpp` project file.
+
+## Known Limitations
+
+The current CPT-selection rules are configurable approximations rather than an
+objective engineering truth. The greedy optimizer supports decision-making but
+does not guarantee a globally optimal pile plan. RFEM load-point import and
+Excel export of selected piles are planned but are not part of this alpha.
+
+See [Known limitations](docs/known-limitations.md) for the complete release
+scope.
+
+## Architecture
+
+- `crates/pile-plan-core`: Rust domain model, import, pile-option calculations,
+  costing, CPT selection, and greedy optimization.
+- `crates/pile-plan-wasm`: thin WebAssembly interface for the browser.
+- `apps/pile-plan-studio`: React interface and Tauri desktop shell.
+- `sample_project`: sample IFCPP project and source data.
+- `docs`: public product, architecture, format, and deployment documentation.
+
+Engineering calculations live in Rust. React and TypeScript handle application
+state, interaction, and rendering. See [Architecture](docs/architecture.md).
 
 ## Development
 
-Run the Rust core tests from the repository root:
+Requirements:
 
-```powershell
-cargo test
-```
+- Node.js 20 or newer;
+- current stable Rust;
+- `wasm-pack`;
+- the [Tauri prerequisites](https://v2.tauri.app/start/prerequisites/) for
+  desktop builds.
 
-Run the frontend tests:
-
-```powershell
-cd apps\pile-plan-studio
-npm test
-```
-
-Build the frontend:
+Install and run the browser development server:
 
 ```powershell
 cd apps\pile-plan-studio
 npm install
-npm run build
-```
-
-Run the browser preview:
-
-```powershell
-cd apps\pile-plan-studio
 npm run dev
 ```
 
-Open the URL printed by Vite. The application is served from `/`.
+Run all automated tests:
 
-Run the desktop app:
+```powershell
+cargo test --workspace
+cd apps\pile-plan-studio
+npm test
+```
+
+Create the static browser build:
 
 ```powershell
 cd apps\pile-plan-studio
-npm run tauri dev
+npm run build
 ```
 
-The frontend expects a modern Node.js runtime. Node 20 LTS or newer is
-recommended. Install dependencies once with `npm install` before running tests
-or builds.
+Create Windows desktop installers:
+
+```powershell
+cd apps\pile-plan-studio
+npm run tauri build
+```
+
+See [Deployment](docs/deployment.md) for browser hosting details.
+
+## Contributing
+
+Issues and pull requests are welcome. Please keep engineering logic in the Rust
+core, add focused tests for behavioral changes, and keep the browser and desktop
+interfaces on the same project model.
+
+Report bugs and ideas through the
+[GitHub issue tracker](https://github.com/OpenAEC-Foundation/pile-plan-studio/issues).
+
+## License
+
+Pile Plan Studio is licensed under
+[LGPL-3.0-or-later](LICENSE).

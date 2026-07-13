@@ -10,6 +10,7 @@
   "yes": "Ja",
   "no": "Nee",
   "export": "Exporteren",
+  "downloadIfcpp": "IFCPP downloaden",
   "import": "Importeren",
   "print": "Afdrukken",
   "copy": "Kopiëren",
@@ -26,6 +27,8 @@
   "maximize": "Maximaliseren",
   "restore": "Herstellen",
   "appName": "Pile Plan Studio",
+  "alphaLabel": "Alpha",
+  "engineeringDisclaimer": "Technische resultaten moeten door een deskundige worden gecontroleerd.",
   "noDocumentOpen": "Geen project geopend",
   "noDocumentHint": "Open of importeer een palenplanproject om te beginnen.",
   "ready": "Gereed",
@@ -37,6 +40,65 @@
   "sendFeedback": "Feedback verzenden",
   "explorer": "Verkenner",
   "properties": "Eigenschappen",
+  "viewer": {
+    "selectionHelp": "Shift+klik om belastinglocaties toe te voegen of te verwijderen. Shift+slepen tekent een selectielasso."
+  },
+  "legend": {
+    "aria": "Legenda voor paalsymbolen",
+    "size": "Afmeting",
+    "tip": "Puntniveau"
+  },
+  "projectExplorer": {
+    "aria": "Projectverkenner",
+    "project": "Project",
+    "pilePlan": "Palenplan",
+    "viewer": "Viewer",
+    "inputSources": "Invoerbronnen",
+    "rows": "{{count}} rijen",
+    "sources": {
+      "load_points": "Belastinglocaties",
+      "cpts": "Sonderingen",
+      "bearing_capacities": "Funderingsadvies"
+    },
+    "statuses": {
+      "snapshot-only": "momentopname",
+      "linked": "gekoppeld",
+      "missing": "ontbreekt",
+      "changed": "gewijzigd"
+    }
+  },
+  "importProject": {
+    "title": "Projectgegevens importeren",
+    "defaultName": "Geïmporteerd project",
+    "projectName": "Projectnaam",
+    "chooseFiles": "Kies maximaal drie bestanden",
+    "noFile": "Geen bestand geselecteerd",
+    "choose": "Kiezen",
+    "remove": "Verwijderen",
+    "summaryAria": "Importsamenvatting",
+    "completed": "Import voltooid",
+    "summary": "{{loadPoints}} belastinglocaties · {{cpts}} sonderingen · {{advice}} funderingsadviesregels",
+    "importing": "Importeren...",
+    "submit": "Project importeren",
+    "roles": {
+      "loadPoints": "Belastinglocaties",
+      "cpts": "Sonderingen",
+      "foundationAdvice": "Funderingsadvies"
+    },
+    "columns": {
+      "loadPoints": "ID, X, Y, FED",
+      "cpts": "ID, X, Y",
+      "foundationAdvice": "Sondering-ID, puntniveau, afmeting, R_c;net;d"
+    }
+  },
+  "unsaved": {
+    "title": "Onopgeslagen wijzigingen",
+    "desktopMessage": "Dit project bevat wijzigingen die nog niet zijn opgeslagen. Wil je deze eerst opslaan?",
+    "browserMessage": "Dit project bevat wijzigingen die nog niet zijn gedownload. Wil je deze eerst downloaden?",
+    "saveAndContinue": "Opslaan en doorgaan",
+    "downloadAndContinue": "Downloaden en doorgaan",
+    "discard": "Doorgaan zonder opslaan"
+  },
   "welcome": {
     "subtitle": "Professioneel desktop applicatie sjabloon",
     "getStarted": "Aan de slag",

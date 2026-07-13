@@ -18,6 +18,13 @@ describe("PilePlanViewer inputs", () => {
     assert.ok(state.bounds.maxY > state.bounds.minY);
   });
 
+  it("exposes the Shift multi-selection controls in the viewer tooltip", () => {
+    const source = readFileSync(resolve(import.meta.dirname, "PilePlanViewer.tsx"), "utf8");
+
+    assert.match(source, /useTranslation\("common"\)/);
+    assert.match(source, /title=\{t\("viewer\.selectionHelp"\)\}/);
+  });
+
   it("keeps marker base sizes close to the legacy viewer", () => {
     const css = readFileSync(resolve(import.meta.dirname, "viewer.css"), "utf8");
 

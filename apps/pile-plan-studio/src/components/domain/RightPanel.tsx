@@ -1,8 +1,8 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
+import { useTranslation } from "react-i18next";
 import type { ProjectState } from "../../domain/projectState";
 import type { PileCostSettings, PileCostSettingsItem } from "../.././core/projectTypes.ts";
 import { getLegendItems } from "../../viewer/legend.ts";
-import { getUseColumnLabel } from "../../domain/pileOptionColumns.ts";
 import {
   FILTERABLE_PILE_OPTION_COLUMNS,
   getNextPileOptionSortState,
@@ -42,25 +42,33 @@ type Props = {
   state: ProjectState;
   onStateChange: (nextState: ProjectState) => void;
   onRunOptimization?: () => void;
+  taskPanel?: "optimization" | null;
+  onCloseTaskPanel?: () => void;
 };
 
-export default function RightPanel({ state, onStateChange, onRunOptimization = () => undefined }: Props) {
+export default function RightPanel({
+  state,
+  onStateChange,
+  onRunOptimization = () => undefined,
+  taskPanel = null,
+  onCloseTaskPanel = () => undefined,
+}: Props) {
+  const { t } = useTranslation("rightPanel");
   const selectedLoadPoints = getSelectedLoadPoints(state);
   const selectedLabel = selectedLoadPoints.length === 1
-    ? formatLoadPointPanelTitle(selectedLoadPoints[0].name)
-    : `${selectedLoadPoints.length} load points`;
+    ? localizeLoadPointName(formatLoadPointPanelTitle(selectedLoadPoints[0].name), t)
+    : t("loadPoints.count", { count: selectedLoadPoints.length });
 
   return (
-    <aside className="properties-panel" aria-label="Properties">
-      <div className="right-panel-tabs" aria-label="Right panel views">
-        <PanelTab label="Load point" mode="load-point" state={state} onStateChange={onStateChange} />
-        <PanelTab label="CPTs" mode="cpts" state={state} onStateChange={onStateChange} />
-        <PanelTab label="CPT settings" mode="cpt-settings" state={state} onStateChange={onStateChange} />
-        <PanelTab label="Cost settings" mode="cost-settings" state={state} onStateChange={onStateChange} />
-        <PanelTab label="Optimization" mode="optimization-settings" state={state} onStateChange={onStateChange} />
+    <aside className="properties-panel" aria-label={t("aria.properties")}>
+      <div className="right-panel-tabs" aria-label={t("aria.views")}>
+        <PanelTab active={taskPanel === null} label={t("tabs.loadPoint")} mode="load-point" state={state} onStateChange={onStateChange} />
+        <PanelTab active={taskPanel === null} label={t("tabs.cpts")} mode="cpts" state={state} onStateChange={onStateChange} />
+        <PanelTab active={taskPanel === null} label={t("tabs.cptSettings")} mode="cpt-settings" state={state} onStateChange={onStateChange} />
+        <PanelTab active={taskPanel === null} label={t("tabs.costSettings")} mode="cost-settings" state={state} onStateChange={onStateChange} />
       </div>
-      {state.rightPanelMode === "optimization-settings" ? (
-        <OptimizationPanel state={state} onStateChange={onStateChange} onRunOptimization={onRunOptimization} />
+      {taskPanel === "optimization" ? (
+        <OptimizationPanel state={state} onStateChange={onStateChange} onRunOptimization={onRunOptimization} onClose={onCloseTaskPanel} />
       ) : state.rightPanelMode === "cost-settings" ? (
         <CostSettingsPanel state={state} onStateChange={onStateChange} />
       ) : state.rightPanelMode === "cpt-settings" ? (
@@ -69,8 +77,8 @@ export default function RightPanel({ state, onStateChange, onRunOptimization = (
         <CptPanel state={state} onStateChange={onStateChange} selectedLoadPoints={selectedLoadPoints} />
       ) : selectedLoadPoints.length === 0 ? (
         <div className="right-panel-empty">
-          <strong>No load point selected</strong>
-          <span>Select one or more load points in the viewer.</span>
+          <strong>{t("empty.noLoadPoint")}</strong>
+          <span>{t("empty.selectLoadPoints")}</span>
         </div>
       ) : (
         <LoadPointPanel
@@ -85,6 +93,7 @@ export default function RightPanel({ state, onStateChange, onRunOptimization = (
 }
 
 function CostSettingsPanel({ state, onStateChange }: Props) {
+  const { t } = useTranslation("rightPanel");
   function applySettings(nextSettings: ProjectState["pileCostSettings"]) {
     onStateChange({ ...state, pileCostSettings: nextSettings });
     void setSetting(PILE_COST_DEFAULTS_KEY, nextSettings);
@@ -93,14 +102,14 @@ function CostSettingsPanel({ state, onStateChange }: Props) {
   return (
     <div className="cost-settings-panel">
       <header className="right-panel-header">
-        <div><h2>Cost Settings</h2><span>Project and user defaults</span></div>
+        <div><h2>{t("cost.title")}</h2><span>{t("cost.subtitle")}</span></div>
       </header>
 
       <div className="settings-scroll">
-        <SettingsGroup title="Pile head level">
+        <SettingsGroup title={t("cost.pileHeadLevel")}>
           <label className="number-field">
             <input
-              aria-label="Pile head level"
+              aria-label={t("cost.pileHeadLevel")}
               step="0.1"
               type="number"
               value={state.pileCostSettings.pile_head_level_m}
@@ -114,10 +123,10 @@ function CostSettingsPanel({ state, onStateChange }: Props) {
         </SettingsGroup>
 
         <section className="settings-group cost-size-settings">
-          <h3>Pile size costs</h3>
+          <h3>{t("cost.pileSizeCosts")}</h3>
           <div className="cost-settings-table-wrap">
             <table className="cost-settings-table">
-              <thead><tr><th>Size</th><th>Shape</th><th>Cost per m³</th></tr></thead>
+              <thead><tr><th>{t("cost.size")}</th><th>{t("cost.shape")}</th><th>{t("cost.costPerM3")}</th></tr></thead>
               <tbody>
                 {state.pileCostSettings.items.map((item) => (
                   <CostSettingsRow
@@ -141,6 +150,7 @@ function CostSettingsRow({ item, settings, onSettingsChange }: {
   settings: PileCostSettings;
   onSettingsChange: (settings: PileCostSettings) => void;
 }) {
+  const { t } = useTranslation("rightPanel");
   const [costDraft, setCostDraft] = useState(String(item.cost_per_m3_eur));
 
   useEffect(() => {
@@ -152,7 +162,7 @@ function CostSettingsRow({ item, settings, onSettingsChange }: {
       <td>{formatNumber(item.pile_size_mm)} mm</td>
       <td>
         <select
-          aria-label={`Shape for ${item.pile_size_mm} mm`}
+          aria-label={`${t("cost.shape")} ${item.pile_size_mm} mm`}
           value={item.shape}
           onChange={(event) => onSettingsChange(updatePileCostItem(
             settings,
@@ -160,15 +170,15 @@ function CostSettingsRow({ item, settings, onSettingsChange }: {
             { shape: event.currentTarget.value === "round" ? "round" : "square" },
           ))}
         >
-          <option value="round">Round</option>
-          <option value="square">Square</option>
+          <option value="round">{t("cost.round")}</option>
+          <option value="square">{t("cost.square")}</option>
         </select>
       </td>
       <td>
         <label className="table-number-field">
           <span>€</span>
           <input
-            aria-label={`Cost per cubic metre for ${item.pile_size_mm} mm`}
+            aria-label={`${t("cost.costPerM3")} ${item.pile_size_mm} mm`}
             min="0"
             step="1"
             type="number"
@@ -198,12 +208,13 @@ function CostSettingsRow({ item, settings, onSettingsChange }: {
 }
 
 function CptSettingsPanel({ state, onStateChange }: Props) {
+  const { t } = useTranslation("rightPanel");
   const loadPoint = state.loadPoints.find((item) => item.id === state.selectedLoadPointId) ?? null;
   if (!loadPoint) {
     return (
       <div className="right-panel-empty">
-        <strong>No load point selected</strong>
-        <span>Select a load point to edit its CPT settings or manual selection.</span>
+        <strong>{t("empty.noLoadPoint")}</strong>
+        <span>{t("empty.selectLoadPointForCpts")}</span>
       </div>
     );
   }
@@ -220,32 +231,32 @@ function CptSettingsPanel({ state, onStateChange }: Props) {
   return (
     <div className="cpt-settings-panel">
       <header className="right-panel-header">
-        <div><h2>CPT Settings</h2><span>{formatLoadPointPanelTitle(loadPoint.name)}</span></div>
+        <div><h2>{t("cptSettings.title")}</h2><span>{localizeLoadPointName(formatLoadPointPanelTitle(loadPoint.name), t)}</span></div>
       </header>
 
       <div className="settings-scroll">
-        <SettingsGroup title="Apply settings to">
-          <div className="segmented-control" role="group" aria-label="CPT settings scope">
+        <SettingsGroup title={t("cptSettings.applyTo")}>
+          <div className="segmented-control" role="group" aria-label={t("cptSettings.applyTo")}>
             <button
               className={state.cptSettingsScope === "all" ? "is-selected" : ""}
               type="button"
               onClick={() => onStateChange({ ...state, cptSettingsScope: "all" })}
-            >All load points</button>
+            >{t("cptSettings.allLoadPoints")}</button>
             <button
               className={state.cptSettingsScope === "current" ? "is-selected" : ""}
               type="button"
               onClick={() => onStateChange({ ...state, cptSettingsScope: "current" })}
-            >This load point</button>
+            >{t("cptSettings.thisLoadPoint")}</button>
           </div>
           <p className="supporting-text">
-            {hasLocalSettings ? "This load point has its own algorithm settings." : "This load point uses the global algorithm settings."}
+            {hasLocalSettings ? t("cptSettings.local") : t("cptSettings.global")}
           </p>
         </SettingsGroup>
 
-        <SettingsGroup title="Maximum CPT distance">
+        <SettingsGroup title={t("cptSettings.maxDistance")}>
           <label className="number-field">
             <input
-              aria-label="Maximum CPT distance"
+              aria-label={t("cptSettings.maxDistance")}
               min="0"
               step="1"
               type="number"
@@ -261,27 +272,27 @@ function CptSettingsPanel({ state, onStateChange }: Props) {
           </label>
         </SettingsGroup>
 
-        <SettingsGroup title="Algorithm">
-          <div className="algorithm-grid" role="radiogroup" aria-label="CPT selection algorithm">
+        <SettingsGroup title={t("cptSettings.algorithm")}>
+          <div className="algorithm-grid" role="radiogroup" aria-label={t("cptSettings.algorithm")}>
             <AlgorithmOption
               active={settings.algorithm === "quadrants"}
-              label="Four Quadrants"
+              label={t("cptSettings.quadrants")}
               sketch="quadrants"
               onClick={() => onStateChange(applyCptSelectionSettings(state, { ...settings, algorithm: "quadrants" }))}
             />
             <AlgorithmOption
               active={settings.algorithm === "maximum-angle"}
-              label="Maximum Angle"
+              label={t("cptSettings.maximumAngle")}
               sketch="maximum-angle"
               onClick={() => onStateChange(applyCptSelectionSettings(state, { ...settings, algorithm: "maximum-angle" }))}
             />
           </div>
         </SettingsGroup>
 
-        <SettingsGroup title="Maximum angle" muted={settings.algorithm !== "maximum-angle"}>
+        <SettingsGroup title={t("cptSettings.maximumAngle")} muted={settings.algorithm !== "maximum-angle"}>
           <label className="number-field">
             <input
-              aria-label="Maximum angle"
+              aria-label={t("cptSettings.maximumAngle")}
               disabled={settings.algorithm !== "maximum-angle"}
               min="1"
               max="360"
@@ -302,25 +313,25 @@ function CptSettingsPanel({ state, onStateChange }: Props) {
           </label>
         </SettingsGroup>
 
-        <SettingsGroup title="Manual selection">
+        <SettingsGroup title={t("cptSettings.manual")}>
           <p className="supporting-text">
             {draft
-              ? `${draft.cptIds.size} CPTs selected. Click CPTs in the viewer to add or remove them.`
+              ? t("cptSettings.draft", { count: draft.cptIds.size })
               : manualCptIds
-                ? `${manualCptIds.length} CPTs are manually selected for this load point.`
-                : "This load point currently uses the algorithmic CPT selection."}
+                ? t("cptSettings.manualCount", { count: manualCptIds.length })
+                : t("cptSettings.algorithmic")}
           </p>
           <div className="selection-actions">
             {draft ? (
               <>
-                <button type="button" onClick={() => onStateChange(saveManualCptSelection(state))}>Save</button>
-                <button type="button" onClick={() => onStateChange(cancelManualCptSelection(state))}>Cancel</button>
+                <button type="button" onClick={() => onStateChange(saveManualCptSelection(state))}>{t("actions.save")}</button>
+                <button type="button" onClick={() => onStateChange(cancelManualCptSelection(state))}>{t("actions.cancel")}</button>
               </>
             ) : (
               <>
-                <button type="button" onClick={() => onStateChange(beginManualCptSelection(state, selectedCptIds))}>Edit selection</button>
+                <button type="button" onClick={() => onStateChange(beginManualCptSelection(state, selectedCptIds))}>{t("actions.editSelection")}</button>
                 {manualCptIds ? (
-                  <button type="button" onClick={() => onStateChange(clearManualCptSelection(state))}>Use algorithm</button>
+                  <button type="button" onClick={() => onStateChange(clearManualCptSelection(state))}>{t("actions.useAlgorithm")}</button>
                 ) : null}
               </>
             )}
@@ -380,7 +391,8 @@ function MaximumAngleSketch() {
   );
 }
 
-function PanelTab({ label, mode, state, onStateChange }: {
+function PanelTab({ active, label, mode, state, onStateChange }: {
+  active: boolean;
   label: string;
   mode: RightPanelMode;
   state: ProjectState;
@@ -388,7 +400,7 @@ function PanelTab({ label, mode, state, onStateChange }: {
 }) {
   return (
     <button
-      className={`right-panel-tab${state.rightPanelMode === mode ? " is-active" : ""}`}
+      className={`right-panel-tab${active && state.rightPanelMode === mode ? " is-active" : ""}`}
       type="button"
       onClick={() => onStateChange({ ...state, ...switchRightPanelMode(state, mode) })}
     >
@@ -402,14 +414,15 @@ function CptPanel({ state, onStateChange, selectedLoadPoints }: {
   onStateChange: (nextState: ProjectState) => void;
   selectedLoadPoints: ReturnType<typeof getSelectedLoadPoints>;
 }) {
+  const { t } = useTranslation("rightPanel");
   const selectedCpt = getCptFrdPanelModel(state);
   if (selectedCpt) {
     return (
       <div className="cpt-panel">
         <header className="right-panel-header">
           <div>
-            <h2>{selectedCpt.cpt.name}</h2>
-            <span>Selected CPT</span>
+            <h2>{localizeCptName(selectedCpt.cpt.name, t)}</h2>
+            <span>{t("cpts.selected")}</span>
           </div>
         </header>
         <dl className="cpt-detail-grid">
@@ -417,7 +430,7 @@ function CptPanel({ state, onStateChange, selectedLoadPoints }: {
           <div><dt>Y</dt><dd>{formatNumber(selectedCpt.cpt.y_mm)} mm</dd></div>
         </dl>
         <CptTable
-          columns={["Size", "Tip", "FRD"]}
+          columns={[t("columns.size"), t("columns.tip"), <ResistanceLabel key="resistance" />]}
           rows={selectedCpt.rows.map((row) => [row.sizeLabel, row.tipLabel, row.frdLabel])}
         />
       </div>
@@ -427,8 +440,8 @@ function CptPanel({ state, onStateChange, selectedLoadPoints }: {
   if (selectedLoadPoints.length === 0) {
     return (
       <div className="right-panel-empty">
-        <strong>No CPTs selected</strong>
-        <span>Select a load point to see its CPTs, or click a CPT in the viewer.</span>
+        <strong>{t("empty.noCpts")}</strong>
+        <span>{t("empty.selectCpt")}</span>
       </div>
     );
   }
@@ -437,22 +450,30 @@ function CptPanel({ state, onStateChange, selectedLoadPoints }: {
   if (overview.rows.length === 0) {
     return (
       <div className="right-panel-empty">
-        <strong>No CPTs available</strong>
-        <span>No selected CPTs are available for the current load point selection.</span>
+        <strong>{t("empty.noCptsAvailable")}</strong>
+        <span>{t("empty.noCptsForSelection")}</span>
       </div>
     );
   }
 
   const heading = selectedLoadPoints.length > 1
-    ? "Selected - CPTs"
-    : `${selectedLoadPoints[0].name} - CPTs`;
+    ? t("cpts.selectedHeading")
+    : `${localizeLoadPointName(selectedLoadPoints[0].name, t)} - ${t("tabs.cpts")}`;
+  const columnLabels: Record<string, ReactNode> = {
+    CPT: t("cpts.name"),
+    Selection: t("cpts.selection"),
+    Distance: t("cpts.distance"),
+    "Used by": t("cpts.usedBy"),
+    "Load points": t("cpts.loadPoints"),
+    "FRD range": <span aria-label={t("cpts.frdRange")}><ResistanceLabel qualifier={t("cpts.rangeQualifier")} /></span>,
+  };
 
   return (
     <div className="cpt-panel">
       <header className="right-panel-header"><div><h2>{heading}</h2></div></header>
       <div className="cpt-table-wrap">
         <table className="cpt-table">
-          <thead><tr>{overview.columns.map((column) => <th key={column}>{column}</th>)}</tr></thead>
+          <thead><tr>{overview.columns.map((column) => <th key={column}>{columnLabels[column] ?? column}</th>)}</tr></thead>
           <tbody>
             {overview.rows.map((row) => (
               <tr key={row.cpt.id}>
@@ -464,9 +485,9 @@ function CptPanel({ state, onStateChange, selectedLoadPoints }: {
                         type="button"
                         onClick={() => onStateChange({ ...state, ...openCpt(state, row.cpt.id) })}
                       >
-                        {value}
+                        {localizeCptName(value, t)}
                       </button>
-                    ) : value}
+                    ) : localizeCptTableValue(overview.columns[index], value, t)}
                   </td>
                 ))}
               </tr>
@@ -478,15 +499,15 @@ function CptPanel({ state, onStateChange, selectedLoadPoints }: {
   );
 }
 
-function CptTable({ columns, rows }: { columns: string[]; rows: string[][] }) {
+function CptTable({ columns, rows }: { columns: ReactNode[]; rows: string[][] }) {
   return (
     <div className="cpt-table-wrap">
       <table className="cpt-table">
-        <thead><tr>{columns.map((column) => <th key={column}>{column}</th>)}</tr></thead>
+        <thead><tr>{columns.map((column, index) => <th key={index}>{column}</th>)}</tr></thead>
         <tbody>
           {rows.map((row, rowIndex) => (
             <tr key={`${row[0]}-${row[1]}-${rowIndex}`}>
-              {row.map((value, index) => <td key={`${columns[index]}-${index}`}>{value}</td>)}
+              {row.map((value, index) => <td key={index}>{value}</td>)}
             </tr>
           ))}
         </tbody>
@@ -501,6 +522,7 @@ function LoadPointPanel({ state, onStateChange, selectedLabel, selectedLoadPoint
   selectedLabel: string;
   selectedLoadPoints: ReturnType<typeof getSelectedLoadPoints>;
 }) {
+  const { t, i18n } = useTranslation("rightPanel");
   const options = getPileOptionsForSelectedLoadPoints(state, selectedLoadPoints);
   const rows = getRenderablePileOptionRows({
     cpts: state.cpts,
@@ -508,39 +530,44 @@ function LoadPointPanel({ state, onStateChange, selectedLabel, selectedLoadPoint
     legend: getLegendItems(state.bearingCapacities),
     options,
     selectedLoadPointCount: selectedLoadPoints.length,
-  });
+  }).map((row) => ({
+    ...row,
+    statusLabel: row.statusLabel === "Missing"
+      ? t("status.missing")
+      : row.statusLabel === "Not OK" ? t("status.notOk") : t("status.ok"),
+  }));
   const tableRows = getPileOptionTableRows(rows, state.pileOptionFilters, state.pileOptionSort);
   const chosenKey = getChosenPileOptionKeyForSelection(state, selectedLoadPoints);
   const isLoading = state.pileOptionsByLoadPointId.size === 0;
   const fedLabel = selectedLoadPoints.length === 1
-    ? `${selectedLoadPoints[0].design_load_kn.toLocaleString("en-US", { maximumFractionDigits: 1 })} kN`
-    : `${selectedLoadPoints.length} selected`;
+    ? `${selectedLoadPoints[0].design_load_kn.toLocaleString(i18n.language, { maximumFractionDigits: 1 })} kN`
+    : t("loadPoints.selectedCount", { count: selectedLoadPoints.length });
 
   return (
     <div className="load-point-panel">
       <header className="right-panel-header">
         <div>
           <h2>{selectedLabel}</h2>
-          <span>{selectedLoadPoints.length === 1 ? "FED" : "Selection"}</span>
+          <span>{selectedLoadPoints.length === 1 ? "FED" : t("loadPoints.selection")}</span>
         </div>
         <strong>{fedLabel}</strong>
       </header>
 
       <section className="pile-options-section">
         <div className="section-heading">
-          <h3>Pile Options</h3>
-          <span>{isLoading ? "Loading..." : `${tableRows.length} shown`}</span>
+          <h3>{t("pileOptions.title")}</h3>
+          <span>{isLoading ? t("pileOptions.loading") : t("pileOptions.shown", { count: tableRows.length })}</span>
         </div>
         {!isLoading && state.analysisError ? (
           <div className="right-panel-empty is-inline" role="alert">
-            {`Pile option analysis failed: ${state.analysisError}`}
+            {t("pileOptions.failed", { error: state.analysisError })}
           </div>
         ) : null}
         {isLoading ? (
           <div className="right-panel-empty is-inline" role={state.analysisError ? "alert" : undefined}>
             {state.analysisError
-              ? `Pile option analysis failed: ${state.analysisError}`
-              : "Calculating pile options..."}
+              ? t("pileOptions.failed", { error: state.analysisError })
+              : t("pileOptions.calculating")}
           </div>
         ) : (
           <div className="pile-options-table-wrap">
@@ -550,11 +577,14 @@ function LoadPointPanel({ state, onStateChange, selectedLabel, selectedLoadPoint
                   {PILE_OPTION_COLUMNS.map((column) => (
                     <th className={`pile-option-column-${column.key}`} key={column.key}>
                       {column.key === "symbol" ? (
-                        <span className="sr-only">Symbol</span>
+                        <span className="sr-only">{t("columns.symbol", "Symbol")}</span>
                       ) : (
                         <ColumnHeader
                           column={column.key}
-                          label={column.key === "use" ? getUseColumnLabel(selectedLoadPoints.length) : column.label}
+                          label={column.key === "frd"
+                            ? <ResistanceLabel qualifier={t("columns.minimumQualifier")} />
+                            : t(`columns.${column.key === "use" && selectedLoadPoints.length > 1 ? "useAvg" : column.key}`)}
+                          labelText={t(`columns.${column.key === "use" && selectedLoadPoints.length > 1 ? "useAvg" : column.key}`)}
                           rows={rows}
                           state={state}
                           onStateChange={onStateChange}
@@ -568,7 +598,7 @@ function LoadPointPanel({ state, onStateChange, selectedLabel, selectedLoadPoint
                 {tableRows.length === 0 ? (
                   <tr>
                     <td className="empty-table-cell" colSpan={PILE_OPTION_COLUMNS.length}>
-                      No pile options match the filters.
+                      {t("pileOptions.noMatch")}
                     </td>
                   </tr>
                 ) : (
@@ -613,13 +643,15 @@ function LoadPointPanel({ state, onStateChange, selectedLabel, selectedLoadPoint
   );
 }
 
-function ColumnHeader({ column, label, rows, state, onStateChange }: {
+function ColumnHeader({ column, label, labelText, rows, state, onStateChange }: {
   column: PileOptionTableColumn;
-  label: string;
+  label: ReactNode;
+  labelText: string;
   rows: ReturnType<typeof getRenderablePileOptionRows>;
   state: ProjectState;
   onStateChange: (nextState: ProjectState) => void;
 }) {
+  const { t } = useTranslation("rightPanel");
   const sortColumn = column as SortablePileOptionTableColumn;
   const filterValues = FILTERABLE_PILE_OPTION_COLUMNS.some((item) => item.key === sortColumn)
     ? getPileOptionFilterValues(rows, sortColumn)
@@ -643,7 +675,7 @@ function ColumnHeader({ column, label, rows, state, onStateChange }: {
       </button>
       {filterValues.length > 0 ? (
         <details className="column-filter-menu">
-          <summary aria-label={`Filter ${label}`}>▾</summary>
+          <summary aria-label={t("filter.label", { label: labelText })}>▾</summary>
           <div className="filter-menu-content">
             <div className="filter-menu-actions">
               <button
@@ -653,7 +685,7 @@ function ColumnHeader({ column, label, rows, state, onStateChange }: {
                   pileOptionFilters: { ...state.pileOptionFilters, [column]: [] },
                 })}
               >
-                Clear
+                {t("actions.clear")}
               </button>
               <button
                 type="button"
@@ -662,7 +694,7 @@ function ColumnHeader({ column, label, rows, state, onStateChange }: {
                   pileOptionFilters: { ...state.pileOptionFilters, [column]: filterValues },
                 })}
               >
-                All
+                {t("actions.all")}
               </button>
             </div>
             {filterValues.map((value) => (
@@ -702,4 +734,44 @@ function applyPileOption(
   const nextSelections = new Map(state.selectedPileOptionKeysByLoadPoint);
   selectedLoadPoints.forEach((loadPoint) => nextSelections.set(loadPoint.id, optionKey));
   onStateChange({ ...state, selectedPileOptionKeysByLoadPoint: nextSelections });
+}
+
+function ResistanceLabel({ qualifier }: { qualifier?: string }) {
+  return (
+    <span className="resistance-label">
+      <i>R</i><sub>c;net;d</sub>{qualifier ? ` ${qualifier}` : ""}
+    </span>
+  );
+}
+
+function localizeLoadPointName(name: string, t: ReturnType<typeof useTranslation>["t"]): string {
+  const match = name.match(/^Load point\s+(.+)$/i);
+  return match ? t("loadPoints.name", { id: match[1] }) : name;
+}
+
+function localizeCptName(name: string, t: ReturnType<typeof useTranslation>["t"]): string {
+  const match = name.match(/^CPT\s+(.+)$/i);
+  return match ? `${t("cpts.name")} ${match[1]}` : name;
+}
+
+function localizeCptTableValue(column: string, value: string, t: ReturnType<typeof useTranslation>["t"]): string {
+  if (column === "Selection") {
+    const selectionKeys: Record<string, string> = {
+      "upper right": "selection.upperRight",
+      "lower right": "selection.lowerRight",
+      "upper left": "selection.upperLeft",
+      "lower left": "selection.lowerLeft",
+    };
+    const key = selectionKeys[value.toLowerCase()];
+    if (key) return t(key);
+    const angle = value.match(/^angle(.*)$/i);
+    if (angle) return t("selection.angle", { suffix: angle[1] });
+  }
+
+  if (column === "Used by") {
+    const usage = value.match(/^(\d+)\s*\/\s*(\d+)\s+load points$/i);
+    if (usage) return t("cpts.usedByValue", { used: usage[1], total: usage[2] });
+  }
+
+  return value;
 }

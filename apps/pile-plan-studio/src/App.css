@@ -22,9 +22,47 @@ body {
 
 .app-content {
   display: grid;
-  grid-template-columns: 240px minmax(0, 1fr) minmax(560px, 620px);
+  grid-template-columns: 240px minmax(0, 1fr) 5px var(--right-panel-width, 620px);
   flex: 1;
   min-height: 0;
+}
+
+.right-panel-splitter {
+  position: relative;
+  z-index: 2;
+  min-width: 5px;
+  cursor: col-resize;
+  background: var(--theme-border);
+  touch-action: none;
+}
+
+.right-panel-splitter:hover,
+.right-panel-splitter:active {
+  background: var(--theme-accent);
+}
+
+body.is-resizing-panel {
+  cursor: col-resize;
+  user-select: none;
+}
+
+.project-information-form {
+  display: grid;
+  gap: 6px;
+  padding: 16px;
+}
+
+.project-information-form label {
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.project-information-form input {
+  min-width: 0;
+  padding: 7px 8px;
+  border: 1px solid var(--theme-dialog-input-border);
+  background: var(--theme-dialog-input-bg);
+  color: var(--theme-dialog-input-text);
 }
 
 .project-explorer,

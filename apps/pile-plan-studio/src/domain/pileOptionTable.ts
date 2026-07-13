@@ -41,7 +41,7 @@ export const PILE_OPTION_COLUMNS: Array<{ key: PileOptionTableColumn; label: str
   { key: "cost", label: "Cost" },
   { key: "use", label: "Use" },
   { key: "governing", label: "Governing" },
-  { key: "frd", label: "FRd min" },
+  { key: "frd", label: "R_c;net;d min" },
 ];
 export const SORTABLE_PILE_OPTION_COLUMNS: Array<{ key: SortablePileOptionTableColumn; label: string }> =
   PILE_OPTION_COLUMNS.filter(

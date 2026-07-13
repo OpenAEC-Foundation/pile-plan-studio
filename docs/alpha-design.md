@@ -300,6 +300,11 @@ Manual alpha verification should cover:
 - Verify reopen/save behavior.
 - Produce an alpha desktop build.
 
+The first public alpha is delivered primarily as a static browser demo, with a
+signed Windows x64 application as an additional download. See
+`docs/deployment.md` for browser hosting and `docs/known-limitations.md` for the
+published alpha scope.
+
 ## Open Questions
 
 - Should `.ifcpp` be a plain JSON file with a custom extension, or a zipped
