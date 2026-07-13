@@ -6,18 +6,19 @@ engineering data visible and traceable: load points, CPTs, bearing capacities,
 allowed pile options, utilization, governing CPTs, and estimated pile costs.
 
 The project is developed in English as an OpenAEC-oriented Rust + Tauri
-application with a lightweight TypeScript frontend.
+application with a React and TypeScript frontend.
 
 ## Repository Layout
 
 - `crates/pile-plan-core`: Rust domain model and pile option calculation core.
-- `apps/pile-plan-studio`: Vanilla TypeScript frontend and Tauri desktop shell.
+- `apps/pile-plan-studio`: React frontend, WASM adapter, and Tauri desktop shell.
 - `sample_project`: Small sample project data used by the application.
 - `docs`: Product and architecture notes.
 
 The intended architecture follows the OpenAEC model: engineering calculations
-live in the Rust core, while TypeScript stays focused on viewer state,
-interaction, and rendering. See `docs/architecture.md` for the project boundary.
+live in the Rust core, while React and TypeScript stay focused on application
+state, interaction, and rendering. See `docs/architecture.md` for the project
+boundary.
 
 The browser build uses a thin WASM wrapper around the same Rust core. The Tauri
 desktop app calls the core through native commands.
@@ -51,6 +52,8 @@ Run the browser preview:
 cd apps\pile-plan-studio
 npm run dev
 ```
+
+Open the URL printed by Vite. The application is served from `/`.
 
 Run the desktop app:
 

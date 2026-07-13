@@ -2,11 +2,9 @@
 
 ## Purpose
 
-Move Pile Plan Studio toward the OpenAEC Foundation desktop application
-standard by adopting the local `Tauri+React` template as much as practical.
-This is no longer a CSS-only styling pass over the current Vanilla TypeScript
-viewer. The target is a React + Tauri application shell with the existing Rust
-and WASM calculation core preserved.
+Pile Plan Studio follows the OpenAEC Foundation desktop application standard by
+using the local `Tauri+React` template as its application shell. React is the
+official frontend; the existing Rust and WASM calculation core is preserved.
 
 The app should keep its engineering focus: the pile plan viewer remains the
 primary work surface, and the OpenAEC shell should make project operations,
@@ -79,14 +77,9 @@ Pile Plan Studio supplies the domain components:
 
 ### Migration Strategy
 
-Build the React + OpenAEC template version in parallel with the current
-frontend. Keep the current app usable while the React version reaches feature
-parity, then swap the active frontend once the viewer, panels, import/export,
-and project state workflows are equivalent.
-
-This avoids breaking the current alpha workflow while still allowing the new
-app to follow the OpenAEC template cleanly instead of being constrained by the
-Vanilla TypeScript layout.
+The parallel migration is complete. The React + OpenAEC template application
+now owns the single `src/` frontend tree and the normal browser and Tauri
+entrypoint. The former Vanilla TypeScript UI is no longer built or retained.
 
 ### Shell
 
@@ -195,9 +188,9 @@ workflow a natural OpenAEC home.
 
 ## Migration Phases
 
-### Phase 1: Prepare The React Template Shell
+### Phase 1: Prepare The React Template Shell (Completed)
 
-- Create a parallel React + Vite frontend based on the OpenAEC template.
+- Create a React + Vite frontend based on the OpenAEC template.
 - Bring in the required OpenAEC template shell files.
 - Configure package dependencies and TypeScript.
 - Keep existing Tauri and Rust workspace structure intact where possible.
@@ -284,8 +277,7 @@ Manual verification should cover:
 ## Decisions
 
 - Follow the OpenAEC `Tauri+React` template as much as practical.
-- Develop the React template version in parallel and swap once feature parity is
-  reached.
+- Use React as the single official frontend now that feature parity is reached.
 - Use React for the frontend shell and domain UI.
 - Keep Rust/WASM as the calculation core.
 - Keep the browser preview as a development tool, backed by WASM.

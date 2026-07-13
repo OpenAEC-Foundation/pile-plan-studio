@@ -283,8 +283,8 @@ Manual alpha verification should cover:
 
 ### Milestone 5: OpenAEC Template Migration
 
-- Build a parallel frontend based on the OpenAEC `Tauri+React` template, then
-  swap once the current alpha workflow has feature parity.
+- Completed: the OpenAEC `Tauri+React` frontend is the official browser and
+  Tauri interface. The temporary parallel Vanilla frontend has been removed.
 - Use the OpenAEC shell structure: title bar, ribbon, backstage, side panels,
   status bar, themes, and i18n.
 - Include the left project explorer from the start, even if it is initially
