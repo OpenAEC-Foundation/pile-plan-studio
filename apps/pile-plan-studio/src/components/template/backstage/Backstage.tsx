@@ -1,9 +1,11 @@
 import { useState, useEffect } from "react";
+import { flushSync } from "react-dom";
 import { useTranslation } from "react-i18next";
 import { useRecentFiles, type RecentFile } from "../../../hooks/useRecentFiles";
 import ProjectImportPanel from "../../domain/ProjectImportPanel";
 import type { ImportSourceInput } from "../../.././core/coreImportContract";
 import type { ImportSummary } from "../../.././core/projectFile";
+import type { ProjectFileCommands } from "../../../domain/projectPersistence.ts";
 import "./Backstage.css";
 
 const ICONS = {
@@ -59,12 +61,16 @@ interface BackstageProps {
   onClose: () => void;
   onOpenSettings: () => void;
   onOpenFile?: (path: string) => void;
-  onImportProject: (projectName: string, sources: ImportSourceInput[]) => Promise<ImportSummary>;
+  onImportProject: (projectName: string, sources: ImportSourceInput[]) => Promise<ImportSummary | null>;
   onOpenProjectFile: (file: File) => Promise<void>;
   onDownloadProject: () => Promise<void>;
+  onChooseDesktopProject: () => Promise<void>;
+  onSaveProject: () => Promise<void>;
+  onSaveProjectAs: () => Promise<void>;
+  commands: ProjectFileCommands;
 }
 
-export default function Backstage({ open, onClose, onOpenSettings, onOpenFile, onImportProject, onOpenProjectFile, onDownloadProject }: BackstageProps) {
+export default function Backstage({ open, onClose, onOpenSettings, onOpenFile, onImportProject, onOpenProjectFile, onDownloadProject, onChooseDesktopProject, onSaveProject, onSaveProjectAs, commands }: BackstageProps) {
   const { t } = useTranslation("backstage");
   const [activePanel, setActivePanel] = useState<string>("none");
   const { recentFiles, removeRecentFile, clearRecentFiles } = useRecentFiles();
@@ -115,12 +121,8 @@ export default function Backstage({ open, onClose, onOpenSettings, onOpenFile, o
             active={activePanel === "open"}
             onClick={() => setActivePanel("open")}
           />
-          <MenuItem
-            icon={ICONS.save}
-            label={t("save")}
-            shortcut="Ctrl+S"
-            onClick={() => void onDownloadProject().then(onClose)}
-          />
+          {commands.save ? <MenuItem icon={ICONS.save} label={t("save")} shortcut="Ctrl+S" onClick={() => void onSaveProject().then(onClose)} /> : null}
+          {commands.saveAs ? <MenuItem icon={ICONS.saveAs} label={t("saveAs")} onClick={() => void onSaveProjectAs().then(onClose)} /> : null}
           <Divider />
           <MenuItem
             icon={ICONS.import}
@@ -130,7 +132,7 @@ export default function Backstage({ open, onClose, onOpenSettings, onOpenFile, o
           />
           <MenuItem
             icon={ICONS.export}
-            label={t("export")}
+            label={t("exportMenu")}
             active={activePanel === "export"}
             onClick={() => setActivePanel("export")}
           />
@@ -177,13 +179,18 @@ export default function Backstage({ open, onClose, onOpenSettings, onOpenFile, o
                 await onOpenProjectFile(file);
                 onClose();
               }}
+              isDesktop={commands.save}
+              onChooseDesktopProject={async () => {
+                await onChooseDesktopProject();
+                onClose();
+              }}
             />
           )}
           {activePanel === "about" && <AboutPanel />}
           {activePanel === "import" && <ProjectImportPanel onImportProject={async (name, sources) => {
             return onImportProject(name, sources);
           }} />}
-          {activePanel === "export" && <ExportPanel onDownloadProject={onDownloadProject} />}
+          {activePanel === "export" && <ExportPanel canDownloadProject={commands.download} onDownloadProject={onDownloadProject} />}
         </div>
       )}
       {/* Click anywhere outside the menu/panel to close */}
@@ -282,12 +289,16 @@ function OpenPanel({
   onRemoveFile,
   onClearAll,
   onOpenProjectFile,
+  isDesktop,
+  onChooseDesktopProject,
 }: {
   recentFiles: RecentFile[];
   onOpenFile: (path: string) => void;
   onRemoveFile: (path: string) => void;
   onClearAll: () => void;
   onOpenProjectFile: (file: File) => Promise<void>;
+  isDesktop: boolean;
+  onChooseDesktopProject: () => Promise<void>;
 }) {
   const { t } = useTranslation("backstage");
 
@@ -338,7 +349,12 @@ function OpenPanel({
           </button>
         )}
       </div>
-      <label className="bs-export-card" style={{ cursor: "pointer", marginBottom: 16 }}>
+      {isDesktop ? <button className="bs-export-card" type="button" style={{ cursor: "pointer", marginBottom: 16 }} onClick={() => void onChooseDesktopProject()}>
+        <div className="bs-export-card-info">
+          <h3>Choose IFCPP project</h3>
+          <p>Open a project file from this device.</p>
+        </div>
+      </button> : <label className="bs-export-card" style={{ cursor: "pointer", marginBottom: 16 }}>
         <div className="bs-export-card-info">
           <h3>Choose IFCPP project</h3>
           <p>Open a project file from this device.</p>
@@ -347,7 +363,7 @@ function OpenPanel({
           const file = event.target.files?.[0];
           if (file) void onOpenProjectFile(file);
         }} />
-      </label>
+      </label>}
       {recentFiles.length === 0 ? (
         <p style={{ color: "var(--theme-text-muted, #888)", fontStyle: "italic" }}>
           {t("openPanel.noRecent", "No recent files")}
@@ -408,13 +424,23 @@ function OpenPanel({
   );
 }
 
-function ExportPanel({ onDownloadProject }: { onDownloadProject: () => Promise<void> }) {
+function ExportPanel({ canDownloadProject, onDownloadProject }: {
+  canDownloadProject: boolean;
+  onDownloadProject: () => Promise<void>;
+}) {
   const { t } = useTranslation("backstage");
+  const [runningExport, setRunningExport] = useState(false);
+
+  const runExport = (action: () => Promise<void>) => {
+    flushSync(() => setRunningExport(true));
+    void action().finally(() => setRunningExport(false));
+  };
+
   return (
-    <div className="bs-export-panel">
+    <div className={`bs-export-panel${runningExport ? " is-exporting" : ""}`} aria-busy={runningExport}>
       <h2 className="bs-export-title">{t("exportPanel.title")}</h2>
       <div className="bs-export-cards">
-        <button type="button" className="bs-export-card" onClick={() => void onDownloadProject()}>
+        {canDownloadProject ? <button type="button" className="bs-export-card" disabled={runningExport} onClick={() => runExport(onDownloadProject)}>
           <div className="bs-export-card-icon">
             <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
               <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" />
@@ -422,36 +448,10 @@ function ExportPanel({ onDownloadProject }: { onDownloadProject: () => Promise<v
             </svg>
           </div>
           <div className="bs-export-card-info">
-            <h3>Download IFCPP</h3>
-            <p>Save the complete project and current choices.</p>
+            <h3>{t("exportPanel.ifcpp")}</h3>
+            <p>{t("exportPanel.ifcppDesc")}</p>
           </div>
-        </button>
-        <div className="bs-export-card">
-          <div className="bs-export-card-icon">
-            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-              <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
-              <circle cx="8.5" cy="8.5" r="1.5" />
-              <polyline points="21 15 16 10 5 21" />
-            </svg>
-          </div>
-          <div className="bs-export-card-info">
-            <h3>{t("exportPanel.asImage")}</h3>
-            <p>{t("exportPanel.asImageDesc")}</p>
-          </div>
-        </div>
-        <div className="bs-export-card">
-          <div className="bs-export-card-icon">
-            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" />
-              <polyline points="17 8 12 3 7 8" />
-              <line x1="12" y1="3" x2="12" y2="15" />
-            </svg>
-          </div>
-          <div className="bs-export-card-info">
-            <h3>{t("exportPanel.asHtml")}</h3>
-            <p>{t("exportPanel.asHtmlDesc")}</p>
-          </div>
-        </div>
+        </button> : null}
       </div>
     </div>
   );

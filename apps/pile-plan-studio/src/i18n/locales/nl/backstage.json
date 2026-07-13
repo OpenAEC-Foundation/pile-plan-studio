@@ -7,6 +7,7 @@
   "print": "Afdrukken",
   "import": "Bronnen importeren",
   "export": "Download IFCPP",
+  "exportMenu": "Exporteren",
   "preferences": "Voorkeuren",
   "about": "Over",
   "exit": "Afsluiten",
@@ -22,12 +23,12 @@
     "github": "GitHub",
     "license": "Licentie",
     "stichting": "Stichting OpenAEC Foundation (NL)",
-    "copyright": "© 2026 OpenAEC Foundation. Code: MIT. Inhoud: CC BY-SA 4.0."
+    "copyright": "© 2026 OpenAEC Foundation. Code: LGPL-3.0-or-later. Inhoud: CC BY-SA 4.0."
   },
   "importPanel": {
     "title": "Bronnen importeren",
     "fromFile": "Bronbestanden importeren",
-    "fromFileDesc": "Importeer belastinglocaties, sonderingen en draagvermogens in het project.",
+    "fromFileDesc": "Importeer belastinglocaties, sonderingen en funderingsadvies in het project.",
     "fromTemplate": "Bronkoppelingen beheren",
     "fromTemplateDesc": "Bekijk hoe kolommen uit bronnen aan het projectmodel gekoppeld zijn. Volledig bronbeheer volgt later."
   },
@@ -40,11 +41,7 @@
   "extInstallBtn": "Installeren",
   "exportPanel": {
     "title": "Export / Download",
-    "asPdf": "Download IFCPP",
-    "asPdfDesc": "Download het huidige project als IFCPP-projectbestand.",
-    "asImage": "Weergave exporteren",
-    "asImageDesc": "Exporteer later de huidige palenplanweergave als afbeelding.",
-    "asHtml": "Rapport exporteren",
-    "asHtmlDesc": "Exporteer projectrapporten in een latere workflow."
+    "ifcpp": "IFCPP downloaden",
+    "ifcppDesc": "Sla het volledige project en de huidige keuzes op."
   }
 }

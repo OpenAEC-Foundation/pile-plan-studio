@@ -2,12 +2,14 @@
 name = "pile-plan-studio"
 version = "0.1.0"
 edition = "2021"
+license = "LGPL-3.0-or-later"
 
 [build-dependencies]
 tauri-build = { version = "2", features = [] }
 
 [dependencies]
 tauri = { version = "2", features = [] }
+tauri-plugin-dialog = "2"
 pile-plan-core = { path = "../../../crates/pile-plan-core" }
 serde = { version = "1", features = ["derive"] }
 

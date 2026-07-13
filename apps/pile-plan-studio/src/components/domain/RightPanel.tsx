@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import type { ProjectState } from "../../domain/projectState";
 import type { PileCostSettings, PileCostSettingsItem } from "../.././core/projectTypes.ts";
@@ -430,7 +430,7 @@ function CptPanel({ state, onStateChange, selectedLoadPoints }: {
           <div><dt>Y</dt><dd>{formatNumber(selectedCpt.cpt.y_mm)} mm</dd></div>
         </dl>
         <CptTable
-          columns={[t("columns.size"), t("columns.tip"), "FRD"]}
+          columns={[t("columns.size"), t("columns.tip"), <ResistanceLabel key="resistance" />]}
           rows={selectedCpt.rows.map((row) => [row.sizeLabel, row.tipLabel, row.frdLabel])}
         />
       </div>
@@ -459,13 +459,13 @@ function CptPanel({ state, onStateChange, selectedLoadPoints }: {
   const heading = selectedLoadPoints.length > 1
     ? t("cpts.selectedHeading")
     : `${localizeLoadPointName(selectedLoadPoints[0].name, t)} - ${t("tabs.cpts")}`;
-  const columnLabels: Record<string, string> = {
+  const columnLabels: Record<string, ReactNode> = {
     CPT: t("cpts.name"),
     Selection: t("cpts.selection"),
     Distance: t("cpts.distance"),
     "Used by": t("cpts.usedBy"),
     "Load points": t("cpts.loadPoints"),
-    "FRD range": t("cpts.frdRange"),
+    "FRD range": <span aria-label={t("cpts.frdRange")}><ResistanceLabel qualifier={t("cpts.rangeQualifier")} /></span>,
   };
 
   return (
@@ -499,15 +499,15 @@ function CptPanel({ state, onStateChange, selectedLoadPoints }: {
   );
 }
 
-function CptTable({ columns, rows }: { columns: string[]; rows: string[][] }) {
+function CptTable({ columns, rows }: { columns: ReactNode[]; rows: string[][] }) {
   return (
     <div className="cpt-table-wrap">
       <table className="cpt-table">
-        <thead><tr>{columns.map((column) => <th key={column}>{column}</th>)}</tr></thead>
+        <thead><tr>{columns.map((column, index) => <th key={index}>{column}</th>)}</tr></thead>
         <tbody>
           {rows.map((row, rowIndex) => (
             <tr key={`${row[0]}-${row[1]}-${rowIndex}`}>
-              {row.map((value, index) => <td key={`${columns[index]}-${index}`}>{value}</td>)}
+              {row.map((value, index) => <td key={index}>{value}</td>)}
             </tr>
           ))}
         </tbody>
@@ -581,7 +581,10 @@ function LoadPointPanel({ state, onStateChange, selectedLabel, selectedLoadPoint
                       ) : (
                         <ColumnHeader
                           column={column.key}
-                          label={t(`columns.${column.key === "use" && selectedLoadPoints.length > 1 ? "useAvg" : column.key}`)}
+                          label={column.key === "frd"
+                            ? <ResistanceLabel qualifier={t("columns.minimumQualifier")} />
+                            : t(`columns.${column.key === "use" && selectedLoadPoints.length > 1 ? "useAvg" : column.key}`)}
+                          labelText={t(`columns.${column.key === "use" && selectedLoadPoints.length > 1 ? "useAvg" : column.key}`)}
                           rows={rows}
                           state={state}
                           onStateChange={onStateChange}
@@ -640,9 +643,10 @@ function LoadPointPanel({ state, onStateChange, selectedLabel, selectedLoadPoint
   );
 }
 
-function ColumnHeader({ column, label, rows, state, onStateChange }: {
+function ColumnHeader({ column, label, labelText, rows, state, onStateChange }: {
   column: PileOptionTableColumn;
-  label: string;
+  label: ReactNode;
+  labelText: string;
   rows: ReturnType<typeof getRenderablePileOptionRows>;
   state: ProjectState;
   onStateChange: (nextState: ProjectState) => void;
@@ -671,7 +675,7 @@ function ColumnHeader({ column, label, rows, state, onStateChange }: {
       </button>
       {filterValues.length > 0 ? (
         <details className="column-filter-menu">
-          <summary aria-label={t("filter.label", { label })}>▾</summary>
+          <summary aria-label={t("filter.label", { label: labelText })}>▾</summary>
           <div className="filter-menu-content">
             <div className="filter-menu-actions">
               <button
@@ -730,6 +734,14 @@ function applyPileOption(
   const nextSelections = new Map(state.selectedPileOptionKeysByLoadPoint);
   selectedLoadPoints.forEach((loadPoint) => nextSelections.set(loadPoint.id, optionKey));
   onStateChange({ ...state, selectedPileOptionKeysByLoadPoint: nextSelections });
+}
+
+function ResistanceLabel({ qualifier }: { qualifier?: string }) {
+  return (
+    <span className="resistance-label">
+      <i>R</i><sub>c;net;d</sub>{qualifier ? ` ${qualifier}` : ""}
+    </span>
+  );
 }
 
 function localizeLoadPointName(name: string, t: ReturnType<typeof useTranslation>["t"]): string {

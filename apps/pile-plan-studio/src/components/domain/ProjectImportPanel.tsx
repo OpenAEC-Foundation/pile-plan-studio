@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import {
   areImportFileAssignmentsComplete,
   emptyImportFileAssignments,
@@ -11,18 +12,19 @@ import type { ImportSourceInput } from "../.././core/coreImportContract.ts";
 import type { ImportSummary } from "../.././core/projectFile.ts";
 import "./projectImport.css";
 
-const ROLES: Array<{ role: ImportFileRole; label: string; columns: string }> = [
-  { role: "load-points", label: "Load points", columns: "ID, X, Y, FED" },
-  { role: "cpts", label: "CPTs", columns: "ID, X, Y" },
-  { role: "bearing-capacities", label: "Bearing capacities", columns: "CPT ID, tip, size, FRD" },
+const ROLES: Array<{ role: ImportFileRole; labelKey: string; columnsKey: string }> = [
+  { role: "load-points", labelKey: "importProject.roles.loadPoints", columnsKey: "importProject.columns.loadPoints" },
+  { role: "cpts", labelKey: "importProject.roles.cpts", columnsKey: "importProject.columns.cpts" },
+  { role: "bearing-capacities", labelKey: "importProject.roles.foundationAdvice", columnsKey: "importProject.columns.foundationAdvice" },
 ];
 
 export default function ProjectImportPanel({
   onImportProject,
 }: {
-  onImportProject: (projectName: string, sources: ImportSourceInput[]) => Promise<ImportSummary>;
+  onImportProject: (projectName: string, sources: ImportSourceInput[]) => Promise<ImportSummary | null>;
 }) {
-  const [projectName, setProjectName] = useState("Imported Project");
+  const { t } = useTranslation("common");
+  const [projectName, setProjectName] = useState(() => t("importProject.defaultName"));
   const [assignments, setAssignments] = useState<ImportFileAssignments<File>>(
     emptyImportFileAssignments<File>(),
   );
@@ -46,7 +48,8 @@ export default function ProjectImportPanel({
         if (!format) throw new Error(`Unsupported file format: ${file.name}`);
         return { role, fileName: file.name, format, bytes: new Uint8Array(await file.arrayBuffer()) };
       }));
-      setSummary(await onImportProject(projectName.trim() || "Imported Project", sources));
+      const result = await onImportProject(projectName.trim() || "Imported Project", sources);
+      if (result) setSummary(result);
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : String(reason));
     } finally {
@@ -56,44 +59,44 @@ export default function ProjectImportPanel({
 
   return (
     <div className="project-import-panel">
-      <h2>Import project data</h2>
+      <h2>{t("importProject.title")}</h2>
       <label className="project-import-name">
-        <span>Project name</span>
+        <span>{t("importProject.projectName")}</span>
         <input value={projectName} onChange={(event) => setProjectName(event.target.value)} />
       </label>
       <label className="project-import-bulk">
-        <span>Choose up to three files</span>
+        <span>{t("importProject.chooseFiles")}</span>
         <input type="file" accept=".csv,.xlsx" multiple onChange={(event) => assignFiles([...event.target.files ?? []])} />
       </label>
       <div className="project-import-sources">
-        {ROLES.map(({ role, label, columns }) => (
+        {ROLES.map(({ role, labelKey, columnsKey }) => (
           <div className="project-import-source" key={role}>
-            <div><strong>{label}</strong><small>{columns}</small></div>
-            <span title={assignments[role]?.name}>{assignments[role]?.name ?? "No file selected"}</span>
+            <div><strong>{t(labelKey)}</strong><small>{t(columnsKey)}</small></div>
+            <span title={assignments[role]?.name}>{assignments[role]?.name ?? t("importProject.noFile")}</span>
             <label className="project-import-replace">
-              Choose
+              {t("importProject.choose")}
               <input type="file" accept=".csv,.xlsx" onChange={(event) => {
                 const file = event.target.files?.[0] ?? null;
                 setAssignments((current) => ({ ...current, [role]: file }));
                 setError(null);
               }} />
             </label>
-            <button type="button" disabled={!assignments[role]} onClick={() => setAssignments((current) => ({ ...current, [role]: null }))}>Remove</button>
+            <button type="button" disabled={!assignments[role]} onClick={() => setAssignments((current) => ({ ...current, [role]: null }))}>{t("importProject.remove")}</button>
           </div>
         ))}
       </div>
       {error && <p className="project-import-error" role="alert">{error}</p>}
       {summary && (
-        <section className="project-import-summary" aria-label="Import summary">
-          <strong>Import completed</strong>
-          <span>{summary.loadPointCount.toLocaleString()} load points · {summary.cptCount.toLocaleString()} CPTs · {summary.bearingCapacityCount.toLocaleString()} bearing capacities</span>
+        <section className="project-import-summary" aria-label={t("importProject.summaryAria")}>
+          <strong>{t("importProject.completed")}</strong>
+          <span>{t("importProject.summary", { loadPoints: summary.loadPointCount.toLocaleString(), cpts: summary.cptCount.toLocaleString(), advice: summary.bearingCapacityCount.toLocaleString() })}</span>
           {summary.warnings.length > 0 && (
             <ul>{summary.warnings.map((warning) => <li key={warning}>{warning}</li>)}</ul>
           )}
         </section>
       )}
       <button className="project-import-submit" type="button" disabled={busy || !areImportFileAssignmentsComplete(assignments)} onClick={importProject}>
-        {busy ? "Importing..." : "Import project"}
+        {busy ? t("importProject.importing") : t("importProject.submit")}
       </button>
     </div>
   );

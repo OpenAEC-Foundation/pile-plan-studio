@@ -10,6 +10,7 @@
   "yes": "Yes",
   "no": "No",
   "export": "Export",
+  "downloadIfcpp": "Download IFCPP",
   "import": "Import",
   "print": "Print",
   "copy": "Copy",
@@ -52,7 +53,7 @@
     "sources": {
       "load_points": "Load points",
       "cpts": "CPTs",
-      "bearing_capacities": "Bearing capacities"
+      "bearing_capacities": "Foundation advice"
     },
     "statuses": {
       "snapshot-only": "snapshot only",
@@ -60,6 +61,38 @@
       "missing": "missing",
       "changed": "changed"
     }
+  },
+  "importProject": {
+    "title": "Import project data",
+    "defaultName": "Imported Project",
+    "projectName": "Project name",
+    "chooseFiles": "Choose up to three files",
+    "noFile": "No file selected",
+    "choose": "Choose",
+    "remove": "Remove",
+    "summaryAria": "Import summary",
+    "completed": "Import completed",
+    "summary": "{{loadPoints}} load points · {{cpts}} CPTs · {{advice}} foundation advice rows",
+    "importing": "Importing...",
+    "submit": "Import project",
+    "roles": {
+      "loadPoints": "Load points",
+      "cpts": "CPTs",
+      "foundationAdvice": "Foundation advice"
+    },
+    "columns": {
+      "loadPoints": "ID, X, Y, FED",
+      "cpts": "ID, X, Y",
+      "foundationAdvice": "CPT ID, tip, size, R_c;net;d"
+    }
+  },
+  "unsaved": {
+    "title": "Unsaved changes",
+    "desktopMessage": "This project has changes that have not been saved. Save them before continuing?",
+    "browserMessage": "This project has changes that have not been downloaded. Download them before continuing?",
+    "saveAndContinue": "Save and continue",
+    "downloadAndContinue": "Download and continue",
+    "discard": "Continue without saving"
   },
   "welcome": {
     "subtitle": "Professional desktop application template",

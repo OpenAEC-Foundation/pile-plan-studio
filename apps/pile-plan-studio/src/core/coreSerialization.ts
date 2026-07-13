@@ -13,3 +13,9 @@ export function toWasmNumberKeyedMap<T>(items: Map<number, T>): Map<number, T> {
 export function toStringKeyedRecord<T>(items: Map<number, T>): Record<string, T> {
   return Object.fromEntries(items);
 }
+
+export function toWasmNumberKeyedRecord<T>(items: Record<string, T>): Map<number, T> {
+  return toWasmNumberKeyedMap(new Map(
+    Object.entries(items).map(([key, value]) => [Number(key), value]),
+  ));
+}

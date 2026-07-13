@@ -46,6 +46,16 @@ describe("React app startup", () => {
     assert.match(source, /pileOptionsByLoadPointId\.size !== projectState\.loadPoints\.length/);
   });
 
+  it("keeps the initialized sample project clean after choosing default piles", () => {
+    const source = readFileSync(resolve(import.meta.dirname, "App.tsx"), "utf8");
+    const chooserIndex = source.indexOf("chooseDefaultPileOptionsCore({");
+    const defaultSelectionEffect = source.slice(chooserIndex, source.indexOf("  }, [", chooserIndex));
+
+    assert.doesNotMatch(defaultSelectionEffect, /setIsDirty\(true\)/);
+    assert.match(defaultSelectionEffect, /savedProjectSignatureRef\.current !== ""/);
+    assert.match(defaultSelectionEffect, /savedProjectSignatureRef\.current = JSON\.stringify\(projectFromState\(next\)\)/);
+  });
+
   it("keeps default selection pending until the guarded request finishes", () => {
     const source = readFileSync(resolve(import.meta.dirname, "App.tsx"), "utf8");
     const chooserIndex = source.indexOf("chooseDefaultPileOptionsCore({");

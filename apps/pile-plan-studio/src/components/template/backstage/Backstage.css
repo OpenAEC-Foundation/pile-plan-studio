@@ -12,6 +12,11 @@
   pointer-events: auto;
 }
 
+body:has(.bs-export-panel.is-exporting),
+body:has(.bs-export-panel.is-exporting) * {
+  cursor: wait !important;
+}
+
 /* Sidebar — anchored at the left, drops a panel-shadow */
 .backstage-sidebar {
   width: 260px;

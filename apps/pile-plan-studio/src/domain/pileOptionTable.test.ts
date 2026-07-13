@@ -22,7 +22,7 @@ describe("pile option table", () => {
   it("defines the requested table column order", () => {
     assert.deepEqual(
       PILE_OPTION_COLUMNS.map((column) => column.label),
-      ["Symbol", "Size", "Tip", "Status", "Cost", "Use", "Governing", "FRd min"],
+      ["Symbol", "Size", "Tip", "Status", "Cost", "Use", "Governing", "R_c;net;d min"],
     );
   });
 

@@ -10,6 +10,7 @@
   "yes": "Ja",
   "no": "Nee",
   "export": "Exporteren",
+  "downloadIfcpp": "IFCPP downloaden",
   "import": "Importeren",
   "print": "Afdrukken",
   "copy": "Kopiëren",
@@ -52,7 +53,7 @@
     "sources": {
       "load_points": "Belastinglocaties",
       "cpts": "Sonderingen",
-      "bearing_capacities": "Draagvermogens"
+      "bearing_capacities": "Funderingsadvies"
     },
     "statuses": {
       "snapshot-only": "momentopname",
@@ -60,6 +61,38 @@
       "missing": "ontbreekt",
       "changed": "gewijzigd"
     }
+  },
+  "importProject": {
+    "title": "Projectgegevens importeren",
+    "defaultName": "Geïmporteerd project",
+    "projectName": "Projectnaam",
+    "chooseFiles": "Kies maximaal drie bestanden",
+    "noFile": "Geen bestand geselecteerd",
+    "choose": "Kiezen",
+    "remove": "Verwijderen",
+    "summaryAria": "Importsamenvatting",
+    "completed": "Import voltooid",
+    "summary": "{{loadPoints}} belastinglocaties · {{cpts}} sonderingen · {{advice}} funderingsadviesregels",
+    "importing": "Importeren...",
+    "submit": "Project importeren",
+    "roles": {
+      "loadPoints": "Belastinglocaties",
+      "cpts": "Sonderingen",
+      "foundationAdvice": "Funderingsadvies"
+    },
+    "columns": {
+      "loadPoints": "ID, X, Y, FED",
+      "cpts": "ID, X, Y",
+      "foundationAdvice": "Sondering-ID, puntniveau, afmeting, R_c;net;d"
+    }
+  },
+  "unsaved": {
+    "title": "Onopgeslagen wijzigingen",
+    "desktopMessage": "Dit project bevat wijzigingen die nog niet zijn opgeslagen. Wil je deze eerst opslaan?",
+    "browserMessage": "Dit project bevat wijzigingen die nog niet zijn gedownload. Wil je deze eerst downloaden?",
+    "saveAndContinue": "Opslaan en doorgaan",
+    "downloadAndContinue": "Downloaden en doorgaan",
+    "discard": "Doorgaan zonder opslaan"
   },
   "welcome": {
     "subtitle": "Professioneel desktop applicatie sjabloon",

@@ -1,6 +1,6 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
 describe("primary frontend entry", () => {
@@ -21,5 +21,17 @@ describe("primary frontend entry", () => {
     assert.match(tauriConfig, /"icon": \[\s*"icons\/icon\.ico"\s*\]/);
     assert.match(packageJson, /allow_wasm_package\.mjs src\/core\/wasm\/pile-plan-wasm/);
     assert.match(wasmPackageHelper, /process\.argv\[2\]/);
+  });
+
+  it("allows the desktop app to open project file dialogs", () => {
+    const capabilityPath = resolve(import.meta.dirname, "src-tauri/capabilities/default.json");
+
+    assert.equal(existsSync(capabilityPath), true, "desktop capability file is missing");
+    const capability = JSON.parse(readFileSync(capabilityPath, "utf8")) as {
+      windows?: string[];
+      permissions?: string[];
+    };
+    assert.ok(capability.windows?.includes("main"));
+    assert.ok(capability.permissions?.includes("dialog:default"));
   });
 });

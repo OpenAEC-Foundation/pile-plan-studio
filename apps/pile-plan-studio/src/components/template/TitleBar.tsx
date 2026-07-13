@@ -3,12 +3,13 @@ import { useTranslation } from "react-i18next";
 import "./TitleBar.css";
 
 interface TitleBarProps {
-  onSave?: () => void;
+  projectAction?: () => void;
+  projectActionKind: "save" | "download";
   onSettingsClick?: () => void;
   onFeedbackClick?: () => void;
 }
 
-function TitleBar({ onSave, onSettingsClick, onFeedbackClick }: TitleBarProps) {
+function TitleBar({ projectAction, projectActionKind, onSettingsClick, onFeedbackClick }: TitleBarProps) {
   const { t } = useTranslation();
   const [isMaximized, setIsMaximized] = useState(false);
   const [appVersion, setAppVersion] = useState("");
@@ -98,15 +99,17 @@ function TitleBar({ onSave, onSettingsClick, onFeedbackClick }: TitleBarProps) {
         <div className="titlebar-quick-access">
         <button
           className="titlebar-quick-btn"
-          title={`${t("save")} (Ctrl+S)`}
-          aria-label={t("save")}
+          title={`${t(projectActionKind === "save" ? "save" : "downloadIfcpp")} (Ctrl+S)`}
+          aria-label={t(projectActionKind === "save" ? "save" : "downloadIfcpp")}
           tabIndex={-1}
-          onClick={onSave}
+          onClick={projectAction}
         >
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z" />
-            <polyline points="17 21 17 13 7 13 7 21" />
-            <polyline points="7 3 7 8 15 8" />
+            {projectActionKind === "save" ? (
+              <><path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z" /><polyline points="17 21 17 13 7 13 7 21" /><polyline points="7 3 7 8 15 8" /></>
+            ) : (
+              <><path d="M12 3v12" /><polyline points="7 10 12 15 17 10" /><path d="M5 21h14" /></>
+            )}
           </svg>
         </button>
           <button
