@@ -11,9 +11,7 @@ import PilePlanWorkspace from "./components/domain/PilePlanWorkspace";
 import RightPanel from "./components/domain/RightPanel";
 import {
   calculatePileCostCore,
-  calculatePileOptionsCore,
-  calculateSelectedCptsCore,
-  getBearingCapacityRowsForCptCore,
+  calculateProjectAnalysisCore,
   importProjectFromFilesCore,
 } from "../src/coreClient";
 import type { ImportSourceInput } from "../src/coreImportContract";
@@ -75,58 +73,53 @@ export default function App() {
 
   useEffect(() => {
     let cancelled = false;
+    const analysisRequest = projectState.analysisRequest;
 
     async function loadCoreAnalysis() {
-      const requestedIds = projectState.analysisRequest.loadPointIds;
+      const requestedIds = analysisRequest.loadPointIds;
       const analysisLoadPoints = requestedIds === null
         ? projectState.loadPoints
         : projectState.loadPoints.filter((loadPoint) => requestedIds.includes(loadPoint.id));
-      const needsCptFrdRows = projectState.cptFrdRowsByCptId.size === 0;
-      const [pileOptionsByLoadPointId, selectedCptEntries, cptFrdEntries] = await Promise.all([
-        calculatePileOptionsCore({
-          bearingCapacities: projectState.bearingCapacities,
-          cpts: projectState.cpts,
-          globalSettings: projectState.globalCptSelectionSettings,
-          loadPoints: analysisLoadPoints,
-          manualCptIdsByLoadPoint: projectState.manualCptIdsByLoadPoint,
-          settingsByLoadPoint: projectState.cptSelectionSettingsByLoadPoint,
-        }),
-        Promise.all(analysisLoadPoints.map(async (loadPoint) => [
-          loadPoint.id,
-          await calculateSelectedCptsCore({
-            cpts: projectState.cpts,
-            loadPoint,
-            manualCptIds: projectState.manualCptIdsByLoadPoint.get(loadPoint.id),
-            settings: projectState.cptSelectionSettingsByLoadPoint.get(loadPoint.id)
-              ?? projectState.globalCptSelectionSettings,
-          }),
-        ] as const)),
-        needsCptFrdRows ? Promise.all(projectState.cpts.map(async (cpt) => [
-          cpt.id,
-          await getBearingCapacityRowsForCptCore({
-            bearingCapacities: projectState.bearingCapacities,
-            cptId: cpt.id,
-          }),
-        ] as const)) : Promise.resolve([]),
-      ]);
+      const analysis = await calculateProjectAnalysisCore({
+        bearingCapacities: projectState.bearingCapacities,
+        cpts: projectState.cpts,
+        globalSettings: projectState.globalCptSelectionSettings,
+        loadPoints: analysisLoadPoints,
+        manualCptIdsByLoadPoint: projectState.manualCptIdsByLoadPoint,
+        settingsByLoadPoint: projectState.cptSelectionSettingsByLoadPoint,
+        includeCptFrdRows: projectState.cptFrdRowsByCptId.size === 0,
+      });
       if (!cancelled) {
-        setProjectState((current) => ({
+        setProjectState((current) => current.analysisRequest !== analysisRequest ? current : ({
           ...current,
-          pileOptionsByLoadPointId: new Map([...current.pileOptionsByLoadPointId, ...pileOptionsByLoadPointId]),
-          selectedCptsByLoadPointId: new Map([...current.selectedCptsByLoadPointId, ...selectedCptEntries]),
-          cptFrdRowsByCptId: new Map([...current.cptFrdRowsByCptId, ...cptFrdEntries]),
+          pileOptionsByLoadPointId: new Map([
+            ...current.pileOptionsByLoadPointId,
+            ...analysis.pileOptionsByLoadPointId,
+          ]),
+          selectedCptsByLoadPointId: new Map([
+            ...current.selectedCptsByLoadPointId,
+            ...analysis.selectedCptsByLoadPointId,
+          ]),
+          cptFrdRowsByCptId: analysis.cptFrdRowsByCptId ?? current.cptFrdRowsByCptId,
+          analysisError: null,
         }));
       }
     }
 
     loadCoreAnalysis().catch((error: unknown) => {
       console.error("Failed to load pile option analysis", error);
+      if (!cancelled) {
+        setProjectState((current) => current.analysisRequest !== analysisRequest ? current : ({
+          ...current,
+          analysisError: error instanceof Error ? error.message : String(error),
+        }));
+      }
     });
 
     return () => {
       cancelled = true;
     };
-  }, [projectState.analysisRequest.revision]);
+  }, [projectState.analysisRequest]);
 
   useEffect(() => {
     let cancelled = false;

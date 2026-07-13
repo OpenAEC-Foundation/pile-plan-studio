@@ -51,6 +51,7 @@ export type ProjectState = LoadedProjectData & {
   cptSettingsScope: CptSettingsScope;
   cptSelectionEditDraft: CptSelectionEditDraft | null;
   analysisRequest: AnalysisRequest;
+  analysisError: string | null;
   legendSelectionFilter: LegendSelectionFilter;
 };
 
@@ -95,6 +96,7 @@ export function createInitialProjectState(input: string | IfcppProject): Project
     cptSettingsScope: "all",
     cptSelectionEditDraft: null,
     analysisRequest: { revision: 0, loadPointIds: null },
+    analysisError: null,
     legendSelectionFilter: { pileSizes: [], pileTipLevels: [] },
   };
 }

@@ -149,6 +149,8 @@ function minimalState(overrides: Partial<ProjectState> = {}): ProjectState {
   return {
     activePileSizes: [290, 320],
     activePileTipLevels: [-17.5, -18],
+    analysisError: null,
+    analysisRequest: { revision: 0, loadPointIds: null },
     bearingCapacities: [],
     bounds: { minX: 0, maxX: 1, minY: 0, maxY: 1 },
     cptSelectionSettingsByLoadPoint: new Map(),

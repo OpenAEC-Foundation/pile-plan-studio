@@ -9,4 +9,24 @@ describe("React app startup", () => {
 
     assert.doesNotMatch(source, /React\.StrictMode/);
   });
+
+  it("runs one batched analysis whenever the analysis request object changes", () => {
+    const source = readFileSync(resolve(import.meta.dirname, "App.tsx"), "utf8");
+
+    assert.match(source, /calculateProjectAnalysisCore/);
+    assert.match(source, /\[projectState\.analysisRequest\]/);
+    assert.doesNotMatch(source, /Promise\.all\(analysisLoadPoints\.map/);
+    assert.doesNotMatch(source, /Promise\.all\(projectState\.cpts\.map/);
+  });
+
+  it("stores analysis failures instead of leaving a permanent loading state", () => {
+    const appSource = readFileSync(resolve(import.meta.dirname, "App.tsx"), "utf8");
+    const panelSource = readFileSync(
+      resolve(import.meta.dirname, "components/domain/RightPanel.tsx"),
+      "utf8",
+    );
+
+    assert.match(appSource, /analysisError/);
+    assert.match(panelSource, /state\.analysisError/);
+  });
 });

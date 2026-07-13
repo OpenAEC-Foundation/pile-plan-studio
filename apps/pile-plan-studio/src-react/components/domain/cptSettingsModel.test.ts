@@ -63,6 +63,7 @@ function minimalState(overrides: Partial<ProjectState> = {}): ProjectState {
   return {
     activePileSizes: [],
     activePileTipLevels: [],
+    analysisError: null,
     analysisRequest: { revision: 0, loadPointIds: null },
     bearingCapacities: [],
     bounds: { minX: 0, maxX: 1, minY: 0, maxY: 1 },

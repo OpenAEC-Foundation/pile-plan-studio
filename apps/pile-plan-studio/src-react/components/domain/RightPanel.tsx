@@ -527,7 +527,11 @@ function LoadPointPanel({ state, onStateChange, selectedLabel, selectedLoadPoint
           <span>{isLoading ? "Loading..." : `${tableRows.length} shown`}</span>
         </div>
         {isLoading ? (
-          <div className="right-panel-empty is-inline">Calculating pile options...</div>
+          <div className="right-panel-empty is-inline" role={state.analysisError ? "alert" : undefined}>
+            {state.analysisError
+              ? `Pile option analysis failed: ${state.analysisError}`
+              : "Calculating pile options..."}
+          </div>
         ) : (
           <div className="pile-options-table-wrap">
             <table className="pile-options-table">
