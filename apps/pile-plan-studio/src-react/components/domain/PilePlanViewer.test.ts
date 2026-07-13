@@ -47,6 +47,15 @@ describe("PilePlanViewer inputs", () => {
     assert.doesNotMatch(css, /--viewer-marker-scale/);
   });
 
+  it("does not restore a stale React viewport while a wheel zoom is waiting to commit", () => {
+    const source = readFileSync(resolve(import.meta.dirname, "PilePlanViewer.tsx"), "utf8");
+
+    assert.match(
+      source,
+      /if \(!interactionRef\.current && !zoomCommitTimerRef\.current\) \{\s*viewportRef\.current = state\.viewport;\s*applyViewportDisplay\(state\.viewport\);\s*\}/,
+    );
+  });
+
   it("anchors the stage at the same top-left origin used by lasso projection", () => {
     const css = readFileSync(resolve(import.meta.dirname, "viewer.css"), "utf8");
 

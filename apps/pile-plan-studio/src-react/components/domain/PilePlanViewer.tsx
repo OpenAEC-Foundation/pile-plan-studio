@@ -42,8 +42,8 @@ export default function PilePlanViewer({ state, onStateChange }: Props) {
   const [lasso, setLasso] = useState<LassoRectangle | null>(null);
 
   useEffect(() => {
-    viewportRef.current = state.viewport;
-    if (!interactionRef.current) {
+    if (!interactionRef.current && !zoomCommitTimerRef.current) {
+      viewportRef.current = state.viewport;
       applyViewportDisplay(state.viewport);
     }
   }, [state.viewport]);
