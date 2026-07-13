@@ -5,7 +5,10 @@ import { getConfigurationStyle, getLegendItems } from "../../../src/legend.ts";
 import { getCptMarkerLayerClass, getLoadPointMarkerLayerClass } from "../../../src/mapMarkerLayer.ts";
 import { shouldStartMapPan } from "../../../src/mapInteraction.ts";
 import { renderPileSymbol } from "../../../src/pileSymbols.ts";
-import { getLoadPointMarkerInvalidVisual } from "../../../src/loadPointMarker.ts";
+import {
+  getLoadPointMarkerInvalidVisual,
+  getUnselectedLoadPointMarkerState,
+} from "../../../src/loadPointMarker.ts";
 import { projectPoint } from "../../../src/viewerGeometry.ts";
 import {
   clampScale,
@@ -114,11 +117,23 @@ export default function PilePlanViewer({ state, onStateChange }: Props) {
             const style = selectedOption
               ? getConfigurationStyle(selectedOption, legend)
               : null;
+            const unselectedState = selectedOption ? null : getUnselectedLoadPointMarkerState(
+              state.pileOptionsByLoadPointId.get(loadPoint.id),
+              state.defaultPileSelectionPending,
+              state.analysisError !== null,
+            );
+            const unselectedClass = unselectedState === "pending"
+              ? " is-pending"
+              : unselectedState === "missing"
+                ? " has-missing-options"
+                : unselectedState === "invalid"
+                  ? " has-invalid-options"
+                  : "";
 
             return (
               <button
                 aria-label={`Load point ${loadPoint.name}`}
-                className={`load-point-marker${getLoadPointMarkerLayerClass(isSelected)}${isSelected ? " is-selected" : ""}${invalidVisual.className}`}
+                className={`load-point-marker${getLoadPointMarkerLayerClass(isSelected)}${isSelected ? " is-selected" : ""}${invalidVisual.className}${unselectedClass}`}
                 key={loadPoint.id}
                 style={getProjectMarkerStyle(point, invalidVisual.style)}
                 type="button"
@@ -135,6 +150,8 @@ export default function PilePlanViewer({ state, onStateChange }: Props) {
                     className="load-point-symbol"
                     dangerouslySetInnerHTML={{ __html: renderPileSymbol(style.shape, style.color) }}
                   />
+                ) : unselectedState === "pending" ? (
+                  <span className="load-point-pending" aria-hidden="true" />
                 ) : (
                   <span className="load-point-empty" aria-hidden="true">
                     <svg viewBox="0 0 24 24" focusable="false">

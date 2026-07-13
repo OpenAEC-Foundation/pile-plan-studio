@@ -201,11 +201,32 @@
   height: var(--load-point-symbol-base);
 }
 
+.load-point-marker.is-pending {
+  background: transparent;
+  box-shadow: none;
+}
+
+.load-point-pending {
+  width: 9px;
+  height: 9px;
+  border: 1.5px solid #a2adb3;
+  border-radius: 50%;
+  background: #d4dade;
+}
+
 .load-point-empty {
   display: grid;
   width: var(--load-point-empty-base);
   height: var(--load-point-empty-base);
   place-items: center;
+  color: #c92a2a;
+}
+
+.load-point-marker.has-missing-options .load-point-empty {
+  color: #d99b00;
+}
+
+.load-point-marker.has-invalid-options .load-point-empty {
   color: #c92a2a;
 }
 

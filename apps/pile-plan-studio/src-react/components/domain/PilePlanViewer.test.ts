@@ -65,6 +65,19 @@ describe("PilePlanViewer inputs", () => {
     assert.match(source, /invalidVisual\.style/);
   });
 
+  it("renders neutral pending markers and colour-coded no-pile crosses", () => {
+    const source = readFileSync(resolve(import.meta.dirname, "PilePlanViewer.tsx"), "utf8");
+    const css = readFileSync(resolve(import.meta.dirname, "viewer.css"), "utf8");
+
+    assert.match(source, /getUnselectedLoadPointMarkerState/);
+    assert.match(source, /load-point-pending/);
+    assert.match(source, /has-missing-options/);
+    assert.match(source, /has-invalid-options/);
+    assert.match(css, /\.load-point-marker\.is-pending/);
+    assert.match(css, /\.load-point-marker\.has-missing-options \.load-point-empty/);
+    assert.match(css, /\.load-point-marker\.has-invalid-options \.load-point-empty/);
+  });
+
   it("anchors the stage at the same top-left origin used by lasso projection", () => {
     const css = readFileSync(resolve(import.meta.dirname, "viewer.css"), "utf8");
 
