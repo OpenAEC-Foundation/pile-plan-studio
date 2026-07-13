@@ -1,7 +1,11 @@
 import { writeFileSync } from "node:fs";
-import { join } from "node:path";
+import { join, resolve } from "node:path";
 
-const packageDir = join(process.cwd(), "src", "wasm", "pile-plan-wasm");
+const relativePackageDir = process.argv[2];
+if (!relativePackageDir) {
+  throw new Error("Expected the generated WASM package directory as the first argument.");
+}
+const packageDir = resolve(process.cwd(), relativePackageDir);
 
 writeFileSync(
   join(packageDir, ".gitignore"),

@@ -4,13 +4,11 @@
   "version": "0.1.0",
   "type": "module",
   "scripts": {
-    "build:wasm": "wasm-pack build ../../crates/pile-plan-wasm --target web --out-dir ../../apps/pile-plan-studio/src/wasm/pile-plan-wasm && node ../../tools/allow_wasm_package.mjs",
+    "build:wasm": "wasm-pack build ../../crates/pile-plan-wasm --target web --out-dir ../../apps/pile-plan-studio/src/core/wasm/pile-plan-wasm && node ../../tools/allow_wasm_package.mjs src/core/wasm/pile-plan-wasm",
     "predev": "npm run build:wasm",
     "dev": "vite --host 127.0.0.1",
-    "dev:react": "vite --host 127.0.0.1 --config vite.config.ts",
-    "test": "node --test src/*.test.ts src-react/**/*.test.ts",
-    "build:react": "npm run build:wasm && tsc -p tsconfig.json && vite build --config vite.config.ts",
-    "build": "npm run build:wasm && tsc && vite build",
+    "test": "node --test src/**/*.test.ts src-primary-entry.test.ts",
+    "build": "npm run build:wasm && tsc -p tsconfig.json && vite build --config vite.config.ts",
     "tauri": "tauri"
   },
   "dependencies": {

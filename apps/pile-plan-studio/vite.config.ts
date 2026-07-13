@@ -1,4 +1,3 @@
-import { resolve } from "node:path";
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 
@@ -11,14 +10,6 @@ export default defineConfig({
     strictPort: false,
     watch: {
       ignored: ["**/src-tauri/**"],
-    },
-  },
-  build: {
-    rollupOptions: {
-      input: {
-        vanilla: resolve(__dirname, "index.html"),
-        react: resolve(__dirname, "index.react.html"),
-      },
     },
   },
 });
