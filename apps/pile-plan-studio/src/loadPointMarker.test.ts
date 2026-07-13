@@ -1,7 +1,10 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 
-import { getLoadPointMarkerInvalidVisual } from "./loadPointMarker.ts";
+import {
+  getLoadPointMarkerInvalidVisual,
+  getUnselectedLoadPointMarkerState,
+} from "./loadPointMarker.ts";
 import type { PileConfigurationOption } from "./projectTypes.ts";
 
 function option(input: {
@@ -47,6 +50,24 @@ describe("load point marker invalid visual", () => {
         missingCptIds: [64],
       })),
       { className: " is-missing", style: "" },
+    );
+  });
+});
+
+describe("unselected load point marker state", () => {
+  it("keeps unresolved and failed calculations neutral", () => {
+    assert.equal(getUnselectedLoadPointMarkerState(undefined, true, false), "pending");
+    assert.equal(getUnselectedLoadPointMarkerState(undefined, false, true), "pending");
+  });
+
+  it("uses Missing only when every option lacks CPT capacities", () => {
+    const missingOption = option({ isOption: false, utilization: null, missingCptIds: [64] });
+    const invalidOption = option({ isOption: false, utilization: 1.2 });
+
+    assert.equal(getUnselectedLoadPointMarkerState([missingOption], false, false), "missing");
+    assert.equal(
+      getUnselectedLoadPointMarkerState([missingOption, invalidOption], false, false),
+      "invalid",
     );
   });
 });

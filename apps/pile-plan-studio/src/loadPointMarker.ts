@@ -5,6 +5,24 @@ export type LoadPointMarkerInvalidVisual = {
   style: string;
 };
 
+export type UnselectedLoadPointMarkerState = "pending" | "missing" | "invalid";
+
+export function getUnselectedLoadPointMarkerState(
+  options: PileConfigurationOption[] | undefined,
+  isPending: boolean,
+  hasAnalysisError: boolean,
+): UnselectedLoadPointMarkerState {
+  if (isPending || hasAnalysisError || !options) {
+    return "pending";
+  }
+
+  if (options.length > 0 && options.every((option) => option.missing_cpt_ids.length > 0)) {
+    return "missing";
+  }
+
+  return "invalid";
+}
+
 export function getLoadPointMarkerInvalidVisual(
   chosenOption: PileConfigurationOption | null,
 ): LoadPointMarkerInvalidVisual {
