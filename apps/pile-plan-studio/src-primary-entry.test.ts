@@ -18,6 +18,7 @@ describe("primary frontend entry", () => {
     assert.doesNotMatch(packageJson, /dev:react|build:react/);
     assert.match(tauriConfig, /"beforeDevCommand": "npm run dev"/);
     assert.match(tauriConfig, /"beforeBuildCommand": "npm run build"/);
+    assert.match(tauriConfig, /"icon": \[\s*"icons\/icon\.ico"\s*\]/);
     assert.match(packageJson, /allow_wasm_package\.mjs src\/core\/wasm\/pile-plan-wasm/);
     assert.match(wasmPackageHelper, /process\.argv\[2\]/);
   });
