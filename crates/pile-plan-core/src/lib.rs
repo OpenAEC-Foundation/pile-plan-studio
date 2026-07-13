@@ -8,6 +8,7 @@ pub mod project;
 pub use analysis::{
     bearing_capacity_rows_for_cpt, bearing_capacity_summary, build_pile_options_by_load_point,
     build_project_analysis, calculate_pile_cost, choose_default_pile_option,
+    choose_default_pile_options,
     greedy_optimize_pile_choices, manually_selected_cpts, pile_configuration_options,
     selected_cpts, selected_cpts_by_maximum_angle, selected_cpts_by_quadrant,
     BearingCapacity as ProjectBearingCapacity, BearingCapacitySummary, Cpt as ProjectCpt,

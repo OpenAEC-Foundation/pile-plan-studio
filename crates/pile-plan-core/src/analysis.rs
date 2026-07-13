@@ -509,7 +509,11 @@ pub fn choose_default_pile_option<'a>(
 ) -> Option<&'a PileConfigurationOption> {
     options
         .iter()
-        .filter(|option| option.is_option)
+        .filter(|option| {
+            option.is_option
+                && calculate_pile_cost(option.pile_size_mm, option.pile_tip_level_m, settings)
+                    .is_some()
+        })
         .min_by(|left, right| {
             let left_cost = calculate_pile_cost(left.pile_size_mm, left.pile_tip_level_m, settings);
             let right_cost =
@@ -525,6 +529,26 @@ pub fn choose_default_pile_option<'a>(
                     .then_with(|| right.pile_tip_level_m.total_cmp(&left.pile_tip_level_m)),
             }
         })
+}
+
+pub fn choose_default_pile_options(
+    options_by_load_point: &HashMap<u32, Vec<PileConfigurationOption>>,
+    settings: &PileCostSettings,
+) -> HashMap<u32, PileConfigurationKey> {
+    options_by_load_point
+        .iter()
+        .filter_map(|(load_point_id, options)| {
+            choose_default_pile_option(options, settings).map(|option| {
+                (
+                    *load_point_id,
+                    PileConfigurationKey {
+                        pile_size_mm: option.pile_size_mm,
+                        pile_tip_level_m_key: scaled_level_key(option.pile_tip_level_m),
+                    },
+                )
+            })
+        })
+        .collect()
 }
 
 pub fn greedy_optimize_pile_choices(
@@ -1206,6 +1230,65 @@ mod tests {
         ];
 
         assert!(choose_default_pile_option(&options, &cost_settings()).is_none());
+    }
+
+    #[test]
+    fn chooses_default_options_for_all_load_points() {
+        let options = HashMap::from([
+            (
+                1,
+                vec![
+                    pile_option(290, -17.5, true, 0.7),
+                    pile_option(320, -17.5, true, 0.6),
+                ],
+            ),
+            (2, vec![pile_option(290, -18.0, true, 0.8)]),
+        ]);
+
+        let choices = choose_default_pile_options(&options, &cost_settings());
+
+        assert_eq!(
+            choices.get(&1),
+            Some(&PileConfigurationKey {
+                pile_size_mm: 290,
+                pile_tip_level_m_key: scaled_level_key(-17.5),
+            })
+        );
+        assert_eq!(
+            choices.get(&2),
+            Some(&PileConfigurationKey {
+                pile_size_mm: 290,
+                pile_tip_level_m_key: scaled_level_key(-18.0),
+            })
+        );
+    }
+
+    #[test]
+    fn default_options_omit_load_points_without_valid_options() {
+        let options = HashMap::from([(
+            1,
+            vec![
+                pile_option(290, -17.5, false, 1.1),
+                PileConfigurationOption {
+                    pile_size_mm: 320,
+                    pile_tip_level_m: -18.0,
+                    is_option: false,
+                    governing_cpt_id: None,
+                    governing_frd_kn: None,
+                    utilization: None,
+                    missing_cpt_ids: vec![1],
+                },
+            ],
+        )]);
+
+        assert!(choose_default_pile_options(&options, &cost_settings()).is_empty());
+    }
+
+    #[test]
+    fn default_options_omit_valid_options_without_cost_settings() {
+        let options = HashMap::from([(1, vec![pile_option(999, -17.5, true, 0.7)])]);
+
+        assert!(choose_default_pile_options(&options, &cost_settings()).is_empty());
     }
 
     #[test]
