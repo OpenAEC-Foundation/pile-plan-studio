@@ -16953,12 +16953,12 @@
   },
   "import_log": [
     {
-      "source_file": "sample_project/*.json",
+      "source_file": "Belastinglocaties.csv, Sonderingen.xlsx, Draagvermogens.xlsx",
       "imported_at": null,
       "sheet_name": null,
       "mapped_columns": {},
       "warnings": [
-        "Generated from existing sample JSON fixtures."
+        "Bundled sample project source files."
       ]
     }
   ]

@@ -13,6 +13,6 @@
     "strict": true,
     "jsx": "react-jsx"
   },
-  "include": ["src", "../../sample_project/*.json"],
+  "include": ["src"],
   "exclude": ["src/**/*.test.ts"]
 }
