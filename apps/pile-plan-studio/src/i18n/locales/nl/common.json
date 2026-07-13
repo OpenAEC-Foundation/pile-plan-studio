@@ -37,6 +37,30 @@
   "sendFeedback": "Feedback verzenden",
   "explorer": "Verkenner",
   "properties": "Eigenschappen",
+  "legend": {
+    "aria": "Legenda voor paalsymbolen",
+    "size": "Afmeting",
+    "tip": "Puntniveau"
+  },
+  "projectExplorer": {
+    "aria": "Projectverkenner",
+    "project": "Project",
+    "pilePlan": "Palenplan",
+    "viewer": "Viewer",
+    "inputSources": "Invoerbronnen",
+    "rows": "{{count}} rijen",
+    "sources": {
+      "load_points": "Belastinglocaties",
+      "cpts": "Sonderingen",
+      "bearing_capacities": "Draagvermogens"
+    },
+    "statuses": {
+      "snapshot-only": "momentopname",
+      "linked": "gekoppeld",
+      "missing": "ontbreekt",
+      "changed": "gewijzigd"
+    }
+  },
   "welcome": {
     "subtitle": "Professioneel desktop applicatie sjabloon",
     "getStarted": "Aan de slag",

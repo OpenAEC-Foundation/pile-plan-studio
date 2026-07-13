@@ -24,6 +24,22 @@ describe("Optimize ribbon", () => {
     assert.doesNotMatch(source, /label=\{t\("view\.help"\)\}/);
   });
 
+  it("uses domain icons for load points and CPTs", () => {
+    const source = readFileSync(resolve(import.meta.dirname, "Ribbon.tsx"), "utf8");
+
+    assert.match(source, /loadPointIcon/);
+    assert.match(source, /cptIcon/);
+    assert.match(source, /icon=\{loadPointIcon\} label=\{t\("plan\.loadPoints"\)\}/);
+    assert.match(source, /icon=\{cptIcon\} label=\{t\("plan\.cpts"\)\}/);
+  });
+
+  it("uses a domain optimization icon for the run command", () => {
+    const source = readFileSync(resolve(import.meta.dirname, "Ribbon.tsx"), "utf8");
+
+    assert.match(source, /optimizeIcon/);
+    assert.match(source, /icon=\{optimizeIcon\} label=\{t\("optimize\.run"\)\}/);
+  });
+
   it("uses distinct Dutch labels for information and settings commands", () => {
     const translations = JSON.parse(readFileSync(resolve(import.meta.dirname, "../../../i18n/locales/nl/ribbon.json"), "utf8"));
     assert.equal(translations.plan.cpts, "Sonderingen");

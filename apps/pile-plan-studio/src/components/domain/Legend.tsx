@@ -1,4 +1,5 @@
 import type { ProjectState } from "../../domain/projectState";
+import { useTranslation } from "react-i18next";
 import { getLegendItems } from "../../viewer/legend.ts";
 import {
   shouldDisableActivePileConfigurationToggle,
@@ -16,6 +17,7 @@ type Props = {
 };
 
 export default function Legend({ state, onStateChange }: Props) {
+  const { t, i18n } = useTranslation("common");
   const legend = getLegendItems(state.bearingCapacities);
   const active = {
     pileSizes: state.activePileSizes,
@@ -47,9 +49,9 @@ export default function Legend({ state, onStateChange }: Props) {
   }
 
   return (
-    <div className="pile-plan-legend" aria-label="Pile symbol legend">
+    <div className="pile-plan-legend" aria-label={t("legend.aria")}>
       <div className="legend-group">
-        <span className="legend-title">Size</span>
+        <span className="legend-title">{t("legend.size")}</span>
         {legend.pileSizes.map((item) => {
           const isActive = state.activePileSizes.includes(item.value);
           const isSelected = state.legendSelectionFilter.pileSizes.includes(item.value);
@@ -77,7 +79,7 @@ export default function Legend({ state, onStateChange }: Props) {
         })}
       </div>
       <div className="legend-group">
-        <span className="legend-title">Tip</span>
+        <span className="legend-title">{t("legend.tip")}</span>
         {legend.pileTipLevels.map((item) => {
           const isActive = state.activePileTipLevels.includes(item.value);
           const isSelected = state.legendSelectionFilter.pileTipLevels.includes(item.value);
@@ -96,7 +98,7 @@ export default function Legend({ state, onStateChange }: Props) {
               }}
             >
               <span className="legend-color" style={{ backgroundColor: item.color }} />
-              <span>{formatTipLevel(item.value)}</span>
+              <span>{formatTipLevel(item.value, i18n.language)}</span>
             </button>
           );
         })}
@@ -131,6 +133,6 @@ function optionFromKey(key: string) {
   };
 }
 
-function formatTipLevel(value: number): string {
-  return `${value.toLocaleString("en-US", { maximumFractionDigits: 1 })} m`;
+function formatTipLevel(value: number, language: string): string {
+  return `${value.toLocaleString(language, { maximumFractionDigits: 1 })} m`;
 }

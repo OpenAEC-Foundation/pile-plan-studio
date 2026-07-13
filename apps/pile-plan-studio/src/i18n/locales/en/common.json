@@ -37,6 +37,30 @@
   "sendFeedback": "Send Feedback",
   "explorer": "Explorer",
   "properties": "Properties",
+  "legend": {
+    "aria": "Pile symbol legend",
+    "size": "Size",
+    "tip": "Tip"
+  },
+  "projectExplorer": {
+    "aria": "Project explorer",
+    "project": "Project",
+    "pilePlan": "Pile plan",
+    "viewer": "Viewer",
+    "inputSources": "Input sources",
+    "rows": "{{count}} rows",
+    "sources": {
+      "load_points": "Load points",
+      "cpts": "CPTs",
+      "bearing_capacities": "Bearing capacities"
+    },
+    "statuses": {
+      "snapshot-only": "snapshot only",
+      "linked": "linked",
+      "missing": "missing",
+      "changed": "changed"
+    }
+  },
   "welcome": {
     "subtitle": "Professional desktop application template",
     "getStarted": "Get Started",

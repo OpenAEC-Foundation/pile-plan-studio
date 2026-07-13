@@ -6,10 +6,11 @@ import RibbonGroup from "./RibbonGroup";
 import RibbonTab from "./RibbonTab";
 import type { RightPanelMode } from "../../../domain/selectionState.ts";
 import {
+  cptIcon,
+  loadPointIcon,
+  optimizeIcon,
   projectIcon,
   settingsIcon,
-  viewerFitIcon,
-  viewerMeasureIcon,
 } from "./icons";
 import "./Ribbon.css";
 
@@ -96,8 +97,8 @@ export default function Ribbon({
           <div className="ribbon-content">
             <div className="ribbon-groups">
               <RibbonGroup label={t("plan.inspect")}>
-                <RibbonButton icon={projectIcon} label={t("plan.loadPoints")} onClick={() => onOpenRightPanel?.("load-point")} />
-                <RibbonButton icon={viewerMeasureIcon} label={t("plan.cpts")} onClick={() => onOpenRightPanel?.("cpts")} />
+                <RibbonButton icon={loadPointIcon} label={t("plan.loadPoints")} onClick={() => onOpenRightPanel?.("load-point")} />
+                <RibbonButton icon={cptIcon} label={t("plan.cpts")} onClick={() => onOpenRightPanel?.("cpts")} />
               </RibbonGroup>
               <RibbonGroup label={t("plan.settings")}>
                 <RibbonButtonStack>
@@ -113,7 +114,7 @@ export default function Ribbon({
           <div className="ribbon-content">
             <div className="ribbon-groups">
               <RibbonGroup label={t("optimize.greedy")}>
-                <RibbonButton icon={viewerFitIcon} label={t("optimize.run")} disabled={optimizationDisabled} onClick={onRunOptimization} />
+                <RibbonButton icon={optimizeIcon} label={t("optimize.run")} disabled={optimizationDisabled} onClick={onRunOptimization} />
                 <RibbonButton icon={settingsIcon} label={t("optimize.settings")} onClick={onOpenOptimizationSettings} />
               </RibbonGroup>
             </div>

@@ -321,26 +321,26 @@ export default function App() {
           optimizationDisabled={optimizationDisabled}
         />
         <div className="app-content">
-          <aside className="project-explorer" aria-label="Project explorer">
+          <aside className="project-explorer" aria-label={t("projectExplorer.aria")}>
             <div className="panel-heading">{t("explorer")}</div>
             <div className="project-tree">
               <div className="project-tree-section">
-                <div className="project-tree-label">Project</div>
+                <div className="project-tree-label">{t("projectExplorer.project")}</div>
                 <button className="project-tree-item active" type="button">
                   <span>{projectState.name}</span>
                   <small>IFCPP</small>
                 </button>
                 <button className="project-tree-item" type="button">
-                  <span>Pile plan</span>
-                  <small>Viewer</small>
+                  <span>{t("projectExplorer.pilePlan")}</span>
+                  <small>{t("projectExplorer.viewer")}</small>
                 </button>
               </div>
               <div className="project-tree-section">
-                <div className="project-tree-label">Input sources</div>
+                <div className="project-tree-label">{t("projectExplorer.inputSources")}</div>
                 {projectState.inputSources.map((source) => (
                   <button className="project-tree-item" type="button" key={source.kind}>
-                    <span>{source.label}</span>
-                    <small>{source.itemCount.toLocaleString("en-US")} rows · {source.status}</small>
+                    <span>{t(`projectExplorer.sources.${source.kind}`)}</span>
+                    <small>{t("projectExplorer.rows", { count: source.itemCount })} · {t(`projectExplorer.statuses.${source.status}`)}</small>
                   </button>
                 ))}
               </div>
