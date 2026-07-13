@@ -27,6 +27,8 @@
   "maximize": "Maximize",
   "restore": "Restore",
   "appName": "Pile Plan Studio",
+  "alphaLabel": "Alpha",
+  "engineeringDisclaimer": "Engineering results require professional verification.",
   "noDocumentOpen": "No project open",
   "noDocumentHint": "Open or import a pile planning project to get started.",
   "ready": "Ready",
@@ -38,6 +40,9 @@
   "sendFeedback": "Send Feedback",
   "explorer": "Explorer",
   "properties": "Properties",
+  "viewer": {
+    "selectionHelp": "Shift+click to add or remove load points. Shift+drag to draw a selection lasso."
+  },
   "legend": {
     "aria": "Pile symbol legend",
     "size": "Size",

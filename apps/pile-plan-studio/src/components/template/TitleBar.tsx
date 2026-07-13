@@ -129,6 +129,13 @@ function TitleBar({ projectAction, projectActionKind, onSettingsClick, onFeedbac
 
       <span className="titlebar-title" data-tauri-drag-region>
         {t("appName")}
+        <span
+          className="titlebar-alpha-badge"
+          title={t("engineeringDisclaimer")}
+          aria-label={`${t("alphaLabel")}: ${t("engineeringDisclaimer")}`}
+        >
+          {t("alphaLabel")}
+        </span>
         {appVersion && <span className="titlebar-version">v{appVersion}</span>}
       </span>
 

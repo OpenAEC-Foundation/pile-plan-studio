@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type CSSProperties, type MouseEvent } from "react";
+import { useTranslation } from "react-i18next";
 import type { ProjectState } from "../../domain/projectState";
 import { getPointIdsInRectangle, type LassoRectangle } from "../../viewer/lassoSelection.ts";
 import { getConfigurationStyle, getLegendItems } from "../../viewer/legend.ts";
@@ -34,6 +35,7 @@ type Props = {
 };
 
 export default function PilePlanViewer({ state, onStateChange }: Props) {
+  const { t } = useTranslation("common");
   const legend = getLegendItems(state.bearingCapacities);
   const selectedLoadPointIds = new Set(state.selectedLoadPointIds);
   const selectedCptIds = new Set(getReactViewerSelectedCptIds(state));
@@ -75,6 +77,7 @@ export default function PilePlanViewer({ state, onStateChange }: Props) {
     <div className="pile-plan-viewer" aria-label="Pile plan viewer">
       <div
         className="viewer-canvas"
+        title={t("viewer.selectionHelp")}
         onMouseDown={handleMouseDown}
         onMouseMove={handleMouseMove}
         onMouseUp={handleMouseUp}

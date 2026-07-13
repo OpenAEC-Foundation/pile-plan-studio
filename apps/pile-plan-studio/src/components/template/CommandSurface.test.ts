@@ -13,6 +13,18 @@ describe("Alpha command surfaces", () => {
     assert.doesNotMatch(source, /aria-label=\{t\("print"\)\}/);
   });
 
+  it("identifies the public build as an engineering alpha", () => {
+    const titleBar = readFileSync(resolve(import.meta.dirname, "TitleBar.tsx"), "utf8");
+    const enCommon = readFileSync(resolve(import.meta.dirname, "../../i18n/locales/en/common.json"), "utf8");
+    const nlCommon = readFileSync(resolve(import.meta.dirname, "../../i18n/locales/nl/common.json"), "utf8");
+
+    assert.match(titleBar, /t\("alphaLabel"\)/);
+    assert.match(enCommon, /"alphaLabel":\s*"Alpha"/);
+    assert.match(nlCommon, /"alphaLabel":\s*"Alpha"/);
+    assert.match(enCommon, /professional verification/i);
+    assert.match(nlCommon, /deskundige/);
+  });
+
   it("shows save commands only when supported by the platform", () => {
     const source = readFileSync(resolve(import.meta.dirname, "backstage/Backstage.tsx"), "utf8");
     assert.match(source, /commands\.save/);
