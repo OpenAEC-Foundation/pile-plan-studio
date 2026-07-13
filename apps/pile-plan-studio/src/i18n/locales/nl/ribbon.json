@@ -8,7 +8,7 @@
   },
   "project": {
     "overview": "Project",
-    "settings": "Projectinstellingen",
+    "information": "Projectinformatie",
     "sources": "Bronnen",
     "checks": "Controles",
     "validate": "Project valideren",
@@ -19,8 +19,8 @@
     "loadPoints": "Belastingen",
     "cpts": "Sonderingen",
     "settings": "Instellingen",
-    "cptSettings": "Sonderingen",
-    "costSettings": "Kosten"
+    "cptSettings": "Sonderingsinstellingen",
+    "costSettings": "Kosteninstellingen"
   },
   "optimize": {
     "greedy": "Greedy optimalisatie",

@@ -4,11 +4,14 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
 describe("React optimization panel", () => {
-  it("provides a permanent settings tab with simple controls and run feedback", () => {
+  it("provides a closable task panel outside the permanent context tabs", () => {
     const panel = readFileSync(resolve(import.meta.dirname, "RightPanel.tsx"), "utf8");
     const optimization = readFileSync(resolve(import.meta.dirname, "OptimizationPanel.tsx"), "utf8");
 
-    assert.match(panel, /label="Optimization"/);
+    assert.doesNotMatch(panel, /PanelTab label="Optimization"/);
+    assert.match(panel, /taskPanel === "optimization"/);
+    assert.match(panel, /onCloseTaskPanel/);
+    assert.match(optimization, /aria-label="Close optimization settings"/);
     assert.match(optimization, /Greedy optimizer/);
     assert.match(optimization, /Maximum different sizes/);
     assert.match(optimization, /Maximum different tip levels/);

@@ -27,6 +27,20 @@
   opacity: 0.55;
 }
 
+.right-panel-task-close {
+  width: 28px;
+  height: 28px;
+  border: 0;
+  background: transparent;
+  color: currentColor;
+  font-size: 18px;
+  cursor: pointer;
+}
+
+.right-panel-task-close:hover {
+  background: var(--theme-ribbon-btn-hover);
+}
+
 .right-panel-empty {
   display: grid;
   gap: 4px;

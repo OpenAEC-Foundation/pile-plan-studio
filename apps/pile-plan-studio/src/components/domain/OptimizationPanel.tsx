@@ -5,9 +5,10 @@ type Props = {
   state: ProjectState;
   onStateChange: (state: ProjectState) => void;
   onRunOptimization: () => void;
+  onClose: () => void;
 };
 
-export default function OptimizationPanel({ state, onStateChange, onRunOptimization }: Props) {
+export default function OptimizationPanel({ state, onStateChange, onRunOptimization, onClose }: Props) {
   const activeSizes = state.activePileSizes;
   const activeTips = state.activePileTipLevels;
   const limits = clampOptimizationLimits({
@@ -35,7 +36,10 @@ export default function OptimizationPanel({ state, onStateChange, onRunOptimizat
 
   return (
     <div className="optimization-panel">
-      <header className="right-panel-header"><div><h2>Optimization</h2><span>Greedy pile selection</span></div></header>
+      <header className="right-panel-header">
+        <div><h2>Optimization</h2><span>Greedy pile selection</span></div>
+        <button className="right-panel-task-close" type="button" aria-label="Close optimization settings" onClick={onClose}>&times;</button>
+      </header>
       <div className="settings-scroll">
         <p className="optimization-description">
           The Greedy optimizer adds configurations one at a time and keeps the combination that reduces total cost while covering the most load points.

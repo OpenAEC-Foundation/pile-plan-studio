@@ -42,9 +42,17 @@ type Props = {
   state: ProjectState;
   onStateChange: (nextState: ProjectState) => void;
   onRunOptimization?: () => void;
+  taskPanel?: "optimization" | null;
+  onCloseTaskPanel?: () => void;
 };
 
-export default function RightPanel({ state, onStateChange, onRunOptimization = () => undefined }: Props) {
+export default function RightPanel({
+  state,
+  onStateChange,
+  onRunOptimization = () => undefined,
+  taskPanel = null,
+  onCloseTaskPanel = () => undefined,
+}: Props) {
   const selectedLoadPoints = getSelectedLoadPoints(state);
   const selectedLabel = selectedLoadPoints.length === 1
     ? formatLoadPointPanelTitle(selectedLoadPoints[0].name)
@@ -57,10 +65,9 @@ export default function RightPanel({ state, onStateChange, onRunOptimization = (
         <PanelTab label="CPTs" mode="cpts" state={state} onStateChange={onStateChange} />
         <PanelTab label="CPT settings" mode="cpt-settings" state={state} onStateChange={onStateChange} />
         <PanelTab label="Cost settings" mode="cost-settings" state={state} onStateChange={onStateChange} />
-        <PanelTab label="Optimization" mode="optimization-settings" state={state} onStateChange={onStateChange} />
       </div>
-      {state.rightPanelMode === "optimization-settings" ? (
-        <OptimizationPanel state={state} onStateChange={onStateChange} onRunOptimization={onRunOptimization} />
+      {taskPanel === "optimization" ? (
+        <OptimizationPanel state={state} onStateChange={onStateChange} onRunOptimization={onRunOptimization} onClose={onCloseTaskPanel} />
       ) : state.rightPanelMode === "cost-settings" ? (
         <CostSettingsPanel state={state} onStateChange={onStateChange} />
       ) : state.rightPanelMode === "cpt-settings" ? (

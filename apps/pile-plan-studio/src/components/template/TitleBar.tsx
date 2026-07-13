@@ -3,11 +3,12 @@ import { useTranslation } from "react-i18next";
 import "./TitleBar.css";
 
 interface TitleBarProps {
+  onSave?: () => void;
   onSettingsClick?: () => void;
   onFeedbackClick?: () => void;
 }
 
-function TitleBar({ onSettingsClick, onFeedbackClick }: TitleBarProps) {
+function TitleBar({ onSave, onSettingsClick, onFeedbackClick }: TitleBarProps) {
   const { t } = useTranslation();
   const [isMaximized, setIsMaximized] = useState(false);
   const [appVersion, setAppVersion] = useState("");
@@ -100,45 +101,12 @@ function TitleBar({ onSettingsClick, onFeedbackClick }: TitleBarProps) {
           title={`${t("save")} (Ctrl+S)`}
           aria-label={t("save")}
           tabIndex={-1}
+          onClick={onSave}
         >
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z" />
             <polyline points="17 21 17 13 7 13 7 21" />
             <polyline points="7 3 7 8 15 8" />
-          </svg>
-        </button>
-        <button
-          className="titlebar-quick-btn"
-          title={`${t("undo")} (Ctrl+Z)`}
-          aria-label={t("undo")}
-          tabIndex={-1}
-        >
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <polyline points="1 4 1 10 7 10" />
-            <path d="M3.51 15a9 9 0 102.13-9.36L1 10" />
-          </svg>
-        </button>
-        <button
-          className="titlebar-quick-btn"
-          title={`${t("redo")} (Ctrl+Y)`}
-          aria-label={t("redo")}
-          tabIndex={-1}
-        >
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <polyline points="23 4 23 10 17 10" />
-            <path d="M20.49 15a9 9 0 11-2.13-9.36L23 10" />
-          </svg>
-        </button>
-        <button
-          className="titlebar-quick-btn"
-          title={`${t("print")} (Ctrl+P)`}
-          aria-label={t("print")}
-          tabIndex={-1}
-        >
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <polyline points="6 9 6 2 18 2 18 9" />
-            <path d="M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2" />
-            <rect x="6" y="14" width="12" height="8" />
           </svg>
         </button>
           <button

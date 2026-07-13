@@ -27,6 +27,25 @@ body {
   min-height: 0;
 }
 
+.project-information-form {
+  display: grid;
+  gap: 6px;
+  padding: 16px;
+}
+
+.project-information-form label {
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.project-information-form input {
+  min-width: 0;
+  padding: 7px 8px;
+  border: 1px solid var(--theme-dialog-input-border);
+  background: var(--theme-dialog-input-bg);
+  color: var(--theme-dialog-input-text);
+}
+
 .project-explorer,
 .properties-panel {
   display: flex;

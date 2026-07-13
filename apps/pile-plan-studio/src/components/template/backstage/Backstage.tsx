@@ -1,7 +1,6 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { useRecentFiles, type RecentFile } from "../../../hooks/useRecentFiles";
-import ExtensionManagerPanel from "./ExtensionManagerPanel";
 import ProjectImportPanel from "../../domain/ProjectImportPanel";
 import type { ImportSourceInput } from "../../.././core/coreImportContract";
 import type { ImportSummary } from "../../.././core/projectFile";
@@ -70,14 +69,6 @@ export default function Backstage({ open, onClose, onOpenSettings, onOpenFile, o
   const [activePanel, setActivePanel] = useState<string>("none");
   const { recentFiles, removeRecentFile, clearRecentFiles } = useRecentFiles();
 
-  const actionAndClose = useCallback(
-    (fn?: () => void) => {
-      onClose();
-      fn?.();
-    },
-    [onClose]
-  );
-
   useEffect(() => {
     if (!open) {
       setActivePanel("none");
@@ -96,8 +87,7 @@ export default function Backstage({ open, onClose, onOpenSettings, onOpenFile, o
     activePanel === "open" ||
     activePanel === "about" ||
     activePanel === "import" ||
-    activePanel === "export" ||
-    activePanel === "extensions";
+    activePanel === "export";
 
   return (
     <div className="backstage-overlay">
@@ -119,12 +109,6 @@ export default function Backstage({ open, onClose, onOpenSettings, onOpenFile, o
         </button>
         <div className="backstage-items">
           <MenuItem
-            icon={ICONS.new}
-            label={t("new")}
-            shortcut="Ctrl+N"
-            onClick={() => void onDownloadProject().then(onClose)}
-          />
-          <MenuItem
             icon={ICONS.open}
             label={t("open")}
             shortcut="Ctrl+O"
@@ -136,18 +120,6 @@ export default function Backstage({ open, onClose, onOpenSettings, onOpenFile, o
             label={t("save")}
             shortcut="Ctrl+S"
             onClick={() => void onDownloadProject().then(onClose)}
-          />
-          <MenuItem
-            icon={ICONS.saveAs}
-            label={t("saveAs")}
-            shortcut="Ctrl+Shift+S"
-            onClick={() => actionAndClose()}
-          />
-          <MenuItem
-            icon={ICONS.print}
-            label={t("print")}
-            shortcut="Ctrl+P"
-            onClick={() => actionAndClose()}
           />
           <Divider />
           <MenuItem
@@ -162,18 +134,15 @@ export default function Backstage({ open, onClose, onOpenSettings, onOpenFile, o
             active={activePanel === "export"}
             onClick={() => setActivePanel("export")}
           />
-          <MenuItem
-            icon={ICONS.extensions}
-            label={t("extensions")}
-            active={activePanel === "extensions"}
-            onClick={() => setActivePanel("extensions")}
-          />
           <Divider />
           <MenuItem
             icon={ICONS.preferences}
             label={t("preferences")}
             shortcut="Ctrl+,"
-            onClick={() => actionAndClose(onOpenSettings)}
+            onClick={() => {
+              onClose();
+              onOpenSettings();
+            }}
           />
           <Divider />
           <MenuItem
@@ -215,7 +184,6 @@ export default function Backstage({ open, onClose, onOpenSettings, onOpenFile, o
             return onImportProject(name, sources);
           }} />}
           {activePanel === "export" && <ExportPanel onDownloadProject={onDownloadProject} />}
-          {activePanel === "extensions" && <ExtensionManagerPanel />}
         </div>
       )}
       {/* Click anywhere outside the menu/panel to close */}

@@ -4,28 +4,23 @@ import RibbonButton from "./RibbonButton";
 import RibbonButtonStack from "./RibbonButtonStack";
 import RibbonGroup from "./RibbonGroup";
 import RibbonTab from "./RibbonTab";
+import type { RightPanelMode } from "../../../domain/selectionState.ts";
 import {
-  helpIcon,
-  ifcStatsIcon,
-  ifcValidateIcon,
   projectIcon,
-  redoIcon,
   settingsIcon,
-  undoIcon,
   viewerFitIcon,
-  viewerLoadIcon,
   viewerMeasureIcon,
-  viewerWireframeIcon,
 } from "./icons";
 import "./Ribbon.css";
 
-type TabId = "project" | "plan" | "optimize" | "view";
+type TabId = "project" | "plan" | "optimize";
 
-const TABS: TabId[] = ["project", "plan", "optimize", "view"];
+const TABS: TabId[] = ["project", "plan", "optimize"];
 
 interface RibbonProps {
   onFileTabClick?: () => void;
-  onSettingsClick?: () => void;
+  onOpenProjectInformation?: () => void;
+  onOpenRightPanel?: (mode: RightPanelMode) => void;
   onOpenOptimizationSettings?: () => void;
   onRunOptimization?: () => void;
   optimizationDisabled?: boolean;
@@ -33,7 +28,8 @@ interface RibbonProps {
 
 export default function Ribbon({
   onFileTabClick,
-  onSettingsClick,
+  onOpenProjectInformation,
+  onOpenRightPanel,
   onOpenOptimizationSettings,
   onRunOptimization,
   optimizationDisabled = false,
@@ -90,14 +86,7 @@ export default function Ribbon({
           <div className="ribbon-content">
             <div className="ribbon-groups">
               <RibbonGroup label={t("project.overview")}>
-                <RibbonButton icon={projectIcon} label={t("project.settings")} onClick={onSettingsClick} />
-                <RibbonButton icon={ifcStatsIcon} label={t("project.sources")} disabled />
-              </RibbonGroup>
-              <RibbonGroup label={t("project.checks")}>
-                <RibbonButtonStack>
-                  <RibbonButton icon={ifcValidateIcon} label={t("project.validate")} size="small" disabled />
-                  <RibbonButton icon={viewerFitIcon} label={t("project.refreshSources")} size="small" disabled />
-                </RibbonButtonStack>
+                <RibbonButton icon={projectIcon} label={t("project.information")} onClick={onOpenProjectInformation} />
               </RibbonGroup>
             </div>
           </div>
@@ -107,13 +96,13 @@ export default function Ribbon({
           <div className="ribbon-content">
             <div className="ribbon-groups">
               <RibbonGroup label={t("plan.inspect")}>
-                <RibbonButton icon={projectIcon} label={t("plan.loadPoints")} disabled />
-                <RibbonButton icon={viewerMeasureIcon} label={t("plan.cpts")} disabled />
+                <RibbonButton icon={projectIcon} label={t("plan.loadPoints")} onClick={() => onOpenRightPanel?.("load-point")} />
+                <RibbonButton icon={viewerMeasureIcon} label={t("plan.cpts")} onClick={() => onOpenRightPanel?.("cpts")} />
               </RibbonGroup>
               <RibbonGroup label={t("plan.settings")}>
                 <RibbonButtonStack>
-                  <RibbonButton icon={settingsIcon} label={t("plan.cptSettings")} size="small" disabled />
-                  <RibbonButton icon={settingsIcon} label={t("plan.costSettings")} size="small" disabled />
+                  <RibbonButton icon={settingsIcon} label={t("plan.cptSettings")} size="small" onClick={() => onOpenRightPanel?.("cpt-settings")} />
+                  <RibbonButton icon={settingsIcon} label={t("plan.costSettings")} size="small" onClick={() => onOpenRightPanel?.("cost-settings")} />
                 </RibbonButtonStack>
               </RibbonGroup>
             </div>
@@ -126,27 +115,6 @@ export default function Ribbon({
               <RibbonGroup label={t("optimize.greedy")}>
                 <RibbonButton icon={viewerFitIcon} label={t("optimize.run")} disabled={optimizationDisabled} onClick={onRunOptimization} />
                 <RibbonButton icon={settingsIcon} label={t("optimize.settings")} onClick={onOpenOptimizationSettings} />
-              </RibbonGroup>
-            </div>
-          </div>
-        );
-      case "view":
-        return (
-          <div className="ribbon-content">
-            <div className="ribbon-groups">
-              <RibbonGroup label={t("view.map")}>
-                <RibbonButton icon={viewerFitIcon} label={t("view.fit")} disabled />
-                <RibbonButton icon={viewerLoadIcon} label={t("view.legend")} disabled />
-              </RibbonGroup>
-              <RibbonGroup label={t("view.panels")}>
-                <RibbonButton icon={viewerWireframeIcon} label={t("view.panels")} disabled />
-              </RibbonGroup>
-              <RibbonGroup label={t("view.help")}>
-                <RibbonButtonStack>
-                  <RibbonButton icon={undoIcon} label={t("view.undo")} size="small" disabled />
-                  <RibbonButton icon={redoIcon} label={t("view.redo")} size="small" disabled />
-                  <RibbonButton icon={helpIcon} label={t("view.help")} size="small" disabled />
-                </RibbonButtonStack>
               </RibbonGroup>
             </div>
           </div>

@@ -9,6 +9,7 @@ import FeedbackDialog from "./components/template/feedback/FeedbackDialog";
 import StatusBar from "./components/template/StatusBar";
 import PilePlanWorkspace from "./components/domain/PilePlanWorkspace";
 import RightPanel from "./components/domain/RightPanel";
+import ProjectInformationDialog from "./components/domain/ProjectInformationDialog";
 import {
   calculatePileCostCore,
   calculateProjectAnalysisCore,
@@ -42,6 +43,8 @@ export default function App() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [backstageOpen, setBackstageOpen] = useState(false);
   const [feedbackOpen, setFeedbackOpen] = useState(false);
+  const [projectInformationOpen, setProjectInformationOpen] = useState(false);
+  const [rightTaskPanel, setRightTaskPanel] = useState<"optimization" | null>(null);
   const [theme, setTheme] = useState("light");
   const [costDefaultsLoaded, setCostDefaultsLoaded] = useState(false);
   const defaultSelectionRequestRef = useRef<typeof projectState.analysisRequest | null>(null);
@@ -305,14 +308,15 @@ export default function App() {
   return (
     <>
       <div className="app-shell" data-testid="openaec-shell">
-        <TitleBar onSettingsClick={() => setSettingsOpen(true)} onFeedbackClick={() => setFeedbackOpen(true)} />
+        <TitleBar onSave={() => void downloadProject()} onSettingsClick={() => setSettingsOpen(true)} onFeedbackClick={() => setFeedbackOpen(true)} />
         <Ribbon
           onFileTabClick={() => setBackstageOpen(true)}
-          onSettingsClick={() => setSettingsOpen(true)}
-          onOpenOptimizationSettings={() => setProjectState((current) => ({
-            ...current,
-            ...switchRightPanelMode(current, "optimization-settings"),
-          }))}
+          onOpenProjectInformation={() => setProjectInformationOpen(true)}
+          onOpenRightPanel={(mode) => {
+            setRightTaskPanel(null);
+            setProjectState((current) => ({ ...current, ...switchRightPanelMode(current, mode) }));
+          }}
+          onOpenOptimizationSettings={() => setRightTaskPanel("optimization")}
           onRunOptimization={runGreedyOptimization}
           optimizationDisabled={optimizationDisabled}
         />
@@ -349,6 +353,8 @@ export default function App() {
             state={projectState}
             onStateChange={setProjectState}
             onRunOptimization={runGreedyOptimization}
+            taskPanel={rightTaskPanel}
+            onCloseTaskPanel={() => setRightTaskPanel(null)}
           />
         </div>
         <StatusBar />
@@ -377,6 +383,12 @@ export default function App() {
         onClose={() => setSettingsOpen(false)}
         theme={theme}
         onThemeChange={setTheme}
+      />
+      <ProjectInformationDialog
+        open={projectInformationOpen}
+        projectName={projectState.name}
+        onClose={() => setProjectInformationOpen(false)}
+        onSave={(name) => setProjectState((current) => ({ ...current, name }))}
       />
       <FeedbackDialog open={feedbackOpen} onClose={() => setFeedbackOpen(false)} />
     </>
