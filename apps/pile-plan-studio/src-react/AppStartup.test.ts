@@ -45,4 +45,18 @@ describe("React app startup", () => {
     assert.match(source, /defaultPileSelectionPending/);
     assert.match(source, /pileOptionsByLoadPointId\.size !== projectState\.loadPoints\.length/);
   });
+
+  it("keeps default selection pending until the guarded request finishes", () => {
+    const source = readFileSync(resolve(import.meta.dirname, "App.tsx"), "utf8");
+    const chooserIndex = source.indexOf("chooseDefaultPileOptionsCore({");
+    const effectStart = source.lastIndexOf("useEffect(() =>", chooserIndex);
+    const beforeChooser = source.slice(effectStart, chooserIndex);
+
+    assert.match(source, /defaultSelectionRequestRef/);
+    assert.doesNotMatch(beforeChooser, /defaultPileSelectionPending:\s*false/);
+    assert.match(
+      source.slice(chooserIndex),
+      /selectedPileOptionKeysByLoadPoint:\s*choices,[\s\S]*?defaultPileSelectionPending:\s*false/,
+    );
+  });
 });

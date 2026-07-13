@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import sampleProjectText from "../../../sample_project/sample_project.ifcpp?raw";
 import TitleBar from "./components/template/TitleBar";
@@ -36,6 +36,7 @@ export default function App() {
   const [feedbackOpen, setFeedbackOpen] = useState(false);
   const [theme, setTheme] = useState("light");
   const [costDefaultsLoaded, setCostDefaultsLoaded] = useState(false);
+  const defaultSelectionRequestRef = useRef<typeof projectState.analysisRequest | null>(null);
 
   const downloadProject = async () => {
     const project = createIfcppProject({
@@ -138,10 +139,10 @@ export default function App() {
     }
 
     const analysisRequest = projectState.analysisRequest;
-    setProjectState((current) => current.analysisRequest !== analysisRequest ? current : ({
-      ...current,
-      defaultPileSelectionPending: false,
-    }));
+    if (defaultSelectionRequestRef.current === analysisRequest) {
+      return;
+    }
+    defaultSelectionRequestRef.current = analysisRequest;
 
     chooseDefaultPileOptionsCore({
       optionsByLoadPointId: projectState.pileOptionsByLoadPointId,
@@ -150,14 +151,20 @@ export default function App() {
       setProjectState((current) => current.analysisRequest !== analysisRequest ? current : ({
         ...current,
         selectedPileOptionKeysByLoadPoint: choices,
+        defaultPileSelectionPending: false,
         analysisError: null,
       }));
     }).catch((error: unknown) => {
       console.error("Failed to choose default pile options", error);
       setProjectState((current) => current.analysisRequest !== analysisRequest ? current : ({
         ...current,
+        defaultPileSelectionPending: false,
         analysisError: error instanceof Error ? error.message : String(error),
       }));
+    }).finally(() => {
+      if (defaultSelectionRequestRef.current === analysisRequest) {
+        defaultSelectionRequestRef.current = null;
+      }
     });
   }, [
     costDefaultsLoaded,
