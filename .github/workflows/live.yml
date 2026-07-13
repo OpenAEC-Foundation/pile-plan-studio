@@ -1,0 +1,32 @@
+name: Deploy site
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-site
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    uses: OpenAEC-Foundation/github/.github/workflows/deploy-site.yml@main
+    with:
+      deploy_host: ${{ vars.DEPLOY_HOST }}
+      deploy_port: ${{ vars.DEPLOY_PORT }}
+      deploy_user: ${{ vars.DEPLOY_USER }}
+      deploy_path: /var/www/pile-plan-studio.open-aec.com
+      node_version: "22"
+      setup_command: |
+        curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
+        rustup target add wasm32-unknown-unknown
+      install_command: cd apps/pile-plan-studio && npm ci
+      build_command: cd apps/pile-plan-studio && npm run build
+      deploy_source: apps/pile-plan-studio/dist
+    secrets:
+      deploy_ssh_key: ${{ secrets.DEPLOY_SSH_KEY }}

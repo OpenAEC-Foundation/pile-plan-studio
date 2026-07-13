@@ -41,9 +41,8 @@ engineer's responsibility for the foundation design.
 
 ## Try or Install
 
-The browser demo is the primary way to explore the alpha and opens directly with
-the sample project. Its public OpenAEC URL is added here when deployment is
-active.
+The [browser demo](https://pile-plan-studio.open-aec.com/) is the primary way to
+explore the alpha and opens directly with the sample project.
 
 Signed Windows x64 installers are published on the
 [GitHub Releases page](https://github.com/OpenAEC-Foundation/pile-plan-studio/releases).
