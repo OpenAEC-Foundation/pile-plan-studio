@@ -3,6 +3,7 @@
 export const memory: WebAssembly.Memory;
 export const calculate_pile_option_cost: (a: any) => [number, number, number];
 export const calculate_pile_options: (a: any) => [number, number, number];
+export const calculate_project_analysis: (a: any) => [number, number, number];
 export const calculate_selected_cpts: (a: any) => [number, number, number];
 export const choose_default_option: (a: any) => [number, number, number];
 export const cpt_frd_rows: (a: any) => [number, number, number];

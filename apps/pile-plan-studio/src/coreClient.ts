@@ -2,6 +2,7 @@ import { invoke } from "@tauri-apps/api/core";
 import initWasm, {
   calculate_pile_option_cost,
   calculate_pile_options,
+  calculate_project_analysis,
   calculate_selected_cpts,
   choose_default_option,
   cpt_frd_rows,
@@ -21,6 +22,7 @@ import {
   type LoadPoint,
   type PileConfigurationOption,
   type PileCostSettings,
+  type ProjectAnalysisResult,
   type SelectedCpt,
 } from "./projectTypes";
 import type { IfcppProject } from "./projectFile.ts";
@@ -39,6 +41,12 @@ type CoreCptSelectionSettings = {
 type CoreCptSelectionSettingsByLoadPoint = Record<string, CoreCptSelectionSettings>;
 type CoreCptSelectionSettingsMapByLoadPoint = Map<number, CoreCptSelectionSettings>;
 type ManualCptIdsByLoadPoint = Map<number, number[]>;
+
+type CoreProjectAnalysisResult = {
+  pile_options_by_load_point: Map<number, CorePileConfigurationOption[]> | Record<string, CorePileConfigurationOption[]>;
+  selected_cpts_by_load_point: Map<number, SelectedCpt[]> | Record<string, SelectedCpt[]>;
+  cpt_frd_rows_by_cpt_id: Map<number, CptBearingCapacityRow[]> | Record<string, CptBearingCapacityRow[]> | null;
+};
 
 let wasmReady: Promise<void> | null = null;
 
@@ -111,6 +119,47 @@ export async function calculatePileOptionsCore(input: {
       options.map(fromCorePileOption),
     ]),
   );
+}
+
+export async function calculateProjectAnalysisCore(input: {
+  loadPoints: LoadPoint[];
+  cpts: Cpt[];
+  bearingCapacities: BearingCapacity[];
+  globalSettings: CptSelectionSettings;
+  settingsByLoadPoint: Map<number, CptSelectionSettings>;
+  manualCptIdsByLoadPoint: ManualCptIdsByLoadPoint;
+  includeCptFrdRows: boolean;
+}): Promise<ProjectAnalysisResult> {
+  const wasmRequest = {
+    load_points: input.loadPoints,
+    cpts: input.cpts,
+    bearing_capacities: input.bearingCapacities,
+    global_settings: toCoreSettings(input.globalSettings),
+    settings_by_load_point: toCoreSettingsMapByLoadPoint(input.settingsByLoadPoint),
+    manual_cpt_ids_by_load_point: toWasmNumberKeyedMap(input.manualCptIdsByLoadPoint),
+    include_cpt_frd_rows: input.includeCptFrdRows,
+  };
+  let result: CoreProjectAnalysisResult;
+  if (!isTauriRuntime()) {
+    await initializeWasm();
+    result = calculate_project_analysis(wasmRequest) as CoreProjectAnalysisResult;
+  } else {
+    result = await invoke<CoreProjectAnalysisResult>("calculate_project_analysis", {
+      request: {
+        ...wasmRequest,
+        settings_by_load_point: toCoreSettingsByLoadPoint(input.settingsByLoadPoint),
+        manual_cpt_ids_by_load_point: toStringKeyedRecord(input.manualCptIdsByLoadPoint),
+      },
+    });
+  }
+
+  return {
+    pileOptionsByLoadPointId: corePileOptionsMapToFrontend(result.pile_options_by_load_point),
+    selectedCptsByLoadPointId: numericMap(result.selected_cpts_by_load_point),
+    cptFrdRowsByCptId: result.cpt_frd_rows_by_cpt_id === null
+      ? null
+      : numericMap(result.cpt_frd_rows_by_cpt_id),
+  };
 }
 
 export async function calculatePileCostCore(input: {
@@ -246,6 +295,11 @@ function corePileOptionsMapToFrontend(value: unknown): Map<number, PileConfigura
       (options as CorePileConfigurationOption[]).map(fromCorePileOption),
     ]),
   );
+}
+
+function numericMap<T>(value: Map<number, T> | Record<string, T>): Map<number, T> {
+  const entries = value instanceof Map ? [...value.entries()] : Object.entries(value);
+  return new Map(entries.map(([key, item]) => [Number(key), item]));
 }
 
 function toCorePileOptionsByLoadPoint(

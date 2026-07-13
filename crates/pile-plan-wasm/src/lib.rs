@@ -1,11 +1,11 @@
 use std::collections::HashMap;
 
 use pile_plan_core::{
-    bearing_capacity_rows_for_cpt, build_pile_options_by_load_point, calculate_pile_cost,
-    choose_default_pile_option, greedy_optimize_pile_choices, import_project_from_generic_sources,
-    selected_cpts, write_ifcpp_string, CptSelectionSettings, GreedyOptimizationSettings,
-    GreedyOptimizedPileChoice, ImportSource, PileConfigurationOption, PileCostSettings,
-    PilePlanProject, ProjectBearingCapacity, ProjectCpt, ProjectLoadPoint,
+    bearing_capacity_rows_for_cpt, build_pile_options_by_load_point, build_project_analysis,
+    calculate_pile_cost, choose_default_pile_option, greedy_optimize_pile_choices,
+    import_project_from_generic_sources, selected_cpts, write_ifcpp_string, CptSelectionSettings,
+    GreedyOptimizationSettings, GreedyOptimizedPileChoice, ImportSource, PileConfigurationOption,
+    PileCostSettings, PilePlanProject, ProjectBearingCapacity, ProjectCpt, ProjectLoadPoint,
 };
 use serde::{Deserialize, Serialize};
 use wasm_bindgen::prelude::*;
@@ -26,6 +26,17 @@ pub struct PileOptionsRequest {
     pub global_settings: CptSelectionSettings,
     pub settings_by_load_point: HashMap<u32, CptSelectionSettings>,
     pub manual_cpt_ids_by_load_point: HashMap<u32, Vec<u32>>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct ProjectAnalysisRequest {
+    pub load_points: Vec<ProjectLoadPoint>,
+    pub cpts: Vec<ProjectCpt>,
+    pub bearing_capacities: Vec<ProjectBearingCapacity>,
+    pub global_settings: CptSelectionSettings,
+    pub settings_by_load_point: HashMap<u32, CptSelectionSettings>,
+    pub manual_cpt_ids_by_load_point: HashMap<u32, Vec<u32>>,
+    pub include_cpt_frd_rows: bool,
 }
 
 #[derive(Debug, Deserialize)]
@@ -93,6 +104,26 @@ pub fn calculate_pile_options(request: JsValue) -> Result<JsValue, JsValue> {
         &request.manual_cpt_ids_by_load_point,
     );
 
+    to_js_value(&result)
+}
+
+#[wasm_bindgen]
+pub fn calculate_project_analysis(request: JsValue) -> Result<JsValue, JsValue> {
+    let request: ProjectAnalysisRequest = from_js_value(request)?;
+    let result = build_project_analysis(
+        &request.load_points,
+        &request.cpts,
+        &request.bearing_capacities,
+        |load_point| {
+            request
+                .settings_by_load_point
+                .get(&load_point.id)
+                .cloned()
+                .unwrap_or_else(|| request.global_settings.clone())
+        },
+        &request.manual_cpt_ids_by_load_point,
+        request.include_cpt_frd_rows,
+    );
     to_js_value(&result)
 }
 
@@ -205,5 +236,24 @@ mod tests {
         );
 
         assert_eq!(selected[0].cpt.id, 11);
+    }
+
+    #[test]
+    fn project_analysis_request_supports_optional_cpt_rows() {
+        let request = ProjectAnalysisRequest {
+            load_points: vec![],
+            cpts: vec![],
+            bearing_capacities: vec![],
+            global_settings: CptSelectionSettings {
+                algorithm: CptSelectionAlgorithm::Quadrants,
+                max_distance_m: 25.0,
+                max_angle_degrees: 120.0,
+            },
+            settings_by_load_point: HashMap::new(),
+            manual_cpt_ids_by_load_point: HashMap::new(),
+            include_cpt_frd_rows: false,
+        };
+
+        assert!(!request.include_cpt_frd_rows);
     }
 }

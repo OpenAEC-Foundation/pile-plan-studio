@@ -5,6 +5,8 @@ export function calculate_pile_option_cost(request: any): any;
 
 export function calculate_pile_options(request: any): any;
 
+export function calculate_project_analysis(request: any): any;
+
 export function calculate_selected_cpts(request: any): any;
 
 export function choose_default_option(request: any): any;
@@ -23,6 +25,7 @@ export interface InitOutput {
     readonly memory: WebAssembly.Memory;
     readonly calculate_pile_option_cost: (a: any) => [number, number, number];
     readonly calculate_pile_options: (a: any) => [number, number, number];
+    readonly calculate_project_analysis: (a: any) => [number, number, number];
     readonly calculate_selected_cpts: (a: any) => [number, number, number];
     readonly choose_default_option: (a: any) => [number, number, number];
     readonly cpt_frd_rows: (a: any) => [number, number, number];

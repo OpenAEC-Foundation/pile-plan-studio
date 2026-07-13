@@ -28,6 +28,18 @@ export function calculate_pile_options(request) {
  * @param {any} request
  * @returns {any}
  */
+export function calculate_project_analysis(request) {
+    const ret = wasm.calculate_project_analysis(request);
+    if (ret[2]) {
+        throw takeFromExternrefTable0(ret[1]);
+    }
+    return takeFromExternrefTable0(ret[0]);
+}
+
+/**
+ * @param {any} request
+ * @returns {any}
+ */
 export function calculate_selected_cpts(request) {
     const ret = wasm.calculate_selected_cpts(request);
     if (ret[2]) {

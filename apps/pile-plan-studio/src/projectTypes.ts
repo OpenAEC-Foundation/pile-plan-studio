@@ -70,6 +70,12 @@ export type PileConfigurationOption = {
   missing_cpt_ids: number[];
 };
 
+export type ProjectAnalysisResult = {
+  pileOptionsByLoadPointId: Map<number, PileConfigurationOption[]>;
+  selectedCptsByLoadPointId: Map<number, SelectedCpt[]>;
+  cptFrdRowsByCptId: Map<number, CptBearingCapacityRow[]> | null;
+};
+
 export type GreedyOptimizationSettings = {
   max_pile_sizes: number;
   max_pile_tip_levels: number;
