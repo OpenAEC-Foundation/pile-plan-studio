@@ -29,4 +29,20 @@ describe("React app startup", () => {
     assert.match(appSource, /analysisError/);
     assert.match(panelSource, /state\.analysisError/);
   });
+
+  it("initializes default piles only for the sample and newly imported projects", () => {
+    const source = readFileSync(resolve(import.meta.dirname, "App.tsx"), "utf8");
+
+    assert.match(source, /createInitialProjectState\(\s*sampleProjectText,\s*\{ initializeDefaultPiles: true \},?\s*\)/);
+    assert.match(source, /createInitialProjectState\(withCosts, \{ initializeDefaultPiles: true \}\)/);
+    assert.match(source, /createInitialProjectState\(\s*await file\.text\(\),\s*\{ initializeDefaultPiles: false \},?\s*\)/);
+  });
+
+  it("runs one guarded batched default selection after complete analysis", () => {
+    const source = readFileSync(resolve(import.meta.dirname, "App.tsx"), "utf8");
+
+    assert.match(source, /chooseDefaultPileOptionsCore/);
+    assert.match(source, /defaultPileSelectionPending/);
+    assert.match(source, /pileOptionsByLoadPointId\.size !== projectState\.loadPoints\.length/);
+  });
 });

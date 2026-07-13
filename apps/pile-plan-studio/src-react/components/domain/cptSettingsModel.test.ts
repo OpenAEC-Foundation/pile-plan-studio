@@ -65,6 +65,7 @@ function minimalState(overrides: Partial<ProjectState> = {}): ProjectState {
     activePileTipLevels: [],
     analysisError: null,
     analysisRequest: { revision: 0, loadPointIds: null },
+    defaultPileSelectionPending: false,
     bearingCapacities: [],
     bounds: { minX: 0, maxX: 1, minY: 0, maxY: 1 },
     cptFrdRowsByCptId: new Map(),

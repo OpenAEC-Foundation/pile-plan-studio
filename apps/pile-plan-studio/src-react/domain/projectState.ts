@@ -52,10 +52,18 @@ export type ProjectState = LoadedProjectData & {
   cptSelectionEditDraft: CptSelectionEditDraft | null;
   analysisRequest: AnalysisRequest;
   analysisError: string | null;
+  defaultPileSelectionPending: boolean;
   legendSelectionFilter: LegendSelectionFilter;
 };
 
-export function createInitialProjectState(input: string | IfcppProject): ProjectState {
+type InitialProjectStateOptions = {
+  initializeDefaultPiles: boolean;
+};
+
+export function createInitialProjectState(
+  input: string | IfcppProject,
+  options: InitialProjectStateOptions,
+): ProjectState {
   const projectData = loadIfcppProjectData(input);
   const firstLoadPointId = projectData.loadPoints[0]?.id ?? null;
 
@@ -97,6 +105,7 @@ export function createInitialProjectState(input: string | IfcppProject): Project
     cptSelectionEditDraft: null,
     analysisRequest: { revision: 0, loadPointIds: null },
     analysisError: null,
+    defaultPileSelectionPending: options.initializeDefaultPiles,
     legendSelectionFilter: { pileSizes: [], pileTipLevels: [] },
   };
 }

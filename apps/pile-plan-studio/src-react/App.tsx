@@ -12,6 +12,7 @@ import RightPanel from "./components/domain/RightPanel";
 import {
   calculatePileCostCore,
   calculateProjectAnalysisCore,
+  chooseDefaultPileOptionsCore,
   importProjectFromFilesCore,
 } from "../src/coreClient";
 import type { ImportSourceInput } from "../src/coreImportContract";
@@ -26,11 +27,15 @@ const PILE_COST_DEFAULTS_KEY = "pile-cost-defaults";
 
 export default function App() {
   const { t } = useTranslation();
-  const [projectState, setProjectState] = useState(() => createInitialProjectState(sampleProjectText));
+  const [projectState, setProjectState] = useState(() => createInitialProjectState(
+    sampleProjectText,
+    { initializeDefaultPiles: true },
+  ));
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [backstageOpen, setBackstageOpen] = useState(false);
   const [feedbackOpen, setFeedbackOpen] = useState(false);
   const [theme, setTheme] = useState("light");
+  const [costDefaultsLoaded, setCostDefaultsLoaded] = useState(false);
 
   const downloadProject = async () => {
     const project = createIfcppProject({
@@ -64,11 +69,13 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    getSetting<PileCostSettings | null>(PILE_COST_DEFAULTS_KEY, null).then((saved) => {
-      if (saved?.items.length) {
-        setProjectState((current) => ({ ...current, pileCostSettings: saved }));
-      }
-    });
+    getSetting<PileCostSettings | null>(PILE_COST_DEFAULTS_KEY, null)
+      .then((saved) => {
+        if (saved?.items.length) {
+          setProjectState((current) => ({ ...current, pileCostSettings: saved }));
+        }
+      })
+      .finally(() => setCostDefaultsLoaded(true));
   }, []);
 
   useEffect(() => {
@@ -120,6 +127,46 @@ export default function App() {
       cancelled = true;
     };
   }, [projectState.analysisRequest]);
+
+  useEffect(() => {
+    if (
+      !costDefaultsLoaded
+      || !projectState.defaultPileSelectionPending
+      || projectState.pileOptionsByLoadPointId.size !== projectState.loadPoints.length
+    ) {
+      return;
+    }
+
+    const analysisRequest = projectState.analysisRequest;
+    setProjectState((current) => current.analysisRequest !== analysisRequest ? current : ({
+      ...current,
+      defaultPileSelectionPending: false,
+    }));
+
+    chooseDefaultPileOptionsCore({
+      optionsByLoadPointId: projectState.pileOptionsByLoadPointId,
+      costSettings: projectState.pileCostSettings,
+    }).then((choices) => {
+      setProjectState((current) => current.analysisRequest !== analysisRequest ? current : ({
+        ...current,
+        selectedPileOptionKeysByLoadPoint: choices,
+        analysisError: null,
+      }));
+    }).catch((error: unknown) => {
+      console.error("Failed to choose default pile options", error);
+      setProjectState((current) => current.analysisRequest !== analysisRequest ? current : ({
+        ...current,
+        analysisError: error instanceof Error ? error.message : String(error),
+      }));
+    });
+  }, [
+    costDefaultsLoaded,
+    projectState.analysisRequest,
+    projectState.defaultPileSelectionPending,
+    projectState.loadPoints.length,
+    projectState.pileCostSettings,
+    projectState.pileOptionsByLoadPointId,
+  ]);
 
   useEffect(() => {
     let cancelled = false;
@@ -199,11 +246,14 @@ export default function App() {
         onImportProject={async (projectName: string, sources: ImportSourceInput[]) => {
           const project = await importProjectFromFilesCore({ projectName, sources });
           const withCosts = applyDefaultPileCostSettings(project, projectState.pileCostSettings);
-          setProjectState(createInitialProjectState(withCosts));
+          setProjectState(createInitialProjectState(withCosts, { initializeDefaultPiles: true }));
           return getImportSummary(project);
         }}
         onOpenProjectFile={async (file: File) => {
-          const project = createInitialProjectState(await file.text());
+          const project = createInitialProjectState(
+            await file.text(),
+            { initializeDefaultPiles: false },
+          );
           setProjectState(project);
         }}
         onDownloadProject={downloadProject}

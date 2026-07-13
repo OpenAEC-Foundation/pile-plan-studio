@@ -10,7 +10,7 @@ describe("PilePlanViewer inputs", () => {
       resolve(import.meta.dirname, "../../../../../sample_project/sample_project.ifcpp"),
       "utf8",
     );
-    const state = createInitialProjectState(sampleProjectText);
+    const state = createInitialProjectState(sampleProjectText, { initializeDefaultPiles: true });
 
     assert.ok(state.loadPoints.length > 0);
     assert.ok(state.cpts.length > 0);
