@@ -96,6 +96,13 @@ pub struct CptBearingCapacityRow {
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+pub struct ProjectAnalysisResult {
+    pub pile_options_by_load_point: HashMap<u32, Vec<PileConfigurationOption>>,
+    pub selected_cpts_by_load_point: HashMap<u32, Vec<SelectedCpt>>,
+    pub cpt_frd_rows_by_cpt_id: Option<HashMap<u32, Vec<CptBearingCapacityRow>>>,
+}
+
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
 pub struct GreedyOptimizationSettings {
     pub max_pile_sizes: usize,
     pub max_pile_tip_levels: usize,
@@ -345,9 +352,18 @@ pub fn pile_configuration_options(
     let configurations = unique_pile_configurations(bearing_capacities);
     let index = bearing_capacity_index(bearing_capacities);
 
+    pile_configuration_options_with_index(design_load_kn, selected_cpts, &configurations, &index)
+}
+
+fn pile_configuration_options_with_index(
+    design_load_kn: f64,
+    selected_cpts: &[SelectedCpt],
+    configurations: &[(u32, f64)],
+    index: &HashMap<CapacityKey, &BearingCapacity>,
+) -> Vec<PileConfigurationOption> {
     configurations
-        .into_iter()
-        .map(|(pile_size_mm, pile_tip_level_m)| {
+        .iter()
+        .map(|&(pile_size_mm, pile_tip_level_m)| {
             let matching_capacities: Vec<_> = selected_cpts
                 .iter()
                 .map(|selection| {
@@ -393,27 +409,80 @@ pub fn build_pile_options_by_load_point(
     settings_by_load_point: impl Fn(&LoadPoint) -> CptSelectionSettings,
     manual_cpt_ids_by_load_point: &HashMap<u32, Vec<u32>>,
 ) -> HashMap<u32, Vec<PileConfigurationOption>> {
-    load_points
-        .iter()
-        .map(|load_point| {
-            let settings = settings_by_load_point(load_point);
-            let selected_cpts = selected_cpts(
-                load_point,
-                cpts,
-                &settings,
-                manual_cpt_ids_by_load_point
-                    .get(&load_point.id)
-                    .map(|ids| ids.as_slice()),
-            );
-            let options = pile_configuration_options(
-                load_point.design_load_kn,
-                &selected_cpts,
-                bearing_capacities,
-            );
+    build_project_analysis(
+        load_points,
+        cpts,
+        bearing_capacities,
+        settings_by_load_point,
+        manual_cpt_ids_by_load_point,
+        false,
+    )
+    .pile_options_by_load_point
+}
 
-            (load_point.id, options)
-        })
-        .collect()
+pub fn build_project_analysis(
+    load_points: &[LoadPoint],
+    cpts: &[Cpt],
+    bearing_capacities: &[BearingCapacity],
+    settings_by_load_point: impl Fn(&LoadPoint) -> CptSelectionSettings,
+    manual_cpt_ids_by_load_point: &HashMap<u32, Vec<u32>>,
+    include_cpt_frd_rows: bool,
+) -> ProjectAnalysisResult {
+    let configurations = unique_pile_configurations(bearing_capacities);
+    let capacity_index = bearing_capacity_index(bearing_capacities);
+    let mut pile_options_by_load_point = HashMap::new();
+    let mut selected_cpts_by_load_point = HashMap::new();
+
+    for load_point in load_points {
+        let settings = settings_by_load_point(load_point);
+        let selections = selected_cpts(
+            load_point,
+            cpts,
+            &settings,
+            manual_cpt_ids_by_load_point
+                .get(&load_point.id)
+                .map(Vec::as_slice),
+        );
+        let options = pile_configuration_options_with_index(
+            load_point.design_load_kn,
+            &selections,
+            &configurations,
+            &capacity_index,
+        );
+        selected_cpts_by_load_point.insert(load_point.id, selections);
+        pile_options_by_load_point.insert(load_point.id, options);
+    }
+
+    ProjectAnalysisResult {
+        pile_options_by_load_point,
+        selected_cpts_by_load_point,
+        cpt_frd_rows_by_cpt_id: include_cpt_frd_rows
+            .then(|| grouped_bearing_capacity_rows(bearing_capacities)),
+    }
+}
+
+fn grouped_bearing_capacity_rows(
+    bearing_capacities: &[BearingCapacity],
+) -> HashMap<u32, Vec<CptBearingCapacityRow>> {
+    let mut rows_by_cpt: HashMap<u32, Vec<CptBearingCapacityRow>> = HashMap::new();
+    for capacity in bearing_capacities {
+        rows_by_cpt
+            .entry(capacity.cpt_id)
+            .or_default()
+            .push(CptBearingCapacityRow {
+                pile_size_mm: capacity.pile_size_mm,
+                pile_tip_level_m: capacity.pile_tip_level_m,
+                frd_kn: capacity.frd_kn,
+            });
+    }
+    for rows in rows_by_cpt.values_mut() {
+        rows.sort_by(|left, right| {
+            left.pile_size_mm
+                .cmp(&right.pile_size_mm)
+                .then_with(|| right.pile_tip_level_m.total_cmp(&left.pile_tip_level_m))
+        });
+    }
+    rows_by_cpt
 }
 
 pub fn calculate_pile_cost(
@@ -1009,6 +1078,87 @@ mod tests {
                 },
             ]
         );
+    }
+
+    #[test]
+    fn project_analysis_batches_options_selections_and_cpt_rows() {
+        let load = load_point();
+        let cpts = vec![cpt(11, 10.0, 10.0), cpt(12, -10.0, 10.0)];
+        let capacities = vec![
+            capacity(11, -18.0, 320, 700.0),
+            capacity(12, -18.0, 320, 650.0),
+        ];
+        let settings = CptSelectionSettings {
+            algorithm: CptSelectionAlgorithm::Quadrants,
+            max_distance_m: 25.0,
+            max_angle_degrees: 120.0,
+        };
+
+        let result = build_project_analysis(
+            std::slice::from_ref(&load),
+            &cpts,
+            &capacities,
+            |_| settings.clone(),
+            &HashMap::new(),
+            true,
+        );
+
+        assert_eq!(
+            result.selected_cpts_by_load_point[&load.id],
+            selected_cpts(&load, &cpts, &settings, None)
+        );
+        assert_eq!(
+            result.pile_options_by_load_point[&load.id],
+            pile_configuration_options(
+                load.design_load_kn,
+                &result.selected_cpts_by_load_point[&load.id],
+                &capacities,
+            )
+        );
+        assert_eq!(
+            result.cpt_frd_rows_by_cpt_id.as_ref().unwrap()[&11].len(),
+            1
+        );
+        assert_eq!(
+            result.cpt_frd_rows_by_cpt_id.as_ref().unwrap()[&12].len(),
+            1
+        );
+    }
+
+    #[test]
+    fn project_analysis_can_return_partial_load_points_without_cpt_rows() {
+        let mut second = load_point();
+        second.id = 2;
+        let result = build_project_analysis(
+            std::slice::from_ref(&second),
+            &[cpt(11, 10.0, 10.0)],
+            &[capacity(11, -18.0, 320, 700.0)],
+            |_| CptSelectionSettings {
+                algorithm: CptSelectionAlgorithm::Quadrants,
+                max_distance_m: 25.0,
+                max_angle_degrees: 120.0,
+            },
+            &HashMap::new(),
+            false,
+        );
+
+        assert_eq!(
+            result
+                .pile_options_by_load_point
+                .keys()
+                .copied()
+                .collect::<Vec<_>>(),
+            vec![2]
+        );
+        assert_eq!(
+            result
+                .selected_cpts_by_load_point
+                .keys()
+                .copied()
+                .collect::<Vec<_>>(),
+            vec![2]
+        );
+        assert!(result.cpt_frd_rows_by_cpt_id.is_none());
     }
 
     #[test]
