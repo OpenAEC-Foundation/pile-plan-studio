@@ -6,6 +6,7 @@ export const calculate_pile_options: (a: any) => [number, number, number];
 export const calculate_project_analysis: (a: any) => [number, number, number];
 export const calculate_selected_cpts: (a: any) => [number, number, number];
 export const choose_default_option: (a: any) => [number, number, number];
+export const choose_default_options: (a: any) => [number, number, number];
 export const cpt_frd_rows: (a: any) => [number, number, number];
 export const greedy_optimize: (a: any) => [number, number, number];
 export const import_project_from_files: (a: any) => [number, number, number];

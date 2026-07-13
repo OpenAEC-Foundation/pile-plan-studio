@@ -11,6 +11,8 @@ export function calculate_selected_cpts(request: any): any;
 
 export function choose_default_option(request: any): any;
 
+export function choose_default_options(request: any): any;
+
 export function cpt_frd_rows(request: any): any;
 
 export function greedy_optimize(request: any): any;
@@ -28,6 +30,7 @@ export interface InitOutput {
     readonly calculate_project_analysis: (a: any) => [number, number, number];
     readonly calculate_selected_cpts: (a: any) => [number, number, number];
     readonly choose_default_option: (a: any) => [number, number, number];
+    readonly choose_default_options: (a: any) => [number, number, number];
     readonly cpt_frd_rows: (a: any) => [number, number, number];
     readonly greedy_optimize: (a: any) => [number, number, number];
     readonly import_project_from_files: (a: any) => [number, number, number];

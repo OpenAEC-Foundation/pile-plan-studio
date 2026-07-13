@@ -2,10 +2,12 @@ use std::collections::HashMap;
 
 use pile_plan_core::{
     bearing_capacity_rows_for_cpt, build_pile_options_by_load_point, build_project_analysis,
-    calculate_pile_cost, choose_default_pile_option, greedy_optimize_pile_choices,
+    calculate_pile_cost, choose_default_pile_option, choose_default_pile_options,
+    greedy_optimize_pile_choices,
     import_project_from_generic_sources, selected_cpts, write_ifcpp_string, CptSelectionSettings,
-    GreedyOptimizationSettings, GreedyOptimizedPileChoice, ImportSource, PileConfigurationOption,
-    PileCostSettings, PilePlanProject, ProjectBearingCapacity, ProjectCpt, ProjectLoadPoint,
+    GreedyOptimizationSettings, GreedyOptimizedPileChoice, ImportSource, PileConfigurationKey,
+    PileConfigurationOption, PileCostSettings, PilePlanProject, ProjectBearingCapacity, ProjectCpt,
+    ProjectLoadPoint,
 };
 use serde::{Deserialize, Serialize};
 use wasm_bindgen::prelude::*;
@@ -50,6 +52,12 @@ pub struct PileCostRequest {
 pub struct DefaultPileOptionRequest {
     pub options: Vec<PileConfigurationOption>,
     pub settings: PileCostSettings,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct DefaultPileOptionsRequest {
+    pub options_by_load_point: HashMap<u32, Vec<PileConfigurationOption>>,
+    pub cost_settings: PileCostSettings,
 }
 
 #[derive(Debug, Deserialize)]
@@ -143,6 +151,16 @@ pub fn calculate_pile_option_cost(request: JsValue) -> Result<JsValue, JsValue> 
 pub fn choose_default_option(request: JsValue) -> Result<JsValue, JsValue> {
     let request: DefaultPileOptionRequest = from_js_value(request)?;
     to_js_value(&choose_default_pile_option(&request.options, &request.settings).cloned())
+}
+
+#[wasm_bindgen]
+pub fn choose_default_options(request: JsValue) -> Result<JsValue, JsValue> {
+    let request: DefaultPileOptionsRequest = from_js_value(request)?;
+    let choices: HashMap<u32, PileConfigurationKey> = choose_default_pile_options(
+        &request.options_by_load_point,
+        &request.cost_settings,
+    );
+    to_js_value(&choices)
 }
 
 #[wasm_bindgen]
@@ -255,5 +273,19 @@ mod tests {
         };
 
         assert!(!request.include_cpt_frd_rows);
+    }
+
+    #[test]
+    fn default_pile_options_request_accepts_grouped_options() {
+        let request = DefaultPileOptionsRequest {
+            options_by_load_point: HashMap::from([(1, vec![])]),
+            cost_settings: PileCostSettings {
+                schema_version: 1,
+                pile_head_level_m: 0.0,
+                items: vec![],
+            },
+        };
+
+        assert!(request.options_by_load_point.contains_key(&1));
     }
 }

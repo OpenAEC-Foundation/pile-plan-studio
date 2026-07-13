@@ -5,6 +5,7 @@ import initWasm, {
   calculate_project_analysis,
   calculate_selected_cpts,
   choose_default_option,
+  choose_default_options,
   cpt_frd_rows,
   greedy_optimize,
   import_project_from_files,
@@ -21,6 +22,7 @@ import {
   type GreedyOptimizedPileChoice,
   type LoadPoint,
   type PileConfigurationOption,
+  type PileConfigurationKey,
   type PileCostSettings,
   type ProjectAnalysisResult,
   type SelectedCpt,
@@ -211,6 +213,36 @@ export async function chooseDefaultPileOptionCore(input: {
   });
 
   return option ? fromCorePileOption(option) : null;
+}
+
+export async function chooseDefaultPileOptionsCore(input: {
+  optionsByLoadPointId: Map<number, PileConfigurationOption[]>;
+  costSettings: PileCostSettings;
+}): Promise<Map<number, string>> {
+  const coreOptions = toCorePileOptionsByLoadPoint(input.optionsByLoadPointId);
+  let choices: Map<number, PileConfigurationKey> | Record<string, PileConfigurationKey>;
+
+  if (!isTauriRuntime()) {
+    await initializeWasm();
+    choices = choose_default_options({
+      options_by_load_point: toWasmNumberKeyedMap(coreOptions),
+      cost_settings: input.costSettings,
+    }) as Map<number, PileConfigurationKey>;
+  } else {
+    choices = await invoke<Record<string, PileConfigurationKey>>("choose_default_options", {
+      request: {
+        options_by_load_point: toStringKeyedRecord(coreOptions),
+        cost_settings: input.costSettings,
+      },
+    });
+  }
+
+  return new Map(
+    [...numericMap(choices)].map(([loadPointId, key]) => [
+      loadPointId,
+      `${key.pile_size_mm}|${key.pile_tip_level_m_key / 1000}`,
+    ]),
+  );
 }
 
 export async function getBearingCapacityRowsForCptCore(input: {

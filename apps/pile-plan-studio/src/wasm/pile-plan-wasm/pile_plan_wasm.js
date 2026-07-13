@@ -64,6 +64,18 @@ export function choose_default_option(request) {
  * @param {any} request
  * @returns {any}
  */
+export function choose_default_options(request) {
+    const ret = wasm.choose_default_options(request);
+    if (ret[2]) {
+        throw takeFromExternrefTable0(ret[1]);
+    }
+    return takeFromExternrefTable0(ret[0]);
+}
+
+/**
+ * @param {any} request
+ * @returns {any}
+ */
 export function cpt_frd_rows(request) {
     const ret = wasm.cpt_frd_rows(request);
     if (ret[2]) {
