@@ -12,6 +12,14 @@ import initWasm, {
   write_ifcpp_project,
 } from "./wasm/pile-plan-wasm/pile_plan_wasm.js";
 import { toStringKeyedRecord, toWasmNumberKeyedMap } from "./coreSerialization.ts";
+import {
+  corePileOptionsMapToFrontend,
+  fromCorePileOption,
+  numericMap,
+  projectAnalysisResultFromCore,
+  type CorePileConfigurationOption,
+  type CoreProjectAnalysisResult,
+} from "./projectAnalysisResult.ts";
 
 import {
   type BearingCapacity,
@@ -30,10 +38,6 @@ import {
 import type { IfcppProject } from "./projectFile.ts";
 import { toCoreImportSource, type ImportSourceInput } from "./coreImportContract.ts";
 
-type CorePileConfigurationOption = Omit<PileConfigurationOption, "isOption"> & {
-  is_option: boolean;
-};
-
 type CoreCptSelectionSettings = {
   algorithm: CptSelectionSettings["algorithm"];
   max_distance_m: number;
@@ -43,12 +47,6 @@ type CoreCptSelectionSettings = {
 type CoreCptSelectionSettingsByLoadPoint = Record<string, CoreCptSelectionSettings>;
 type CoreCptSelectionSettingsMapByLoadPoint = Map<number, CoreCptSelectionSettings>;
 type ManualCptIdsByLoadPoint = Map<number, number[]>;
-
-type CoreProjectAnalysisResult = {
-  pile_options_by_load_point: Map<number, CorePileConfigurationOption[]> | Record<string, CorePileConfigurationOption[]>;
-  selected_cpts_by_load_point: Map<number, SelectedCpt[]> | Record<string, SelectedCpt[]>;
-  cpt_frd_rows_by_cpt_id: Map<number, CptBearingCapacityRow[]> | Record<string, CptBearingCapacityRow[]> | null;
-};
 
 let wasmReady: Promise<void> | null = null;
 
@@ -155,13 +153,7 @@ export async function calculateProjectAnalysisCore(input: {
     });
   }
 
-  return {
-    pileOptionsByLoadPointId: corePileOptionsMapToFrontend(result.pile_options_by_load_point),
-    selectedCptsByLoadPointId: numericMap(result.selected_cpts_by_load_point),
-    cptFrdRowsByCptId: result.cpt_frd_rows_by_cpt_id === null
-      ? null
-      : numericMap(result.cpt_frd_rows_by_cpt_id),
-  };
+  return projectAnalysisResultFromCore(result);
 }
 
 export async function calculatePileCostCore(input: {
@@ -315,25 +307,6 @@ function initializeWasm(): Promise<void> {
   return wasmReady;
 }
 
-function corePileOptionsMapToFrontend(value: unknown): Map<number, PileConfigurationOption[]> {
-  const entries =
-    value instanceof Map
-      ? [...value.entries()]
-      : Object.entries(value as Record<string, CorePileConfigurationOption[]>);
-
-  return new Map(
-    entries.map(([loadPointId, options]) => [
-      Number(loadPointId),
-      (options as CorePileConfigurationOption[]).map(fromCorePileOption),
-    ]),
-  );
-}
-
-function numericMap<T>(value: Map<number, T> | Record<string, T>): Map<number, T> {
-  const entries = value instanceof Map ? [...value.entries()] : Object.entries(value);
-  return new Map(entries.map(([key, item]) => [Number(key), item]));
-}
-
 function toCorePileOptionsByLoadPoint(
   optionsByLoadPoint: Map<number, PileConfigurationOption[]>,
 ): Map<number, CorePileConfigurationOption[]> {
@@ -377,22 +350,6 @@ function toCoreSettingsMapByLoadPoint(
       ]),
     ),
   );
-}
-
-function fromCorePileOption(option: CorePileConfigurationOption): PileConfigurationOption {
-  return {
-    pile_size_mm: option.pile_size_mm,
-    pile_tip_level_m: option.pile_tip_level_m,
-    isOption: option.is_option,
-    governing_cpt_id: normalizeOptionalNumber(option.governing_cpt_id),
-    governing_frd_kn: normalizeOptionalNumber(option.governing_frd_kn),
-    utilization: normalizeOptionalNumber(option.utilization),
-    missing_cpt_ids: option.missing_cpt_ids,
-  };
-}
-
-function normalizeOptionalNumber(value: number | null | undefined): number | null {
-  return value === undefined || value === null || !Number.isFinite(value) ? null : value;
 }
 
 function toCorePileOption(option: PileConfigurationOption): CorePileConfigurationOption {
