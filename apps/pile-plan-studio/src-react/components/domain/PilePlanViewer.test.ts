@@ -56,6 +56,15 @@ describe("PilePlanViewer inputs", () => {
     );
   });
 
+  it("applies the calculated selected option status to each load point marker", () => {
+    const source = readFileSync(resolve(import.meta.dirname, "PilePlanViewer.tsx"), "utf8");
+
+    assert.match(source, /getLoadPointMarkerInvalidVisual/);
+    assert.match(source, /pileOptionsByLoadPointId\.get\(loadPointId\)/);
+    assert.match(source, /invalidVisual\.className/);
+    assert.match(source, /invalidVisual\.style/);
+  });
+
   it("anchors the stage at the same top-left origin used by lasso projection", () => {
     const css = readFileSync(resolve(import.meta.dirname, "viewer.css"), "utf8");
 

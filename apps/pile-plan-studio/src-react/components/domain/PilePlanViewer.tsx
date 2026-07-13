@@ -5,6 +5,7 @@ import { getConfigurationStyle, getLegendItems } from "../../../src/legend.ts";
 import { getCptMarkerLayerClass, getLoadPointMarkerLayerClass } from "../../../src/mapMarkerLayer.ts";
 import { shouldStartMapPan } from "../../../src/mapInteraction.ts";
 import { renderPileSymbol } from "../../../src/pileSymbols.ts";
+import { getLoadPointMarkerInvalidVisual } from "../../../src/loadPointMarker.ts";
 import { projectPoint } from "../../../src/viewerGeometry.ts";
 import {
   clampScale,
@@ -109,6 +110,7 @@ export default function PilePlanViewer({ state, onStateChange }: Props) {
             const point = projectPoint(loadPoint, state.bounds);
             const isSelected = selectedLoadPointIds.has(loadPoint.id);
             const selectedOption = getSelectedPileOption(state, loadPoint.id);
+            const invalidVisual = getLoadPointMarkerInvalidVisual(selectedOption);
             const style = selectedOption
               ? getConfigurationStyle(selectedOption, legend)
               : null;
@@ -116,9 +118,9 @@ export default function PilePlanViewer({ state, onStateChange }: Props) {
             return (
               <button
                 aria-label={`Load point ${loadPoint.name}`}
-                className={`load-point-marker${getLoadPointMarkerLayerClass(isSelected)}${isSelected ? " is-selected" : ""}`}
+                className={`load-point-marker${getLoadPointMarkerLayerClass(isSelected)}${isSelected ? " is-selected" : ""}${invalidVisual.className}`}
                 key={loadPoint.id}
-                style={getProjectMarkerStyle(point)}
+                style={getProjectMarkerStyle(point, invalidVisual.style)}
                 type="button"
                 onClick={(event) => {
                   event.stopPropagation();
@@ -309,9 +311,16 @@ function getSelectedPileOption(state: ProjectState, loadPointId: number) {
     return null;
   }
 
-  return {
+  return state.pileOptionsByLoadPointId.get(loadPointId)?.find((option) => (
+    option.pile_size_mm === pileSize && option.pile_tip_level_m === pileTipLevel
+  )) ?? {
     pile_size_mm: pileSize,
     pile_tip_level_m: pileTipLevel,
+    isOption: false,
+    governing_cpt_id: null,
+    governing_frd_kn: null,
+    utilization: null,
+    missing_cpt_ids: [0],
   };
 }
 
@@ -326,10 +335,12 @@ function getLassoStyle(lasso: LassoRectangle) {
   };
 }
 
-function getProjectMarkerStyle(point: { x: number; y: number }): CSSProperties {
+function getProjectMarkerStyle(point: { x: number; y: number }, invalidStyle = ""): CSSProperties {
+  const intensity = invalidStyle.match(/--invalid-intensity: ([0-9.]+)/)?.[1];
   return {
     left: `${point.x}%`,
     top: `${point.y}%`,
+    ...(intensity ? { "--invalid-intensity": intensity } : {}),
   };
 }
 

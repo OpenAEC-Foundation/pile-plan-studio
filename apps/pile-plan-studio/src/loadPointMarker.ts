@@ -12,6 +12,10 @@ export function getLoadPointMarkerInvalidVisual(
     return { className: "", style: "" };
   }
 
+  if (chosenOption.missing_cpt_ids.length > 0) {
+    return { className: " is-missing", style: "" };
+  }
+
   const overrun = chosenOption.utilization === null
     ? 0.25
     : Math.max(0, chosenOption.utilization - 1);

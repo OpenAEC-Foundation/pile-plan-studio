@@ -7,6 +7,7 @@ import type { PileConfigurationOption } from "./projectTypes.ts";
 function option(input: {
   isOption: boolean;
   utilization: number | null;
+  missingCptIds?: number[];
 }): PileConfigurationOption {
   return {
     pile_size_mm: 290,
@@ -15,7 +16,7 @@ function option(input: {
     governing_cpt_id: 2,
     governing_frd_kn: input.utilization === null ? null : 320 / input.utilization,
     utilization: input.utilization,
-    missing_cpt_ids: [],
+    missing_cpt_ids: input.missingCptIds ?? [],
   };
 }
 
@@ -36,6 +37,17 @@ describe("load point marker invalid visual", () => {
     assert.match(slightOverrun.style, /--invalid-intensity: 0\.[0-9]+/);
     assert.match(largeOverrun.style, /--invalid-intensity: 0\.[0-9]+/);
     assert.ok(extractIntensity(largeOverrun.style) > extractIntensity(slightOverrun.style));
+  });
+
+  it("marks selected options with missing CPT capacities yellow", () => {
+    assert.deepEqual(
+      getLoadPointMarkerInvalidVisual(option({
+        isOption: false,
+        utilization: null,
+        missingCptIds: [64],
+      })),
+      { className: " is-missing", style: "" },
+    );
   });
 });
 

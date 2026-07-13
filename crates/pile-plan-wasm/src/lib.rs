@@ -3,11 +3,10 @@ use std::collections::HashMap;
 use pile_plan_core::{
     bearing_capacity_rows_for_cpt, build_pile_options_by_load_point, build_project_analysis,
     calculate_pile_cost, choose_default_pile_option, choose_default_pile_options,
-    greedy_optimize_pile_choices,
-    import_project_from_generic_sources, selected_cpts, write_ifcpp_string, CptSelectionSettings,
-    GreedyOptimizationSettings, GreedyOptimizedPileChoice, ImportSource, PileConfigurationKey,
-    PileConfigurationOption, PileCostSettings, PilePlanProject, ProjectBearingCapacity, ProjectCpt,
-    ProjectLoadPoint,
+    greedy_optimize_pile_choices, import_project_from_generic_sources, selected_cpts,
+    write_ifcpp_string, CptSelectionSettings, GreedyOptimizationSettings,
+    GreedyOptimizedPileChoice, ImportSource, PileConfigurationKey, PileConfigurationOption,
+    PileCostSettings, PilePlanProject, ProjectBearingCapacity, ProjectCpt, ProjectLoadPoint,
 };
 use serde::{Deserialize, Serialize};
 use wasm_bindgen::prelude::*;
@@ -156,10 +155,8 @@ pub fn choose_default_option(request: JsValue) -> Result<JsValue, JsValue> {
 #[wasm_bindgen]
 pub fn choose_default_options(request: JsValue) -> Result<JsValue, JsValue> {
     let request: DefaultPileOptionsRequest = from_js_value(request)?;
-    let choices: HashMap<u32, PileConfigurationKey> = choose_default_pile_options(
-        &request.options_by_load_point,
-        &request.cost_settings,
-    );
+    let choices: HashMap<u32, PileConfigurationKey> =
+        choose_default_pile_options(&request.options_by_load_point, &request.cost_settings);
     to_js_value(&choices)
 }
 

@@ -154,7 +154,27 @@
 }
 
 .load-point-marker {
+  --invalid-intensity: 0;
+  border-radius: 50%;
   cursor: pointer;
+}
+
+.load-point-marker.is-invalid {
+  background:
+    radial-gradient(
+      circle,
+      rgba(255, 230, 226, calc(0.25 + var(--invalid-intensity) * 0.35)) 0 42%,
+      rgba(199, 53, 42, calc(0.18 + var(--invalid-intensity) * 0.42)) 72%,
+      rgba(145, 31, 25, calc(0.12 + var(--invalid-intensity) * 0.35)) 100%
+    );
+  box-shadow:
+    0 0 0 2px rgba(199, 53, 42, calc(0.24 + var(--invalid-intensity) * 0.55)),
+    0 0 8px rgba(199, 53, 42, calc(0.12 + var(--invalid-intensity) * 0.35));
+}
+
+.load-point-marker.is-missing {
+  background: rgba(255, 193, 7, 0.22);
+  box-shadow: 0 0 0 2px rgba(194, 130, 0, 0.72), 0 0 7px rgba(255, 193, 7, 0.32);
 }
 
 .load-point-marker:focus,
