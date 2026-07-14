@@ -46,3 +46,29 @@ After deployment, test in current Chrome and Edge:
 
 The browser build and Windows desktop build use the same Rust calculation core.
 
+## Signed Windows Alpha Release
+
+Push an alpha tag matching `v*-alpha.*`, for example:
+
+```powershell
+git tag v0.1.0-alpha.1
+git push origin v0.1.0-alpha.1
+```
+
+The release workflow runs the Rust and frontend tests, builds the NSIS Windows
+installer, signs it through Azure Artifact Signing, and verifies that Windows
+recognizes `Impertio Studio B.V.` as its publisher. A failed build, missing
+secret, or invalid signature stops the workflow before release creation.
+
+Successful builds are attached to a private draft release. Test the installer
+before publishing that draft as a public prerelease.
+
+The repository requires access to these OpenAEC GitHub Actions secrets:
+
+- `AZURE_TENANT_ID`
+- `AZURE_CLIENT_ID`
+- `AZURE_CLIENT_SECRET`
+- `AZURE_ENDPOINT`
+- `AZURE_TRUSTED_SIGNING_ACCOUNT_NAME`
+- `AZURE_CERTIFICATE_PROFILE_NAME`
+

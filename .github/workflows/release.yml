@@ -1,0 +1,103 @@
+name: Build signed Windows alpha
+
+on:
+  push:
+    tags:
+      - "v*-alpha.*"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  windows:
+    name: Test, build, and sign Windows installer
+    runs-on: windows-latest
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: apps/pile-plan-studio/package-lock.json
+
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+
+      - name: Install wasm-pack
+        uses: taiki-e/install-action@v2
+        with:
+          tool: wasm-pack
+
+      - name: Install frontend dependencies
+        working-directory: apps/pile-plan-studio
+        run: npm ci
+
+      - name: Test Rust workspace
+        run: cargo test --workspace
+
+      - name: Test frontend
+        working-directory: apps/pile-plan-studio
+        run: npm test
+
+      - name: Build NSIS installer
+        working-directory: apps/pile-plan-studio
+        run: npm run tauri build -- --bundles nsis
+
+      - name: Sign Windows installer
+        uses: azure/trusted-signing-action@v1
+        with:
+          azure-tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          azure-client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          azure-client-secret: ${{ secrets.AZURE_CLIENT_SECRET }}
+          endpoint: ${{ secrets.AZURE_ENDPOINT }}
+          signing-account-name: ${{ secrets.AZURE_TRUSTED_SIGNING_ACCOUNT_NAME }}
+          certificate-profile-name: ${{ secrets.AZURE_CERTIFICATE_PROFILE_NAME }}
+          cache-dependencies: false
+          files-folder: ${{ github.workspace }}/apps/pile-plan-studio/src-tauri/target/release/bundle/nsis
+          files-folder-filter: exe
+          files-folder-depth: 1
+          file-digest: SHA256
+          timestamp-rfc3161: http://timestamp.acs.microsoft.com
+          timestamp-digest: SHA256
+
+      - name: Verify installer signature
+        id: installer
+        shell: pwsh
+        run: |
+          $installer = Get-ChildItem "apps/pile-plan-studio/src-tauri/target/release/bundle/nsis/*-setup.exe" |
+            Select-Object -First 1
+          if (-not $installer) {
+            throw "The NSIS installer was not produced."
+          }
+
+          $signature = Get-AuthenticodeSignature -FilePath $installer.FullName
+          if ($signature.Status -ne "Valid") {
+            throw "Installer signature is $($signature.Status): $($signature.StatusMessage)"
+          }
+          if ($signature.SignerCertificate.Subject -notmatch "Impertio Studio B\.V\.") {
+            throw "Unexpected installer publisher: $($signature.SignerCertificate.Subject)"
+          }
+
+          "path=$($installer.FullName)" >> $env:GITHUB_OUTPUT
+          "name=$($installer.Name)" >> $env:GITHUB_OUTPUT
+          Write-Host "Verified $($installer.Name) signed by $($signature.SignerCertificate.Subject)"
+
+      - name: Create draft GitHub release
+        uses: softprops/action-gh-release@v2
+        with:
+          draft: true
+          prerelease: true
+          generate_release_notes: true
+          name: Pile Plan Studio ${{ github.ref_name }}
+          files: ${{ steps.installer.outputs.path }}
+          fail_on_unmatched_files: true

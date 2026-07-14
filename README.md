@@ -2,8 +2,8 @@
 
 Pile Plan Studio is an open-source engineering tool for exploring and assigning
 pile configurations to structural load points. It brings load points, CPTs,
-foundation advice, pile options, utilization, governing CPTs, and estimated
-costs together in one interactive plan.
+foundation advice, pile options, utilization, and estimated costs together in
+one interactive plan.
 
 The calculation core is written in Rust. The same core runs natively in the
 Tauri desktop application and through WebAssembly in the browser.
@@ -37,14 +37,28 @@ engineer's responsibility for the foundation design.
   selected load point.
 - Use **Shift+drag** on empty viewer space to draw a lasso and select all load
   points inside it.
+- Use **Shift+click** on a pile size or tip level in the legend to select all
+  load points whose current pile matches it. Size and tip selections can be
+  combined.
 - Press **Escape** or click empty viewer space to clear the selection.
+
+### Inspecting Pile Options
+
+- Click a row in the pile-options table to assign that configuration to the
+  selected load point.
+- When multiple load points are selected, the table shows their common options
+  and assigns the chosen configuration to all of them.
+- Click a column header to sort the table, or use its arrow to filter the
+  available values.
+- Click pile sizes or tip levels in the legend to enable or disable them. The
+  pile-options table automatically follows the active legend filters.
 
 ## Try or Install
 
 The [browser demo](https://pile-plan-studio.open-aec.com/) is the primary way to
 explore the alpha and opens directly with the sample project.
 
-Signed Windows x64 installers are published on the
+Windows x64 installers will be published on the
 [GitHub Releases page](https://github.com/OpenAEC-Foundation/pile-plan-studio/releases).
 The browser and desktop application use the same Rust calculation core.
 
@@ -125,6 +139,12 @@ npm run tauri build
 ```
 
 See [Deployment](docs/deployment.md) for browser hosting details.
+
+### AI-assisted Development
+
+Development of Pile Plan Studio has been assisted by AI coding tools. Design
+decisions, engineering requirements, review, and validation remain under human
+responsibility.
 
 ## Contributing
 
