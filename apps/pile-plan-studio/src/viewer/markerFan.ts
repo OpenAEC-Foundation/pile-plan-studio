@@ -15,6 +15,25 @@ export type MarkerScreenPoint = {
 
 const VISIBLE_OVERLAP_TOLERANCE = 0.75;
 
+export function getClosestVisibleMarkerKey(
+  pointer: { x: number; y: number },
+  fallbackKey: string,
+  markers: MarkerScreenRect[],
+): string {
+  const visibleMarkers = markers
+    .map((marker) => ({
+      marker,
+      distance: Math.hypot(
+        pointer.x - (marker.left + marker.right) / 2,
+        pointer.y - (marker.top + marker.bottom) / 2,
+      ),
+    }))
+    .filter(({ marker, distance }) => distance <= marker.visualRadius)
+    .sort((first, second) => first.distance - second.distance);
+
+  return visibleMarkers[0]?.marker.key ?? fallbackKey;
+}
+
 export function getLoadPointVisualRadius(symbolSize: number): number {
   return Number((symbolSize * (9.7 / 24)).toFixed(2));
 }

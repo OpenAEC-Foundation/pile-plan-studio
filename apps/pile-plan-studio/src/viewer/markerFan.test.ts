@@ -2,6 +2,7 @@ import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 
 import {
+  getClosestVisibleMarkerKey,
   getLoadPointVisualRadius,
   getMagnifiedMarkerOffsets,
   getMagnifiedMarkerSize,
@@ -9,6 +10,19 @@ import {
 } from "./markerFan.ts";
 
 describe("marker fan-out", () => {
+  it("resolves the CPT 54 case to the closest visible load point", () => {
+    const markers = [
+      { key: "load-point:224", left: 359.44, top: 388.84, right: 373.44, bottom: 402.84, visualRadius: 5.66 },
+      { key: "load-point:226", left: 359.44, top: 385.39, right: 373.44, bottom: 399.39, visualRadius: 5.66 },
+      { key: "load-point:296", left: 401.86, top: 388.84, right: 415.86, bottom: 402.84, visualRadius: 5.66 },
+    ];
+
+    assert.equal(
+      getClosestVisibleMarkerKey({ x: 366.44, y: 395.84 }, "load-point:296", markers),
+      "load-point:224",
+    );
+  });
+
   it("uses the visible pile shape instead of the larger click target for overlap", () => {
     assert.equal(getLoadPointVisualRadius(12), 4.85);
   });

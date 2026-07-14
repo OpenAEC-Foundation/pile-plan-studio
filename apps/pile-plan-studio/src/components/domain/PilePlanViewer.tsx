@@ -6,6 +6,7 @@ import { getConfigurationStyle, getLegendItems } from "../../viewer/legend.ts";
 import { getCptMarkerLayerClass, getLoadPointMarkerLayerClass } from "../../viewer/mapMarkerLayer.ts";
 import { shouldStartMapPan } from "../../viewer/mapInteraction.ts";
 import {
+  getClosestVisibleMarkerKey,
   getLoadPointVisualRadius,
   getMagnifiedMarkerOffsets,
   getMagnifiedMarkerSize,
@@ -112,13 +113,11 @@ export default function PilePlanViewer({ state, onStateChange }: Props) {
                 type="button"
                 onClick={(event) => {
                   event.stopPropagation();
-                  if (openMarkerFan(`cpt:${cpt.id}`)) {
+                  const clickedKey = resolveClickedMarkerKey(event, `cpt:${cpt.id}`);
+                  if (openMarkerFan(clickedKey)) {
                     return;
                   }
-                  const nextState = state.cptSelectionEditDraft?.loadPointId === state.selectedLoadPointId
-                    ? toggleManualCpt(state, cpt.id)
-                    : { ...state, ...openReactViewerCpt(state, cpt.id) };
-                  onStateChange({ ...nextState, viewport: viewportRef.current });
+                  selectMapMarker(clickedKey, event.shiftKey);
                 }}
               >
                 <svg className="cpt-triangle" viewBox="0 0 24 22" aria-hidden="true" focusable="false">
@@ -159,13 +158,11 @@ export default function PilePlanViewer({ state, onStateChange }: Props) {
                 type="button"
                 onClick={(event) => {
                   event.stopPropagation();
-                  if (openMarkerFan(`load-point:${loadPoint.id}`)) {
+                  const clickedKey = resolveClickedMarkerKey(event, `load-point:${loadPoint.id}`);
+                  if (openMarkerFan(clickedKey)) {
                     return;
                   }
-                  const selection = event.shiftKey
-                    ? toggleReactViewerLoadPoint(state, loadPoint.id)
-                    : selectReactViewerLoadPoint(state, loadPoint.id);
-                  onStateChange({ ...state, ...selection, viewport: viewportRef.current });
+                  selectMapMarker(clickedKey, event.shiftKey);
                 }}
               >
                 {style ? (
@@ -338,21 +335,7 @@ export default function PilePlanViewer({ state, onStateChange }: Props) {
       return false;
     }
 
-    const markers = Array.from(canvas.querySelectorAll<HTMLElement>("[data-map-marker-key]")).map((marker) => {
-      const rect = marker.getBoundingClientRect();
-      const pileSymbol = marker.querySelector<HTMLElement>(".load-point-symbol .pile-symbol-svg");
-      const pileSymbolRect = pileSymbol?.getBoundingClientRect();
-      return {
-        key: marker.dataset.mapMarkerKey!,
-        left: rect.left,
-        top: rect.top,
-        right: rect.right,
-        bottom: rect.bottom,
-        visualRadius: pileSymbolRect
-          ? getLoadPointVisualRadius(Math.min(pileSymbolRect.width, pileSymbolRect.height))
-          : Math.min(rect.width, rect.height) * 0.43,
-      };
-    });
+    const markers = getMarkerScreenRects(canvas);
     const keys = getOverlappingMarkerKeys(clickedKey, markers);
     if (keys.length <= 1) {
       setMarkerFan(null);
@@ -386,6 +369,31 @@ export default function PilePlanViewer({ state, onStateChange }: Props) {
       }),
     });
     return true;
+  }
+
+  function getMarkerScreenRects(canvas: HTMLElement) {
+    return Array.from(canvas.querySelectorAll<HTMLElement>("[data-map-marker-key]")).map((marker) => {
+      const rect = marker.getBoundingClientRect();
+      const pileSymbol = marker.querySelector<HTMLElement>(".load-point-symbol .pile-symbol-svg");
+      const pileSymbolRect = pileSymbol?.getBoundingClientRect();
+      return {
+        key: marker.dataset.mapMarkerKey!,
+        left: rect.left,
+        top: rect.top,
+        right: rect.right,
+        bottom: rect.bottom,
+        visualRadius: pileSymbolRect
+          ? getLoadPointVisualRadius(Math.min(pileSymbolRect.width, pileSymbolRect.height))
+          : Math.min(rect.width, rect.height) * 0.43,
+      };
+    });
+  }
+
+  function resolveClickedMarkerKey(event: MouseEvent<HTMLElement>, fallbackKey: string) {
+    const canvas = canvasRef.current;
+    return canvas
+      ? getClosestVisibleMarkerKey({ x: event.clientX, y: event.clientY }, fallbackKey, getMarkerScreenRects(canvas))
+      : fallbackKey;
   }
 
   function renderMarkerFan(fan: MarkerFanState) {
@@ -447,6 +455,11 @@ export default function PilePlanViewer({ state, onStateChange }: Props) {
 
   function selectFannedMarker(item: MarkerFanItem, shiftKey: boolean) {
     setMarkerFan(null);
+    selectMapMarker(`${item.type}:${item.id}`, shiftKey);
+  }
+
+  function selectMapMarker(key: string, shiftKey: boolean) {
+    const item = parseMarkerKey(key);
     if (item.type === "cpt") {
       const nextState = state.cptSelectionEditDraft?.loadPointId === state.selectedLoadPointId
         ? toggleManualCpt(state, item.id)
