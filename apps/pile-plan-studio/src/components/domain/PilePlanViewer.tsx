@@ -5,7 +5,11 @@ import { getPointIdsInRectangle, type LassoRectangle } from "../../viewer/lassoS
 import { getConfigurationStyle, getLegendItems } from "../../viewer/legend.ts";
 import { getCptMarkerLayerClass, getLoadPointMarkerLayerClass } from "../../viewer/mapMarkerLayer.ts";
 import { shouldStartMapPan } from "../../viewer/mapInteraction.ts";
-import { getMagnifiedMarkerOffsets, getOverlappingMarkerKeys } from "../../viewer/markerFan.ts";
+import {
+  getMagnifiedMarkerOffsets,
+  getMagnifiedMarkerSize,
+  getOverlappingMarkerKeys,
+} from "../../viewer/markerFan.ts";
 import { renderPileSymbol } from "../../viewer/pileSymbols.ts";
 import {
   getLoadPointMarkerInvalidVisual,
@@ -354,12 +358,14 @@ export default function PilePlanViewer({ state, onStateChange }: Props) {
       key: marker.key,
       x: (marker.left + marker.right) / 2,
       y: (marker.top + marker.bottom) / 2,
+      displaySize: getMagnifiedMarkerSize(marker.right - marker.left, marker.bottom - marker.top),
     }));
     const groupCenter = {
       x: groupMarkers.reduce((sum, marker) => sum + marker.x, 0) / groupMarkers.length,
       y: groupMarkers.reduce((sum, marker) => sum + marker.y, 0) / groupMarkers.length,
     };
-    const offsets = getMagnifiedMarkerOffsets(groupMarkers, 34);
+    const minimumDistance = Math.max(...groupMarkers.map((marker) => marker.displaySize)) + 10;
+    const offsets = getMagnifiedMarkerOffsets(groupMarkers, minimumDistance);
     setMarkerFan({
       items: groupMarkers.map((marker) => {
         const offset = offsets.find((candidate) => candidate.key === marker.key)!;
@@ -369,6 +375,7 @@ export default function PilePlanViewer({ state, onStateChange }: Props) {
           sourceY: marker.y - canvasRect.top,
           targetX: groupCenter.x - canvasRect.left + offset.x,
           targetY: groupCenter.y - canvasRect.top + offset.y,
+          displaySize: marker.displaySize,
         };
       }),
     });
@@ -396,7 +403,11 @@ export default function PilePlanViewer({ state, onStateChange }: Props) {
           <button
             className={`marker-fan-item is-${item.type}`}
             key={`${item.type}:${item.id}`}
-            style={{ left: item.targetX, top: item.targetY }}
+            style={{
+              left: item.targetX,
+              top: item.targetY,
+              "--marker-fan-size": `${item.displaySize}px`,
+            } as CSSProperties}
             type="button"
             onClick={(event) => selectFannedMarker(item, event.shiftKey)}
           >
@@ -477,6 +488,7 @@ type MarkerFanItem = {
   sourceY: number;
   targetX: number;
   targetY: number;
+  displaySize: number;
 };
 
 type MarkerFanState = {

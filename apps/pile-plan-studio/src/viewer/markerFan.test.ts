@@ -1,7 +1,11 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 
-import { getMagnifiedMarkerOffsets, getOverlappingMarkerKeys } from "./markerFan.ts";
+import {
+  getMagnifiedMarkerOffsets,
+  getMagnifiedMarkerSize,
+  getOverlappingMarkerKeys,
+} from "./markerFan.ts";
 
 describe("marker fan-out", () => {
   it("returns the connected overlap group for the clicked marker", () => {
@@ -62,5 +66,10 @@ describe("marker fan-out", () => {
 
     assert.equal(offsets.length, 2);
     assert.ok(Math.hypot(offsets[0].x - offsets[1].x, offsets[0].y - offsets[1].y) >= 28);
+  });
+
+  it("makes the magnified symbol larger than its current screen size", () => {
+    assert.equal(getMagnifiedMarkerSize(42, 39), 54.6);
+    assert.equal(getMagnifiedMarkerSize(10, 10), 24);
   });
 });

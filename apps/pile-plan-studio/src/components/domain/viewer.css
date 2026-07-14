@@ -161,10 +161,11 @@
 }
 
 .marker-fan-item {
+  --marker-fan-size: 24px;
   position: absolute;
   display: grid;
-  width: 32px;
-  height: 32px;
+  width: calc(var(--marker-fan-size) + 8px);
+  height: calc(var(--marker-fan-size) + 8px);
   padding: 0;
   border: 0;
   place-items: center;
@@ -183,8 +184,8 @@
 .marker-fan-item::before {
   position: absolute;
   z-index: -1;
-  width: 30px;
-  height: 30px;
+  width: calc(var(--marker-fan-size) + 6px);
+  height: calc(var(--marker-fan-size) + 6px);
   border: 1px solid var(--theme-border-strong);
   border-radius: 50%;
   background: #f8fafb;
@@ -197,20 +198,20 @@
 
 .marker-fan-load-point,
 .marker-fan-load-point .pile-symbol-svg {
-  width: 24px;
-  height: 24px;
+  width: var(--marker-fan-size);
+  height: var(--marker-fan-size);
 }
 
 .marker-fan-empty {
   color: #c92a2a;
-  font-size: 28px;
+  font-size: var(--marker-fan-size);
   font-weight: 700;
   line-height: 1;
 }
 
 .marker-fan-cpt {
-  width: 27px;
-  height: 25px;
+  width: var(--marker-fan-size);
+  height: var(--marker-fan-size);
   overflow: visible;
 }
 
@@ -223,13 +224,13 @@
 
 .marker-fan-label {
   position: absolute;
-  top: 30px;
+  top: calc(var(--marker-fan-size) + 6px);
   left: 50%;
   padding: 1px 2px;
   border-radius: 2px;
   background: rgb(248 250 251 / 92%);
   color: #394951;
-  font-size: 8px;
+  font-size: clamp(8px, calc(var(--marker-fan-size) * 0.3), 13px);
   font-weight: 700;
   line-height: 1;
   pointer-events: none;

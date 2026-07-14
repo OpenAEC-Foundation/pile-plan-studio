@@ -13,6 +13,10 @@ export type MarkerScreenPoint = {
   y: number;
 };
 
+export function getMagnifiedMarkerSize(width: number, height: number): number {
+  return Math.max(24, Math.max(width, height) * 1.3);
+}
+
 export function getOverlappingMarkerKeys(
   clickedKey: string,
   markers: MarkerScreenRect[],
