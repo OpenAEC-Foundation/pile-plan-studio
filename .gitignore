@@ -6,3 +6,4 @@ dist/
 apps/*/src-tauri/target/
 *.log
 OpenAEC-style-book-main/
+docs/superpowers/
