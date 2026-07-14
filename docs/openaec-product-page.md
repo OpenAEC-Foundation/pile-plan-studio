@@ -6,8 +6,8 @@
 
 Pile Plan Studio is een open-source rekentool voor het verkennen en toewijzen
 van paalconfiguraties aan belastinglocaties. Belastinglocaties, sonderingen,
-funderingsadvies, paalopties, benutting, maatgevende sonderingen en geraamde
-kosten komen samen in één interactief palenplan.
+funderingsadvies, paalopties, benutting en geraamde kosten komen samen in één
+interactief palenplan.
 
 De publieke alpha is direct in de browser te proberen met een voorbeeldproject.
 Voor lokale projectbestanden is daarnaast een ondertekende Windows-versie
@@ -30,8 +30,8 @@ gecontroleerd.**
 
 Pile Plan Studio is an open-source engineering tool for exploring and assigning
 pile configurations to structural load points. It combines load points, CPTs,
-foundation advice, pile options, utilization, governing CPTs, and estimated
-costs in one interactive pile plan.
+foundation advice, pile options, utilization, and estimated costs in one
+interactive pile plan.
 
 The public alpha can be explored directly in the browser with a sample project.
 A signed Windows version is also available for local project files. Its
