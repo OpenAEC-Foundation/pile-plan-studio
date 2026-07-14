@@ -5,7 +5,7 @@ import { getPointIdsInRectangle, type LassoRectangle } from "../../viewer/lassoS
 import { getConfigurationStyle, getLegendItems } from "../../viewer/legend.ts";
 import { getCptMarkerLayerClass, getLoadPointMarkerLayerClass } from "../../viewer/mapMarkerLayer.ts";
 import { shouldStartMapPan } from "../../viewer/mapInteraction.ts";
-import { getFanOffsets, getOverlappingMarkerKeys } from "../../viewer/markerFan.ts";
+import { getMagnifiedMarkerOffsets, getOverlappingMarkerKeys } from "../../viewer/markerFan.ts";
 import { renderPileSymbol } from "../../viewer/pileSymbols.ts";
 import {
   getLoadPointMarkerInvalidVisual,
@@ -106,7 +106,7 @@ export default function PilePlanViewer({ state, onStateChange }: Props) {
                 type="button"
                 onClick={(event) => {
                   event.stopPropagation();
-                  if (openMarkerFan(`cpt:${cpt.id}`, event.currentTarget)) {
+                  if (openMarkerFan(`cpt:${cpt.id}`)) {
                     return;
                   }
                   const nextState = state.cptSelectionEditDraft?.loadPointId === state.selectedLoadPointId
@@ -153,7 +153,7 @@ export default function PilePlanViewer({ state, onStateChange }: Props) {
                 type="button"
                 onClick={(event) => {
                   event.stopPropagation();
-                  if (openMarkerFan(`load-point:${loadPoint.id}`, event.currentTarget)) {
+                  if (openMarkerFan(`load-point:${loadPoint.id}`)) {
                     return;
                   }
                   const selection = event.shiftKey
@@ -326,7 +326,7 @@ export default function PilePlanViewer({ state, onStateChange }: Props) {
     });
   }
 
-  function openMarkerFan(clickedKey: string, clickedMarker: HTMLElement): boolean {
+  function openMarkerFan(clickedKey: string): boolean {
     const canvas = canvasRef.current;
     if (!canvas) {
       return false;
@@ -340,6 +340,7 @@ export default function PilePlanViewer({ state, onStateChange }: Props) {
         top: rect.top,
         right: rect.right,
         bottom: rect.bottom,
+        visualRadius: Math.min(rect.width, rect.height) * 0.43,
       };
     });
     const keys = getOverlappingMarkerKeys(clickedKey, markers);
@@ -349,12 +350,27 @@ export default function PilePlanViewer({ state, onStateChange }: Props) {
     }
 
     const canvasRect = canvas.getBoundingClientRect();
-    const clickedRect = clickedMarker.getBoundingClientRect();
-    const offsets = getFanOffsets(keys.length, 32);
+    const groupMarkers = markers.filter((marker) => keys.includes(marker.key)).map((marker) => ({
+      key: marker.key,
+      x: (marker.left + marker.right) / 2,
+      y: (marker.top + marker.bottom) / 2,
+    }));
+    const groupCenter = {
+      x: groupMarkers.reduce((sum, marker) => sum + marker.x, 0) / groupMarkers.length,
+      y: groupMarkers.reduce((sum, marker) => sum + marker.y, 0) / groupMarkers.length,
+    };
+    const offsets = getMagnifiedMarkerOffsets(groupMarkers, 34);
     setMarkerFan({
-      anchorX: clickedRect.left + clickedRect.width / 2 - canvasRect.left,
-      anchorY: clickedRect.top + clickedRect.height / 2 - canvasRect.top,
-      items: keys.map((key, index) => ({ ...parseMarkerKey(key), ...offsets[index] })),
+      items: groupMarkers.map((marker) => {
+        const offset = offsets.find((candidate) => candidate.key === marker.key)!;
+        return {
+          ...parseMarkerKey(marker.key),
+          sourceX: marker.x - canvasRect.left,
+          sourceY: marker.y - canvasRect.top,
+          targetX: groupCenter.x - canvasRect.left + offset.x,
+          targetY: groupCenter.y - canvasRect.top + offset.y,
+        };
+      }),
     });
     return true;
   }
@@ -364,19 +380,23 @@ export default function PilePlanViewer({ state, onStateChange }: Props) {
       <div className="marker-fan" aria-label="Overlapping map objects">
         <svg
           className="marker-fan-lines"
-          style={{ left: fan.anchorX, top: fan.anchorY }}
           aria-hidden="true"
         >
           {fan.items.map((item) => (
-            <line key={`${item.type}:${item.id}`} x1="0" y1="0" x2={item.x} y2={item.y} />
+            <line
+              key={`${item.type}:${item.id}`}
+              x1={item.sourceX}
+              y1={item.sourceY}
+              x2={item.targetX}
+              y2={item.targetY}
+            />
           ))}
         </svg>
-        <span className="marker-fan-anchor" style={{ left: fan.anchorX, top: fan.anchorY }} />
         {fan.items.map((item) => (
           <button
             className={`marker-fan-item is-${item.type}`}
             key={`${item.type}:${item.id}`}
-            style={{ left: fan.anchorX + item.x, top: fan.anchorY + item.y }}
+            style={{ left: item.targetX, top: item.targetY }}
             type="button"
             onClick={(event) => selectFannedMarker(item, event.shiftKey)}
           >
@@ -453,13 +473,13 @@ type ViewerInteraction =
 type MarkerFanItem = {
   type: "load-point" | "cpt";
   id: number;
-  x: number;
-  y: number;
+  sourceX: number;
+  sourceY: number;
+  targetX: number;
+  targetY: number;
 };
 
 type MarkerFanState = {
-  anchorX: number;
-  anchorY: number;
   items: MarkerFanItem[];
 };
 
