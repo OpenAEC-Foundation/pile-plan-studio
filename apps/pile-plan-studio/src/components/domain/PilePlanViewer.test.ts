@@ -35,6 +35,12 @@ describe("PilePlanViewer inputs", () => {
     assert.match(css, /--cpt-label-offset-y:\s*-2\.25px/);
   });
 
+  it("keeps magnified overlap markers free of number labels", () => {
+    const source = readFileSync(resolve(import.meta.dirname, "PilePlanViewer.tsx"), "utf8");
+
+    assert.doesNotMatch(source, /marker-fan-label/);
+  });
+
   it("does not show focus rectangles on map markers or legend items", () => {
     const css = readFileSync(resolve(import.meta.dirname, "viewer.css"), "utf8");
 

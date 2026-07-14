@@ -420,34 +420,22 @@ export default function PilePlanViewer({ state, onStateChange }: Props) {
 
   function renderFannedMarker(item: MarkerFanItem) {
     if (item.type === "cpt") {
-      const cpt = state.cpts.find((candidate) => candidate.id === item.id);
       return (
-        <>
-          <svg className="marker-fan-cpt" viewBox="0 0 24 22" aria-hidden="true" focusable="false">
-            <polygon points="3,3 21,3 12,19" />
-          </svg>
-          <span className="marker-fan-label">{cpt?.name.replace(/^CPT\s*/i, "") ?? item.id}</span>
-        </>
+        <svg className="marker-fan-cpt" viewBox="0 0 24 22" aria-hidden="true" focusable="false">
+          <polygon points="3,3 21,3 12,19" />
+        </svg>
       );
     }
 
-    const loadPoint = state.loadPoints.find((candidate) => candidate.id === item.id);
     const selectedOption = getSelectedPileOption(state, item.id);
     const style = selectedOption ? getConfigurationStyle(selectedOption, legend) : null;
-    return (
-      <>
-        {style ? (
-          <span
-            className="marker-fan-load-point"
-            dangerouslySetInnerHTML={{ __html: renderPileSymbol(style.shape, style.color) }}
-          />
-        ) : (
-          <span className="marker-fan-empty">×</span>
-        )}
-        <span className="marker-fan-label">
-          {loadPoint?.name.replace(/^Load point\s*/i, "") ?? item.id}
-        </span>
-      </>
+    return style ? (
+      <span
+        className="marker-fan-load-point"
+        dangerouslySetInnerHTML={{ __html: renderPileSymbol(style.shape, style.color) }}
+      />
+    ) : (
+      <span className="marker-fan-empty">×</span>
     );
   }
 

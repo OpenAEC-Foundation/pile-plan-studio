@@ -11,6 +11,7 @@ describe("pile symbol rendering", () => {
     assert.match(symbol, /<polygon\b/);
     assert.match(symbol, /fill="#b07aa1"/);
     assert.match(symbol, /stroke="#172026"/);
+    assert.doesNotMatch(symbol, /vector-effect="non-scaling-stroke"/);
     assert.doesNotMatch(symbol, /shape-triangle-up/);
     assert.doesNotMatch(symbol, /clip-path/);
   });

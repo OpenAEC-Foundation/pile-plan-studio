@@ -10,7 +10,6 @@ export function renderPileSymbol(shape: PileShape, fillColor: string): string {
     `stroke="${SYMBOL_STROKE}"`,
     `stroke-width="${SYMBOL_STROKE_WIDTH}"`,
     `stroke-linejoin="round"`,
-    `vector-effect="non-scaling-stroke"`,
   ].join(" ");
 
   return `<svg class="pile-symbol-svg" viewBox="0 0 24 24" aria-hidden="true" focusable="false">${renderShape(shape, shapeAttributes)}</svg>`;
