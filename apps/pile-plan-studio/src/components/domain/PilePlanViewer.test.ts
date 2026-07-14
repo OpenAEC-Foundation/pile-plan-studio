@@ -41,6 +41,14 @@ describe("PilePlanViewer inputs", () => {
     assert.doesNotMatch(source, /marker-fan-label/);
   });
 
+  it("hides source markers while their magnified copies are visible", () => {
+    const source = readFileSync(resolve(import.meta.dirname, "PilePlanViewer.tsx"), "utf8");
+    const css = readFileSync(resolve(import.meta.dirname, "viewer.css"), "utf8");
+
+    assert.match(source, /is-fanned-source/);
+    assert.match(css, /\.is-fanned-source\s*{[\s\S]*?visibility:\s*hidden;/);
+  });
+
   it("does not show focus rectangles on map markers or legend items", () => {
     const css = readFileSync(resolve(import.meta.dirname, "viewer.css"), "utf8");
 

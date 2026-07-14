@@ -236,6 +236,10 @@
   transform-origin: center;
 }
 
+.is-fanned-source {
+  visibility: hidden;
+}
+
 .load-point-marker {
   --invalid-intensity: 0;
   border-radius: 50%;

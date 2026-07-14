@@ -13,6 +13,12 @@ export type MarkerScreenPoint = {
   y: number;
 };
 
+const VISIBLE_OVERLAP_TOLERANCE = 0.75;
+
+export function getLoadPointVisualRadius(symbolSize: number): number {
+  return Number((symbolSize * (9.7 / 24)).toFixed(2));
+}
+
 export function getMagnifiedMarkerSize(width: number, height: number): number {
   return Math.max(24, Math.max(width, height) * 1.3);
 }
@@ -108,7 +114,7 @@ function circlesOverlap(first: MarkerScreenRect, second: MarkerScreenRect): bool
   return Math.hypot(
     firstCenter.x - secondCenter.x,
     firstCenter.y - secondCenter.y,
-  ) < first.visualRadius + second.visualRadius;
+  ) < first.visualRadius + second.visualRadius - VISIBLE_OVERLAP_TOLERANCE;
 }
 
 function rectanglesOverlap(first: MarkerScreenRect, second: MarkerScreenRect): boolean {

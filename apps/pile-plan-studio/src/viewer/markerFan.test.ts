@@ -2,12 +2,17 @@ import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 
 import {
+  getLoadPointVisualRadius,
   getMagnifiedMarkerOffsets,
   getMagnifiedMarkerSize,
   getOverlappingMarkerKeys,
 } from "./markerFan.ts";
 
 describe("marker fan-out", () => {
+  it("uses the visible pile shape instead of the larger click target for overlap", () => {
+    assert.equal(getLoadPointVisualRadius(12), 4.85);
+  });
+
   it("returns only markers that directly overlap the clicked marker", () => {
     const markers = [
       { key: "load-point:695", left: 0, top: 0, right: 14, bottom: 14, visualRadius: 6 },
@@ -35,6 +40,15 @@ describe("marker fan-out", () => {
     const markers = [
       { key: "load-point:1", left: 0, top: 0, right: 14, bottom: 14, visualRadius: 5 },
       { key: "load-point:2", left: 10, top: 10, right: 24, bottom: 24, visualRadius: 5 },
+    ];
+
+    assert.deepEqual(getOverlappingMarkerKeys("load-point:1", markers), ["load-point:1"]);
+  });
+
+  it("does not fan out markers that only touch within antialiasing tolerance", () => {
+    const markers = [
+      { key: "load-point:1", left: 0, top: 0, right: 14, bottom: 14, visualRadius: 5 },
+      { key: "load-point:2", left: 9.5, top: 0, right: 23.5, bottom: 14, visualRadius: 5 },
     ];
 
     assert.deepEqual(getOverlappingMarkerKeys("load-point:1", markers), ["load-point:1"]);

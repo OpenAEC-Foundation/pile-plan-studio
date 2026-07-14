@@ -6,6 +6,7 @@ import { getConfigurationStyle, getLegendItems } from "../../viewer/legend.ts";
 import { getCptMarkerLayerClass, getLoadPointMarkerLayerClass } from "../../viewer/mapMarkerLayer.ts";
 import { shouldStartMapPan } from "../../viewer/mapInteraction.ts";
 import {
+  getLoadPointVisualRadius,
   getMagnifiedMarkerOffsets,
   getMagnifiedMarkerSize,
   getOverlappingMarkerKeys,
@@ -52,6 +53,7 @@ export default function PilePlanViewer({ state, onStateChange }: Props) {
   const zoomCommitTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [lasso, setLasso] = useState<LassoRectangle | null>(null);
   const [markerFan, setMarkerFan] = useState<MarkerFanState | null>(null);
+  const fannedSourceKeys = new Set(markerFan?.items.map((item) => `${item.type}:${item.id}`));
 
   useEffect(() => {
     if (!interactionRef.current && !zoomCommitTimerRef.current) {
@@ -103,7 +105,7 @@ export default function PilePlanViewer({ state, onStateChange }: Props) {
             return (
               <button
                 aria-label={`CPT ${cpt.name}`}
-                className={`cpt-marker${getCptMarkerLayerClass(isSelected)}${isRaised && !isSelected ? " is-layer-editable-cpt is-editable" : ""}`}
+                className={`cpt-marker${getCptMarkerLayerClass(isSelected)}${isRaised && !isSelected ? " is-layer-editable-cpt is-editable" : ""}${fannedSourceKeys.has(`cpt:${cpt.id}`) ? " is-fanned-source" : ""}`}
                 data-map-marker-key={`cpt:${cpt.id}`}
                 key={cpt.id}
                 style={getProjectMarkerStyle(point)}
@@ -150,7 +152,7 @@ export default function PilePlanViewer({ state, onStateChange }: Props) {
             return (
               <button
                 aria-label={`Load point ${loadPoint.name}`}
-                className={`load-point-marker${getLoadPointMarkerLayerClass(isSelected)}${isSelected ? " is-selected" : ""}${invalidVisual.className}${unselectedClass}`}
+                className={`load-point-marker${getLoadPointMarkerLayerClass(isSelected)}${isSelected ? " is-selected" : ""}${invalidVisual.className}${unselectedClass}${fannedSourceKeys.has(`load-point:${loadPoint.id}`) ? " is-fanned-source" : ""}`}
                 data-map-marker-key={`load-point:${loadPoint.id}`}
                 key={loadPoint.id}
                 style={getProjectMarkerStyle(point, invalidVisual.style)}
@@ -338,13 +340,17 @@ export default function PilePlanViewer({ state, onStateChange }: Props) {
 
     const markers = Array.from(canvas.querySelectorAll<HTMLElement>("[data-map-marker-key]")).map((marker) => {
       const rect = marker.getBoundingClientRect();
+      const pileSymbol = marker.querySelector<HTMLElement>(".load-point-symbol .pile-symbol-svg");
+      const pileSymbolRect = pileSymbol?.getBoundingClientRect();
       return {
         key: marker.dataset.mapMarkerKey!,
         left: rect.left,
         top: rect.top,
         right: rect.right,
         bottom: rect.bottom,
-        visualRadius: Math.min(rect.width, rect.height) * 0.43,
+        visualRadius: pileSymbolRect
+          ? getLoadPointVisualRadius(Math.min(pileSymbolRect.width, pileSymbolRect.height))
+          : Math.min(rect.width, rect.height) * 0.43,
       };
     });
     const keys = getOverlappingMarkerKeys(clickedKey, markers);
