@@ -8,7 +8,7 @@ import {
 } from "./markerFan.ts";
 
 describe("marker fan-out", () => {
-  it("returns the connected overlap group for the clicked marker", () => {
+  it("returns only markers that directly overlap the clicked marker", () => {
     const markers = [
       { key: "load-point:695", left: 0, top: 0, right: 14, bottom: 14, visualRadius: 6 },
       { key: "load-point:654", left: 10, top: 0, right: 24, bottom: 14, visualRadius: 6 },
@@ -19,7 +19,6 @@ describe("marker fan-out", () => {
     assert.deepEqual(getOverlappingMarkerKeys("load-point:695", markers), [
       "load-point:695",
       "load-point:654",
-      "cpt:12",
     ]);
   });
 

@@ -26,20 +26,9 @@ export function getOverlappingMarkerKeys(
     return [];
   }
 
-  const group = new Set([clickedKey]);
-  const queue = [clickedMarker];
-
-  while (queue.length > 0) {
-    const current = queue.shift()!;
-    for (const candidate of markers) {
-      if (!group.has(candidate.key) && rectanglesOverlap(current, candidate)) {
-        group.add(candidate.key);
-        queue.push(candidate);
-      }
-    }
-  }
-
-  return markers.filter((marker) => group.has(marker.key)).map((marker) => marker.key);
+  return markers
+    .filter((marker) => marker.key === clickedKey || rectanglesOverlap(clickedMarker, marker))
+    .map((marker) => marker.key);
 }
 
 export function getMagnifiedMarkerOffsets(
