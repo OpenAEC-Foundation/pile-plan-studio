@@ -29,7 +29,7 @@ export function projectPoint(
   const yRatio = (point.y_mm - bounds.minY) / height;
 
   return {
-    x: Math.round(VIEW_PADDING + xRatio * (VIEW_WIDTH - VIEW_PADDING * 2)),
-    y: Math.round(VIEW_HEIGHT - VIEW_PADDING - yRatio * (VIEW_HEIGHT - VIEW_PADDING * 2)),
+    x: VIEW_PADDING + xRatio * (VIEW_WIDTH - VIEW_PADDING * 2),
+    y: VIEW_HEIGHT - VIEW_PADDING - yRatio * (VIEW_HEIGHT - VIEW_PADDING * 2),
   };
 }

@@ -43,4 +43,19 @@ describe("viewer geometry", () => {
       y: 10,
     });
   });
+
+  it("preserves distinct sub-percentage positions for nearby load points", () => {
+    const sampleBounds = {
+      minX: 5700.3992184,
+      maxX: 141130.9999848,
+      minY: -30812.6001984,
+      maxY: 74199.999936,
+    };
+
+    const loadPoint695 = projectPoint({ x_mm: 122600, y_mm: 4150 }, sampleBounds);
+    const loadPoint654 = projectPoint({ x_mm: 122600, y_mm: 5250 }, sampleBounds);
+
+    assert.notEqual(loadPoint695.y, loadPoint654.y);
+    assert.ok(Math.abs(loadPoint695.y - loadPoint654.y) < 1);
+  });
 });
