@@ -237,7 +237,7 @@
 }
 
 .is-fanned-source {
-  visibility: hidden;
+  opacity: 0;
 }
 
 .load-point-marker {

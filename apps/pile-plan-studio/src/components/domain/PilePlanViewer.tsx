@@ -1,4 +1,11 @@
-import { useEffect, useRef, useState, type CSSProperties, type MouseEvent } from "react";
+import {
+  useEffect,
+  useRef,
+  useState,
+  type CSSProperties,
+  type MouseEvent,
+  type PointerEvent as ReactPointerEvent,
+} from "react";
 import { useTranslation } from "react-i18next";
 import type { ProjectState } from "../../domain/projectState";
 import { getPointIdsInRectangle, type LassoRectangle } from "../../viewer/lassoSelection.ts";
@@ -41,6 +48,9 @@ type Props = {
   onStateChange: (nextState: ProjectState) => void;
 };
 
+const MARKER_FAN_OPEN_DELAY_MS = 120;
+const MARKER_FAN_CLOSE_DELAY_MS = 300;
+
 export default function PilePlanViewer({ state, onStateChange }: Props) {
   const { t } = useTranslation("common");
   const legend = getLegendItems(state.bearingCapacities);
@@ -52,6 +62,8 @@ export default function PilePlanViewer({ state, onStateChange }: Props) {
   const interactionRef = useRef<ViewerInteraction | null>(null);
   const viewportRef = useRef(state.viewport);
   const zoomCommitTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const markerFanOpenTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const markerFanCloseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [lasso, setLasso] = useState<LassoRectangle | null>(null);
   const [markerFan, setMarkerFan] = useState<MarkerFanState | null>(null);
   const fannedSourceKeys = new Set(markerFan?.items.map((item) => `${item.type}:${item.id}`));
@@ -67,7 +79,7 @@ export default function PilePlanViewer({ state, onStateChange }: Props) {
     function handleKeyDown(event: KeyboardEvent) {
       if (event.key === "Escape") {
         if (markerFan) {
-          setMarkerFan(null);
+          closeMarkerFan();
           return;
         }
         onStateChange({ ...state, ...clearReactViewerSelection(state), viewport: viewportRef.current });
@@ -82,6 +94,12 @@ export default function PilePlanViewer({ state, onStateChange }: Props) {
     return () => {
       if (zoomCommitTimerRef.current) {
         clearTimeout(zoomCommitTimerRef.current);
+      }
+      if (markerFanOpenTimerRef.current) {
+        clearTimeout(markerFanOpenTimerRef.current);
+      }
+      if (markerFanCloseTimerRef.current) {
+        clearTimeout(markerFanCloseTimerRef.current);
       }
     };
   }, []);
@@ -111,12 +129,12 @@ export default function PilePlanViewer({ state, onStateChange }: Props) {
                 key={cpt.id}
                 style={getProjectMarkerStyle(point)}
                 type="button"
+                onPointerEnter={(event) => scheduleMarkerFanOpen(event, `cpt:${cpt.id}`)}
+                onPointerLeave={scheduleMarkerFanClose}
                 onClick={(event) => {
                   event.stopPropagation();
                   const clickedKey = resolveClickedMarkerKey(event, `cpt:${cpt.id}`);
-                  if (openMarkerFan(clickedKey)) {
-                    return;
-                  }
+                  closeMarkerFan();
                   selectMapMarker(clickedKey, event.shiftKey);
                 }}
               >
@@ -156,12 +174,12 @@ export default function PilePlanViewer({ state, onStateChange }: Props) {
                 key={loadPoint.id}
                 style={getProjectMarkerStyle(point, invalidVisual.style)}
                 type="button"
+                onPointerEnter={(event) => scheduleMarkerFanOpen(event, `load-point:${loadPoint.id}`)}
+                onPointerLeave={scheduleMarkerFanClose}
                 onClick={(event) => {
                   event.stopPropagation();
                   const clickedKey = resolveClickedMarkerKey(event, `load-point:${loadPoint.id}`);
-                  if (openMarkerFan(clickedKey)) {
-                    return;
-                  }
+                  closeMarkerFan();
                   selectMapMarker(clickedKey, event.shiftKey);
                 }}
               >
@@ -191,7 +209,7 @@ export default function PilePlanViewer({ state, onStateChange }: Props) {
 
   function handleWheel(event: React.WheelEvent<HTMLDivElement>) {
     event.preventDefault();
-    setMarkerFan(null);
+    closeMarkerFan();
     const rect = event.currentTarget.getBoundingClientRect();
     const scaleStep = event.deltaY < 0 ? 1.12 : 1 / 1.12;
     const currentViewport = viewportRef.current;
@@ -212,7 +230,7 @@ export default function PilePlanViewer({ state, onStateChange }: Props) {
     const start = { x: event.clientX, y: event.clientY };
 
     if (!target.closest(".marker-fan-item")) {
-      setMarkerFan(null);
+      closeMarkerFan();
     }
 
     if (event.shiftKey && !targetIsInteractive) {
@@ -371,6 +389,48 @@ export default function PilePlanViewer({ state, onStateChange }: Props) {
     return true;
   }
 
+  function scheduleMarkerFanOpen(
+    event: ReactPointerEvent<HTMLElement>,
+    fallbackKey: string,
+  ) {
+    cancelMarkerFanClose();
+    cancelMarkerFanOpen();
+    const hoveredKey = resolveClickedMarkerKey(event, fallbackKey);
+    markerFanOpenTimerRef.current = setTimeout(() => {
+      markerFanOpenTimerRef.current = null;
+      openMarkerFan(hoveredKey);
+    }, MARKER_FAN_OPEN_DELAY_MS);
+  }
+
+  function scheduleMarkerFanClose() {
+    cancelMarkerFanOpen();
+    cancelMarkerFanClose();
+    markerFanCloseTimerRef.current = setTimeout(() => {
+      markerFanCloseTimerRef.current = null;
+      setMarkerFan(null);
+    }, MARKER_FAN_CLOSE_DELAY_MS);
+  }
+
+  function cancelMarkerFanOpen() {
+    if (markerFanOpenTimerRef.current) {
+      clearTimeout(markerFanOpenTimerRef.current);
+      markerFanOpenTimerRef.current = null;
+    }
+  }
+
+  function cancelMarkerFanClose() {
+    if (markerFanCloseTimerRef.current) {
+      clearTimeout(markerFanCloseTimerRef.current);
+      markerFanCloseTimerRef.current = null;
+    }
+  }
+
+  function closeMarkerFan() {
+    cancelMarkerFanOpen();
+    cancelMarkerFanClose();
+    setMarkerFan(null);
+  }
+
   function getMarkerScreenRects(canvas: HTMLElement) {
     return Array.from(canvas.querySelectorAll<HTMLElement>("[data-map-marker-key]")).map((marker) => {
       const rect = marker.getBoundingClientRect();
@@ -389,7 +449,10 @@ export default function PilePlanViewer({ state, onStateChange }: Props) {
     });
   }
 
-  function resolveClickedMarkerKey(event: MouseEvent<HTMLElement>, fallbackKey: string) {
+  function resolveClickedMarkerKey(
+    event: MouseEvent<HTMLElement> | ReactPointerEvent<HTMLElement>,
+    fallbackKey: string,
+  ) {
     const canvas = canvasRef.current;
     return canvas
       ? getClosestVisibleMarkerKey({ x: event.clientX, y: event.clientY }, fallbackKey, getMarkerScreenRects(canvas))
@@ -398,7 +461,12 @@ export default function PilePlanViewer({ state, onStateChange }: Props) {
 
   function renderMarkerFan(fan: MarkerFanState) {
     return (
-      <div className="marker-fan" aria-label="Overlapping map objects">
+      <div
+        className="marker-fan"
+        aria-label="Overlapping map objects"
+        onPointerEnter={cancelMarkerFanClose}
+        onPointerLeave={scheduleMarkerFanClose}
+      >
         <svg
           className="marker-fan-lines"
           aria-hidden="true"

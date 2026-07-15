@@ -46,7 +46,16 @@ describe("PilePlanViewer inputs", () => {
     const css = readFileSync(resolve(import.meta.dirname, "viewer.css"), "utf8");
 
     assert.match(source, /is-fanned-source/);
-    assert.match(css, /\.is-fanned-source\s*{[\s\S]*?visibility:\s*hidden;/);
+    assert.match(css, /\.is-fanned-source\s*{[\s\S]*?opacity:\s*0;/);
+  });
+
+  it("opens overlapping markers on hover while clicks select directly", () => {
+    const source = readFileSync(resolve(import.meta.dirname, "PilePlanViewer.tsx"), "utf8");
+
+    assert.match(source, /onPointerEnter=\{\(event\) => scheduleMarkerFanOpen\(event,/);
+    assert.match(source, /onPointerLeave=\{scheduleMarkerFanClose\}/);
+    assert.doesNotMatch(source, /if \(openMarkerFan\(clickedKey\)\)/);
+    assert.match(source, /const MARKER_FAN_OPEN_DELAY_MS = 120;/);
   });
 
   it("does not show focus rectangles on map markers or legend items", () => {
