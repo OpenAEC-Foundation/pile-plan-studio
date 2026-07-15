@@ -14,10 +14,9 @@ import { getCptMarkerLayerClass, getLoadPointMarkerLayerClass } from "../../view
 import { shouldStartMapPan } from "../../viewer/mapInteraction.ts";
 import {
   getClosestVisibleMarkerKey,
-  getCompactRingOffsets,
   getLoadPointVisualRadius,
-  getMagnifiedMarkerSize,
   getOverlappingMarkerKeys,
+  getSeparatedMarkerOffsets,
 } from "../../viewer/markerFan.ts";
 import { renderPileSymbol } from "../../viewer/pileSymbols.ts";
 import {
@@ -365,13 +364,12 @@ export default function PilePlanViewer({ state, onStateChange }: Props) {
       key: marker.key,
       x: (marker.left + marker.right) / 2,
       y: (marker.top + marker.bottom) / 2,
-      displaySize: getMagnifiedMarkerSize(marker.right - marker.left, marker.bottom - marker.top),
+      displayWidth: marker.displayWidth,
+      displayHeight: marker.displayHeight,
+      radius: marker.visualRadius,
     }));
     const anchorMarker = groupMarkers.find((marker) => marker.key === clickedKey)!;
-    const offsets = getCompactRingOffsets(groupMarkers.map((marker) => ({
-      ...marker,
-      radius: (marker.displaySize + 8) / 2,
-    })), clickedKey);
+    const offsets = getSeparatedMarkerOffsets(groupMarkers, clickedKey);
     setMarkerFan({
       items: groupMarkers.map((marker) => {
         const offset = offsets.find((candidate) => candidate.key === marker.key)!;
@@ -381,7 +379,8 @@ export default function PilePlanViewer({ state, onStateChange }: Props) {
           sourceY: marker.y - canvasRect.top,
           targetX: anchorMarker.x - canvasRect.left + offset.x,
           targetY: anchorMarker.y - canvasRect.top + offset.y,
-          displaySize: marker.displaySize,
+          displayWidth: marker.displayWidth,
+          displayHeight: marker.displayHeight,
         };
       }),
     });
@@ -435,6 +434,10 @@ export default function PilePlanViewer({ state, onStateChange }: Props) {
       const rect = marker.getBoundingClientRect();
       const pileSymbol = marker.querySelector<HTMLElement>(".load-point-symbol .pile-symbol-svg");
       const pileSymbolRect = pileSymbol?.getBoundingClientRect();
+      const visual = marker.querySelector<HTMLElement>(
+        ".load-point-symbol .pile-symbol-svg, .load-point-empty, .load-point-pending, .cpt-triangle",
+      );
+      const visualRect = visual?.getBoundingClientRect() ?? rect;
       return {
         key: marker.dataset.mapMarkerKey!,
         left: rect.left,
@@ -444,6 +447,8 @@ export default function PilePlanViewer({ state, onStateChange }: Props) {
         visualRadius: pileSymbolRect
           ? getLoadPointVisualRadius(Math.min(pileSymbolRect.width, pileSymbolRect.height))
           : Math.min(rect.width, rect.height) * 0.43,
+        displayWidth: visualRect.width,
+        displayHeight: visualRect.height,
       };
     });
   }
@@ -489,7 +494,8 @@ export default function PilePlanViewer({ state, onStateChange }: Props) {
               style={{
                 left: item.targetX,
                 top: item.targetY,
-                "--marker-fan-size": `${item.displaySize}px`,
+                "--marker-fan-width": `${item.displayWidth}px`,
+                "--marker-fan-height": `${item.displayHeight}px`,
                 ...visual.style,
               } as CSSProperties}
               type="button"
@@ -609,7 +615,8 @@ type MarkerFanItem = {
   sourceY: number;
   targetX: number;
   targetY: number;
-  displaySize: number;
+  displayWidth: number;
+  displayHeight: number;
 };
 
 type MarkerFanState = {

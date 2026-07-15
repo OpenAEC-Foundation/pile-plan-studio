@@ -161,11 +161,12 @@
 }
 
 .marker-fan-item {
-  --marker-fan-size: 24px;
+  --marker-fan-width: 14px;
+  --marker-fan-height: 14px;
   position: absolute;
   display: grid;
-  width: calc(var(--marker-fan-size) + 8px);
-  height: calc(var(--marker-fan-size) + 8px);
+  width: calc(var(--marker-fan-width) + 8px);
+  height: calc(var(--marker-fan-height) + 8px);
   padding: 0;
   border: 0;
   place-items: center;
@@ -184,8 +185,8 @@
 .marker-fan-item::before {
   position: absolute;
   z-index: -1;
-  width: calc(var(--marker-fan-size) + 6px);
-  height: calc(var(--marker-fan-size) + 6px);
+  width: calc(var(--marker-fan-width) + 6px);
+  height: calc(var(--marker-fan-height) + 6px);
   border: 1px solid transparent;
   border-radius: 50%;
   content: "";
@@ -197,8 +198,8 @@
 
 .marker-fan-item.is-load-point.is-selected::after {
   position: absolute;
-  width: calc(var(--marker-fan-size) + 8px);
-  height: calc(var(--marker-fan-size) + 8px);
+  width: calc(var(--marker-fan-width) + 8px);
+  height: calc(var(--marker-fan-height) + 8px);
   border: 2px solid var(--theme-accent);
   border-radius: 50%;
   content: "";
@@ -206,23 +207,23 @@
 
 .marker-fan-load-point,
 .marker-fan-load-point .pile-symbol-svg {
-  width: var(--marker-fan-size);
-  height: var(--marker-fan-size);
+  width: var(--marker-fan-width);
+  height: var(--marker-fan-height);
 }
 
 .marker-fan-empty {
-  width: var(--marker-fan-size);
-  height: var(--marker-fan-size);
+  width: var(--marker-fan-width);
+  height: var(--marker-fan-height);
 }
 
 .marker-fan-pending {
-  width: calc(var(--marker-fan-size) * 0.65);
-  height: calc(var(--marker-fan-size) * 0.65);
+  width: var(--marker-fan-width);
+  height: var(--marker-fan-height);
 }
 
 .marker-fan-cpt {
-  width: var(--marker-fan-size);
-  height: var(--marker-fan-size);
+  width: var(--marker-fan-width);
+  height: var(--marker-fan-height);
   overflow: visible;
 }
 
@@ -241,10 +242,10 @@
 
 .marker-fan-cpt-label {
   position: relative;
-  top: calc(var(--marker-fan-size) * -0.08);
+  top: calc(min(var(--marker-fan-width), var(--marker-fan-height)) * -0.08);
   z-index: 1;
   color: inherit;
-  font-size: calc(var(--marker-fan-size) * 0.34);
+  font-size: calc(min(var(--marker-fan-width), var(--marker-fan-height)) * 0.34);
   font-weight: 700;
   line-height: 1;
 }

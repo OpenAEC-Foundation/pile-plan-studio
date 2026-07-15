@@ -3,10 +3,9 @@ import assert from "node:assert/strict";
 
 import {
   getClosestVisibleMarkerKey,
-  getCompactRingOffsets,
   getLoadPointVisualRadius,
-  getMagnifiedMarkerSize,
   getOverlappingMarkerKeys,
+  getSeparatedMarkerOffsets,
 } from "./markerFan.ts";
 
 describe("marker fan-out", () => {
@@ -77,36 +76,36 @@ describe("marker fan-out", () => {
     assert.deepEqual(getOverlappingMarkerKeys("load-point:1", markers), ["load-point:1"]);
   });
 
-  it("keeps the hovered marker fixed and packs neighbours on a compact ring", () => {
-    const offsets = getCompactRingOffsets([
-      { key: "anchor", x: 10, y: 20, radius: 15 },
-      { key: "near", x: 11, y: 20, radius: 12 },
-      { key: "far", x: 18, y: 20, radius: 12 },
+  it("keeps the anchor fixed and minimally separates markers along their source directions", () => {
+    const offsets = getSeparatedMarkerOffsets([
+      { key: "anchor", x: 10, y: 20, radius: 5 },
+      { key: "right", x: 11, y: 20, radius: 5 },
+      { key: "lower-right", x: 12, y: 22, radius: 5 },
     ], "anchor", 1.1);
 
     const anchor = offsets.find((offset) => offset.key === "anchor")!;
-    const near = offsets.find((offset) => offset.key === "near")!;
-    const far = offsets.find((offset) => offset.key === "far")!;
+    const right = offsets.find((offset) => offset.key === "right")!;
+    const lowerRight = offsets.find((offset) => offset.key === "lower-right")!;
 
     assert.deepEqual(anchor, { key: "anchor", x: 0, y: 0 });
-    assert.ok(Math.abs(Math.hypot(near.x, near.y) - Math.hypot(far.x, far.y)) < 0.001);
-    assert.ok(Math.hypot(near.x, near.y) >= (15 + 12) * 1.1);
-    assert.ok(Math.hypot(near.x - far.x, near.y - far.y) >= (12 + 12) * 1.1);
+    assert.equal(right.y, 0);
+    assert.ok(right.x > 0);
+    assert.ok(Math.abs(lowerRight.x - lowerRight.y) < 0.001);
+    assert.ok(lowerRight.x > 0);
+    assert.ok(Math.hypot(right.x, right.y) >= 5.5);
+    assert.ok(Math.hypot(lowerRight.x, lowerRight.y) >= 5.5);
+    assert.ok(Math.hypot(right.x - lowerRight.x, right.y - lowerRight.y) >= 5.5);
+    assert.ok(Math.max(Math.hypot(right.x, right.y), Math.hypot(lowerRight.x, lowerRight.y)) < 12);
   });
 
   it("separates markers whose source positions are exactly equal", () => {
-    const offsets = getCompactRingOffsets([
-      { key: "load-point:1", x: 10, y: 20, radius: 14 },
-      { key: "cpt:2", x: 10, y: 20, radius: 14 },
+    const offsets = getSeparatedMarkerOffsets([
+      { key: "load-point:1", x: 10, y: 20, radius: 5 },
+      { key: "cpt:2", x: 10, y: 20, radius: 5 },
     ], "load-point:1", 1.1);
 
     assert.equal(offsets.length, 2);
     assert.deepEqual(offsets[0], { key: "load-point:1", x: 0, y: 0 });
-    assert.ok(Math.hypot(offsets[0].x - offsets[1].x, offsets[0].y - offsets[1].y) >= 30.8);
-  });
-
-  it("makes the magnified symbol larger than its current screen size", () => {
-    assert.equal(getMagnifiedMarkerSize(42, 39), 54.6);
-    assert.equal(getMagnifiedMarkerSize(10, 10), 24);
+    assert.ok(Math.hypot(offsets[0].x - offsets[1].x, offsets[0].y - offsets[1].y) >= 5.5);
   });
 });

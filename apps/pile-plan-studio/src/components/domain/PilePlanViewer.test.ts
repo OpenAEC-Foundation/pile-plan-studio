@@ -78,6 +78,14 @@ describe("PilePlanViewer inputs", () => {
     assert.match(css, /\.marker-fan-item\.is-cpt\s*{[\s\S]*?--cpt-fill:\s*#d4dade;/);
   });
 
+  it("keeps fan markers at their source symbol dimensions", () => {
+    const source = readFileSync(resolve(import.meta.dirname, "PilePlanViewer.tsx"), "utf8");
+
+    assert.doesNotMatch(source, /getMagnifiedMarkerSize/);
+    assert.match(source, /displayWidth:\s*visualRect\.width/);
+    assert.match(source, /displayHeight:\s*visualRect\.height/);
+  });
+
   it("does not show focus rectangles on map markers or legend items", () => {
     const css = readFileSync(resolve(import.meta.dirname, "viewer.css"), "utf8");
 
