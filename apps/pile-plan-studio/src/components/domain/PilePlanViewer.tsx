@@ -14,8 +14,8 @@ import { getCptMarkerLayerClass, getLoadPointMarkerLayerClass } from "../../view
 import { shouldStartMapPan } from "../../viewer/mapInteraction.ts";
 import {
   getClosestVisibleMarkerKey,
+  getCompactRingOffsets,
   getLoadPointVisualRadius,
-  getMagnifiedMarkerOffsets,
   getMagnifiedMarkerSize,
   getOverlappingMarkerKeys,
 } from "../../viewer/markerFan.ts";
@@ -368,8 +368,10 @@ export default function PilePlanViewer({ state, onStateChange }: Props) {
       displaySize: getMagnifiedMarkerSize(marker.right - marker.left, marker.bottom - marker.top),
     }));
     const anchorMarker = groupMarkers.find((marker) => marker.key === clickedKey)!;
-    const minimumDistance = Math.max(...groupMarkers.map((marker) => marker.displaySize)) + 10;
-    const offsets = getMagnifiedMarkerOffsets(groupMarkers, minimumDistance, clickedKey);
+    const offsets = getCompactRingOffsets(groupMarkers.map((marker) => ({
+      ...marker,
+      radius: (marker.displaySize + 8) / 2,
+    })), clickedKey);
     setMarkerFan({
       items: groupMarkers.map((marker) => {
         const offset = offsets.find((candidate) => candidate.key === marker.key)!;
@@ -478,43 +480,90 @@ export default function PilePlanViewer({ state, onStateChange }: Props) {
             />
           ))}
         </svg>
-        {fan.items.map((item) => (
-          <button
-            className={`marker-fan-item is-${item.type}${item.type === "load-point" && selectedLoadPointIds.has(item.id) ? " is-selected" : ""}`}
-            key={`${item.type}:${item.id}`}
-            style={{
-              left: item.targetX,
-              top: item.targetY,
-              "--marker-fan-size": `${item.displaySize}px`,
-            } as CSSProperties}
-            type="button"
-            onClick={(event) => selectFannedMarker(item, event.shiftKey)}
-          >
-            {renderFannedMarker(item)}
-          </button>
-        ))}
+        {fan.items.map((item) => {
+          const visual = getFannedMarkerVisual(item);
+          return (
+            <button
+              className={`marker-fan-item is-${item.type}${visual.className}`}
+              key={`${item.type}:${item.id}`}
+              style={{
+                left: item.targetX,
+                top: item.targetY,
+                "--marker-fan-size": `${item.displaySize}px`,
+                ...visual.style,
+              } as CSSProperties}
+              type="button"
+              onClick={(event) => selectFannedMarker(item, event.shiftKey)}
+            >
+              {renderFannedMarker(item)}
+            </button>
+          );
+        })}
       </div>
     );
   }
 
+  function getFannedMarkerVisual(item: MarkerFanItem): { className: string; style: CSSProperties } {
+    if (item.type === "cpt") {
+      return {
+        className: selectedCptIds.has(item.id) ? " is-layer-selected-cpt" : " is-layer-cpt",
+        style: {},
+      };
+    }
+
+    const selectedOption = getSelectedPileOption(state, item.id);
+    const invalidVisual = getLoadPointMarkerInvalidVisual(selectedOption);
+    const unselectedState = selectedOption ? null : getUnselectedLoadPointMarkerState(
+      state.pileOptionsByLoadPointId.get(item.id),
+      state.defaultPileSelectionPending,
+      state.analysisError !== null,
+    );
+    const unselectedClass = unselectedState === "pending"
+      ? " is-pending"
+      : unselectedState === "missing"
+        ? " has-missing-options"
+        : unselectedState === "invalid"
+          ? " has-invalid-options"
+          : "";
+    return {
+      className: `${selectedLoadPointIds.has(item.id) ? " is-selected" : ""}${invalidVisual.className}${unselectedClass}`,
+      style: getInvalidMarkerStyle(invalidVisual.style),
+    };
+  }
+
   function renderFannedMarker(item: MarkerFanItem) {
     if (item.type === "cpt") {
+      const cpt = state.cpts.find((candidate) => candidate.id === item.id);
       return (
-        <svg className="marker-fan-cpt" viewBox="0 0 24 22" aria-hidden="true" focusable="false">
-          <polygon points="3,3 21,3 12,19" />
-        </svg>
+        <>
+          <svg className="marker-fan-cpt" viewBox="0 0 24 22" aria-hidden="true" focusable="false">
+            <polygon points="3,3 21,3 12,19" />
+          </svg>
+          <span className="marker-fan-cpt-label">{cpt?.name.replace(/^CPT\s*/i, "") ?? item.id}</span>
+        </>
       );
     }
 
     const selectedOption = getSelectedPileOption(state, item.id);
     const style = selectedOption ? getConfigurationStyle(selectedOption, legend) : null;
+    const unselectedState = selectedOption ? null : getUnselectedLoadPointMarkerState(
+      state.pileOptionsByLoadPointId.get(item.id),
+      state.defaultPileSelectionPending,
+      state.analysisError !== null,
+    );
     return style ? (
       <span
-        className="marker-fan-load-point"
+        className="marker-fan-load-point load-point-symbol"
         dangerouslySetInnerHTML={{ __html: renderPileSymbol(style.shape, style.color) }}
       />
+    ) : unselectedState === "pending" ? (
+      <span className="marker-fan-pending load-point-pending" aria-hidden="true" />
     ) : (
-      <span className="marker-fan-empty">×</span>
+      <span className="marker-fan-empty load-point-empty" aria-hidden="true">
+        <svg viewBox="0 0 24 24" focusable="false">
+          <path d="M6 6L18 18M18 6L6 18" />
+        </svg>
+      </span>
     );
   }
 
@@ -611,12 +660,16 @@ function getLassoStyle(lasso: LassoRectangle) {
 }
 
 function getProjectMarkerStyle(point: { x: number; y: number }, invalidStyle = ""): CSSProperties {
-  const intensity = invalidStyle.match(/--invalid-intensity: ([0-9.]+)/)?.[1];
   return {
     left: `${point.x}%`,
     top: `${point.y}%`,
-    ...(intensity ? { "--invalid-intensity": intensity } : {}),
+    ...getInvalidMarkerStyle(invalidStyle),
   };
+}
+
+function getInvalidMarkerStyle(invalidStyle = ""): CSSProperties {
+  const intensity = invalidStyle.match(/--invalid-intensity: ([0-9.]+)/)?.[1];
+  return intensity ? { "--invalid-intensity": intensity } as CSSProperties : {};
 }
 
 function getStageStyle(viewport: ProjectState["viewport"]): CSSProperties {

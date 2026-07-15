@@ -54,69 +54,55 @@ export function getOverlappingMarkerKeys(
     .map((marker) => marker.key);
 }
 
-export function getMagnifiedMarkerOffsets(
-  markers: MarkerScreenPoint[],
-  minimumDistance: number,
+export function getCompactRingOffsets(
+  markers: Array<MarkerScreenPoint & { radius: number }>,
   anchorKey: string,
-  maximumScale = 6,
+  margin = 1.1,
 ): MarkerScreenPoint[] {
   if (markers.length === 0) {
     return [];
   }
 
   const anchor = markers.find((marker) => marker.key === anchorKey) ?? markers[0];
-  const positiveDistances = markers
+  const neighbours = markers
     .filter((marker) => marker.key !== anchor.key)
-    .map((marker) => Math.hypot(marker.x - anchor.x, marker.y - anchor.y))
-    .filter((distance) => distance >= 0.5);
-  const smallestDistance = positiveDistances.length > 0 ? Math.min(...positiveDistances) : minimumDistance;
-  const scale = Math.min(maximumScale, Math.max(2, minimumDistance / smallestDistance));
-  const offsets = markers.map((marker) => ({
-    key: marker.key,
-    x: marker.key === anchor.key ? 0 : (marker.x - anchor.x) * scale,
-    y: marker.key === anchor.key ? 0 : (marker.y - anchor.y) * scale,
-  }));
+    .map((marker) => ({
+      ...marker,
+      angle: Math.atan2(marker.y - anchor.y, marker.x - anchor.x),
+    }))
+    .sort((first, second) => first.angle - second.angle || first.key.localeCompare(second.key));
+  const offsets: MarkerScreenPoint[] = [{ key: anchor.key, x: 0, y: 0 }];
+  const maximumMarkersPerRing = 8;
+  let previousRingRadius = 0;
+  let previousMarkerRadius = anchor.radius;
 
-  const duplicateGroups = groupCoincidentMarkers(markers);
-  for (const group of duplicateGroups.filter((items) => items.length > 1)) {
-    const anchoredGroup = group.some((marker) => marker.key === anchor.key);
-    if (anchoredGroup) {
-      const neighbours = group.filter((marker) => marker.key !== anchor.key);
-      neighbours.forEach((marker, index) => {
-        const offset = offsets.find((candidate) => candidate.key === marker.key)!;
-        const angle = -Math.PI / 2 + (index * Math.PI * 2) / neighbours.length;
-        offset.x = Math.cos(angle) * minimumDistance;
-        offset.y = Math.sin(angle) * minimumDistance;
+  for (let start = 0; start < neighbours.length; start += maximumMarkersPerRing) {
+    const ring = neighbours.slice(start, start + maximumMarkersPerRing);
+    const markerRadius = Math.max(...ring.map((marker) => marker.radius));
+    const anchorClearance = (anchor.radius + markerRadius) * margin;
+    const pairClearance = ring.length <= 1
+      ? 0
+      : (markerRadius * margin) / Math.sin(Math.PI / ring.length);
+    const previousRingClearance = previousRingRadius === 0
+      ? 0
+      : previousRingRadius + (previousMarkerRadius + markerRadius) * margin;
+    const ringRadius = Math.max(anchorClearance, pairClearance, previousRingClearance);
+    const angleStep = (Math.PI * 2) / ring.length;
+    const startAngle = ring[0].angle;
+
+    ring.forEach((marker, index) => {
+      const angle = startAngle + index * angleStep;
+      offsets.push({
+        key: marker.key,
+        x: Math.cos(angle) * ringRadius,
+        y: Math.sin(angle) * ringRadius,
       });
-      continue;
-    }
-
-    const radius = minimumDistance / (2 * Math.sin(Math.PI / group.length));
-    group.forEach((marker, index) => {
-      const offset = offsets.find((candidate) => candidate.key === marker.key)!;
-      const angle = -Math.PI / 2 + (index * Math.PI * 2) / group.length;
-      offset.x += Math.cos(angle) * radius;
-      offset.y += Math.sin(angle) * radius;
     });
+    previousRingRadius = ringRadius;
+    previousMarkerRadius = markerRadius;
   }
 
-  return offsets;
-}
-
-function groupCoincidentMarkers(markers: MarkerScreenPoint[]): MarkerScreenPoint[][] {
-  const groups: MarkerScreenPoint[][] = [];
-  for (const marker of markers) {
-    const group = groups.find((items) => Math.hypot(
-      items[0].x - marker.x,
-      items[0].y - marker.y,
-    ) < 0.5);
-    if (group) {
-      group.push(marker);
-    } else {
-      groups.push([marker]);
-    }
-  }
-  return groups;
+  return markers.map((marker) => offsets.find((offset) => offset.key === marker.key)!);
 }
 
 function circlesOverlap(first: MarkerScreenRect, second: MarkerScreenRect): boolean {

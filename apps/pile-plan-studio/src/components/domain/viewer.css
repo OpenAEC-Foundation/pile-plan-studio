@@ -186,14 +186,13 @@
   z-index: -1;
   width: calc(var(--marker-fan-size) + 6px);
   height: calc(var(--marker-fan-size) + 6px);
-  border: 1px solid var(--theme-border-strong);
+  border: 1px solid transparent;
   border-radius: 50%;
-  background: #f8fafb;
   content: "";
 }
 
 .marker-fan-item:hover::before {
-  border: 2px solid var(--theme-accent);
+  border-color: var(--theme-accent);
 }
 
 .marker-fan-item.is-load-point.is-selected::after {
@@ -212,10 +211,13 @@
 }
 
 .marker-fan-empty {
-  color: #c92a2a;
-  font-size: var(--marker-fan-size);
-  font-weight: 700;
-  line-height: 1;
+  width: var(--marker-fan-size);
+  height: var(--marker-fan-size);
+}
+
+.marker-fan-pending {
+  width: calc(var(--marker-fan-size) * 0.65);
+  height: calc(var(--marker-fan-size) * 0.65);
 }
 
 .marker-fan-cpt {
@@ -224,11 +226,27 @@
   overflow: visible;
 }
 
+.marker-fan-item.is-cpt {
+  --cpt-fill: #d4dade;
+  --cpt-stroke: #a2adb3;
+  color: #52636c;
+}
+
 .marker-fan-cpt polygon {
-  fill: #d4dade;
-  stroke: #687981;
+  fill: var(--cpt-fill, #d4dade);
+  stroke: var(--cpt-stroke, #a2adb3);
   stroke-linejoin: round;
   stroke-width: 2;
+}
+
+.marker-fan-cpt-label {
+  position: relative;
+  top: calc(var(--marker-fan-size) * -0.08);
+  z-index: 1;
+  color: inherit;
+  font-size: calc(var(--marker-fan-size) * 0.34);
+  font-weight: 700;
+  line-height: 1;
 }
 
 .load-point-marker,
@@ -255,7 +273,8 @@
   cursor: pointer;
 }
 
-.load-point-marker.is-invalid {
+.load-point-marker.is-invalid,
+.marker-fan-item.is-load-point.is-invalid {
   background:
     radial-gradient(
       circle,
@@ -268,7 +287,8 @@
     0 0 8px rgba(199, 53, 42, calc(0.12 + var(--invalid-intensity) * 0.35));
 }
 
-.load-point-marker.is-missing {
+.load-point-marker.is-missing,
+.marker-fan-item.is-load-point.is-missing {
   background: rgba(255, 193, 7, 0.22);
   box-shadow: 0 0 0 2px rgba(194, 130, 0, 0.72), 0 0 7px rgba(255, 193, 7, 0.32);
 }
@@ -318,11 +338,13 @@
   color: #c92a2a;
 }
 
-.load-point-marker.has-missing-options .load-point-empty {
+.load-point-marker.has-missing-options .load-point-empty,
+.marker-fan-item.has-missing-options .load-point-empty {
   color: #d99b00;
 }
 
-.load-point-marker.has-invalid-options .load-point-empty {
+.load-point-marker.has-invalid-options .load-point-empty,
+.marker-fan-item.has-invalid-options .load-point-empty {
   color: #c92a2a;
 }
 

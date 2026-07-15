@@ -62,8 +62,20 @@ describe("PilePlanViewer inputs", () => {
     const source = readFileSync(resolve(import.meta.dirname, "PilePlanViewer.tsx"), "utf8");
     const css = readFileSync(resolve(import.meta.dirname, "viewer.css"), "utf8");
 
-    assert.match(source, /marker-fan-item is-\$\{item\.type\}.*is-selected/);
+    assert.match(source, /selectedLoadPointIds\.has\(item\.id\) \? " is-selected"/);
     assert.match(css, /\.marker-fan-item\.is-load-point\.is-selected::after/);
+  });
+
+  it("preserves CPT labels, CPT selection styling, and no-pile cross states in the fan", () => {
+    const source = readFileSync(resolve(import.meta.dirname, "PilePlanViewer.tsx"), "utf8");
+    const css = readFileSync(resolve(import.meta.dirname, "viewer.css"), "utf8");
+
+    assert.match(source, /marker-fan-cpt-label/);
+    assert.match(source, /is-layer-selected-cpt/);
+    assert.match(source, /marker-fan-empty load-point-empty/);
+    assert.match(source, /has-missing-options/);
+    assert.match(source, /has-invalid-options/);
+    assert.match(css, /\.marker-fan-item\.is-cpt\s*{[\s\S]*?--cpt-fill:\s*#d4dade;/);
   });
 
   it("does not show focus rectangles on map markers or legend items", () => {
