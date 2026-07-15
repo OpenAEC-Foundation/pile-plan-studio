@@ -196,6 +196,15 @@
   border: 2px solid var(--theme-accent);
 }
 
+.marker-fan-item.is-load-point.is-selected::after {
+  position: absolute;
+  width: calc(var(--marker-fan-size) + 8px);
+  height: calc(var(--marker-fan-size) + 8px);
+  border: 2px solid var(--theme-accent);
+  border-radius: 50%;
+  content: "";
+}
+
 .marker-fan-load-point,
 .marker-fan-load-point .pile-symbol-svg {
   width: var(--marker-fan-size);

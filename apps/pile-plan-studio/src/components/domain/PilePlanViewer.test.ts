@@ -58,6 +58,14 @@ describe("PilePlanViewer inputs", () => {
     assert.match(source, /const MARKER_FAN_OPEN_DELAY_MS = 120;/);
   });
 
+  it("keeps the selected load point ring on its magnified marker", () => {
+    const source = readFileSync(resolve(import.meta.dirname, "PilePlanViewer.tsx"), "utf8");
+    const css = readFileSync(resolve(import.meta.dirname, "viewer.css"), "utf8");
+
+    assert.match(source, /marker-fan-item is-\$\{item\.type\}.*is-selected/);
+    assert.match(css, /\.marker-fan-item\.is-load-point\.is-selected::after/);
+  });
+
   it("does not show focus rectangles on map markers or legend items", () => {
     const css = readFileSync(resolve(import.meta.dirname, "viewer.css"), "utf8");
 

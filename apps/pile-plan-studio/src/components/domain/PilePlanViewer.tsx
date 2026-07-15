@@ -367,12 +367,9 @@ export default function PilePlanViewer({ state, onStateChange }: Props) {
       y: (marker.top + marker.bottom) / 2,
       displaySize: getMagnifiedMarkerSize(marker.right - marker.left, marker.bottom - marker.top),
     }));
-    const groupCenter = {
-      x: groupMarkers.reduce((sum, marker) => sum + marker.x, 0) / groupMarkers.length,
-      y: groupMarkers.reduce((sum, marker) => sum + marker.y, 0) / groupMarkers.length,
-    };
+    const anchorMarker = groupMarkers.find((marker) => marker.key === clickedKey)!;
     const minimumDistance = Math.max(...groupMarkers.map((marker) => marker.displaySize)) + 10;
-    const offsets = getMagnifiedMarkerOffsets(groupMarkers, minimumDistance);
+    const offsets = getMagnifiedMarkerOffsets(groupMarkers, minimumDistance, clickedKey);
     setMarkerFan({
       items: groupMarkers.map((marker) => {
         const offset = offsets.find((candidate) => candidate.key === marker.key)!;
@@ -380,8 +377,8 @@ export default function PilePlanViewer({ state, onStateChange }: Props) {
           ...parseMarkerKey(marker.key),
           sourceX: marker.x - canvasRect.left,
           sourceY: marker.y - canvasRect.top,
-          targetX: groupCenter.x - canvasRect.left + offset.x,
-          targetY: groupCenter.y - canvasRect.top + offset.y,
+          targetX: anchorMarker.x - canvasRect.left + offset.x,
+          targetY: anchorMarker.y - canvasRect.top + offset.y,
           displaySize: marker.displaySize,
         };
       }),
@@ -483,7 +480,7 @@ export default function PilePlanViewer({ state, onStateChange }: Props) {
         </svg>
         {fan.items.map((item) => (
           <button
-            className={`marker-fan-item is-${item.type}`}
+            className={`marker-fan-item is-${item.type}${item.type === "load-point" && selectedLoadPointIds.has(item.id) ? " is-selected" : ""}`}
             key={`${item.type}:${item.id}`}
             style={{
               left: item.targetX,

@@ -13,8 +13,6 @@ export type MarkerScreenPoint = {
   y: number;
 };
 
-const VISIBLE_OVERLAP_TOLERANCE = 0.75;
-
 export function getClosestVisibleMarkerKey(
   pointer: { x: number; y: number },
   fallbackKey: string,
@@ -59,27 +57,40 @@ export function getOverlappingMarkerKeys(
 export function getMagnifiedMarkerOffsets(
   markers: MarkerScreenPoint[],
   minimumDistance: number,
+  anchorKey: string,
   maximumScale = 6,
 ): MarkerScreenPoint[] {
   if (markers.length === 0) {
     return [];
   }
 
-  const center = {
-    x: markers.reduce((sum, marker) => sum + marker.x, 0) / markers.length,
-    y: markers.reduce((sum, marker) => sum + marker.y, 0) / markers.length,
-  };
-  const positiveDistances = pairDistances(markers).filter((distance) => distance >= 0.5);
+  const anchor = markers.find((marker) => marker.key === anchorKey) ?? markers[0];
+  const positiveDistances = markers
+    .filter((marker) => marker.key !== anchor.key)
+    .map((marker) => Math.hypot(marker.x - anchor.x, marker.y - anchor.y))
+    .filter((distance) => distance >= 0.5);
   const smallestDistance = positiveDistances.length > 0 ? Math.min(...positiveDistances) : minimumDistance;
   const scale = Math.min(maximumScale, Math.max(2, minimumDistance / smallestDistance));
   const offsets = markers.map((marker) => ({
     key: marker.key,
-    x: (marker.x - center.x) * scale,
-    y: (marker.y - center.y) * scale,
+    x: marker.key === anchor.key ? 0 : (marker.x - anchor.x) * scale,
+    y: marker.key === anchor.key ? 0 : (marker.y - anchor.y) * scale,
   }));
 
   const duplicateGroups = groupCoincidentMarkers(markers);
   for (const group of duplicateGroups.filter((items) => items.length > 1)) {
+    const anchoredGroup = group.some((marker) => marker.key === anchor.key);
+    if (anchoredGroup) {
+      const neighbours = group.filter((marker) => marker.key !== anchor.key);
+      neighbours.forEach((marker, index) => {
+        const offset = offsets.find((candidate) => candidate.key === marker.key)!;
+        const angle = -Math.PI / 2 + (index * Math.PI * 2) / neighbours.length;
+        offset.x = Math.cos(angle) * minimumDistance;
+        offset.y = Math.sin(angle) * minimumDistance;
+      });
+      continue;
+    }
+
     const radius = minimumDistance / (2 * Math.sin(Math.PI / group.length));
     group.forEach((marker, index) => {
       const offset = offsets.find((candidate) => candidate.key === marker.key)!;
@@ -90,19 +101,6 @@ export function getMagnifiedMarkerOffsets(
   }
 
   return offsets;
-}
-
-function pairDistances(markers: MarkerScreenPoint[]): number[] {
-  const distances: number[] = [];
-  for (let first = 0; first < markers.length; first += 1) {
-    for (let second = first + 1; second < markers.length; second += 1) {
-      distances.push(Math.hypot(
-        markers[first].x - markers[second].x,
-        markers[first].y - markers[second].y,
-      ));
-    }
-  }
-  return distances;
 }
 
 function groupCoincidentMarkers(markers: MarkerScreenPoint[]): MarkerScreenPoint[][] {
@@ -133,7 +131,7 @@ function circlesOverlap(first: MarkerScreenRect, second: MarkerScreenRect): bool
   return Math.hypot(
     firstCenter.x - secondCenter.x,
     firstCenter.y - secondCenter.y,
-  ) < first.visualRadius + second.visualRadius - VISIBLE_OVERLAP_TOLERANCE;
+  ) < Math.max(first.visualRadius, second.visualRadius);
 }
 
 function rectanglesOverlap(first: MarkerScreenRect, second: MarkerScreenRect): boolean {
