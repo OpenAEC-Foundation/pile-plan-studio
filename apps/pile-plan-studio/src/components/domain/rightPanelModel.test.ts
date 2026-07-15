@@ -55,6 +55,30 @@ describe("React right panel model", () => {
     assert.equal(rows[0].frdLabel, "900 kN");
   });
 
+  it("shows the governing CPT id when an imported CPT has no name", () => {
+    const rows = getRenderablePileOptionRows({
+      cpts: [{ id: 64, name: "", x_mm: 0, y_mm: 0 }],
+      costsByOptionKey: new Map(),
+      options: [{
+        pile_size_mm: 290,
+        pile_tip_level_m: -17.5,
+        isOption: true,
+        governing_cpt_id: 64,
+        governing_frd_kn: 900,
+        utilization: 0.75,
+        missing_cpt_ids: [],
+      }],
+      selectedLoadPointCount: 1,
+      legend: {
+        pileSizes: [{ value: 290, shape: "circle" }],
+        pileTipLevels: [{ value: -17.5, color: "#4e79a7" }],
+      },
+    });
+
+    assert.equal(rows[0].governingLabel, "CPT 64");
+    assert.equal(rows[0].governingCptId, 64);
+  });
+
   it("uses a shared chosen option key only when all selected load points match", () => {
     const state = minimalState({
       selectedLoadPointIds: [1, 2],

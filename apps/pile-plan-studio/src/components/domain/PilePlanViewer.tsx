@@ -8,10 +8,12 @@ import {
 } from "react";
 import { useTranslation } from "react-i18next";
 import type { ProjectState } from "../../domain/projectState";
+import { getCptDisplayName } from "../../domain/cptDisplayName.ts";
 import { getPointIdsInRectangle, type LassoRectangle } from "../../viewer/lassoSelection.ts";
 import { getConfigurationStyle, getLegendItems } from "../../viewer/legend.ts";
 import { getCptMarkerLayerClass, getLoadPointMarkerLayerClass } from "../../viewer/mapMarkerLayer.ts";
 import { shouldStartMapPan } from "../../viewer/mapInteraction.ts";
+import { getHighlightedGoverningCptId } from "../../viewer/legendSelection.ts";
 import { getCptLabelStyle } from "../../viewer/cptLabel.ts";
 import {
   createHoverMarkerIndex,
@@ -39,6 +41,7 @@ import {
 import {
   addReactViewerLoadPoints,
   clearReactViewerSelection,
+  getReactViewerContextCptIds,
   getReactViewerSelectedCptIds,
   openReactViewerCpt,
   selectReactViewerLoadPoint,
@@ -56,7 +59,14 @@ export default function PilePlanViewer({ state, onStateChange }: Props) {
   const { t, i18n } = useTranslation("common");
   const legend = getLegendItems(state.bearingCapacities);
   const selectedLoadPointIds = new Set(state.selectedLoadPointIds);
+  const contextSelectedCptIds = new Set(getReactViewerContextCptIds(state));
   const selectedCptIds = new Set(getReactViewerSelectedCptIds(state));
+  const governingCptId = getHighlightedGoverningCptId({
+    activeSelectedCptIds: [...contextSelectedCptIds],
+    pileOptionsByLoadPointId: state.pileOptionsByLoadPointId,
+    selectedLoadPointIds: state.selectedLoadPointIds,
+    selectedPileOptionKeysByLoadPoint: state.selectedPileOptionKeysByLoadPoint,
+  });
   const isEditingCptSelection = state.cptSelectionEditDraft?.loadPointId === state.selectedLoadPointId;
   const canvasRef = useRef<HTMLDivElement | null>(null);
   const stageRef = useRef<HTMLDivElement | null>(null);
@@ -162,14 +172,17 @@ export default function PilePlanViewer({ state, onStateChange }: Props) {
           <div className="viewer-grid" />
           {state.cpts.map((cpt) => {
             const point = projectPoint(cpt, state.bounds);
-            const cptLabel = cpt.name.replace(/^CPT\s*/i, "");
+            const cptName = getCptDisplayName(cpt);
+            const cptLabel = cptName.replace(/^CPT\s*/i, "");
             const isInspected = state.selectedCptId === cpt.id;
-            const isSelected = selectedCptIds.has(cpt.id) && !isInspected;
-            const isRaised = shouldRaiseCptMarker(isSelected || isInspected, isEditingCptSelection);
+            const isContextSelected = contextSelectedCptIds.has(cpt.id);
+            const isInspectedOnly = isInspected && !isContextSelected;
+            const isGoverning = governingCptId === cpt.id;
+            const isRaised = shouldRaiseCptMarker(isContextSelected || isInspected, isEditingCptSelection);
             return (
               <button
-                aria-label={`CPT ${cpt.name}`}
-                className={`cpt-marker${getCptMarkerLayerClass(isSelected || isInspected)}${isRaised && !isSelected && !isInspected ? " is-layer-editable-cpt is-editable" : ""}${isInspected ? " is-inspected-cpt" : ""}${activeHoverCandidateKey === `cpt:${cpt.id}` ? " is-hover-candidate" : ""}`}
+                aria-label={cptName}
+                className={`cpt-marker${getCptMarkerLayerClass(isContextSelected || isInspected)}${isRaised && !isContextSelected && !isInspected ? " is-layer-editable-cpt is-editable" : ""}${isInspected ? " is-inspected-cpt" : ""}${isInspectedOnly ? " is-inspected-only" : ""}${isGoverning ? " is-governing-cpt" : ""}${activeHoverCandidateKey === `cpt:${cpt.id}` ? " is-hover-candidate" : ""}`}
                 data-map-marker-key={`cpt:${cpt.id}`}
                 key={cpt.id}
                 style={getProjectMarkerStyle(point)}
@@ -482,7 +495,7 @@ export default function PilePlanViewer({ state, onStateChange }: Props) {
           <span className="viewer-hover-large-symbol">{renderHoverMarkerSymbol(activeKey)}</span>
           <span className="viewer-hover-title-copy">
             <span>{t(active.type === "load-point" ? "viewer.hover.loadPoint" : "viewer.hover.cpt")}</span>
-            <strong>{stripMarkerNamePrefix((loadPoint ?? cpt)!.name)}</strong>
+            <strong>{stripMarkerNamePrefix(loadPoint?.name ?? getCptDisplayName(cpt!))}</strong>
           </span>
           {candidateState.keys.length > 1 ? (
             <span className="viewer-hover-position">
@@ -543,7 +556,7 @@ export default function PilePlanViewer({ state, onStateChange }: Props) {
     const item = parseMarkerKey(key);
     if (item.type === "cpt") {
       const cpt = state.cpts.find((candidate) => candidate.id === item.id);
-      const label = stripMarkerNamePrefix(cpt?.name ?? String(item.id));
+      const label = stripMarkerNamePrefix(cpt ? getCptDisplayName(cpt) : String(item.id));
       const selectionClass = selectedCptIds.has(item.id) ? " is-selected-cpt" : "";
       return (
         <span className={`viewer-hover-marker is-cpt${selectionClass}`}>

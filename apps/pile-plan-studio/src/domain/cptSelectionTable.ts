@@ -1,4 +1,5 @@
 import { formatNumber } from "./formatting.ts";
+import { getCptDisplayName } from "./cptDisplayName.ts";
 import type { Cpt, LoadPoint, SelectedCpt } from "../core/projectTypes.ts";
 
 type CptSelectionTableInput = {
@@ -24,7 +25,7 @@ export function getSelectedCptTableModel(entries: CptSelectionTableInput[]): Cpt
         cpt: selection.cpt,
         values: [
           selection.label,
-          selection.cpt.name,
+          getCptDisplayName(selection.cpt),
           `${formatNumber(selection.distance_mm / 1000)} m`,
         ],
       })),
@@ -53,7 +54,7 @@ export function getSelectedCptTableModel(entries: CptSelectionTableInput[]): Cpt
     rows: [...cptUsageById.values()].map((usage) => ({
       cpt: usage.cpt,
       values: [
-        usage.cpt.name,
+        getCptDisplayName(usage.cpt),
         `${usage.loadPointIds.length} / ${entries.length} load points`,
         usage.loadPointIds.join(", "),
       ],

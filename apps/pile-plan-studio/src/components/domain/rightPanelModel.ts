@@ -1,5 +1,6 @@
 import type { ProjectState } from "../../domain/projectState";
 import { filterActivePileOptions } from "../../domain/activePileConfigurations.ts";
+import { getCptDisplayName } from "../../domain/cptDisplayName.ts";
 import { getSelectedCptTableModel } from "../../domain/cptSelectionTable.ts";
 import { formatNumber, formatOptionalNumber } from "../../domain/formatting.ts";
 import { getConfigurationStyle, type getLegendItems } from "../../viewer/legend.ts";
@@ -119,7 +120,7 @@ export function getRenderablePileOptionRows(input: {
     const governingCpt = option.governing_cpt_id
       ? input.cpts.find((cpt) => cpt.id === option.governing_cpt_id) ?? null
       : null;
-    const governingLabel = governingCpt?.name ?? "-";
+    const governingLabel = governingCpt ? getCptDisplayName(governingCpt) : "-";
     const key = optionKey(option);
     const cost = input.costsByOptionKey.get(key) ?? null;
     const style = getConfigurationStyle(option, input.legend);

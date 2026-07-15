@@ -31,6 +31,16 @@ describe("CPT selection table", () => {
     ]);
   });
 
+  it("falls back to the CPT id when an imported CPT has no name", () => {
+    const unnamedCpt = { ...cpt61, name: "" };
+    const model = getSelectedCptTableModel([{
+      loadPoint: loadPoint15,
+      selectedCpts: [selectedCpt("upper left", unnamedCpt, 12340)],
+    }]);
+
+    assert.equal(model.rows[0].values[1], "CPT 61");
+  });
+
   it("replaces selection and distance with usage context for multiple selected load points", () => {
     const model = getSelectedCptTableModel([
       {

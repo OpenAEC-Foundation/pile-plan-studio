@@ -2,6 +2,7 @@ import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 
 import {
+  getHighlightedGoverningCptId,
   getLoadPointIdsForLegendSelection,
   toggleLegendSelectionFilter,
   shouldHighlightGoverningCpt,
@@ -51,5 +52,33 @@ describe("legend selection", () => {
   it("does not highlight a governing CPT that is not in the active CPT selection while editing", () => {
     assert.equal(shouldHighlightGoverningCpt(61, [61, 62]), true);
     assert.equal(shouldHighlightGoverningCpt(61, [62]), false);
+  });
+
+  it("finds the governing CPT for the shared selected pile configuration", () => {
+    const highlighted = getHighlightedGoverningCptId({
+      activeSelectedCptIds: [61, 62],
+      pileOptionsByLoadPointId: new Map([[1, [option(290, -18)]]]),
+      selectedLoadPointIds: [1],
+      selectedPileOptionKeysByLoadPoint: new Map([[1, "290|-18"]]),
+    });
+
+    assert.equal(highlighted, 61);
+  });
+
+  it("does not mark a governing CPT when selected load points use different configurations", () => {
+    const highlighted = getHighlightedGoverningCptId({
+      activeSelectedCptIds: [61],
+      pileOptionsByLoadPointId: new Map([
+        [1, [option(290, -18)]],
+        [2, [option(320, -18)]],
+      ]),
+      selectedLoadPointIds: [1, 2],
+      selectedPileOptionKeysByLoadPoint: new Map([
+        [1, "290|-18"],
+        [2, "320|-18"],
+      ]),
+    });
+
+    assert.equal(highlighted, null);
   });
 });

@@ -2,6 +2,7 @@ import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import {
   clearReactViewerSelection,
+  getReactViewerContextCptIds,
   getReactViewerSelectedCptIds,
   openReactViewerCpt,
   selectReactViewerLoadPoint,
@@ -106,6 +107,18 @@ describe("React viewer interactions", () => {
     });
 
     assert.deepEqual(selectedIds, [61, 62, 63]);
+  });
+
+  it("keeps load-point CPT context separate from the inspected CPT", () => {
+    const contextIds = getReactViewerContextCptIds({
+      selectedLoadPointIds: [1],
+      selectedCptsByLoadPointId: new Map([[
+        1,
+        [{ cpt: { id: 61, name: "CPT 61", x_mm: 0, y_mm: 0 }, distance_mm: 1, label: "upper left" }],
+      ]]),
+    });
+
+    assert.deepEqual(contextIds, [61]);
   });
 
   it("shows the manual CPT draft while editing a load point", () => {

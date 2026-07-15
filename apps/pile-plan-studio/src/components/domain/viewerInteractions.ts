@@ -53,6 +53,20 @@ export function getReactViewerSelectedCptIds(state: {
   selectedLoadPointIds: number[];
   selectedCptsByLoadPointId: Map<number, SelectedCpt[]>;
 }): number[] {
+  const selectedIds = new Set(getReactViewerContextCptIds(state));
+
+  if (state.selectedCptId !== null) {
+    selectedIds.add(state.selectedCptId);
+  }
+
+  return [...selectedIds].sort((left, right) => left - right);
+}
+
+export function getReactViewerContextCptIds(state: {
+  cptSelectionEditDraft?: CptSelectionEditDraft | null;
+  selectedLoadPointIds: number[];
+  selectedCptsByLoadPointId: Map<number, SelectedCpt[]>;
+}): number[] {
   const draft = state.cptSelectionEditDraft;
   if (draft && state.selectedLoadPointIds.includes(draft.loadPointId)) {
     return [...draft.cptIds].sort((left, right) => left - right);
@@ -65,10 +79,6 @@ export function getReactViewerSelectedCptIds(state: {
       selectedIds.add(selection.cpt.id);
     });
   });
-
-  if (state.selectedCptId !== null) {
-    selectedIds.add(state.selectedCptId);
-  }
 
   return [...selectedIds].sort((left, right) => left - right);
 }

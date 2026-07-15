@@ -507,10 +507,17 @@
   z-index: 40;
 }
 
-.cpt-marker.is-inspected-cpt {
+.cpt-marker.is-inspected-only {
   --cpt-fill: #d4dade;
   --cpt-stroke: #a2adb3;
   color: #52636c;
+}
+
+.cpt-marker.is-governing-cpt {
+  --cpt-fill: #ffe08a;
+  --cpt-stroke: #b35300;
+  color: #172026;
+  filter: drop-shadow(0 0 2px rgba(179, 83, 0, 0.38));
 }
 
 .is-hover-candidate {

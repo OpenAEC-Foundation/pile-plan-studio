@@ -75,6 +75,17 @@ describe("PilePlanViewer inputs", () => {
     assert.doesNotMatch(css, /\.is-hover-candidate::after\s*{[\s\S]*?box-shadow:\s*0 0 0 2px #fff/);
   });
 
+  it("preserves load-point CPT styling during inspection and marks the governing CPT", () => {
+    const source = readFileSync(resolve(import.meta.dirname, "PilePlanViewer.tsx"), "utf8");
+    const css = readFileSync(resolve(import.meta.dirname, "viewer.css"), "utf8");
+
+    assert.match(source, /getReactViewerContextCptIds/);
+    assert.match(source, /isInspectedOnly/);
+    assert.match(source, /is-governing-cpt/);
+    assert.match(css, /\.cpt-marker\.is-inspected-only/);
+    assert.match(css, /\.cpt-marker\.is-governing-cpt/);
+  });
+
   it("does not scan all markers while the pointer moves over empty map space", () => {
     const source = readFileSync(resolve(import.meta.dirname, "PilePlanViewer.tsx"), "utf8");
 
