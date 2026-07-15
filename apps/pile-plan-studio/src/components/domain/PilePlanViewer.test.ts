@@ -18,11 +18,11 @@ describe("PilePlanViewer inputs", () => {
     assert.ok(state.bounds.maxY > state.bounds.minY);
   });
 
-  it("exposes the Shift multi-selection controls in the viewer tooltip", () => {
+  it("removes the legacy Shift tooltip and only shows the inline hint for an existing selection", () => {
     const source = readFileSync(resolve(import.meta.dirname, "PilePlanViewer.tsx"), "utf8");
 
-    assert.match(source, /useTranslation\("common"\)/);
-    assert.match(source, /title=\{t\("viewer\.selectionHelp"\)\}/);
+    assert.doesNotMatch(source, /title=\{t\("viewer\.selectionHelp"\)\}/);
+    assert.match(source, /loadPoint && selectedLoadPointIds\.size > 0/);
   });
 
   it("keeps marker base sizes close to the legacy viewer", () => {
@@ -32,58 +32,83 @@ describe("PilePlanViewer inputs", () => {
     assert.match(css, /--cpt-marker-width-base:\s*15px/);
     assert.match(css, /--cpt-marker-height-base:\s*13px/);
     assert.match(css, /--cpt-fill:\s*#d4dade/);
-    assert.match(css, /--cpt-label-offset-y:\s*-2\.25px/);
+    assert.match(css, /\.cpt-label\s*{[\s\S]*?top:\s*43%;/);
   });
 
-  it("keeps magnified overlap markers free of number labels", () => {
-    const source = readFileSync(resolve(import.meta.dirname, "PilePlanViewer.tsx"), "utf8");
-
-    assert.doesNotMatch(source, /marker-fan-label/);
-  });
-
-  it("hides source markers while their magnified copies are visible", () => {
+  it("replaces the marker fan with a compact hover inspector", () => {
     const source = readFileSync(resolve(import.meta.dirname, "PilePlanViewer.tsx"), "utf8");
     const css = readFileSync(resolve(import.meta.dirname, "viewer.css"), "utf8");
 
-    assert.match(source, /is-fanned-source/);
-    assert.match(css, /\.is-fanned-source\s*{[\s\S]*?opacity:\s*0;/);
+    assert.doesNotMatch(source, /markerFan|MarkerFan|marker-fan/);
+    assert.doesNotMatch(css, /marker-fan/);
+    assert.match(source, /viewer-hover-inspector/);
+    assert.match(source, /viewer\.hover\.shiftHint/);
+    assert.match(css, /\.viewer-hover-inspector\s*{[\s\S]*?right:\s*12px;[\s\S]*?bottom:\s*12px;[\s\S]*?pointer-events:\s*none;/);
   });
 
-  it("opens overlapping markers on hover while clicks select directly", () => {
-    const source = readFileSync(resolve(import.meta.dirname, "PilePlanViewer.tsx"), "utf8");
-
-    assert.match(source, /onPointerEnter=\{\(event\) => scheduleMarkerFanOpen\(event,/);
-    assert.match(source, /onPointerLeave=\{scheduleMarkerFanClose\}/);
-    assert.doesNotMatch(source, /if \(openMarkerFan\(clickedKey\)\)/);
-    assert.match(source, /const MARKER_FAN_OPEN_DELAY_MS = 120;/);
-  });
-
-  it("keeps the selected load point ring on its magnified marker", () => {
+  it("raises the current hover candidate and selects it on click", () => {
     const source = readFileSync(resolve(import.meta.dirname, "PilePlanViewer.tsx"), "utf8");
     const css = readFileSync(resolve(import.meta.dirname, "viewer.css"), "utf8");
 
-    assert.match(source, /selectedLoadPointIds\.has\(item\.id\) \? " is-selected"/);
-    assert.match(css, /\.marker-fan-item\.is-load-point\.is-selected::after/);
+    assert.match(source, /is-hover-candidate/);
+    assert.match(source, /getActiveHoverCandidateKey/);
+    assert.match(css, /\.is-hover-candidate\s*{[\s\S]*?z-index:\s*50;/);
   });
 
-  it("preserves CPT labels, CPT selection styling, and no-pile cross states in the fan", () => {
+  it("cycles overlapping candidates with Space and hides hover while navigating", () => {
+    const source = readFileSync(resolve(import.meta.dirname, "PilePlanViewer.tsx"), "utf8");
+    assert.match(source, /event\.code === "Space" && hoverCandidates && !isTextEntryTarget\(event\.target\)/);
+    assert.match(source, /event\.preventDefault\(\);\s*if \(hoverCandidates\.keys\.length > 1\)/);
+    assert.match(source, /cycleHoverCandidate/);
+    assert.match(source, /clearHoverCandidates\(\)/);
+  });
+
+  it("shares one orange selection ring style between previews, load points, and inspected CPTs", () => {
     const source = readFileSync(resolve(import.meta.dirname, "PilePlanViewer.tsx"), "utf8");
     const css = readFileSync(resolve(import.meta.dirname, "viewer.css"), "utf8");
 
-    assert.match(source, /marker-fan-cpt-label/);
-    assert.match(source, /is-layer-selected-cpt/);
-    assert.match(source, /marker-fan-empty load-point-empty/);
-    assert.match(source, /has-missing-options/);
-    assert.match(source, /has-invalid-options/);
-    assert.match(css, /\.marker-fan-item\.is-cpt\s*{[\s\S]*?--cpt-fill:\s*#d4dade;/);
+    assert.match(source, /state\.selectedCptId === cpt\.id/);
+    assert.match(source, /is-inspected-cpt/);
+    assert.match(css, /--selection-ring-width:\s*2px/);
+    assert.match(css, /\.load-point-marker\.is-selected::before,[\s\S]*?\.cpt-marker\.is-inspected-cpt::before/);
+    assert.match(css, /\.is-hover-candidate::after\s*{[\s\S]*?border:\s*var\(--selection-ring-width\) solid var\(--theme-accent\)/);
+    assert.doesNotMatch(css, /\.is-hover-candidate::after\s*{[\s\S]*?box-shadow:\s*0 0 0 2px #fff/);
   });
 
-  it("keeps fan markers at their source symbol dimensions", () => {
+  it("does not scan all markers while the pointer moves over empty map space", () => {
     const source = readFileSync(resolve(import.meta.dirname, "PilePlanViewer.tsx"), "utf8");
 
-    assert.doesNotMatch(source, /getMagnifiedMarkerSize/);
-    assert.match(source, /displayWidth:\s*visualRect\.width/);
-    assert.match(source, /displayHeight:\s*visualRect\.height/);
+    assert.match(source, /event\.target as HTMLElement/);
+    assert.match(source, /closest\("\[data-map-marker-key\]"\)/);
+    assert.match(source, /if \(!markerTarget\) \{\s*clearHoverCandidates\(\);\s*return;/);
+    assert.match(source, /createHoverMarkerIndex/);
+    assert.match(source, /canvasRectRef/);
+  });
+
+  it("resolves the current pointer candidate synchronously before clicking", () => {
+    const source = readFileSync(resolve(import.meta.dirname, "PilePlanViewer.tsx"), "utf8");
+
+    assert.match(source, /resolveHoverClickCandidateKey/);
+    assert.match(source, /getClickCandidateKey\(event,/);
+  });
+
+  it("uses unrounded centering for CPT labels and selection rings", () => {
+    const source = readFileSync(resolve(import.meta.dirname, "PilePlanViewer.tsx"), "utf8");
+    const css = readFileSync(resolve(import.meta.dirname, "viewer.css"), "utf8");
+
+    assert.match(source, /left:\s*`\$\{point\.x\}%`/);
+    assert.match(source, /top:\s*`\$\{point\.y\}%`/);
+    assert.doesNotMatch(source, /left:\s*`\$\{(?:Math\.round|[^}]*toFixed)/);
+    assert.match(css, /\.cpt-label\s*{[\s\S]*?position:\s*absolute;[\s\S]*?top:\s*43%;[\s\S]*?left:\s*50%;[\s\S]*?transform:\s*translate\(-50%,\s*-50%\);/);
+    assert.match(css, /\.load-point-marker\.is-selected::before,[\s\S]*?\.cpt-marker\.is-inspected-cpt::before\s*{[\s\S]*?top:\s*50%;[\s\S]*?left:\s*50%;[\s\S]*?transform:\s*translate\(-50%,\s*-50%\);/);
+  });
+
+  it("uses responsive font scaling for CPT numbers", () => {
+    const source = readFileSync(resolve(import.meta.dirname, "PilePlanViewer.tsx"), "utf8");
+    const css = readFileSync(resolve(import.meta.dirname, "viewer.css"), "utf8");
+
+    assert.match(source, /getCptLabelStyle\(cptLabel\)/);
+    assert.match(css, /\.cpt-label\s*{[\s\S]*?var\(--cpt-label-scale\)/);
   });
 
   it("does not show focus rectangles on map markers or legend items", () => {

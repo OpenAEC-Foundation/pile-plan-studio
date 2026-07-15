@@ -41,7 +41,16 @@
   "explorer": "Explorer",
   "properties": "Properties",
   "viewer": {
-    "selectionHelp": "Shift+click to add or remove load points. Shift+drag to draw a selection lasso."
+    "hover": {
+      "loadPoint": "Load point",
+      "cpt": "CPT",
+      "utilization": "Utilization",
+      "candidateCount_one": "{{count}} candidate",
+      "candidateCount_other": "{{count}} candidates",
+      "spaceKey": "Space",
+      "nextCandidate": "Next candidate",
+      "shiftHint": "Click to add to selection"
+    }
   },
   "legend": {
     "aria": "Pile symbol legend",

@@ -1,10 +1,10 @@
 import {
   useEffect,
+  useMemo,
   useRef,
   useState,
   type CSSProperties,
   type MouseEvent,
-  type PointerEvent as ReactPointerEvent,
 } from "react";
 import { useTranslation } from "react-i18next";
 import type { ProjectState } from "../../domain/projectState";
@@ -12,12 +12,17 @@ import { getPointIdsInRectangle, type LassoRectangle } from "../../viewer/lassoS
 import { getConfigurationStyle, getLegendItems } from "../../viewer/legend.ts";
 import { getCptMarkerLayerClass, getLoadPointMarkerLayerClass } from "../../viewer/mapMarkerLayer.ts";
 import { shouldStartMapPan } from "../../viewer/mapInteraction.ts";
+import { getCptLabelStyle } from "../../viewer/cptLabel.ts";
 import {
-  getClosestVisibleMarkerKey,
-  getLoadPointVisualRadius,
-  getOverlappingMarkerKeys,
-  getSeparatedMarkerOffsets,
-} from "../../viewer/markerFan.ts";
+  createHoverMarkerIndex,
+  cycleHoverCandidate,
+  findHoverCandidates,
+  getActiveHoverCandidateKey,
+  resolveHoverClickCandidateKey,
+  updateHoverCandidateState,
+  type HoverCandidateState,
+  type HoverMarker,
+} from "../../viewer/hoverCandidates.ts";
 import { renderPileSymbol } from "../../viewer/pileSymbols.ts";
 import {
   getLoadPointMarkerInvalidVisual,
@@ -47,11 +52,8 @@ type Props = {
   onStateChange: (nextState: ProjectState) => void;
 };
 
-const MARKER_FAN_OPEN_DELAY_MS = 120;
-const MARKER_FAN_CLOSE_DELAY_MS = 300;
-
 export default function PilePlanViewer({ state, onStateChange }: Props) {
-  const { t } = useTranslation("common");
+  const { t, i18n } = useTranslation("common");
   const legend = getLegendItems(state.bearingCapacities);
   const selectedLoadPointIds = new Set(state.selectedLoadPointIds);
   const selectedCptIds = new Set(getReactViewerSelectedCptIds(state));
@@ -61,11 +63,25 @@ export default function PilePlanViewer({ state, onStateChange }: Props) {
   const interactionRef = useRef<ViewerInteraction | null>(null);
   const viewportRef = useRef(state.viewport);
   const zoomCommitTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const markerFanOpenTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const markerFanCloseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const hoverFrameRef = useRef<number | null>(null);
+  const hoverPointerRef = useRef<{ x: number; y: number } | null>(null);
+  const canvasRectRef = useRef<{ left: number; top: number; width: number; height: number } | null>(null);
   const [lasso, setLasso] = useState<LassoRectangle | null>(null);
-  const [markerFan, setMarkerFan] = useState<MarkerFanState | null>(null);
-  const fannedSourceKeys = new Set(markerFan?.items.map((item) => `${item.type}:${item.id}`));
+  const [hoverCandidates, setHoverCandidates] = useState<HoverCandidateState | null>(null);
+  const activeHoverCandidateKey = getActiveHoverCandidateKey(hoverCandidates);
+  const hoverMarkers = useMemo<HoverMarker[]>(() => [
+    ...state.cpts.map((cpt) => ({
+      key: `cpt:${cpt.id}`,
+      point: projectPoint(cpt, state.bounds),
+      visualRadius: 7.5,
+    })),
+    ...state.loadPoints.map((loadPoint) => ({
+      key: `load-point:${loadPoint.id}`,
+      point: projectPoint(loadPoint, state.bounds),
+      visualRadius: 7,
+    })),
+  ], [state.bounds, state.cpts, state.loadPoints]);
+  const hoverMarkerIndex = useMemo(() => createHoverMarkerIndex(hoverMarkers), [hoverMarkers]);
 
   useEffect(() => {
     if (!interactionRef.current && !zoomCommitTimerRef.current) {
@@ -75,30 +91,58 @@ export default function PilePlanViewer({ state, onStateChange }: Props) {
   }, [state.viewport]);
 
   useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) {
+      return undefined;
+    }
+
+    const updateCanvasRect = () => {
+      const rect = canvas.getBoundingClientRect();
+      canvasRectRef.current = {
+        left: rect.left,
+        top: rect.top,
+        width: rect.width,
+        height: rect.height,
+      };
+    };
+    updateCanvasRect();
+
+    const resizeObserver = new ResizeObserver(updateCanvasRect);
+    resizeObserver.observe(canvas);
+    window.addEventListener("resize", updateCanvasRect);
+    return () => {
+      resizeObserver.disconnect();
+      window.removeEventListener("resize", updateCanvasRect);
+    };
+  }, []);
+
+  useEffect(() => {
     function handleKeyDown(event: KeyboardEvent) {
-      if (event.key === "Escape") {
-        if (markerFan) {
-          closeMarkerFan();
-          return;
+      if (event.code === "Space" && hoverCandidates && !isTextEntryTarget(event.target)) {
+        event.preventDefault();
+        if (hoverCandidates.keys.length > 1) {
+          setHoverCandidates((current) => current ? cycleHoverCandidate(current) : current);
         }
+        return;
+      }
+
+      if (event.key === "Escape") {
+        clearHoverCandidates();
         onStateChange({ ...state, ...clearReactViewerSelection(state), viewport: viewportRef.current });
       }
     }
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [markerFan, onStateChange, state]);
+  }, [hoverCandidates, onStateChange, state]);
 
   useEffect(() => {
     return () => {
       if (zoomCommitTimerRef.current) {
         clearTimeout(zoomCommitTimerRef.current);
       }
-      if (markerFanOpenTimerRef.current) {
-        clearTimeout(markerFanOpenTimerRef.current);
-      }
-      if (markerFanCloseTimerRef.current) {
-        clearTimeout(markerFanCloseTimerRef.current);
+      if (hoverFrameRef.current !== null) {
+        cancelAnimationFrame(hoverFrameRef.current);
       }
     };
   }, []);
@@ -107,10 +151,10 @@ export default function PilePlanViewer({ state, onStateChange }: Props) {
     <div className="pile-plan-viewer" aria-label="Pile plan viewer">
       <div
         className="viewer-canvas"
-        title={t("viewer.selectionHelp")}
         onMouseDown={handleMouseDown}
         onMouseMove={handleMouseMove}
         onMouseUp={handleMouseUp}
+        onMouseLeave={clearHoverCandidates}
         onWheel={handleWheel}
         ref={canvasRef}
       >
@@ -118,29 +162,29 @@ export default function PilePlanViewer({ state, onStateChange }: Props) {
           <div className="viewer-grid" />
           {state.cpts.map((cpt) => {
             const point = projectPoint(cpt, state.bounds);
-            const isSelected = selectedCptIds.has(cpt.id);
-            const isRaised = shouldRaiseCptMarker(isSelected, isEditingCptSelection);
+            const cptLabel = cpt.name.replace(/^CPT\s*/i, "");
+            const isInspected = state.selectedCptId === cpt.id;
+            const isSelected = selectedCptIds.has(cpt.id) && !isInspected;
+            const isRaised = shouldRaiseCptMarker(isSelected || isInspected, isEditingCptSelection);
             return (
               <button
                 aria-label={`CPT ${cpt.name}`}
-                className={`cpt-marker${getCptMarkerLayerClass(isSelected)}${isRaised && !isSelected ? " is-layer-editable-cpt is-editable" : ""}${fannedSourceKeys.has(`cpt:${cpt.id}`) ? " is-fanned-source" : ""}`}
+                className={`cpt-marker${getCptMarkerLayerClass(isSelected || isInspected)}${isRaised && !isSelected && !isInspected ? " is-layer-editable-cpt is-editable" : ""}${isInspected ? " is-inspected-cpt" : ""}${activeHoverCandidateKey === `cpt:${cpt.id}` ? " is-hover-candidate" : ""}`}
                 data-map-marker-key={`cpt:${cpt.id}`}
                 key={cpt.id}
                 style={getProjectMarkerStyle(point)}
                 type="button"
-                onPointerEnter={(event) => scheduleMarkerFanOpen(event, `cpt:${cpt.id}`)}
-                onPointerLeave={scheduleMarkerFanClose}
                 onClick={(event) => {
                   event.stopPropagation();
-                  const clickedKey = resolveClickedMarkerKey(event, `cpt:${cpt.id}`);
-                  closeMarkerFan();
+                  const clickedKey = getClickCandidateKey(event, `cpt:${cpt.id}`);
+                  clearHoverCandidates();
                   selectMapMarker(clickedKey, event.shiftKey);
                 }}
               >
                 <svg className="cpt-triangle" viewBox="0 0 24 22" aria-hidden="true" focusable="false">
                   <polygon points="3,3 21,3 12,19" />
                 </svg>
-                <span className="cpt-label">{cpt.name.replace(/^CPT\s*/i, "")}</span>
+                <span className="cpt-label" style={getCptLabelStyle(cptLabel) as CSSProperties}>{cptLabel}</span>
               </button>
             );
           })}
@@ -168,17 +212,15 @@ export default function PilePlanViewer({ state, onStateChange }: Props) {
             return (
               <button
                 aria-label={`Load point ${loadPoint.name}`}
-                className={`load-point-marker${getLoadPointMarkerLayerClass(isSelected)}${isSelected ? " is-selected" : ""}${invalidVisual.className}${unselectedClass}${fannedSourceKeys.has(`load-point:${loadPoint.id}`) ? " is-fanned-source" : ""}`}
+                className={`load-point-marker${getLoadPointMarkerLayerClass(isSelected)}${isSelected ? " is-selected" : ""}${invalidVisual.className}${unselectedClass}${activeHoverCandidateKey === `load-point:${loadPoint.id}` ? " is-hover-candidate" : ""}`}
                 data-map-marker-key={`load-point:${loadPoint.id}`}
                 key={loadPoint.id}
                 style={getProjectMarkerStyle(point, invalidVisual.style)}
                 type="button"
-                onPointerEnter={(event) => scheduleMarkerFanOpen(event, `load-point:${loadPoint.id}`)}
-                onPointerLeave={scheduleMarkerFanClose}
                 onClick={(event) => {
                   event.stopPropagation();
-                  const clickedKey = resolveClickedMarkerKey(event, `load-point:${loadPoint.id}`);
-                  closeMarkerFan();
+                  const clickedKey = getClickCandidateKey(event, `load-point:${loadPoint.id}`);
+                  clearHoverCandidates();
                   selectMapMarker(clickedKey, event.shiftKey);
                 }}
               >
@@ -200,7 +242,7 @@ export default function PilePlanViewer({ state, onStateChange }: Props) {
             );
           })}
         </div>
-        {markerFan ? renderMarkerFan(markerFan) : null}
+        {hoverCandidates ? renderHoverInspector(hoverCandidates) : null}
         {lasso ? <div className="viewer-lasso" style={getLassoStyle(lasso)} /> : null}
       </div>
     </div>
@@ -208,7 +250,7 @@ export default function PilePlanViewer({ state, onStateChange }: Props) {
 
   function handleWheel(event: React.WheelEvent<HTMLDivElement>) {
     event.preventDefault();
-    closeMarkerFan();
+    clearHoverCandidates();
     const rect = event.currentTarget.getBoundingClientRect();
     const scaleStep = event.deltaY < 0 ? 1.12 : 1 / 1.12;
     const currentViewport = viewportRef.current;
@@ -228,12 +270,9 @@ export default function PilePlanViewer({ state, onStateChange }: Props) {
     const targetIsInteractive = Boolean(target.closest("button"));
     const start = { x: event.clientX, y: event.clientY };
 
-    if (!target.closest(".marker-fan-item")) {
-      closeMarkerFan();
-    }
-
     if (event.shiftKey && !targetIsInteractive) {
       event.preventDefault();
+      clearHoverCandidates();
       interactionRef.current = { type: "lasso", start, current: start };
       setLasso({ startX: start.x, startY: start.y, endX: start.x, endY: start.y });
       return;
@@ -244,6 +283,7 @@ export default function PilePlanViewer({ state, onStateChange }: Props) {
     }
 
     event.preventDefault();
+    clearHoverCandidates();
     interactionRef.current = {
       type: "pan",
       start,
@@ -255,6 +295,14 @@ export default function PilePlanViewer({ state, onStateChange }: Props) {
   function handleMouseMove(event: MouseEvent<HTMLDivElement>) {
     const interaction = interactionRef.current;
     if (!interaction) {
+      const markerTarget = (event.target as HTMLElement).closest("[data-map-marker-key]");
+      if (!markerTarget) {
+        clearHoverCandidates();
+        return;
+      }
+      if (!zoomCommitTimerRef.current) {
+        scheduleHoverCandidateUpdate(event);
+      }
       return;
     }
 
@@ -346,236 +394,200 @@ export default function PilePlanViewer({ state, onStateChange }: Props) {
     });
   }
 
-  function openMarkerFan(clickedKey: string): boolean {
-    const canvas = canvasRef.current;
-    if (!canvas) {
-      return false;
+  function scheduleHoverCandidateUpdate(event: MouseEvent<HTMLDivElement>) {
+    const rect = canvasRectRef.current;
+    if (!rect) {
+      return;
     }
 
-    const markers = getMarkerScreenRects(canvas);
-    const keys = getOverlappingMarkerKeys(clickedKey, markers);
-    if (keys.length <= 1) {
-      setMarkerFan(null);
-      return false;
+    hoverPointerRef.current = {
+      x: event.clientX - rect.left,
+      y: event.clientY - rect.top,
+    };
+    if (hoverFrameRef.current !== null) {
+      return;
     }
 
-    const canvasRect = canvas.getBoundingClientRect();
-    const groupMarkers = markers.filter((marker) => keys.includes(marker.key)).map((marker) => ({
-      key: marker.key,
-      x: (marker.left + marker.right) / 2,
-      y: (marker.top + marker.bottom) / 2,
-      displayWidth: marker.displayWidth,
-      displayHeight: marker.displayHeight,
-      radius: marker.visualRadius,
-    }));
-    const anchorMarker = groupMarkers.find((marker) => marker.key === clickedKey)!;
-    const offsets = getSeparatedMarkerOffsets(groupMarkers, clickedKey);
-    setMarkerFan({
-      items: groupMarkers.map((marker) => {
-        const offset = offsets.find((candidate) => candidate.key === marker.key)!;
-        return {
-          ...parseMarkerKey(marker.key),
-          sourceX: marker.x - canvasRect.left,
-          sourceY: marker.y - canvasRect.top,
-          targetX: anchorMarker.x - canvasRect.left + offset.x,
-          targetY: anchorMarker.y - canvasRect.top + offset.y,
-          displayWidth: marker.displayWidth,
-          displayHeight: marker.displayHeight,
-        };
-      }),
-    });
-    return true;
-  }
+    hoverFrameRef.current = requestAnimationFrame(() => {
+      hoverFrameRef.current = null;
+      const pointer = hoverPointerRef.current;
+      const currentRect = canvasRectRef.current;
+      if (!pointer || !currentRect || interactionRef.current || zoomCommitTimerRef.current) {
+        return;
+      }
 
-  function scheduleMarkerFanOpen(
-    event: ReactPointerEvent<HTMLElement>,
-    fallbackKey: string,
-  ) {
-    cancelMarkerFanClose();
-    cancelMarkerFanOpen();
-    const hoveredKey = resolveClickedMarkerKey(event, fallbackKey);
-    markerFanOpenTimerRef.current = setTimeout(() => {
-      markerFanOpenTimerRef.current = null;
-      openMarkerFan(hoveredKey);
-    }, MARKER_FAN_OPEN_DELAY_MS);
-  }
-
-  function scheduleMarkerFanClose() {
-    cancelMarkerFanOpen();
-    cancelMarkerFanClose();
-    markerFanCloseTimerRef.current = setTimeout(() => {
-      markerFanCloseTimerRef.current = null;
-      setMarkerFan(null);
-    }, MARKER_FAN_CLOSE_DELAY_MS);
-  }
-
-  function cancelMarkerFanOpen() {
-    if (markerFanOpenTimerRef.current) {
-      clearTimeout(markerFanOpenTimerRef.current);
-      markerFanOpenTimerRef.current = null;
-    }
-  }
-
-  function cancelMarkerFanClose() {
-    if (markerFanCloseTimerRef.current) {
-      clearTimeout(markerFanCloseTimerRef.current);
-      markerFanCloseTimerRef.current = null;
-    }
-  }
-
-  function closeMarkerFan() {
-    cancelMarkerFanOpen();
-    cancelMarkerFanClose();
-    setMarkerFan(null);
-  }
-
-  function getMarkerScreenRects(canvas: HTMLElement) {
-    return Array.from(canvas.querySelectorAll<HTMLElement>("[data-map-marker-key]")).map((marker) => {
-      const rect = marker.getBoundingClientRect();
-      const pileSymbol = marker.querySelector<HTMLElement>(".load-point-symbol .pile-symbol-svg");
-      const pileSymbolRect = pileSymbol?.getBoundingClientRect();
-      const visual = marker.querySelector<HTMLElement>(
-        ".load-point-symbol .pile-symbol-svg, .load-point-empty, .load-point-pending, .cpt-triangle",
-      );
-      const visualRect = visual?.getBoundingClientRect() ?? rect;
-      return {
-        key: marker.dataset.mapMarkerKey!,
-        left: rect.left,
-        top: rect.top,
-        right: rect.right,
-        bottom: rect.bottom,
-        visualRadius: pileSymbolRect
-          ? getLoadPointVisualRadius(Math.min(pileSymbolRect.width, pileSymbolRect.height))
-          : Math.min(rect.width, rect.height) * 0.43,
-        displayWidth: visualRect.width,
-        displayHeight: visualRect.height,
-      };
+      const candidates = findHoverCandidates(hoverMarkerIndex, {
+        pointer,
+        canvas: { width: currentRect.width, height: currentRect.height },
+        viewport: viewportRef.current,
+      });
+      setHoverCandidates((current) => updateHoverCandidateState(
+        current,
+        candidates.map((candidate) => candidate.key),
+      ));
     });
   }
 
-  function resolveClickedMarkerKey(
-    event: MouseEvent<HTMLElement> | ReactPointerEvent<HTMLElement>,
-    fallbackKey: string,
-  ) {
-    const canvas = canvasRef.current;
-    return canvas
-      ? getClosestVisibleMarkerKey({ x: event.clientX, y: event.clientY }, fallbackKey, getMarkerScreenRects(canvas))
-      : fallbackKey;
-  }
+  function getClickCandidateKey(event: MouseEvent<HTMLElement>, fallbackKey: string) {
+    const rect = canvasRectRef.current;
+    if (!rect) {
+      return fallbackKey;
+    }
 
-  function renderMarkerFan(fan: MarkerFanState) {
-    return (
-      <div
-        className="marker-fan"
-        aria-label="Overlapping map objects"
-        onPointerEnter={cancelMarkerFanClose}
-        onPointerLeave={scheduleMarkerFanClose}
-      >
-        <svg
-          className="marker-fan-lines"
-          aria-hidden="true"
-        >
-          {fan.items.map((item) => (
-            <line
-              key={`${item.type}:${item.id}`}
-              x1={item.sourceX}
-              y1={item.sourceY}
-              x2={item.targetX}
-              y2={item.targetY}
-            />
-          ))}
-        </svg>
-        {fan.items.map((item) => {
-          const visual = getFannedMarkerVisual(item);
-          return (
-            <button
-              className={`marker-fan-item is-${item.type}${visual.className}`}
-              key={`${item.type}:${item.id}`}
-              style={{
-                left: item.targetX,
-                top: item.targetY,
-                "--marker-fan-width": `${item.displayWidth}px`,
-                "--marker-fan-height": `${item.displayHeight}px`,
-                ...visual.style,
-              } as CSSProperties}
-              type="button"
-              onClick={(event) => selectFannedMarker(item, event.shiftKey)}
-            >
-              {renderFannedMarker(item)}
-            </button>
-          );
-        })}
-      </div>
+    const candidates = findHoverCandidates(hoverMarkerIndex, {
+      pointer: {
+        x: event.clientX - rect.left,
+        y: event.clientY - rect.top,
+      },
+      canvas: { width: rect.width, height: rect.height },
+      viewport: viewportRef.current,
+    });
+    return resolveHoverClickCandidateKey(
+      hoverCandidates,
+      candidates.map((candidate) => candidate.key),
+      fallbackKey,
     );
   }
 
-  function getFannedMarkerVisual(item: MarkerFanItem): { className: string; style: CSSProperties } {
+  function clearHoverCandidates() {
+    hoverPointerRef.current = null;
+    if (hoverFrameRef.current !== null) {
+      cancelAnimationFrame(hoverFrameRef.current);
+      hoverFrameRef.current = null;
+    }
+    setHoverCandidates(null);
+  }
+
+  function renderHoverInspector(candidateState: HoverCandidateState) {
+    const activeKey = getActiveHoverCandidateKey(candidateState);
+    if (!activeKey) {
+      return null;
+    }
+
+    const active = parseMarkerKey(activeKey);
+    const loadPoint = active.type === "load-point"
+      ? state.loadPoints.find((candidate) => candidate.id === active.id)
+      : null;
+    const cpt = active.type === "cpt"
+      ? state.cpts.find((candidate) => candidate.id === active.id)
+      : null;
+    if (!loadPoint && !cpt) {
+      return null;
+    }
+
+    const selectedOption = loadPoint ? getSelectedPileOption(state, loadPoint.id) : null;
+    return (
+      <section className="viewer-hover-inspector" aria-live="polite">
+        <div className="viewer-hover-title">
+          <span className="viewer-hover-large-symbol">{renderHoverMarkerSymbol(activeKey)}</span>
+          <span className="viewer-hover-title-copy">
+            <span>{t(active.type === "load-point" ? "viewer.hover.loadPoint" : "viewer.hover.cpt")}</span>
+            <strong>{stripMarkerNamePrefix((loadPoint ?? cpt)!.name)}</strong>
+          </span>
+          {candidateState.keys.length > 1 ? (
+            <span className="viewer-hover-position">
+              {candidateState.activeIndex + 1} / {candidateState.keys.length}
+            </span>
+          ) : null}
+        </div>
+        <div className="viewer-hover-facts">
+          {loadPoint ? (
+            <>
+              <div className="viewer-hover-fact">
+                <span>F<sub>Ed</sub></span>
+                <strong>{formatHoverNumber(loadPoint.design_load_kn, " kN")}</strong>
+              </div>
+              <div className="viewer-hover-fact">
+                <span>{t("viewer.hover.utilization")}</span>
+                <strong>{selectedOption?.utilization == null
+                  ? "-"
+                  : formatHoverNumber(selectedOption.utilization * 100, "%")}</strong>
+              </div>
+            </>
+          ) : (
+            <>
+              <div className="viewer-hover-fact"><span>X</span><strong>{formatHoverNumber(cpt!.x_mm, " mm")}</strong></div>
+              <div className="viewer-hover-fact"><span>Y</span><strong>{formatHoverNumber(cpt!.y_mm, " mm")}</strong></div>
+            </>
+          )}
+        </div>
+        {candidateState.keys.length > 1 ? (
+          <>
+            <div className="viewer-hover-candidates">
+              {candidateState.keys.map((key) => (
+                <span className={`viewer-hover-candidate-symbol${key === activeKey ? " is-active" : ""}`} key={key}>
+                  {renderHoverMarkerSymbol(key)}
+                </span>
+              ))}
+              <span className="viewer-hover-candidate-count">
+                {t("viewer.hover.candidateCount", { count: candidateState.keys.length })}
+              </span>
+            </div>
+            <div className="viewer-hover-shortcut">
+              <span className="viewer-hover-keycap">{t("viewer.hover.spaceKey")}</span>
+              <span>{t("viewer.hover.nextCandidate")}</span>
+            </div>
+          </>
+        ) : null}
+        {loadPoint && selectedLoadPointIds.size > 0 ? (
+          <div className="viewer-hover-shortcut">
+            <span className="viewer-hover-keycap">Shift</span>
+            <span>{t("viewer.hover.shiftHint")}</span>
+          </div>
+        ) : null}
+      </section>
+    );
+  }
+
+  function renderHoverMarkerSymbol(key: string) {
+    const item = parseMarkerKey(key);
     if (item.type === "cpt") {
-      return {
-        className: selectedCptIds.has(item.id) ? " is-layer-selected-cpt" : " is-layer-cpt",
-        style: {},
-      };
+      const cpt = state.cpts.find((candidate) => candidate.id === item.id);
+      const label = stripMarkerNamePrefix(cpt?.name ?? String(item.id));
+      const selectionClass = selectedCptIds.has(item.id) ? " is-selected-cpt" : "";
+      return (
+        <span className={`viewer-hover-marker is-cpt${selectionClass}`}>
+          <svg viewBox="0 0 24 22" aria-hidden="true" focusable="false"><polygon points="3,3 21,3 12,19" /></svg>
+          <span style={getCptLabelStyle(label) as CSSProperties}>{label}</span>
+        </span>
+      );
     }
 
     const selectedOption = getSelectedPileOption(state, item.id);
+    const symbolStyle = selectedOption ? getConfigurationStyle(selectedOption, legend) : null;
     const invalidVisual = getLoadPointMarkerInvalidVisual(selectedOption);
     const unselectedState = selectedOption ? null : getUnselectedLoadPointMarkerState(
       state.pileOptionsByLoadPointId.get(item.id),
       state.defaultPileSelectionPending,
       state.analysisError !== null,
     );
-    const unselectedClass = unselectedState === "pending"
+    const statusClass = unselectedState === "pending"
       ? " is-pending"
       : unselectedState === "missing"
         ? " has-missing-options"
         : unselectedState === "invalid"
           ? " has-invalid-options"
           : "";
-    return {
-      className: `${selectedLoadPointIds.has(item.id) ? " is-selected" : ""}${invalidVisual.className}${unselectedClass}`,
-      style: getInvalidMarkerStyle(invalidVisual.style),
-    };
-  }
-
-  function renderFannedMarker(item: MarkerFanItem) {
-    if (item.type === "cpt") {
-      const cpt = state.cpts.find((candidate) => candidate.id === item.id);
-      return (
-        <>
-          <svg className="marker-fan-cpt" viewBox="0 0 24 22" aria-hidden="true" focusable="false">
-            <polygon points="3,3 21,3 12,19" />
-          </svg>
-          <span className="marker-fan-cpt-label">{cpt?.name.replace(/^CPT\s*/i, "") ?? item.id}</span>
-        </>
-      );
-    }
-
-    const selectedOption = getSelectedPileOption(state, item.id);
-    const style = selectedOption ? getConfigurationStyle(selectedOption, legend) : null;
-    const unselectedState = selectedOption ? null : getUnselectedLoadPointMarkerState(
-      state.pileOptionsByLoadPointId.get(item.id),
-      state.defaultPileSelectionPending,
-      state.analysisError !== null,
-    );
-    return style ? (
+    return (
       <span
-        className="marker-fan-load-point load-point-symbol"
-        dangerouslySetInnerHTML={{ __html: renderPileSymbol(style.shape, style.color) }}
-      />
-    ) : unselectedState === "pending" ? (
-      <span className="marker-fan-pending load-point-pending" aria-hidden="true" />
-    ) : (
-      <span className="marker-fan-empty load-point-empty" aria-hidden="true">
-        <svg viewBox="0 0 24 24" focusable="false">
-          <path d="M6 6L18 18M18 6L6 18" />
-        </svg>
+        className={`viewer-hover-marker is-load-point${invalidVisual.className}${statusClass}`}
+        style={getInvalidMarkerStyle(invalidVisual.style)}
+      >
+        {symbolStyle ? (
+          <span dangerouslySetInnerHTML={{ __html: renderPileSymbol(symbolStyle.shape, symbolStyle.color) }} />
+        ) : unselectedState === "pending" ? (
+          <span className="load-point-pending" aria-hidden="true" />
+        ) : (
+          <span className="load-point-empty" aria-hidden="true">
+            <svg viewBox="0 0 24 24" focusable="false"><path d="M6 6L18 18M18 6L6 18" /></svg>
+          </span>
+        )}
       </span>
     );
   }
 
-  function selectFannedMarker(item: MarkerFanItem, shiftKey: boolean) {
-    setMarkerFan(null);
-    selectMapMarker(`${item.type}:${item.id}`, shiftKey);
+  function formatHoverNumber(value: number, suffix: string) {
+    return `${value.toLocaleString(i18n.language, { maximumFractionDigits: 1 })}${suffix}`;
   }
 
   function selectMapMarker(key: string, shiftKey: boolean) {
@@ -608,27 +620,27 @@ type ViewerInteraction =
     current: { x: number; y: number };
   };
 
-type MarkerFanItem = {
+type MarkerReference = {
   type: "load-point" | "cpt";
   id: number;
-  sourceX: number;
-  sourceY: number;
-  targetX: number;
-  targetY: number;
-  displayWidth: number;
-  displayHeight: number;
 };
 
-type MarkerFanState = {
-  items: MarkerFanItem[];
-};
-
-function parseMarkerKey(key: string): Pick<MarkerFanItem, "type" | "id"> {
+function parseMarkerKey(key: string): MarkerReference {
   const [type, id] = key.split(":");
   return {
     type: type === "cpt" ? "cpt" : "load-point",
     id: Number(id),
   };
+}
+
+function stripMarkerNamePrefix(name: string): string {
+  return name.replace(/^(?:load point|cpt)\s*/i, "").trim();
+}
+
+function isTextEntryTarget(target: EventTarget | null): boolean {
+  return target instanceof HTMLElement && Boolean(
+    target.closest("input, textarea, select, [contenteditable='true']"),
+  );
 }
 
 function getSelectedPileOption(state: ProjectState, loadPointId: number) {

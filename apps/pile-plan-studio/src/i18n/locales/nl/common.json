@@ -41,7 +41,16 @@
   "explorer": "Verkenner",
   "properties": "Eigenschappen",
   "viewer": {
-    "selectionHelp": "Shift+klik om belastinglocaties toe te voegen of te verwijderen. Shift+slepen tekent een selectielasso."
+    "hover": {
+      "loadPoint": "Belastinglocatie",
+      "cpt": "Sondering",
+      "utilization": "Benuttingsgraad",
+      "candidateCount_one": "{{count}} kandidaat",
+      "candidateCount_other": "{{count}} kandidaten",
+      "spaceKey": "Spatie",
+      "nextCandidate": "Volgende kandidaat",
+      "shiftHint": "Klik om toe te voegen aan selectie"
+    }
   },
   "legend": {
     "aria": "Legenda voor paalsymbolen",
