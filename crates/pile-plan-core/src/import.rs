@@ -9,12 +9,13 @@ use std::fmt;
 
 use serde::{Deserialize, Serialize};
 
+mod pipeline;
 mod profile;
-#[allow(dead_code)]
 mod rfem;
 mod roles;
 mod table;
 
+pub use pipeline::{import_project_from_profiled_sources, preview_import_source};
 pub use profile::{
     available_profiles, ImportDiagnostic, ImportDiagnosticCode, ImportDiagnosticLocation,
     ImportDiagnosticSeverity, ImportPreviewDetails, ImportProfile, ImportProfileOptions,
@@ -241,47 +242,7 @@ pub fn import_project_from_generic_sources(
     project_name: &str,
     sources: &[ImportSource],
 ) -> Result<PilePlanProject, ImportError> {
-    let load_source = source_for_role(sources, ImportRole::LoadPoints)?;
-    let cpt_source = source_for_role(sources, ImportRole::Cpts)?;
-    let capacity_source = source_for_role(sources, ImportRole::BearingCapacities)?;
-    let load_table = read_source_table(
-        &load_source.file_name,
-        load_source.format,
-        &load_source.bytes,
-    )?;
-    let cpt_table = read_source_table(&cpt_source.file_name, cpt_source.format, &cpt_source.bytes)?;
-    let capacity_table = read_source_table(
-        &capacity_source.file_name,
-        capacity_source.format,
-        &capacity_source.bytes,
-    )?;
-    let load_points = parse_load_points(&load_table)?;
-    let cpts = parse_cpts(&cpt_table)?;
-    let capacity_parse = parse_bearing_capacities_with_diagnostics(&capacity_table)?;
-    let reconciliation =
-        reconcile_imported_inputs(&load_points, &cpts, capacity_parse.bearing_capacities)?;
-    let mut capacity_log = provenance_entry(
-        capacity_source,
-        capacity_table.sheet_name.clone(),
-        capacity_columns(),
-    );
-    capacity_log.warnings = import_warnings(
-        &capacity_table,
-        &capacity_parse.empty_frd_rows,
-        &reconciliation,
-    );
-
-    Ok(build_imported_project(
-        project_name.to_string(),
-        load_points,
-        cpts,
-        reconciliation.bearing_capacities,
-        vec![
-            provenance_entry(load_source, load_table.sheet_name, load_point_columns()),
-            provenance_entry(cpt_source, cpt_table.sheet_name, cpt_columns()),
-            capacity_log,
-        ],
-    ))
+    import_project_from_profiled_sources(project_name, sources)
 }
 
 fn build_imported_project(
