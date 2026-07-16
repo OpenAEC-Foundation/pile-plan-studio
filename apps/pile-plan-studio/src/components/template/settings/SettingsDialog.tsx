@@ -294,7 +294,7 @@ function AboutTabContent() {
     <div className="settings-section">
       <h3>{t("about.appName")}</h3>
       <div style={{ fontSize: 11, lineHeight: 1.8 }}>
-        <p><strong>{t("about.version")}:</strong> 0.1.0</p>
+        <p><strong>{t("about.version")}:</strong> 0.1.2</p>
         <p><strong>{t("about.framework")}:</strong> Tauri + React + TypeScript</p>
         <p><strong>{t("about.license")}:</strong> LGPL-3.0-or-later</p>
         <p style={{ marginTop: 8, color: "var(--theme-dialog-content-secondary)" }}>

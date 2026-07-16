@@ -5,7 +5,7 @@
 </p>
 
 <p align="center">
-  <a href="RELEASE_NOTES.md"><img src="https://img.shields.io/badge/release-v0.1.1--alpha-D97706?style=flat-square" alt="Release v0.1.1-alpha"></a>
+  <a href="RELEASE_NOTES.md"><img src="https://img.shields.io/badge/release-v0.1.2--alpha-D97706?style=flat-square" alt="Release v0.1.2-alpha"></a>
   <a href="https://github.com/OpenAEC-Foundation/pile-plan-studio/releases"><img src="https://img.shields.io/github/downloads/OpenAEC-Foundation/pile-plan-studio/total?style=flat-square" alt="Total downloads"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-LGPL--3.0-blue?style=flat-square" alt="LGPL-3.0 license"></a>
   <a href="https://pile-plan-studio.open-aec.com/"><img src="https://img.shields.io/badge/platform-Web%20%7C%20Windows-lightgrey?style=flat-square" alt="Web and Windows"></a>
@@ -49,6 +49,8 @@ browser.
 - Run a greedy optimization with limits on sizes, tip levels, and complete
   configurations.
 - Save project data, settings, pile assignments, and CPT choices in IFCPP.
+- Export the current pile assignments and selected CPT identifiers to Excel or
+  CSV.
 - Use the same Rust calculation core in the browser and Windows desktop app.
 
 ## Screenshots
@@ -135,7 +137,6 @@ The CPT-selection rules are configurable approximations rather than an
 objective engineering truth. The greedy optimizer supports decision-making but
 does not guarantee a globally optimal pile plan.
 
-Excel export of selected piles is planned but is not included in this alpha.
 See [Known Alpha Limitations](docs/known-limitations.md) for the complete scope.
 
 ## Architecture
