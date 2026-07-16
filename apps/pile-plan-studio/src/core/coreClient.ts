@@ -9,6 +9,7 @@ import initWasm, {
   cpt_frd_rows,
   greedy_optimize,
   import_project_from_files,
+  preview_import_file,
   write_ifcpp_project,
 } from "./wasm/pile-plan-wasm/pile_plan_wasm.js";
 import { toStringKeyedRecord, toWasmNumberKeyedMap, toWasmNumberKeyedRecord } from "./coreSerialization.ts";
@@ -36,7 +37,12 @@ import {
   type SelectedCpt,
 } from "./projectTypes";
 import type { IfcppProject } from "./projectFile.ts";
-import { toCoreImportSource, type ImportSourceInput } from "./coreImportContract.ts";
+import {
+  fromCoreImportSourcePreview,
+  toCoreImportSource,
+  type ImportSourceInput,
+  type ImportSourcePreview,
+} from "./coreImportContract.ts";
 
 type CoreCptSelectionSettings = {
   algorithm: CptSelectionSettings["algorithm"];
@@ -295,6 +301,19 @@ export async function importProjectFromFilesCore(input: {
     return import_project_from_files(request) as IfcppProject;
   }
   return invoke<IfcppProject>("import_project_from_files", { request });
+}
+
+export async function previewImportSourceCore(
+  source: ImportSourceInput,
+): Promise<ImportSourcePreview> {
+  const request = { source: toCoreImportSource(source) };
+  if (!isTauriRuntime()) {
+    await initializeWasm();
+    return fromCoreImportSourcePreview(preview_import_file(request));
+  }
+  return fromCoreImportSourcePreview(
+    await invoke("preview_import_file", { request }),
+  );
 }
 
 export async function writeIfcppProjectCore(project: IfcppProject): Promise<string> {

@@ -109,6 +109,18 @@ export function import_project_from_files(request) {
 }
 
 /**
+ * @param {any} request
+ * @returns {any}
+ */
+export function preview_import_file(request) {
+    const ret = wasm.preview_import_file(request);
+    if (ret[2]) {
+        throw takeFromExternrefTable0(ret[1]);
+    }
+    return takeFromExternrefTable0(ret[0]);
+}
+
+/**
  * @param {any} project
  * @returns {string}
  */

@@ -10,6 +10,7 @@ export const choose_default_options: (a: any) => [number, number, number];
 export const cpt_frd_rows: (a: any) => [number, number, number];
 export const greedy_optimize: (a: any) => [number, number, number];
 export const import_project_from_files: (a: any) => [number, number, number];
+export const preview_import_file: (a: any) => [number, number, number];
 export const write_ifcpp_project: (a: any) => [number, number, number, number];
 export const __wbindgen_malloc: (a: number, b: number) => number;
 export const __wbindgen_realloc: (a: number, b: number, c: number, d: number) => number;

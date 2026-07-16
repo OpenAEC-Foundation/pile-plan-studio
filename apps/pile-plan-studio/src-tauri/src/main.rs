@@ -1,11 +1,11 @@
 use pile_plan_core::{
     bearing_capacity_rows_for_cpt, build_pile_options_by_load_point, build_project_analysis,
     calculate_pile_cost, choose_default_pile_option, choose_default_pile_options,
-    greedy_optimize_pile_choices,
-    import_project_from_generic_sources, selected_cpts,
-    CptSelectionSettings, GreedyOptimizationSettings, GreedyOptimizedPileChoice,
-    PileConfigurationKey, PileConfigurationOption, PileCostSettings, ProjectBearingCapacity, ProjectCpt,
-    ImportSource, PilePlanProject, ProjectAnalysisResult, ProjectLoadPoint, SelectedCpt,
+    greedy_optimize_pile_choices, import_project_from_generic_sources, preview_import_source,
+    selected_cpts, CptSelectionSettings, GreedyOptimizationSettings, GreedyOptimizedPileChoice,
+    ImportSource, ImportSourcePreview, PileConfigurationKey, PileConfigurationOption,
+    PileCostSettings, PilePlanProject, ProjectAnalysisResult, ProjectBearingCapacity, ProjectCpt,
+    ProjectLoadPoint, SelectedCpt,
 };
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -77,6 +77,11 @@ struct ImportProjectRequest {
     sources: Vec<ImportSource>,
 }
 
+#[derive(Debug, Deserialize)]
+struct PreviewImportRequest {
+    source: ImportSource,
+}
+
 #[derive(Debug, Serialize)]
 struct PileCostResponse {
     cost_eur: Option<u32>,
@@ -141,9 +146,7 @@ fn calculate_pile_option_cost(request: PileCostRequest) -> PileCostResponse {
 }
 
 #[tauri::command(rename_all = "snake_case")]
-fn choose_default_option(
-    request: DefaultPileOptionRequest,
-) -> Option<PileConfigurationOption> {
+fn choose_default_option(request: DefaultPileOptionRequest) -> Option<PileConfigurationOption> {
     choose_default_pile_option(&request.options, &request.settings).cloned()
 }
 
@@ -155,9 +158,7 @@ fn choose_default_options(
 }
 
 #[tauri::command(rename_all = "snake_case")]
-fn cpt_frd_rows(
-    request: CptFrdRowsRequest,
-) -> Vec<pile_plan_core::CptBearingCapacityRow> {
+fn cpt_frd_rows(request: CptFrdRowsRequest) -> Vec<pile_plan_core::CptBearingCapacityRow> {
     bearing_capacity_rows_for_cpt(&request.bearing_capacities, request.cpt_id)
 }
 
@@ -174,6 +175,11 @@ fn greedy_optimize(request: GreedyOptimizationRequest) -> Vec<GreedyOptimizedPil
 fn import_project_from_files(request: ImportProjectRequest) -> Result<PilePlanProject, String> {
     import_project_from_generic_sources(&request.project_name, &request.sources)
         .map_err(|error| error.to_string())
+}
+
+#[tauri::command(rename_all = "snake_case")]
+fn preview_import_file(request: PreviewImportRequest) -> ImportSourcePreview {
+    preview_import_source(&request.source)
 }
 
 #[tauri::command(rename_all = "snake_case")]
@@ -204,6 +210,7 @@ fn main() {
             cpt_frd_rows,
             greedy_optimize,
             import_project_from_files,
+            preview_import_file,
             read_project_file,
             write_project_file,
             write_binary_file,

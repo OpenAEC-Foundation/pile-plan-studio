@@ -19,6 +19,8 @@ export function greedy_optimize(request: any): any;
 
 export function import_project_from_files(request: any): any;
 
+export function preview_import_file(request: any): any;
+
 export function write_ifcpp_project(project: any): string;
 
 export type InitInput = RequestInfo | URL | Response | BufferSource | WebAssembly.Module;
@@ -34,6 +36,7 @@ export interface InitOutput {
     readonly cpt_frd_rows: (a: any) => [number, number, number];
     readonly greedy_optimize: (a: any) => [number, number, number];
     readonly import_project_from_files: (a: any) => [number, number, number];
+    readonly preview_import_file: (a: any) => [number, number, number];
     readonly write_ifcpp_project: (a: any) => [number, number, number, number];
     readonly __wbindgen_malloc: (a: number, b: number) => number;
     readonly __wbindgen_realloc: (a: number, b: number, c: number, d: number) => number;

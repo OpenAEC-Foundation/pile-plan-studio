@@ -46,7 +46,14 @@ export default function ProjectImportPanel({
         const file = assignments[role]!;
         const format = getImportFileFormat(file.name);
         if (!format) throw new Error(`Unsupported file format: ${file.name}`);
-        return { role, fileName: file.name, format, bytes: new Uint8Array(await file.arrayBuffer()) };
+        return {
+          role,
+          profile: "auto" as const,
+          profileOptions: { coordinateSheet: null, reactionSheet: null },
+          fileName: file.name,
+          format,
+          bytes: new Uint8Array(await file.arrayBuffer()),
+        };
       }));
       const result = await onImportProject(projectName.trim() || "Imported Project", sources);
       if (result) setSummary(result);

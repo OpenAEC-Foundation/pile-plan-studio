@@ -3,8 +3,8 @@ use std::collections::HashMap;
 use pile_plan_core::{
     bearing_capacity_rows_for_cpt, build_pile_options_by_load_point, build_project_analysis,
     calculate_pile_cost, choose_default_pile_option, choose_default_pile_options,
-    greedy_optimize_pile_choices, import_project_from_generic_sources, selected_cpts,
-    write_ifcpp_string, CptSelectionSettings, GreedyOptimizationSettings,
+    greedy_optimize_pile_choices, import_project_from_generic_sources, preview_import_source,
+    selected_cpts, write_ifcpp_string, CptSelectionSettings, GreedyOptimizationSettings,
     GreedyOptimizedPileChoice, ImportSource, PileConfigurationKey, PileConfigurationOption,
     PileCostSettings, PilePlanProject, ProjectBearingCapacity, ProjectCpt, ProjectLoadPoint,
 };
@@ -76,6 +76,11 @@ pub struct GreedyOptimizationRequest {
 pub struct ImportProjectRequest {
     pub project_name: String,
     pub sources: Vec<ImportSource>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct PreviewImportRequest {
+    pub source: ImportSource,
 }
 
 #[derive(Debug, Serialize)]
@@ -191,6 +196,12 @@ pub fn import_project_from_files(request: JsValue) -> Result<JsValue, JsValue> {
 }
 
 #[wasm_bindgen]
+pub fn preview_import_file(request: JsValue) -> Result<JsValue, JsValue> {
+    let request: PreviewImportRequest = from_js_value(request)?;
+    to_js_value(&preview_import_source(&request.source))
+}
+
+#[wasm_bindgen]
 pub fn write_ifcpp_project(project: JsValue) -> Result<String, JsValue> {
     let project: PilePlanProject = from_js_value(project)?;
     write_ifcpp_string(&project).map_err(to_error_value)
@@ -284,5 +295,27 @@ mod tests {
         };
 
         assert!(request.options_by_load_point.contains_key(&1));
+    }
+
+    #[test]
+    fn preview_import_request_accepts_profiled_source() {
+        let request = PreviewImportRequest {
+            source: ImportSource {
+                role: pile_plan_core::ImportRole::LoadPoints,
+                profile: pile_plan_core::ImportProfile::RfemExport,
+                profile_options: pile_plan_core::ImportProfileOptions {
+                    coordinate_sheet: Some("Coordinates".to_string()),
+                    reaction_sheet: Some("Reactions".to_string()),
+                },
+                file_name: "Export RFEM.xlsx".to_string(),
+                format: pile_plan_core::SourceFormat::Xlsx,
+                bytes: vec![],
+            },
+        };
+
+        assert_eq!(
+            request.source.profile,
+            pile_plan_core::ImportProfile::RfemExport
+        );
     }
 }
