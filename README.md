@@ -105,6 +105,19 @@ Pile Plan Studio imports three source roles:
 | CPTs | ID, X, Y | CSV, XLSX |
 | Foundation advice | CPT ID, pile tip level, pile size, R<sub>c;net;d</sub> | CSV, XLSX |
 
+For the standard tabular profile, these columns must appear in the order shown
+in the table. The importer reads columns by position rather than by header
+name:
+
+- load points: `ID`, `X`, `Y`, F<sub>Ed</sub>;
+- CPTs: `ID`, `X`, `Y`;
+- foundation advice: `CPT ID`, `pile tip level`, `pile size`,
+  R<sub>c;net;d</sub>.
+
+One header row is optional, and additional columns after the required columns
+are allowed. The RFEM load-point profile is the exception: it detects the
+required RFEM columns by their headers, so their position is not fixed.
+
 The source files may be selected together and assigned to their roles before
 import. Load points can use either the standard tabular profile or the
 automatically detected RFEM Excel export profile. The RFEM profile joins node
