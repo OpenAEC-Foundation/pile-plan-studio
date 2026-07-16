@@ -52,6 +52,10 @@ describe("Workspace translations", () => {
     assert.doesNotMatch(importPanel, />Import project data</);
     assert.match(nlCommon, /Funderingsadvies/);
     assert.match(enCommon, /Foundation advice/);
+    assert.match(enCommon, /"rfemExport":\s*"RFEM export"/);
+    assert.match(nlCommon, /"rfemExport":\s*"RFEM-export"/);
+    assert.match(enCommon, /"automatic":\s*"Automatically detect"/);
+    assert.match(nlCommon, /"automatic":\s*"Automatisch herkennen"/);
   });
 
   it("renders the updated design resistance notation in visible tables", () => {
