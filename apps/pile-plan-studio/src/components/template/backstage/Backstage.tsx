@@ -155,18 +155,20 @@ export default function Backstage({ open, onClose, onOpenSettings, onOpenFile, o
             active={activePanel === "about"}
             onClick={() => setActivePanel("about")}
           />
-          <Divider />
-          <MenuItem
-            icon={ICONS.exit}
-            label={t("exit")}
-            shortcut="Alt+F4"
-            onClick={() => {
-              onClose();
-              import("@tauri-apps/api/window").then(({ getCurrentWindow }) =>
-                getCurrentWindow().close()
-              );
-            }}
-          />
+          {commands.save ? <>
+            <Divider />
+            <MenuItem
+              icon={ICONS.exit}
+              label={t("exit")}
+              shortcut="Alt+F4"
+              onClick={() => {
+                onClose();
+                import("@tauri-apps/api/window").then(({ getCurrentWindow }) =>
+                  getCurrentWindow().close()
+                );
+              }}
+            />
+          </> : null}
         </div>
       </div>
       {hasActivePanel && (
@@ -339,87 +341,55 @@ function OpenPanel({
   };
 
   return (
-    <div className="bs-export-panel">
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
-        <h2 className="bs-export-title" style={{ margin: 0 }}>{t("openPanel.title", "Recent Files")}</h2>
+    <div className="bs-open-panel">
+      <header className="bs-open-heading">
+        <div>
+          <h2 className="backstage-panel-title">{t("openPanel.title")}</h2>
+          <p className="backstage-panel-intro">{t("openPanel.intro")}</p>
+        </div>
         {recentFiles.length > 0 && (
           <button
+            className="bs-open-clear"
             onClick={onClearAll}
-            style={{
-              background: "none",
-              border: "none",
-              color: "var(--theme-text-muted, #888)",
-              cursor: "pointer",
-              fontSize: "0.8rem",
-              textDecoration: "underline",
-            }}
           >
-            {t("openPanel.clearAll", "Clear all")}
+            {t("openPanel.clearAll")}
           </button>
         )}
-      </div>
-      {isDesktop ? <button className="bs-export-card" type="button" style={{ cursor: "pointer", marginBottom: 16 }} onClick={() => void onChooseDesktopProject()}>
-        <div className="bs-export-card-info">
-          <h3>Choose IFCPP project</h3>
-          <p>Open a project file from this device.</p>
-        </div>
-      </button> : <label className="bs-export-card" style={{ cursor: "pointer", marginBottom: 16 }}>
-        <div className="bs-export-card-info">
-          <h3>Choose IFCPP project</h3>
-          <p>Open a project file from this device.</p>
-        </div>
-        <input type="file" accept=".ifcpp,application/json" style={{ display: "none" }} onChange={(event) => {
-          const file = event.target.files?.[0];
-          if (file) void onOpenProjectFile(file);
-        }} />
-      </label>}
-      {recentFiles.length === 0 ? (
-        <p style={{ color: "var(--theme-text-muted, #888)", fontStyle: "italic" }}>
-          {t("openPanel.noRecent", "No recent files")}
-        </p>
+      </header>
+      {isDesktop ? (
+        <button className="bs-open-project-option" type="button" onClick={() => void onChooseDesktopProject()}>
+          <OpenProjectOptionContent t={t} />
+        </button>
       ) : (
-        <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+        <label className="bs-open-project-option">
+          <OpenProjectOptionContent t={t} />
+          <input className="bs-open-native-file" type="file" accept=".ifcpp,application/json" onChange={(event) => {
+            const file = event.target.files?.[0];
+            if (file) void onOpenProjectFile(file);
+          }} />
+        </label>
+      )}
+      <div className="bs-open-recent-heading">{t("openPanel.recent")}</div>
+      {recentFiles.length === 0 ? (
+        <p className="bs-open-empty">{t("openPanel.noRecent")}</p>
+      ) : (
+        <div className="bs-recent-list">
           {recentFiles.map((file) => (
             <div
               key={file.path}
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 10,
-                padding: "8px 12px",
-                borderRadius: 6,
-                cursor: "pointer",
-                transition: "background 0.15s",
-              }}
               className="bs-recent-item"
               onClick={() => onOpenFile(file.path)}
-              onMouseEnter={(e) => (e.currentTarget.style.background = "var(--theme-hover, rgba(0,0,0,0.05))")}
-              onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
             >
-              <span dangerouslySetInnerHTML={{ __html: typeIcon(file.type) }} style={{ opacity: 0.6, flexShrink: 0 }} />
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontWeight: 500, fontSize: "0.9rem", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                  {file.name}
-                </div>
-                <div style={{ fontSize: "0.75rem", color: "var(--theme-text-muted, #888)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                  {file.path}
-                </div>
+              <span className="bs-recent-icon" dangerouslySetInnerHTML={{ __html: typeIcon(file.type) }} />
+              <div className="bs-recent-info">
+                <div className="bs-recent-name">{file.name}</div>
+                <div className="bs-recent-path">{file.path}</div>
               </div>
-              <span style={{ fontSize: "0.75rem", color: "var(--theme-text-muted, #888)", flexShrink: 0 }}>
-                {formatDate(file.timestamp)}
-              </span>
+              <span className="bs-recent-date">{formatDate(file.timestamp)}</span>
               <button
+                className="bs-recent-remove"
                 onClick={(e) => { e.stopPropagation(); onRemoveFile(file.path); }}
-                style={{
-                  background: "none",
-                  border: "none",
-                  cursor: "pointer",
-                  padding: 4,
-                  opacity: 0.4,
-                  color: "currentColor",
-                  flexShrink: 0,
-                }}
-                title={t("openPanel.remove", "Remove")}
+                title={t("openPanel.remove")}
               >
                 <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
                   <path d="M3 3l6 6M9 3l-6 6" />
@@ -430,6 +400,32 @@ function OpenPanel({
         </div>
       )}
     </div>
+  );
+}
+
+function OpenProjectOptionContent({ t }: { t: (key: string) => string }) {
+  return (
+    <>
+      <span className="bs-open-project-icon" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M3 7a2 2 0 012-2h5l2 2h7a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V7z" />
+          <path d="M12 11v5M9.5 13.5H14.5" />
+        </svg>
+      </span>
+      <span className="bs-open-project-info">
+        <span className="bs-open-project-heading">
+          <strong>{t("openPanel.chooseProject")}</strong>
+          <span className="bs-export-format">IFCPP</span>
+        </span>
+        <span>{t("openPanel.chooseProjectDesc")}</span>
+      </span>
+      <span className="bs-open-project-action">
+        {t("openPanel.choose")}
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+          <path d="M5 12h14M14 7l5 5-5 5" />
+        </svg>
+      </span>
+    </>
   );
 }
 
@@ -455,8 +451,8 @@ function ExportPanel({ canDownloadProject, onDownloadProject, onExportPilePlanXl
 
   return (
     <div className={`bs-export-panel${runningExport ? " is-exporting" : ""}`} aria-busy={runningExport}>
-      <h2 className="bs-export-title">{t("exportPanel.title")}</h2>
-      <p className="bs-export-intro">{t("exportPanel.intro")}</p>
+      <h2 className="backstage-panel-title">{t("exportPanel.title")}</h2>
+      <p className="backstage-panel-intro">{t("exportPanel.intro")}</p>
       <div className="bs-export-cards">
         {canDownloadProject ? (
           <ExportOption

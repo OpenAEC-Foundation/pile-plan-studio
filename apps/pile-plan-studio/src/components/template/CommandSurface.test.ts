@@ -34,6 +34,20 @@ describe("Alpha command surfaces", () => {
     assert.doesNotMatch(source, /label=\{t\("print"\)\}/);
     assert.doesNotMatch(source, /label=\{t\("extensions"\)\}/);
     assert.doesNotMatch(source, /actionAndClose/);
+    assert.match(source, /\{commands\.save \? <>\s*<Divider \/>[\s\S]*?label=\{t\("exit"\)\}/);
+  });
+
+  it("uses one shared visual language for backstage content panels", () => {
+    const backstage = readFileSync(resolve(import.meta.dirname, "backstage/Backstage.tsx"), "utf8");
+    const importPanel = readFileSync(resolve(import.meta.dirname, "../domain/ProjectImportPanel.tsx"), "utf8");
+    const styles = readFileSync(resolve(import.meta.dirname, "backstage/Backstage.css"), "utf8");
+
+    assert.match(backstage, /backstage-panel-title/);
+    assert.match(backstage, /bs-open-project-option/);
+    assert.match(backstage, /bs-recent-item/);
+    assert.match(importPanel, /backstage-panel-title/);
+    assert.match(styles, /\.backstage-panel-title/);
+    assert.doesNotMatch(backstage, /onMouseEnter=/);
   });
 
   it("marks dirty projects in the explorer and guards replacement actions", () => {

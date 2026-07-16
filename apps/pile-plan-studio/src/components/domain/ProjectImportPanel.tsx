@@ -138,7 +138,7 @@ export default function ProjectImportPanel({
   return (
     <div className="project-import-panel">
       <header className="project-import-heading">
-        <h2>{t("importProject.title")}</h2>
+        <h2 className="backstage-panel-title">{t("importProject.title")}</h2>
       </header>
       <div className="project-import-setup">
         <label className="project-import-name">

@@ -32,6 +32,17 @@
     "fromTemplate": "Bronkoppelingen beheren",
     "fromTemplateDesc": "Bekijk hoe kolommen uit bronnen aan het projectmodel gekoppeld zijn. Volledig bronbeheer volgt later."
   },
+  "openPanel": {
+    "title": "Project openen",
+    "intro": "Open een IFCPP-project vanaf dit apparaat of ga verder met een recent project.",
+    "chooseProject": "IFCPP-project kiezen",
+    "chooseProjectDesc": "Open een volledig projectbestand van Pile Plan Studio.",
+    "choose": "Bestand kiezen",
+    "recent": "Recente projecten",
+    "clearAll": "Alles wissen",
+    "noRecent": "Geen recente projecten",
+    "remove": "Verwijderen"
+  },
   "extensions": "Extensies",
   "extInstalled": "Geïnstalleerd",
   "extBrowse": "Bladeren",

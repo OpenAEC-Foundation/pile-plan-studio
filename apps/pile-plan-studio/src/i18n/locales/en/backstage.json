@@ -32,6 +32,17 @@
     "fromTemplate": "Manage source mappings",
     "fromTemplateDesc": "Review how source columns connect to the project model. Full source management follows later."
   },
+  "openPanel": {
+    "title": "Open project",
+    "intro": "Open an IFCPP project from this device or continue with a recent project.",
+    "chooseProject": "Choose IFCPP project",
+    "chooseProjectDesc": "Open a complete Pile Plan Studio project file.",
+    "choose": "Choose file",
+    "recent": "Recent projects",
+    "clearAll": "Clear all",
+    "noRecent": "No recent projects",
+    "remove": "Remove"
+  },
   "extensions": "Extensions",
   "extInstalled": "Installed",
   "extBrowse": "Browse Catalog",
