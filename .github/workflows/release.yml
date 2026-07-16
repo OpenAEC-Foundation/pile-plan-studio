@@ -3,7 +3,7 @@ name: Build signed Windows alpha
 on:
   push:
     tags:
-      - "v*-alpha.*"
+      - "v*-alpha"
 
 permissions:
   contents: write

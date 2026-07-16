@@ -20,7 +20,7 @@ apps/pile-plan-studio/dist/
 ```
 
 Deploy the complete contents of this directory from one commit or release tag.
-For the first public alpha, build from `v0.1.0-alpha.1`.
+For the current public alpha, build from `v0.1.1-alpha`.
 
 ## Hosting Requirements
 
@@ -48,11 +48,11 @@ The browser build and Windows desktop build use the same Rust calculation core.
 
 ## Signed Windows Alpha Release
 
-Push an alpha tag matching `v*-alpha.*`, for example:
+Push an alpha tag matching `v*-alpha`, for example:
 
 ```powershell
-git tag v0.1.0-alpha.1
-git push origin v0.1.0-alpha.1
+git tag v0.1.1-alpha
+git push origin v0.1.1-alpha
 ```
 
 The release workflow runs the Rust and frontend tests, builds the NSIS Windows
