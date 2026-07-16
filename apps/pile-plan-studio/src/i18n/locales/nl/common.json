@@ -112,6 +112,11 @@
       "loadPointCount": "{{count}} belastinglocaties gevonden"
     },
     "diagnostics": {
+      "unsupported-profile-format": "Dit importprofiel is niet beschikbaar voor de gekozen gegevensrol of bestandsindeling.",
+      "missing-coordinate-sheet": "Er is geen RFEM-werkblad met knoopcoördinaten gevonden.",
+      "missing-reaction-sheet": "Er is geen RFEM-werkblad met knoopreacties gevonden.",
+      "ambiguous-coordinate-sheet": "Kies het RFEM-werkblad met de knoopcoördinaten.",
+      "ambiguous-reaction-sheet": "Kies het RFEM-werkblad met de knoopreacties.",
       "reaction-nodes-without-coordinates": "{{count}} reactieknopen zonder bruikbare coördinaten worden overgeslagen.",
       "coordinate-nodes-without-reactions": "{{count}} coördinaatknopen zonder Min PZ'-reactie worden overgeslagen.",
       "exact-coordinate-duplicates": "{{count}} identieke coördinaatregels zijn gededupliceerd.",

@@ -220,11 +220,15 @@ function ImportStatus({ previewState, t }: {
   if (previewState.status === "analyzing") return <div className="project-import-status">{t("importProject.status.analyzing")}</div>;
   if (previewState.status === "failed") return <div className="project-import-status error">{previewState.message}</div>;
   const { preview } = previewState;
+  if (preview.details?.kind === "rfem-export") return null;
   const errors = preview.diagnostics.filter((item) => item.severity === "error");
   if (errors.length > 0) {
-    return <div className="project-import-status error">{errors.map((item) => item.fallbackMessage).join(" ")}</div>;
+    return (
+      <div className="project-import-status error">
+        {errors.map((item) => diagnosticText(item, t)).join(" ")}
+      </div>
+    );
   }
-  if (preview.details?.kind === "rfem-export") return null;
   return (
     <div className="project-import-status valid">
       {t("importProject.status.validCount", { count: preview.itemCount })}
@@ -270,10 +274,7 @@ function RfemAnalysis({ preview, options, onChange, t }: {
         <ul className="project-import-diagnostics">
           {preview.diagnostics.map((diagnostic, index) => (
             <li className={diagnostic.severity} key={`${diagnostic.code}-${index}`}>
-              {t(`importProject.diagnostics.${diagnostic.code}`, {
-                count: diagnostic.count,
-                defaultValue: diagnostic.fallbackMessage,
-              })}
+              {diagnosticText(diagnostic, t)}
             </li>
           ))}
         </ul>
@@ -312,4 +313,14 @@ function profileChoices(
 
 function profileKey(profile: ImportProfile): string {
   return profile === "auto" ? "automatic" : profile === "standard-table" ? "standardTable" : "rfemExport";
+}
+
+function diagnosticText(
+  diagnostic: ImportSourcePreview["diagnostics"][number],
+  t: (key: string, options?: Record<string, unknown>) => string,
+): string {
+  return t(`importProject.diagnostics.${diagnostic.code}`, {
+    count: diagnostic.count,
+    defaultValue: diagnostic.fallbackMessage,
+  });
 }

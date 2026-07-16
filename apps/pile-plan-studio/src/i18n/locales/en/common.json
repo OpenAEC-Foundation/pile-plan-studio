@@ -112,6 +112,11 @@
       "loadPointCount": "{{count}} load points found"
     },
     "diagnostics": {
+      "unsupported-profile-format": "This import profile is not available for the selected role or file format.",
+      "missing-coordinate-sheet": "No RFEM worksheet with node coordinates was found.",
+      "missing-reaction-sheet": "No RFEM worksheet with node reactions was found.",
+      "ambiguous-coordinate-sheet": "Select the RFEM worksheet that contains the node coordinates.",
+      "ambiguous-reaction-sheet": "Select the RFEM worksheet that contains the node reactions.",
       "reaction-nodes-without-coordinates": "{{count}} reaction nodes without usable coordinates will be skipped.",
       "coordinate-nodes-without-reactions": "{{count}} coordinate nodes without Min PZ' reactions will be skipped.",
       "exact-coordinate-duplicates": "{{count}} identical coordinate rows were deduplicated.",

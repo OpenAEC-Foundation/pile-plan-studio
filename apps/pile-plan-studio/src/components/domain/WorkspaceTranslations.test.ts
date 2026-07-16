@@ -56,6 +56,8 @@ describe("Workspace translations", () => {
     assert.match(nlCommon, /"rfemExport":\s*"RFEM-export"/);
     assert.match(enCommon, /"automatic":\s*"Automatically detect"/);
     assert.match(nlCommon, /"automatic":\s*"Automatisch herkennen"/);
+    assert.match(enCommon, /Select the RFEM worksheet that contains the node reactions/);
+    assert.match(nlCommon, /Kies het RFEM-werkblad met de knoopreacties/);
   });
 
   it("renders the updated design resistance notation in visible tables", () => {
