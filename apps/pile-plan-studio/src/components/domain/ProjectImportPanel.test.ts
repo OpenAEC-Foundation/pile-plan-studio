@@ -23,4 +23,16 @@ describe("ProjectImportPanel", () => {
     assert.match(panel, /reactionSheetCandidates/);
     assert.match(panel, /abs-min-pz-prime/);
   });
+
+  it("uses the shared application styling for fields, file actions, and status", () => {
+    assert.match(panel, /project-import-field/);
+    assert.match(panel, /project-import-file-button/);
+    assert.match(panel, /project-import-status-dot/);
+    assert.match(panel, /primary-action project-import-submit/);
+  });
+
+  it("keeps native file inputs visually hidden behind themed controls", () => {
+    assert.match(panel, /project-import-native-file/);
+    assert.match(panel, /ifcImportIcon/);
+  });
 });

@@ -13,6 +13,7 @@ import {
   type ImportFileRole,
 } from "../../core/importFiles.ts";
 import type { ImportSummary } from "../../core/projectFile.ts";
+import { ifcImportIcon } from "../template/ribbon/icons.ts";
 import {
   applyImportPreview,
   beginImportPreview,
@@ -136,15 +137,30 @@ export default function ProjectImportPanel({
 
   return (
     <div className="project-import-panel">
-      <h2>{t("importProject.title")}</h2>
-      <label className="project-import-name">
-        <span>{t("importProject.projectName")}</span>
-        <input value={projectName} onChange={(event) => setProjectName(event.target.value)} />
-      </label>
-      <label className="project-import-bulk">
-        <span>{t("importProject.chooseFiles")}</span>
-        <input type="file" accept=".csv,.xlsx" multiple onChange={(event) => assignFiles([...event.target.files ?? []])} />
-      </label>
+      <header className="project-import-heading">
+        <h2>{t("importProject.title")}</h2>
+      </header>
+      <div className="project-import-setup">
+        <label className="project-import-name">
+          <span>{t("importProject.projectName")}</span>
+          <input
+            className="project-import-field"
+            value={projectName}
+            onChange={(event) => setProjectName(event.target.value)}
+          />
+        </label>
+        <label className="project-import-file-button project-import-bulk">
+          <FileActionIcon />
+          <span>{t("importProject.chooseFiles")}</span>
+          <input
+            className="project-import-native-file"
+            type="file"
+            accept=".csv,.xlsx"
+            multiple
+            onChange={(event) => assignFiles([...event.target.files ?? []])}
+          />
+        </label>
+      </div>
 
       <div className="project-import-sources">
         {ROLES.map(({ role, labelKey, columnsKey }) => {
@@ -157,9 +173,10 @@ export default function ProjectImportPanel({
                   <strong>{t(labelKey)}</strong>
                   <small>{t(columnsKey)}</small>
                 </div>
-                <label>
+                <label className="project-import-profile">
                   <span>{t("importProject.profile.label")}</span>
                   <select
+                    className="project-import-field"
                     value={draft.requestedProfile}
                     onChange={(event) => changeProfile(role, event.target.value as ImportProfile)}
                   >
@@ -174,11 +191,22 @@ export default function ProjectImportPanel({
                 <span className="project-import-file-name" title={draft.file?.name}>
                   {draft.file?.name ?? t("importProject.noFile")}
                 </span>
-                <label className="project-import-replace">
-                  {draft.file ? t("importProject.replace") : t("importProject.choose")}
-                  <input type="file" accept=".csv,.xlsx" onChange={(event) => assignRoleFile(role, event.target.files?.[0] ?? null)} />
+                <label className="project-import-file-button">
+                  <FileActionIcon />
+                  <span>{draft.file ? t("importProject.replace") : t("importProject.choose")}</span>
+                  <input
+                    className="project-import-native-file"
+                    type="file"
+                    accept=".csv,.xlsx"
+                    onChange={(event) => assignRoleFile(role, event.target.files?.[0] ?? null)}
+                  />
                 </label>
-                <button type="button" disabled={!draft.file} onClick={() => assignRoleFile(role, null)}>
+                <button
+                  className="project-import-button project-import-remove"
+                  type="button"
+                  disabled={!draft.file}
+                  onClick={() => assignRoleFile(role, null)}
+                >
                   {t("importProject.remove")}
                 </button>
               </div>
@@ -205,7 +233,7 @@ export default function ProjectImportPanel({
           {summary.warnings.length > 0 && <ul>{summary.warnings.map((warning) => <li key={warning}>{warning}</li>)}</ul>}
         </section>
       )}
-      <button className="project-import-submit" type="button" disabled={busy || !canImportProject(drafts)} onClick={importProject}>
+      <button className="primary-action project-import-submit" type="button" disabled={busy || !canImportProject(drafts)} onClick={importProject}>
         {busy ? t("importProject.importing") : t("importProject.submit")}
       </button>
     </div>
@@ -217,20 +245,36 @@ function ImportStatus({ previewState, t }: {
   t: (key: string, options?: Record<string, unknown>) => string;
 }) {
   if (previewState.status === "empty") return null;
-  if (previewState.status === "analyzing") return <div className="project-import-status">{t("importProject.status.analyzing")}</div>;
-  if (previewState.status === "failed") return <div className="project-import-status error">{previewState.message}</div>;
+  if (previewState.status === "analyzing") {
+    return (
+      <div className="project-import-status analyzing">
+        <span className="project-import-status-dot" />
+        {t("importProject.status.analyzing")}
+      </div>
+    );
+  }
+  if (previewState.status === "failed") {
+    return (
+      <div className="project-import-status error">
+        <span className="project-import-status-dot" />
+        {previewState.message}
+      </div>
+    );
+  }
   const { preview } = previewState;
   if (preview.details?.kind === "rfem-export") return null;
   const errors = preview.diagnostics.filter((item) => item.severity === "error");
   if (errors.length > 0) {
     return (
       <div className="project-import-status error">
+        <span className="project-import-status-dot" />
         {errors.map((item) => diagnosticText(item, t)).join(" ")}
       </div>
     );
   }
   return (
     <div className="project-import-status valid">
+      <span className="project-import-status-dot" />
       {t("importProject.status.validCount", { count: preview.itemCount })}
     </div>
   );
@@ -248,7 +292,10 @@ function RfemAnalysis({ preview, options, onChange, t }: {
     <div className="project-import-rfem">
       <div className="project-import-rfem-heading">
         <strong>{t("importProject.rfem.analysis")}</strong>
-        <span>{preview.resolvedProfile ? t("importProject.status.valid") : t("importProject.status.needsInput")}</span>
+        <span className={`project-import-status ${preview.resolvedProfile ? "valid" : "error"}`}>
+          <span className="project-import-status-dot" />
+          {preview.resolvedProfile ? t("importProject.status.valid") : t("importProject.status.needsInput")}
+        </span>
       </div>
       <div className="project-import-rfem-grid">
         <span>{t("importProject.rfem.coordinateSheet")}</span>
@@ -291,7 +338,7 @@ function SheetValue({ candidates, value, onChange, placeholder }: {
 }) {
   if (candidates.length <= 1) return <span>{value ?? candidates[0] ?? "-"}</span>;
   return (
-    <select value={value ?? ""} onChange={(event) => onChange(event.target.value)}>
+    <select className="project-import-field" value={value ?? ""} onChange={(event) => onChange(event.target.value)}>
       <option value="" disabled>{placeholder}</option>
       {candidates.map((candidate) => <option key={candidate} value={candidate}>{candidate}</option>)}
     </select>
@@ -313,6 +360,16 @@ function profileChoices(
 
 function profileKey(profile: ImportProfile): string {
   return profile === "auto" ? "automatic" : profile === "standard-table" ? "standardTable" : "rfemExport";
+}
+
+function FileActionIcon() {
+  return (
+    <span
+      className="project-import-file-icon"
+      aria-hidden="true"
+      dangerouslySetInnerHTML={{ __html: ifcImportIcon }}
+    />
+  );
 }
 
 function diagnosticText(
