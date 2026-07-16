@@ -10,6 +10,8 @@ use std::fmt;
 use serde::{Deserialize, Serialize};
 
 mod profile;
+#[allow(dead_code)]
+mod rfem;
 mod roles;
 mod table;
 

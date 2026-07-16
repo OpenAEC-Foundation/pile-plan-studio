@@ -134,6 +134,13 @@ fn read_csv(file_name: &str, bytes: &[u8]) -> Result<SourceTable, ImportError> {
 }
 
 fn read_xlsx(file_name: &str, bytes: &[u8]) -> Result<SourceTable, ImportError> {
+    read_xlsx_tables(file_name, bytes)?
+        .into_iter()
+        .next()
+        .ok_or_else(|| ImportError::MissingWorksheet(file_name.to_string()))
+}
+
+pub fn read_xlsx_tables(file_name: &str, bytes: &[u8]) -> Result<Vec<SourceTable>, ImportError> {
     if bytes.is_empty() {
         return Err(ImportError::EmptySource(file_name.to_string()));
     }
@@ -143,6 +150,7 @@ fn read_xlsx(file_name: &str, bytes: &[u8]) -> Result<SourceTable, ImportError> 
             file_name: file_name.to_string(),
             message: error.to_string(),
         })?;
+    let mut tables = Vec::new();
     for sheet_name in workbook.sheet_names().to_vec() {
         let range = workbook
             .worksheet_range(&sheet_name)
@@ -160,7 +168,7 @@ fn read_xlsx(file_name: &str, bytes: &[u8]) -> Result<SourceTable, ImportError> 
             .filter(|row| !row.cells.iter().all(TableCell::is_empty))
             .collect();
         if !rows.is_empty() {
-            return Ok(SourceTable {
+            tables.push(SourceTable {
                 file_name: file_name.to_string(),
                 sheet_name: Some(sheet_name),
                 rows,
@@ -168,7 +176,11 @@ fn read_xlsx(file_name: &str, bytes: &[u8]) -> Result<SourceTable, ImportError> 
         }
     }
 
-    Err(ImportError::MissingWorksheet(file_name.to_string()))
+    if tables.is_empty() {
+        Err(ImportError::MissingWorksheet(file_name.to_string()))
+    } else {
+        Ok(tables)
+    }
 }
 
 fn from_excel_cell(cell: &Data) -> TableCell {
@@ -179,5 +191,29 @@ fn from_excel_cell(cell: &Data) -> TableCell {
         Data::Int(value) => TableCell::Number(*value as f64),
         Data::Bool(value) => TableCell::Bool(*value),
         other => TableCell::Text(other.to_string()),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn reads_every_non_empty_rfem_worksheet() {
+        let tables = read_xlsx_tables(
+            "Export RFEM.xlsx",
+            include_bytes!("../../../../sample_project/Export RFEM.xlsx"),
+        )
+        .unwrap();
+
+        assert!(tables
+            .iter()
+            .any(|table| table.sheet_name.as_deref() == Some("1.1 Knopen")));
+        assert!(tables.iter().any(|table| {
+            table
+                .sheet_name
+                .as_deref()
+                .is_some_and(|name| name.contains("Reactiekrach"))
+        }));
     }
 }
