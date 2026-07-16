@@ -15,9 +15,15 @@ export function choose_default_options(request: any): any;
 
 export function cpt_frd_rows(request: any): any;
 
+export function export_pile_plan_csv(request: any): Uint8Array;
+
+export function export_pile_plan_xlsx(request: any): Uint8Array;
+
 export function greedy_optimize(request: any): any;
 
 export function import_project_from_files(request: any): any;
+
+export function preview_import_file(request: any): any;
 
 export function write_ifcpp_project(project: any): string;
 
@@ -32,8 +38,11 @@ export interface InitOutput {
     readonly choose_default_option: (a: any) => [number, number, number];
     readonly choose_default_options: (a: any) => [number, number, number];
     readonly cpt_frd_rows: (a: any) => [number, number, number];
+    readonly export_pile_plan_csv: (a: any) => [number, number, number, number];
+    readonly export_pile_plan_xlsx: (a: any) => [number, number, number, number];
     readonly greedy_optimize: (a: any) => [number, number, number];
     readonly import_project_from_files: (a: any) => [number, number, number];
+    readonly preview_import_file: (a: any) => [number, number, number];
     readonly write_ifcpp_project: (a: any) => [number, number, number, number];
     readonly __wbindgen_malloc: (a: number, b: number) => number;
     readonly __wbindgen_realloc: (a: number, b: number, c: number, d: number) => number;

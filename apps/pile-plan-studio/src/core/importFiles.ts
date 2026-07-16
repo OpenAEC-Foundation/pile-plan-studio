@@ -37,7 +37,12 @@ export function inferImportFileRole(fileName: string): ImportFileRole | null {
     return null;
   }
 
-  if (normalized.includes("belasting") || normalized.includes("load-point") || normalized.includes("load_point")) {
+  if (
+    normalized.includes("belasting")
+    || normalized.includes("load-point")
+    || normalized.includes("load_point")
+    || normalized.includes("rfem")
+  ) {
     return "load-points";
   }
 

@@ -59,6 +59,8 @@ pub fn validate_ifcpp_project(project: &PilePlanProject) -> Result<(), IfcppErro
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::collections::HashMap;
+
     use crate::{
         CptSelectionAlgorithm, CptSelectionSettings, GreedyOptimizationSettings, PileCostSettings,
         ProjectApplication, ProjectImportLogEntry, ProjectInputs, ProjectMetadata, ProjectSettings,
@@ -172,6 +174,8 @@ mod tests {
                 source_role: None,
                 source_format: None,
                 schema_version: None,
+                source_profile: None,
+                profile_details: HashMap::new(),
             }],
         }
     }

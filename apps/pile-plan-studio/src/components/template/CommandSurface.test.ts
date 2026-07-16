@@ -34,6 +34,20 @@ describe("Alpha command surfaces", () => {
     assert.doesNotMatch(source, /label=\{t\("print"\)\}/);
     assert.doesNotMatch(source, /label=\{t\("extensions"\)\}/);
     assert.doesNotMatch(source, /actionAndClose/);
+    assert.match(source, /\{commands\.save \? <>\s*<Divider \/>[\s\S]*?label=\{t\("exit"\)\}/);
+  });
+
+  it("uses one shared visual language for backstage content panels", () => {
+    const backstage = readFileSync(resolve(import.meta.dirname, "backstage/Backstage.tsx"), "utf8");
+    const importPanel = readFileSync(resolve(import.meta.dirname, "../domain/ProjectImportPanel.tsx"), "utf8");
+    const styles = readFileSync(resolve(import.meta.dirname, "backstage/Backstage.css"), "utf8");
+
+    assert.match(backstage, /backstage-panel-title/);
+    assert.match(backstage, /bs-open-project-option/);
+    assert.match(backstage, /bs-recent-item/);
+    assert.match(importPanel, /backstage-panel-title/);
+    assert.match(styles, /\.backstage-panel-title/);
+    assert.doesNotMatch(backstage, /onMouseEnter=/);
   });
 
   it("marks dirty projects in the explorer and guards replacement actions", () => {
@@ -45,7 +59,7 @@ describe("Alpha command surfaces", () => {
     assert.match(source, /UnsavedChangesDialog/);
   });
 
-  it("keeps alpha export limited to IFCPP", () => {
+  it("offers IFCPP and standard pile plan table exports", () => {
     const backstage = readFileSync(resolve(import.meta.dirname, "backstage/Backstage.tsx"), "utf8");
     const app = readFileSync(resolve(import.meta.dirname, "../../App.tsx"), "utf8");
     const workspace = readFileSync(resolve(import.meta.dirname, "../domain/PilePlanWorkspace.tsx"), "utf8");
@@ -58,6 +72,10 @@ describe("Alpha command surfaces", () => {
     assert.doesNotMatch(app, /createPilePlanImage/);
     assert.doesNotMatch(workspace, /data-export-target="pile-plan"/);
     assert.doesNotMatch(viewer, /data-export-target="pile-plan"/);
+    assert.match(backstage, /onExportPilePlanXlsx/);
+    assert.match(backstage, /onExportPilePlanCsv/);
+    assert.match(backstage, /exportPanel\.excel/);
+    assert.match(backstage, /exportPanel\.csv/);
   });
 
   it("shows one busy state while either export action is running", () => {

@@ -24,6 +24,7 @@ describe("import file assignments", () => {
     assert.equal(inferImportFileRole("Sonderingen.xlsx"), "cpts");
     assert.equal(inferImportFileRole("Draagvermogens.xlsx"), "bearing-capacities");
     assert.equal(inferImportFileRole("bearing-capacities.xlsx"), "bearing-capacities");
+    assert.equal(inferImportFileRole("Export RFEM.xlsx"), "load-points");
     assert.equal(inferImportFileRole("notes.txt"), null);
   });
 

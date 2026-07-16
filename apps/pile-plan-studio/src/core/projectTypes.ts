@@ -92,6 +92,12 @@ export type PileConfigurationKey = {
   pile_tip_level_m_key: number;
 };
 
+export type PilePlanExportInput = {
+  loadPoints: LoadPoint[];
+  selectedPiles: Map<number, PileConfigurationKey>;
+  selectedCpts: Map<number, number[]>;
+};
+
 export type GreedyOptimizedPileChoice = {
   load_point_id: number;
   pile_size_mm: number;

@@ -83,12 +83,45 @@
     "chooseFiles": "Kies maximaal drie bestanden",
     "noFile": "Geen bestand geselecteerd",
     "choose": "Kiezen",
+    "replace": "Vervangen",
     "remove": "Verwijderen",
     "summaryAria": "Importsamenvatting",
     "completed": "Import voltooid",
     "summary": "{{loadPoints}} belastinglocaties · {{cpts}} sonderingen · {{advice}} funderingsadviesregels",
     "importing": "Importeren...",
     "submit": "Project importeren",
+    "profile": {
+      "label": "Importprofiel",
+      "automatic": "Automatisch herkennen",
+      "standardTable": "Standaardtabel",
+      "rfemExport": "RFEM-export"
+    },
+    "status": {
+      "analyzing": "Analyseren...",
+      "valid": "Geldig",
+      "needsInput": "Selectie vereist",
+      "validCount": "Geldig · {{count}} items gevonden"
+    },
+    "rfem": {
+      "analysis": "RFEM-analyse",
+      "coordinateSheet": "Knoopcoördinaten",
+      "reactionSheet": "Knoopreacties",
+      "selectSheet": "Kies werkblad",
+      "loadRule": "Belastingsregel",
+      "result": "Resultaat",
+      "loadPointCount": "{{count}} belastinglocaties gevonden"
+    },
+    "diagnostics": {
+      "unsupported-profile-format": "Dit importprofiel is niet beschikbaar voor de gekozen gegevensrol of bestandsindeling.",
+      "missing-coordinate-sheet": "Er is geen RFEM-werkblad met knoopcoördinaten gevonden.",
+      "missing-reaction-sheet": "Er is geen RFEM-werkblad met knoopreacties gevonden.",
+      "ambiguous-coordinate-sheet": "Kies het RFEM-werkblad met de knoopcoördinaten.",
+      "ambiguous-reaction-sheet": "Kies het RFEM-werkblad met de knoopreacties.",
+      "reaction-nodes-without-coordinates": "{{count}} reactieknopen zonder bruikbare coördinaten worden overgeslagen.",
+      "coordinate-nodes-without-reactions": "{{count}} coördinaatknopen zonder Min PZ'-reactie worden overgeslagen.",
+      "exact-coordinate-duplicates": "{{count}} identieke coördinaatregels zijn gededupliceerd.",
+      "exact-reaction-duplicates": "{{count}} identieke reactieregels zijn gededupliceerd."
+    },
     "roles": {
       "loadPoints": "Belastinglocaties",
       "cpts": "Sonderingen",

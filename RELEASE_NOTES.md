@@ -1,5 +1,37 @@
 # Pile Plan Studio Release Notes
 
+## 0.1.2-alpha
+
+This alpha improves project-data exchange and adds an RFEM-oriented import
+workflow for load points.
+
+### Added
+
+- Automatic detection and manual selection of import profiles.
+- An RFEM Excel import profile that combines node coordinates and reactions
+  into load points.
+- Inline import previews with source diagnostics before project creation.
+- Excel and CSV export of the current pile assignments, including the selected
+  CPT identifiers for each load point.
+
+### Improved
+
+- Open, import, and export panels now share the OpenAEC backstage styling.
+- Import sources are presented as clear role-based blocks for load points,
+  CPTs, and foundation advice.
+- The RFEM profile can be selected before choosing a file and is automatically
+  restricted to compatible Excel sources.
+- Import warnings and profile information are localized consistently.
+- Browser-only actions are separated more clearly from desktop file actions.
+
+### Planned Next
+
+- Import pile assignments and CPT selections from the standard Pile Plan
+  Studio table and the legacy Excel format.
+- Store multiple pile plans in one project, expose them in the project
+  explorer, and export one plan or all plans as a ZIP archive.
+- Edit the manual CPT selection for multiple selected load points at once.
+
 ## 0.1.1-alpha
 
 This alpha focuses on making dense pile plans easier to inspect and improving

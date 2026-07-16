@@ -86,6 +86,34 @@ export function cpt_frd_rows(request) {
 
 /**
  * @param {any} request
+ * @returns {Uint8Array}
+ */
+export function export_pile_plan_csv(request) {
+    const ret = wasm.export_pile_plan_csv(request);
+    if (ret[3]) {
+        throw takeFromExternrefTable0(ret[2]);
+    }
+    var v1 = getArrayU8FromWasm0(ret[0], ret[1]).slice();
+    wasm.__wbindgen_free(ret[0], ret[1] * 1, 1);
+    return v1;
+}
+
+/**
+ * @param {any} request
+ * @returns {Uint8Array}
+ */
+export function export_pile_plan_xlsx(request) {
+    const ret = wasm.export_pile_plan_xlsx(request);
+    if (ret[3]) {
+        throw takeFromExternrefTable0(ret[2]);
+    }
+    var v1 = getArrayU8FromWasm0(ret[0], ret[1]).slice();
+    wasm.__wbindgen_free(ret[0], ret[1] * 1, 1);
+    return v1;
+}
+
+/**
+ * @param {any} request
  * @returns {any}
  */
 export function greedy_optimize(request) {
@@ -102,6 +130,18 @@ export function greedy_optimize(request) {
  */
 export function import_project_from_files(request) {
     const ret = wasm.import_project_from_files(request);
+    if (ret[2]) {
+        throw takeFromExternrefTable0(ret[1]);
+    }
+    return takeFromExternrefTable0(ret[0]);
+}
+
+/**
+ * @param {any} request
+ * @returns {any}
+ */
+export function preview_import_file(request) {
+    const ret = wasm.preview_import_file(request);
     if (ret[2]) {
         throw takeFromExternrefTable0(ret[1]);
     }
@@ -312,6 +352,10 @@ function __wbg_get_imports() {
             const ret = arg0.next();
             return ret;
         }, arguments); },
+        __wbg_now_86c0d4ba3fa605b8: function() {
+            const ret = Date.now();
+            return ret;
+        },
         __wbg_prototypesetcall_4770620bbe4688a0: function(arg0, arg1, arg2) {
             Uint8Array.prototype.set.call(getArrayU8FromWasm0(arg0, arg1), arg2);
         },

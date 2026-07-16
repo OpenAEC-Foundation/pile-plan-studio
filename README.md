@@ -5,7 +5,7 @@
 </p>
 
 <p align="center">
-  <a href="RELEASE_NOTES.md"><img src="https://img.shields.io/badge/release-v0.1.1--alpha-D97706?style=flat-square" alt="Release v0.1.1-alpha"></a>
+  <a href="RELEASE_NOTES.md"><img src="https://img.shields.io/badge/release-v0.1.2--alpha-D97706?style=flat-square" alt="Release v0.1.2-alpha"></a>
   <a href="https://github.com/OpenAEC-Foundation/pile-plan-studio/releases"><img src="https://img.shields.io/github/downloads/OpenAEC-Foundation/pile-plan-studio/total?style=flat-square" alt="Total downloads"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-LGPL--3.0-blue?style=flat-square" alt="LGPL-3.0 license"></a>
   <a href="https://pile-plan-studio.open-aec.com/"><img src="https://img.shields.io/badge/platform-Web%20%7C%20Windows-lightgrey?style=flat-square" alt="Web and Windows"></a>
@@ -49,6 +49,8 @@ browser.
 - Run a greedy optimization with limits on sizes, tip levels, and complete
   configurations.
 - Save project data, settings, pile assignments, and CPT choices in IFCPP.
+- Export the current pile assignments and selected CPT identifiers to Excel or
+  CSV.
 - Use the same Rust calculation core in the browser and Windows desktop app.
 
 ## Screenshots
@@ -104,8 +106,13 @@ Pile Plan Studio imports three source roles:
 | Foundation advice | CPT ID, pile tip level, pile size, R<sub>c;net;d</sub> | CSV, XLSX |
 
 The source files may be selected together and assigned to their roles before
-import. Imported data, project settings, selected piles, and manual CPT choices
-are stored in an `.ifcpp` project file.
+import. Load points can use either the standard tabular profile or the
+automatically detected RFEM Excel export profile. The RFEM profile joins node
+coordinates and reactions by node number and currently interprets the design
+load as F<sub>Ed</sub> = |Min PZ'|.
+
+Imported data, source profiles, project settings, selected piles, and manual
+CPT choices are stored in an `.ifcpp` project file.
 
 ## Selection and Inspection
 
@@ -130,9 +137,7 @@ The CPT-selection rules are configurable approximations rather than an
 objective engineering truth. The greedy optimizer supports decision-making but
 does not guarantee a globally optimal pile plan.
 
-RFEM load-point import and Excel export of selected piles are planned but are
-not included in this alpha. See
-[Known Alpha Limitations](docs/known-limitations.md) for the complete scope.
+See [Known Alpha Limitations](docs/known-limitations.md) for the complete scope.
 
 ## Architecture
 
