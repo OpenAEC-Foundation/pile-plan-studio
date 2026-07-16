@@ -14,6 +14,7 @@ import {
 } from "../../core/importFiles.ts";
 import type { ImportSummary } from "../../core/projectFile.ts";
 import { ifcImportIcon } from "../template/ribbon/icons.ts";
+import { importProfileChoices } from "./importProfileChoices.ts";
 import {
   applyImportPreview,
   beginImportPreview,
@@ -180,7 +181,7 @@ export default function ProjectImportPanel({
                     value={draft.requestedProfile}
                     onChange={(event) => changeProfile(role, event.target.value as ImportProfile)}
                   >
-                    {profileChoices(draft.file?.name ?? null, role, preview).map((profile) => (
+                    {importProfileChoices(draft.file?.name ?? null, role, preview).map((profile) => (
                       <option key={profile} value={profile}>{t(`importProject.profile.${profileKey(profile)}`)}</option>
                     ))}
                   </select>
@@ -343,19 +344,6 @@ function SheetValue({ candidates, value, onChange, placeholder }: {
       {candidates.map((candidate) => <option key={candidate} value={candidate}>{candidate}</option>)}
     </select>
   );
-}
-
-function profileChoices(
-  fileName: string | null,
-  role: ImportFileRole,
-  preview: ImportSourcePreview | null,
-): ImportProfile[] {
-  const format = fileName ? getImportFileFormat(fileName) : null;
-  const choices = preview?.availableProfiles
-    ?? (role === "load-points" && format === "xlsx"
-      ? ["standard-table", "rfem-export"] as ImportProfile[]
-      : ["standard-table"] as ImportProfile[]);
-  return ["auto", ...choices.filter((profile) => profile !== "auto")];
 }
 
 function profileKey(profile: ImportProfile): string {
