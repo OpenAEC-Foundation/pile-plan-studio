@@ -30,6 +30,16 @@ describe("Workspace translations", () => {
     assert.match(panel, /localizeCptTableValue/);
     assert.match(panel, /cpts\.frdRange/);
     assert.match(panel, /localizeCptName/);
+    assert.match(panel, /localizeCptName\(row\.governingLabel,\s*t\)/);
+  });
+
+  it("keeps clickable CPT names readable on the light table background", () => {
+    const styles = readFileSync(resolve(import.meta.dirname, "rightPanel.css"), "utf8");
+    const cptLinkRule = styles.match(/\.cpt-link\s*\{(?<body>[^}]*)\}/s)?.groups?.body ?? "";
+
+    assert.match(cptLinkRule, /color:\s*var\(--theme-text\)/);
+    assert.match(cptLinkRule, /text-decoration:\s*underline/);
+    assert.doesNotMatch(cptLinkRule, /--theme-accent-text/);
   });
 
   it("translates project import copy and uses foundation advice terminology", () => {

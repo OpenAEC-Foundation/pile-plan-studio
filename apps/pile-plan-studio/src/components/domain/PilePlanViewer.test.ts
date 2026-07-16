@@ -31,7 +31,8 @@ describe("PilePlanViewer inputs", () => {
     assert.match(css, /--load-point-symbol-base:\s*12px/);
     assert.match(css, /--cpt-marker-width-base:\s*15px/);
     assert.match(css, /--cpt-marker-height-base:\s*13px/);
-    assert.match(css, /--cpt-fill:\s*#d4dade/);
+    assert.match(css, /--cpt-default-fill:\s*#d4dade/);
+    assert.match(css, /\.cpt-marker\s*{[\s\S]*?--cpt-fill:\s*var\(--cpt-default-fill\)/);
     assert.match(css, /\.cpt-label\s*{[\s\S]*?top:\s*43%;/);
   });
 
@@ -78,12 +79,31 @@ describe("PilePlanViewer inputs", () => {
   it("preserves load-point CPT styling during inspection and marks the governing CPT", () => {
     const source = readFileSync(resolve(import.meta.dirname, "PilePlanViewer.tsx"), "utf8");
     const css = readFileSync(resolve(import.meta.dirname, "viewer.css"), "utf8");
+    const selectedRule = css.match(
+      /\.is-layer-selected-cpt,\s*\.viewer-hover-marker\.is-cpt\.is-selected-cpt,\s*\.cpt-marker\.is-governing-cpt\s*\{(?<body>[^}]*)\}/s,
+    )?.groups?.body ?? "";
 
     assert.match(source, /getReactViewerContextCptIds/);
     assert.match(source, /isInspectedOnly/);
     assert.match(source, /is-governing-cpt/);
     assert.match(css, /\.cpt-marker\.is-inspected-only/);
     assert.match(css, /\.cpt-marker\.is-governing-cpt/);
+    assert.match(css, /--cpt-default-fill:\s*#d4dade/);
+    assert.match(css, /--cpt-default-stroke:\s*#a2adb3/);
+    assert.match(
+      selectedRule,
+      /--cpt-fill:\s*color-mix\(in srgb,\s*var\(--theme-accent\) 8%,\s*#fff\)/,
+    );
+    assert.doesNotMatch(selectedRule, /--theme-surface/);
+    assert.doesNotMatch(selectedRule, /--theme-accent-soft/);
+    assert.match(selectedRule, /--cpt-stroke:\s*var\(--theme-accent\)/);
+    assert.doesNotMatch(css, /#fff7c2/);
+  });
+
+  it("lets pile-size legend symbols inherit the active theme text color", () => {
+    const css = readFileSync(resolve(import.meta.dirname, "viewer.css"), "utf8");
+
+    assert.match(css, /\.legend-symbol \.pile-symbol-svg [^{]+\{[\s\S]*?stroke:\s*currentColor/);
   });
 
   it("does not scan all markers while the pointer moves over empty map space", () => {
@@ -183,5 +203,19 @@ describe("PilePlanViewer inputs", () => {
 
     assert.match(css, /\.pile-options-table th\s*{[\s\S]*?background:\s*var\(--theme-surface\);/);
     assert.match(css, /\.cpt-table th\s*{[\s\S]*?background:\s*var\(--theme-surface\);/);
+  });
+
+  it("highlights the selected pile option with a subtle accent background", () => {
+    const css = readFileSync(resolve(import.meta.dirname, "rightPanel.css"), "utf8");
+    const hoverRule = css.match(/\.pile-option-row:hover\s*\{(?<body>[^}]*)\}/s)?.groups?.body ?? "";
+    const chosenRule = css.match(/\.pile-option-row\.is-chosen\s*\{(?<body>[^}]*)\}/s)?.groups?.body ?? "";
+
+    assert.match(
+      hoverRule,
+      /background:\s*color-mix\(in srgb,\s*var\(--theme-text\) 6%,\s*var\(--theme-surface\)\)/,
+    );
+    assert.doesNotMatch(hoverRule, /--theme-bg-lighter/);
+    assert.match(chosenRule, /background:\s*var\(--theme-accent-soft\)/);
+    assert.match(chosenRule, /box-shadow:\s*inset 3px 0 0 var\(--theme-accent\)/);
   });
 });

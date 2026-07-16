@@ -626,7 +626,7 @@ function LoadPointPanel({ state, onStateChange, selectedLabel, selectedLoadPoint
                               onStateChange({ ...state, ...openCpt(state, row.governingCptId as number) });
                             }}
                           >
-                            {row.governingLabel}
+                            {localizeCptName(row.governingLabel, t)}
                           </button>
                         )}
                       </td>

@@ -365,10 +365,13 @@
 .cpt-link {
   padding: 0;
   border: 0;
-  color: var(--theme-accent-text, var(--theme-accent));
+  color: var(--theme-text);
   background: transparent;
   font: inherit;
   font-weight: 700;
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 2px;
   cursor: pointer;
 }
 
@@ -449,12 +452,12 @@
   cursor: pointer;
 }
 
-.pile-option-row:hover,
-.pile-option-row.is-chosen {
-  background: var(--theme-bg-lighter);
+.pile-option-row:hover {
+  background: color-mix(in srgb, var(--theme-text) 6%, var(--theme-surface));
 }
 
 .pile-option-row.is-chosen {
+  background: var(--theme-accent-soft);
   box-shadow: inset 3px 0 0 var(--theme-accent);
 }
 
