@@ -1,7 +1,14 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { getProjectFileCommands, projectFileName, saveGeneratedFile, savePreparedFile } from "./projectPersistence.ts";
+import {
+  getProjectFileCommands,
+  pilePlanExportFileName,
+  projectFileName,
+  saveBinaryExport,
+  saveGeneratedFile,
+  savePreparedFile,
+} from "./projectPersistence.ts";
 
 describe("project persistence", () => {
   it("offers download only in the browser", () => {
@@ -15,6 +22,34 @@ describe("project persistence", () => {
   it("creates a safe IFCPP file name", () => {
     assert.equal(projectFileName("LIS Gebouw"), "LIS-Gebouw.ifcpp");
     assert.equal(projectFileName(""), "pile-plan-project.ifcpp");
+  });
+
+  it("creates safe pile plan export file names", () => {
+    assert.equal(pilePlanExportFileName("LIS Gebouw", "xlsx"), "LIS-Gebouw-pile-plan.xlsx");
+    assert.equal(pilePlanExportFileName("  ", "csv"), "pile-plan-project-pile-plan.csv");
+  });
+
+  it("uses the desktop binary writer when running in Tauri", async () => {
+    const writes: Array<{ fileName: string; bytes: number[] }> = [];
+
+    const saved = await saveBinaryExport(
+      {
+        fileName: "project-pile-plan.xlsx",
+        mimeType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        extensions: [".xlsx"],
+      },
+      new Uint8Array([1, 2, 3]),
+      {
+        isDesktop: true,
+        saveDesktop: async (options, bytes) => {
+          writes.push({ fileName: options.fileName, bytes: [...bytes] });
+          return true;
+        },
+      },
+    );
+
+    assert.equal(saved, true);
+    assert.deepEqual(writes, [{ fileName: "project-pile-plan.xlsx", bytes: [1, 2, 3] }]);
   });
 
   it("opens the file picker before generating asynchronous file contents", async () => {

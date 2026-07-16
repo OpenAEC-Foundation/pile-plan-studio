@@ -45,7 +45,7 @@ describe("Alpha command surfaces", () => {
     assert.match(source, /UnsavedChangesDialog/);
   });
 
-  it("keeps alpha export limited to IFCPP", () => {
+  it("offers IFCPP and standard pile plan table exports", () => {
     const backstage = readFileSync(resolve(import.meta.dirname, "backstage/Backstage.tsx"), "utf8");
     const app = readFileSync(resolve(import.meta.dirname, "../../App.tsx"), "utf8");
     const workspace = readFileSync(resolve(import.meta.dirname, "../domain/PilePlanWorkspace.tsx"), "utf8");
@@ -58,6 +58,10 @@ describe("Alpha command surfaces", () => {
     assert.doesNotMatch(app, /createPilePlanImage/);
     assert.doesNotMatch(workspace, /data-export-target="pile-plan"/);
     assert.doesNotMatch(viewer, /data-export-target="pile-plan"/);
+    assert.match(backstage, /onExportPilePlanXlsx/);
+    assert.match(backstage, /onExportPilePlanCsv/);
+    assert.match(backstage, /exportPanel\.excel/);
+    assert.match(backstage, /exportPanel\.csv/);
   });
 
   it("shows one busy state while either export action is running", () => {

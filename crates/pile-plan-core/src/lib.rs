@@ -1,4 +1,5 @@
 pub mod analysis;
+pub mod export;
 pub mod ifcpp;
 pub mod import;
 pub mod model;
@@ -15,6 +16,10 @@ pub use analysis::{
     GreedyOptimizationSettings, GreedyOptimizedPileChoice, LoadPoint as ProjectLoadPoint,
     PileConfigurationKey, PileConfigurationOption, PileCostSettings, PileCostSettingsItem,
     PileCostShape, ProjectAnalysisResult, SelectedCpt,
+};
+pub use export::{
+    build_pile_plan_export_rows, write_pile_plan_csv, write_pile_plan_xlsx, ExportError,
+    PilePlanExportRequest, PilePlanExportRow, PILE_PLAN_EXPORT_HEADERS,
 };
 pub use ifcpp::{read_ifcpp_str, validate_ifcpp_project, write_ifcpp_string, IfcppError};
 pub use import::{

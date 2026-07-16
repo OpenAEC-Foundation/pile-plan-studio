@@ -4,9 +4,10 @@ use pile_plan_core::{
     bearing_capacity_rows_for_cpt, build_pile_options_by_load_point, build_project_analysis,
     calculate_pile_cost, choose_default_pile_option, choose_default_pile_options,
     greedy_optimize_pile_choices, import_project_from_generic_sources, preview_import_source,
-    selected_cpts, write_ifcpp_string, CptSelectionSettings, GreedyOptimizationSettings,
-    GreedyOptimizedPileChoice, ImportSource, PileConfigurationKey, PileConfigurationOption,
-    PileCostSettings, PilePlanProject, ProjectBearingCapacity, ProjectCpt, ProjectLoadPoint,
+    selected_cpts, write_ifcpp_string, write_pile_plan_csv, write_pile_plan_xlsx,
+    CptSelectionSettings, GreedyOptimizationSettings, GreedyOptimizedPileChoice, ImportSource,
+    PileConfigurationKey, PileConfigurationOption, PileCostSettings, PilePlanExportRequest,
+    PilePlanProject, ProjectBearingCapacity, ProjectCpt, ProjectLoadPoint,
 };
 use serde::{Deserialize, Serialize};
 use wasm_bindgen::prelude::*;
@@ -199,6 +200,18 @@ pub fn import_project_from_files(request: JsValue) -> Result<JsValue, JsValue> {
 pub fn preview_import_file(request: JsValue) -> Result<JsValue, JsValue> {
     let request: PreviewImportRequest = from_js_value(request)?;
     to_js_value(&preview_import_source(&request.source))
+}
+
+#[wasm_bindgen]
+pub fn export_pile_plan_csv(request: JsValue) -> Result<Vec<u8>, JsValue> {
+    let request: PilePlanExportRequest = from_js_value(request)?;
+    write_pile_plan_csv(&request).map_err(to_error_value)
+}
+
+#[wasm_bindgen]
+pub fn export_pile_plan_xlsx(request: JsValue) -> Result<Vec<u8>, JsValue> {
+    let request: PilePlanExportRequest = from_js_value(request)?;
+    write_pile_plan_xlsx(&request).map_err(to_error_value)
 }
 
 #[wasm_bindgen]

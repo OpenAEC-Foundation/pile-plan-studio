@@ -21,6 +21,12 @@ export type FileSaveEnvironment = {
   waitForDownloadHandoff?: () => Promise<void>;
 };
 
+export type BinarySaveEnvironment = {
+  isDesktop: boolean;
+  saveDesktop?: (options: GeneratedFileOptions, bytes: Uint8Array) => Promise<boolean>;
+  browser?: FileSaveEnvironment;
+};
+
 export function getProjectFileCommands(isDesktop: boolean): ProjectFileCommands {
   return isDesktop
     ? { save: true, saveAs: true, download: false }
@@ -28,8 +34,13 @@ export function getProjectFileCommands(isDesktop: boolean): ProjectFileCommands 
 }
 
 export function projectFileName(projectName: string): string {
-  const safeName = projectName.trim().replace(/[^a-z0-9-_]+/gi, "-").replace(/^-+|-+$/g, "");
+  const safeName = safeProjectName(projectName);
   return `${safeName || "pile-plan-project"}.ifcpp`;
+}
+
+export function pilePlanExportFileName(projectName: string, format: "xlsx" | "csv"): string {
+  const safeName = safeProjectName(projectName) || "pile-plan-project";
+  return `${safeName}-pile-plan.${format}`;
 }
 
 export function isDesktopRuntime(): boolean {
@@ -89,6 +100,45 @@ export async function savePreparedFile(
       if (error instanceof DOMException && error.name === "AbortError") return false;
       throw error;
     });
+}
+
+export async function saveBinaryExport(
+  options: GeneratedFileOptions,
+  bytes: Uint8Array,
+  environment: BinarySaveEnvironment = {
+    isDesktop: isDesktopRuntime(),
+  },
+): Promise<boolean> {
+  if (!environment.isDesktop) {
+    const blobBytes = Uint8Array.from(bytes);
+    return savePreparedFile(
+      options,
+      new Blob([blobBytes.buffer], { type: options.mimeType }),
+      environment.browser ?? browserFileSaveEnvironment(),
+    );
+  }
+
+  if (environment.saveDesktop) {
+    return environment.saveDesktop(options, bytes);
+  }
+
+  const { save } = await import("@tauri-apps/plugin-dialog");
+  const path = await save({
+    defaultPath: options.fileName,
+    filters: [{
+      name: options.fileName,
+      extensions: options.extensions.map((extension) => extension.replace(/^\./, "")),
+    }],
+  });
+  if (!path) return false;
+
+  const { invoke } = await import("@tauri-apps/api/core");
+  await invoke("write_binary_file", { path, contents: [...bytes] });
+  return true;
+}
+
+function safeProjectName(projectName: string): string {
+  return projectName.trim().replace(/[^a-z0-9-_]+/gi, "-").replace(/^-+|-+$/g, "");
 }
 
 function browserFileSaveEnvironment(): FileSaveEnvironment {

@@ -64,13 +64,15 @@ interface BackstageProps {
   onImportProject: (projectName: string, sources: ImportSourceInput[]) => Promise<ImportSummary | null>;
   onOpenProjectFile: (file: File) => Promise<void>;
   onDownloadProject: () => Promise<void>;
+  onExportPilePlanXlsx: () => Promise<void>;
+  onExportPilePlanCsv: () => Promise<void>;
   onChooseDesktopProject: () => Promise<void>;
   onSaveProject: () => Promise<void>;
   onSaveProjectAs: () => Promise<void>;
   commands: ProjectFileCommands;
 }
 
-export default function Backstage({ open, onClose, onOpenSettings, onOpenFile, onImportProject, onOpenProjectFile, onDownloadProject, onChooseDesktopProject, onSaveProject, onSaveProjectAs, commands }: BackstageProps) {
+export default function Backstage({ open, onClose, onOpenSettings, onOpenFile, onImportProject, onOpenProjectFile, onDownloadProject, onExportPilePlanXlsx, onExportPilePlanCsv, onChooseDesktopProject, onSaveProject, onSaveProjectAs, commands }: BackstageProps) {
   const { t } = useTranslation("backstage");
   const [activePanel, setActivePanel] = useState<string>("none");
   const { recentFiles, removeRecentFile, clearRecentFiles } = useRecentFiles();
@@ -190,7 +192,14 @@ export default function Backstage({ open, onClose, onOpenSettings, onOpenFile, o
           {activePanel === "import" && <ProjectImportPanel onImportProject={async (name, sources) => {
             return onImportProject(name, sources);
           }} />}
-          {activePanel === "export" && <ExportPanel canDownloadProject={commands.download} onDownloadProject={onDownloadProject} />}
+          {activePanel === "export" && (
+            <ExportPanel
+              canDownloadProject={commands.download}
+              onDownloadProject={onDownloadProject}
+              onExportPilePlanXlsx={onExportPilePlanXlsx}
+              onExportPilePlanCsv={onExportPilePlanCsv}
+            />
+          )}
         </div>
       )}
       {/* Click anywhere outside the menu/panel to close */}
@@ -424,35 +433,115 @@ function OpenPanel({
   );
 }
 
-function ExportPanel({ canDownloadProject, onDownloadProject }: {
+function ExportPanel({ canDownloadProject, onDownloadProject, onExportPilePlanXlsx, onExportPilePlanCsv }: {
   canDownloadProject: boolean;
   onDownloadProject: () => Promise<void>;
+  onExportPilePlanXlsx: () => Promise<void>;
+  onExportPilePlanCsv: () => Promise<void>;
 }) {
   const { t } = useTranslation("backstage");
   const [runningExport, setRunningExport] = useState(false);
+  const [exportError, setExportError] = useState<string | null>(null);
 
   const runExport = (action: () => Promise<void>) => {
     flushSync(() => setRunningExport(true));
-    void action().finally(() => setRunningExport(false));
+    setExportError(null);
+    void action()
+      .catch((error: unknown) => {
+        setExportError(error instanceof Error ? error.message : t("exportPanel.error"));
+      })
+      .finally(() => setRunningExport(false));
   };
 
   return (
     <div className={`bs-export-panel${runningExport ? " is-exporting" : ""}`} aria-busy={runningExport}>
       <h2 className="bs-export-title">{t("exportPanel.title")}</h2>
+      <p className="bs-export-intro">{t("exportPanel.intro")}</p>
       <div className="bs-export-cards">
-        {canDownloadProject ? <button type="button" className="bs-export-card" disabled={runningExport} onClick={() => runExport(onDownloadProject)}>
-          <div className="bs-export-card-icon">
-            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" />
-              <path d="M14 2v6h6" />
-            </svg>
-          </div>
-          <div className="bs-export-card-info">
-            <h3>{t("exportPanel.ifcpp")}</h3>
-            <p>{t("exportPanel.ifcppDesc")}</p>
-          </div>
-        </button> : null}
+        {canDownloadProject ? (
+          <ExportOption
+            title={t("exportPanel.ifcpp")}
+            description={t("exportPanel.ifcppDesc")}
+            format="IFCPP"
+            disabled={runningExport}
+            icon="project"
+            actionLabel={t("exportPanel.download")}
+            onClick={() => runExport(onDownloadProject)}
+          />
+        ) : null}
+        <ExportOption
+          title={t("exportPanel.excel")}
+          description={t("exportPanel.excelDesc")}
+          format="XLSX"
+          disabled={runningExport}
+          icon="table"
+          actionLabel={t("exportPanel.export")}
+          onClick={() => runExport(onExportPilePlanXlsx)}
+        />
+        <ExportOption
+          title={t("exportPanel.csv")}
+          description={t("exportPanel.csvDesc")}
+          format="CSV"
+          disabled={runningExport}
+          icon="rows"
+          actionLabel={t("exportPanel.export")}
+          onClick={() => runExport(onExportPilePlanCsv)}
+        />
       </div>
+      {exportError ? <p className="bs-export-error" role="alert">{exportError}</p> : null}
+    </div>
+  );
+}
+
+function ExportOption({
+  title,
+  description,
+  format,
+  disabled,
+  icon,
+  actionLabel,
+  onClick,
+}: {
+  title: string;
+  description: string;
+  format: string;
+  disabled: boolean;
+  icon: "project" | "table" | "rows";
+  actionLabel: string;
+  onClick: () => void;
+}) {
+  return (
+    <div className="bs-export-card">
+      <div className="bs-export-card-icon" aria-hidden="true">
+        {icon === "project" ? (
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" />
+            <path d="M14 2v6h6" />
+          </svg>
+        ) : icon === "table" ? (
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+            <rect x="3" y="4" width="18" height="16" rx="1" />
+            <path d="M3 9h18M9 9v11M15 9v11" />
+          </svg>
+        ) : (
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
+            <path d="M5 6h14M5 12h14M5 18h14" />
+          </svg>
+        )}
+      </div>
+      <div className="bs-export-card-info">
+        <div className="bs-export-card-heading">
+          <h3>{title}</h3>
+          <span className="bs-export-format">{format}</span>
+        </div>
+        <p>{description}</p>
+      </div>
+      <button type="button" className="bs-export-action" disabled={disabled} onClick={onClick}>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+          <path d="M12 3v12M7 10l5 5 5-5M5 21h14" />
+        </svg>
+        {actionLabel}
+      </button>
     </div>
   );
 }

@@ -40,8 +40,16 @@
   "extInstalledBadge": "Geïnstalleerd",
   "extInstallBtn": "Installeren",
   "exportPanel": {
-    "title": "Export / Download",
+    "title": "Projectgegevens exporteren",
+    "intro": "Kies een projectbestand of een standaardtabel van het palenplan voor verder gebruik.",
     "ifcpp": "IFCPP downloaden",
-    "ifcppDesc": "Sla het volledige project en de huidige keuzes op."
+    "ifcppDesc": "Sla het volledige project, de instellingen, brongegevens en huidige keuzes op.",
+    "excel": "Palenplan - Excel",
+    "excelDesc": "Exporteer alle belastinglocaties met hun gekozen paalconfiguratie en sonderingselectie.",
+    "csv": "Palenplan - CSV",
+    "csvDesc": "Exporteer dezelfde standaardtabel in een eenvoudig, open tekstformaat.",
+    "download": "Downloaden",
+    "export": "Exporteren",
+    "error": "De export kon niet worden aangemaakt."
   }
 }

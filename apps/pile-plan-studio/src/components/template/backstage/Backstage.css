@@ -297,71 +297,142 @@ body:has(.bs-export-panel.is-exporting) * {
 
 /* Export/Import Panel */
 .bs-export-panel {
-  max-width: 600px;
+  max-width: 720px;
 }
 
 .bs-export-title {
   font-size: 22px;
   font-weight: 300;
   color: var(--theme-accent);
-  margin: 0 0 24px 0;
+  margin: 0 0 8px 0;
+}
+
+.bs-export-intro {
+  max-width: 580px;
+  margin: 0 0 24px;
+  color: var(--theme-text-muted);
+  font-size: 12px;
+  line-height: 1.5;
 }
 
 .bs-export-cards {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 12px;
   margin-bottom: 24px;
 }
 
 .bs-export-card {
   display: flex;
   align-items: center;
-  gap: 16px;
-  padding: 14px 16px;
-  background: var(--theme-accent-soft);
+  gap: 14px;
+  min-height: 74px;
+  padding: 14px;
+  background: var(--theme-bg-lighter);
   border: 1px solid var(--theme-border);
-  cursor: default;
-  transition: background 0.1s, border-color 0.1s;
-}
-
-.bs-export-card:hover {
-  background: var(--theme-hover-strong);
-  border-color: var(--theme-accent);
-}
-
-.bs-export-card.active {
-  border-color: var(--theme-accent);
-  background: var(--theme-hover-strong);
+  border-radius: 4px;
 }
 
 .bs-export-card-icon {
   flex-shrink: 0;
-  width: 40px;
-  height: 40px;
+  width: 42px;
+  height: 42px;
   display: flex;
   align-items: center;
   justify-content: center;
+  color: var(--theme-accent);
+  background: var(--theme-accent-soft);
+  border: 1px solid var(--theme-border);
+  border-radius: 4px;
 }
 
 .bs-export-card-icon svg {
-  stroke: var(--theme-text);
+  width: 24px;
+  height: 24px;
 }
 
-.bs-export-card:hover .bs-export-card-icon svg,
-.bs-export-card.active .bs-export-card-icon svg {
-  stroke: var(--theme-accent);
+.bs-export-card-info {
+  min-width: 0;
+  flex: 1;
+}
+
+.bs-export-card-heading {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 4px;
 }
 
 .bs-export-card-info h3 {
-  margin: 0 0 4px 0;
+  margin: 0;
   font-size: 13px;
   font-weight: 600;
-  color: var(--theme-accent);
+  color: var(--theme-text);
 }
 
 .bs-export-card-info p {
   margin: 0;
   font-size: 11px;
-  color: var(--theme-text);
+  line-height: 1.45;
+  color: var(--theme-text-muted);
+}
+
+.bs-export-format {
+  padding: 1px 5px;
+  color: var(--theme-accent);
+  background: var(--theme-accent-soft);
+  border: 1px solid color-mix(in srgb, var(--theme-accent) 32%, var(--theme-border));
+  border-radius: 3px;
+  font-size: 9px;
+  font-weight: 700;
+}
+
+.bs-export-action {
+  flex-shrink: 0;
+  min-width: 108px;
+  height: 30px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 0 12px;
+  color: var(--theme-accent-text);
+  background: var(--theme-accent);
+  border: 1px solid var(--theme-accent);
+  border-radius: 3px;
+  font: inherit;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.bs-export-action:hover:not(:disabled) {
+  filter: brightness(0.94);
+}
+
+.bs-export-action:disabled {
+  cursor: wait;
+  opacity: 0.58;
+}
+
+.bs-export-error {
+  margin: 0;
+  padding: 9px 11px;
+  color: var(--theme-danger-color);
+  background: color-mix(in srgb, var(--theme-danger-color) 8%, var(--theme-bg-lighter));
+  border: 1px solid color-mix(in srgb, var(--theme-danger-color) 45%, var(--theme-border));
+  border-radius: 3px;
+  font-size: 11px;
+}
+
+@media (max-width: 760px) {
+  .bs-export-card {
+    align-items: flex-start;
+    flex-wrap: wrap;
+  }
+
+  .bs-export-action {
+    width: 100%;
+    margin-left: 56px;
+  }
 }

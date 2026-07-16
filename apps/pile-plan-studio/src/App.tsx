@@ -15,6 +15,8 @@ import {
   calculatePileCostCore,
   calculateProjectAnalysisCore,
   chooseDefaultPileOptionsCore,
+  exportPilePlanCsvCore,
+  exportPilePlanXlsxCore,
   greedyOptimizeCore,
   importProjectFromFilesCore,
 } from "./core/coreClient";
@@ -32,8 +34,17 @@ import {
   getOptimizationTargetIds,
 } from "./components/domain/optimizationPanelModel";
 import { switchRightPanelMode } from "./domain/selectionState";
-import { getProjectFileCommands, isDesktopRuntime, projectFileName, saveGeneratedFile, savePreparedFile } from "./domain/projectPersistence.ts";
+import {
+  getProjectFileCommands,
+  isDesktopRuntime,
+  pilePlanExportFileName,
+  projectFileName,
+  saveBinaryExport,
+  saveGeneratedFile,
+  savePreparedFile,
+} from "./domain/projectPersistence.ts";
 import { DEFAULT_RIGHT_PANEL_WIDTH, resizeRightPanelWidth } from "./viewer/panelLayout.ts";
+import { buildPilePlanExportInput } from "./domain/pilePlanExport.ts";
 
 const PILE_COST_DEFAULTS_KEY = "pile-cost-defaults";
 
@@ -108,6 +119,23 @@ export default function App() {
     savedProjectSignatureRef.current = JSON.stringify(projectFromState(projectState));
     setIsDirty(false);
     return true;
+  };
+
+  const exportPilePlan = async (format: "xlsx" | "csv"): Promise<void> => {
+    const input = buildPilePlanExportInput(projectState);
+    const bytes = format === "xlsx"
+      ? await exportPilePlanXlsxCore(input)
+      : await exportPilePlanCsvCore(input);
+    await saveBinaryExport(
+      {
+        fileName: pilePlanExportFileName(projectState.name, format),
+        mimeType: format === "xlsx"
+          ? "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+          : "text/csv",
+        extensions: [`.${format}`],
+      },
+      bytes,
+    );
   };
 
   const confirmProjectReplacement = useCallback((): Promise<boolean> => {
@@ -497,6 +525,8 @@ export default function App() {
         onOpenFile={(path) => void openDesktopProjectPath(path)}
         onChooseDesktopProject={chooseDesktopProject}
         onDownloadProject={async () => { await downloadProject(); }}
+        onExportPilePlanXlsx={() => exportPilePlan("xlsx")}
+        onExportPilePlanCsv={() => exportPilePlan("csv")}
         onSaveProject={async () => { await saveProject(); }}
         onSaveProjectAs={async () => { await saveProjectAs(); }}
       />

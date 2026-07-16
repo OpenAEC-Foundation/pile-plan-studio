@@ -2,10 +2,12 @@ use pile_plan_core::{
     bearing_capacity_rows_for_cpt, build_pile_options_by_load_point, build_project_analysis,
     calculate_pile_cost, choose_default_pile_option, choose_default_pile_options,
     greedy_optimize_pile_choices, import_project_from_generic_sources, preview_import_source,
-    selected_cpts, CptSelectionSettings, GreedyOptimizationSettings, GreedyOptimizedPileChoice,
-    ImportSource, ImportSourcePreview, PileConfigurationKey, PileConfigurationOption,
-    PileCostSettings, PilePlanProject, ProjectAnalysisResult, ProjectBearingCapacity, ProjectCpt,
-    ProjectLoadPoint, SelectedCpt,
+    selected_cpts, write_pile_plan_csv as write_pile_plan_csv_bytes,
+    write_pile_plan_xlsx as write_pile_plan_xlsx_bytes, CptSelectionSettings,
+    GreedyOptimizationSettings, GreedyOptimizedPileChoice, ImportSource, ImportSourcePreview,
+    PileConfigurationKey, PileConfigurationOption, PileCostSettings, PilePlanExportRequest,
+    PilePlanProject, ProjectAnalysisResult, ProjectBearingCapacity, ProjectCpt, ProjectLoadPoint,
+    SelectedCpt,
 };
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -183,6 +185,16 @@ fn preview_import_file(request: PreviewImportRequest) -> ImportSourcePreview {
 }
 
 #[tauri::command(rename_all = "snake_case")]
+fn export_pile_plan_csv(request: PilePlanExportRequest) -> Result<Vec<u8>, String> {
+    write_pile_plan_csv_bytes(&request).map_err(|error| error.to_string())
+}
+
+#[tauri::command(rename_all = "snake_case")]
+fn export_pile_plan_xlsx(request: PilePlanExportRequest) -> Result<Vec<u8>, String> {
+    write_pile_plan_xlsx_bytes(&request).map_err(|error| error.to_string())
+}
+
+#[tauri::command(rename_all = "snake_case")]
 fn read_project_file(path: String) -> Result<String, String> {
     std::fs::read_to_string(path).map_err(|error| error.to_string())
 }
@@ -211,6 +223,8 @@ fn main() {
             greedy_optimize,
             import_project_from_files,
             preview_import_file,
+            export_pile_plan_csv,
+            export_pile_plan_xlsx,
             read_project_file,
             write_project_file,
             write_binary_file,

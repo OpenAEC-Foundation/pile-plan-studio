@@ -7,12 +7,15 @@ import initWasm, {
   choose_default_option,
   choose_default_options,
   cpt_frd_rows,
+  export_pile_plan_csv,
+  export_pile_plan_xlsx,
   greedy_optimize,
   import_project_from_files,
   preview_import_file,
   write_ifcpp_project,
 } from "./wasm/pile-plan-wasm/pile_plan_wasm.js";
 import { toStringKeyedRecord, toWasmNumberKeyedMap, toWasmNumberKeyedRecord } from "./coreSerialization.ts";
+import { binaryResultToUint8Array } from "./binaryCoreResult.ts";
 import {
   corePileOptionsMapToFrontend,
   fromCorePileOption,
@@ -32,6 +35,7 @@ import {
   type LoadPoint,
   type PileConfigurationOption,
   type PileConfigurationKey,
+  type PilePlanExportInput,
   type PileCostSettings,
   type ProjectAnalysisResult,
   type SelectedCpt,
@@ -316,6 +320,14 @@ export async function previewImportSourceCore(
   );
 }
 
+export async function exportPilePlanCsvCore(input: PilePlanExportInput): Promise<Uint8Array> {
+  return exportPilePlanCore("csv", input);
+}
+
+export async function exportPilePlanXlsxCore(input: PilePlanExportInput): Promise<Uint8Array> {
+  return exportPilePlanCore("xlsx", input);
+}
+
 export async function writeIfcppProjectCore(project: IfcppProject): Promise<string> {
   await initializeWasm();
   return write_ifcpp_project({
@@ -330,6 +342,35 @@ export async function writeIfcppProjectCore(project: IfcppProject): Promise<stri
       manual_cpt_selections: toWasmNumberKeyedRecord(project.user_state.manual_cpt_selections),
     },
   });
+}
+
+async function exportPilePlanCore(
+  format: "csv" | "xlsx",
+  input: PilePlanExportInput,
+): Promise<Uint8Array> {
+  const wasmRequest = {
+    load_points: input.loadPoints,
+    selected_piles: toWasmNumberKeyedMap(input.selectedPiles),
+    selected_cpts: toWasmNumberKeyedMap(input.selectedCpts),
+  };
+
+  if (!isTauriRuntime()) {
+    await initializeWasm();
+    return binaryResultToUint8Array(
+      format === "csv"
+        ? export_pile_plan_csv(wasmRequest)
+        : export_pile_plan_xlsx(wasmRequest),
+    );
+  }
+
+  const result = await invoke<number[]>(`export_pile_plan_${format}`, {
+    request: {
+      load_points: input.loadPoints,
+      selected_piles: toStringKeyedRecord(input.selectedPiles),
+      selected_cpts: toStringKeyedRecord(input.selectedCpts),
+    },
+  });
+  return binaryResultToUint8Array(result);
 }
 
 function initializeWasm(): Promise<void> {

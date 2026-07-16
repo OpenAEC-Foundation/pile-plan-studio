@@ -40,8 +40,16 @@
   "extInstalledBadge": "Installed",
   "extInstallBtn": "Install",
   "exportPanel": {
-    "title": "Export / Download",
+    "title": "Export project data",
+    "intro": "Choose a project file or a standard pile plan table for further use.",
     "ifcpp": "Download IFCPP",
-    "ifcppDesc": "Save the complete project and current choices."
+    "ifcppDesc": "Save the complete project, settings, source data, and current choices.",
+    "excel": "Pile plan - Excel",
+    "excelDesc": "Export all load points with their selected pile configuration and CPT selection.",
+    "csv": "Pile plan - CSV",
+    "csvDesc": "Export the same standard table in a simple, open text format.",
+    "download": "Download",
+    "export": "Export",
+    "error": "The export could not be created."
   }
 }
