@@ -104,8 +104,13 @@ Pile Plan Studio imports three source roles:
 | Foundation advice | CPT ID, pile tip level, pile size, R<sub>c;net;d</sub> | CSV, XLSX |
 
 The source files may be selected together and assigned to their roles before
-import. Imported data, project settings, selected piles, and manual CPT choices
-are stored in an `.ifcpp` project file.
+import. Load points can use either the standard tabular profile or the
+automatically detected RFEM Excel export profile. The RFEM profile joins node
+coordinates and reactions by node number and currently interprets the design
+load as F<sub>Ed</sub> = |Min PZ'|.
+
+Imported data, source profiles, project settings, selected piles, and manual
+CPT choices are stored in an `.ifcpp` project file.
 
 ## Selection and Inspection
 
@@ -130,9 +135,8 @@ The CPT-selection rules are configurable approximations rather than an
 objective engineering truth. The greedy optimizer supports decision-making but
 does not guarantee a globally optimal pile plan.
 
-RFEM load-point import and Excel export of selected piles are planned but are
-not included in this alpha. See
-[Known Alpha Limitations](docs/known-limitations.md) for the complete scope.
+Excel export of selected piles is planned but is not included in this alpha.
+See [Known Alpha Limitations](docs/known-limitations.md) for the complete scope.
 
 ## Architecture
 

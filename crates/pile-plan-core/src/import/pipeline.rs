@@ -509,6 +509,51 @@ mod tests {
         assert!(log.profile_details.contains_key("reaction_sheet"));
     }
 
+    #[test]
+    fn rfem_provenance_survives_ifcpp_round_trip() {
+        let project = import_project_from_profiled_sources(
+            "RFEM Project",
+            &[
+                rfem_auto_source(),
+                xlsx_source(
+                    ImportRole::Cpts,
+                    "Sonderingen.xlsx",
+                    include_bytes!("../../../../sample_project/Sonderingen.xlsx"),
+                ),
+                xlsx_source(
+                    ImportRole::BearingCapacities,
+                    "Draagvermogens.xlsx",
+                    include_bytes!("../../../../sample_project/Draagvermogens.xlsx"),
+                ),
+            ],
+        )
+        .unwrap();
+
+        let json = crate::write_ifcpp_string(&project).unwrap();
+        let reopened = crate::read_ifcpp_str(&json).unwrap();
+        let log = reopened
+            .import_log
+            .iter()
+            .find(|entry| entry.source_role == Some(ImportRole::LoadPoints))
+            .unwrap();
+
+        assert_eq!(log.source_profile, Some(ImportProfile::RfemExport));
+        assert_eq!(
+            log.profile_details.get("load_rule").map(String::as_str),
+            Some("abs-min-pz-prime")
+        );
+        assert_eq!(
+            log.profile_details.get("coordinate_sheet"),
+            project.import_log[0]
+                .profile_details
+                .get("coordinate_sheet")
+        );
+        assert_eq!(
+            log.profile_details.get("reaction_sheet"),
+            project.import_log[0].profile_details.get("reaction_sheet")
+        );
+    }
+
     fn rfem_auto_source() -> ImportSource {
         ImportSource {
             role: ImportRole::LoadPoints,

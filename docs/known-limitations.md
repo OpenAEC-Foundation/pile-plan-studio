@@ -26,6 +26,11 @@ intentional and should be considered when evaluating its results.
   migrations.
 - Import currently supports CSV and XLSX sources for load points, CPTs, and
   foundation advice.
+- RFEM load-point import supports the recognised Excel export structure used by
+  the current RFEM profile. The profile joins coordinates and reactions by node
+  number.
+- RFEM design loads currently use the fixed rule F<sub>Ed</sub> = |Min PZ'|.
+  Selecting another force component or result rule is not yet supported.
 - Empty foundation-advice values are imported as missing data and produce
   warnings.
 - CPTs without coordinates are ignored when reconciling foundation advice.
@@ -37,6 +42,7 @@ intentional and should be considered when evaluating its results.
 - The hosted browser demo and Windows x64 desktop package are the supported alpha
   distributions.
 - macOS and Linux packages are not provided for this release.
-- RFEM load-point import is planned but not included.
+- Browser projects store imported source information, but are not refresh-linked
+  to the original files on the user's computer.
 - Excel export of currently selected piles is planned but not included.
 
