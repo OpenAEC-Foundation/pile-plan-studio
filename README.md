@@ -105,9 +105,9 @@ Pile Plan Studio imports three source roles:
 | CPTs | ID, X, Y | CSV, XLSX |
 | Foundation advice | CPT ID, pile tip level, pile size, R<sub>c;net;d</sub> | CSV, XLSX |
 
-For the standard tabular profile, these columns must appear in the order shown
-in the table. The importer reads columns by position rather than by header
-name:
+In the current version, the standard tabular profile requires these columns to
+appear in the order shown in the table. The importer currently reads columns by
+position rather than by header name:
 
 - load points: `ID`, `X`, `Y`, F<sub>Ed</sub>;
 - CPTs: `ID`, `X`, `Y`;
