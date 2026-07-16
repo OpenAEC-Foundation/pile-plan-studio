@@ -9,9 +9,15 @@ use std::fmt;
 
 use serde::{Deserialize, Serialize};
 
+mod profile;
 mod roles;
 mod table;
 
+pub use profile::{
+    available_profiles, ImportDiagnostic, ImportDiagnosticCode, ImportDiagnosticLocation,
+    ImportDiagnosticSeverity, ImportPreviewDetails, ImportProfile, ImportProfileOptions,
+    ImportSourcePreview, RfemPreviewDetails,
+};
 pub use roles::{
     parse_bearing_capacities, parse_bearing_capacities_with_diagnostics, parse_cpts,
     parse_load_points, reconcile_imported_inputs, validate_imported_inputs,
@@ -39,6 +45,10 @@ pub enum ImportRole {
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct ImportSource {
     pub role: ImportRole,
+    #[serde(default)]
+    pub profile: ImportProfile,
+    #[serde(default)]
+    pub profile_options: ImportProfileOptions,
     pub file_name: String,
     pub format: SourceFormat,
     pub bytes: Vec<u8>,
@@ -380,6 +390,8 @@ fn provenance_entry(
         source_role: Some(source.role),
         source_format: Some(source.format),
         schema_version: Some("fixed-1".to_string()),
+        source_profile: Some(source.profile),
+        profile_details: HashMap::new(),
     }
 }
 
@@ -534,12 +546,101 @@ fn import_log_entry(
         source_role: None,
         source_format: None,
         schema_version: None,
+        source_profile: None,
+        profile_details: HashMap::new(),
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn import_source_defaults_to_automatic_profile() {
+        let source: ImportSource = serde_json::from_value(serde_json::json!({
+            "role": "load-points",
+            "file_name": "loads.csv",
+            "format": "csv",
+            "bytes": [49, 44, 48]
+        }))
+        .unwrap();
+
+        assert_eq!(source.profile, ImportProfile::Auto);
+        assert_eq!(source.profile_options, ImportProfileOptions::default());
+    }
+
+    #[test]
+    fn old_import_log_entry_defaults_profile_provenance() {
+        let entry: ProjectImportLogEntry = serde_json::from_value(serde_json::json!({
+            "source_file": "loads.csv",
+            "imported_at": null,
+            "sheet_name": null,
+            "mapped_columns": {},
+            "warnings": []
+        }))
+        .unwrap();
+
+        assert_eq!(entry.source_profile, None);
+        assert!(entry.profile_details.is_empty());
+    }
+
+    #[test]
+    fn import_preview_contract_round_trips_rfem_details() {
+        let preview = ImportSourcePreview {
+            role: ImportRole::LoadPoints,
+            requested_profile: ImportProfile::Auto,
+            detected_profile: ImportProfile::RfemExport,
+            resolved_profile: Some(ImportProfile::RfemExport),
+            available_profiles: vec![ImportProfile::StandardTable, ImportProfile::RfemExport],
+            resolved_options: ImportProfileOptions {
+                coordinate_sheet: Some("1.1 Knopen".to_string()),
+                reaction_sheet: Some("RC1".to_string()),
+            },
+            item_count: 328,
+            diagnostics: vec![ImportDiagnostic {
+                severity: ImportDiagnosticSeverity::Warning,
+                code: ImportDiagnosticCode::ReactionNodesWithoutCoordinates,
+                count: 1,
+                node_ids: vec![999],
+                location: Some(ImportDiagnosticLocation {
+                    file_name: "Export RFEM.xlsx".to_string(),
+                    sheet_name: Some("RC1".to_string()),
+                    row: None,
+                    column: None,
+                    column_name: None,
+                }),
+                fallback_message: "One node was skipped".to_string(),
+            }],
+            details: Some(ImportPreviewDetails::RfemExport(RfemPreviewDetails {
+                coordinate_sheet_candidates: vec!["1.1 Knopen".to_string()],
+                reaction_sheet_candidates: vec!["RC1".to_string()],
+                selected_coordinate_sheet: Some("1.1 Knopen".to_string()),
+                selected_reaction_sheet: Some("RC1".to_string()),
+                load_rule: "abs-min-pz-prime".to_string(),
+            })),
+        };
+
+        let value = serde_json::to_value(&preview).unwrap();
+        let restored: ImportSourcePreview = serde_json::from_value(value).unwrap();
+
+        assert_eq!(restored, preview);
+    }
+
+    #[test]
+    fn available_profiles_depend_on_role_and_format() {
+        assert_eq!(
+            available_profiles(ImportRole::LoadPoints, SourceFormat::Xlsx),
+            vec![ImportProfile::StandardTable, ImportProfile::RfemExport]
+        );
+        assert_eq!(
+            available_profiles(ImportRole::LoadPoints, SourceFormat::Csv),
+            vec![ImportProfile::StandardTable]
+        );
+        assert_eq!(
+            available_profiles(ImportRole::Cpts, SourceFormat::Xlsx),
+            vec![ImportProfile::StandardTable]
+        );
+    }
 
     #[test]
     fn csv_source_table_preserves_quoted_cells_and_skips_empty_rows() {
@@ -827,18 +928,24 @@ mod tests {
         let sources = vec![
             ImportSource {
                 role: ImportRole::LoadPoints,
+                profile: ImportProfile::Auto,
+                profile_options: ImportProfileOptions::default(),
                 file_name: "loads.csv".to_string(),
                 format: SourceFormat::Csv,
                 bytes: include_bytes!("../../../sample_project/Belastinglocaties.csv").to_vec(),
             },
             ImportSource {
                 role: ImportRole::Cpts,
+                profile: ImportProfile::Auto,
+                profile_options: ImportProfileOptions::default(),
                 file_name: "cpts.xlsx".to_string(),
                 format: SourceFormat::Xlsx,
                 bytes: include_bytes!("../../../sample_project/Sonderingen.xlsx").to_vec(),
             },
             ImportSource {
                 role: ImportRole::BearingCapacities,
+                profile: ImportProfile::Auto,
+                profile_options: ImportProfileOptions::default(),
                 file_name: "capacities.xlsx".to_string(),
                 format: SourceFormat::Xlsx,
                 bytes: include_bytes!("../../../sample_project/Draagvermogens.xlsx").to_vec(),
@@ -911,6 +1018,8 @@ mod tests {
     fn csv_source(role: ImportRole, file_name: &str, contents: &str) -> ImportSource {
         ImportSource {
             role,
+            profile: ImportProfile::Auto,
+            profile_options: ImportProfileOptions::default(),
             file_name: file_name.to_string(),
             format: SourceFormat::Csv,
             bytes: contents.as_bytes().to_vec(),

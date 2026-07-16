@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use serde::{Deserialize, Serialize};
 
-use crate::import::{ImportRole, SourceFormat};
+use crate::import::{ImportProfile, ImportRole, SourceFormat};
 
 use crate::analysis::{
     BearingCapacity, Cpt, CptSelectionSettings, GreedyOptimizationSettings, LoadPoint,
@@ -98,6 +98,10 @@ pub struct ProjectImportLogEntry {
     pub source_format: Option<SourceFormat>,
     #[serde(default)]
     pub schema_version: Option<String>,
+    #[serde(default)]
+    pub source_profile: Option<ImportProfile>,
+    #[serde(default)]
+    pub profile_details: HashMap<String, String>,
 }
 
 #[cfg(test)]
@@ -257,6 +261,8 @@ mod tests {
                 source_role: None,
                 source_format: None,
                 schema_version: None,
+                source_profile: None,
+                profile_details: HashMap::new(),
             }],
         }
     }
