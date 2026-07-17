@@ -29,7 +29,9 @@ import {
   cancelManualCptSelection,
   clearManualCptSelection,
   getCptSelectionSettingsAggregate,
+  removeManualCpt,
   saveManualCptSelection,
+  selectOnlyNearestCpts,
 } from "./cptSettingsModel.ts";
 import { commitCostInput, updatePileCostItem, updatePileHeadLevel } from "./costSettingsModel.ts";
 import { setSetting } from "../../store.ts";
@@ -222,12 +224,6 @@ function CptSettingsPanel({ state, onStateChange }: Props) {
   const settings = getCptSelectionSettingsAggregate(state);
   const hasLocalSettings = state.cptSelectionSettingsByLoadPoint.has(loadPoint.id);
   const manualCptIds = state.manualCptIdsByLoadPoint.get(loadPoint.id);
-  const draft = state.cptSelectionEditDraft?.loadPointId === loadPoint.id
-    ? state.cptSelectionEditDraft
-    : null;
-  const selectedCptIds = manualCptIds
-    ?? (state.selectedCptsByLoadPointId.get(loadPoint.id) ?? []).map((selection) => selection.cpt.id);
-
   return (
     <div className="cpt-settings-panel">
       <header className="right-panel-header">
@@ -316,26 +312,15 @@ function CptSettingsPanel({ state, onStateChange }: Props) {
 
         <SettingsGroup title={t("cptSettings.manual")}>
           <p className="supporting-text">
-            {draft
-              ? t("cptSettings.draft", { count: draft.cptIds.size })
-              : manualCptIds
+            {manualCptIds
                 ? t("cptSettings.manualCount", { count: manualCptIds.length })
                 : t("cptSettings.algorithmic")}
           </p>
           <div className="selection-actions">
-            {draft ? (
-              <>
-                <button type="button" onClick={() => onStateChange(saveManualCptSelection(state))}>{t("actions.save")}</button>
-                <button type="button" onClick={() => onStateChange(cancelManualCptSelection(state))}>{t("actions.cancel")}</button>
-              </>
-            ) : (
-              <>
-                <button type="button" onClick={() => onStateChange(beginManualCptSelection(state, selectedCptIds))}>{t("actions.editSelection")}</button>
-                {manualCptIds ? (
-                  <button type="button" onClick={() => onStateChange(clearManualCptSelection(state))}>{t("actions.useAlgorithm")}</button>
-                ) : null}
-              </>
-            )}
+            <button type="button" onClick={() => onStateChange(startCptSelectionEdit(state))}>{t("actions.modifySelection")}</button>
+            {manualCptIds ? (
+              <button type="button" onClick={() => onStateChange(clearManualCptSelection(state))}>{t("actions.useAlgorithm")}</button>
+            ) : null}
           </div>
         </SettingsGroup>
       </div>
@@ -417,6 +402,16 @@ function CptPanel({ state, onStateChange, selectedLoadPoints }: {
 }) {
   const { t } = useTranslation("rightPanel");
   const selectedCpt = getCptFrdPanelModel(state);
+  const draft = state.cptSelectionEditDraft;
+  const isEditing = draft !== null;
+  const cptPanelLoadPoints = draft
+    ? state.loadPoints.filter((loadPoint) => draft.loadPointIds.includes(loadPoint.id))
+    : selectedLoadPoints;
+
+  if (isEditing) {
+    return <CptSelectionOverview state={state} onStateChange={onStateChange} selectedLoadPoints={cptPanelLoadPoints} editing />;
+  }
+
   if (selectedCpt) {
     return (
       <div className="cpt-panel">
@@ -425,6 +420,7 @@ function CptPanel({ state, onStateChange, selectedLoadPoints }: {
             <h2>{localizeCptName(selectedCpt.cpt.name, t)}</h2>
             <span>{t("cpts.selected")}</span>
           </div>
+          <CptModifyButton state={state} onStateChange={onStateChange} selectedLoadPoints={selectedLoadPoints} />
         </header>
         <dl className="cpt-detail-grid">
           <div><dt>X</dt><dd>{formatNumber(selectedCpt.cpt.x_mm)} mm</dd></div>
@@ -440,23 +436,30 @@ function CptPanel({ state, onStateChange, selectedLoadPoints }: {
 
   if (selectedLoadPoints.length === 0) {
     return (
-      <div className="right-panel-empty">
-        <strong>{t("empty.noCpts")}</strong>
-        <span>{t("empty.selectCpt")}</span>
+      <div className="cpt-panel">
+        <header className="right-panel-header">
+          <div><h2>{t("tabs.cpts")}</h2></div>
+          <CptModifyButton state={state} onStateChange={onStateChange} selectedLoadPoints={selectedLoadPoints} />
+        </header>
+        <div className="right-panel-empty">
+          <strong>{t("empty.noCpts")}</strong>
+          <span>{t("empty.selectCpt")}</span>
+        </div>
       </div>
     );
   }
 
+  return <CptSelectionOverview state={state} onStateChange={onStateChange} selectedLoadPoints={selectedLoadPoints} editing={false} />;
+}
+
+function CptSelectionOverview({ state, onStateChange, selectedLoadPoints, editing }: {
+  state: ProjectState;
+  onStateChange: (nextState: ProjectState) => void;
+  selectedLoadPoints: ReturnType<typeof getSelectedLoadPoints>;
+  editing: boolean;
+}) {
+  const { t } = useTranslation("rightPanel");
   const overview = getSelectedCptOverviewModel(state, selectedLoadPoints);
-  if (overview.rows.length === 0) {
-    return (
-      <div className="right-panel-empty">
-        <strong>{t("empty.noCptsAvailable")}</strong>
-        <span>{t("empty.noCptsForSelection")}</span>
-      </div>
-    );
-  }
-
   const heading = selectedLoadPoints.length > 1
     ? t("cpts.selectedHeading")
     : `${localizeLoadPointName(selectedLoadPoints[0].name, t)} - ${t("tabs.cpts")}`;
@@ -471,16 +474,33 @@ function CptPanel({ state, onStateChange, selectedLoadPoints }: {
 
   return (
     <div className="cpt-panel">
-      <header className="right-panel-header"><div><h2>{heading}</h2></div></header>
+      <header className="right-panel-header">
+        <div><h2>{heading}</h2></div>
+        {!editing ? <CptModifyButton state={state} onStateChange={onStateChange} selectedLoadPoints={selectedLoadPoints} /> : null}
+      </header>
+      {editing ? (
+        <div className="cpt-edit-actions">
+          <button type="button" onClick={() => onStateChange(selectOnlyNearestCpts(state))}>{t("actions.onlyNearest")}</button>
+          <button type="button" onClick={() => onStateChange(saveManualCptSelection(state))}>{t("actions.save")}</button>
+          <button type="button" onClick={() => onStateChange(cancelManualCptSelection(state))}>{t("actions.cancel")}</button>
+        </div>
+      ) : null}
       <div className="cpt-table-wrap">
         <table className="cpt-table">
-          <thead><tr>{overview.columns.map((column) => <th key={column}>{columnLabels[column] ?? column}</th>)}</tr></thead>
+          <thead>
+            <tr>
+              {overview.columns.map((column) => <th key={column}>{columnLabels[column] ?? column}</th>)}
+              {editing ? <th><span className="sr-only">{t("actions.remove")}</span></th> : null}
+            </tr>
+          </thead>
           <tbody>
-            {overview.rows.map((row) => (
+            {overview.rows.length === 0 ? (
+              <tr><td className="empty-table-cell" colSpan={overview.columns.length + (editing ? 1 : 0)}>{t("empty.noCptsAvailable")}</td></tr>
+            ) : overview.rows.map((row) => (
               <tr key={row.cpt.id}>
                 {row.values.map((value, index) => (
                   <td key={`${row.cpt.id}-${overview.columns[index]}`}>
-                    {overview.columns[index] === "CPT" ? (
+                    {overview.columns[index] === "CPT" && !editing ? (
                       <button
                         className="cpt-link"
                         type="button"
@@ -491,6 +511,16 @@ function CptPanel({ state, onStateChange, selectedLoadPoints }: {
                     ) : localizeCptTableValue(overview.columns[index], value, t)}
                   </td>
                 ))}
+                {editing ? (
+                  <td className="cpt-remove-cell">
+                    <button
+                      aria-label={t("actions.removeCpt", { cpt: localizeCptName(row.cpt.name, t) })}
+                      className="cpt-remove-button"
+                      type="button"
+                      onClick={() => onStateChange(removeManualCpt(state, row.cpt.id))}
+                    ><span aria-hidden="true">x</span></button>
+                  </td>
+                ) : null}
               </tr>
             ))}
           </tbody>
@@ -498,6 +528,30 @@ function CptPanel({ state, onStateChange, selectedLoadPoints }: {
       </div>
     </div>
   );
+}
+
+function CptModifyButton({ state, onStateChange, selectedLoadPoints }: {
+  state: ProjectState;
+  onStateChange: (nextState: ProjectState) => void;
+  selectedLoadPoints: ReturnType<typeof getSelectedLoadPoints>;
+}) {
+  const { t } = useTranslation("rightPanel");
+  return (
+    <button
+      className="cpt-modify-button"
+      disabled={selectedLoadPoints.length === 0}
+      type="button"
+      onClick={() => onStateChange(startCptSelectionEdit(state))}
+    >{t("actions.modify")}</button>
+  );
+}
+
+function startCptSelectionEdit(state: ProjectState): ProjectState {
+  return {
+    ...beginManualCptSelection(state),
+    ...switchRightPanelMode(state, "cpts"),
+    selectedCptId: null,
+  };
 }
 
 function CptTable({ columns, rows }: { columns: ReactNode[]; rows: string[][] }) {

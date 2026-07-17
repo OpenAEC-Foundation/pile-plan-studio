@@ -68,4 +68,20 @@ describe("CPT selection table", () => {
       },
     ]);
   });
+
+  it("shows manual draft CPTs with all-or-some usage metadata even for one load point", () => {
+    const model = getSelectedCptTableModel([
+      {
+        loadPoint: loadPoint15,
+        selectedCpts: [selectedCpt("manual", cpt61, 0)],
+        isManualSelection: true,
+      },
+    ]);
+
+    assert.deepEqual(model.columns, ["CPT", "Used by", "Load points"]);
+    assert.deepEqual(model.rows, [{
+      cpt: cpt61,
+      values: ["CPT 61", "1 / 1 load points", "15"],
+    }]);
+  });
 });

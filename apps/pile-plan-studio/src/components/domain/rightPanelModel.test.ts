@@ -150,6 +150,31 @@ describe("React right panel model", () => {
     assert.deepEqual(model.rows[0].values.slice(0, 3), ["CPT 64", "2 / 2 load points", "1, 2"]);
   });
 
+  it("builds the CPT overview from a manual draft with all-or-some usage", () => {
+    const cpt64 = { id: 64, name: "CPT 64", x_mm: 0, y_mm: 0 };
+    const cpt65 = { id: 65, name: "CPT 65", x_mm: 10, y_mm: 10 };
+    const state = minimalState({
+      cpts: [cpt64, cpt65],
+      cptSelectionEditDraft: {
+        loadPointIds: [1, 2],
+        cptIdsByLoadPoint: new Map([
+          [1, new Set([64, 65])],
+          [2, new Set([64])],
+        ]),
+      },
+      selectedCptId: null,
+      selectedCptsByLoadPointId: new Map(),
+    });
+
+    const model = getSelectedCptOverviewModel(state, getSelectedLoadPoints(state));
+
+    assert.deepEqual(model.columns.slice(0, 3), ["CPT", "Used by", "Load points"]);
+    assert.deepEqual(model.rows.map((row) => row.values.slice(0, 3)), [
+      ["CPT 64", "2 / 2 load points", "1, 2"],
+      ["CPT 65", "1 / 2 load points", "1"],
+    ]);
+  });
+
   it("builds the FRD table for one selected CPT", () => {
     const state = minimalState({
       cptFrdRowsByCptId: new Map([

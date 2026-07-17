@@ -76,10 +76,20 @@ export function getSelectedCptOverviewModel(
   state: ProjectState,
   selectedLoadPoints: LoadPoint[],
 ): SelectedCptOverviewModel {
+  const draft = state.cptSelectionEditDraft ?? null;
+  const loadPoints = draft
+    ? state.loadPoints.filter((loadPoint) => draft.loadPointIds.includes(loadPoint.id))
+    : selectedLoadPoints;
   const table = getSelectedCptTableModel(
-    selectedLoadPoints.map((loadPoint) => ({
+    loadPoints.map((loadPoint) => ({
       loadPoint,
-      selectedCpts: state.selectedCptsByLoadPointId.get(loadPoint.id) ?? [],
+      isManualSelection: draft !== null,
+      selectedCpts: draft
+        ? [...(draft.cptIdsByLoadPoint.get(loadPoint.id) ?? new Set())]
+          .map((cptId) => state.cpts.find((cpt) => cpt.id === cptId))
+          .filter((cpt): cpt is Cpt => cpt !== undefined)
+          .map((cpt) => ({ cpt, distance_mm: 0, label: "manual" }))
+        : state.selectedCptsByLoadPointId.get(loadPoint.id) ?? [],
     })),
   );
 

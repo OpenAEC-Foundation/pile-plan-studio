@@ -43,6 +43,7 @@ import {
   clearReactViewerSelection,
   getReactViewerContextCptIds,
   getReactViewerSelectedCptIds,
+  isReactViewerCptSelectionEditing,
   openReactViewerCpt,
   selectReactViewerLoadPoint,
   shouldRaiseCptMarker,
@@ -67,7 +68,7 @@ export default function PilePlanViewer({ state, onStateChange }: Props) {
     selectedLoadPointIds: state.selectedLoadPointIds,
     selectedPileOptionKeysByLoadPoint: state.selectedPileOptionKeysByLoadPoint,
   });
-  const isEditingCptSelection = state.cptSelectionEditDraft?.loadPointId === state.selectedLoadPointId;
+  const isEditingCptSelection = isReactViewerCptSelectionEditing(state);
   const canvasRef = useRef<HTMLDivElement | null>(null);
   const stageRef = useRef<HTMLDivElement | null>(null);
   const interactionRef = useRef<ViewerInteraction | null>(null);
@@ -606,7 +607,7 @@ export default function PilePlanViewer({ state, onStateChange }: Props) {
   function selectMapMarker(key: string, shiftKey: boolean) {
     const item = parseMarkerKey(key);
     if (item.type === "cpt") {
-      const nextState = state.cptSelectionEditDraft?.loadPointId === state.selectedLoadPointId
+      const nextState = isEditingCptSelection
         ? toggleManualCpt(state, item.id)
         : { ...state, ...openReactViewerCpt(state, item.id) };
       onStateChange({ ...nextState, viewport: viewportRef.current });

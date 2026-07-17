@@ -5,6 +5,7 @@ import type { Cpt, LoadPoint, SelectedCpt } from "../core/projectTypes.ts";
 type CptSelectionTableInput = {
   loadPoint: LoadPoint;
   selectedCpts: SelectedCpt[];
+  isManualSelection?: boolean;
 };
 
 export type CptSelectionTableModel = {
@@ -16,7 +17,7 @@ export type CptSelectionTableModel = {
 };
 
 export function getSelectedCptTableModel(entries: CptSelectionTableInput[]): CptSelectionTableModel {
-  if (entries.length <= 1) {
+  if (entries.length <= 1 && !entries[0]?.isManualSelection) {
     const selectedCpts = entries[0]?.selectedCpts ?? [];
 
     return {

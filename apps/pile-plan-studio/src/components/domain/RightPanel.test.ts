@@ -56,4 +56,36 @@ describe("React CPT settings panel", () => {
     assert.match(panel, /applyCptSelectionSettingsPatch\(state, \{\s*maxAngleDegrees:/s);
     assert.doesNotMatch(panel, /applyCptSelectionSettings\(/);
   });
+
+  it("routes Modify selection into the shared CPT panel edit mode", () => {
+    const panel = readFileSync(resolve(import.meta.dirname, "RightPanel.tsx"), "utf8");
+
+    assert.match(panel, /beginManualCptSelection\(state\)/);
+    assert.match(panel, /switchRightPanelMode\(state, "cpts"\)/);
+    assert.match(panel, /t\("actions\.modifySelection"\)/);
+    assert.doesNotMatch(panel, /draft\.cptIds/);
+  });
+});
+
+describe("React CPT panel edit mode", () => {
+  it("keeps Modify available, disables it without a selection, and presents draft controls", () => {
+    const panel = readFileSync(resolve(import.meta.dirname, "RightPanel.tsx"), "utf8");
+
+    assert.match(panel, /t\("actions\.modify"\)/);
+    assert.match(panel, /disabled=\{selectedLoadPoints\.length === 0\}/);
+    assert.match(panel, /selectOnlyNearestCpts\(state\)/);
+    assert.match(panel, /saveManualCptSelection\(state\)/);
+    assert.match(panel, /cancelManualCptSelection\(state\)/);
+    assert.match(panel, /draft\.loadPointIds\.includes\(loadPoint\.id\)/);
+  });
+
+  it("uses icon-only remove controls in edit mode and preserves normal CPT inspection links", () => {
+    const panel = readFileSync(resolve(import.meta.dirname, "RightPanel.tsx"), "utf8");
+
+    assert.match(panel, /className="cpt-remove-button"/);
+    assert.match(panel, /aria-label=\{t\("actions\.removeCpt"/);
+    assert.match(panel, /removeManualCpt\(state, row\.cpt\.id\)/);
+    assert.match(panel, /className="cpt-link"/);
+    assert.match(panel, /openCpt\(state, row\.cpt\.id\)/);
+  });
 });

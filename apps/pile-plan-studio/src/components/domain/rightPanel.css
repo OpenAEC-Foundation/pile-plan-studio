@@ -375,6 +375,63 @@
   cursor: pointer;
 }
 
+.cpt-modify-button,
+.cpt-edit-actions button {
+  padding: 6px 8px;
+  border: 1px solid var(--theme-border);
+  border-radius: 4px;
+  color: var(--theme-text-secondary);
+  background: var(--theme-surface);
+  font: inherit;
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.cpt-modify-button:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+.cpt-edit-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--theme-border-subtle);
+}
+
+.cpt-edit-actions button:first-child {
+  margin-right: auto;
+}
+
+.cpt-remove-cell {
+  width: 32px;
+  padding: 3px 5px !important;
+  text-align: center !important;
+}
+
+.cpt-remove-button {
+  display: inline-grid;
+  width: 24px;
+  height: 24px;
+  place-items: center;
+  padding: 0;
+  border: 1px solid var(--theme-border);
+  border-radius: 3px;
+  color: var(--theme-text-secondary);
+  background: var(--theme-surface);
+  font: inherit;
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.cpt-remove-button:hover {
+  border-color: #c94343;
+  color: #9f1d20;
+  background: #fff0f0;
+}
+
 .right-panel-header {
   display: flex;
   align-items: flex-start;
