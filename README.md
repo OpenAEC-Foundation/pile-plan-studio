@@ -5,7 +5,7 @@
 </p>
 
 <p align="center">
-  <a href="RELEASE_NOTES.md"><img src="https://img.shields.io/badge/release-v0.1.2--alpha-D97706?style=flat-square" alt="Release v0.1.2-alpha"></a>
+  <a href="RELEASE_NOTES.md"><img src="https://img.shields.io/badge/release-v0.1.3--alpha-D97706?style=flat-square" alt="Release v0.1.3-alpha"></a>
   <a href="https://github.com/OpenAEC-Foundation/pile-plan-studio/releases"><img src="https://img.shields.io/github/downloads/OpenAEC-Foundation/pile-plan-studio/total?style=flat-square" alt="Total downloads"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-LGPL--3.0-blue?style=flat-square" alt="LGPL-3.0 license"></a>
   <a href="https://pile-plan-studio.open-aec.com/"><img src="https://img.shields.io/badge/platform-Web%20%7C%20Windows-lightgrey?style=flat-square" alt="Web and Windows"></a>
@@ -51,6 +51,8 @@ browser.
 - Save project data, settings, pile assignments, and CPT choices in IFCPP.
 - Export the current pile assignments and selected CPT identifiers to Excel or
   CSV.
+- Import pile assignments from the standard Pile Plan Studio table or legacy
+  `Vergrendeld.xlsx` files, with validated ID and coordinate matching.
 - Use the same Rust calculation core in the browser and Windows desktop app.
 
 ## Screenshots
@@ -116,13 +118,15 @@ position rather than by header name:
 
 One header row is optional, and additional columns after the required columns
 are allowed. The RFEM load-point profile is the exception: it detects the
-required RFEM columns by their headers, so their position is not fixed.
+required RFEM columns by their headers. When those headers cannot be detected,
+it falls back to the traditional RFEM layout with nodes on the first worksheet
+and nodal reactions on the second.
 
 The source files may be selected together and assigned to their roles before
 import. Load points can use either the standard tabular profile or the
 automatically detected RFEM Excel export profile. The RFEM profile joins node
 coordinates and reactions by node number and currently interprets the design
-load as F<sub>Ed</sub> = |Min PZ'|.
+load from the minimum PZ envelope (`Min PZ'`, `Min PZ`, or `Min`).
 
 Imported data, source profiles, project settings, selected piles, and manual
 CPT choices are stored in an `.ifcpp` project file.

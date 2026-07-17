@@ -26,11 +26,12 @@ intentional and should be considered when evaluating its results.
   migrations.
 - Import currently supports CSV and XLSX sources for load points, CPTs, and
   foundation advice.
-- RFEM load-point import supports the recognised Excel export structure used by
-  the current RFEM profile. The profile joins coordinates and reactions by node
-  number.
-- RFEM design loads currently use the fixed rule F<sub>Ed</sub> = |Min PZ'|.
-  Selecting another force component or result rule is not yet supported.
+- RFEM load-point import recognises supported coordinate and reaction headers
+  and falls back to the first two worksheets for traditional RFEM exports. The
+  profile joins coordinates and reactions by node number.
+- RFEM design loads currently use the minimum PZ envelope value, supporting the
+  `Min PZ'`, `Min PZ`, and `Min` row variants. Selecting another force component
+  or result rule is not yet supported.
 - Empty foundation-advice values are imported as missing data and produce
   warnings.
 - CPTs without coordinates are ignored when reconciling foundation advice.
@@ -41,6 +42,8 @@ intentional and should be considered when evaluating its results.
   rows representing more than one pile are skipped with a warning.
 - Pile-plan import matches a validated ID first and then falls back to one
   unique coordinate match within the configured tolerance (1 mm by default).
+- Historical Legacy rows are ignored when a more reliable current ID match is
+  available. Conflicting equally reliable rows remain skipped with warnings.
 
 ## Platforms and Deferred Features
 

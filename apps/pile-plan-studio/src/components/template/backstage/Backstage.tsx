@@ -275,7 +275,7 @@ function AboutPanel() {
         </div>
         <div className="bs-about-app-info">
           <h1 className="bs-about-app-name">{t("aboutPanel.appName")}</h1>
-          <p className="bs-about-version">{t("aboutPanel.version")} 0.1.2</p>
+          <p className="bs-about-version">{t("aboutPanel.version")} 0.1.3</p>
         </div>
       </div>
       <p className="bs-about-tagline">{t("aboutPanel.tagline")}</p>

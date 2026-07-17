@@ -1,5 +1,43 @@
 # Pile Plan Studio Release Notes
 
+## 0.1.3-alpha
+
+This alpha adds pile-plan import and broadens compatibility with historical
+Pile Plan Studio and RFEM project data.
+
+### Added
+
+- Import pile assignments from the standard Pile Plan Studio Excel or CSV
+  table.
+- Import pile assignments from legacy `Vergrendeld.xlsx` workbooks.
+- Independently choose whether standard-table imports update pile assignments,
+  manual CPT selections, or both.
+- Preview matching results, coordinate fallbacks, skipped rows, and conflicts
+  before applying an imported pile plan.
+- Configure the coordinate matching tolerance, with a default of 1 mm.
+
+### Improved
+
+- Load points are matched by a validated ID first and then by one unique
+  coordinate match within tolerance.
+- Legacy RFEM names such as `Knoop 1603` are recognised as load-point IDs.
+- Historical or duplicate Legacy rows are reconciled safely: a current ID match
+  takes precedence, identical rows are deduplicated, and genuine conflicts are
+  still skipped with warnings.
+- RFEM import falls back to the first worksheet for nodes and the second for
+  nodal reactions when direct structural detection is unavailable.
+- RFEM reaction imports support both primed and unprimed PZ envelope layouts,
+  including `Min PZ'`, `Min PZ`, and `Min` rows.
+- The pile-plan import panel follows the existing OpenAEC backstage styling and
+  uses the shared import icon alignment.
+
+### Still Planned
+
+- Store multiple pile plans in one project and expose them in the project
+  explorer.
+- Export one selected pile plan or all project plans as a ZIP archive.
+- Edit manual CPT selections for multiple selected load points at once.
+
 ## 0.1.2-alpha
 
 This alpha improves project-data exchange and adds an RFEM-oriented import
