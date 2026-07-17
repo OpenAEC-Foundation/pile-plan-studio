@@ -85,6 +85,7 @@ pub enum PilePlanImportDiagnosticCode {
     UnmatchedLoadPoint,
     AmbiguousLoadPoint,
     ConflictingRows,
+    SupersededLegacyRow,
     UnknownCpt,
     UnknownPileConfiguration,
 }
@@ -240,8 +241,7 @@ pub fn preview_pile_plan_import(request: &PilePlanImportRequest) -> PilePlanImpo
 
         let pile = if request.options.import_pile_assignments {
             match &row.pile {
-                PilePlanImportedValue::Set(pile) if !known_piles.contains(pile) =>
-                {
+                PilePlanImportedValue::Set(pile) if !known_piles.contains(pile) => {
                     diagnostics.push(row_diagnostic(
                         &row,
                         PilePlanImportDiagnosticCode::UnknownPileConfiguration,
@@ -300,32 +300,66 @@ pub fn preview_pile_plan_import(request: &PilePlanImportRequest) -> PilePlanImpo
         ));
     }
 
-    let target_counts = candidates
-        .iter()
-        .fold(HashMap::new(), |mut counts, candidate| {
-            *counts.entry(candidate.0.load_point_id).or_insert(0_usize) += 1;
-            counts
-        });
+    let mut candidates_by_target = HashMap::<u32, Vec<_>>::new();
+    for candidate in candidates {
+        candidates_by_target
+            .entry(candidate.0.load_point_id)
+            .or_default()
+            .push(candidate);
+    }
     let mut changes = Vec::new();
-    for (change, row, used_fallback) in candidates {
-        if target_counts
-            .get(&change.load_point_id)
-            .copied()
-            .unwrap_or(0)
-            > 1
-        {
-            summary.skipped_rows += 1;
-            summary.conflicts += 1;
-            diagnostics.push(row_diagnostic(
-                &row,
-                PilePlanImportDiagnosticCode::ConflictingRows,
-                format!(
-                    "Multiple source rows resolve to load point {}.",
-                    change.load_point_id
-                ),
-            ));
+    for (load_point_id, mut target_candidates) in candidates_by_target {
+        if target_candidates.len() > 1 && parsed.profile == PilePlanImportProfile::Legacy {
+            let exact_match_count = target_candidates
+                .iter()
+                .filter(|candidate| !candidate.2)
+                .count();
+            let equivalent = target_candidates
+                .windows(2)
+                .all(|pair| pair[0].1.pile == pair[1].1.pile);
+            let winner_index = if exact_match_count == 1 {
+                target_candidates.iter().position(|candidate| !candidate.2)
+            } else if equivalent {
+                Some(0)
+            } else {
+                None
+            };
+
+            if let Some(winner_index) = winner_index {
+                let winner = target_candidates.swap_remove(winner_index);
+                for (_, row, _) in target_candidates {
+                    summary.skipped_rows += 1;
+                    diagnostics.push(row_diagnostic(
+                        &row,
+                        PilePlanImportDiagnosticCode::SupersededLegacyRow,
+                        format!(
+                            "This historical or duplicate Legacy row was ignored in favour of the selected row for load point {load_point_id}."
+                        ),
+                    ));
+                }
+                summary.matched_rows += 1;
+                summary.coordinate_fallbacks += usize::from(winner.2);
+                changes.push(winner.0);
+                continue;
+            }
+        }
+
+        if target_candidates.len() > 1 {
+            for (_, row, _) in target_candidates {
+                summary.skipped_rows += 1;
+                summary.conflicts += 1;
+                diagnostics.push(row_diagnostic(
+                    &row,
+                    PilePlanImportDiagnosticCode::ConflictingRows,
+                    format!("Multiple source rows resolve to load point {load_point_id}."),
+                ));
+            }
             continue;
         }
+
+        let (change, _, used_fallback) = target_candidates
+            .pop()
+            .expect("grouped target candidates are non-empty");
         summary.matched_rows += 1;
         summary.coordinate_fallbacks += usize::from(used_fallback);
         changes.push(change);
@@ -659,9 +693,7 @@ fn parse_legacy_load_point_id_cell(
     let mut parts = text.split_whitespace();
     let prefix = parts.next();
     let id = parts.next();
-    if prefix.is_some_and(|part| part.eq_ignore_ascii_case("Knoop"))
-        && parts.next().is_none()
-    {
+    if prefix.is_some_and(|part| part.eq_ignore_ascii_case("Knoop")) && parts.next().is_none() {
         if let Some(id) = id.and_then(|part| part.parse::<u32>().ok()) {
             return Ok(id);
         }
@@ -721,7 +753,10 @@ fn parse_positive_u32(value: &TableCell) -> Result<u32, String> {
 fn parse_tip_level_key(value: &TableCell) -> Result<i64, String> {
     let scaled = parse_f64(value)? * 1000.0;
     if scaled < i64::MIN as f64 || scaled > i64::MAX as f64 {
-        return Err(format!("Pile tip level '{}' is outside the supported range.", value.as_text()));
+        return Err(format!(
+            "Pile tip level '{}' is outside the supported range.",
+            value.as_text()
+        ));
     }
     Ok(scaled.round() as i64)
 }
@@ -1016,6 +1051,64 @@ mod tests {
     }
 
     #[test]
+    fn legacy_exact_id_match_wins_over_historical_coordinate_match() {
+        let preview = preview_legacy(
+            &[
+                ("Knoop 202", 1, -17.75, 290, 15000.0, 44100.0),
+                ("Knoop 83", 1, -18.0, 320, 15000.0, 44100.0),
+            ],
+            vec![load_point(83, 15000.0, 44100.0)],
+        );
+
+        assert!(preview.can_apply);
+        assert_eq!(preview.patch.changes.len(), 1);
+        assert_eq!(preview.patch.changes[0].load_point_id, 83);
+        assert_eq!(
+            preview.patch.changes[0].pile,
+            PilePlanImportedValue::Set(PileConfigurationKey {
+                pile_size_mm: 320,
+                pile_tip_level_m_key: -18_000,
+            })
+        );
+        assert_eq!(preview.summary.matched_rows, 1);
+        assert_eq!(preview.summary.skipped_rows, 1);
+        assert_eq!(preview.summary.conflicts, 0);
+    }
+
+    #[test]
+    fn legacy_identical_coordinate_fallback_rows_are_deduplicated() {
+        let preview = preview_legacy(
+            &[
+                ("Knoop 201", 1, -18.0, 320, 12000.0, 44100.0),
+                ("Knoop 72", 1, -18.0, 320, 12000.0, 44100.0),
+            ],
+            vec![load_point(999, 12000.0, 44100.0)],
+        );
+
+        assert!(preview.can_apply);
+        assert_eq!(preview.patch.changes.len(), 1);
+        assert_eq!(preview.summary.matched_rows, 1);
+        assert_eq!(preview.summary.coordinate_fallbacks, 1);
+        assert_eq!(preview.summary.skipped_rows, 1);
+        assert_eq!(preview.summary.conflicts, 0);
+    }
+
+    #[test]
+    fn legacy_different_coordinate_fallback_rows_remain_a_conflict() {
+        let preview = preview_legacy(
+            &[
+                ("Knoop 201", 1, -17.75, 290, 12000.0, 44100.0),
+                ("Knoop 72", 1, -18.0, 320, 12000.0, 44100.0),
+            ],
+            vec![load_point(999, 12000.0, 44100.0)],
+        );
+
+        assert!(!preview.can_apply);
+        assert!(preview.patch.changes.is_empty());
+        assert_eq!(preview.summary.conflicts, 2);
+    }
+
+    #[test]
     fn unknown_cpt_skips_only_the_cpt_change() {
         let preview = preview_for(
             "7,1000,1000,80,320,-18.5,999",
@@ -1196,5 +1289,47 @@ mod tests {
             }
         }
         workbook.save_to_buffer().unwrap()
+    }
+
+    fn preview_legacy(
+        rows: &[(&str, u32, f64, u32, f64, f64)],
+        load_points: Vec<ProjectLoadPoint>,
+    ) -> PilePlanImportPreview {
+        let mut workbook = Workbook::new();
+        let worksheet = workbook.add_worksheet();
+        worksheet.set_name("Vergrendeld").unwrap();
+        for (row_index, (name, count, tip, size, x, y)) in rows.iter().enumerate() {
+            let row = row_index as u32;
+            worksheet.write_string(row, 0, *name).unwrap();
+            worksheet.write_number(row, 1, *count).unwrap();
+            worksheet.write_number(row, 2, *tip).unwrap();
+            worksheet.write_number(row, 3, *size).unwrap();
+            worksheet.write_number(row, 4, 0.8).unwrap();
+            worksheet.write_number(row, 5, *x).unwrap();
+            worksheet.write_number(row, 6, *y).unwrap();
+        }
+
+        preview_pile_plan_import(&PilePlanImportRequest {
+            file_name: "Vergrendeld.xlsx".to_string(),
+            format: SourceFormat::Xlsx,
+            bytes: workbook.save_to_buffer().unwrap(),
+            profile: PilePlanImportProfile::Automatic,
+            options: PilePlanImportOptions {
+                import_cpt_selections: false,
+                ..PilePlanImportOptions::default()
+            },
+            load_points,
+            cpts: Vec::new(),
+            available_pile_configurations: vec![
+                PileConfigurationKey {
+                    pile_size_mm: 290,
+                    pile_tip_level_m_key: -17_750,
+                },
+                PileConfigurationKey {
+                    pile_size_mm: 320,
+                    pile_tip_level_m_key: -18_000,
+                },
+            ],
+        })
     }
 }

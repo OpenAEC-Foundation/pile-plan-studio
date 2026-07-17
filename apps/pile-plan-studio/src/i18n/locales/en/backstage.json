@@ -70,6 +70,7 @@
       "unmatched-load-point": "This row could not be matched to a load point.",
       "ambiguous-load-point": "This row matches multiple load points within the coordinate tolerance.",
       "conflicting-rows": "Multiple source rows resolve to the same load point.",
+      "superseded-legacy-row": "This historical or duplicate Legacy row was ignored in favour of a more reliable row.",
       "unknown-cpt": "The imported CPT selection contains an unknown CPT; the current selection is preserved.",
       "unknown-pile-configuration": "The imported pile configuration is not available in this project; the current assignment is preserved."
     },

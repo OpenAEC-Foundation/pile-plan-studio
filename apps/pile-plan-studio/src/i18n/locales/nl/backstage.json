@@ -70,6 +70,7 @@
       "unmatched-load-point": "Deze rij kon niet aan een belastinglocatie worden gekoppeld.",
       "ambiguous-load-point": "Deze rij past binnen de coördinatietolerantie bij meerdere belastinglocaties.",
       "conflicting-rows": "Meerdere bronrijen verwijzen naar dezelfde belastinglocatie.",
+      "superseded-legacy-row": "Deze historische of dubbele Legacy-rij is genegeerd ten gunste van een betrouwbaardere rij.",
       "unknown-cpt": "De geïmporteerde sonderingselectie bevat een onbekende sondering; de huidige selectie blijft behouden.",
       "unknown-pile-configuration": "De geïmporteerde paalconfiguratie is niet beschikbaar in dit project; de huidige toewijzing blijft behouden."
     },
