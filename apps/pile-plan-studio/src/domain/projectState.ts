@@ -27,8 +27,8 @@ export type InputSource = {
 export type CptSettingsScope = "all" | "selected";
 
 export type CptSelectionEditDraft = {
-  loadPointId: number;
-  cptIds: Set<number>;
+  loadPointIds: number[];
+  cptIdsByLoadPoint: Map<number, Set<number>>;
 };
 
 export type AnalysisRequest = {

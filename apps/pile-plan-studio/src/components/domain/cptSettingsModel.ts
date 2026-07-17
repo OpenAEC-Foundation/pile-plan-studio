@@ -79,41 +79,93 @@ export function applyCptSelectionSettingsPatch(
   return requestAnalysis(nextState, scope === "all" ? null : targetIds);
 }
 
-export function beginManualCptSelection(state: ProjectState, selectedCptIds: number[]): ProjectState {
-  if (state.selectedLoadPointId === null) {
+export function beginManualCptSelection(state: ProjectState, _legacySelectedCptIds?: number[]): ProjectState {
+  const loadPointIds = [...state.selectedLoadPointIds];
+  if (loadPointIds.length === 0) {
     return state;
   }
+
+  const cptIdsByLoadPoint = new Map<number, Set<number>>();
+  for (const loadPointId of loadPointIds) {
+    const cptIds = state.manualCptIdsByLoadPoint.has(loadPointId)
+      ? state.manualCptIdsByLoadPoint.get(loadPointId) ?? []
+      : (state.selectedCptsByLoadPointId.get(loadPointId) ?? []).map((selection) => selection.cpt.id);
+    cptIdsByLoadPoint.set(loadPointId, new Set(cptIds));
+  }
+
   return {
     ...state,
     cptSelectionEditDraft: {
-      loadPointId: state.selectedLoadPointId,
-      cptIds: new Set(selectedCptIds),
+      loadPointIds,
+      cptIdsByLoadPoint,
     },
   };
 }
 
 export function toggleManualCpt(state: ProjectState, cptId: number): ProjectState {
   const draft = state.cptSelectionEditDraft;
-  if (!draft || draft.loadPointId !== state.selectedLoadPointId) {
+  if (!draft) {
     return state;
   }
-  const cptIds = new Set(draft.cptIds);
-  cptIds.has(cptId) ? cptIds.delete(cptId) : cptIds.add(cptId);
-  return { ...state, cptSelectionEditDraft: { ...draft, cptIds } };
+
+  const removeFromAll = draft.loadPointIds.every((loadPointId) => draft.cptIdsByLoadPoint.get(loadPointId)?.has(cptId));
+  return updateManualCptDraft(state, (cptIds) => {
+    removeFromAll ? cptIds.delete(cptId) : cptIds.add(cptId);
+  });
+}
+
+export function removeManualCpt(state: ProjectState, cptId: number): ProjectState {
+  return updateManualCptDraft(state, (cptIds) => cptIds.delete(cptId));
+}
+
+export function selectOnlyNearestCpts(state: ProjectState): ProjectState {
+  const draft = state.cptSelectionEditDraft;
+  if (!draft) {
+    return state;
+  }
+
+  const cptIdsByLoadPoint = new Map<number, Set<number>>();
+  for (const loadPointId of draft.loadPointIds) {
+    const loadPoint = state.loadPoints.find((item) => item.id === loadPointId);
+    const maxDistanceMm = getSettingsForLoadPoint(state, loadPointId).maxDistanceM * 1000;
+    const nearestCpt = loadPoint
+      ? state.cpts.reduce<typeof state.cpts[number] | null>((nearest, cpt) => {
+        const distanceMm = Math.hypot(cpt.x_mm - loadPoint.x_mm, cpt.y_mm - loadPoint.y_mm);
+        if (distanceMm > maxDistanceMm) {
+          return nearest;
+        }
+        if (!nearest) {
+          return cpt;
+        }
+        const nearestDistanceMm = Math.hypot(nearest.x_mm - loadPoint.x_mm, nearest.y_mm - loadPoint.y_mm);
+        return distanceMm < nearestDistanceMm || (distanceMm === nearestDistanceMm && cpt.id < nearest.id)
+          ? cpt
+          : nearest;
+      }, null)
+      : null;
+    cptIdsByLoadPoint.set(loadPointId, nearestCpt ? new Set([nearestCpt.id]) : new Set());
+  }
+
+  return {
+    ...state,
+    cptSelectionEditDraft: { ...draft, cptIdsByLoadPoint },
+  };
 }
 
 export function saveManualCptSelection(state: ProjectState): ProjectState {
   const draft = state.cptSelectionEditDraft;
-  if (!draft || draft.loadPointId !== state.selectedLoadPointId) {
+  if (!draft) {
     return state;
   }
   const manualSelections = new Map(state.manualCptIdsByLoadPoint);
-  manualSelections.set(draft.loadPointId, [...draft.cptIds].sort((left, right) => left - right));
+  for (const loadPointId of draft.loadPointIds) {
+    manualSelections.set(loadPointId, [...(draft.cptIdsByLoadPoint.get(loadPointId) ?? new Set())].sort((left, right) => left - right));
+  }
   return requestAnalysis({
     ...state,
     manualCptIdsByLoadPoint: manualSelections,
     cptSelectionEditDraft: null,
-  }, [draft.loadPointId]);
+  }, draft.loadPointIds);
 }
 
 export function cancelManualCptSelection(state: ProjectState): ProjectState {
@@ -140,6 +192,27 @@ function requestAnalysis(state: ProjectState, loadPointIds: number[] | null): Pr
       revision: state.analysisRequest.revision + 1,
       loadPointIds,
     },
+  };
+}
+
+function updateManualCptDraft(
+  state: ProjectState,
+  update: (cptIds: Set<number>) => void,
+): ProjectState {
+  const draft = state.cptSelectionEditDraft;
+  if (!draft) {
+    return state;
+  }
+
+  const cptIdsByLoadPoint = new Map<number, Set<number>>();
+  for (const loadPointId of draft.loadPointIds) {
+    const cptIds = new Set(draft.cptIdsByLoadPoint.get(loadPointId));
+    update(cptIds);
+    cptIdsByLoadPoint.set(loadPointId, cptIds);
+  }
+  return {
+    ...state,
+    cptSelectionEditDraft: { ...draft, cptIdsByLoadPoint },
   };
 }
 

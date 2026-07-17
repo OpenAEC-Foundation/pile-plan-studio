@@ -6,7 +6,9 @@ import {
   cancelManualCptSelection,
   clearManualCptSelection,
   getCptSelectionSettingsAggregate,
+  removeManualCpt,
   saveManualCptSelection,
+  selectOnlyNearestCpts,
   toggleManualCpt,
 } from "./cptSettingsModel.ts";
 import type { ProjectState } from "../../domain/projectState.ts";
@@ -143,19 +145,115 @@ describe("React CPT settings model", () => {
     assert.deepEqual(next.analysisRequest.loadPointIds, [1, 2]);
   });
 
-  it("edits, toggles, and saves a manual CPT selection for one load point", () => {
-    const editing = beginManualCptSelection(minimalState(), [61, 62]);
-    const toggled = toggleManualCpt(toggleManualCpt(editing, 62), 64);
-    const saved = saveManualCptSelection(toggled);
+  it("captures selected load points with their manual or analyzed CPT selections", () => {
+    const editing = beginManualCptSelection(minimalState({
+      loadPoints: [loadPoint(1), loadPoint(2)],
+      manualCptIdsByLoadPoint: new Map([[1, [61, 62]]]),
+      selectedCptsByLoadPointId: new Map([[2, [selectedCpt(cpt(63))]]]),
+      selectedLoadPointIds: [1, 2],
+    }));
 
-    assert.deepEqual(saved.manualCptIdsByLoadPoint.get(1), [61, 64]);
-    assert.equal(saved.cptSelectionEditDraft, null);
-    assert.deepEqual(saved.analysisRequest.loadPointIds, [1]);
+    assert.deepEqual(editing.cptSelectionEditDraft?.loadPointIds, [1, 2]);
+    assert.deepEqual(editing.cptSelectionEditDraft?.cptIdsByLoadPoint.get(1), new Set([61, 62]));
+    assert.deepEqual(editing.cptSelectionEditDraft?.cptIdsByLoadPoint.get(2), new Set([63]));
   });
 
-  it("can cancel editing or return a load point to algorithmic selection", () => {
-    const editing = beginManualCptSelection(minimalState(), [61]);
-    assert.equal(cancelManualCptSelection(editing).cptSelectionEditDraft, null);
+  it("toggles a CPT across every captured target based on complete presence", () => {
+    const editing = beginManualCptSelection(minimalState({
+      loadPoints: [loadPoint(1), loadPoint(2)],
+      manualCptIdsByLoadPoint: new Map([[1, [61, 62]], [2, [62, 63]]]),
+      selectedLoadPointIds: [1, 2],
+    }));
+    const removed = toggleManualCpt(editing, 62);
+    const added = toggleManualCpt(editing, 61);
+
+    assert.deepEqual(removed.cptSelectionEditDraft?.cptIdsByLoadPoint.get(1), new Set([61]));
+    assert.deepEqual(removed.cptSelectionEditDraft?.cptIdsByLoadPoint.get(2), new Set([63]));
+    assert.deepEqual(added.cptSelectionEditDraft?.cptIdsByLoadPoint.get(1), new Set([61, 62]));
+    assert.deepEqual(added.cptSelectionEditDraft?.cptIdsByLoadPoint.get(2), new Set([61, 62, 63]));
+    assert.deepEqual(editing.cptSelectionEditDraft?.cptIdsByLoadPoint.get(2), new Set([62, 63]));
+  });
+
+  it("removes a CPT from every captured target", () => {
+    const editing = beginManualCptSelection(minimalState({
+      loadPoints: [loadPoint(1), loadPoint(2)],
+      manualCptIdsByLoadPoint: new Map([[1, [61, 62]], [2, [62, 63]]]),
+      selectedLoadPointIds: [1, 2],
+    }));
+    const removed = removeManualCpt(editing, 62);
+
+    assert.deepEqual(removed.cptSelectionEditDraft?.cptIdsByLoadPoint.get(1), new Set([61]));
+    assert.deepEqual(removed.cptSelectionEditDraft?.cptIdsByLoadPoint.get(2), new Set([63]));
+  });
+
+  it("selects the nearest eligible CPT independently for every captured target", () => {
+    const editing = beginManualCptSelection(minimalState({
+      cpts: [cpt(61, 1000), cpt(62, 9000)],
+      cptSelectionSettingsByLoadPoint: new Map([[2, settings({ maxDistanceM: 2 })]]),
+      loadPoints: [loadPoint(1, 0), loadPoint(2, 10000)],
+      selectedLoadPointIds: [1, 2],
+    }));
+    const nearest = selectOnlyNearestCpts(editing);
+
+    assert.deepEqual(nearest.cptSelectionEditDraft?.cptIdsByLoadPoint.get(1), new Set([61]));
+    assert.deepEqual(nearest.cptSelectionEditDraft?.cptIdsByLoadPoint.get(2), new Set([62]));
+  });
+
+  it("uses an empty set when no CPT is within a target's maximum distance", () => {
+    const editing = beginManualCptSelection(minimalState({
+      cpts: [cpt(61, 1000), cpt(62, 9000)],
+      cptSelectionSettingsByLoadPoint: new Map([[2, settings({ maxDistanceM: 0.5 })]]),
+      globalCptSelectionSettings: settings({ maxDistanceM: 2 }),
+      loadPoints: [loadPoint(1, 0), loadPoint(2, 10000)],
+      selectedLoadPointIds: [1, 2],
+    }));
+    const nearest = selectOnlyNearestCpts(editing);
+
+    assert.deepEqual(nearest.cptSelectionEditDraft?.cptIdsByLoadPoint.get(1), new Set([61]));
+    assert.deepEqual(nearest.cptSelectionEditDraft?.cptIdsByLoadPoint.get(2), new Set());
+  });
+
+  it("breaks equal-distance nearest CPT ties by lower CPT id", () => {
+    const editing = beginManualCptSelection(minimalState({
+      cpts: [cpt(72, 1000), cpt(71, -1000)],
+      loadPoints: [loadPoint(1, 0)],
+      selectedLoadPointIds: [1],
+    }));
+    const nearest = selectOnlyNearestCpts(editing);
+
+    assert.deepEqual(nearest.cptSelectionEditDraft?.cptIdsByLoadPoint.get(1), new Set([71]));
+  });
+
+  it("saves sorted manual CPT ids for every captured target and reanalyzes only those targets", () => {
+    const saved = saveManualCptSelection(minimalState({
+      cptSelectionEditDraft: {
+        loadPointIds: [2, 1],
+        cptIdsByLoadPoint: new Map([[1, new Set([64, 61])], [2, new Set([62])]]),
+      },
+      manualCptIdsByLoadPoint: new Map([[3, [99]]]),
+      selectedLoadPointIds: [3],
+    }));
+
+    assert.deepEqual(saved.manualCptIdsByLoadPoint.get(1), [61, 64]);
+    assert.deepEqual(saved.manualCptIdsByLoadPoint.get(2), [62]);
+    assert.deepEqual(saved.manualCptIdsByLoadPoint.get(3), [99]);
+    assert.equal(saved.cptSelectionEditDraft, null);
+    assert.deepEqual(saved.analysisRequest.loadPointIds, [2, 1]);
+  });
+
+  it("cancels editing without changing persisted manual selections or analysis", () => {
+    const editing = minimalState({
+      cptSelectionEditDraft: {
+        loadPointIds: [1, 2],
+        cptIdsByLoadPoint: new Map([[1, new Set([61])], [2, new Set([62])]]),
+      },
+      manualCptIdsByLoadPoint: new Map([[1, [61]], [2, [63]]]),
+    });
+    const cancelled = cancelManualCptSelection(editing);
+
+    assert.equal(cancelled.cptSelectionEditDraft, null);
+    assert.deepEqual(cancelled.manualCptIdsByLoadPoint, editing.manualCptIdsByLoadPoint);
+    assert.equal(cancelled.analysisRequest, editing.analysisRequest);
 
     const manual = minimalState({ manualCptIdsByLoadPoint: new Map([[1, [61]]]) });
     const cleared = clearManualCptSelection(manual);
@@ -205,8 +303,16 @@ function minimalState(overrides: Partial<ProjectState> = {}): ProjectState {
   };
 }
 
-function loadPoint(id: number) {
-  return { id, name: `Load point ${id}`, x_mm: 0, y_mm: 0, design_load_kn: 100 };
+function loadPoint(id: number, x_mm = 0, y_mm = 0) {
+  return { id, name: `Load point ${id}`, x_mm, y_mm, design_load_kn: 100 };
+}
+
+function cpt(id: number, x_mm = 0, y_mm = 0) {
+  return { id, name: `CPT ${id}`, x_mm, y_mm };
+}
+
+function selectedCpt(item: ReturnType<typeof cpt>) {
+  return { cpt: item, distance_mm: 0, label: "upper left" as const };
 }
 
 function settings(overrides: Partial<ProjectState["globalCptSelectionSettings"]> = {}) {

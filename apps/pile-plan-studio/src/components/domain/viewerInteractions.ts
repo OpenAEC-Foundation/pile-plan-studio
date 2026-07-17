@@ -75,8 +75,12 @@ export function getReactViewerContextCptIds(state: {
   selectedCptsByLoadPointId: Map<number, SelectedCpt[]>;
 }): number[] {
   const draft = state.cptSelectionEditDraft;
-  if (draft && state.selectedLoadPointIds.includes(draft.loadPointId)) {
-    return [...draft.cptIds].sort((left, right) => left - right);
+  if (draft) {
+    const draftCptIds = new Set<number>();
+    draft.loadPointIds.forEach((loadPointId) => {
+      (draft.cptIdsByLoadPoint.get(loadPointId) ?? new Set()).forEach((cptId) => draftCptIds.add(cptId));
+    });
+    return [...draftCptIds].sort((left, right) => left - right);
   }
 
   const selectedIds = new Set<number>();
@@ -88,6 +92,12 @@ export function getReactViewerContextCptIds(state: {
   });
 
   return [...selectedIds].sort((left, right) => left - right);
+}
+
+export function isReactViewerCptSelectionEditing(state: {
+  cptSelectionEditDraft?: CptSelectionEditDraft | null;
+}): boolean {
+  return state.cptSelectionEditDraft !== null && state.cptSelectionEditDraft !== undefined;
 }
 
 export function clearLegendSelection<T extends ReactViewerSelectionState>(state: T): T {

@@ -5,6 +5,7 @@ import {
   clearReactViewerSelection,
   getReactViewerContextCptIds,
   getReactViewerSelectedCptIds,
+  isReactViewerCptSelectionEditing,
   openReactViewerCpt,
   selectReactViewerLoadPoint,
   shouldClearLegendSelectionFromPointerTarget,
@@ -169,9 +170,12 @@ describe("React viewer interactions", () => {
     assert.deepEqual(contextIds, [61]);
   });
 
-  it("shows the manual CPT draft while editing a load point", () => {
+  it("shows the union of manual CPT draft sets while editing", () => {
     const selectedIds = getReactViewerSelectedCptIds({
-      cptSelectionEditDraft: { loadPointId: 1, cptIds: new Set([62, 64]) },
+      cptSelectionEditDraft: {
+        loadPointIds: [1, 2],
+        cptIdsByLoadPoint: new Map([[1, new Set([62, 64])], [2, new Set([61, 64])]]),
+      },
       selectedCptId: null,
       selectedLoadPointIds: [1],
       selectedCptsByLoadPointId: new Map([
@@ -179,7 +183,14 @@ describe("React viewer interactions", () => {
       ]),
     });
 
-    assert.deepEqual(selectedIds, [62, 64]);
+    assert.deepEqual(selectedIds, [61, 62, 64]);
+  });
+
+  it("treats any active manual CPT draft as editing", () => {
+    assert.equal(isReactViewerCptSelectionEditing({ cptSelectionEditDraft: null }), false);
+    assert.equal(isReactViewerCptSelectionEditing({
+      cptSelectionEditDraft: { loadPointIds: [1, 2], cptIdsByLoadPoint: new Map() },
+    }), true);
   });
 
   it("raises every CPT above ordinary load points while manual selection is active", () => {
