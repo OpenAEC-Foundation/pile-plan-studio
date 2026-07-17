@@ -102,6 +102,15 @@ export function beginManualCptSelection(state: ProjectState, _legacySelectedCptI
   };
 }
 
+export function startManualCptSelectionEdit(state: ProjectState): ProjectState {
+  const editingState = beginManualCptSelection(state);
+  return {
+    ...editingState,
+    rightPanelMode: "cpts",
+    selectedCptId: null,
+  };
+}
+
 export function toggleManualCpt(state: ProjectState, cptId: number): ProjectState {
   const draft = state.cptSelectionEditDraft;
   if (!draft) {
@@ -173,16 +182,16 @@ export function cancelManualCptSelection(state: ProjectState): ProjectState {
 }
 
 export function clearManualCptSelection(state: ProjectState): ProjectState {
-  if (state.selectedLoadPointId === null) {
+  if (state.selectedLoadPointIds.length === 0) {
     return state;
   }
   const manualSelections = new Map(state.manualCptIdsByLoadPoint);
-  manualSelections.delete(state.selectedLoadPointId);
+  state.selectedLoadPointIds.forEach((loadPointId) => manualSelections.delete(loadPointId));
   return requestAnalysis({
     ...state,
     manualCptIdsByLoadPoint: manualSelections,
     cptSelectionEditDraft: null,
-  }, [state.selectedLoadPointId]);
+  }, state.selectedLoadPointIds);
 }
 
 function requestAnalysis(state: ProjectState, loadPointIds: number[] | null): ProjectState {

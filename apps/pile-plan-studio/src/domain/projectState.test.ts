@@ -16,6 +16,7 @@ describe("createInitialProjectState", () => {
     assert.equal(state.selectedLoadPointId, state.loadPoints[0].id);
     assert.equal(state.selectedCptId, null);
     assert.equal(state.rightPanelMode, "load-point");
+    assert.equal(state.cptSettingsScope, "selected");
     assert.equal(state.analysisError, null);
     assert.equal(state.defaultPileSelectionPending, true);
   });

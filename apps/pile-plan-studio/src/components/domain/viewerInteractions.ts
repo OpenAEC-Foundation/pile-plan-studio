@@ -100,6 +100,15 @@ export function isReactViewerCptSelectionEditing(state: {
   return state.cptSelectionEditDraft !== null && state.cptSelectionEditDraft !== undefined;
 }
 
+export type ViewerSelectionAction = "cpt" | "load-point" | "background" | "lasso";
+
+export function isViewerSelectionActionAllowed(
+  isEditingCptSelection: boolean,
+  action: ViewerSelectionAction,
+): boolean {
+  return !isEditingCptSelection || action === "cpt";
+}
+
 export function clearLegendSelection<T extends ReactViewerSelectionState>(state: T): T {
   return {
     ...state,

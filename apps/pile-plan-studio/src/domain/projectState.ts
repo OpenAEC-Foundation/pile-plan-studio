@@ -108,7 +108,7 @@ export function createInitialProjectState(
     pileCostByOptionKey: new Map(),
     selectedCptsByLoadPointId: new Map(),
     cptFrdRowsByCptId: new Map(),
-    cptSettingsScope: "all",
+    cptSettingsScope: firstLoadPointId === null ? "all" : "selected",
     cptSelectionEditDraft: null,
     analysisRequest: { revision: 0, loadPointIds: null },
     analysisError: null,

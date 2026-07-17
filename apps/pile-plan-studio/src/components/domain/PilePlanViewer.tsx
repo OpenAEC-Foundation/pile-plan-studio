@@ -45,6 +45,7 @@ import {
   getReactViewerContextCptIds,
   getReactViewerSelectedCptIds,
   isReactViewerCptSelectionEditing,
+  isViewerSelectionActionAllowed,
   openReactViewerCpt,
   selectReactViewerLoadPoint,
   shouldRaiseCptMarker,
@@ -153,7 +154,9 @@ export default function PilePlanViewer({ state, onStateChange }: Props) {
 
       if (event.key === "Escape") {
         clearHoverCandidates();
-        onStateChange({ ...state, ...clearReactViewerSelection(state), viewport: viewportRef.current });
+        if (isViewerSelectionActionAllowed(isEditingCptSelection, "background")) {
+          onStateChange({ ...state, ...clearReactViewerSelection(state), viewport: viewportRef.current });
+        }
       }
     }
 
@@ -261,6 +264,10 @@ export default function PilePlanViewer({ state, onStateChange }: Props) {
                 type="button"
                 onClick={(event) => {
                   event.stopPropagation();
+                  if (!isViewerSelectionActionAllowed(isEditingCptSelection, "load-point")) {
+                    clearHoverCandidates();
+                    return;
+                  }
                   const clickedKey = getClickCandidateKey(event, `load-point:${loadPoint.id}`);
                   clearHoverCandidates();
                   selectMapMarker(clickedKey, event.shiftKey);
@@ -312,7 +319,7 @@ export default function PilePlanViewer({ state, onStateChange }: Props) {
     const targetIsInteractive = Boolean(target.closest("button"));
     const start = { x: event.clientX, y: event.clientY };
 
-    if (event.shiftKey && !targetIsInteractive) {
+    if (event.shiftKey && !targetIsInteractive && isViewerSelectionActionAllowed(isEditingCptSelection, "lasso")) {
       event.preventDefault();
       clearHoverCandidates();
       interactionRef.current = { type: "lasso", start, current: start };
@@ -393,7 +400,7 @@ export default function PilePlanViewer({ state, onStateChange }: Props) {
       return;
     }
 
-    if (!interaction.moved) {
+    if (!interaction.moved && isViewerSelectionActionAllowed(isEditingCptSelection, "background")) {
       onStateChange({ ...state, ...clearReactViewerSelection(state), viewport: viewportRef.current });
       return;
     }
@@ -463,9 +470,12 @@ export default function PilePlanViewer({ state, onStateChange }: Props) {
         canvas: { width: currentRect.width, height: currentRect.height },
         viewport: viewportRef.current,
       });
+      const candidateKeys = candidates
+        .map((candidate) => candidate.key)
+        .filter((key) => !isEditingCptSelection || key.startsWith("cpt:"));
       setHoverCandidates((current) => updateHoverCandidateState(
         current,
-        candidates.map((candidate) => candidate.key),
+        candidateKeys,
       ));
     });
   }
@@ -484,9 +494,12 @@ export default function PilePlanViewer({ state, onStateChange }: Props) {
       canvas: { width: rect.width, height: rect.height },
       viewport: viewportRef.current,
     });
+    const candidateKeys = candidates
+      .map((candidate) => candidate.key)
+      .filter((key) => !isEditingCptSelection || key.startsWith("cpt:"));
     return resolveHoverClickCandidateKey(
       hoverCandidates,
-      candidates.map((candidate) => candidate.key),
+      candidateKeys,
       fallbackKey,
     );
   }
@@ -639,6 +652,10 @@ export default function PilePlanViewer({ state, onStateChange }: Props) {
         ? toggleManualCpt(state, item.id)
         : { ...state, ...openReactViewerCpt(state, item.id) };
       onStateChange({ ...nextState, viewport: viewportRef.current });
+      return;
+    }
+
+    if (!isViewerSelectionActionAllowed(isEditingCptSelection, "load-point")) {
       return;
     }
 

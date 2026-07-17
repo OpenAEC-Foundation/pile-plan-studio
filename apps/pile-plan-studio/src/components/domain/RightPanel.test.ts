@@ -97,8 +97,7 @@ describe("React CPT settings panel", () => {
   it("routes Modify selection into the shared CPT panel edit mode", () => {
     const panel = readFileSync(resolve(import.meta.dirname, "RightPanel.tsx"), "utf8");
 
-    assert.match(panel, /beginManualCptSelection\(state\)/);
-    assert.match(panel, /switchRightPanelMode\(state, "cpts"\)/);
+    assert.match(panel, /startManualCptSelectionEdit\(state\)/);
     assert.match(panel, /t\("actions\.modifySelection"\)/);
     assert.match(panel, /className="settings-modify-button"[\s\S]*disabled=\{selectedLoadPoints\.length === 0\}/);
     assert.doesNotMatch(panel, /draft\.cptIds/);

@@ -8,12 +8,27 @@ import {
   getCptSelectionSettingsAggregate,
   removeManualCpt,
   saveManualCptSelection,
+  startManualCptSelectionEdit,
   selectOnlyNearestCpts,
   toggleManualCpt,
 } from "./cptSettingsModel.ts";
 import type { ProjectState } from "../../domain/projectState.ts";
 
 describe("React CPT settings model", () => {
+  it("keeps the manual draft when switching into CPT edit mode", () => {
+    const editing = startManualCptSelectionEdit(minimalState({
+      rightPanelMode: "cpt-settings",
+      selectedCptId: 61,
+      selectedLoadPointIds: [1],
+      selectedCptsByLoadPointId: new Map([[1, [selectedCpt(cpt(61))]]]),
+    }));
+
+    assert.equal(editing.rightPanelMode, "cpts");
+    assert.equal(editing.selectedCptId, null);
+    assert.deepEqual(editing.cptSelectionEditDraft?.loadPointIds, [1]);
+    assert.deepEqual([...editing.cptSelectionEditDraft!.cptIdsByLoadPoint.get(1)!], [61]);
+  });
+
   it("patches every load point and requests all analysis when scope is all", () => {
     const state = minimalState({
       cptSelectionSettingsByLoadPoint: new Map([[2, settings({ maxDistanceM: 18, maxAngleDegrees: 100 })]]),
@@ -255,10 +270,16 @@ describe("React CPT settings model", () => {
     assert.deepEqual(cancelled.manualCptIdsByLoadPoint, editing.manualCptIdsByLoadPoint);
     assert.equal(cancelled.analysisRequest, editing.analysisRequest);
 
-    const manual = minimalState({ manualCptIdsByLoadPoint: new Map([[1, [61]]]) });
+    const manual = minimalState({
+      manualCptIdsByLoadPoint: new Map([[1, [61]], [2, [62]], [3, [63]]]),
+      selectedLoadPointId: 1,
+      selectedLoadPointIds: [1, 2],
+    });
     const cleared = clearManualCptSelection(manual);
     assert.equal(cleared.manualCptIdsByLoadPoint.has(1), false);
-    assert.deepEqual(cleared.analysisRequest.loadPointIds, [1]);
+    assert.equal(cleared.manualCptIdsByLoadPoint.has(2), false);
+    assert.deepEqual(cleared.manualCptIdsByLoadPoint.get(3), [63]);
+    assert.deepEqual(cleared.analysisRequest.loadPointIds, [1, 2]);
   });
 });
 

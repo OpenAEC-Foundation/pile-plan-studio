@@ -25,13 +25,13 @@ import { formatNumber } from "../../domain/formatting.ts";
 import { openCpt, switchRightPanelMode, type RightPanelMode } from "../.././domain/selectionState.ts";
 import {
   applyCptSelectionSettingsPatch,
-  beginManualCptSelection,
   cancelManualCptSelection,
   clearManualCptSelection,
   getCptSelectionSettingsAggregate,
   removeManualCpt,
   saveManualCptSelection,
   selectOnlyNearestCpts,
+  startManualCptSelectionEdit,
 } from "./cptSettingsModel.ts";
 import { commitCostInput, updatePileCostItem, updatePileHeadLevel } from "./costSettingsModel.ts";
 import { setSetting } from "../../store.ts";
@@ -592,11 +592,7 @@ function CptModifyButton({ state, onStateChange, selectedLoadPoints }: {
 }
 
 function startCptSelectionEdit(state: ProjectState): ProjectState {
-  return {
-    ...beginManualCptSelection(state),
-    ...switchRightPanelMode(state, "cpts"),
-    selectedCptId: null,
-  };
+  return startManualCptSelectionEdit(state);
 }
 
 function CptTable({ columns, rows }: { columns: ReactNode[]; rows: string[][] }) {

@@ -6,6 +6,7 @@ import {
   getReactViewerContextCptIds,
   getReactViewerSelectedCptIds,
   isReactViewerCptSelectionEditing,
+  isViewerSelectionActionAllowed,
   openReactViewerCpt,
   selectReactViewerLoadPoint,
   shouldClearLegendSelectionFromPointerTarget,
@@ -14,6 +15,16 @@ import {
 } from "./viewerInteractions.ts";
 
 describe("React viewer interactions", () => {
+  it("locks load-point selection while manually editing CPTs", () => {
+    assert.equal(isViewerSelectionActionAllowed(false, "load-point"), true);
+    assert.equal(isViewerSelectionActionAllowed(false, "background"), true);
+    assert.equal(isViewerSelectionActionAllowed(false, "lasso"), true);
+    assert.equal(isViewerSelectionActionAllowed(true, "cpt"), true);
+    assert.equal(isViewerSelectionActionAllowed(true, "load-point"), false);
+    assert.equal(isViewerSelectionActionAllowed(true, "background"), false);
+    assert.equal(isViewerSelectionActionAllowed(true, "lasso"), false);
+  });
+
   it("defaults selected scope when creating a selection from empty", () => {
     const state = {
       selectedLoadPointId: null,

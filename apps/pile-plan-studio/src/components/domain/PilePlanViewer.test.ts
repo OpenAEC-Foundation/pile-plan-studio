@@ -161,6 +161,15 @@ describe("PilePlanViewer inputs", () => {
     assert.doesNotMatch(css, /--viewer-marker-scale/);
   });
 
+  it("keeps load-point selection locked while manually editing CPTs", () => {
+    const source = readFileSync(resolve(import.meta.dirname, "PilePlanViewer.tsx"), "utf8");
+
+    assert.match(source, /isViewerSelectionActionAllowed\(isEditingCptSelection, "background"\)/);
+    assert.match(source, /isViewerSelectionActionAllowed\(isEditingCptSelection, "load-point"\)/);
+    assert.match(source, /isViewerSelectionActionAllowed\(isEditingCptSelection, "lasso"\)/);
+    assert.match(source, /filter\(\(key\) => !isEditingCptSelection \|\| key\.startsWith\("cpt:"\)\)/);
+  });
+
   it("renders pointer-inert CPT connection lines inside the transformed stage before map markers", () => {
     const source = readFileSync(resolve(import.meta.dirname, "PilePlanViewer.tsx"), "utf8");
     const css = readFileSync(resolve(import.meta.dirname, "viewer.css"), "utf8");
