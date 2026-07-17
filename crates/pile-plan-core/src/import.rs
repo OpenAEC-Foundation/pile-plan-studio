@@ -11,6 +11,7 @@ use serde::{Deserialize, Serialize};
 
 mod pipeline;
 mod profile;
+mod refresh;
 mod rfem;
 mod roles;
 mod table;
@@ -21,6 +22,7 @@ pub use profile::{
     ImportDiagnosticSeverity, ImportPreviewDetails, ImportProfile, ImportProfileOptions,
     ImportSourcePreview, RfemPreviewDetails,
 };
+pub use refresh::refresh_project_from_profiled_sources;
 pub use roles::{
     parse_bearing_capacities, parse_bearing_capacities_with_diagnostics, parse_cpts,
     parse_load_points, reconcile_imported_inputs, validate_imported_inputs,

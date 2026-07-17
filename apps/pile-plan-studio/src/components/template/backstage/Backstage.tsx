@@ -3,6 +3,7 @@ import { flushSync } from "react-dom";
 import { useTranslation } from "react-i18next";
 import { useRecentFiles, type RecentFile } from "../../../hooks/useRecentFiles";
 import ProjectImportPanel from "../../domain/ProjectImportPanel";
+import type { ProjectImportMode } from "../../domain/projectImportModel.ts";
 import PilePlanImportPanel from "../../domain/PilePlanImportPanel.tsx";
 import type { ImportSourceInput } from "../../.././core/coreImportContract";
 import type { ImportSummary } from "../../.././core/projectFile";
@@ -64,7 +65,7 @@ interface BackstageProps {
   onClose: () => void;
   onOpenSettings: () => void;
   onOpenFile?: (path: string) => void;
-  onImportProject: (projectName: string, sources: ImportSourceInput[]) => Promise<ImportSummary | null>;
+  onImportProject: (mode: ProjectImportMode, projectName: string | null, sources: ImportSourceInput[]) => Promise<ImportSummary | null>;
   loadPoints: LoadPoint[];
   cpts: Cpt[];
   availablePileConfigurations: PileConfigurationKey[];
@@ -205,8 +206,8 @@ export default function Backstage({ open, onClose, onOpenSettings, onOpenFile, o
             />
           )}
           {activePanel === "about" && <AboutPanel />}
-          {activePanel === "import" && <ProjectImportPanel onImportProject={async (name, sources) => {
-            return onImportProject(name, sources);
+          {activePanel === "import" && <ProjectImportPanel onImportProject={async (mode, name, sources) => {
+            return onImportProject(mode, name, sources);
           }} />}
           {activePanel === "pile-plan-import" && (
             <PilePlanImportPanel
@@ -275,7 +276,7 @@ function AboutPanel() {
         </div>
         <div className="bs-about-app-info">
           <h1 className="bs-about-app-name">{t("aboutPanel.appName")}</h1>
-          <p className="bs-about-version">{t("aboutPanel.version")} 0.1.3</p>
+          <p className="bs-about-version">{t("aboutPanel.version")} 0.1.4</p>
         </div>
       </div>
       <p className="bs-about-tagline">{t("aboutPanel.tagline")}</p>

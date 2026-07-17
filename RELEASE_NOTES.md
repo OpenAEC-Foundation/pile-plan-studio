@@ -1,5 +1,48 @@
 # Pile Plan Studio Release Notes
 
+## 0.1.4-alpha
+
+This alpha expands CPT selection workflows and makes project-source refreshes
+safer for projects whose loads or source files change during design.
+
+### Added
+
+- Configure CPT-selection settings for all load points when no load point is
+  selected, or apply them only to the current selection.
+- Define a monopoly distance: when a CPT lies within this distance, it becomes
+  the only automatically selected CPT for that load point.
+- Edit manual CPT selections for multiple selected load points at once from the
+  CPT panel, including removing CPTs, selecting CPTs in the viewer, and choosing
+  only the nearest CPT.
+- Choose whether bulk CPT-setting changes may overwrite existing manual CPT
+  selections.
+- Connect common CPT selections with thin plan lines when all selected load
+  points use the same CPT set.
+- Refresh one or more imported project sources without creating a new project.
+
+### Improved
+
+- Source refreshes preserve pile assignments, manual CPT selections, local CPT
+  settings, and project identity wherever load points and CPTs can still be
+  matched reliably.
+- Refreshed load points are matched by validated ID first and then by a unique
+  coordinate fallback.
+- CPT-only refreshes show a non-blocking warning that the corresponding
+  foundation advice should also be refreshed.
+- Refresh requests accept persisted numeric identifiers consistently in both
+  the browser and desktop calculation paths.
+- Load points that cannot retain an existing assignment receive the cheapest
+  valid default pile without replacing assignments that were matched and
+  preserved.
+
+### Notes
+
+- Refreshing CPT coordinates without the matching foundation advice can make
+  capacities and pile configurations temporarily unavailable. Refresh both
+  sources together when the CPT set changes.
+- This release does not publish a new Windows installer. The browser build and
+  source code contain the 0.1.4-alpha changes.
+
 ## 0.1.3-alpha
 
 This alpha adds pile-plan import and broadens compatibility with historical

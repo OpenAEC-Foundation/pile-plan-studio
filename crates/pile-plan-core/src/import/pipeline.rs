@@ -81,7 +81,7 @@ pub fn import_project_from_profiled_sources(
     ))
 }
 
-fn parse_load_source(
+pub(crate) fn parse_load_source(
     source: &ImportSource,
 ) -> Result<(Vec<ProjectLoadPoint>, ProjectImportLogEntry), ImportError> {
     match resolve_profile(source).map_err(ImportError::Validation)? {

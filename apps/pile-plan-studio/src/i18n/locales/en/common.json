@@ -88,9 +88,21 @@
     "summaryAria": "Import summary",
     "completed": "Import completed",
     "summary": "{{loadPoints}} load points · {{cpts}} CPTs · {{advice}} foundation advice rows",
-    "importing": "Importing...",
-    "submit": "Import project",
-    "profile": {
+      "importing": "Importing...",
+      "submit": "Import project",
+      "refreshing": "Refreshing...",
+      "refreshSubmit": "Refresh data",
+      "modes": {
+        "label": "Import operation",
+        "newProject": "Import new project",
+        "refresh": "Refresh data",
+        "newProjectDescription": "Create a new project from all three source files.",
+        "refreshDescription": "Replace one or more datasets while retaining matched project choices and settings."
+      },
+      "warnings": {
+        "cptsWithoutFoundationAdvice": "You are refreshing the CPTs without the foundation advice. Bearing capacities for unmatched CPTs may temporarily disappear. Import the corresponding foundation advice as well to keep all pile configurations available."
+      },
+      "profile": {
       "label": "Import profile",
       "automatic": "Automatically detect",
       "standardTable": "Standard table",

@@ -1,5 +1,6 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 
 import { projectAnalysisResultFromCore } from "./projectAnalysisResult.ts";
 import { binaryResultToUint8Array } from "./binaryCoreResult.ts";
@@ -22,5 +23,16 @@ describe("binary core result", () => {
   it("normalizes browser and Tauri byte collections", () => {
     assert.deepEqual(binaryResultToUint8Array(new Uint8Array([1, 2, 3])), new Uint8Array([1, 2, 3]));
     assert.deepEqual(binaryResultToUint8Array([4, 5, 6]), new Uint8Array([4, 5, 6]));
+  });
+});
+
+describe("project source refresh core contract", () => {
+  it("converts persisted numeric record keys before refreshing in WASM", () => {
+    const source = readFileSync(new URL("./coreClient.ts", import.meta.url), "utf8");
+
+    assert.match(source, /refresh_project_from_files/);
+    assert.match(source, /current_project:\s*toWasmIfcppProject\(input\.currentProject\)/);
+    assert.match(source, /sources:\s*input\.sources\.map\(toCoreImportSource\)/);
+    assert.match(source, /invoke<IfcppProject>\("refresh_project_from_files"/);
   });
 });

@@ -19,6 +19,7 @@ import {
   exportPilePlanXlsxCore,
   greedyOptimizeCore,
   importProjectFromFilesCore,
+  refreshProjectFromFilesCore,
 } from "./core/coreClient";
 import type { ImportSourceInput } from "./core/coreImportContract";
 import { applyDefaultPileCostSettings, createIfcppProject, getImportSummary } from "./core/projectFile";
@@ -47,6 +48,7 @@ import { DEFAULT_RIGHT_PANEL_WIDTH, resizeRightPanelWidth } from "./viewer/panel
 import { buildPilePlanExportInput } from "./domain/pilePlanExport.ts";
 import { applyPilePlanImportPatch } from "./domain/pilePlanImport.ts";
 import type { PilePlanImportPatch } from "./core/pilePlanImportContract.ts";
+import { mergeDefaultPileChoices } from "./domain/defaultPileChoices.ts";
 
 const PILE_COST_DEFAULTS_KEY = "pile-cost-defaults";
 
@@ -69,6 +71,7 @@ export default function App() {
   const [theme, setTheme] = useState("light");
   const [costDefaultsLoaded, setCostDefaultsLoaded] = useState(false);
   const defaultSelectionRequestRef = useRef<typeof projectState.analysisRequest | null>(null);
+  const defaultSelectionKeepsDirtyRef = useRef(false);
   const replacementResolverRef = useRef<((proceed: boolean) => void) | null>(null);
   const savedProjectSignatureRef = useRef(JSON.stringify(projectFromState(projectState)));
   const preparedProjectRef = useRef<{ signature: string; blob: Blob } | null>(null);
@@ -279,11 +282,14 @@ export default function App() {
         if (current.analysisRequest !== analysisRequest) return current;
         const next = {
           ...current,
-          selectedPileOptionKeysByLoadPoint: choices,
+          selectedPileOptionKeysByLoadPoint: mergeDefaultPileChoices(
+            current.selectedPileOptionKeysByLoadPoint,
+            choices,
+          ),
           defaultPileSelectionPending: false,
           analysisError: null,
         };
-        if (savedProjectSignatureRef.current !== "") {
+        if (savedProjectSignatureRef.current !== "" && !defaultSelectionKeepsDirtyRef.current) {
           savedProjectSignatureRef.current = JSON.stringify(projectFromState(next));
           setIsDirty(false);
         }
@@ -297,6 +303,7 @@ export default function App() {
         analysisError: error instanceof Error ? error.message : String(error),
       }));
     }).finally(() => {
+      defaultSelectionKeepsDirtyRef.current = false;
       if (defaultSelectionRequestRef.current === analysisRequest) {
         defaultSelectionRequestRef.current = null;
       }
@@ -527,10 +534,25 @@ export default function App() {
         cpts={projectState.cpts}
         availablePileConfigurations={availablePileConfigurations}
         onImportPilePlan={importPilePlan}
-        onImportProject={async (projectName: string, sources: ImportSourceInput[]) => {
+        onImportProject={async (mode, projectName: string | null, sources: ImportSourceInput[]) => {
+          if (mode === "refresh") {
+            const refreshedProject = await refreshProjectFromFilesCore({
+              currentProject: projectFromState(projectState),
+              sources,
+            });
+            defaultSelectionKeepsDirtyRef.current = true;
+            setProjectState(createInitialProjectState(refreshedProject, { initializeDefaultPiles: true }));
+            setIsDirty(true);
+            return getImportSummary(refreshedProject);
+          }
+
           if (!await confirmProjectReplacement()) return null;
-          const project = await importProjectFromFilesCore({ projectName, sources });
+          const project = await importProjectFromFilesCore({
+            projectName: projectName ?? projectState.name,
+            sources,
+          });
           const withCosts = applyDefaultPileCostSettings(project, projectState.pileCostSettings);
+          defaultSelectionKeepsDirtyRef.current = false;
           setProjectState(createInitialProjectState(withCosts, { initializeDefaultPiles: true }));
           setProjectPath(null);
           savedProjectSignatureRef.current = "";

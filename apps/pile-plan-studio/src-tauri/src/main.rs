@@ -2,7 +2,8 @@ use pile_plan_core::{
     bearing_capacity_rows_for_cpt, build_pile_options_by_load_point, build_project_analysis,
     calculate_pile_cost, choose_default_pile_option, choose_default_pile_options,
     greedy_optimize_pile_choices, import_project_from_generic_sources, preview_import_source,
-    preview_pile_plan_import, selected_cpts, write_pile_plan_csv as write_pile_plan_csv_bytes,
+    preview_pile_plan_import, refresh_project_from_profiled_sources, selected_cpts,
+    write_pile_plan_csv as write_pile_plan_csv_bytes,
     write_pile_plan_xlsx as write_pile_plan_xlsx_bytes, CptSelectionSettings,
     GreedyOptimizationSettings, GreedyOptimizedPileChoice, ImportSource, ImportSourcePreview,
     PileConfigurationKey, PileConfigurationOption, PileCostSettings, PilePlanExportRequest,
@@ -76,6 +77,12 @@ struct GreedyOptimizationRequest {
 #[derive(Debug, Deserialize)]
 struct ImportProjectRequest {
     project_name: String,
+    sources: Vec<ImportSource>,
+}
+
+#[derive(Debug, Deserialize)]
+struct RefreshProjectRequest {
+    current_project: PilePlanProject,
     sources: Vec<ImportSource>,
 }
 
@@ -180,6 +187,12 @@ fn import_project_from_files(request: ImportProjectRequest) -> Result<PilePlanPr
 }
 
 #[tauri::command(rename_all = "snake_case")]
+fn refresh_project_from_files(request: RefreshProjectRequest) -> Result<PilePlanProject, String> {
+    refresh_project_from_profiled_sources(&request.current_project, &request.sources)
+        .map_err(|error| error.to_string())
+}
+
+#[tauri::command(rename_all = "snake_case")]
 fn preview_import_file(request: PreviewImportRequest) -> ImportSourcePreview {
     preview_import_source(&request.source)
 }
@@ -227,6 +240,7 @@ fn main() {
             cpt_frd_rows,
             greedy_optimize,
             import_project_from_files,
+            refresh_project_from_files,
             preview_import_file,
             preview_pile_plan_import_file,
             export_pile_plan_csv,

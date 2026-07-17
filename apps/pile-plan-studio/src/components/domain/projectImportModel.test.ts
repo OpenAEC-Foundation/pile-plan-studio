@@ -4,14 +4,26 @@ import assert from "node:assert/strict";
 import {
   applyImportPreview,
   beginImportPreview,
-  canImportProject,
+  canSubmitProjectImport,
   createEmptyImportDrafts,
   setImportFile,
   setImportProfile,
+  shouldWarnAboutMissingFoundationAdvice,
 } from "./projectImportModel.ts";
 import type { ImportSourcePreview } from "../../core/coreImportContract.ts";
 
 describe("project import model", () => {
+  it("warns only when refreshing CPTs without foundation advice", () => {
+    let drafts = createEmptyImportDrafts<{ name: string }>();
+    drafts = setImportFile(drafts, "cpts", { name: "sonderingen.xlsx" });
+
+    assert.equal(shouldWarnAboutMissingFoundationAdvice(drafts, "refresh"), true);
+    assert.equal(shouldWarnAboutMissingFoundationAdvice(drafts, "new-project"), false);
+
+    drafts = setImportFile(drafts, "bearing-capacities", { name: "funderingsadvies.xlsx" });
+    assert.equal(shouldWarnAboutMissingFoundationAdvice(drafts, "refresh"), false);
+  });
+
   it("starts every role with automatic profile detection", () => {
     const drafts = createEmptyImportDrafts<{ name: string }>();
 
@@ -48,10 +60,29 @@ describe("project import model", () => {
       drafts = beginImportPreview(drafts, role, 1);
       drafts = applyImportPreview(drafts, role, 1, standardPreview(role));
     }
-    assert.equal(canImportProject(drafts), true);
+    assert.equal(canSubmitProjectImport(drafts, "new-project"), true);
 
     drafts = beginImportPreview(drafts, "cpts", 2);
-    assert.equal(canImportProject(drafts), false);
+    assert.equal(canSubmitProjectImport(drafts, "new-project"), false);
+  });
+
+  it("allows one ready source for refresh but not for a new project", () => {
+    let drafts = createEmptyImportDrafts<{ name: string }>();
+    drafts = setImportFile(drafts, "load-points", { name: "Export RFEM.xlsx" });
+    drafts = beginImportPreview(drafts, "load-points", 1);
+    drafts = applyImportPreview(drafts, "load-points", 1, rfemPreview());
+
+    assert.equal(canSubmitProjectImport(drafts, "refresh"), true);
+    assert.equal(canSubmitProjectImport(drafts, "new-project"), false);
+  });
+
+  it("blocks an empty refresh and any selected source that is not ready", () => {
+    let drafts = createEmptyImportDrafts<{ name: string }>();
+    assert.equal(canSubmitProjectImport(drafts, "refresh"), false);
+
+    drafts = setImportFile(drafts, "cpts", { name: "cpts.csv" });
+    drafts = beginImportPreview(drafts, "cpts", 1);
+    assert.equal(canSubmitProjectImport(drafts, "refresh"), false);
   });
 
   it("keeps resolved RFEM sheet choices in the draft", () => {

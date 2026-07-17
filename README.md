@@ -5,7 +5,7 @@
 </p>
 
 <p align="center">
-  <a href="RELEASE_NOTES.md"><img src="https://img.shields.io/badge/release-v0.1.3--alpha-D97706?style=flat-square" alt="Release v0.1.3-alpha"></a>
+  <a href="RELEASE_NOTES.md"><img src="https://img.shields.io/badge/release-v0.1.4--alpha-D97706?style=flat-square" alt="Release v0.1.4-alpha"></a>
   <a href="https://github.com/OpenAEC-Foundation/pile-plan-studio/releases"><img src="https://img.shields.io/github/downloads/OpenAEC-Foundation/pile-plan-studio/total?style=flat-square" alt="Total downloads"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-LGPL--3.0-blue?style=flat-square" alt="LGPL-3.0 license"></a>
   <a href="https://pile-plan-studio.open-aec.com/"><img src="https://img.shields.io/badge/platform-Web%20%7C%20Windows-lightgrey?style=flat-square" alt="Web and Windows"></a>
@@ -42,7 +42,9 @@ browser.
 - Inspect valid, insufficient, and missing pile configurations for every load
   point.
 - Select CPTs automatically using quadrant or maximum-angle rules.
-- Override the CPT selection manually for individual load points.
+- Override the CPT selection manually for one or multiple load points.
+- Refresh individual imported sources while retaining matched pile assignments
+  and CPT selections.
 - Compare utilization, foundation resistance, and estimated cost.
 - Assign one pile configuration to one or multiple selected load points.
 - Filter the available sizes and tip levels directly from the plan legend.

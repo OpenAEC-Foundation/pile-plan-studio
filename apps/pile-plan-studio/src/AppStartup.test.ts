@@ -30,11 +30,12 @@ describe("React app startup", () => {
     assert.match(panelSource, /state\.analysisError/);
   });
 
-  it("initializes default piles only for the sample and newly imported projects", () => {
+  it("initializes default piles for the sample, new imports, and refreshed unmatched points", () => {
     const source = readFileSync(resolve(import.meta.dirname, "App.tsx"), "utf8");
 
     assert.match(source, /createInitialProjectState\(\s*sampleProjectText,\s*\{ initializeDefaultPiles: true \},?\s*\)/);
     assert.match(source, /createInitialProjectState\(withCosts, \{ initializeDefaultPiles: true \}\)/);
+    assert.match(source, /createInitialProjectState\(refreshedProject, \{ initializeDefaultPiles: true \}\)/);
     assert.match(source, /createInitialProjectState\(\s*await file\.text\(\),\s*\{ initializeDefaultPiles: false \},?\s*\)/);
   });
 
@@ -66,7 +67,25 @@ describe("React app startup", () => {
     assert.doesNotMatch(beforeChooser, /defaultPileSelectionPending:\s*false/);
     assert.match(
       source.slice(chooserIndex),
-      /selectedPileOptionKeysByLoadPoint:\s*choices,[\s\S]*?defaultPileSelectionPending:\s*false/,
+      /selectedPileOptionKeysByLoadPoint:\s*mergeDefaultPileChoices\([\s\S]*?defaultPileSelectionPending:\s*false/,
+    );
+  });
+
+  it("refreshes selected sources through Rust while retaining the open project path", () => {
+    const source = readFileSync(resolve(import.meta.dirname, "App.tsx"), "utf8");
+    const handler = source.slice(
+      source.indexOf("onImportProject={async"),
+      source.indexOf("onOpenProjectFile=", source.indexOf("onImportProject={async")),
+    );
+
+    assert.match(source, /refreshProjectFromFilesCore/);
+    assert.match(source, /mode === "refresh"/);
+    assert.match(source, /currentProject:\s*projectFromState\(projectState\)/);
+    assert.match(source, /createInitialProjectState\(refreshedProject, \{ initializeDefaultPiles: true \}\)/);
+    assert.match(source, /defaultSelectionKeepsDirtyRef\.current = true/);
+    assert.ok(
+      handler.indexOf('mode === "refresh"') < handler.indexOf("confirmProjectReplacement()"),
+      "refresh should run before the replacement confirmation used by new-project imports",
     );
   });
 

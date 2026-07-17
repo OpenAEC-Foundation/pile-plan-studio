@@ -88,9 +88,21 @@
     "summaryAria": "Importsamenvatting",
     "completed": "Import voltooid",
     "summary": "{{loadPoints}} belastinglocaties · {{cpts}} sonderingen · {{advice}} funderingsadviesregels",
-    "importing": "Importeren...",
-    "submit": "Project importeren",
-    "profile": {
+      "importing": "Importeren...",
+      "submit": "Project importeren",
+      "refreshing": "Verversen...",
+      "refreshSubmit": "Gegevens verversen",
+      "modes": {
+        "label": "Importbewerking",
+        "newProject": "Nieuw project importeren",
+        "refresh": "Gegevens verversen",
+        "newProjectDescription": "Maak een nieuw project vanuit alle drie de bronbestanden.",
+        "refreshDescription": "Vervang één of meer datasets en behoud gekoppelde projectkeuzes en instellingen."
+      },
+      "warnings": {
+        "cptsWithoutFoundationAdvice": "Je ververst de sonderingen zonder het funderingsadvies. Draagvermogens van niet-gekoppelde sonderingen kunnen tijdelijk verdwijnen. Importeer het bijbehorende funderingsadvies mee om alle paalconfiguraties beschikbaar te houden."
+      },
+      "profile": {
       "label": "Importprofiel",
       "automatic": "Automatisch herkennen",
       "standardTable": "Standaardtabel",

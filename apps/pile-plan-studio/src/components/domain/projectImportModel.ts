@@ -24,6 +24,8 @@ export type ImportDrafts<TFile extends NamedImportFile> = Record<
   ImportRoleDraft<TFile>
 >;
 
+export type ProjectImportMode = "new-project" | "refresh";
+
 const ROLES: ImportFileRole[] = ["load-points", "cpts", "bearing-capacities"];
 const EMPTY_OPTIONS: ImportProfileOptions = {
   coordinateSheet: null,
@@ -114,14 +116,34 @@ export function failImportPreview<TFile extends NamedImportFile>(
   });
 }
 
+export function canSubmitProjectImport(
+  drafts: ImportDrafts<NamedImportFile>,
+  mode: ProjectImportMode,
+): boolean {
+  const roles = mode === "new-project"
+    ? ROLES
+    : ROLES.filter((role) => drafts[role].file !== null);
+  return roles.length > 0 && roles.every((role) => isReady(drafts[role]));
+}
+
+export function shouldWarnAboutMissingFoundationAdvice(
+  drafts: ImportDrafts<NamedImportFile>,
+  mode: ProjectImportMode,
+): boolean {
+  return mode === "refresh"
+    && drafts.cpts.file !== null
+    && drafts["bearing-capacities"].file === null;
+}
+
 export function canImportProject(drafts: ImportDrafts<NamedImportFile>): boolean {
-  return ROLES.every((role) => {
-    const draft = drafts[role];
-    if (!draft.file || draft.previewState.status !== "ready") return false;
-    const preview = draft.previewState.preview;
-    return preview.resolvedProfile !== null
-      && !preview.diagnostics.some((diagnostic) => diagnostic.severity === "error");
-  });
+  return canSubmitProjectImport(drafts, "new-project");
+}
+
+function isReady<TFile extends NamedImportFile>(draft: ImportRoleDraft<TFile>): boolean {
+  if (!draft.file || draft.previewState.status !== "ready") return false;
+  const preview = draft.previewState.preview;
+  return preview.resolvedProfile !== null
+    && !preview.diagnostics.some((diagnostic) => diagnostic.severity === "error");
 }
 
 function emptyDraft<TFile extends NamedImportFile>(role: ImportFileRole): ImportRoleDraft<TFile> {

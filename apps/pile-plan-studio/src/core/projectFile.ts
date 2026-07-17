@@ -118,28 +118,35 @@ export function loadIfcppProjectData(input: string | IfcppProject): LoadedProjec
     bearingCapacities: project.inputs.bearing_capacities,
     globalCptSelectionSettings: fromIfcppCptSelectionSettings(project.settings.global_cpt_selection),
     cptSelectionSettingsByLoadPoint: new Map(
-      Object.entries(project.settings.cpt_selection_by_load_point)
-        .map(([loadPointId, settings]) => [Number(loadPointId), fromIfcppCptSelectionSettings(settings)]),
+      numberKeyedEntries(project.settings.cpt_selection_by_load_point)
+        .map(([loadPointId, settings]) => [loadPointId, fromIfcppCptSelectionSettings(settings)]),
     ),
     pileCostSettings: project.settings.pile_costs,
     activePileSizes: project.settings.active_pile_sizes,
     activePileTipLevels: project.settings.active_pile_tip_levels,
     optimizationSettings: project.settings.optimization,
     selectedPileOptionKeysByLoadPoint: new Map(
-      Object.entries(project.user_state.selected_piles)
+      numberKeyedEntries(project.user_state.selected_piles)
         .flatMap(([loadPointId, choice]) => {
           if (!choice.pile) {
             return [];
           }
 
-          return [[Number(loadPointId), pileConfigurationKeyToOptionKey(choice.pile)]];
+          return [[loadPointId, pileConfigurationKeyToOptionKey(choice.pile)]];
         }),
     ),
     manualCptIdsByLoadPoint: new Map(
-      Object.entries(project.user_state.manual_cpt_selections)
-        .map(([loadPointId, cptIds]) => [Number(loadPointId), cptIds]),
+      numberKeyedEntries(project.user_state.manual_cpt_selections),
     ),
   };
+}
+
+function numberKeyedEntries<T>(values: Record<string, T> | Map<number, T>): Array<[number, T]> {
+  if (values instanceof Map) {
+    return [...values.entries()].map(([key, value]) => [Number(key), value]);
+  }
+
+  return Object.entries(values).map(([key, value]) => [Number(key), value]);
 }
 
 export function createIfcppProject(input: {

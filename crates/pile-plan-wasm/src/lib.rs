@@ -4,11 +4,11 @@ use pile_plan_core::{
     bearing_capacity_rows_for_cpt, build_pile_options_by_load_point, build_project_analysis,
     calculate_pile_cost, choose_default_pile_option, choose_default_pile_options,
     greedy_optimize_pile_choices, import_project_from_generic_sources, preview_import_source,
-    preview_pile_plan_import, selected_cpts, write_ifcpp_string, write_pile_plan_csv,
-    write_pile_plan_xlsx, CptSelectionSettings, GreedyOptimizationSettings,
-    GreedyOptimizedPileChoice, ImportSource, PileConfigurationKey, PileConfigurationOption,
-    PileCostSettings, PilePlanExportRequest, PilePlanImportRequest, PilePlanProject,
-    ProjectBearingCapacity, ProjectCpt, ProjectLoadPoint,
+    preview_pile_plan_import, refresh_project_from_profiled_sources, selected_cpts,
+    write_ifcpp_string, write_pile_plan_csv, write_pile_plan_xlsx, CptSelectionSettings,
+    GreedyOptimizationSettings, GreedyOptimizedPileChoice, ImportSource, PileConfigurationKey,
+    PileConfigurationOption, PileCostSettings, PilePlanExportRequest, PilePlanImportRequest,
+    PilePlanProject, ProjectBearingCapacity, ProjectCpt, ProjectLoadPoint,
 };
 use serde::{Deserialize, Serialize};
 use wasm_bindgen::prelude::*;
@@ -77,6 +77,12 @@ pub struct GreedyOptimizationRequest {
 #[derive(Debug, Deserialize)]
 pub struct ImportProjectRequest {
     pub project_name: String,
+    pub sources: Vec<ImportSource>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct RefreshProjectRequest {
+    pub current_project: PilePlanProject,
     pub sources: Vec<ImportSource>,
 }
 
@@ -192,6 +198,15 @@ pub fn greedy_optimize(request: JsValue) -> Result<JsValue, JsValue> {
 pub fn import_project_from_files(request: JsValue) -> Result<JsValue, JsValue> {
     let request: ImportProjectRequest = from_js_value(request)?;
     let project = import_project_from_generic_sources(&request.project_name, &request.sources)
+        .map_err(to_error_value)?;
+
+    to_js_value(&project)
+}
+
+#[wasm_bindgen]
+pub fn refresh_project_from_files(request: JsValue) -> Result<JsValue, JsValue> {
+    let request: RefreshProjectRequest = from_js_value(request)?;
+    let project = refresh_project_from_profiled_sources(&request.current_project, &request.sources)
         .map_err(to_error_value)?;
 
     to_js_value(&project)
@@ -356,5 +371,14 @@ mod tests {
         };
 
         assert_eq!(request.options.coordinate_tolerance_mm, 1.0);
+    }
+
+    #[test]
+    fn project_refresh_request_is_exposed_for_browser_runtime() {
+        let _export: fn(JsValue) -> Result<JsValue, JsValue> = refresh_project_from_files;
+        assert_eq!(
+            std::mem::size_of::<RefreshProjectRequest>(),
+            std::mem::size_of::<RefreshProjectRequest>()
+        );
     }
 }

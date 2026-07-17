@@ -44,6 +44,12 @@ intentional and should be considered when evaluating its results.
   unique coordinate match within the configured tolerance (1 mm by default).
 - Historical Legacy rows are ignored when a more reliable current ID match is
   available. Conflicting equally reliable rows remain skipped with warnings.
+- Individual project sources can be refreshed while matched pile assignments
+  and manual CPT selections are retained. Matching uses validated IDs first and
+  a unique coordinate fallback second.
+- When the CPT source changes, refresh the corresponding foundation advice as
+  well. Otherwise capacities for unmatched CPTs and related pile configurations
+  can be temporarily unavailable.
 
 ## Platforms and Deferred Features
 

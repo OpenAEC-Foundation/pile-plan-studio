@@ -13,6 +13,7 @@ import initWasm, {
   import_project_from_files,
   preview_import_file,
   preview_pile_plan_import_file,
+  refresh_project_from_files,
   write_ifcpp_project,
 } from "./wasm/pile-plan-wasm/pile_plan_wasm.js";
 import { toStringKeyedRecord, toWasmNumberKeyedMap, toWasmNumberKeyedRecord } from "./coreSerialization.ts";
@@ -315,6 +316,26 @@ export async function importProjectFromFilesCore(input: {
   return invoke<IfcppProject>("import_project_from_files", { request });
 }
 
+export async function refreshProjectFromFilesCore(input: {
+  currentProject: IfcppProject;
+  sources: ImportSourceInput[];
+}): Promise<IfcppProject> {
+  const sources = input.sources.map(toCoreImportSource);
+  if (!isTauriRuntime()) {
+    await initializeWasm();
+    return refresh_project_from_files({
+      current_project: toWasmIfcppProject(input.currentProject),
+      sources,
+    }) as IfcppProject;
+  }
+  return invoke<IfcppProject>("refresh_project_from_files", {
+    request: {
+      current_project: input.currentProject,
+      sources,
+    },
+  });
+}
+
 export async function previewImportSourceCore(
   source: ImportSourceInput,
 ): Promise<ImportSourcePreview> {
@@ -351,7 +372,11 @@ export async function exportPilePlanXlsxCore(input: PilePlanExportInput): Promis
 
 export async function writeIfcppProjectCore(project: IfcppProject): Promise<string> {
   await initializeWasm();
-  return write_ifcpp_project({
+  return write_ifcpp_project(toWasmIfcppProject(project));
+}
+
+function toWasmIfcppProject(project: IfcppProject) {
+  return {
     ...project,
     settings: {
       ...project.settings,
@@ -362,7 +387,7 @@ export async function writeIfcppProjectCore(project: IfcppProject): Promise<stri
       selected_piles: toWasmNumberKeyedRecord(project.user_state.selected_piles),
       manual_cpt_selections: toWasmNumberKeyedRecord(project.user_state.manual_cpt_selections),
     },
-  });
+  };
 }
 
 async function exportPilePlanCore(

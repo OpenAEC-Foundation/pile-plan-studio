@@ -104,6 +104,25 @@ describe("IFCPP project loading", () => {
     assert.deepEqual(data.manualCptIdsByLoadPoint.get(1), [10, 11]);
   });
 
+  it("loads persisted choices and settings returned as WASM maps", () => {
+    const project = projectFixture();
+    project.settings.cpt_selection_by_load_point = new Map([
+      [1, project.settings.cpt_selection_by_load_point["1"]],
+    ]) as unknown as IfcppProject["settings"]["cpt_selection_by_load_point"];
+    project.user_state.selected_piles = new Map([
+      [1, project.user_state.selected_piles["1"]],
+    ]) as unknown as IfcppProject["user_state"]["selected_piles"];
+    project.user_state.manual_cpt_selections = new Map([
+      [1, [10, 11]],
+    ]) as unknown as IfcppProject["user_state"]["manual_cpt_selections"];
+
+    const data = loadIfcppProjectData(project);
+
+    assert.equal(data.cptSelectionSettingsByLoadPoint.get(1)?.maxDistanceM, 25);
+    assert.equal(data.selectedPileOptionKeysByLoadPoint.get(1), "290|-18");
+    assert.deepEqual(data.manualCptIdsByLoadPoint.get(1), [10, 11]);
+  });
+
   it("rejects non-IFCPP project data", () => {
     assert.throws(
       () => loadIfcppProjectData({ ...projectFixture(), schema: "IFC" as "IFCPP" }),

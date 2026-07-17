@@ -18,13 +18,15 @@ import { importProfileChoices } from "./importProfileChoices.ts";
 import {
   applyImportPreview,
   beginImportPreview,
-  canImportProject,
+  canSubmitProjectImport,
   createEmptyImportDrafts,
   failImportPreview,
   setImportFile,
   setImportProfile,
   setImportProfileOptions,
+  shouldWarnAboutMissingFoundationAdvice,
   type ImportPreviewState,
+  type ProjectImportMode,
 } from "./projectImportModel.ts";
 import "./projectImport.css";
 
@@ -42,9 +44,14 @@ const EMPTY_OPTIONS: ImportProfileOptions = {
 export default function ProjectImportPanel({
   onImportProject,
 }: {
-  onImportProject: (projectName: string, sources: ImportSourceInput[]) => Promise<ImportSummary | null>;
+  onImportProject: (
+    mode: ProjectImportMode,
+    projectName: string | null,
+    sources: ImportSourceInput[],
+  ) => Promise<ImportSummary | null>;
 }) {
   const { t } = useTranslation("common");
+  const [mode, setMode] = useState<ProjectImportMode>("new-project");
   const [projectName, setProjectName] = useState(() => t("importProject.defaultName"));
   const [drafts, setDrafts] = useState(() => createEmptyImportDrafts<File>());
   const [busy, setBusy] = useState(false);
@@ -109,11 +116,12 @@ export default function ProjectImportPanel({
   };
 
   const importProject = async () => {
-    if (!canImportProject(drafts)) return;
+    if (!canSubmitProjectImport(drafts, mode)) return;
     setBusy(true);
     setError(null);
     try {
-      const sources = await Promise.all(ROLES.map(async ({ role }) => {
+      const sourceRoles = ROLES.filter(({ role }) => drafts[role].file);
+      const sources = await Promise.all(sourceRoles.map(async ({ role }) => {
         const draft = drafts[role];
         const file = draft.file!;
         const format = getImportFileFormat(file.name);
@@ -127,7 +135,11 @@ export default function ProjectImportPanel({
           bytes: new Uint8Array(await file.arrayBuffer()),
         };
       }));
-      const result = await onImportProject(projectName.trim() || "Imported Project", sources);
+      const result = await onImportProject(
+        mode,
+        mode === "new-project" ? projectName.trim() || "Imported Project" : null,
+        sources,
+      );
       if (result) setSummary(result);
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : String(reason));
@@ -141,15 +153,36 @@ export default function ProjectImportPanel({
       <header className="project-import-heading">
         <h2 className="backstage-panel-title">{t("importProject.title")}</h2>
       </header>
+      <div className="project-import-mode" role="group" aria-label={t("importProject.modes.label")}>
+        {(["new-project", "refresh"] as const).map((value) => (
+          <button
+            className={mode === value ? "is-active" : ""}
+            type="button"
+            key={value}
+            onClick={() => {
+              setMode(value);
+              setError(null);
+              setSummary(null);
+            }}
+          >
+            {t(value === "new-project" ? "importProject.modes.newProject" : "importProject.modes.refresh")}
+          </button>
+        ))}
+      </div>
+      <p className="project-import-mode-description">
+        {t(mode === "new-project" ? "importProject.modes.newProjectDescription" : "importProject.modes.refreshDescription")}
+      </p>
       <div className="project-import-setup">
-        <label className="project-import-name">
-          <span>{t("importProject.projectName")}</span>
-          <input
-            className="project-import-field"
-            value={projectName}
-            onChange={(event) => setProjectName(event.target.value)}
-          />
-        </label>
+        {mode === "new-project" ? (
+          <label className="project-import-name">
+            <span>{t("importProject.projectName")}</span>
+            <input
+              className="project-import-field"
+              value={projectName}
+              onChange={(event) => setProjectName(event.target.value)}
+            />
+          </label>
+        ) : <span />}
         <label className="project-import-file-button project-import-bulk">
           <FileActionIcon />
           <span>{t("importProject.chooseFiles")}</span>
@@ -226,6 +259,11 @@ export default function ProjectImportPanel({
         })}
       </div>
 
+      {shouldWarnAboutMissingFoundationAdvice(drafts, mode) && (
+        <p className="project-import-warning" role="status">
+          {t("importProject.warnings.cptsWithoutFoundationAdvice")}
+        </p>
+      )}
       {error && <p className="project-import-error" role="alert">{error}</p>}
       {summary && (
         <section className="project-import-summary" aria-label={t("importProject.summaryAria")}>
@@ -234,8 +272,10 @@ export default function ProjectImportPanel({
           {summary.warnings.length > 0 && <ul>{summary.warnings.map((warning) => <li key={warning}>{warning}</li>)}</ul>}
         </section>
       )}
-      <button className="primary-action project-import-submit" type="button" disabled={busy || !canImportProject(drafts)} onClick={importProject}>
-        {busy ? t("importProject.importing") : t("importProject.submit")}
+      <button className="primary-action project-import-submit" type="button" disabled={busy || !canSubmitProjectImport(drafts, mode)} onClick={importProject}>
+        {busy
+          ? t(mode === "refresh" ? "importProject.refreshing" : "importProject.importing")
+          : t(mode === "refresh" ? "importProject.refreshSubmit" : "importProject.submit")}
       </button>
     </div>
   );
