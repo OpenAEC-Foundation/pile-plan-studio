@@ -28,7 +28,7 @@
 
 ## Commit
 
-Pending commit.
+`da65cb0` (`feat(settings): persist CPT monopoly distance`)
 
 ## Self-Review
 
