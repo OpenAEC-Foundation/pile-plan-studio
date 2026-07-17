@@ -7,9 +7,13 @@ import {
 } from "../.././domain/selectionState.ts";
 import type { LegendSelectionFilter } from "../../viewer/legendSelection.ts";
 import type { SelectedCpt } from "../.././core/projectTypes.ts";
-import type { CptSelectionEditDraft } from "../../domain/projectState.ts";
+import {
+  transitionCptSettingsScope,
+  type CptSelectionEditDraft,
+  type ProjectState,
+} from "../../domain/projectState.ts";
 
-type ReactViewerSelectionState = SelectionState & {
+type ReactViewerSelectionState = SelectionState & Pick<ProjectState, "cptSettingsScope"> & {
   legendSelectionFilter: LegendSelectionFilter;
 };
 
@@ -22,25 +26,28 @@ export function selectReactViewerLoadPoint(
   state: ReactViewerSelectionState,
   loadPointId: number,
 ): ReactViewerSelectionState {
-  return clearLegendSelection({ ...state, ...selectLoadPoint(state, loadPointId) });
+  return clearLegendSelection(applySelectionTransition(state, selectLoadPoint(state, loadPointId)));
 }
 
 export function toggleReactViewerLoadPoint(
   state: ReactViewerSelectionState,
   loadPointId: number,
 ): ReactViewerSelectionState {
-  return clearLegendSelection({ ...state, ...addLoadPointsToSelection(state, [loadPointId], { toggle: true }) });
+  return clearLegendSelection(applySelectionTransition(
+    state,
+    addLoadPointsToSelection(state, [loadPointId], { toggle: true }),
+  ));
 }
 
 export function addReactViewerLoadPoints(
   state: ReactViewerSelectionState,
   loadPointIds: number[],
 ): ReactViewerSelectionState {
-  return clearLegendSelection({ ...state, ...addLoadPointsToSelection(state, loadPointIds) });
+  return clearLegendSelection(applySelectionTransition(state, addLoadPointsToSelection(state, loadPointIds)));
 }
 
 export function clearReactViewerSelection(state: ReactViewerSelectionState): ReactViewerSelectionState {
-  return clearLegendSelection({ ...state, ...clearSelection(state) });
+  return clearLegendSelection(applySelectionTransition(state, clearSelection(state)));
 }
 
 export function openReactViewerCpt(state: ReactViewerSelectionState, cptId: number): ReactViewerSelectionState {
@@ -96,4 +103,19 @@ export function shouldClearLegendSelectionFromPointerTarget(target: Element): bo
 
 export function shouldRaiseCptMarker(isSelected: boolean, isEditing: boolean): boolean {
   return isSelected || isEditing;
+}
+
+function applySelectionTransition(
+  state: ReactViewerSelectionState,
+  selection: SelectionState,
+): ReactViewerSelectionState {
+  return {
+    ...state,
+    ...selection,
+    cptSettingsScope: transitionCptSettingsScope(
+      state.cptSettingsScope,
+      state.selectedLoadPointIds,
+      selection.selectedLoadPointIds,
+    ),
+  };
 }

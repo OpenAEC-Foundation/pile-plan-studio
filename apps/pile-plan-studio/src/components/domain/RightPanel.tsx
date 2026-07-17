@@ -24,11 +24,11 @@ import {
 import { formatNumber } from "../../domain/formatting.ts";
 import { openCpt, switchRightPanelMode, type RightPanelMode } from "../.././domain/selectionState.ts";
 import {
-  applyCptSelectionSettings,
+  applyCptSelectionSettingsPatch,
   beginManualCptSelection,
   cancelManualCptSelection,
   clearManualCptSelection,
-  getActiveCptSelectionSettings,
+  getCptSelectionSettingsAggregate,
   saveManualCptSelection,
 } from "./cptSettingsModel.ts";
 import { commitCostInput, updatePileCostItem, updatePileHeadLevel } from "./costSettingsModel.ts";
@@ -219,7 +219,7 @@ function CptSettingsPanel({ state, onStateChange }: Props) {
     );
   }
 
-  const settings = getActiveCptSelectionSettings(state);
+  const settings = getCptSelectionSettingsAggregate(state);
   const hasLocalSettings = state.cptSelectionSettingsByLoadPoint.has(loadPoint.id);
   const manualCptIds = state.manualCptIdsByLoadPoint.get(loadPoint.id);
   const draft = state.cptSelectionEditDraft?.loadPointId === loadPoint.id
@@ -243,9 +243,9 @@ function CptSettingsPanel({ state, onStateChange }: Props) {
               onClick={() => onStateChange({ ...state, cptSettingsScope: "all" })}
             >{t("cptSettings.allLoadPoints")}</button>
             <button
-              className={state.cptSettingsScope === "current" ? "is-selected" : ""}
+              className={state.cptSettingsScope === "selected" ? "is-selected" : ""}
               type="button"
-              onClick={() => onStateChange({ ...state, cptSettingsScope: "current" })}
+              onClick={() => onStateChange({ ...state, cptSettingsScope: "selected" })}
             >{t("cptSettings.thisLoadPoint")}</button>
           </div>
           <p className="supporting-text">
@@ -260,11 +260,12 @@ function CptSettingsPanel({ state, onStateChange }: Props) {
               min="0"
               step="1"
               type="number"
-              value={settings.maxDistanceM}
+              value={settings.maxDistanceM ?? ""}
               onChange={(event) => {
+                if (event.currentTarget.value === "") return;
                 const value = Number(event.currentTarget.value);
                 if (Number.isFinite(value)) {
-                  onStateChange(applyCptSelectionSettings(state, { ...settings, maxDistanceM: Math.max(0, value) }));
+                  onStateChange(applyCptSelectionSettingsPatch(state, { maxDistanceM: Math.max(0, value) }));
                 }
               }}
             />
@@ -278,13 +279,13 @@ function CptSettingsPanel({ state, onStateChange }: Props) {
               active={settings.algorithm === "quadrants"}
               label={t("cptSettings.quadrants")}
               sketch="quadrants"
-              onClick={() => onStateChange(applyCptSelectionSettings(state, { ...settings, algorithm: "quadrants" }))}
+              onClick={() => onStateChange(applyCptSelectionSettingsPatch(state, { algorithm: "quadrants" }))}
             />
             <AlgorithmOption
               active={settings.algorithm === "maximum-angle"}
               label={t("cptSettings.maximumAngle")}
               sketch="maximum-angle"
-              onClick={() => onStateChange(applyCptSelectionSettings(state, { ...settings, algorithm: "maximum-angle" }))}
+              onClick={() => onStateChange(applyCptSelectionSettingsPatch(state, { algorithm: "maximum-angle" }))}
             />
           </div>
         </SettingsGroup>
@@ -298,12 +299,12 @@ function CptSettingsPanel({ state, onStateChange }: Props) {
               max="360"
               step="1"
               type="number"
-              value={settings.maxAngleDegrees}
+              value={settings.maxAngleDegrees ?? ""}
               onChange={(event) => {
+                if (event.currentTarget.value === "") return;
                 const value = Number(event.currentTarget.value);
                 if (Number.isFinite(value)) {
-                  onStateChange(applyCptSelectionSettings(state, {
-                    ...settings,
+                  onStateChange(applyCptSelectionSettingsPatch(state, {
                     maxAngleDegrees: Math.min(360, Math.max(1, value)),
                   }));
                 }

@@ -1,6 +1,7 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import {
+  addReactViewerLoadPoints,
   clearReactViewerSelection,
   getReactViewerContextCptIds,
   getReactViewerSelectedCptIds,
@@ -12,6 +13,49 @@ import {
 } from "./viewerInteractions.ts";
 
 describe("React viewer interactions", () => {
+  it("defaults selected scope when creating a selection from empty", () => {
+    const state = {
+      selectedLoadPointId: null,
+      selectedLoadPointIds: [],
+      selectedCptId: null,
+      rightPanelMode: "load-point" as const,
+      cptSettingsScope: "all" as const,
+      legendSelectionFilter: { pileSizes: [], pileTipLevels: [] },
+    };
+
+    assert.equal(selectReactViewerLoadPoint(state, 2).cptSettingsScope, "selected");
+    assert.equal(addReactViewerLoadPoints(state, [2, 3]).cptSettingsScope, "selected");
+  });
+
+  it("forces all scope when a selection becomes empty", () => {
+    const state = {
+      selectedLoadPointId: 1,
+      selectedLoadPointIds: [1],
+      selectedCptId: null,
+      rightPanelMode: "load-point" as const,
+      cptSettingsScope: "selected" as const,
+      legendSelectionFilter: { pileSizes: [], pileTipLevels: [] },
+    };
+
+    assert.equal(toggleReactViewerLoadPoint(state, 1).cptSettingsScope, "all");
+    assert.equal(clearReactViewerSelection(state).cptSettingsScope, "all");
+  });
+
+  it("preserves explicit scope when changing between non-empty selections", () => {
+    const state = {
+      selectedLoadPointId: 1,
+      selectedLoadPointIds: [1, 2],
+      selectedCptId: null,
+      rightPanelMode: "load-point" as const,
+      cptSettingsScope: "all" as const,
+      legendSelectionFilter: { pileSizes: [], pileTipLevels: [] },
+    };
+
+    assert.equal(selectReactViewerLoadPoint(state, 3).cptSettingsScope, "all");
+    assert.equal(toggleReactViewerLoadPoint(state, 2).cptSettingsScope, "all");
+    assert.equal(addReactViewerLoadPoints(state, [3]).cptSettingsScope, "all");
+  });
+
   it("selects one load point and clears the selected CPT", () => {
     const next = selectReactViewerLoadPoint(
       {
@@ -19,6 +63,7 @@ describe("React viewer interactions", () => {
         selectedLoadPointIds: [1, 3],
         selectedCptId: 64,
         rightPanelMode: "cpts",
+        cptSettingsScope: "all",
         legendSelectionFilter: { pileSizes: [290], pileTipLevels: [-17.5] },
       },
       2,
@@ -38,6 +83,7 @@ describe("React viewer interactions", () => {
         selectedLoadPointIds: [1, 2],
         selectedCptId: null,
         rightPanelMode: "load-point",
+        cptSettingsScope: "selected",
         legendSelectionFilter: { pileSizes: [320], pileTipLevels: [] },
       },
       2,
@@ -54,6 +100,7 @@ describe("React viewer interactions", () => {
       selectedLoadPointIds: [1],
       selectedCptId: 64,
       rightPanelMode: "cpts",
+      cptSettingsScope: "selected",
       legendSelectionFilter: { pileSizes: [290], pileTipLevels: [-17.5] },
     });
 
@@ -71,6 +118,7 @@ describe("React viewer interactions", () => {
         selectedLoadPointIds: [1],
         selectedCptId: null,
         rightPanelMode: "load-point",
+        cptSettingsScope: "all",
         legendSelectionFilter: { pileSizes: [290], pileTipLevels: [-17.5] },
       },
       64,

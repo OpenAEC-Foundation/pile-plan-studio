@@ -40,3 +40,20 @@ describe("React optimization panel", () => {
     assert.match(config, /"rightPanel"/);
   });
 });
+
+describe("React CPT settings panel", () => {
+  it("uses selected scope, aggregate values, and field-level settings patches", () => {
+    const panel = readFileSync(resolve(import.meta.dirname, "RightPanel.tsx"), "utf8");
+
+    assert.doesNotMatch(panel, /cptSettingsScope\s*(?:===|:)\s*"current"/);
+    assert.match(panel, /cptSettingsScope === "selected"/);
+    assert.match(panel, /getCptSelectionSettingsAggregate\(state\)/);
+    assert.match(panel, /value=\{settings\.maxDistanceM \?\? ""\}/);
+    assert.match(panel, /value=\{settings\.maxAngleDegrees \?\? ""\}/);
+    assert.match(panel, /applyCptSelectionSettingsPatch\(state, \{ maxDistanceM:/);
+    assert.match(panel, /applyCptSelectionSettingsPatch\(state, \{ algorithm: "quadrants" \}\)/);
+    assert.match(panel, /applyCptSelectionSettingsPatch\(state, \{ algorithm: "maximum-angle" \}\)/);
+    assert.match(panel, /applyCptSelectionSettingsPatch\(state, \{\s*maxAngleDegrees:/s);
+    assert.doesNotMatch(panel, /applyCptSelectionSettings\(/);
+  });
+});
