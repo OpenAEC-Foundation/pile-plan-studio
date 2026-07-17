@@ -432,6 +432,12 @@
   background: #fff0f0;
 }
 
+.cpt-remove-button svg {
+  display: block;
+  width: 16px;
+  height: 16px;
+}
+
 .right-panel-header {
   display: flex;
   align-items: flex-start;

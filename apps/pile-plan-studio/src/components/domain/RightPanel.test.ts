@@ -81,9 +81,13 @@ describe("React CPT panel edit mode", () => {
 
   it("uses icon-only remove controls in edit mode and preserves normal CPT inspection links", () => {
     const panel = readFileSync(resolve(import.meta.dirname, "RightPanel.tsx"), "utf8");
+    const icons = readFileSync(resolve(import.meta.dirname, "../template/ribbon/icons.ts"), "utf8");
 
+    assert.match(icons, /export const removeIcon = `<svg fill="none" stroke="currentColor" viewBox="0 0 24 24">/);
+    assert.match(panel, /import \{ removeIcon \} from "\.\.\/template\/ribbon\/icons\.ts"/);
     assert.match(panel, /className="cpt-remove-button"/);
     assert.match(panel, /aria-label=\{t\("actions\.removeCpt"/);
+    assert.match(panel, /dangerouslySetInnerHTML=\{\{ __html: removeIcon \}\}/);
     assert.match(panel, /removeManualCpt\(state, row\.cpt\.id\)/);
     assert.match(panel, /className="cpt-link"/);
     assert.match(panel, /openCpt\(state, row\.cpt\.id\)/);

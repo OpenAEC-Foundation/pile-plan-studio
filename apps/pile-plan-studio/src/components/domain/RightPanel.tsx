@@ -35,6 +35,7 @@ import {
 } from "./cptSettingsModel.ts";
 import { commitCostInput, updatePileCostItem, updatePileHeadLevel } from "./costSettingsModel.ts";
 import { setSetting } from "../../store.ts";
+import { removeIcon } from "../template/ribbon/icons.ts";
 import OptimizationPanel from "./OptimizationPanel.tsx";
 import "./rightPanel.css";
 
@@ -518,7 +519,9 @@ function CptSelectionOverview({ state, onStateChange, selectedLoadPoints, editin
                       className="cpt-remove-button"
                       type="button"
                       onClick={() => onStateChange(removeManualCpt(state, row.cpt.id))}
-                    ><span aria-hidden="true">x</span></button>
+                    >
+                      <span aria-hidden="true" dangerouslySetInnerHTML={{ __html: removeIcon }} />
+                    </button>
                   </td>
                 ) : null}
               </tr>
