@@ -43,6 +43,8 @@ pub struct PilePlanImportRequest {
     pub options: PilePlanImportOptions,
     pub load_points: Vec<ProjectLoadPoint>,
     pub cpts: Vec<ProjectCpt>,
+    #[serde(default)]
+    pub available_pile_configurations: Vec<PileConfigurationKey>,
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
@@ -84,6 +86,7 @@ pub enum PilePlanImportDiagnosticCode {
     AmbiguousLoadPoint,
     ConflictingRows,
     UnknownCpt,
+    UnknownPileConfiguration,
 }
 
 #[derive(Clone, Debug, Default, Deserialize, Eq, PartialEq, Serialize)]
@@ -172,6 +175,8 @@ pub fn preview_pile_plan_import(request: &PilePlanImportRequest) -> PilePlanImpo
         .map(|load_point| (load_point.id, load_point))
         .collect();
     let known_cpts: HashSet<u32> = request.cpts.iter().map(|cpt| cpt.id).collect();
+    let known_piles: HashSet<&PileConfigurationKey> =
+        request.available_pile_configurations.iter().collect();
     let mut diagnostics = parsed.diagnostics;
     let mut summary = PilePlanImportSummary {
         source_rows: parsed.source_rows,
@@ -234,7 +239,22 @@ pub fn preview_pile_plan_import(request: &PilePlanImportRequest) -> PilePlanImpo
         };
 
         let pile = if request.options.import_pile_assignments {
-            row.pile.clone()
+            match &row.pile {
+                PilePlanImportedValue::Set(pile) if !known_piles.contains(pile) =>
+                {
+                    diagnostics.push(row_diagnostic(
+                        &row,
+                        PilePlanImportDiagnosticCode::UnknownPileConfiguration,
+                        format!(
+                            "Pile configuration {} mm / {} m is not available in the active project; the pile assignment is preserved.",
+                            pile.pile_size_mm,
+                            pile.pile_tip_level_m_key as f64 / 1000.0
+                        ),
+                    ));
+                    PilePlanImportedValue::Preserve
+                }
+                value => value.clone(),
+            }
         } else {
             PilePlanImportedValue::Preserve
         };
@@ -487,13 +507,12 @@ fn parse_standard_table(
         let pile = match (size.is_empty(), tip.is_empty()) {
             (true, true) => PilePlanImportedValue::Clear,
             (false, false) => PilePlanImportedValue::Set(PileConfigurationKey {
-                pile_size_mm: parse_u32(size).map_err(|message| {
+                pile_size_mm: parse_positive_u32(size).map_err(|message| {
                     invalid_cell(table, source_row.number, columns.pile_size, message)
                 })?,
-                pile_tip_level_m_key: (parse_f64(tip).map_err(|message| {
+                pile_tip_level_m_key: parse_tip_level_key(tip).map_err(|message| {
                     invalid_cell(table, source_row.number, columns.pile_tip, message)
-                })? * 1000.0)
-                    .round() as i64,
+                })?,
             }),
             _ => {
                 diagnostics.push(PilePlanImportDiagnostic {
@@ -565,9 +584,8 @@ fn parse_legacy_table(
             x_mm: parse_f64_cell(table, source_row.number, 5)?,
             y_mm: parse_f64_cell(table, source_row.number, 6)?,
             pile: PilePlanImportedValue::Set(PileConfigurationKey {
-                pile_size_mm: parse_u32_cell(table, source_row.number, 3)?,
-                pile_tip_level_m_key: (parse_f64_cell(table, source_row.number, 2)? * 1000.0)
-                    .round() as i64,
+                pile_size_mm: parse_positive_u32_cell(table, source_row.number, 3)?,
+                pile_tip_level_m_key: parse_tip_level_key_cell(table, source_row.number, 2)?,
             }),
             manual_cpt_ids: PilePlanImportedValue::Preserve,
             sheet_name: table.sheet_name.clone(),
@@ -627,6 +645,24 @@ fn parse_u32_cell(
     parse_u32(value).map_err(|message| invalid_cell(table, row, column, message))
 }
 
+fn parse_positive_u32_cell(
+    table: &SourceTable,
+    row: usize,
+    column: usize,
+) -> Result<u32, PilePlanImportDiagnostic> {
+    let value = cell(table, row, column)?;
+    parse_positive_u32(value).map_err(|message| invalid_cell(table, row, column, message))
+}
+
+fn parse_tip_level_key_cell(
+    table: &SourceTable,
+    row: usize,
+    column: usize,
+) -> Result<i64, PilePlanImportDiagnostic> {
+    let value = cell(table, row, column)?;
+    parse_tip_level_key(value).map_err(|message| invalid_cell(table, row, column, message))
+}
+
 fn parse_f64_cell(
     table: &SourceTable,
     row: usize,
@@ -642,6 +678,22 @@ fn parse_u32(value: &TableCell) -> Result<u32, String> {
         return Err(format!("Invalid positive integer '{}'.", value.as_text()));
     }
     Ok(number as u32)
+}
+
+fn parse_positive_u32(value: &TableCell) -> Result<u32, String> {
+    let number = parse_u32(value)?;
+    if number == 0 {
+        return Err("Pile size must be greater than zero.".to_string());
+    }
+    Ok(number)
+}
+
+fn parse_tip_level_key(value: &TableCell) -> Result<i64, String> {
+    let scaled = parse_f64(value)? * 1000.0;
+    if scaled < i64::MIN as f64 || scaled > i64::MAX as f64 {
+        return Err(format!("Pile tip level '{}' is outside the supported range.", value.as_text()));
+    }
+    Ok(scaled.round() as i64)
 }
 
 fn parse_f64(value: &TableCell) -> Result<f64, String> {
@@ -701,6 +753,8 @@ fn invalid_cell(
 
 #[cfg(test)]
 mod tests {
+    use std::collections::HashMap;
+
     use rust_xlsxwriter::Workbook;
 
     use super::*;
@@ -764,6 +818,35 @@ mod tests {
         assert_eq!(
             parsed.rows[1].manual_cpt_ids,
             PilePlanImportedValue::Set(vec![2, 11])
+        );
+    }
+
+    #[test]
+    fn parses_standard_xlsx_created_by_the_exporter() {
+        let pile = PileConfigurationKey {
+            pile_size_mm: 320,
+            pile_tip_level_m_key: -18_500,
+        };
+        let bytes = crate::write_pile_plan_xlsx(&crate::PilePlanExportRequest {
+            load_points: vec![load_point(7, 1000.0, 1500.0)],
+            selected_piles: HashMap::from([(7, pile.clone())]),
+            selected_cpts: HashMap::from([(7, vec![61, 64])]),
+        })
+        .expect("export workbook");
+
+        let parsed = parse_pile_plan_source(
+            "plan.xlsx",
+            SourceFormat::Xlsx,
+            &bytes,
+            PilePlanImportProfile::Automatic,
+        )
+        .expect("standard workbook");
+
+        assert_eq!(parsed.profile, PilePlanImportProfile::StandardTable);
+        assert_eq!(parsed.rows[0].pile, PilePlanImportedValue::Set(pile));
+        assert_eq!(
+            parsed.rows[0].manual_cpt_ids,
+            PilePlanImportedValue::Set(vec![61, 64])
         );
     }
 
@@ -899,6 +982,44 @@ mod tests {
     }
 
     #[test]
+    fn unknown_pile_configuration_skips_only_the_pile_change() {
+        let preview = preview_for(
+            "7,1000,1000,80,350,-19,61",
+            vec![load_point(7, 1000.0, 1000.0)],
+            vec![cpt(61)],
+            PilePlanImportOptions::default(),
+        );
+
+        assert_eq!(
+            preview.patch.changes[0].pile,
+            PilePlanImportedValue::Preserve
+        );
+        assert_eq!(
+            preview.patch.changes[0].manual_cpt_ids,
+            PilePlanImportedValue::Set(vec![61])
+        );
+        assert!(preview.diagnostics.iter().any(|diagnostic| {
+            diagnostic.code == PilePlanImportDiagnosticCode::UnknownPileConfiguration
+        }));
+    }
+
+    #[test]
+    fn rejects_zero_pile_size_in_standard_table() {
+        let preview = preview_for(
+            "7,1000,1000,80,0,-18.5,61",
+            vec![load_point(7, 1000.0, 1000.0)],
+            vec![cpt(61)],
+            PilePlanImportOptions::default(),
+        );
+
+        assert!(!preview.can_apply);
+        assert_eq!(
+            preview.diagnostics[0].code,
+            PilePlanImportDiagnosticCode::InvalidRow
+        );
+    }
+
+    #[test]
     fn category_options_preserve_disabled_project_values() {
         let mut options = PilePlanImportOptions::default();
         options.import_pile_assignments = false;
@@ -979,6 +1100,10 @@ mod tests {
             options,
             load_points,
             cpts,
+            available_pile_configurations: vec![PileConfigurationKey {
+                pile_size_mm: 320,
+                pile_tip_level_m_key: -18_500,
+            }],
         })
     }
 

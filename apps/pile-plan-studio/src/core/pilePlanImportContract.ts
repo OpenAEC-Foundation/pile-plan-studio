@@ -16,6 +16,7 @@ export type PilePlanImportRequest = {
   options: PilePlanImportOptions;
   loadPoints: LoadPoint[];
   cpts: Cpt[];
+  availablePileConfigurations: PileConfigurationKey[];
 };
 
 export type PilePlanImportedValue<T> =
@@ -100,6 +101,7 @@ export function toCorePilePlanImportRequest(request: PilePlanImportRequest) {
     },
     load_points: request.loadPoints,
     cpts: request.cpts,
+    available_pile_configurations: request.availablePileConfigurations,
   };
 }
 

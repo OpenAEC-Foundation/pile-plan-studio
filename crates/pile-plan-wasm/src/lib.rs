@@ -350,6 +350,7 @@ mod tests {
             options: pile_plan_core::PilePlanImportOptions::default(),
             load_points: vec![],
             cpts: vec![],
+            available_pile_configurations: vec![],
         };
 
         assert_eq!(request.options.coordinate_tolerance_mm, 1.0);

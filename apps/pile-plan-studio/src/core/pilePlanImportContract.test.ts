@@ -17,11 +17,15 @@ describe("pile plan import core contract", () => {
       },
       loadPoints: [],
       cpts: [],
+      availablePileConfigurations: [{ pile_size_mm: 320, pile_tip_level_m_key: -18_500 }],
     });
 
     assert.equal(request.file_name, "plan.csv");
     assert.equal(request.options.coordinate_tolerance_mm, 1);
     assert.equal(request.options.import_cpt_selections, false);
+    assert.deepEqual(request.available_pile_configurations, [
+      { pile_size_mm: 320, pile_tip_level_m_key: -18_500 },
+    ]);
   });
 
   it("maps Rust preview fields to the UI contract", () => {

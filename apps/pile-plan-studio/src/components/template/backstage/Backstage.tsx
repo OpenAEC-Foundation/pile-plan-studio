@@ -3,8 +3,11 @@ import { flushSync } from "react-dom";
 import { useTranslation } from "react-i18next";
 import { useRecentFiles, type RecentFile } from "../../../hooks/useRecentFiles";
 import ProjectImportPanel from "../../domain/ProjectImportPanel";
+import PilePlanImportPanel from "../../domain/PilePlanImportPanel.tsx";
 import type { ImportSourceInput } from "../../.././core/coreImportContract";
 import type { ImportSummary } from "../../.././core/projectFile";
+import type { PilePlanImportPatch } from "../../../core/pilePlanImportContract.ts";
+import type { Cpt, LoadPoint, PileConfigurationKey } from "../../../core/projectTypes.ts";
 import type { ProjectFileCommands } from "../../../domain/projectPersistence.ts";
 import "./Backstage.css";
 
@@ -62,6 +65,10 @@ interface BackstageProps {
   onOpenSettings: () => void;
   onOpenFile?: (path: string) => void;
   onImportProject: (projectName: string, sources: ImportSourceInput[]) => Promise<ImportSummary | null>;
+  loadPoints: LoadPoint[];
+  cpts: Cpt[];
+  availablePileConfigurations: PileConfigurationKey[];
+  onImportPilePlan: (patch: PilePlanImportPatch) => void;
   onOpenProjectFile: (file: File) => Promise<void>;
   onDownloadProject: () => Promise<void>;
   onExportPilePlanXlsx: () => Promise<void>;
@@ -72,7 +79,7 @@ interface BackstageProps {
   commands: ProjectFileCommands;
 }
 
-export default function Backstage({ open, onClose, onOpenSettings, onOpenFile, onImportProject, onOpenProjectFile, onDownloadProject, onExportPilePlanXlsx, onExportPilePlanCsv, onChooseDesktopProject, onSaveProject, onSaveProjectAs, commands }: BackstageProps) {
+export default function Backstage({ open, onClose, onOpenSettings, onOpenFile, onImportProject, loadPoints, cpts, availablePileConfigurations, onImportPilePlan, onOpenProjectFile, onDownloadProject, onExportPilePlanXlsx, onExportPilePlanCsv, onChooseDesktopProject, onSaveProject, onSaveProjectAs, commands }: BackstageProps) {
   const { t } = useTranslation("backstage");
   const [activePanel, setActivePanel] = useState<string>("none");
   const { recentFiles, removeRecentFile, clearRecentFiles } = useRecentFiles();
@@ -95,6 +102,7 @@ export default function Backstage({ open, onClose, onOpenSettings, onOpenFile, o
     activePanel === "open" ||
     activePanel === "about" ||
     activePanel === "import" ||
+    activePanel === "pile-plan-import" ||
     activePanel === "export";
 
   return (
@@ -131,6 +139,12 @@ export default function Backstage({ open, onClose, onOpenSettings, onOpenFile, o
             label={t("import")}
             active={activePanel === "import"}
             onClick={() => setActivePanel("import")}
+          />
+          <MenuItem
+            icon={ICONS.import}
+            label={t("importPilePlan")}
+            active={activePanel === "pile-plan-import"}
+            onClick={() => setActivePanel("pile-plan-import")}
           />
           <MenuItem
             icon={ICONS.export}
@@ -194,6 +208,17 @@ export default function Backstage({ open, onClose, onOpenSettings, onOpenFile, o
           {activePanel === "import" && <ProjectImportPanel onImportProject={async (name, sources) => {
             return onImportProject(name, sources);
           }} />}
+          {activePanel === "pile-plan-import" && (
+            <PilePlanImportPanel
+              loadPoints={loadPoints}
+              cpts={cpts}
+              availablePileConfigurations={availablePileConfigurations}
+              onImportPilePlan={(patch) => {
+                onImportPilePlan(patch);
+                onClose();
+              }}
+            />
+          )}
           {activePanel === "export" && (
             <ExportPanel
               canDownloadProject={commands.download}

@@ -60,6 +60,18 @@ describe("Workspace translations", () => {
     assert.match(nlCommon, /Kies het RFEM-werkblad met de knoopreacties/);
   });
 
+  it("translates the pile plan import workflow consistently", () => {
+    const enBackstage = readFileSync(resolve(import.meta.dirname, "../../i18n/locales/en/backstage.json"), "utf8");
+    const nlBackstage = readFileSync(resolve(import.meta.dirname, "../../i18n/locales/nl/backstage.json"), "utf8");
+
+    assert.match(enBackstage, /"importPilePlan":\s*"Import pile plan"/);
+    assert.match(enBackstage, /"pileAssignments":\s*"Pile assignments"/);
+    assert.match(nlBackstage, /"importPilePlan":\s*"Palenplan importeren"/);
+    assert.match(nlBackstage, /"pileAssignments":\s*"Paaltoewijzingen"/);
+    assert.match(nlBackstage, /"cptSelections":\s*"Sonderingselecties"/);
+    assert.match(nlBackstage, /"tolerance":\s*"Coördinatietolerantie"/);
+  });
+
   it("renders the updated design resistance notation in visible tables", () => {
     const panel = readFileSync(resolve(import.meta.dirname, "RightPanel.tsx"), "utf8");
 
