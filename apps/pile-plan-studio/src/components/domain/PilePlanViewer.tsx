@@ -30,6 +30,7 @@ import {
   getLoadPointMarkerInvalidVisual,
   getUnselectedLoadPointMarkerState,
 } from "../../viewer/loadPointMarker.ts";
+import { getCptConnectionSegments } from "../../viewer/cptConnectionLines.ts";
 import { projectPoint } from "../../viewer/viewerGeometry.ts";
 import {
   clampScale,
@@ -69,6 +70,19 @@ export default function PilePlanViewer({ state, onStateChange }: Props) {
     selectedPileOptionKeysByLoadPoint: state.selectedPileOptionKeysByLoadPoint,
   });
   const isEditingCptSelection = isReactViewerCptSelectionEditing(state);
+  const cptConnectionSegments = useMemo(() => getCptConnectionSegments({
+    bounds: state.bounds,
+    cpts: state.cpts,
+    selectedLoadPointIds: state.selectedLoadPointIds,
+    selectedCptsByLoadPointId: state.selectedCptsByLoadPointId,
+    cptSelectionEditDraft: state.cptSelectionEditDraft,
+  }), [
+    state.bounds,
+    state.cptSelectionEditDraft,
+    state.cpts,
+    state.selectedCptsByLoadPointId,
+    state.selectedLoadPointIds,
+  ]);
   const canvasRef = useRef<HTMLDivElement | null>(null);
   const stageRef = useRef<HTMLDivElement | null>(null);
   const interactionRef = useRef<ViewerInteraction | null>(null);
@@ -171,6 +185,20 @@ export default function PilePlanViewer({ state, onStateChange }: Props) {
       >
         <div className="viewer-content" ref={stageRef} style={getStageStyle(state.viewport)}>
           <div className="viewer-grid" />
+          {cptConnectionSegments.length > 0 ? (
+            <svg className="cpt-connection-lines" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+              {cptConnectionSegments.map((segment) => (
+                <line
+                  className="cpt-connection-line"
+                  key={`${segment.from.id}-${segment.to.id}`}
+                  x1={segment.from.x}
+                  y1={segment.from.y}
+                  x2={segment.to.x}
+                  y2={segment.to.y}
+                />
+              ))}
+            </svg>
+          ) : null}
           {state.cpts.map((cpt) => {
             const point = projectPoint(cpt, state.bounds);
             const cptName = getCptDisplayName(cpt);

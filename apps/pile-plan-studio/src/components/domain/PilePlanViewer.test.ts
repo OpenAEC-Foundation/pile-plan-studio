@@ -161,6 +161,17 @@ describe("PilePlanViewer inputs", () => {
     assert.doesNotMatch(css, /--viewer-marker-scale/);
   });
 
+  it("renders pointer-inert CPT connection lines inside the transformed stage before map markers", () => {
+    const source = readFileSync(resolve(import.meta.dirname, "PilePlanViewer.tsx"), "utf8");
+    const css = readFileSync(resolve(import.meta.dirname, "viewer.css"), "utf8");
+    const stageContent = source.match(/<div className="viewer-content"[\s\S]*?<div className="viewer-grid" \/>(?<content>[\s\S]*?)\{state\.cpts\.map/s)?.groups?.content ?? "";
+
+    assert.match(source, /getCptConnectionSegments/);
+    assert.match(stageContent, /<svg className="cpt-connection-lines"[\s\S]*?<line/);
+    assert.match(css, /\.cpt-connection-lines\s*\{[\s\S]*?pointer-events:\s*none;/);
+    assert.match(css, /\.cpt-connection-line\s*\{[\s\S]*?stroke:\s*var\(--theme-text\)/);
+  });
+
   it("does not restore a stale React viewport while a wheel zoom is waiting to commit", () => {
     const source = readFileSync(resolve(import.meta.dirname, "PilePlanViewer.tsx"), "utf8");
 

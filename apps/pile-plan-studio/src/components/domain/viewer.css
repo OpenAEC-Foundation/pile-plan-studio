@@ -122,6 +122,22 @@
   background-size: 32px 32px;
 }
 
+.cpt-connection-lines {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  pointer-events: none;
+}
+
+.cpt-connection-line {
+  stroke: var(--theme-text);
+  stroke-width: 0.35;
+  stroke-opacity: 0.5;
+  vector-effect: non-scaling-stroke;
+}
+
 .viewer-content {
   --selection-ring-width: 2px;
   --load-point-marker-base: 14px;
