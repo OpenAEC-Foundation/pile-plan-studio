@@ -24,7 +24,7 @@ export type InputSource = {
   itemCount: number;
 };
 
-export type CptSettingsScope = "all" | "current";
+export type CptSettingsScope = "all" | "selected";
 
 export type CptSelectionEditDraft = {
   loadPointId: number;
@@ -120,4 +120,18 @@ export function createInitialProjectState(
     optimizationError: null,
     optimizationSummary: null,
   };
+}
+
+export function transitionCptSettingsScope(
+  scope: CptSettingsScope,
+  previousSelectedLoadPointIds: number[],
+  selectedLoadPointIds: number[],
+): CptSettingsScope {
+  if (selectedLoadPointIds.length === 0) {
+    return "all";
+  }
+  if (previousSelectedLoadPointIds.length === 0) {
+    return "selected";
+  }
+  return scope;
 }

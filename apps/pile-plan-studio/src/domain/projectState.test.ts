@@ -1,7 +1,7 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { createInitialProjectState } from "./projectState.ts";
+import { createInitialProjectState, transitionCptSettingsScope } from "./projectState.ts";
 
 const sampleProjectText = readFileSync("../../sample_project/sample_project.ifcpp", "utf8");
 
@@ -46,5 +46,20 @@ describe("createInitialProjectState", () => {
     assert.equal(state.inputSources[0].itemCount, state.loadPoints.length);
     assert.equal(state.inputSources[1].itemCount, state.cpts.length);
     assert.equal(state.inputSources[2].itemCount, state.bearingCapacities.length);
+  });
+});
+
+describe("transitionCptSettingsScope", () => {
+  it("forces all scope when the selection is empty", () => {
+    assert.equal(transitionCptSettingsScope("selected", [1], []), "all");
+  });
+
+  it("defaults to selected scope when a selection is created", () => {
+    assert.equal(transitionCptSettingsScope("all", [], [1, 2]), "selected");
+  });
+
+  it("preserves an explicit scope when replacing a non-empty selection", () => {
+    assert.equal(transitionCptSettingsScope("all", [1], [2, 3]), "all");
+    assert.equal(transitionCptSettingsScope("selected", [1], [2, 3]), "selected");
   });
 });

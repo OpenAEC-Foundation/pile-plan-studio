@@ -1,43 +1,123 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import {
-  applyCptSelectionSettings,
+  applyCptSelectionSettingsPatch,
   beginManualCptSelection,
   cancelManualCptSelection,
   clearManualCptSelection,
-  getActiveCptSelectionSettings,
+  getCptSelectionSettingsAggregate,
   saveManualCptSelection,
   toggleManualCpt,
 } from "./cptSettingsModel.ts";
 import type { ProjectState } from "../../domain/projectState.ts";
 
 describe("React CPT settings model", () => {
-  it("applies global settings to all load points", () => {
-    const state = minimalState();
-    const next = applyCptSelectionSettings(state, {
-      algorithm: "maximum-angle",
-      maxDistanceM: 30,
-      monopolyDistanceM: 1,
-      maxAngleDegrees: 100,
+  it("patches every load point and requests all analysis when scope is all", () => {
+    const state = minimalState({
+      cptSelectionSettingsByLoadPoint: new Map([[2, settings({ maxDistanceM: 18, maxAngleDegrees: 100 })]]),
+      loadPoints: [loadPoint(1), loadPoint(2), loadPoint(3)],
+      selectedLoadPointIds: [1, 2],
     });
+    const next = applyCptSelectionSettingsPatch(state, { algorithm: "maximum-angle" });
 
     assert.equal(next.globalCptSelectionSettings.algorithm, "maximum-angle");
+    assert.equal(next.cptSelectionSettingsByLoadPoint.get(2)?.algorithm, "maximum-angle");
+    assert.equal(next.cptSelectionSettingsByLoadPoint.get(2)?.maxDistanceM, 18);
+    assert.equal(next.cptSelectionSettingsByLoadPoint.has(1), false);
     assert.equal(next.analysisRequest.revision, 1);
     assert.equal(next.analysisRequest.loadPointIds, null);
   });
 
-  it("applies local settings only to the current load point", () => {
-    const state = minimalState({ cptSettingsScope: "current" });
-    const next = applyCptSelectionSettings(state, {
-      algorithm: "quadrants",
-      maxDistanceM: 18,
-      monopolyDistanceM: 1,
-      maxAngleDegrees: 120,
+  it("patches exactly selected load points and requests their analysis", () => {
+    const state = minimalState({
+      cptSettingsScope: "selected",
+      loadPoints: [loadPoint(1), loadPoint(2), loadPoint(3)],
+      selectedLoadPointIds: [1, 3],
     });
+    const next = applyCptSelectionSettingsPatch(state, { maxDistanceM: 18 });
 
     assert.equal(next.cptSelectionSettingsByLoadPoint.get(1)?.maxDistanceM, 18);
-    assert.deepEqual(next.analysisRequest.loadPointIds, [1]);
-    assert.equal(getActiveCptSelectionSettings(next).maxDistanceM, 18);
+    assert.equal(next.cptSelectionSettingsByLoadPoint.get(3)?.maxDistanceM, 18);
+    assert.equal(next.cptSelectionSettingsByLoadPoint.has(2), false);
+    assert.deepEqual(next.analysisRequest.loadPointIds, [1, 3]);
+  });
+
+  it("falls back to all load points when selected scope has no selection", () => {
+    const state = minimalState({
+      cptSettingsScope: "selected",
+      selectedLoadPointId: null,
+      selectedLoadPointIds: [],
+    });
+    const next = applyCptSelectionSettingsPatch(state, { maxDistanceM: 18 });
+
+    assert.equal(next.cptSettingsScope, "all");
+    assert.equal(next.globalCptSelectionSettings.maxDistanceM, 18);
+    assert.equal(next.analysisRequest.loadPointIds, null);
+  });
+
+  it("aggregates common settings and reports mixed fields as null", () => {
+    const state = minimalState({
+      cptSelectionSettingsByLoadPoint: new Map([
+        [1, settings({ maxDistanceM: 18 })],
+        [2, settings({ maxDistanceM: 30, maxAngleDegrees: 100 })],
+      ]),
+      loadPoints: [loadPoint(1), loadPoint(2)],
+      selectedLoadPointIds: [1, 2],
+    });
+
+    assert.deepEqual(getCptSelectionSettingsAggregate(state), {
+      algorithm: "quadrants",
+      maxDistanceM: null,
+      monopolyDistanceM: 1,
+      maxAngleDegrees: null,
+    });
+  });
+
+  it("preserves untouched mixed settings while applying a field-level patch", () => {
+    const state = minimalState({
+      cptSelectionSettingsByLoadPoint: new Map([
+        [1, settings({ maxDistanceM: 18, maxAngleDegrees: 90 })],
+        [2, settings({ maxDistanceM: 30, maxAngleDegrees: 140 })],
+      ]),
+      cptSettingsScope: "selected",
+      loadPoints: [loadPoint(1), loadPoint(2)],
+      selectedLoadPointIds: [1, 2],
+    });
+    const next = applyCptSelectionSettingsPatch(state, { algorithm: "maximum-angle" });
+
+    assert.deepEqual(next.cptSelectionSettingsByLoadPoint.get(1), settings({ algorithm: "maximum-angle", maxDistanceM: 18, maxAngleDegrees: 90 }));
+    assert.deepEqual(next.cptSelectionSettingsByLoadPoint.get(2), settings({ algorithm: "maximum-angle", maxDistanceM: 30, maxAngleDegrees: 140 }));
+  });
+
+  it("keeps manual selections and their settings untouched unless overwrite is explicit", () => {
+    const state = minimalState({
+      cptSelectionSettingsByLoadPoint: new Map([[2, settings({ maxDistanceM: 18 })]]),
+      cptSettingsScope: "selected",
+      loadPoints: [loadPoint(1), loadPoint(2)],
+      manualCptIdsByLoadPoint: new Map([[2, [61]]]),
+      selectedLoadPointIds: [1, 2],
+    });
+    const next = applyCptSelectionSettingsPatch(state, { maxDistanceM: 30 });
+
+    assert.equal(next.cptSelectionSettingsByLoadPoint.get(1)?.maxDistanceM, 30);
+    assert.equal(next.cptSelectionSettingsByLoadPoint.get(2)?.maxDistanceM, 18);
+    assert.deepEqual(next.manualCptIdsByLoadPoint.get(2), [61]);
+    assert.deepEqual(next.analysisRequest.loadPointIds, [1, 2]);
+  });
+
+  it("removes manual selections for targets and reanalyzes them when overwrite is explicit", () => {
+    const state = minimalState({
+      cptSelectionSettingsByLoadPoint: new Map([[2, settings({ maxDistanceM: 18 })]]),
+      cptSettingsScope: "selected",
+      loadPoints: [loadPoint(1), loadPoint(2)],
+      manualCptIdsByLoadPoint: new Map([[2, [61]]]),
+      selectedLoadPointIds: [1, 2],
+    });
+    const next = applyCptSelectionSettingsPatch(state, { maxDistanceM: 30 }, true);
+
+    assert.equal(next.cptSelectionSettingsByLoadPoint.get(2)?.maxDistanceM, 30);
+    assert.equal(next.manualCptIdsByLoadPoint.has(2), false);
+    assert.deepEqual(next.analysisRequest.loadPointIds, [1, 2]);
   });
 
   it("edits, toggles, and saves a manual CPT selection for one load point", () => {
@@ -100,4 +180,12 @@ function minimalState(overrides: Partial<ProjectState> = {}): ProjectState {
     viewport: { scale: 1, offsetX: 0, offsetY: 0 },
     ...overrides,
   };
+}
+
+function loadPoint(id: number) {
+  return { id, name: `Load point ${id}`, x_mm: 0, y_mm: 0, design_load_kn: 100 };
+}
+
+function settings(overrides: Partial<ProjectState["globalCptSelectionSettings"]> = {}) {
+  return { algorithm: "quadrants" as const, maxDistanceM: 25, monopolyDistanceM: 1, maxAngleDegrees: 120, ...overrides };
 }
