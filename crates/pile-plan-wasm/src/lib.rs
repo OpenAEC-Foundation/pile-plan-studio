@@ -4,10 +4,11 @@ use pile_plan_core::{
     bearing_capacity_rows_for_cpt, build_pile_options_by_load_point, build_project_analysis,
     calculate_pile_cost, choose_default_pile_option, choose_default_pile_options,
     greedy_optimize_pile_choices, import_project_from_generic_sources, preview_import_source,
-    selected_cpts, write_ifcpp_string, write_pile_plan_csv, write_pile_plan_xlsx,
-    CptSelectionSettings, GreedyOptimizationSettings, GreedyOptimizedPileChoice, ImportSource,
-    PileConfigurationKey, PileConfigurationOption, PileCostSettings, PilePlanExportRequest,
-    PilePlanProject, ProjectBearingCapacity, ProjectCpt, ProjectLoadPoint,
+    preview_pile_plan_import, selected_cpts, write_ifcpp_string, write_pile_plan_csv,
+    write_pile_plan_xlsx, CptSelectionSettings, GreedyOptimizationSettings,
+    GreedyOptimizedPileChoice, ImportSource, PileConfigurationKey, PileConfigurationOption,
+    PileCostSettings, PilePlanExportRequest, PilePlanImportRequest, PilePlanProject,
+    ProjectBearingCapacity, ProjectCpt, ProjectLoadPoint,
 };
 use serde::{Deserialize, Serialize};
 use wasm_bindgen::prelude::*;
@@ -203,6 +204,12 @@ pub fn preview_import_file(request: JsValue) -> Result<JsValue, JsValue> {
 }
 
 #[wasm_bindgen]
+pub fn preview_pile_plan_import_file(request: JsValue) -> Result<JsValue, JsValue> {
+    let request: PilePlanImportRequest = from_js_value(request)?;
+    to_js_value(&preview_pile_plan_import(&request))
+}
+
+#[wasm_bindgen]
 pub fn export_pile_plan_csv(request: JsValue) -> Result<Vec<u8>, JsValue> {
     let request: PilePlanExportRequest = from_js_value(request)?;
     write_pile_plan_csv(&request).map_err(to_error_value)
@@ -330,5 +337,21 @@ mod tests {
             request.source.profile,
             pile_plan_core::ImportProfile::RfemExport
         );
+    }
+
+    #[test]
+    fn pile_plan_import_preview_request_accepts_project_context() {
+        let _export: fn(JsValue) -> Result<JsValue, JsValue> = preview_pile_plan_import_file;
+        let request = pile_plan_core::PilePlanImportRequest {
+            file_name: "plan.csv".to_string(),
+            format: pile_plan_core::SourceFormat::Csv,
+            bytes: vec![],
+            profile: pile_plan_core::PilePlanImportProfile::Automatic,
+            options: pile_plan_core::PilePlanImportOptions::default(),
+            load_points: vec![],
+            cpts: vec![],
+        };
+
+        assert_eq!(request.options.coordinate_tolerance_mm, 1.0);
     }
 }

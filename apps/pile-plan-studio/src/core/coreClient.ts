@@ -12,6 +12,7 @@ import initWasm, {
   greedy_optimize,
   import_project_from_files,
   preview_import_file,
+  preview_pile_plan_import_file,
   write_ifcpp_project,
 } from "./wasm/pile-plan-wasm/pile_plan_wasm.js";
 import { toStringKeyedRecord, toWasmNumberKeyedMap, toWasmNumberKeyedRecord } from "./coreSerialization.ts";
@@ -47,6 +48,12 @@ import {
   type ImportSourceInput,
   type ImportSourcePreview,
 } from "./coreImportContract.ts";
+import {
+  fromCorePilePlanImportPreview,
+  toCorePilePlanImportRequest,
+  type PilePlanImportPreview,
+  type PilePlanImportRequest,
+} from "./pilePlanImportContract.ts";
 
 type CoreCptSelectionSettings = {
   algorithm: CptSelectionSettings["algorithm"];
@@ -317,6 +324,19 @@ export async function previewImportSourceCore(
   }
   return fromCoreImportSourcePreview(
     await invoke("preview_import_file", { request }),
+  );
+}
+
+export async function previewPilePlanImportCore(
+  input: PilePlanImportRequest,
+): Promise<PilePlanImportPreview> {
+  const request = toCorePilePlanImportRequest(input);
+  if (!isTauriRuntime()) {
+    await initializeWasm();
+    return fromCorePilePlanImportPreview(preview_pile_plan_import_file(request));
+  }
+  return fromCorePilePlanImportPreview(
+    await invoke("preview_pile_plan_import_file", { request }),
   );
 }
 
