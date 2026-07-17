@@ -47,17 +47,27 @@ pub(crate) fn analyze_rfem_load_points(
 }
 
 pub(crate) fn detect_rfem_sheets(tables: &[SourceTable]) -> RfemSheetDetection {
+    let mut coordinate_candidates: Vec<_> = tables
+        .iter()
+        .filter(|table| coordinate_columns(table).is_some())
+        .filter_map(sheet_name)
+        .collect();
+    let mut reaction_candidates: Vec<_> = tables
+        .iter()
+        .filter(|table| reaction_columns(table).is_some())
+        .filter_map(sheet_name)
+        .collect();
+
+    if coordinate_candidates.is_empty() {
+        coordinate_candidates.extend(tables.first().and_then(sheet_name));
+    }
+    if reaction_candidates.is_empty() {
+        reaction_candidates.extend(tables.get(1).and_then(sheet_name));
+    }
+
     RfemSheetDetection {
-        coordinate_candidates: tables
-            .iter()
-            .filter(|table| coordinate_columns(table).is_some())
-            .filter_map(sheet_name)
-            .collect(),
-        reaction_candidates: tables
-            .iter()
-            .filter(|table| reaction_columns(table).is_some())
-            .filter_map(sheet_name)
-            .collect(),
+        coordinate_candidates,
+        reaction_candidates,
     }
 }
 
@@ -115,8 +125,9 @@ pub(crate) fn analyze_tables(
 }
 
 fn parse_coordinates(table: &SourceTable) -> Result<ParsedCoordinates, ImportError> {
-    let (header_row, id_column, x_column, y_column) =
-        coordinate_columns(table).ok_or_else(|| {
+    let (header_row, id_column, x_column, y_column) = coordinate_columns(table)
+        .or_else(|| positional_coordinate_columns(table))
+        .ok_or_else(|| {
             ImportError::Validation(format!(
                 "{} does not contain RFEM node coordinates.",
                 table.file_name
@@ -154,8 +165,9 @@ fn parse_coordinates(table: &SourceTable) -> Result<ParsedCoordinates, ImportErr
 }
 
 fn parse_reactions(table: &SourceTable) -> Result<ParsedReactions, ImportError> {
-    let (header_row, id_column, label_column, pz_column) =
-        reaction_columns(table).ok_or_else(|| {
+    let (header_row, id_column, label_column, pz_column) = reaction_columns(table)
+        .or_else(|| positional_reaction_columns(table))
+        .ok_or_else(|| {
             ImportError::Validation(format!(
                 "{} does not contain RFEM nodal reactions.",
                 table.file_name
@@ -173,7 +185,7 @@ fn parse_reactions(table: &SourceTable) -> Result<ParsedReactions, ImportError> 
             .get(label_column)
             .map(TableCell::as_text)
             .unwrap_or_default();
-        if normalize(&label) != "min pz'" {
+        if !matches!(normalize(&label).as_str(), "min pz'" | "min pz" | "min") {
             continue;
         }
         let id = current_node.ok_or_else(|| {
@@ -223,9 +235,27 @@ fn reaction_columns(table: &SourceTable) -> Option<(usize, usize, usize, usize)>
             .map(|cell| normalize(&cell.as_text()))
             .collect();
         let id = find_header(&normalized, &["no.", "no", "nummer"])?;
-        let pz = find_header(&normalized, &["pz'"])?;
+        let pz = find_header(&normalized, &["pz'", "pz"])?;
         Some((row.number, id, id + 1, pz))
     })
+}
+
+fn positional_coordinate_columns(table: &SourceTable) -> Option<(usize, usize, usize, usize)> {
+    let header_row = table.rows.get(1)?.number;
+    table
+        .rows
+        .iter()
+        .any(|row| row.cells.len() > 5)
+        .then_some((header_row, 0, 4, 5))
+}
+
+fn positional_reaction_columns(table: &SourceTable) -> Option<(usize, usize, usize, usize)> {
+    let header_row = table.rows.get(1)?.number;
+    table
+        .rows
+        .iter()
+        .any(|row| row.cells.len() > 4)
+        .then_some((header_row, 0, 1, 4))
 }
 
 fn find_header(values: &[String], candidates: &[&str]) -> Option<usize> {
@@ -377,6 +407,40 @@ mod tests {
     }
 
     #[test]
+    fn falls_back_to_first_two_worksheets_for_positional_rfem_layout() {
+        let analysis = analyze_tables(
+            &[
+                positional_coordinate_table("Ander knopenblad", &[(15, 9.05, 4.70)]),
+                positional_reaction_table("Andere reacties", &[(15, -79.0)]),
+            ],
+            &ImportProfileOptions::default(),
+        )
+        .unwrap();
+
+        assert_eq!(analysis.coordinate_sheet, "Ander knopenblad");
+        assert_eq!(analysis.reaction_sheet, "Andere reacties");
+        assert_eq!(analysis.load_points.len(), 1);
+        assert_eq!(analysis.load_points[0].id, 15);
+        assert_eq!(analysis.load_points[0].design_load_kn, 79.0);
+    }
+
+    #[test]
+    fn parses_unprimed_pz_minimum_envelope_rows() {
+        let analysis = analyze_tables(
+            &[
+                rfem_coordinate_table("1.1 Knopen", &[(15, 9.05, 4.70)]),
+                unprimed_reaction_table("RC1 - Reactiekrachten", &[(15, -79.0)]),
+            ],
+            &ImportProfileOptions::default(),
+        )
+        .unwrap();
+
+        assert_eq!(analysis.load_points.len(), 1);
+        assert_eq!(analysis.load_points[0].id, 15);
+        assert_eq!(analysis.load_points[0].design_load_kn, 79.0);
+    }
+
+    #[test]
     fn warns_for_unmatched_coordinate_and_reaction_nodes() {
         let analysis = analyze_tables(
             &[
@@ -506,6 +570,53 @@ mod tests {
                 cells: vec![
                     TableCell::Empty,
                     TableCell::Text("Min PZ'".to_string()),
+                    TableCell::Number(0.0),
+                    TableCell::Number(0.0),
+                    TableCell::Number(*min_pz),
+                ],
+            });
+        }
+        SourceTable {
+            file_name: "Export RFEM.xlsx".to_string(),
+            sheet_name: Some(name.to_string()),
+            rows: source_rows,
+        }
+    }
+
+    fn positional_coordinate_table(name: &str, rows: &[(u32, f64, f64)]) -> SourceTable {
+        let mut table = rfem_coordinate_table(name, rows);
+        table.rows[1] = row(2, &["Node", "Type", "Reference", "System", "X", "Y"]);
+        table
+    }
+
+    fn positional_reaction_table(name: &str, rows: &[(u32, f64)]) -> SourceTable {
+        let mut table = unprimed_reaction_table(name, rows);
+        table.rows[1] = row(2, &["Node", "Envelope", "FX", "FY", "FZ", "MX"]);
+        table
+    }
+
+    fn unprimed_reaction_table(name: &str, rows: &[(u32, f64)]) -> SourceTable {
+        let mut source_rows = vec![
+            row(1, &["Knoop", "", "Reactiekrachten [kN]", "", "", ""]),
+            row(2, &["No.", "", "PX", "PY", "PZ", "MX"]),
+        ];
+        for (id, min_pz) in rows {
+            let base = source_rows.len() + 1;
+            source_rows.push(SourceRow {
+                number: base,
+                cells: vec![
+                    TableCell::Number(*id as f64),
+                    TableCell::Text("Max".to_string()),
+                    TableCell::Number(0.0),
+                    TableCell::Number(0.0),
+                    TableCell::Number(-1.0),
+                ],
+            });
+            source_rows.push(SourceRow {
+                number: base + 1,
+                cells: vec![
+                    TableCell::Empty,
+                    TableCell::Text("Min".to_string()),
                     TableCell::Number(0.0),
                     TableCell::Number(0.0),
                     TableCell::Number(*min_pz),
