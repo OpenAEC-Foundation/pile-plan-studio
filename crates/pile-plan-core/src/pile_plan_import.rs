@@ -1,5 +1,5 @@
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use crate::{
     import::read_source_table, import::read_xlsx_tables, import::SourceTable, import::TableCell,
@@ -136,8 +136,234 @@ struct ParsedPilePlanRow {
 struct ParsedPilePlanSource {
     profile: PilePlanImportProfile,
     supports_cpt_selections: bool,
+    source_rows: usize,
     rows: Vec<ParsedPilePlanRow>,
     diagnostics: Vec<PilePlanImportDiagnostic>,
+}
+
+pub fn preview_pile_plan_import(request: &PilePlanImportRequest) -> PilePlanImportPreview {
+    if !request.options.coordinate_tolerance_mm.is_finite()
+        || request.options.coordinate_tolerance_mm < 0.0
+    {
+        return failed_preview(
+            request.profile,
+            PilePlanImportDiagnostic {
+                severity: PilePlanImportDiagnosticSeverity::Error,
+                code: PilePlanImportDiagnosticCode::InvalidTolerance,
+                message: "Coordinate tolerance must be a finite, non-negative number.".to_string(),
+                location: None,
+            },
+        );
+    }
+
+    let parsed = match parse_pile_plan_source(
+        &request.file_name,
+        request.format,
+        &request.bytes,
+        request.profile,
+    ) {
+        Ok(parsed) => parsed,
+        Err(diagnostic) => return failed_preview(request.profile, diagnostic),
+    };
+
+    let load_points_by_id: HashMap<u32, &ProjectLoadPoint> = request
+        .load_points
+        .iter()
+        .map(|load_point| (load_point.id, load_point))
+        .collect();
+    let known_cpts: HashSet<u32> = request.cpts.iter().map(|cpt| cpt.id).collect();
+    let mut diagnostics = parsed.diagnostics;
+    let mut summary = PilePlanImportSummary {
+        source_rows: parsed.source_rows,
+        skipped_rows: diagnostics
+            .iter()
+            .filter(|diagnostic| {
+                diagnostic.code == PilePlanImportDiagnosticCode::UnsupportedPileCount
+            })
+            .count(),
+        ..PilePlanImportSummary::default()
+    };
+    let mut candidates = Vec::new();
+
+    for row in parsed.rows {
+        let id_match = load_points_by_id
+            .get(&row.source_id)
+            .copied()
+            .filter(|load_point| {
+                coordinate_distance(load_point.x_mm, load_point.y_mm, row.x_mm, row.y_mm)
+                    <= request.options.coordinate_tolerance_mm
+            });
+        let (load_point, used_fallback) = if let Some(load_point) = id_match {
+            (load_point, false)
+        } else {
+            let coordinate_matches: Vec<_> = request
+                .load_points
+                .iter()
+                .filter(|load_point| {
+                    coordinate_distance(load_point.x_mm, load_point.y_mm, row.x_mm, row.y_mm)
+                        <= request.options.coordinate_tolerance_mm
+                })
+                .collect();
+            match coordinate_matches.as_slice() {
+                [load_point] => (*load_point, true),
+                [] => {
+                    summary.skipped_rows += 1;
+                    diagnostics.push(row_diagnostic(
+                        &row,
+                        PilePlanImportDiagnosticCode::UnmatchedLoadPoint,
+                        format!(
+                            "Load point {} could not be matched by ID and coordinates.",
+                            row.source_id
+                        ),
+                    ));
+                    continue;
+                }
+                _ => {
+                    summary.skipped_rows += 1;
+                    diagnostics.push(row_diagnostic(
+                        &row,
+                        PilePlanImportDiagnosticCode::AmbiguousLoadPoint,
+                        format!(
+                            "Load point {} matches multiple project locations within the coordinate tolerance.",
+                            row.source_id
+                        ),
+                    ));
+                    continue;
+                }
+            }
+        };
+
+        let pile = if request.options.import_pile_assignments {
+            row.pile.clone()
+        } else {
+            PilePlanImportedValue::Preserve
+        };
+        let manual_cpt_ids =
+            if request.options.import_cpt_selections && parsed.supports_cpt_selections {
+                match &row.manual_cpt_ids {
+                    PilePlanImportedValue::Set(cpt_ids)
+                        if cpt_ids.iter().any(|cpt_id| !known_cpts.contains(cpt_id)) =>
+                    {
+                        let unknown = cpt_ids
+                            .iter()
+                            .filter(|cpt_id| !known_cpts.contains(cpt_id))
+                            .copied()
+                            .collect::<Vec<_>>();
+                        diagnostics.push(row_diagnostic(
+                            &row,
+                            PilePlanImportDiagnosticCode::UnknownCpt,
+                            format!(
+                                "Unknown CPT identifiers: {}. The CPT selection is preserved.",
+                                unknown
+                                    .iter()
+                                    .map(u32::to_string)
+                                    .collect::<Vec<_>>()
+                                    .join(", ")
+                            ),
+                        ));
+                        PilePlanImportedValue::Preserve
+                    }
+                    value => value.clone(),
+                }
+            } else {
+                PilePlanImportedValue::Preserve
+            };
+
+        candidates.push((
+            PilePlanImportChange {
+                load_point_id: load_point.id,
+                pile,
+                manual_cpt_ids,
+            },
+            row,
+            used_fallback,
+        ));
+    }
+
+    let target_counts = candidates
+        .iter()
+        .fold(HashMap::new(), |mut counts, candidate| {
+            *counts.entry(candidate.0.load_point_id).or_insert(0_usize) += 1;
+            counts
+        });
+    let mut changes = Vec::new();
+    for (change, row, used_fallback) in candidates {
+        if target_counts
+            .get(&change.load_point_id)
+            .copied()
+            .unwrap_or(0)
+            > 1
+        {
+            summary.skipped_rows += 1;
+            summary.conflicts += 1;
+            diagnostics.push(row_diagnostic(
+                &row,
+                PilePlanImportDiagnosticCode::ConflictingRows,
+                format!(
+                    "Multiple source rows resolve to load point {}.",
+                    change.load_point_id
+                ),
+            ));
+            continue;
+        }
+        summary.matched_rows += 1;
+        summary.coordinate_fallbacks += usize::from(used_fallback);
+        changes.push(change);
+    }
+    changes.sort_by_key(|change| change.load_point_id);
+
+    let has_actionable_change = changes.iter().any(|change| {
+        !matches!(change.pile, PilePlanImportedValue::Preserve)
+            || !matches!(change.manual_cpt_ids, PilePlanImportedValue::Preserve)
+    });
+    let category_enabled = request.options.import_pile_assignments
+        || (request.options.import_cpt_selections && parsed.supports_cpt_selections);
+
+    PilePlanImportPreview {
+        requested_profile: request.profile,
+        detected_profile: Some(parsed.profile),
+        supports_cpt_selections: parsed.supports_cpt_selections,
+        can_apply: category_enabled && has_actionable_change,
+        summary,
+        diagnostics,
+        patch: PilePlanImportPatch { changes },
+    }
+}
+
+fn failed_preview(
+    requested_profile: PilePlanImportProfile,
+    diagnostic: PilePlanImportDiagnostic,
+) -> PilePlanImportPreview {
+    PilePlanImportPreview {
+        requested_profile,
+        detected_profile: None,
+        supports_cpt_selections: false,
+        can_apply: false,
+        summary: PilePlanImportSummary::default(),
+        diagnostics: vec![diagnostic],
+        patch: PilePlanImportPatch::default(),
+    }
+}
+
+fn coordinate_distance(x1: f64, y1: f64, x2: f64, y2: f64) -> f64 {
+    (x1 - x2).hypot(y1 - y2)
+}
+
+fn row_diagnostic(
+    row: &ParsedPilePlanRow,
+    code: PilePlanImportDiagnosticCode,
+    message: String,
+) -> PilePlanImportDiagnostic {
+    PilePlanImportDiagnostic {
+        severity: PilePlanImportDiagnosticSeverity::Warning,
+        code,
+        message,
+        location: Some(PilePlanImportDiagnosticLocation {
+            sheet_name: row.sheet_name.clone(),
+            row: Some(row.row),
+            column: None,
+        }),
+    }
 }
 
 fn parse_pile_plan_source(
@@ -302,6 +528,7 @@ fn parse_standard_table(
     Ok(ParsedPilePlanSource {
         profile: PilePlanImportProfile::StandardTable,
         supports_cpt_selections: true,
+        source_rows: table.rows.len().saturating_sub(1),
         rows,
         diagnostics,
     })
@@ -350,6 +577,7 @@ fn parse_legacy_table(
     Ok(ParsedPilePlanSource {
         profile: PilePlanImportProfile::Legacy,
         supports_cpt_selections: false,
+        source_rows: table.rows.len(),
         rows,
         diagnostics,
     })
@@ -585,6 +813,192 @@ mod tests {
         assert!(parsed.diagnostics.iter().any(|diagnostic| {
             diagnostic.code == PilePlanImportDiagnosticCode::UnsupportedPileCount
         }));
+    }
+
+    #[test]
+    fn matches_id_only_when_coordinates_agree() {
+        let preview = preview_for(
+            "15,9450,4700,79,320,-18.5,61",
+            vec![load_point(15, 9450.0, 4700.0)],
+            vec![cpt(61)],
+            PilePlanImportOptions::default(),
+        );
+
+        assert!(preview.can_apply);
+        assert_eq!(preview.summary.matched_rows, 1);
+        assert_eq!(preview.summary.coordinate_fallbacks, 0);
+        assert_eq!(preview.patch.changes[0].load_point_id, 15);
+    }
+
+    #[test]
+    fn falls_back_to_coordinates_at_the_tolerance_boundary() {
+        let preview = preview_for(
+            "999,1000.6,1000.8,80,320,-18.5,61",
+            vec![load_point(7, 1000.0, 1000.0)],
+            vec![cpt(61)],
+            PilePlanImportOptions::default(),
+        );
+
+        assert!(preview.can_apply);
+        assert_eq!(preview.patch.changes[0].load_point_id, 7);
+        assert_eq!(preview.summary.coordinate_fallbacks, 1);
+    }
+
+    #[test]
+    fn skips_ambiguous_coordinate_matches() {
+        let preview = preview_for(
+            "999,1000,1000,80,320,-18.5,61",
+            vec![load_point(7, 999.5, 1000.0), load_point(8, 1000.5, 1000.0)],
+            vec![cpt(61)],
+            PilePlanImportOptions::default(),
+        );
+
+        assert!(!preview.can_apply);
+        assert!(preview.patch.changes.is_empty());
+        assert!(preview.diagnostics.iter().any(|diagnostic| {
+            diagnostic.code == PilePlanImportDiagnosticCode::AmbiguousLoadPoint
+        }));
+    }
+
+    #[test]
+    fn conflicting_rows_do_not_change_the_same_load_point() {
+        let preview = preview_for_rows(
+            &["7,1000,1000,80,320,-18.5,61", "999,1000,1000,80,350,-19,61"],
+            vec![load_point(7, 1000.0, 1000.0)],
+            vec![cpt(61)],
+            PilePlanImportOptions::default(),
+        );
+
+        assert!(!preview.can_apply);
+        assert!(preview.patch.changes.is_empty());
+        assert_eq!(preview.summary.conflicts, 2);
+    }
+
+    #[test]
+    fn unknown_cpt_skips_only_the_cpt_change() {
+        let preview = preview_for(
+            "7,1000,1000,80,320,-18.5,999",
+            vec![load_point(7, 1000.0, 1000.0)],
+            vec![cpt(61)],
+            PilePlanImportOptions::default(),
+        );
+
+        assert!(preview.can_apply);
+        assert!(matches!(
+            preview.patch.changes[0].pile,
+            PilePlanImportedValue::Set(_)
+        ));
+        assert_eq!(
+            preview.patch.changes[0].manual_cpt_ids,
+            PilePlanImportedValue::Preserve
+        );
+        assert!(preview
+            .diagnostics
+            .iter()
+            .any(|diagnostic| { diagnostic.code == PilePlanImportDiagnosticCode::UnknownCpt }));
+    }
+
+    #[test]
+    fn category_options_preserve_disabled_project_values() {
+        let mut options = PilePlanImportOptions::default();
+        options.import_pile_assignments = false;
+        let preview = preview_for(
+            "7,1000,1000,80,320,-18.5,61",
+            vec![load_point(7, 1000.0, 1000.0)],
+            vec![cpt(61)],
+            options,
+        );
+
+        assert_eq!(
+            preview.patch.changes[0].pile,
+            PilePlanImportedValue::Preserve
+        );
+        assert_eq!(
+            preview.patch.changes[0].manual_cpt_ids,
+            PilePlanImportedValue::Set(vec![61])
+        );
+    }
+
+    #[test]
+    fn unmatched_rows_are_reported_without_a_patch_change() {
+        let preview = preview_for(
+            "999,5000,5000,80,320,-18.5,61",
+            vec![load_point(7, 1000.0, 1000.0)],
+            vec![cpt(61)],
+            PilePlanImportOptions::default(),
+        );
+
+        assert!(!preview.can_apply);
+        assert_eq!(preview.summary.skipped_rows, 1);
+        assert!(preview.diagnostics.iter().any(|diagnostic| {
+            diagnostic.code == PilePlanImportDiagnosticCode::UnmatchedLoadPoint
+        }));
+    }
+
+    #[test]
+    fn rejects_negative_coordinate_tolerance_without_parsing() {
+        let mut options = PilePlanImportOptions::default();
+        options.coordinate_tolerance_mm = -1.0;
+        let preview = preview_for(
+            "7,1000,1000,80,320,-18.5,61",
+            vec![load_point(7, 1000.0, 1000.0)],
+            vec![cpt(61)],
+            options,
+        );
+
+        assert!(!preview.can_apply);
+        assert!(preview.patch.changes.is_empty());
+        assert_eq!(
+            preview.diagnostics[0].code,
+            PilePlanImportDiagnosticCode::InvalidTolerance
+        );
+    }
+
+    fn preview_for(
+        row: &str,
+        load_points: Vec<ProjectLoadPoint>,
+        cpts: Vec<ProjectCpt>,
+        options: PilePlanImportOptions,
+    ) -> PilePlanImportPreview {
+        preview_for_rows(&[row], load_points, cpts, options)
+    }
+
+    fn preview_for_rows(
+        rows: &[&str],
+        load_points: Vec<ProjectLoadPoint>,
+        cpts: Vec<ProjectCpt>,
+        options: PilePlanImportOptions,
+    ) -> PilePlanImportPreview {
+        let mut csv = "Load Point ID,X [mm],Y [mm],FEd [kN],Pile Size [mm],Pile Tip Level [m],Selected CPTs\n".to_string();
+        csv.push_str(&rows.join("\n"));
+        preview_pile_plan_import(&PilePlanImportRequest {
+            file_name: "plan.csv".to_string(),
+            format: SourceFormat::Csv,
+            bytes: csv.into_bytes(),
+            profile: PilePlanImportProfile::Automatic,
+            options,
+            load_points,
+            cpts,
+        })
+    }
+
+    fn load_point(id: u32, x_mm: f64, y_mm: f64) -> ProjectLoadPoint {
+        ProjectLoadPoint {
+            id,
+            name: format!("Load point {id}"),
+            x_mm,
+            y_mm,
+            design_load_kn: 80.0,
+        }
+    }
+
+    fn cpt(id: u32) -> ProjectCpt {
+        ProjectCpt {
+            id,
+            name: format!("CPT {id}"),
+            x_mm: 0.0,
+            y_mm: 0.0,
+        }
     }
 
     fn legacy_workbook(rows: &[[f64; 7]]) -> Vec<u8> {
