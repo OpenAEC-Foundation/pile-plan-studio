@@ -202,6 +202,7 @@ mod tests {
                 global_cpt_selection: CptSelectionSettings {
                     algorithm: CptSelectionAlgorithm::Quadrants,
                     max_distance_m: 25.0,
+                    monopoly_distance_m: 1.0,
                     max_angle_degrees: 120.0,
                 },
                 cpt_selection_by_load_point: HashMap::from([(
@@ -209,6 +210,7 @@ mod tests {
                     CptSelectionSettings {
                         algorithm: CptSelectionAlgorithm::MaximumAngle,
                         max_distance_m: 18.0,
+                        monopoly_distance_m: 1.0,
                         max_angle_degrees: 100.0,
                     },
                 )]),

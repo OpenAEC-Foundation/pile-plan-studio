@@ -181,7 +181,7 @@ function minimalState(overrides: Partial<ProjectState> = {}): ProjectState {
     cptSelectionSettingsByLoadPoint: new Map(),
     cptFrdRowsByCptId: new Map(),
     cpts: [{ id: 64, name: "CPT 64", x_mm: 0, y_mm: 0 }],
-    globalCptSelectionSettings: { algorithm: "quadrants", maxDistanceM: 25, maxAngleDegrees: 120 },
+    globalCptSelectionSettings: { algorithm: "quadrants", maxDistanceM: 25, monopolyDistanceM: 1, maxAngleDegrees: 120 },
     inputSources: [],
     legendSelectionFilter: { pileSizes: [], pileTipLevels: [] },
     loadPoints: [

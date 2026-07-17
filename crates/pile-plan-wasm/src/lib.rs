@@ -269,6 +269,7 @@ mod tests {
             settings: CptSelectionSettings {
                 algorithm: CptSelectionAlgorithm::Quadrants,
                 max_distance_m: 25.0,
+                monopoly_distance_m: 1.0,
                 max_angle_degrees: 120.0,
             },
             manual_cpt_ids: None,
@@ -293,6 +294,7 @@ mod tests {
             global_settings: CptSelectionSettings {
                 algorithm: CptSelectionAlgorithm::Quadrants,
                 max_distance_m: 25.0,
+                monopoly_distance_m: 1.0,
                 max_angle_degrees: 120.0,
             },
             settings_by_load_point: HashMap::new(),

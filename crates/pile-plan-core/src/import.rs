@@ -289,6 +289,7 @@ fn build_imported_project(
             global_cpt_selection: CptSelectionSettings {
                 algorithm: CptSelectionAlgorithm::Quadrants,
                 max_distance_m: 25.0,
+                monopoly_distance_m: 1.0,
                 max_angle_degrees: 120.0,
             },
             cpt_selection_by_load_point: HashMap::new(),

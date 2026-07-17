@@ -57,6 +57,7 @@ export type CptSelectionAlgorithm = "quadrants" | "maximum-angle";
 export type CptSelectionSettings = {
   algorithm: CptSelectionAlgorithm;
   maxDistanceM: number;
+  monopolyDistanceM: number;
   maxAngleDegrees: number;
 };
 

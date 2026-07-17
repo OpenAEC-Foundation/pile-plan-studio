@@ -17,6 +17,7 @@ type IfcppApplication = {
 type IfcppCptSelectionSettings = {
   algorithm: CptSelectionAlgorithm;
   max_distance_m: number;
+  monopoly_distance_m?: number;
   max_angle_degrees: number;
 };
 
@@ -231,6 +232,7 @@ function fromIfcppCptSelectionSettings(settings: IfcppCptSelectionSettings): Cpt
   return {
     algorithm: settings.algorithm,
     maxDistanceM: settings.max_distance_m,
+    monopolyDistanceM: settings.monopoly_distance_m ?? 1,
     maxAngleDegrees: settings.max_angle_degrees,
   };
 }
@@ -239,6 +241,7 @@ function toIfcppCptSelectionSettings(settings: CptSelectionSettings): IfcppCptSe
   return {
     algorithm: settings.algorithm,
     max_distance_m: settings.maxDistanceM,
+    monopoly_distance_m: settings.monopolyDistanceM,
     max_angle_degrees: settings.maxAngleDegrees,
   };
 }

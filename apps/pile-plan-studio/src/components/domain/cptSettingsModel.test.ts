@@ -17,6 +17,7 @@ describe("React CPT settings model", () => {
     const next = applyCptSelectionSettings(state, {
       algorithm: "maximum-angle",
       maxDistanceM: 30,
+      monopolyDistanceM: 1,
       maxAngleDegrees: 100,
     });
 
@@ -30,6 +31,7 @@ describe("React CPT settings model", () => {
     const next = applyCptSelectionSettings(state, {
       algorithm: "quadrants",
       maxDistanceM: 18,
+      monopolyDistanceM: 1,
       maxAngleDegrees: 120,
     });
 
@@ -73,7 +75,7 @@ function minimalState(overrides: Partial<ProjectState> = {}): ProjectState {
     cptSelectionSettingsByLoadPoint: new Map(),
     cptSettingsScope: "all",
     cpts: [],
-    globalCptSelectionSettings: { algorithm: "quadrants", maxDistanceM: 25, maxAngleDegrees: 120 },
+    globalCptSelectionSettings: { algorithm: "quadrants", maxDistanceM: 25, monopolyDistanceM: 1, maxAngleDegrees: 120 },
     inputSources: [],
     legendSelectionFilter: { pileSizes: [], pileTipLevels: [] },
     loadPoints: [{ id: 1, name: "Load point 1", x_mm: 0, y_mm: 0, design_load_kn: 100 }],

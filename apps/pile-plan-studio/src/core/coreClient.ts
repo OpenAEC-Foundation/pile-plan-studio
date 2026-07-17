@@ -58,6 +58,7 @@ import {
 type CoreCptSelectionSettings = {
   algorithm: CptSelectionSettings["algorithm"];
   max_distance_m: number;
+  monopoly_distance_m: number;
   max_angle_degrees: number;
 };
 
@@ -413,6 +414,7 @@ function toCoreSettings(settings: CptSelectionSettings): CoreCptSelectionSetting
   return {
     algorithm: settings.algorithm,
     max_distance_m: settings.maxDistanceM,
+    monopoly_distance_m: settings.monopolyDistanceM,
     max_angle_degrees: settings.maxAngleDegrees,
   };
 }

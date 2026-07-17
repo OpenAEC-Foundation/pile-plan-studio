@@ -977,6 +977,16 @@ mod tests {
         }
     }
 
+    #[test]
+    fn cpt_selection_settings_default_missing_monopoly_distance_to_one_meter() {
+        let settings: CptSelectionSettings = serde_json::from_str(
+            r#"{"algorithm":"quadrants","max_distance_m":25.0,"max_angle_degrees":120.0}"#,
+        )
+        .expect("legacy settings deserialize");
+
+        assert_eq!(settings.monopoly_distance_m, 1.0);
+    }
+
     fn cost_settings() -> PileCostSettings {
         PileCostSettings {
             schema_version: 1,

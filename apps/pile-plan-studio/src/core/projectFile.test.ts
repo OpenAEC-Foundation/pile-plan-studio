@@ -87,7 +87,7 @@ describe("IFCPP project loading", () => {
       warnings: ["Ignored 2 bearing-capacity rows", "CPTs without bearing capacities: 63"],
     });
   });
-  it("loads app data from an IFCPP project", () => {
+  it("loads legacy IFCPP settings with a one-meter monopoly distance", () => {
     const data = loadIfcppProjectData(projectFixture());
 
     assert.equal(data.name, "Fixture Project");
@@ -95,8 +95,10 @@ describe("IFCPP project loading", () => {
     assert.deepEqual(data.globalCptSelectionSettings, {
       algorithm: "maximum-angle",
       maxDistanceM: 18,
+      monopolyDistanceM: 1,
       maxAngleDegrees: 110,
     });
+    assert.equal(data.cptSelectionSettingsByLoadPoint.get(1)?.monopolyDistanceM, 1);
     assert.equal(data.cptSelectionSettingsByLoadPoint.get(1)?.maxDistanceM, 25);
     assert.equal(data.selectedPileOptionKeysByLoadPoint.get(1), "290|-18");
     assert.deepEqual(data.manualCptIdsByLoadPoint.get(1), [10, 11]);
@@ -122,7 +124,7 @@ describe("IFCPP project loading", () => {
     assert.equal(data.bearingCapacities.length, 2340);
   });
 
-  it("creates IFCPP project data from the current viewer state", () => {
+  it("emits monopoly distance when creating IFCPP project data", () => {
     const data = loadIfcppProjectData(projectFixture());
     const project = createIfcppProject(data);
 
@@ -131,6 +133,7 @@ describe("IFCPP project loading", () => {
     assert.deepEqual(project.settings.global_cpt_selection, {
       algorithm: "maximum-angle",
       max_distance_m: 18,
+      monopoly_distance_m: 1,
       max_angle_degrees: 110,
     });
     assert.deepEqual(project.user_state.selected_piles["1"].pile, {
