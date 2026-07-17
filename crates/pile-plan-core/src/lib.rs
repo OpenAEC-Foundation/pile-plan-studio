@@ -4,6 +4,7 @@ pub mod ifcpp;
 pub mod import;
 pub mod model;
 pub mod pile_options;
+pub mod pile_plan_import;
 pub mod project;
 
 pub use analysis::{
@@ -31,6 +32,7 @@ pub use import::{
     ProjectImportSources, RfemPreviewDetails, SourceFormat,
 };
 pub use pile_options::{calculate_pile_option, find_pile_options};
+pub use pile_plan_import::*;
 pub use project::{
     ExternalReference, PilePlanProject, ProjectApplication, ProjectImportLogEntry, ProjectInputs,
     ProjectMetadata, ProjectSettings, ProjectUnits, ProjectUserState, SelectedPileChoice,
