@@ -40,14 +40,17 @@ export function applyCptSelectionSettingsPatch(
 ): ProjectState {
   const scope = resolveCptSettingsScope(state);
   const targetIds = getTargetLoadPointIds(state, scope);
-  const targetIdSet = new Set(targetIds);
   const settingsByLoadPoint = new Map(state.cptSelectionSettingsByLoadPoint);
   const manualCptIdsByLoadPoint = new Map(state.manualCptIdsByLoadPoint);
 
   if (scope === "all") {
-    for (const [loadPointId, settings] of settingsByLoadPoint) {
-      if (targetIdSet.has(loadPointId) && (overwriteManualSelections || !manualCptIdsByLoadPoint.has(loadPointId))) {
-        settingsByLoadPoint.set(loadPointId, patchSettings(settings, patch));
+    for (const loadPointId of targetIds) {
+      if (!overwriteManualSelections && manualCptIdsByLoadPoint.has(loadPointId)) {
+        if (!settingsByLoadPoint.has(loadPointId)) {
+          settingsByLoadPoint.set(loadPointId, { ...getSettingsForLoadPoint(state, loadPointId) });
+        }
+      } else if (settingsByLoadPoint.has(loadPointId)) {
+        settingsByLoadPoint.set(loadPointId, patchSettings(getSettingsForLoadPoint(state, loadPointId), patch));
       }
     }
   } else {

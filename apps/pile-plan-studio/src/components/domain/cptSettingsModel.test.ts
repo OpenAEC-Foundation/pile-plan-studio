@@ -28,6 +28,29 @@ describe("React CPT settings model", () => {
     assert.equal(next.analysisRequest.loadPointIds, null);
   });
 
+  it("preserves inherited settings for a manual load point during an all-scope patch", () => {
+    const oldGlobalSettings = settings({
+      algorithm: "maximum-angle",
+      maxDistanceM: 25,
+      monopolyDistanceM: 2,
+      maxAngleDegrees: 100,
+    });
+    const state = minimalState({
+      globalCptSelectionSettings: oldGlobalSettings,
+      loadPoints: [loadPoint(1), loadPoint(2)],
+      manualCptIdsByLoadPoint: new Map([[1, [61]]]),
+      selectedLoadPointIds: [1, 2],
+    });
+    const next = applyCptSelectionSettingsPatch(state, { maxDistanceM: 30 });
+
+    assert.deepEqual(next.cptSelectionSettingsByLoadPoint.get(1), oldGlobalSettings);
+    assert.deepEqual(
+      next.cptSelectionSettingsByLoadPoint.get(2) ?? next.globalCptSelectionSettings,
+      settings({ algorithm: "maximum-angle", maxDistanceM: 30, monopolyDistanceM: 2, maxAngleDegrees: 100 }),
+    );
+    assert.deepEqual(next.manualCptIdsByLoadPoint.get(1), [61]);
+  });
+
   it("patches exactly selected load points and requests their analysis", () => {
     const state = minimalState({
       cptSettingsScope: "selected",
