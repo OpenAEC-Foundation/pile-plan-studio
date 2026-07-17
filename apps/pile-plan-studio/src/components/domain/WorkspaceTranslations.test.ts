@@ -24,6 +24,27 @@ describe("Workspace translations", () => {
     assert.match(ribbon, /"loadPoints":\s*"Belastinglocaties"/);
   });
 
+  it("provides complete English and Dutch copy for multi-load-point CPT settings", () => {
+    const en = readFileSync(resolve(import.meta.dirname, "../../i18n/locales/en/rightPanel.json"), "utf8");
+    const nl = readFileSync(resolve(import.meta.dirname, "../../i18n/locales/nl/rightPanel.json"), "utf8");
+
+    for (const copy of [en, nl]) {
+      assert.match(copy, /"cptSettings\.selectedLoadPoints":/);
+      assert.match(copy, /"cptSettings\.selectedCount":/);
+      assert.match(copy, /"cptSettings\.global":/);
+      assert.match(copy, /"cptSettings\.noSelection":/);
+      assert.match(copy, /"cptSettings\.mixed":/);
+      assert.match(copy, /"cptSettings\.monopolyDistance":/);
+      assert.match(copy, /"cptSettings\.overwriteManualSelections":/);
+      assert.match(copy, /"cptSettings\.manualCount":/);
+      assert.match(copy, /"cptSettings\.algorithmic":/);
+      assert.doesNotMatch(copy, /"cptSettings\.thisLoadPoint":/);
+    }
+
+    assert.match(en, /"cptSettings\.manualCount":\s*"\{\{count\}\} CPTs are manually selected across the selected load points\."/);
+    assert.match(nl, /"cptSettings\.manualCount":\s*"\{\{count\}\} sonderingen zijn handmatig geselecteerd voor de geselecteerde belastinglocaties\."/);
+  });
+
   it("translates CPT selection values and range labels at render time", () => {
     const panel = readFileSync(resolve(import.meta.dirname, "RightPanel.tsx"), "utf8");
 

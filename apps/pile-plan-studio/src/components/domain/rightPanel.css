@@ -220,6 +220,25 @@
   font-weight: 700;
 }
 
+.segmented-control button:disabled,
+.selection-actions button:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.settings-checkbox {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin-top: 8px;
+  color: var(--theme-text-secondary);
+  font-size: 11px;
+}
+
+.settings-checkbox input {
+  margin: 0;
+}
+
 .number-field {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;

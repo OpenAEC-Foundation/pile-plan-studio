@@ -212,41 +212,55 @@ function CostSettingsRow({ item, settings, onSettingsChange }: {
 
 function CptSettingsPanel({ state, onStateChange }: Props) {
   const { t } = useTranslation("rightPanel");
-  const loadPoint = state.loadPoints.find((item) => item.id === state.selectedLoadPointId) ?? null;
-  if (!loadPoint) {
-    return (
-      <div className="right-panel-empty">
-        <strong>{t("empty.noLoadPoint")}</strong>
-        <span>{t("empty.selectLoadPointForCpts")}</span>
-      </div>
-    );
-  }
-
+  const [overwriteManualSelections, setOverwriteManualSelections] = useState(false);
+  const selectedLoadPoints = getSelectedLoadPoints(state);
+  const settingsScope = selectedLoadPoints.length === 0 ? "all" : state.cptSettingsScope;
   const settings = getCptSelectionSettingsAggregate(state);
-  const hasLocalSettings = state.cptSelectionSettingsByLoadPoint.has(loadPoint.id);
-  const manualCptIds = state.manualCptIdsByLoadPoint.get(loadPoint.id);
+  const settingsLoadPoints = selectedLoadPoints;
+  const manualCptCount = settingsLoadPoints.reduce(
+    (count, loadPoint) => count + (state.manualCptIdsByLoadPoint.get(loadPoint.id)?.length ?? 0),
+    0,
+  );
+  const settingsSubtitle = selectedLoadPoints.length === 0
+    ? t("cptSettings.allLoadPoints")
+    : t("cptSettings.selectedCount", { count: selectedLoadPoints.length });
+  const scopeDescription = selectedLoadPoints.length === 0
+    ? t("cptSettings.noSelection")
+    : settingsScope === "all"
+      ? t("cptSettings.global")
+      : t("cptSettings.selected");
+
   return (
     <div className="cpt-settings-panel">
       <header className="right-panel-header">
-        <div><h2>{t("cptSettings.title")}</h2><span>{localizeLoadPointName(formatLoadPointPanelTitle(loadPoint.name), t)}</span></div>
+        <div><h2>{t("cptSettings.title")}</h2><span>{settingsSubtitle}</span></div>
       </header>
 
       <div className="settings-scroll">
         <SettingsGroup title={t("cptSettings.applyTo")}>
           <div className="segmented-control" role="group" aria-label={t("cptSettings.applyTo")}>
             <button
-              className={state.cptSettingsScope === "all" ? "is-selected" : ""}
+              className={settingsScope === "all" ? "is-selected" : ""}
               type="button"
               onClick={() => onStateChange({ ...state, cptSettingsScope: "all" })}
             >{t("cptSettings.allLoadPoints")}</button>
             <button
-              className={state.cptSettingsScope === "selected" ? "is-selected" : ""}
+              className={settingsScope === "selected" ? "is-selected" : ""}
+              disabled={selectedLoadPoints.length === 0}
               type="button"
               onClick={() => onStateChange({ ...state, cptSettingsScope: "selected" })}
-            >{t("cptSettings.thisLoadPoint")}</button>
+            >{t("cptSettings.selectedLoadPoints")}</button>
           </div>
+          <label className="settings-checkbox">
+            <input
+              checked={overwriteManualSelections}
+              type="checkbox"
+              onChange={(event) => setOverwriteManualSelections(event.currentTarget.checked)}
+            />
+            <span>{t("cptSettings.overwriteManualSelections")}</span>
+          </label>
           <p className="supporting-text">
-            {hasLocalSettings ? t("cptSettings.local") : t("cptSettings.global")}
+            {scopeDescription}
           </p>
         </SettingsGroup>
 
@@ -255,6 +269,7 @@ function CptSettingsPanel({ state, onStateChange }: Props) {
             <input
               aria-label={t("cptSettings.maxDistance")}
               min="0"
+              placeholder={settings.maxDistanceM === null ? t("cptSettings.mixed") : undefined}
               step="1"
               type="number"
               value={settings.maxDistanceM ?? ""}
@@ -262,7 +277,28 @@ function CptSettingsPanel({ state, onStateChange }: Props) {
                 if (event.currentTarget.value === "") return;
                 const value = Number(event.currentTarget.value);
                 if (Number.isFinite(value)) {
-                  onStateChange(applyCptSelectionSettingsPatch(state, { maxDistanceM: Math.max(0, value) }));
+                  onStateChange(applyCptSelectionSettingsPatch(state, { maxDistanceM: Math.max(0, value) }, overwriteManualSelections));
+                }
+              }}
+            />
+            <span>m</span>
+          </label>
+        </SettingsGroup>
+
+        <SettingsGroup title={t("cptSettings.monopolyDistance")}>
+          <label className="number-field">
+            <input
+              aria-label={t("cptSettings.monopolyDistance")}
+              min="0"
+              placeholder={settings.monopolyDistanceM === null ? t("cptSettings.mixed") : undefined}
+              step="1"
+              type="number"
+              value={settings.monopolyDistanceM ?? ""}
+              onChange={(event) => {
+                if (event.currentTarget.value === "") return;
+                const value = Number(event.currentTarget.value);
+                if (Number.isFinite(value)) {
+                  onStateChange(applyCptSelectionSettingsPatch(state, { monopolyDistanceM: Math.max(0, value) }, overwriteManualSelections));
                 }
               }}
             />
@@ -276,24 +312,25 @@ function CptSettingsPanel({ state, onStateChange }: Props) {
               active={settings.algorithm === "quadrants"}
               label={t("cptSettings.quadrants")}
               sketch="quadrants"
-              onClick={() => onStateChange(applyCptSelectionSettingsPatch(state, { algorithm: "quadrants" }))}
+              onClick={() => onStateChange(applyCptSelectionSettingsPatch(state, { algorithm: "quadrants" }, overwriteManualSelections))}
             />
             <AlgorithmOption
               active={settings.algorithm === "maximum-angle"}
               label={t("cptSettings.maximumAngle")}
               sketch="maximum-angle"
-              onClick={() => onStateChange(applyCptSelectionSettingsPatch(state, { algorithm: "maximum-angle" }))}
+              onClick={() => onStateChange(applyCptSelectionSettingsPatch(state, { algorithm: "maximum-angle" }, overwriteManualSelections))}
             />
           </div>
         </SettingsGroup>
 
-        <SettingsGroup title={t("cptSettings.maximumAngle")} muted={settings.algorithm !== "maximum-angle"}>
+        <SettingsGroup title={t("cptSettings.maximumAngle")} muted={settings.algorithm !== null && settings.algorithm !== "maximum-angle"}>
           <label className="number-field">
             <input
               aria-label={t("cptSettings.maximumAngle")}
-              disabled={settings.algorithm !== "maximum-angle"}
+              disabled={settings.algorithm !== null && settings.algorithm !== "maximum-angle"}
               min="1"
               max="360"
+              placeholder={settings.maxAngleDegrees === null ? t("cptSettings.mixed") : undefined}
               step="1"
               type="number"
               value={settings.maxAngleDegrees ?? ""}
@@ -303,7 +340,7 @@ function CptSettingsPanel({ state, onStateChange }: Props) {
                 if (Number.isFinite(value)) {
                   onStateChange(applyCptSelectionSettingsPatch(state, {
                     maxAngleDegrees: Math.min(360, Math.max(1, value)),
-                  }));
+                  }, overwriteManualSelections));
                 }
               }}
             />
@@ -313,13 +350,18 @@ function CptSettingsPanel({ state, onStateChange }: Props) {
 
         <SettingsGroup title={t("cptSettings.manual")}>
           <p className="supporting-text">
-            {manualCptIds
-                ? t("cptSettings.manualCount", { count: manualCptIds.length })
+            {manualCptCount > 0
+                ? t("cptSettings.manualCount", { count: manualCptCount })
                 : t("cptSettings.algorithmic")}
           </p>
           <div className="selection-actions">
-            <button type="button" onClick={() => onStateChange(startCptSelectionEdit(state))}>{t("actions.modifySelection")}</button>
-            {manualCptIds ? (
+            <button
+              className="settings-modify-button"
+              disabled={selectedLoadPoints.length === 0}
+              type="button"
+              onClick={() => onStateChange(startCptSelectionEdit(state))}
+            >{t("actions.modifySelection")}</button>
+            {manualCptCount > 0 && state.selectedLoadPointId !== null ? (
               <button type="button" onClick={() => onStateChange(clearManualCptSelection(state))}>{t("actions.useAlgorithm")}</button>
             ) : null}
           </div>

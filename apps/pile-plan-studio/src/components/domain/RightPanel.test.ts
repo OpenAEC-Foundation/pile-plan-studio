@@ -42,19 +42,56 @@ describe("React optimization panel", () => {
 });
 
 describe("React CPT settings panel", () => {
-  it("uses selected scope, aggregate values, and field-level settings patches", () => {
+  it("keeps settings available without a selection and exposes all or selected scope", () => {
     const panel = readFileSync(resolve(import.meta.dirname, "RightPanel.tsx"), "utf8");
 
     assert.doesNotMatch(panel, /cptSettingsScope\s*(?:===|:)\s*"current"/);
-    assert.match(panel, /cptSettingsScope === "selected"/);
+    assert.doesNotMatch(panel, /const loadPoint = state\.loadPoints\.find\(.*selectedLoadPointId/s);
+    assert.doesNotMatch(panel, /empty\.selectLoadPointForCpts/);
+    assert.match(panel, /settingsScope === "selected"/);
+    assert.match(panel, /selectedLoadPoints\.length === 0 \? "all" : state\.cptSettingsScope/);
+    assert.match(panel, /t\("cptSettings\.allLoadPoints"\)/);
+    assert.match(panel, /t\("cptSettings\.selectedLoadPoints"\)/);
+    assert.match(panel, /disabled=\{selectedLoadPoints\.length === 0\}/);
+    assert.match(panel, /t\("cptSettings\.selectedCount", \{ count: selectedLoadPoints\.length \}\)/);
+    assert.match(panel, /const settingsLoadPoints = selectedLoadPoints/);
+    assert.doesNotMatch(panel, /cptSettings\.thisLoadPoint/);
+  });
+
+  it("uses aggregate values, mixed placeholders, and field-level settings patches", () => {
+    const panel = readFileSync(resolve(import.meta.dirname, "RightPanel.tsx"), "utf8");
+
     assert.match(panel, /getCptSelectionSettingsAggregate\(state\)/);
     assert.match(panel, /value=\{settings\.maxDistanceM \?\? ""\}/);
+    assert.match(panel, /value=\{settings\.monopolyDistanceM \?\? ""\}/);
     assert.match(panel, /value=\{settings\.maxAngleDegrees \?\? ""\}/);
-    assert.match(panel, /applyCptSelectionSettingsPatch\(state, \{ maxDistanceM:/);
-    assert.match(panel, /applyCptSelectionSettingsPatch\(state, \{ algorithm: "quadrants" \}\)/);
-    assert.match(panel, /applyCptSelectionSettingsPatch\(state, \{ algorithm: "maximum-angle" \}\)/);
-    assert.match(panel, /applyCptSelectionSettingsPatch\(state, \{\s*maxAngleDegrees:/s);
+    assert.match(panel, /placeholder=\{settings\.maxDistanceM === null \? t\("cptSettings\.mixed"\) : undefined\}/);
+    assert.match(panel, /placeholder=\{settings\.monopolyDistanceM === null \? t\("cptSettings\.mixed"\) : undefined\}/);
+    assert.match(panel, /placeholder=\{settings\.maxAngleDegrees === null \? t\("cptSettings\.mixed"\) : undefined\}/);
+    assert.match(panel, /applyCptSelectionSettingsPatch\(state, \{ maxDistanceM:[\s\S]*?\}, overwriteManualSelections\)/);
+    assert.match(panel, /applyCptSelectionSettingsPatch\(state, \{ monopolyDistanceM:[\s\S]*?\}, overwriteManualSelections\)/);
+    assert.match(panel, /applyCptSelectionSettingsPatch\(state, \{ algorithm: "quadrants" \}, overwriteManualSelections\)/);
+    assert.match(panel, /applyCptSelectionSettingsPatch\(state, \{ algorithm: "maximum-angle" \}, overwriteManualSelections\)/);
+    assert.match(panel, /applyCptSelectionSettingsPatch\(state, \{\s*maxAngleDegrees:[\s\S]*?\}, overwriteManualSelections\)/);
     assert.doesNotMatch(panel, /applyCptSelectionSettings\(/);
+  });
+
+  it("places monopoly distance and overwrite control in the settings flow", () => {
+    const panel = readFileSync(resolve(import.meta.dirname, "RightPanel.tsx"), "utf8");
+
+    assert.match(panel, /const \[overwriteManualSelections, setOverwriteManualSelections\] = useState\(false\)/);
+    assert.match(panel, /checked=\{overwriteManualSelections\}[\s\S]*type="checkbox"[\s\S]*setOverwriteManualSelections/);
+    assert.match(panel, /t\("cptSettings\.overwriteManualSelections"\)/);
+    assert.match(panel, /cptSettings\.maxDistance[\s\S]*cptSettings\.monopolyDistance/);
+    assert.match(panel, /aria-label=\{t\("cptSettings\.monopolyDistance"\)\}[\s\S]*min="0"/);
+  });
+
+  it("keeps mixed algorithms unselected and maximum angle editable until a concrete alternative is common", () => {
+    const panel = readFileSync(resolve(import.meta.dirname, "RightPanel.tsx"), "utf8");
+
+    assert.match(panel, /active=\{settings\.algorithm === "quadrants"\}/);
+    assert.match(panel, /active=\{settings\.algorithm === "maximum-angle"\}/);
+    assert.match(panel, /disabled=\{settings\.algorithm !== null && settings\.algorithm !== "maximum-angle"\}/);
   });
 
   it("routes Modify selection into the shared CPT panel edit mode", () => {
@@ -63,6 +100,7 @@ describe("React CPT settings panel", () => {
     assert.match(panel, /beginManualCptSelection\(state\)/);
     assert.match(panel, /switchRightPanelMode\(state, "cpts"\)/);
     assert.match(panel, /t\("actions\.modifySelection"\)/);
+    assert.match(panel, /className="settings-modify-button"[\s\S]*disabled=\{selectedLoadPoints\.length === 0\}/);
     assert.doesNotMatch(panel, /draft\.cptIds/);
   });
 });
