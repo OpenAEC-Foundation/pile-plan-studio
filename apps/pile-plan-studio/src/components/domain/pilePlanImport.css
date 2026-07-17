@@ -1,0 +1,122 @@
+.pile-plan-import-panel {
+  max-width: 720px;
+}
+
+.pile-plan-import-header {
+  align-items: start;
+}
+
+.pile-plan-import-controls {
+  display: grid;
+  grid-template-columns: minmax(180px, 0.7fr) minmax(260px, 1.3fr);
+  align-items: end;
+  gap: 18px;
+  padding-top: 2px;
+}
+
+.pile-plan-import-tolerance {
+  display: grid;
+  gap: 4px;
+  color: var(--theme-text-secondary);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.pile-plan-import-number {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 7px;
+}
+
+.pile-plan-import-categories {
+  display: flex;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  gap: 18px;
+}
+
+.pile-plan-import-categories legend {
+  margin-bottom: 6px;
+  color: var(--theme-text-secondary);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.pile-plan-import-categories label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--theme-text);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.pile-plan-import-categories label:has(input:disabled) {
+  color: var(--theme-text-faint);
+  cursor: default;
+}
+
+.pile-plan-import-categories input {
+  accent-color: var(--theme-accent);
+}
+
+.pile-plan-import-note {
+  margin: 0;
+  color: var(--theme-text-secondary);
+  font-size: 11px;
+}
+
+.pile-plan-import-results {
+  display: grid;
+  gap: 8px;
+  padding-top: 2px;
+}
+
+.pile-plan-import-summary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 7px 16px;
+  color: var(--theme-text-secondary);
+  font-size: 11px;
+}
+
+.pile-plan-import-summary strong {
+  width: 100%;
+  color: var(--theme-text);
+  font-size: 12px;
+}
+
+.pile-plan-import-diagnostics {
+  max-height: 180px;
+  margin: 0;
+  padding: 8px 8px 8px 26px;
+  overflow: auto;
+  border: 1px solid var(--theme-border-subtle);
+  border-radius: 4px;
+  color: var(--theme-text-secondary);
+  background: var(--theme-bg);
+  font-size: 11px;
+}
+
+.pile-plan-import-diagnostics li + li {
+  margin-top: 4px;
+}
+
+.pile-plan-import-diagnostics .error {
+  color: var(--theme-danger-color);
+}
+
+@media (max-width: 720px) {
+  .pile-plan-import-controls,
+  .pile-plan-import-header {
+    grid-template-columns: 1fr;
+  }
+
+  .pile-plan-import-categories {
+    flex-wrap: wrap;
+  }
+}

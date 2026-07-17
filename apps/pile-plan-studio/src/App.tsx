@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent } from "react";
 import { useTranslation } from "react-i18next";
 import sampleProjectText from "../../../sample_project/sample_project.ifcpp?raw";
 import TitleBar from "./components/template/TitleBar";
@@ -45,6 +45,8 @@ import {
 } from "./domain/projectPersistence.ts";
 import { DEFAULT_RIGHT_PANEL_WIDTH, resizeRightPanelWidth } from "./viewer/panelLayout.ts";
 import { buildPilePlanExportInput } from "./domain/pilePlanExport.ts";
+import { applyPilePlanImportPatch } from "./domain/pilePlanImport.ts";
+import type { PilePlanImportPatch } from "./core/pilePlanImportContract.ts";
 
 const PILE_COST_DEFAULTS_KEY = "pile-cost-defaults";
 
@@ -72,6 +74,15 @@ export default function App() {
   const preparedProjectRef = useRef<{ signature: string; blob: Blob } | null>(null);
   const isDesktop = isDesktopRuntime();
   const projectFileCommands = getProjectFileCommands(isDesktop);
+  const availablePileConfigurations = useMemo(() => [
+    ...new Map(projectState.bearingCapacities.map((capacity) => {
+      const configuration = {
+        pile_size_mm: capacity.pile_size_mm,
+        pile_tip_level_m_key: Math.round(capacity.pile_tip_level_m * 1000),
+      };
+      return [`${configuration.pile_size_mm}|${configuration.pile_tip_level_m_key}`, configuration] as const;
+    })).values(),
+  ], [projectState.bearingCapacities]);
   const persistedProject = projectFromState(projectState);
   const persistedProjectSignature = JSON.stringify(persistedProject);
 
@@ -156,6 +167,14 @@ export default function App() {
   const handleProjectStateChange = (nextState: typeof projectState) => {
     setProjectState(nextState);
     setIsDirty(JSON.stringify(projectFromState(nextState)) !== savedProjectSignatureRef.current);
+  };
+
+  const importPilePlan = (patch: PilePlanImportPatch) => {
+    setProjectState((current) => {
+      const next = applyPilePlanImportPatch(current, patch);
+      if (next !== current) setIsDirty(true);
+      return next;
+    });
   };
 
   useEffect(() => {
@@ -504,6 +523,10 @@ export default function App() {
         onClose={() => setBackstageOpen(false)}
         onOpenSettings={() => setSettingsOpen(true)}
         commands={projectFileCommands}
+        loadPoints={projectState.loadPoints}
+        cpts={projectState.cpts}
+        availablePileConfigurations={availablePileConfigurations}
+        onImportPilePlan={importPilePlan}
         onImportProject={async (projectName: string, sources: ImportSourceInput[]) => {
           if (!await confirmProjectReplacement()) return null;
           const project = await importProjectFromFilesCore({ projectName, sources });

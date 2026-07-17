@@ -149,6 +149,18 @@ export function preview_import_file(request) {
 }
 
 /**
+ * @param {any} request
+ * @returns {any}
+ */
+export function preview_pile_plan_import_file(request) {
+    const ret = wasm.preview_pile_plan_import_file(request);
+    if (ret[2]) {
+        throw takeFromExternrefTable0(ret[1]);
+    }
+    return takeFromExternrefTable0(ret[0]);
+}
+
+/**
  * @param {any} project
  * @returns {string}
  */

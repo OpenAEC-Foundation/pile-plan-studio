@@ -127,6 +127,20 @@ load as F<sub>Ed</sub> = |Min PZ'|.
 Imported data, source profiles, project settings, selected piles, and manual
 CPT choices are stored in an `.ifcpp` project file.
 
+### Import an existing pile plan
+
+Use **File > Import pile plan** to update the active project from an Excel or
+CSV table. The Standard table profile supports both pile assignments and CPT
+selections. The Legacy profile supports existing `Vergrendeld.xlsx` files and
+imports pile assignments only; rows that describe more than one pile are
+skipped with a warning.
+
+Load points are first matched by ID when the imported coordinates agree. If
+that check fails, Pile Plan Studio falls back to one unique coordinate match.
+The coordinate tolerance is configurable for this workflow and defaults to
+1 mm. Ambiguous, unmatched, or conflicting rows are skipped and reported in
+the import preview before the project is changed.
+
 ## Selection and Inspection
 
 - Click a load point to select it.

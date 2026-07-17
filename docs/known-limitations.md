@@ -36,6 +36,11 @@ intentional and should be considered when evaluating its results.
 - CPTs without coordinates are ignored when reconciling foundation advice.
 - CPTs with coordinates but no capacities remain available and can cause pile
   options to have status Missing.
+- Standard pile-plan tables can update pile assignments and manual CPT
+  selections. Legacy `Vergrendeld.xlsx` tables contain pile assignments only;
+  rows representing more than one pile are skipped with a warning.
+- Pile-plan import matches a validated ID first and then falls back to one
+  unique coordinate match within the configured tolerance (1 mm by default).
 
 ## Platforms and Deferred Features
 
@@ -44,5 +49,4 @@ intentional and should be considered when evaluating its results.
 - macOS and Linux packages are not provided for this release.
 - Browser projects store imported source information, but are not refresh-linked
   to the original files on the user's computer.
-- Excel export of currently selected piles is planned but not included.
 

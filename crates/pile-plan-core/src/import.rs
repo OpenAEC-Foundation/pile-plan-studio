@@ -26,6 +26,7 @@ pub use roles::{
     parse_load_points, reconcile_imported_inputs, validate_imported_inputs,
     BearingCapacityParseResult, ImportReconciliation,
 };
+pub(crate) use table::read_xlsx_tables;
 pub use table::{
     read_source_table, SourceFormat, SourceLocation, SourceRow, SourceTable, TableCell,
 };

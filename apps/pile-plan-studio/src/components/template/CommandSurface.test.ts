@@ -78,6 +78,17 @@ describe("Alpha command surfaces", () => {
     assert.match(backstage, /exportPanel\.csv/);
   });
 
+  it("offers pile plan import directly after project source import", () => {
+    const backstage = readFileSync(resolve(import.meta.dirname, "backstage/Backstage.tsx"), "utf8");
+
+    assert.match(
+      backstage,
+      /label=\{t\("import"\)\}[\s\S]*?label=\{t\("importPilePlan"\)\}/,
+    );
+    assert.match(backstage, /activePanel === "pile-plan-import"/);
+    assert.match(backstage, /<PilePlanImportPanel/);
+  });
+
   it("shows one busy state while either export action is running", () => {
     const backstage = readFileSync(resolve(import.meta.dirname, "backstage/Backstage.tsx"), "utf8");
     const styles = readFileSync(resolve(import.meta.dirname, "backstage/Backstage.css"), "utf8");
