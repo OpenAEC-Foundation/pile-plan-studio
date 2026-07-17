@@ -31,7 +31,13 @@ pub struct BearingCapacity {
 pub struct CptSelectionSettings {
     pub algorithm: CptSelectionAlgorithm,
     pub max_distance_m: f64,
+    #[serde(default = "default_monopoly_distance_m")]
+    pub monopoly_distance_m: f64,
     pub max_angle_degrees: f64,
+}
+
+fn default_monopoly_distance_m() -> f64 {
+    1.0
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
@@ -187,6 +193,25 @@ pub fn selected_cpts(
 ) -> Vec<SelectedCpt> {
     if let Some(manual_cpt_ids) = manual_cpt_ids {
         return manually_selected_cpts(load_point, cpts, manual_cpt_ids);
+    }
+
+    let max_distance_mm = settings.max_distance_m * 1000.0;
+    if let Some(cpt) = cpts
+        .iter()
+        .filter(|cpt| distance_mm(load_point, cpt) <= max_distance_mm)
+        .filter(|cpt| distance_mm(load_point, cpt) <= settings.monopoly_distance_m * 1000.0)
+        .min_by(|left, right| {
+            distance_mm(load_point, left)
+                .total_cmp(&distance_mm(load_point, right))
+                .then_with(|| left.id.cmp(&right.id))
+        })
+    {
+        return vec![SelectedCpt {
+            label: "nearest".to_string(),
+            quadrant: None,
+            cpt: cpt.clone(),
+            distance_mm: distance_mm(load_point, cpt),
+        }];
     }
 
     match settings.algorithm {
@@ -1035,13 +1060,126 @@ mod tests {
     }
 
     #[test]
-    fn manual_cpt_selection_overrides_algorithm() {
+    fn monopoly_override_returns_only_the_nearest_cpt() {
+        let selected = selected_cpts(
+            &load_point(),
+            &[
+                cpt(1, 500.0, 500.0),
+                cpt(2, 600.0, -600.0),
+                cpt(3, -700.0, 700.0),
+                cpt(4, -800.0, -800.0),
+            ],
+            &CptSelectionSettings {
+                algorithm: CptSelectionAlgorithm::Quadrants,
+                max_distance_m: 25.0,
+                monopoly_distance_m: 1.0,
+                max_angle_degrees: 120.0,
+            },
+            None,
+        );
+
+        assert_eq!(selected.len(), 1);
+        assert_eq!(selected[0].cpt.id, 1);
+        assert_eq!(selected[0].label, "nearest");
+        assert_eq!(selected[0].quadrant, None);
+    }
+
+    #[test]
+    fn monopoly_override_selects_the_nearest_candidate() {
+        let selected = selected_cpts(
+            &load_point(),
+            &[cpt(1, 800.0, 0.0), cpt(2, 600.0, 0.0)],
+            &CptSelectionSettings {
+                algorithm: CptSelectionAlgorithm::MaximumAngle,
+                max_distance_m: 25.0,
+                monopoly_distance_m: 1.0,
+                max_angle_degrees: 120.0,
+            },
+            None,
+        );
+
+        assert_eq!(selected.len(), 1);
+        assert_eq!(selected[0].cpt.id, 2);
+    }
+
+    #[test]
+    fn monopoly_override_breaks_equal_distance_ties_by_lower_cpt_id() {
+        let selected = selected_cpts(
+            &load_point(),
+            &[cpt(2, 500.0, 500.0), cpt(1, -500.0, -500.0)],
+            &CptSelectionSettings {
+                algorithm: CptSelectionAlgorithm::Quadrants,
+                max_distance_m: 25.0,
+                monopoly_distance_m: 1.0,
+                max_angle_degrees: 120.0,
+            },
+            None,
+        );
+
+        assert_eq!(selected.len(), 1);
+        assert_eq!(selected[0].cpt.id, 1);
+    }
+
+    #[test]
+    fn monopoly_override_enforces_maximum_distance() {
+        let selected = selected_cpts(
+            &load_point(),
+            &[cpt(1, 2_000.0, 0.0)],
+            &CptSelectionSettings {
+                algorithm: CptSelectionAlgorithm::Quadrants,
+                max_distance_m: 1.0,
+                monopoly_distance_m: 5.0,
+                max_angle_degrees: 120.0,
+            },
+            None,
+        );
+
+        assert!(selected.is_empty());
+    }
+
+    #[test]
+    fn monopoly_override_falls_back_to_quadrant_selection() {
+        let selected = selected_cpts(
+            &load_point(),
+            &[
+                cpt(1, 2_000.0, 2_000.0),
+                cpt(2, 2_000.0, -2_000.0),
+                cpt(3, -2_000.0, 2_000.0),
+                cpt(4, -2_000.0, -2_000.0),
+            ],
+            &CptSelectionSettings {
+                algorithm: CptSelectionAlgorithm::Quadrants,
+                max_distance_m: 25.0,
+                monopoly_distance_m: 1.0,
+                max_angle_degrees: 120.0,
+            },
+            None,
+        );
+
+        let result: Vec<_> = selected
+            .iter()
+            .map(|item| (item.label.as_str(), item.quadrant.as_deref(), item.cpt.id))
+            .collect();
+        assert_eq!(
+            result,
+            vec![
+                ("upper right", Some("upper right"), 1),
+                ("lower right", Some("lower right"), 2),
+                ("upper left", Some("upper left"), 3),
+                ("lower left", Some("lower left"), 4),
+            ]
+        );
+    }
+
+    #[test]
+    fn monopoly_preserves_manual_selection_precedence() {
         let selected = selected_cpts(
             &load_point(),
             &[cpt(1, 10_000.0, 10_000.0), cpt(2, -10_000.0, -10_000.0)],
             &CptSelectionSettings {
                 algorithm: CptSelectionAlgorithm::Quadrants,
                 max_distance_m: 25.0,
+                monopoly_distance_m: 1.0,
                 max_angle_degrees: 120.0,
             },
             Some(&[2, 99, 1]),
@@ -1115,6 +1253,7 @@ mod tests {
         let settings = CptSelectionSettings {
             algorithm: CptSelectionAlgorithm::Quadrants,
             max_distance_m: 25.0,
+            monopoly_distance_m: 1.0,
             max_angle_degrees: 120.0,
         };
 
@@ -1160,6 +1299,7 @@ mod tests {
             |_| CptSelectionSettings {
                 algorithm: CptSelectionAlgorithm::Quadrants,
                 max_distance_m: 25.0,
+                monopoly_distance_m: 1.0,
                 max_angle_degrees: 120.0,
             },
             &HashMap::new(),
