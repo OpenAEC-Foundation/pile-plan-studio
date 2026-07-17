@@ -580,7 +580,7 @@ fn parse_legacy_table(
             continue;
         }
         rows.push(ParsedPilePlanRow {
-            source_id: parse_u32_cell(table, source_row.number, 0)?,
+            source_id: parse_legacy_load_point_id_cell(table, source_row.number, 0)?,
             x_mm: parse_f64_cell(table, source_row.number, 5)?,
             y_mm: parse_f64_cell(table, source_row.number, 6)?,
             pile: PilePlanImportedValue::Set(PileConfigurationKey {
@@ -643,6 +643,36 @@ fn parse_u32_cell(
 ) -> Result<u32, PilePlanImportDiagnostic> {
     let value = cell(table, row, column)?;
     parse_u32(value).map_err(|message| invalid_cell(table, row, column, message))
+}
+
+fn parse_legacy_load_point_id_cell(
+    table: &SourceTable,
+    row: usize,
+    column: usize,
+) -> Result<u32, PilePlanImportDiagnostic> {
+    let value = cell(table, row, column)?;
+    if let Ok(id) = parse_u32(value) {
+        return Ok(id);
+    }
+
+    let text = value.as_text();
+    let mut parts = text.split_whitespace();
+    let prefix = parts.next();
+    let id = parts.next();
+    if prefix.is_some_and(|part| part.eq_ignore_ascii_case("Knoop"))
+        && parts.next().is_none()
+    {
+        if let Some(id) = id.and_then(|part| part.parse::<u32>().ok()) {
+            return Ok(id);
+        }
+    }
+
+    Err(invalid_cell(
+        table,
+        row,
+        column,
+        format!("Invalid legacy load point ID '{text}'. Expected a number or 'Knoop <number>'."),
+    ))
 }
 
 fn parse_positive_u32_cell(
@@ -896,6 +926,34 @@ mod tests {
         assert!(parsed.diagnostics.iter().any(|diagnostic| {
             diagnostic.code == PilePlanImportDiagnosticCode::UnsupportedPileCount
         }));
+    }
+
+    #[test]
+    fn accepts_legacy_rfem_node_names_as_load_point_ids() {
+        let mut workbook = Workbook::new();
+        let worksheet = workbook.add_worksheet();
+        worksheet.set_name("Vergrendeld").unwrap();
+        worksheet.write_string(0, 0, "Knoop 1603").unwrap();
+        for (column, value) in [1.0, -21.5, 320.0, 0.85, -22350.0, 102400.0]
+            .into_iter()
+            .enumerate()
+        {
+            worksheet
+                .write_number(0, (column + 1) as u16, value)
+                .unwrap();
+        }
+
+        let parsed = parse_pile_plan_source(
+            "Vergrendeld.xlsx",
+            SourceFormat::Xlsx,
+            &workbook.save_to_buffer().unwrap(),
+            PilePlanImportProfile::Automatic,
+        )
+        .expect("legacy RFEM node source");
+
+        assert_eq!(parsed.profile, PilePlanImportProfile::Legacy);
+        assert_eq!(parsed.rows.len(), 1);
+        assert_eq!(parsed.rows[0].source_id, 1603);
     }
 
     #[test]

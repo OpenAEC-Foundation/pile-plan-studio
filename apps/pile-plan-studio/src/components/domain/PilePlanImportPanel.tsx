@@ -7,6 +7,7 @@ import type {
   PilePlanImportProfile,
 } from "../../core/pilePlanImportContract.ts";
 import type { Cpt, LoadPoint, PileConfigurationKey } from "../../core/projectTypes.ts";
+import { ifcImportIcon } from "../template/ribbon/icons.ts";
 import {
   applyPilePlanImportPreview,
   beginPilePlanImportPreview,
@@ -120,7 +121,11 @@ export default function PilePlanImportPanel({
             {draft.file?.name ?? t("pilePlanImport.noFile")}
           </span>
           <label className="project-import-file-button">
-            <FileIcon />
+            <span
+              className="project-import-file-icon"
+              aria-hidden="true"
+              dangerouslySetInnerHTML={{ __html: ifcImportIcon }}
+            />
             <span>{draft.file ? t("pilePlanImport.replace") : t("pilePlanImport.choose")}</span>
             <input
               className="project-import-native-file"
@@ -245,15 +250,4 @@ function formatDiagnosticLocation(
     row: location.row ?? "-",
     column: location.column ?? "-",
   })}`;
-}
-
-function FileIcon() {
-  return (
-    <span className="project-import-file-icon" aria-hidden="true">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-        <path d="M14 2v6h6M12 18v-6m-3 3h6" />
-      </svg>
-    </span>
-  );
 }
