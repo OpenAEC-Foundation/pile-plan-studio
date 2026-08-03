@@ -25,12 +25,13 @@ describe("PilePlanViewer inputs", () => {
     assert.match(source, /loadPoint && selectedLoadPointIds\.size > 0/);
   });
 
-  it("keeps marker base sizes close to the legacy viewer", () => {
+  it("keeps full-resolution marker boxes before applying the user scale", () => {
     const css = readFileSync(resolve(import.meta.dirname, "viewer.css"), "utf8");
 
-    assert.match(css, /--load-point-symbol-base:\s*calc\(12px \* var\(--viewer-symbol-scale\)\)/);
-    assert.match(css, /--cpt-marker-width-base:\s*calc\(15px \* var\(--viewer-symbol-scale\)\)/);
-    assert.match(css, /--cpt-marker-height-base:\s*calc\(13px \* var\(--viewer-symbol-scale\)\)/);
+    assert.match(css, /--load-point-symbol-base:\s*12px;/);
+    assert.match(css, /--cpt-marker-width-base:\s*15px;/);
+    assert.match(css, /--cpt-marker-height-base:\s*13px;/);
+    assert.doesNotMatch(css, /--load-point-symbol-base:\s*calc\(/);
     assert.match(css, /--cpt-default-fill:\s*#d4dade/);
     assert.match(css, /\.cpt-marker\s*{[\s\S]*?--cpt-fill:\s*var\(--cpt-default-fill\)/);
     assert.match(css, /\.cpt-label\s*{[\s\S]*?dominant-baseline:\s*middle;/);
@@ -45,14 +46,15 @@ describe("PilePlanViewer inputs", () => {
     );
     assert.match(
       css,
-      /\.load-point-symbol,\s*\.load-point-empty,\s*\.load-point-pending,\s*\.cpt-triangle\s*{[\s\S]*?position:\s*absolute;[\s\S]*?top:\s*0;[\s\S]*?left:\s*0;[\s\S]*?transform:\s*translate\(-50%,\s*-50%\);/,
+      /\.load-point-symbol,\s*\.load-point-empty,\s*\.load-point-pending,\s*\.cpt-triangle\s*{[\s\S]*?position:\s*absolute;[\s\S]*?top:\s*0;[\s\S]*?left:\s*0;[\s\S]*?transform:\s*translate\(-50%,\s*-50%\) scale\(var\(--viewer-symbol-scale\)\);/,
     );
     assert.match(
       css,
       /\.load-point-marker\.is-above-range \.load-point-symbol,[\s\S]*?\.viewer-hover-marker\.is-load-point\.is-above-range/,
     );
     assert.doesNotMatch(css, /\.load-point-marker\.is-above-range,\s*\.viewer-hover-marker/);
-    assert.match(css, /box-shadow:[\s\S]*?calc\(2px \* var\(--viewer-symbol-scale\)\)/);
+    assert.match(css, /box-shadow:[\s\S]*?0 0 0 2px/);
+    assert.doesNotMatch(css, /box-shadow:[\s\S]*?calc\(2px \* var\(--viewer-symbol-scale\)\)/);
   });
 
   it("replaces the marker fan with a compact hover inspector", () => {
@@ -90,8 +92,9 @@ describe("PilePlanViewer inputs", () => {
 
     assert.match(source, /state\.selectedCptId === cpt\.id/);
     assert.match(source, /is-inspected-cpt/);
-    assert.match(css, /--selection-ring-width:\s*calc\(2px \* var\(--viewer-symbol-scale\)\)/);
+    assert.match(css, /--selection-ring-width:\s*2px;/);
     assert.match(css, /\.load-point-marker\.is-selected::before,[\s\S]*?\.cpt-marker\.is-inspected-cpt::before/);
+    assert.match(css, /\.load-point-marker\.is-selected::before,[\s\S]*?transform:\s*translate\(-50%,\s*-50%\) scale\(var\(--viewer-symbol-scale\)\);/);
     assert.match(css, /\.is-hover-candidate::after\s*{[\s\S]*?border:\s*var\(--selection-ring-width\) solid var\(--theme-accent\)/);
     assert.doesNotMatch(css, /\.is-hover-candidate::after\s*{[\s\S]*?box-shadow:\s*0 0 0 2px #fff/);
   });
@@ -153,7 +156,7 @@ describe("PilePlanViewer inputs", () => {
     assert.match(source, /<svg className="cpt-triangle"[\s\S]*?<text[\s\S]*?className="cpt-label"[\s\S]*?x="12"[\s\S]*?y="9.5"/);
     assert.doesNotMatch(source, /<span className="cpt-label"/);
     assert.match(css, /\.cpt-label\s*{[\s\S]*?text-anchor:\s*middle;[\s\S]*?dominant-baseline:\s*middle;/);
-    assert.match(css, /\.load-point-marker\.is-selected::before,[\s\S]*?\.cpt-marker\.is-inspected-cpt::before\s*{[\s\S]*?top:\s*0;[\s\S]*?left:\s*0;[\s\S]*?transform:\s*translate\(-50%,\s*-50%\);/);
+    assert.match(css, /\.load-point-marker\.is-selected::before,[\s\S]*?\.cpt-marker\.is-inspected-cpt::before\s*{[\s\S]*?top:\s*0;[\s\S]*?left:\s*0;[\s\S]*?transform:\s*translate\(-50%,\s*-50%\) scale\(var\(--viewer-symbol-scale\)\);/);
   });
 
   it("uses responsive font scaling for CPT numbers", () => {

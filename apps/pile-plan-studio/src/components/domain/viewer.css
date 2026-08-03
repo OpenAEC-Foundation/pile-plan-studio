@@ -141,14 +141,14 @@
 
 .viewer-content {
   --viewer-symbol-scale: 1;
-  --selection-ring-width: calc(2px * var(--viewer-symbol-scale));
-  --load-point-marker-base: calc(14px * var(--viewer-symbol-scale));
-  --load-point-symbol-base: calc(12px * var(--viewer-symbol-scale));
-  --load-point-empty-base: calc(14px * var(--viewer-symbol-scale));
-  --cpt-marker-width-base: calc(15px * var(--viewer-symbol-scale));
-  --cpt-marker-height-base: calc(13px * var(--viewer-symbol-scale));
-  --cpt-symbol-width-base: calc(15px * var(--viewer-symbol-scale));
-  --cpt-symbol-height-base: calc(13px * var(--viewer-symbol-scale));
+  --selection-ring-width: 2px;
+  --load-point-marker-base: 14px;
+  --load-point-symbol-base: 12px;
+  --load-point-empty-base: 14px;
+  --cpt-marker-width-base: 15px;
+  --cpt-marker-height-base: 13px;
+  --cpt-symbol-width-base: 15px;
+  --cpt-symbol-height-base: 13px;
   position: absolute;
   inset: 0;
   transform-origin: 0 0;
@@ -349,7 +349,7 @@
 
 .load-point-marker,
 .cpt-marker {
-  --selection-ring-size: calc(var(--load-point-marker-base) + 8px * var(--viewer-symbol-scale));
+  --selection-ring-size: calc(var(--load-point-marker-base) + 8px);
   position: absolute;
   width: 0;
   height: 0;
@@ -377,8 +377,8 @@
       rgba(145, 31, 25, calc(0.08 + var(--utilization-intensity) * 0.42)) 100%
     );
   box-shadow:
-    0 0 0 calc(2px * var(--viewer-symbol-scale)) rgba(199, 53, 42, calc(0.18 + var(--utilization-intensity) * 0.62)),
-    0 0 calc(8px * var(--viewer-symbol-scale)) rgba(199, 53, 42, calc(0.08 + var(--utilization-intensity) * 0.42));
+    0 0 0 2px rgba(199, 53, 42, calc(0.18 + var(--utilization-intensity) * 0.62)),
+    0 0 8px rgba(199, 53, 42, calc(0.08 + var(--utilization-intensity) * 0.42));
 }
 
 .load-point-marker.is-below-range .load-point-symbol,
@@ -391,16 +391,16 @@
       rgba(25, 112, 50, calc(0.08 + var(--utilization-intensity) * 0.42)) 100%
     );
   box-shadow:
-    0 0 0 calc(2px * var(--viewer-symbol-scale)) rgba(48, 153, 76, calc(0.18 + var(--utilization-intensity) * 0.62)),
-    0 0 calc(8px * var(--viewer-symbol-scale)) rgba(48, 153, 76, calc(0.08 + var(--utilization-intensity) * 0.42));
+    0 0 0 2px rgba(48, 153, 76, calc(0.18 + var(--utilization-intensity) * 0.62)),
+    0 0 8px rgba(48, 153, 76, calc(0.08 + var(--utilization-intensity) * 0.42));
 }
 
 .load-point-marker.is-missing .load-point-symbol,
 .viewer-hover-marker.is-load-point.is-missing {
   background: rgba(255, 193, 7, 0.22);
   box-shadow:
-    0 0 0 calc(2px * var(--viewer-symbol-scale)) rgba(194, 130, 0, 0.72),
-    0 0 calc(7px * var(--viewer-symbol-scale)) rgba(255, 193, 7, 0.32);
+    0 0 0 2px rgba(194, 130, 0, 0.72),
+    0 0 7px rgba(255, 193, 7, 0.32);
 }
 
 .load-point-marker:focus,
@@ -423,7 +423,8 @@
   border: var(--selection-ring-width) solid var(--theme-accent);
   border-radius: 999px;
   content: "";
-  transform: translate(-50%, -50%);
+  transform: translate(-50%, -50%) scale(var(--viewer-symbol-scale));
+  transform-origin: center;
 }
 
 .load-point-symbol,
@@ -433,7 +434,8 @@
   position: absolute;
   top: 0;
   left: 0;
-  transform: translate(-50%, -50%);
+  transform: translate(-50%, -50%) scale(var(--viewer-symbol-scale));
+  transform-origin: center;
 }
 
 .load-point-symbol,
@@ -495,7 +497,7 @@
 }
 
 .cpt-marker {
-  --selection-ring-size: calc(var(--cpt-marker-width-base) + 8px * var(--viewer-symbol-scale));
+  --selection-ring-size: calc(var(--cpt-marker-width-base) + 8px);
   --cpt-fill: var(--cpt-default-fill);
   --cpt-stroke: var(--cpt-default-stroke);
   color: #52636c;
@@ -585,5 +587,6 @@
   background: transparent;
   content: "";
   pointer-events: none;
-  transform: translate(-50%, -50%);
+  transform: translate(-50%, -50%) scale(var(--viewer-symbol-scale));
+  transform-origin: center;
 }
