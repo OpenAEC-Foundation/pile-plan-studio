@@ -13,6 +13,7 @@ import type { Viewport } from "../viewer/viewport.ts";
 import type { LegendSelectionFilter } from "../viewer/legendSelection.ts";
 import type { OptimizationRunSummary } from "./optimizationSummary.ts";
 import type { OptimizationLimitScope, OptimizationTargetScope } from "../components/domain/optimizationPanelModel.ts";
+import { normalizeViewerPreferences, type ForegroundLayer, type ViewerPreferences } from "./viewerPreferences.ts";
 
 export type InputSourceKind = "load_points" | "cpts" | "bearing_capacities";
 export type InputSourceStatus = "snapshot-only" | "linked" | "missing" | "changed";
@@ -61,10 +62,13 @@ export type ProjectState = LoadedProjectData & {
   optimizationRunning: boolean;
   optimizationError: string | null;
   optimizationSummary: OptimizationRunSummary | null;
+  symbolScalePercent: number;
+  foregroundLayer: ForegroundLayer;
 };
 
 type InitialProjectStateOptions = {
   initializeDefaultPiles: boolean;
+  viewerPreferences?: ViewerPreferences;
 };
 
 export function createInitialProjectState(
@@ -73,6 +77,7 @@ export function createInitialProjectState(
 ): ProjectState {
   const projectData = loadIfcppProjectData(input);
   const firstLoadPointId = projectData.loadPoints[0]?.id ?? null;
+  const viewerPreferences = normalizeViewerPreferences(options.viewerPreferences);
 
   return {
     ...projectData,
@@ -119,6 +124,7 @@ export function createInitialProjectState(
     optimizationRunning: false,
     optimizationError: null,
     optimizationSummary: null,
+    ...viewerPreferences,
   };
 }
 

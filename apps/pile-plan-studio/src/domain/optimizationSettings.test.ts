@@ -65,10 +65,12 @@ describe("optimization settings", () => {
         maxDifferentConfigurations: 1,
       },
       baselineOptions: [],
+      maxUtilization: 0.85,
     });
 
     assert.deepEqual(settings.enabled_pile_sizes, [290]);
     assert.deepEqual(settings.enabled_pile_tip_levels, [-18]);
+    assert.equal(settings.max_utilization, 0.85);
   });
 
   it("clamps optimizer limits to the active legend counts", () => {
@@ -206,6 +208,7 @@ describe("optimization settings", () => {
         maxDifferentConfigurations: 2,
       },
       baselineOptions: [option(320, -18), option(320, -18), null],
+      maxUtilization: 1,
     });
 
     assert.deepEqual(settings.baseline_pile_sizes, [320]);

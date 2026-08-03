@@ -81,11 +81,17 @@ export type GreedyOptimizationSettings = {
   max_pile_sizes: number;
   max_pile_tip_levels: number;
   max_pile_configurations: number;
+  max_utilization: number;
   enabled_pile_sizes: number[];
   enabled_pile_tip_levels: number[];
   baseline_pile_sizes: number[];
   baseline_pile_tip_levels: number[];
   baseline_pile_configurations: PileConfigurationKey[];
+};
+
+export type ViewerUtilizationSettings = {
+  minimum: number;
+  maximum: number;
 };
 
 export type PileConfigurationKey = {

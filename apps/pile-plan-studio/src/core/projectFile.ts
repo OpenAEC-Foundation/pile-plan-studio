@@ -7,7 +7,12 @@ import type {
   LoadPoint,
   PileConfigurationKey,
   PileCostSettings,
+  ViewerUtilizationSettings,
 } from "./projectTypes.ts";
+
+type IfcppGreedyOptimizationSettings = Omit<GreedyOptimizationSettings, "max_utilization"> & {
+  max_utilization?: number;
+};
 
 type IfcppApplication = {
   name: string;
@@ -55,7 +60,8 @@ export type IfcppProject = {
     global_cpt_selection: IfcppCptSelectionSettings;
     cpt_selection_by_load_point: Record<string, IfcppCptSelectionSettings>;
     pile_costs: PileCostSettings;
-    optimization: GreedyOptimizationSettings;
+    optimization: IfcppGreedyOptimizationSettings;
+    viewer_utilization?: ViewerUtilizationSettings;
     active_pile_sizes: number[];
     active_pile_tip_levels: number[];
   };
@@ -96,6 +102,7 @@ export type LoadedProjectData = {
   activePileSizes: number[];
   activePileTipLevels: number[];
   optimizationSettings: GreedyOptimizationSettings;
+  viewerUtilizationSettings: ViewerUtilizationSettings;
   selectedPileOptionKeysByLoadPoint: Map<number, string>;
   manualCptIdsByLoadPoint: Map<number, number[]>;
 };
@@ -124,7 +131,13 @@ export function loadIfcppProjectData(input: string | IfcppProject): LoadedProjec
     pileCostSettings: project.settings.pile_costs,
     activePileSizes: project.settings.active_pile_sizes,
     activePileTipLevels: project.settings.active_pile_tip_levels,
-    optimizationSettings: project.settings.optimization,
+    optimizationSettings: {
+      ...project.settings.optimization,
+      max_utilization: clampUnitInterval(project.settings.optimization.max_utilization ?? 1),
+    },
+    viewerUtilizationSettings: normalizeViewerUtilizationSettings(
+      project.settings.viewer_utilization,
+    ),
     selectedPileOptionKeysByLoadPoint: new Map(
       numberKeyedEntries(project.user_state.selected_piles)
         .flatMap(([loadPointId, choice]) => {
@@ -158,6 +171,7 @@ export function createIfcppProject(input: {
   cptSelectionSettingsByLoadPoint: Map<number, CptSelectionSettings>;
   pileCostSettings: PileCostSettings;
   optimizationSettings: GreedyOptimizationSettings;
+  viewerUtilizationSettings: ViewerUtilizationSettings;
   activePileSizes: number[];
   activePileTipLevels: number[];
   selectedPileOptionKeysByLoadPoint: Map<number, string>;
@@ -199,6 +213,7 @@ export function createIfcppProject(input: {
       ),
       pile_costs: input.pileCostSettings,
       optimization: input.optimizationSettings,
+      viewer_utilization: normalizeViewerUtilizationSettings(input.viewerUtilizationSettings),
       active_pile_sizes: input.activePileSizes,
       active_pile_tip_levels: input.activePileTipLevels,
     },
@@ -216,6 +231,21 @@ export function createIfcppProject(input: {
     },
     import_log: [],
   };
+}
+
+function normalizeViewerUtilizationSettings(
+  settings: ViewerUtilizationSettings | undefined,
+): ViewerUtilizationSettings {
+  const minimum = clampUnitInterval(settings?.minimum ?? 0);
+  const maximum = clampUnitInterval(settings?.maximum ?? 1);
+  return {
+    minimum: Math.min(minimum, maximum),
+    maximum: Math.max(minimum, maximum),
+  };
+}
+
+function clampUnitInterval(value: number): number {
+  return Number.isFinite(value) ? Math.max(0, Math.min(1, value)) : 1;
 }
 
 export function applyDefaultPileCostSettings(

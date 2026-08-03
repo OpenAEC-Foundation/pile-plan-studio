@@ -128,6 +128,7 @@ export function buildGreedyOptimizationSettings(input: {
   activePileTipLevels: number[];
   uiSettings: OptimizationUiSettings;
   baselineOptions: Array<PileConfigurationOption | null>;
+  maxUtilization: number;
 }): GreedyOptimizationSettings {
   const uiSettings = clampOptimizationUiSettingsToActiveConfigurations(input.uiSettings, {
     pileSizes: input.activePileSizes,
@@ -141,6 +142,7 @@ export function buildGreedyOptimizationSettings(input: {
     max_pile_sizes: uiSettings.maxDifferentSizes,
     max_pile_tip_levels: uiSettings.maxDifferentTips,
     max_pile_configurations: uiSettings.maxDifferentConfigurations,
+    max_utilization: Math.max(0, Math.min(1, input.maxUtilization)),
     enabled_pile_sizes: input.activePileSizes,
     enabled_pile_tip_levels: input.activePileTipLevels,
     baseline_pile_sizes: [...new Set(baselineOptions.map((option) => option.pile_size_mm))],

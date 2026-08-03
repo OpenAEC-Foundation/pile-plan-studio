@@ -19,6 +19,18 @@ describe("createInitialProjectState", () => {
     assert.equal(state.cptSettingsScope, "selected");
     assert.equal(state.analysisError, null);
     assert.equal(state.defaultPileSelectionPending, true);
+    assert.equal(state.symbolScalePercent, 100);
+    assert.equal(state.foregroundLayer, "load-points");
+  });
+
+  it("accepts persisted local viewer preferences", () => {
+    const state = createInitialProjectState(sampleProjectText, {
+      initializeDefaultPiles: false,
+      viewerPreferences: { symbolScalePercent: 145, foregroundLayer: "cpts" },
+    });
+
+    assert.equal(state.symbolScalePercent, 145);
+    assert.equal(state.foregroundLayer, "cpts");
   });
 
   it("preserves stored IFCPP choices without scheduling default selection", () => {

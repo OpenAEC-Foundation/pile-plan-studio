@@ -102,6 +102,19 @@ describe("IFCPP project loading", () => {
     assert.equal(data.cptSelectionSettingsByLoadPoint.get(1)?.maxDistanceM, 25);
     assert.equal(data.selectedPileOptionKeysByLoadPoint.get(1), "290|-18");
     assert.deepEqual(data.manualCptIdsByLoadPoint.get(1), [10, 11]);
+    assert.deepEqual(data.viewerUtilizationSettings, { minimum: 0, maximum: 1 });
+    assert.equal(data.optimizationSettings.max_utilization, 1);
+  });
+
+  it("normalizes persisted utilization settings", () => {
+    const project = projectFixture();
+    project.settings.viewer_utilization = { minimum: 1.2, maximum: -0.1 };
+    project.settings.optimization.max_utilization = 0.82;
+
+    const data = loadIfcppProjectData(project);
+
+    assert.deepEqual(data.viewerUtilizationSettings, { minimum: 0, maximum: 1 });
+    assert.equal(data.optimizationSettings.max_utilization, 0.82);
   });
 
   it("loads persisted choices and settings returned as WASM maps", () => {
@@ -160,6 +173,8 @@ describe("IFCPP project loading", () => {
       pile_tip_level_m_key: -18000,
     });
     assert.deepEqual(project.user_state.selected_piles["1"].external_references, []);
+    assert.deepEqual(project.settings.viewer_utilization, { minimum: 0, maximum: 1 });
+    assert.equal(project.settings.optimization.max_utilization, 1);
   });
 
   it("uses default pile cost settings when imported project has no pile costs", () => {

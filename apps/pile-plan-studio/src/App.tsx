@@ -49,6 +49,7 @@ import { buildPilePlanExportInput } from "./domain/pilePlanExport.ts";
 import { applyPilePlanImportPatch } from "./domain/pilePlanImport.ts";
 import type { PilePlanImportPatch } from "./core/pilePlanImportContract.ts";
 import { mergeDefaultPileChoices } from "./domain/defaultPileChoices.ts";
+import { loadViewerPreferences, saveViewerPreferences } from "./domain/viewerPreferences.ts";
 
 const PILE_COST_DEFAULTS_KEY = "pile-cost-defaults";
 
@@ -186,6 +187,19 @@ export default function App() {
       applyTheme(saved);
     });
   }, []);
+
+  useEffect(() => {
+    loadViewerPreferences().then((preferences) => {
+      setProjectState((current) => ({ ...current, ...preferences }));
+    });
+  }, []);
+
+  useEffect(() => {
+    void saveViewerPreferences({
+      symbolScalePercent: projectState.symbolScalePercent,
+      foregroundLayer: projectState.foregroundLayer,
+    });
+  }, [projectState.foregroundLayer, projectState.symbolScalePercent]);
 
   useEffect(() => {
     let cancelled = false;
@@ -387,6 +401,7 @@ export default function App() {
       baselineOptions: snapshot.loadPoints
         .filter((loadPoint) => !targetSet.has(loadPoint.id))
         .map((loadPoint) => chosenOption(loadPoint.id)),
+      maxUtilization: snapshot.optimizationSettings.max_utilization,
     });
     const optionsByLoadPoint = new Map(targetIds.map((id) => [
       id,
@@ -447,7 +462,10 @@ export default function App() {
     if (!await confirmProjectReplacement()) return;
     const { invoke } = await import("@tauri-apps/api/core");
     const text = await invoke<string>("read_project_file", { path });
-    installOpenedProject(createInitialProjectState(text, { initializeDefaultPiles: false }), path);
+    installOpenedProject(createInitialProjectState(text, {
+      initializeDefaultPiles: false,
+      viewerPreferences: projectState,
+    }), path);
   };
 
   const chooseDesktopProject = async () => {
@@ -541,7 +559,10 @@ export default function App() {
               sources,
             });
             defaultSelectionKeepsDirtyRef.current = true;
-            setProjectState(createInitialProjectState(refreshedProject, { initializeDefaultPiles: true }));
+            setProjectState(createInitialProjectState(refreshedProject, {
+              initializeDefaultPiles: true,
+              viewerPreferences: projectState,
+            }));
             setIsDirty(true);
             return getImportSummary(refreshedProject);
           }
@@ -553,7 +574,10 @@ export default function App() {
           });
           const withCosts = applyDefaultPileCostSettings(project, projectState.pileCostSettings);
           defaultSelectionKeepsDirtyRef.current = false;
-          setProjectState(createInitialProjectState(withCosts, { initializeDefaultPiles: true }));
+          setProjectState(createInitialProjectState(withCosts, {
+            initializeDefaultPiles: true,
+            viewerPreferences: projectState,
+          }));
           setProjectPath(null);
           savedProjectSignatureRef.current = "";
           setIsDirty(true);
@@ -563,7 +587,7 @@ export default function App() {
           if (!await confirmProjectReplacement()) return;
           const project = createInitialProjectState(
             await file.text(),
-            { initializeDefaultPiles: false },
+            { initializeDefaultPiles: false, viewerPreferences: projectState },
           );
           installOpenedProject(project, null);
         }}
@@ -635,6 +659,7 @@ function projectFromState(state: ProjectState) {
     cptSelectionSettingsByLoadPoint: state.cptSelectionSettingsByLoadPoint,
     pileCostSettings: state.pileCostSettings,
     optimizationSettings: state.optimizationSettings,
+    viewerUtilizationSettings: state.viewerUtilizationSettings,
     activePileSizes: state.activePileSizes,
     activePileTipLevels: state.activePileTipLevels,
     selectedPileOptionKeysByLoadPoint: state.selectedPileOptionKeysByLoadPoint,
