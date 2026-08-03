@@ -69,8 +69,37 @@ pub struct ProjectSettings {
     pub cpt_selection_by_load_point: HashMap<u32, CptSelectionSettings>,
     pub pile_costs: PileCostSettings,
     pub optimization: GreedyOptimizationSettings,
+    #[serde(default)]
+    pub viewer_utilization: ViewerUtilizationSettings,
     pub active_pile_sizes: Vec<u32>,
     pub active_pile_tip_levels: Vec<f64>,
+}
+
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+pub struct ViewerUtilizationSettings {
+    pub minimum: f64,
+    pub maximum: f64,
+}
+
+impl Default for ViewerUtilizationSettings {
+    fn default() -> Self {
+        Self {
+            minimum: 0.0,
+            maximum: 1.0,
+        }
+    }
+}
+
+impl ViewerUtilizationSettings {
+    pub fn normalized(&self) -> Self {
+        let minimum = self.minimum.clamp(0.0, 1.0);
+        let maximum = self.maximum.clamp(0.0, 1.0);
+
+        Self {
+            minimum: minimum.min(maximum),
+            maximum: minimum.max(maximum),
+        }
+    }
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
@@ -146,6 +175,44 @@ mod tests {
         let parsed: PilePlanProject = serde_json::from_str(&json).expect("project deserializes");
 
         assert_eq!(parsed, project);
+    }
+
+    #[test]
+    fn legacy_project_defaults_new_utilization_settings() {
+        let project = sample_project();
+        let mut value = serde_json::to_value(project).expect("project serializes");
+        let settings = value
+            .get_mut("settings")
+            .and_then(serde_json::Value::as_object_mut)
+            .expect("settings are an object");
+        settings.remove("viewer_utilization");
+        settings
+            .get_mut("optimization")
+            .and_then(serde_json::Value::as_object_mut)
+            .expect("optimization settings are an object")
+            .remove("max_utilization");
+
+        let parsed: PilePlanProject =
+            serde_json::from_value(value).expect("legacy project deserializes");
+
+        assert_eq!(parsed.settings.viewer_utilization.minimum, 0.0);
+        assert_eq!(parsed.settings.viewer_utilization.maximum, 1.0);
+        assert_eq!(parsed.settings.optimization.max_utilization, 1.0);
+    }
+
+    #[test]
+    fn viewer_utilization_settings_clamp_and_order_percentages() {
+        assert_eq!(
+            ViewerUtilizationSettings {
+                minimum: 1.2,
+                maximum: -0.1,
+            }
+            .normalized(),
+            ViewerUtilizationSettings {
+                minimum: 0.0,
+                maximum: 1.0,
+            }
+        );
     }
 
     fn sample_project() -> PilePlanProject {
@@ -227,12 +294,14 @@ mod tests {
                     max_pile_sizes: 1,
                     max_pile_tip_levels: 1,
                     max_pile_configurations: 1,
+                    max_utilization: 1.0,
                     enabled_pile_sizes: vec![290],
                     enabled_pile_tip_levels: vec![-18.0],
                     baseline_pile_sizes: vec![],
                     baseline_pile_tip_levels: vec![],
                     baseline_pile_configurations: vec![],
                 },
+                viewer_utilization: ViewerUtilizationSettings::default(),
                 active_pile_sizes: vec![290],
                 active_pile_tip_levels: vec![-18.0],
             },

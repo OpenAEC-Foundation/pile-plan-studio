@@ -113,11 +113,17 @@ pub struct GreedyOptimizationSettings {
     pub max_pile_sizes: usize,
     pub max_pile_tip_levels: usize,
     pub max_pile_configurations: usize,
+    #[serde(default = "default_max_utilization")]
+    pub max_utilization: f64,
     pub enabled_pile_sizes: Vec<u32>,
     pub enabled_pile_tip_levels: Vec<f64>,
     pub baseline_pile_sizes: Vec<u32>,
     pub baseline_pile_tip_levels: Vec<f64>,
     pub baseline_pile_configurations: Vec<PileConfigurationKey>,
+}
+
+fn default_max_utilization() -> f64 {
+    1.0
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, Hash, PartialEq, Serialize)]
@@ -590,7 +596,13 @@ pub fn greedy_optimize_pile_choices(
                     options
                         .iter()
                         .filter(|option| {
-                            option.is_option && optimization_option_enabled(option, settings)
+                            option.is_option
+                                && option
+                                    .utilization
+                                    .is_some_and(|utilization| {
+                                        utilization <= settings.max_utilization.clamp(0.0, 1.0)
+                                    })
+                                && optimization_option_enabled(option, settings)
                         })
                         .cloned()
                         .collect(),
@@ -1474,6 +1486,7 @@ mod tests {
                 max_pile_sizes: 1,
                 max_pile_tip_levels: 1,
                 max_pile_configurations: 1,
+                max_utilization: 1.0,
                 enabled_pile_sizes: vec![290, 320, 350],
                 enabled_pile_tip_levels: vec![-17.5, -18.0, -19.0],
                 baseline_pile_sizes: vec![],
@@ -1512,6 +1525,7 @@ mod tests {
                 max_pile_sizes: 2,
                 max_pile_tip_levels: 2,
                 max_pile_configurations: 4,
+                max_utilization: 1.0,
                 enabled_pile_sizes: vec![320],
                 enabled_pile_tip_levels: vec![-18.0],
                 baseline_pile_sizes: vec![],
@@ -1541,6 +1555,7 @@ mod tests {
                 max_pile_sizes: 2,
                 max_pile_tip_levels: 2,
                 max_pile_configurations: 4,
+                max_utilization: 1.0,
                 enabled_pile_sizes: vec![],
                 enabled_pile_tip_levels: vec![],
                 baseline_pile_sizes: vec![],
@@ -1550,6 +1565,33 @@ mod tests {
         );
 
         assert!(choices.is_empty());
+    }
+
+    #[test]
+    fn greedy_optimizer_enforces_maximum_utilization_inclusively() {
+        let options_by_load_point = HashMap::from([
+            (1, vec![pile_option(290, -17.5, true, 0.8)]),
+            (2, vec![pile_option(290, -17.5, true, 0.800_001)]),
+        ]);
+
+        let choices = greedy_optimize_pile_choices(
+            &options_by_load_point,
+            &cost_settings(),
+            &GreedyOptimizationSettings {
+                max_pile_sizes: 1,
+                max_pile_tip_levels: 1,
+                max_pile_configurations: 1,
+                max_utilization: 0.8,
+                enabled_pile_sizes: vec![290],
+                enabled_pile_tip_levels: vec![-17.5],
+                baseline_pile_sizes: vec![],
+                baseline_pile_tip_levels: vec![],
+                baseline_pile_configurations: vec![],
+            },
+        );
+
+        assert_eq!(choices.len(), 1);
+        assert_eq!(choices[0].load_point_id, 1);
     }
 
     #[test]
@@ -1569,6 +1611,7 @@ mod tests {
                 max_pile_sizes: 2,
                 max_pile_tip_levels: 2,
                 max_pile_configurations: 1,
+                max_utilization: 1.0,
                 enabled_pile_sizes: vec![320, 350],
                 enabled_pile_tip_levels: vec![-18.0, -19.0],
                 baseline_pile_sizes: vec![320],
@@ -1610,6 +1653,7 @@ mod tests {
                 max_pile_sizes: 3,
                 max_pile_tip_levels: 5,
                 max_pile_configurations: 3,
+                max_utilization: 1.0,
                 enabled_pile_sizes: vec![290, 320, 356],
                 enabled_pile_tip_levels: vec![-18.0, -20.0],
                 baseline_pile_sizes: vec![],

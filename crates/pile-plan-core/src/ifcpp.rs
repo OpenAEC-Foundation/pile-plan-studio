@@ -32,7 +32,13 @@ impl From<JsonError> for IfcppError {
 }
 
 pub fn read_ifcpp_str(input: &str) -> Result<PilePlanProject, IfcppError> {
-    let project: PilePlanProject = serde_json::from_str(input)?;
+    let mut project: PilePlanProject = serde_json::from_str(input)?;
+    project.settings.viewer_utilization = project.settings.viewer_utilization.normalized();
+    project.settings.optimization.max_utilization = project
+        .settings
+        .optimization
+        .max_utilization
+        .clamp(0.0, 1.0);
     validate_ifcpp_project(&project)?;
 
     Ok(project)
@@ -153,12 +159,14 @@ mod tests {
                     max_pile_sizes: 0,
                     max_pile_tip_levels: 0,
                     max_pile_configurations: 0,
+                    max_utilization: 1.0,
                     enabled_pile_sizes: vec![],
                     enabled_pile_tip_levels: vec![],
                     baseline_pile_sizes: vec![],
                     baseline_pile_tip_levels: vec![],
                     baseline_pile_configurations: vec![],
                 },
+                viewer_utilization: Default::default(),
                 active_pile_sizes: vec![],
                 active_pile_tip_levels: vec![],
             },

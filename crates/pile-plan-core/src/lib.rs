@@ -36,4 +36,5 @@ pub use pile_plan_import::*;
 pub use project::{
     ExternalReference, PilePlanProject, ProjectApplication, ProjectImportLogEntry, ProjectInputs,
     ProjectMetadata, ProjectSettings, ProjectUnits, ProjectUserState, SelectedPileChoice,
+    ViewerUtilizationSettings,
 };
