@@ -48,11 +48,12 @@
       "loadPoint": "Load point",
       "cpt": "CPT",
       "utilization": "Utilization",
-      "candidateCount_one": "{{count}} candidate",
-      "candidateCount_other": "{{count}} candidates",
+      "candidateCount_one": "{{count}} object near pointer",
+      "candidateCount_other": "{{count}} objects near pointer",
       "spaceKey": "Space",
-      "nextCandidate": "Next candidate",
-      "shiftHint": "Click to add to selection"
+      "nextCandidate": "Next object",
+      "clickKey": "Click",
+      "addToSelection": "Add to selection"
     }
   },
   "legend": {

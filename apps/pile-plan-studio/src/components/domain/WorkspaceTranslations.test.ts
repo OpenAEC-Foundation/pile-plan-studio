@@ -16,6 +16,16 @@ describe("Workspace translations", () => {
     assert.match(legend, /t\("legend\.tip"\)/);
   });
 
+  it("describes hover candidates as objects near the pointer", () => {
+    const en = JSON.parse(readFileSync(resolve(import.meta.dirname, "../../i18n/locales/en/common.json"), "utf8"));
+    const nl = JSON.parse(readFileSync(resolve(import.meta.dirname, "../../i18n/locales/nl/common.json"), "utf8"));
+
+    assert.equal(en.viewer.hover.candidateCount_other, "{{count}} objects near pointer");
+    assert.equal(en.viewer.hover.nextCandidate, "Next object");
+    assert.equal(nl.viewer.hover.candidateCount_other, "{{count}} objecten bij aanwijzer");
+    assert.equal(nl.viewer.hover.nextCandidate, "Volgend object");
+  });
+
   it("uses load-location terminology in the Dutch panel and ribbon", () => {
     const panel = readFileSync(resolve(import.meta.dirname, "../../i18n/locales/nl/rightPanel.json"), "utf8");
     const ribbon = readFileSync(resolve(import.meta.dirname, "../../i18n/locales/nl/ribbon.json"), "utf8");

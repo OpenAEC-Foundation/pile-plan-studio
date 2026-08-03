@@ -608,9 +608,13 @@ export default function PilePlanViewer({ state, onStateChange }: Props) {
           </>
         ) : null}
         {loadPoint && selectedLoadPointIds.size > 0 ? (
-          <div className="viewer-hover-shortcut">
-            <span className="viewer-hover-keycap">Shift</span>
-            <span>{t("viewer.hover.shiftHint")}</span>
+          <div className="viewer-hover-shortcut is-stacked">
+            <span className="viewer-hover-shortcut-combination">
+              <span className="viewer-hover-keycap">Shift</span>
+              <span className="viewer-hover-shortcut-plus" aria-hidden="true">+</span>
+              <span className="viewer-hover-keycap">{t("viewer.hover.clickKey")}</span>
+            </span>
+            <span>{t("viewer.hover.addToSelection")}</span>
           </div>
         ) : null}
       </section>

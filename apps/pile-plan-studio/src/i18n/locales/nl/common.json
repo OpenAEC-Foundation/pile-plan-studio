@@ -48,11 +48,12 @@
       "loadPoint": "Belastinglocatie",
       "cpt": "Sondering",
       "utilization": "Benuttingsgraad",
-      "candidateCount_one": "{{count}} kandidaat",
-      "candidateCount_other": "{{count}} kandidaten",
+      "candidateCount_one": "{{count}} object bij aanwijzer",
+      "candidateCount_other": "{{count}} objecten bij aanwijzer",
       "spaceKey": "Spatie",
-      "nextCandidate": "Volgende kandidaat",
-      "shiftHint": "Klik om toe te voegen aan selectie"
+      "nextCandidate": "Volgend object",
+      "clickKey": "Klik",
+      "addToSelection": "Toevoegen aan selectie"
     }
   },
   "legend": {

@@ -14,6 +14,19 @@ describe("Optimize ribbon", () => {
     assert.match(source, /foregroundLayer/);
     assert.match(source, /type="range"/);
   });
+
+  it("draws the preferred utilization track only between its two handles", () => {
+    const source = readFileSync(resolve(import.meta.dirname, "Ribbon.tsx"), "utf8");
+    const css = readFileSync(resolve(import.meta.dirname, "Ribbon.css"), "utf8");
+
+    assert.match(source, /ribbon-dual-range-selection/);
+    assert.match(source, /left:\s*`\$\{viewerUtilizationMinimum \* 100\}%`/);
+    assert.match(source, /width:\s*`\$\{\(viewerUtilizationMaximum - viewerUtilizationMinimum\) \* 100\}%`/);
+    assert.match(css, /\.ribbon-dual-range-selection\s*{[\s\S]*?background:\s*var\(--theme-accent\)/);
+    assert.match(css, /::-webkit-slider-runnable-track\s*{[\s\S]*?background:\s*transparent/);
+    assert.match(css, /::-moz-range-track\s*{[\s\S]*?background:\s*transparent/);
+  });
+
   it("connects settings and run commands", () => {
     const source = readFileSync(resolve(import.meta.dirname, "Ribbon.tsx"), "utf8");
     assert.match(source, /onOpenOptimizationSettings/);

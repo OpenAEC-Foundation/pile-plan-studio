@@ -159,6 +159,14 @@ export default function Ribbon({
                   <span>{t("view.preferredRange")}</span>
                   <strong>{Math.round(viewerUtilizationMinimum * 100)}-{Math.round(viewerUtilizationMaximum * 100)}%</strong>
                   <div className="ribbon-dual-range">
+                    <span
+                      aria-hidden="true"
+                      className="ribbon-dual-range-selection"
+                      style={{
+                        left: `${viewerUtilizationMinimum * 100}%`,
+                        width: `${(viewerUtilizationMaximum - viewerUtilizationMinimum) * 100}%`,
+                      }}
+                    />
                     <input
                       aria-label={t("view.minimumUtilization")}
                       max="100"

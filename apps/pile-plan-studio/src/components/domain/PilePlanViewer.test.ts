@@ -18,11 +18,16 @@ describe("PilePlanViewer inputs", () => {
     assert.ok(state.bounds.maxY > state.bounds.minY);
   });
 
-  it("removes the legacy Shift tooltip and only shows the inline hint for an existing selection", () => {
+  it("shows Shift-click as an explicit shortcut when a selection already exists", () => {
     const source = readFileSync(resolve(import.meta.dirname, "PilePlanViewer.tsx"), "utf8");
 
     assert.doesNotMatch(source, /title=\{t\("viewer\.selectionHelp"\)\}/);
     assert.match(source, /loadPoint && selectedLoadPointIds\.size > 0/);
+    assert.match(source, /viewer-hover-shortcut-combination/);
+    assert.match(source, /viewer\.hover\.clickKey/);
+    assert.match(source, /viewer-hover-shortcut-plus/);
+    assert.match(source, /viewer\.hover\.addToSelection/);
+    assert.doesNotMatch(source, /viewer\.hover\.shiftHint/);
   });
 
   it("keeps full-resolution marker boxes before applying the user scale", () => {
@@ -64,7 +69,7 @@ describe("PilePlanViewer inputs", () => {
     assert.doesNotMatch(source, /markerFan|MarkerFan|marker-fan/);
     assert.doesNotMatch(css, /marker-fan/);
     assert.match(source, /viewer-hover-inspector/);
-    assert.match(source, /viewer\.hover\.shiftHint/);
+    assert.match(source, /viewer\.hover\.addToSelection/);
     assert.match(css, /\.viewer-hover-inspector\s*{[\s\S]*?right:\s*12px;[\s\S]*?bottom:\s*12px;[\s\S]*?pointer-events:\s*none;/);
   });
 

@@ -284,6 +284,23 @@
   font-size: 9px;
 }
 
+.viewer-hover-shortcut.is-stacked {
+  flex-direction: column;
+  gap: 3px;
+  padding-block: 6px;
+}
+
+.viewer-hover-shortcut-combination {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.viewer-hover-shortcut-plus {
+  color: var(--theme-text);
+  font-weight: 700;
+}
+
 .viewer-hover-keycap {
   min-width: 48px;
   padding: 3px 8px;
