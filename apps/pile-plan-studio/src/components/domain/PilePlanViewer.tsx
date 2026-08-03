@@ -145,6 +145,11 @@ export default function PilePlanViewer({ state, onStateChange }: Props) {
 
   useEffect(() => {
     function handleKeyDown(event: KeyboardEvent) {
+      if (event.code === "Space" && isNonTextEntryTarget(event.target)) {
+        event.preventDefault();
+        return;
+      }
+
       if (event.code === "Space" && !isTextEntryTarget(event.target)) {
         event.preventDefault();
         blurActiveNonTextControl();
@@ -729,8 +734,22 @@ const TEXT_ENTRY_SELECTOR = [
   "input[type='password']",
 ].join(",");
 
+const NON_TEXT_ENTRY_SELECTOR = [
+  "select",
+  "input[type='number']",
+  "input[type='date']",
+  "input[type='datetime-local']",
+  "input[type='month']",
+  "input[type='time']",
+  "input[type='week']",
+].join(",");
+
 function isTextEntryTarget(target: EventTarget | null): boolean {
   return target instanceof Element && Boolean(target.closest(TEXT_ENTRY_SELECTOR));
+}
+
+function isNonTextEntryTarget(target: EventTarget | null): boolean {
+  return target instanceof Element && Boolean(target.closest(NON_TEXT_ENTRY_SELECTOR));
 }
 
 function blurActiveNonTextControl(): void {

@@ -80,12 +80,16 @@ describe("PilePlanViewer inputs", () => {
 
   it("cycles overlapping candidates with Space and hides hover while navigating", () => {
     const source = readFileSync(resolve(import.meta.dirname, "PilePlanViewer.tsx"), "utf8");
+    assert.match(source, /event\.code === "Space" && isNonTextEntryTarget\(event\.target\)[\s\S]*?event\.preventDefault\(\);\s*return;/);
     assert.match(source, /event\.code === "Space" && !isTextEntryTarget\(event\.target\)/);
     assert.match(source, /event\.preventDefault\(\);\s*blurActiveNonTextControl\(\);\s*if \(hoverCandidates && hoverCandidates\.keys\.length > 1\)/);
     assert.match(source, /cycleHoverCandidate/);
     assert.match(source, /clearHoverCandidates\(\)/);
     assert.match(source, /const TEXT_ENTRY_SELECTOR = \[/);
     assert.match(source, /input\[type='text'\]/);
+    assert.match(source, /const NON_TEXT_ENTRY_SELECTOR = \[/);
+    assert.match(source, /input\[type='number'\]/);
+    assert.match(source, /"select"/);
     assert.doesNotMatch(source, /target\.closest\("input, textarea, select/);
     assert.match(source, /function blurActiveNonTextControl\(\)[\s\S]*?activeElement\.blur\(\)/);
   });
