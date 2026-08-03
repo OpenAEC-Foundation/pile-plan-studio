@@ -145,9 +145,9 @@ export default function PilePlanViewer({ state, onStateChange }: Props) {
 
   useEffect(() => {
     function handleKeyDown(event: KeyboardEvent) {
-      if (event.code === "Space" && hoverCandidates && !isTextEntryTarget(event.target)) {
+      if (event.code === "Space" && !isTextEntryTarget(event.target)) {
         event.preventDefault();
-        if (hoverCandidates.keys.length > 1) {
+        if (hoverCandidates && hoverCandidates.keys.length > 1) {
           setHoverCandidates((current) => current ? cycleHoverCandidate(current) : current);
         }
         return;

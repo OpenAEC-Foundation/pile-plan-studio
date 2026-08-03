@@ -36,7 +36,7 @@ export function panViewport(
 }
 
 export function clampScale(scale: number): number {
-  return Math.min(5, Math.max(0.8, Number(scale.toFixed(2))));
+  return Math.min(10, Math.max(0.8, Number(scale.toFixed(2))));
 }
 
 export function projectViewPointToScreen(

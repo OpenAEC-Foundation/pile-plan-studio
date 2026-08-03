@@ -80,8 +80,8 @@ describe("PilePlanViewer inputs", () => {
 
   it("cycles overlapping candidates with Space and hides hover while navigating", () => {
     const source = readFileSync(resolve(import.meta.dirname, "PilePlanViewer.tsx"), "utf8");
-    assert.match(source, /event\.code === "Space" && hoverCandidates && !isTextEntryTarget\(event\.target\)/);
-    assert.match(source, /event\.preventDefault\(\);\s*if \(hoverCandidates\.keys\.length > 1\)/);
+    assert.match(source, /event\.code === "Space" && !isTextEntryTarget\(event\.target\)/);
+    assert.match(source, /event\.preventDefault\(\);\s*if \(hoverCandidates && hoverCandidates\.keys\.length > 1\)/);
     assert.match(source, /cycleHoverCandidate/);
     assert.match(source, /clearHoverCandidates\(\)/);
   });

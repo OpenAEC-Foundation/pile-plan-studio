@@ -2,6 +2,7 @@ import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 
 import {
+  clampScale,
   getViewportTransform,
   panViewport,
   projectViewPointToScreen,
@@ -10,6 +11,12 @@ import {
 } from "./viewport.ts";
 
 describe("viewport interaction helpers", () => {
+  it("clamps zoom between 80 and 1000 percent", () => {
+    assert.equal(clampScale(0.25), 0.8);
+    assert.equal(clampScale(7.5), 7.5);
+    assert.equal(clampScale(12), 10);
+  });
+
   it("zooms around the cursor position", () => {
     const viewport: Viewport = { scale: 1, offsetX: 0, offsetY: 0 };
     const next = zoomViewportAtPoint(viewport, {
