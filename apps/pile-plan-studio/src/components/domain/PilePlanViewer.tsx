@@ -147,6 +147,7 @@ export default function PilePlanViewer({ state, onStateChange }: Props) {
     function handleKeyDown(event: KeyboardEvent) {
       if (event.code === "Space" && !isTextEntryTarget(event.target)) {
         event.preventDefault();
+        blurActiveNonTextControl();
         if (hoverCandidates && hoverCandidates.keys.length > 1) {
           setHoverCandidates((current) => current ? cycleHoverCandidate(current) : current);
         }
@@ -716,10 +717,27 @@ function stripMarkerNamePrefix(name: string): string {
   return name.replace(/^(?:load point|cpt)\s*/i, "").trim();
 }
 
+const TEXT_ENTRY_SELECTOR = [
+  "textarea",
+  "[contenteditable='true']",
+  "input:not([type])",
+  "input[type='text']",
+  "input[type='search']",
+  "input[type='email']",
+  "input[type='url']",
+  "input[type='tel']",
+  "input[type='password']",
+].join(",");
+
 function isTextEntryTarget(target: EventTarget | null): boolean {
-  return target instanceof HTMLElement && Boolean(
-    target.closest("input, textarea, select, [contenteditable='true']"),
-  );
+  return target instanceof Element && Boolean(target.closest(TEXT_ENTRY_SELECTOR));
+}
+
+function blurActiveNonTextControl(): void {
+  const activeElement = document.activeElement;
+  if (activeElement instanceof HTMLElement && !isTextEntryTarget(activeElement)) {
+    activeElement.blur();
+  }
 }
 
 function getSelectedPileOption(state: ProjectState, loadPointId: number) {
