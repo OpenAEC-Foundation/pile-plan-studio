@@ -1,5 +1,41 @@
 # Pile Plan Studio Release Notes
 
+## 0.1.5-alpha
+
+This alpha improves control over the pile-plan viewer and makes dense or
+overlapping project data easier to inspect.
+
+### Added
+
+- Adjust viewer symbol size continuously from 10% to 200%.
+- Set a preferred utilization range and highlight assignments below or above
+  that range with progressively stronger green or red feedback.
+- Choose whether ordinary load points or CPTs are drawn in the foreground.
+- Configure a separate maximum utilization for greedy optimization.
+- Show total project cost and the current zoom level in the status bar.
+
+### Improved
+
+- Viewer zoom now supports levels up to 1000% while preserving sharp vector
+  symbols and responsive pan and zoom behavior.
+- Selection rings, CPT labels, hover hit areas, and overlap detection now track
+  the configured symbol size and exact project coordinates.
+- The active object beneath the pointer is always raised above the selected
+  foreground layer and can be cycled with Space when objects overlap.
+- Hover instructions now describe nearby objects directly and show
+  `Shift + Click` as an explicit multi-selection shortcut.
+- The preferred-range control now colours only the interval between its two
+  handles.
+- Space no longer activates focused ribbon, legend, or numeric input controls;
+  ordinary text fields retain normal text-entry behavior.
+
+### Notes
+
+- The preferred utilization range is a viewer setting. It does not redefine
+  the engineering resistance check used for pile-option status.
+- This release does not publish a new Windows installer. The browser build and
+  source code contain the 0.1.5-alpha changes.
+
 ## 0.1.4-alpha
 
 This alpha expands CPT selection workflows and makes project-source refreshes

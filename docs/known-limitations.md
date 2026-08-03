@@ -19,6 +19,9 @@ intentional and should be considered when evaluating its results.
   optimum.
 - It does not replace manual review of practical pile zones, constructability,
   or local variation.
+- The preferred utilization range controls viewer highlighting. Engineering
+  option validity remains based on the calculated resistance check; the greedy
+  optimizer has its own configurable maximum utilization.
 
 ## Data and Projects
 
