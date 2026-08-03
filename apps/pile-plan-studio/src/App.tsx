@@ -50,6 +50,7 @@ import { applyPilePlanImportPatch } from "./domain/pilePlanImport.ts";
 import type { PilePlanImportPatch } from "./core/pilePlanImportContract.ts";
 import { mergeDefaultPileChoices } from "./domain/defaultPileChoices.ts";
 import { loadViewerPreferences, saveViewerPreferences } from "./domain/viewerPreferences.ts";
+import { summarizeProjectCosts } from "./domain/projectCostSummary.ts";
 
 const PILE_COST_DEFAULTS_KEY = "pile-cost-defaults";
 
@@ -71,6 +72,7 @@ export default function App() {
   const rightPanelWidthRef = useRef(DEFAULT_RIGHT_PANEL_WIDTH);
   const [theme, setTheme] = useState("light");
   const [costDefaultsLoaded, setCostDefaultsLoaded] = useState(false);
+  const [viewerPreferencesLoaded, setViewerPreferencesLoaded] = useState(false);
   const defaultSelectionRequestRef = useRef<typeof projectState.analysisRequest | null>(null);
   const defaultSelectionKeepsDirtyRef = useRef(false);
   const replacementResolverRef = useRef<((proceed: boolean) => void) | null>(null);
@@ -89,6 +91,16 @@ export default function App() {
   ], [projectState.bearingCapacities]);
   const persistedProject = projectFromState(projectState);
   const persistedProjectSignature = JSON.stringify(persistedProject);
+  const projectCostSummary = useMemo(() => summarizeProjectCosts(
+    projectState.loadPoints.map((loadPoint) => {
+      const selectedKey = projectState.selectedPileOptionKeysByLoadPoint.get(loadPoint.id);
+      return selectedKey ? projectState.pileCostByOptionKey.get(selectedKey) : null;
+    }),
+  ), [
+    projectState.loadPoints,
+    projectState.pileCostByOptionKey,
+    projectState.selectedPileOptionKeysByLoadPoint,
+  ]);
 
   const serializeProject = async () => {
     return writeIfcppProjectCore(projectFromState(projectState));
@@ -191,15 +203,17 @@ export default function App() {
   useEffect(() => {
     loadViewerPreferences().then((preferences) => {
       setProjectState((current) => ({ ...current, ...preferences }));
+      setViewerPreferencesLoaded(true);
     });
   }, []);
 
   useEffect(() => {
+    if (!viewerPreferencesLoaded) return;
     void saveViewerPreferences({
       symbolScalePercent: projectState.symbolScalePercent,
       foregroundLayer: projectState.foregroundLayer,
     });
-  }, [projectState.foregroundLayer, projectState.symbolScalePercent]);
+  }, [projectState.foregroundLayer, projectState.symbolScalePercent, viewerPreferencesLoaded]);
 
   useEffect(() => {
     let cancelled = false;
@@ -493,6 +507,22 @@ export default function App() {
           onOpenOptimizationSettings={() => setRightTaskPanel("optimization")}
           onRunOptimization={runGreedyOptimization}
           optimizationDisabled={optimizationDisabled}
+          symbolScalePercent={projectState.symbolScalePercent}
+          viewerUtilizationMinimum={projectState.viewerUtilizationSettings.minimum}
+          viewerUtilizationMaximum={projectState.viewerUtilizationSettings.maximum}
+          foregroundLayer={projectState.foregroundLayer}
+          onSymbolScaleChange={(symbolScalePercent) => setProjectState((current) => ({
+            ...current,
+            symbolScalePercent,
+          }))}
+          onViewerUtilizationRangeChange={(minimum, maximum) => handleProjectStateChange({
+            ...projectState,
+            viewerUtilizationSettings: { minimum, maximum },
+          })}
+          onForegroundLayerChange={(foregroundLayer) => setProjectState((current) => ({
+            ...current,
+            foregroundLayer,
+          }))}
         />
         <div
           className="app-content"
@@ -541,7 +571,11 @@ export default function App() {
             onCloseTaskPanel={() => setRightTaskPanel(null)}
           />
         </div>
-        <StatusBar />
+        <StatusBar
+          totalCost={projectCostSummary.totalCost}
+          missingCostCount={projectCostSummary.missingCount}
+          zoomPercent={projectState.viewport.scale * 100}
+        />
       </div>
       <Backstage
         open={backstageOpen}

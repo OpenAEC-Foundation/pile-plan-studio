@@ -32,14 +32,25 @@ describe("load point marker invalid visual", () => {
   });
 
   it("uses a stronger visual intensity for larger utilization overruns", () => {
-    const slightOverrun = getLoadPointMarkerInvalidVisual(option({ isOption: false, utilization: 1.05 }));
-    const largeOverrun = getLoadPointMarkerInvalidVisual(option({ isOption: false, utilization: 1.45 }));
+    const range = { minimum: 0.2, maximum: 0.8 };
+    const slightOverrun = getLoadPointMarkerInvalidVisual(option({ isOption: true, utilization: 0.85 }), range);
+    const largeOverrun = getLoadPointMarkerInvalidVisual(option({ isOption: true, utilization: 1 }), range);
 
-    assert.equal(slightOverrun.className, " is-invalid");
-    assert.equal(largeOverrun.className, " is-invalid");
-    assert.match(slightOverrun.style, /--invalid-intensity: 0\.[0-9]+/);
-    assert.match(largeOverrun.style, /--invalid-intensity: 0\.[0-9]+/);
+    assert.equal(slightOverrun.className, " is-above-range");
+    assert.equal(largeOverrun.className, " is-above-range");
+    assert.match(slightOverrun.style, /--utilization-intensity: 0\.[0-9]+/);
+    assert.match(largeOverrun.style, /--utilization-intensity: 0\.[0-9]+/);
     assert.ok(extractIntensity(largeOverrun.style) > extractIntensity(slightOverrun.style));
+  });
+
+  it("marks utilization below the preferred range increasingly green", () => {
+    const range = { minimum: 0.4, maximum: 0.9 };
+    const slight = getLoadPointMarkerInvalidVisual(option({ isOption: true, utilization: 0.35 }), range);
+    const large = getLoadPointMarkerInvalidVisual(option({ isOption: true, utilization: 0.1 }), range);
+
+    assert.equal(slight.className, " is-below-range");
+    assert.equal(large.className, " is-below-range");
+    assert.ok(extractIntensity(large.style) > extractIntensity(slight.style));
   });
 
   it("marks selected options with missing CPT capacities yellow", () => {
@@ -73,5 +84,5 @@ describe("unselected load point marker state", () => {
 });
 
 function extractIntensity(style: string): number {
-  return Number(style.match(/--invalid-intensity: ([0-9.]+)/)?.[1] ?? 0);
+  return Number(style.match(/--utilization-intensity: ([0-9.]+)/)?.[1] ?? 0);
 }

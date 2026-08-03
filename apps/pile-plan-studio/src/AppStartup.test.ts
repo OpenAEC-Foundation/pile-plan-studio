@@ -34,9 +34,9 @@ describe("React app startup", () => {
     const source = readFileSync(resolve(import.meta.dirname, "App.tsx"), "utf8");
 
     assert.match(source, /createInitialProjectState\(\s*sampleProjectText,\s*\{ initializeDefaultPiles: true \},?\s*\)/);
-    assert.match(source, /createInitialProjectState\(withCosts, \{ initializeDefaultPiles: true \}\)/);
-    assert.match(source, /createInitialProjectState\(refreshedProject, \{ initializeDefaultPiles: true \}\)/);
-    assert.match(source, /createInitialProjectState\(\s*await file\.text\(\),\s*\{ initializeDefaultPiles: false \},?\s*\)/);
+    assert.match(source, /createInitialProjectState\(withCosts, \{[\s\S]*?initializeDefaultPiles: true,[\s\S]*?viewerPreferences: projectState,[\s\S]*?\}\)/);
+    assert.match(source, /createInitialProjectState\(refreshedProject, \{[\s\S]*?initializeDefaultPiles: true,[\s\S]*?viewerPreferences: projectState,[\s\S]*?\}\)/);
+    assert.match(source, /createInitialProjectState\(\s*await file\.text\(\),\s*\{ initializeDefaultPiles: false, viewerPreferences: projectState \},?\s*\)/);
   });
 
   it("runs one guarded batched default selection after complete analysis", () => {
@@ -81,7 +81,7 @@ describe("React app startup", () => {
     assert.match(source, /refreshProjectFromFilesCore/);
     assert.match(source, /mode === "refresh"/);
     assert.match(source, /currentProject:\s*projectFromState\(projectState\)/);
-    assert.match(source, /createInitialProjectState\(refreshedProject, \{ initializeDefaultPiles: true \}\)/);
+    assert.match(source, /createInitialProjectState\(refreshedProject, \{[\s\S]*?initializeDefaultPiles: true,[\s\S]*?viewerPreferences: projectState,[\s\S]*?\}\)/);
     assert.match(source, /defaultSelectionKeepsDirtyRef\.current = true/);
     assert.ok(
       handler.indexOf('mode === "refresh"') < handler.indexOf("confirmProjectReplacement()"),
@@ -97,5 +97,13 @@ describe("React app startup", () => {
     assert.match(source, /applyOptimizationChoices/);
     assert.match(source, /optimizationRunning:\s*true/);
     assert.match(source, /onRunOptimization=\{runGreedyOptimization\}/);
+  });
+
+  it("waits for stored viewer preferences before saving them", () => {
+    const source = readFileSync(resolve(import.meta.dirname, "App.tsx"), "utf8");
+
+    assert.match(source, /viewerPreferencesLoaded/);
+    assert.match(source, /setViewerPreferencesLoaded\(true\)/);
+    assert.match(source, /if \(!viewerPreferencesLoaded\) return/);
   });
 });

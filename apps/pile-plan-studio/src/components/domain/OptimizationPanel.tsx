@@ -68,6 +68,30 @@ export default function OptimizationPanel({ state, onStateChange, onRunOptimizat
           <NumberSetting label={t("optimization.maxTips")} value={limits.tips} onChange={(value) => updateLimit("tips", value)} />
           <NumberSetting label={t("optimization.maxConfigurations")} value={limits.configurations} onChange={(value) => updateLimit("configurations", value)} />
         </section>
+        <section className="settings-group optimization-limits">
+          <h3>{t("optimization.performanceLimit")}</h3>
+          <label className="optimization-range">
+            <span>{t("optimization.maxUtilization")}</span>
+            <strong>{Math.round(state.optimizationSettings.max_utilization * 100)}%</strong>
+            <input
+              aria-label={t("optimization.maxUtilization")}
+              max="100"
+              min="0"
+              step="1"
+              type="range"
+              value={Math.round(state.optimizationSettings.max_utilization * 100)}
+              onChange={(event) => onStateChange({
+                ...state,
+                optimizationSettings: {
+                  ...state.optimizationSettings,
+                  max_utilization: Number(event.currentTarget.value) / 100,
+                },
+                optimizationSummary: null,
+                optimizationError: null,
+              })}
+            />
+          </label>
+        </section>
         {activeSizes.length === 0 || activeTips.length === 0 ? <p className="panel-message is-warning">{t("optimization.enableLegend")}</p> : null}
         {!hasTarget ? <p className="panel-message is-warning">{t("optimization.selectLoadPoints")}</p> : null}
         {state.optimizationError ? <p className="panel-message is-error">{state.optimizationError}</p> : null}

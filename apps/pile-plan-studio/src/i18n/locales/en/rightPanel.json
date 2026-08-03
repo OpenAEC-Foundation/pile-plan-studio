@@ -103,6 +103,8 @@
   "optimization.maxSizes": "Maximum different sizes",
   "optimization.maxTips": "Maximum different tip levels",
   "optimization.maxConfigurations": "Maximum different configurations",
+  "optimization.performanceLimit": "Performance limit",
+  "optimization.maxUtilization": "Maximum utilization",
   "optimization.enableLegend": "Enable at least one size and tip level in the legend.",
   "optimization.selectLoadPoints": "Select one or more load points.",
   "optimization.applied": "Applied to {{count}} load points.",

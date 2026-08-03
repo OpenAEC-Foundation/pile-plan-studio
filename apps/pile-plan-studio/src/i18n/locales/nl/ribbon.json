@@ -28,12 +28,14 @@
     "settings": "Instellingen"
   },
   "view": {
-    "map": "Kaart",
-    "fit": "Project passend",
-    "legend": "Legenda",
-    "panels": "Panelen",
-    "undo": "Ongedaan",
-    "redo": "Opnieuw",
-    "help": "Help"
+    "symbols": "Symbolen",
+    "symbolSize": "Symboolgrootte",
+    "utilization": "Benutting",
+    "preferredRange": "Gewenst bereik",
+    "minimumUtilization": "Minimale benuttingsgraad",
+    "maximumUtilization": "Maximale benuttingsgraad",
+    "foreground": "Voorgrond",
+    "loadPoints": "Belastinglocaties",
+    "cpts": "Sonderingen"
   }
 }

@@ -119,6 +119,27 @@
   font: inherit;
 }
 
+.optimization-range {
+  display: grid;
+  align-items: center;
+  gap: 6px 8px;
+  grid-template-columns: 1fr auto;
+  color: var(--theme-text-secondary);
+  font-size: 11px;
+}
+
+.optimization-range strong {
+  color: var(--theme-text);
+  font-variant-numeric: tabular-nums;
+}
+
+.optimization-range input {
+  width: 100%;
+  margin: 0;
+  grid-column: 1 / -1;
+  accent-color: var(--theme-accent);
+}
+
 .panel-message,
 .optimization-summary {
   display: grid;

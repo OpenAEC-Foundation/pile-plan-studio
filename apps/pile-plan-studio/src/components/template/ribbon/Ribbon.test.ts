@@ -4,6 +4,16 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
 describe("Optimize ribbon", () => {
+  it("exposes direct view controls for symbol size, utilization range, and foreground", () => {
+    const source = readFileSync(resolve(import.meta.dirname, "Ribbon.tsx"), "utf8");
+
+    assert.match(source, /type TabId = "project" \| "plan" \| "optimize" \| "view"/);
+    assert.match(source, /symbolScalePercent/);
+    assert.match(source, /viewerUtilizationMinimum/);
+    assert.match(source, /viewerUtilizationMaximum/);
+    assert.match(source, /foregroundLayer/);
+    assert.match(source, /type="range"/);
+  });
   it("connects settings and run commands", () => {
     const source = readFileSync(resolve(import.meta.dirname, "Ribbon.tsx"), "utf8");
     assert.match(source, /onOpenOptimizationSettings/);

@@ -11,7 +11,7 @@ import type { ProjectState } from "../../domain/projectState";
 import { getCptDisplayName } from "../../domain/cptDisplayName.ts";
 import { getPointIdsInRectangle, type LassoRectangle } from "../../viewer/lassoSelection.ts";
 import { getConfigurationStyle, getLegendItems } from "../../viewer/legend.ts";
-import { getCptMarkerLayerClass, getLoadPointMarkerLayerClass } from "../../viewer/mapMarkerLayer.ts";
+import { getCptMarkerLayerClass, getForegroundLayerClass, getLoadPointMarkerLayerClass } from "../../viewer/mapMarkerLayer.ts";
 import { shouldStartMapPan } from "../../viewer/mapInteraction.ts";
 import { getHighlightedGoverningCptId } from "../../viewer/legendSelection.ts";
 import { getCptLabelStyle } from "../../viewer/cptLabel.ts";
@@ -24,6 +24,7 @@ import {
   updateHoverCandidateState,
   type HoverCandidateState,
   type HoverMarker,
+  scaleHoverVisualRadius,
 } from "../../viewer/hoverCandidates.ts";
 import { renderPileSymbol } from "../../viewer/pileSymbols.ts";
 import {
@@ -99,14 +100,14 @@ export default function PilePlanViewer({ state, onStateChange }: Props) {
     ...state.cpts.map((cpt) => ({
       key: `cpt:${cpt.id}`,
       point: projectPoint(cpt, state.bounds),
-      visualRadius: 7.5,
+      visualRadius: scaleHoverVisualRadius(7.5, state.symbolScalePercent),
     })),
     ...state.loadPoints.map((loadPoint) => ({
       key: `load-point:${loadPoint.id}`,
       point: projectPoint(loadPoint, state.bounds),
-      visualRadius: 7,
+      visualRadius: scaleHoverVisualRadius(7, state.symbolScalePercent),
     })),
-  ], [state.bounds, state.cpts, state.loadPoints]);
+  ], [state.bounds, state.cpts, state.loadPoints, state.symbolScalePercent]);
   const hoverMarkerIndex = useMemo(() => createHoverMarkerIndex(hoverMarkers), [hoverMarkers]);
 
   useEffect(() => {
@@ -186,7 +187,11 @@ export default function PilePlanViewer({ state, onStateChange }: Props) {
         onWheel={handleWheel}
         ref={canvasRef}
       >
-        <div className="viewer-content" ref={stageRef} style={getStageStyle(state.viewport)}>
+        <div
+          className={`viewer-content${getForegroundLayerClass(state.foregroundLayer)}`}
+          ref={stageRef}
+          style={getStageStyle(state.viewport, state.symbolScalePercent)}
+        >
           <div className="viewer-grid" />
           {cptConnectionSegments.length > 0 ? (
             <svg className="cpt-connection-lines" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
@@ -237,7 +242,10 @@ export default function PilePlanViewer({ state, onStateChange }: Props) {
             const point = projectPoint(loadPoint, state.bounds);
             const isSelected = selectedLoadPointIds.has(loadPoint.id);
             const selectedOption = getSelectedPileOption(state, loadPoint.id);
-            const invalidVisual = getLoadPointMarkerInvalidVisual(selectedOption);
+            const invalidVisual = getLoadPointMarkerInvalidVisual(
+              selectedOption,
+              state.viewerUtilizationSettings,
+            );
             const style = selectedOption
               ? getConfigurationStyle(selectedOption, legend)
               : null;
@@ -610,7 +618,10 @@ export default function PilePlanViewer({ state, onStateChange }: Props) {
 
     const selectedOption = getSelectedPileOption(state, item.id);
     const symbolStyle = selectedOption ? getConfigurationStyle(selectedOption, legend) : null;
-    const invalidVisual = getLoadPointMarkerInvalidVisual(selectedOption);
+    const invalidVisual = getLoadPointMarkerInvalidVisual(
+      selectedOption,
+      state.viewerUtilizationSettings,
+    );
     const unselectedState = selectedOption ? null : getUnselectedLoadPointMarkerState(
       state.pileOptionsByLoadPointId.get(item.id),
       state.defaultPileSelectionPending,
@@ -746,12 +757,16 @@ function getProjectMarkerStyle(point: { x: number; y: number }, invalidStyle = "
 }
 
 function getInvalidMarkerStyle(invalidStyle = ""): CSSProperties {
-  const intensity = invalidStyle.match(/--invalid-intensity: ([0-9.]+)/)?.[1];
-  return intensity ? { "--invalid-intensity": intensity } as CSSProperties : {};
+  const intensity = invalidStyle.match(/--utilization-intensity: ([0-9.]+)/)?.[1];
+  return intensity ? { "--utilization-intensity": intensity } as CSSProperties : {};
 }
 
-function getStageStyle(viewport: ProjectState["viewport"]): CSSProperties {
+function getStageStyle(
+  viewport: ProjectState["viewport"],
+  symbolScalePercent: number,
+): CSSProperties {
   return {
     transform: getViewportTransform(viewport),
-  };
+    "--viewer-symbol-scale": symbolScalePercent / 100,
+  } as CSSProperties;
 }

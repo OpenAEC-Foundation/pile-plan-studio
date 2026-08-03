@@ -28,12 +28,14 @@
     "settings": "Settings"
   },
   "view": {
-    "map": "Map",
-    "fit": "Fit project",
-    "legend": "Legend",
-    "panels": "Panels",
-    "undo": "Undo",
-    "redo": "Redo",
-    "help": "Help"
+    "symbols": "Symbols",
+    "symbolSize": "Symbol size",
+    "utilization": "Utilization",
+    "preferredRange": "Preferred range",
+    "minimumUtilization": "Minimum utilization",
+    "maximumUtilization": "Maximum utilization",
+    "foreground": "Foreground",
+    "loadPoints": "Load points",
+    "cpts": "CPTs"
   }
 }

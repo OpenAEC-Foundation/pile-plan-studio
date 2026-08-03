@@ -31,6 +31,10 @@ type CandidateQuery = {
 const MINIMUM_POINTER_RADIUS_PX = 9;
 const DEFAULT_CELL_SIZE = 4;
 
+export function scaleHoverVisualRadius(baseRadius: number, symbolScalePercent: number): number {
+  return baseRadius * Math.max(10, Math.min(200, symbolScalePercent)) / 100;
+}
+
 export function createHoverMarkerIndex(
   markers: HoverMarker[],
   cellSize = DEFAULT_CELL_SIZE,

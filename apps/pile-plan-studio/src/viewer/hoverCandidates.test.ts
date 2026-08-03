@@ -7,6 +7,7 @@ import {
   findHoverCandidates,
   getActiveHoverCandidateKey,
   getHoverMarkerCandidatePool,
+  scaleHoverVisualRadius,
   resolveHoverClickCandidateKey,
   updateHoverCandidateState,
   type HoverMarker,
@@ -19,6 +20,10 @@ const markers: HoverMarker[] = [
 ];
 
 describe("hover candidates", () => {
+  it("scales visual hit radii with the shared symbol size", () => {
+    assert.equal(scaleHoverVisualRadius(7.5, 10), 0.75);
+    assert.equal(scaleHoverVisualRadius(7.5, 200), 15);
+  });
   it("returns the single marker under the pointer", () => {
     const candidates = findHoverCandidates(markers, {
       pointer: { x: 800, y: 800 },

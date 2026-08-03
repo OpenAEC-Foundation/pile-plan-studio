@@ -597,11 +597,9 @@ pub fn greedy_optimize_pile_choices(
                         .iter()
                         .filter(|option| {
                             option.is_option
-                                && option
-                                    .utilization
-                                    .is_some_and(|utilization| {
-                                        utilization <= settings.max_utilization.clamp(0.0, 1.0)
-                                    })
+                                && option.utilization.is_some_and(|utilization| {
+                                    utilization <= settings.max_utilization.clamp(0.0, 1.0)
+                                })
                                 && optimization_option_enabled(option, settings)
                         })
                         .cloned()

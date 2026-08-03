@@ -28,9 +28,9 @@ describe("PilePlanViewer inputs", () => {
   it("keeps marker base sizes close to the legacy viewer", () => {
     const css = readFileSync(resolve(import.meta.dirname, "viewer.css"), "utf8");
 
-    assert.match(css, /--load-point-symbol-base:\s*12px/);
-    assert.match(css, /--cpt-marker-width-base:\s*15px/);
-    assert.match(css, /--cpt-marker-height-base:\s*13px/);
+    assert.match(css, /--load-point-symbol-base:\s*calc\(12px \* var\(--viewer-symbol-scale\)\)/);
+    assert.match(css, /--cpt-marker-width-base:\s*calc\(15px \* var\(--viewer-symbol-scale\)\)/);
+    assert.match(css, /--cpt-marker-height-base:\s*calc\(13px \* var\(--viewer-symbol-scale\)\)/);
     assert.match(css, /--cpt-default-fill:\s*#d4dade/);
     assert.match(css, /\.cpt-marker\s*{[\s\S]*?--cpt-fill:\s*var\(--cpt-default-fill\)/);
     assert.match(css, /\.cpt-label\s*{[\s\S]*?top:\s*43%;/);
@@ -70,7 +70,7 @@ describe("PilePlanViewer inputs", () => {
 
     assert.match(source, /state\.selectedCptId === cpt\.id/);
     assert.match(source, /is-inspected-cpt/);
-    assert.match(css, /--selection-ring-width:\s*2px/);
+    assert.match(css, /--selection-ring-width:\s*calc\(2px \* var\(--viewer-symbol-scale\)\)/);
     assert.match(css, /\.load-point-marker\.is-selected::before,[\s\S]*?\.cpt-marker\.is-inspected-cpt::before/);
     assert.match(css, /\.is-hover-candidate::after\s*{[\s\S]*?border:\s*var\(--selection-ring-width\) solid var\(--theme-accent\)/);
     assert.doesNotMatch(css, /\.is-hover-candidate::after\s*{[\s\S]*?box-shadow:\s*0 0 0 2px #fff/);
@@ -155,10 +155,10 @@ describe("PilePlanViewer inputs", () => {
     const css = readFileSync(resolve(import.meta.dirname, "viewer.css"), "utf8");
 
     assert.match(source, /ref=\{stageRef\}/);
-    assert.match(source, /style=\{getStageStyle\(state\.viewport\)\}/);
+    assert.match(source, /style=\{getStageStyle\(state\.viewport, state\.symbolScalePercent\)\}/);
     assert.match(source, /style=\{getProjectMarkerStyle\(point\)\}/);
     assert.doesNotMatch(source, /style=\{getMarkerStyle\(point,\s*canvasSize,\s*renderViewport\)\}/);
-    assert.doesNotMatch(css, /--viewer-marker-scale/);
+    assert.match(css, /--viewer-symbol-scale:\s*1/);
   });
 
   it("keeps load-point selection locked while manually editing CPTs", () => {
@@ -173,7 +173,9 @@ describe("PilePlanViewer inputs", () => {
   it("renders pointer-inert CPT connection lines inside the transformed stage before map markers", () => {
     const source = readFileSync(resolve(import.meta.dirname, "PilePlanViewer.tsx"), "utf8");
     const css = readFileSync(resolve(import.meta.dirname, "viewer.css"), "utf8");
-    const stageContent = source.match(/<div className="viewer-content"[\s\S]*?<div className="viewer-grid" \/>(?<content>[\s\S]*?)\{state\.cpts\.map/s)?.groups?.content ?? "";
+    const gridIndex = source.indexOf('<div className="viewer-grid" />');
+    const cptIndex = source.indexOf("{state.cpts.map", gridIndex);
+    const stageContent = source.slice(gridIndex, cptIndex);
 
     assert.match(source, /getCptConnectionSegments/);
     assert.match(stageContent, /<svg className="cpt-connection-lines"[\s\S]*?<line/);

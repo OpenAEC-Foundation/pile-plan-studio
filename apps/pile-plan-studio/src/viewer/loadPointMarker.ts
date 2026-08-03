@@ -1,4 +1,4 @@
-import type { PileConfigurationOption } from "../core/projectTypes.ts";
+import type { PileConfigurationOption, ViewerUtilizationSettings } from "../core/projectTypes.ts";
 
 export type LoadPointMarkerInvalidVisual = {
   className: string;
@@ -25,8 +25,9 @@ export function getUnselectedLoadPointMarkerState(
 
 export function getLoadPointMarkerInvalidVisual(
   chosenOption: PileConfigurationOption | null,
+  preferredRange: ViewerUtilizationSettings = { minimum: 0, maximum: 1 },
 ): LoadPointMarkerInvalidVisual {
-  if (!chosenOption || chosenOption.isOption) {
+  if (!chosenOption) {
     return { className: "", style: "" };
   }
 
@@ -34,14 +35,30 @@ export function getLoadPointMarkerInvalidVisual(
     return { className: " is-missing", style: "" };
   }
 
-  const overrun = chosenOption.utilization === null
-    ? 0.25
-    : Math.max(0, chosenOption.utilization - 1);
-  const intensity = Math.min(0.9, 0.2 + overrun * 1.4);
+  const utilization = chosenOption.utilization;
+  if (utilization === null) {
+    return chosenOption.isOption
+      ? { className: "", style: "" }
+      : { className: " is-above-range", style: "--utilization-intensity: 0.5;" };
+  }
+
+  if (utilization > preferredRange.maximum) {
+    return utilizationRangeVisual("above", utilization - preferredRange.maximum);
+  }
+
+  if (utilization < preferredRange.minimum) {
+    return utilizationRangeVisual("below", preferredRange.minimum - utilization);
+  }
+
+  return { className: "", style: "" };
+}
+
+function utilizationRangeVisual(direction: "above" | "below", distance: number) {
+  const intensity = Math.min(1, Math.max(0, distance / 0.5));
 
   return {
-    className: " is-invalid",
-    style: `--invalid-intensity: ${formatCssNumber(intensity)};`,
+    className: direction === "above" ? " is-above-range" : " is-below-range",
+    style: `--utilization-intensity: ${formatCssNumber(intensity)};`,
   };
 }
 

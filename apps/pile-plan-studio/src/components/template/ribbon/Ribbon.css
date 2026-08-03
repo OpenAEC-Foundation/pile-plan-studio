@@ -191,6 +191,77 @@
   border-top: 1px solid var(--theme-border-subtle);
 }
 
+.ribbon-slider-control {
+  display: grid;
+  width: 170px;
+  align-content: center;
+  gap: 3px;
+  padding: 4px 6px;
+  grid-template-columns: 1fr auto;
+  color: var(--theme-text);
+  font-size: 10px;
+}
+
+.ribbon-slider-control strong {
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+}
+
+.ribbon-slider-control > input[type="range"] {
+  width: 100%;
+  margin: 0;
+  grid-column: 1 / -1;
+  accent-color: var(--theme-accent);
+}
+
+.ribbon-dual-range {
+  position: relative;
+  height: 18px;
+  grid-column: 1 / -1;
+}
+
+.ribbon-dual-range input[type="range"] {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  margin: 0;
+  background: transparent;
+  pointer-events: none;
+  accent-color: var(--theme-accent);
+}
+
+.ribbon-dual-range input[type="range"]::-webkit-slider-thumb {
+  pointer-events: auto;
+}
+
+.ribbon-dual-range input[type="range"]::-moz-range-thumb {
+  pointer-events: auto;
+}
+
+.ribbon-foreground-control {
+  display: grid;
+  width: 170px;
+  align-content: center;
+  gap: 3px;
+  padding: 4px 6px;
+  grid-template-columns: 1fr 1fr;
+}
+
+.ribbon-foreground-control button {
+  min-height: 28px;
+  padding: 3px 6px;
+  border: 1px solid var(--theme-border);
+  background: var(--theme-surface);
+  color: var(--theme-text);
+  font: inherit;
+  font-size: 10px;
+}
+
+.ribbon-foreground-control button.is-selected {
+  border-color: var(--theme-accent);
+  background: var(--theme-accent-soft);
+}
+
 /* Button Stack */
 .ribbon-btn-stack {
   display: flex;
