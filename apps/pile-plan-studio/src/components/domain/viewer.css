@@ -1,4 +1,5 @@
 .pile-plan-workspace {
+  --viewer-symbol-scale: 1;
   --cpt-default-fill: #d4dade;
   --cpt-default-stroke: #a2adb3;
   display: grid;
@@ -367,7 +368,7 @@
   cursor: pointer;
 }
 
-.load-point-marker.is-above-range,
+.load-point-marker.is-above-range .load-point-symbol,
 .viewer-hover-marker.is-load-point.is-above-range {
   background:
     radial-gradient(
@@ -377,11 +378,11 @@
       rgba(145, 31, 25, calc(0.08 + var(--utilization-intensity) * 0.42)) 100%
     );
   box-shadow:
-    0 0 0 2px rgba(199, 53, 42, calc(0.18 + var(--utilization-intensity) * 0.62)),
-    0 0 8px rgba(199, 53, 42, calc(0.08 + var(--utilization-intensity) * 0.42));
+    0 0 0 calc(2px * var(--viewer-symbol-scale)) rgba(199, 53, 42, calc(0.18 + var(--utilization-intensity) * 0.62)),
+    0 0 calc(8px * var(--viewer-symbol-scale)) rgba(199, 53, 42, calc(0.08 + var(--utilization-intensity) * 0.42));
 }
 
-.load-point-marker.is-below-range,
+.load-point-marker.is-below-range .load-point-symbol,
 .viewer-hover-marker.is-load-point.is-below-range {
   background:
     radial-gradient(
@@ -391,14 +392,16 @@
       rgba(25, 112, 50, calc(0.08 + var(--utilization-intensity) * 0.42)) 100%
     );
   box-shadow:
-    0 0 0 2px rgba(48, 153, 76, calc(0.18 + var(--utilization-intensity) * 0.62)),
-    0 0 8px rgba(48, 153, 76, calc(0.08 + var(--utilization-intensity) * 0.42));
+    0 0 0 calc(2px * var(--viewer-symbol-scale)) rgba(48, 153, 76, calc(0.18 + var(--utilization-intensity) * 0.62)),
+    0 0 calc(8px * var(--viewer-symbol-scale)) rgba(48, 153, 76, calc(0.08 + var(--utilization-intensity) * 0.42));
 }
 
-.load-point-marker.is-missing,
+.load-point-marker.is-missing .load-point-symbol,
 .viewer-hover-marker.is-load-point.is-missing {
   background: rgba(255, 193, 7, 0.22);
-  box-shadow: 0 0 0 2px rgba(194, 130, 0, 0.72), 0 0 7px rgba(255, 193, 7, 0.32);
+  box-shadow:
+    0 0 0 calc(2px * var(--viewer-symbol-scale)) rgba(194, 130, 0, 0.72),
+    0 0 calc(7px * var(--viewer-symbol-scale)) rgba(255, 193, 7, 0.32);
 }
 
 .load-point-marker:focus,
@@ -434,6 +437,7 @@
   display: grid;
   line-height: 0;
   place-items: center;
+  border-radius: 50%;
 }
 
 .load-point-marker.is-pending {
@@ -506,15 +510,13 @@
 }
 
 .cpt-label {
-  position: absolute;
-  top: 43%;
-  left: 50%;
-  z-index: 1;
-  font-size: calc(min(var(--cpt-symbol-width-base), var(--cpt-symbol-height-base)) * var(--cpt-label-scale));
+  fill: currentColor;
+  font-size: calc(21px * var(--cpt-label-scale));
   font-weight: 700;
-  line-height: 1;
   pointer-events: none;
-  transform: translate(-50%, -50%);
+  text-anchor: middle;
+  dominant-baseline: middle;
+  user-select: none;
 }
 
 .is-layer-cpt {

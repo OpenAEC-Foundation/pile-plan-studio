@@ -33,7 +33,7 @@ describe("PilePlanViewer inputs", () => {
     assert.match(css, /--cpt-marker-height-base:\s*calc\(13px \* var\(--viewer-symbol-scale\)\)/);
     assert.match(css, /--cpt-default-fill:\s*#d4dade/);
     assert.match(css, /\.cpt-marker\s*{[\s\S]*?--cpt-fill:\s*var\(--cpt-default-fill\)/);
-    assert.match(css, /\.cpt-label\s*{[\s\S]*?top:\s*43%;/);
+    assert.match(css, /\.cpt-label\s*{[\s\S]*?dominant-baseline:\s*middle;/);
   });
 
   it("keeps scaled pile symbols centered on their project coordinates", () => {
@@ -43,6 +43,12 @@ describe("PilePlanViewer inputs", () => {
       css,
       /\.load-point-symbol\s*{[\s\S]*?display:\s*grid;[\s\S]*?line-height:\s*0;[\s\S]*?place-items:\s*center;/,
     );
+    assert.match(
+      css,
+      /\.load-point-marker\.is-above-range \.load-point-symbol,[\s\S]*?\.viewer-hover-marker\.is-load-point\.is-above-range/,
+    );
+    assert.doesNotMatch(css, /\.load-point-marker\.is-above-range,\s*\.viewer-hover-marker/);
+    assert.match(css, /box-shadow:[\s\S]*?calc\(2px \* var\(--viewer-symbol-scale\)\)/);
   });
 
   it("replaces the marker fan with a compact hover inspector", () => {
@@ -140,7 +146,9 @@ describe("PilePlanViewer inputs", () => {
     assert.match(source, /left:\s*`\$\{point\.x\}%`/);
     assert.match(source, /top:\s*`\$\{point\.y\}%`/);
     assert.doesNotMatch(source, /left:\s*`\$\{(?:Math\.round|[^}]*toFixed)/);
-    assert.match(css, /\.cpt-label\s*{[\s\S]*?position:\s*absolute;[\s\S]*?top:\s*43%;[\s\S]*?left:\s*50%;[\s\S]*?transform:\s*translate\(-50%,\s*-50%\);/);
+    assert.match(source, /<svg className="cpt-triangle"[\s\S]*?<text[\s\S]*?className="cpt-label"[\s\S]*?x="12"[\s\S]*?y="9.5"/);
+    assert.doesNotMatch(source, /<span className="cpt-label"/);
+    assert.match(css, /\.cpt-label\s*{[\s\S]*?text-anchor:\s*middle;[\s\S]*?dominant-baseline:\s*middle;/);
     assert.match(css, /\.load-point-marker\.is-selected::before,[\s\S]*?\.cpt-marker\.is-inspected-cpt::before\s*{[\s\S]*?top:\s*50%;[\s\S]*?left:\s*50%;[\s\S]*?transform:\s*translate\(-50%,\s*-50%\);/);
   });
 

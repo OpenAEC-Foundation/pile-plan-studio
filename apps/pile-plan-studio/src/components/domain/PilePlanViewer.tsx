@@ -233,8 +233,15 @@ export default function PilePlanViewer({ state, onStateChange }: Props) {
               >
                 <svg className="cpt-triangle" viewBox="0 0 24 22" aria-hidden="true" focusable="false">
                   <polygon points="3,3 21,3 12,19" />
+                  <text
+                    className="cpt-label"
+                    x="12"
+                    y="9.5"
+                    style={getCptLabelStyle(cptLabel) as CSSProperties}
+                  >
+                    {cptLabel}
+                  </text>
                 </svg>
-                <span className="cpt-label" style={getCptLabelStyle(cptLabel) as CSSProperties}>{cptLabel}</span>
               </button>
             );
           })}
