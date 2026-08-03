@@ -351,14 +351,13 @@
 .cpt-marker {
   --selection-ring-size: calc(var(--load-point-marker-base) + 8px * var(--viewer-symbol-scale));
   position: absolute;
-  display: grid;
-  width: var(--load-point-marker-base);
-  height: var(--load-point-marker-base);
+  width: 0;
+  height: 0;
+  overflow: visible;
   padding: 0;
-  place-items: center;
   border: 0;
   background: transparent;
-  transform: translate(-50%, -50%);
+  transform: none;
   transform-origin: center;
 }
 
@@ -417,13 +416,23 @@
 .load-point-marker.is-selected::before,
 .cpt-marker.is-inspected-cpt::before {
   position: absolute;
-  top: 50%;
-  left: 50%;
+  top: 0;
+  left: 0;
   width: var(--selection-ring-size);
   height: var(--selection-ring-size);
   border: var(--selection-ring-width) solid var(--theme-accent);
   border-radius: 999px;
   content: "";
+  transform: translate(-50%, -50%);
+}
+
+.load-point-symbol,
+.load-point-empty,
+.load-point-pending,
+.cpt-triangle {
+  position: absolute;
+  top: 0;
+  left: 0;
   transform: translate(-50%, -50%);
 }
 
@@ -435,6 +444,7 @@
 
 .load-point-symbol {
   display: grid;
+  overflow: visible;
   line-height: 0;
   place-items: center;
   border-radius: 50%;
@@ -488,14 +498,11 @@
   --selection-ring-size: calc(var(--cpt-marker-width-base) + 8px * var(--viewer-symbol-scale));
   --cpt-fill: var(--cpt-default-fill);
   --cpt-stroke: var(--cpt-default-stroke);
-  width: var(--cpt-marker-width-base);
-  height: var(--cpt-marker-height-base);
   color: #52636c;
   cursor: pointer;
 }
 
 .cpt-triangle {
-  position: absolute;
   width: var(--cpt-symbol-width-base);
   height: var(--cpt-symbol-height-base);
   overflow: visible;
@@ -569,8 +576,8 @@
 
 .is-hover-candidate::after {
   position: absolute;
-  top: 50%;
-  left: 50%;
+  top: 0;
+  left: 0;
   width: var(--selection-ring-size);
   height: var(--selection-ring-size);
   border: var(--selection-ring-width) solid var(--theme-accent);

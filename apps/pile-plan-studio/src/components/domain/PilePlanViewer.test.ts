@@ -41,7 +41,11 @@ describe("PilePlanViewer inputs", () => {
 
     assert.match(
       css,
-      /\.load-point-symbol\s*{[\s\S]*?display:\s*grid;[\s\S]*?line-height:\s*0;[\s\S]*?place-items:\s*center;/,
+      /\.load-point-marker,\s*\.cpt-marker\s*{[\s\S]*?width:\s*0;[\s\S]*?height:\s*0;[\s\S]*?overflow:\s*visible;[\s\S]*?transform:\s*none;/,
+    );
+    assert.match(
+      css,
+      /\.load-point-symbol,\s*\.load-point-empty,\s*\.load-point-pending,\s*\.cpt-triangle\s*{[\s\S]*?position:\s*absolute;[\s\S]*?top:\s*0;[\s\S]*?left:\s*0;[\s\S]*?transform:\s*translate\(-50%,\s*-50%\);/,
     );
     assert.match(
       css,
@@ -149,7 +153,7 @@ describe("PilePlanViewer inputs", () => {
     assert.match(source, /<svg className="cpt-triangle"[\s\S]*?<text[\s\S]*?className="cpt-label"[\s\S]*?x="12"[\s\S]*?y="9.5"/);
     assert.doesNotMatch(source, /<span className="cpt-label"/);
     assert.match(css, /\.cpt-label\s*{[\s\S]*?text-anchor:\s*middle;[\s\S]*?dominant-baseline:\s*middle;/);
-    assert.match(css, /\.load-point-marker\.is-selected::before,[\s\S]*?\.cpt-marker\.is-inspected-cpt::before\s*{[\s\S]*?top:\s*50%;[\s\S]*?left:\s*50%;[\s\S]*?transform:\s*translate\(-50%,\s*-50%\);/);
+    assert.match(css, /\.load-point-marker\.is-selected::before,[\s\S]*?\.cpt-marker\.is-inspected-cpt::before\s*{[\s\S]*?top:\s*0;[\s\S]*?left:\s*0;[\s\S]*?transform:\s*translate\(-50%,\s*-50%\);/);
   });
 
   it("uses responsive font scaling for CPT numbers", () => {
