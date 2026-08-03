@@ -430,6 +430,12 @@
   height: var(--load-point-symbol-base);
 }
 
+.load-point-symbol {
+  display: grid;
+  line-height: 0;
+  place-items: center;
+}
+
 .load-point-marker.is-pending {
   background: transparent;
   box-shadow: none;
@@ -554,7 +560,8 @@
   color: #52636c;
 }
 
-.is-hover-candidate {
+.is-hover-candidate,
+.viewer-content .is-hover-candidate {
   z-index: 50;
 }
 

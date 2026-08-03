@@ -36,6 +36,15 @@ describe("PilePlanViewer inputs", () => {
     assert.match(css, /\.cpt-label\s*{[\s\S]*?top:\s*43%;/);
   });
 
+  it("keeps scaled pile symbols centered on their project coordinates", () => {
+    const css = readFileSync(resolve(import.meta.dirname, "viewer.css"), "utf8");
+
+    assert.match(
+      css,
+      /\.load-point-symbol\s*{[\s\S]*?display:\s*grid;[\s\S]*?line-height:\s*0;[\s\S]*?place-items:\s*center;/,
+    );
+  });
+
   it("replaces the marker fan with a compact hover inspector", () => {
     const source = readFileSync(resolve(import.meta.dirname, "PilePlanViewer.tsx"), "utf8");
     const css = readFileSync(resolve(import.meta.dirname, "viewer.css"), "utf8");
@@ -54,6 +63,7 @@ describe("PilePlanViewer inputs", () => {
     assert.match(source, /is-hover-candidate/);
     assert.match(source, /getActiveHoverCandidateKey/);
     assert.match(css, /\.is-hover-candidate\s*{[\s\S]*?z-index:\s*50;/);
+    assert.match(css, /\.viewer-content \.is-hover-candidate\s*{[\s\S]*?z-index:\s*50;/);
   });
 
   it("cycles overlapping candidates with Space and hides hover while navigating", () => {

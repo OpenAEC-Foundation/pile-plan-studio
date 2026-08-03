@@ -26,6 +26,7 @@ type CandidateQuery = {
   pointer: ViewPoint;
   canvas: { width: number; height: number };
   viewport: Viewport;
+  preferredMarkerType?: "load-point" | "cpt";
 };
 
 const MINIMUM_POINTER_RADIUS_PX = 9;
@@ -119,7 +120,12 @@ export function findHoverCandidates(
     .filter((candidate) => (
       candidate.distance <= Math.max(MINIMUM_POINTER_RADIUS_PX, candidate.visualRadius * query.viewport.scale)
     ))
-    .sort((first, second) => first.distance - second.distance || first.key.localeCompare(second.key));
+    .sort((first, second) => (
+      getMarkerTypePriority(first.key, query.preferredMarkerType)
+      - getMarkerTypePriority(second.key, query.preferredMarkerType)
+      || first.distance - second.distance
+      || first.key.localeCompare(second.key)
+    ));
 }
 
 export function updateHoverCandidateState(
@@ -167,6 +173,14 @@ function haveSameKeys(first: string[], second: string[]): boolean {
 
   const secondKeys = new Set(second);
   return first.every((key) => secondKeys.has(key));
+}
+
+function getMarkerTypePriority(
+  key: string,
+  preferredMarkerType: CandidateQuery["preferredMarkerType"],
+): number {
+  if (!preferredMarkerType) return 0;
+  return key.startsWith(`${preferredMarkerType}:`) ? 0 : 1;
 }
 
 function getCellKey(cellX: number, cellY: number): string {

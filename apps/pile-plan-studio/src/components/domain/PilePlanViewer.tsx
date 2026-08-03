@@ -477,6 +477,7 @@ export default function PilePlanViewer({ state, onStateChange }: Props) {
         pointer,
         canvas: { width: currentRect.width, height: currentRect.height },
         viewport: viewportRef.current,
+        preferredMarkerType: state.foregroundLayer === "cpts" ? "cpt" : "load-point",
       });
       const candidateKeys = candidates
         .map((candidate) => candidate.key)
@@ -501,6 +502,7 @@ export default function PilePlanViewer({ state, onStateChange }: Props) {
       },
       canvas: { width: rect.width, height: rect.height },
       viewport: viewportRef.current,
+      preferredMarkerType: state.foregroundLayer === "cpts" ? "cpt" : "load-point",
     });
     const candidateKeys = candidates
       .map((candidate) => candidate.key)

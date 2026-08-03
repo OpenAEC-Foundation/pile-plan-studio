@@ -47,6 +47,20 @@ describe("hover candidates", () => {
     ]);
   });
 
+  it("starts with a candidate from the visible foreground layer", () => {
+    const candidates = findHoverCandidates(markers, {
+      pointer: { x: 500, y: 500 },
+      canvas: { width: 1000, height: 1000 },
+      viewport: { scale: 1, offsetX: 0, offsetY: 0 },
+      preferredMarkerType: "cpt",
+    });
+
+    assert.deepEqual(candidates.map((candidate) => candidate.key), [
+      "cpt:66",
+      "load-point:157",
+    ]);
+  });
+
   it("limits exact distance checks to nearby spatial cells", () => {
     const index = createHoverMarkerIndex(markers, 10);
     const pool = getHoverMarkerCandidatePool(index, {
