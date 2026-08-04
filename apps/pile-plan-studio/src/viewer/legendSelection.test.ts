@@ -4,6 +4,7 @@ import assert from "node:assert/strict";
 import {
   getHighlightedGoverningCptId,
   getLoadPointIdsForLegendSelection,
+  replaceLegendSelectionFilter,
   toggleLegendSelectionFilter,
   shouldHighlightGoverningCpt,
 } from "./legendSelection.ts";
@@ -47,6 +48,37 @@ describe("legend selection", () => {
     assert.deepEqual(withTip, { pileSizes: [290], pileTipLevels: [-18] });
     assert.deepEqual(withoutSize, { pileSizes: [], pileTipLevels: [-18] });
     assert.deepEqual(withoutTip, { pileSizes: [], pileTipLevels: [] });
+  });
+
+  it("replaces both previous filter groups for a plain legend selection", () => {
+    assert.deepEqual(replaceLegendSelectionFilter("size", 320), {
+      pileSizes: [320],
+      pileTipLevels: [],
+    });
+    assert.deepEqual(replaceLegendSelectionFilter("tip", -19), {
+      pileSizes: [],
+      pileTipLevels: [-19],
+    });
+  });
+
+  it("keeps union within categories and intersection between categories after Shift toggles", () => {
+    const withTwoSizes = toggleLegendSelectionFilter(
+      replaceLegendSelectionFilter("size", 290),
+      "size",
+      320,
+    );
+    const withTip = toggleLegendSelectionFilter(withTwoSizes, "tip", -18);
+    const choices = new Map<number, PileConfigurationOption | null>([
+      [1, option(290, -18)],
+      [2, option(320, -18)],
+      [3, option(290, -19)],
+    ]);
+
+    assert.deepEqual(withTip, {
+      pileSizes: [290, 320],
+      pileTipLevels: [-18],
+    });
+    assert.deepEqual(getLoadPointIdsForLegendSelection(choices, withTip), [1, 2]);
   });
 
   it("does not highlight a governing CPT that is not in the active CPT selection while editing", () => {

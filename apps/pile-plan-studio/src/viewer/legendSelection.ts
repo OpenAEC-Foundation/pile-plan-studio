@@ -6,6 +6,15 @@ export type LegendSelectionFilter = {
   pileTipLevels: number[];
 };
 
+export function replaceLegendSelectionFilter(
+  kind: "size" | "tip",
+  value: number,
+): LegendSelectionFilter {
+  return kind === "size"
+    ? { pileSizes: [value], pileTipLevels: [] }
+    : { pileSizes: [], pileTipLevels: [value] };
+}
+
 export function toggleLegendSelectionFilter(
   filters: LegendSelectionFilter,
   kind: "size" | "tip",
