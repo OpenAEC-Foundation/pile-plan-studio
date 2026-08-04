@@ -59,7 +59,18 @@
   "legend": {
     "aria": "Legenda voor paalsymbolen",
     "size": "Afmeting",
-    "tip": "Puntniveau"
+    "tip": "Puntniveau",
+    "edit": "Legenda bewerken",
+    "editorTitle": "Legenda bewerken",
+    "enabled": "Geactiveerd",
+    "disabled": "Gedeactiveerd",
+    "enableAll": "Alles activeren",
+    "enableUsed": "Alleen gebruikt activeren",
+    "disableAll": "Alles deactiveren",
+    "bulkActions": "Acties voor legenda-activering",
+    "usedWarning": "Gebruikt in het actieve palenplan maar gedeactiveerd",
+    "unused": "Niet gebruikt in het actieve palenplan",
+    "none": "Geen"
   },
   "projectExplorer": {
     "aria": "Projectverkenner",

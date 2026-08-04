@@ -153,6 +153,14 @@ describe("React viewer interactions", () => {
     assert.equal(shouldClearLegendSelectionFromPointerTarget(legendBackgroundTarget), true);
   });
 
+  it("keeps legend selection while using the legend editor", () => {
+    const legendEditorTarget = {
+      closest: (selector: string) => selector === ".legend-editor-dialog" ? {} : null,
+    } as unknown as Element;
+
+    assert.equal(shouldClearLegendSelectionFromPointerTarget(legendEditorTarget), false);
+  });
+
   it("shows the union of CPTs for selected load points plus the open CPT", () => {
     const selectedIds = getReactViewerSelectedCptIds({
       selectedCptId: 63,

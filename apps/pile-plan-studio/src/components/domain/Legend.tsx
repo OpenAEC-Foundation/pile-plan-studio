@@ -1,40 +1,38 @@
 import type { ProjectState } from "../../domain/projectState";
 import { useTranslation } from "react-i18next";
+import { buildLegendPresentation, deriveUsedPileConfigurations } from "../../domain/legendState.ts";
 import { getLegendItems } from "../../viewer/legend.ts";
 import {
-  shouldDisableActivePileConfigurationToggle,
-  toggleActivePileConfiguration,
-} from "../../domain/activePileConfigurations.ts";
-import {
   getLoadPointIdsForLegendSelection,
+  replaceLegendSelectionFilter,
   toggleLegendSelectionFilter,
 } from "../../viewer/legendSelection.ts";
 import { renderPileSymbol } from "../../viewer/pileSymbols.ts";
+import { pencilIcon } from "../template/ribbon/icons.ts";
 
 type Props = {
   state: ProjectState;
   onStateChange: (nextState: ProjectState) => void;
+  onEdit: () => void;
 };
 
-export default function Legend({ state, onStateChange }: Props) {
+export default function Legend({ state, onStateChange, onEdit }: Props) {
   const { t, i18n } = useTranslation("common");
   const legend = getLegendItems(state.bearingCapacities);
-  const active = {
-    pileSizes: state.activePileSizes,
-    pileTipLevels: state.activePileTipLevels,
-  };
+  const used = deriveUsedPileConfigurations(state.selectedPileOptionKeysByLoadPoint.values());
+  const presentation = buildLegendPresentation({
+    legend,
+    enabled: {
+      pileSizes: state.activePileSizes,
+      pileTipLevels: state.activePileTipLevels,
+    },
+    used,
+  });
 
-  function toggleActive(kind: "size" | "tip", value: number) {
-    const nextActive = toggleActivePileConfiguration(active, kind, value);
-    onStateChange({
-      ...state,
-      activePileSizes: nextActive.pileSizes,
-      activePileTipLevels: nextActive.pileTipLevels,
-    });
-  }
-
-  function selectByLegend(kind: "size" | "tip", value: number) {
-    const nextFilter = toggleLegendSelectionFilter(state.legendSelectionFilter, kind, value);
+  function selectByLegend(kind: "size" | "tip", value: number, extend: boolean) {
+    const nextFilter = extend
+      ? toggleLegendSelectionFilter(state.legendSelectionFilter, kind, value)
+      : replaceLegendSelectionFilter(kind, value);
     const selectedLoadPointIds = getLoadPointIdsForLegendSelection(
       selectedPileOptionsByLoadPoint(state),
       nextFilter,
@@ -50,61 +48,77 @@ export default function Legend({ state, onStateChange }: Props) {
 
   return (
     <div className="pile-plan-legend" aria-label={t("legend.aria")}>
-      <div className="legend-group">
+      <div className="legend-group is-size">
         <span className="legend-title">{t("legend.size")}</span>
-        {legend.pileSizes.map((item) => {
-          const isActive = state.activePileSizes.includes(item.value);
+        {presentation.pileSizes.map((item) => {
+          if (item.state === "disabled-unused") return null;
           const isSelected = state.legendSelectionFilter.pileSizes.includes(item.value);
           return (
             <button
-              className={`legend-item${isActive ? "" : " is-muted"}${isSelected ? " is-selected" : ""}`}
-              disabled={shouldDisableActivePileConfigurationToggle(active, "size", item.value)}
+              aria-pressed={isSelected}
+              className={legendItemClass(item.state, isSelected)}
               key={item.value}
               type="button"
-              onClick={(event) => {
-                if (event.shiftKey) {
-                  selectByLegend("size", item.value);
-                } else {
-                  toggleActive("size", item.value);
-                }
-              }}
+              onClick={(event) => selectByLegend("size", item.value, event.shiftKey)}
             >
               <span
                 className="legend-symbol"
                 dangerouslySetInnerHTML={{ __html: renderPileSymbol(item.shape, "transparent") }}
               />
-              <span>{item.value} mm</span>
+              <span className="legend-item-label">{item.value} mm</span>
+              {item.state === "disabled-used" ? <LegendWarning /> : null}
             </button>
           );
         })}
       </div>
-      <div className="legend-group">
+      <div className="legend-group is-tip">
         <span className="legend-title">{t("legend.tip")}</span>
-        {legend.pileTipLevels.map((item) => {
-          const isActive = state.activePileTipLevels.includes(item.value);
+        {presentation.pileTipLevels.map((item) => {
+          if (item.state === "disabled-unused") return null;
           const isSelected = state.legendSelectionFilter.pileTipLevels.includes(item.value);
           return (
             <button
-              className={`legend-item${isActive ? "" : " is-muted"}${isSelected ? " is-selected" : ""}`}
-              disabled={shouldDisableActivePileConfigurationToggle(active, "tip", item.value)}
+              aria-pressed={isSelected}
+              className={legendItemClass(item.state, isSelected)}
               key={item.value}
               type="button"
-              onClick={(event) => {
-                if (event.shiftKey) {
-                  selectByLegend("tip", item.value);
-                } else {
-                  toggleActive("tip", item.value);
-                }
-              }}
+              onClick={(event) => selectByLegend("tip", item.value, event.shiftKey)}
             >
               <span className="legend-color" style={{ backgroundColor: item.color }} />
-              <span>{formatTipLevel(item.value, i18n.language)}</span>
+              <span className="legend-item-label">{formatTipLevel(item.value, i18n.language)}</span>
+              {item.state === "disabled-used" ? <LegendWarning /> : null}
             </button>
           );
         })}
       </div>
+      <button
+        aria-label={t("legend.edit")}
+        className="legend-edit-button legend-control"
+        title={t("legend.edit")}
+        type="button"
+        onClick={onEdit}
+      >
+        <span aria-hidden="true" dangerouslySetInnerHTML={{ __html: pencilIcon }} />
+      </button>
     </div>
   );
+
+  function LegendWarning() {
+    return (
+      <span className="legend-warning" title={t("legend.usedWarning")} aria-label={t("legend.usedWarning")}>
+        !
+      </span>
+    );
+  }
+}
+
+function legendItemClass(state: string, selected: boolean): string {
+  return [
+    "legend-item",
+    state === "enabled-unused" ? "is-unused" : "",
+    state === "disabled-used" ? "is-disabled-used" : "",
+    selected ? "is-selected" : "",
+  ].filter(Boolean).join(" ");
 }
 
 function selectedPileOptionsByLoadPoint(state: ProjectState) {

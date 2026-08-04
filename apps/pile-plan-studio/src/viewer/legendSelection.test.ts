@@ -48,6 +48,10 @@ describe("legend selection", () => {
     assert.deepEqual(withTip, { pileSizes: [290], pileTipLevels: [-18] });
     assert.deepEqual(withoutSize, { pileSizes: [], pileTipLevels: [-18] });
     assert.deepEqual(withoutTip, { pileSizes: [], pileTipLevels: [] });
+    assert.deepEqual(
+      getLoadPointIdsForLegendSelection(new Map([[1, option(290, -18)]]), withoutTip),
+      [],
+    );
   });
 
   it("replaces both previous filter groups for a plain legend selection", () => {

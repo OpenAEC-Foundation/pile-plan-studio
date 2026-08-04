@@ -29,6 +29,10 @@ export function getLoadPointIdsForLegendSelection(
   chosenOptions: Map<number, PileConfigurationOption | null>,
   filters: LegendSelectionFilter,
 ): number[] {
+  if (filters.pileSizes.length === 0 && filters.pileTipLevels.length === 0) {
+    return [];
+  }
+
   return [...chosenOptions.entries()]
     .filter(([, option]) => {
       if (!option) {

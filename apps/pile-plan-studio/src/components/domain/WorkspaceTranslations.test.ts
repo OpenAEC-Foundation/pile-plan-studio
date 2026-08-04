@@ -16,6 +16,23 @@ describe("Workspace translations", () => {
     assert.match(legend, /t\("legend\.tip"\)/);
   });
 
+  it("provides complete English and Dutch legend editor copy", () => {
+    const en = JSON.parse(readFileSync(resolve(import.meta.dirname, "../../i18n/locales/en/common.json"), "utf8"));
+    const nl = JSON.parse(readFileSync(resolve(import.meta.dirname, "../../i18n/locales/nl/common.json"), "utf8"));
+
+    for (const copy of [en.legend, nl.legend]) {
+      assert.equal(typeof copy.edit, "string");
+      assert.equal(typeof copy.editorTitle, "string");
+      assert.equal(typeof copy.enabled, "string");
+      assert.equal(typeof copy.disabled, "string");
+      assert.equal(typeof copy.enableAll, "string");
+      assert.equal(typeof copy.enableUsed, "string");
+      assert.equal(typeof copy.disableAll, "string");
+      assert.equal(typeof copy.usedWarning, "string");
+      assert.equal(typeof copy.unused, "string");
+    }
+  });
+
   it("describes hover candidates as objects near the pointer", () => {
     const en = JSON.parse(readFileSync(resolve(import.meta.dirname, "../../i18n/locales/en/common.json"), "utf8"));
     const nl = JSON.parse(readFileSync(resolve(import.meta.dirname, "../../i18n/locales/nl/common.json"), "utf8"));
