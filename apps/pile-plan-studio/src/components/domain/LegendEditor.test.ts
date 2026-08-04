@@ -36,6 +36,15 @@ describe("legend editor", () => {
     assert.match(source, /is-disabled-used/);
   });
 
+  it("offers a quick action that enables only configurations used by the active plan", () => {
+    const source = readFileSync(resolve(import.meta.dirname, "Legend.tsx"), "utf8");
+
+    assert.match(source, /applyLegendEditorBulkAction/);
+    assert.match(source, /"enable-used"/);
+    assert.match(source, /legend\.enableUsed/);
+    assert.match(source, /filterCheckIcon/);
+  });
+
   it("styles normal and editor states without relying on color alone", () => {
     const viewerCss = readFileSync(resolve(import.meta.dirname, "viewer.css"), "utf8");
     const editorCss = readFileSync(resolve(import.meta.dirname, "LegendEditor.css"), "utf8");

@@ -90,13 +90,18 @@
   line-height: 1;
 }
 
-.legend-edit-button {
+.legend-actions {
+  display: inline-flex;
+  margin-left: auto;
+  gap: 2px;
+  flex: 0 0 auto;
+}
+
+.legend-control-button {
   display: inline-grid;
   width: 24px;
   height: 24px;
-  margin-left: auto;
   place-items: center;
-  flex: 0 0 auto;
   padding: 4px;
   border: 1px solid transparent;
   border-radius: 3px;
@@ -104,14 +109,14 @@
   background: transparent;
 }
 
-.legend-edit-button:hover {
+.legend-control-button:hover {
   border-color: var(--theme-ribbon-btn-hover-border);
   color: var(--theme-accent);
   background: var(--theme-ribbon-btn-hover);
 }
 
-.legend-edit-button span,
-.legend-edit-button svg {
+.legend-control-button span,
+.legend-control-button svg {
   width: 14px;
   height: 14px;
 }
