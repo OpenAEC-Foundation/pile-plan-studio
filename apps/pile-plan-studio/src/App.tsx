@@ -566,8 +566,6 @@ export default function App() {
         return {
           ...current,
           ...pilePlanTransition,
-          activePileSizes: applied.activePileSizes,
-          activePileTipLevels: applied.activePileTipLevels,
           optimizationSettings: settings,
           optimizationRunning: false,
           optimizationError: null,

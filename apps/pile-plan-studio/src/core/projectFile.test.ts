@@ -259,6 +259,22 @@ describe("IFCPP project loading", () => {
     assert.equal(project.settings.optimization.max_utilization, 1);
   });
 
+  it("round-trips project legend activation independently from active pile choices", () => {
+    const loaded = loadIfcppProjectData(projectFixture());
+    loaded.activePileSizes = [290];
+    loaded.activePileTipLevels = [-18];
+    loaded.selectedPileOptionKeysByLoadPoint.set(1, "320|-19");
+
+    const saved = createIfcppProject(loaded);
+    const reloaded = loadIfcppProjectData(saved);
+
+    assert.deepEqual(saved.settings.active_pile_sizes, [290]);
+    assert.deepEqual(saved.settings.active_pile_tip_levels, [-18]);
+    assert.deepEqual(reloaded.activePileSizes, [290]);
+    assert.deepEqual(reloaded.activePileTipLevels, [-18]);
+    assert.equal(reloaded.selectedPileOptionKeysByLoadPoint.get(1), "320|-19");
+  });
+
   it("preserves inactive plans while saving edits to the active plan", () => {
     const legacy = projectFixture();
     const loaded = loadIfcppProjectData({
