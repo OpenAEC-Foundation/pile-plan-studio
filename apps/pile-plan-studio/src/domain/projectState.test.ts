@@ -21,6 +21,7 @@ describe("createInitialProjectState", () => {
     assert.equal(state.defaultPileSelectionPending, true);
     assert.equal(state.symbolScalePercent, 100);
     assert.equal(state.foregroundLayer, "load-points");
+    assert.equal(state.optimizationCreatesPilePlan, true);
   });
 
   it("accepts persisted local viewer preferences", () => {
@@ -43,6 +44,15 @@ describe("createInitialProjectState", () => {
 
     assert.equal(state.defaultPileSelectionPending, false);
     assert.equal(state.selectedPileOptionKeysByLoadPoint.get(1), "290|-18");
+  });
+
+  it("uses a localized base-plan name for a newly imported project", () => {
+    const state = createInitialProjectState(sampleProjectText, {
+      initializeDefaultPiles: true,
+      defaultPilePlanName: "Basisplan",
+    });
+
+    assert.equal(state.pilePlans[0].name, "Basisplan");
   });
 
   it("exposes assignments from the active version-two pile plan", () => {

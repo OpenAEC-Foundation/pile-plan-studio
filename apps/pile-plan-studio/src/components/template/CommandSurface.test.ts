@@ -52,9 +52,10 @@ describe("Alpha command surfaces", () => {
 
   it("marks dirty projects in the explorer and guards replacement actions", () => {
     const source = readFileSync(resolve(import.meta.dirname, "../../App.tsx"), "utf8");
+    const explorer = readFileSync(resolve(import.meta.dirname, "../domain/PilePlanExplorer.tsx"), "utf8");
 
     assert.match(source, /isDirty/);
-    assert.match(source, /\{isDirty \? " \*" : ""\}/);
+    assert.match(explorer, /\{isDirty \? " \*" : ""\}/);
     assert.match(source, /confirmProjectReplacement/);
     assert.match(source, /UnsavedChangesDialog/);
   });

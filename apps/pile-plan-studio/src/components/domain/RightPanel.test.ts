@@ -17,6 +17,8 @@ describe("React optimization panel", () => {
     assert.match(optimization, /t\("optimization\.maxTips"\)/);
     assert.match(optimization, /t\("optimization\.maxConfigurations"\)/);
     assert.match(optimization, /t\("optimization\.run"\)/);
+    assert.match(optimization, /optimizationCreatesPilePlan/);
+    assert.match(optimization, /t\("optimization\.saveAsNewPilePlan"\)/);
     assert.match(optimization, /optimizationSummary/);
     assert.match(optimization, /optimizationError/);
   });

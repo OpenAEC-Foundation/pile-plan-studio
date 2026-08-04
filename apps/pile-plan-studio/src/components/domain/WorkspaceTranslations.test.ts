@@ -5,12 +5,12 @@ import { resolve } from "node:path";
 
 describe("Workspace translations", () => {
   it("translates the explorer and legend through the common language setting", () => {
-    const app = readFileSync(resolve(import.meta.dirname, "../../App.tsx"), "utf8");
+    const explorer = readFileSync(resolve(import.meta.dirname, "PilePlanExplorer.tsx"), "utf8");
     const legend = readFileSync(resolve(import.meta.dirname, "Legend.tsx"), "utf8");
 
-    assert.match(app, /t\("projectExplorer\.inputSources"\)/);
-    assert.match(app, /t\(`projectExplorer\.sources\.\$\{source\.kind\}`\)/);
-    assert.match(app, /t\(`projectExplorer\.statuses\.\$\{source\.status\}`\)/);
+    assert.match(explorer, /t\("projectExplorer\.pilePlans"\)/);
+    assert.match(explorer, /t\("projectExplorer\.newPilePlan"\)/);
+    assert.match(explorer, /t\("projectExplorer\.rename"\)/);
     assert.match(legend, /useTranslation\("common"\)/);
     assert.match(legend, /t\("legend\.size"\)/);
     assert.match(legend, /t\("legend\.tip"\)/);

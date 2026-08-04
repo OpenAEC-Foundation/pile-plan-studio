@@ -105,6 +105,7 @@
   "optimization.maxConfigurations": "Maximum different configurations",
   "optimization.performanceLimit": "Performance limit",
   "optimization.maxUtilization": "Maximum utilization",
+  "optimization.saveAsNewPilePlan": "Save optimization as a new pile plan",
   "optimization.enableLegend": "Enable at least one size and tip level in the legend.",
   "optimization.selectLoadPoints": "Select one or more load points.",
   "optimization.applied": "Applied to {{count}} load points.",

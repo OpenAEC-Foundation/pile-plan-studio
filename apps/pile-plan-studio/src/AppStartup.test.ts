@@ -33,7 +33,7 @@ describe("React app startup", () => {
   it("initializes default piles for the sample, new imports, and refreshed unmatched points", () => {
     const source = readFileSync(resolve(import.meta.dirname, "App.tsx"), "utf8");
 
-    assert.match(source, /createInitialProjectState\(\s*sampleProjectText,\s*\{ initializeDefaultPiles: true \},?\s*\)/);
+    assert.match(source, /createInitialProjectState\(\s*sampleProjectText,\s*\{[\s\S]*?initializeDefaultPiles: true,[\s\S]*?defaultPilePlanName: i18n\.language\.startsWith\("nl"\) \? "Basisplan" : "Base plan",[\s\S]*?\},?\s*\)/);
     assert.match(source, /createInitialProjectState\(withCosts, \{[\s\S]*?initializeDefaultPiles: true,[\s\S]*?viewerPreferences: projectState,[\s\S]*?\}\)/);
     assert.match(source, /createInitialProjectState\(refreshedProject, \{[\s\S]*?initializeDefaultPiles: true,[\s\S]*?viewerPreferences: projectState,[\s\S]*?\}\)/);
     assert.match(source, /createInitialProjectState\(\s*await file\.text\(\),\s*\{ initializeDefaultPiles: false, viewerPreferences: projectState \},?\s*\)/);
@@ -49,7 +49,8 @@ describe("React app startup", () => {
 
   it("keeps the initialized sample project clean after choosing default piles", () => {
     const source = readFileSync(resolve(import.meta.dirname, "App.tsx"), "utf8");
-    const chooserIndex = source.indexOf("chooseDefaultPileOptionsCore({");
+    const guardedRequestIndex = source.indexOf("defaultSelectionRequestRef.current = analysisRequest;");
+    const chooserIndex = source.indexOf("chooseDefaultPileOptionsCore({", guardedRequestIndex);
     const defaultSelectionEffect = source.slice(chooserIndex, source.indexOf("  }, [", chooserIndex));
 
     assert.doesNotMatch(defaultSelectionEffect, /setIsDirty\(true\)/);
@@ -59,7 +60,8 @@ describe("React app startup", () => {
 
   it("keeps default selection pending until the guarded request finishes", () => {
     const source = readFileSync(resolve(import.meta.dirname, "App.tsx"), "utf8");
-    const chooserIndex = source.indexOf("chooseDefaultPileOptionsCore({");
+    const guardedRequestIndex = source.indexOf("defaultSelectionRequestRef.current = analysisRequest;");
+    const chooserIndex = source.indexOf("chooseDefaultPileOptionsCore({", guardedRequestIndex);
     const effectStart = source.lastIndexOf("useEffect(() =>", chooserIndex);
     const beforeChooser = source.slice(effectStart, chooserIndex);
 
@@ -97,6 +99,25 @@ describe("React app startup", () => {
     assert.match(source, /applyOptimizationChoices/);
     assert.match(source, /optimizationRunning:\s*true/);
     assert.match(source, /onRunOptimization=\{runGreedyOptimization\}/);
+    assert.match(source, /snapshot\.optimizationCreatesPilePlan/);
+    assert.match(source, /createOptimizationPilePlan/);
+  });
+
+  it("waits for complete analysis before creating a fresh pile plan", () => {
+    const source = readFileSync(resolve(import.meta.dirname, "App.tsx"), "utf8");
+    const createStart = source.indexOf("const createFreshPilePlan");
+    const createEnd = source.indexOf("useEffect(() =>", createStart);
+    const createHandler = source.slice(createStart, createEnd);
+
+    assert.match(createHandler, /pileOptionsByLoadPointId\.size !== snapshot\.loadPoints\.length/);
+  });
+
+  it("uses the working pile plan explorer instead of passive source rows", () => {
+    const source = readFileSync(resolve(import.meta.dirname, "App.tsx"), "utf8");
+
+    assert.match(source, /<PilePlanExplorer/);
+    assert.match(source, /summarizePilePlanCosts/);
+    assert.doesNotMatch(source, /projectState\.inputSources\.map/);
   });
 
   it("waits for stored viewer preferences before saving them", () => {
