@@ -21,6 +21,7 @@ describe("createInitialProjectState", () => {
     assert.equal(state.defaultPileSelectionPending, true);
     assert.equal(state.symbolScalePercent, 100);
     assert.equal(state.foregroundLayer, "load-points");
+    assert.equal(state.optimizationCreatesPilePlan, true);
   });
 
   it("accepts persisted local viewer preferences", () => {
@@ -35,7 +36,7 @@ describe("createInitialProjectState", () => {
 
   it("preserves stored IFCPP choices without scheduling default selection", () => {
     const project = JSON.parse(sampleProjectText);
-    project.user_state.selected_piles = {
+    project.user_state.pile_plans[0].selected_piles = {
       "1": { pile: { pile_size_mm: 290, pile_tip_level_m_key: -18000 } },
     };
 
@@ -43,6 +44,47 @@ describe("createInitialProjectState", () => {
 
     assert.equal(state.defaultPileSelectionPending, false);
     assert.equal(state.selectedPileOptionKeysByLoadPoint.get(1), "290|-18");
+  });
+
+  it("uses a localized base-plan name for a newly imported project", () => {
+    const state = createInitialProjectState(sampleProjectText, {
+      initializeDefaultPiles: true,
+      defaultPilePlanName: "Basisplan",
+    });
+
+    assert.equal(state.pilePlans[0].name, "Basisplan");
+  });
+
+  it("exposes assignments from the active version-two pile plan", () => {
+    const project = JSON.parse(sampleProjectText);
+    const selectedPiles = {
+      "1": { pile: { pile_size_mm: 320, pile_tip_level_m_key: -18500 } },
+    };
+    project.schema_version = 2;
+    project.user_state = {
+      pile_plans: [
+        {
+          id: "inactive",
+          name: "Inactive",
+          selected_piles: {},
+          locked_load_point_ids: [],
+        },
+        {
+          id: "active",
+          name: "Active",
+          selected_piles: selectedPiles,
+          locked_load_point_ids: [1],
+        },
+      ],
+      active_pile_plan_id: "active",
+      manual_cpt_selections: project.user_state.manual_cpt_selections,
+    };
+
+    const state = createInitialProjectState(project, { initializeDefaultPiles: false });
+
+    assert.equal(state.activePilePlanId, "active");
+    assert.equal(state.pilePlans.length, 2);
+    assert.equal(state.selectedPileOptionKeysByLoadPoint.get(1), "320|-18.5");
   });
 
   it("summarizes imported project sources for the project explorer", () => {

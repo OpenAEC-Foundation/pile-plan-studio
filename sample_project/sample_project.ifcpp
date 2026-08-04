@@ -1,6 +1,6 @@
 {
   "schema": "IFCPP",
-  "schema_version": 1,
+  "schema_version": 2,
   "application": {
     "name": "Pile Plan Studio",
     "version": "0.1.0-alpha"
@@ -16948,7 +16948,15 @@
     ]
   },
   "user_state": {
-    "selected_piles": {},
+    "pile_plans": [
+      {
+        "id": "pile-plan-1",
+        "name": "Pile plan 1",
+        "selected_piles": {},
+        "locked_load_point_ids": []
+      }
+    ],
+    "active_pile_plan_id": "pile-plan-1",
     "manual_cpt_selections": {}
   },
   "import_log": [

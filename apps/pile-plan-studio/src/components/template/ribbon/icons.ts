@@ -64,6 +64,7 @@ export const alignRightIcon = `<svg fill="none" stroke="currentColor" viewBox="0
 
 // Drawing
 export const pencilIcon = `<svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>`;
+export const filterCheckIcon = `<svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5h18l-7 8v5l-4 2v-7L3 5z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m15 17 2 2 4-4"/></svg>`;
 export const lineIcon = `<svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><line x1="5" y1="19" x2="19" y2="5" stroke-width="2" stroke-linecap="round"/></svg>`;
 export const arrowIcon = `<svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 19L19 5M19 5h-7M19 5v7"/></svg>`;
 export const circleIcon = `<svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" stroke-width="2"/></svg>`;

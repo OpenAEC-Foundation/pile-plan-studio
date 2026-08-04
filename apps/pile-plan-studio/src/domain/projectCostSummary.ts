@@ -15,3 +15,17 @@ export function summarizeProjectCosts(costs: Array<number | null | undefined>): 
     { missingCount: 0, totalCost: 0 },
   );
 }
+
+export function summarizePilePlanCosts(
+  pilePlans: PilePlanData[],
+  pileCostByOptionKey: Map<string, number | null>,
+): Map<string, ProjectCostSummary> {
+  return new Map(pilePlans.map((plan) => [
+    plan.id,
+    summarizeProjectCosts(
+      [...plan.selectedPileOptionKeysByLoadPoint.values()]
+        .map((optionKey) => pileCostByOptionKey.get(optionKey)),
+    ),
+  ]));
+}
+import type { PilePlanData } from "../core/projectFile.ts";

@@ -20,7 +20,7 @@ describe("React optimization panel model", () => {
     assert.deepEqual(getOptimizationTargetIds("selected", [1, 2, 3], [2]), [2]);
   });
 
-  it("applies returned choices, clears omitted targets, and preserves other points", () => {
+  it("applies returned choices without replacing legend activation", () => {
     const result = applyOptimizationChoices({
       previousChoices: new Map([[1, "290|-18"], [2, "320|-19"], [3, "290|-18"]]),
       targetIds: [1, 2],
@@ -34,8 +34,8 @@ describe("React optimization panel model", () => {
     });
 
     assert.deepEqual(result.choices, new Map([[1, "350|-20"], [3, "290|-18"]]));
-    assert.deepEqual(result.activePileSizes, [290, 350]);
-    assert.deepEqual(result.activePileTipLevels, [-20, -18]);
+    assert.equal("activePileSizes" in result, false);
+    assert.equal("activePileTipLevels" in result, false);
     assert.deepEqual(result.summary, { appliedCount: 2, changedCount: 2 });
   });
 });

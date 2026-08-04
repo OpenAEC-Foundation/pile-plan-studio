@@ -1,6 +1,7 @@
-import type { MouseEvent } from "react";
+import { useState, type MouseEvent } from "react";
 import type { ProjectState } from "../../domain/projectState";
 import Legend from "./Legend";
+import LegendEditor from "./LegendEditor";
 import PilePlanViewer from "./PilePlanViewer";
 import { clearLegendSelection, shouldClearLegendSelectionFromPointerTarget } from "./viewerInteractions";
 import "./viewer.css";
@@ -11,10 +12,29 @@ type Props = {
 };
 
 export default function PilePlanWorkspace({ state, onStateChange }: Props) {
+  const [legendEditorOpen, setLegendEditorOpen] = useState(false);
+
   return (
     <section className="pile-plan-workspace" onMouseDownCapture={handleMouseDownCapture}>
-      <Legend state={state} onStateChange={onStateChange} />
+      <Legend
+        state={state}
+        onEdit={() => setLegendEditorOpen(true)}
+        onStateChange={onStateChange}
+      />
       <PilePlanViewer state={state} onStateChange={onStateChange} />
+      <LegendEditor
+        open={legendEditorOpen}
+        state={state}
+        onClose={() => setLegendEditorOpen(false)}
+        onApply={(active) => {
+          onStateChange({
+            ...state,
+            activePileSizes: active.pileSizes,
+            activePileTipLevels: active.pileTipLevels,
+          });
+          setLegendEditorOpen(false);
+        }}
+      />
     </section>
   );
 

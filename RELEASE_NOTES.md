@@ -1,5 +1,45 @@
 # Pile Plan Studio Release Notes
 
+## 0.1.6-alpha
+
+This alpha adds multiple pile plans per project and introduces explicit,
+project-wide control over the pile-size and tip-level legend.
+
+### Added
+
+- Store multiple named pile plans in one IFCPP project and switch between them
+  from the project explorer.
+- Duplicate, rename, and remove pile plans while showing the estimated cost of
+  each plan.
+- Create a fresh pile plan from the cheapest valid assignments.
+- Optionally preserve the current plan as a separate variant when running the
+  greedy optimizer.
+- Edit enabled pile sizes and tip levels in a dedicated legend editor with
+  separate active and inactive groups.
+- Quickly activate only the sizes and tip levels used by the current pile plan
+  from the legend toolbar.
+
+### Improved
+
+- The legend now distinguishes used, unused, and disabled configurations
+  without changing project settings after optimization.
+- A used but disabled legend item remains visible with a warning, so existing
+  pile assignments never disappear silently.
+- Clicking a legend item selects all load points with that property;
+  Shift+click combines size and tip filters using the existing union and
+  intersection rules.
+- Legend usage updates immediately after pile assignment, optimization, or
+  switching to another pile plan.
+- The legend editor supports Apply and Cancel, bulk activation actions,
+  keyboard focus containment, and localized English and Dutch labels.
+
+### Notes
+
+- Enabled legend configurations belong to the project. Pile assignments and
+  locked locations belong to each individual pile plan.
+- This release does not publish a Windows installer. The browser build and
+  source code contain the 0.1.6-alpha changes.
+
 ## 0.1.5-alpha
 
 This alpha improves control over the pile-plan viewer and makes dense or

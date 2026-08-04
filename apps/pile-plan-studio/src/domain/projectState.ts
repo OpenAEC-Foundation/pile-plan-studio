@@ -59,6 +59,7 @@ export type ProjectState = LoadedProjectData & {
   legendSelectionFilter: LegendSelectionFilter;
   optimizationTargetScope: OptimizationTargetScope;
   optimizationLimitScope: OptimizationLimitScope;
+  optimizationCreatesPilePlan: boolean;
   optimizationRunning: boolean;
   optimizationError: string | null;
   optimizationSummary: OptimizationRunSummary | null;
@@ -69,6 +70,7 @@ export type ProjectState = LoadedProjectData & {
 type InitialProjectStateOptions = {
   initializeDefaultPiles: boolean;
   viewerPreferences?: ViewerPreferences;
+  defaultPilePlanName?: string;
 };
 
 export function createInitialProjectState(
@@ -78,9 +80,13 @@ export function createInitialProjectState(
   const projectData = loadIfcppProjectData(input);
   const firstLoadPointId = projectData.loadPoints[0]?.id ?? null;
   const viewerPreferences = normalizeViewerPreferences(options.viewerPreferences);
+  const pilePlans = options.defaultPilePlanName && projectData.pilePlans.length === 1
+    ? [{ ...projectData.pilePlans[0], name: options.defaultPilePlanName }]
+    : projectData.pilePlans;
 
   return {
     ...projectData,
+    pilePlans,
     bounds: getProjectBounds(projectData.loadPoints, projectData.cpts),
     inputSources: [
       {
@@ -121,6 +127,7 @@ export function createInitialProjectState(
     legendSelectionFilter: { pileSizes: [], pileTipLevels: [] },
     optimizationTargetScope: "all",
     optimizationLimitScope: "target",
+    optimizationCreatesPilePlan: true,
     optimizationRunning: false,
     optimizationError: null,
     optimizationSummary: null,

@@ -259,7 +259,7 @@ fn build_imported_project(
     let active_pile_tip_levels = unique_sorted_tip_levels(&bearing_capacities);
     PilePlanProject {
         schema: "IFCPP".to_string(),
-        schema_version: 1,
+        schema_version: 2,
         application: ProjectApplication {
             name: "Pile Plan Studio".to_string(),
             version: "0.1.0-alpha".to_string(),
@@ -315,10 +315,7 @@ fn build_imported_project(
             active_pile_sizes,
             active_pile_tip_levels,
         },
-        user_state: ProjectUserState {
-            selected_piles: HashMap::new(),
-            manual_cpt_selections: HashMap::new(),
-        },
+        user_state: ProjectUserState::with_default_pile_plan(HashMap::new(), HashMap::new()),
         import_log,
     }
 }

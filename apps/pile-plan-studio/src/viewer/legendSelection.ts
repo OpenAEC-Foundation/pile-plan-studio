@@ -6,6 +6,15 @@ export type LegendSelectionFilter = {
   pileTipLevels: number[];
 };
 
+export function replaceLegendSelectionFilter(
+  kind: "size" | "tip",
+  value: number,
+): LegendSelectionFilter {
+  return kind === "size"
+    ? { pileSizes: [value], pileTipLevels: [] }
+    : { pileSizes: [], pileTipLevels: [value] };
+}
+
 export function toggleLegendSelectionFilter(
   filters: LegendSelectionFilter,
   kind: "size" | "tip",
@@ -20,6 +29,10 @@ export function getLoadPointIdsForLegendSelection(
   chosenOptions: Map<number, PileConfigurationOption | null>,
   filters: LegendSelectionFilter,
 ): number[] {
+  if (filters.pileSizes.length === 0 && filters.pileTipLevels.length === 0) {
+    return [];
+  }
+
   return [...chosenOptions.entries()]
     .filter(([, option]) => {
       if (!option) {

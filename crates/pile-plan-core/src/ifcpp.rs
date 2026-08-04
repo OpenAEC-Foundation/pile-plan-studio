@@ -33,6 +33,9 @@ impl From<JsonError> for IfcppError {
 
 pub fn read_ifcpp_str(input: &str) -> Result<PilePlanProject, IfcppError> {
     let mut project: PilePlanProject = serde_json::from_str(input)?;
+    if project.schema_version == 1 {
+        project.schema_version = 2;
+    }
     project.settings.viewer_utilization = project.settings.viewer_utilization.normalized();
     project.settings.optimization.max_utilization = project
         .settings
@@ -45,9 +48,13 @@ pub fn read_ifcpp_str(input: &str) -> Result<PilePlanProject, IfcppError> {
 }
 
 pub fn write_ifcpp_string(project: &PilePlanProject) -> Result<String, IfcppError> {
-    validate_ifcpp_project(project)?;
+    let mut canonical = project.clone();
+    if canonical.schema_version == 1 {
+        canonical.schema_version = 2;
+    }
+    validate_ifcpp_project(&canonical)?;
 
-    Ok(serde_json::to_string_pretty(project)?)
+    Ok(serde_json::to_string_pretty(&canonical)?)
 }
 
 pub fn validate_ifcpp_project(project: &PilePlanProject) -> Result<(), IfcppError> {
@@ -55,7 +62,7 @@ pub fn validate_ifcpp_project(project: &PilePlanProject) -> Result<(), IfcppErro
         return Err(IfcppError::InvalidSchema(project.schema.clone()));
     }
 
-    if project.schema_version != 1 {
+    if project.schema_version != 1 && project.schema_version != 2 {
         return Err(IfcppError::UnsupportedSchemaVersion(project.schema_version));
     }
 
@@ -102,6 +109,18 @@ mod tests {
     }
 
     #[test]
+    fn writing_a_legacy_project_emits_schema_version_two() {
+        let mut project = project_fixture();
+        project.schema_version = 1;
+
+        let json = write_ifcpp_string(&project).expect("legacy project writes canonically");
+        let value: serde_json::Value = serde_json::from_str(&json).expect("written JSON parses");
+
+        assert_eq!(value["schema_version"], 2);
+        assert!(value["user_state"].get("selected_piles").is_none());
+    }
+
+    #[test]
     fn reads_sample_project_ifcpp_fixture() {
         let project = read_ifcpp_str(include_str!("../../../sample_project/sample_project.ifcpp"))
             .expect("sample IFCPP fixture reads");
@@ -116,7 +135,7 @@ mod tests {
     fn project_fixture() -> PilePlanProject {
         PilePlanProject {
             schema: "IFCPP".to_string(),
-            schema_version: 1,
+            schema_version: 2,
             application: ProjectApplication {
                 name: "Pile Plan Studio".to_string(),
                 version: "0.1.0-alpha".to_string(),
@@ -170,10 +189,10 @@ mod tests {
                 active_pile_sizes: vec![],
                 active_pile_tip_levels: vec![],
             },
-            user_state: ProjectUserState {
-                selected_piles: Default::default(),
-                manual_cpt_selections: Default::default(),
-            },
+            user_state: ProjectUserState::with_default_pile_plan(
+                Default::default(),
+                Default::default(),
+            ),
             import_log: vec![ProjectImportLogEntry {
                 source_file: "created manually".to_string(),
                 imported_at: None,

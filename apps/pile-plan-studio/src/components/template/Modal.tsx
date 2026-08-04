@@ -1,4 +1,4 @@
-import { useEffect, useRef, useCallback, type ReactNode } from "react";
+import { useEffect, useRef, useCallback, useId, type ReactNode } from "react";
 import "./Modal.css";
 
 interface ModalProps {
@@ -10,6 +10,7 @@ interface ModalProps {
   className?: string;
   children: ReactNode;
   footer?: ReactNode;
+  closeLabel?: string;
 }
 
 export default function Modal({
@@ -21,9 +22,12 @@ export default function Modal({
   className,
   children,
   footer,
+  closeLabel = "Close",
 }: ModalProps) {
+  const titleId = useId();
   const overlayRef = useRef<HTMLDivElement>(null);
   const dialogRef = useRef<HTMLDivElement>(null);
+  const previouslyFocusedElement = useRef<HTMLElement | null>(null);
   const isDragging = useRef(false);
   const dragOffset = useRef({ x: 0, y: 0 });
 
@@ -57,7 +61,33 @@ export default function Modal({
     };
 
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
+      if (!isTopmostModal(overlayRef.current)) return;
+
+      if (e.key === "Escape") {
+        e.preventDefault();
+        onClose();
+        return;
+      }
+
+      if (e.key === "Tab") {
+        const focusableElements = getFocusableElements(dialogRef.current);
+        if (focusableElements.length === 0) {
+          e.preventDefault();
+          dialogRef.current?.focus();
+          return;
+        }
+
+        const first = focusableElements[0];
+        const last = focusableElements[focusableElements.length - 1];
+        const active = document.activeElement;
+        if (e.shiftKey && (active === first || !dialogRef.current?.contains(active))) {
+          e.preventDefault();
+          last.focus();
+        } else if (!e.shiftKey && active === last) {
+          e.preventDefault();
+          first.focus();
+        }
+      }
     };
 
     document.addEventListener("mousemove", handleMouseMove);
@@ -69,6 +99,22 @@ export default function Modal({
       document.removeEventListener("keydown", handleKeyDown);
     };
   }, [open, onClose]);
+
+  useEffect(() => {
+    if (!open) return undefined;
+
+    previouslyFocusedElement.current = document.activeElement instanceof HTMLElement
+      ? document.activeElement
+      : null;
+    const focusFrame = requestAnimationFrame(() => {
+      firstFocusable(dialogRef.current)?.focus();
+    });
+
+    return () => {
+      cancelAnimationFrame(focusFrame);
+      previouslyFocusedElement.current?.focus();
+    };
+  }, [open]);
 
   // Reset position when reopened
   useEffect(() => {
@@ -88,13 +134,17 @@ export default function Modal({
   return (
     <div className="modal-overlay" ref={overlayRef}>
       <div
+        aria-labelledby={titleId}
+        aria-modal="true"
         className={`modal-dialog${className ? ` ${className}` : ""}`}
         ref={dialogRef}
+        role="dialog"
         style={style}
+        tabIndex={-1}
       >
         <div className="modal-header" onMouseDown={handleHeaderMouseDown}>
-          <h2>{title}</h2>
-          <button className="modal-close-btn" onClick={onClose} aria-label="Close">
+          <h2 id={titleId}>{title}</h2>
+          <button className="modal-close-btn" onClick={onClose} aria-label={closeLabel}>
             &times;
           </button>
         </div>
@@ -103,4 +153,26 @@ export default function Modal({
       </div>
     </div>
   );
+}
+
+function getFocusableElements(container: HTMLElement | null): HTMLElement[] {
+  if (!container) return [];
+
+  return [...container.querySelectorAll<HTMLElement>([
+    "button:not([disabled])",
+    "input:not([disabled])",
+    "select:not([disabled])",
+    "textarea:not([disabled])",
+    "a[href]",
+    "[tabindex]:not([tabindex='-1'])",
+  ].join(","))].filter((element) => !element.hasAttribute("hidden"));
+}
+
+function firstFocusable(container: HTMLElement | null): HTMLElement | null {
+  return getFocusableElements(container)[0] ?? container;
+}
+
+function isTopmostModal(overlay: HTMLElement | null): boolean {
+  const overlays = document.querySelectorAll(".modal-overlay");
+  return overlay !== null && overlays[overlays.length - 1] === overlay;
 }

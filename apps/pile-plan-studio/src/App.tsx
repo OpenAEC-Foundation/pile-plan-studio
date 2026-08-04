@@ -11,6 +11,7 @@ import PilePlanWorkspace from "./components/domain/PilePlanWorkspace";
 import RightPanel from "./components/domain/RightPanel";
 import ProjectInformationDialog from "./components/domain/ProjectInformationDialog";
 import UnsavedChangesDialog from "./components/domain/UnsavedChangesDialog.tsx";
+import PilePlanExplorer from "./components/domain/PilePlanExplorer.tsx";
 import {
   calculatePileCostCore,
   calculateProjectAnalysisCore,
@@ -50,15 +51,28 @@ import { applyPilePlanImportPatch } from "./domain/pilePlanImport.ts";
 import type { PilePlanImportPatch } from "./core/pilePlanImportContract.ts";
 import { mergeDefaultPileChoices } from "./domain/defaultPileChoices.ts";
 import { loadViewerPreferences, saveViewerPreferences } from "./domain/viewerPreferences.ts";
-import { summarizeProjectCosts } from "./domain/projectCostSummary.ts";
+import { summarizePilePlanCosts } from "./domain/projectCostSummary.ts";
+import {
+  createPilePlan,
+  createOptimizationPilePlan,
+  deletePilePlan,
+  duplicatePilePlan,
+  renamePilePlan,
+  switchPilePlan,
+  synchronizeActivePilePlan,
+  type PilePlanLanguage,
+} from "./domain/pilePlanManagement.ts";
 
 const PILE_COST_DEFAULTS_KEY = "pile-cost-defaults";
 
 export default function App() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const [projectState, setProjectState] = useState(() => createInitialProjectState(
     sampleProjectText,
-    { initializeDefaultPiles: true },
+    {
+      initializeDefaultPiles: true,
+      defaultPilePlanName: i18n.language.startsWith("nl") ? "Basisplan" : "Base plan",
+    },
   ));
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [backstageOpen, setBackstageOpen] = useState(false);
@@ -73,6 +87,7 @@ export default function App() {
   const [theme, setTheme] = useState("light");
   const [costDefaultsLoaded, setCostDefaultsLoaded] = useState(false);
   const [viewerPreferencesLoaded, setViewerPreferencesLoaded] = useState(false);
+  const [creatingPilePlan, setCreatingPilePlan] = useState(false);
   const defaultSelectionRequestRef = useRef<typeof projectState.analysisRequest | null>(null);
   const defaultSelectionKeepsDirtyRef = useRef(false);
   const replacementResolverRef = useRef<((proceed: boolean) => void) | null>(null);
@@ -91,15 +106,18 @@ export default function App() {
   ], [projectState.bearingCapacities]);
   const persistedProject = projectFromState(projectState);
   const persistedProjectSignature = JSON.stringify(persistedProject);
-  const projectCostSummary = useMemo(() => summarizeProjectCosts(
-    projectState.loadPoints.map((loadPoint) => {
-      const selectedKey = projectState.selectedPileOptionKeysByLoadPoint.get(loadPoint.id);
-      return selectedKey ? projectState.pileCostByOptionKey.get(selectedKey) : null;
-    }),
-  ), [
-    projectState.loadPoints,
+  const pilePlanCostSummaries = useMemo(() => summarizePilePlanCosts(
+    synchronizeActivePilePlan(
+      projectState.pilePlans,
+      projectState.activePilePlanId,
+      projectState.selectedPileOptionKeysByLoadPoint,
+    ),
     projectState.pileCostByOptionKey,
+  ), [
+    projectState.activePilePlanId,
+    projectState.pilePlans,
     projectState.selectedPileOptionKeysByLoadPoint,
+    projectState.pileCostByOptionKey,
   ]);
 
   const serializeProject = async () => {
@@ -191,6 +209,100 @@ export default function App() {
       if (next !== current) setIsDirty(true);
       return next;
     });
+  };
+
+  const pilePlanLanguage = (): PilePlanLanguage => i18n.language.startsWith("nl") ? "nl" : "en";
+
+  const activatePilePlan = (pilePlanId: string) => {
+    setProjectState((current) => {
+      if (pilePlanId === current.activePilePlanId) return current;
+      setIsDirty(true);
+      return { ...current, ...switchPilePlan({ ...current, targetPilePlanId: pilePlanId }) };
+    });
+  };
+
+  const renameProjectPilePlan = (pilePlanId: string, name: string) => {
+    setProjectState((current) => {
+      const synchronized = synchronizeActivePilePlan(
+        current.pilePlans,
+        current.activePilePlanId,
+        current.selectedPileOptionKeysByLoadPoint,
+      );
+      const pilePlans = renamePilePlan(synchronized, pilePlanId, name);
+      if (pilePlans === synchronized || pilePlans.every((plan, index) => plan.name === synchronized[index]?.name)) {
+        return current;
+      }
+      setIsDirty(true);
+      return { ...current, pilePlans };
+    });
+  };
+
+  const duplicateProjectPilePlan = (pilePlanId: string) => {
+    setProjectState((current) => {
+      setIsDirty(true);
+      return {
+        ...current,
+        ...duplicatePilePlan({
+          ...current,
+          sourcePilePlanId: pilePlanId,
+          language: pilePlanLanguage(),
+        }),
+      };
+    });
+  };
+
+  const deleteProjectPilePlan = (pilePlanId: string) => {
+    setProjectState((current) => {
+      if (current.pilePlans.length <= 1) return current;
+      setIsDirty(true);
+      return { ...current, ...deletePilePlan({ ...current, pilePlanId }) };
+    });
+  };
+
+  const createFreshPilePlan = async () => {
+    if (creatingPilePlan) return;
+    const snapshot = projectState;
+    if (
+      snapshot.pileOptionsByLoadPointId.size !== snapshot.loadPoints.length
+      || snapshot.analysisError !== null
+    ) {
+      return;
+    }
+    setCreatingPilePlan(true);
+    try {
+      const activeSizes = new Set(snapshot.activePileSizes);
+      const activeTips = new Set(snapshot.activePileTipLevels);
+      const optionsByLoadPointId = activeSizes.size === 0 || activeTips.size === 0
+        ? new Map<number, never[]>()
+        : new Map([...snapshot.pileOptionsByLoadPointId].map(([loadPointId, options]) => [
+            loadPointId,
+            options.filter((option) => activeSizes.has(option.pile_size_mm)
+              && activeTips.has(option.pile_tip_level_m)),
+          ]));
+      const choices = optionsByLoadPointId.size === 0
+        ? new Map<number, string>()
+        : await chooseDefaultPileOptionsCore({
+            optionsByLoadPointId,
+            costSettings: snapshot.pileCostSettings,
+          });
+      setProjectState((current) => {
+        if (current.analysisRequest !== snapshot.analysisRequest) return current;
+        setIsDirty(true);
+        return {
+          ...current,
+          ...createPilePlan({
+            ...current,
+            choices,
+            kind: "variant",
+            language: pilePlanLanguage(),
+          }),
+        };
+      });
+    } catch (error) {
+      console.error("Failed to create pile plan", error);
+    } finally {
+      setCreatingPilePlan(false);
+    }
   };
 
   useEffect(() => {
@@ -441,16 +553,25 @@ export default function App() {
         targetIds,
         choices,
       });
-      setProjectState((current) => current.analysisRequest !== snapshot.analysisRequest ? current : ({
-        ...current,
-        selectedPileOptionKeysByLoadPoint: applied.choices,
-        activePileSizes: applied.activePileSizes,
-        activePileTipLevels: applied.activePileTipLevels,
-        optimizationSettings: settings,
-        optimizationRunning: false,
-        optimizationError: null,
-        optimizationSummary: applied.summary,
-      }));
+      setProjectState((current) => {
+        if (current.analysisRequest !== snapshot.analysisRequest) return current;
+        const pilePlanTransition = snapshot.optimizationCreatesPilePlan
+          ? createOptimizationPilePlan({
+              ...current,
+              optimizedChoices: applied.choices,
+              language: pilePlanLanguage(),
+            })
+          : { selectedPileOptionKeysByLoadPoint: applied.choices };
+        setIsDirty(true);
+        return {
+          ...current,
+          ...pilePlanTransition,
+          optimizationSettings: settings,
+          optimizationRunning: false,
+          optimizationError: null,
+          optimizationSummary: applied.summary,
+        };
+      });
     } catch (error) {
       setProjectState((current) => current.analysisRequest !== snapshot.analysisRequest ? current : ({
         ...current,
@@ -529,31 +650,23 @@ export default function App() {
           ref={appContentRef}
           style={{ "--right-panel-width": `${DEFAULT_RIGHT_PANEL_WIDTH}px` } as CSSProperties}
         >
-          <aside className="project-explorer" aria-label={t("projectExplorer.aria")}>
-            <div className="panel-heading">{t("explorer")}</div>
-            <div className="project-tree">
-              <div className="project-tree-section">
-                <div className="project-tree-label">{t("projectExplorer.project")}</div>
-                <button className="project-tree-item active" type="button">
-                  <span>{projectState.name}{isDirty ? " *" : ""}</span>
-                  <small>IFCPP</small>
-                </button>
-                <button className="project-tree-item" type="button">
-                  <span>{t("projectExplorer.pilePlan")}</span>
-                  <small>{t("projectExplorer.viewer")}</small>
-                </button>
-              </div>
-              <div className="project-tree-section">
-                <div className="project-tree-label">{t("projectExplorer.inputSources")}</div>
-                {projectState.inputSources.map((source) => (
-                  <button className="project-tree-item" type="button" key={source.kind}>
-                    <span>{t(`projectExplorer.sources.${source.kind}`)}</span>
-                    <small>{t("projectExplorer.rows", { count: source.itemCount })} · {t(`projectExplorer.statuses.${source.status}`)}</small>
-                  </button>
-                ))}
-              </div>
-            </div>
-          </aside>
+          <PilePlanExplorer
+            activePilePlanId={projectState.activePilePlanId}
+            costSummaries={pilePlanCostSummaries}
+            createDisabled={
+              projectState.pileOptionsByLoadPointId.size !== projectState.loadPoints.length
+              || projectState.analysisError !== null
+            }
+            creating={creatingPilePlan}
+            isDirty={isDirty}
+            pilePlans={projectState.pilePlans}
+            projectName={projectState.name}
+            onActivate={activatePilePlan}
+            onCreate={() => void createFreshPilePlan()}
+            onDelete={deleteProjectPilePlan}
+            onDuplicate={duplicateProjectPilePlan}
+            onRename={renameProjectPilePlan}
+          />
           <main className="workspace" aria-label="Pile plan workspace">
             <PilePlanWorkspace state={projectState} onStateChange={handleProjectStateChange} />
           </main>
@@ -571,11 +684,7 @@ export default function App() {
             onCloseTaskPanel={() => setRightTaskPanel(null)}
           />
         </div>
-        <StatusBar
-          totalCost={projectCostSummary.totalCost}
-          missingCostCount={projectCostSummary.missingCount}
-          zoomPercent={projectState.viewport.scale * 100}
-        />
+        <StatusBar zoomPercent={projectState.viewport.scale * 100} />
       </div>
       <Backstage
         open={backstageOpen}
@@ -611,6 +720,7 @@ export default function App() {
           setProjectState(createInitialProjectState(withCosts, {
             initializeDefaultPiles: true,
             viewerPreferences: projectState,
+            defaultPilePlanName: pilePlanLanguage() === "nl" ? "Basisplan" : "Base plan",
           }));
           setProjectPath(null);
           savedProjectSignatureRef.current = "";
@@ -696,6 +806,8 @@ function projectFromState(state: ProjectState) {
     viewerUtilizationSettings: state.viewerUtilizationSettings,
     activePileSizes: state.activePileSizes,
     activePileTipLevels: state.activePileTipLevels,
+    pilePlans: state.pilePlans,
+    activePilePlanId: state.activePilePlanId,
     selectedPileOptionKeysByLoadPoint: state.selectedPileOptionKeysByLoadPoint,
     manualCptIdsByLoadPoint: state.manualCptIdsByLoadPoint,
   });

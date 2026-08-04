@@ -17,8 +17,9 @@ en op de desktop via Tauri; de interface is gebouwd met React.
 De alpha ondersteunt CSV/XLSX- en RFEM-import, IFCPP-projectbestanden, import en
 export van palenplannen, handmatige en regelgestuurde sonderingselectie,
 gezamenlijke bewerking van sonderingselecties, het verversen van afzonderlijke
-projectbronnen, gezamenlijke opties voor meerdere locaties, kostenvergelijking,
-aanpasbare viewerweergave en een eerste greedy optimalisatie.
+projectbronnen, meerdere palenplanvarianten per project, gezamenlijke opties
+voor meerdere locaties, kostenvergelijking, een bewerkbare legenda, aanpasbare
+viewerweergave en een eerste greedy optimalisatie.
 
 **Status: Alpha. Technische resultaten moeten altijd door een deskundige worden
 gecontroleerd.**
@@ -44,7 +45,8 @@ The alpha supports CSV/XLSX and RFEM import, IFCPP projects, pile-plan import
 and export, manual and rule-based CPT selection, common options for multiple
 load points, editing CPT selections for multiple load points, refreshing
 individual project sources, cost comparison, adjustable viewer display, and an
-initial greedy optimizer.
+editable legend, multiple pile-plan variants per project, and an initial greedy
+optimizer.
 
 **Status: Alpha. Engineering results must always be verified by a qualified
 professional.**

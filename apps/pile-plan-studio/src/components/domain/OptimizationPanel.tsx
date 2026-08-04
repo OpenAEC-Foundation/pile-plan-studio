@@ -68,6 +68,19 @@ export default function OptimizationPanel({ state, onStateChange, onRunOptimizat
           <NumberSetting label={t("optimization.maxTips")} value={limits.tips} onChange={(value) => updateLimit("tips", value)} />
           <NumberSetting label={t("optimization.maxConfigurations")} value={limits.configurations} onChange={(value) => updateLimit("configurations", value)} />
         </section>
+        <section className="settings-group">
+          <label className="settings-checkbox">
+            <input
+              checked={state.optimizationCreatesPilePlan}
+              type="checkbox"
+              onChange={(event) => onStateChange({
+                ...state,
+                optimizationCreatesPilePlan: event.currentTarget.checked,
+              })}
+            />
+            <span>{t("optimization.saveAsNewPilePlan")}</span>
+          </label>
+        </section>
         <section className="settings-group optimization-limits">
           <h3>{t("optimization.performanceLimit")}</h3>
           <label className="optimization-range">

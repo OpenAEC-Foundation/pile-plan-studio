@@ -27,6 +27,8 @@ intentional and should be considered when evaluating its results.
 
 - IFCPP is an evolving alpha project format. Later alpha releases may require
   migrations.
+- One IFCPP project can contain multiple pile plans. CPT selections and legend
+  activation remain shared project settings rather than separate plan variants.
 - Import currently supports CSV and XLSX sources for load points, CPTs, and
   foundation advice.
 - RFEM load-point import recognises supported coordinate and reaction headers

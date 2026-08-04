@@ -105,6 +105,7 @@
   "optimization.maxConfigurations": "Maximaal aantal verschillende configuraties",
   "optimization.performanceLimit": "Benuttingslimiet",
   "optimization.maxUtilization": "Maximale benuttingsgraad",
+  "optimization.saveAsNewPilePlan": "Optimalisatie als nieuw palenplan opslaan",
   "optimization.enableLegend": "Zet minimaal één afmeting en puntniveau aan in de legenda.",
   "optimization.selectLoadPoints": "Selecteer een of meer belastinglocaties.",
   "optimization.applied": "Toegepast op {{count}} belastinglocaties.",

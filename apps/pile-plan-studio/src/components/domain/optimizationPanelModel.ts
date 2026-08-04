@@ -43,13 +43,10 @@ export function applyOptimizationChoices(input: {
     nextChoices.set(choice.load_point_id, `${choice.pile_size_mm}|${choice.pile_tip_level_m}`);
   });
 
-  const used = [...nextChoices.values()].map((key) => key.split("|").map(Number));
   const changedCount = input.targetIds.filter((id) => previousForTargets.get(id) !== nextChoices.get(id)).length;
 
   return {
     choices: nextChoices,
-    activePileSizes: [...new Set(used.map(([size]) => size))].sort((a, b) => a - b),
-    activePileTipLevels: [...new Set(used.map(([, tip]) => tip))].sort((a, b) => a - b),
     summary: { appliedCount: input.targetIds.length, changedCount },
   };
 }

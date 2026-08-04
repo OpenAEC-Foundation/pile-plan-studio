@@ -117,7 +117,9 @@ export function clearLegendSelection<T extends ReactViewerSelectionState>(state:
 }
 
 export function shouldClearLegendSelectionFromPointerTarget(target: Element): boolean {
-  return target.closest(".legend-item") === null;
+  return target.closest(".legend-item") === null
+    && target.closest(".legend-control") === null
+    && target.closest(".legend-editor-dialog") === null;
 }
 
 export function shouldRaiseCptMarker(isSelected: boolean, isEditing: boolean): boolean {
