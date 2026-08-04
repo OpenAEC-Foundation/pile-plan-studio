@@ -376,17 +376,27 @@ export async function writeIfcppProjectCore(project: IfcppProject): Promise<stri
 }
 
 function toWasmIfcppProject(project: IfcppProject) {
+  const userState = project.schema_version === 2
+    ? {
+        pile_plans: (project.user_state.pile_plans ?? []).map((plan) => ({
+          ...plan,
+          selected_piles: toWasmNumberKeyedRecord(plan.selected_piles),
+        })),
+        active_pile_plan_id: project.user_state.active_pile_plan_id,
+        manual_cpt_selections: toWasmNumberKeyedRecord(project.user_state.manual_cpt_selections),
+      }
+    : {
+        selected_piles: toWasmNumberKeyedRecord(project.user_state.selected_piles ?? {}),
+        manual_cpt_selections: toWasmNumberKeyedRecord(project.user_state.manual_cpt_selections),
+      };
+
   return {
     ...project,
     settings: {
       ...project.settings,
       cpt_selection_by_load_point: toWasmNumberKeyedRecord(project.settings.cpt_selection_by_load_point),
     },
-    user_state: {
-      ...project.user_state,
-      selected_piles: toWasmNumberKeyedRecord(project.user_state.selected_piles),
-      manual_cpt_selections: toWasmNumberKeyedRecord(project.user_state.manual_cpt_selections),
-    },
+    user_state: userState,
   };
 }
 

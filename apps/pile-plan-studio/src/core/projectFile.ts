@@ -28,7 +28,14 @@ type IfcppCptSelectionSettings = {
 
 type IfcppSelectedPileChoice = {
   pile: PileConfigurationKey | null;
-  external_references: unknown[];
+  external_references?: unknown[];
+};
+
+export type IfcppPilePlan = {
+  id: string;
+  name: string;
+  selected_piles: Record<string, IfcppSelectedPileChoice>;
+  locked_load_point_ids: number[];
 };
 
 export type IfcppProject = {
@@ -66,8 +73,10 @@ export type IfcppProject = {
     active_pile_tip_levels: number[];
   };
   user_state: {
-    selected_piles: Record<string, IfcppSelectedPileChoice>;
-      manual_cpt_selections: Record<string, number[]>;
+    selected_piles?: Record<string, IfcppSelectedPileChoice>;
+    pile_plans?: IfcppPilePlan[];
+    active_pile_plan_id?: string;
+    manual_cpt_selections: Record<string, number[]>;
   };
   import_log?: Array<{
     source_file?: string;
@@ -103,8 +112,18 @@ export type LoadedProjectData = {
   activePileTipLevels: number[];
   optimizationSettings: GreedyOptimizationSettings;
   viewerUtilizationSettings: ViewerUtilizationSettings;
+  pilePlans: PilePlanData[];
+  activePilePlanId: string;
   selectedPileOptionKeysByLoadPoint: Map<number, string>;
   manualCptIdsByLoadPoint: Map<number, number[]>;
+};
+
+export type PilePlanData = {
+  id: string;
+  name: string;
+  selectedPileOptionKeysByLoadPoint: Map<number, string>;
+  externalReferencesByLoadPoint: Map<number, unknown[]>;
+  lockedLoadPointIds: number[];
 };
 
 export function loadIfcppProjectData(input: string | IfcppProject): LoadedProjectData {
@@ -114,9 +133,12 @@ export function loadIfcppProjectData(input: string | IfcppProject): LoadedProjec
     throw new Error(`Expected IFCPP project, got ${project.schema}`);
   }
 
-  if (project.schema_version !== 1) {
+  if (project.schema_version !== 1 && project.schema_version !== 2) {
     throw new Error(`Unsupported IFCPP schema version ${project.schema_version}`);
   }
+
+  const { pilePlans, activePilePlanId } = loadPilePlans(project);
+  const activePilePlan = pilePlans.find((plan) => plan.id === activePilePlanId) ?? pilePlans[0];
 
   return {
     name: project.metadata.name,
@@ -138,19 +160,69 @@ export function loadIfcppProjectData(input: string | IfcppProject): LoadedProjec
     viewerUtilizationSettings: normalizeViewerUtilizationSettings(
       project.settings.viewer_utilization,
     ),
-    selectedPileOptionKeysByLoadPoint: new Map(
-      numberKeyedEntries(project.user_state.selected_piles)
-        .flatMap(([loadPointId, choice]) => {
-          if (!choice.pile) {
-            return [];
-          }
-
-          return [[loadPointId, pileConfigurationKeyToOptionKey(choice.pile)]];
-        }),
-    ),
+    pilePlans,
+    activePilePlanId,
+    selectedPileOptionKeysByLoadPoint: new Map(activePilePlan.selectedPileOptionKeysByLoadPoint),
     manualCptIdsByLoadPoint: new Map(
       numberKeyedEntries(project.user_state.manual_cpt_selections),
     ),
+  };
+}
+
+function loadPilePlans(project: IfcppProject): {
+  pilePlans: PilePlanData[];
+  activePilePlanId: string;
+} {
+  const wirePlans = project.schema_version === 2
+    ? (project.user_state.pile_plans ?? [])
+    : [{
+        id: "pile-plan-1",
+        name: "Pile plan 1",
+        selected_piles: project.user_state.selected_piles ?? {},
+        locked_load_point_ids: [],
+      }];
+  const normalizedWirePlans = wirePlans.length > 0
+    ? wirePlans
+    : [{
+        id: "pile-plan-1",
+        name: "Pile plan 1",
+        selected_piles: {},
+        locked_load_point_ids: [],
+      }];
+  const seenIds = new Set<string>();
+  for (const plan of normalizedWirePlans) {
+    if (seenIds.has(plan.id)) {
+      throw new Error(`Duplicate pile plan id '${plan.id}'`);
+    }
+    seenIds.add(plan.id);
+  }
+
+  const pilePlans = normalizedWirePlans.map((plan) => pilePlanDataFromWire(plan));
+  const requestedActiveId = project.schema_version === 2
+    ? project.user_state.active_pile_plan_id
+    : "pile-plan-1";
+  const activePilePlanId = pilePlans.some((plan) => plan.id === requestedActiveId)
+    ? requestedActiveId!
+    : pilePlans[0].id;
+
+  return { pilePlans, activePilePlanId };
+}
+
+function pilePlanDataFromWire(plan: IfcppPilePlan): PilePlanData {
+  const selectedEntries = numberKeyedEntries(plan.selected_piles)
+    .flatMap(([loadPointId, choice]) => choice.pile
+      ? [[loadPointId, pileConfigurationKeyToOptionKey(choice.pile)] as const]
+      : []);
+
+  return {
+    id: plan.id,
+    name: plan.name,
+    selectedPileOptionKeysByLoadPoint: new Map(selectedEntries),
+    externalReferencesByLoadPoint: new Map(
+      numberKeyedEntries(plan.selected_piles)
+        .map(([loadPointId, choice]) => [loadPointId, choice.external_references ?? []]),
+    ),
+    lockedLoadPointIds: [...(plan.locked_load_point_ids ?? [])],
   };
 }
 
@@ -174,12 +246,27 @@ export function createIfcppProject(input: {
   viewerUtilizationSettings: ViewerUtilizationSettings;
   activePileSizes: number[];
   activePileTipLevels: number[];
+  pilePlans?: PilePlanData[];
+  activePilePlanId?: string;
   selectedPileOptionKeysByLoadPoint: Map<number, string>;
   manualCptIdsByLoadPoint: Map<number, number[]>;
 }): IfcppProject {
+  const sourcePlans = input.pilePlans?.length
+    ? input.pilePlans
+    : [{
+        id: "pile-plan-1",
+        name: "Pile plan 1",
+        selectedPileOptionKeysByLoadPoint: input.selectedPileOptionKeysByLoadPoint,
+        externalReferencesByLoadPoint: new Map<number, unknown[]>(),
+        lockedLoadPointIds: [],
+      }];
+  const activePilePlanId = sourcePlans.some((plan) => plan.id === input.activePilePlanId)
+    ? input.activePilePlanId!
+    : sourcePlans[0].id;
+
   return {
     schema: "IFCPP",
-    schema_version: 1,
+    schema_version: 2,
     application: {
       name: "Pile Plan Studio",
       version: "0.1.0-alpha",
@@ -218,13 +305,26 @@ export function createIfcppProject(input: {
       active_pile_tip_levels: input.activePileTipLevels,
     },
     user_state: {
-      selected_piles: Object.fromEntries(
-        [...input.selectedPileOptionKeysByLoadPoint.entries()]
-          .map(([loadPointId, optionKey]) => [String(loadPointId), {
-            pile: optionKeyToPileConfigurationKey(optionKey),
-            external_references: [],
-          }]),
-      ),
+      pile_plans: sourcePlans.map((plan) => {
+        const selectedPiles = plan.id === activePilePlanId
+          ? input.selectedPileOptionKeysByLoadPoint
+          : plan.selectedPileOptionKeysByLoadPoint;
+        return {
+          id: plan.id,
+          name: plan.name,
+          selected_piles: Object.fromEntries(
+            [...selectedPiles.entries()].map(([loadPointId, optionKey]) => [String(loadPointId), {
+              pile: optionKeyToPileConfigurationKey(optionKey),
+              external_references: plan.id !== activePilePlanId ||
+                plan.selectedPileOptionKeysByLoadPoint.get(loadPointId) === optionKey
+                ? (plan.externalReferencesByLoadPoint.get(loadPointId) ?? [])
+                : [],
+            }]),
+          ),
+          locked_load_point_ids: [...plan.lockedLoadPointIds],
+        };
+      }),
+      active_pile_plan_id: activePilePlanId,
       manual_cpt_selections: Object.fromEntries(
         [...input.manualCptIdsByLoadPoint.entries()].map(([loadPointId, cptIds]) => [String(loadPointId), cptIds]),
       ),

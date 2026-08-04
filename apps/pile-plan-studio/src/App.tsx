@@ -696,6 +696,8 @@ function projectFromState(state: ProjectState) {
     viewerUtilizationSettings: state.viewerUtilizationSettings,
     activePileSizes: state.activePileSizes,
     activePileTipLevels: state.activePileTipLevels,
+    pilePlans: state.pilePlans,
+    activePilePlanId: state.activePilePlanId,
     selectedPileOptionKeysByLoadPoint: state.selectedPileOptionKeysByLoadPoint,
     manualCptIdsByLoadPoint: state.manualCptIdsByLoadPoint,
   });

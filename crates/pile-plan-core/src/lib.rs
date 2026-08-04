@@ -34,7 +34,7 @@ pub use import::{
 pub use pile_options::{calculate_pile_option, find_pile_options};
 pub use pile_plan_import::*;
 pub use project::{
-    ExternalReference, PilePlanProject, ProjectApplication, ProjectImportLogEntry, ProjectInputs,
-    ProjectMetadata, ProjectSettings, ProjectUnits, ProjectUserState, SelectedPileChoice,
-    ViewerUtilizationSettings,
+    ExternalReference, PilePlan, PilePlanProject, ProjectApplication, ProjectImportLogEntry,
+    ProjectInputs, ProjectMetadata, ProjectSettings, ProjectUnits, ProjectUserState,
+    SelectedPileChoice, ViewerUtilizationSettings,
 };

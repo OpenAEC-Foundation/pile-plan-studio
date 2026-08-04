@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use serde::{Deserialize, Serialize};
+use serde::{de::Error as _, Deserialize, Deserializer, Serialize};
 
 use crate::import::{ImportProfile, ImportRole, SourceFormat};
 
@@ -102,10 +102,108 @@ impl ViewerUtilizationSettings {
     }
 }
 
-#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+#[derive(Clone, Debug, PartialEq, Serialize)]
 pub struct ProjectUserState {
-    pub selected_piles: HashMap<u32, SelectedPileChoice>,
+    pub pile_plans: Vec<PilePlan>,
+    pub active_pile_plan_id: String,
     pub manual_cpt_selections: HashMap<u32, Vec<u32>>,
+}
+
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+pub struct PilePlan {
+    pub id: String,
+    pub name: String,
+    pub selected_piles: HashMap<u32, SelectedPileChoice>,
+    #[serde(default)]
+    pub locked_load_point_ids: Vec<u32>,
+}
+
+impl PilePlan {
+    pub fn default_with_selected_piles(selected_piles: HashMap<u32, SelectedPileChoice>) -> Self {
+        Self {
+            id: "pile-plan-1".to_string(),
+            name: "Pile plan 1".to_string(),
+            selected_piles,
+            locked_load_point_ids: Vec::new(),
+        }
+    }
+}
+
+impl ProjectUserState {
+    pub fn with_default_pile_plan(
+        selected_piles: HashMap<u32, SelectedPileChoice>,
+        manual_cpt_selections: HashMap<u32, Vec<u32>>,
+    ) -> Self {
+        Self {
+            pile_plans: vec![PilePlan::default_with_selected_piles(selected_piles)],
+            active_pile_plan_id: "pile-plan-1".to_string(),
+            manual_cpt_selections,
+        }
+    }
+
+    pub fn active_pile_plan(&self) -> Option<&PilePlan> {
+        self.pile_plans
+            .iter()
+            .find(|plan| plan.id == self.active_pile_plan_id)
+    }
+
+    pub fn active_pile_plan_mut(&mut self) -> Option<&mut PilePlan> {
+        self.pile_plans
+            .iter_mut()
+            .find(|plan| plan.id == self.active_pile_plan_id)
+    }
+}
+
+#[derive(Deserialize)]
+struct ProjectUserStateWire {
+    #[serde(default)]
+    pile_plans: Vec<PilePlan>,
+    #[serde(default)]
+    active_pile_plan_id: String,
+    #[serde(default)]
+    selected_piles: HashMap<u32, SelectedPileChoice>,
+    #[serde(default)]
+    manual_cpt_selections: HashMap<u32, Vec<u32>>,
+}
+
+impl<'de> Deserialize<'de> for ProjectUserState {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let wire = ProjectUserStateWire::deserialize(deserializer)?;
+        let mut pile_plans = wire.pile_plans;
+
+        if pile_plans.is_empty() {
+            pile_plans.push(PilePlan::default_with_selected_piles(wire.selected_piles));
+        }
+
+        let mut plan_ids = std::collections::HashSet::new();
+        if let Some(duplicate_id) = pile_plans
+            .iter()
+            .map(|plan| plan.id.as_str())
+            .find(|id| !plan_ids.insert(*id))
+        {
+            return Err(D::Error::custom(format!(
+                "duplicate pile plan id '{duplicate_id}'"
+            )));
+        }
+
+        let active_pile_plan_id = if pile_plans
+            .iter()
+            .any(|plan| plan.id == wire.active_pile_plan_id)
+        {
+            wire.active_pile_plan_id
+        } else {
+            pile_plans[0].id.clone()
+        };
+
+        Ok(Self {
+            pile_plans,
+            active_pile_plan_id,
+            manual_cpt_selections: wire.manual_cpt_selections,
+        })
+    }
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
@@ -143,7 +241,7 @@ mod tests {
         let project = sample_project();
 
         assert_eq!(project.schema, "IFCPP");
-        assert_eq!(project.schema_version, 1);
+        assert_eq!(project.schema_version, 2);
         assert_eq!(project.inputs.load_points[0].design_load_kn, 250.0);
         assert_eq!(
             project
@@ -161,6 +259,8 @@ mod tests {
         assert_eq!(
             project
                 .user_state
+                .active_pile_plan()
+                .expect("active pile plan exists")
                 .selected_piles
                 .get(&1)
                 .and_then(|choice| choice.external_references[0].entity.as_deref()),
@@ -175,6 +275,100 @@ mod tests {
         let parsed: PilePlanProject = serde_json::from_str(&json).expect("project deserializes");
 
         assert_eq!(parsed, project);
+    }
+
+    #[test]
+    fn legacy_selected_piles_migrate_to_one_active_pile_plan() {
+        let project = sample_project();
+        let selected_piles = project.user_state.pile_plans[0].selected_piles.clone();
+        let mut value = serde_json::to_value(project).expect("project serializes");
+        value["schema_version"] = serde_json::json!(1);
+        let user_state = value
+            .get_mut("user_state")
+            .and_then(serde_json::Value::as_object_mut)
+            .expect("user state is an object");
+        user_state.remove("pile_plans");
+        user_state.remove("active_pile_plan_id");
+        user_state.insert(
+            "selected_piles".to_string(),
+            serde_json::to_value(selected_piles).expect("selected piles serialize"),
+        );
+        let parsed: PilePlanProject = serde_json::from_value(value).expect("legacy project loads");
+
+        assert_eq!(parsed.user_state.active_pile_plan_id, "pile-plan-1");
+        assert_eq!(parsed.user_state.pile_plans.len(), 1);
+        assert_eq!(parsed.user_state.pile_plans[0].name, "Pile plan 1");
+        assert!(parsed.user_state.pile_plans[0]
+            .locked_load_point_ids
+            .is_empty());
+        assert_eq!(
+            parsed.user_state.pile_plans[0]
+                .selected_piles
+                .get(&1)
+                .and_then(|choice| choice.external_references[0].entity.as_deref()),
+            Some("IfcPile")
+        );
+    }
+
+    #[test]
+    fn empty_or_unknown_active_plan_state_is_normalized() {
+        let mut value = serde_json::to_value(sample_project()).expect("project serializes");
+        let user_state = value
+            .get_mut("user_state")
+            .and_then(serde_json::Value::as_object_mut)
+            .expect("user state is an object");
+        user_state.insert("pile_plans".to_string(), serde_json::json!([]));
+        user_state.insert(
+            "active_pile_plan_id".to_string(),
+            serde_json::json!("missing-plan"),
+        );
+
+        let empty: PilePlanProject =
+            serde_json::from_value(value.clone()).expect("empty plans normalize");
+        assert_eq!(empty.user_state.pile_plans.len(), 1);
+        assert_eq!(empty.user_state.active_pile_plan_id, "pile-plan-1");
+
+        let user_state = value
+            .get_mut("user_state")
+            .and_then(serde_json::Value::as_object_mut)
+            .expect("user state is an object");
+        user_state.insert(
+            "pile_plans".to_string(),
+            serde_json::json!([{
+                "id": "alternative",
+                "name": "Alternative",
+                "selected_piles": {},
+                "locked_load_point_ids": []
+            }]),
+        );
+
+        let unknown: PilePlanProject =
+            serde_json::from_value(value).expect("unknown active plan normalizes");
+        assert_eq!(unknown.user_state.active_pile_plan_id, "alternative");
+    }
+
+    #[test]
+    fn duplicate_pile_plan_ids_are_rejected() {
+        let mut value = serde_json::to_value(sample_project()).expect("project serializes");
+        let user_state = value
+            .get_mut("user_state")
+            .and_then(serde_json::Value::as_object_mut)
+            .expect("user state is an object");
+        let duplicate = user_state
+            .get("pile_plans")
+            .and_then(serde_json::Value::as_array)
+            .expect("pile plans are an array")[0]
+            .clone();
+        user_state.insert(
+            "pile_plans".to_string(),
+            serde_json::json!([duplicate.clone(), duplicate]),
+        );
+
+        let error = serde_json::from_value::<PilePlanProject>(value)
+            .expect_err("duplicate IDs must be rejected");
+        assert!(error
+            .to_string()
+            .contains("duplicate pile plan id 'pile-plan-1'"));
     }
 
     #[test]
@@ -218,7 +412,7 @@ mod tests {
     fn sample_project() -> PilePlanProject {
         PilePlanProject {
             schema: "IFCPP".to_string(),
-            schema_version: 1,
+            schema_version: 2,
             application: ProjectApplication {
                 name: "Pile Plan Studio".to_string(),
                 version: "0.1.0-alpha".to_string(),
@@ -306,21 +500,27 @@ mod tests {
                 active_pile_tip_levels: vec![-18.0],
             },
             user_state: ProjectUserState {
-                selected_piles: HashMap::from([(
-                    1,
-                    SelectedPileChoice {
-                        pile: Some(PileConfigurationKey {
-                            pile_size_mm: 290,
-                            pile_tip_level_m_key: -18000,
-                        }),
-                        external_references: vec![ExternalReference {
-                            source_file: Some("model.ifc".to_string()),
-                            global_id: Some("3Ab".to_string()),
-                            entity: Some("IfcPile".to_string()),
-                            description: Some("Future selected pile link".to_string()),
-                        }],
-                    },
-                )]),
+                pile_plans: vec![PilePlan {
+                    id: "pile-plan-1".to_string(),
+                    name: "Pile plan 1".to_string(),
+                    selected_piles: HashMap::from([(
+                        1,
+                        SelectedPileChoice {
+                            pile: Some(PileConfigurationKey {
+                                pile_size_mm: 290,
+                                pile_tip_level_m_key: -18000,
+                            }),
+                            external_references: vec![ExternalReference {
+                                source_file: Some("model.ifc".to_string()),
+                                global_id: Some("3Ab".to_string()),
+                                entity: Some("IfcPile".to_string()),
+                                description: Some("Future selected pile link".to_string()),
+                            }],
+                        },
+                    )]),
+                    locked_load_point_ids: Vec::new(),
+                }],
+                active_pile_plan_id: "pile-plan-1".to_string(),
                 manual_cpt_selections: HashMap::from([(1, vec![10, 11])]),
             },
             import_log: vec![ProjectImportLogEntry {

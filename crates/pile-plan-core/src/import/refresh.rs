@@ -183,16 +183,20 @@ pub fn refresh_project_from_profiled_sources(
                 .map(|new_id| (*new_id, settings.clone()))
         })
         .collect();
-    refreshed.user_state.selected_piles = current
-        .user_state
-        .selected_piles
-        .iter()
-        .filter_map(|(old_id, choice)| {
-            load_point_mapping
-                .get(old_id)
-                .map(|new_id| (*new_id, choice.clone()))
-        })
-        .collect();
+    for plan in &mut refreshed.user_state.pile_plans {
+        plan.selected_piles = std::mem::take(&mut plan.selected_piles)
+            .into_iter()
+            .filter_map(|(old_id, choice)| {
+                load_point_mapping
+                    .get(&old_id)
+                    .map(|new_id| (*new_id, choice))
+            })
+            .collect();
+        plan.locked_load_point_ids = std::mem::take(&mut plan.locked_load_point_ids)
+            .into_iter()
+            .filter_map(|old_id| load_point_mapping.get(&old_id).copied())
+            .collect();
+    }
     refreshed.user_state.manual_cpt_selections =
         remap_manual_cpt_selections(current, &load_point_mapping, &cpt_mapping);
 
@@ -400,7 +404,12 @@ mod tests {
     #[test]
     fn refreshing_load_points_preserves_matched_engineering_choices() {
         let mut current = project();
-        current.user_state.selected_piles.insert(1, selected_pile());
+        current
+            .user_state
+            .active_pile_plan_mut()
+            .expect("active plan")
+            .selected_piles
+            .insert(1, selected_pile());
         current.user_state.manual_cpt_selections.insert(1, vec![61]);
         current
             .settings
@@ -424,7 +433,12 @@ mod tests {
         assert_eq!(refreshed.inputs.cpts, original_cpts);
         assert_eq!(refreshed.inputs.bearing_capacities, original_capacities);
         assert_eq!(
-            refreshed.user_state.selected_piles.get(&9),
+            refreshed
+                .user_state
+                .active_pile_plan()
+                .expect("active plan")
+                .selected_piles
+                .get(&9),
             Some(&selected_pile())
         );
         assert_eq!(
@@ -435,7 +449,12 @@ mod tests {
             refreshed.settings.cpt_selection_by_load_point.get(&9),
             Some(&local_settings())
         );
-        assert!(!refreshed.user_state.selected_piles.contains_key(&1));
+        assert!(!refreshed
+            .user_state
+            .active_pile_plan()
+            .expect("active plan")
+            .selected_piles
+            .contains_key(&1));
     }
 
     #[test]
@@ -475,7 +494,12 @@ mod tests {
     #[test]
     fn refreshing_foundation_advice_preserves_choices_and_reconciles_active_values() {
         let mut current = project();
-        current.user_state.selected_piles.insert(1, selected_pile());
+        current
+            .user_state
+            .active_pile_plan_mut()
+            .expect("active plan")
+            .selected_piles
+            .insert(1, selected_pile());
         current.settings.active_pile_sizes.clear();
         current.settings.active_pile_tip_levels = vec![-17.5];
 
@@ -491,7 +515,12 @@ mod tests {
 
         assert_eq!(refreshed.inputs.bearing_capacities.len(), 2);
         assert_eq!(
-            refreshed.user_state.selected_piles.get(&1),
+            refreshed
+                .user_state
+                .active_pile_plan()
+                .expect("active plan")
+                .selected_piles
+                .get(&1),
             Some(&selected_pile())
         );
         assert_eq!(refreshed.settings.active_pile_sizes, vec![320]);
