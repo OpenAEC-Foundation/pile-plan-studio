@@ -12,4 +12,12 @@ describe("status bar", () => {
     assert.doesNotMatch(source, /missingCostCount/);
     assert.doesNotMatch(source, />100%<\/span>/);
   });
+
+  it("announces a temporary Undo or Redo result", () => {
+    const source = readFileSync(resolve(import.meta.dirname, "StatusBar.tsx"), "utf8");
+
+    assert.match(source, /historyMessage\?: string/);
+    assert.match(source, /aria-live="polite"/);
+    assert.match(source, /historyMessage/);
+  });
 });

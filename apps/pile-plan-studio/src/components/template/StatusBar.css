@@ -71,3 +71,11 @@
   color: #9a5a00;
   font-size: 11px;
 }
+
+.status-history-message {
+  color: var(--theme-status-text);
+  font-size: 11px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

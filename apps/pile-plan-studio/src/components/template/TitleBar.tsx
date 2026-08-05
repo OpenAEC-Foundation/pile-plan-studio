@@ -5,11 +5,28 @@ import "./TitleBar.css";
 interface TitleBarProps {
   projectAction?: () => void;
   projectActionKind: "save" | "download";
+  canUndo: boolean;
+  canRedo: boolean;
+  undoLabel: string;
+  redoLabel: string;
+  onUndo: () => void;
+  onRedo: () => void;
   onSettingsClick?: () => void;
   onFeedbackClick?: () => void;
 }
 
-function TitleBar({ projectAction, projectActionKind, onSettingsClick, onFeedbackClick }: TitleBarProps) {
+function TitleBar({
+  projectAction,
+  projectActionKind,
+  canUndo,
+  canRedo,
+  undoLabel,
+  redoLabel,
+  onUndo,
+  onRedo,
+  onSettingsClick,
+  onFeedbackClick,
+}: TitleBarProps) {
   const { t } = useTranslation();
   const [isMaximized, setIsMaximized] = useState(false);
   const [appVersion, setAppVersion] = useState("");
@@ -97,21 +114,47 @@ function TitleBar({ projectAction, projectActionKind, onSettingsClick, onFeedbac
         </div>
 
         <div className="titlebar-quick-access">
-        <button
-          className="titlebar-quick-btn"
-          title={`${t(projectActionKind === "save" ? "save" : "downloadIfcpp")} (Ctrl+S)`}
-          aria-label={t(projectActionKind === "save" ? "save" : "downloadIfcpp")}
-          tabIndex={-1}
-          onClick={projectAction}
-        >
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            {projectActionKind === "save" ? (
-              <><path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z" /><polyline points="17 21 17 13 7 13 7 21" /><polyline points="7 3 7 8 15 8" /></>
-            ) : (
-              <><path d="M12 3v12" /><polyline points="7 10 12 15 17 10" /><path d="M5 21h14" /></>
-            )}
-          </svg>
-        </button>
+          <button
+            className="titlebar-quick-btn"
+            title={`${t(projectActionKind === "save" ? "save" : "downloadIfcpp")} (Ctrl+S)`}
+            aria-label={t(projectActionKind === "save" ? "save" : "downloadIfcpp")}
+            tabIndex={-1}
+            onClick={projectAction}
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              {projectActionKind === "save" ? (
+                <><path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z" /><polyline points="17 21 17 13 7 13 7 21" /><polyline points="7 3 7 8 15 8" /></>
+              ) : (
+                <><path d="M12 3v12" /><polyline points="7 10 12 15 17 10" /><path d="M5 21h14" /></>
+              )}
+            </svg>
+          </button>
+          <button
+            className="titlebar-quick-btn"
+            disabled={!canUndo}
+            title={undoLabel}
+            aria-label={undoLabel}
+            tabIndex={-1}
+            onClick={onUndo}
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M9 7 4 12l5 5" />
+              <path d="M20 17a8 8 0 0 0-8-8H4" />
+            </svg>
+          </button>
+          <button
+            className="titlebar-quick-btn"
+            disabled={!canRedo}
+            title={redoLabel}
+            aria-label={redoLabel}
+            tabIndex={-1}
+            onClick={onRedo}
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="m15 7 5 5-5 5" />
+              <path d="M4 17a8 8 0 0 1 8-8h8" />
+            </svg>
+          </button>
           <button
             className="titlebar-quick-btn"
             title={t("preferences")}

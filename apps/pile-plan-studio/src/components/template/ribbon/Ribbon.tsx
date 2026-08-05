@@ -72,6 +72,12 @@ export default function Ribbon({
 }: RibbonProps) {
   const { t, i18n } = useTranslation("ribbon");
   const [activeTab, setActiveTab] = useState<TabId>("plan");
+  const [utilizationDraft, setUtilizationDraft] = useState({
+    minimum: viewerUtilizationMinimum,
+    maximum: viewerUtilizationMaximum,
+  });
+  const utilizationDraftRef = useRef(utilizationDraft);
+  const committedUtilizationRef = useRef(utilizationDraft);
   const tabsRef = useRef<HTMLDivElement>(null);
   const borderRef = useRef<HTMLDivElement>(null);
   const gapRef = useRef<HTMLDivElement>(null);
@@ -114,6 +120,30 @@ export default function Ribbon({
     window.addEventListener("resize", updateHighlight);
     return () => window.removeEventListener("resize", updateHighlight);
   }, [updateHighlight]);
+
+  useEffect(() => {
+    const range = {
+      minimum: viewerUtilizationMinimum,
+      maximum: viewerUtilizationMaximum,
+    };
+    utilizationDraftRef.current = range;
+    committedUtilizationRef.current = range;
+    setUtilizationDraft(range);
+  }, [viewerUtilizationMinimum, viewerUtilizationMaximum]);
+
+  const updateUtilizationDraft = (minimum: number, maximum: number) => {
+    const range = { minimum, maximum };
+    utilizationDraftRef.current = range;
+    setUtilizationDraft(range);
+  };
+
+  const commitUtilizationRange = () => {
+    const range = utilizationDraftRef.current;
+    const committed = committedUtilizationRef.current;
+    if (range.minimum === committed.minimum && range.maximum === committed.maximum) return;
+    committedUtilizationRef.current = range;
+    onViewerUtilizationRangeChange(range.minimum, range.maximum);
+  };
 
   const renderContent = () => {
     switch (activeTab) {
@@ -176,14 +206,14 @@ export default function Ribbon({
               <RibbonGroup label={t("view.utilization")}>
                 <div className="ribbon-slider-control ribbon-range-control">
                   <span>{t("view.preferredRange")}</span>
-                  <strong>{Math.round(viewerUtilizationMinimum * 100)}-{Math.round(viewerUtilizationMaximum * 100)}%</strong>
+                  <strong>{Math.round(utilizationDraft.minimum * 100)}-{Math.round(utilizationDraft.maximum * 100)}%</strong>
                   <div className="ribbon-dual-range">
                     <span
                       aria-hidden="true"
                       className="ribbon-dual-range-selection"
                       style={{
-                        left: `${viewerUtilizationMinimum * 100}%`,
-                        width: `${(viewerUtilizationMaximum - viewerUtilizationMinimum) * 100}%`,
+                        left: `${utilizationDraft.minimum * 100}%`,
+                        width: `${(utilizationDraft.maximum - utilizationDraft.minimum) * 100}%`,
                       }}
                     />
                     <input
@@ -192,11 +222,14 @@ export default function Ribbon({
                       min="0"
                       step="1"
                       type="range"
-                      value={Math.round(viewerUtilizationMinimum * 100)}
-                      onChange={(event) => onViewerUtilizationRangeChange(
-                        Math.min(Number(event.currentTarget.value) / 100, viewerUtilizationMaximum),
-                        viewerUtilizationMaximum,
+                      value={Math.round(utilizationDraft.minimum * 100)}
+                      onChange={(event) => updateUtilizationDraft(
+                        Math.min(Number(event.currentTarget.value) / 100, utilizationDraft.maximum),
+                        utilizationDraft.maximum,
                       )}
+                      onPointerUp={commitUtilizationRange}
+                      onKeyUp={commitUtilizationRange}
+                      onBlur={commitUtilizationRange}
                     />
                     <input
                       aria-label={t("view.maximumUtilization")}
@@ -204,11 +237,14 @@ export default function Ribbon({
                       min="0"
                       step="1"
                       type="range"
-                      value={Math.round(viewerUtilizationMaximum * 100)}
-                      onChange={(event) => onViewerUtilizationRangeChange(
-                        viewerUtilizationMinimum,
-                        Math.max(Number(event.currentTarget.value) / 100, viewerUtilizationMinimum),
+                      value={Math.round(utilizationDraft.maximum * 100)}
+                      onChange={(event) => updateUtilizationDraft(
+                        utilizationDraft.minimum,
+                        Math.max(Number(event.currentTarget.value) / 100, utilizationDraft.minimum),
                       )}
+                      onPointerUp={commitUtilizationRange}
+                      onKeyUp={commitUtilizationRange}
+                      onBlur={commitUtilizationRange}
                     />
                   </div>
                 </div>

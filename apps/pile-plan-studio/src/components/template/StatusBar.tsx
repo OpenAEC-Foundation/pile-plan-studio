@@ -3,13 +3,16 @@ import "./StatusBar.css";
 
 type Props = {
   zoomPercent: number;
+  historyMessage?: string;
 };
 
-export default function StatusBar({ zoomPercent }: Props) {
+export default function StatusBar({ zoomPercent, historyMessage }: Props) {
   const { t } = useTranslation();
   return (
     <div className="status-bar">
-      <div className="status-bar-left" />
+      <div className="status-bar-left" aria-live="polite">
+        {historyMessage && <span className="status-history-message">{historyMessage}</span>}
+      </div>
 
       <div className="status-bar-center">
         <span className="status-item-label" style={{ fontSize: "11px" }}>

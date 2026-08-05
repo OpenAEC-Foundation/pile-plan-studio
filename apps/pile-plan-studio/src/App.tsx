@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent } from "react";
+import { useCallback, useEffect, useMemo, useReducer, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent, type SetStateAction } from "react";
 import { useTranslation } from "react-i18next";
 import sampleProjectText from "../../../sample_project/sample_project.ifcpp?raw";
 import TitleBar from "./components/template/TitleBar";
@@ -23,7 +23,7 @@ import {
   refreshProjectFromFilesCore,
 } from "./core/coreClient";
 import type { ImportSourceInput } from "./core/coreImportContract";
-import { applyDefaultPileCostSettings, createIfcppProject, getImportSummary } from "./core/projectFile";
+import { applyDefaultPileCostSettings, getImportSummary } from "./core/projectFile";
 import { writeIfcppProjectCore } from "./core/coreClient";
 import { createInitialProjectState, type ProjectState } from "./domain/projectState";
 import { getSetting } from "./store";
@@ -67,18 +67,45 @@ import {
   getActiveLockedLoadPointIds,
   startLoadPointLockDraft,
 } from "./domain/loadPointLocking.ts";
+import {
+  createManagedProjectState,
+  projectHistoryReducer,
+} from "./domain/projectHistoryReducer.ts";
+import {
+  captureProjectContent,
+  normalizeProjectContentState,
+  projectFromContent,
+} from "./domain/projectContent.ts";
+import { describeHistoryAction, describeHistoryResult } from "./domain/historyMessage.ts";
 
 const PILE_COST_DEFAULTS_KEY = "pile-cost-defaults";
 
 export default function App() {
   const { t, i18n } = useTranslation();
-  const [projectState, setProjectState] = useState(() => createInitialProjectState(
-    sampleProjectText,
-    {
-      initializeDefaultPiles: true,
-      defaultPilePlanName: i18n.language.startsWith("nl") ? "Basisplan" : "Base plan",
-    },
-  ));
+  const [managedProject, dispatchProject] = useReducer(
+    projectHistoryReducer,
+    undefined,
+    () => createManagedProjectState(createInitialProjectState(
+      sampleProjectText,
+      {
+        initializeDefaultPiles: true,
+        defaultPilePlanName: i18n.language.startsWith("nl") ? "Basisplan" : "Base plan",
+      },
+    )),
+  );
+  const projectState = managedProject.present;
+  const setProjectState = useCallback((update: SetStateAction<ProjectState>) => {
+    dispatchProject({ type: "runtime", update });
+  }, []);
+  const commitProjectState = useCallback((update: SetStateAction<ProjectState>) => {
+    dispatchProject({ type: "commit", update });
+  }, []);
+  const amendProjectState = useCallback((update: SetStateAction<ProjectState>) => {
+    dispatchProject({ type: "amend", update });
+  }, []);
+  const replaceProjectState = useCallback((state: ProjectState) => {
+    dispatchProject({ type: "replace", state });
+  }, []);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [backstageOpen, setBackstageOpen] = useState(false);
   const [feedbackOpen, setFeedbackOpen] = useState(false);
@@ -93,6 +120,7 @@ export default function App() {
   const [costDefaultsLoaded, setCostDefaultsLoaded] = useState(false);
   const [viewerPreferencesLoaded, setViewerPreferencesLoaded] = useState(false);
   const [creatingPilePlan, setCreatingPilePlan] = useState(false);
+  const [historyMessage, setHistoryMessage] = useState("");
   const defaultSelectionRequestRef = useRef<typeof projectState.analysisRequest | null>(null);
   const defaultSelectionKeepsDirtyRef = useRef(false);
   const replacementResolverRef = useRef<((proceed: boolean) => void) | null>(null);
@@ -100,6 +128,19 @@ export default function App() {
   const preparedProjectRef = useRef<{ signature: string; blob: Blob } | null>(null);
   const isDesktop = isDesktopRuntime();
   const projectFileCommands = getProjectFileCommands(isDesktop);
+  const canUndo = managedProject.history.past.length > 0;
+  const canRedo = managedProject.history.future.length > 0;
+  const undoEntry = managedProject.history.past[managedProject.history.past.length - 1];
+  const redoEntry = managedProject.history.future[managedProject.history.future.length - 1];
+  const historyTranslate = useCallback((key: string, options?: Record<string, unknown>) => (
+    t(key, options)
+  ), [t]);
+  const undoLabel = undoEntry
+    ? t("history.undoLabel", { action: describeHistoryAction(historyTranslate, undoEntry.action) })
+    : `${t("undo")} (Ctrl+Z)`;
+  const redoLabel = redoEntry
+    ? t("history.redoLabel", { action: describeHistoryAction(historyTranslate, redoEntry.action) })
+    : `${t("redo")} (Ctrl+Y)`;
   const availablePileConfigurations = useMemo(() => [
     ...new Map(projectState.bearingCapacities.map((capacity) => {
       const configuration = {
@@ -111,6 +152,35 @@ export default function App() {
   ], [projectState.bearingCapacities]);
   const persistedProject = projectFromState(projectState);
   const persistedProjectSignature = JSON.stringify(persistedProject);
+  useEffect(() => {
+    setIsDirty(persistedProjectSignature !== savedProjectSignatureRef.current);
+  }, [persistedProjectSignature]);
+
+  useEffect(() => {
+    const result = managedProject.lastResult;
+    if (!result) return;
+    setHistoryMessage(describeHistoryResult(historyTranslate, result));
+    const timeout = window.setTimeout(() => setHistoryMessage(""), 3500);
+    return () => window.clearTimeout(timeout);
+  }, [historyTranslate, managedProject.lastResult]);
+
+  useEffect(() => {
+    const handleHistoryShortcut = (event: KeyboardEvent) => {
+      if (!(event.ctrlKey || event.metaKey) || event.altKey || isEditableTarget(event.target)) return;
+      const key = event.key.toLowerCase();
+      const undoRequested = key === "z" && !event.shiftKey;
+      const redoRequested = key === "y" || (key === "z" && event.shiftKey);
+      if (undoRequested && canUndo) {
+        event.preventDefault();
+        dispatchProject({ type: "undo" });
+      } else if (redoRequested && canRedo) {
+        event.preventDefault();
+        dispatchProject({ type: "redo" });
+      }
+    };
+    window.addEventListener("keydown", handleHistoryShortcut);
+    return () => window.removeEventListener("keydown", handleHistoryShortcut);
+  }, [canRedo, canUndo]);
   const pilePlanCostSummaries = useMemo(() => summarizePilePlanCosts(
     synchronizeActivePilePlan(
       projectState.pilePlans,
@@ -204,16 +274,11 @@ export default function App() {
   };
 
   const handleProjectStateChange = (nextState: typeof projectState) => {
-    setProjectState(nextState);
-    setIsDirty(JSON.stringify(projectFromState(nextState)) !== savedProjectSignatureRef.current);
+    commitProjectState(nextState);
   };
 
   const importPilePlan = (patch: PilePlanImportPatch) => {
-    setProjectState((current) => {
-      const next = applyPilePlanImportPatch(current, patch);
-      if (next !== current) setIsDirty(true);
-      return next;
-    });
+    commitProjectState((current) => applyPilePlanImportPatch(current, patch));
   };
 
   const pilePlanLanguage = (): PilePlanLanguage => i18n.language.startsWith("nl") ? "nl" : "en";
@@ -224,7 +289,6 @@ export default function App() {
       const transition = switchPilePlan({ ...current, targetPilePlanId: pilePlanId });
       const locked = new Set(getActiveLockedLoadPointIds(transition.pilePlans, transition.activePilePlanId));
       const selectedLoadPointIds = current.selectedLoadPointIds.filter((id) => !locked.has(id));
-      setIsDirty(true);
       return {
         ...current,
         ...transition,
@@ -284,7 +348,7 @@ export default function App() {
   };
 
   const applyLockEditing = () => {
-    setProjectState((current) => {
+    commitProjectState((current) => {
       const draft = current.loadPointLockDraft;
       if (draft === null) return current;
       const previous = getActiveLockedLoadPointIds(current.pilePlans, current.activePilePlanId);
@@ -293,7 +357,13 @@ export default function App() {
       const selectedLoadPointId = selectedLoadPointIds.includes(current.selectedLoadPointId ?? -1)
         ? current.selectedLoadPointId
         : selectedLoadPointIds[0] ?? null;
-      if (changed) setIsDirty(true);
+      if (!changed) {
+        return {
+          ...current,
+          loadPointLockDraft: null,
+          loadPointLockSelectionSnapshot: null,
+        };
+      }
       return {
         ...current,
         pilePlans: applyLoadPointLockDraft(current.pilePlans, current.activePilePlanId, draft),
@@ -307,7 +377,7 @@ export default function App() {
   };
 
   const renameProjectPilePlan = (pilePlanId: string, name: string) => {
-    setProjectState((current) => {
+    commitProjectState((current) => {
       const synchronized = synchronizeActivePilePlan(
         current.pilePlans,
         current.activePilePlanId,
@@ -317,14 +387,12 @@ export default function App() {
       if (pilePlans === synchronized || pilePlans.every((plan, index) => plan.name === synchronized[index]?.name)) {
         return current;
       }
-      setIsDirty(true);
       return { ...current, pilePlans };
     });
   };
 
   const duplicateProjectPilePlan = (pilePlanId: string) => {
-    setProjectState((current) => {
-      setIsDirty(true);
+    commitProjectState((current) => {
       return {
         ...current,
         ...duplicatePilePlan({
@@ -337,9 +405,8 @@ export default function App() {
   };
 
   const deleteProjectPilePlan = (pilePlanId: string) => {
-    setProjectState((current) => {
+    commitProjectState((current) => {
       if (current.pilePlans.length <= 1) return current;
-      setIsDirty(true);
       return { ...current, ...deletePilePlan({ ...current, pilePlanId }) };
     });
   };
@@ -370,9 +437,8 @@ export default function App() {
             optionsByLoadPointId,
             costSettings: snapshot.pileCostSettings,
           });
-      setProjectState((current) => {
+      commitProjectState((current) => {
         if (current.analysisRequest !== snapshot.analysisRequest) return current;
-        setIsDirty(true);
         return {
           ...current,
           ...createPilePlan({
@@ -504,7 +570,7 @@ export default function App() {
       optionsByLoadPointId: projectState.pileOptionsByLoadPointId,
       costSettings: projectState.pileCostSettings,
     }).then((choices) => {
-      setProjectState((current) => {
+      const applyChoices = (current: ProjectState) => {
         if (current.analysisRequest !== analysisRequest) return current;
         const next = {
           ...current,
@@ -520,7 +586,12 @@ export default function App() {
           setIsDirty(false);
         }
         return next;
-      });
+      };
+      if (defaultSelectionKeepsDirtyRef.current) {
+        amendProjectState(applyChoices);
+      } else {
+        setProjectState(applyChoices);
+      }
     }).catch((error: unknown) => {
       console.error("Failed to choose default pile options", error);
       setProjectState((current) => current.analysisRequest !== analysisRequest ? current : ({
@@ -640,7 +711,7 @@ export default function App() {
         targetIds,
         choices,
       });
-      setProjectState((current) => {
+      commitProjectState((current) => {
         if (current.analysisRequest !== snapshot.analysisRequest) return current;
         const pilePlanTransition = snapshot.optimizationCreatesPilePlan
           ? createOptimizationPilePlan({
@@ -649,7 +720,6 @@ export default function App() {
               language: pilePlanLanguage(),
             })
           : { selectedPileOptionKeysByLoadPoint: applied.choices };
-        setIsDirty(true);
         return {
           ...current,
           ...pilePlanTransition,
@@ -674,7 +744,7 @@ export default function App() {
     || (projectState.optimizationTargetScope === "selected" && projectState.selectedLoadPointIds.length === 0);
 
   const installOpenedProject = (project: ProjectState, path: string | null) => {
-    setProjectState(project);
+    replaceProjectState(project);
     setProjectPath(path);
     savedProjectSignatureRef.current = JSON.stringify(projectFromState(project));
     setIsDirty(false);
@@ -702,6 +772,12 @@ export default function App() {
         <TitleBar
           projectAction={() => void (isDesktop ? saveProject() : downloadProject())}
           projectActionKind={isDesktop ? "save" : "download"}
+          canUndo={canUndo}
+          canRedo={canRedo}
+          undoLabel={undoLabel}
+          redoLabel={redoLabel}
+          onUndo={() => dispatchProject({ type: "undo" })}
+          onRedo={() => dispatchProject({ type: "redo" })}
           onSettingsClick={() => setSettingsOpen(true)}
           onFeedbackClick={() => setFeedbackOpen(true)}
         />
@@ -781,7 +857,10 @@ export default function App() {
             onCloseTaskPanel={() => setRightTaskPanel(null)}
           />
         </div>
-        <StatusBar zoomPercent={projectState.viewport.scale * 100} />
+        <StatusBar
+          zoomPercent={projectState.viewport.scale * 100}
+          historyMessage={historyMessage}
+        />
       </div>
       <Backstage
         open={backstageOpen}
@@ -799,7 +878,7 @@ export default function App() {
               sources,
             });
             defaultSelectionKeepsDirtyRef.current = true;
-            setProjectState(createInitialProjectState(refreshedProject, {
+            commitProjectState(createInitialProjectState(refreshedProject, {
               initializeDefaultPiles: true,
               viewerPreferences: projectState,
             }));
@@ -814,7 +893,7 @@ export default function App() {
           });
           const withCosts = applyDefaultPileCostSettings(project, projectState.pileCostSettings);
           defaultSelectionKeepsDirtyRef.current = false;
-          setProjectState(createInitialProjectState(withCosts, {
+          replaceProjectState(createInitialProjectState(withCosts, {
             initializeDefaultPiles: true,
             viewerPreferences: projectState,
             defaultPilePlanName: pilePlanLanguage() === "nl" ? "Basisplan" : "Base plan",
@@ -891,21 +970,12 @@ export default function App() {
 }
 
 function projectFromState(state: ProjectState) {
-  return createIfcppProject({
-    name: state.name,
-    loadPoints: state.loadPoints,
-    cpts: state.cpts,
-    bearingCapacities: state.bearingCapacities,
-    globalCptSelectionSettings: state.globalCptSelectionSettings,
-    cptSelectionSettingsByLoadPoint: state.cptSelectionSettingsByLoadPoint,
-    pileCostSettings: state.pileCostSettings,
-    optimizationSettings: state.optimizationSettings,
-    viewerUtilizationSettings: state.viewerUtilizationSettings,
-    activePileSizes: state.activePileSizes,
-    activePileTipLevels: state.activePileTipLevels,
-    pilePlans: state.pilePlans,
-    activePilePlanId: state.activePilePlanId,
-    selectedPileOptionKeysByLoadPoint: state.selectedPileOptionKeysByLoadPoint,
-    manualCptIdsByLoadPoint: state.manualCptIdsByLoadPoint,
-  });
+  const normalized = normalizeProjectContentState(state);
+  return projectFromContent(captureProjectContent(normalized), normalized.activePilePlanId);
+}
+
+function isEditableTarget(target: EventTarget | null): boolean {
+  return target instanceof HTMLElement && (
+    target.matches("input, textarea, select") || target.isContentEditable
+  );
 }

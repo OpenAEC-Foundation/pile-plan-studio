@@ -25,11 +25,22 @@ describe("Plan and View ribbon", () => {
     const css = readFileSync(resolve(import.meta.dirname, "Ribbon.css"), "utf8");
 
     assert.match(source, /ribbon-dual-range-selection/);
-    assert.match(source, /left:\s*`\$\{viewerUtilizationMinimum \* 100\}%`/);
-    assert.match(source, /width:\s*`\$\{\(viewerUtilizationMaximum - viewerUtilizationMinimum\) \* 100\}%`/);
+    assert.match(source, /left:\s*`\$\{utilizationDraft\.minimum \* 100\}%`/);
+    assert.match(source, /width:\s*`\$\{\(utilizationDraft\.maximum - utilizationDraft\.minimum\) \* 100\}%`/);
     assert.match(css, /\.ribbon-dual-range-selection\s*{[\s\S]*?background:\s*var\(--theme-accent\)/);
     assert.match(css, /::-webkit-slider-runnable-track\s*{[\s\S]*?background:\s*transparent/);
     assert.match(css, /::-moz-range-track\s*{[\s\S]*?background:\s*transparent/);
+  });
+
+  it("keeps utilization dragging local and commits only the completed range", () => {
+    const source = readFileSync(resolve(import.meta.dirname, "Ribbon.tsx"), "utf8");
+
+    assert.match(source, /utilizationDraft/);
+    assert.match(source, /setUtilizationDraft/);
+    assert.match(source, /commitUtilizationRange/);
+    assert.match(source, /onPointerUp=\{commitUtilizationRange\}/);
+    assert.match(source, /onKeyUp=\{commitUtilizationRange\}/);
+    assert.doesNotMatch(source, /onChange=\{\(event\) => onViewerUtilizationRangeChange/);
   });
 
   it("connects settings and run commands", () => {
