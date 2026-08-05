@@ -42,6 +42,10 @@ export const projectIcon = `<svg fill="none" stroke="currentColor" viewBox="0 0 
 export const loadPointIcon = `<svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-width="2" d="M12 3v13m-4-4 4 4 4-4"/><circle cx="12" cy="19" r="2" stroke-width="2"/></svg>`;
 export const cptIcon = `<svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linejoin="round" stroke-width="2" d="M4 5h16l-8 14L4 5z"/><path stroke-linecap="round" stroke-width="1.5" d="M9 9h6m-4 3h2"/></svg>`;
 export const optimizeIcon = `<svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><circle cx="5" cy="6" r="2" stroke-width="2"/><circle cx="5" cy="12" r="2" stroke-width="2"/><circle cx="5" cy="18" r="2" stroke-width="2"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 6h3l3 6 3-6h2M8 12h3m-3 6h3l3-6 3 6h2"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m17 6 2 0-1-2m-1 14h2l-1 2"/></svg>`;
+export const lockIcon = `<svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><rect x="5" y="10" width="14" height="11" rx="2" stroke-width="2"/><path stroke-linecap="round" stroke-width="2" d="M8 10V7a4 4 0 0 1 8 0v3"/></svg>`;
+export const unlockIcon = `<svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><rect x="5" y="10" width="14" height="11" rx="2" stroke-width="2"/><path stroke-linecap="round" stroke-width="2" d="M16 10V7a4 4 0 0 0-7.5-2"/></svg>`;
+export const applyIcon = `<svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m5 12 4 4L19 6"/></svg>`;
+export const gridIcon = `<svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-width="1.5" d="M4 4h16v16H4zM4 9.33h16M4 14.67h16M9.33 4v16M14.67 4v16"/></svg>`;
 
 // Clipboard
 export const pasteIcon = `<svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>`;

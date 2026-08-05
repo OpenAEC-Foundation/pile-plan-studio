@@ -53,6 +53,12 @@ import {
   toggleReactViewerLoadPoint,
 } from "./viewerInteractions.ts";
 import { toggleManualCpt } from "./cptSettingsModel.ts";
+import { getCoordinateGridLines } from "../../viewer/coordinateGrid.ts";
+import {
+  getActiveLockedLoadPointIds,
+  setLassoLoadPointLocks,
+  toggleLoadPointLock,
+} from "../../domain/loadPointLocking.ts";
 
 type Props = {
   state: ProjectState;
@@ -63,6 +69,11 @@ export default function PilePlanViewer({ state, onStateChange }: Props) {
   const { t, i18n } = useTranslation("common");
   const legend = getLegendItems(state.bearingCapacities);
   const selectedLoadPointIds = new Set(state.selectedLoadPointIds);
+  const isEditingLoadPointLocks = state.loadPointLockDraft !== null;
+  const lockedLoadPointIds = new Set(
+    state.loadPointLockDraft
+      ?? getActiveLockedLoadPointIds(state.pilePlans, state.activePilePlanId),
+  );
   const contextSelectedCptIds = new Set(getReactViewerContextCptIds(state));
   const selectedCptIds = new Set(getReactViewerSelectedCptIds(state));
   const governingCptId = getHighlightedGoverningCptId({
@@ -85,6 +96,10 @@ export default function PilePlanViewer({ state, onStateChange }: Props) {
     state.selectedCptsByLoadPointId,
     state.selectedLoadPointIds,
   ]);
+  const coordinateGrid = useMemo(
+    () => getCoordinateGridLines(state.bounds, state.viewport.scale),
+    [state.bounds, state.viewport.scale],
+  );
   const canvasRef = useRef<HTMLDivElement | null>(null);
   const stageRef = useRef<HTMLDivElement | null>(null);
   const interactionRef = useRef<ViewerInteraction | null>(null);
@@ -97,17 +112,19 @@ export default function PilePlanViewer({ state, onStateChange }: Props) {
   const [hoverCandidates, setHoverCandidates] = useState<HoverCandidateState | null>(null);
   const activeHoverCandidateKey = getActiveHoverCandidateKey(hoverCandidates);
   const hoverMarkers = useMemo<HoverMarker[]>(() => [
-    ...state.cpts.map((cpt) => ({
+    ...(!isEditingLoadPointLocks ? state.cpts : []).map((cpt) => ({
       key: `cpt:${cpt.id}`,
       point: projectPoint(cpt, state.bounds),
       visualRadius: scaleHoverVisualRadius(7.5, state.symbolScalePercent),
     })),
-    ...state.loadPoints.map((loadPoint) => ({
+    ...state.loadPoints.filter((loadPoint) => (
+      isEditingLoadPointLocks || !lockedLoadPointIds.has(loadPoint.id)
+    )).map((loadPoint) => ({
       key: `load-point:${loadPoint.id}`,
       point: projectPoint(loadPoint, state.bounds),
       visualRadius: scaleHoverVisualRadius(7, state.symbolScalePercent),
     })),
-  ], [state.bounds, state.cpts, state.loadPoints, state.symbolScalePercent]);
+  ], [state.bounds, state.cpts, state.loadPoints, state.symbolScalePercent, isEditingLoadPointLocks, state.loadPointLockDraft, state.pilePlans, state.activePilePlanId]);
   const hoverMarkerIndex = useMemo(() => createHoverMarkerIndex(hoverMarkers), [hoverMarkers]);
 
   useEffect(() => {
@@ -161,6 +178,7 @@ export default function PilePlanViewer({ state, onStateChange }: Props) {
 
       if (event.key === "Escape") {
         clearHoverCandidates();
+        if (isEditingLoadPointLocks) return;
         if (isViewerSelectionActionAllowed(isEditingCptSelection, "background")) {
           onStateChange({ ...state, ...clearReactViewerSelection(state), viewport: viewportRef.current });
         }
@@ -194,11 +212,20 @@ export default function PilePlanViewer({ state, onStateChange }: Props) {
         ref={canvasRef}
       >
         <div
-          className={`viewer-content${getForegroundLayerClass(state.foregroundLayer)}`}
+          className={`viewer-content${getForegroundLayerClass(state.foregroundLayer)}${isEditingLoadPointLocks ? " is-lock-editing" : ""}`}
           ref={stageRef}
           style={getStageStyle(state.viewport, state.symbolScalePercent)}
         >
-          <div className="viewer-grid" />
+          {state.showGrid ? (
+            <svg className="viewer-coordinate-grid" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+              {coordinateGrid.vertical.map((line) => (
+                <line key={`x:${line.coordinate}`} x1={line.position} x2={line.position} y1="0" y2="100" />
+              ))}
+              {coordinateGrid.horizontal.map((line) => (
+                <line key={`y:${line.coordinate}`} x1="0" x2="100" y1={line.position} y2={line.position} />
+              ))}
+            </svg>
+          ) : null}
           {cptConnectionSegments.length > 0 ? (
             <svg className="cpt-connection-lines" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
               {cptConnectionSegments.map((segment) => (
@@ -232,6 +259,7 @@ export default function PilePlanViewer({ state, onStateChange }: Props) {
                 type="button"
                 onClick={(event) => {
                   event.stopPropagation();
+                  if (isEditingLoadPointLocks) return;
                   const clickedKey = getClickCandidateKey(event, `cpt:${cpt.id}`);
                   clearHoverCandidates();
                   selectMapMarker(clickedKey, event.shiftKey);
@@ -254,6 +282,7 @@ export default function PilePlanViewer({ state, onStateChange }: Props) {
           {state.loadPoints.map((loadPoint) => {
             const point = projectPoint(loadPoint, state.bounds);
             const isSelected = selectedLoadPointIds.has(loadPoint.id);
+            const isLocked = lockedLoadPointIds.has(loadPoint.id);
             const selectedOption = getSelectedPileOption(state, loadPoint.id);
             const invalidVisual = getLoadPointMarkerInvalidVisual(
               selectedOption,
@@ -278,13 +307,22 @@ export default function PilePlanViewer({ state, onStateChange }: Props) {
             return (
               <button
                 aria-label={`Load point ${loadPoint.name}`}
-                className={`load-point-marker${getLoadPointMarkerLayerClass(isSelected)}${isSelected ? " is-selected" : ""}${invalidVisual.className}${unselectedClass}${activeHoverCandidateKey === `load-point:${loadPoint.id}` ? " is-hover-candidate" : ""}`}
+                className={`load-point-marker${getLoadPointMarkerLayerClass(isSelected)}${isSelected ? " is-selected" : ""}${isLocked ? " is-locked" : ""}${invalidVisual.className}${unselectedClass}${activeHoverCandidateKey === `load-point:${loadPoint.id}` ? " is-hover-candidate" : ""}`}
                 data-map-marker-key={`load-point:${loadPoint.id}`}
                 key={loadPoint.id}
                 style={getProjectMarkerStyle(point, invalidVisual.style)}
                 type="button"
                 onClick={(event) => {
                   event.stopPropagation();
+                  if (isEditingLoadPointLocks) {
+                    onStateChange({
+                      ...state,
+                      loadPointLockDraft: toggleLoadPointLock(state.loadPointLockDraft!, loadPoint.id),
+                      viewport: viewportRef.current,
+                    });
+                    return;
+                  }
+                  if (isLocked) return;
                   if (!isViewerSelectionActionAllowed(isEditingCptSelection, "load-point")) {
                     clearHoverCandidates();
                     return;
@@ -340,7 +378,7 @@ export default function PilePlanViewer({ state, onStateChange }: Props) {
     const targetIsInteractive = Boolean(target.closest("button"));
     const start = { x: event.clientX, y: event.clientY };
 
-    if (event.shiftKey && !targetIsInteractive && isViewerSelectionActionAllowed(isEditingCptSelection, "lasso")) {
+    if (event.shiftKey && !targetIsInteractive && (isEditingLoadPointLocks || isViewerSelectionActionAllowed(isEditingCptSelection, "lasso"))) {
       event.preventDefault();
       clearHoverCandidates();
       interactionRef.current = { type: "lasso", start, current: start };
@@ -416,12 +454,23 @@ export default function PilePlanViewer({ state, onStateChange }: Props) {
       setLasso(null);
       const loadPointIds = getPointIdsInRectangle(getVisibleLoadPointScreenPoints(), rectangle);
       if (loadPointIds.length > 0) {
-        onStateChange({ ...state, ...addReactViewerLoadPoints(state, loadPointIds), viewport: viewportRef.current });
+        if (isEditingLoadPointLocks) {
+          onStateChange({
+            ...state,
+            loadPointLockDraft: setLassoLoadPointLocks(state.loadPointLockDraft!, loadPointIds),
+            viewport: viewportRef.current,
+          });
+        } else {
+          const unlockedIds = loadPointIds.filter((id) => !lockedLoadPointIds.has(id));
+          if (unlockedIds.length > 0) {
+            onStateChange({ ...state, ...addReactViewerLoadPoints(state, unlockedIds), viewport: viewportRef.current });
+          }
+        }
       }
       return;
     }
 
-    if (!interaction.moved && isViewerSelectionActionAllowed(isEditingCptSelection, "background")) {
+    if (!interaction.moved && !isEditingLoadPointLocks && isViewerSelectionActionAllowed(isEditingCptSelection, "background")) {
       onStateChange({ ...state, ...clearReactViewerSelection(state), viewport: viewportRef.current });
       return;
     }
@@ -494,7 +543,9 @@ export default function PilePlanViewer({ state, onStateChange }: Props) {
       });
       const candidateKeys = candidates
         .map((candidate) => candidate.key)
-        .filter((key) => !isEditingCptSelection || key.startsWith("cpt:"));
+        .filter((key) => isEditingLoadPointLocks
+          ? key.startsWith("load-point:")
+          : !isEditingCptSelection || key.startsWith("cpt:"));
       setHoverCandidates((current) => updateHoverCandidateState(
         current,
         candidateKeys,
@@ -519,7 +570,9 @@ export default function PilePlanViewer({ state, onStateChange }: Props) {
     });
     const candidateKeys = candidates
       .map((candidate) => candidate.key)
-      .filter((key) => !isEditingCptSelection || key.startsWith("cpt:"));
+      .filter((key) => isEditingLoadPointLocks
+        ? key.startsWith("load-point:")
+        : !isEditingCptSelection || key.startsWith("cpt:"));
     return resolveHoverClickCandidateKey(
       hoverCandidates,
       candidateKeys,

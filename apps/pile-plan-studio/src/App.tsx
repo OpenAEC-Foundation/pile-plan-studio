@@ -8,7 +8,7 @@ import SettingsDialog, { applyTheme } from "./components/template/settings/Setti
 import FeedbackDialog from "./components/template/feedback/FeedbackDialog";
 import StatusBar from "./components/template/StatusBar";
 import PilePlanWorkspace from "./components/domain/PilePlanWorkspace";
-import RightPanel from "./components/domain/RightPanel";
+import RightPanel, { type RightTaskPanel } from "./components/domain/RightPanel";
 import ProjectInformationDialog from "./components/domain/ProjectInformationDialog";
 import UnsavedChangesDialog from "./components/domain/UnsavedChangesDialog.tsx";
 import PilePlanExplorer from "./components/domain/PilePlanExplorer.tsx";
@@ -62,6 +62,11 @@ import {
   synchronizeActivePilePlan,
   type PilePlanLanguage,
 } from "./domain/pilePlanManagement.ts";
+import {
+  applyLoadPointLockDraft,
+  getActiveLockedLoadPointIds,
+  startLoadPointLockDraft,
+} from "./domain/loadPointLocking.ts";
 
 const PILE_COST_DEFAULTS_KEY = "pile-cost-defaults";
 
@@ -78,7 +83,7 @@ export default function App() {
   const [backstageOpen, setBackstageOpen] = useState(false);
   const [feedbackOpen, setFeedbackOpen] = useState(false);
   const [projectInformationOpen, setProjectInformationOpen] = useState(false);
-  const [rightTaskPanel, setRightTaskPanel] = useState<"optimization" | null>(null);
+  const [rightTaskPanel, setRightTaskPanel] = useState<RightTaskPanel | null>(null);
   const [isDirty, setIsDirty] = useState(false);
   const [projectPath, setProjectPath] = useState<string | null>(null);
   const [unsavedChangesOpen, setUnsavedChangesOpen] = useState(false);
@@ -216,8 +221,88 @@ export default function App() {
   const activatePilePlan = (pilePlanId: string) => {
     setProjectState((current) => {
       if (pilePlanId === current.activePilePlanId) return current;
+      const transition = switchPilePlan({ ...current, targetPilePlanId: pilePlanId });
+      const locked = new Set(getActiveLockedLoadPointIds(transition.pilePlans, transition.activePilePlanId));
+      const selectedLoadPointIds = current.selectedLoadPointIds.filter((id) => !locked.has(id));
       setIsDirty(true);
-      return { ...current, ...switchPilePlan({ ...current, targetPilePlanId: pilePlanId }) };
+      return {
+        ...current,
+        ...transition,
+        loadPointLockDraft: null,
+        loadPointLockSelectionSnapshot: null,
+        selectedLoadPointIds,
+        selectedLoadPointId: selectedLoadPointIds.includes(current.selectedLoadPointId ?? -1)
+          ? current.selectedLoadPointId
+          : selectedLoadPointIds[0] ?? null,
+        selectedCptId: null,
+      };
+    });
+  };
+
+  const startLockEditing = () => {
+    setRightTaskPanel(null);
+    setProjectState((current) => ({
+      ...current,
+      cptSelectionEditDraft: null,
+      loadPointLockDraft: startLoadPointLockDraft(
+        current.pilePlans,
+        current.activePilePlanId,
+        current.selectedLoadPointIds,
+      ),
+      loadPointLockSelectionSnapshot: {
+        selectedLoadPointIds: [...current.selectedLoadPointIds],
+        selectedLoadPointId: current.selectedLoadPointId,
+        selectedCptId: current.selectedCptId,
+      },
+      selectedLoadPointIds: [],
+      selectedLoadPointId: null,
+      selectedCptId: null,
+    }));
+  };
+
+  const cancelLockEditing = () => {
+    setProjectState((current) => {
+      const snapshot = current.loadPointLockSelectionSnapshot;
+      if (snapshot === null) {
+        return { ...current, loadPointLockDraft: null };
+      }
+      return {
+        ...current,
+        loadPointLockDraft: null,
+        loadPointLockSelectionSnapshot: null,
+        selectedLoadPointIds: snapshot.selectedLoadPointIds,
+        selectedLoadPointId: snapshot.selectedLoadPointId,
+        selectedCptId: snapshot.selectedCptId,
+      };
+    });
+  };
+
+  const unlockAllInDraft = () => {
+    setProjectState((current) => current.loadPointLockDraft === null
+      ? current
+      : { ...current, loadPointLockDraft: new Set() });
+  };
+
+  const applyLockEditing = () => {
+    setProjectState((current) => {
+      const draft = current.loadPointLockDraft;
+      if (draft === null) return current;
+      const previous = getActiveLockedLoadPointIds(current.pilePlans, current.activePilePlanId);
+      const changed = previous.length !== draft.size || previous.some((id) => !draft.has(id));
+      const selectedLoadPointIds = current.selectedLoadPointIds.filter((id) => !draft.has(id));
+      const selectedLoadPointId = selectedLoadPointIds.includes(current.selectedLoadPointId ?? -1)
+        ? current.selectedLoadPointId
+        : selectedLoadPointIds[0] ?? null;
+      if (changed) setIsDirty(true);
+      return {
+        ...current,
+        pilePlans: applyLoadPointLockDraft(current.pilePlans, current.activePilePlanId, draft),
+        loadPointLockDraft: null,
+        loadPointLockSelectionSnapshot: null,
+        selectedLoadPointIds,
+        selectedLoadPointId,
+        selectedCptId: null,
+      };
     });
   };
 
@@ -324,8 +409,9 @@ export default function App() {
     void saveViewerPreferences({
       symbolScalePercent: projectState.symbolScalePercent,
       foregroundLayer: projectState.foregroundLayer,
+      showGrid: projectState.showGrid,
     });
-  }, [projectState.foregroundLayer, projectState.symbolScalePercent, viewerPreferencesLoaded]);
+  }, [projectState.foregroundLayer, projectState.showGrid, projectState.symbolScalePercent, viewerPreferencesLoaded]);
 
   useEffect(() => {
     let cancelled = false;
@@ -493,6 +579,7 @@ export default function App() {
       snapshot.optimizationTargetScope,
       snapshot.loadPoints.map((loadPoint) => loadPoint.id),
       snapshot.selectedLoadPointIds,
+      getActiveLockedLoadPointIds(snapshot.pilePlans, snapshot.activePilePlanId),
     );
     if (
       snapshot.optimizationRunning
@@ -625,13 +712,19 @@ export default function App() {
             setRightTaskPanel(null);
             setProjectState((current) => ({ ...current, ...switchRightPanelMode(current, mode) }));
           }}
-          onOpenOptimizationSettings={() => setRightTaskPanel("optimization")}
+          onOpenTaskPanel={setRightTaskPanel}
           onRunOptimization={runGreedyOptimization}
           optimizationDisabled={optimizationDisabled}
+          isLockEditing={projectState.loadPointLockDraft !== null}
+          onStartLockEditing={startLockEditing}
+          onApplyLockEditing={applyLockEditing}
+          onCancelLockEditing={cancelLockEditing}
+          onUnlockAll={unlockAllInDraft}
           symbolScalePercent={projectState.symbolScalePercent}
           viewerUtilizationMinimum={projectState.viewerUtilizationSettings.minimum}
           viewerUtilizationMaximum={projectState.viewerUtilizationSettings.maximum}
           foregroundLayer={projectState.foregroundLayer}
+          showGrid={projectState.showGrid}
           onSymbolScaleChange={(symbolScalePercent) => setProjectState((current) => ({
             ...current,
             symbolScalePercent,
@@ -643,6 +736,10 @@ export default function App() {
           onForegroundLayerChange={(foregroundLayer) => setProjectState((current) => ({
             ...current,
             foregroundLayer,
+          }))}
+          onGridVisibilityChange={(showGrid) => setProjectState((current) => ({
+            ...current,
+            showGrid,
           }))}
         />
         <div

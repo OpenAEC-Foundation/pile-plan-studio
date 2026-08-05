@@ -8,7 +8,7 @@ import "./FeedbackDialog.css";
 // Apps using this template can override these constants. Issues are
 // opened in the user's browser with a pre-filled title + body.
 const GITHUB_OWNER = "OpenAEC-Foundation";
-const GITHUB_REPO = "OpenAEC-style-book";
+const GITHUB_REPO = "pile-plan-studio";
 
 async function getAppVersion(): Promise<string> {
   try {
@@ -57,7 +57,7 @@ const SENTIMENTS = [
 type Sentiment = (typeof SENTIMENTS)[number]["id"] | null;
 
 const MAX_CHARS = 5000;
-const MIN_CHARS = 10;
+const MIN_CHARS = 1;
 const MAX_IMAGES = 5;
 
 interface FeedbackDialogProps {

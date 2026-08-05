@@ -14,6 +14,7 @@ import type { LegendSelectionFilter } from "../viewer/legendSelection.ts";
 import type { OptimizationRunSummary } from "./optimizationSummary.ts";
 import type { OptimizationLimitScope, OptimizationTargetScope } from "../components/domain/optimizationPanelModel.ts";
 import { normalizeViewerPreferences, type ForegroundLayer, type ViewerPreferences } from "./viewerPreferences.ts";
+import type { LoadPointLockDraft } from "./loadPointLocking.ts";
 
 export type InputSourceKind = "load_points" | "cpts" | "bearing_capacities";
 export type InputSourceStatus = "snapshot-only" | "linked" | "missing" | "changed";
@@ -30,6 +31,12 @@ export type CptSettingsScope = "all" | "selected";
 export type CptSelectionEditDraft = {
   loadPointIds: number[];
   cptIdsByLoadPoint: Map<number, Set<number>>;
+};
+
+export type LoadPointLockSelectionSnapshot = {
+  selectedLoadPointIds: number[];
+  selectedLoadPointId: number | null;
+  selectedCptId: number | null;
 };
 
 export type AnalysisRequest = {
@@ -53,6 +60,8 @@ export type ProjectState = LoadedProjectData & {
   cptFrdRowsByCptId: Map<number, CptBearingCapacityRow[]>;
   cptSettingsScope: CptSettingsScope;
   cptSelectionEditDraft: CptSelectionEditDraft | null;
+  loadPointLockDraft: LoadPointLockDraft | null;
+  loadPointLockSelectionSnapshot: LoadPointLockSelectionSnapshot | null;
   analysisRequest: AnalysisRequest;
   analysisError: string | null;
   defaultPileSelectionPending: boolean;
@@ -65,6 +74,7 @@ export type ProjectState = LoadedProjectData & {
   optimizationSummary: OptimizationRunSummary | null;
   symbolScalePercent: number;
   foregroundLayer: ForegroundLayer;
+  showGrid: boolean;
 };
 
 type InitialProjectStateOptions = {
@@ -78,11 +88,13 @@ export function createInitialProjectState(
   options: InitialProjectStateOptions,
 ): ProjectState {
   const projectData = loadIfcppProjectData(input);
-  const firstLoadPointId = projectData.loadPoints[0]?.id ?? null;
   const viewerPreferences = normalizeViewerPreferences(options.viewerPreferences);
   const pilePlans = options.defaultPilePlanName && projectData.pilePlans.length === 1
     ? [{ ...projectData.pilePlans[0], name: options.defaultPilePlanName }]
     : projectData.pilePlans;
+  const activePilePlan = pilePlans.find((plan) => plan.id === projectData.activePilePlanId) ?? pilePlans[0];
+  const lockedLoadPointIds = new Set(activePilePlan?.lockedLoadPointIds ?? []);
+  const firstLoadPointId = projectData.loadPoints.find((loadPoint) => !lockedLoadPointIds.has(loadPoint.id))?.id ?? null;
 
   return {
     ...projectData,
@@ -121,6 +133,8 @@ export function createInitialProjectState(
     cptFrdRowsByCptId: new Map(),
     cptSettingsScope: firstLoadPointId === null ? "all" : "selected",
     cptSelectionEditDraft: null,
+    loadPointLockDraft: null,
+    loadPointLockSelectionSnapshot: null,
     analysisRequest: { revision: 0, loadPointIds: null },
     analysisError: null,
     defaultPileSelectionPending: options.initializeDefaultPiles,

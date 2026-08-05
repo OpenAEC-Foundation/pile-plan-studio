@@ -20,6 +20,11 @@ describe("React optimization panel model", () => {
     assert.deepEqual(getOptimizationTargetIds("selected", [1, 2, 3], [2]), [2]);
   });
 
+  it("excludes locked load points from every target scope", () => {
+    assert.deepEqual(getOptimizationTargetIds("all", [1, 2, 3], [2, 3], [2]), [1, 3]);
+    assert.deepEqual(getOptimizationTargetIds("selected", [1, 2, 3], [2, 3], [2]), [3]);
+  });
+
   it("applies returned choices without replacing legend activation", () => {
     const result = applyOptimizationChoices({
       previousChoices: new Map([[1, "290|-18"], [2, "320|-19"], [3, "290|-18"]]),

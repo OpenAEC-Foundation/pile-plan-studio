@@ -8,6 +8,7 @@ describe("viewer preferences", () => {
     assert.deepEqual(normalizeViewerPreferences(undefined), {
       symbolScalePercent: 100,
       foregroundLayer: "load-points",
+      showGrid: true,
     });
   });
 
@@ -18,6 +19,11 @@ describe("viewer preferences", () => {
     }), {
       symbolScalePercent: 200,
       foregroundLayer: "load-points",
+      showGrid: true,
     });
+  });
+
+  it("preserves an explicit hidden grid preference", () => {
+    assert.equal(normalizeViewerPreferences({ showGrid: false }).showGrid, false);
   });
 });

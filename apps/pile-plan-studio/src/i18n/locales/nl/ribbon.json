@@ -1,9 +1,7 @@
 {
   "tabs": {
     "file": "Bestand",
-    "project": "Project",
     "plan": "Plan",
-    "optimize": "Optimaliseren",
     "view": "Weergave"
   },
   "project": {
@@ -20,7 +18,12 @@
     "cpts": "Sonderingen",
     "settings": "Instellingen",
     "cptSettings": "Sonderingsinstellingen",
-    "costSettings": "Kosteninstellingen"
+    "costSettings": "Kosteninstellingen",
+    "locking": "Vergrendelen",
+    "editLocks": "Locaties\nvergrendelen",
+    "applyLocks": "Toepassen",
+    "cancelLocks": "Annuleren",
+    "unlockAll": "Alles ontgrendelen"
   },
   "optimize": {
     "greedy": "Greedy optimalisatie",
@@ -36,6 +39,9 @@
     "maximumUtilization": "Maximale benuttingsgraad",
     "foreground": "Voorgrond",
     "loadPoints": "Belastinglocaties",
-    "cpts": "Sonderingen"
+    "cpts": "Sonderingen",
+    "grid": "Grid",
+    "showGrid": "Grid tonen",
+    "hideGrid": "Grid verbergen"
   }
 }

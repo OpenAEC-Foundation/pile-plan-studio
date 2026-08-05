@@ -1,5 +1,38 @@
 # Pile Plan Studio Release Notes
 
+## 0.1.7-alpha
+
+This alpha adds per-plan load-point locking, a coordinate-based viewer grid,
+and a more focused settings workflow.
+
+### Added
+
+- Lock and unlock load points per pile plan. Locked locations remain visible
+  but dimmed, cannot be selected during ordinary plan editing, and are ignored
+  by greedy optimization.
+- Edit locked locations directly in the viewer using click and lasso
+  interactions, with Apply, Cancel, and Unlock all controls.
+- Show grid lines aligned to actual project coordinates, with adaptive spacing
+  and a View-ribbon toggle.
+
+### Improved
+
+- Project, plan, inspection, settings, locking, and optimization actions are
+  consolidated into a clearer ribbon layout.
+- CPT, cost, and optimization settings open as dedicated task panels while the
+  permanent right-panel tabs remain focused on load points and CPT inspection.
+- The maximum optimization utilization is entered as a percentage field and
+  configuration limits now allow temporary empty editing before validation.
+- Pile head level and CPT-selection number fields use the same deferred
+  validation on Enter or when leaving the field.
+- The feedback dialog accepts every non-empty message and opens issues in the
+  Pile Plan Studio repository.
+
+### Notes
+
+- This release does not publish a Windows installer. The browser build and
+  source code contain the 0.1.7-alpha changes.
+
 ## 0.1.6-alpha
 
 This alpha adds multiple pile plans per project and introduces explicit,

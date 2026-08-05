@@ -4,6 +4,30 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
 describe("React optimization panel", () => {
+  it("defers numeric optimization limits until blur or Enter", () => {
+    const optimization = readFileSync(resolve(import.meta.dirname, "OptimizationPanel.tsx"), "utf8");
+
+    assert.match(optimization, /useState\(String\(value\)\)/);
+    assert.match(optimization, /onChange=\{\(event\) => setDraft\(event\.currentTarget\.value\)\}/);
+    assert.match(optimization, /onBlur=\{commit\}/);
+    assert.match(optimization, /event\.key === "Enter"/);
+    assert.match(optimization, /min=\{1\}[\s\S]*updateLimit\("sizes"/);
+    assert.match(optimization, /min=\{0\}[\s\S]*updateMaxUtilization/);
+    assert.doesNotMatch(optimization, /onChange=\{\(event\) => onChange\(Number\(event\.currentTarget\.value\)\)\}/);
+  });
+
+  it("does not refocus a numeric field when the empty part of its row is clicked", () => {
+    const optimization = readFileSync(resolve(import.meta.dirname, "OptimizationPanel.tsx"), "utf8");
+    const styles = readFileSync(resolve(import.meta.dirname, "rightPanel.css"), "utf8");
+
+    assert.match(optimization, /<div\s+className="optimization-number"/);
+    assert.match(optimization, /<label htmlFor=\{inputId\}>\{label\}<\/label>/);
+    assert.match(optimization, /id=\{inputId\}/);
+    assert.doesNotMatch(optimization, /<label className="optimization-number">/);
+    assert.match(optimization, /if \(event\.target === event\.currentTarget\) inputRef\.current\?\.blur\(\);/);
+    assert.match(styles, /\.optimization-number > label\s*\{[^}]*justify-self:\s*start;/s);
+  });
+
   it("provides a closable task panel outside the permanent context tabs", () => {
     const panel = readFileSync(resolve(import.meta.dirname, "RightPanel.tsx"), "utf8");
     const optimization = readFileSync(resolve(import.meta.dirname, "OptimizationPanel.tsx"), "utf8");
@@ -19,6 +43,14 @@ describe("React optimization panel", () => {
     assert.match(optimization, /t\("optimization\.run"\)/);
     assert.match(optimization, /optimizationCreatesPilePlan/);
     assert.match(optimization, /t\("optimization\.saveAsNewPilePlan"\)/);
+    assert.match(optimization, /type="number"/);
+    assert.match(optimization, /max_utilization: value \/ 100/);
+    assert.doesNotMatch(optimization, /type="range"/);
+    assert.ok(
+      optimization.indexOf('t("optimization.performanceLimit")')
+        < optimization.indexOf("optimizationCreatesPilePlan"),
+      "utilization limit should appear before the save-as-new-plan option",
+    );
     assert.match(optimization, /optimizationSummary/);
     assert.match(optimization, /optimizationError/);
   });
@@ -40,6 +72,19 @@ describe("React optimization panel", () => {
     assert.match(config, /enRightPanel/);
     assert.match(config, /nlRightPanel/);
     assert.match(config, /"rightPanel"/);
+    const english = readFileSync(resolve(import.meta.dirname, "../../i18n/locales/en/rightPanel.json"), "utf8");
+    assert.match(english, /"optimization\.performanceLimit": "Utilization limit"/);
+  });
+
+  it("keeps only inspection views as permanent tabs", () => {
+    const panel = readFileSync(resolve(import.meta.dirname, "RightPanel.tsx"), "utf8");
+
+    assert.match(panel, /mode="load-point"/);
+    assert.match(panel, /mode="cpts"/);
+    assert.doesNotMatch(panel, /mode="cpt-settings"/);
+    assert.doesNotMatch(panel, /mode="cost-settings"/);
+    assert.match(panel, /taskPanel === "cpt-settings"/);
+    assert.match(panel, /taskPanel === "cost-settings"/);
   });
 });
 
@@ -64,9 +109,9 @@ describe("React CPT settings panel", () => {
     const panel = readFileSync(resolve(import.meta.dirname, "RightPanel.tsx"), "utf8");
 
     assert.match(panel, /getCptSelectionSettingsAggregate\(state\)/);
-    assert.match(panel, /value=\{settings\.maxDistanceM \?\? ""\}/);
-    assert.match(panel, /value=\{settings\.monopolyDistanceM \?\? ""\}/);
-    assert.match(panel, /value=\{settings\.maxAngleDegrees \?\? ""\}/);
+    assert.match(panel, /value=\{settings\.maxDistanceM\}/);
+    assert.match(panel, /value=\{settings\.monopolyDistanceM\}/);
+    assert.match(panel, /value=\{settings\.maxAngleDegrees\}/);
     assert.match(panel, /placeholder=\{settings\.maxDistanceM === null \? t\("cptSettings\.mixed"\) : undefined\}/);
     assert.match(panel, /placeholder=\{settings\.monopolyDistanceM === null \? t\("cptSettings\.mixed"\) : undefined\}/);
     assert.match(panel, /placeholder=\{settings\.maxAngleDegrees === null \? t\("cptSettings\.mixed"\) : undefined\}/);
@@ -85,7 +130,18 @@ describe("React CPT settings panel", () => {
     assert.match(panel, /checked=\{overwriteManualSelections\}[\s\S]*type="checkbox"[\s\S]*setOverwriteManualSelections/);
     assert.match(panel, /t\("cptSettings\.overwriteManualSelections"\)/);
     assert.match(panel, /cptSettings\.maxDistance[\s\S]*cptSettings\.monopolyDistance/);
-    assert.match(panel, /aria-label=\{t\("cptSettings\.monopolyDistance"\)\}[\s\S]*min="0"/);
+    assert.match(panel, /ariaLabel=\{t\("cptSettings\.monopolyDistance"\)\}[\s\S]*min=\{0\}/);
+  });
+
+  it("defers pile head level and CPT number changes until blur or Enter", () => {
+    const panel = readFileSync(resolve(import.meta.dirname, "RightPanel.tsx"), "utf8");
+
+    assert.match(panel, /function DraftNumberField/);
+    assert.match(panel, /const \[draft, setDraft\] = useState/);
+    assert.match(panel, /onBlur=\{commit\}/);
+    assert.match(panel, /if \(event\.key === "Enter"\) event\.currentTarget\.blur\(\)/);
+    assert.match(panel, /value=\{state\.pileCostSettings\.pile_head_level_m\}/);
+    assert.match(panel, /onCommit=\{\(value\) => applySettings\(updatePileHeadLevel/);
   });
 
   it("keeps mixed algorithms unselected and maximum angle editable until a concrete alternative is common", () => {

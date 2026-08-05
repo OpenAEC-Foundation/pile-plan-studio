@@ -5,6 +5,24 @@ import { resolve } from "node:path";
 import { createInitialProjectState } from "../../domain/projectState.ts";
 
 describe("PilePlanViewer inputs", () => {
+  it("dims and excludes locked load points outside lock editing", () => {
+    const source = readFileSync(resolve(import.meta.dirname, "PilePlanViewer.tsx"), "utf8");
+    const css = readFileSync(resolve(import.meta.dirname, "viewer.css"), "utf8");
+
+    assert.match(source, /getActiveLockedLoadPointIds/);
+    assert.match(source, /is-lock-editing/);
+    assert.match(source, /is-locked/);
+    assert.match(source, /!lockedLoadPointIds\.has\(loadPoint\.id\)/);
+    assert.match(css, /\.load-point-marker\.is-locked/);
+  });
+
+  it("routes clicks and lasso to the lock draft while lock editing", () => {
+    const source = readFileSync(resolve(import.meta.dirname, "PilePlanViewer.tsx"), "utf8");
+
+    assert.match(source, /toggleLoadPointLock/);
+    assert.match(source, /setLassoLoadPointLocks/);
+    assert.match(source, /state\.loadPointLockDraft/);
+  });
   it("has load points, CPTs, and bounds available for rendering", () => {
     const sampleProjectText = readFileSync(
       resolve(import.meta.dirname, "../../../../../sample_project/sample_project.ifcpp"),
@@ -205,13 +223,13 @@ describe("PilePlanViewer inputs", () => {
     assert.match(source, /isViewerSelectionActionAllowed\(isEditingCptSelection, "background"\)/);
     assert.match(source, /isViewerSelectionActionAllowed\(isEditingCptSelection, "load-point"\)/);
     assert.match(source, /isViewerSelectionActionAllowed\(isEditingCptSelection, "lasso"\)/);
-    assert.match(source, /filter\(\(key\) => !isEditingCptSelection \|\| key\.startsWith\("cpt:"\)\)/);
+    assert.match(source, /!isEditingCptSelection \|\| key\.startsWith\("cpt:"\)/);
   });
 
   it("renders pointer-inert CPT connection lines inside the transformed stage before map markers", () => {
     const source = readFileSync(resolve(import.meta.dirname, "PilePlanViewer.tsx"), "utf8");
     const css = readFileSync(resolve(import.meta.dirname, "viewer.css"), "utf8");
-    const gridIndex = source.indexOf('<div className="viewer-grid" />');
+    const gridIndex = source.indexOf('<svg className="viewer-coordinate-grid"');
     const cptIndex = source.indexOf("{state.cpts.map", gridIndex);
     const stageContent = source.slice(gridIndex, cptIndex);
 

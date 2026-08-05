@@ -107,6 +107,10 @@
   font-size: 11px;
 }
 
+.optimization-number > label {
+  justify-self: start;
+}
+
 .optimization-number input {
   width: 100%;
   min-width: 0;

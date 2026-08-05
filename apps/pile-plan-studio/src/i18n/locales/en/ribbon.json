@@ -1,9 +1,7 @@
 {
   "tabs": {
     "file": "File",
-    "project": "Project",
     "plan": "Plan",
-    "optimize": "Optimize",
     "view": "View"
   },
   "project": {
@@ -20,7 +18,12 @@
     "cpts": "CPTs",
     "settings": "Settings",
     "cptSettings": "CPT settings",
-    "costSettings": "Cost settings"
+    "costSettings": "Cost settings",
+    "locking": "Locking",
+    "editLocks": "Lock\nload points",
+    "applyLocks": "Apply",
+    "cancelLocks": "Cancel",
+    "unlockAll": "Unlock all"
   },
   "optimize": {
     "greedy": "Greedy optimization",
@@ -36,6 +39,9 @@
     "maximumUtilization": "Maximum utilization",
     "foreground": "Foreground",
     "loadPoints": "Load points",
-    "cpts": "CPTs"
+    "cpts": "CPTs",
+    "grid": "Grid",
+    "showGrid": "Show grid",
+    "hideGrid": "Hide grid"
   }
 }

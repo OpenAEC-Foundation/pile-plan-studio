@@ -1,5 +1,6 @@
-import type { ProjectState } from "../../domain/projectState.ts";
+import { useEffect, useId, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
+import type { ProjectState } from "../../domain/projectState.ts";
 import { clampOptimizationLimits } from "./optimizationPanelModel.ts";
 
 type Props = {
@@ -34,6 +35,21 @@ export default function OptimizationPanel({ state, onStateChange, onRunOptimizat
       optimizationSummary: null,
       optimizationError: null,
     });
+    return next[field];
+  }
+
+  function updateMaxUtilization(value: number) {
+    value = Number.isFinite(value) ? Math.max(0, Math.min(100, value)) : 0;
+    onStateChange({
+      ...state,
+      optimizationSettings: {
+        ...state.optimizationSettings,
+        max_utilization: value / 100,
+      },
+      optimizationSummary: null,
+      optimizationError: null,
+    });
+    return value;
   }
 
   return (
@@ -64,9 +80,19 @@ export default function OptimizationPanel({ state, onStateChange, onRunOptimizat
         ) : null}
         <section className="settings-group optimization-limits">
           <h3>{t("optimization.configurationLimits")}</h3>
-          <NumberSetting label={t("optimization.maxSizes")} value={limits.sizes} onChange={(value) => updateLimit("sizes", value)} />
-          <NumberSetting label={t("optimization.maxTips")} value={limits.tips} onChange={(value) => updateLimit("tips", value)} />
-          <NumberSetting label={t("optimization.maxConfigurations")} value={limits.configurations} onChange={(value) => updateLimit("configurations", value)} />
+          <NumberSetting label={t("optimization.maxSizes")} min={1} value={limits.sizes} onChange={(value) => updateLimit("sizes", value)} />
+          <NumberSetting label={t("optimization.maxTips")} min={1} value={limits.tips} onChange={(value) => updateLimit("tips", value)} />
+          <NumberSetting label={t("optimization.maxConfigurations")} min={1} value={limits.configurations} onChange={(value) => updateLimit("configurations", value)} />
+        </section>
+        <section className="settings-group optimization-limits">
+          <h3>{t("optimization.performanceLimit")}</h3>
+          <NumberSetting
+            label={t("optimization.maxUtilization")}
+            max={100}
+            min={0}
+            value={Math.round(state.optimizationSettings.max_utilization * 100)}
+            onChange={updateMaxUtilization}
+          />
         </section>
         <section className="settings-group">
           <label className="settings-checkbox">
@@ -81,30 +107,6 @@ export default function OptimizationPanel({ state, onStateChange, onRunOptimizat
             <span>{t("optimization.saveAsNewPilePlan")}</span>
           </label>
         </section>
-        <section className="settings-group optimization-limits">
-          <h3>{t("optimization.performanceLimit")}</h3>
-          <label className="optimization-range">
-            <span>{t("optimization.maxUtilization")}</span>
-            <strong>{Math.round(state.optimizationSettings.max_utilization * 100)}%</strong>
-            <input
-              aria-label={t("optimization.maxUtilization")}
-              max="100"
-              min="0"
-              step="1"
-              type="range"
-              value={Math.round(state.optimizationSettings.max_utilization * 100)}
-              onChange={(event) => onStateChange({
-                ...state,
-                optimizationSettings: {
-                  ...state.optimizationSettings,
-                  max_utilization: Number(event.currentTarget.value) / 100,
-                },
-                optimizationSummary: null,
-                optimizationError: null,
-              })}
-            />
-          </label>
-        </section>
         {activeSizes.length === 0 || activeTips.length === 0 ? <p className="panel-message is-warning">{t("optimization.enableLegend")}</p> : null}
         {!hasTarget ? <p className="panel-message is-warning">{t("optimization.selectLoadPoints")}</p> : null}
         {state.optimizationError ? <p className="panel-message is-error">{state.optimizationError}</p> : null}
@@ -117,6 +119,47 @@ export default function OptimizationPanel({ state, onStateChange, onRunOptimizat
   );
 }
 
-function NumberSetting({ label, value, onChange }: { label: string; value: number; onChange: (value: number) => void }) {
-  return <label className="optimization-number"><span>{label}</span><input min="0" step="1" type="number" value={value} onChange={(event) => onChange(Number(event.currentTarget.value))} /></label>;
+function NumberSetting({ label, max, min, value, onChange }: {
+  label: string;
+  max?: number;
+  min: number;
+  value: number;
+  onChange: (value: number) => number;
+}) {
+  const inputId = useId();
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [draft, setDraft] = useState(String(value));
+
+  useEffect(() => setDraft(String(value)), [value]);
+
+  const commit = () => {
+    const parsed = draft.trim() === "" ? min : Number(draft);
+    const committed = onChange(Number.isFinite(parsed) ? parsed : min);
+    setDraft(String(committed));
+  };
+
+  return (
+    <div
+      className="optimization-number"
+      onPointerDown={(event) => {
+        if (event.target === event.currentTarget) inputRef.current?.blur();
+      }}
+    >
+      <label htmlFor={inputId}>{label}</label>
+      <input
+        id={inputId}
+        max={max}
+        min={min}
+        step="1"
+        type="number"
+        value={draft}
+        onBlur={commit}
+        onChange={(event) => setDraft(event.currentTarget.value)}
+        onKeyDown={(event) => {
+          if (event.key === "Enter") event.currentTarget.blur();
+        }}
+        ref={inputRef}
+      />
+    </div>
+  );
 }

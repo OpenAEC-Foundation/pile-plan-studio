@@ -37,15 +37,17 @@ import { commitCostInput, updatePileCostItem, updatePileHeadLevel } from "./cost
 import { setSetting } from "../../store.ts";
 import { removeIcon } from "../template/ribbon/icons.ts";
 import OptimizationPanel from "./OptimizationPanel.tsx";
+import { commitNumberDraft } from "./numberInputModel.ts";
 import "./rightPanel.css";
 
 const PILE_COST_DEFAULTS_KEY = "pile-cost-defaults";
+export type RightTaskPanel = "cpt-settings" | "cost-settings" | "optimization";
 
 type Props = {
   state: ProjectState;
   onStateChange: (nextState: ProjectState) => void;
   onRunOptimization?: () => void;
-  taskPanel?: "optimization" | null;
+  taskPanel?: RightTaskPanel | null;
   onCloseTaskPanel?: () => void;
 };
 
@@ -67,15 +69,13 @@ export default function RightPanel({
       <div className="right-panel-tabs" aria-label={t("aria.views")}>
         <PanelTab active={taskPanel === null} label={t("tabs.loadPoint")} mode="load-point" state={state} onStateChange={onStateChange} />
         <PanelTab active={taskPanel === null} label={t("tabs.cpts")} mode="cpts" state={state} onStateChange={onStateChange} />
-        <PanelTab active={taskPanel === null} label={t("tabs.cptSettings")} mode="cpt-settings" state={state} onStateChange={onStateChange} />
-        <PanelTab active={taskPanel === null} label={t("tabs.costSettings")} mode="cost-settings" state={state} onStateChange={onStateChange} />
       </div>
       {taskPanel === "optimization" ? (
         <OptimizationPanel state={state} onStateChange={onStateChange} onRunOptimization={onRunOptimization} onClose={onCloseTaskPanel} />
-      ) : state.rightPanelMode === "cost-settings" ? (
-        <CostSettingsPanel state={state} onStateChange={onStateChange} />
-      ) : state.rightPanelMode === "cpt-settings" ? (
-        <CptSettingsPanel state={state} onStateChange={onStateChange} />
+      ) : taskPanel === "cost-settings" ? (
+        <CostSettingsPanel state={state} onStateChange={onStateChange} onClose={onCloseTaskPanel} />
+      ) : taskPanel === "cpt-settings" ? (
+        <CptSettingsPanel state={state} onStateChange={onStateChange} onClose={onCloseTaskPanel} />
       ) : state.rightPanelMode === "cpts" ? (
         <CptPanel state={state} onStateChange={onStateChange} selectedLoadPoints={selectedLoadPoints} />
       ) : selectedLoadPoints.length === 0 ? (
@@ -95,7 +95,7 @@ export default function RightPanel({
   );
 }
 
-function CostSettingsPanel({ state, onStateChange }: Props) {
+function CostSettingsPanel({ state, onStateChange, onClose }: Props & { onClose: () => void }) {
   const { t } = useTranslation("rightPanel");
   function applySettings(nextSettings: ProjectState["pileCostSettings"]) {
     onStateChange({ ...state, pileCostSettings: nextSettings });
@@ -106,23 +106,19 @@ function CostSettingsPanel({ state, onStateChange }: Props) {
     <div className="cost-settings-panel">
       <header className="right-panel-header">
         <div><h2>{t("cost.title")}</h2><span>{t("cost.subtitle")}</span></div>
+        <button className="right-panel-task-close" type="button" aria-label={t("actions.close")} onClick={onClose}>&times;</button>
       </header>
 
       <div className="settings-scroll">
         <SettingsGroup title={t("cost.pileHeadLevel")}>
-          <label className="number-field">
-            <input
-              aria-label={t("cost.pileHeadLevel")}
-              step="0.1"
-              type="number"
-              value={state.pileCostSettings.pile_head_level_m}
-              onChange={(event) => {
-                const value = Number(event.currentTarget.value);
-                applySettings(updatePileHeadLevel(state.pileCostSettings, value));
-              }}
-            />
-            <span>m</span>
-          </label>
+          <DraftNumberField
+            ariaLabel={t("cost.pileHeadLevel")}
+            emptyValue={0}
+            step={0.1}
+            suffix="m"
+            value={state.pileCostSettings.pile_head_level_m}
+            onCommit={(value) => applySettings(updatePileHeadLevel(state.pileCostSettings, value))}
+          />
         </SettingsGroup>
 
         <section className="settings-group cost-size-settings">
@@ -210,7 +206,7 @@ function CostSettingsRow({ item, settings, onSettingsChange }: {
   );
 }
 
-function CptSettingsPanel({ state, onStateChange }: Props) {
+function CptSettingsPanel({ state, onStateChange, onClose }: Props & { onClose: () => void }) {
   const { t } = useTranslation("rightPanel");
   const [overwriteManualSelections, setOverwriteManualSelections] = useState(false);
   const selectedLoadPoints = getSelectedLoadPoints(state);
@@ -234,6 +230,7 @@ function CptSettingsPanel({ state, onStateChange }: Props) {
     <div className="cpt-settings-panel">
       <header className="right-panel-header">
         <div><h2>{t("cptSettings.title")}</h2><span>{settingsSubtitle}</span></div>
+        <button className="right-panel-task-close" type="button" aria-label={t("actions.close")} onClick={onClose}>&times;</button>
       </header>
 
       <div className="settings-scroll">
@@ -265,45 +262,29 @@ function CptSettingsPanel({ state, onStateChange }: Props) {
         </SettingsGroup>
 
         <SettingsGroup title={t("cptSettings.maxDistance")}>
-          <label className="number-field">
-            <input
-              aria-label={t("cptSettings.maxDistance")}
-              min="0"
-              placeholder={settings.maxDistanceM === null ? t("cptSettings.mixed") : undefined}
-              step="1"
-              type="number"
-              value={settings.maxDistanceM ?? ""}
-              onChange={(event) => {
-                if (event.currentTarget.value === "") return;
-                const value = Number(event.currentTarget.value);
-                if (Number.isFinite(value)) {
-                  onStateChange(applyCptSelectionSettingsPatch(state, { maxDistanceM: Math.max(0, value) }, overwriteManualSelections));
-                }
-              }}
-            />
-            <span>m</span>
-          </label>
+          <DraftNumberField
+            ariaLabel={t("cptSettings.maxDistance")}
+            emptyValue={0}
+            min={0}
+            placeholder={settings.maxDistanceM === null ? t("cptSettings.mixed") : undefined}
+            step={1}
+            suffix="m"
+            value={settings.maxDistanceM}
+            onCommit={(value) => onStateChange(applyCptSelectionSettingsPatch(state, { maxDistanceM: value }, overwriteManualSelections))}
+          />
         </SettingsGroup>
 
         <SettingsGroup title={t("cptSettings.monopolyDistance")}>
-          <label className="number-field">
-            <input
-              aria-label={t("cptSettings.monopolyDistance")}
-              min="0"
-              placeholder={settings.monopolyDistanceM === null ? t("cptSettings.mixed") : undefined}
-              step="1"
-              type="number"
-              value={settings.monopolyDistanceM ?? ""}
-              onChange={(event) => {
-                if (event.currentTarget.value === "") return;
-                const value = Number(event.currentTarget.value);
-                if (Number.isFinite(value)) {
-                  onStateChange(applyCptSelectionSettingsPatch(state, { monopolyDistanceM: Math.max(0, value) }, overwriteManualSelections));
-                }
-              }}
-            />
-            <span>m</span>
-          </label>
+          <DraftNumberField
+            ariaLabel={t("cptSettings.monopolyDistance")}
+            emptyValue={0}
+            min={0}
+            placeholder={settings.monopolyDistanceM === null ? t("cptSettings.mixed") : undefined}
+            step={1}
+            suffix="m"
+            value={settings.monopolyDistanceM}
+            onCommit={(value) => onStateChange(applyCptSelectionSettingsPatch(state, { monopolyDistanceM: value }, overwriteManualSelections))}
+          />
         </SettingsGroup>
 
         <SettingsGroup title={t("cptSettings.algorithm")}>
@@ -324,28 +305,18 @@ function CptSettingsPanel({ state, onStateChange }: Props) {
         </SettingsGroup>
 
         <SettingsGroup title={t("cptSettings.maximumAngle")} muted={settings.algorithm !== null && settings.algorithm !== "maximum-angle"}>
-          <label className="number-field">
-            <input
-              aria-label={t("cptSettings.maximumAngle")}
-              disabled={settings.algorithm !== null && settings.algorithm !== "maximum-angle"}
-              min="1"
-              max="360"
-              placeholder={settings.maxAngleDegrees === null ? t("cptSettings.mixed") : undefined}
-              step="1"
-              type="number"
-              value={settings.maxAngleDegrees ?? ""}
-              onChange={(event) => {
-                if (event.currentTarget.value === "") return;
-                const value = Number(event.currentTarget.value);
-                if (Number.isFinite(value)) {
-                  onStateChange(applyCptSelectionSettingsPatch(state, {
-                    maxAngleDegrees: Math.min(360, Math.max(1, value)),
-                  }, overwriteManualSelections));
-                }
-              }}
-            />
-            <span>deg</span>
-          </label>
+          <DraftNumberField
+            ariaLabel={t("cptSettings.maximumAngle")}
+            disabled={settings.algorithm !== null && settings.algorithm !== "maximum-angle"}
+            emptyValue={1}
+            max={360}
+            min={1}
+            placeholder={settings.maxAngleDegrees === null ? t("cptSettings.mixed") : undefined}
+            step={1}
+            suffix="deg"
+            value={settings.maxAngleDegrees}
+            onCommit={(value) => onStateChange(applyCptSelectionSettingsPatch(state, { maxAngleDegrees: value }, overwriteManualSelections))}
+          />
         </SettingsGroup>
 
         <SettingsGroup title={t("cptSettings.manual")}>
@@ -359,7 +330,10 @@ function CptSettingsPanel({ state, onStateChange }: Props) {
               className="settings-modify-button"
               disabled={selectedLoadPoints.length === 0}
               type="button"
-              onClick={() => onStateChange(startCptSelectionEdit(state))}
+              onClick={() => {
+                onStateChange(startCptSelectionEdit(state));
+                onClose();
+              }}
             >{t("actions.modifySelection")}</button>
             {manualCptCount > 0 && state.selectedLoadPointId !== null ? (
               <button type="button" onClick={() => onStateChange(clearManualCptSelection(state))}>{t("actions.useAlgorithm")}</button>
@@ -381,6 +355,68 @@ function SettingsGroup({ title, muted = false, children }: {
       <h3>{title}</h3>
       {children}
     </section>
+  );
+}
+
+function DraftNumberField({
+  ariaLabel,
+  disabled = false,
+  emptyValue,
+  max,
+  min,
+  onCommit,
+  placeholder,
+  step,
+  suffix,
+  value,
+}: {
+  ariaLabel: string;
+  disabled?: boolean;
+  emptyValue: number;
+  max?: number;
+  min?: number;
+  onCommit: (value: number) => void;
+  placeholder?: string;
+  step: number;
+  suffix: string;
+  value: number | null;
+}) {
+  const [draft, setDraft] = useState(value === null ? "" : String(value));
+
+  useEffect(() => {
+    setDraft(value === null ? "" : String(value));
+  }, [value]);
+
+  function commit() {
+    const committed = commitNumberDraft(draft, value, { emptyValue, max, min });
+    if (committed === null) {
+      setDraft("");
+      return;
+    }
+
+    setDraft(String(committed));
+    if (committed !== value) onCommit(committed);
+  }
+
+  return (
+    <label className="number-field">
+      <input
+        aria-label={ariaLabel}
+        disabled={disabled}
+        max={max}
+        min={min}
+        placeholder={placeholder}
+        step={step}
+        type="number"
+        value={draft}
+        onBlur={commit}
+        onChange={(event) => setDraft(event.currentTarget.value)}
+        onKeyDown={(event) => {
+          if (event.key === "Enter") event.currentTarget.blur();
+        }}
+      />
+      <span>{suffix}</span>
+    </label>
   );
 }
 

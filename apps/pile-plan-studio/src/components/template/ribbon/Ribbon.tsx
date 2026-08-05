@@ -8,50 +8,70 @@ import type { RightPanelMode } from "../../../domain/selectionState.ts";
 import type { ForegroundLayer } from "../../../domain/viewerPreferences.ts";
 import {
   cptIcon,
+  applyIcon,
+  gridIcon,
   loadPointIcon,
+  lockIcon,
   optimizeIcon,
   projectIcon,
+  removeIcon,
   settingsIcon,
+  unlockIcon,
 } from "./icons";
 import "./Ribbon.css";
 
-type TabId = "project" | "plan" | "optimize" | "view";
+type TabId = "plan" | "view";
+type TaskPanel = "cpt-settings" | "cost-settings" | "optimization";
 
-const TABS: TabId[] = ["project", "plan", "optimize", "view"];
+const TABS: TabId[] = ["plan", "view"];
 
 interface RibbonProps {
   onFileTabClick?: () => void;
   onOpenProjectInformation?: () => void;
   onOpenRightPanel?: (mode: RightPanelMode) => void;
-  onOpenOptimizationSettings?: () => void;
+  onOpenTaskPanel?: (panel: TaskPanel) => void;
   onRunOptimization?: () => void;
   optimizationDisabled?: boolean;
+  isLockEditing: boolean;
+  onStartLockEditing: () => void;
+  onApplyLockEditing: () => void;
+  onCancelLockEditing: () => void;
+  onUnlockAll: () => void;
   symbolScalePercent: number;
   viewerUtilizationMinimum: number;
   viewerUtilizationMaximum: number;
   foregroundLayer: ForegroundLayer;
+  showGrid: boolean;
   onSymbolScaleChange: (value: number) => void;
   onViewerUtilizationRangeChange: (minimum: number, maximum: number) => void;
   onForegroundLayerChange: (value: ForegroundLayer) => void;
+  onGridVisibilityChange: (visible: boolean) => void;
 }
 
 export default function Ribbon({
   onFileTabClick,
   onOpenProjectInformation,
   onOpenRightPanel,
-  onOpenOptimizationSettings,
+  onOpenTaskPanel,
   onRunOptimization,
   optimizationDisabled = false,
+  isLockEditing,
+  onStartLockEditing,
+  onApplyLockEditing,
+  onCancelLockEditing,
+  onUnlockAll,
   symbolScalePercent,
   viewerUtilizationMinimum,
   viewerUtilizationMaximum,
   foregroundLayer,
+  showGrid,
   onSymbolScaleChange,
   onViewerUtilizationRangeChange,
   onForegroundLayerChange,
+  onGridVisibilityChange,
 }: RibbonProps) {
   const { t, i18n } = useTranslation("ribbon");
-  const [activeTab, setActiveTab] = useState<TabId>("project");
+  const [activeTab, setActiveTab] = useState<TabId>("plan");
   const tabsRef = useRef<HTMLDivElement>(null);
   const borderRef = useRef<HTMLDivElement>(null);
   const gapRef = useRef<HTMLDivElement>(null);
@@ -97,40 +117,39 @@ export default function Ribbon({
 
   const renderContent = () => {
     switch (activeTab) {
-      case "project":
-        return (
-          <div className="ribbon-content">
-            <div className="ribbon-groups">
-              <RibbonGroup label={t("project.overview")}>
-                <RibbonButton icon={projectIcon} label={t("project.information")} onClick={onOpenProjectInformation} />
-              </RibbonGroup>
-            </div>
-          </div>
-        );
       case "plan":
         return (
           <div className="ribbon-content">
             <div className="ribbon-groups">
+              <RibbonGroup label={t("project.overview")}>
+                <RibbonButton icon={projectIcon} label={t("project.information")} wide onClick={onOpenProjectInformation} />
+              </RibbonGroup>
               <RibbonGroup label={t("plan.inspect")}>
-                <RibbonButton icon={loadPointIcon} label={t("plan.loadPoints")} onClick={() => onOpenRightPanel?.("load-point")} />
+                <RibbonButton icon={loadPointIcon} label={t("plan.loadPoints")} wide onClick={() => onOpenRightPanel?.("load-point")} />
                 <RibbonButton icon={cptIcon} label={t("plan.cpts")} onClick={() => onOpenRightPanel?.("cpts")} />
               </RibbonGroup>
               <RibbonGroup label={t("plan.settings")}>
                 <RibbonButtonStack>
-                  <RibbonButton icon={settingsIcon} label={t("plan.cptSettings")} size="small" onClick={() => onOpenRightPanel?.("cpt-settings")} />
-                  <RibbonButton icon={settingsIcon} label={t("plan.costSettings")} size="small" onClick={() => onOpenRightPanel?.("cost-settings")} />
+                  <RibbonButton icon={settingsIcon} label={t("plan.cptSettings")} size="small" onClick={() => onOpenTaskPanel?.("cpt-settings")} />
+                  <RibbonButton icon={settingsIcon} label={t("plan.costSettings")} size="small" onClick={() => onOpenTaskPanel?.("cost-settings")} />
                 </RibbonButtonStack>
               </RibbonGroup>
-            </div>
-          </div>
-        );
-      case "optimize":
-        return (
-          <div className="ribbon-content">
-            <div className="ribbon-groups">
+              <RibbonGroup label={t("plan.locking")}>
+                {isLockEditing ? (
+                  <>
+                    <RibbonButton icon={applyIcon} label={t("plan.applyLocks")} onClick={onApplyLockEditing} />
+                    <RibbonButtonStack>
+                      <RibbonButton icon={removeIcon} label={t("plan.cancelLocks")} size="small" onClick={onCancelLockEditing} />
+                      <RibbonButton icon={unlockIcon} label={t("plan.unlockAll")} size="small" onClick={onUnlockAll} />
+                    </RibbonButtonStack>
+                  </>
+                ) : (
+                  <RibbonButton icon={lockIcon} label={t("plan.editLocks")} onClick={onStartLockEditing} />
+                )}
+              </RibbonGroup>
               <RibbonGroup label={t("optimize.greedy")}>
                 <RibbonButton icon={optimizeIcon} label={t("optimize.run")} disabled={optimizationDisabled} onClick={onRunOptimization} />
-                <RibbonButton icon={settingsIcon} label={t("optimize.settings")} onClick={onOpenOptimizationSettings} />
+                <RibbonButton icon={settingsIcon} label={t("optimize.settings")} onClick={() => onOpenTaskPanel?.("optimization")} />
               </RibbonGroup>
             </div>
           </div>
@@ -207,6 +226,13 @@ export default function Ribbon({
                     onClick={() => onForegroundLayerChange("cpts")}
                   >{t("view.cpts")}</button>
                 </div>
+              </RibbonGroup>
+              <RibbonGroup label={t("view.grid")}>
+                <RibbonButton
+                  icon={gridIcon}
+                  label={showGrid ? t("view.hideGrid") : t("view.showGrid")}
+                  onClick={() => onGridVisibilityChange(!showGrid)}
+                />
               </RibbonGroup>
             </div>
           </div>

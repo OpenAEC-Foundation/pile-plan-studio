@@ -10,6 +10,7 @@ import {
 } from "../../viewer/legendSelection.ts";
 import { renderPileSymbol } from "../../viewer/pileSymbols.ts";
 import { filterCheckIcon, pencilIcon } from "../template/ribbon/icons.ts";
+import { getActiveLockedLoadPointIds } from "../../domain/loadPointLocking.ts";
 
 type Props = {
   state: ProjectState;
@@ -37,7 +38,7 @@ export default function Legend({ state, onStateChange, onEdit }: Props) {
     const selectedLoadPointIds = getLoadPointIdsForLegendSelection(
       selectedPileOptionsByLoadPoint(state),
       nextFilter,
-    );
+    ).filter((id) => !getActiveLockedLoadPointIds(state.pilePlans, state.activePilePlanId).includes(id));
     onStateChange({
       ...state,
       legendSelectionFilter: nextFilter,

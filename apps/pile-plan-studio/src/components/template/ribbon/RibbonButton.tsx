@@ -5,6 +5,7 @@ interface RibbonButtonProps {
   size?: "large" | "small" | "medium";
   active?: boolean;
   disabled?: boolean;
+  wide?: boolean;
   onClick?: () => void;
 }
 
@@ -15,11 +16,12 @@ export default function RibbonButton({
   size = "large",
   active,
   disabled,
+  wide,
   onClick,
 }: RibbonButtonProps) {
   return (
     <button
-      className={`ribbon-btn${size === "small" ? " small" : ""}${size === "medium" ? " medium" : ""}${active ? " active" : ""}`}
+      className={`ribbon-btn${size === "small" ? " small" : ""}${size === "medium" ? " medium" : ""}${wide ? " wide" : ""}${active ? " active" : ""}`}
       title={title || label}
       disabled={disabled}
       onClick={onClick}

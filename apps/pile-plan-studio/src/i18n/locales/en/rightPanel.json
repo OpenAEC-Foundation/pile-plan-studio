@@ -1,6 +1,7 @@
 {
   "aria.properties": "Properties",
   "aria.views": "Right panel views",
+  "actions.close": "Close settings",
   "tabs.loadPoint": "Load points",
   "tabs.cpts": "CPTs",
   "tabs.cptSettings": "CPT settings",
@@ -103,7 +104,7 @@
   "optimization.maxSizes": "Maximum different sizes",
   "optimization.maxTips": "Maximum different tip levels",
   "optimization.maxConfigurations": "Maximum different configurations",
-  "optimization.performanceLimit": "Performance limit",
+  "optimization.performanceLimit": "Utilization limit",
   "optimization.maxUtilization": "Maximum utilization",
   "optimization.saveAsNewPilePlan": "Save optimization as a new pile plan",
   "optimization.enableLegend": "Enable at least one size and tip level in the legend.",
