@@ -23,7 +23,7 @@ import {
   refreshProjectFromFilesCore,
 } from "./core/coreClient";
 import type { ImportSourceInput } from "./core/coreImportContract";
-import { applyDefaultPileCostSettings, getImportSummary } from "./core/projectFile";
+import { applyDefaultPileCostSettings, getImportSummary, loadIfcppProjectData } from "./core/projectFile";
 import { writeIfcppProjectCore } from "./core/coreClient";
 import { createInitialProjectState, type ProjectState } from "./domain/projectState";
 import { getSetting } from "./store";
@@ -77,18 +77,107 @@ import {
   projectFromContent,
 } from "./domain/projectContent.ts";
 import { describeHistoryAction, describeHistoryResult } from "./domain/historyMessage.ts";
+import { createBrowserRecoveryRecord } from "./domain/browserRecovery.ts";
+import {
+  createBrowserRecoveryWriter,
+  createIndexedDbRecoveryStore,
+  type BrowserRecoveryStore,
+} from "./domain/browserRecoveryStore.ts";
+import { loadBrowserRecovery } from "./domain/browserRecoveryStartup.ts";
 
 const PILE_COST_DEFAULTS_KEY = "pile-cost-defaults";
 
+type AppBootstrap =
+  | { kind: "loading" }
+  | {
+      kind: "ready";
+      initialProjectText: string;
+      initializeDefaultPiles: boolean;
+      initialSavedProjectSignature?: string;
+      initialWasDirty?: boolean;
+      initialStatusKey?: string;
+      recoveryStore?: BrowserRecoveryStore;
+    };
+
 export default function App() {
+  const { t } = useTranslation();
+  const isDesktop = isDesktopRuntime();
+  const [bootstrap, setBootstrap] = useState<AppBootstrap>(() => isDesktop
+    ? { kind: "ready", initialProjectText: sampleProjectText, initializeDefaultPiles: true }
+    : { kind: "loading" });
+
+  useEffect(() => {
+    if (isDesktop) return;
+    let cancelled = false;
+    const start = async () => {
+      if (!window.indexedDB) {
+        if (!cancelled) setBootstrap({
+          kind: "ready",
+          initialProjectText: sampleProjectText,
+          initializeDefaultPiles: true,
+          initialStatusKey: "recovery.unavailable",
+        });
+        return;
+      }
+      const recoveryStore = createIndexedDbRecoveryStore(window.indexedDB);
+      const result = await loadBrowserRecovery({
+        isDesktop: false,
+        store: recoveryStore,
+        validateProject: (text) => { loadIfcppProjectData(text); },
+      });
+      if (cancelled) return;
+      if (result.kind === "restored") {
+        setBootstrap({
+          kind: "ready",
+          initialProjectText: result.record.ifcppText,
+          initializeDefaultPiles: false,
+          initialSavedProjectSignature: result.record.savedProjectSignature,
+          initialWasDirty: result.record.isDirty,
+          initialStatusKey: "recovery.restored",
+          recoveryStore,
+        });
+      } else {
+        setBootstrap({
+          kind: "ready",
+          initialProjectText: sampleProjectText,
+          initializeDefaultPiles: true,
+          initialStatusKey: result.kind === "invalid"
+            ? "recovery.invalid"
+            : result.kind === "unavailable"
+              ? "recovery.unavailable"
+              : undefined,
+          recoveryStore: result.kind === "unavailable" ? undefined : recoveryStore,
+        });
+      }
+      void navigator.storage?.persist?.().catch(() => false);
+    };
+    void start();
+    return () => { cancelled = true; };
+  }, [isDesktop]);
+
+  if (bootstrap.kind === "loading") {
+    return <div className="app-bootstrap" role="status">{t("recovery.loading")}</div>;
+  }
+
+  return <AppSession {...bootstrap} />;
+}
+
+function AppSession({
+  initialProjectText,
+  initializeDefaultPiles,
+  initialSavedProjectSignature,
+  initialWasDirty = false,
+  initialStatusKey,
+  recoveryStore,
+}: Extract<AppBootstrap, { kind: "ready" }>) {
   const { t, i18n } = useTranslation();
   const [managedProject, dispatchProject] = useReducer(
     projectHistoryReducer,
-    undefined,
-    () => createManagedProjectState(createInitialProjectState(
-      sampleProjectText,
+    initialProjectText,
+    (projectText) => createManagedProjectState(createInitialProjectState(
+      projectText,
       {
-        initializeDefaultPiles: true,
+        initializeDefaultPiles,
         defaultPilePlanName: i18n.language.startsWith("nl") ? "Basisplan" : "Base plan",
       },
     )),
@@ -111,7 +200,7 @@ export default function App() {
   const [feedbackOpen, setFeedbackOpen] = useState(false);
   const [projectInformationOpen, setProjectInformationOpen] = useState(false);
   const [rightTaskPanel, setRightTaskPanel] = useState<RightTaskPanel | null>(null);
-  const [isDirty, setIsDirty] = useState(false);
+  const [isDirty, setIsDirty] = useState(initialWasDirty);
   const [projectPath, setProjectPath] = useState<string | null>(null);
   const [unsavedChangesOpen, setUnsavedChangesOpen] = useState(false);
   const appContentRef = useRef<HTMLDivElement | null>(null);
@@ -121,10 +210,31 @@ export default function App() {
   const [viewerPreferencesLoaded, setViewerPreferencesLoaded] = useState(false);
   const [creatingPilePlan, setCreatingPilePlan] = useState(false);
   const [historyMessage, setHistoryMessage] = useState("");
+  const statusMessageTimeoutRef = useRef<number | null>(null);
+  const showStatusMessage = useCallback((message: string) => {
+    if (statusMessageTimeoutRef.current !== null) window.clearTimeout(statusMessageTimeoutRef.current);
+    setHistoryMessage(message);
+    statusMessageTimeoutRef.current = window.setTimeout(() => {
+      setHistoryMessage("");
+      statusMessageTimeoutRef.current = null;
+    }, 3500);
+  }, []);
   const defaultSelectionRequestRef = useRef<typeof projectState.analysisRequest | null>(null);
   const defaultSelectionKeepsDirtyRef = useRef(false);
   const replacementResolverRef = useRef<((proceed: boolean) => void) | null>(null);
-  const savedProjectSignatureRef = useRef(JSON.stringify(projectFromState(projectState)));
+  const initialProjectSignature = JSON.stringify(projectFromState(projectState));
+  const [savedProjectSignature, setSavedProjectSignature] = useState(
+    initialWasDirty
+      ? (initialSavedProjectSignature ?? "")
+      : initialProjectSignature,
+  );
+  const savedProjectSignatureRef = useRef(savedProjectSignature);
+  const recoveredDirtySignatureRef = useRef(initialWasDirty ? initialProjectSignature : null);
+  const updateSavedProjectSignature = useCallback((signature: string) => {
+    recoveredDirtySignatureRef.current = null;
+    savedProjectSignatureRef.current = signature;
+    setSavedProjectSignature(signature);
+  }, []);
   const preparedProjectRef = useRef<{ signature: string; blob: Blob } | null>(null);
   const isDesktop = isDesktopRuntime();
   const projectFileCommands = getProjectFileCommands(isDesktop);
@@ -153,16 +263,65 @@ export default function App() {
   const persistedProject = projectFromState(projectState);
   const persistedProjectSignature = JSON.stringify(persistedProject);
   useEffect(() => {
-    setIsDirty(persistedProjectSignature !== savedProjectSignatureRef.current);
-  }, [persistedProjectSignature]);
+    if (recoveredDirtySignatureRef.current === persistedProjectSignature) {
+      setIsDirty(true);
+      return;
+    }
+    recoveredDirtySignatureRef.current = null;
+    setIsDirty(persistedProjectSignature !== savedProjectSignature);
+  }, [persistedProjectSignature, savedProjectSignature]);
+
+  const recoveryWriter = useMemo(() => recoveryStore ? createBrowserRecoveryWriter({
+    store: recoveryStore,
+    onError: () => showStatusMessage(t("recovery.unavailable")),
+  }) : null, [recoveryStore, showStatusMessage, t]);
+
+  useEffect(() => {
+    if (initialStatusKey) showStatusMessage(t(initialStatusKey));
+    return () => {
+      if (statusMessageTimeoutRef.current !== null) window.clearTimeout(statusMessageTimeoutRef.current);
+    };
+  }, [initialStatusKey, showStatusMessage, t]);
+
+  useEffect(() => {
+    if (!recoveryWriter) return;
+    recoveryWriter.markReady();
+    return () => {
+      void recoveryWriter.flush().finally(() => recoveryWriter.dispose());
+    };
+  }, [recoveryWriter]);
+
+  useEffect(() => {
+    if (!recoveryWriter) return;
+    const flushRecovery = () => { void recoveryWriter.flush(); };
+    const flushHiddenRecovery = () => {
+      if (document.visibilityState === "hidden") flushRecovery();
+    };
+    window.addEventListener("pagehide", flushRecovery);
+    document.addEventListener("visibilitychange", flushHiddenRecovery);
+    return () => {
+      window.removeEventListener("pagehide", flushRecovery);
+      document.removeEventListener("visibilitychange", flushHiddenRecovery);
+    };
+  }, [recoveryWriter]);
+
+  useEffect(() => {
+    if (!recoveryWriter || projectState.defaultPileSelectionPending) return;
+    recoveryWriter.schedule(async () => createBrowserRecoveryRecord({
+      appVersion: __APP_VERSION__,
+      ifcppText: await writeIfcppProjectCore(persistedProject),
+      projectName: persistedProject.metadata.name,
+      savedProjectSignature,
+      isDirty,
+      updatedAt: new Date().toISOString(),
+    }));
+  }, [isDirty, persistedProjectSignature, projectState.defaultPileSelectionPending, recoveryWriter, savedProjectSignature]);
 
   useEffect(() => {
     const result = managedProject.lastResult;
     if (!result) return;
-    setHistoryMessage(describeHistoryResult(historyTranslate, result));
-    const timeout = window.setTimeout(() => setHistoryMessage(""), 3500);
-    return () => window.clearTimeout(timeout);
-  }, [historyTranslate, managedProject.lastResult]);
+    showStatusMessage(describeHistoryResult(historyTranslate, result));
+  }, [historyTranslate, managedProject.lastResult, showStatusMessage]);
 
   useEffect(() => {
     const handleHistoryShortcut = (event: KeyboardEvent) => {
@@ -210,7 +369,7 @@ export default function App() {
       ? await savePreparedFile(options, prepared.blob)
       : await saveGeneratedFile(options, async () => new Blob([await serializeProject()], { type: "application/json" }));
     if (!saved) return false;
-    savedProjectSignatureRef.current = JSON.stringify(projectFromState(projectState));
+    updateSavedProjectSignature(JSON.stringify(projectFromState(projectState)));
     setIsDirty(false);
     return true;
   };
@@ -226,7 +385,7 @@ export default function App() {
     const { invoke } = await import("@tauri-apps/api/core");
     await invoke("write_project_file", { path, contents: await serializeProject() });
     setProjectPath(path);
-    savedProjectSignatureRef.current = JSON.stringify(projectFromState(projectState));
+    updateSavedProjectSignature(JSON.stringify(projectFromState(projectState)));
     setIsDirty(false);
     return true;
   };
@@ -236,7 +395,7 @@ export default function App() {
     if (!projectPath) return saveProjectAs();
     const { invoke } = await import("@tauri-apps/api/core");
     await invoke("write_project_file", { path: projectPath, contents: await serializeProject() });
-    savedProjectSignatureRef.current = JSON.stringify(projectFromState(projectState));
+    updateSavedProjectSignature(JSON.stringify(projectFromState(projectState)));
     setIsDirty(false);
     return true;
   };
@@ -582,7 +741,7 @@ export default function App() {
           analysisError: null,
         };
         if (savedProjectSignatureRef.current !== "" && !defaultSelectionKeepsDirtyRef.current) {
-          savedProjectSignatureRef.current = JSON.stringify(projectFromState(next));
+          updateSavedProjectSignature(JSON.stringify(projectFromState(next)));
           setIsDirty(false);
         }
         return next;
@@ -746,8 +905,18 @@ export default function App() {
   const installOpenedProject = (project: ProjectState, path: string | null) => {
     replaceProjectState(project);
     setProjectPath(path);
-    savedProjectSignatureRef.current = JSON.stringify(projectFromState(project));
+    updateSavedProjectSignature(JSON.stringify(projectFromState(project)));
     setIsDirty(false);
+  };
+
+  const openSampleProject = async () => {
+    if (!await confirmProjectReplacement()) return;
+    installOpenedProject(createInitialProjectState(sampleProjectText, {
+      initializeDefaultPiles: true,
+      viewerPreferences: projectState,
+      defaultPilePlanName: pilePlanLanguage() === "nl" ? "Basisplan" : "Base plan",
+    }), null);
+    showStatusMessage(t("recovery.sampleOpened"));
   };
 
   const openDesktopProjectPath = async (path: string) => {
@@ -899,7 +1068,7 @@ export default function App() {
             defaultPilePlanName: pilePlanLanguage() === "nl" ? "Basisplan" : "Base plan",
           }));
           setProjectPath(null);
-          savedProjectSignatureRef.current = "";
+          updateSavedProjectSignature("");
           setIsDirty(true);
           return getImportSummary(project);
         }}
@@ -911,6 +1080,7 @@ export default function App() {
           );
           installOpenedProject(project, null);
         }}
+        onOpenSampleProject={openSampleProject}
         onOpenFile={(path) => void openDesktopProjectPath(path)}
         onChooseDesktopProject={chooseDesktopProject}
         onDownloadProject={async () => { await downloadProject(); }}

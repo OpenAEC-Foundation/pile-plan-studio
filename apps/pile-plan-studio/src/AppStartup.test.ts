@@ -33,7 +33,9 @@ describe("React app startup", () => {
   it("initializes default piles for the sample, new imports, and refreshed unmatched points", () => {
     const source = readFileSync(resolve(import.meta.dirname, "App.tsx"), "utf8");
 
-    assert.match(source, /createInitialProjectState\(\s*sampleProjectText,\s*\{[\s\S]*?initializeDefaultPiles: true,[\s\S]*?defaultPilePlanName: i18n\.language\.startsWith\("nl"\) \? "Basisplan" : "Base plan",[\s\S]*?\},?\s*\)/);
+    assert.match(source, /createInitialProjectState\(\s*projectText,\s*\{[\s\S]*?initializeDefaultPiles,[\s\S]*?defaultPilePlanName: i18n\.language\.startsWith\("nl"\) \? "Basisplan" : "Base plan",[\s\S]*?\},?\s*\)/);
+    assert.match(source, /initialProjectText: result\.record\.ifcppText,[\s\S]*?initializeDefaultPiles: false/);
+    assert.match(source, /createInitialProjectState\(sampleProjectText, \{[\s\S]*?initializeDefaultPiles: true,[\s\S]*?viewerPreferences: projectState/);
     assert.match(source, /createInitialProjectState\(withCosts, \{[\s\S]*?initializeDefaultPiles: true,[\s\S]*?viewerPreferences: projectState,[\s\S]*?\}\)/);
     assert.match(source, /createInitialProjectState\(refreshedProject, \{[\s\S]*?initializeDefaultPiles: true,[\s\S]*?viewerPreferences: projectState,[\s\S]*?\}\)/);
     assert.match(source, /createInitialProjectState\(\s*await file\.text\(\),\s*\{ initializeDefaultPiles: false, viewerPreferences: projectState \},?\s*\)/);
@@ -55,7 +57,7 @@ describe("React app startup", () => {
 
     assert.doesNotMatch(defaultSelectionEffect, /setIsDirty\(true\)/);
     assert.match(defaultSelectionEffect, /savedProjectSignatureRef\.current !== ""/);
-    assert.match(defaultSelectionEffect, /savedProjectSignatureRef\.current = JSON\.stringify\(projectFromState\(next\)\)/);
+    assert.match(defaultSelectionEffect, /updateSavedProjectSignature\(JSON\.stringify\(projectFromState\(next\)\)\)/);
   });
 
   it("keeps default selection pending until the guarded request finishes", () => {

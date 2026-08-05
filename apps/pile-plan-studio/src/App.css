@@ -374,3 +374,11 @@ body.is-resizing-panel {
   letter-spacing: 0.08em;
   text-transform: uppercase;
 }
+.app-bootstrap {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  color: var(--theme-text-muted);
+  background: var(--theme-bg);
+  font-size: 12px;
+}

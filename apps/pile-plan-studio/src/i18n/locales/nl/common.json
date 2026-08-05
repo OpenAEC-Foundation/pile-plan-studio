@@ -198,6 +198,13 @@
       "foundationAdvice": "Sondering-ID, puntniveau, afmeting, R_c;net;d"
     }
   },
+  "recovery": {
+    "loading": "Vorige sessie herstellen...",
+    "restored": "Vorige sessie hersteld",
+    "sampleOpened": "Voorbeeldproject geopend",
+    "invalid": "De opgeslagen herstelgegevens waren ongeldig. Het voorbeeldproject is geopend.",
+    "unavailable": "Automatisch browserherstel is niet beschikbaar. Download het project om je werk te bewaren."
+  },
   "unsaved": {
     "title": "Onopgeslagen wijzigingen",
     "desktopMessage": "Dit project bevat wijzigingen die nog niet zijn opgeslagen. Wil je deze eerst opslaan?",

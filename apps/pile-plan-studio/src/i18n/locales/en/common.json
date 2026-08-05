@@ -198,6 +198,13 @@
       "foundationAdvice": "CPT ID, tip, size, R_c;net;d"
     }
   },
+  "recovery": {
+    "loading": "Restoring your previous session...",
+    "restored": "Previous session restored",
+    "sampleOpened": "Sample project opened",
+    "invalid": "Stored recovery data was invalid. The sample project was opened.",
+    "unavailable": "Automatic browser recovery is unavailable. Download the project to keep your work."
+  },
   "unsaved": {
     "title": "Unsaved changes",
     "desktopMessage": "This project has changes that have not been saved. Save them before continuing?",
