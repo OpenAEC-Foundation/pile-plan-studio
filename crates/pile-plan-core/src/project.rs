@@ -73,6 +73,30 @@ pub struct ProjectSettings {
     pub viewer_utilization: ViewerUtilizationSettings,
     pub active_pile_sizes: Vec<u32>,
     pub active_pile_tip_levels: Vec<f64>,
+    #[serde(default)]
+    pub pile_legend: Option<ProjectLegendSettings>,
+}
+
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+pub struct ProjectPileSymbol {
+    pub base_shape: String,
+    pub fill_pattern: String,
+}
+
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+pub struct ProjectLegendValueStyle {
+    pub value: f64,
+    pub symbol: ProjectPileSymbol,
+    pub color: String,
+}
+
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+pub struct ProjectLegendSettings {
+    pub encoding_mode: String,
+    #[serde(default)]
+    pub pile_sizes: Vec<ProjectLegendValueStyle>,
+    #[serde(default)]
+    pub pile_tip_levels: Vec<ProjectLegendValueStyle>,
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
@@ -395,6 +419,45 @@ mod tests {
     }
 
     #[test]
+    fn project_settings_accept_missing_pile_legend() {
+        let mut value = serde_json::to_value(sample_project()).expect("project serializes");
+        value
+            .get_mut("settings")
+            .and_then(serde_json::Value::as_object_mut)
+            .expect("settings are an object")
+            .remove("pile_legend");
+
+        let parsed: PilePlanProject =
+            serde_json::from_value(value).expect("legacy settings deserialize");
+
+        assert!(parsed.settings.pile_legend.is_none());
+    }
+
+    #[test]
+    fn project_settings_round_trip_pile_legend() {
+        let mut project = sample_project();
+        let legend = ProjectLegendSettings {
+            encoding_mode: "tip-symbol".to_string(),
+            pile_sizes: vec![ProjectLegendValueStyle {
+                value: 320.0,
+                symbol: ProjectPileSymbol {
+                    base_shape: "square".to_string(),
+                    fill_pattern: "top-half".to_string(),
+                },
+                color: "#0072B2".to_string(),
+            }],
+            pile_tip_levels: vec![],
+        };
+        project.settings.pile_legend = Some(legend.clone());
+
+        let value = serde_json::to_value(project).expect("project serializes");
+        let restored: PilePlanProject =
+            serde_json::from_value(value).expect("project deserializes");
+
+        assert_eq!(restored.settings.pile_legend, Some(legend));
+    }
+
+    #[test]
     fn viewer_utilization_settings_clamp_and_order_percentages() {
         assert_eq!(
             ViewerUtilizationSettings {
@@ -498,6 +561,7 @@ mod tests {
                 viewer_utilization: ViewerUtilizationSettings::default(),
                 active_pile_sizes: vec![290],
                 active_pile_tip_levels: vec![-18.0],
+                pile_legend: None,
             },
             user_state: ProjectUserState {
                 pile_plans: vec![PilePlan {
