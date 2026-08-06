@@ -2,7 +2,6 @@ import type { ProjectState } from "../../domain/projectState";
 import { useTranslation } from "react-i18next";
 import { applyLegendEditorBulkAction } from "../../domain/legendEditorModel.ts";
 import { buildLegendPresentation, deriveUsedPileConfigurations } from "../../domain/legendState.ts";
-import { getLegendItems } from "../../viewer/legend.ts";
 import {
   getLoadPointIdsForLegendSelection,
   replaceLegendSelectionFilter,
@@ -20,7 +19,7 @@ type Props = {
 
 export default function Legend({ state, onStateChange, onEdit }: Props) {
   const { t, i18n } = useTranslation("common");
-  const legend = getLegendItems(state.bearingCapacities);
+  const legend = state.pileLegend;
   const used = deriveUsedPileConfigurations(state.selectedPileOptionKeysByLoadPoint.values());
   const presentation = buildLegendPresentation({
     legend,
@@ -79,10 +78,12 @@ export default function Legend({ state, onStateChange, onEdit }: Props) {
               type="button"
               onClick={(event) => selectByLegend("size", item.value, event.shiftKey)}
             >
-              <span
-                className="legend-symbol"
-                dangerouslySetInnerHTML={{ __html: renderPileSymbol(item.shape, "transparent") }}
-              />
+              {presentation.encodingMode === "size-symbol" ? (
+                <span
+                  className="legend-symbol"
+                  dangerouslySetInnerHTML={{ __html: renderPileSymbol(item.symbol, "currentColor") }}
+                />
+              ) : <span className="legend-color" style={{ backgroundColor: item.color }} />}
               <span className="legend-item-label">{item.value} mm</span>
               {item.state === "disabled-used" ? <LegendWarning /> : null}
             </button>
@@ -102,7 +103,12 @@ export default function Legend({ state, onStateChange, onEdit }: Props) {
               type="button"
               onClick={(event) => selectByLegend("tip", item.value, event.shiftKey)}
             >
-              <span className="legend-color" style={{ backgroundColor: item.color }} />
+              {presentation.encodingMode === "tip-symbol" ? (
+                <span
+                  className="legend-symbol"
+                  dangerouslySetInnerHTML={{ __html: renderPileSymbol(item.symbol, "currentColor") }}
+                />
+              ) : <span className="legend-color" style={{ backgroundColor: item.color }} />}
               <span className="legend-item-label">{formatTipLevel(item.value, i18n.language)}</span>
               {item.state === "disabled-used" ? <LegendWarning /> : null}
             </button>

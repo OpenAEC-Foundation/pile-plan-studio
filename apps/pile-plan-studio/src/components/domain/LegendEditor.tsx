@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import type { PileShape } from "../../core/projectTypes.ts";
+import type { PileSymbol } from "../../core/projectTypes.ts";
 import type { ProjectState } from "../../domain/projectState.ts";
 import {
   applyLegendEditorBulkAction,
@@ -14,7 +14,6 @@ import {
   deriveUsedPileConfigurations,
   type LegendPresentationState,
 } from "../../domain/legendState.ts";
-import { getLegendItems } from "../../viewer/legend.ts";
 import { renderPileSymbol } from "../../viewer/pileSymbols.ts";
 import Modal from "../template/Modal.tsx";
 import "./LegendEditor.css";
@@ -30,7 +29,7 @@ type EditorItem = {
   kind: "size" | "tip";
   value: number;
   state: LegendPresentationState;
-  shape?: PileShape;
+  symbol?: PileSymbol;
   color?: string;
 };
 
@@ -38,7 +37,7 @@ export default function LegendEditor({ open, state, onApply, onClose }: Props) {
   const { t, i18n } = useTranslation("common");
   const [draft, setDraft] = useState(() => createLegendEditorDraft(activeFromState(state)));
   const openedPlanId = useRef(state.activePilePlanId);
-  const legend = getLegendItems(state.bearingCapacities);
+  const legend = state.pileLegend;
   const used = deriveUsedPileConfigurations(state.selectedPileOptionKeysByLoadPoint.values());
   const presentation = buildLegendPresentation({ legend, enabled: draft, used });
   const available = {
@@ -169,10 +168,10 @@ export default function LegendEditor({ open, state, onApply, onClose }: Props) {
         type="button"
         onClick={() => setDraft(toggleLegendEditorItem(draft, item.kind, item.value))}
       >
-        {!isDisabled && item.shape ? (
+        {!isDisabled && item.symbol ? (
           <span
             className="legend-symbol"
-            dangerouslySetInnerHTML={{ __html: renderPileSymbol(item.shape, "transparent") }}
+            dangerouslySetInnerHTML={{ __html: renderPileSymbol(item.symbol, "currentColor") }}
           />
         ) : null}
         {!isDisabled && item.color ? (

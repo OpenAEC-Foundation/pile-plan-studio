@@ -44,7 +44,6 @@ export function buildLegendPresentation(input: LegendPresentationInput): LegendP
     ...enabledSizes,
     ...usedSizes,
   ], false).map((value) => ({
-    value,
     ...(sizeStyles.get(value) ?? fallbackStyle(value)),
     state: presentationState(enabledSizes.has(value), usedSizes.has(value)),
   }));
@@ -53,7 +52,6 @@ export function buildLegendPresentation(input: LegendPresentationInput): LegendP
     ...enabledTips,
     ...usedTips,
   ], true).map((value) => ({
-    value,
     ...(tipStyles.get(value) ?? fallbackStyle(value)),
     state: presentationState(enabledTips.has(value), usedTips.has(value)),
   }));

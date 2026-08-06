@@ -3,12 +3,12 @@ import { filterActivePileOptions } from "../../domain/activePileConfigurations.t
 import { getCptDisplayName } from "../../domain/cptDisplayName.ts";
 import { getSelectedCptTableModel } from "../../domain/cptSelectionTable.ts";
 import { formatNumber, formatOptionalNumber } from "../../domain/formatting.ts";
-import { getConfigurationStyle, type getLegendItems } from "../../viewer/legend.ts";
+import { getConfigurationStyle } from "../../viewer/legend.ts";
 import { aggregatePileOptionsForLoadPoints } from "../../domain/pileOptionAggregation.ts";
 import { getPileOptionStatus } from "../../domain/pileOptionStatus.ts";
 import type { PileOptionTableRow } from "../../domain/pileOptionTable.ts";
 import { renderPileSymbol } from "../../viewer/pileSymbols.ts";
-import type { Cpt, LoadPoint, PileConfigurationOption } from "../.././core/projectTypes.ts";
+import type { Cpt, LegendItems, LoadPoint, PileConfigurationOption } from "../.././core/projectTypes.ts";
 
 export type RenderablePileOptionTableRow = PileOptionTableRow & {
   governingCptId: number | null;
@@ -123,7 +123,7 @@ export function getRenderablePileOptionRows(input: {
   costsByOptionKey: Map<string, number | null>;
   options: PileConfigurationOption[];
   selectedLoadPointCount: number;
-  legend: ReturnType<typeof getLegendItems>;
+  legend: LegendItems;
 }): RenderablePileOptionTableRow[] {
   return input.options.map((option) => {
     const status = getPileOptionStatus(option);
@@ -149,7 +149,7 @@ export function getRenderablePileOptionRows(input: {
       sizeValue: option.pile_size_mm,
       statusClassName: status.className,
       statusLabel: status.label,
-      symbolHtml: renderPileSymbol(style.shape, style.color),
+      symbolHtml: renderPileSymbol(style.symbol, style.color),
       symbolLabel: `${sizeLabel} ${tipLabel}`,
       tipLabel,
       tipValue: option.pile_tip_level_m,

@@ -99,7 +99,7 @@ export function assignLegendSymbols(
 ): { ok: true; legend: LegendItems } | { ok: false; reason: "catalog-exhausted"; limit: 54 } {
   const values = uniqueSorted(includedValues, kind === "pileTipLevels");
   if (values.length > PILE_SYMBOL_CATALOG.length) {
-    return { ok: false, reason: "catalog-exhausted", limit: PILE_SYMBOL_CATALOG.length };
+    return { ok: false, reason: "catalog-exhausted", limit: 54 };
   }
   const assignments = new Map(values.map((value, index) => [value, PILE_SYMBOL_CATALOG[index]]));
   return {

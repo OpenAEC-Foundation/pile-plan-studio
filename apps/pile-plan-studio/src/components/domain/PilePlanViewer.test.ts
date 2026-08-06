@@ -5,6 +5,19 @@ import { resolve } from "node:path";
 import { createInitialProjectState } from "../../domain/projectState.ts";
 
 describe("PilePlanViewer inputs", () => {
+  it("renders viewer, hover, and normal legend styles from the project legend", () => {
+    const viewer = readFileSync(resolve(import.meta.dirname, "PilePlanViewer.tsx"), "utf8");
+    const legend = readFileSync(resolve(import.meta.dirname, "Legend.tsx"), "utf8");
+
+    assert.match(viewer, /const legend = state\.pileLegend/);
+    assert.match(viewer, /renderPileSymbol\(style\.symbol, style\.color\)/);
+    assert.match(viewer, /renderPileSymbol\(symbolStyle\.symbol, symbolStyle\.color\)/);
+    assert.doesNotMatch(viewer, /getLegendItems/);
+    assert.match(legend, /const legend = state\.pileLegend/);
+    assert.match(legend, /buildLegendPresentation\(\{\s*legend,/);
+    assert.doesNotMatch(legend, /getLegendItems/);
+  });
+
   it("dims and excludes locked load points outside lock editing", () => {
     const source = readFileSync(resolve(import.meta.dirname, "PilePlanViewer.tsx"), "utf8");
     const css = readFileSync(resolve(import.meta.dirname, "viewer.css"), "utf8");

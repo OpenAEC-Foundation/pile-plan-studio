@@ -10,7 +10,7 @@ import { useTranslation } from "react-i18next";
 import type { ProjectState } from "../../domain/projectState";
 import { getCptDisplayName } from "../../domain/cptDisplayName.ts";
 import { getPointIdsInRectangle, type LassoRectangle } from "../../viewer/lassoSelection.ts";
-import { getConfigurationStyle, getLegendItems } from "../../viewer/legend.ts";
+import { getConfigurationStyle } from "../../viewer/legend.ts";
 import { getCptMarkerLayerClass, getForegroundLayerClass, getLoadPointMarkerLayerClass } from "../../viewer/mapMarkerLayer.ts";
 import { shouldStartMapPan } from "../../viewer/mapInteraction.ts";
 import { getHighlightedGoverningCptId } from "../../viewer/legendSelection.ts";
@@ -67,7 +67,7 @@ type Props = {
 
 export default function PilePlanViewer({ state, onStateChange }: Props) {
   const { t, i18n } = useTranslation("common");
-  const legend = getLegendItems(state.bearingCapacities);
+  const legend = state.pileLegend;
   const selectedLoadPointIds = new Set(state.selectedLoadPointIds);
   const isEditingLoadPointLocks = state.loadPointLockDraft !== null;
   const lockedLoadPointIds = new Set(
@@ -335,7 +335,7 @@ export default function PilePlanViewer({ state, onStateChange }: Props) {
                 {style ? (
                   <span
                     className="load-point-symbol"
-                    dangerouslySetInnerHTML={{ __html: renderPileSymbol(style.shape, style.color) }}
+                    dangerouslySetInnerHTML={{ __html: renderPileSymbol(style.symbol, style.color) }}
                   />
                 ) : unselectedState === "pending" ? (
                   <span className="load-point-pending" aria-hidden="true" />
@@ -712,7 +712,7 @@ export default function PilePlanViewer({ state, onStateChange }: Props) {
         style={getInvalidMarkerStyle(invalidVisual.style)}
       >
         {symbolStyle ? (
-          <span dangerouslySetInnerHTML={{ __html: renderPileSymbol(symbolStyle.shape, symbolStyle.color) }} />
+          <span dangerouslySetInnerHTML={{ __html: renderPileSymbol(symbolStyle.symbol, symbolStyle.color) }} />
         ) : unselectedState === "pending" ? (
           <span className="load-point-pending" aria-hidden="true" />
         ) : (

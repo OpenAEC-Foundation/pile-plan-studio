@@ -41,8 +41,17 @@ describe("React right panel model", () => {
       ],
       selectedLoadPointCount: 1,
       legend: {
-        pileSizes: [{ value: 290, shape: "circle" }],
-        pileTipLevels: [{ value: -17.5, color: "#4e79a7" }],
+        encodingMode: "tip-symbol",
+        pileSizes: [{
+          value: 290,
+          symbol: { baseShape: "circle", fillPattern: "full" },
+          color: "#123456",
+        }],
+        pileTipLevels: [{
+          value: -17.5,
+          symbol: { baseShape: "rectangle-horizontal", fillPattern: "top-half" },
+          color: "#4E79A7",
+        }],
       },
     });
 
@@ -53,6 +62,8 @@ describe("React right panel model", () => {
     assert.equal(rows[0].costLabel, "€1,234");
     assert.equal(rows[0].useLabel, "75%");
     assert.equal(rows[0].frdLabel, "900 kN");
+    assert.match(rows[0].symbolHtml, /<rect x="3" y="7" width="18" height="10"/);
+    assert.match(rows[0].symbolHtml, /fill="#123456"/);
   });
 
   it("shows the governing CPT id when an imported CPT has no name", () => {
@@ -70,8 +81,17 @@ describe("React right panel model", () => {
       }],
       selectedLoadPointCount: 1,
       legend: {
-        pileSizes: [{ value: 290, shape: "circle" }],
-        pileTipLevels: [{ value: -17.5, color: "#4e79a7" }],
+        encodingMode: "size-symbol",
+        pileSizes: [{
+          value: 290,
+          symbol: { baseShape: "circle", fillPattern: "full" },
+          color: "#123456",
+        }],
+        pileTipLevels: [{
+          value: -17.5,
+          symbol: { baseShape: "square", fillPattern: "full" },
+          color: "#4E79A7",
+        }],
       },
     });
 
@@ -198,6 +218,12 @@ function minimalState(overrides: Partial<ProjectState> = {}): ProjectState {
   return {
     activePileSizes: [290, 320],
     activePileTipLevels: [-17.5, -18],
+    pileLegend: {
+      encodingMode: "size-symbol",
+      pileSizes: [],
+      pileTipLevels: [],
+    },
+    legendImportWarnings: [],
     analysisError: null,
     analysisRequest: { revision: 0, loadPointIds: null },
     defaultPileSelectionPending: false,
