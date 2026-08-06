@@ -1,46 +1,67 @@
-import type { PileShape } from "../core/projectTypes.ts";
+import type { PileBaseShape, PileFillPattern, PileSymbol } from "../core/projectTypes.ts";
 
 const SYMBOL_STROKE = "#172026";
 const SYMBOL_STROKE_WIDTH = 2.4;
+const SYMBOL_NEUTRAL_FILL = "#F3F5F6";
 
-export function renderPileSymbol(shape: PileShape, fillColor: string): string {
+export function renderPileSymbol(symbol: PileSymbol, fillColor: string): string {
   const fill = escapeSvgAttribute(fillColor);
-  const shapeAttributes = [
-    `fill="${fill}"`,
+  const clipId = `pile-symbol-${symbol.fillPattern}`;
+  const clip = renderClip(symbol.fillPattern, clipId);
+  const coloredAttributes = symbol.fillPattern === "full"
+    ? `fill="${fill}" stroke="none"`
+    : `fill="${fill}" stroke="none" clip-path="url(#${clipId})"`;
+  const outlineAttributes = [
+    `fill="none"`,
     `stroke="${SYMBOL_STROKE}"`,
     `stroke-width="${SYMBOL_STROKE_WIDTH}"`,
     `stroke-linejoin="round"`,
   ].join(" ");
 
-  return `<svg class="pile-symbol-svg" viewBox="0 0 24 24" aria-hidden="true" focusable="false">${renderShape(shape, shapeAttributes)}</svg>`;
+  return [
+    `<svg class="pile-symbol-svg" viewBox="0 0 24 24" aria-hidden="true" focusable="false">`,
+    clip,
+    renderShape(symbol.baseShape, `fill="${SYMBOL_NEUTRAL_FILL}" stroke="none"`),
+    renderShape(symbol.baseShape, coloredAttributes),
+    renderShape(symbol.baseShape, outlineAttributes),
+    `</svg>`,
+  ].join("");
 }
 
-function renderShape(shape: PileShape, shapeAttributes: string): string {
-  switch (shape) {
+function renderClip(fillPattern: PileFillPattern, clipId: string): string {
+  if (fillPattern === "full") return "";
+  const region = fillPattern === "top-half"
+    ? `<rect x="0" y="0" width="24" height="12" />`
+    : fillPattern === "bottom-half"
+      ? `<rect x="0" y="12" width="24" height="12" />`
+      : fillPattern === "left-half"
+        ? `<rect x="0" y="0" width="12" height="24" />`
+        : fillPattern === "right-half"
+          ? `<rect x="12" y="0" width="12" height="24" />`
+          : `<polygon points="0,0 24,0 0,24" />`;
+  return `<defs><clipPath id="${clipId}">${region}</clipPath></defs>`;
+}
+
+function renderShape(baseShape: PileBaseShape, attributes: string): string {
+  switch (baseShape) {
     case "circle":
-      return `<circle cx="12" cy="12" r="8.5" ${shapeAttributes} />`;
+      return `<circle cx="12" cy="12" r="8.5" ${attributes} />`;
     case "square":
-      return `<rect x="5" y="5" width="14" height="14" rx="2" ${shapeAttributes} />`;
+      return `<rect x="5" y="5" width="14" height="14" rx="2" ${attributes} />`;
     case "diamond":
-      return `<polygon points="12,3 21,12 12,21 3,12" ${shapeAttributes} />`;
+      return `<polygon points="12,3 21,12 12,21 3,12" ${attributes} />`;
     case "triangle-up":
-      return `<polygon points="12,3 21,20 3,20" ${shapeAttributes} />`;
+      return `<polygon points="12,3 21,20 3,20" ${attributes} />`;
     case "triangle-down":
-      return `<polygon points="3,4 21,4 12,21" ${shapeAttributes} />`;
+      return `<polygon points="3,4 21,4 12,21" ${attributes} />`;
     case "triangle-left":
-      return `<polygon points="4,12 20,3 20,21" ${shapeAttributes} />`;
+      return `<polygon points="4,12 20,3 20,21" ${attributes} />`;
     case "triangle-right":
-      return `<polygon points="4,3 20,12 4,21" ${shapeAttributes} />`;
-    case "pentagon":
-      return `<polygon points="12,3 21,10 18,21 6,21 3,10" ${shapeAttributes} />`;
-    case "star":
-      return `<polygon points="12,2.5 14.8,8.7 21.5,9.2 16.4,13.6 18,20.2 12,16.8 6,20.2 7.6,13.6 2.5,9.2 9.2,8.7" ${shapeAttributes} />`;
-    case "thin-diamond":
-      return `<polygon points="12,2 17,12 12,22 7,12" ${shapeAttributes} />`;
-    case "hexagon":
-      return `<polygon points="7,3 17,3 22,12 17,21 7,21 2,12" ${shapeAttributes} />`;
-    case "octagon":
-      return `<polygon points="8,3 16,3 21,8 21,16 16,21 8,21 3,16 3,8" ${shapeAttributes} />`;
+      return `<polygon points="4,3 20,12 4,21" ${attributes} />`;
+    case "rectangle-horizontal":
+      return `<rect x="3" y="7" width="18" height="10" rx="2" ${attributes} />`;
+    case "rectangle-vertical":
+      return `<rect x="7" y="3" width="10" height="18" rx="2" ${attributes} />`;
   }
 }
 
