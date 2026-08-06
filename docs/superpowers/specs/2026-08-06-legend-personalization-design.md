@@ -31,7 +31,7 @@ This change includes:
 - a 54-symbol catalog assembled from nine base shapes and six fill patterns;
 - manual shape and color controls in the existing legend editor;
 - automatic assignment to enabled items or all items;
-- four built-in color schemes with inline previews;
+- five built-in color schemes with inline previews;
 - a reset-to-built-in-appearance action;
 - IFCPP persistence and backwards-compatible loading;
 - inclusion in Undo/Redo and browser recovery;
@@ -122,12 +122,17 @@ Icon controls receive localized tooltips and accessible names, including:
 
 ## Encoding Controls
 
-A compact segmented control appears near the top of the editor:
+A compact segmented control appears near the top of the editor under the label `Symbol represents` / `Symbool representeert`:
 
-- `Size → shape · Tip level → color`;
-- `Size → color · Tip level → shape`.
+- `Size` / `Afmeting`;
+- `Tip level` / `Puntniveau`.
 
-The Dutch labels use `Afmeting`, `symbool`, `Puntniveau`, and `kleur`.
+A small dynamic line below the control communicates the complementary channel:
+
+- when size is selected: `Color represents tip level` / `Kleur representeert puntniveau`;
+- when tip level is selected: `Color represents size` / `Kleur representeert afmeting`.
+
+This wording avoids two long compound segment labels while keeping both parts of the encoding explicit.
 
 Switching modes updates the draft preview immediately. It does not apply changes to project state until the user chooses Apply.
 
@@ -139,7 +144,7 @@ The symbol button opens a compact picker containing:
 
 - a large preview of the composed symbol;
 - a grid containing the nine base shapes;
-- a fill-pattern control containing six choices.
+- an icon-based fill-pattern radiogroup containing six choices.
 
 The nine base shapes are intentionally limited to silhouettes that remain clearly distinguishable at small viewer sizes:
 
@@ -161,6 +166,8 @@ The six fill patterns are:
 4. left half;
 5. right half;
 6. diagonal half.
+
+The fill-pattern radiogroup is labeled `Fill` / `Vulling`. Every option previews the current base shape with that fill pattern. The options use localized tooltips and accessible names: `Full`, `Top`, `Bottom`, `Left`, `Right`, and `Diagonal`, with the corresponding Dutch labels `Volledig`, `Boven`, `Onder`, `Links`, `Rechts`, and `Diagonaal`. The selected option uses the standard accent outline. The six options form one row when space permits and reflow to a three-by-two grid on narrow layouts.
 
 The fill pattern is part of the symbol definition. The colored portion uses the color resolved through the active encoding mode. The uncolored portion uses an opaque light neutral fill suited to the viewer's fixed white background, so overlapping symbols cannot show unrelated objects through their uncolored half. The outer contour remains the normal viewer symbol outline color.
 
@@ -226,9 +233,12 @@ The color-scheme control is a custom listbox rather than a plain native select. 
 The built-in schemes are:
 
 - **Distinct colors**: the current Tableau 10-based categorical palette followed by the deterministic golden-angle HSL extension;
+- **Colorblind-friendly**: a discrete palette optimized for common red-green color-vision deficiencies, followed by controlled lightness and saturation variants when the base sequence is exhausted;
 - **Rainbow**: evenly distributed hues across the spectrum at controlled saturation and lightness;
 - **Light to dark**: an ordered single-hue blue scale with bounds chosen to remain visible on the white viewer;
 - **Cool to warm**: an ordered blue-to-cyan-to-yellow-to-orange-to-red scale.
+
+The localized name is `Colorblind-friendly` / `Kleurenblindvriendelijk`. It is presented as an aid rather than a guarantee that color alone distinguishes every value for every form of color-vision deficiency. Shape and fill remain available as independent visual channels.
 
 For ordered schemes, values run from shallow/small at the light or cool start to deep/large at the dark or warm end. Rainbow colors follow the same sorted value order even though the scheme is primarily a hue sequence.
 
@@ -378,7 +388,7 @@ This prevents the editor, viewer, and serializer from developing separate interp
 - cross-project user legend preferences;
 - saving, naming, importing, or exporting custom palettes as reusable presets;
 - user-authored color-gradient stops;
-- more than the four built-in automatic color schemes;
+- more than the five built-in automatic color schemes;
 - per-pile-plan legend appearance;
 - automatic warnings for duplicate manually assigned symbols or colors;
 - changing the viewer's semantic colors for selection, missing data, utilization, or CPT state.
