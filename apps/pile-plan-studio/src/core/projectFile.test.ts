@@ -275,6 +275,70 @@ describe("IFCPP project loading", () => {
     assert.equal(reloaded.selectedPileOptionKeysByLoadPoint.get(1), "320|-19");
   });
 
+  it("creates a built-in legend when an older IFCPP file has no mapping", () => {
+    const loaded = loadIfcppProjectData(projectFixture());
+
+    assert.equal(loaded.pileLegend.encodingMode, "size-symbol");
+    assert.deepEqual(loaded.pileLegend.pileSizes[0], {
+      value: 290,
+      symbol: { baseShape: "circle", fillPattern: "full" },
+      color: "#4E79A7",
+    });
+    assert.deepEqual(loaded.legendImportWarnings, []);
+  });
+
+  it("round-trips project legend appearance and encoding", () => {
+    const loaded = loadIfcppProjectData(projectFixture());
+    loaded.pileLegend = {
+      ...loaded.pileLegend,
+      encodingMode: "tip-symbol",
+      pileSizes: loaded.pileLegend.pileSizes.map((item) => ({
+        ...item,
+        symbol: { baseShape: "rectangle-horizontal", fillPattern: "diagonal-half" },
+        color: "#123456",
+      })),
+    };
+
+    const saved = createIfcppProject(loaded);
+    const reloaded = loadIfcppProjectData(saved);
+
+    assert.equal(saved.settings.pile_legend?.encoding_mode, "tip-symbol");
+    assert.deepEqual(reloaded.pileLegend, loaded.pileLegend);
+  });
+
+  it("falls back only the malformed stored legend channel", () => {
+    const project = projectFixture();
+    project.settings.pile_legend = {
+      encoding_mode: "size-symbol",
+      pile_sizes: [{
+        value: 290,
+        symbol: { base_shape: "future-star", fill_pattern: "full" },
+        color: "#123456",
+      }],
+      pile_tip_levels: [{
+        value: -18,
+        symbol: { base_shape: "square", fill_pattern: "top-half" },
+        color: "#654321",
+      }],
+    };
+
+    const loaded = loadIfcppProjectData(project);
+
+    assert.deepEqual(loaded.legendImportWarnings, [
+      { itemType: "size", value: 290, field: "symbol" },
+    ]);
+    assert.deepEqual(loaded.pileLegend.pileSizes[0], {
+      value: 290,
+      symbol: { baseShape: "circle", fillPattern: "full" },
+      color: "#123456",
+    });
+    assert.deepEqual(loaded.pileLegend.pileTipLevels[0], {
+      value: -18,
+      symbol: { baseShape: "square", fillPattern: "top-half" },
+      color: "#654321",
+    });
+  });
+
   it("preserves inactive plans while saving edits to the active plan", () => {
     const legacy = projectFixture();
     const loaded = loadIfcppProjectData({

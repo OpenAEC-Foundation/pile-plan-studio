@@ -4,11 +4,16 @@ import type {
   CptSelectionAlgorithm,
   CptSelectionSettings,
   GreedyOptimizationSettings,
+  LegendItems,
   LoadPoint,
   PileConfigurationKey,
   PileCostSettings,
   ViewerUtilizationSettings,
 } from "./projectTypes.ts";
+import {
+  reconcileProjectLegend,
+  type LegendImportWarning,
+} from "../viewer/legend.ts";
 
 type IfcppGreedyOptimizationSettings = Omit<GreedyOptimizationSettings, "max_utilization"> & {
   max_utilization?: number;
@@ -29,6 +34,23 @@ type IfcppCptSelectionSettings = {
 type IfcppSelectedPileChoice = {
   pile: PileConfigurationKey | null;
   external_references?: unknown[];
+};
+
+type IfcppPileSymbol = {
+  base_shape: unknown;
+  fill_pattern: unknown;
+};
+
+type IfcppLegendValueStyle = {
+  value: number;
+  symbol: IfcppPileSymbol;
+  color: unknown;
+};
+
+type IfcppProjectLegend = {
+  encoding_mode: unknown;
+  pile_sizes: IfcppLegendValueStyle[];
+  pile_tip_levels: IfcppLegendValueStyle[];
 };
 
 export type IfcppPilePlan = {
@@ -71,6 +93,7 @@ export type IfcppProject = {
     viewer_utilization?: ViewerUtilizationSettings;
     active_pile_sizes: number[];
     active_pile_tip_levels: number[];
+    pile_legend?: IfcppProjectLegend | null;
   };
   user_state: {
     selected_piles?: Record<string, IfcppSelectedPileChoice>;
@@ -110,6 +133,8 @@ export type LoadedProjectData = {
   pileCostSettings: PileCostSettings;
   activePileSizes: number[];
   activePileTipLevels: number[];
+  pileLegend: LegendItems;
+  legendImportWarnings: LegendImportWarning[];
   optimizationSettings: GreedyOptimizationSettings;
   viewerUtilizationSettings: ViewerUtilizationSettings;
   pilePlans: PilePlanData[];
@@ -139,6 +164,10 @@ export function loadIfcppProjectData(input: string | IfcppProject): LoadedProjec
 
   const { pilePlans, activePilePlanId } = loadPilePlans(project);
   const activePilePlan = pilePlans.find((plan) => plan.id === activePilePlanId) ?? pilePlans[0];
+  const { legend: pileLegend, warnings: legendImportWarnings } = reconcileProjectLegend(
+    fromIfcppProjectLegend(project.settings.pile_legend),
+    project.inputs.bearing_capacities,
+  );
 
   return {
     name: project.metadata.name,
@@ -153,6 +182,8 @@ export function loadIfcppProjectData(input: string | IfcppProject): LoadedProjec
     pileCostSettings: project.settings.pile_costs,
     activePileSizes: project.settings.active_pile_sizes,
     activePileTipLevels: project.settings.active_pile_tip_levels,
+    pileLegend,
+    legendImportWarnings,
     optimizationSettings: {
       ...project.settings.optimization,
       max_utilization: clampUnitInterval(project.settings.optimization.max_utilization ?? 1),
@@ -246,6 +277,7 @@ export function createIfcppProject(input: {
   viewerUtilizationSettings: ViewerUtilizationSettings;
   activePileSizes: number[];
   activePileTipLevels: number[];
+  pileLegend: LegendItems;
   pilePlans?: PilePlanData[];
   activePilePlanId?: string;
   selectedPileOptionKeysByLoadPoint: Map<number, string>;
@@ -303,6 +335,7 @@ export function createIfcppProject(input: {
       viewer_utilization: normalizeViewerUtilizationSettings(input.viewerUtilizationSettings),
       active_pile_sizes: input.activePileSizes,
       active_pile_tip_levels: input.activePileTipLevels,
+      pile_legend: toIfcppProjectLegend(input.pileLegend),
     },
     user_state: {
       pile_plans: sourcePlans.map((plan) => {
@@ -330,6 +363,49 @@ export function createIfcppProject(input: {
       ),
     },
     import_log: [],
+  };
+}
+
+function fromIfcppProjectLegend(legend: IfcppProjectLegend | null | undefined): unknown {
+  if (!legend || typeof legend !== "object") return null;
+  return {
+    encodingMode: legend.encoding_mode,
+    pileSizes: fromIfcppLegendValues(legend.pile_sizes),
+    pileTipLevels: fromIfcppLegendValues(legend.pile_tip_levels),
+  };
+}
+
+function fromIfcppLegendValues(values: unknown): unknown[] {
+  if (!Array.isArray(values)) return [];
+  return values.map((item) => {
+    const value = item as Partial<IfcppLegendValueStyle>;
+    return {
+      value: value.value,
+      symbol: {
+        baseShape: value.symbol?.base_shape,
+        fillPattern: value.symbol?.fill_pattern,
+      },
+      color: value.color,
+    };
+  });
+}
+
+function toIfcppProjectLegend(legend: LegendItems): IfcppProjectLegend {
+  return {
+    encoding_mode: legend.encodingMode,
+    pile_sizes: legend.pileSizes.map(toIfcppLegendValue),
+    pile_tip_levels: legend.pileTipLevels.map(toIfcppLegendValue),
+  };
+}
+
+function toIfcppLegendValue(item: LegendItems["pileSizes"][number]): IfcppLegendValueStyle {
+  return {
+    value: item.value,
+    symbol: {
+      base_shape: item.symbol.baseShape,
+      fill_pattern: item.symbol.fillPattern,
+    },
+    color: item.color,
   };
 }
 

@@ -15,6 +15,7 @@ export type ProjectContent = Pick<ProjectState,
   | "viewerUtilizationSettings"
   | "activePileSizes"
   | "activePileTipLevels"
+  | "pileLegend"
   | "pilePlans"
   | "manualCptIdsByLoadPoint"
 >;
@@ -38,6 +39,7 @@ const PROJECT_CONTENT_KEYS = [
   "viewerUtilizationSettings",
   "activePileSizes",
   "activePileTipLevels",
+  "pileLegend",
   "pilePlans",
   "manualCptIdsByLoadPoint",
 ] as const satisfies readonly (keyof ProjectContent)[];

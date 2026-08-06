@@ -22,6 +22,8 @@ describe("project content", () => {
     assert.equal(content.loadPoints, state.loadPoints);
     assert.equal(content.cpts, state.cpts);
     assert.equal(content.bearingCapacities, state.bearingCapacities);
+    assert.equal(content.pileLegend, state.pileLegend);
+    assert.equal(content.pileLegend.encodingMode, "size-symbol");
     assert.equal(content.pilePlans, state.pilePlans);
     assert.equal("pileOptionsByLoadPointId" in content, false);
     assert.equal("selectedCptsByLoadPointId" in content, false);
