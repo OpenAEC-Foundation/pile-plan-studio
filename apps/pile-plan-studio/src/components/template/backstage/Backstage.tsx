@@ -69,7 +69,8 @@ interface BackstageProps {
   loadPoints: LoadPoint[];
   cpts: Cpt[];
   availablePileConfigurations: PileConfigurationKey[];
-  onImportPilePlan: (patch: PilePlanImportPatch) => void;
+  activePilePlanName: string;
+  onImportPilePlan: (patch: PilePlanImportPatch, fileName: string) => void;
   onOpenProjectFile: (file: File) => Promise<void>;
   onOpenSampleProject: () => Promise<void>;
   onDownloadProject: () => Promise<void>;
@@ -81,7 +82,7 @@ interface BackstageProps {
   commands: ProjectFileCommands;
 }
 
-export default function Backstage({ open, onClose, onOpenSettings, onOpenFile, onImportProject, loadPoints, cpts, availablePileConfigurations, onImportPilePlan, onOpenProjectFile, onOpenSampleProject, onDownloadProject, onExportPilePlanXlsx, onExportPilePlanCsv, onChooseDesktopProject, onSaveProject, onSaveProjectAs, commands }: BackstageProps) {
+export default function Backstage({ open, onClose, onOpenSettings, onOpenFile, onImportProject, loadPoints, cpts, availablePileConfigurations, activePilePlanName, onImportPilePlan, onOpenProjectFile, onOpenSampleProject, onDownloadProject, onExportPilePlanXlsx, onExportPilePlanCsv, onChooseDesktopProject, onSaveProject, onSaveProjectAs, commands }: BackstageProps) {
   const { t } = useTranslation("backstage");
   const [activePanel, setActivePanel] = useState<string>("none");
   const { recentFiles, removeRecentFile, clearRecentFiles } = useRecentFiles();
@@ -219,8 +220,8 @@ export default function Backstage({ open, onClose, onOpenSettings, onOpenFile, o
               loadPoints={loadPoints}
               cpts={cpts}
               availablePileConfigurations={availablePileConfigurations}
-              onImportPilePlan={(patch) => {
-                onImportPilePlan(patch);
+              onImportPilePlan={(patch, fileName) => {
+                onImportPilePlan(patch, fileName);
                 onClose();
               }}
             />
@@ -228,6 +229,7 @@ export default function Backstage({ open, onClose, onOpenSettings, onOpenFile, o
           {activePanel === "export" && (
             <ExportPanel
               canDownloadProject={commands.download}
+              activePilePlanName={activePilePlanName}
               onDownloadProject={onDownloadProject}
               onExportPilePlanXlsx={onExportPilePlanXlsx}
               onExportPilePlanCsv={onExportPilePlanCsv}
@@ -490,8 +492,9 @@ function SampleProjectOptionContent({ t }: { t: (key: string) => string }) {
   );
 }
 
-function ExportPanel({ canDownloadProject, onDownloadProject, onExportPilePlanXlsx, onExportPilePlanCsv }: {
+function ExportPanel({ canDownloadProject, activePilePlanName, onDownloadProject, onExportPilePlanXlsx, onExportPilePlanCsv }: {
   canDownloadProject: boolean;
+  activePilePlanName: string;
   onDownloadProject: () => Promise<void>;
   onExportPilePlanXlsx: () => Promise<void>;
   onExportPilePlanCsv: () => Promise<void>;
@@ -514,6 +517,9 @@ function ExportPanel({ canDownloadProject, onDownloadProject, onExportPilePlanXl
     <div className={`bs-export-panel${runningExport ? " is-exporting" : ""}`} aria-busy={runningExport}>
       <h2 className="backstage-panel-title">{t("exportPanel.title")}</h2>
       <p className="backstage-panel-intro">{t("exportPanel.intro")}</p>
+      <p className="backstage-panel-intro">
+        {t("exportPanel.activePilePlan", { pilePlanName: activePilePlanName })}
+      </p>
       <div className="bs-export-cards">
         {canDownloadProject ? (
           <ExportOption

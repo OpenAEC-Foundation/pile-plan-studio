@@ -29,7 +29,6 @@ import { writeIfcppProjectCore } from "./core/coreClient";
 import { createInitialProjectState, type ProjectState } from "./domain/projectState";
 import { getSetting } from "./store";
 import { optionKey } from "./components/domain/rightPanelModel";
-import type { PileCostSettings } from "./core/projectTypes";
 import { buildGreedyOptimizationSettings } from "./domain/optimizationSettings";
 import {
   applyOptimizationChoices,
@@ -46,9 +45,17 @@ import {
   saveGeneratedFile,
   savePreparedFile,
 } from "./domain/projectPersistence.ts";
-import { DEFAULT_RIGHT_PANEL_WIDTH, resizeRightPanelWidth } from "./viewer/panelLayout.ts";
+import {
+  DEFAULT_EXPLORER_WIDTH,
+  DEFAULT_RIGHT_PANEL_WIDTH,
+  resizeExplorerWidth,
+  resizeRightPanelWidth,
+} from "./viewer/panelLayout.ts";
 import { buildPilePlanExportInput } from "./domain/pilePlanExport.ts";
-import { applyPilePlanImportPatch } from "./domain/pilePlanImport.ts";
+import {
+  applyPilePlanImportAsNewPlan,
+  pilePlanNameFromFileName,
+} from "./domain/pilePlanImport.ts";
 import type { PilePlanImportPatch } from "./core/pilePlanImportContract.ts";
 import { mergeDefaultPileChoices } from "./domain/defaultPileChoices.ts";
 import { loadViewerPreferences, saveViewerPreferences } from "./domain/viewerPreferences.ts";
@@ -86,7 +93,7 @@ import {
 } from "./domain/browserRecoveryStore.ts";
 import { loadBrowserRecovery } from "./domain/browserRecoveryStartup.ts";
 
-const PILE_COST_DEFAULTS_KEY = "pile-cost-defaults";
+const BUILT_IN_PILE_COST_DEFAULTS = loadIfcppProjectData(sampleProjectText).pileCostSettings;
 
 type AppBootstrap =
   | { kind: "loading" }
@@ -205,9 +212,9 @@ function AppSession({
   const [projectPath, setProjectPath] = useState<string | null>(null);
   const [unsavedChangesOpen, setUnsavedChangesOpen] = useState(false);
   const appContentRef = useRef<HTMLDivElement | null>(null);
+  const explorerWidthRef = useRef(DEFAULT_EXPLORER_WIDTH);
   const rightPanelWidthRef = useRef(DEFAULT_RIGHT_PANEL_WIDTH);
   const [theme, setTheme] = useState("light");
-  const [costDefaultsLoaded, setCostDefaultsLoaded] = useState(false);
   const [viewerPreferencesLoaded, setViewerPreferencesLoaded] = useState(false);
   const [creatingPilePlan, setCreatingPilePlan] = useState(false);
   const [statusMessage, setStatusMessage] = useState("");
@@ -414,6 +421,10 @@ function AppSession({
     return true;
   };
 
+  const activePilePlanName = projectState.pilePlans.find(
+    (pilePlan) => pilePlan.id === projectState.activePilePlanId,
+  )?.name ?? projectState.name;
+
   const exportPilePlan = async (format: "xlsx" | "csv"): Promise<void> => {
     const input = buildPilePlanExportInput(projectState);
     const bytes = format === "xlsx"
@@ -421,7 +432,7 @@ function AppSession({
       : await exportPilePlanCsvCore(input);
     await saveBinaryExport(
       {
-        fileName: pilePlanExportFileName(projectState.name, format),
+        fileName: pilePlanExportFileName(activePilePlanName, format),
         mimeType: format === "xlsx"
           ? "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
           : "text/csv",
@@ -450,8 +461,12 @@ function AppSession({
     commitProjectState(nextState);
   };
 
-  const importPilePlan = (patch: PilePlanImportPatch) => {
-    commitProjectState((current) => applyPilePlanImportPatch(current, patch));
+  const importPilePlan = (patch: PilePlanImportPatch, fileName: string) => {
+    commitProjectState((current) => applyPilePlanImportAsNewPlan(
+      current,
+      patch,
+      pilePlanNameFromFileName(fileName),
+    ));
   };
 
   const pilePlanLanguage = (): PilePlanLanguage => i18n.language.startsWith("nl") ? "nl" : "en";
@@ -666,16 +681,6 @@ function AppSession({
   }, [persistedProjectSignature]);
 
   useEffect(() => {
-    getSetting<PileCostSettings | null>(PILE_COST_DEFAULTS_KEY, null)
-      .then((saved) => {
-        if (saved?.items.length) {
-          setProjectState((current) => ({ ...current, pileCostSettings: saved }));
-        }
-      })
-      .finally(() => setCostDefaultsLoaded(true));
-  }, []);
-
-  useEffect(() => {
     let cancelled = false;
     const analysisRequest = projectState.analysisRequest;
 
@@ -727,8 +732,7 @@ function AppSession({
 
   useEffect(() => {
     if (
-      !costDefaultsLoaded
-      || !projectState.defaultPileSelectionPending
+      !projectState.defaultPileSelectionPending
       || projectState.pileOptionsByLoadPointId.size !== projectState.loadPoints.length
     ) {
       return;
@@ -779,7 +783,6 @@ function AppSession({
       }
     });
   }, [
-    costDefaultsLoaded,
     projectState.analysisRequest,
     projectState.defaultPileSelectionPending,
     projectState.loadPoints.length,
@@ -1004,7 +1007,10 @@ function AppSession({
         <div
           className="app-content"
           ref={appContentRef}
-          style={{ "--right-panel-width": `${DEFAULT_RIGHT_PANEL_WIDTH}px` } as CSSProperties}
+          style={{
+            "--explorer-width": `${DEFAULT_EXPLORER_WIDTH}px`,
+            "--right-panel-width": `${DEFAULT_RIGHT_PANEL_WIDTH}px`,
+          } as CSSProperties}
         >
           <PilePlanExplorer
             activePilePlanId={projectState.activePilePlanId}
@@ -1022,6 +1028,12 @@ function AppSession({
             onDelete={deleteProjectPilePlan}
             onDuplicate={duplicateProjectPilePlan}
             onRename={renameProjectPilePlan}
+          />
+          <div
+            aria-label={t("explorer")}
+            className="explorer-splitter"
+            role="separator"
+            onPointerDown={beginExplorerResize}
           />
           <main className="workspace" aria-label="Pile plan workspace">
             <PilePlanWorkspace state={projectState} onStateChange={handleProjectStateChange} />
@@ -1054,6 +1066,7 @@ function AppSession({
         loadPoints={projectState.loadPoints}
         cpts={projectState.cpts}
         availablePileConfigurations={availablePileConfigurations}
+        activePilePlanName={activePilePlanName}
         onImportPilePlan={importPilePlan}
         onImportProject={async (mode, projectName: string | null, sources: ImportSourceInput[]) => {
           if (mode === "refresh") {
@@ -1075,7 +1088,7 @@ function AppSession({
             projectName: projectName ?? projectState.name,
             sources,
           });
-          const withCosts = applyDefaultPileCostSettings(project, projectState.pileCostSettings);
+          const withCosts = applyDefaultPileCostSettings(project, BUILT_IN_PILE_COST_DEFAULTS);
           defaultSelectionKeepsDirtyRef.current = false;
           replaceProjectState(createInitialProjectState(withCosts, {
             initializeDefaultPiles: true,
@@ -1128,6 +1141,30 @@ function AppSession({
       <FeedbackDialog open={feedbackOpen} onClose={() => setFeedbackOpen(false)} />
     </>
   );
+
+  function beginExplorerResize(event: ReactPointerEvent<HTMLDivElement>) {
+    event.preventDefault();
+    const startWidth = explorerWidthRef.current;
+    const startX = event.clientX;
+    let currentWidth = startWidth;
+    document.body.classList.add("is-resizing-panel");
+
+    const handlePointerMove = (moveEvent: PointerEvent) => {
+      currentWidth = resizeExplorerWidth({ startWidth, startX, currentX: moveEvent.clientX });
+      appContentRef.current?.style.setProperty("--explorer-width", `${currentWidth}px`);
+    };
+    const handlePointerUp = () => {
+      explorerWidthRef.current = currentWidth;
+      document.body.classList.remove("is-resizing-panel");
+      window.removeEventListener("pointermove", handlePointerMove);
+      window.removeEventListener("pointerup", handlePointerUp);
+      window.removeEventListener("pointercancel", handlePointerUp);
+    };
+
+    window.addEventListener("pointermove", handlePointerMove);
+    window.addEventListener("pointerup", handlePointerUp);
+    window.addEventListener("pointercancel", handlePointerUp);
+  }
 
   function beginRightPanelResize(event: ReactPointerEvent<HTMLDivElement>) {
     event.preventDefault();

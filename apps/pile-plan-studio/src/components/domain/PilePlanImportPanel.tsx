@@ -34,7 +34,7 @@ export default function PilePlanImportPanel({
   loadPoints: LoadPoint[];
   cpts: Cpt[];
   availablePileConfigurations: PileConfigurationKey[];
-  onImportPilePlan: (patch: PilePlanImportPatch) => void;
+  onImportPilePlan: (patch: PilePlanImportPatch, fileName: string) => void;
 }) {
   const { t } = useTranslation("backstage");
   const [draft, setDraft] = useState(() => createPilePlanImportDraft<File>());
@@ -209,7 +209,9 @@ export default function PilePlanImportPanel({
         type="button"
         disabled={!canApplyPilePlanImport(draft)}
         onClick={() => {
-          if (result && canApplyPilePlanImport(draft)) onImportPilePlan(result.patch);
+          if (result && draft.file && canApplyPilePlanImport(draft)) {
+            onImportPilePlan(result.patch, draft.file.name);
+          }
         }}
       >
         {t("pilePlanImport.import")}

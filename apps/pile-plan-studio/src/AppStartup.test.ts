@@ -129,4 +129,23 @@ describe("React app startup", () => {
     assert.match(source, /setViewerPreferencesLoaded\(true\)/);
     assert.match(source, /if \(!viewerPreferencesLoaded\) return/);
   });
+
+  it("uses the sample project costs as fixed defaults without reading mutable stored defaults", () => {
+    const source = readFileSync(resolve(import.meta.dirname, "App.tsx"), "utf8");
+
+    assert.match(source, /BUILT_IN_PILE_COST_DEFAULTS\s*=\s*loadIfcppProjectData\(sampleProjectText\)\.pileCostSettings/);
+    assert.match(source, /applyDefaultPileCostSettings\(project, BUILT_IN_PILE_COST_DEFAULTS\)/);
+    assert.doesNotMatch(source, /PILE_COST_DEFAULTS_KEY/);
+    assert.doesNotMatch(source, /getSetting<PileCostSettings/);
+    assert.doesNotMatch(
+      source,
+      /setProjectState\(\(current\)\s*=>\s*\(\{\s*\.\.\.current,\s*pileCostSettings:\s*saved\s*\}\)\)/,
+    );
+  });
+
+  it("keeps task panels open while viewer selections change", () => {
+    const source = readFileSync(resolve(import.meta.dirname, "App.tsx"), "utf8");
+
+    assert.doesNotMatch(source, /<PilePlanWorkspace[\s\S]*?onMapMarkerSelect=/);
+  });
 });

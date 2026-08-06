@@ -101,6 +101,14 @@ describe("PilePlanViewer inputs", () => {
     assert.match(css, /\.viewer-content \.is-hover-candidate\s*{[\s\S]*?z-index:\s*50;/);
   });
 
+  it("does not use viewer marker selection to close surrounding task panels", () => {
+    const viewer = readFileSync(resolve(import.meta.dirname, "PilePlanViewer.tsx"), "utf8");
+    const workspace = readFileSync(resolve(import.meta.dirname, "PilePlanWorkspace.tsx"), "utf8");
+
+    assert.doesNotMatch(viewer, /onMapMarkerSelect/);
+    assert.doesNotMatch(workspace, /onMapMarkerSelect/);
+  });
+
   it("cycles overlapping candidates with Space and hides hover while navigating", () => {
     const source = readFileSync(resolve(import.meta.dirname, "PilePlanViewer.tsx"), "utf8");
     assert.match(source, /event\.code === "Space" && isNonTextEntryTarget\(event\.target\)[\s\S]*?event\.preventDefault\(\);\s*return;/);

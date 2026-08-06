@@ -35,7 +35,7 @@
   },
   "pilePlanImport": {
     "title": "Import pile plan",
-    "intro": "Update pile assignments and CPT selections in the active project from a standard or Legacy table.",
+    "intro": "Import pile assignments and CPT selections as a new pile plan. The existing pile plan is preserved.",
     "fileTitle": "Pile plan table",
     "fileDescription": "Excel or CSV with load-point assignments",
     "profile": "Import profile",
@@ -74,7 +74,7 @@
       "unknown-cpt": "The imported CPT selection contains an unknown CPT; the current selection is preserved.",
       "unknown-pile-configuration": "The imported pile configuration is not available in this project; the current assignment is preserved."
     },
-    "import": "Import pile plan"
+    "import": "Import as new pile plan"
   },
   "openPanel": {
     "title": "Open project",
@@ -99,13 +99,14 @@
   "extInstallBtn": "Install",
   "exportPanel": {
     "title": "Export project data",
-    "intro": "Choose a project file or a standard pile plan table for further use.",
+    "intro": "Download the complete project or export only the active pile plan.",
+    "activePilePlan": "Active pile plan for Excel/CSV: {{pilePlanName}}",
     "ifcpp": "Download IFCPP",
     "ifcppDesc": "Save the complete project, settings, source data, and current choices.",
     "excel": "Pile plan - Excel",
-    "excelDesc": "Export all load points with their selected pile configuration and CPT selection.",
+    "excelDesc": "Export the active pile plan with all load points, selected pile configurations, and CPT selections.",
     "csv": "Pile plan - CSV",
-    "csvDesc": "Export the same standard table in a simple, open text format.",
+    "csvDesc": "Export the active pile plan as a standard table in a simple, open text format.",
     "download": "Download",
     "export": "Export",
     "error": "The export could not be created."

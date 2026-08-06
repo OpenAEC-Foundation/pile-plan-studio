@@ -35,7 +35,7 @@
   },
   "pilePlanImport": {
     "title": "Palenplan importeren",
-    "intro": "Werk paaltoewijzingen en sonderingselecties in het actieve project bij vanuit een standaard- of Legacy-tabel.",
+    "intro": "Importeer paaltoewijzingen en sonderingselecties als een nieuw palenplan. Het bestaande palenplan blijft behouden.",
     "fileTitle": "Palenplantabel",
     "fileDescription": "Excel of CSV met keuzes per belastinglocatie",
     "profile": "Importprofiel",
@@ -74,7 +74,7 @@
       "unknown-cpt": "De geïmporteerde sonderingselectie bevat een onbekende sondering; de huidige selectie blijft behouden.",
       "unknown-pile-configuration": "De geïmporteerde paalconfiguratie is niet beschikbaar in dit project; de huidige toewijzing blijft behouden."
     },
-    "import": "Palenplan importeren"
+    "import": "Als nieuw palenplan importeren"
   },
   "openPanel": {
     "title": "Project openen",
@@ -99,13 +99,14 @@
   "extInstallBtn": "Installeren",
   "exportPanel": {
     "title": "Projectgegevens exporteren",
-    "intro": "Kies een projectbestand of een standaardtabel van het palenplan voor verder gebruik.",
+    "intro": "Download het volledige project of exporteer alleen het actieve palenplan.",
+    "activePilePlan": "Actief palenplan voor Excel/CSV: {{pilePlanName}}",
     "ifcpp": "IFCPP downloaden",
     "ifcppDesc": "Sla het volledige project, de instellingen, brongegevens en huidige keuzes op.",
     "excel": "Palenplan - Excel",
-    "excelDesc": "Exporteer alle belastinglocaties met hun gekozen paalconfiguratie en sonderingselectie.",
+    "excelDesc": "Exporteer het actieve palenplan met alle belastinglocaties, gekozen paalconfiguraties en sonderingselecties.",
     "csv": "Palenplan - CSV",
-    "csvDesc": "Exporteer dezelfde standaardtabel in een eenvoudig, open tekstformaat.",
+    "csvDesc": "Exporteer het actieve palenplan als standaardtabel in een eenvoudig, open tekstformaat.",
     "download": "Downloaden",
     "export": "Exporteren",
     "error": "De export kon niet worden aangemaakt."

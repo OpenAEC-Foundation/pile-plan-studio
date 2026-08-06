@@ -22,11 +22,12 @@ body {
 
 .app-content {
   display: grid;
-  grid-template-columns: 240px minmax(0, 1fr) 5px var(--right-panel-width, 620px);
+  grid-template-columns: var(--explorer-width, 240px) 5px minmax(0, 1fr) 5px var(--right-panel-width, 620px);
   flex: 1;
   min-height: 0;
 }
 
+.explorer-splitter,
 .right-panel-splitter {
   position: relative;
   z-index: 2;
@@ -36,6 +37,8 @@ body {
   touch-action: none;
 }
 
+.explorer-splitter:hover,
+.explorer-splitter:active,
 .right-panel-splitter:hover,
 .right-panel-splitter:active {
   background: var(--theme-accent);
