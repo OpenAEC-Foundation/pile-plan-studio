@@ -127,7 +127,7 @@ export type PileCostSettingsItem = {
   cost_per_m3_eur: number;
 };
 
-export type PileShape =
+export type PileBaseShape =
   | "circle"
   | "square"
   | "diamond"
@@ -135,18 +135,37 @@ export type PileShape =
   | "triangle-down"
   | "triangle-left"
   | "triangle-right"
-  | "pentagon"
-  | "star"
-  | "thin-diamond"
-  | "hexagon"
-  | "octagon";
+  | "rectangle-horizontal"
+  | "rectangle-vertical";
+
+export type PileFillPattern =
+  | "full"
+  | "top-half"
+  | "bottom-half"
+  | "left-half"
+  | "right-half"
+  | "diagonal-half";
+
+export type PileSymbol = {
+  baseShape: PileBaseShape;
+  fillPattern: PileFillPattern;
+};
+
+export type LegendEncodingMode = "size-symbol" | "tip-symbol";
+
+export type LegendValueStyle = {
+  value: number;
+  symbol: PileSymbol;
+  color: string;
+};
 
 export type LegendItems = {
-  pileSizes: Array<{ value: number; shape: PileShape }>;
-  pileTipLevels: Array<{ value: number; color: string }>;
+  encodingMode: LegendEncodingMode;
+  pileSizes: LegendValueStyle[];
+  pileTipLevels: LegendValueStyle[];
 };
 
 export type PileConfigurationStyle = {
-  shape: PileShape;
+  symbol: PileSymbol;
   color: string;
 };
