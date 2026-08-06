@@ -30,7 +30,30 @@ describe("Workspace translations", () => {
       assert.equal(typeof copy.disableAll, "string");
       assert.equal(typeof copy.usedWarning, "string");
       assert.equal(typeof copy.unused, "string");
+      assert.equal(typeof copy.symbolRepresents, "string");
+      assert.equal(typeof copy.colorRepresentsTip, "string");
+      assert.equal(typeof copy.colorRepresentsSize, "string");
+      assert.equal(typeof copy.assignmentScope, "string");
+      assert.equal(typeof copy.enabledItems, "string");
+      assert.equal(typeof copy.allItems, "string");
+      assert.equal(typeof copy.assignSymbols, "string");
+      assert.equal(typeof copy.assignColors, "string");
+      assert.equal(typeof copy.resetAppearance, "string");
+      assert.equal(typeof copy.symbolLimit, "string");
+      assert.equal(typeof copy.colorblindAid, "string");
+      assert.equal(Object.keys(copy.colorSchemes).length, 5);
+      assert.equal(Object.keys(copy.baseShapes).length, 9);
+      assert.equal(Object.keys(copy.fillPatterns).length, 6);
     }
+
+    assert.equal(en.legend.symbolRepresents, "Symbol represents");
+    assert.equal(en.legend.colorRepresentsTip, "Color represents tip level");
+    assert.equal(en.legend.colorRepresentsSize, "Color represents size");
+    assert.equal(en.legend.colorSchemes.colorblindFriendly, "Colorblind-friendly");
+    assert.equal(nl.legend.symbolRepresents, "Symbool representeert");
+    assert.equal(nl.legend.colorRepresentsTip, "Kleur representeert puntniveau");
+    assert.equal(nl.legend.colorRepresentsSize, "Kleur representeert afmeting");
+    assert.equal(nl.legend.colorSchemes.colorblindFriendly, "Kleurenblindvriendelijk");
   });
 
   it("describes hover candidates as objects near the pointer", () => {

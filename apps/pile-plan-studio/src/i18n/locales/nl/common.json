@@ -97,7 +97,52 @@
     "bulkActions": "Acties voor legenda-activering",
     "usedWarning": "Gebruikt in het actieve palenplan maar gedeactiveerd",
     "unused": "Niet gebruikt in het actieve palenplan",
-    "none": "Geen"
+    "none": "Geen",
+    "symbolRepresents": "Symbool representeert",
+    "colorRepresentsTip": "Kleur representeert puntniveau",
+    "colorRepresentsSize": "Kleur representeert afmeting",
+    "assignmentScope": "Automatische toewijzing toepassen op",
+    "enabledItems": "Actieve items",
+    "allItems": "Alle items",
+    "assignSymbols": "Symbolen automatisch toewijzen",
+    "assignColors": "Kleuren automatisch toewijzen",
+    "resetAppearance": "Standaardweergave herstellen",
+    "symbolLimit": "Automatische symbooltoewijzing ondersteunt maximaal {{count}} items. Verklein het bereik of wijs symbolen handmatig toe.",
+    "colorScheme": "Kleurenschema",
+    "colorblindAid": "Ontworpen om veelvoorkomende rood-groene kleurwaarnemingsverschillen beter te onderscheiden; vorm en vulling blijven beschikbaar als extra aanwijzingen.",
+    "importWarnings": "{{count}} ongeldige opgeslagen legenda-instelling(en) zijn hersteld naar de standaard.",
+    "enableItem": "{{item}} activeren",
+    "disableItem": "{{item}} deactiveren",
+    "changeSymbol": "Symbool voor {{item}} wijzigen",
+    "changeColor": "Kleur voor {{item}} wijzigen",
+    "fillPattern": "Vulpatroon",
+    "hexColor": "Hexkleur",
+    "colorSchemes": {
+      "distinct": "Onderscheidende kleuren",
+      "colorblindFriendly": "Kleurenblindvriendelijk",
+      "rainbow": "Regenboog",
+      "lightDark": "Licht naar donker",
+      "coolWarm": "Koel naar warm"
+    },
+    "baseShapes": {
+      "circle": "Cirkel",
+      "square": "Vierkant",
+      "diamond": "Diamant",
+      "triangleUp": "Driehoek omhoog",
+      "triangleDown": "Driehoek omlaag",
+      "triangleLeft": "Driehoek links",
+      "triangleRight": "Driehoek rechts",
+      "rectangleHorizontal": "Horizontale rechthoek",
+      "rectangleVertical": "Verticale rechthoek"
+    },
+    "fillPatterns": {
+      "full": "Volledig",
+      "topHalf": "Bovenste helft",
+      "bottomHalf": "Onderste helft",
+      "leftHalf": "Linkerhelft",
+      "rightHalf": "Rechterhelft",
+      "diagonalHalf": "Diagonale helft"
+    }
   },
   "projectExplorer": {
     "aria": "Projectverkenner",
