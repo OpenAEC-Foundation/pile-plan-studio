@@ -7,6 +7,7 @@ import Backstage from "./components/template/backstage/Backstage";
 import SettingsDialog, { applyTheme } from "./components/template/settings/SettingsDialog";
 import FeedbackDialog from "./components/template/feedback/FeedbackDialog";
 import StatusBar from "./components/template/StatusBar";
+import HistoryNotice from "./components/viewer/HistoryNotice";
 import PilePlanWorkspace from "./components/domain/PilePlanWorkspace";
 import RightPanel, { type RightTaskPanel } from "./components/domain/RightPanel";
 import ProjectInformationDialog from "./components/domain/ProjectInformationDialog";
@@ -209,14 +210,26 @@ function AppSession({
   const [costDefaultsLoaded, setCostDefaultsLoaded] = useState(false);
   const [viewerPreferencesLoaded, setViewerPreferencesLoaded] = useState(false);
   const [creatingPilePlan, setCreatingPilePlan] = useState(false);
-  const [historyMessage, setHistoryMessage] = useState("");
+  const [statusMessage, setStatusMessage] = useState("");
   const statusMessageTimeoutRef = useRef<number | null>(null);
   const showStatusMessage = useCallback((message: string) => {
     if (statusMessageTimeoutRef.current !== null) window.clearTimeout(statusMessageTimeoutRef.current);
-    setHistoryMessage(message);
+    setStatusMessage(message);
     statusMessageTimeoutRef.current = window.setTimeout(() => {
-      setHistoryMessage("");
+      setStatusMessage("");
       statusMessageTimeoutRef.current = null;
+    }, 3500);
+  }, []);
+  const [historyNotice, setHistoryNotice] = useState({ id: 0, message: "" });
+  const historyNoticeIdRef = useRef(0);
+  const historyNoticeTimeoutRef = useRef<number | null>(null);
+  const showHistoryNotice = useCallback((message: string) => {
+    if (historyNoticeTimeoutRef.current !== null) window.clearTimeout(historyNoticeTimeoutRef.current);
+    historyNoticeIdRef.current += 1;
+    setHistoryNotice({ id: historyNoticeIdRef.current, message });
+    historyNoticeTimeoutRef.current = window.setTimeout(() => {
+      setHistoryNotice((current) => ({ ...current, message: "" }));
+      historyNoticeTimeoutRef.current = null;
     }, 3500);
   }, []);
   const defaultSelectionRequestRef = useRef<typeof projectState.analysisRequest | null>(null);
@@ -280,6 +293,7 @@ function AppSession({
     if (initialStatusKey) showStatusMessage(t(initialStatusKey));
     return () => {
       if (statusMessageTimeoutRef.current !== null) window.clearTimeout(statusMessageTimeoutRef.current);
+      if (historyNoticeTimeoutRef.current !== null) window.clearTimeout(historyNoticeTimeoutRef.current);
     };
   }, [initialStatusKey, showStatusMessage, t]);
 
@@ -320,8 +334,8 @@ function AppSession({
   useEffect(() => {
     const result = managedProject.lastResult;
     if (!result) return;
-    showStatusMessage(describeHistoryResult(historyTranslate, result));
-  }, [historyTranslate, managedProject.lastResult, showStatusMessage]);
+    showHistoryNotice(describeHistoryResult(historyTranslate, result));
+  }, [historyTranslate, managedProject.lastResult, showHistoryNotice]);
 
   useEffect(() => {
     const handleHistoryShortcut = (event: KeyboardEvent) => {
@@ -1011,6 +1025,7 @@ function AppSession({
           />
           <main className="workspace" aria-label="Pile plan workspace">
             <PilePlanWorkspace state={projectState} onStateChange={handleProjectStateChange} />
+            <HistoryNotice message={historyNotice.message} noticeId={historyNotice.id} />
           </main>
           <div
             aria-label={t("properties")}
@@ -1028,7 +1043,7 @@ function AppSession({
         </div>
         <StatusBar
           zoomPercent={projectState.viewport.scale * 100}
-          historyMessage={historyMessage}
+          message={statusMessage}
         />
       </div>
       <Backstage

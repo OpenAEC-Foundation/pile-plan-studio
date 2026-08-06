@@ -3,15 +3,15 @@ import "./StatusBar.css";
 
 type Props = {
   zoomPercent: number;
-  historyMessage?: string;
+  message?: string;
 };
 
-export default function StatusBar({ zoomPercent, historyMessage }: Props) {
+export default function StatusBar({ zoomPercent, message }: Props) {
   const { t } = useTranslation();
   return (
     <div className="status-bar">
       <div className="status-bar-left" aria-live="polite">
-        {historyMessage && <span className="status-history-message">{historyMessage}</span>}
+        {message && <span className="status-message">{message}</span>}
       </div>
 
       <div className="status-bar-center">

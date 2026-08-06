@@ -340,6 +340,7 @@ body.is-resizing-panel {
 }
 
 .workspace {
+  position: relative;
   min-width: 0;
   min-height: 0;
   background: var(--theme-content-bg);

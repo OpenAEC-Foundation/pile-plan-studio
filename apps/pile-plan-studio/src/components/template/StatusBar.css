@@ -72,7 +72,7 @@
   font-size: 11px;
 }
 
-.status-history-message {
+.status-message {
   color: var(--theme-status-text);
   font-size: 11px;
   overflow: hidden;

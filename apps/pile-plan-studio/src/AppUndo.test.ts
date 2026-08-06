@@ -48,4 +48,12 @@ describe("App Undo integration", () => {
     assert.match(source, /dispatchProject\(\{ type: "undo" \}\)/);
     assert.match(source, /dispatchProject\(\{ type: "redo" \}\)/);
   });
+
+  it("shows history results in the viewer without replacing general status feedback", () => {
+    assert.match(source, /import HistoryNotice/);
+    assert.match(source, /showHistoryNotice\(describeHistoryResult/);
+    assert.match(source, /<HistoryNotice/);
+    assert.match(source, /message=\{statusMessage\}/);
+    assert.doesNotMatch(source, /historyMessage=\{historyMessage\}/);
+  });
 });
