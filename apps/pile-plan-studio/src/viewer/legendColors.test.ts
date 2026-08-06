@@ -5,6 +5,7 @@ import {
   LEGEND_COLOR_SCHEMES,
   generateLegendColors,
   getLegendColorSchemePreview,
+  normalizeLegendHexColor,
 } from "./legendColors.ts";
 
 describe("legend color schemes", () => {
@@ -44,5 +45,12 @@ describe("legend color schemes", () => {
     assert.deepEqual(generateLegendColors("rainbow", 0), []);
     assert.equal(generateLegendColors("light-dark", 1).length, 1);
     assert.equal(getLegendColorSchemePreview("cool-warm").length, 7);
+  });
+
+  it("normalizes only complete six-digit hexadecimal colors", () => {
+    assert.equal(normalizeLegendHexColor("#12abEF"), "#12ABEF");
+    assert.equal(normalizeLegendHexColor("12ABEF"), null);
+    assert.equal(normalizeLegendHexColor("#123"), null);
+    assert.equal(normalizeLegendHexColor("#GGGGGG"), null);
   });
 });

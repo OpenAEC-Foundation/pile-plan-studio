@@ -66,6 +66,10 @@ export function getLegendColorSchemePreview(
   return generateLegendColors(scheme, count);
 }
 
+export function normalizeLegendHexColor(value: string): string | null {
+  return /^#[0-9A-Fa-f]{6}$/.test(value) ? value.toUpperCase() : null;
+}
+
 function generateDistinctColors(count: number): string[] {
   return Array.from({ length: count }, (_, index) => {
     if (index < DISTINCT_BASE.length) return DISTINCT_BASE[index];
