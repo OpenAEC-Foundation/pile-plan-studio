@@ -1,0 +1,55 @@
+.history-notice-region {
+  position: absolute;
+  z-index: 30;
+  left: 50%;
+  bottom: 16px;
+  width: min(460px, calc(100% - 32px));
+  pointer-events: none;
+  transform: translateX(-50%);
+}
+
+.history-notice {
+  display: -webkit-box;
+  max-width: 100%;
+  margin: 0 auto;
+  overflow: hidden;
+  padding: 7px 12px;
+  color: #ffffff;
+  background: rgba(34, 34, 38, 0.94);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 4px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.24);
+  font-size: 12px;
+  line-height: 1.35;
+  text-align: center;
+  pointer-events: none;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  animation:
+    history-notice-enter 120ms ease-out,
+    history-notice-fade 180ms ease-in 3.2s forwards;
+}
+
+@keyframes history-notice-enter {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes history-notice-fade {
+  to {
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .history-notice {
+    animation: none;
+  }
+}
