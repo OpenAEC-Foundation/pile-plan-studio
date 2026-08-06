@@ -69,8 +69,10 @@ interface BackstageProps {
   loadPoints: LoadPoint[];
   cpts: Cpt[];
   availablePileConfigurations: PileConfigurationKey[];
-  onImportPilePlan: (patch: PilePlanImportPatch) => void;
+  activePilePlanName: string;
+  onImportPilePlan: (patch: PilePlanImportPatch, fileName: string) => void;
   onOpenProjectFile: (file: File) => Promise<void>;
+  onOpenSampleProject: () => Promise<void>;
   onDownloadProject: () => Promise<void>;
   onExportPilePlanXlsx: () => Promise<void>;
   onExportPilePlanCsv: () => Promise<void>;
@@ -80,7 +82,7 @@ interface BackstageProps {
   commands: ProjectFileCommands;
 }
 
-export default function Backstage({ open, onClose, onOpenSettings, onOpenFile, onImportProject, loadPoints, cpts, availablePileConfigurations, onImportPilePlan, onOpenProjectFile, onDownloadProject, onExportPilePlanXlsx, onExportPilePlanCsv, onChooseDesktopProject, onSaveProject, onSaveProjectAs, commands }: BackstageProps) {
+export default function Backstage({ open, onClose, onOpenSettings, onOpenFile, onImportProject, loadPoints, cpts, availablePileConfigurations, activePilePlanName, onImportPilePlan, onOpenProjectFile, onOpenSampleProject, onDownloadProject, onExportPilePlanXlsx, onExportPilePlanCsv, onChooseDesktopProject, onSaveProject, onSaveProjectAs, commands }: BackstageProps) {
   const { t } = useTranslation("backstage");
   const [activePanel, setActivePanel] = useState<string>("none");
   const { recentFiles, removeRecentFile, clearRecentFiles } = useRecentFiles();
@@ -203,6 +205,10 @@ export default function Backstage({ open, onClose, onOpenSettings, onOpenFile, o
                 await onChooseDesktopProject();
                 onClose();
               }}
+              onOpenSampleProject={async () => {
+                await onOpenSampleProject();
+                onClose();
+              }}
             />
           )}
           {activePanel === "about" && <AboutPanel />}
@@ -214,8 +220,8 @@ export default function Backstage({ open, onClose, onOpenSettings, onOpenFile, o
               loadPoints={loadPoints}
               cpts={cpts}
               availablePileConfigurations={availablePileConfigurations}
-              onImportPilePlan={(patch) => {
-                onImportPilePlan(patch);
+              onImportPilePlan={(patch, fileName) => {
+                onImportPilePlan(patch, fileName);
                 onClose();
               }}
             />
@@ -223,6 +229,7 @@ export default function Backstage({ open, onClose, onOpenSettings, onOpenFile, o
           {activePanel === "export" && (
             <ExportPanel
               canDownloadProject={commands.download}
+              activePilePlanName={activePilePlanName}
               onDownloadProject={onDownloadProject}
               onExportPilePlanXlsx={onExportPilePlanXlsx}
               onExportPilePlanCsv={onExportPilePlanCsv}
@@ -328,6 +335,7 @@ function OpenPanel({
   onOpenProjectFile,
   isDesktop,
   onChooseDesktopProject,
+  onOpenSampleProject,
 }: {
   recentFiles: RecentFile[];
   onOpenFile: (path: string) => void;
@@ -336,6 +344,7 @@ function OpenPanel({
   onOpenProjectFile: (file: File) => Promise<void>;
   isDesktop: boolean;
   onChooseDesktopProject: () => Promise<void>;
+  onOpenSampleProject: () => Promise<void>;
 }) {
   const { t } = useTranslation("backstage");
 
@@ -382,19 +391,24 @@ function OpenPanel({
           </button>
         )}
       </header>
-      {isDesktop ? (
-        <button className="bs-open-project-option" type="button" onClick={() => void onChooseDesktopProject()}>
-          <OpenProjectOptionContent t={t} />
+      <div className="bs-open-project-options">
+        {isDesktop ? (
+          <button className="bs-open-project-option" type="button" onClick={() => void onChooseDesktopProject()}>
+            <OpenProjectOptionContent t={t} />
+          </button>
+        ) : (
+          <label className="bs-open-project-option">
+            <OpenProjectOptionContent t={t} />
+            <input className="bs-open-native-file" type="file" accept=".ifcpp,application/json" onChange={(event) => {
+              const file = event.target.files?.[0];
+              if (file) void onOpenProjectFile(file);
+            }} />
+          </label>
+        )}
+        <button className="bs-open-project-option" type="button" onClick={() => void onOpenSampleProject()}>
+          <SampleProjectOptionContent t={t} />
         </button>
-      ) : (
-        <label className="bs-open-project-option">
-          <OpenProjectOptionContent t={t} />
-          <input className="bs-open-native-file" type="file" accept=".ifcpp,application/json" onChange={(event) => {
-            const file = event.target.files?.[0];
-            if (file) void onOpenProjectFile(file);
-          }} />
-        </label>
-      )}
+      </div>
       <div className="bs-open-recent-heading">{t("openPanel.recent")}</div>
       {recentFiles.length === 0 ? (
         <p className="bs-open-empty">{t("openPanel.noRecent")}</p>
@@ -455,8 +469,32 @@ function OpenProjectOptionContent({ t }: { t: (key: string) => string }) {
   );
 }
 
-function ExportPanel({ canDownloadProject, onDownloadProject, onExportPilePlanXlsx, onExportPilePlanCsv }: {
+function SampleProjectOptionContent({ t }: { t: (key: string) => string }) {
+  return (
+    <>
+      <span className="bs-open-project-icon" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M4 5h16v14H4z" />
+          <path d="M8 15l3-3 2 2 3-4" />
+        </svg>
+      </span>
+      <span className="bs-open-project-info">
+        <span className="bs-open-project-heading"><strong>{t("openPanel.sampleProject")}</strong></span>
+        <span>{t("openPanel.sampleProjectDesc")}</span>
+      </span>
+      <span className="bs-open-project-action">
+        {t("openPanel.open")}
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+          <path d="M5 12h14M14 7l5 5-5 5" />
+        </svg>
+      </span>
+    </>
+  );
+}
+
+function ExportPanel({ canDownloadProject, activePilePlanName, onDownloadProject, onExportPilePlanXlsx, onExportPilePlanCsv }: {
   canDownloadProject: boolean;
+  activePilePlanName: string;
   onDownloadProject: () => Promise<void>;
   onExportPilePlanXlsx: () => Promise<void>;
   onExportPilePlanCsv: () => Promise<void>;
@@ -479,6 +517,9 @@ function ExportPanel({ canDownloadProject, onDownloadProject, onExportPilePlanXl
     <div className={`bs-export-panel${runningExport ? " is-exporting" : ""}`} aria-busy={runningExport}>
       <h2 className="backstage-panel-title">{t("exportPanel.title")}</h2>
       <p className="backstage-panel-intro">{t("exportPanel.intro")}</p>
+      <p className="backstage-panel-intro">
+        {t("exportPanel.activePilePlan", { pilePlanName: activePilePlanName })}
+      </p>
       <div className="bs-export-cards">
         {canDownloadProject ? (
           <ExportOption

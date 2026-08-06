@@ -12,4 +12,14 @@ describe("status bar", () => {
     assert.doesNotMatch(source, /missingCostCount/);
     assert.doesNotMatch(source, />100%<\/span>/);
   });
+
+  it("announces general status feedback without owning history presentation", () => {
+    const source = readFileSync(resolve(import.meta.dirname, "StatusBar.tsx"), "utf8");
+
+    assert.match(source, /message\?: string/);
+    assert.match(source, /aria-live="polite"/);
+    assert.match(source, /\{message &&/);
+    assert.doesNotMatch(source, /historyMessage/);
+    assert.doesNotMatch(source, /status-history-message/);
+  });
 });

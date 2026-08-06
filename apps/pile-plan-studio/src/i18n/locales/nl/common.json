@@ -18,6 +18,33 @@
   "paste": "Plakken",
   "undo": "Ongedaan maken",
   "redo": "Opnieuw",
+  "history": {
+    "undoLabel": "Ongedaan maken: {{action}} (Ctrl+Z)",
+    "redoLabel": "Opnieuw: {{action}} (Ctrl+Y)",
+    "result": {
+      "undo": "Ongedaan gemaakt: {{action}}",
+      "redo": "Opnieuw uitgevoerd: {{action}}"
+    },
+    "actions": {
+      "pile-change_one": "{{count}} paal gewijzigd in {{pilePlanName}}",
+      "pile-change_other": "{{count}} palen gewijzigd in {{pilePlanName}}",
+      "cpt-selection_one": "Sonderingselectie van {{count}} belastinglocatie gewijzigd",
+      "cpt-selection_other": "Sonderingselectie van {{count}} belastinglocaties gewijzigd",
+      "cpt-settings": "Sonderingsinstellingen gewijzigd",
+      "locks_one": "{{count}} vergrendeling gewijzigd in {{pilePlanName}}",
+      "locks_other": "{{count}} vergrendelingen gewijzigd in {{pilePlanName}}",
+      "cost-settings": "Kosteninstellingen gewijzigd",
+      "legend-settings": "Legenda-instellingen gewijzigd",
+      "optimization-settings": "Optimalisatie-instellingen gewijzigd",
+      "utilization-settings": "Gewenst benuttingsbereik gewijzigd",
+      "pile-plan-created": "Palenplan {{pilePlanName}} aangemaakt",
+      "pile-plan-deleted": "Palenplan {{pilePlanName}} verwijderd",
+      "pile-plan-renamed": "Palenplan hernoemd naar {{pilePlanName}}",
+      "project-name": "Projectnaam gewijzigd",
+      "project-import": "Projectgegevens ververst",
+      "project-change": "Project gewijzigd"
+    }
+  },
   "search": "Zoeken",
   "find": "Zoeken",
   "open": "Openen",
@@ -170,6 +197,13 @@
       "cpts": "ID, X, Y",
       "foundationAdvice": "Sondering-ID, puntniveau, afmeting, R_c;net;d"
     }
+  },
+  "recovery": {
+    "loading": "Vorige sessie herstellen...",
+    "restored": "Vorige sessie hersteld",
+    "sampleOpened": "Voorbeeldproject geopend",
+    "invalid": "De opgeslagen herstelgegevens waren ongeldig. Het voorbeeldproject is geopend.",
+    "unavailable": "Automatisch browserherstel is niet beschikbaar. Download het project om je werk te bewaren."
   },
   "unsaved": {
     "title": "Onopgeslagen wijzigingen",

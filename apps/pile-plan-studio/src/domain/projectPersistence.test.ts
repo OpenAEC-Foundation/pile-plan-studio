@@ -25,8 +25,8 @@ describe("project persistence", () => {
   });
 
   it("creates safe pile plan export file names", () => {
-    assert.equal(pilePlanExportFileName("LIS Gebouw", "xlsx"), "LIS-Gebouw-pile-plan.xlsx");
-    assert.equal(pilePlanExportFileName("  ", "csv"), "pile-plan-project-pile-plan.csv");
+    assert.equal(pilePlanExportFileName("Variant 2", "xlsx"), "Variant-2.xlsx");
+    assert.equal(pilePlanExportFileName("  ", "csv"), "pile-plan.csv");
   });
 
   it("uses the desktop binary writer when running in Tauri", async () => {

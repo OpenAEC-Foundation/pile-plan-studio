@@ -109,4 +109,16 @@ describe("Alpha command surfaces", () => {
     assert.match(app, /style\.setProperty\("--right-panel-width"/);
     assert.doesNotMatch(app, /setRightPanelWidth/);
   });
+
+  it("resizes the project explorer from its workspace divider", () => {
+    const app = readFileSync(resolve(import.meta.dirname, "../../App.tsx"), "utf8");
+    const styles = readFileSync(resolve(import.meta.dirname, "../../App.css"), "utf8");
+
+    assert.match(app, /explorerWidth/);
+    assert.match(app, /resizeExplorerWidth/);
+    assert.match(app, /className="explorer-splitter"/);
+    assert.match(app, /style\.setProperty\("--explorer-width"/);
+    assert.doesNotMatch(app, /setExplorerWidth/);
+    assert.match(styles, /var\(--explorer-width, 240px\)/);
+  });
 });

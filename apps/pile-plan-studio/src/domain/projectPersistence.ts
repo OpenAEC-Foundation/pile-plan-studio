@@ -38,9 +38,9 @@ export function projectFileName(projectName: string): string {
   return `${safeName || "pile-plan-project"}.ifcpp`;
 }
 
-export function pilePlanExportFileName(projectName: string, format: "xlsx" | "csv"): string {
-  const safeName = safeProjectName(projectName) || "pile-plan-project";
-  return `${safeName}-pile-plan.${format}`;
+export function pilePlanExportFileName(pilePlanName: string, format: "xlsx" | "csv"): string {
+  const safeName = safeProjectName(pilePlanName) || "pile-plan";
+  return `${safeName}.${format}`;
 }
 
 export function isDesktopRuntime(): boolean {

@@ -1,5 +1,43 @@
 # Pile Plan Studio Release Notes
 
+## 0.1.8-alpha
+
+This alpha adds project history and browser recovery, and completes the first
+single-plan file workflow for projects that contain multiple pile plans.
+
+### Added
+
+- Undo and redo project changes from the title bar or with standard keyboard
+  shortcuts. History covers pile assignments, CPT selections, settings, pile
+  plan management, source imports, and other persisted project content.
+- Show a short history result near the bottom of the viewer, including the
+  affected plan and number of changed assignments where relevant.
+- Recover the latest browser project from IndexedDB after an accidental refresh
+  or interrupted browser session.
+- Resize the project explorer horizontally between compact and expanded widths,
+  using the same lightweight drag behavior as the properties panel.
+
+### Improved
+
+- Excel and CSV exports now state that they contain the active pile plan and use
+  that pile plan's name as the suggested file name.
+- Importing a standard or Legacy pile-plan table now creates and activates a new
+  pile plan named after the imported file. Existing plans remain unchanged and
+  duplicate names receive a numeric suffix.
+- Project pile-cost defaults once again come from the bundled sample data and
+  are no longer silently changed across projects by editing one project.
+- Activating the Load points or CPTs tab closes an open settings task panel,
+  while selecting objects in the viewer keeps that task panel available.
+
+### Notes
+
+- Browser recovery is a convenience safeguard, not a replacement for saving or
+  downloading an IFCPP project file.
+- Excel and CSV contain one active pile plan. IFCPP remains the format for
+  preserving all pile plans and project settings together.
+- This release does not publish a Windows installer. The browser build and
+  source code contain the 0.1.8-alpha changes.
+
 ## 0.1.7-alpha
 
 This alpha adds per-plan load-point locking, a coordinate-based viewer grid,

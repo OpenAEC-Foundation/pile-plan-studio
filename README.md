@@ -5,7 +5,7 @@
 </p>
 
 <p align="center">
-  <a href="RELEASE_NOTES.md"><img src="https://img.shields.io/badge/release-v0.1.7--alpha-D97706?style=flat-square" alt="Release v0.1.7-alpha"></a>
+  <a href="RELEASE_NOTES.md"><img src="https://img.shields.io/badge/release-v0.1.8--alpha-D97706?style=flat-square" alt="Release v0.1.8-alpha"></a>
   <a href="https://github.com/OpenAEC-Foundation/pile-plan-studio/releases"><img src="https://img.shields.io/github/downloads/OpenAEC-Foundation/pile-plan-studio/total?style=flat-square" alt="Total downloads"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-LGPL--3.0-blue?style=flat-square" alt="LGPL-3.0 license"></a>
   <a href="https://pile-plan-studio.open-aec.com/"><img src="https://img.shields.io/badge/platform-Web%20%7C%20Windows-lightgrey?style=flat-square" alt="Web and Windows"></a>
@@ -53,15 +53,22 @@ browser.
   selection and optimization workflows.
 - Keep multiple named pile-plan variants in one project and compare their
   estimated costs.
+- Undo and redo project changes, with a concise description of the restored
+  assignments, settings, or pile-plan variant.
+- Recover the latest browser project automatically after an accidental refresh
+  or interrupted session.
 - Select load points by pile size or tip level from the plan legend, and edit
   which configurations are available through the legend editor.
 - Run a greedy optimization with limits on sizes, tip levels, and complete
   configurations.
 - Save project data, settings, pile assignments, and CPT choices in IFCPP.
-- Export the current pile assignments and selected CPT identifiers to Excel or
-  CSV.
+- Export the active pile plan and selected CPT identifiers to Excel or CSV,
+  using the pile-plan name as the file name.
 - Import pile assignments from the standard Pile Plan Studio table or legacy
-  `Vergrendeld.xlsx` files, with validated ID and coordinate matching.
+  `Vergrendeld.xlsx` files as a new named pile plan, with validated ID and
+  coordinate matching.
+- Resize both the project explorer and properties panel to suit the current
+  workflow.
 - Use the same Rust calculation core in the browser and Windows desktop app.
 
 ## Screenshots
@@ -142,11 +149,12 @@ CPT choices are stored in an `.ifcpp` project file.
 
 ### Import an existing pile plan
 
-Use **File > Import pile plan** to update the active project from an Excel or
-CSV table. The Standard table profile supports both pile assignments and CPT
-selections. The Legacy profile supports existing `Vergrendeld.xlsx` files and
-imports pile assignments only; rows that describe more than one pile are
-skipped with a warning.
+Use **File > Import pile plan** to add an Excel or CSV table as a new pile plan
+inside the active project. The imported plan is named after the source file and
+opened immediately; existing plans remain unchanged. The Standard table
+profile supports both pile assignments and CPT selections. The Legacy profile
+supports existing `Vergrendeld.xlsx` files and imports pile assignments only;
+rows that describe more than one pile are skipped with a warning.
 
 Load points are first matched by ID when the imported coordinates agree. If
 that check fails, Pile Plan Studio falls back to one unique coordinate match.

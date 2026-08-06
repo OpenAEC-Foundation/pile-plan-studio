@@ -62,6 +62,13 @@ describe("React optimization panel", () => {
     assert.match(panel, /active && state\.rightPanelMode === mode/);
   });
 
+  it("closes a task panel when a permanent inspection tab is activated", () => {
+    const panel = readFileSync(resolve(import.meta.dirname, "RightPanel.tsx"), "utf8");
+
+    assert.match(panel, /<PanelTab[\s\S]*?onActivate=\{onCloseTaskPanel\}/);
+    assert.match(panel, /onActivate\(\);[\s\S]*?switchRightPanelMode\(state, mode\)/);
+  });
+
   it("uses the shared right-panel translations", () => {
     const panel = readFileSync(resolve(import.meta.dirname, "RightPanel.tsx"), "utf8");
     const optimization = readFileSync(resolve(import.meta.dirname, "OptimizationPanel.tsx"), "utf8");
@@ -85,6 +92,16 @@ describe("React optimization panel", () => {
     assert.doesNotMatch(panel, /mode="cost-settings"/);
     assert.match(panel, /taskPanel === "cpt-settings"/);
     assert.match(panel, /taskPanel === "cost-settings"/);
+  });
+});
+
+describe("React cost settings panel", () => {
+  it("keeps edited pile costs inside the current project", () => {
+    const panel = readFileSync(resolve(import.meta.dirname, "RightPanel.tsx"), "utf8");
+
+    assert.doesNotMatch(panel, /PILE_COST_DEFAULTS_KEY/);
+    assert.doesNotMatch(panel, /setSetting\(/);
+    assert.match(panel, /onStateChange\(\{ \.\.\.state, pileCostSettings: nextSettings \}\)/);
   });
 });
 

@@ -34,13 +34,11 @@ import {
   startManualCptSelectionEdit,
 } from "./cptSettingsModel.ts";
 import { commitCostInput, updatePileCostItem, updatePileHeadLevel } from "./costSettingsModel.ts";
-import { setSetting } from "../../store.ts";
 import { removeIcon } from "../template/ribbon/icons.ts";
 import OptimizationPanel from "./OptimizationPanel.tsx";
 import { commitNumberDraft } from "./numberInputModel.ts";
 import "./rightPanel.css";
 
-const PILE_COST_DEFAULTS_KEY = "pile-cost-defaults";
 export type RightTaskPanel = "cpt-settings" | "cost-settings" | "optimization";
 
 type Props = {
@@ -67,8 +65,8 @@ export default function RightPanel({
   return (
     <aside className="properties-panel" aria-label={t("aria.properties")}>
       <div className="right-panel-tabs" aria-label={t("aria.views")}>
-        <PanelTab active={taskPanel === null} label={t("tabs.loadPoint")} mode="load-point" state={state} onStateChange={onStateChange} />
-        <PanelTab active={taskPanel === null} label={t("tabs.cpts")} mode="cpts" state={state} onStateChange={onStateChange} />
+        <PanelTab active={taskPanel === null} label={t("tabs.loadPoint")} mode="load-point" state={state} onActivate={onCloseTaskPanel} onStateChange={onStateChange} />
+        <PanelTab active={taskPanel === null} label={t("tabs.cpts")} mode="cpts" state={state} onActivate={onCloseTaskPanel} onStateChange={onStateChange} />
       </div>
       {taskPanel === "optimization" ? (
         <OptimizationPanel state={state} onStateChange={onStateChange} onRunOptimization={onRunOptimization} onClose={onCloseTaskPanel} />
@@ -99,7 +97,6 @@ function CostSettingsPanel({ state, onStateChange, onClose }: Props & { onClose:
   const { t } = useTranslation("rightPanel");
   function applySettings(nextSettings: ProjectState["pileCostSettings"]) {
     onStateChange({ ...state, pileCostSettings: nextSettings });
-    void setSetting(PILE_COST_DEFAULTS_KEY, nextSettings);
   }
 
   return (
@@ -456,18 +453,22 @@ function MaximumAngleSketch() {
   );
 }
 
-function PanelTab({ active, label, mode, state, onStateChange }: {
+function PanelTab({ active, label, mode, state, onActivate, onStateChange }: {
   active: boolean;
   label: string;
   mode: RightPanelMode;
   state: ProjectState;
+  onActivate: () => void;
   onStateChange: (nextState: ProjectState) => void;
 }) {
   return (
     <button
       className={`right-panel-tab${active && state.rightPanelMode === mode ? " is-active" : ""}`}
       type="button"
-      onClick={() => onStateChange({ ...state, ...switchRightPanelMode(state, mode) })}
+      onClick={() => {
+        onActivate();
+        onStateChange({ ...state, ...switchRightPanelMode(state, mode) });
+      }}
     >
       {label}
     </button>

@@ -21,7 +21,7 @@ describe("PilePlanImportPanel", () => {
   it("shows preview diagnostics and only applies an eligible patch", () => {
     assert.match(source, /result\.diagnostics/);
     assert.match(source, /canApplyPilePlanImport/);
-    assert.match(source, /onImportPilePlan\(result\.patch\)/);
+    assert.match(source, /onImportPilePlan\(result\.patch, draft\.file\.name\)/);
   });
 
   it("uses the same aligned import icon as the project source cards", () => {

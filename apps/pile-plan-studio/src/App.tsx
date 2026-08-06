@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent } from "react";
+import { useCallback, useEffect, useMemo, useReducer, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent, type SetStateAction } from "react";
 import { useTranslation } from "react-i18next";
 import sampleProjectText from "../../../sample_project/sample_project.ifcpp?raw";
 import TitleBar from "./components/template/TitleBar";
@@ -7,6 +7,7 @@ import Backstage from "./components/template/backstage/Backstage";
 import SettingsDialog, { applyTheme } from "./components/template/settings/SettingsDialog";
 import FeedbackDialog from "./components/template/feedback/FeedbackDialog";
 import StatusBar from "./components/template/StatusBar";
+import HistoryNotice from "./components/viewer/HistoryNotice";
 import PilePlanWorkspace from "./components/domain/PilePlanWorkspace";
 import RightPanel, { type RightTaskPanel } from "./components/domain/RightPanel";
 import ProjectInformationDialog from "./components/domain/ProjectInformationDialog";
@@ -23,12 +24,11 @@ import {
   refreshProjectFromFilesCore,
 } from "./core/coreClient";
 import type { ImportSourceInput } from "./core/coreImportContract";
-import { applyDefaultPileCostSettings, createIfcppProject, getImportSummary } from "./core/projectFile";
+import { applyDefaultPileCostSettings, getImportSummary, loadIfcppProjectData } from "./core/projectFile";
 import { writeIfcppProjectCore } from "./core/coreClient";
 import { createInitialProjectState, type ProjectState } from "./domain/projectState";
 import { getSetting } from "./store";
 import { optionKey } from "./components/domain/rightPanelModel";
-import type { PileCostSettings } from "./core/projectTypes";
 import { buildGreedyOptimizationSettings } from "./domain/optimizationSettings";
 import {
   applyOptimizationChoices,
@@ -45,9 +45,17 @@ import {
   saveGeneratedFile,
   savePreparedFile,
 } from "./domain/projectPersistence.ts";
-import { DEFAULT_RIGHT_PANEL_WIDTH, resizeRightPanelWidth } from "./viewer/panelLayout.ts";
+import {
+  DEFAULT_EXPLORER_WIDTH,
+  DEFAULT_RIGHT_PANEL_WIDTH,
+  resizeExplorerWidth,
+  resizeRightPanelWidth,
+} from "./viewer/panelLayout.ts";
 import { buildPilePlanExportInput } from "./domain/pilePlanExport.ts";
-import { applyPilePlanImportPatch } from "./domain/pilePlanImport.ts";
+import {
+  applyPilePlanImportAsNewPlan,
+  pilePlanNameFromFileName,
+} from "./domain/pilePlanImport.ts";
 import type { PilePlanImportPatch } from "./core/pilePlanImportContract.ts";
 import { mergeDefaultPileChoices } from "./domain/defaultPileChoices.ts";
 import { loadViewerPreferences, saveViewerPreferences } from "./domain/viewerPreferences.ts";
@@ -67,39 +75,202 @@ import {
   getActiveLockedLoadPointIds,
   startLoadPointLockDraft,
 } from "./domain/loadPointLocking.ts";
+import {
+  createManagedProjectState,
+  projectHistoryReducer,
+} from "./domain/projectHistoryReducer.ts";
+import {
+  captureProjectContent,
+  normalizeProjectContentState,
+  projectFromContent,
+} from "./domain/projectContent.ts";
+import { describeHistoryAction, describeHistoryResult } from "./domain/historyMessage.ts";
+import { createBrowserRecoveryRecord } from "./domain/browserRecovery.ts";
+import {
+  createBrowserRecoveryWriter,
+  createIndexedDbRecoveryStore,
+  type BrowserRecoveryStore,
+} from "./domain/browserRecoveryStore.ts";
+import { loadBrowserRecovery } from "./domain/browserRecoveryStartup.ts";
 
-const PILE_COST_DEFAULTS_KEY = "pile-cost-defaults";
+const BUILT_IN_PILE_COST_DEFAULTS = loadIfcppProjectData(sampleProjectText).pileCostSettings;
+
+type AppBootstrap =
+  | { kind: "loading" }
+  | {
+      kind: "ready";
+      initialProjectText: string;
+      initializeDefaultPiles: boolean;
+      initialSavedProjectSignature?: string;
+      initialWasDirty?: boolean;
+      initialStatusKey?: string;
+      recoveryStore?: BrowserRecoveryStore;
+    };
 
 export default function App() {
+  const { t } = useTranslation();
+  const isDesktop = isDesktopRuntime();
+  const [bootstrap, setBootstrap] = useState<AppBootstrap>(() => isDesktop
+    ? { kind: "ready", initialProjectText: sampleProjectText, initializeDefaultPiles: true }
+    : { kind: "loading" });
+
+  useEffect(() => {
+    if (isDesktop) return;
+    let cancelled = false;
+    const start = async () => {
+      if (!window.indexedDB) {
+        if (!cancelled) setBootstrap({
+          kind: "ready",
+          initialProjectText: sampleProjectText,
+          initializeDefaultPiles: true,
+          initialStatusKey: "recovery.unavailable",
+        });
+        return;
+      }
+      const recoveryStore = createIndexedDbRecoveryStore(window.indexedDB);
+      const result = await loadBrowserRecovery({
+        isDesktop: false,
+        store: recoveryStore,
+        validateProject: (text) => { loadIfcppProjectData(text); },
+      });
+      if (cancelled) return;
+      if (result.kind === "restored") {
+        setBootstrap({
+          kind: "ready",
+          initialProjectText: result.record.ifcppText,
+          initializeDefaultPiles: false,
+          initialSavedProjectSignature: result.record.savedProjectSignature,
+          initialWasDirty: result.record.isDirty,
+          initialStatusKey: "recovery.restored",
+          recoveryStore,
+        });
+      } else {
+        setBootstrap({
+          kind: "ready",
+          initialProjectText: sampleProjectText,
+          initializeDefaultPiles: true,
+          initialStatusKey: result.kind === "invalid"
+            ? "recovery.invalid"
+            : result.kind === "unavailable"
+              ? "recovery.unavailable"
+              : undefined,
+          recoveryStore: result.kind === "unavailable" ? undefined : recoveryStore,
+        });
+      }
+      void navigator.storage?.persist?.().catch(() => false);
+    };
+    void start();
+    return () => { cancelled = true; };
+  }, [isDesktop]);
+
+  if (bootstrap.kind === "loading") {
+    return <div className="app-bootstrap" role="status">{t("recovery.loading")}</div>;
+  }
+
+  return <AppSession {...bootstrap} />;
+}
+
+function AppSession({
+  initialProjectText,
+  initializeDefaultPiles,
+  initialSavedProjectSignature,
+  initialWasDirty = false,
+  initialStatusKey,
+  recoveryStore,
+}: Extract<AppBootstrap, { kind: "ready" }>) {
   const { t, i18n } = useTranslation();
-  const [projectState, setProjectState] = useState(() => createInitialProjectState(
-    sampleProjectText,
-    {
-      initializeDefaultPiles: true,
-      defaultPilePlanName: i18n.language.startsWith("nl") ? "Basisplan" : "Base plan",
-    },
-  ));
+  const [managedProject, dispatchProject] = useReducer(
+    projectHistoryReducer,
+    initialProjectText,
+    (projectText) => createManagedProjectState(createInitialProjectState(
+      projectText,
+      {
+        initializeDefaultPiles,
+        defaultPilePlanName: i18n.language.startsWith("nl") ? "Basisplan" : "Base plan",
+      },
+    )),
+  );
+  const projectState = managedProject.present;
+  const setProjectState = useCallback((update: SetStateAction<ProjectState>) => {
+    dispatchProject({ type: "runtime", update });
+  }, []);
+  const commitProjectState = useCallback((update: SetStateAction<ProjectState>) => {
+    dispatchProject({ type: "commit", update });
+  }, []);
+  const amendProjectState = useCallback((update: SetStateAction<ProjectState>) => {
+    dispatchProject({ type: "amend", update });
+  }, []);
+  const replaceProjectState = useCallback((state: ProjectState) => {
+    dispatchProject({ type: "replace", state });
+  }, []);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [backstageOpen, setBackstageOpen] = useState(false);
   const [feedbackOpen, setFeedbackOpen] = useState(false);
   const [projectInformationOpen, setProjectInformationOpen] = useState(false);
   const [rightTaskPanel, setRightTaskPanel] = useState<RightTaskPanel | null>(null);
-  const [isDirty, setIsDirty] = useState(false);
+  const [isDirty, setIsDirty] = useState(initialWasDirty);
   const [projectPath, setProjectPath] = useState<string | null>(null);
   const [unsavedChangesOpen, setUnsavedChangesOpen] = useState(false);
   const appContentRef = useRef<HTMLDivElement | null>(null);
+  const explorerWidthRef = useRef(DEFAULT_EXPLORER_WIDTH);
   const rightPanelWidthRef = useRef(DEFAULT_RIGHT_PANEL_WIDTH);
   const [theme, setTheme] = useState("light");
-  const [costDefaultsLoaded, setCostDefaultsLoaded] = useState(false);
   const [viewerPreferencesLoaded, setViewerPreferencesLoaded] = useState(false);
   const [creatingPilePlan, setCreatingPilePlan] = useState(false);
+  const [statusMessage, setStatusMessage] = useState("");
+  const statusMessageTimeoutRef = useRef<number | null>(null);
+  const showStatusMessage = useCallback((message: string) => {
+    if (statusMessageTimeoutRef.current !== null) window.clearTimeout(statusMessageTimeoutRef.current);
+    setStatusMessage(message);
+    statusMessageTimeoutRef.current = window.setTimeout(() => {
+      setStatusMessage("");
+      statusMessageTimeoutRef.current = null;
+    }, 3500);
+  }, []);
+  const [historyNotice, setHistoryNotice] = useState({ id: 0, message: "" });
+  const historyNoticeIdRef = useRef(0);
+  const historyNoticeTimeoutRef = useRef<number | null>(null);
+  const showHistoryNotice = useCallback((message: string) => {
+    if (historyNoticeTimeoutRef.current !== null) window.clearTimeout(historyNoticeTimeoutRef.current);
+    historyNoticeIdRef.current += 1;
+    setHistoryNotice({ id: historyNoticeIdRef.current, message });
+    historyNoticeTimeoutRef.current = window.setTimeout(() => {
+      setHistoryNotice((current) => ({ ...current, message: "" }));
+      historyNoticeTimeoutRef.current = null;
+    }, 3500);
+  }, []);
   const defaultSelectionRequestRef = useRef<typeof projectState.analysisRequest | null>(null);
   const defaultSelectionKeepsDirtyRef = useRef(false);
   const replacementResolverRef = useRef<((proceed: boolean) => void) | null>(null);
-  const savedProjectSignatureRef = useRef(JSON.stringify(projectFromState(projectState)));
+  const initialProjectSignature = JSON.stringify(projectFromState(projectState));
+  const [savedProjectSignature, setSavedProjectSignature] = useState(
+    initialWasDirty
+      ? (initialSavedProjectSignature ?? "")
+      : initialProjectSignature,
+  );
+  const savedProjectSignatureRef = useRef(savedProjectSignature);
+  const recoveredDirtySignatureRef = useRef(initialWasDirty ? initialProjectSignature : null);
+  const updateSavedProjectSignature = useCallback((signature: string) => {
+    recoveredDirtySignatureRef.current = null;
+    savedProjectSignatureRef.current = signature;
+    setSavedProjectSignature(signature);
+  }, []);
   const preparedProjectRef = useRef<{ signature: string; blob: Blob } | null>(null);
   const isDesktop = isDesktopRuntime();
   const projectFileCommands = getProjectFileCommands(isDesktop);
+  const canUndo = managedProject.history.past.length > 0;
+  const canRedo = managedProject.history.future.length > 0;
+  const undoEntry = managedProject.history.past[managedProject.history.past.length - 1];
+  const redoEntry = managedProject.history.future[managedProject.history.future.length - 1];
+  const historyTranslate = useCallback((key: string, options?: Record<string, unknown>) => (
+    t(key, options)
+  ), [t]);
+  const undoLabel = undoEntry
+    ? t("history.undoLabel", { action: describeHistoryAction(historyTranslate, undoEntry.action) })
+    : `${t("undo")} (Ctrl+Z)`;
+  const redoLabel = redoEntry
+    ? t("history.redoLabel", { action: describeHistoryAction(historyTranslate, redoEntry.action) })
+    : `${t("redo")} (Ctrl+Y)`;
   const availablePileConfigurations = useMemo(() => [
     ...new Map(projectState.bearingCapacities.map((capacity) => {
       const configuration = {
@@ -111,6 +282,85 @@ export default function App() {
   ], [projectState.bearingCapacities]);
   const persistedProject = projectFromState(projectState);
   const persistedProjectSignature = JSON.stringify(persistedProject);
+  useEffect(() => {
+    if (recoveredDirtySignatureRef.current === persistedProjectSignature) {
+      setIsDirty(true);
+      return;
+    }
+    recoveredDirtySignatureRef.current = null;
+    setIsDirty(persistedProjectSignature !== savedProjectSignature);
+  }, [persistedProjectSignature, savedProjectSignature]);
+
+  const recoveryWriter = useMemo(() => recoveryStore ? createBrowserRecoveryWriter({
+    store: recoveryStore,
+    onError: () => showStatusMessage(t("recovery.unavailable")),
+  }) : null, [recoveryStore, showStatusMessage, t]);
+
+  useEffect(() => {
+    if (initialStatusKey) showStatusMessage(t(initialStatusKey));
+    return () => {
+      if (statusMessageTimeoutRef.current !== null) window.clearTimeout(statusMessageTimeoutRef.current);
+      if (historyNoticeTimeoutRef.current !== null) window.clearTimeout(historyNoticeTimeoutRef.current);
+    };
+  }, [initialStatusKey, showStatusMessage, t]);
+
+  useEffect(() => {
+    if (!recoveryWriter) return;
+    recoveryWriter.markReady();
+    return () => {
+      void recoveryWriter.flush().finally(() => recoveryWriter.dispose());
+    };
+  }, [recoveryWriter]);
+
+  useEffect(() => {
+    if (!recoveryWriter) return;
+    const flushRecovery = () => { void recoveryWriter.flush(); };
+    const flushHiddenRecovery = () => {
+      if (document.visibilityState === "hidden") flushRecovery();
+    };
+    window.addEventListener("pagehide", flushRecovery);
+    document.addEventListener("visibilitychange", flushHiddenRecovery);
+    return () => {
+      window.removeEventListener("pagehide", flushRecovery);
+      document.removeEventListener("visibilitychange", flushHiddenRecovery);
+    };
+  }, [recoveryWriter]);
+
+  useEffect(() => {
+    if (!recoveryWriter || projectState.defaultPileSelectionPending) return;
+    recoveryWriter.schedule(async () => createBrowserRecoveryRecord({
+      appVersion: __APP_VERSION__,
+      ifcppText: await writeIfcppProjectCore(persistedProject),
+      projectName: persistedProject.metadata.name,
+      savedProjectSignature,
+      isDirty,
+      updatedAt: new Date().toISOString(),
+    }));
+  }, [isDirty, persistedProjectSignature, projectState.defaultPileSelectionPending, recoveryWriter, savedProjectSignature]);
+
+  useEffect(() => {
+    const result = managedProject.lastResult;
+    if (!result) return;
+    showHistoryNotice(describeHistoryResult(historyTranslate, result));
+  }, [historyTranslate, managedProject.lastResult, showHistoryNotice]);
+
+  useEffect(() => {
+    const handleHistoryShortcut = (event: KeyboardEvent) => {
+      if (!(event.ctrlKey || event.metaKey) || event.altKey || isEditableTarget(event.target)) return;
+      const key = event.key.toLowerCase();
+      const undoRequested = key === "z" && !event.shiftKey;
+      const redoRequested = key === "y" || (key === "z" && event.shiftKey);
+      if (undoRequested && canUndo) {
+        event.preventDefault();
+        dispatchProject({ type: "undo" });
+      } else if (redoRequested && canRedo) {
+        event.preventDefault();
+        dispatchProject({ type: "redo" });
+      }
+    };
+    window.addEventListener("keydown", handleHistoryShortcut);
+    return () => window.removeEventListener("keydown", handleHistoryShortcut);
+  }, [canRedo, canUndo]);
   const pilePlanCostSummaries = useMemo(() => summarizePilePlanCosts(
     synchronizeActivePilePlan(
       projectState.pilePlans,
@@ -140,7 +390,7 @@ export default function App() {
       ? await savePreparedFile(options, prepared.blob)
       : await saveGeneratedFile(options, async () => new Blob([await serializeProject()], { type: "application/json" }));
     if (!saved) return false;
-    savedProjectSignatureRef.current = JSON.stringify(projectFromState(projectState));
+    updateSavedProjectSignature(JSON.stringify(projectFromState(projectState)));
     setIsDirty(false);
     return true;
   };
@@ -156,7 +406,7 @@ export default function App() {
     const { invoke } = await import("@tauri-apps/api/core");
     await invoke("write_project_file", { path, contents: await serializeProject() });
     setProjectPath(path);
-    savedProjectSignatureRef.current = JSON.stringify(projectFromState(projectState));
+    updateSavedProjectSignature(JSON.stringify(projectFromState(projectState)));
     setIsDirty(false);
     return true;
   };
@@ -166,10 +416,14 @@ export default function App() {
     if (!projectPath) return saveProjectAs();
     const { invoke } = await import("@tauri-apps/api/core");
     await invoke("write_project_file", { path: projectPath, contents: await serializeProject() });
-    savedProjectSignatureRef.current = JSON.stringify(projectFromState(projectState));
+    updateSavedProjectSignature(JSON.stringify(projectFromState(projectState)));
     setIsDirty(false);
     return true;
   };
+
+  const activePilePlanName = projectState.pilePlans.find(
+    (pilePlan) => pilePlan.id === projectState.activePilePlanId,
+  )?.name ?? projectState.name;
 
   const exportPilePlan = async (format: "xlsx" | "csv"): Promise<void> => {
     const input = buildPilePlanExportInput(projectState);
@@ -178,7 +432,7 @@ export default function App() {
       : await exportPilePlanCsvCore(input);
     await saveBinaryExport(
       {
-        fileName: pilePlanExportFileName(projectState.name, format),
+        fileName: pilePlanExportFileName(activePilePlanName, format),
         mimeType: format === "xlsx"
           ? "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
           : "text/csv",
@@ -204,16 +458,15 @@ export default function App() {
   };
 
   const handleProjectStateChange = (nextState: typeof projectState) => {
-    setProjectState(nextState);
-    setIsDirty(JSON.stringify(projectFromState(nextState)) !== savedProjectSignatureRef.current);
+    commitProjectState(nextState);
   };
 
-  const importPilePlan = (patch: PilePlanImportPatch) => {
-    setProjectState((current) => {
-      const next = applyPilePlanImportPatch(current, patch);
-      if (next !== current) setIsDirty(true);
-      return next;
-    });
+  const importPilePlan = (patch: PilePlanImportPatch, fileName: string) => {
+    commitProjectState((current) => applyPilePlanImportAsNewPlan(
+      current,
+      patch,
+      pilePlanNameFromFileName(fileName),
+    ));
   };
 
   const pilePlanLanguage = (): PilePlanLanguage => i18n.language.startsWith("nl") ? "nl" : "en";
@@ -224,7 +477,6 @@ export default function App() {
       const transition = switchPilePlan({ ...current, targetPilePlanId: pilePlanId });
       const locked = new Set(getActiveLockedLoadPointIds(transition.pilePlans, transition.activePilePlanId));
       const selectedLoadPointIds = current.selectedLoadPointIds.filter((id) => !locked.has(id));
-      setIsDirty(true);
       return {
         ...current,
         ...transition,
@@ -284,7 +536,7 @@ export default function App() {
   };
 
   const applyLockEditing = () => {
-    setProjectState((current) => {
+    commitProjectState((current) => {
       const draft = current.loadPointLockDraft;
       if (draft === null) return current;
       const previous = getActiveLockedLoadPointIds(current.pilePlans, current.activePilePlanId);
@@ -293,7 +545,13 @@ export default function App() {
       const selectedLoadPointId = selectedLoadPointIds.includes(current.selectedLoadPointId ?? -1)
         ? current.selectedLoadPointId
         : selectedLoadPointIds[0] ?? null;
-      if (changed) setIsDirty(true);
+      if (!changed) {
+        return {
+          ...current,
+          loadPointLockDraft: null,
+          loadPointLockSelectionSnapshot: null,
+        };
+      }
       return {
         ...current,
         pilePlans: applyLoadPointLockDraft(current.pilePlans, current.activePilePlanId, draft),
@@ -307,7 +565,7 @@ export default function App() {
   };
 
   const renameProjectPilePlan = (pilePlanId: string, name: string) => {
-    setProjectState((current) => {
+    commitProjectState((current) => {
       const synchronized = synchronizeActivePilePlan(
         current.pilePlans,
         current.activePilePlanId,
@@ -317,14 +575,12 @@ export default function App() {
       if (pilePlans === synchronized || pilePlans.every((plan, index) => plan.name === synchronized[index]?.name)) {
         return current;
       }
-      setIsDirty(true);
       return { ...current, pilePlans };
     });
   };
 
   const duplicateProjectPilePlan = (pilePlanId: string) => {
-    setProjectState((current) => {
-      setIsDirty(true);
+    commitProjectState((current) => {
       return {
         ...current,
         ...duplicatePilePlan({
@@ -337,9 +593,8 @@ export default function App() {
   };
 
   const deleteProjectPilePlan = (pilePlanId: string) => {
-    setProjectState((current) => {
+    commitProjectState((current) => {
       if (current.pilePlans.length <= 1) return current;
-      setIsDirty(true);
       return { ...current, ...deletePilePlan({ ...current, pilePlanId }) };
     });
   };
@@ -370,9 +625,8 @@ export default function App() {
             optionsByLoadPointId,
             costSettings: snapshot.pileCostSettings,
           });
-      setProjectState((current) => {
+      commitProjectState((current) => {
         if (current.analysisRequest !== snapshot.analysisRequest) return current;
-        setIsDirty(true);
         return {
           ...current,
           ...createPilePlan({
@@ -427,16 +681,6 @@ export default function App() {
   }, [persistedProjectSignature]);
 
   useEffect(() => {
-    getSetting<PileCostSettings | null>(PILE_COST_DEFAULTS_KEY, null)
-      .then((saved) => {
-        if (saved?.items.length) {
-          setProjectState((current) => ({ ...current, pileCostSettings: saved }));
-        }
-      })
-      .finally(() => setCostDefaultsLoaded(true));
-  }, []);
-
-  useEffect(() => {
     let cancelled = false;
     const analysisRequest = projectState.analysisRequest;
 
@@ -488,8 +732,7 @@ export default function App() {
 
   useEffect(() => {
     if (
-      !costDefaultsLoaded
-      || !projectState.defaultPileSelectionPending
+      !projectState.defaultPileSelectionPending
       || projectState.pileOptionsByLoadPointId.size !== projectState.loadPoints.length
     ) {
       return;
@@ -504,7 +747,7 @@ export default function App() {
       optionsByLoadPointId: projectState.pileOptionsByLoadPointId,
       costSettings: projectState.pileCostSettings,
     }).then((choices) => {
-      setProjectState((current) => {
+      const applyChoices = (current: ProjectState) => {
         if (current.analysisRequest !== analysisRequest) return current;
         const next = {
           ...current,
@@ -516,11 +759,16 @@ export default function App() {
           analysisError: null,
         };
         if (savedProjectSignatureRef.current !== "" && !defaultSelectionKeepsDirtyRef.current) {
-          savedProjectSignatureRef.current = JSON.stringify(projectFromState(next));
+          updateSavedProjectSignature(JSON.stringify(projectFromState(next)));
           setIsDirty(false);
         }
         return next;
-      });
+      };
+      if (defaultSelectionKeepsDirtyRef.current) {
+        amendProjectState(applyChoices);
+      } else {
+        setProjectState(applyChoices);
+      }
     }).catch((error: unknown) => {
       console.error("Failed to choose default pile options", error);
       setProjectState((current) => current.analysisRequest !== analysisRequest ? current : ({
@@ -535,7 +783,6 @@ export default function App() {
       }
     });
   }, [
-    costDefaultsLoaded,
     projectState.analysisRequest,
     projectState.defaultPileSelectionPending,
     projectState.loadPoints.length,
@@ -640,7 +887,7 @@ export default function App() {
         targetIds,
         choices,
       });
-      setProjectState((current) => {
+      commitProjectState((current) => {
         if (current.analysisRequest !== snapshot.analysisRequest) return current;
         const pilePlanTransition = snapshot.optimizationCreatesPilePlan
           ? createOptimizationPilePlan({
@@ -649,7 +896,6 @@ export default function App() {
               language: pilePlanLanguage(),
             })
           : { selectedPileOptionKeysByLoadPoint: applied.choices };
-        setIsDirty(true);
         return {
           ...current,
           ...pilePlanTransition,
@@ -674,10 +920,20 @@ export default function App() {
     || (projectState.optimizationTargetScope === "selected" && projectState.selectedLoadPointIds.length === 0);
 
   const installOpenedProject = (project: ProjectState, path: string | null) => {
-    setProjectState(project);
+    replaceProjectState(project);
     setProjectPath(path);
-    savedProjectSignatureRef.current = JSON.stringify(projectFromState(project));
+    updateSavedProjectSignature(JSON.stringify(projectFromState(project)));
     setIsDirty(false);
+  };
+
+  const openSampleProject = async () => {
+    if (!await confirmProjectReplacement()) return;
+    installOpenedProject(createInitialProjectState(sampleProjectText, {
+      initializeDefaultPiles: true,
+      viewerPreferences: projectState,
+      defaultPilePlanName: pilePlanLanguage() === "nl" ? "Basisplan" : "Base plan",
+    }), null);
+    showStatusMessage(t("recovery.sampleOpened"));
   };
 
   const openDesktopProjectPath = async (path: string) => {
@@ -702,6 +958,12 @@ export default function App() {
         <TitleBar
           projectAction={() => void (isDesktop ? saveProject() : downloadProject())}
           projectActionKind={isDesktop ? "save" : "download"}
+          canUndo={canUndo}
+          canRedo={canRedo}
+          undoLabel={undoLabel}
+          redoLabel={redoLabel}
+          onUndo={() => dispatchProject({ type: "undo" })}
+          onRedo={() => dispatchProject({ type: "redo" })}
           onSettingsClick={() => setSettingsOpen(true)}
           onFeedbackClick={() => setFeedbackOpen(true)}
         />
@@ -745,7 +1007,10 @@ export default function App() {
         <div
           className="app-content"
           ref={appContentRef}
-          style={{ "--right-panel-width": `${DEFAULT_RIGHT_PANEL_WIDTH}px` } as CSSProperties}
+          style={{
+            "--explorer-width": `${DEFAULT_EXPLORER_WIDTH}px`,
+            "--right-panel-width": `${DEFAULT_RIGHT_PANEL_WIDTH}px`,
+          } as CSSProperties}
         >
           <PilePlanExplorer
             activePilePlanId={projectState.activePilePlanId}
@@ -764,8 +1029,15 @@ export default function App() {
             onDuplicate={duplicateProjectPilePlan}
             onRename={renameProjectPilePlan}
           />
+          <div
+            aria-label={t("explorer")}
+            className="explorer-splitter"
+            role="separator"
+            onPointerDown={beginExplorerResize}
+          />
           <main className="workspace" aria-label="Pile plan workspace">
             <PilePlanWorkspace state={projectState} onStateChange={handleProjectStateChange} />
+            <HistoryNotice message={historyNotice.message} noticeId={historyNotice.id} />
           </main>
           <div
             aria-label={t("properties")}
@@ -781,7 +1053,10 @@ export default function App() {
             onCloseTaskPanel={() => setRightTaskPanel(null)}
           />
         </div>
-        <StatusBar zoomPercent={projectState.viewport.scale * 100} />
+        <StatusBar
+          zoomPercent={projectState.viewport.scale * 100}
+          message={statusMessage}
+        />
       </div>
       <Backstage
         open={backstageOpen}
@@ -791,6 +1066,7 @@ export default function App() {
         loadPoints={projectState.loadPoints}
         cpts={projectState.cpts}
         availablePileConfigurations={availablePileConfigurations}
+        activePilePlanName={activePilePlanName}
         onImportPilePlan={importPilePlan}
         onImportProject={async (mode, projectName: string | null, sources: ImportSourceInput[]) => {
           if (mode === "refresh") {
@@ -799,7 +1075,7 @@ export default function App() {
               sources,
             });
             defaultSelectionKeepsDirtyRef.current = true;
-            setProjectState(createInitialProjectState(refreshedProject, {
+            commitProjectState(createInitialProjectState(refreshedProject, {
               initializeDefaultPiles: true,
               viewerPreferences: projectState,
             }));
@@ -812,15 +1088,15 @@ export default function App() {
             projectName: projectName ?? projectState.name,
             sources,
           });
-          const withCosts = applyDefaultPileCostSettings(project, projectState.pileCostSettings);
+          const withCosts = applyDefaultPileCostSettings(project, BUILT_IN_PILE_COST_DEFAULTS);
           defaultSelectionKeepsDirtyRef.current = false;
-          setProjectState(createInitialProjectState(withCosts, {
+          replaceProjectState(createInitialProjectState(withCosts, {
             initializeDefaultPiles: true,
             viewerPreferences: projectState,
             defaultPilePlanName: pilePlanLanguage() === "nl" ? "Basisplan" : "Base plan",
           }));
           setProjectPath(null);
-          savedProjectSignatureRef.current = "";
+          updateSavedProjectSignature("");
           setIsDirty(true);
           return getImportSummary(project);
         }}
@@ -832,6 +1108,7 @@ export default function App() {
           );
           installOpenedProject(project, null);
         }}
+        onOpenSampleProject={openSampleProject}
         onOpenFile={(path) => void openDesktopProjectPath(path)}
         onChooseDesktopProject={chooseDesktopProject}
         onDownloadProject={async () => { await downloadProject(); }}
@@ -865,6 +1142,30 @@ export default function App() {
     </>
   );
 
+  function beginExplorerResize(event: ReactPointerEvent<HTMLDivElement>) {
+    event.preventDefault();
+    const startWidth = explorerWidthRef.current;
+    const startX = event.clientX;
+    let currentWidth = startWidth;
+    document.body.classList.add("is-resizing-panel");
+
+    const handlePointerMove = (moveEvent: PointerEvent) => {
+      currentWidth = resizeExplorerWidth({ startWidth, startX, currentX: moveEvent.clientX });
+      appContentRef.current?.style.setProperty("--explorer-width", `${currentWidth}px`);
+    };
+    const handlePointerUp = () => {
+      explorerWidthRef.current = currentWidth;
+      document.body.classList.remove("is-resizing-panel");
+      window.removeEventListener("pointermove", handlePointerMove);
+      window.removeEventListener("pointerup", handlePointerUp);
+      window.removeEventListener("pointercancel", handlePointerUp);
+    };
+
+    window.addEventListener("pointermove", handlePointerMove);
+    window.addEventListener("pointerup", handlePointerUp);
+    window.addEventListener("pointercancel", handlePointerUp);
+  }
+
   function beginRightPanelResize(event: ReactPointerEvent<HTMLDivElement>) {
     event.preventDefault();
     const startWidth = rightPanelWidthRef.current;
@@ -891,21 +1192,12 @@ export default function App() {
 }
 
 function projectFromState(state: ProjectState) {
-  return createIfcppProject({
-    name: state.name,
-    loadPoints: state.loadPoints,
-    cpts: state.cpts,
-    bearingCapacities: state.bearingCapacities,
-    globalCptSelectionSettings: state.globalCptSelectionSettings,
-    cptSelectionSettingsByLoadPoint: state.cptSelectionSettingsByLoadPoint,
-    pileCostSettings: state.pileCostSettings,
-    optimizationSettings: state.optimizationSettings,
-    viewerUtilizationSettings: state.viewerUtilizationSettings,
-    activePileSizes: state.activePileSizes,
-    activePileTipLevels: state.activePileTipLevels,
-    pilePlans: state.pilePlans,
-    activePilePlanId: state.activePilePlanId,
-    selectedPileOptionKeysByLoadPoint: state.selectedPileOptionKeysByLoadPoint,
-    manualCptIdsByLoadPoint: state.manualCptIdsByLoadPoint,
-  });
+  const normalized = normalizeProjectContentState(state);
+  return projectFromContent(captureProjectContent(normalized), normalized.activePilePlanId);
+}
+
+function isEditableTarget(target: EventTarget | null): boolean {
+  return target instanceof HTMLElement && (
+    target.matches("input, textarea, select") || target.isContentEditable
+  );
 }

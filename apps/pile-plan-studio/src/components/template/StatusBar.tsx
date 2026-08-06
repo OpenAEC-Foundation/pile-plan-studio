@@ -3,13 +3,16 @@ import "./StatusBar.css";
 
 type Props = {
   zoomPercent: number;
+  message?: string;
 };
 
-export default function StatusBar({ zoomPercent }: Props) {
+export default function StatusBar({ zoomPercent, message }: Props) {
   const { t } = useTranslation();
   return (
     <div className="status-bar">
-      <div className="status-bar-left" />
+      <div className="status-bar-left" aria-live="polite">
+        {message && <span className="status-message">{message}</span>}
+      </div>
 
       <div className="status-bar-center">
         <span className="status-item-label" style={{ fontSize: "11px" }}>

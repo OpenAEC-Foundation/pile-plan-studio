@@ -343,6 +343,12 @@ body:has(.bs-export-panel.is-exporting) * {
   color: var(--theme-accent);
 }
 
+.bs-open-project-options {
+  display: grid;
+  gap: 8px;
+  margin-bottom: 24px;
+}
+
 .bs-open-project-option {
   width: 100%;
   min-height: 74px;
@@ -350,7 +356,7 @@ body:has(.bs-export-panel.is-exporting) * {
   display: flex;
   align-items: center;
   gap: 14px;
-  margin-bottom: 24px;
+  margin: 0;
   padding: 14px;
   color: var(--theme-text);
   background: var(--theme-bg-lighter);

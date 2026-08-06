@@ -18,6 +18,33 @@
   "paste": "Paste",
   "undo": "Undo",
   "redo": "Redo",
+  "history": {
+    "undoLabel": "Undo: {{action}} (Ctrl+Z)",
+    "redoLabel": "Redo: {{action}} (Ctrl+Y)",
+    "result": {
+      "undo": "Undone: {{action}}",
+      "redo": "Redone: {{action}}"
+    },
+    "actions": {
+      "pile-change_one": "Changed {{count}} pile in {{pilePlanName}}",
+      "pile-change_other": "Changed {{count}} piles in {{pilePlanName}}",
+      "cpt-selection_one": "Changed the CPT selection for {{count}} load point",
+      "cpt-selection_other": "Changed the CPT selection for {{count}} load points",
+      "cpt-settings": "Changed CPT settings",
+      "locks_one": "Changed {{count}} lock in {{pilePlanName}}",
+      "locks_other": "Changed {{count}} locks in {{pilePlanName}}",
+      "cost-settings": "Changed cost settings",
+      "legend-settings": "Changed legend settings",
+      "optimization-settings": "Changed optimization settings",
+      "utilization-settings": "Changed the preferred utilization range",
+      "pile-plan-created": "Created pile plan {{pilePlanName}}",
+      "pile-plan-deleted": "Deleted pile plan {{pilePlanName}}",
+      "pile-plan-renamed": "Renamed pile plan to {{pilePlanName}}",
+      "project-name": "Changed the project name",
+      "project-import": "Refreshed project data",
+      "project-change": "Changed the project"
+    }
+  },
   "search": "Search",
   "find": "Find",
   "open": "Open",
@@ -170,6 +197,13 @@
       "cpts": "ID, X, Y",
       "foundationAdvice": "CPT ID, tip, size, R_c;net;d"
     }
+  },
+  "recovery": {
+    "loading": "Restoring your previous session...",
+    "restored": "Previous session restored",
+    "sampleOpened": "Sample project opened",
+    "invalid": "Stored recovery data was invalid. The sample project was opened.",
+    "unavailable": "Automatic browser recovery is unavailable. Download the project to keep your work."
   },
   "unsaved": {
     "title": "Unsaved changes",
