@@ -29,9 +29,22 @@ describe("legend editor", () => {
     assert.match(source, /setLegendEditorItemEnabled/);
     assert.doesNotMatch(source, /toggleLegendEditorItem/);
     assert.match(source, /legend-editor-activation-button/);
-    assert.match(source, /isDisabled \? null : <AppearanceControl/);
+    assert.match(source, /isDisabled \? null : \(\s*<AppearanceControl/);
     assert.match(source, /disabled-used/);
     assert.match(source, /legend\.usedWarning/);
+  });
+
+  it("keeps picker-owning rows stable while the draft changes", () => {
+    const source = readFileSync(resolve(import.meta.dirname, "LegendEditor.tsx"), "utf8");
+    const componentBody = source.slice(
+      source.indexOf("export default function LegendEditor"),
+      source.indexOf("type EditorSectionProps"),
+    );
+
+    assert.doesNotMatch(componentBody, /function EditorSection/);
+    assert.doesNotMatch(componentBody, /function EditorBlock/);
+    assert.doesNotMatch(componentBody, /function EditorItemRow/);
+    assert.match(source, /^function EditorItemRow/m);
   });
 
   it("shows encoding, assignment, validation, and reset copy", () => {

@@ -186,8 +186,22 @@ export default function LegendEditor({ open, state, onApply, onClose }: Props) {
           <BulkButton action="disable-all" label={t("legend.disableAll")} />
         </div>
         <div className="legend-editor-sections">
-          <EditorSection items={sizeItems} title={t("legend.size")} />
-          <EditorSection items={tipItems} title={t("legend.tip")} />
+          <EditorSection
+            draft={draft}
+            items={sizeItems}
+            language={i18n.language}
+            symbolKind={symbolKind}
+            title={t("legend.size")}
+            onDraftChange={setDraft}
+          />
+          <EditorSection
+            draft={draft}
+            items={tipItems}
+            language={i18n.language}
+            symbolKind={symbolKind}
+            title={t("legend.tip")}
+            onDraftChange={setDraft}
+          />
         </div>
       </div>
     </Modal>
@@ -213,85 +227,6 @@ export default function LegendEditor({ open, state, onApply, onClose }: Props) {
     );
   }
 
-  function EditorSection({ items, title }: { items: EditorItem[]; title: string }) {
-    const enabledItems = items.filter((item) => !item.state.startsWith("disabled"));
-    const disabledItems = items.filter((item) => item.state.startsWith("disabled"));
-
-    return (
-      <section className="legend-editor-section">
-        <h3>{title}</h3>
-        <div className="legend-editor-columns">
-          <EditorBlock className="legend-editor-enabled" items={enabledItems} title={t("legend.enabled")} />
-          <EditorBlock className="legend-editor-disabled" items={disabledItems} title={t("legend.disabled")} />
-        </div>
-      </section>
-    );
-  }
-
-  function EditorBlock({ className, items, title }: { className: string; items: EditorItem[]; title: string }) {
-    return (
-      <div className={`legend-editor-block ${className}`}>
-        <h4>{title}</h4>
-        <div className="legend-editor-items">
-          {items.length > 0 ? items.map((item) => <EditorItemRow item={item} key={item.value} />) : (
-            <span className="legend-editor-empty">{t("legend.none")}</span>
-          )}
-        </div>
-      </div>
-    );
-  }
-
-  function EditorItemRow({ item }: { item: EditorItem }) {
-    const isDisabled = item.state.startsWith("disabled");
-    const isUnused = item.state === "enabled-unused" || item.state === "disabled-unused";
-    const isDisabledUsed = item.state === "disabled-used";
-    const label = item.kind === "size" ? `${item.value} mm` : formatTipLevel(item.value, i18n.language);
-
-    return (
-      <div className={`legend-editor-item${isUnused ? " is-unused" : ""}${isDisabledUsed ? " is-warning" : ""}`}>
-        {isDisabled ? null : <AppearanceControl item={item} label={label} />}
-        <span className="legend-editor-item-label">{label}</span>
-        {isDisabledUsed ? (
-          <span className="legend-editor-warning" title={t("legend.usedWarning")} aria-label={t("legend.usedWarning")}>!</span>
-        ) : null}
-        <button
-          aria-label={isDisabled ? t("legend.enableItem", { item: label }) : t("legend.disableItem", { item: label })}
-          className="legend-editor-activation-button"
-          title={isDisabled ? t("legend.enableItem", { item: label }) : t("legend.disableItem", { item: label })}
-          type="button"
-          onClick={() => setDraft(setLegendEditorItemEnabled(draft, item.kind, item.value, isDisabled))}
-        >
-          <span aria-hidden="true">{isDisabled ? "+" : "−"}</span>
-        </button>
-      </div>
-    );
-  }
-
-  function AppearanceControl({ item, label }: { item: EditorItem; label: string }) {
-    if (item.kind === symbolKind) {
-      return (
-        <LegendSymbolPicker
-          value={item.symbol}
-          color={item.color}
-          label={t("legend.changeSymbol", { item: label })}
-          fillLabel={t("legend.fillPattern")}
-          getShapeLabel={(shape) => t(`legend.baseShapes.${shapeKey(shape)}`)}
-          getFillLabel={(fill) => t(`legend.fillPatterns.${fillKey(fill)}`)}
-          onChange={(symbol) => setDraft(updateLegendSymbol(draft, item.kind, item.value, symbol))}
-        />
-      );
-    }
-
-    return (
-      <LegendColorPicker
-        value={item.color}
-        label={t("legend.changeColor", { item: label })}
-        hexLabel={t("legend.hexColor")}
-        onChange={(color) => setDraft(updateLegendColor(draft, item.kind, item.value, color))}
-      />
-    );
-  }
-
   function assignSymbols() {
     const result = applyAutomaticSymbols(draft, symbolKind);
     setSymbolLimitError(!result.ok);
@@ -301,6 +236,114 @@ export default function LegendEditor({ open, state, onApply, onClose }: Props) {
   function schemeLabel(scheme: LegendColorScheme): string {
     return t(`legend.colorSchemes.${schemeKey(scheme)}`);
   }
+}
+
+type EditorSectionProps = {
+  draft: LegendEditorDraft;
+  items: EditorItem[];
+  language: string;
+  symbolKind: LegendEditorItemKind;
+  title: string;
+  onDraftChange: (draft: LegendEditorDraft) => void;
+};
+
+function EditorSection(props: EditorSectionProps) {
+  const { t } = useTranslation("common");
+  const enabledItems = props.items.filter((item) => !item.state.startsWith("disabled"));
+  const disabledItems = props.items.filter((item) => item.state.startsWith("disabled"));
+
+  return (
+    <section className="legend-editor-section">
+      <h3>{props.title}</h3>
+      <div className="legend-editor-columns">
+        <EditorBlock {...props} className="legend-editor-enabled" items={enabledItems} title={t("legend.enabled")} />
+        <EditorBlock {...props} className="legend-editor-disabled" items={disabledItems} title={t("legend.disabled")} />
+      </div>
+    </section>
+  );
+}
+
+type EditorBlockProps = EditorSectionProps & { className: string };
+
+function EditorBlock({ className, items, title, ...itemProps }: EditorBlockProps) {
+  const { t } = useTranslation("common");
+  return (
+    <div className={`legend-editor-block ${className}`}>
+      <h4>{title}</h4>
+      <div className="legend-editor-items">
+        {items.length > 0 ? items.map((item) => (
+          <EditorItemRow {...itemProps} item={item} key={item.value} />
+        )) : <span className="legend-editor-empty">{t("legend.none")}</span>}
+      </div>
+    </div>
+  );
+}
+
+type EditorItemRowProps = Omit<EditorSectionProps, "items" | "title"> & { item: EditorItem };
+
+function EditorItemRow({ draft, item, language, symbolKind, onDraftChange }: EditorItemRowProps) {
+  const { t } = useTranslation("common");
+  const isDisabled = item.state.startsWith("disabled");
+  const isUnused = item.state === "enabled-unused" || item.state === "disabled-unused";
+  const isDisabledUsed = item.state === "disabled-used";
+  const label = item.kind === "size" ? `${item.value} mm` : formatTipLevel(item.value, language);
+
+  return (
+    <div className={`legend-editor-item${isUnused ? " is-unused" : ""}${isDisabledUsed ? " is-warning" : ""}`}>
+      {isDisabled ? null : (
+        <AppearanceControl
+          draft={draft}
+          item={item}
+          label={label}
+          symbolKind={symbolKind}
+          onDraftChange={onDraftChange}
+        />
+      )}
+      <span className="legend-editor-item-label">{label}</span>
+      {isDisabledUsed ? (
+        <span className="legend-editor-warning" title={t("legend.usedWarning")} aria-label={t("legend.usedWarning")}>!</span>
+      ) : null}
+      <button
+        aria-label={isDisabled ? t("legend.enableItem", { item: label }) : t("legend.disableItem", { item: label })}
+        className="legend-editor-activation-button"
+        title={isDisabled ? t("legend.enableItem", { item: label }) : t("legend.disableItem", { item: label })}
+        type="button"
+        onClick={() => onDraftChange(setLegendEditorItemEnabled(draft, item.kind, item.value, isDisabled))}
+      >
+        <span aria-hidden="true">{isDisabled ? "+" : "−"}</span>
+      </button>
+    </div>
+  );
+}
+
+type AppearanceControlProps = Pick<EditorItemRowProps, "draft" | "item" | "symbolKind" | "onDraftChange"> & {
+  label: string;
+};
+
+function AppearanceControl({ draft, item, label, symbolKind, onDraftChange }: AppearanceControlProps) {
+  const { t } = useTranslation("common");
+  if (item.kind === symbolKind) {
+    return (
+      <LegendSymbolPicker
+        value={item.symbol}
+        color={item.color}
+        label={t("legend.changeSymbol", { item: label })}
+        fillLabel={t("legend.fillPattern")}
+        getShapeLabel={(shape) => t(`legend.baseShapes.${shapeKey(shape)}`)}
+        getFillLabel={(fill) => t(`legend.fillPatterns.${fillKey(fill)}`)}
+        onChange={(symbol) => onDraftChange(updateLegendSymbol(draft, item.kind, item.value, symbol))}
+      />
+    );
+  }
+
+  return (
+    <LegendColorPicker
+      value={item.color}
+      label={t("legend.changeColor", { item: label })}
+      hexLabel={t("legend.hexColor")}
+      onChange={(color) => onDraftChange(updateLegendColor(draft, item.kind, item.value, color))}
+    />
+  );
 }
 
 function activeFromState(state: ProjectState) {

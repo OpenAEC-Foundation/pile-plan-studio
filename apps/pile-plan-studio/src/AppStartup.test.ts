@@ -148,4 +148,14 @@ describe("React app startup", () => {
 
     assert.doesNotMatch(source, /<PilePlanWorkspace[\s\S]*?onMapMarkerSelect=/);
   });
+
+  it("reports restored legend mappings when an opened project contains invalid values", () => {
+    const source = readFileSync(resolve(import.meta.dirname, "App.tsx"), "utf8");
+    const installStart = source.indexOf("const installOpenedProject");
+    const installEnd = source.indexOf("const openSampleProject", installStart);
+    const installHandler = source.slice(installStart, installEnd);
+
+    assert.match(installHandler, /project\.legendImportWarnings\.length > 0/);
+    assert.match(installHandler, /showStatusMessage\(t\("legend\.importWarnings"/);
+  });
 });

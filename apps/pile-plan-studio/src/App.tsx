@@ -924,6 +924,9 @@ function AppSession({
     setProjectPath(path);
     updateSavedProjectSignature(JSON.stringify(projectFromState(project)));
     setIsDirty(false);
+    if (project.legendImportWarnings.length > 0) {
+      showStatusMessage(t("legend.importWarnings", { count: project.legendImportWarnings.length }));
+    }
   };
 
   const openSampleProject = async () => {
