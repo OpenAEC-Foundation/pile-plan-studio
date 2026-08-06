@@ -35,11 +35,11 @@ type EditorItem = {
 
 export default function LegendEditor({ open, state, onApply, onClose }: Props) {
   const { t, i18n } = useTranslation("common");
-  const [draft, setDraft] = useState(() => createLegendEditorDraft(activeFromState(state)));
+  const [draft, setDraft] = useState(() => createLegendEditorDraft(activeFromState(state), state.pileLegend));
   const openedPlanId = useRef(state.activePilePlanId);
   const legend = state.pileLegend;
   const used = deriveUsedPileConfigurations(state.selectedPileOptionKeysByLoadPoint.values());
-  const presentation = buildLegendPresentation({ legend, enabled: draft, used });
+  const presentation = buildLegendPresentation({ legend: draft.legend, enabled: draft.active, used });
   const available = {
     pileSizes: presentation.pileSizes.map(({ value }) => value),
     pileTipLevels: presentation.pileTipLevels.map(({ value }) => value),
@@ -56,7 +56,7 @@ export default function LegendEditor({ open, state, onApply, onClose }: Props) {
   useEffect(() => {
     if (!open) return;
     openedPlanId.current = state.activePilePlanId;
-    setDraft(createLegendEditorDraft(activeFromState(state)));
+    setDraft(createLegendEditorDraft(activeFromState(state), state.pileLegend));
   }, [open]);
 
   useEffect(() => {
@@ -110,7 +110,7 @@ export default function LegendEditor({ open, state, onApply, onClose }: Props) {
       <button
         className="legend-editor-toolbar-button"
         type="button"
-        onClick={() => setDraft(applyLegendEditorBulkAction(action, available, used))}
+        onClick={() => setDraft(applyLegendEditorBulkAction(draft, action, available, used))}
       >
         {label}
       </button>
@@ -186,7 +186,7 @@ export default function LegendEditor({ open, state, onApply, onClose }: Props) {
   }
 }
 
-function activeFromState(state: ProjectState): LegendEditorDraft {
+function activeFromState(state: ProjectState) {
   return {
     pileSizes: state.activePileSizes,
     pileTipLevels: state.activePileTipLevels,

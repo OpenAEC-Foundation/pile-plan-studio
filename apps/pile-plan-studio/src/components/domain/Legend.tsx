@@ -1,6 +1,5 @@
 import type { ProjectState } from "../../domain/projectState";
 import { useTranslation } from "react-i18next";
-import { applyLegendEditorBulkAction } from "../../domain/legendEditorModel.ts";
 import { buildLegendPresentation, deriveUsedPileConfigurations } from "../../domain/legendState.ts";
 import {
   getLoadPointIdsForLegendSelection,
@@ -48,18 +47,10 @@ export default function Legend({ state, onStateChange, onEdit }: Props) {
   }
 
   function enableUsedOnly() {
-    const active = applyLegendEditorBulkAction(
-      "enable-used",
-      {
-        pileSizes: legend.pileSizes.map((item) => item.value),
-        pileTipLevels: legend.pileTipLevels.map((item) => item.value),
-      },
-      used,
-    );
     onStateChange({
       ...state,
-      activePileSizes: active.pileSizes,
-      activePileTipLevels: active.pileTipLevels,
+      activePileSizes: [...used.pileSizes],
+      activePileTipLevels: [...used.pileTipLevels],
     });
   }
 
