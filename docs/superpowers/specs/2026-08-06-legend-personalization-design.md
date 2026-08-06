@@ -28,7 +28,7 @@ This change includes:
 
 - an encoding-mode control;
 - project-owned shape and color mappings for every known pile size and pile tip level;
-- a 54-symbol catalog assembled from 18 silhouettes and three inner-marker variants;
+- a 54-symbol catalog assembled from nine base shapes and six fill patterns;
 - manual shape and color controls in the existing legend editor;
 - automatic assignment to enabled items or all items;
 - four built-in color schemes with inline previews;
@@ -70,7 +70,7 @@ Used pile sizes and pile tip levels continue to be derived live from the active 
 The application owns an immutable built-in default:
 
 - the default encoding mode is size to shape and tip level to color;
-- the default shape order starts with the existing shape assignment;
+- the default symbol order uses the approved nine-shape catalog with full fill first, followed by the remaining fill patterns in automatic-assignment order;
 - the default distinct color order starts with the existing Tableau 10-based palette and uses the existing deterministic golden-angle extension;
 - newly encountered source values receive deterministic defaults without changing mappings already stored by the project.
 
@@ -133,15 +133,15 @@ Switching modes updates the draft preview immediately. It does not apply changes
 
 The normal legend keeps the size group before the tip-level group. Each group renders the channel assigned by the active encoding mode.
 
-## Manual Symbol Editing
+## Symbol Model And Manual Editing
 
 The symbol button opens a compact picker containing:
 
 - a large preview of the composed symbol;
-- a grid containing the 18 base silhouettes;
-- an inner-marker segmented control: `None`, `Dot`, or `Bar`.
+- a grid containing the nine base shapes;
+- a fill-pattern control containing six choices.
 
-The 18 silhouettes are:
+The nine base shapes are intentionally limited to silhouettes that remain clearly distinguishable at small viewer sizes:
 
 1. circle;
 2. square;
@@ -150,29 +150,25 @@ The 18 silhouettes are:
 5. triangle down;
 6. triangle left;
 7. triangle right;
-8. pentagon;
-9. star;
-10. thin diamond;
-11. hexagon;
-12. octagon;
-13. horizontal rectangle;
-14. vertical rectangle;
-15. horizontal oval;
-16. vertical oval;
-17. trapezoid up;
-18. trapezoid down.
+8. horizontal rectangle;
+9. vertical rectangle.
 
-The inner marker is part of the symbol definition:
+The six fill patterns are:
 
-- `None` uses only the silhouette;
-- `Dot` adds a centered dot;
-- `Bar` adds a centered horizontal bar.
+1. full;
+2. top half;
+3. bottom half;
+4. left half;
+5. right half;
+6. diagonal half.
 
-The inner marker uses the symbol's outline color so the fill color remains identifiable. Its dimensions and minimum stroke width scale with the symbol. The combinations form a catalog of 54 unique symbols without requiring a visually crowded picker.
+The fill pattern is part of the symbol definition. The colored portion uses the color resolved through the active encoding mode. The uncolored portion uses an opaque light neutral fill suited to the viewer's fixed white background, so overlapping symbols cannot show unrelated objects through their uncolored half. The outer contour remains the normal viewer symbol outline color.
 
-Cross and plus silhouettes are intentionally excluded because crosses already communicate unavailable or missing pile assignments in the viewer.
+The nine shapes and six fills form a catalog of 54 unique symbols without requiring increasingly decorative or visually similar silhouettes. Stars, crosses, plus signs, and high-sided regular polygons are intentionally excluded: stars do not fit the technical visual language, crosses already communicate unavailable or missing pile assignments, and pentagons, hexagons, and octagons become difficult to distinguish from circles at small scale.
 
-Selecting a silhouette or marker updates the editor draft and its previews immediately. The picker does not write directly to project state.
+Selecting a base shape or fill pattern updates the editor draft and its previews immediately. The picker does not write directly to project state.
+
+This representation deliberately separates symbol geometry into `base shape + fill pattern`. A future drawing-export mode can therefore assign monochrome symbols directly to the exact combination of pile size and tip level without replacing the symbol renderer or project format. Exact configuration-level monochrome assignment is not implemented in this version.
 
 ## Manual Color Editing
 
@@ -212,9 +208,12 @@ Values are sorted numerically:
 
 The symbol catalog is traversed in this order:
 
-1. all 18 silhouettes without an inner marker;
-2. all 18 silhouettes with a dot;
-3. all 18 silhouettes with a bar.
+1. all nine base shapes with full fill;
+2. all nine base shapes with top-half fill;
+3. all nine base shapes with bottom-half fill;
+4. all nine base shapes with left-half fill;
+5. all nine base shapes with right-half fill;
+6. all nine base shapes with diagonal-half fill.
 
 If the selected scope contains more than 54 values, automatic assignment is not applied. The editor displays a localized validation message explaining that the catalog contains 54 unique symbols. It must not silently repeat symbols.
 
@@ -287,7 +286,7 @@ Legend appearance is stored in project settings inside IFCPP. The serialized rep
 - encoding mode;
 - size-to-symbol and size-to-color mappings;
 - tip-to-symbol and tip-to-color mappings;
-- each symbol's silhouette and inner marker.
+- each symbol's base shape and fill pattern.
 
 The new field is optional for backwards compatibility. Opening an older IFCPP file generates the complete built-in mapping from its current source values. Saving that project writes the explicit mapping.
 
@@ -300,7 +299,7 @@ Because browser recovery stores the serialized project, applied legend changes p
 The implementation keeps these responsibilities separate:
 
 - a pure legend model owns built-in defaults, mapping reconciliation, automatic assignment, and resolved style lookup;
-- the symbol catalog owns silhouettes, marker variants, and deterministic ordering;
+- the symbol catalog owns base shapes, fill patterns, and deterministic ordering;
 - the color-scheme catalog owns color generation and preview samples;
 - the legend editor owns only its temporary draft and validation presentation;
 - project state owns the applied project legend and Undo integration;
@@ -350,7 +349,7 @@ This prevents the editor, viewer, and serializer from developing separate interp
 - appearance controls and activation arrows perform separate actions;
 - disabled items hide their retained appearance;
 - the enabled column has the wider layout and stacks responsively;
-- silhouette and marker selection compose the expected symbol;
+- base-shape and fill-pattern selection compose the expected symbol;
 - color editing validates hexadecimal input;
 - scheme options show names and palette previews;
 - automatic shape and color actions remain independent;
@@ -359,7 +358,7 @@ This prevents the editor, viewer, and serializer from developing separate interp
 
 ### Project integration
 
-- IFCPP round-trip preserves encoding mode, mappings, markers, and activation;
+- IFCPP round-trip preserves encoding mode, mappings, fill patterns, and activation;
 - older IFCPP files receive built-in defaults;
 - malformed individual mappings fall back without blocking the project;
 - Undo and Redo restore the complete legend change;
@@ -371,7 +370,7 @@ This prevents the editor, viewer, and serializer from developing separate interp
 
 - normal legend, viewer, pile-options table, and hover information use the same resolved style;
 - reversing encoding mode reverses visual channels everywhere;
-- all 18 silhouettes and both inner markers remain recognizable at supported symbol-size and zoom limits;
+- all nine base shapes and six fill patterns remain recognizable at supported symbol-size and zoom limits;
 - semantic crosses, selection rings, and CPT styling remain unchanged.
 
 ## Out Of Scope
@@ -383,3 +382,5 @@ This prevents the editor, viewer, and serializer from developing separate interp
 - per-pile-plan legend appearance;
 - automatic warnings for duplicate manually assigned symbols or colors;
 - changing the viewer's semantic colors for selection, missing data, utilization, or CPT state.
+- assigning monochrome symbols directly to exact size-and-tip-level configurations;
+- drawing, CAD, BIM, or monochrome pile-plan export.
