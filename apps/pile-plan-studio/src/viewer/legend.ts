@@ -1,6 +1,7 @@
 import type {
   BearingCapacity,
   LegendEncodingMode,
+  LegendColorScheme,
   LegendItems,
   LegendValueStyle,
   PileConfigurationOption,
@@ -20,9 +21,9 @@ import {
 export type LegendValueKind = "pileSizes" | "pileTipLevels";
 
 export type LegendImportWarning = {
-  itemType: "size" | "tipLevel" | "encodingMode";
+  itemType: "size" | "tipLevel" | "encodingMode" | "colorScheme";
   value?: number;
-  field: "encodingMode" | "symbol" | "color";
+  field: "encodingMode" | "colorScheme" | "symbol" | "color";
 };
 
 export type LegendReconciliationResult = {
@@ -65,9 +66,11 @@ export function reconcileProjectLegend(
 
   const warnings: LegendImportWarning[] = [];
   const encodingMode = normalizeEncodingMode(raw.encodingMode, warnings);
+  const colorScheme = normalizeColorScheme(raw.colorScheme, warnings);
   return {
     legend: {
       encodingMode,
+      colorScheme,
       pileSizes: normalizeStyles(rawSizes, defaults.pileSizes, "size", warnings),
       pileTipLevels: normalizeStyles(rawTips, defaults.pileTipLevels, "tipLevel", warnings),
     },
@@ -146,17 +149,33 @@ function createBuiltInLegendForValues(pileSizes: number[], pileTipLevels: number
   const tipColors = generateLegendColors("distinct", pileTipLevels.length);
   return {
     encodingMode: "size-symbol",
+    colorScheme: "tableau-extended",
     pileSizes: pileSizes.map((value, index) => ({
       value,
       symbol: { ...PILE_SYMBOL_CATALOG[index % PILE_SYMBOL_CATALOG.length] },
       color: sizeColors[index],
+      symbolAutomatic: true,
+      colorAutomatic: true,
     })),
     pileTipLevels: pileTipLevels.map((value, index) => ({
       value,
       symbol: { ...PILE_SYMBOL_CATALOG[index % PILE_SYMBOL_CATALOG.length] },
       color: tipColors[index],
+      symbolAutomatic: true,
+      colorAutomatic: true,
     })),
   };
+}
+
+function normalizeColorScheme(
+  value: unknown,
+  warnings: LegendImportWarning[],
+): LegendColorScheme {
+  if (value === undefined || value === null || value === "distinct") return "tableau-extended";
+  if (value === "tableau-extended" || value === "even-hue" || value === "colorblind-friendly"
+    || value === "rainbow" || value === "light-dark" || value === "cool-warm") return value;
+  warnings.push({ itemType: "colorScheme", field: "colorScheme" });
+  return "tableau-extended";
 }
 
 function normalizeEncodingMode(
@@ -194,11 +213,23 @@ function normalizeStyles(
     } else {
       warnings.push({ itemType, value: fallback.value, field: "color" });
     }
-    return { value: fallback.value, symbol, color };
+    return {
+      value: fallback.value,
+      symbol,
+      color,
+      symbolAutomatic: typeof raw.symbolAutomatic === "boolean" ? raw.symbolAutomatic : true,
+      colorAutomatic: typeof raw.colorAutomatic === "boolean" ? raw.colorAutomatic : true,
+    };
   });
 }
 
-type RawLegendStyle = { value: number; symbol: unknown; color: unknown };
+type RawLegendStyle = {
+  value: number;
+  symbol: unknown;
+  color: unknown;
+  symbolAutomatic: unknown;
+  colorAutomatic: unknown;
+};
 
 function readRawStyles(value: unknown): RawLegendStyle[] {
   if (!Array.isArray(value)) return [];
@@ -208,7 +239,13 @@ function readRawStyles(value: unknown): RawLegendStyle[] {
       return [];
     }
     seen.add(item.value);
-    return [{ value: item.value, symbol: item.symbol, color: item.color }];
+    return [{
+      value: item.value,
+      symbol: item.symbol,
+      color: item.color,
+      symbolAutomatic: item.symbolAutomatic,
+      colorAutomatic: item.colorAutomatic,
+    }];
   });
 }
 

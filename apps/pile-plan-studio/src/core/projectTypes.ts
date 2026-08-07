@@ -153,14 +153,25 @@ export type PileSymbol = {
 
 export type LegendEncodingMode = "size-symbol" | "tip-symbol";
 
+export type LegendColorScheme =
+  | "tableau-extended"
+  | "even-hue"
+  | "colorblind-friendly"
+  | "rainbow"
+  | "light-dark"
+  | "cool-warm";
+
 export type LegendValueStyle = {
   value: number;
   symbol: PileSymbol;
   color: string;
+  symbolAutomatic: boolean;
+  colorAutomatic: boolean;
 };
 
 export type LegendItems = {
   encodingMode: LegendEncodingMode;
+  colorScheme: LegendColorScheme;
   pileSizes: LegendValueStyle[];
   pileTipLevels: LegendValueStyle[];
 };

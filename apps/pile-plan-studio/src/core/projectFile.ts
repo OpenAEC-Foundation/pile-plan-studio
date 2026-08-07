@@ -4,6 +4,7 @@ import type {
   CptSelectionAlgorithm,
   CptSelectionSettings,
   GreedyOptimizationSettings,
+  LegendColorScheme,
   LegendItems,
   LoadPoint,
   PileConfigurationKey,
@@ -45,10 +46,13 @@ type IfcppLegendValueStyle = {
   value: number;
   symbol: IfcppPileSymbol;
   color: unknown;
+  symbol_automatic?: unknown;
+  color_automatic?: unknown;
 };
 
 type IfcppProjectLegend = {
   encoding_mode: unknown;
+  color_scheme?: unknown;
   pile_sizes: IfcppLegendValueStyle[];
   pile_tip_levels: IfcppLegendValueStyle[];
 };
@@ -370,6 +374,7 @@ function fromIfcppProjectLegend(legend: IfcppProjectLegend | null | undefined): 
   if (!legend || typeof legend !== "object") return null;
   return {
     encodingMode: legend.encoding_mode,
+    colorScheme: legend.color_scheme,
     pileSizes: fromIfcppLegendValues(legend.pile_sizes),
     pileTipLevels: fromIfcppLegendValues(legend.pile_tip_levels),
   };
@@ -386,6 +391,8 @@ function fromIfcppLegendValues(values: unknown): unknown[] {
         fillPattern: value.symbol?.fill_pattern,
       },
       color: value.color,
+      symbolAutomatic: typeof value.symbol_automatic === "boolean" ? value.symbol_automatic : true,
+      colorAutomatic: typeof value.color_automatic === "boolean" ? value.color_automatic : true,
     };
   });
 }
@@ -393,6 +400,7 @@ function fromIfcppLegendValues(values: unknown): unknown[] {
 function toIfcppProjectLegend(legend: LegendItems): IfcppProjectLegend {
   return {
     encoding_mode: legend.encodingMode,
+    color_scheme: legend.colorScheme,
     pile_sizes: legend.pileSizes.map(toIfcppLegendValue),
     pile_tip_levels: legend.pileTipLevels.map(toIfcppLegendValue),
   };
@@ -406,6 +414,8 @@ function toIfcppLegendValue(item: LegendItems["pileSizes"][number]): IfcppLegend
       fill_pattern: item.symbol.fillPattern,
     },
     color: item.color,
+    symbol_automatic: item.symbolAutomatic,
+    color_automatic: item.colorAutomatic,
   };
 }
 

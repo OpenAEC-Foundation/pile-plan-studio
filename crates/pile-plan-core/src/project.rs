@@ -88,15 +88,29 @@ pub struct ProjectLegendValueStyle {
     pub value: f64,
     pub symbol: ProjectPileSymbol,
     pub color: String,
+    #[serde(default = "default_true")]
+    pub symbol_automatic: bool,
+    #[serde(default = "default_true")]
+    pub color_automatic: bool,
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
 pub struct ProjectLegendSettings {
     pub encoding_mode: String,
+    #[serde(default = "default_legend_color_scheme")]
+    pub color_scheme: String,
     #[serde(default)]
     pub pile_sizes: Vec<ProjectLegendValueStyle>,
     #[serde(default)]
     pub pile_tip_levels: Vec<ProjectLegendValueStyle>,
+}
+
+fn default_true() -> bool {
+    true
+}
+
+fn default_legend_color_scheme() -> String {
+    "tableau-extended".to_string()
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
@@ -438,6 +452,7 @@ mod tests {
         let mut project = sample_project();
         let legend = ProjectLegendSettings {
             encoding_mode: "tip-symbol".to_string(),
+            color_scheme: "colorblind-friendly".to_string(),
             pile_sizes: vec![ProjectLegendValueStyle {
                 value: 320.0,
                 symbol: ProjectPileSymbol {
@@ -445,6 +460,8 @@ mod tests {
                     fill_pattern: "top-half".to_string(),
                 },
                 color: "#0072B2".to_string(),
+                symbol_automatic: false,
+                color_automatic: true,
             }],
             pile_tip_levels: vec![],
         };
@@ -455,6 +472,27 @@ mod tests {
             serde_json::from_value(value).expect("project deserializes");
 
         assert_eq!(restored.settings.pile_legend, Some(legend));
+    }
+
+    #[test]
+    fn project_legend_defaults_missing_assignment_metadata() {
+        let mut value = serde_json::to_value(sample_project()).expect("project serializes");
+        value["settings"]["pile_legend"] = serde_json::json!({
+            "encoding_mode": "size-symbol",
+            "pile_sizes": [{
+                "value": 290.0,
+                "symbol": { "base_shape": "circle", "fill_pattern": "full" },
+                "color": "#4E79A7"
+            }],
+            "pile_tip_levels": []
+        });
+
+        let parsed: PilePlanProject = serde_json::from_value(value).expect("legacy legend deserializes");
+        let legend = parsed.settings.pile_legend.expect("legend remains available");
+
+        assert_eq!(legend.color_scheme, "tableau-extended");
+        assert!(legend.pile_sizes[0].symbol_automatic);
+        assert!(legend.pile_sizes[0].color_automatic);
     }
 
     #[test]

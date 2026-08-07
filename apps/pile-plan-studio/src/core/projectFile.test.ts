@@ -283,7 +283,10 @@ describe("IFCPP project loading", () => {
       value: 290,
       symbol: { baseShape: "circle", fillPattern: "full" },
       color: "#4E79A7",
+      symbolAutomatic: true,
+      colorAutomatic: true,
     });
+    assert.equal(loaded.pileLegend.colorScheme, "tableau-extended");
     assert.deepEqual(loaded.legendImportWarnings, []);
   });
 
@@ -292,10 +295,13 @@ describe("IFCPP project loading", () => {
     loaded.pileLegend = {
       ...loaded.pileLegend,
       encodingMode: "tip-symbol",
+      colorScheme: "colorblind-friendly",
       pileSizes: loaded.pileLegend.pileSizes.map((item) => ({
         ...item,
         symbol: { baseShape: "rectangle-horizontal", fillPattern: "diagonal-half" },
         color: "#123456",
+        symbolAutomatic: false,
+        colorAutomatic: false,
       })),
     };
 
@@ -303,7 +309,29 @@ describe("IFCPP project loading", () => {
     const reloaded = loadIfcppProjectData(saved);
 
     assert.equal(saved.settings.pile_legend?.encoding_mode, "tip-symbol");
+    assert.equal(saved.settings.pile_legend?.color_scheme, "colorblind-friendly");
+    assert.equal(saved.settings.pile_legend?.pile_sizes[0].symbol_automatic, false);
+    assert.equal(saved.settings.pile_legend?.pile_sizes[0].color_automatic, false);
     assert.deepEqual(reloaded.pileLegend, loaded.pileLegend);
+  });
+
+  it("defaults missing legend assignment metadata to automatic Tableau Extended", () => {
+    const project = projectFixture();
+    project.settings.pile_legend = {
+      encoding_mode: "size-symbol",
+      pile_sizes: [{
+        value: 290,
+        symbol: { base_shape: "circle", fill_pattern: "full" },
+        color: "#123456",
+      }],
+      pile_tip_levels: [],
+    };
+
+    const loaded = loadIfcppProjectData(project);
+
+    assert.equal(loaded.pileLegend.colorScheme, "tableau-extended");
+    assert.equal(loaded.pileLegend.pileSizes[0].symbolAutomatic, true);
+    assert.equal(loaded.pileLegend.pileSizes[0].colorAutomatic, true);
   });
 
   it("falls back only the malformed stored legend channel", () => {
@@ -331,11 +359,15 @@ describe("IFCPP project loading", () => {
       value: 290,
       symbol: { baseShape: "circle", fillPattern: "full" },
       color: "#123456",
+      symbolAutomatic: true,
+      colorAutomatic: true,
     });
     assert.deepEqual(loaded.pileLegend.pileTipLevels[0], {
       value: -18,
       symbol: { baseShape: "square", fillPattern: "top-half" },
       color: "#654321",
+      symbolAutomatic: true,
+      colorAutomatic: true,
     });
   });
 

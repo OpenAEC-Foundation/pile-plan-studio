@@ -1,3 +1,7 @@
+import type { LegendColorScheme } from "../core/projectTypes.ts";
+
+export type { LegendColorScheme } from "../core/projectTypes.ts";
+
 export const LEGEND_COLOR_SCHEMES = [
   "distinct",
   "colorblind-friendly",
@@ -5,8 +9,6 @@ export const LEGEND_COLOR_SCHEMES = [
   "light-dark",
   "cool-warm",
 ] as const;
-
-export type LegendColorScheme = typeof LEGEND_COLOR_SCHEMES[number];
 
 const DISTINCT_BASE = [
   "#4E79A7",
