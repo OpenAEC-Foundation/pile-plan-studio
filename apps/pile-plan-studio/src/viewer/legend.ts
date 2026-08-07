@@ -145,8 +145,8 @@ export function resetLegendAppearance(
 }
 
 function createBuiltInLegendForValues(pileSizes: number[], pileTipLevels: number[]): LegendItems {
-  const sizeColors = generateLegendColors("distinct", pileSizes.length);
-  const tipColors = generateLegendColors("distinct", pileTipLevels.length);
+  const sizeColors = generateLegendColors("tableau-extended", pileSizes.length);
+  const tipColors = generateLegendColors("tableau-extended", pileTipLevels.length);
   return {
     encodingMode: "size-symbol",
     colorScheme: "tableau-extended",

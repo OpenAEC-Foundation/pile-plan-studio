@@ -3,14 +3,15 @@ import type { LegendColorScheme } from "../core/projectTypes.ts";
 export type { LegendColorScheme } from "../core/projectTypes.ts";
 
 export const LEGEND_COLOR_SCHEMES = [
-  "distinct",
+  "tableau-extended",
+  "even-hue",
   "colorblind-friendly",
   "rainbow",
   "light-dark",
   "cool-warm",
-] as const;
+] as const satisfies readonly LegendColorScheme[];
 
-const DISTINCT_BASE = [
+const TABLEAU_10 = [
   "#4E79A7",
   "#F28E2B",
   "#59A14F",
@@ -48,8 +49,10 @@ export function generateLegendColors(scheme: LegendColorScheme, count: number): 
   if (safeCount === 0) return [];
 
   switch (scheme) {
-    case "distinct":
-      return generateDistinctColors(safeCount);
+    case "tableau-extended":
+      return generateTableauExtendedColors(safeCount);
+    case "even-hue":
+      return generateEvenHueColors(safeCount);
     case "colorblind-friendly":
       return generateColorblindFriendlyColors(safeCount);
     case "rainbow":
@@ -72,14 +75,52 @@ export function normalizeLegendHexColor(value: string): string | null {
   return /^#[0-9A-Fa-f]{6}$/.test(value) ? value.toUpperCase() : null;
 }
 
-function generateDistinctColors(count: number): string[] {
-  return Array.from({ length: count }, (_, index) => {
-    if (index < DISTINCT_BASE.length) return DISTINCT_BASE[index];
-    const hue = (index * 137.508) % 360;
-    const saturation = 62 + (index % 3) * 8;
-    const lightness = 46 + (index % 4) * 6;
-    return hslToHex(hue, saturation, lightness);
-  });
+function generateTableauExtendedColors(count: number): string[] {
+  if (count <= TABLEAU_10.length) return TABLEAU_10.slice(0, count);
+
+  const selected = [...TABLEAU_10];
+  const candidates = [42, 54, 66].flatMap((lightness) =>
+    [55, 70, 85].flatMap((saturation) =>
+      Array.from({ length: 36 }, (_, index) => hslToHex(index * 10, saturation, lightness))),
+  ).filter((color, index, colors) => colors.indexOf(color) === index && !selected.includes(color));
+
+  while (selected.length < count && candidates.length > 0) {
+    const selectedLab = selected.map(hexToLab);
+    let bestIndex = 0;
+    let bestDistance = -1;
+    candidates.forEach((candidate, index) => {
+      const lab = hexToLab(candidate);
+      const distance = Math.min(...selectedLab.map((existing) => labDistance(lab, existing)));
+      if (distance > bestDistance) {
+        bestDistance = distance;
+        bestIndex = index;
+      }
+    });
+    selected.push(candidates.splice(bestIndex, 1)[0]);
+  }
+
+  return selected.slice(0, count);
+}
+
+function generateEvenHueColors(count: number): string[] {
+  const step = largestCoprimeAtMostHalf(count);
+  return Array.from({ length: count }, (_, index) =>
+    hslToHex(((index * step) % count) * (360 / count), 68, 52));
+}
+
+function largestCoprimeAtMostHalf(value: number): number {
+  if (value <= 2) return 1;
+  for (let candidate = Math.floor(value / 2); candidate >= 1; candidate -= 1) {
+    if (greatestCommonDivisor(candidate, value) === 1) return candidate;
+  }
+  return 1;
+}
+
+function greatestCommonDivisor(left: number, right: number): number {
+  let a = left;
+  let b = right;
+  while (b !== 0) [a, b] = [b, a % b];
+  return a;
 }
 
 function generateColorblindFriendlyColors(count: number): string[] {
@@ -117,6 +158,32 @@ function hexToRgb(hex: string): { red: number; green: number; blue: number } {
     green: Number.parseInt(hex.slice(3, 5), 16),
     blue: Number.parseInt(hex.slice(5, 7), 16),
   };
+}
+
+type LabColor = { lightness: number; a: number; b: number };
+
+function hexToLab(hex: string): LabColor {
+  const { red, green, blue } = hexToRgb(hex);
+  const linear = [red, green, blue].map((channel) => {
+    const value = channel / 255;
+    return value <= 0.04045 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4;
+  });
+  const x = (linear[0] * 0.4124 + linear[1] * 0.3576 + linear[2] * 0.1805) / 0.95047;
+  const y = linear[0] * 0.2126 + linear[1] * 0.7152 + linear[2] * 0.0722;
+  const z = (linear[0] * 0.0193 + linear[1] * 0.1192 + linear[2] * 0.9505) / 1.08883;
+  const transform = (value: number) => value > 0.008856 ? Math.cbrt(value) : 7.787 * value + 16 / 116;
+  const fx = transform(x);
+  const fy = transform(y);
+  const fz = transform(z);
+  return {
+    lightness: 116 * fy - 16,
+    a: 500 * (fx - fy),
+    b: 200 * (fy - fz),
+  };
+}
+
+function labDistance(left: LabColor, right: LabColor): number {
+  return Math.hypot(left.lightness - right.lightness, left.a - right.a, left.b - right.b);
 }
 
 function hexToHsl(hex: string): { hue: number; saturation: number; lightness: number } {
