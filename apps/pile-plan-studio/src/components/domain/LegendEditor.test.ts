@@ -116,18 +116,27 @@ describe("legend editor", () => {
     assert.doesNotMatch(viewerCss, /\.legend-symbol \.pile-symbol-svg :is\(circle, rect, polygon\)/);
   });
 
-  it("uses stable automatic-control columns and marks explicit reassignment", () => {
+  it("uses stable reassignment controls and disables actions without manual overrides", () => {
     const source = readFileSync(resolve(import.meta.dirname, "LegendEditor.tsx"), "utf8");
     const css = readFileSync(resolve(import.meta.dirname, "LegendEditor.css"), "utf8");
+    const nl = JSON.parse(readFileSync(resolve(import.meta.dirname, "../../i18n/locales/nl/common.json"), "utf8"));
+    const en = JSON.parse(readFileSync(resolve(import.meta.dirname, "../../i18n/locales/en/common.json"), "utf8"));
 
     assert.match(source, /hasManualLegendOverrides/);
-    assert.match(source, /is-pending/);
+    assert.match(source, /disabled=\{!symbolHasManualOverrides\}/);
+    assert.match(source, /disabled=\{!colorHasManualOverrides\}/);
+    assert.doesNotMatch(source, /is-pending/);
     assert.match(source, /legend-editor-auto-action-row/);
     assert.match(source, /legend-editor-auto-action-row is-color/);
     assert.match(css, /\.legend-editor-auto-action-row\s*\{[^}]*grid-template-columns:/s);
     assert.match(css, /\.legend-editor-auto-action-row > \.legend-editor-toolbar-button\s*\{[^}]*white-space:\s*nowrap/s);
     assert.match(css, /\.legend-editor-auto-action-row\.is-reset > \.legend-editor-toolbar-button\s*\{[^}]*grid-column:\s*1/s);
     assert.match(css, /\.legend-scheme-options\s*\{[^}]*right:\s*0[^}]*left:\s*auto[^}]*max-width:/s);
-    assert.match(css, /\.legend-editor-toolbar-button\.is-pending/);
+    assert.match(css, /\.legend-editor-toolbar-button:disabled\s*\{[^}]*opacity:/s);
+    assert.doesNotMatch(css, /\.legend-editor-toolbar-button\.is-pending/);
+    assert.equal(nl.legend.assignSymbols, "Symbolen opnieuw toewijzen");
+    assert.equal(nl.legend.assignColors, "Kleuren opnieuw toewijzen");
+    assert.equal(en.legend.assignSymbols, "Reassign symbols");
+    assert.equal(en.legend.assignColors, "Reassign colors");
   });
 });

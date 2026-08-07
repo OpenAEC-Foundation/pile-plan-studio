@@ -213,7 +213,7 @@ Changing automatic inputs applies immediately to every still-automatic item in t
 - changing encoding mode refreshes the still-automatic items in the newly active color and symbol mapping groups;
 - changing color scheme refreshes all still-automatic items in the active color mapping group.
 
-Manual item-level overrides remain unchanged when automatic inputs change. The relevant automatic-assignment button becomes visually emphasized while the active mapping group contains manual overrides in the selected scope. Using that button explicitly replaces those manual mappings and returns all affected items in that mapping group and scope to automatic state. Inactive mapping groups remain stored and unchanged until they become active or are edited directly. Applying the editor persists both the resolved mappings and their automatic/manual state.
+Manual item-level overrides remain unchanged when automatic inputs change. The relevant reassignment button is disabled and dimmed while the selected scope contains no manual overrides, because using it would have no effect. It becomes a normally styled enabled action when manual overrides exist; it must not use a pressed or accent state. Using that button explicitly replaces those manual mappings and returns all affected items in that mapping group and scope to automatic state. Inactive mapping groups remain stored and unchanged until they become active or are edited directly. Applying the editor persists both the resolved mappings and their automatic/manual state.
 
 For example, after manually changing some size colors, switching to `Pile size controls shape and pile tip level controls color` applies the selected color scheme to all automatic tip-level colors. The stored manual size colors remain available and return unchanged when the encoding mode is switched back.
 
@@ -231,7 +231,7 @@ The scope applies to both automatic symbol assignment and automatic color assign
 
 ### Automatic symbols
 
-`Assign symbols automatically` assigns symbols in deterministic order.
+`Reassign symbols` assigns symbols in deterministic order and clears manual symbol overrides in the selected scope.
 
 Values are sorted numerically:
 
@@ -251,11 +251,11 @@ If the selected scope contains more than 54 values, automatic assignment is not 
 
 ### Automatic colors
 
-`Assign colors automatically` uses the selected color scheme and reassigns only values inside the selected scope.
+`Reassign colors` uses the selected color scheme, reassigns only values inside the selected scope, and clears their manual color overrides.
 
 The color-scheme control is a custom listbox rather than a plain native select. Its closed state shows the selected name and a small horizontal palette preview. Every option in the open list shows its localized name and the same kind of preview.
 
-The scheme selector and color-assignment button use fixed grid columns, so changing a localized scheme label cannot move either control.
+The scheme selector measures all scheme labels in the active language and uses the widest of those labels for both its closed trigger and open list. Its width therefore remains stable while selecting schemes but can be more compact in a language with shorter labels. The adjacent reassignment-button column remains fixed and independent from the selector width.
 
 The built-in schemes are:
 

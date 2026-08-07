@@ -29,6 +29,15 @@ export default function LegendColorSchemeSelect({ value, label, getSchemeLabel, 
 
   return (
     <div className="legend-scheme-select" ref={rootRef}>
+      <span aria-hidden="true" className="legend-scheme-width-probe">
+        <span className="legend-scheme-width-labels">
+          {LEGEND_COLOR_SCHEMES.map((scheme) => (
+            <span key={scheme}>{getSchemeLabel(scheme)}</span>
+          ))}
+        </span>
+        <span className="legend-scheme-width-palette" />
+        <span className="legend-picker-chevron" />
+      </span>
       <button
         aria-controls={listboxId}
         aria-expanded={open}

@@ -122,9 +122,14 @@
   margin-left: 0;
 }
 
-.legend-editor-toolbar-button.is-pending {
-  border-color: var(--theme-accent);
-  background: var(--theme-accent-soft);
+.legend-editor-toolbar-button:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.legend-editor-toolbar-button:disabled:hover {
+  border-color: var(--theme-dialog-border);
+  background: var(--theme-dialog-content-bg);
 }
 
 .legend-editor-toolbar-button.is-secondary {
@@ -289,6 +294,43 @@
   position: relative;
 }
 
+.legend-scheme-select {
+  display: inline-grid;
+  width: max-content;
+  max-width: 100%;
+  justify-self: start;
+}
+
+.legend-scheme-width-probe,
+.legend-scheme-trigger {
+  grid-area: 1 / 1;
+}
+
+.legend-scheme-width-probe {
+  display: grid;
+  min-height: 28px;
+  grid-template-columns: max-content 92px auto;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 6px;
+  border: 1px solid transparent;
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.legend-scheme-width-labels {
+  display: grid;
+}
+
+.legend-scheme-width-labels > span {
+  grid-area: 1 / 1;
+  white-space: nowrap;
+}
+
+.legend-scheme-width-palette {
+  width: 92px;
+}
+
 .legend-appearance-trigger,
 .legend-scheme-trigger {
   display: inline-flex;
@@ -434,7 +476,7 @@
   display: grid;
   right: 0;
   left: auto;
-  width: min(320px, calc(100vw - 48px));
+  width: 100%;
   max-width: calc(100vw - 48px);
   gap: 2px;
   padding: 4px;

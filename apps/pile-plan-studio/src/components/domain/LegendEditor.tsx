@@ -146,7 +146,9 @@ export default function LegendEditor({ open, state, onApply, onClose }: Props) {
             <div className="legend-editor-auto-actions">
               <div className="legend-editor-auto-action-row is-symbol">
                 <button
-                  className={`legend-editor-toolbar-button${symbolHasManualOverrides ? " is-pending" : ""}`}
+                  className="legend-editor-toolbar-button"
+                  disabled={!symbolHasManualOverrides}
+                  title={!symbolHasManualOverrides ? t("legend.noSymbolsToReassign") : undefined}
                   type="button"
                   onClick={assignSymbols}
                 >
@@ -155,7 +157,9 @@ export default function LegendEditor({ open, state, onApply, onClose }: Props) {
               </div>
               <div className="legend-editor-auto-action-row is-color">
                 <button
-                  className={`legend-editor-toolbar-button${colorHasManualOverrides ? " is-pending" : ""}`}
+                  className="legend-editor-toolbar-button"
+                  disabled={!colorHasManualOverrides}
+                  title={!colorHasManualOverrides ? t("legend.noColorsToReassign") : undefined}
                   type="button"
                   onClick={() => setDraft(applyAutomaticColors(draft, colorKind))}
                 >
