@@ -10,7 +10,6 @@ import type {
 } from "../core/projectTypes.ts";
 import {
   generateLegendColors,
-  type LegendColorScheme,
 } from "./legendColors.ts";
 import {
   isPileBaseShape,
@@ -109,7 +108,26 @@ export function assignLegendSymbols(
     ok: true,
     legend: updateLegendStyles(legend, kind, (item) => {
       const symbol = assignments.get(item.value);
-      return symbol ? { ...item, symbol } : item;
+      return symbol ? { ...item, symbol, symbolAutomatic: true } : item;
+    }),
+  };
+}
+
+export function refreshAutomaticLegendSymbols(
+  legend: LegendItems,
+  kind: LegendValueKind,
+  includedValues: Iterable<number>,
+): { ok: true; legend: LegendItems } | { ok: false; reason: "catalog-exhausted"; limit: 54 } {
+  const values = uniqueSorted(includedValues, kind === "pileTipLevels");
+  if (values.length > PILE_SYMBOL_CATALOG.length) {
+    return { ok: false, reason: "catalog-exhausted", limit: 54 };
+  }
+  const assignments = new Map(values.map((value, index) => [value, PILE_SYMBOL_CATALOG[index]]));
+  return {
+    ok: true,
+    legend: updateLegendStyles(legend, kind, (item) => {
+      const symbol = assignments.get(item.value);
+      return symbol && item.symbolAutomatic ? { ...item, symbol } : item;
     }),
   };
 }
@@ -125,7 +143,21 @@ export function assignLegendColors(
   const assignments = new Map(values.map((value, index) => [value, colors[index]]));
   return updateLegendStyles(legend, kind, (item) => {
     const color = assignments.get(item.value);
-    return color ? { ...item, color } : item;
+    return color ? { ...item, color, colorAutomatic: true } : item;
+  });
+}
+
+export function refreshAutomaticLegendColors(
+  legend: LegendItems,
+  kind: LegendValueKind,
+  includedValues: Iterable<number>,
+): LegendItems {
+  const values = uniqueSorted(includedValues, kind === "pileTipLevels");
+  const colors = generateLegendColors(legend.colorScheme, values.length);
+  const assignments = new Map(values.map((value, index) => [value, colors[index]]));
+  return updateLegendStyles(legend, kind, (item) => {
+    const color = assignments.get(item.value);
+    return color && item.colorAutomatic ? { ...item, color } : item;
   });
 }
 

@@ -58,6 +58,9 @@ describe("legend editor", () => {
     assert.match(source, /legend\.assignColors/);
     assert.match(source, /legend\.symbolLimit/);
     assert.match(source, /legend\.resetAppearance/);
+    assert.match(source, /applyEditorActionResult/);
+    assert.match(source, /draft\.legend\.colorScheme/);
+    assert.doesNotMatch(source, /draft\.colorScheme/);
   });
 
   it("uses the normal legend only for selection and opens editing separately", () => {

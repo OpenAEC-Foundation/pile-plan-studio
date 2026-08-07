@@ -7,6 +7,8 @@ import {
   createBuiltInLegend,
   getConfigurationStyle,
   reconcileProjectLegend,
+  refreshAutomaticLegendColors,
+  refreshAutomaticLegendSymbols,
   resetLegendAppearance,
 } from "./legend.ts";
 import type { BearingCapacity, LegendItems } from "../core/projectTypes.ts";
@@ -25,7 +27,10 @@ describe("project legend model", () => {
       value: 290,
       symbol: { baseShape: "circle", fillPattern: "full" },
       color: "#4E79A7",
+      symbolAutomatic: true,
+      colorAutomatic: true,
     });
+    assert.equal(legend.colorScheme, "tableau-extended");
     assert.deepEqual(legend.pileTipLevels.map(({ value }) => value), [-18, -19]);
     assert.ok(legend.pileTipLevels.every((item) => item.symbol && item.color));
   });
@@ -100,5 +105,58 @@ describe("project legend model", () => {
 
     const reset = resetLegendAppearance({ ...recolored, encodingMode: "tip-symbol" }, CAPACITIES);
     assert.deepEqual(reset, createBuiltInLegend(CAPACITIES));
+  });
+
+  it("refreshes automatic colors while preserving item-level manual overrides", () => {
+    const legend = createBuiltInLegend(CAPACITIES);
+    legend.colorScheme = "colorblind-friendly";
+    legend.pileTipLevels[0] = {
+      ...legend.pileTipLevels[0],
+      color: "#123456",
+      colorAutomatic: false,
+    };
+
+    const refreshed = refreshAutomaticLegendColors(legend, "pileTipLevels", [-18, -19]);
+
+    assert.equal(refreshed.pileTipLevels[0].color, "#123456");
+    assert.equal(refreshed.pileTipLevels[1].color, "#E69F00");
+  });
+
+  it("refreshes automatic symbols while preserving manual symbols", () => {
+    const legend = createBuiltInLegend(CAPACITIES);
+    legend.pileSizes[0] = {
+      ...legend.pileSizes[0],
+      symbol: { baseShape: "diamond", fillPattern: "top-half" },
+      symbolAutomatic: false,
+    };
+
+    const refreshed = refreshAutomaticLegendSymbols(legend, "pileSizes", [290, 320]);
+
+    assert.equal(refreshed.ok, true);
+    if (!refreshed.ok) return;
+    assert.deepEqual(refreshed.legend.pileSizes[0].symbol, {
+      baseShape: "diamond",
+      fillPattern: "top-half",
+    });
+    assert.deepEqual(refreshed.legend.pileSizes[1].symbol, {
+      baseShape: "square",
+      fillPattern: "full",
+    });
+  });
+
+  it("explicit assignment clears only the assigned property overrides", () => {
+    const legend = createBuiltInLegend(CAPACITIES);
+    legend.pileSizes[0] = {
+      ...legend.pileSizes[0],
+      symbolAutomatic: false,
+      colorAutomatic: false,
+    };
+
+    const assigned = assignLegendSymbols(legend, "pileSizes", [290]);
+
+    assert.equal(assigned.ok, true);
+    if (!assigned.ok) return;
+    assert.equal(assigned.legend.pileSizes[0].symbolAutomatic, true);
+    assert.equal(assigned.legend.pileSizes[0].colorAutomatic, false);
   });
 });

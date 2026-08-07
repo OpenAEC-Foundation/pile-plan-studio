@@ -78,7 +78,7 @@ export function normalizeLegendHexColor(value: string): string | null {
 function generateTableauExtendedColors(count: number): string[] {
   if (count <= TABLEAU_10.length) return TABLEAU_10.slice(0, count);
 
-  const selected = [...TABLEAU_10];
+  const selected: string[] = [...TABLEAU_10];
   const candidates = [42, 54, 66].flatMap((lightness) =>
     [55, 70, 85].flatMap((saturation) =>
       Array.from({ length: 36 }, (_, index) => hslToHex(index * 10, saturation, lightness))),

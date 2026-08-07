@@ -7,6 +7,8 @@ import type {
 import {
   assignLegendColors,
   assignLegendSymbols,
+  refreshAutomaticLegendColors,
+  refreshAutomaticLegendSymbols,
   resetLegendAppearance,
   type LegendValueKind,
 } from "../viewer/legend.ts";
@@ -21,7 +23,6 @@ export type LegendEditorDraft = {
   active: ActivePileConfigurations;
   legend: LegendItems;
   assignmentScope: LegendAssignmentScope;
-  colorScheme: LegendColorScheme;
 };
 
 export type LegendEditorActionResult =
@@ -36,7 +37,6 @@ export function createLegendEditorDraft(
     active: copyConfigurations(active),
     legend: copyLegend(legend),
     assignmentScope: "enabled",
-    colorScheme: "distinct",
   };
 }
 
@@ -69,7 +69,11 @@ export function updateLegendSymbol(
   value: number,
   symbol: PileSymbol,
 ): LegendEditorDraft {
-  return updateStyle(draft, kind, value, (item) => ({ ...item, symbol: { ...symbol } }));
+  return updateStyle(draft, kind, value, (item) => ({
+    ...item,
+    symbol: { ...symbol },
+    symbolAutomatic: false,
+  }));
 }
 
 export function updateLegendColor(
@@ -78,28 +82,37 @@ export function updateLegendColor(
   value: number,
   color: string,
 ): LegendEditorDraft {
-  return updateStyle(draft, kind, value, (item) => ({ ...item, color: color.toUpperCase() }));
+  return updateStyle(draft, kind, value, (item) => ({
+    ...item,
+    color: color.toUpperCase(),
+    colorAutomatic: false,
+  }));
 }
 
 export function setLegendEncodingMode(
   draft: LegendEditorDraft,
   encodingMode: LegendEncodingMode,
-): LegendEditorDraft {
-  return { ...draft, legend: { ...draft.legend, encodingMode } };
+): LegendEditorActionResult {
+  return refreshAutomaticMappings({ ...draft, legend: { ...draft.legend, encodingMode } });
 }
 
 export function setLegendAssignmentScope(
   draft: LegendEditorDraft,
   assignmentScope: LegendAssignmentScope,
-): LegendEditorDraft {
-  return { ...draft, assignmentScope };
+): LegendEditorActionResult {
+  return refreshAutomaticMappings({ ...draft, assignmentScope });
 }
 
 export function setLegendColorScheme(
   draft: LegendEditorDraft,
   colorScheme: LegendColorScheme,
 ): LegendEditorDraft {
-  return { ...draft, colorScheme };
+  const legend = { ...draft.legend, colorScheme };
+  const colorKind = legend.encodingMode === "size-symbol" ? "tip" : "size";
+  return {
+    ...draft,
+    legend: refreshAutomaticLegendColors(legend, legendKey(colorKind), scopedValues(draft, colorKind)),
+  };
 }
 
 export function applyLegendEditorBulkAction(
@@ -135,7 +148,7 @@ export function applyAutomaticColors(
       draft.legend,
       legendKey(kind),
       scopedValues(draft, kind),
-      draft.colorScheme,
+      draft.legend.colorScheme,
     ),
   };
 }
@@ -151,6 +164,24 @@ function scopedValues(draft: LegendEditorDraft, kind: LegendEditorItemKind): num
   return draft.assignmentScope === "all"
     ? draft.legend[legendKey(kind)].map(({ value }) => value)
     : draft.active[activeKey(kind)];
+}
+
+function refreshAutomaticMappings(draft: LegendEditorDraft): LegendEditorActionResult {
+  const symbolKind: LegendEditorItemKind = draft.legend.encodingMode === "size-symbol" ? "size" : "tip";
+  const colorKind: LegendEditorItemKind = symbolKind === "size" ? "tip" : "size";
+  const colors = refreshAutomaticLegendColors(
+    draft.legend,
+    legendKey(colorKind),
+    scopedValues(draft, colorKind),
+  );
+  const symbols = refreshAutomaticLegendSymbols(
+    colors,
+    legendKey(symbolKind),
+    scopedValues(draft, symbolKind),
+  );
+  return symbols.ok
+    ? { ok: true, draft: { ...draft, legend: symbols.legend } }
+    : { ok: false, draft: { ...draft, legend: colors }, error: symbols.reason, limit: symbols.limit };
 }
 
 function updateStyle(
@@ -191,6 +222,7 @@ function copyConfigurations(configurations: ActivePileConfigurations): ActivePil
 function copyLegend(legend: LegendItems): LegendItems {
   return {
     encodingMode: legend.encodingMode,
+    colorScheme: legend.colorScheme,
     pileSizes: legend.pileSizes.map((item) => ({ ...item, symbol: { ...item.symbol } })),
     pileTipLevels: legend.pileTipLevels.map((item) => ({ ...item, symbol: { ...item.symbol } })),
   };

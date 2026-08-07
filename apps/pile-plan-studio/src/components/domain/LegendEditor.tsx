@@ -19,6 +19,7 @@ import {
   updateLegendColor,
   updateLegendSymbol,
   type LegendEditorBulkAction,
+  type LegendEditorActionResult,
   type LegendEditorDraft,
   type LegendEditorItemKind,
 } from "../../domain/legendEditorModel.ts";
@@ -106,12 +107,12 @@ export default function LegendEditor({ open, state, onApply, onClose }: Props) {
               <SegmentButton
                 active={draft.legend.encodingMode === "size-symbol"}
                 label={t("legend.size")}
-                onClick={() => setDraft(setLegendEncodingMode(draft, "size-symbol"))}
+                onClick={() => applyEditorActionResult(setLegendEncodingMode(draft, "size-symbol"))}
               />
               <SegmentButton
                 active={draft.legend.encodingMode === "tip-symbol"}
                 label={t("legend.tip")}
-                onClick={() => setDraft(setLegendEncodingMode(draft, "tip-symbol"))}
+                onClick={() => applyEditorActionResult(setLegendEncodingMode(draft, "tip-symbol"))}
               />
             </div>
             <span className="legend-editor-helper">
@@ -128,12 +129,12 @@ export default function LegendEditor({ open, state, onApply, onClose }: Props) {
                 <SegmentButton
                   active={draft.assignmentScope === "enabled"}
                   label={t("legend.enabledItems")}
-                  onClick={() => setDraft(setLegendAssignmentScope(draft, "enabled"))}
+                  onClick={() => applyEditorActionResult(setLegendAssignmentScope(draft, "enabled"))}
                 />
                 <SegmentButton
                   active={draft.assignmentScope === "all"}
                   label={t("legend.allItems")}
-                  onClick={() => setDraft(setLegendAssignmentScope(draft, "all"))}
+                  onClick={() => applyEditorActionResult(setLegendAssignmentScope(draft, "all"))}
                 />
               </div>
             </div>
@@ -142,7 +143,7 @@ export default function LegendEditor({ open, state, onApply, onClose }: Props) {
                 {t("legend.assignSymbols")}
               </button>
               <LegendColorSchemeSelect
-                value={draft.colorScheme}
+                value={draft.legend.colorScheme}
                 label={t("legend.colorScheme")}
                 getSchemeLabel={schemeLabel}
                 onChange={(scheme) => setDraft(setLegendColorScheme(draft, scheme))}
@@ -165,7 +166,7 @@ export default function LegendEditor({ open, state, onApply, onClose }: Props) {
                 {t("legend.resetAppearance")}
               </button>
             </div>
-            {draft.colorScheme === "colorblind-friendly" ? (
+            {draft.legend.colorScheme === "colorblind-friendly" ? (
               <p className="legend-editor-aid">{t("legend.colorblindAid")}</p>
             ) : null}
             {symbolLimitError ? (
@@ -229,8 +230,12 @@ export default function LegendEditor({ open, state, onApply, onClose }: Props) {
 
   function assignSymbols() {
     const result = applyAutomaticSymbols(draft, symbolKind);
+    applyEditorActionResult(result);
+  }
+
+  function applyEditorActionResult(result: LegendEditorActionResult) {
+    setDraft(result.draft);
     setSymbolLimitError(!result.ok);
-    if (result.ok) setDraft(result.draft);
   }
 
   function schemeLabel(scheme: LegendColorScheme): string {

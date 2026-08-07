@@ -64,6 +64,8 @@ function fallbackStyle(value: number): LegendItems["pileSizes"][number] {
     value,
     symbol: { baseShape: "circle", fillPattern: "full" },
     color: "#8C989F",
+    symbolAutomatic: true,
+    colorAutomatic: true,
   };
 }
 
