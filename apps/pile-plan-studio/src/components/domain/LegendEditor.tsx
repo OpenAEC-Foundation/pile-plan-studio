@@ -35,6 +35,8 @@ import LegendColorSchemeSelect from "./LegendColorSchemeSelect.tsx";
 import LegendSymbolPicker from "./LegendSymbolPicker.tsx";
 import "./LegendEditor.css";
 
+const NEUTRAL_SYMBOL_PREVIEW_COLOR = "#6F7B82";
+
 type Props = {
   open: boolean;
   state: ProjectState;
@@ -331,7 +333,7 @@ function AppearanceControl({ draft, item, label, symbolKind, onDraftChange }: Ap
     return (
       <LegendSymbolPicker
         value={item.symbol}
-        color={item.color}
+        color={NEUTRAL_SYMBOL_PREVIEW_COLOR}
         label={t("legend.changeSymbol", { item: label })}
         fillLabel={t("legend.fillPattern")}
         getShapeLabel={(shape) => t(`legend.baseShapes.${shapeKey(shape)}`)}

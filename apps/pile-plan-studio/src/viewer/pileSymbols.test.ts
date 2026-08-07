@@ -35,4 +35,16 @@ describe("pile symbol rendering", () => {
     assert.doesNotMatch(svg, /fill="" onload=/);
     assert.match(svg, /&quot;/);
   });
+
+  it("supports separate outline and neutral-fill colors for themed consumers", () => {
+    const svg = renderPileSymbol(
+      { baseShape: "diamond", fillPattern: "top-half" },
+      "currentColor",
+      { outlineColor: "currentColor", neutralFill: "var(--theme-bg)" },
+    );
+
+    assert.match(svg, /fill="currentColor"/);
+    assert.match(svg, /fill="var\(--theme-bg\)"/);
+    assert.match(svg, /stroke="currentColor"/);
+  });
 });

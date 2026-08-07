@@ -72,7 +72,7 @@ export default function Legend({ state, onStateChange, onEdit }: Props) {
               {presentation.encodingMode === "size-symbol" ? (
                 <span
                   className="legend-symbol"
-                  dangerouslySetInnerHTML={{ __html: renderPileSymbol(item.symbol, "currentColor") }}
+                  dangerouslySetInnerHTML={{ __html: renderLegendSymbol(item.symbol) }}
                 />
               ) : <span className="legend-color" style={{ backgroundColor: item.color }} />}
               <span className="legend-item-label">{item.value} mm</span>
@@ -97,7 +97,7 @@ export default function Legend({ state, onStateChange, onEdit }: Props) {
               {presentation.encodingMode === "tip-symbol" ? (
                 <span
                   className="legend-symbol"
-                  dangerouslySetInnerHTML={{ __html: renderPileSymbol(item.symbol, "currentColor") }}
+                  dangerouslySetInnerHTML={{ __html: renderLegendSymbol(item.symbol) }}
                 />
               ) : <span className="legend-color" style={{ backgroundColor: item.color }} />}
               <span className="legend-item-label">{formatTipLevel(item.value, i18n.language)}</span>
@@ -136,6 +136,13 @@ export default function Legend({ state, onStateChange, onEdit }: Props) {
       </span>
     );
   }
+}
+
+function renderLegendSymbol(symbol: Parameters<typeof renderPileSymbol>[0]): string {
+  return renderPileSymbol(symbol, "currentColor", {
+    outlineColor: "currentColor",
+    neutralFill: "var(--theme-bg)",
+  });
 }
 
 function legendItemClass(state: string, selected: boolean): string {

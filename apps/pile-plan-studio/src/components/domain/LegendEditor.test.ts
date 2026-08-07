@@ -96,4 +96,16 @@ describe("legend editor", () => {
     assert.match(editorCss, /minmax\(0,\s*1\.85fr\)\s+minmax\(12rem,\s*1fr\)/);
     assert.match(editorCss, /@media \(max-width:\s*760px\)/);
   });
+
+  it("uses neutral shape previews and theme-aware partial fills", () => {
+    const editor = readFileSync(resolve(import.meta.dirname, "LegendEditor.tsx"), "utf8");
+    const legend = readFileSync(resolve(import.meta.dirname, "Legend.tsx"), "utf8");
+    const viewerCss = readFileSync(resolve(import.meta.dirname, "viewer.css"), "utf8");
+
+    assert.match(editor, /NEUTRAL_SYMBOL_PREVIEW_COLOR\s*=\s*"#6F7B82"/);
+    assert.match(editor, /color=\{NEUTRAL_SYMBOL_PREVIEW_COLOR\}/);
+    assert.match(legend, /outlineColor:\s*"currentColor"/);
+    assert.match(legend, /neutralFill:\s*"var\(--theme-bg\)"/);
+    assert.doesNotMatch(viewerCss, /\.legend-symbol \.pile-symbol-svg :is\(circle, rect, polygon\)/);
+  });
 });

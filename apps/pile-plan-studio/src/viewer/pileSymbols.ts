@@ -4,8 +4,19 @@ const SYMBOL_STROKE = "#172026";
 const SYMBOL_STROKE_WIDTH = 2.4;
 const SYMBOL_NEUTRAL_FILL = "#F3F5F6";
 
-export function renderPileSymbol(symbol: PileSymbol, fillColor: string): string {
+export type PileSymbolRenderOptions = {
+  outlineColor?: string;
+  neutralFill?: string;
+};
+
+export function renderPileSymbol(
+  symbol: PileSymbol,
+  fillColor: string,
+  options: PileSymbolRenderOptions = {},
+): string {
   const fill = escapeSvgAttribute(fillColor);
+  const outline = escapeSvgAttribute(options.outlineColor ?? SYMBOL_STROKE);
+  const neutral = escapeSvgAttribute(options.neutralFill ?? SYMBOL_NEUTRAL_FILL);
   const clipId = `pile-symbol-${symbol.fillPattern}`;
   const clip = renderClip(symbol.fillPattern, clipId);
   const coloredAttributes = symbol.fillPattern === "full"
@@ -13,7 +24,7 @@ export function renderPileSymbol(symbol: PileSymbol, fillColor: string): string 
     : `fill="${fill}" stroke="none" clip-path="url(#${clipId})"`;
   const outlineAttributes = [
     `fill="none"`,
-    `stroke="${SYMBOL_STROKE}"`,
+    `stroke="${outline}"`,
     `stroke-width="${SYMBOL_STROKE_WIDTH}"`,
     `stroke-linejoin="round"`,
   ].join(" ");
@@ -21,7 +32,7 @@ export function renderPileSymbol(symbol: PileSymbol, fillColor: string): string 
   return [
     `<svg class="pile-symbol-svg" viewBox="0 0 24 24" aria-hidden="true" focusable="false">`,
     clip,
-    renderShape(symbol.baseShape, `fill="${SYMBOL_NEUTRAL_FILL}" stroke="none"`),
+    renderShape(symbol.baseShape, `fill="${neutral}" stroke="none"`),
     renderShape(symbol.baseShape, coloredAttributes),
     renderShape(symbol.baseShape, outlineAttributes),
     `</svg>`,
