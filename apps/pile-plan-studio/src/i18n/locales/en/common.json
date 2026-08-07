@@ -118,7 +118,8 @@
     "fillPattern": "Fill pattern",
     "hexColor": "Hex color",
     "colorSchemes": {
-      "distinct": "Distinct colors",
+      "tableauExtended": "Tableau Extended",
+      "evenHue": "Even Hue Spread",
       "colorblindFriendly": "Colorblind-friendly",
       "rainbow": "Rainbow",
       "lightDark": "Light to dark",

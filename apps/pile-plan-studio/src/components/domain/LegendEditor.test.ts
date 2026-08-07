@@ -108,4 +108,15 @@ describe("legend editor", () => {
     assert.match(legend, /neutralFill:\s*"var\(--theme-bg\)"/);
     assert.doesNotMatch(viewerCss, /\.legend-symbol \.pile-symbol-svg :is\(circle, rect, polygon\)/);
   });
+
+  it("uses stable automatic-control columns and marks explicit reassignment", () => {
+    const source = readFileSync(resolve(import.meta.dirname, "LegendEditor.tsx"), "utf8");
+    const css = readFileSync(resolve(import.meta.dirname, "LegendEditor.css"), "utf8");
+
+    assert.match(source, /hasManualLegendOverrides/);
+    assert.match(source, /is-pending/);
+    assert.match(css, /\.legend-editor-auto-actions\s*\{[^}]*display:\s*grid/s);
+    assert.match(css, /grid-template-columns:/);
+    assert.match(css, /\.legend-editor-toolbar-button\.is-pending/);
+  });
 });

@@ -118,7 +118,8 @@
     "fillPattern": "Vulpatroon",
     "hexColor": "Hexkleur",
     "colorSchemes": {
-      "distinct": "Onderscheidende kleuren",
+      "tableauExtended": "Tableau uitgebreid",
+      "evenHue": "Gelijkmatige tintspreiding",
       "colorblindFriendly": "Kleurenblindvriendelijk",
       "rainbow": "Regenboog",
       "lightDark": "Licht naar donker",

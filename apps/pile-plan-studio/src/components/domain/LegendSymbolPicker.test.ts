@@ -14,5 +14,9 @@ describe("LegendSymbolPicker", () => {
     assert.match(source, /renderPileSymbol/);
     assert.match(source, /aria-haspopup="dialog"/);
     assert.match(source, /event\.key === "Escape"/);
+    assert.match(source, /useRef/);
+    assert.match(source, /document\.addEventListener\("pointerdown"/);
+    assert.match(source, /rootRef\.current\?\.contains/);
+    assert.match(source, /document\.removeEventListener\("pointerdown"/);
   });
 });

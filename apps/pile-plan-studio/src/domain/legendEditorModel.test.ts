@@ -5,6 +5,7 @@ import {
   applyAutomaticColors,
   applyAutomaticSymbols,
   createLegendEditorDraft,
+  hasManualLegendOverrides,
   resetLegendEditorAppearance,
   setLegendAssignmentScope,
   setLegendColorScheme,
@@ -117,5 +118,15 @@ describe("legend editor model", () => {
     assert.equal(reset.legend.colorScheme, "tableau-extended");
     assert.ok(reset.legend.pileSizes.every((item) => item.symbolAutomatic && item.colorAutomatic));
     assert.ok(reset.legend.pileTipLevels.every((item) => item.symbolAutomatic && item.colorAutomatic));
+  });
+
+  it("detects manual overrides only in the requested group and scope", () => {
+    let current = updateLegendColor(draft(), "tip", -18, "#123456");
+    current.active.pileTipLevels = [-19];
+
+    assert.equal(hasManualLegendOverrides(current, "tip", "color"), false);
+    current = setLegendAssignmentScope(current, "all").draft;
+    assert.equal(hasManualLegendOverrides(current, "tip", "color"), true);
+    assert.equal(hasManualLegendOverrides(current, "tip", "symbol"), false);
   });
 });

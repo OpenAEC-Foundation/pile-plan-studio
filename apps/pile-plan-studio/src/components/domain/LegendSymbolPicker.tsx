@@ -1,4 +1,4 @@
-import { useState, type KeyboardEvent } from "react";
+import { useEffect, useRef, useState, type KeyboardEvent } from "react";
 import type { PileBaseShape, PileFillPattern, PileSymbol } from "../../core/projectTypes.ts";
 import { PILE_BASE_SHAPES, PILE_FILL_PATTERNS } from "../../viewer/legendSymbols.ts";
 import { renderPileSymbol } from "../../viewer/pileSymbols.ts";
@@ -23,9 +23,19 @@ export default function LegendSymbolPicker({
   onChange,
 }: Props) {
   const [open, setOpen] = useState(false);
+  const rootRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const closeOutside = (event: PointerEvent) => {
+      if (!rootRef.current?.contains(event.target as Node)) setOpen(false);
+    };
+    document.addEventListener("pointerdown", closeOutside);
+    return () => document.removeEventListener("pointerdown", closeOutside);
+  }, [open]);
 
   return (
-    <div className="legend-appearance-picker" onKeyDown={handleKeyDown}>
+    <div className="legend-appearance-picker" onKeyDown={handleKeyDown} ref={rootRef}>
       <button
         aria-expanded={open}
         aria-haspopup="dialog"

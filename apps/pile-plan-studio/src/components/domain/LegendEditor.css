@@ -97,10 +97,15 @@
 }
 
 .legend-editor-auto-actions {
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
-  flex-wrap: wrap;
   gap: 6px;
+}
+
+.legend-editor-toolbar-button.is-pending {
+  border-color: var(--theme-accent);
+  background: var(--theme-accent-soft);
 }
 
 .legend-editor-toolbar-button.is-secondary {
@@ -395,12 +400,20 @@
 
 .legend-scheme-trigger {
   justify-content: space-between;
-  min-width: 240px;
+  width: 100%;
+  min-width: 0;
+}
+
+.legend-scheme-trigger > span:first-child {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .legend-scheme-options {
   display: grid;
-  width: 260px;
+  width: max(260px, 100%);
   gap: 2px;
   padding: 4px;
 }

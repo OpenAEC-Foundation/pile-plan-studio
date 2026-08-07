@@ -1,4 +1,4 @@
-import { useId, useState, type KeyboardEvent } from "react";
+import { useEffect, useId, useRef, useState, type KeyboardEvent } from "react";
 import {
   getLegendColorSchemePreview,
   LEGEND_COLOR_SCHEMES,
@@ -16,9 +16,19 @@ export default function LegendColorSchemeSelect({ value, label, getSchemeLabel, 
   const listboxId = useId();
   const [open, setOpen] = useState(false);
   const [activeIndex, setActiveIndex] = useState(() => LEGEND_COLOR_SCHEMES.indexOf(value));
+  const rootRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const closeOutside = (event: PointerEvent) => {
+      if (!rootRef.current?.contains(event.target as Node)) setOpen(false);
+    };
+    document.addEventListener("pointerdown", closeOutside);
+    return () => document.removeEventListener("pointerdown", closeOutside);
+  }, [open]);
 
   return (
-    <div className="legend-scheme-select">
+    <div className="legend-scheme-select" ref={rootRef}>
       <button
         aria-controls={listboxId}
         aria-expanded={open}

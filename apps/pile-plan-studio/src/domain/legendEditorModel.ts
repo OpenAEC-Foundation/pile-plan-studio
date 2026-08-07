@@ -18,6 +18,7 @@ import type { ActivePileConfigurations } from "./activePileConfigurations.ts";
 export type LegendAssignmentScope = "enabled" | "all";
 export type LegendEditorBulkAction = "enable-all" | "enable-used" | "disable-all";
 export type LegendEditorItemKind = "size" | "tip";
+export type LegendAppearanceProperty = "symbol" | "color";
 
 export type LegendEditorDraft = {
   active: ActivePileConfigurations;
@@ -151,6 +152,16 @@ export function applyAutomaticColors(
       draft.legend.colorScheme,
     ),
   };
+}
+
+export function hasManualLegendOverrides(
+  draft: LegendEditorDraft,
+  kind: LegendEditorItemKind,
+  property: LegendAppearanceProperty,
+): boolean {
+  const values = new Set(scopedValues(draft, kind));
+  const automaticKey = property === "symbol" ? "symbolAutomatic" : "colorAutomatic";
+  return draft.legend[legendKey(kind)].some((item) => values.has(item.value) && !item[automaticKey]);
 }
 
 export function resetLegendEditorAppearance(

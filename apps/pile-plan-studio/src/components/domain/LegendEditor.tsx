@@ -11,6 +11,7 @@ import {
   applyAutomaticSymbols,
   applyLegendEditorBulkAction,
   createLegendEditorDraft,
+  hasManualLegendOverrides,
   resetLegendEditorAppearance,
   setLegendAssignmentScope,
   setLegendColorScheme,
@@ -67,6 +68,8 @@ export default function LegendEditor({ open, state, onApply, onClose }: Props) {
   const tipItems: EditorItem[] = presentation.pileTipLevels.map((item) => ({ kind: "tip", ...item }));
   const symbolKind: LegendEditorItemKind = draft.legend.encodingMode === "size-symbol" ? "size" : "tip";
   const colorKind: LegendEditorItemKind = symbolKind === "size" ? "tip" : "size";
+  const symbolHasManualOverrides = hasManualLegendOverrides(draft, symbolKind, "symbol");
+  const colorHasManualOverrides = hasManualLegendOverrides(draft, colorKind, "color");
 
   useEffect(() => {
     if (!open) return;
@@ -141,7 +144,11 @@ export default function LegendEditor({ open, state, onApply, onClose }: Props) {
               </div>
             </div>
             <div className="legend-editor-auto-actions">
-              <button className="legend-editor-toolbar-button" type="button" onClick={assignSymbols}>
+              <button
+                className={`legend-editor-toolbar-button${symbolHasManualOverrides ? " is-pending" : ""}`}
+                type="button"
+                onClick={assignSymbols}
+              >
                 {t("legend.assignSymbols")}
               </button>
               <LegendColorSchemeSelect
@@ -151,7 +158,7 @@ export default function LegendEditor({ open, state, onApply, onClose }: Props) {
                 onChange={(scheme) => setDraft(setLegendColorScheme(draft, scheme))}
               />
               <button
-                className="legend-editor-toolbar-button"
+                className={`legend-editor-toolbar-button${colorHasManualOverrides ? " is-pending" : ""}`}
                 type="button"
                 onClick={() => setDraft(applyAutomaticColors(draft, colorKind))}
               >
