@@ -31,7 +31,7 @@ This change includes:
 - a 54-symbol catalog assembled from nine base shapes and six fill patterns;
 - manual shape and color controls in the existing legend editor;
 - automatic assignment to enabled items or all items;
-- five built-in color schemes with inline previews;
+- six built-in color schemes with inline previews;
 - a reset-to-built-in-appearance action;
 - IFCPP persistence and backwards-compatible loading;
 - inclusion in Undo/Redo and browser recovery;
@@ -48,7 +48,7 @@ The project stores one active encoding mode:
 1. pile size controls shape and pile tip level controls color;
 2. pile size controls color and pile tip level controls shape.
 
-Changing the mode changes which stored mappings are rendered. It does not automatically reassign shapes or colors.
+Changing the mode changes which stored mappings are rendered. While a visual channel has not been adjusted manually during the current editor session, switching modes also refreshes that channel's automatic assignment for the selected assignment scope. A channel with manual edits is preserved until the user explicitly requests automatic reassignment.
 
 ### Persisted mappings
 
@@ -71,7 +71,7 @@ The application owns an immutable built-in default:
 
 - the default encoding mode is size to shape and tip level to color;
 - the default symbol order uses the approved nine-shape catalog with full fill first, followed by the remaining fill patterns in automatic-assignment order;
-- the default distinct color order starts with the existing Tableau 10-based palette and uses the existing deterministic golden-angle extension;
+- the default Tableau Extended color order starts with the exact existing Tableau 10 palette and uses deterministic perceptual-distance selection for additional colors;
 - newly encountered source values receive deterministic defaults without changing mappings already stored by the project.
 
 Mappings for values that temporarily disappear after refreshing project sources remain stored. They become available again if those values return.
@@ -175,6 +175,8 @@ The nine shapes and six fills form a catalog of 54 unique symbols without requir
 
 Selecting a base shape or fill pattern updates the editor draft and its previews immediately. The picker does not write directly to project state.
 
+Shape previews in the editor use a neutral gray fill. Although every stored item owns both a symbol and a color, the semantically inactive color channel must not color a shape-only editor row. Clicking outside the symbol picker closes it and retains the current draft choice. Escape has the same close-only behavior and does not revert choices already made inside the picker.
+
 This representation deliberately separates symbol geometry into `base shape + fill pattern`. A future drawing-export mode can therefore assign monochrome symbols directly to the exact combination of pile size and tip level without replacing the symbol renderer or project format. Exact configuration-level monochrome assignment is not implemented in this version.
 
 ## Manual Color Editing
@@ -190,7 +192,15 @@ Custom colors do not have to be unique. The editor does not warn about duplicate
 
 ## Automatic Assignment
 
-The automatic-assignment area contains one shared scope control and two independent actions.
+The automatic-assignment area contains one shared scope control and two independent actions. Symbols and colors independently track whether they have been changed manually during the current editor session.
+
+Before a channel has been manually edited, changing its automatic inputs applies immediately to the editor draft:
+
+- changing assignment scope refreshes both still-automatic channels;
+- changing encoding mode refreshes each still-automatic channel for its newly represented property;
+- changing color scheme refreshes the color channel.
+
+After a manual symbol or color change, automatic-input controls no longer overwrite that channel. Its automatic-assignment button becomes visually emphasized and acts as an explicit confirmation to replace the manual mappings in the selected scope. Using that button returns only that channel to automatic state. The other channel remains independent.
 
 ### Assignment scope
 
@@ -230,15 +240,18 @@ If the selected scope contains more than 54 values, automatic assignment is not 
 
 The color-scheme control is a custom listbox rather than a plain native select. Its closed state shows the selected name and a small horizontal palette preview. Every option in the open list shows its localized name and the same kind of preview.
 
+The scheme selector and color-assignment button use fixed grid columns, so changing a localized scheme label cannot move either control.
+
 The built-in schemes are:
 
-- **Distinct colors**: the current Tableau 10-based categorical palette followed by the deterministic golden-angle HSL extension;
+- **Tableau Extended**: the first ten values use the exact existing Tableau 10 palette. Additional colors are selected deterministically from a broad candidate set by maximizing the minimum perceptual distance to every color already chosen. This prevents an unrelated second hue cycle from immediately repeating a Tableau color;
+- **Even hue spread**: all requested colors are generated together from evenly distributed hues with controlled saturation and lightness, then ordered to keep successive categorical values apart. The result does not preserve Tableau colors and is intended for larger categorical sets;
 - **Colorblind-friendly**: a discrete palette optimized for common red-green color-vision deficiencies, followed by controlled lightness and saturation variants when the base sequence is exhausted;
-- **Rainbow**: evenly distributed hues across the spectrum at controlled saturation and lightness;
+- **Rainbow**: a sequential spectrum whose neighboring values intentionally receive neighboring hues;
 - **Light to dark**: an ordered single-hue blue scale with bounds chosen to remain visible on the white viewer;
 - **Cool to warm**: an ordered blue-to-cyan-to-yellow-to-orange-to-red scale.
 
-The localized name is `Colorblind-friendly` / `Kleurenblindvriendelijk`. It is presented as an aid rather than a guarantee that color alone distinguishes every value for every form of color-vision deficiency. Shape and fill remain available as independent visual channels.
+The localized names for the new categorical schemes are `Tableau Extended` / `Tableau uitgebreid` and `Even hue spread` / `Gelijkmatige tintspreiding`. `Colorblind-friendly` / `Kleurenblindvriendelijk` is presented as an aid rather than a guarantee that color alone distinguishes every value for every form of color-vision deficiency. Shape and fill remain available as independent visual channels.
 
 For ordered schemes, values run from shallow/small at the light or cool start to deep/large at the dark or warm end. Rainbow colors follow the same sorted value order even though the scheme is primarily a hue sequence.
 
@@ -254,7 +267,9 @@ The listbox and palette previews are keyboard accessible and do not rely on colo
 
 - the default size-to-shape and tip-to-color encoding mode;
 - built-in symbol mappings for all known values;
-- built-in distinct-color mappings for all known values.
+- built-in Tableau Extended color mappings for all known values.
+
+Reset also returns both visual channels to automatic state within the editor session.
 
 It does not change which items are enabled and does not change pile assignments.
 
@@ -288,6 +303,8 @@ All visual consumers use the resolved project legend rather than regenerating ma
 Selection rings, unavailable markers, CPT symbols, and other semantic viewer markings are not affected by pile legend customization.
 
 When encoding mode is reversed, the visual channels reverse consistently everywhere: pile size supplies color and tip level supplies symbol.
+
+The compact normal legend uses the shared SVG renderer with separate outline, colored-fill, and neutral-fill values. For partial fills, the neutral half follows the legend surface rather than a near-white hard-coded fill. Half-filled symbols therefore remain visible in both light and dark application themes without changing how pile symbols are rendered on the fixed white viewer.
 
 ## Persistence And Compatibility
 
@@ -330,6 +347,8 @@ This prevents the editor, viewer, and serializer from developing separate interp
 - Switching pile plans changes only used-state styling.
 - Refreshing source data must not silently reset customized mappings.
 - Changing language while the editor is open updates all labels without changing the draft.
+- Outside clicks close an open symbol or scheme popup without discarding its current draft selection.
+- Automatic-input changes never overwrite a visual channel after a manual edit unless its explicit automatic-assignment action is used.
 
 ## Accessibility And Localization
 
@@ -352,6 +371,8 @@ This prevents the editor, viewer, and serializer from developing separate interp
 - assign symbols in the documented 54-item order;
 - reject automatic symbol assignment above 54 scoped values;
 - generate deterministic colors for each built-in scheme;
+- preserve the exact Tableau 10 prefix and choose each extension color by maximum remaining perceptual distance;
+- generate the even-hue scheme across the complete requested count without a separate repeated cycle;
 - apply automatic assignment to enabled scope and all scope independently.
 
 ### Editor behavior
@@ -362,7 +383,10 @@ This prevents the editor, viewer, and serializer from developing separate interp
 - base-shape and fill-pattern selection compose the expected symbol;
 - color editing validates hexadecimal input;
 - scheme options show names and palette previews;
+- scheme and assignment controls retain fixed positions for every localized label;
 - automatic shape and color actions remain independent;
+- automatic settings apply immediately until their channel receives a manual edit;
+- clicking outside an appearance popup closes it while preserving its draft selection;
 - Apply commits one complete draft;
 - Cancel, Escape, and close discard all draft changes.
 
@@ -381,6 +405,8 @@ This prevents the editor, viewer, and serializer from developing separate interp
 - normal legend, viewer, pile-options table, and hover information use the same resolved style;
 - reversing encoding mode reverses visual channels everywhere;
 - all nine base shapes and six fill patterns remain recognizable at supported symbol-size and zoom limits;
+- neutral editor previews do not expose the inactive stored color channel;
+- partial fills remain distinguishable in the compact legend in light and dark themes;
 - semantic crosses, selection rings, and CPT styling remain unchanged.
 
 ## Out Of Scope
@@ -388,7 +414,7 @@ This prevents the editor, viewer, and serializer from developing separate interp
 - cross-project user legend preferences;
 - saving, naming, importing, or exporting custom palettes as reusable presets;
 - user-authored color-gradient stops;
-- more than the five built-in automatic color schemes;
+- more than the six built-in automatic color schemes;
 - per-pile-plan legend appearance;
 - automatic warnings for duplicate manually assigned symbols or colors;
 - changing the viewer's semantic colors for selection, missing data, utilization, or CPT state.
