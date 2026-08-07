@@ -103,7 +103,7 @@ An enabled item contains:
 
 The preview button edits appearance. The deactivate button moves the item to the disabled column. The text label itself is inert. This separation prevents accidental deactivation while opening an appearance picker.
 
-Used items are fully visible. Enabled but unused items are faded according to the existing legend-editor rules.
+Used items are fully visible. Enabled but unused items retain fully opaque appearance controls and color previews in the editor, so their stored appearance remains legible and editable. The editor may indicate unused state through secondary status styling, but must not apply opacity to the item row, its popup, or its controls. The compact normal legend retains its existing faded presentation for enabled but unused items.
 
 ### Disabled items
 
@@ -174,6 +174,8 @@ The six fill patterns are:
 The fill-pattern radiogroup is labeled `Fill` / `Vulling`. Every option previews the current base shape with that fill pattern. The options use localized tooltips and accessible names: `Full`, `Top`, `Bottom`, `Left`, `Right`, and `Diagonal`, with the corresponding Dutch labels `Volledig`, `Boven`, `Onder`, `Links`, `Rechts`, and `Diagonaal`. The selected option uses the standard accent outline. The six options form one row when space permits and reflow to a three-by-two grid on narrow layouts.
 
 The fill pattern is part of the symbol definition. The colored portion uses the color resolved through the active encoding mode. The uncolored portion uses an opaque light neutral fill suited to the viewer's fixed white background, so overlapping symbols cannot show unrelated objects through their uncolored half. The outer contour remains the normal viewer symbol outline color.
+
+Half-fill patterns represent half of the visible shape area, not half of its bounding box. For the four asymmetric triangle orientations, the clipping boundary is shape-aware so top, bottom, left, right, and diagonal half fills each color 50% of the triangle area. Symmetric shapes retain their midpoint clipping behavior.
 
 The nine shapes and six fills form a catalog of 54 unique symbols without requiring increasingly decorative or visually similar silhouettes. Stars, crosses, plus signs, and high-sided regular polygons are intentionally excluded: stars do not fit the technical visual language, crosses already communicate unavailable or missing pile assignments, and pentagons, hexagons, and octagons become difficult to distinguish from circles at small scale.
 
@@ -425,6 +427,8 @@ This prevents the editor, viewer, and serializer from developing separate interp
 - reversing encoding mode reverses visual channels everywhere;
 - all nine base shapes and six fill patterns remain recognizable at supported symbol-size and zoom limits;
 - neutral editor previews do not expose the inactive stored color channel;
+- unused editor items keep fully opaque appearance controls and picker contents while the compact legend remains faded;
+- every triangle half-fill pattern colors 50% of the triangle area within normal rendering tolerance;
 - partial fills remain distinguishable in the compact legend in light and dark themes;
 - semantic crosses, selection rings, and CPT styling remain unchanged.
 
