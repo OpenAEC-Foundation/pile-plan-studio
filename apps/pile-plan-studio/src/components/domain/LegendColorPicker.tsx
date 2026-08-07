@@ -1,4 +1,4 @@
-import { useEffect, useState, type KeyboardEvent } from "react";
+import { useEffect, useRef, useState, type KeyboardEvent } from "react";
 import { normalizeLegendHexColor } from "../../viewer/legendColors.ts";
 
 type Props = {
@@ -11,11 +11,23 @@ type Props = {
 export default function LegendColorPicker({ value, label, hexLabel, onChange }: Props) {
   const [open, setOpen] = useState(false);
   const [hexDraft, setHexDraft] = useState(value);
+  const rootRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => setHexDraft(value), [value]);
 
+  useEffect(() => {
+    if (!open) return;
+    const closeOutside = (event: PointerEvent) => {
+      if (rootRef.current?.contains(event.target as Node)) return;
+      setHexDraft(value);
+      setOpen(false);
+    };
+    document.addEventListener("pointerdown", closeOutside);
+    return () => document.removeEventListener("pointerdown", closeOutside);
+  }, [open, value]);
+
   return (
-    <div className="legend-appearance-picker" onKeyDown={handleKeyDown}>
+    <div className="legend-appearance-picker" onKeyDown={handleKeyDown} ref={rootRef}>
       <button
         aria-expanded={open}
         aria-haspopup="dialog"

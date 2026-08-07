@@ -12,5 +12,9 @@ describe("LegendColorPicker", () => {
     assert.match(source, /setHexDraft\(value\)/);
     assert.match(source, /onBlur=/);
     assert.match(source, /aria-haspopup="dialog"/);
+    assert.match(source, /useRef/);
+    assert.match(source, /document\.addEventListener\("pointerdown"/);
+    assert.match(source, /rootRef\.current\?\.contains/);
+    assert.match(source, /document\.removeEventListener\("pointerdown"/);
   });
 });
