@@ -11,7 +11,6 @@ import {
   applyAutomaticSymbols,
   applyLegendEditorBulkAction,
   createLegendEditorDraft,
-  hasManualLegendOverrides,
   resetLegendEditorAppearance,
   setLegendAssignmentScope,
   setLegendColorScheme,
@@ -19,6 +18,7 @@ import {
   setLegendEncodingMode,
   updateLegendColor,
   updateLegendSymbol,
+  wouldReassignLegendAppearance,
   type LegendEditorBulkAction,
   type LegendEditorActionResult,
   type LegendEditorDraft,
@@ -68,8 +68,8 @@ export default function LegendEditor({ open, state, onApply, onClose }: Props) {
   const tipItems: EditorItem[] = presentation.pileTipLevels.map((item) => ({ kind: "tip", ...item }));
   const symbolKind: LegendEditorItemKind = draft.legend.encodingMode === "size-symbol" ? "size" : "tip";
   const colorKind: LegendEditorItemKind = symbolKind === "size" ? "tip" : "size";
-  const symbolHasManualOverrides = hasManualLegendOverrides(draft, symbolKind, "symbol");
-  const colorHasManualOverrides = hasManualLegendOverrides(draft, colorKind, "color");
+  const canReassignSymbols = wouldReassignLegendAppearance(draft, symbolKind, "symbol");
+  const canReassignColors = wouldReassignLegendAppearance(draft, colorKind, "color");
 
   useEffect(() => {
     if (!open) return;
@@ -147,8 +147,8 @@ export default function LegendEditor({ open, state, onApply, onClose }: Props) {
               <div className="legend-editor-auto-action-row is-symbol">
                 <button
                   className="legend-editor-toolbar-button"
-                  disabled={!symbolHasManualOverrides}
-                  title={!symbolHasManualOverrides ? t("legend.noSymbolsToReassign") : undefined}
+                  disabled={!canReassignSymbols}
+                  title={!canReassignSymbols ? t("legend.noSymbolsToReassign") : undefined}
                   type="button"
                   onClick={assignSymbols}
                 >
@@ -158,8 +158,8 @@ export default function LegendEditor({ open, state, onApply, onClose }: Props) {
               <div className="legend-editor-auto-action-row is-color">
                 <button
                   className="legend-editor-toolbar-button"
-                  disabled={!colorHasManualOverrides}
-                  title={!colorHasManualOverrides ? t("legend.noColorsToReassign") : undefined}
+                  disabled={!canReassignColors}
+                  title={!canReassignColors ? t("legend.noColorsToReassign") : undefined}
                   type="button"
                   onClick={() => setDraft(applyAutomaticColors(draft, colorKind))}
                 >

@@ -116,15 +116,15 @@ describe("legend editor", () => {
     assert.doesNotMatch(viewerCss, /\.legend-symbol \.pile-symbol-svg :is\(circle, rect, polygon\)/);
   });
 
-  it("uses stable reassignment controls and disables actions without manual overrides", () => {
+  it("uses stable reassignment controls and disables actions that would have no effect", () => {
     const source = readFileSync(resolve(import.meta.dirname, "LegendEditor.tsx"), "utf8");
     const css = readFileSync(resolve(import.meta.dirname, "LegendEditor.css"), "utf8");
     const nl = JSON.parse(readFileSync(resolve(import.meta.dirname, "../../i18n/locales/nl/common.json"), "utf8"));
     const en = JSON.parse(readFileSync(resolve(import.meta.dirname, "../../i18n/locales/en/common.json"), "utf8"));
 
-    assert.match(source, /hasManualLegendOverrides/);
-    assert.match(source, /disabled=\{!symbolHasManualOverrides\}/);
-    assert.match(source, /disabled=\{!colorHasManualOverrides\}/);
+    assert.match(source, /wouldReassignLegendAppearance/);
+    assert.match(source, /disabled=\{!canReassignSymbols\}/);
+    assert.match(source, /disabled=\{!canReassignColors\}/);
     assert.doesNotMatch(source, /is-pending/);
     assert.match(source, /legend-editor-auto-action-row/);
     assert.match(source, /legend-editor-auto-action-row is-color/);
@@ -138,5 +138,7 @@ describe("legend editor", () => {
     assert.equal(nl.legend.assignColors, "Kleuren opnieuw toewijzen");
     assert.equal(en.legend.assignSymbols, "Reassign symbols");
     assert.equal(en.legend.assignColors, "Reassign colors");
+    assert.equal(nl.legend.assignmentScope, "Automatische toewijzing toepassen op");
+    assert.equal(en.legend.assignmentScope, "Automatic assignment applies to");
   });
 });

@@ -5,13 +5,13 @@ import {
   applyAutomaticColors,
   applyAutomaticSymbols,
   createLegendEditorDraft,
-  hasManualLegendOverrides,
   resetLegendEditorAppearance,
   setLegendAssignmentScope,
   setLegendColorScheme,
   setLegendEncodingMode,
   updateLegendColor,
   updateLegendSymbol,
+  wouldReassignLegendAppearance,
 } from "./legendEditorModel.ts";
 import { createBuiltInLegend } from "../viewer/legend.ts";
 
@@ -120,13 +120,26 @@ describe("legend editor model", () => {
     assert.ok(reset.legend.pileTipLevels.every((item) => item.symbolAutomatic && item.colorAutomatic));
   });
 
-  it("detects manual overrides only in the requested group and scope", () => {
-    let current = updateLegendColor(draft(), "tip", -18, "#123456");
+  it("offers reassignment when filtering active items changes automatic mappings", () => {
+    const current = draft();
+
+    assert.equal(wouldReassignLegendAppearance(current, "size", "symbol"), false);
+    assert.equal(wouldReassignLegendAppearance(current, "tip", "color"), false);
+
+    current.active.pileSizes = [320];
     current.active.pileTipLevels = [-19];
 
-    assert.equal(hasManualLegendOverrides(current, "tip", "color"), false);
-    current = setLegendAssignmentScope(current, "all").draft;
-    assert.equal(hasManualLegendOverrides(current, "tip", "color"), true);
-    assert.equal(hasManualLegendOverrides(current, "tip", "symbol"), false);
+    assert.equal(wouldReassignLegendAppearance(current, "size", "symbol"), true);
+    assert.equal(wouldReassignLegendAppearance(current, "tip", "color"), true);
+  });
+
+  it("offers reassignment for manual overrides and dims it after applying", () => {
+    const manual = updateLegendColor(draft(), "tip", -18, "#123456");
+
+    assert.equal(wouldReassignLegendAppearance(manual, "tip", "color"), true);
+    assert.equal(
+      wouldReassignLegendAppearance(applyAutomaticColors(manual, "tip"), "tip", "color"),
+      false,
+    );
   });
 });

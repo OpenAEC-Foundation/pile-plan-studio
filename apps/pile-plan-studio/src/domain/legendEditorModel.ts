@@ -154,14 +154,27 @@ export function applyAutomaticColors(
   };
 }
 
-export function hasManualLegendOverrides(
+export function wouldReassignLegendAppearance(
   draft: LegendEditorDraft,
   kind: LegendEditorItemKind,
   property: LegendAppearanceProperty,
 ): boolean {
-  const values = new Set(scopedValues(draft, kind));
-  const automaticKey = property === "symbol" ? "symbolAutomatic" : "colorAutomatic";
-  return draft.legend[legendKey(kind)].some((item) => values.has(item.value) && !item[automaticKey]);
+  const assigned = property === "symbol"
+    ? applyAutomaticSymbols(draft, kind)
+    : { ok: true as const, draft: applyAutomaticColors(draft, kind) };
+  if (!assigned.ok) return true;
+
+  const key = legendKey(kind);
+  const assignedByValue = new Map(assigned.draft.legend[key].map((item) => [item.value, item]));
+  return draft.legend[key].some((item) => {
+    const next = assignedByValue.get(item.value);
+    if (!next) return false;
+    return property === "symbol"
+      ? item.symbolAutomatic !== next.symbolAutomatic
+        || item.symbol.baseShape !== next.symbol.baseShape
+        || item.symbol.fillPattern !== next.symbol.fillPattern
+      : item.colorAutomatic !== next.colorAutomatic || item.color !== next.color;
+  });
 }
 
 export function resetLegendEditorAppearance(
