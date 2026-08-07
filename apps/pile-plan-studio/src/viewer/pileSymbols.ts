@@ -4,6 +4,16 @@ const SYMBOL_STROKE = "#172026";
 const SYMBOL_STROKE_WIDTH = 2.4;
 const SYMBOL_NEUTRAL_FILL = "#F3F5F6";
 
+type Point = readonly [number, number];
+
+const TRIANGLE_POINTS: Partial<Record<PileBaseShape, readonly Point[]>> = {
+  "triangle-up": [[12, 3], [21, 20], [3, 20]],
+  "triangle-down": [[3, 4], [21, 4], [12, 21]],
+  "triangle-left": [[4, 12], [20, 3], [20, 21]],
+  "triangle-right": [[4, 3], [20, 12], [4, 21]],
+};
+const TRIANGLE_CLIP_CACHE = new Map<string, string>();
+
 export type PileSymbolRenderOptions = {
   outlineColor?: string;
   neutralFill?: string;
@@ -17,8 +27,8 @@ export function renderPileSymbol(
   const fill = escapeSvgAttribute(fillColor);
   const outline = escapeSvgAttribute(options.outlineColor ?? SYMBOL_STROKE);
   const neutral = escapeSvgAttribute(options.neutralFill ?? SYMBOL_NEUTRAL_FILL);
-  const clipId = `pile-symbol-${symbol.fillPattern}`;
-  const clip = renderClip(symbol.fillPattern, clipId);
+  const clipId = `pile-symbol-${symbol.baseShape}-${symbol.fillPattern}`;
+  const clip = renderClip(symbol.baseShape, symbol.fillPattern, clipId);
   const coloredAttributes = symbol.fillPattern === "full"
     ? `fill="${fill}" stroke="none"`
     : `fill="${fill}" stroke="none" clip-path="url(#${clipId})"`;
@@ -39,8 +49,20 @@ export function renderPileSymbol(
   ].join("");
 }
 
-function renderClip(fillPattern: PileFillPattern, clipId: string): string {
+function renderClip(baseShape: PileBaseShape, fillPattern: PileFillPattern, clipId: string): string {
   if (fillPattern === "full") return "";
+  const triangle = TRIANGLE_POINTS[baseShape];
+  if (triangle) {
+    const cacheKey = `${baseShape}:${fillPattern}`;
+    let points = TRIANGLE_CLIP_CACHE.get(cacheKey);
+    if (!points) {
+      points = equalAreaTriangleClip(triangle, fillPattern)
+        .map(([x, y]) => `${formatCoordinate(x)},${formatCoordinate(y)}`)
+        .join(" ");
+      TRIANGLE_CLIP_CACHE.set(cacheKey, points);
+    }
+    return `<defs><clipPath id="${clipId}"><polygon points="${points}" /></clipPath></defs>`;
+  }
   const region = fillPattern === "top-half"
     ? `<rect x="0" y="0" width="24" height="12" />`
     : fillPattern === "bottom-half"
@@ -51,6 +73,78 @@ function renderClip(fillPattern: PileFillPattern, clipId: string): string {
           ? `<rect x="12" y="0" width="12" height="24" />`
           : `<polygon points="0,0 24,0 0,24" />`;
   return `<defs><clipPath id="${clipId}">${region}</clipPath></defs>`;
+}
+
+function equalAreaTriangleClip(triangle: readonly Point[], fillPattern: PileFillPattern): Point[] {
+  const score = directionalScore(fillPattern);
+  const scores = triangle.map(score);
+  let lower = Math.min(...scores);
+  let upper = Math.max(...scores);
+  const targetArea = polygonArea(triangle) / 2;
+
+  for (let iteration = 0; iteration < 40; iteration += 1) {
+    const boundary = (lower + upper) / 2;
+    const clipped = clipPolygon(triangle, score, boundary);
+    if (polygonArea(clipped) < targetArea) lower = boundary;
+    else upper = boundary;
+  }
+
+  return clipPolygon(triangle, score, (lower + upper) / 2);
+}
+
+function directionalScore(fillPattern: PileFillPattern): (point: Point) => number {
+  switch (fillPattern) {
+    case "top-half":
+      return ([, y]) => y;
+    case "bottom-half":
+      return ([, y]) => -y;
+    case "left-half":
+      return ([x]) => x;
+    case "right-half":
+      return ([x]) => -x;
+    case "diagonal-half":
+      return ([x, y]) => x + y;
+    case "full":
+      return () => 0;
+  }
+}
+
+function clipPolygon(
+  polygon: readonly Point[],
+  score: (point: Point) => number,
+  boundary: number,
+): Point[] {
+  const clipped: Point[] = [];
+  for (let index = 0; index < polygon.length; index += 1) {
+    const start = polygon[index];
+    const end = polygon[(index + 1) % polygon.length];
+    const startScore = score(start);
+    const endScore = score(end);
+    const startInside = startScore <= boundary;
+    const endInside = endScore <= boundary;
+
+    if (startInside) clipped.push(start);
+    if (startInside !== endInside) {
+      const ratio = (boundary - startScore) / (endScore - startScore);
+      clipped.push([
+        start[0] + (end[0] - start[0]) * ratio,
+        start[1] + (end[1] - start[1]) * ratio,
+      ]);
+    }
+  }
+  return clipped;
+}
+
+function polygonArea(points: readonly Point[]): number {
+  if (points.length < 3) return 0;
+  return Math.abs(points.reduce((sum, [x, y], index) => {
+    const [nextX, nextY] = points[(index + 1) % points.length];
+    return sum + x * nextY - nextX * y;
+  }, 0)) / 2;
+}
+
+function formatCoordinate(value: number): string {
+  return Number(value.toFixed(6)).toString();
 }
 
 function renderShape(baseShape: PileBaseShape, attributes: string): string {

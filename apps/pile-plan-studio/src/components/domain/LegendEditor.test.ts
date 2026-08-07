@@ -88,10 +88,17 @@ describe("legend editor", () => {
     const viewerCss = readFileSync(resolve(import.meta.dirname, "viewer.css"), "utf8");
     const editorCss = readFileSync(resolve(import.meta.dirname, "LegendEditor.css"), "utf8");
 
-    assert.match(viewerCss, /\.legend-item\.is-unused/);
+    const normalUnusedRule = viewerCss.match(/\.legend-item\.is-unused\s*\{([^}]*)\}/);
+
+    assert.ok(normalUnusedRule);
+    assert.match(normalUnusedRule[1], /opacity:\s*0\.[0-9]+/);
     assert.match(viewerCss, /\.legend-item\.is-disabled-used/);
     assert.match(viewerCss, /text-decoration:\s*line-through/);
-    assert.match(editorCss, /\.legend-editor-item\.is-unused/);
+    assert.doesNotMatch(editorCss, /\.legend-editor-item\.is-unused\s*\{[^}]*opacity:/s);
+    assert.match(
+      editorCss,
+      /\.legend-editor-item\.is-unused\s+\.legend-editor-item-label\s*\{[^}]*color:\s*var\(--theme-text-muted\)/s,
+    );
     assert.match(editorCss, /\.legend-editor-warning/);
     assert.match(editorCss, /minmax\(0,\s*1\.85fr\)\s+minmax\(12rem,\s*1fr\)/);
     assert.match(editorCss, /@media \(max-width:\s*760px\)/);

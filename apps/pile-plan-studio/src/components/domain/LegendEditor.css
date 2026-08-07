@@ -231,8 +231,8 @@
   background: var(--theme-ribbon-btn-hover);
 }
 
-.legend-editor-item.is-unused {
-  opacity: 0.4;
+.legend-editor-item.is-unused .legend-editor-item-label {
+  color: var(--theme-text-muted);
 }
 
 .legend-editor-item.is-warning {
