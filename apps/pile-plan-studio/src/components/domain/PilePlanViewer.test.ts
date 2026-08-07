@@ -176,9 +176,12 @@ describe("PilePlanViewer inputs", () => {
   });
 
   it("lets pile-size legend symbols inherit the active theme text color", () => {
+    const source = readFileSync(resolve(import.meta.dirname, "Legend.tsx"), "utf8");
     const css = readFileSync(resolve(import.meta.dirname, "viewer.css"), "utf8");
 
-    assert.match(css, /\.legend-symbol \.pile-symbol-svg [^{]+\{[\s\S]*?stroke:\s*currentColor/);
+    assert.match(source, /outlineColor:\s*"currentColor"/);
+    assert.match(source, /neutralFill:\s*"var\(--theme-bg\)"/);
+    assert.doesNotMatch(css, /\.legend-symbol \.pile-symbol-svg :is\(circle, rect, polygon\)/);
   });
 
   it("does not scan all markers while the pointer moves over empty map space", () => {

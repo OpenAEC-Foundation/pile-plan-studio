@@ -144,36 +144,42 @@ export default function LegendEditor({ open, state, onApply, onClose }: Props) {
               </div>
             </div>
             <div className="legend-editor-auto-actions">
-              <button
-                className={`legend-editor-toolbar-button${symbolHasManualOverrides ? " is-pending" : ""}`}
-                type="button"
-                onClick={assignSymbols}
-              >
-                {t("legend.assignSymbols")}
-              </button>
-              <LegendColorSchemeSelect
-                value={draft.legend.colorScheme}
-                label={t("legend.colorScheme")}
-                getSchemeLabel={schemeLabel}
-                onChange={(scheme) => setDraft(setLegendColorScheme(draft, scheme))}
-              />
-              <button
-                className={`legend-editor-toolbar-button${colorHasManualOverrides ? " is-pending" : ""}`}
-                type="button"
-                onClick={() => setDraft(applyAutomaticColors(draft, colorKind))}
-              >
-                {t("legend.assignColors")}
-              </button>
-              <button
-                className="legend-editor-toolbar-button is-secondary"
-                type="button"
-                onClick={() => {
-                  setDraft(resetLegendEditorAppearance(draft, state.bearingCapacities));
-                  setSymbolLimitError(false);
-                }}
-              >
-                {t("legend.resetAppearance")}
-              </button>
+              <div className="legend-editor-auto-action-row is-symbol">
+                <button
+                  className={`legend-editor-toolbar-button${symbolHasManualOverrides ? " is-pending" : ""}`}
+                  type="button"
+                  onClick={assignSymbols}
+                >
+                  {t("legend.assignSymbols")}
+                </button>
+              </div>
+              <div className="legend-editor-auto-action-row is-color">
+                <button
+                  className={`legend-editor-toolbar-button${colorHasManualOverrides ? " is-pending" : ""}`}
+                  type="button"
+                  onClick={() => setDraft(applyAutomaticColors(draft, colorKind))}
+                >
+                  {t("legend.assignColors")}
+                </button>
+                <LegendColorSchemeSelect
+                  value={draft.legend.colorScheme}
+                  label={t("legend.colorScheme")}
+                  getSchemeLabel={schemeLabel}
+                  onChange={(scheme) => setDraft(setLegendColorScheme(draft, scheme))}
+                />
+              </div>
+              <div className="legend-editor-auto-action-row is-reset">
+                <button
+                  className="legend-editor-toolbar-button is-secondary"
+                  type="button"
+                  onClick={() => {
+                    setDraft(resetLegendEditorAppearance(draft, state.bearingCapacities));
+                    setSymbolLimitError(false);
+                  }}
+                >
+                  {t("legend.resetAppearance")}
+                </button>
+              </div>
             </div>
             {draft.legend.colorScheme === "colorblind-friendly" ? (
               <p className="legend-editor-aid">{t("legend.colorblindAid")}</p>

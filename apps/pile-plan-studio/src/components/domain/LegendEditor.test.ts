@@ -115,8 +115,12 @@ describe("legend editor", () => {
 
     assert.match(source, /hasManualLegendOverrides/);
     assert.match(source, /is-pending/);
-    assert.match(css, /\.legend-editor-auto-actions\s*\{[^}]*display:\s*grid/s);
-    assert.match(css, /grid-template-columns:/);
+    assert.match(source, /legend-editor-auto-action-row/);
+    assert.match(source, /legend-editor-auto-action-row is-color/);
+    assert.match(css, /\.legend-editor-auto-action-row\s*\{[^}]*grid-template-columns:/s);
+    assert.match(css, /\.legend-editor-auto-action-row > \.legend-editor-toolbar-button\s*\{[^}]*white-space:\s*nowrap/s);
+    assert.match(css, /\.legend-editor-auto-action-row\.is-reset > \.legend-editor-toolbar-button\s*\{[^}]*grid-column:\s*1/s);
+    assert.match(css, /\.legend-scheme-options\s*\{[^}]*right:\s*0[^}]*left:\s*auto[^}]*max-width:/s);
     assert.match(css, /\.legend-editor-toolbar-button\.is-pending/);
   });
 });

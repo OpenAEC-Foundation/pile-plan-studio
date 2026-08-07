@@ -85,12 +85,16 @@ describe("legend state", () => {
       value: 400,
       symbol: { baseShape: "circle", fillPattern: "full" },
       color: "#8C989F",
+      symbolAutomatic: true,
+      colorAutomatic: true,
       state: "disabled-used",
     });
     assert.deepEqual(result.pileTipLevels.find(({ value }) => value === -22), {
       value: -22,
       symbol: { baseShape: "circle", fillPattern: "full" },
       color: "#8C989F",
+      symbolAutomatic: true,
+      colorAutomatic: true,
       state: "disabled-used",
     });
   });
