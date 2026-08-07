@@ -175,7 +175,7 @@ The fill-pattern radiogroup is labeled `Fill` / `Vulling`. Every option previews
 
 The fill pattern is part of the symbol definition. The colored portion uses the color resolved through the active encoding mode. The uncolored portion uses an opaque light neutral fill suited to the viewer's fixed white background, so overlapping symbols cannot show unrelated objects through their uncolored half. The outer contour remains the normal viewer symbol outline color.
 
-Half-fill patterns represent half of the visible shape area, not half of its bounding box. For the four asymmetric triangle orientations, the clipping boundary is shape-aware so top, bottom, left, right, and diagonal half fills each color 50% of the triangle area. Symmetric shapes retain their midpoint clipping behavior.
+Half-fill patterns represent half of the visible shape area, not half of its bounding box. For the four asymmetric triangle orientations, the clipping boundary is shape-aware and accounts for the part covered by the centered outer contour. Top, bottom, left, right, and diagonal half fills therefore each color 50% of the interior that remains visible after the contour is drawn. Symmetric shapes retain their midpoint clipping behavior.
 
 The nine shapes and six fills form a catalog of 54 unique symbols without requiring increasingly decorative or visually similar silhouettes. Stars, crosses, plus signs, and high-sided regular polygons are intentionally excluded: stars do not fit the technical visual language, crosses already communicate unavailable or missing pile assignments, and pentagons, hexagons, and octagons become difficult to distinguish from circles at small scale.
 
@@ -428,7 +428,7 @@ This prevents the editor, viewer, and serializer from developing separate interp
 - all nine base shapes and six fill patterns remain recognizable at supported symbol-size and zoom limits;
 - neutral editor previews do not expose the inactive stored color channel;
 - unused editor items keep fully opaque appearance controls and picker contents while the compact legend remains faded;
-- every triangle half-fill pattern colors 50% of the triangle area within normal rendering tolerance;
+- every triangle half-fill pattern colors 50% of the interior left visible by the contour within normal rendering tolerance;
 - partial fills remain distinguishable in the compact legend in light and dark themes;
 - semantic crosses, selection rings, and CPT styling remain unchanged.
 

@@ -5,10 +5,26 @@ import { PILE_SYMBOL_CATALOG } from "./legendSymbols.ts";
 import { renderPileSymbol } from "./pileSymbols.ts";
 
 const TRIANGLES = {
-  "triangle-up": { points: [[12, 3], [21, 20], [3, 20]], halfArea: 76.5 },
-  "triangle-down": { points: [[3, 4], [21, 4], [12, 21]], halfArea: 76.5 },
-  "triangle-left": { points: [[4, 12], [20, 3], [20, 21]], halfArea: 72 },
-  "triangle-right": { points: [[4, 3], [20, 12], [4, 21]], halfArea: 72 },
+  "triangle-up": {
+    points: [[12, 3], [21, 20], [3, 20]],
+    visiblePoints: [[12, 5.564718], [19.006914, 18.8], [4.993086, 18.8]],
+    visibleHalfArea: 46.369241,
+  },
+  "triangle-down": {
+    points: [[3, 4], [21, 4], [12, 21]],
+    visiblePoints: [[4.993086, 5.2], [19.006914, 5.2], [12, 18.435282]],
+    visibleHalfArea: 46.369241,
+  },
+  "triangle-left": {
+    points: [[4, 12], [20, 3], [20, 21]],
+    visiblePoints: [[6.447675, 12], [18.8, 5.051817], [18.8, 18.948183]],
+    visibleHalfArea: 42.913107,
+  },
+  "triangle-right": {
+    points: [[4, 3], [20, 12], [4, 21]],
+    visiblePoints: [[5.2, 5.051817], [17.552325, 12], [5.2, 18.948183]],
+    visibleHalfArea: 42.913107,
+  },
 } as const;
 
 const PARTIAL_FILLS = [
@@ -45,7 +61,7 @@ describe("pile symbol rendering", () => {
       /<polygon points="0,0 24,0 0,24"/);
   });
 
-  it("colors half the visible area of every partially filled triangle", () => {
+  it("colors half the triangle interior left visible by the outline", () => {
     for (const [baseShape, triangle] of Object.entries(TRIANGLES)) {
       for (const fillPattern of PARTIAL_FILLS) {
         const svg = renderPileSymbol({
@@ -53,10 +69,13 @@ describe("pile symbol rendering", () => {
           fillPattern,
         }, "#112233");
         const clipPoints = extractClipPolygon(svg);
+        const score = directionalScore(fillPattern);
+        const boundary = Math.max(...clipPoints.map(score));
+        const visibleColoredArea = polygonArea(clipPolygon(triangle.visiblePoints, score, boundary));
 
         assert.ok(
-          Math.abs(polygonArea(clipPoints) - triangle.halfArea) < 0.02,
-          `${baseShape}:${fillPattern} should color half the triangle area`,
+          Math.abs(visibleColoredArea - triangle.visibleHalfArea) < 0.02,
+          `${baseShape}:${fillPattern} should color half the visible triangle interior`,
         );
         assert.ok(
           clipPoints.some((point) => isDirectionalExtreme(point, triangle.points, fillPattern)),
@@ -102,6 +121,44 @@ function extractClipPolygon(svg: string): Array<readonly [number, number]> {
   });
 }
 
+function directionalScore(fillPattern: typeof PARTIAL_FILLS[number]): (point: readonly [number, number]) => number {
+  return ([x, y]) => fillPattern === "top-half"
+    ? y
+    : fillPattern === "bottom-half"
+      ? -y
+      : fillPattern === "left-half"
+        ? x
+        : fillPattern === "right-half"
+          ? -x
+          : x + y;
+}
+
+function clipPolygon(
+  polygon: readonly (readonly [number, number])[],
+  score: (point: readonly [number, number]) => number,
+  boundary: number,
+): Array<readonly [number, number]> {
+  const clipped: Array<readonly [number, number]> = [];
+  for (let index = 0; index < polygon.length; index += 1) {
+    const start = polygon[index];
+    const end = polygon[(index + 1) % polygon.length];
+    const startScore = score(start);
+    const endScore = score(end);
+    const startInside = startScore <= boundary;
+    const endInside = endScore <= boundary;
+
+    if (startInside) clipped.push(start);
+    if (startInside !== endInside) {
+      const ratio = (boundary - startScore) / (endScore - startScore);
+      clipped.push([
+        start[0] + (end[0] - start[0]) * ratio,
+        start[1] + (end[1] - start[1]) * ratio,
+      ]);
+    }
+  }
+  return clipped;
+}
+
 function polygonArea(points: readonly (readonly [number, number])[]): number {
   return Math.abs(points.reduce((sum, [x, y], index) => {
     const [nextX, nextY] = points[(index + 1) % points.length];
@@ -114,15 +171,7 @@ function isDirectionalExtreme(
   source: readonly (readonly [number, number])[],
   fillPattern: typeof PARTIAL_FILLS[number],
 ): boolean {
-  const score = ([x, y]: readonly [number, number]) => fillPattern === "top-half"
-    ? y
-    : fillPattern === "bottom-half"
-      ? -y
-      : fillPattern === "left-half"
-        ? x
-        : fillPattern === "right-half"
-          ? -x
-          : x + y;
+  const score = directionalScore(fillPattern);
   const extreme = Math.min(...source.map(score));
   return Math.abs(score(point) - extreme) < 0.001;
 }

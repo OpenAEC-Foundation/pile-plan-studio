@@ -77,14 +77,15 @@ function renderClip(baseShape: PileBaseShape, fillPattern: PileFillPattern, clip
 
 function equalAreaTriangleClip(triangle: readonly Point[], fillPattern: PileFillPattern): Point[] {
   const score = directionalScore(fillPattern);
-  const scores = triangle.map(score);
+  const visibleInterior = insetConvexPolygon(triangle, SYMBOL_STROKE_WIDTH / 2);
+  const scores = visibleInterior.map(score);
   let lower = Math.min(...scores);
   let upper = Math.max(...scores);
-  const targetArea = polygonArea(triangle) / 2;
+  const targetArea = polygonArea(visibleInterior) / 2;
 
   for (let iteration = 0; iteration < 40; iteration += 1) {
     const boundary = (lower + upper) / 2;
-    const clipped = clipPolygon(triangle, score, boundary);
+    const clipped = clipPolygon(visibleInterior, score, boundary);
     if (polygonArea(clipped) < targetArea) lower = boundary;
     else upper = boundary;
   }
@@ -135,12 +136,51 @@ function clipPolygon(
   return clipped;
 }
 
+function insetConvexPolygon(polygon: readonly Point[], distance: number): Point[] {
+  const orientation = signedPolygonArea(polygon) >= 0 ? 1 : -1;
+  const offsetEdges = polygon.map((start, index) => {
+    const end = polygon[(index + 1) % polygon.length];
+    const direction: Point = [end[0] - start[0], end[1] - start[1]];
+    const length = Math.hypot(direction[0], direction[1]);
+    const normal: Point = orientation > 0
+      ? [-direction[1] / length, direction[0] / length]
+      : [direction[1] / length, -direction[0] / length];
+    return {
+      point: [start[0] + normal[0] * distance, start[1] + normal[1] * distance] as Point,
+      direction,
+    };
+  });
+
+  return offsetEdges.map((current, index) => {
+    const previous = offsetEdges[(index - 1 + offsetEdges.length) % offsetEdges.length];
+    return intersectLines(previous.point, previous.direction, current.point, current.direction);
+  });
+}
+
+function intersectLines(firstPoint: Point, firstDirection: Point, secondPoint: Point, secondDirection: Point): Point {
+  const denominator = crossProduct(firstDirection, secondDirection);
+  const delta: Point = [secondPoint[0] - firstPoint[0], secondPoint[1] - firstPoint[1]];
+  const ratio = crossProduct(delta, secondDirection) / denominator;
+  return [
+    firstPoint[0] + firstDirection[0] * ratio,
+    firstPoint[1] + firstDirection[1] * ratio,
+  ];
+}
+
+function crossProduct([x1, y1]: Point, [x2, y2]: Point): number {
+  return x1 * y2 - y1 * x2;
+}
+
 function polygonArea(points: readonly Point[]): number {
+  return Math.abs(signedPolygonArea(points));
+}
+
+function signedPolygonArea(points: readonly Point[]): number {
   if (points.length < 3) return 0;
-  return Math.abs(points.reduce((sum, [x, y], index) => {
+  return points.reduce((sum, [x, y], index) => {
     const [nextX, nextY] = points[(index + 1) % points.length];
     return sum + x * nextY - nextX * y;
-  }, 0)) / 2;
+  }, 0) / 2;
 }
 
 function formatCoordinate(value: number): string {
