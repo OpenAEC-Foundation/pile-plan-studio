@@ -48,16 +48,20 @@ The project stores one active encoding mode:
 1. pile size controls shape and pile tip level controls color;
 2. pile size controls color and pile tip level controls shape.
 
-Changing the mode changes which stored mappings are rendered. While a visual channel has not been adjusted manually during the current editor session, switching modes also refreshes that channel's automatic assignment for the selected assignment scope. A channel with manual edits is preserved until the user explicitly requests automatic reassignment.
+Changing the mode changes which stored mappings are rendered. Switching modes refreshes automatic assignments for the newly active property and visual channel while preserving manual item-level overrides. The four mapping groups remain independent: size-to-color, size-to-symbol, tip-to-color, and tip-to-symbol.
 
 ### Persisted mappings
 
 Every known pile size and every known pile tip level stores both:
 
 - a symbol definition;
-- a color value.
+- a color value;
+- whether its symbol is automatic or manually overridden;
+- whether its color is automatic or manually overridden.
 
 Keeping both mappings means users can customize both encoding modes and switch between them without losing previous choices. Only the mapping selected by the active encoding mode is rendered.
+
+The project also stores the selected automatic color scheme. This ensures that reopening the editor, refreshing project sources, or discovering a new size or tip level continues the same automatic assignment instead of silently reverting to the built-in scheme.
 
 Enabled state remains independent from appearance. Disabling an item retains all its mappings. Re-enabling it restores its previous appearance.
 
@@ -192,15 +196,24 @@ Custom colors do not have to be unique. The editor does not warn about duplicate
 
 ## Automatic Assignment
 
-The automatic-assignment area contains one shared scope control and two independent actions. Symbols and colors independently track whether they have been changed manually during the current editor session.
+The automatic-assignment area contains one shared scope control and two independent actions. Automatic or manual state is tracked persistently per legend item and per appearance property in four independent mapping groups:
 
-Before a channel has been manually edited, changing its automatic inputs applies immediately to the editor draft:
+- size-to-color;
+- size-to-symbol;
+- tip-to-color;
+- tip-to-symbol.
 
-- changing assignment scope refreshes both still-automatic channels;
-- changing encoding mode refreshes each still-automatic channel for its newly represented property;
-- changing color scheme refreshes the color channel.
+A manual change protects only the edited property of that item. For example, manually changing one tip-level color does not prevent other tip-level colors from following a newly selected color scheme, and it does not affect any symbol assignment.
 
-After a manual symbol or color change, automatic-input controls no longer overwrite that channel. Its automatic-assignment button becomes visually emphasized and acts as an explicit confirmation to replace the manual mappings in the selected scope. Using that button returns only that channel to automatic state. The other channel remains independent.
+Changing automatic inputs applies immediately to every still-automatic item in the affected mapping group:
+
+- changing assignment scope refreshes the still-automatic items inside the new scope;
+- changing encoding mode refreshes the still-automatic items in the newly active color and symbol mapping groups;
+- changing color scheme refreshes all still-automatic items in the active color mapping group.
+
+Manual item-level overrides remain unchanged when automatic inputs change. The relevant automatic-assignment button becomes visually emphasized while the active mapping group contains manual overrides in the selected scope. Using that button explicitly replaces those manual mappings and returns all affected items in that mapping group and scope to automatic state. Inactive mapping groups remain stored and unchanged until they become active or are edited directly. Applying the editor persists both the resolved mappings and their automatic/manual state.
+
+For example, after manually changing some size colors, switching to `Pile size controls shape and pile tip level controls color` applies the selected color scheme to all automatic tip-level colors. The stored manual size colors remain available and return unchanged when the encoding mode is switched back.
 
 ### Assignment scope
 
@@ -269,7 +282,7 @@ The listbox and palette previews are keyboard accessible and do not rely on colo
 - built-in symbol mappings for all known values;
 - built-in Tableau Extended color mappings for all known values.
 
-Reset also returns both visual channels to automatic state within the editor session.
+Reset also returns all four mapping groups to automatic state and restores the built-in Tableau Extended color scheme.
 
 It does not change which items are enabled and does not change pile assignments.
 
@@ -311,11 +324,13 @@ The compact normal legend uses the shared SVG renderer with separate outline, co
 Legend appearance is stored in project settings inside IFCPP. The serialized representation contains:
 
 - encoding mode;
+- selected automatic color scheme;
 - size-to-symbol and size-to-color mappings;
 - tip-to-symbol and tip-to-color mappings;
+- automatic/manual state for each stored symbol and color property;
 - each symbol's base shape and fill pattern.
 
-The new field is optional for backwards compatibility. Opening an older IFCPP file generates the complete built-in mapping from its current source values. Saving that project writes the explicit mapping.
+The new field is optional for backwards compatibility. Opening an older IFCPP file generates the complete built-in mapping from its current source values. Existing explicit mappings without automatic/manual metadata are treated as automatic, and a missing scheme defaults to Tableau Extended. Saving that project writes the complete explicit mapping and metadata.
 
 Unknown future enum values or malformed individual mappings fall back to a deterministic built-in appearance for the affected value and produce a non-blocking project-import warning that identifies the affected size or tip level. One malformed mapping must not prevent the project from opening.
 
@@ -348,7 +363,7 @@ This prevents the editor, viewer, and serializer from developing separate interp
 - Refreshing source data must not silently reset customized mappings.
 - Changing language while the editor is open updates all labels without changing the draft.
 - Outside clicks close an open symbol or scheme popup without discarding its current draft selection.
-- Automatic-input changes never overwrite a visual channel after a manual edit unless its explicit automatic-assignment action is used.
+- Automatic-input changes update still-automatic items but never overwrite manual item-level properties unless the explicit automatic-assignment action is used for their mapping group and scope.
 
 ## Accessibility And Localization
 
@@ -365,6 +380,7 @@ This prevents the editor, viewer, and serializer from developing separate interp
 - generate the current built-in mapping deterministically;
 - reconcile stored mappings with newly added, removed, and returning source values;
 - preserve both encoding-mode mappings while switching modes;
+- preserve item-level automatic/manual state across IFCPP round trips;
 - resolve shape and color correctly in both encoding modes;
 - preserve disabled mappings;
 - reset appearance without changing activation;
@@ -384,8 +400,11 @@ This prevents the editor, viewer, and serializer from developing separate interp
 - color editing validates hexadecimal input;
 - scheme options show names and palette previews;
 - scheme and assignment controls retain fixed positions for every localized label;
-- automatic shape and color actions remain independent;
-- automatic settings apply immediately until their channel receives a manual edit;
+- the four size/tip and shape/color mapping groups remain independent;
+- automatic settings immediately update non-manual items while preserving manual item-level overrides;
+- switching encoding mode applies the selected scheme and symbol order to the newly active automatic mappings without changing inactive or manual mappings;
+- explicit automatic assignment clears manual overrides only for its active mapping group and selected scope;
+- closing and reopening the editor preserves which individual properties are automatic or manually overridden;
 - clicking outside an appearance popup closes it while preserving its draft selection;
 - Apply commits one complete draft;
 - Cancel, Escape, and close discard all draft changes.
