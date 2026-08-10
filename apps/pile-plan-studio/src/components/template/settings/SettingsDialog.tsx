@@ -2,6 +2,14 @@ import { useState, useEffect, useRef, type CSSProperties } from "react";
 import { useTranslation } from "react-i18next";
 import { LANGUAGES, changeLanguage } from "../../../i18n/config";
 import { getSetting, setSetting } from "../../../store";
+import { PRODUCT_INFO } from "../../../productInfo.ts";
+import {
+  DEFAULT_INTERFACE_SCALE,
+  INTERFACE_SCALE_STEP,
+  MAX_INTERFACE_SCALE,
+  MIN_INTERFACE_SCALE,
+  normalizeInterfaceScale,
+} from "../../../domain/interfaceScale.ts";
 import Modal from "../Modal";
 import ThemedSelect from "../ThemedSelect";
 import "../ThemedSelect.css";
@@ -33,6 +41,10 @@ interface SettingsDialogProps {
   onClose: () => void;
   theme: string;
   onThemeChange: (theme: string) => void;
+  isDesktop: boolean;
+  interfaceScalePercent: number;
+  onInterfaceScalePreview: (scalePercent: number) => void;
+  onInterfaceScaleChange: (scalePercent: number) => void;
 }
 
 export default function SettingsDialog({
@@ -40,6 +52,10 @@ export default function SettingsDialog({
   onClose,
   theme,
   onThemeChange,
+  isDesktop,
+  interfaceScalePercent,
+  onInterfaceScalePreview,
+  onInterfaceScaleChange,
 }: SettingsDialogProps) {
   const { t } = useTranslation("settings");
   const { t: tCommon } = useTranslation("common");
@@ -48,23 +64,27 @@ export default function SettingsDialog({
   // Draft state — only committed on Save
   const [draftTheme, setDraftTheme] = useState(theme);
   const [draftLang, setDraftLang] = useState("auto");
+  const [draftInterfaceScale, setDraftInterfaceScale] = useState(interfaceScalePercent);
   const [confirmResetOpen, setConfirmResetOpen] = useState(false);
 
   // Snapshot of original values when dialog opens, for reverting on Cancel
   const originalTheme = useRef(theme);
   const originalLang = useRef("");
+  const originalInterfaceScale = useRef(interfaceScalePercent);
 
   // Reset draft to current values when dialog opens
   useEffect(() => {
     if (open) {
       originalTheme.current = theme;
       setDraftTheme(theme);
+      originalInterfaceScale.current = interfaceScalePercent;
+      setDraftInterfaceScale(interfaceScalePercent);
       getSetting("language", "auto").then((lang) => {
         originalLang.current = lang;
         setDraftLang(lang);
       });
     }
-  }, [open, theme]);
+  }, [interfaceScalePercent, open, theme]);
 
   // Live theme preview — apply immediately when the user picks one in the dropdown.
   // Saved only on Save; reverted on Cancel.
@@ -79,12 +99,19 @@ export default function SettingsDialog({
     changeLanguage(value);
   };
 
+  const handleInterfaceScalePreview = (value: number) => {
+    const normalized = normalizeInterfaceScale(value);
+    setDraftInterfaceScale(normalized);
+    onInterfaceScalePreview(normalized);
+  };
+
   // Cancel — discard all draft changes, revert live preview
   const handleCancel = () => {
     setDraftTheme(originalTheme.current);
     applyTheme(originalTheme.current);
     setDraftLang(originalLang.current);
     changeLanguage(originalLang.current);
+    onInterfaceScalePreview(originalInterfaceScale.current);
     onClose();
   };
 
@@ -96,6 +123,8 @@ export default function SettingsDialog({
 
     setSetting("language", draftLang);
     changeLanguage(draftLang);
+
+    onInterfaceScaleChange(draftInterfaceScale);
 
     onClose();
   };
@@ -110,6 +139,8 @@ export default function SettingsDialog({
     applyTheme("light");
     setDraftLang("auto");
     changeLanguage("auto");
+    setDraftInterfaceScale(DEFAULT_INTERFACE_SCALE);
+    onInterfaceScalePreview(DEFAULT_INTERFACE_SCALE);
     setConfirmResetOpen(false);
   };
 
@@ -150,7 +181,13 @@ export default function SettingsDialog({
             <GeneralTabContent lang={draftLang} onLangChange={handleLangPreview} />
           )}
           {activeTab === "appearance" && (
-            <AppearanceTabContent theme={draftTheme} onThemeSelect={handleThemePreview} />
+            <AppearanceTabContent
+              theme={draftTheme}
+              onThemeSelect={handleThemePreview}
+              isDesktop={isDesktop}
+              interfaceScalePercent={draftInterfaceScale}
+              onInterfaceScalePreview={handleInterfaceScalePreview}
+            />
           )}
           {activeTab === "about" && <AboutTabContent />}
         </div>
@@ -214,15 +251,39 @@ function GeneralTabContent({
 function AppearanceTabContent({
   theme,
   onThemeSelect,
+  isDesktop,
+  interfaceScalePercent,
+  onInterfaceScalePreview,
 }: {
   theme: string;
   onThemeSelect: (value: string) => void;
+  isDesktop: boolean;
+  interfaceScalePercent: number;
+  onInterfaceScalePreview: (value: number) => void;
 }) {
   const { t } = useTranslation("settings");
   return (
     <div className="settings-section">
       <h3>{t("appearance.theme")}</h3>
       <ThemeDropdown theme={theme} onThemeSelect={onThemeSelect} />
+      {isDesktop && (
+        <div className="settings-interface-scale">
+          <div className="settings-interface-scale-heading">
+            <span>{t("appearance.interfaceScale")}</span>
+            <output>{interfaceScalePercent}%</output>
+          </div>
+          <input
+            type="range"
+            min={MIN_INTERFACE_SCALE}
+            max={MAX_INTERFACE_SCALE}
+            step={INTERFACE_SCALE_STEP}
+            value={interfaceScalePercent}
+            aria-label={t("appearance.interfaceScale")}
+            onChange={(event) => onInterfaceScalePreview(Number(event.currentTarget.value))}
+          />
+          <p>{t("appearance.interfaceScaleDescription")}</p>
+        </div>
+      )}
     </div>
   );
 }
@@ -284,22 +345,19 @@ function ThemeDropdown({
   );
 }
 
-// ─── About Tab ───────────────────────────────────────────────
-// Pas naam, versie en beschrijving aan via i18n keys
-// in locales/{lang}/settings.json, sectie "about"
-// ─────────────────────────────────────────────────────────────
 function AboutTabContent() {
   const { t } = useTranslation("settings");
   return (
     <div className="settings-section">
-      <h3>{t("about.appName")}</h3>
+      <h3>{PRODUCT_INFO.name}</h3>
       <div style={{ fontSize: 11, lineHeight: 1.8 }}>
-        <p><strong>{t("about.version")}:</strong> 0.1.7</p>
-        <p><strong>{t("about.framework")}:</strong> Tauri + React + TypeScript</p>
-        <p><strong>{t("about.license")}:</strong> LGPL-3.0-or-later</p>
-        <p style={{ marginTop: 8, color: "var(--theme-dialog-content-secondary)" }}>
+        <p style={{ marginBottom: 8, color: "var(--theme-dialog-content-secondary)" }}>
           {t("about.description")}
         </p>
+        <p><strong>{t("about.version")}:</strong> {PRODUCT_INFO.version}</p>
+        <p><strong>{t("about.status")}:</strong> {PRODUCT_INFO.status}</p>
+        <p><strong>{t("about.organization")}:</strong> {PRODUCT_INFO.organization}</p>
+        <p><strong>{t("about.license")}:</strong> {PRODUCT_INFO.license}</p>
       </div>
     </div>
   );

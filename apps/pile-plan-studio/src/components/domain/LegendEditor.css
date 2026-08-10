@@ -45,6 +45,7 @@
 .legend-editor-automatic,
 .legend-editor-scope {
   display: grid;
+  min-width: 0;
   align-content: start;
   gap: 7px;
 }
@@ -106,6 +107,10 @@
   grid-template-columns: 260px minmax(240px, 1fr);
   align-items: center;
   gap: 6px;
+}
+
+.legend-editor-auto-action-row > * {
+  min-width: 0;
 }
 
 .legend-editor-auto-action-row > .legend-editor-toolbar-button {
@@ -296,7 +301,8 @@
 
 .legend-scheme-select {
   display: inline-grid;
-  width: max-content;
+  width: fit-content;
+  min-width: 0;
   max-width: 100%;
   justify-self: start;
 }
@@ -308,12 +314,15 @@
 
 .legend-scheme-width-probe {
   display: grid;
+  min-width: 0;
+  max-width: 100%;
   min-height: 28px;
   grid-template-columns: max-content 92px auto;
   align-items: center;
   gap: 5px;
   padding: 3px 6px;
   border: 1px solid transparent;
+  overflow: hidden;
   visibility: hidden;
   pointer-events: none;
 }

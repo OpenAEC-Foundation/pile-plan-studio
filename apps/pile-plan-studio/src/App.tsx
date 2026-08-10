@@ -92,6 +92,14 @@ import {
   type BrowserRecoveryStore,
 } from "./domain/browserRecoveryStore.ts";
 import { loadBrowserRecovery } from "./domain/browserRecoveryStartup.ts";
+import { classifyAppShortcut } from "./domain/appShortcuts.ts";
+import { DEFAULT_INTERFACE_SCALE, stepInterfaceScale } from "./domain/interfaceScale.ts";
+import {
+  applyDesktopInterfaceScale,
+  loadInterfaceScale,
+  saveInterfaceScale,
+} from "./domain/interfaceScaleRuntime.ts";
+import { elementLayoutScale, screenToLocal } from "./domain/uiBaseline.ts";
 
 const BUILT_IN_PILE_COST_DEFAULTS = loadIfcppProjectData(sampleProjectText).pileCostSettings;
 
@@ -215,6 +223,8 @@ function AppSession({
   const explorerWidthRef = useRef(DEFAULT_EXPLORER_WIDTH);
   const rightPanelWidthRef = useRef(DEFAULT_RIGHT_PANEL_WIDTH);
   const [theme, setTheme] = useState("light");
+  const [interfaceScalePercent, setInterfaceScalePercent] = useState(DEFAULT_INTERFACE_SCALE);
+  const [interfaceScaleLoaded, setInterfaceScaleLoaded] = useState(false);
   const [viewerPreferencesLoaded, setViewerPreferencesLoaded] = useState(false);
   const [creatingPilePlan, setCreatingPilePlan] = useState(false);
   const [statusMessage, setStatusMessage] = useState("");
@@ -256,6 +266,8 @@ function AppSession({
     setSavedProjectSignature(signature);
   }, []);
   const preparedProjectRef = useRef<{ signature: string; blob: Blob } | null>(null);
+  const projectActionRef = useRef<(() => Promise<boolean>) | null>(null);
+  const saveShortcutInFlightRef = useRef(false);
   const isDesktop = isDesktopRuntime();
   const projectFileCommands = getProjectFileCommands(isDesktop);
   const canUndo = managedProject.history.past.length > 0;
@@ -420,6 +432,31 @@ function AppSession({
     setIsDirty(false);
     return true;
   };
+
+  projectActionRef.current = isDesktop ? saveProject : downloadProject;
+
+  useEffect(() => {
+    const handleAppShortcut = (event: KeyboardEvent) => {
+      const action = classifyAppShortcut(event, isDesktop);
+      if (!action) return;
+      event.preventDefault();
+
+      if (action === "save") {
+        if (saveShortcutInFlightRef.current || !projectActionRef.current) return;
+        saveShortcutInFlightRef.current = true;
+        void projectActionRef.current().finally(() => {
+          saveShortcutInFlightRef.current = false;
+        });
+        return;
+      }
+
+      setInterfaceScalePercent((current) => action === "zoom-reset"
+        ? DEFAULT_INTERFACE_SCALE
+        : stepInterfaceScale(current, action === "zoom-in" ? 1 : -1));
+    };
+    window.addEventListener("keydown", handleAppShortcut);
+    return () => window.removeEventListener("keydown", handleAppShortcut);
+  }, [isDesktop]);
 
   const activePilePlanName = projectState.pilePlans.find(
     (pilePlan) => pilePlan.id === projectState.activePilePlanId,
@@ -650,6 +687,26 @@ function AppSession({
       applyTheme(saved);
     });
   }, []);
+
+  useEffect(() => {
+    if (!isDesktop) {
+      setInterfaceScaleLoaded(true);
+      return;
+    }
+    let cancelled = false;
+    loadInterfaceScale().then((scale) => {
+      if (cancelled) return;
+      setInterfaceScalePercent(scale);
+      setInterfaceScaleLoaded(true);
+    });
+    return () => { cancelled = true; };
+  }, [isDesktop]);
+
+  useEffect(() => {
+    if (!isDesktop || !interfaceScaleLoaded) return;
+    void applyDesktopInterfaceScale(interfaceScalePercent);
+    void saveInterfaceScale(interfaceScalePercent);
+  }, [interfaceScaleLoaded, interfaceScalePercent, isDesktop]);
 
   useEffect(() => {
     loadViewerPreferences().then((preferences) => {
@@ -1125,6 +1182,10 @@ function AppSession({
         onClose={() => setSettingsOpen(false)}
         theme={theme}
         onThemeChange={setTheme}
+        isDesktop={isDesktop}
+        interfaceScalePercent={interfaceScalePercent}
+        onInterfaceScalePreview={(scale) => { void applyDesktopInterfaceScale(scale); }}
+        onInterfaceScaleChange={setInterfaceScalePercent}
       />
       <ProjectInformationDialog
         open={projectInformationOpen}
@@ -1148,12 +1209,17 @@ function AppSession({
   function beginExplorerResize(event: ReactPointerEvent<HTMLDivElement>) {
     event.preventDefault();
     const startWidth = explorerWidthRef.current;
-    const startX = event.clientX;
+    const layoutScale = appContentRef.current ? elementLayoutScale(appContentRef.current) : 1;
+    const startX = screenToLocal(event.clientX, layoutScale);
     let currentWidth = startWidth;
     document.body.classList.add("is-resizing-panel");
 
     const handlePointerMove = (moveEvent: PointerEvent) => {
-      currentWidth = resizeExplorerWidth({ startWidth, startX, currentX: moveEvent.clientX });
+      currentWidth = resizeExplorerWidth({
+        startWidth,
+        startX,
+        currentX: screenToLocal(moveEvent.clientX, layoutScale),
+      });
       appContentRef.current?.style.setProperty("--explorer-width", `${currentWidth}px`);
     };
     const handlePointerUp = () => {
@@ -1172,12 +1238,17 @@ function AppSession({
   function beginRightPanelResize(event: ReactPointerEvent<HTMLDivElement>) {
     event.preventDefault();
     const startWidth = rightPanelWidthRef.current;
-    const startX = event.clientX;
+    const layoutScale = appContentRef.current ? elementLayoutScale(appContentRef.current) : 1;
+    const startX = screenToLocal(event.clientX, layoutScale);
     let currentWidth = startWidth;
     document.body.classList.add("is-resizing-panel");
 
     const handlePointerMove = (moveEvent: PointerEvent) => {
-      currentWidth = resizeRightPanelWidth({ startWidth, startX, currentX: moveEvent.clientX });
+      currentWidth = resizeRightPanelWidth({
+        startWidth,
+        startX,
+        currentX: screenToLocal(moveEvent.clientX, layoutScale),
+      });
       appContentRef.current?.style.setProperty("--right-panel-width", `${currentWidth}px`);
     };
     const handlePointerUp = () => {

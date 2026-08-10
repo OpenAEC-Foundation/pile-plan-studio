@@ -59,6 +59,7 @@ import {
   setLassoLoadPointLocks,
   toggleLoadPointLock,
 } from "../../domain/loadPointLocking.ts";
+import { elementLayoutScale, screenToLocal } from "../../domain/uiBaseline.ts";
 
 type Props = {
   state: ProjectState;
@@ -107,7 +108,7 @@ export default function PilePlanViewer({ state, onStateChange }: Props) {
   const zoomCommitTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const hoverFrameRef = useRef<number | null>(null);
   const hoverPointerRef = useRef<{ x: number; y: number } | null>(null);
-  const canvasRectRef = useRef<{ left: number; top: number; width: number; height: number } | null>(null);
+  const canvasRectRef = useRef<LocalCanvasRect | null>(null);
   const [lasso, setLasso] = useState<LassoRectangle | null>(null);
   const [hoverCandidates, setHoverCandidates] = useState<HoverCandidateState | null>(null);
   const activeHoverCandidateKey = getActiveHoverCandidateKey(hoverCandidates);
@@ -141,13 +142,7 @@ export default function PilePlanViewer({ state, onStateChange }: Props) {
     }
 
     const updateCanvasRect = () => {
-      const rect = canvas.getBoundingClientRect();
-      canvasRectRef.current = {
-        left: rect.left,
-        top: rect.top,
-        width: rect.width,
-        height: rect.height,
-      };
+      canvasRectRef.current = getLocalCanvasRect(canvas);
     };
     updateCanvasRect();
 
@@ -359,13 +354,14 @@ export default function PilePlanViewer({ state, onStateChange }: Props) {
   function handleWheel(event: React.WheelEvent<HTMLDivElement>) {
     event.preventDefault();
     clearHoverCandidates();
-    const rect = event.currentTarget.getBoundingClientRect();
+    const rect = getLocalCanvasRect(event.currentTarget);
+    const pointer = getLocalPointer(event.clientX, event.clientY, rect);
     const scaleStep = event.deltaY < 0 ? 1.12 : 1 / 1.12;
     const currentViewport = viewportRef.current;
     const nextScale = clampScale(currentViewport.scale * scaleStep);
     const nextViewport = zoomViewportAtPoint(currentViewport, {
-      cursorX: event.clientX - rect.left,
-      cursorY: event.clientY - rect.top,
+      cursorX: pointer.x,
+      cursorY: pointer.y,
       nextScale,
     });
     viewportRef.current = nextViewport;
@@ -376,7 +372,8 @@ export default function PilePlanViewer({ state, onStateChange }: Props) {
   function handleMouseDown(event: MouseEvent<HTMLDivElement>) {
     const target = event.target as HTMLElement;
     const targetIsInteractive = Boolean(target.closest("button"));
-    const start = { x: event.clientX, y: event.clientY };
+    const layoutScale = canvasRectRef.current?.scale ?? elementLayoutScale(event.currentTarget);
+    const start = getLocalViewportPointer(event.clientX, event.clientY, layoutScale);
 
     if (event.shiftKey && !targetIsInteractive && (isEditingLoadPointLocks || isViewerSelectionActionAllowed(isEditingCptSelection, "lasso"))) {
       event.preventDefault();
@@ -414,8 +411,11 @@ export default function PilePlanViewer({ state, onStateChange }: Props) {
       return;
     }
 
+    const layoutScale = canvasRectRef.current?.scale ?? elementLayoutScale(event.currentTarget);
+    const pointer = getLocalViewportPointer(event.clientX, event.clientY, layoutScale);
+
     if (interaction.type === "lasso") {
-      interaction.current = { x: event.clientX, y: event.clientY };
+      interaction.current = pointer;
       setLasso({
         startX: interaction.start.x,
         startY: interaction.start.y,
@@ -425,10 +425,10 @@ export default function PilePlanViewer({ state, onStateChange }: Props) {
       return;
     }
 
-    const deltaX = event.clientX - interaction.last.x;
-    const deltaY = event.clientY - interaction.last.y;
-    const totalMove = Math.hypot(event.clientX - interaction.start.x, event.clientY - interaction.start.y);
-    interaction.last = { x: event.clientX, y: event.clientY };
+    const deltaX = pointer.x - interaction.last.x;
+    const deltaY = pointer.y - interaction.last.y;
+    const totalMove = Math.hypot(pointer.x - interaction.start.x, pointer.y - interaction.start.y);
+    interaction.last = pointer;
     interaction.moved = interaction.moved || totalMove > 3;
 
     const nextViewport = panViewport(viewportRef.current, { deltaX, deltaY });
@@ -445,11 +445,13 @@ export default function PilePlanViewer({ state, onStateChange }: Props) {
     }
 
     if (interaction.type === "lasso") {
+      const layoutScale = canvasRectRef.current?.scale ?? elementLayoutScale(event.currentTarget);
+      const pointer = getLocalViewportPointer(event.clientX, event.clientY, layoutScale);
       const rectangle = {
         startX: interaction.start.x,
         startY: interaction.start.y,
-        endX: event.clientX,
-        endY: event.clientY,
+        endX: pointer.x,
+        endY: pointer.y,
       };
       setLasso(null);
       const loadPointIds = getPointIdsInRectangle(getVisibleLoadPointScreenPoints(), rectangle);
@@ -496,10 +498,11 @@ export default function PilePlanViewer({ state, onStateChange }: Props) {
   }
 
   function getVisibleLoadPointScreenPoints() {
-    const rect = canvasRef.current?.getBoundingClientRect();
-    if (!rect) {
+    const canvas = canvasRef.current;
+    if (!canvas) {
       return [];
     }
+    const rect = getLocalCanvasRect(canvas);
 
     const viewport = viewportRef.current;
     return state.loadPoints.map((loadPoint) => {
@@ -519,10 +522,7 @@ export default function PilePlanViewer({ state, onStateChange }: Props) {
       return;
     }
 
-    hoverPointerRef.current = {
-      x: event.clientX - rect.left,
-      y: event.clientY - rect.top,
-    };
+    hoverPointerRef.current = getLocalPointer(event.clientX, event.clientY, rect);
     if (hoverFrameRef.current !== null) {
       return;
     }
@@ -560,10 +560,7 @@ export default function PilePlanViewer({ state, onStateChange }: Props) {
     }
 
     const candidates = findHoverCandidates(hoverMarkerIndex, {
-      pointer: {
-        x: event.clientX - rect.left,
-        y: event.clientY - rect.top,
-      },
+      pointer: getLocalPointer(event.clientX, event.clientY, rect),
       canvas: { width: rect.width, height: rect.height },
       viewport: viewportRef.current,
       preferredMarkerType: state.foregroundLayer === "cpts" ? "cpt" : "load-point",
@@ -761,6 +758,40 @@ type ViewerInteraction =
     start: { x: number; y: number };
     current: { x: number; y: number };
   };
+
+type LocalCanvasRect = {
+  left: number;
+  top: number;
+  width: number;
+  height: number;
+  scale: number;
+};
+
+function getLocalCanvasRect(canvas: HTMLElement): LocalCanvasRect {
+  const rect = canvas.getBoundingClientRect();
+  const scale = elementLayoutScale(canvas);
+  return {
+    left: screenToLocal(rect.left, scale),
+    top: screenToLocal(rect.top, scale),
+    width: screenToLocal(rect.width, scale),
+    height: screenToLocal(rect.height, scale),
+    scale,
+  };
+}
+
+function getLocalPointer(clientX: number, clientY: number, rect: LocalCanvasRect) {
+  return {
+    x: screenToLocal(clientX, rect.scale) - rect.left,
+    y: screenToLocal(clientY, rect.scale) - rect.top,
+  };
+}
+
+function getLocalViewportPointer(clientX: number, clientY: number, scale: number) {
+  return {
+    x: screenToLocal(clientX, scale),
+    y: screenToLocal(clientY, scale),
+  };
+}
 
 type MarkerReference = {
   type: "load-point" | "cpt";

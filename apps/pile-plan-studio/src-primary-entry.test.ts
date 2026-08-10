@@ -13,6 +13,7 @@ describe("primary frontend entry", () => {
     const wasmPackageHelper = readFileSync(resolve(root, "../../tools/allow_wasm_package.mjs"), "utf8");
 
     assert.match(indexHtml, /src="\/src\/main\.tsx"/);
+    assert.match(indexHtml, /<link rel="icon" type="image\/svg\+xml" href="\/pile-plan-studio-icon\.svg"\s*\/>/);
     assert.doesNotMatch(indexHtml, /src="\/src\/main\.ts"/);
     assert.doesNotMatch(viteConfig, /index\.react\.html|vanilla:|react:/);
     assert.doesNotMatch(packageJson, /dev:react|build:react/);

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import "./TitleBar.css";
 
@@ -28,18 +28,7 @@ function TitleBar({
   onFeedbackClick,
 }: TitleBarProps) {
   const { t } = useTranslation();
-  const [isMaximized, setIsMaximized] = useState(false);
   const [appVersion, setAppVersion] = useState("");
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const appWindowRef = useRef<any>(null);
-
-  const getWindow = useCallback(async () => {
-    if (!appWindowRef.current) {
-      const { getCurrentWindow } = await import("@tauri-apps/api/window");
-      appWindowRef.current = getCurrentWindow();
-    }
-    return appWindowRef.current;
-  }, []);
 
   useEffect(() => {
     import("@tauri-apps/api/app")
@@ -48,69 +37,11 @@ function TitleBar({
       .catch(() => setAppVersion(""));
   }, []);
 
-  const updateMaximizedState = useCallback(async () => {
-    try {
-      const win = await getWindow();
-      const maximized = await win.isMaximized();
-      setIsMaximized(maximized);
-    } catch { /* not in Tauri */ }
-  }, [getWindow]);
-
-  useEffect(() => {
-    updateMaximizedState();
-
-    let cleanup: (() => void) | undefined;
-    getWindow()
-      .then((win) => win.onResized(() => updateMaximizedState()))
-      .then((unlisten) => { cleanup = unlisten; })
-      .catch(() => {});
-
-    return () => { cleanup?.(); };
-  }, [updateMaximizedState, getWindow]);
-
-  const handleMinimize = async () => (await getWindow()).minimize();
-  const handleMaximize = async () => (await getWindow()).toggleMaximize();
-  const handleClose = async () => (await getWindow()).close();
-
-  const handleDoubleClick = async (e: React.MouseEvent) => {
-    if ((e.target as HTMLElement).closest(".titlebar-button")) return;
-    (await getWindow()).toggleMaximize();
-  };
-
   return (
-    <div className="titlebar" onDoubleClick={handleDoubleClick}>
-      <div className="titlebar-drag" data-tauri-drag-region />
-
+    <div className="titlebar">
       <div className="titlebar-left">
         <div className="titlebar-icon">
-          <svg
-            width="16"
-            height="16"
-            viewBox="0 0 1024 1024"
-            fill="none"
-            xmlns="http://www.w3.org/2000/svg"
-          >
-            <rect
-              x="40"
-              y="40"
-              width="944"
-              height="944"
-              rx="180"
-              fill="var(--theme-accent)"
-            />
-            <text
-              x="512"
-              y="580"
-              textAnchor="middle"
-              dominantBaseline="middle"
-              fill="var(--theme-accent-text)"
-              fontSize="340"
-              fontFamily="Arial, sans-serif"
-              fontWeight="400"
-            >
-              tmp
-            </text>
-          </svg>
+          <img src="/pile-plan-studio-icon.svg" alt="" aria-hidden="true" />
         </div>
 
         <div className="titlebar-quick-access">
@@ -138,8 +69,8 @@ function TitleBar({
             onClick={onUndo}
           >
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M9 7 4 12l5 5" />
-              <path d="M20 17a8 8 0 0 0-8-8H4" />
+              <path d="M9 14 4 9l5-5" />
+              <path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11" />
             </svg>
           </button>
           <button
@@ -151,8 +82,8 @@ function TitleBar({
             onClick={onRedo}
           >
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="m15 7 5 5-5 5" />
-              <path d="M4 17a8 8 0 0 1 8-8h8" />
+              <path d="m15 4 5 5-5 5" />
+              <path d="M20 9H9.5a5.5 5.5 0 0 0 0 11H13" />
             </svg>
           </button>
           <button
@@ -170,7 +101,7 @@ function TitleBar({
         </div>
       </div>
 
-      <span className="titlebar-title" data-tauri-drag-region>
+      <span className="titlebar-title">
         {t("appName")}
         <span
           className="titlebar-alpha-badge"
@@ -182,53 +113,13 @@ function TitleBar({
         {appVersion && <span className="titlebar-version">v{appVersion}</span>}
       </span>
 
-      <div className="titlebar-controls">
+      <div className="titlebar-actions">
         <button
           className="send-feedback-btn"
           onClick={onFeedbackClick}
           tabIndex={-1}
         >
           {t("sendFeedback")}
-        </button>
-        <button
-          className="titlebar-button titlebar-minimize"
-          onClick={handleMinimize}
-          aria-label={t("minimize")}
-          tabIndex={-1}
-        >
-          <svg width="10" height="1" viewBox="0 0 10 1">
-            <rect width="10" height="1" fill="currentColor" />
-          </svg>
-        </button>
-
-        <button
-          className="titlebar-button titlebar-maximize"
-          onClick={handleMaximize}
-          aria-label={isMaximized ? t("restore") : t("maximize")}
-          tabIndex={-1}
-        >
-          {isMaximized ? (
-            <svg width="10" height="10" viewBox="0 0 10 10">
-              <rect x="0.5" y="2.5" width="7" height="7" fill="none" stroke="currentColor" strokeWidth="1.2" />
-              <polyline points="2.5 2.5 2.5 0.5 9.5 0.5 9.5 7.5 7.5 7.5" fill="none" stroke="currentColor" strokeWidth="1.2" />
-            </svg>
-          ) : (
-            <svg width="10" height="10" viewBox="0 0 10 10">
-              <rect x="0.5" y="0.5" width="9" height="9" fill="none" stroke="currentColor" strokeWidth="1.2" />
-            </svg>
-          )}
-        </button>
-
-        <button
-          className="titlebar-button titlebar-close"
-          onClick={handleClose}
-          aria-label={t("close")}
-          tabIndex={-1}
-        >
-          <svg width="10" height="10" viewBox="0 0 10 10">
-            <line x1="0" y1="0" x2="10" y2="10" stroke="currentColor" strokeWidth="1.2" />
-            <line x1="10" y1="0" x2="0" y2="10" stroke="currentColor" strokeWidth="1.2" />
-          </svg>
         </button>
       </div>
     </div>

@@ -27,7 +27,9 @@
     "blueprint": "Blueprint",
     "contrast": "Hoog contrast",
     "font": "Lettertype",
-    "uiFontSize": "UI-lettergrootte"
+    "uiFontSize": "UI-lettergrootte",
+    "interfaceScale": "Interfaceschaal",
+    "interfaceScaleDescription": "Gebruik Ctrl+= en Ctrl+- om de desktopinterface aan te passen. Ctrl+0 herstelt 100%."
   },
   "editor": {
     "general": "Algemeen",
@@ -58,10 +60,10 @@
     "placeholder": "Beheer van invoegtoepassingen verschijnt hier."
   },
   "about": {
-    "appName": "Open Template",
     "version": "Versie",
-    "framework": "Framework",
+    "status": "Status",
+    "organization": "Onderdeel van",
     "license": "Licentie",
-    "description": "Een sjabloonapplicatie voor het bouwen van platformonafhankelijke desktopapps met Tauri."
+    "description": "Maak en beoordeel palenplannen op basis van belastinglocaties, sonderingselecties en funderingsadvies."
   }
 }

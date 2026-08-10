@@ -1,4 +1,5 @@
 import { useEffect, useRef, useCallback, useId, type ReactNode } from "react";
+import { elementLayoutScale, screenToLocal } from "../../domain/uiBaseline.ts";
 import "./Modal.css";
 
 interface ModalProps {
@@ -34,8 +35,13 @@ export default function Modal({
   const handleHeaderMouseDown = useCallback((e: React.MouseEvent) => {
     if ((e.target as HTMLElement).closest(".modal-close-btn")) return;
     isDragging.current = true;
-    const rect = dialogRef.current!.getBoundingClientRect();
-    dragOffset.current = { x: e.clientX - rect.left, y: e.clientY - rect.top };
+    const dialog = dialogRef.current!;
+    const rect = dialog.getBoundingClientRect();
+    const layoutScale = elementLayoutScale(dialog);
+    dragOffset.current = {
+      x: screenToLocal(e.clientX - rect.left, layoutScale),
+      y: screenToLocal(e.clientY - rect.top, layoutScale),
+    };
     e.preventDefault();
   }, []);
 
@@ -46,10 +52,15 @@ export default function Modal({
       if (!isDragging.current || !dialogRef.current || !overlayRef.current) return;
       const overlayRect = overlayRef.current.getBoundingClientRect();
       const dialogRect = dialogRef.current.getBoundingClientRect();
-      let newX = e.clientX - overlayRect.left - dragOffset.current.x;
-      let newY = e.clientY - overlayRect.top - dragOffset.current.y;
-      newX = Math.max(0, Math.min(newX, overlayRect.width - dialogRect.width));
-      newY = Math.max(0, Math.min(newY, overlayRect.height - dialogRect.height));
+      const layoutScale = elementLayoutScale(overlayRef.current);
+      let newX = screenToLocal(e.clientX - overlayRect.left, layoutScale) - dragOffset.current.x;
+      let newY = screenToLocal(e.clientY - overlayRect.top, layoutScale) - dragOffset.current.y;
+      const overlayWidth = screenToLocal(overlayRect.width, layoutScale);
+      const overlayHeight = screenToLocal(overlayRect.height, layoutScale);
+      const dialogWidth = screenToLocal(dialogRect.width, layoutScale);
+      const dialogHeight = screenToLocal(dialogRect.height, layoutScale);
+      newX = Math.max(0, Math.min(newX, overlayWidth - dialogWidth));
+      newY = Math.max(0, Math.min(newY, overlayHeight - dialogHeight));
       dialogRef.current.style.left = newX + "px";
       dialogRef.current.style.top = newY + "px";
       dialogRef.current.style.transform = "none";

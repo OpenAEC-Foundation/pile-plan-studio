@@ -29,7 +29,9 @@
     "blueprint": "Blueprint",
     "contrast": "High contrast",
     "font": "Font",
-    "uiFontSize": "UI Font Size"
+    "uiFontSize": "UI Font Size",
+    "interfaceScale": "Interface scale",
+    "interfaceScaleDescription": "Use Ctrl+= and Ctrl+- to adjust the desktop interface. Ctrl+0 restores 100%."
   },
   "editor": {
     "general": "General",
@@ -60,10 +62,10 @@
     "placeholder": "Plugin management will appear here."
   },
   "about": {
-    "appName": "Open Template",
     "version": "Version",
-    "framework": "Framework",
+    "status": "Status",
+    "organization": "Part of",
     "license": "License",
-    "description": "A template application for building cross-platform desktop apps with Tauri."
+    "description": "Create and evaluate pile plans based on load points, CPT selections, and foundation advice."
   }
 }
