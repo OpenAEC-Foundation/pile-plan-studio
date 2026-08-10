@@ -4,6 +4,8 @@
 
 Approved design for project-scoped legend personalization in `0.1.9-alpha`.
 
+Amended on 2026-08-10 to define assignment scope as temporary editor state that always opens on all items.
+
 This design extends the existing legend editor described in `2026-08-04-legend-editor-design.md`. The existing distinction between enabled and used items remains authoritative. This specification replaces that document's statement that manual color and symbol editing is out of scope.
 
 ## Goal
@@ -224,10 +226,20 @@ A segmented control offers:
 - `Enabled items` / `Actieve items`;
 - `All items` / `Alle items`.
 
-The scope applies to both automatic symbol assignment and automatic color assignment.
+The scope applies to both automatic symbol assignment and automatic color assignment. It is temporary editor state rather than project data:
+
+- every time the legend editor opens, the scope starts at `All items`;
+- opening the editor does not itself recalculate or modify any stored mapping;
+- changing the scope while the editor is open immediately refreshes still-automatic mappings inside the newly selected scope;
+- applying or closing the editor does not persist the selected scope in project state, IFCPP, Undo history, or browser recovery;
+- reopening the editor therefore returns to `All items`, regardless of the scope used previously.
+
+This default deliberately requires users to choose `Enabled items` again before redistributing appearance over a possibly changed active set. The generated color and symbol mappings are persisted; the temporary scope used to generate them is not.
 
 - Enabled scope reassigns only currently enabled values. Disabled mappings remain unchanged.
 - All scope reassigns every known value, including disabled values, so a complete consistent mapping can be restored without activating those values.
+
+The built-in legend for the sample project, newly imported projects, and older projects without stored legend mappings is generated across all known values. Existing explicit mappings in older projects are preserved when opened and are not silently recalculated.
 
 ### Automatic symbols
 
@@ -286,6 +298,8 @@ The listbox and palette previews are keyboard accessible and do not rely on colo
 
 Reset also returns all four mapping groups to automatic state and restores the built-in Tableau Extended color scheme.
 
+Reset returns the editor's temporary assignment scope to `All items`.
+
 It does not change which items are enabled and does not change pile assignments.
 
 ### Apply
@@ -296,6 +310,8 @@ Apply commits the complete editor draft as one project change:
 - encoding mode;
 - all size and tip-level shape mappings;
 - all size and tip-level color mappings.
+
+The temporary assignment scope is not part of the committed project change.
 
 The project becomes dirty, IFCPP serialization is scheduled, and the operation creates one Undo entry with a concise localized summary.
 
@@ -364,7 +380,7 @@ This prevents the editor, viewer, and serializer from developing separate interp
 - Switching pile plans changes only used-state styling.
 - Refreshing source data must not silently reset customized mappings.
 - Changing language while the editor is open updates all labels without changing the draft.
-- Outside clicks close an open symbol or scheme popup without discarding its current draft selection.
+- Outside clicks close an open symbol, color, or scheme popup without discarding its current draft selection.
 - Automatic-input changes update still-automatic items but never overwrite manual item-level properties unless the explicit automatic-assignment action is used for their mapping group and scope.
 
 ## Accessibility And Localization
@@ -406,6 +422,9 @@ This prevents the editor, viewer, and serializer from developing separate interp
 - automatic settings immediately update non-manual items while preserving manual item-level overrides;
 - switching encoding mode applies the selected scheme and symbol order to the newly active automatic mappings without changing inactive or manual mappings;
 - explicit automatic assignment clears manual overrides only for its active mapping group and selected scope;
+- every editor opening defaults assignment scope to all items without changing existing mappings;
+- changing assignment scope affects only the open draft and is never serialized;
+- resetting built-in appearance also resets the open draft's assignment scope to all items;
 - closing and reopening the editor preserves which individual properties are automatic or manually overridden;
 - clicking outside an appearance popup closes it while preserving its draft selection;
 - Apply commits one complete draft;
