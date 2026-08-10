@@ -275,6 +275,102 @@ describe("IFCPP project loading", () => {
     assert.equal(reloaded.selectedPileOptionKeysByLoadPoint.get(1), "320|-19");
   });
 
+  it("creates a built-in legend when an older IFCPP file has no mapping", () => {
+    const loaded = loadIfcppProjectData(projectFixture());
+
+    assert.equal(loaded.pileLegend.encodingMode, "size-symbol");
+    assert.deepEqual(loaded.pileLegend.pileSizes[0], {
+      value: 290,
+      symbol: { baseShape: "circle", fillPattern: "full" },
+      color: "#4E79A7",
+      symbolAutomatic: true,
+      colorAutomatic: true,
+    });
+    assert.equal(loaded.pileLegend.colorScheme, "tableau-extended");
+    assert.deepEqual(loaded.legendImportWarnings, []);
+  });
+
+  it("round-trips project legend appearance and encoding", () => {
+    const loaded = loadIfcppProjectData(projectFixture());
+    loaded.pileLegend = {
+      ...loaded.pileLegend,
+      encodingMode: "tip-symbol",
+      colorScheme: "colorblind-friendly",
+      pileSizes: loaded.pileLegend.pileSizes.map((item) => ({
+        ...item,
+        symbol: { baseShape: "rectangle-horizontal", fillPattern: "diagonal-half" },
+        color: "#123456",
+        symbolAutomatic: false,
+        colorAutomatic: false,
+      })),
+    };
+
+    const saved = createIfcppProject(loaded);
+    const reloaded = loadIfcppProjectData(saved);
+
+    assert.equal(saved.settings.pile_legend?.encoding_mode, "tip-symbol");
+    assert.equal(saved.settings.pile_legend?.color_scheme, "colorblind-friendly");
+    assert.equal(saved.settings.pile_legend?.pile_sizes[0].symbol_automatic, false);
+    assert.equal(saved.settings.pile_legend?.pile_sizes[0].color_automatic, false);
+    assert.deepEqual(reloaded.pileLegend, loaded.pileLegend);
+  });
+
+  it("defaults missing legend assignment metadata to automatic Tableau Extended", () => {
+    const project = projectFixture();
+    project.settings.pile_legend = {
+      encoding_mode: "size-symbol",
+      pile_sizes: [{
+        value: 290,
+        symbol: { base_shape: "circle", fill_pattern: "full" },
+        color: "#123456",
+      }],
+      pile_tip_levels: [],
+    };
+
+    const loaded = loadIfcppProjectData(project);
+
+    assert.equal(loaded.pileLegend.colorScheme, "tableau-extended");
+    assert.equal(loaded.pileLegend.pileSizes[0].symbolAutomatic, true);
+    assert.equal(loaded.pileLegend.pileSizes[0].colorAutomatic, true);
+  });
+
+  it("falls back only the malformed stored legend channel", () => {
+    const project = projectFixture();
+    project.settings.pile_legend = {
+      encoding_mode: "size-symbol",
+      pile_sizes: [{
+        value: 290,
+        symbol: { base_shape: "future-star", fill_pattern: "full" },
+        color: "#123456",
+      }],
+      pile_tip_levels: [{
+        value: -18,
+        symbol: { base_shape: "square", fill_pattern: "top-half" },
+        color: "#654321",
+      }],
+    };
+
+    const loaded = loadIfcppProjectData(project);
+
+    assert.deepEqual(loaded.legendImportWarnings, [
+      { itemType: "size", value: 290, field: "symbol" },
+    ]);
+    assert.deepEqual(loaded.pileLegend.pileSizes[0], {
+      value: 290,
+      symbol: { baseShape: "circle", fillPattern: "full" },
+      color: "#123456",
+      symbolAutomatic: true,
+      colorAutomatic: true,
+    });
+    assert.deepEqual(loaded.pileLegend.pileTipLevels[0], {
+      value: -18,
+      symbol: { baseShape: "square", fillPattern: "top-half" },
+      color: "#654321",
+      symbolAutomatic: true,
+      colorAutomatic: true,
+    });
+  });
+
   it("preserves inactive plans while saving edits to the active plan", () => {
     const legacy = projectFixture();
     const loaded = loadIfcppProjectData({

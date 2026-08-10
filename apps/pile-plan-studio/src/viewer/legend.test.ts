@@ -1,57 +1,162 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 
-import { getConfigurationStyle, getLegendItems } from "./legend.ts";
-import type { BearingCapacity } from "../core/projectTypes.ts";
+import {
+  assignLegendColors,
+  assignLegendSymbols,
+  createBuiltInLegend,
+  getConfigurationStyle,
+  reconcileProjectLegend,
+  refreshAutomaticLegendColors,
+  refreshAutomaticLegendSymbols,
+  resetLegendAppearance,
+} from "./legend.ts";
+import type { BearingCapacity, LegendItems } from "../core/projectTypes.ts";
 
-describe("pile symbol legend", () => {
-  it("builds legend items from bearing capacity configurations", () => {
-    const manySizes: BearingCapacity[] = [290, 320, 350, 380, 400, 450, 500, 550, 600, 650]
-      .map((pileSize) => ({
-        cpt_id: 1,
-        pile_tip_level_m: -18,
-        pile_size_mm: pileSize,
-        frd_kn: 700,
-      }));
+const CAPACITIES: BearingCapacity[] = [
+  { cpt_id: 1, pile_tip_level_m: -18, pile_size_mm: 290, frd_kn: 700 },
+  { cpt_id: 1, pile_tip_level_m: -19, pile_size_mm: 320, frd_kn: 800 },
+];
 
-    assert.deepEqual(getLegendItems(manySizes), {
-      pileSizes: [
-        { value: 290, shape: "circle" },
-        { value: 320, shape: "square" },
-        { value: 350, shape: "diamond" },
-        { value: 380, shape: "triangle-up" },
-        { value: 400, shape: "triangle-down" },
-        { value: 450, shape: "triangle-left" },
-        { value: 500, shape: "triangle-right" },
-        { value: 550, shape: "pentagon" },
-        { value: 600, shape: "star" },
-        { value: 650, shape: "thin-diamond" },
-      ],
-      pileTipLevels: [{ value: -18, color: "#4e79a7" }],
+describe("project legend model", () => {
+  it("creates deterministic full mappings for both visual channels", () => {
+    const legend = createBuiltInLegend(CAPACITIES);
+
+    assert.equal(legend.encodingMode, "size-symbol");
+    assert.deepEqual(legend.pileSizes[0], {
+      value: 290,
+      symbol: { baseShape: "circle", fillPattern: "full" },
+      color: "#4E79A7",
+      symbolAutomatic: true,
+      colorAutomatic: true,
+    });
+    assert.equal(legend.colorScheme, "tableau-extended");
+    assert.deepEqual(legend.pileTipLevels.map(({ value }) => value), [-18, -19]);
+    assert.ok(legend.pileTipLevels.every((item) => item.symbol && item.color));
+  });
+
+  it("reverses both visual channels without losing mappings", () => {
+    const legend = createBuiltInLegend(CAPACITIES);
+    assert.deepEqual(getConfigurationStyle({ pile_size_mm: 290, pile_tip_level_m: -18 }, legend), {
+      symbol: legend.pileSizes[0].symbol,
+      color: legend.pileTipLevels[0].color,
+    });
+
+    const reversed: LegendItems = { ...legend, encodingMode: "tip-symbol" };
+    assert.deepEqual(getConfigurationStyle({ pile_size_mm: 290, pile_tip_level_m: -18 }, reversed), {
+      symbol: legend.pileTipLevels[0].symbol,
+      color: legend.pileSizes[0].color,
     });
   });
 
-  it("returns a stable style for a pile configuration", () => {
-    const legend = getLegendItems([
-      { cpt_id: 11, pile_tip_level_m: -18, pile_size_mm: 320, frd_kn: 700 },
+  it("retains absent mappings and appends only new source values", () => {
+    const stored = createBuiltInLegend(CAPACITIES);
+    stored.pileSizes[1] = { ...stored.pileSizes[1], color: "#123456" };
+    const current = [
+      { cpt_id: 1, pile_tip_level_m: -18, pile_size_mm: 320, frd_kn: 700 },
+      { cpt_id: 1, pile_tip_level_m: -20, pile_size_mm: 350, frd_kn: 700 },
+    ];
+
+    const result = reconcileProjectLegend(stored, current);
+
+    assert.equal(result.legend.pileSizes.find(({ value }) => value === 320)?.color, "#123456");
+    assert.ok(result.legend.pileSizes.some(({ value }) => value === 290));
+    assert.ok(result.legend.pileSizes.some(({ value }) => value === 350));
+    assert.deepEqual(result.warnings, []);
+  });
+
+  it("falls back only malformed channels and identifies the affected value", () => {
+    const stored = structuredClone(createBuiltInLegend(CAPACITIES)) as unknown as {
+      encodingMode: string;
+      pileSizes: Array<{ value: number; symbol: { baseShape: string; fillPattern: string }; color: string }>;
+      pileTipLevels: Array<{ value: number; symbol: { baseShape: string; fillPattern: string }; color: string }>;
+    };
+    stored.pileSizes[0].symbol.baseShape = "future-star";
+    stored.pileSizes[1].color = "not-a-color";
+
+    const result = reconcileProjectLegend(stored, CAPACITIES);
+
+    assert.deepEqual(result.warnings, [
+      { itemType: "size", value: 290, field: "symbol" },
+      { itemType: "size", value: 320, field: "color" },
     ]);
+    assert.deepEqual(result.legend.pileSizes[0].symbol, { baseShape: "circle", fillPattern: "full" });
+    assert.equal(result.legend.pileSizes[1].color, "#F28E2B");
+  });
 
-    assert.deepEqual(getConfigurationStyle({ pile_size_mm: 320, pile_tip_level_m: -18 }, legend), {
-      shape: "circle",
-      color: "#4e79a7",
+  it("assigns symbols only to scoped values and refuses more than 54", () => {
+    const legend = createBuiltInLegend(CAPACITIES);
+    const assigned = assignLegendSymbols(legend, "pileSizes", [320]);
+    assert.equal(assigned.ok, true);
+    if (assigned.ok) {
+      assert.deepEqual(assigned.legend.pileSizes.find(({ value }) => value === 320)?.symbol,
+        { baseShape: "circle", fillPattern: "full" });
+    }
+
+    const exhausted = assignLegendSymbols(legend, "pileSizes", Array.from({ length: 55 }, (_, index) => index));
+    assert.deepEqual(exhausted, { ok: false, reason: "catalog-exhausted", limit: 54 });
+  });
+
+  it("assigns colors independently and resets appearance without activation state", () => {
+    const legend = createBuiltInLegend(CAPACITIES);
+    const recolored = assignLegendColors(legend, "pileTipLevels", [-19], "colorblind-friendly");
+    assert.equal(recolored.pileTipLevels.find(({ value }) => value === -19)?.color, "#0072B2");
+    assert.equal(recolored.pileTipLevels.find(({ value }) => value === -18)?.color, legend.pileTipLevels[0].color);
+
+    const reset = resetLegendAppearance({ ...recolored, encodingMode: "tip-symbol" }, CAPACITIES);
+    assert.deepEqual(reset, createBuiltInLegend(CAPACITIES));
+  });
+
+  it("refreshes automatic colors while preserving item-level manual overrides", () => {
+    const legend = createBuiltInLegend(CAPACITIES);
+    legend.colorScheme = "colorblind-friendly";
+    legend.pileTipLevels[0] = {
+      ...legend.pileTipLevels[0],
+      color: "#123456",
+      colorAutomatic: false,
+    };
+
+    const refreshed = refreshAutomaticLegendColors(legend, "pileTipLevels", [-18, -19]);
+
+    assert.equal(refreshed.pileTipLevels[0].color, "#123456");
+    assert.equal(refreshed.pileTipLevels[1].color, "#E69F00");
+  });
+
+  it("refreshes automatic symbols while preserving manual symbols", () => {
+    const legend = createBuiltInLegend(CAPACITIES);
+    legend.pileSizes[0] = {
+      ...legend.pileSizes[0],
+      symbol: { baseShape: "diamond", fillPattern: "top-half" },
+      symbolAutomatic: false,
+    };
+
+    const refreshed = refreshAutomaticLegendSymbols(legend, "pileSizes", [290, 320]);
+
+    assert.equal(refreshed.ok, true);
+    if (!refreshed.ok) return;
+    assert.deepEqual(refreshed.legend.pileSizes[0].symbol, {
+      baseShape: "diamond",
+      fillPattern: "top-half",
+    });
+    assert.deepEqual(refreshed.legend.pileSizes[1].symbol, {
+      baseShape: "square",
+      fillPattern: "full",
     });
   });
 
-  it("assigns unique colors when there are more than ten tip levels", () => {
-    const manyTipLevels: BearingCapacity[] = Array.from({ length: 14 }, (_, index) => ({
-      cpt_id: 1,
-      pile_tip_level_m: -17 - index * 0.25,
-      pile_size_mm: 320,
-      frd_kn: 700,
-    }));
+  it("explicit assignment clears only the assigned property overrides", () => {
+    const legend = createBuiltInLegend(CAPACITIES);
+    legend.pileSizes[0] = {
+      ...legend.pileSizes[0],
+      symbolAutomatic: false,
+      colorAutomatic: false,
+    };
 
-    const colors = getLegendItems(manyTipLevels).pileTipLevels.map((item) => item.color);
+    const assigned = assignLegendSymbols(legend, "pileSizes", [290]);
 
-    assert.equal(new Set(colors).size, colors.length);
+    assert.equal(assigned.ok, true);
+    if (!assigned.ok) return;
+    assert.equal(assigned.legend.pileSizes[0].symbolAutomatic, true);
+    assert.equal(assigned.legend.pileSizes[0].colorAutomatic, false);
   });
 });

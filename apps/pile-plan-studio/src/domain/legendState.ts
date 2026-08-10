@@ -14,6 +14,7 @@ export type LegendPresentationInput = {
 };
 
 export type LegendPresentation = {
+  encodingMode: LegendItems["encodingMode"];
   pileSizes: Array<LegendItems["pileSizes"][number] & { state: LegendPresentationState }>;
   pileTipLevels: Array<LegendItems["pileTipLevels"][number] & { state: LegendPresentationState }>;
 };
@@ -31,33 +32,41 @@ export function deriveUsedPileConfigurations(optionKeys: Iterable<string>): Acti
 }
 
 export function buildLegendPresentation(input: LegendPresentationInput): LegendPresentation {
-  const sizeShapes = new Map(input.legend.pileSizes.map((item) => [item.value, item.shape]));
-  const tipColors = new Map(input.legend.pileTipLevels.map((item) => [item.value, item.color]));
+  const sizeStyles = new Map(input.legend.pileSizes.map((item) => [item.value, item]));
+  const tipStyles = new Map(input.legend.pileTipLevels.map((item) => [item.value, item]));
   const enabledSizes = new Set(input.enabled.pileSizes);
   const enabledTips = new Set(input.enabled.pileTipLevels);
   const usedSizes = new Set(input.used.pileSizes);
   const usedTips = new Set(input.used.pileTipLevels);
 
   const pileSizes = uniqueSorted([
-    ...sizeShapes.keys(),
+    ...sizeStyles.keys(),
     ...enabledSizes,
     ...usedSizes,
   ], false).map((value) => ({
-    value,
-    shape: sizeShapes.get(value) ?? "circle",
+    ...(sizeStyles.get(value) ?? fallbackStyle(value)),
     state: presentationState(enabledSizes.has(value), usedSizes.has(value)),
   }));
   const pileTipLevels = uniqueSorted([
-    ...tipColors.keys(),
+    ...tipStyles.keys(),
     ...enabledTips,
     ...usedTips,
   ], true).map((value) => ({
-    value,
-    color: tipColors.get(value) ?? "#8c989f",
+    ...(tipStyles.get(value) ?? fallbackStyle(value)),
     state: presentationState(enabledTips.has(value), usedTips.has(value)),
   }));
 
-  return { pileSizes, pileTipLevels };
+  return { encodingMode: input.legend.encodingMode, pileSizes, pileTipLevels };
+}
+
+function fallbackStyle(value: number): LegendItems["pileSizes"][number] {
+  return {
+    value,
+    symbol: { baseShape: "circle", fillPattern: "full" },
+    color: "#8C989F",
+    symbolAutomatic: true,
+    colorAutomatic: true,
+  };
 }
 
 function presentationState(enabled: boolean, used: boolean): LegendPresentationState {

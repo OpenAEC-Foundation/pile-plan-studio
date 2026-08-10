@@ -6,10 +6,6 @@
   user-select: none;
   cursor: default;
   margin-top: 32px; /* titlebar height */
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-  text-rendering: geometricPrecision;
-  transform: translateZ(0);
 }
 
 /* Ribbon Tabs */

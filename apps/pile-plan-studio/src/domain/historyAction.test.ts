@@ -44,6 +44,16 @@ describe("history action inference", () => {
     }), { kind: "cost-settings" });
   });
 
+  it("recognizes a project legend appearance change", () => {
+    const before = content();
+    const after = {
+      ...before,
+      pileLegend: { ...before.pileLegend, encodingMode: "tip-symbol" as const },
+    };
+
+    assert.deepEqual(inferHistoryAction(before, after), { kind: "legend-settings" });
+  });
+
   it("recognizes plan creation, deletion, renaming, and locking", () => {
     const before = content();
     const second = plan("plan-2", "Variant 2");
@@ -105,6 +115,11 @@ function content(): ProjectContent {
     viewerUtilizationSettings: { minimum: 0, maximum: 1 },
     activePileSizes: [],
     activePileTipLevels: [],
+    pileLegend: {
+      encodingMode: "size-symbol",
+      pileSizes: [],
+      pileTipLevels: [],
+    },
     pilePlans: [plan("plan-1", "Plan 1")],
     manualCptIdsByLoadPoint: new Map(),
   };

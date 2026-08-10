@@ -1,5 +1,47 @@
 # Pile Plan Studio Release Notes
 
+## 0.1.9-alpha
+
+This alpha adds project-scoped legend personalization and improves the visual
+consistency and scaling of both the browser and desktop applications.
+
+### Added
+
+- Personalize pile-size and tip-level appearances through the legend editor.
+- Choose whether pile size or tip level controls symbol shape, with the other
+  property controlling color.
+- Choose from 54 technical symbol and partial-fill combinations, including
+  manually assigned colors and symbols.
+- Reassign colors using Tableau Extended, Even Hue Spread,
+  Colorblind-friendly, Rainbow, Light to dark, or Cool to warm schemes.
+- Apply automatic symbol and color assignments to all legend items or only the
+  active items while preserving manual overrides until explicitly reassigned.
+- Scale the desktop interface from 50% to 150%, with `Ctrl+=`, `Ctrl+-`, and
+  `Ctrl+0`, and save projects with `Ctrl+S`.
+- Use a dedicated Pile Plan Studio application icon in the browser and Windows
+  desktop application.
+
+### Improved
+
+- Legend usage updates immediately when assignments or pile plans change,
+  without letting optimization alter project legend settings.
+- Triangle partial fills now represent half of the visible inner area, and
+  inactive editor items retain legible colors and controls.
+- The browser starts with a more compact interface while pointer selection,
+  lasso geometry, panel splitters, and modal placement remain coordinate-safe.
+- Bundled fonts, themed scrollbars, corrected undo and redo icons, and native
+  window controls improve consistency across light, dark, browser, and desktop
+  environments.
+- About views now show shared Pile Plan Studio product information and the
+  build version instead of stale template content.
+
+### Distribution
+
+- This release includes the first signed Windows x64 NSIS installer published
+  through the OpenAEC Azure Artifact Signing workflow.
+- The browser build and signed desktop installer use the same Rust calculation
+  core.
+
 ## 0.1.8-alpha
 
 This alpha adds project history and browser recovery, and completes the first

@@ -314,6 +314,7 @@ fn build_imported_project(
             viewer_utilization: Default::default(),
             active_pile_sizes,
             active_pile_tip_levels,
+            pile_legend: None,
         },
         user_state: ProjectUserState::with_default_pile_plan(HashMap::new(), HashMap::new()),
         import_log,

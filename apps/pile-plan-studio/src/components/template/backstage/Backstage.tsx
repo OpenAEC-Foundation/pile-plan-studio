@@ -10,6 +10,7 @@ import type { ImportSummary } from "../../.././core/projectFile";
 import type { PilePlanImportPatch } from "../../../core/pilePlanImportContract.ts";
 import type { Cpt, LoadPoint, PileConfigurationKey } from "../../../core/projectTypes.ts";
 import type { ProjectFileCommands } from "../../../domain/projectPersistence.ts";
+import { PRODUCT_INFO } from "../../../productInfo.ts";
 import "./Backstage.css";
 
 const ICONS = {
@@ -282,14 +283,16 @@ function AboutPanel() {
           </svg>
         </div>
         <div className="bs-about-app-info">
-          <h1 className="bs-about-app-name">{t("aboutPanel.appName")}</h1>
-          <p className="bs-about-version">{t("aboutPanel.version")} 0.1.7</p>
+          <h1 className="bs-about-app-name">{PRODUCT_INFO.name}</h1>
+          <p className="bs-about-version">
+            {t("aboutPanel.version")} {PRODUCT_INFO.version} · {PRODUCT_INFO.status}
+          </p>
         </div>
       </div>
       <p className="bs-about-tagline">{t("aboutPanel.tagline")}</p>
       <p className="bs-about-description">{t("aboutPanel.description")}</p>
       <div className="bs-about-company">
-        <h3 className="bs-about-company-name">{t("aboutPanel.companyName")}</h3>
+        <h3 className="bs-about-company-name">{PRODUCT_INFO.organization}</h3>
         <p className="bs-about-company-desc">{t("aboutPanel.companyDescription")}</p>
         <p className="bs-about-company-meta">
           {t("aboutPanel.stichting")}
@@ -320,7 +323,7 @@ function AboutPanel() {
       </div>
       <div className="bs-about-footer">
         <p className="bs-about-copyright">
-          {t("aboutPanel.copyright")}
+          {t("aboutPanel.copyright", { license: PRODUCT_INFO.license })}
         </p>
       </div>
     </div>

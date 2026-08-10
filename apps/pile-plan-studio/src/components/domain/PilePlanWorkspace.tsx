@@ -26,11 +26,12 @@ export default function PilePlanWorkspace({ state, onStateChange }: Props) {
         open={legendEditorOpen}
         state={state}
         onClose={() => setLegendEditorOpen(false)}
-        onApply={(active) => {
+        onApply={(draft) => {
           onStateChange({
             ...state,
-            activePileSizes: active.pileSizes,
-            activePileTipLevels: active.pileTipLevels,
+            activePileSizes: draft.active.pileSizes,
+            activePileTipLevels: draft.active.pileTipLevels,
+            pileLegend: draft.legend,
           });
           setLegendEditorOpen(false);
         }}

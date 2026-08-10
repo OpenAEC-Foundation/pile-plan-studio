@@ -5,7 +5,7 @@
 </p>
 
 <p align="center">
-  <a href="RELEASE_NOTES.md"><img src="https://img.shields.io/badge/release-v0.1.8--alpha-D97706?style=flat-square" alt="Release v0.1.8-alpha"></a>
+  <a href="RELEASE_NOTES.md"><img src="https://img.shields.io/badge/release-v0.1.9--alpha-D97706?style=flat-square" alt="Release v0.1.9-alpha"></a>
   <a href="https://github.com/OpenAEC-Foundation/pile-plan-studio/releases"><img src="https://img.shields.io/github/downloads/OpenAEC-Foundation/pile-plan-studio/total?style=flat-square" alt="Total downloads"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-LGPL--3.0-blue?style=flat-square" alt="LGPL-3.0 license"></a>
   <a href="https://pile-plan-studio.open-aec.com/"><img src="https://img.shields.io/badge/platform-Web%20%7C%20Windows-lightgrey?style=flat-square" alt="Web and Windows"></a>
@@ -59,6 +59,9 @@ browser.
   or interrupted session.
 - Select load points by pile size or tip level from the plan legend, and edit
   which configurations are available through the legend editor.
+- Personalize the project legend with manual colors, 54 technical symbol and
+  fill combinations, six automatic color schemes, and reversible mappings
+  between pile size, tip level, shape, and color.
 - Run a greedy optimization with limits on sizes, tip levels, and complete
   configurations.
 - Save project data, settings, pile assignments, and CPT choices in IFCPP.
@@ -106,10 +109,9 @@ limits on the number of sizes, tip levels, and complete configurations.
 The [live browser demo](https://pile-plan-studio.open-aec.com/) opens directly
 with the sample project and is the quickest way to explore the application.
 
-Signed Windows x64 installers will be published on the
-[GitHub Releases page](https://github.com/OpenAEC-Foundation/pile-plan-studio/releases)
-as soon as the code-signing setup is complete. The browser and desktop editions
-use the same Rust calculation core.
+The latest signed Windows x64 installer is available on the
+[GitHub Releases page](https://github.com/OpenAEC-Foundation/pile-plan-studio/releases).
+The browser and desktop editions use the same Rust calculation core.
 
 See the [release notes](RELEASE_NOTES.md) for the changes in each alpha.
 

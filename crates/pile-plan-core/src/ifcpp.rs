@@ -188,6 +188,7 @@ mod tests {
                 viewer_utilization: Default::default(),
                 active_pile_sizes: vec![],
                 active_pile_tip_levels: vec![],
+                pile_legend: None,
             },
             user_state: ProjectUserState::with_default_pile_plan(
                 Default::default(),

@@ -10,9 +10,9 @@ funderingsadvies, paalopties, benutting en geraamde kosten komen samen in één
 interactief palenplan.
 
 De publieke alpha is direct in de browser te proberen met een voorbeeldproject.
-Een ondertekende Windows-installer volgt zodra de release-infrastructuur gereed
-is. De rekenkern is geschreven in Rust en draait in de browser via WebAssembly
-en op de desktop via Tauri; de interface is gebouwd met React.
+Een ondertekende Windows-installer is beschikbaar via GitHub Releases. De
+rekenkern is geschreven in Rust en draait in de browser via WebAssembly en op
+de desktop via Tauri; de interface is gebouwd met React.
 
 De alpha ondersteunt CSV/XLSX- en RFEM-import, IFCPP-projectbestanden, import en
 export van palenplannen, handmatige en regelgestuurde sonderingselectie,
@@ -37,9 +37,9 @@ foundation advice, pile options, utilization, and estimated costs in one
 interactive pile plan.
 
 The public alpha can be explored directly in the browser with a sample project.
-A signed Windows installer will follow when the release infrastructure is
-ready. Its calculation core is written in Rust and runs through WebAssembly in
-the browser and Tauri on desktop; the interface is built with React.
+A signed Windows installer is available from GitHub Releases. Its calculation
+core is written in Rust and runs through WebAssembly in the browser and Tauri
+on desktop; the interface is built with React.
 
 The alpha supports CSV/XLSX and RFEM import, IFCPP projects, pile-plan import
 and export, manual and rule-based CPT selection, common options for multiple

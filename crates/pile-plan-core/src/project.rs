@@ -73,6 +73,44 @@ pub struct ProjectSettings {
     pub viewer_utilization: ViewerUtilizationSettings,
     pub active_pile_sizes: Vec<u32>,
     pub active_pile_tip_levels: Vec<f64>,
+    #[serde(default)]
+    pub pile_legend: Option<ProjectLegendSettings>,
+}
+
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+pub struct ProjectPileSymbol {
+    pub base_shape: String,
+    pub fill_pattern: String,
+}
+
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+pub struct ProjectLegendValueStyle {
+    pub value: f64,
+    pub symbol: ProjectPileSymbol,
+    pub color: String,
+    #[serde(default = "default_true")]
+    pub symbol_automatic: bool,
+    #[serde(default = "default_true")]
+    pub color_automatic: bool,
+}
+
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+pub struct ProjectLegendSettings {
+    pub encoding_mode: String,
+    #[serde(default = "default_legend_color_scheme")]
+    pub color_scheme: String,
+    #[serde(default)]
+    pub pile_sizes: Vec<ProjectLegendValueStyle>,
+    #[serde(default)]
+    pub pile_tip_levels: Vec<ProjectLegendValueStyle>,
+}
+
+fn default_true() -> bool {
+    true
+}
+
+fn default_legend_color_scheme() -> String {
+    "tableau-extended".to_string()
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
@@ -395,6 +433,69 @@ mod tests {
     }
 
     #[test]
+    fn project_settings_accept_missing_pile_legend() {
+        let mut value = serde_json::to_value(sample_project()).expect("project serializes");
+        value
+            .get_mut("settings")
+            .and_then(serde_json::Value::as_object_mut)
+            .expect("settings are an object")
+            .remove("pile_legend");
+
+        let parsed: PilePlanProject =
+            serde_json::from_value(value).expect("legacy settings deserialize");
+
+        assert!(parsed.settings.pile_legend.is_none());
+    }
+
+    #[test]
+    fn project_settings_round_trip_pile_legend() {
+        let mut project = sample_project();
+        let legend = ProjectLegendSettings {
+            encoding_mode: "tip-symbol".to_string(),
+            color_scheme: "colorblind-friendly".to_string(),
+            pile_sizes: vec![ProjectLegendValueStyle {
+                value: 320.0,
+                symbol: ProjectPileSymbol {
+                    base_shape: "square".to_string(),
+                    fill_pattern: "top-half".to_string(),
+                },
+                color: "#0072B2".to_string(),
+                symbol_automatic: false,
+                color_automatic: true,
+            }],
+            pile_tip_levels: vec![],
+        };
+        project.settings.pile_legend = Some(legend.clone());
+
+        let value = serde_json::to_value(project).expect("project serializes");
+        let restored: PilePlanProject =
+            serde_json::from_value(value).expect("project deserializes");
+
+        assert_eq!(restored.settings.pile_legend, Some(legend));
+    }
+
+    #[test]
+    fn project_legend_defaults_missing_assignment_metadata() {
+        let mut value = serde_json::to_value(sample_project()).expect("project serializes");
+        value["settings"]["pile_legend"] = serde_json::json!({
+            "encoding_mode": "size-symbol",
+            "pile_sizes": [{
+                "value": 290.0,
+                "symbol": { "base_shape": "circle", "fill_pattern": "full" },
+                "color": "#4E79A7"
+            }],
+            "pile_tip_levels": []
+        });
+
+        let parsed: PilePlanProject = serde_json::from_value(value).expect("legacy legend deserializes");
+        let legend = parsed.settings.pile_legend.expect("legend remains available");
+
+        assert_eq!(legend.color_scheme, "tableau-extended");
+        assert!(legend.pile_sizes[0].symbol_automatic);
+        assert!(legend.pile_sizes[0].color_automatic);
+    }
+
+    #[test]
     fn viewer_utilization_settings_clamp_and_order_percentages() {
         assert_eq!(
             ViewerUtilizationSettings {
@@ -498,6 +599,7 @@ mod tests {
                 viewer_utilization: ViewerUtilizationSettings::default(),
                 active_pile_sizes: vec![290],
                 active_pile_tip_levels: vec![-18.0],
+                pile_legend: None,
             },
             user_state: ProjectUserState {
                 pile_plans: vec![PilePlan {

@@ -2,7 +2,6 @@ import { useEffect, useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import type { ProjectState } from "../../domain/projectState";
 import type { PileCostSettings, PileCostSettingsItem } from "../.././core/projectTypes.ts";
-import { getLegendItems } from "../../viewer/legend.ts";
 import {
   FILTERABLE_PILE_OPTION_COLUMNS,
   getNextPileOptionSortState,
@@ -660,7 +659,7 @@ function LoadPointPanel({ state, onStateChange, selectedLabel, selectedLoadPoint
   const rows = getRenderablePileOptionRows({
     cpts: state.cpts,
     costsByOptionKey: state.pileCostByOptionKey,
-    legend: getLegendItems(state.bearingCapacities),
+    legend: state.pileLegend,
     options,
     selectedLoadPointCount: selectedLoadPoints.length,
   }).map((row) => ({

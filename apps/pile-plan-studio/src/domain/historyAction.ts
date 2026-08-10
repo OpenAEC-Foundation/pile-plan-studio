@@ -61,7 +61,8 @@ export function inferHistoryAction(
     return { kind: "utilization-settings" };
   }
   if (before.activePileSizes !== after.activePileSizes
-    || before.activePileTipLevels !== after.activePileTipLevels) {
+    || before.activePileTipLevels !== after.activePileTipLevels
+    || before.pileLegend !== after.pileLegend) {
     return { kind: "legend-settings" };
   }
 

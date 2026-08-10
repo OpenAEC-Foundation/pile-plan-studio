@@ -24,15 +24,16 @@ describe("legend state", () => {
   it("resolves all enabled and used presentation states", () => {
     const result = buildLegendPresentation({
       legend: {
+        encodingMode: "size-symbol",
         pileSizes: [
-          { value: 290, shape: "circle" },
-          { value: 320, shape: "square" },
-          { value: 350, shape: "diamond" },
+          { value: 290, symbol: { baseShape: "circle", fillPattern: "full" }, color: "#AAAAAA" },
+          { value: 320, symbol: { baseShape: "square", fillPattern: "full" }, color: "#BBBBBB" },
+          { value: 350, symbol: { baseShape: "diamond", fillPattern: "full" }, color: "#CCCCCC" },
         ],
         pileTipLevels: [
-          { value: -18, color: "#111111" },
-          { value: -19, color: "#222222" },
-          { value: -20, color: "#333333" },
+          { value: -18, symbol: { baseShape: "circle", fillPattern: "full" }, color: "#111111" },
+          { value: -19, symbol: { baseShape: "square", fillPattern: "full" }, color: "#222222" },
+          { value: -20, symbol: { baseShape: "diamond", fillPattern: "full" }, color: "#333333" },
         ],
       },
       enabled: {
@@ -66,8 +67,9 @@ describe("legend state", () => {
   it("keeps unknown used configurations representable with fallback styles", () => {
     const result = buildLegendPresentation({
       legend: {
-        pileSizes: [{ value: 290, shape: "circle" }],
-        pileTipLevels: [{ value: -18, color: "#111111" }],
+        encodingMode: "size-symbol",
+        pileSizes: [{ value: 290, symbol: { baseShape: "circle", fillPattern: "full" }, color: "#AAAAAA" }],
+        pileTipLevels: [{ value: -18, symbol: { baseShape: "circle", fillPattern: "full" }, color: "#111111" }],
       },
       enabled: {
         pileSizes: [290],
@@ -81,12 +83,18 @@ describe("legend state", () => {
 
     assert.deepEqual(result.pileSizes.find(({ value }) => value === 400), {
       value: 400,
-      shape: "circle",
+      symbol: { baseShape: "circle", fillPattern: "full" },
+      color: "#8C989F",
+      symbolAutomatic: true,
+      colorAutomatic: true,
       state: "disabled-used",
     });
     assert.deepEqual(result.pileTipLevels.find(({ value }) => value === -22), {
       value: -22,
-      color: "#8c989f",
+      symbol: { baseShape: "circle", fillPattern: "full" },
+      color: "#8C989F",
+      symbolAutomatic: true,
+      colorAutomatic: true,
       state: "disabled-used",
     });
   });

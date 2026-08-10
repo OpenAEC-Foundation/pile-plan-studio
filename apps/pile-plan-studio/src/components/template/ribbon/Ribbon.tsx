@@ -6,6 +6,7 @@ import RibbonGroup from "./RibbonGroup";
 import RibbonTab from "./RibbonTab";
 import type { RightPanelMode } from "../../../domain/selectionState.ts";
 import type { ForegroundLayer } from "../../../domain/viewerPreferences.ts";
+import { elementLayoutScale, screenToLocal } from "../../../domain/uiBaseline.ts";
 import {
   cptIcon,
   applyIcon,
@@ -97,18 +98,21 @@ export default function Ribbon({
 
     const tabsRect = tabsEl.getBoundingClientRect();
     const activeRect = activeEl.getBoundingClientRect();
-    const left = activeRect.left - tabsRect.left;
-    const top = activeRect.top - tabsRect.top;
+    const layoutScale = elementLayoutScale(tabsEl);
+    const left = screenToLocal(activeRect.left - tabsRect.left, layoutScale);
+    const top = screenToLocal(activeRect.top - tabsRect.top, layoutScale);
+    const width = screenToLocal(activeRect.width, layoutScale);
+    const height = screenToLocal(activeRect.height, layoutScale);
 
     borderEl.style.opacity = "1";
     borderEl.style.left = `${left}px`;
     borderEl.style.top = `${top}px`;
-    borderEl.style.width = `${activeRect.width}px`;
-    borderEl.style.height = `${activeRect.height}px`;
+    borderEl.style.width = `${width}px`;
+    borderEl.style.height = `${height}px`;
 
     gapEl.style.opacity = "1";
     gapEl.style.left = `${left + 1}px`;
-    gapEl.style.width = `${activeRect.width - 2}px`;
+    gapEl.style.width = `${width - 2}px`;
   }, []);
 
   useEffect(() => {
