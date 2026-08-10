@@ -37,7 +37,7 @@ export function createLegendEditorDraft(
   return {
     active: copyConfigurations(active),
     legend: copyLegend(legend),
-    assignmentScope: "enabled",
+    assignmentScope: "all",
   };
 }
 
@@ -101,7 +101,7 @@ export function setLegendAssignmentScope(
   draft: LegendEditorDraft,
   assignmentScope: LegendAssignmentScope,
 ): LegendEditorActionResult {
-  return refreshAutomaticMappings({ ...draft, assignmentScope });
+  return { ok: true, draft: { ...draft, assignmentScope } };
 }
 
 export function setLegendColorScheme(
@@ -181,7 +181,11 @@ export function resetLegendEditorAppearance(
   draft: LegendEditorDraft,
   bearingCapacities: BearingCapacity[],
 ): LegendEditorDraft {
-  return { ...draft, legend: resetLegendAppearance(draft.legend, bearingCapacities) };
+  return {
+    ...draft,
+    legend: resetLegendAppearance(draft.legend, bearingCapacities),
+    assignmentScope: "all",
+  };
 }
 
 function scopedValues(draft: LegendEditorDraft, kind: LegendEditorItemKind): number[] {

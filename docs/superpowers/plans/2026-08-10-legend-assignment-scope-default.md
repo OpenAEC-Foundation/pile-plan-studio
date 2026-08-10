@@ -13,6 +13,7 @@
 - Every legend-editor opening starts with `assignmentScope: "all"`.
 - Opening the editor must not recalculate existing color or symbol mappings.
 - Assignment scope must not be added to project state or IFCPP.
+- Changing assignment scope alone must not recalculate mappings.
 - Resetting built-in appearance also resets the open draft scope to `all`.
 - Existing explicit mappings remain unchanged until an automatic input or reassignment action is used.
 
@@ -49,7 +50,7 @@ Expected: failure because `createLegendEditorDraft` and reset currently retain `
 
 - [ ] **Step 3: Implement the draft defaults**
 
-Set `createLegendEditorDraft` to return `assignmentScope: "all"`. Return `assignmentScope: "all"` from `resetLegendEditorAppearance` alongside the reset legend. Do not invoke automatic assignment during draft creation.
+Set `createLegendEditorDraft` to return `assignmentScope: "all"`. Return `assignmentScope: "all"` from `resetLegendEditorAppearance` alongside the reset legend. Change `setLegendAssignmentScope` to update only the temporary scope and return the existing legend unchanged. Do not invoke automatic assignment during draft creation or scope selection.
 
 - [ ] **Step 4: Run focused tests and verify success**
 

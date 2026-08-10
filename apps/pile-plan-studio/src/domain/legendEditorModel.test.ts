@@ -28,6 +28,24 @@ function draft() {
 }
 
 describe("legend editor model", () => {
+  it("starts each editor draft on all items without recalculating stored mappings", () => {
+    const legend = createBuiltInLegend(capacities);
+    legend.pileTipLevels[0] = {
+      ...legend.pileTipLevels[0],
+      color: "#123456",
+      colorAutomatic: false,
+    };
+
+    const created = createLegendEditorDraft(
+      { pileSizes: [290], pileTipLevels: [-18] },
+      legend,
+    );
+
+    assert.equal(created.assignmentScope, "all");
+    assert.equal(created.legend.pileTipLevels[0].color, "#123456");
+    assert.equal(created.legend.pileTipLevels[0].colorAutomatic, false);
+  });
+
   it("marks only the manually edited item property as manual", () => {
     const recolored = updateLegendColor(draft(), "tip", -18, "#123456");
     const reshaped = updateLegendSymbol(recolored, "size", 290, {
@@ -87,7 +105,7 @@ describe("legend editor model", () => {
     assert.equal(result.draft.legend.pileSizes[0].colorAutomatic, true);
   });
 
-  it("reports catalog exhaustion without discarding a mode or scope transition", () => {
+  it("changes assignment scope without recalculating mappings or checking catalog capacity", () => {
     const legend = createBuiltInLegend(Array.from({ length: 55 }, (_, index) => ({
       cpt_id: 1,
       pile_tip_level_m: -18,
@@ -99,10 +117,11 @@ describe("legend editor model", () => {
       pileTipLevels: [-18],
     }, legend);
 
-    const result = setLegendAssignmentScope(current, "all");
+    const result = setLegendAssignmentScope(current, "enabled");
 
-    assert.equal(result.ok, false);
-    assert.equal(result.draft.assignmentScope, "all");
+    assert.equal(result.ok, true);
+    assert.equal(result.draft.assignmentScope, "enabled");
+    assert.deepEqual(result.draft.legend, current.legend);
   });
 
   it("resets the scheme and all item properties to automatic", () => {
@@ -112,10 +131,12 @@ describe("legend editor model", () => {
       fillPattern: "top-half",
     });
     current = setLegendColorScheme(current, "rainbow");
+    current = { ...current, assignmentScope: "enabled" };
 
     const reset = resetLegendEditorAppearance(current, capacities);
 
     assert.equal(reset.legend.colorScheme, "tableau-extended");
+    assert.equal(reset.assignmentScope, "all");
     assert.ok(reset.legend.pileSizes.every((item) => item.symbolAutomatic && item.colorAutomatic));
     assert.ok(reset.legend.pileTipLevels.every((item) => item.symbolAutomatic && item.colorAutomatic));
   });
@@ -129,8 +150,13 @@ describe("legend editor model", () => {
     current.active.pileSizes = [320];
     current.active.pileTipLevels = [-19];
 
-    assert.equal(wouldReassignLegendAppearance(current, "size", "symbol"), true);
-    assert.equal(wouldReassignLegendAppearance(current, "tip", "color"), true);
+    assert.equal(wouldReassignLegendAppearance(current, "size", "symbol"), false);
+    assert.equal(wouldReassignLegendAppearance(current, "tip", "color"), false);
+
+    const enabledScope = setLegendAssignmentScope(current, "enabled");
+    assert.equal(enabledScope.ok, true);
+    assert.equal(wouldReassignLegendAppearance(enabledScope.draft, "size", "symbol"), true);
+    assert.equal(wouldReassignLegendAppearance(enabledScope.draft, "tip", "color"), true);
   });
 
   it("offers reassignment for manual overrides and dims it after applying", () => {

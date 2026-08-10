@@ -211,9 +211,10 @@ A manual change protects only the edited property of that item. For example, man
 
 Changing automatic inputs applies immediately to every still-automatic item in the affected mapping group:
 
-- changing assignment scope refreshes the still-automatic items inside the new scope;
 - changing encoding mode refreshes the still-automatic items in the newly active color and symbol mapping groups;
 - changing color scheme refreshes all still-automatic items in the active color mapping group.
+
+Changing assignment scope is not itself an automatic-assignment action. It only selects the target values for subsequent encoding-mode changes, color-scheme changes, and explicit reassignment.
 
 Manual item-level overrides remain unchanged when automatic inputs change. The relevant reassignment button is disabled and dimmed while rerunning automatic assignment would leave the selected mapping group unchanged. It becomes a normally styled enabled action whenever reassignment would change a mapping or clear a manual override; this includes activation changes made with the legend's used-items filter. It must not use a pressed or accent state. Using that button explicitly replaces those mappings and returns all affected items in that mapping group and scope to automatic state. Inactive mapping groups remain stored and unchanged until they become active or are edited directly. Applying the editor persists both the resolved mappings and their automatic/manual state.
 
@@ -230,11 +231,11 @@ The scope applies to both automatic symbol assignment and automatic color assign
 
 - every time the legend editor opens, the scope starts at `All items`;
 - opening the editor does not itself recalculate or modify any stored mapping;
-- changing the scope while the editor is open immediately refreshes still-automatic mappings inside the newly selected scope;
+- changing the scope while the editor is open only changes the target set and does not recalculate any mapping;
 - applying or closing the editor does not persist the selected scope in project state, IFCPP, Undo history, or browser recovery;
 - reopening the editor therefore returns to `All items`, regardless of the scope used previously.
 
-This default deliberately requires users to choose `Enabled items` again before redistributing appearance over a possibly changed active set. The generated color and symbol mappings are persisted; the temporary scope used to generate them is not.
+This default deliberately requires users to choose `Enabled items` again and then use reassignment, change encoding, or choose a color scheme before redistributing appearance over a possibly changed active set. The generated color and symbol mappings are persisted; the temporary scope used to generate them is not.
 
 - Enabled scope reassigns only currently enabled values. Disabled mappings remain unchanged.
 - All scope reassigns every known value, including disabled values, so a complete consistent mapping can be restored without activating those values.
@@ -420,6 +421,7 @@ This prevents the editor, viewer, and serializer from developing separate interp
 - scheme and assignment controls retain fixed positions for every localized label;
 - the four size/tip and shape/color mapping groups remain independent;
 - automatic settings immediately update non-manual items while preserving manual item-level overrides;
+- changing assignment scope alone never changes a color, symbol, or automatic/manual flag;
 - switching encoding mode applies the selected scheme and symbol order to the newly active automatic mappings without changing inactive or manual mappings;
 - explicit automatic assignment clears manual overrides only for its active mapping group and selected scope;
 - every editor opening defaults assignment scope to all items without changing existing mappings;
