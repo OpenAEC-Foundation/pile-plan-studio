@@ -1,8 +1,8 @@
 import { useState, useEffect, useRef, type CSSProperties } from "react";
 import { useTranslation } from "react-i18next";
 import { LANGUAGES, changeLanguage } from "../../../i18n/config";
-import { getSetting, setSetting } from "../../../store";
 import { PRODUCT_INFO } from "../../../productInfo.ts";
+import type { UserLanguage } from "../../../domain/userSettings.ts";
 import {
   DEFAULT_INTERFACE_SCALE,
   INTERFACE_SCALE_STEP,
@@ -31,6 +31,7 @@ const THEME_OPTIONS = [
      const TAB_IDS = ["general", "appearance", "calculation", "about"] as const;
    ─────────────────────────────────────────────────────────── */
 const TAB_IDS = ["general", "appearance", "about"] as const;
+const CURRENCY_OPTIONS = ["EUR", "GBP", "USD"];
 
 export function applyTheme(theme?: string) {
   document.documentElement.setAttribute("data-theme", theme || "light");
@@ -40,22 +41,29 @@ interface SettingsDialogProps {
   open: boolean;
   onClose: () => void;
   theme: string;
-  onThemeChange: (theme: string) => void;
+  language: UserLanguage;
+  defaultCurrencyCode: string;
+  onPreferencesChange: (preferences: {
+    theme: string;
+    language: UserLanguage;
+    interfaceScalePercent: number;
+    defaultCurrencyCode: string;
+  }) => void;
   isDesktop: boolean;
   interfaceScalePercent: number;
   onInterfaceScalePreview: (scalePercent: number) => void;
-  onInterfaceScaleChange: (scalePercent: number) => void;
 }
 
 export default function SettingsDialog({
   open,
   onClose,
   theme,
-  onThemeChange,
+  language,
+  defaultCurrencyCode,
+  onPreferencesChange,
   isDesktop,
   interfaceScalePercent,
   onInterfaceScalePreview,
-  onInterfaceScaleChange,
 }: SettingsDialogProps) {
   const { t } = useTranslation("settings");
   const { t: tCommon } = useTranslation("common");
@@ -63,13 +71,14 @@ export default function SettingsDialog({
 
   // Draft state — only committed on Save
   const [draftTheme, setDraftTheme] = useState(theme);
-  const [draftLang, setDraftLang] = useState("auto");
+  const [draftLang, setDraftLang] = useState<UserLanguage>(language);
+  const [draftCurrencyCode, setDraftCurrencyCode] = useState(defaultCurrencyCode);
   const [draftInterfaceScale, setDraftInterfaceScale] = useState(interfaceScalePercent);
   const [confirmResetOpen, setConfirmResetOpen] = useState(false);
 
   // Snapshot of original values when dialog opens, for reverting on Cancel
   const originalTheme = useRef(theme);
-  const originalLang = useRef("");
+  const originalLang = useRef<UserLanguage>(language);
   const originalInterfaceScale = useRef(interfaceScalePercent);
 
   // Reset draft to current values when dialog opens
@@ -77,14 +86,13 @@ export default function SettingsDialog({
     if (open) {
       originalTheme.current = theme;
       setDraftTheme(theme);
+      originalLang.current = language;
+      setDraftLang(language);
+      setDraftCurrencyCode(defaultCurrencyCode);
       originalInterfaceScale.current = interfaceScalePercent;
       setDraftInterfaceScale(interfaceScalePercent);
-      getSetting("language", "auto").then((lang) => {
-        originalLang.current = lang;
-        setDraftLang(lang);
-      });
     }
-  }, [interfaceScalePercent, open, theme]);
+  }, [defaultCurrencyCode, interfaceScalePercent, language, open, theme]);
 
   // Live theme preview — apply immediately when the user picks one in the dropdown.
   // Saved only on Save; reverted on Cancel.
@@ -95,6 +103,7 @@ export default function SettingsDialog({
 
   // Live language preview — switch i18n immediately on selection.
   const handleLangPreview = (value: string) => {
+    if (value !== "auto" && value !== "en" && value !== "nl") return;
     setDraftLang(value);
     changeLanguage(value);
   };
@@ -117,14 +126,14 @@ export default function SettingsDialog({
 
   // Save — commit all draft changes
   const handleSave = () => {
-    onThemeChange(draftTheme);
     applyTheme(draftTheme);
-    setSetting("theme", draftTheme);
-
-    setSetting("language", draftLang);
     changeLanguage(draftLang);
-
-    onInterfaceScaleChange(draftInterfaceScale);
+    onPreferencesChange({
+      theme: draftTheme,
+      language: draftLang,
+      interfaceScalePercent: draftInterfaceScale,
+      defaultCurrencyCode: draftCurrencyCode,
+    });
 
     onClose();
   };
@@ -139,6 +148,7 @@ export default function SettingsDialog({
     applyTheme("light");
     setDraftLang("auto");
     changeLanguage("auto");
+    setDraftCurrencyCode("EUR");
     setDraftInterfaceScale(DEFAULT_INTERFACE_SCALE);
     onInterfaceScalePreview(DEFAULT_INTERFACE_SCALE);
     setConfirmResetOpen(false);
@@ -178,7 +188,12 @@ export default function SettingsDialog({
 
         <div className="settings-content">
           {activeTab === "general" && (
-            <GeneralTabContent lang={draftLang} onLangChange={handleLangPreview} />
+            <GeneralTabContent
+              lang={draftLang}
+              onLangChange={handleLangPreview}
+              defaultCurrencyCode={draftCurrencyCode}
+              onDefaultCurrencyCodeChange={setDraftCurrencyCode}
+            />
           )}
           {activeTab === "appearance" && (
             <AppearanceTabContent
@@ -223,9 +238,13 @@ export default function SettingsDialog({
 function GeneralTabContent({
   lang,
   onLangChange,
+  defaultCurrencyCode,
+  onDefaultCurrencyCodeChange,
 }: {
   lang: string;
   onLangChange: (value: string) => void;
+  defaultCurrencyCode: string;
+  onDefaultCurrencyCodeChange: (value: string) => void;
 }) {
   const { t } = useTranslation("settings");
 
@@ -238,6 +257,15 @@ function GeneralTabContent({
           value={lang}
           options={LANGUAGES.map((l) => ({ value: l.code, label: l.name }))}
           onChange={onLangChange}
+          style={{ width: 180 }}
+        />
+      </div>
+      <div className="settings-row">
+        <span className="settings-label">{t("general.defaultCurrency")}</span>
+        <ThemedSelect
+          value={defaultCurrencyCode}
+          options={CURRENCY_OPTIONS.map((currency) => ({ value: currency, label: currency }))}
+          onChange={onDefaultCurrencyCodeChange}
           style={{ width: 180 }}
         />
       </div>

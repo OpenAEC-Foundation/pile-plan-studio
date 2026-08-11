@@ -35,4 +35,13 @@ describe("primary frontend entry", () => {
     assert.ok(capability.windows?.includes("main"));
     assert.ok(capability.permissions?.includes("dialog:default"));
   });
+
+  it("hides the Windows terminal only in production builds", () => {
+    const tauriMain = readFileSync(resolve(import.meta.dirname, "src-tauri/src/main.rs"), "utf8");
+
+    assert.match(
+      tauriMain,
+      /#!\[cfg_attr\(not\(debug_assertions\), windows_subsystem = "windows"\)\]/,
+    );
+  });
 });

@@ -3,7 +3,8 @@ use std::collections::HashMap;
 use pile_plan_core::{
     bearing_capacity_rows_for_cpt, build_pile_options_by_load_point, build_project_analysis,
     calculate_pile_cost, choose_default_pile_option, choose_default_pile_options,
-    greedy_optimize_pile_choices, import_project_from_generic_sources, preview_import_source,
+    greedy_optimize_pile_choices, import_project_from_generic_sources_with_properties,
+    preview_import_source,
     preview_pile_plan_import, refresh_project_from_profiled_sources, selected_cpts,
     write_ifcpp_string, write_pile_plan_csv, write_pile_plan_xlsx, CptSelectionSettings,
     GreedyOptimizationSettings, GreedyOptimizedPileChoice, ImportSource, PileConfigurationKey,
@@ -46,18 +47,21 @@ pub struct ProjectAnalysisRequest {
 pub struct PileCostRequest {
     pub pile_size_mm: u32,
     pub pile_tip_level_m: f64,
+    pub pile_head_level_m: f64,
     pub settings: PileCostSettings,
 }
 
 #[derive(Debug, Deserialize)]
 pub struct DefaultPileOptionRequest {
     pub options: Vec<PileConfigurationOption>,
+    pub pile_head_level_m: f64,
     pub settings: PileCostSettings,
 }
 
 #[derive(Debug, Deserialize)]
 pub struct DefaultPileOptionsRequest {
     pub options_by_load_point: HashMap<u32, Vec<PileConfigurationOption>>,
+    pub pile_head_level_m: f64,
     pub cost_settings: PileCostSettings,
 }
 
@@ -70,6 +74,7 @@ pub struct CptFrdRowsRequest {
 #[derive(Debug, Deserialize)]
 pub struct GreedyOptimizationRequest {
     pub options_by_load_point: HashMap<u32, Vec<PileConfigurationOption>>,
+    pub pile_head_level_m: f64,
     pub cost_settings: PileCostSettings,
     pub settings: GreedyOptimizationSettings,
 }
@@ -77,6 +82,8 @@ pub struct GreedyOptimizationRequest {
 #[derive(Debug, Deserialize)]
 pub struct ImportProjectRequest {
     pub project_name: String,
+    pub pile_head_level_m: Option<f64>,
+    pub currency_code: String,
     pub sources: Vec<ImportSource>,
 }
 
@@ -93,7 +100,7 @@ pub struct PreviewImportRequest {
 
 #[derive(Debug, Serialize)]
 pub struct PileCostResponse {
-    pub cost_eur: Option<u32>,
+    pub cost: Option<u32>,
 }
 
 #[wasm_bindgen]
@@ -151,9 +158,10 @@ pub fn calculate_project_analysis(request: JsValue) -> Result<JsValue, JsValue> 
 pub fn calculate_pile_option_cost(request: JsValue) -> Result<JsValue, JsValue> {
     let request: PileCostRequest = from_js_value(request)?;
     to_js_value(&PileCostResponse {
-        cost_eur: calculate_pile_cost(
+        cost: calculate_pile_cost(
             request.pile_size_mm,
             request.pile_tip_level_m,
+            request.pile_head_level_m,
             &request.settings,
         ),
     })
@@ -162,14 +170,25 @@ pub fn calculate_pile_option_cost(request: JsValue) -> Result<JsValue, JsValue> 
 #[wasm_bindgen]
 pub fn choose_default_option(request: JsValue) -> Result<JsValue, JsValue> {
     let request: DefaultPileOptionRequest = from_js_value(request)?;
-    to_js_value(&choose_default_pile_option(&request.options, &request.settings).cloned())
+    to_js_value(
+        &choose_default_pile_option(
+            &request.options,
+            request.pile_head_level_m,
+            &request.settings,
+        )
+        .cloned(),
+    )
 }
 
 #[wasm_bindgen]
 pub fn choose_default_options(request: JsValue) -> Result<JsValue, JsValue> {
     let request: DefaultPileOptionsRequest = from_js_value(request)?;
     let choices: HashMap<u32, PileConfigurationKey> =
-        choose_default_pile_options(&request.options_by_load_point, &request.cost_settings);
+        choose_default_pile_options(
+            &request.options_by_load_point,
+            request.pile_head_level_m,
+            &request.cost_settings,
+        );
     to_js_value(&choices)
 }
 
@@ -187,6 +206,7 @@ pub fn greedy_optimize(request: JsValue) -> Result<JsValue, JsValue> {
     let request: GreedyOptimizationRequest = from_js_value(request)?;
     let choices: Vec<GreedyOptimizedPileChoice> = greedy_optimize_pile_choices(
         &request.options_by_load_point,
+        request.pile_head_level_m,
         &request.cost_settings,
         &request.settings,
     );
@@ -197,8 +217,13 @@ pub fn greedy_optimize(request: JsValue) -> Result<JsValue, JsValue> {
 #[wasm_bindgen]
 pub fn import_project_from_files(request: JsValue) -> Result<JsValue, JsValue> {
     let request: ImportProjectRequest = from_js_value(request)?;
-    let project = import_project_from_generic_sources(&request.project_name, &request.sources)
-        .map_err(to_error_value)?;
+    let project = import_project_from_generic_sources_with_properties(
+        &request.project_name,
+        &request.sources,
+        request.pile_head_level_m,
+        &request.currency_code,
+    )
+    .map_err(to_error_value)?;
 
     to_js_value(&project)
 }
@@ -324,9 +349,9 @@ mod tests {
     fn default_pile_options_request_accepts_grouped_options() {
         let request = DefaultPileOptionsRequest {
             options_by_load_point: HashMap::from([(1, vec![])]),
+            pile_head_level_m: 0.0,
             cost_settings: PileCostSettings {
                 schema_version: 1,
-                pile_head_level_m: 0.0,
                 items: vec![],
             },
         };

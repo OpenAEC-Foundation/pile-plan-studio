@@ -11,8 +11,8 @@ describe("optimization summary", () => {
         [2, "320|-18"],
       ]),
       [
-        { load_point_id: 1, pile_size_mm: 290, pile_tip_level_m: -17.5, is_option: true, cost_eur: 100 },
-        { load_point_id: 2, pile_size_mm: 350, pile_tip_level_m: -19, is_option: true, cost_eur: 200 },
+        { load_point_id: 1, pile_size_mm: 290, pile_tip_level_m: -17.5, is_option: true, cost: 100 },
+        { load_point_id: 2, pile_size_mm: 350, pile_tip_level_m: -19, is_option: true, cost: 200 },
       ],
     );
 

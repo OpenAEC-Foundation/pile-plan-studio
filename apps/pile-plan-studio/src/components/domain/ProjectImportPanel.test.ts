@@ -50,6 +50,30 @@ describe("ProjectImportPanel", () => {
     assert.match(panel, /canSubmitProjectImport\(drafts, mode\)/);
   });
 
+  it("uses the custom themed listbox for imported project currency", () => {
+    assert.match(panel, /<ThemedSelect[\s\S]*ariaLabel=\{t\("importProject\.currency"\)\}/);
+    assert.doesNotMatch(panel, /<select/);
+  });
+
+  it("explains why a ready new project still cannot be imported", () => {
+    assert.match(panel, /showPileHeadLevelBlocker/);
+    assert.match(panel, /pileHeadLevelRequired/);
+    assert.match(panel, /aria-invalid/);
+  });
+
+  it("keeps pile-head guidance in a tooltip and the blocking reason beside the submit action", () => {
+    assert.match(panel, /className="project-import-help"/);
+    assert.match(panel, /title=\{t\("importProject\.pileHeadLevelHelp"\)\}/);
+    assert.match(panel, /className="project-import-submit-area"/);
+    assert.doesNotMatch(panel, /className="project-import-property-help"/);
+  });
+
+  it("prefills one selected source in refresh mode", () => {
+    assert.match(panel, /initialSource/);
+    assert.match(panel, /setMode\("refresh"\)/);
+    assert.match(panel, /assignRoleFile\(initialSource\.role, initialSource\.file\)/);
+  });
+
   it("shows a non-blocking warning for CPT-only refreshes", () => {
     assert.match(panel, /shouldWarnAboutMissingFoundationAdvice\(drafts, mode\)/);
     assert.match(panel, /importProject\.warnings\.cptsWithoutFoundationAdvice/);

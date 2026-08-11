@@ -131,8 +131,10 @@ body:has(.bs-export-panel.is-exporting) * {
 /* Content area — only shown when a panel is active. Width is constrained,
    not full-screen, and the rest of the underlying app stays visible. */
 .backstage-content {
+  box-sizing: border-box;
   width: 580px;
   max-width: calc(100vw - 260px - 40px);
+  min-height: 0;
   background: var(--theme-bg);
   border-right: 1px solid var(--theme-border);
   box-shadow: var(--theme-panel-shadow);

@@ -13,7 +13,7 @@ import type { Viewport } from "../viewer/viewport.ts";
 import type { LegendSelectionFilter } from "../viewer/legendSelection.ts";
 import type { OptimizationRunSummary } from "./optimizationSummary.ts";
 import type { OptimizationLimitScope, OptimizationTargetScope } from "../components/domain/optimizationPanelModel.ts";
-import { normalizeViewerPreferences, type ForegroundLayer, type ViewerPreferences } from "./viewerPreferences.ts";
+import type { ForegroundLayer } from "./viewerPreferences.ts";
 import type { LoadPointLockDraft } from "./loadPointLocking.ts";
 
 export type InputSourceKind = "load_points" | "cpts" | "bearing_capacities";
@@ -24,6 +24,9 @@ export type InputSource = {
   label: string;
   status: InputSourceStatus;
   itemCount: number;
+  fileName: string | null;
+  profile: string | null;
+  warnings: string[];
 };
 
 export type CptSettingsScope = "all" | "selected";
@@ -79,7 +82,6 @@ export type ProjectState = LoadedProjectData & {
 
 type InitialProjectStateOptions = {
   initializeDefaultPiles: boolean;
-  viewerPreferences?: ViewerPreferences;
   defaultPilePlanName?: string;
 };
 
@@ -88,7 +90,6 @@ export function createInitialProjectState(
   options: InitialProjectStateOptions,
 ): ProjectState {
   const projectData = loadIfcppProjectData(input);
-  const viewerPreferences = normalizeViewerPreferences(options.viewerPreferences);
   const pilePlans = options.defaultPilePlanName && projectData.pilePlans.length === 1
     ? [{ ...projectData.pilePlans[0], name: options.defaultPilePlanName }]
     : projectData.pilePlans;
@@ -101,24 +102,21 @@ export function createInitialProjectState(
     pilePlans,
     bounds: getProjectBounds(projectData.loadPoints, projectData.cpts),
     inputSources: [
-      {
+      sourceSummary(projectData, {
         kind: "load_points",
         label: "Load points",
-        status: "snapshot-only",
         itemCount: projectData.loadPoints.length,
-      },
-      {
+      }),
+      sourceSummary(projectData, {
         kind: "cpts",
         label: "CPTs",
-        status: "snapshot-only",
         itemCount: projectData.cpts.length,
-      },
-      {
+      }),
+      sourceSummary(projectData, {
         kind: "bearing_capacities",
         label: "Bearing capacities",
-        status: "snapshot-only",
         itemCount: projectData.bearingCapacities.length,
-      },
+      }),
     ],
     selectedLoadPointId: firstLoadPointId,
     selectedLoadPointIds: firstLoadPointId === null ? [] : [firstLoadPointId],
@@ -145,7 +143,21 @@ export function createInitialProjectState(
     optimizationRunning: false,
     optimizationError: null,
     optimizationSummary: null,
-    ...viewerPreferences,
+  };
+}
+
+function sourceSummary(
+  project: LoadedProjectData,
+  source: Pick<InputSource, "kind" | "label" | "itemCount">,
+): InputSource {
+  const entries = project.importLog.filter((entry) => entry.source_role === source.kind);
+  const latest = entries[entries.length - 1];
+  return {
+    ...source,
+    status: "snapshot-only",
+    fileName: latest?.source_file ?? null,
+    profile: latest?.source_profile ?? null,
+    warnings: entries.flatMap((entry) => entry.warnings ?? []),
   };
 }
 

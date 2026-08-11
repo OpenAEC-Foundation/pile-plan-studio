@@ -47,6 +47,8 @@ describe("Alpha command surfaces", () => {
     assert.match(backstage, /bs-recent-item/);
     assert.match(importPanel, /backstage-panel-title/);
     assert.match(styles, /\.backstage-panel-title/);
+    assert.match(styles, /\.backstage-content\s*{[\s\S]*?box-sizing:\s*border-box/);
+    assert.match(styles, /\.backstage-content\s*{[\s\S]*?min-height:\s*0/);
     assert.doesNotMatch(backstage, /onMouseEnter=/);
   });
 
@@ -104,7 +106,7 @@ describe("Alpha command surfaces", () => {
     const app = readFileSync(resolve(import.meta.dirname, "../../App.tsx"), "utf8");
 
     assert.match(app, /rightPanelWidth/);
-    assert.match(app, /resizeRightPanelWidth/);
+    assert.match(app, /beginRightPanelResize/);
     assert.match(app, /className="right-panel-splitter"/);
     assert.match(app, /style\.setProperty\("--right-panel-width"/);
     assert.doesNotMatch(app, /setRightPanelWidth/);
@@ -115,7 +117,7 @@ describe("Alpha command surfaces", () => {
     const styles = readFileSync(resolve(import.meta.dirname, "../../App.css"), "utf8");
 
     assert.match(app, /explorerWidth/);
-    assert.match(app, /resizeExplorerWidth/);
+    assert.match(app, /beginExplorerResize/);
     assert.match(app, /className="explorer-splitter"/);
     assert.match(app, /style\.setProperty\("--explorer-width"/);
     assert.doesNotMatch(app, /setExplorerWidth/);

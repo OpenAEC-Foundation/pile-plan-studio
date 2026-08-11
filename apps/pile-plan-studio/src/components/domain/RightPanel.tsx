@@ -1,7 +1,7 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import type { ProjectState } from "../../domain/projectState";
-import type { PileCostSettings, PileCostSettingsItem } from "../.././core/projectTypes.ts";
+import type { PileCostSettings } from "../.././core/projectTypes.ts";
 import {
   FILTERABLE_PILE_OPTION_COLUMNS,
   getNextPileOptionSortState,
@@ -32,9 +32,9 @@ import {
   selectOnlyNearestCpts,
   startManualCptSelectionEdit,
 } from "./cptSettingsModel.ts";
-import { commitCostInput, updatePileCostItem, updatePileHeadLevel } from "./costSettingsModel.ts";
 import { removeIcon } from "../template/ribbon/icons.ts";
 import OptimizationPanel from "./OptimizationPanel.tsx";
+import CostCatalogPanel from "./CostSettingsPanel.tsx";
 import { commitNumberDraft } from "./numberInputModel.ts";
 import "./rightPanel.css";
 
@@ -46,6 +46,11 @@ type Props = {
   onRunOptimization?: () => void;
   taskPanel?: RightTaskPanel | null;
   onCloseTaskPanel?: () => void;
+  hasPersonalCostDefault?: boolean;
+  onSaveCostDefault?: (settings: PileCostSettings) => void;
+  onLoadCostDefault?: () => void;
+  onRemoveCostDefault?: () => void;
+  onLoadBuiltInCosts?: () => void;
 };
 
 export default function RightPanel({
@@ -54,6 +59,11 @@ export default function RightPanel({
   onRunOptimization = () => undefined,
   taskPanel = null,
   onCloseTaskPanel = () => undefined,
+  hasPersonalCostDefault = false,
+  onSaveCostDefault = () => undefined,
+  onLoadCostDefault = () => undefined,
+  onRemoveCostDefault = () => undefined,
+  onLoadBuiltInCosts = () => undefined,
 }: Props) {
   const { t } = useTranslation("rightPanel");
   const selectedLoadPoints = getSelectedLoadPoints(state);
@@ -70,7 +80,16 @@ export default function RightPanel({
       {taskPanel === "optimization" ? (
         <OptimizationPanel state={state} onStateChange={onStateChange} onRunOptimization={onRunOptimization} onClose={onCloseTaskPanel} />
       ) : taskPanel === "cost-settings" ? (
-        <CostSettingsPanel state={state} onStateChange={onStateChange} onClose={onCloseTaskPanel} />
+        <CostSettingsPanel
+          state={state}
+          onStateChange={onStateChange}
+          onClose={onCloseTaskPanel}
+          hasPersonalCostDefault={hasPersonalCostDefault}
+          onSaveCostDefault={onSaveCostDefault}
+          onLoadCostDefault={onLoadCostDefault}
+          onRemoveCostDefault={onRemoveCostDefault}
+          onLoadBuiltInCosts={onLoadBuiltInCosts}
+        />
       ) : taskPanel === "cpt-settings" ? (
         <CptSettingsPanel state={state} onStateChange={onStateChange} onClose={onCloseTaskPanel} />
       ) : state.rightPanelMode === "cpts" ? (
@@ -92,113 +111,29 @@ export default function RightPanel({
   );
 }
 
-function CostSettingsPanel({ state, onStateChange, onClose }: Props & { onClose: () => void }) {
-  const { t } = useTranslation("rightPanel");
-  function applySettings(nextSettings: ProjectState["pileCostSettings"]) {
-    onStateChange({ ...state, pileCostSettings: nextSettings });
-  }
-
+function CostSettingsPanel({
+  state,
+  onStateChange,
+  onClose,
+  hasPersonalCostDefault = false,
+  onSaveCostDefault = () => undefined,
+  onLoadCostDefault = () => undefined,
+  onRemoveCostDefault = () => undefined,
+  onLoadBuiltInCosts = () => undefined,
+}: Props & { onClose: () => void }) {
   return (
-    <div className="cost-settings-panel">
-      <header className="right-panel-header">
-        <div><h2>{t("cost.title")}</h2><span>{t("cost.subtitle")}</span></div>
-        <button className="right-panel-task-close" type="button" aria-label={t("actions.close")} onClick={onClose}>&times;</button>
-      </header>
-
-      <div className="settings-scroll">
-        <SettingsGroup title={t("cost.pileHeadLevel")}>
-          <DraftNumberField
-            ariaLabel={t("cost.pileHeadLevel")}
-            emptyValue={0}
-            step={0.1}
-            suffix="m"
-            value={state.pileCostSettings.pile_head_level_m}
-            onCommit={(value) => applySettings(updatePileHeadLevel(state.pileCostSettings, value))}
-          />
-        </SettingsGroup>
-
-        <section className="settings-group cost-size-settings">
-          <h3>{t("cost.pileSizeCosts")}</h3>
-          <div className="cost-settings-table-wrap">
-            <table className="cost-settings-table">
-              <thead><tr><th>{t("cost.size")}</th><th>{t("cost.shape")}</th><th>{t("cost.costPerM3")}</th></tr></thead>
-              <tbody>
-                {state.pileCostSettings.items.map((item) => (
-                  <CostSettingsRow
-                    item={item}
-                    key={item.pile_size_mm}
-                    settings={state.pileCostSettings}
-                    onSettingsChange={applySettings}
-                  />
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </section>
-      </div>
-    </div>
-  );
-}
-
-function CostSettingsRow({ item, settings, onSettingsChange }: {
-  item: PileCostSettingsItem;
-  settings: PileCostSettings;
-  onSettingsChange: (settings: PileCostSettings) => void;
-}) {
-  const { t } = useTranslation("rightPanel");
-  const [costDraft, setCostDraft] = useState(String(item.cost_per_m3_eur));
-
-  useEffect(() => {
-    setCostDraft(String(item.cost_per_m3_eur));
-  }, [item.cost_per_m3_eur]);
-
-  return (
-    <tr>
-      <td>{formatNumber(item.pile_size_mm)} mm</td>
-      <td>
-        <select
-          aria-label={`${t("cost.shape")} ${item.pile_size_mm} mm`}
-          value={item.shape}
-          onChange={(event) => onSettingsChange(updatePileCostItem(
-            settings,
-            item.pile_size_mm,
-            { shape: event.currentTarget.value === "round" ? "round" : "square" },
-          ))}
-        >
-          <option value="round">{t("cost.round")}</option>
-          <option value="square">{t("cost.square")}</option>
-        </select>
-      </td>
-      <td>
-        <label className="table-number-field">
-          <span>€</span>
-          <input
-            aria-label={`${t("cost.costPerM3")} ${item.pile_size_mm} mm`}
-            min="0"
-            step="1"
-            type="number"
-            value={costDraft}
-            onBlur={() => {
-              const cost = commitCostInput(costDraft);
-              if (cost === null) {
-                setCostDraft(String(item.cost_per_m3_eur));
-                return;
-              }
-              setCostDraft(String(cost));
-              onSettingsChange(updatePileCostItem(settings, item.pile_size_mm, { cost_per_m3_eur: cost }));
-            }}
-            onChange={(event) => {
-              setCostDraft(event.currentTarget.value);
-            }}
-            onKeyDown={(event) => {
-              if (event.key === "Enter") {
-                event.currentTarget.blur();
-              }
-            }}
-          />
-        </label>
-      </td>
-    </tr>
+    <CostCatalogPanel
+      settings={state.pileCostSettings}
+      bearingCapacities={state.bearingCapacities}
+      currencyCode={state.currencyCode}
+      hasPersonalDefault={hasPersonalCostDefault}
+      onSettingsChange={(pileCostSettings) => onStateChange({ ...state, pileCostSettings })}
+      onSavePersonalDefault={onSaveCostDefault}
+      onLoadPersonalDefault={onLoadCostDefault}
+      onRemovePersonalDefault={onRemoveCostDefault}
+      onLoadBuiltInDefault={onLoadBuiltInCosts}
+      onClose={onClose}
+    />
   );
 }
 
@@ -257,10 +192,11 @@ function CptSettingsPanel({ state, onStateChange, onClose }: Props & { onClose: 
           </p>
         </SettingsGroup>
 
-        <SettingsGroup title={t("cptSettings.maxDistance")}>
+        <SettingsGroup title={t("cptSettings.distances")}>
           <DraftNumberField
             ariaLabel={t("cptSettings.maxDistance")}
             emptyValue={0}
+            label={t("cptSettings.maxDistance")}
             min={0}
             placeholder={settings.maxDistanceM === null ? t("cptSettings.mixed") : undefined}
             step={1}
@@ -268,12 +204,10 @@ function CptSettingsPanel({ state, onStateChange, onClose }: Props & { onClose: 
             value={settings.maxDistanceM}
             onCommit={(value) => onStateChange(applyCptSelectionSettingsPatch(state, { maxDistanceM: value }, overwriteManualSelections))}
           />
-        </SettingsGroup>
-
-        <SettingsGroup title={t("cptSettings.monopolyDistance")}>
           <DraftNumberField
             ariaLabel={t("cptSettings.monopolyDistance")}
             emptyValue={0}
+            label={t("cptSettings.monopolyDistance")}
             min={0}
             placeholder={settings.monopolyDistanceM === null ? t("cptSettings.mixed") : undefined}
             step={1}
@@ -298,21 +232,21 @@ function CptSettingsPanel({ state, onStateChange, onClose }: Props & { onClose: 
               onClick={() => onStateChange(applyCptSelectionSettingsPatch(state, { algorithm: "maximum-angle" }, overwriteManualSelections))}
             />
           </div>
-        </SettingsGroup>
-
-        <SettingsGroup title={t("cptSettings.maximumAngle")} muted={settings.algorithm !== null && settings.algorithm !== "maximum-angle"}>
-          <DraftNumberField
-            ariaLabel={t("cptSettings.maximumAngle")}
-            disabled={settings.algorithm !== null && settings.algorithm !== "maximum-angle"}
-            emptyValue={1}
-            max={360}
-            min={1}
-            placeholder={settings.maxAngleDegrees === null ? t("cptSettings.mixed") : undefined}
-            step={1}
-            suffix="deg"
-            value={settings.maxAngleDegrees}
-            onCommit={(value) => onStateChange(applyCptSelectionSettingsPatch(state, { maxAngleDegrees: value }, overwriteManualSelections))}
-          />
+          <div>
+            <DraftNumberField
+              ariaLabel={t("cptSettings.maximumAngle")}
+              disabled={settings.algorithm !== null && settings.algorithm !== "maximum-angle"}
+              emptyValue={1}
+              label={t("cptSettings.maximumAngle")}
+              max={360}
+              min={1}
+              placeholder={settings.maxAngleDegrees === null ? t("cptSettings.mixed") : undefined}
+              step={1}
+              suffix="deg"
+              value={settings.maxAngleDegrees}
+              onCommit={(value) => onStateChange(applyCptSelectionSettingsPatch(state, { maxAngleDegrees: value }, overwriteManualSelections))}
+            />
+          </div>
         </SettingsGroup>
 
         <SettingsGroup title={t("cptSettings.manual")}>
@@ -358,6 +292,7 @@ function DraftNumberField({
   ariaLabel,
   disabled = false,
   emptyValue,
+  label,
   max,
   min,
   onCommit,
@@ -369,6 +304,7 @@ function DraftNumberField({
   ariaLabel: string;
   disabled?: boolean;
   emptyValue: number;
+  label: string;
   max?: number;
   min?: number;
   onCommit: (value: number) => void;
@@ -395,7 +331,8 @@ function DraftNumberField({
   }
 
   return (
-    <label className="number-field">
+    <label className={`settings-number-row${disabled ? " is-muted" : ""}`}>
+      <span className="settings-number-label">{label}</span>
       <input
         aria-label={ariaLabel}
         disabled={disabled}
@@ -411,7 +348,7 @@ function DraftNumberField({
           if (event.key === "Enter") event.currentTarget.blur();
         }}
       />
-      <span>{suffix}</span>
+      <span className="settings-number-unit">{suffix}</span>
     </label>
   );
 }
@@ -659,6 +596,7 @@ function LoadPointPanel({ state, onStateChange, selectedLabel, selectedLoadPoint
   const rows = getRenderablePileOptionRows({
     cpts: state.cpts,
     costsByOptionKey: state.pileCostByOptionKey,
+    currencyCode: state.currencyCode,
     legend: state.pileLegend,
     options,
     selectedLoadPointCount: selectedLoadPoints.length,

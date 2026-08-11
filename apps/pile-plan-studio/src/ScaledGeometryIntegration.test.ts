@@ -17,8 +17,8 @@ describe("compact browser geometry integration", () => {
     assert.match(viewer, /getLocalCanvasRect/);
   });
 
-  it("normalizes measured ribbon, modal, and splitter geometry", () => {
-    assert.match(ribbon, /elementLayoutScale/);
+  it("avoids measuring ribbon tabs and normalizes modal and splitter geometry", () => {
+    assert.doesNotMatch(ribbon, /getBoundingClientRect|elementLayoutScale|screenToLocal/);
     assert.match(modal, /elementLayoutScale/);
     assert.match(app, /elementLayoutScale\(appContentRef\.current\)/);
     assert.match(app, /screenToLocal/);

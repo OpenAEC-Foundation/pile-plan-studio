@@ -16,9 +16,10 @@ describe("App save and interface shortcuts", () => {
   });
 
   it("loads, applies, and persists desktop interface scale", () => {
-    assert.match(source, /loadInterfaceScale\(\)/);
+    assert.match(source, /createPlatformUserSettingsStore/);
+    assert.match(source, /loadUserSettings/);
     assert.match(source, /applyDesktopInterfaceScale/);
-    assert.match(source, /saveInterfaceScale/);
+    assert.match(source, /saveUserSettings/);
     assert.match(source, /stepInterfaceScale/);
     assert.match(source, /DEFAULT_INTERFACE_SCALE/);
   });

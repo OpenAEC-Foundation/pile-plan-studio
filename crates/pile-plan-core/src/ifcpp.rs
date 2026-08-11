@@ -1,6 +1,6 @@
 use std::fmt;
 
-use serde_json::Error as JsonError;
+use serde_json::{Error as JsonError, Value};
 
 use crate::PilePlanProject;
 
@@ -32,10 +32,9 @@ impl From<JsonError> for IfcppError {
 }
 
 pub fn read_ifcpp_str(input: &str) -> Result<PilePlanProject, IfcppError> {
-    let mut project: PilePlanProject = serde_json::from_str(input)?;
-    if project.schema_version == 1 {
-        project.schema_version = 2;
-    }
+    let mut value: Value = serde_json::from_str(input)?;
+    migrate_legacy_project_value(&mut value);
+    let mut project: PilePlanProject = serde_json::from_value(value)?;
     project.settings.viewer_utilization = project.settings.viewer_utilization.normalized();
     project.settings.optimization.max_utilization = project
         .settings
@@ -49,8 +48,8 @@ pub fn read_ifcpp_str(input: &str) -> Result<PilePlanProject, IfcppError> {
 
 pub fn write_ifcpp_string(project: &PilePlanProject) -> Result<String, IfcppError> {
     let mut canonical = project.clone();
-    if canonical.schema_version == 1 {
-        canonical.schema_version = 2;
+    if canonical.schema_version < 3 {
+        canonical.schema_version = 3;
     }
     validate_ifcpp_project(&canonical)?;
 
@@ -62,11 +61,54 @@ pub fn validate_ifcpp_project(project: &PilePlanProject) -> Result<(), IfcppErro
         return Err(IfcppError::InvalidSchema(project.schema.clone()));
     }
 
-    if project.schema_version != 1 && project.schema_version != 2 {
+    if !matches!(project.schema_version, 1 | 2 | 3) {
         return Err(IfcppError::UnsupportedSchemaVersion(project.schema_version));
     }
 
     Ok(())
+}
+
+fn migrate_legacy_project_value(value: &mut Value) {
+    let schema_version = value
+        .get("schema_version")
+        .and_then(Value::as_u64)
+        .unwrap_or(0);
+    if !matches!(schema_version, 1 | 2) {
+        return;
+    }
+
+    let Some(settings) = value.get_mut("settings").and_then(Value::as_object_mut) else {
+        return;
+    };
+    let legacy_head_level = settings
+        .get_mut("pile_costs")
+        .and_then(Value::as_object_mut)
+        .and_then(|costs| {
+            let head_level = costs.remove("pile_head_level_m");
+            if let Some(items) = costs.get_mut("items").and_then(Value::as_array_mut) {
+                for item in items {
+                    let Some(item) = item.as_object_mut() else { continue };
+                    if !item.contains_key("cost_per_m3") {
+                        if let Some(cost) = item.remove("cost_per_m3_eur") {
+                            item.insert("cost_per_m3".to_string(), cost);
+                        }
+                    }
+                }
+            }
+            head_level
+        });
+    if !settings.contains_key("pile_head_level_m") {
+        settings.insert(
+            "pile_head_level_m".to_string(),
+            legacy_head_level.unwrap_or(Value::Null),
+        );
+    }
+    settings.entry("viewer").or_insert_with(|| serde_json::json!({
+        "symbol_scale_percent": 100,
+        "foreground_layer": "load-points",
+        "show_grid": true
+    }));
+    value["schema_version"] = Value::from(3);
 }
 
 #[cfg(test)]
@@ -76,8 +118,8 @@ mod tests {
 
     use crate::{
         CptSelectionAlgorithm, CptSelectionSettings, GreedyOptimizationSettings, PileCostSettings,
-        ProjectApplication, ProjectImportLogEntry, ProjectInputs, ProjectMetadata, ProjectSettings,
-        ProjectUnits, ProjectUserState,
+        PileCostSettingsItem, PileCostShape, ProjectApplication, ProjectImportLogEntry,
+        ProjectInputs, ProjectMetadata, ProjectSettings, ProjectUnits, ProjectUserState,
     };
 
     #[test]
@@ -109,14 +151,14 @@ mod tests {
     }
 
     #[test]
-    fn writing_a_legacy_project_emits_schema_version_two() {
+    fn writing_a_legacy_project_emits_schema_version_three() {
         let mut project = project_fixture();
         project.schema_version = 1;
 
         let json = write_ifcpp_string(&project).expect("legacy project writes canonically");
         let value: serde_json::Value = serde_json::from_str(&json).expect("written JSON parses");
 
-        assert_eq!(value["schema_version"], 2);
+        assert_eq!(value["schema_version"], 3);
         assert!(value["user_state"].get("selected_piles").is_none());
     }
 
@@ -132,10 +174,43 @@ mod tests {
         assert_eq!(project.settings.pile_costs.items.len(), 10);
     }
 
+    #[test]
+    fn schema_two_costs_migrate_to_schema_three() {
+        let mut value = serde_json::to_value(project_fixture()).expect("fixture serializes");
+        value["schema_version"] = serde_json::json!(2);
+        value["units"]["costs"] = serde_json::json!("GBP");
+        value["settings"]["pile_costs"]["pile_head_level_m"] = serde_json::json!(-1.25);
+        value["settings"]["pile_costs"]["items"][0]["cost_per_m3_eur"] =
+            serde_json::json!(190.0);
+        value["settings"]["pile_costs"]["items"][0]
+            .as_object_mut()
+            .expect("cost row is object")
+            .remove("cost_per_m3");
+        value["settings"]
+            .as_object_mut()
+            .expect("settings are object")
+            .remove("pile_head_level_m");
+        value["settings"]
+            .as_object_mut()
+            .expect("settings are object")
+            .remove("viewer");
+
+        let json = serde_json::to_string(&value).expect("legacy JSON writes");
+        let project = read_ifcpp_str(&json).expect("schema two migrates");
+
+        assert_eq!(project.schema_version, 3);
+        assert_eq!(project.settings.pile_head_level_m, Some(-1.25));
+        assert_eq!(project.settings.pile_costs.items[0].cost_per_m3, 190.0);
+        assert_eq!(project.units.costs, "GBP");
+        assert_eq!(project.settings.viewer.symbol_scale_percent, 100);
+        assert_eq!(project.settings.viewer.foreground_layer, "load-points");
+        assert!(project.settings.viewer.show_grid);
+    }
+
     fn project_fixture() -> PilePlanProject {
         PilePlanProject {
             schema: "IFCPP".to_string(),
-            schema_version: 2,
+            schema_version: 3,
             application: ProjectApplication {
                 name: "Pile Plan Studio".to_string(),
                 version: "0.1.0-alpha".to_string(),
@@ -171,9 +246,13 @@ mod tests {
                 cpt_selection_by_load_point: Default::default(),
                 pile_costs: PileCostSettings {
                     schema_version: 1,
-                    pile_head_level_m: 0.0,
-                    items: vec![],
+                    items: vec![PileCostSettingsItem {
+                        pile_size_mm: 290,
+                        shape: PileCostShape::Round,
+                        cost_per_m3: 190.0,
+                    }],
                 },
+                pile_head_level_m: Some(0.0),
                 optimization: GreedyOptimizationSettings {
                     max_pile_sizes: 0,
                     max_pile_tip_levels: 0,
@@ -189,6 +268,7 @@ mod tests {
                 active_pile_sizes: vec![],
                 active_pile_tip_levels: vec![],
                 pile_legend: None,
+                viewer: Default::default(),
             },
             user_state: ProjectUserState::with_default_pile_plan(
                 Default::default(),

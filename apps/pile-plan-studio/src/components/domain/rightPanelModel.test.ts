@@ -28,6 +28,7 @@ describe("React right panel model", () => {
     const rows = getRenderablePileOptionRows({
       cpts: state.cpts,
       costsByOptionKey: state.pileCostByOptionKey,
+      currencyCode: "GBP",
       options: [
         {
           pile_size_mm: 290,
@@ -59,7 +60,7 @@ describe("React right panel model", () => {
     assert.equal(rows[0].statusLabel, "OK");
     assert.equal(rows[0].governingLabel, "CPT 64");
     assert.equal(rows[0].governingCptId, 64);
-    assert.equal(rows[0].costLabel, "€1,234");
+    assert.equal(rows[0].costLabel, "£1,234");
     assert.equal(rows[0].useLabel, "75%");
     assert.equal(rows[0].frdLabel, "900 kN");
     assert.match(rows[0].symbolHtml, /<rect x="3" y="7" width="18" height="10"/);

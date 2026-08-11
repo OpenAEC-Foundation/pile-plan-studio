@@ -13,6 +13,8 @@ import RightPanel, { type RightTaskPanel } from "./components/domain/RightPanel"
 import ProjectInformationDialog from "./components/domain/ProjectInformationDialog";
 import UnsavedChangesDialog from "./components/domain/UnsavedChangesDialog.tsx";
 import PilePlanExplorer from "./components/domain/PilePlanExplorer.tsx";
+import SourceDataViewer from "./components/domain/SourceDataViewer.tsx";
+import type { InputSourceKind } from "./domain/projectState.ts";
 import {
   calculatePileCostCore,
   calculateProjectAnalysisCore,
@@ -24,7 +26,9 @@ import {
   refreshProjectFromFilesCore,
 } from "./core/coreClient";
 import type { ImportSourceInput } from "./core/coreImportContract";
-import { applyDefaultPileCostSettings, getImportSummary, loadIfcppProjectData } from "./core/projectFile";
+import type { ProjectImportProperties } from "./components/domain/ProjectImportPanel.tsx";
+import type { ImportFileRole } from "./core/importFiles.ts";
+import { getImportSummary, loadIfcppProjectData } from "./core/projectFile";
 import { writeIfcppProjectCore } from "./core/coreClient";
 import { createInitialProjectState, type ProjectState } from "./domain/projectState";
 import { getSetting } from "./store";
@@ -48,8 +52,8 @@ import {
 import {
   DEFAULT_EXPLORER_WIDTH,
   DEFAULT_RIGHT_PANEL_WIDTH,
-  resizeExplorerWidth,
-  resizeRightPanelWidth,
+  snapExplorerWidth,
+  snapRightPanelWidth,
 } from "./viewer/panelLayout.ts";
 import { buildPilePlanExportInput } from "./domain/pilePlanExport.ts";
 import {
@@ -58,7 +62,6 @@ import {
 } from "./domain/pilePlanImport.ts";
 import type { PilePlanImportPatch } from "./core/pilePlanImportContract.ts";
 import { mergeDefaultPileChoices } from "./domain/defaultPileChoices.ts";
-import { loadViewerPreferences, saveViewerPreferences } from "./domain/viewerPreferences.ts";
 import { summarizePilePlanCosts } from "./domain/projectCostSummary.ts";
 import {
   createPilePlan,
@@ -94,12 +97,24 @@ import {
 import { loadBrowserRecovery } from "./domain/browserRecoveryStartup.ts";
 import { classifyAppShortcut } from "./domain/appShortcuts.ts";
 import { DEFAULT_INTERFACE_SCALE, stepInterfaceScale } from "./domain/interfaceScale.ts";
+import { applyDesktopInterfaceScale } from "./domain/interfaceScaleRuntime.ts";
 import {
-  applyDesktopInterfaceScale,
-  loadInterfaceScale,
-  saveInterfaceScale,
-} from "./domain/interfaceScaleRuntime.ts";
+  DEFAULT_USER_SETTINGS,
+  patchPileCostDefaults,
+  patchUserSettings,
+  patchWorkspaceLayout,
+  type UserSettings,
+  type WorkspaceLayoutSettings,
+} from "./domain/userSettings.ts";
+import {
+  createPlatformUserSettingsStore,
+  loadUserSettings,
+  saveUserSettings,
+  type UserSettingsStore,
+} from "./domain/userSettingsStore.ts";
+import { changeLanguage } from "./i18n/config.ts";
 import { elementLayoutScale, screenToLocal } from "./domain/uiBaseline.ts";
+import { applyPileCostCatalogDefault, mergePileCostCatalog } from "./domain/pileCostCatalog.ts";
 
 const BUILT_IN_PILE_COST_DEFAULTS = loadIfcppProjectData(sampleProjectText).pileCostSettings;
 
@@ -216,16 +231,16 @@ function AppSession({
   const [feedbackOpen, setFeedbackOpen] = useState(false);
   const [projectInformationOpen, setProjectInformationOpen] = useState(false);
   const [rightTaskPanel, setRightTaskPanel] = useState<RightTaskPanel | null>(null);
+  const [activeSourceKind, setActiveSourceKind] = useState<InputSourceKind | null>(null);
+  const [initialImportSource, setInitialImportSource] = useState<{ role: ImportFileRole; file: File } | null>(null);
   const [isDirty, setIsDirty] = useState(initialWasDirty);
   const [projectPath, setProjectPath] = useState<string | null>(null);
   const [unsavedChangesOpen, setUnsavedChangesOpen] = useState(false);
   const appContentRef = useRef<HTMLDivElement | null>(null);
   const explorerWidthRef = useRef(DEFAULT_EXPLORER_WIDTH);
   const rightPanelWidthRef = useRef(DEFAULT_RIGHT_PANEL_WIDTH);
-  const [theme, setTheme] = useState("light");
-  const [interfaceScalePercent, setInterfaceScalePercent] = useState(DEFAULT_INTERFACE_SCALE);
-  const [interfaceScaleLoaded, setInterfaceScaleLoaded] = useState(false);
-  const [viewerPreferencesLoaded, setViewerPreferencesLoaded] = useState(false);
+  const userSettingsStoreRef = useRef<UserSettingsStore | null>(null);
+  const [userSettings, setUserSettings] = useState<UserSettings>(DEFAULT_USER_SETTINGS);
   const [creatingPilePlan, setCreatingPilePlan] = useState(false);
   const [statusMessage, setStatusMessage] = useState("");
   const statusMessageTimeoutRef = useRef<number | null>(null);
@@ -269,6 +284,25 @@ function AppSession({
   const projectActionRef = useRef<(() => Promise<boolean>) | null>(null);
   const saveShortcutInFlightRef = useRef(false);
   const isDesktop = isDesktopRuntime();
+  const { workspaceLayout } = userSettings.preferences;
+  const interfaceScalePercent = userSettings.preferences.interfaceScalePercent;
+
+  const commitUserSettings = useCallback((next: UserSettings) => {
+    setUserSettings(next);
+    if (userSettingsStoreRef.current) {
+      void saveUserSettings(userSettingsStoreRef.current, next);
+    }
+  }, []);
+
+  const updateWorkspaceLayout = useCallback((patch: Partial<WorkspaceLayoutSettings>) => {
+    setUserSettings((current) => {
+      const next = patchWorkspaceLayout(current, patch);
+      if (userSettingsStoreRef.current) {
+        void saveUserSettings(userSettingsStoreRef.current, next);
+      }
+      return next;
+    });
+  }, []);
   const projectFileCommands = getProjectFileCommands(isDesktop);
   const canUndo = managedProject.history.past.length > 0;
   const canRedo = managedProject.history.future.length > 0;
@@ -450,9 +484,15 @@ function AppSession({
         return;
       }
 
-      setInterfaceScalePercent((current) => action === "zoom-reset"
-        ? DEFAULT_INTERFACE_SCALE
-        : stepInterfaceScale(current, action === "zoom-in" ? 1 : -1));
+      setUserSettings((current) => {
+        const currentScale = current.preferences.interfaceScalePercent;
+        const scale = action === "zoom-reset"
+          ? DEFAULT_INTERFACE_SCALE
+          : stepInterfaceScale(currentScale, action === "zoom-in" ? 1 : -1);
+        const next = patchUserSettings(current, { interfaceScalePercent: scale });
+        if (userSettingsStoreRef.current) void saveUserSettings(userSettingsStoreRef.current, next);
+        return next;
+      });
     };
     window.addEventListener("keydown", handleAppShortcut);
     return () => window.removeEventListener("keydown", handleAppShortcut);
@@ -509,6 +549,7 @@ function AppSession({
   const pilePlanLanguage = (): PilePlanLanguage => i18n.language.startsWith("nl") ? "nl" : "en";
 
   const activatePilePlan = (pilePlanId: string) => {
+    setActiveSourceKind(null);
     setProjectState((current) => {
       if (pilePlanId === current.activePilePlanId) return current;
       const transition = switchPilePlan({ ...current, targetPilePlanId: pilePlanId });
@@ -660,6 +701,7 @@ function AppSession({
         ? new Map<number, string>()
         : await chooseDefaultPileOptionsCore({
             optionsByLoadPointId,
+            pileHeadLevelM: snapshot.pileHeadLevelM ?? 0,
             costSettings: snapshot.pileCostSettings,
           });
       commitProjectState((current) => {
@@ -682,47 +724,31 @@ function AppSession({
   };
 
   useEffect(() => {
-    getSetting("theme", "light").then((saved) => {
-      setTheme(saved);
-      applyTheme(saved);
-    });
-  }, []);
-
-  useEffect(() => {
-    if (!isDesktop) {
-      setInterfaceScaleLoaded(true);
-      return;
-    }
     let cancelled = false;
-    loadInterfaceScale().then((scale) => {
+    void createPlatformUserSettingsStore({
+      isTauri: isDesktop,
+      indexedDb: window.indexedDB,
+    }).then(async (store) => {
+      const settings = await loadUserSettings(
+        store,
+        (key, fallback) => getSetting(key, fallback),
+      );
       if (cancelled) return;
-      setInterfaceScalePercent(scale);
-      setInterfaceScaleLoaded(true);
+      userSettingsStoreRef.current = store;
+      explorerWidthRef.current = settings.preferences.workspaceLayout.explorerWidth;
+      rightPanelWidthRef.current = settings.preferences.workspaceLayout.propertiesWidth;
+      setUserSettings(settings);
+      applyTheme(settings.preferences.theme);
+      await changeLanguage(settings.preferences.language);
+      await saveUserSettings(store, settings);
     });
     return () => { cancelled = true; };
   }, [isDesktop]);
 
   useEffect(() => {
-    if (!isDesktop || !interfaceScaleLoaded) return;
+    if (!isDesktop) return;
     void applyDesktopInterfaceScale(interfaceScalePercent);
-    void saveInterfaceScale(interfaceScalePercent);
-  }, [interfaceScaleLoaded, interfaceScalePercent, isDesktop]);
-
-  useEffect(() => {
-    loadViewerPreferences().then((preferences) => {
-      setProjectState((current) => ({ ...current, ...preferences }));
-      setViewerPreferencesLoaded(true);
-    });
-  }, []);
-
-  useEffect(() => {
-    if (!viewerPreferencesLoaded) return;
-    void saveViewerPreferences({
-      symbolScalePercent: projectState.symbolScalePercent,
-      foregroundLayer: projectState.foregroundLayer,
-      showGrid: projectState.showGrid,
-    });
-  }, [projectState.foregroundLayer, projectState.showGrid, projectState.symbolScalePercent, viewerPreferencesLoaded]);
+  }, [interfaceScalePercent, isDesktop]);
 
   useEffect(() => {
     let cancelled = false;
@@ -802,6 +828,7 @@ function AppSession({
 
     chooseDefaultPileOptionsCore({
       optionsByLoadPointId: projectState.pileOptionsByLoadPointId,
+      pileHeadLevelM: projectState.pileHeadLevelM ?? 0,
       costSettings: projectState.pileCostSettings,
     }).then((choices) => {
       const applyChoices = (current: ProjectState) => {
@@ -862,6 +889,7 @@ function AppSession({
       await calculatePileCostCore({
         pileSizeMm: option.pile_size_mm,
         pileTipLevelM: option.pile_tip_level_m,
+        pileHeadLevelM: projectState.pileHeadLevelM ?? 0,
         settings: projectState.pileCostSettings,
       }),
     ] as const)).then((entries) => {
@@ -875,7 +903,7 @@ function AppSession({
     return () => {
       cancelled = true;
     };
-  }, [projectState.pileCostSettings, projectState.pileOptionsByLoadPointId]);
+  }, [projectState.pileCostSettings, projectState.pileHeadLevelM, projectState.pileOptionsByLoadPointId]);
 
   const runGreedyOptimization = async () => {
     const snapshot = projectState;
@@ -936,6 +964,7 @@ function AppSession({
     try {
       const choices = await greedyOptimizeCore({
         optionsByLoadPoint,
+        pileHeadLevelM: snapshot.pileHeadLevelM ?? 0,
         costSettings: snapshot.pileCostSettings,
         settings,
       });
@@ -990,7 +1019,6 @@ function AppSession({
     if (!await confirmProjectReplacement()) return;
     installOpenedProject(createInitialProjectState(sampleProjectText, {
       initializeDefaultPiles: true,
-      viewerPreferences: projectState,
       defaultPilePlanName: pilePlanLanguage() === "nl" ? "Basisplan" : "Base plan",
     }), null);
     showStatusMessage(t("recovery.sampleOpened"));
@@ -1002,7 +1030,6 @@ function AppSession({
     const text = await invoke<string>("read_project_file", { path });
     installOpenedProject(createInitialProjectState(text, {
       initializeDefaultPiles: false,
-      viewerPreferences: projectState,
     }), path);
   };
 
@@ -1031,10 +1058,14 @@ function AppSession({
           onFileTabClick={() => setBackstageOpen(true)}
           onOpenProjectInformation={() => setProjectInformationOpen(true)}
           onOpenRightPanel={(mode) => {
+            updateWorkspaceLayout({ propertiesVisible: true });
             setRightTaskPanel(null);
             setProjectState((current) => ({ ...current, ...switchRightPanelMode(current, mode) }));
           }}
-          onOpenTaskPanel={setRightTaskPanel}
+          onOpenTaskPanel={(panel) => {
+            updateWorkspaceLayout({ propertiesVisible: true });
+            setRightTaskPanel(panel);
+          }}
           onRunOptimization={runGreedyOptimization}
           optimizationDisabled={optimizationDisabled}
           isLockEditing={projectState.loadPointLockDraft !== null}
@@ -1047,71 +1078,128 @@ function AppSession({
           viewerUtilizationMaximum={projectState.viewerUtilizationSettings.maximum}
           foregroundLayer={projectState.foregroundLayer}
           showGrid={projectState.showGrid}
-          onSymbolScaleChange={(symbolScalePercent) => setProjectState((current) => ({
-            ...current,
+          explorerVisible={workspaceLayout.explorerVisible}
+          propertiesVisible={workspaceLayout.propertiesVisible}
+          onSymbolScaleChange={(symbolScalePercent) => handleProjectStateChange({
+            ...projectState,
             symbolScalePercent,
-          }))}
+          })}
           onViewerUtilizationRangeChange={(minimum, maximum) => handleProjectStateChange({
             ...projectState,
             viewerUtilizationSettings: { minimum, maximum },
           })}
-          onForegroundLayerChange={(foregroundLayer) => setProjectState((current) => ({
-            ...current,
+          onForegroundLayerChange={(foregroundLayer) => handleProjectStateChange({
+            ...projectState,
             foregroundLayer,
-          }))}
-          onGridVisibilityChange={(showGrid) => setProjectState((current) => ({
-            ...current,
+          })}
+          onGridVisibilityChange={(showGrid) => handleProjectStateChange({
+            ...projectState,
             showGrid,
-          }))}
+          })}
+          onExplorerVisibilityChange={(explorerVisible) => updateWorkspaceLayout({ explorerVisible })}
+          onPropertiesVisibilityChange={(propertiesVisible) => updateWorkspaceLayout({ propertiesVisible })}
         />
         <div
           className="app-content"
           ref={appContentRef}
           style={{
-            "--explorer-width": `${DEFAULT_EXPLORER_WIDTH}px`,
-            "--right-panel-width": `${DEFAULT_RIGHT_PANEL_WIDTH}px`,
+            "--explorer-width": `${workspaceLayout.explorerVisible ? workspaceLayout.explorerWidth : 0}px`,
+            "--explorer-splitter-width": workspaceLayout.explorerVisible ? "5px" : "0px",
+            "--right-panel-width": `${workspaceLayout.propertiesVisible ? workspaceLayout.propertiesWidth : 0}px`,
+            "--right-panel-splitter-width": workspaceLayout.propertiesVisible ? "5px" : "0px",
           } as CSSProperties}
         >
-          <PilePlanExplorer
+          {workspaceLayout.explorerVisible && <PilePlanExplorer
             activePilePlanId={projectState.activePilePlanId}
+            activeSourceKind={activeSourceKind}
             costSummaries={pilePlanCostSummaries}
+            currencyCode={projectState.currencyCode}
             createDisabled={
               projectState.pileOptionsByLoadPointId.size !== projectState.loadPoints.length
               || projectState.analysisError !== null
             }
             creating={creatingPilePlan}
             isDirty={isDirty}
+            inputSources={projectState.inputSources}
+            inputSourcesExpanded={workspaceLayout.inputSourcesExpanded}
             pilePlans={projectState.pilePlans}
+            pilePlansExpanded={workspaceLayout.pilePlansExpanded}
             projectName={projectState.name}
             onActivate={activatePilePlan}
             onCreate={() => void createFreshPilePlan()}
             onDelete={deleteProjectPilePlan}
             onDuplicate={duplicateProjectPilePlan}
+            onExpansionChange={(group, expanded) => updateWorkspaceLayout(
+              group === "inputSources"
+                ? { inputSourcesExpanded: expanded }
+                : { pilePlansExpanded: expanded },
+            )}
             onRename={renameProjectPilePlan}
-          />
-          <div
+            onSourceActivate={setActiveSourceKind}
+          />}
+          {workspaceLayout.explorerVisible && <div
             aria-label={t("explorer")}
             className="explorer-splitter"
             role="separator"
             onPointerDown={beginExplorerResize}
-          />
+          />}
           <main className="workspace" aria-label="Pile plan workspace">
-            <PilePlanWorkspace state={projectState} onStateChange={handleProjectStateChange} />
+            {activeSourceKind === null ? (
+              <PilePlanWorkspace state={projectState} onStateChange={handleProjectStateChange} />
+            ) : (
+              <SourceDataViewer
+                source={projectState.inputSources.find(({ kind }) => kind === activeSourceKind)!}
+                loadPoints={projectState.loadPoints}
+                cpts={projectState.cpts}
+                bearingCapacities={projectState.bearingCapacities}
+                onReplaceSource={(file) => {
+                  setInitialImportSource({ role: importRoleForSource(activeSourceKind), file });
+                  setBackstageOpen(true);
+                }}
+              />
+            )}
             <HistoryNotice message={historyNotice.message} noticeId={historyNotice.id} />
           </main>
-          <div
+          {workspaceLayout.propertiesVisible && <div
             aria-label={t("properties")}
             className="right-panel-splitter"
             role="separator"
             onPointerDown={beginRightPanelResize}
-          />
-          <RightPanel
+          />}
+          {workspaceLayout.propertiesVisible && <RightPanel
             state={projectState}
             onStateChange={handleProjectStateChange}
             onRunOptimization={runGreedyOptimization}
             taskPanel={rightTaskPanel}
             onCloseTaskPanel={() => setRightTaskPanel(null)}
-          />
+            hasPersonalCostDefault={userSettings.defaults.pileCostCatalog !== null}
+            onSaveCostDefault={(pileCostCatalog) => commitUserSettings(patchPileCostDefaults(userSettings, pileCostCatalog))}
+            onRemoveCostDefault={() => commitUserSettings(patchPileCostDefaults(userSettings, null))}
+            onLoadCostDefault={() => {
+              const catalog = userSettings.defaults.pileCostCatalog;
+              if (!catalog) return;
+              const usedPileSizes = new Set(projectState.bearingCapacities.map((capacity) => capacity.pile_size_mm));
+              handleProjectStateChange({
+                ...projectState,
+                pileCostSettings: applyPileCostCatalogDefault(
+                  projectState.pileCostSettings,
+                  catalog,
+                  usedPileSizes,
+                ).catalog,
+              });
+            }}
+            onLoadBuiltInCosts={() => {
+              const usedPileSizes = new Set(projectState.bearingCapacities.map((capacity) => capacity.pile_size_mm));
+              handleProjectStateChange({
+                ...projectState,
+                pileCostSettings: applyPileCostCatalogDefault(
+                  projectState.pileCostSettings,
+                  BUILT_IN_PILE_COST_DEFAULTS,
+                  usedPileSizes,
+                ).catalog,
+              });
+            }}
+          />}
         </div>
         <StatusBar
           zoomPercent={projectState.viewport.scale * 100}
@@ -1120,15 +1208,20 @@ function AppSession({
       </div>
       <Backstage
         open={backstageOpen}
-        onClose={() => setBackstageOpen(false)}
+        onClose={() => {
+          setBackstageOpen(false);
+          setInitialImportSource(null);
+        }}
+        initialImportSource={initialImportSource}
         onOpenSettings={() => setSettingsOpen(true)}
         commands={projectFileCommands}
         loadPoints={projectState.loadPoints}
         cpts={projectState.cpts}
         availablePileConfigurations={availablePileConfigurations}
-        activePilePlanName={activePilePlanName}
+          activePilePlanName={activePilePlanName}
+          defaultCurrencyCode={userSettings.preferences.defaultCurrencyCode}
         onImportPilePlan={importPilePlan}
-        onImportProject={async (mode, projectName: string | null, sources: ImportSourceInput[]) => {
+        onImportProject={async (mode, projectName: string | null, sources: ImportSourceInput[], properties: ProjectImportProperties | null) => {
           if (mode === "refresh") {
             const refreshedProject = await refreshProjectFromFilesCore({
               currentProject: projectFromState(projectState),
@@ -1137,22 +1230,32 @@ function AppSession({
             defaultSelectionKeepsDirtyRef.current = true;
             commitProjectState(createInitialProjectState(refreshedProject, {
               initializeDefaultPiles: true,
-              viewerPreferences: projectState,
             }));
             setIsDirty(true);
             return getImportSummary(refreshedProject);
           }
 
           if (!await confirmProjectReplacement()) return null;
-          const project = await importProjectFromFilesCore({
-            projectName: projectName ?? projectState.name,
-            sources,
-          });
-          const withCosts = applyDefaultPileCostSettings(project, BUILT_IN_PILE_COST_DEFAULTS);
+            const project = await importProjectFromFilesCore({
+              projectName: projectName ?? projectState.name,
+              pileHeadLevelM: properties?.pileHeadLevelM ?? 0,
+              currencyCode: properties?.currencyCode ?? userSettings.preferences.defaultCurrencyCode,
+              sources,
+            });
+            const usedPileSizes = new Set(project.inputs.bearing_capacities.map((capacity) => capacity.pile_size_mm));
+            const mergedCosts = mergePileCostCatalog(
+              project.settings.pile_costs,
+              userSettings.defaults.pileCostCatalog,
+              BUILT_IN_PILE_COST_DEFAULTS,
+              usedPileSizes,
+            ).catalog;
+            const withCosts = {
+              ...project,
+              settings: { ...project.settings, pile_costs: mergedCosts },
+            };
           defaultSelectionKeepsDirtyRef.current = false;
           replaceProjectState(createInitialProjectState(withCosts, {
             initializeDefaultPiles: true,
-            viewerPreferences: projectState,
             defaultPilePlanName: pilePlanLanguage() === "nl" ? "Basisplan" : "Base plan",
           }));
           setProjectPath(null);
@@ -1164,7 +1267,7 @@ function AppSession({
           if (!await confirmProjectReplacement()) return;
           const project = createInitialProjectState(
             await file.text(),
-            { initializeDefaultPiles: false, viewerPreferences: projectState },
+            { initializeDefaultPiles: false },
           );
           installOpenedProject(project, null);
         }}
@@ -1180,19 +1283,27 @@ function AppSession({
       <SettingsDialog
         open={settingsOpen}
         onClose={() => setSettingsOpen(false)}
-        theme={theme}
-        onThemeChange={setTheme}
+        theme={userSettings.preferences.theme}
+        language={userSettings.preferences.language}
+        defaultCurrencyCode={userSettings.preferences.defaultCurrencyCode}
+        onPreferencesChange={(preferences) => commitUserSettings(patchUserSettings(userSettings, preferences))}
         isDesktop={isDesktop}
         interfaceScalePercent={interfaceScalePercent}
         onInterfaceScalePreview={(scale) => { void applyDesktopInterfaceScale(scale); }}
-        onInterfaceScaleChange={setInterfaceScalePercent}
       />
-      <ProjectInformationDialog
-        open={projectInformationOpen}
-        projectName={projectState.name}
-        onClose={() => setProjectInformationOpen(false)}
-        onSave={(name) => handleProjectStateChange({ ...projectState, name })}
-      />
+        <ProjectInformationDialog
+          open={projectInformationOpen}
+          projectName={projectState.name}
+          pileHeadLevelM={projectState.pileHeadLevelM}
+          currencyCode={projectState.currencyCode}
+          onClose={() => setProjectInformationOpen(false)}
+          onSave={({ projectName, pileHeadLevelM, currencyCode }) => handleProjectStateChange({
+            ...projectState,
+            name: projectName,
+            pileHeadLevelM,
+            currencyCode,
+          })}
+        />
       <UnsavedChangesDialog
         open={unsavedChangesOpen}
         isDesktop={isDesktop}
@@ -1215,15 +1326,13 @@ function AppSession({
     document.body.classList.add("is-resizing-panel");
 
     const handlePointerMove = (moveEvent: PointerEvent) => {
-      currentWidth = resizeExplorerWidth({
-        startWidth,
-        startX,
-        currentX: screenToLocal(moveEvent.clientX, layoutScale),
-      });
+      currentWidth = Math.max(0, startWidth + screenToLocal(moveEvent.clientX, layoutScale) - startX);
       appContentRef.current?.style.setProperty("--explorer-width", `${currentWidth}px`);
     };
     const handlePointerUp = () => {
-      explorerWidthRef.current = currentWidth;
+      const snapped = snapExplorerWidth(currentWidth);
+      explorerWidthRef.current = snapped.width;
+      updateWorkspaceLayout({ explorerVisible: snapped.visible, explorerWidth: snapped.width });
       document.body.classList.remove("is-resizing-panel");
       window.removeEventListener("pointermove", handlePointerMove);
       window.removeEventListener("pointerup", handlePointerUp);
@@ -1244,15 +1353,13 @@ function AppSession({
     document.body.classList.add("is-resizing-panel");
 
     const handlePointerMove = (moveEvent: PointerEvent) => {
-      currentWidth = resizeRightPanelWidth({
-        startWidth,
-        startX,
-        currentX: screenToLocal(moveEvent.clientX, layoutScale),
-      });
+      currentWidth = Math.max(0, startWidth + startX - screenToLocal(moveEvent.clientX, layoutScale));
       appContentRef.current?.style.setProperty("--right-panel-width", `${currentWidth}px`);
     };
     const handlePointerUp = () => {
-      rightPanelWidthRef.current = currentWidth;
+      const snapped = snapRightPanelWidth(currentWidth);
+      rightPanelWidthRef.current = snapped.width;
+      updateWorkspaceLayout({ propertiesVisible: snapped.visible, propertiesWidth: snapped.width });
       document.body.classList.remove("is-resizing-panel");
       window.removeEventListener("pointermove", handlePointerMove);
       window.removeEventListener("pointerup", handlePointerUp);
@@ -1274,4 +1381,10 @@ function isEditableTarget(target: EventTarget | null): boolean {
   return target instanceof HTMLElement && (
     target.matches("input, textarea, select") || target.isContentEditable
   );
+}
+
+function importRoleForSource(kind: InputSourceKind): ImportFileRole {
+  if (kind === "load_points") return "load-points";
+  if (kind === "bearing_capacities") return "bearing-capacities";
+  return "cpts";
 }

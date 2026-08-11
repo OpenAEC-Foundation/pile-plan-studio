@@ -42,6 +42,11 @@
     "cpts": "CPTs",
     "grid": "Grid",
     "showGrid": "Show grid",
-    "hideGrid": "Hide grid"
+    "hideGrid": "Hide grid",
+    "windows": "Windows",
+    "showExplorer": "Show explorer",
+    "hideExplorer": "Hide explorer",
+    "showProperties": "Show properties",
+    "hideProperties": "Hide properties"
   }
 }

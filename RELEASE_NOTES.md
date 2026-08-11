@@ -1,5 +1,51 @@
 # Pile Plan Studio Release Notes
 
+## 0.2.0-alpha
+
+This alpha establishes a clearer project and application boundary, adds
+inspectable imported sources, and makes pile-cost data reusable without
+silently leaking project choices into other projects.
+
+### Added
+
+- Inspect normalized load points, CPTs, and foundation-advice rows directly
+  from the project explorer, with combined column filters and sorting.
+- Replace one imported source from its viewer while retaining matched pile
+  assignments, CPT selections, project settings, and other source data.
+- Store language, theme, interface scale, default currency, workspace panel
+  layout, and explicit user cost defaults in one versioned user-settings file.
+- Show or hide the explorer and properties panel from the View ribbon; both
+  panels remain resizable and remember their last useful width.
+- Require a pile head level when importing a new project and edit the project
+  name, pile head level, and project currency through Project information.
+- Add, edit, group, and remove pile-size cost rows. Project-used sizes are
+  protected, missing rows are reported, and unrelated saved sizes stay
+  available in a collapsed group.
+- Save, load, or remove a personal pile-cost default explicitly, or restore the
+  built-in catalog. Personal defaults apply automatically only to new imports.
+
+### Improved
+
+- IFCPP schema version 3 stores project currency, pile head level, viewer
+  presentation, and currency-neutral costs while retaining migration support
+  for schema versions 1 and 2.
+- Project viewer presentation participates in Undo and browser recovery, while
+  workspace layout and reusable defaults remain application preferences.
+- New-project cost catalogs merge personal, built-in, imported, and
+  project-specific rows without dropping unmatched custom sizes.
+- Source-table filtering no longer reads released React events during state
+  updates.
+- Windows release builds no longer open an accompanying terminal window; debug
+  builds retain their console for development.
+
+### Notes
+
+- Currency changes relabel amounts and do not convert numeric values.
+- Source tables show interpreted project data rather than raw spreadsheet
+  cells and remain read-only in this release.
+- Automatic refresh from remembered source paths and imperial units remain out
+  of scope.
+
 ## 0.1.9-alpha
 
 This alpha adds project-scoped legend personalization and improves the visual

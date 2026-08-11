@@ -9,6 +9,7 @@ import type {
   LoadPoint,
   PileConfigurationKey,
   PileCostSettings,
+  PileCostSettingsItem,
   ViewerUtilizationSettings,
 } from "./projectTypes.ts";
 import {
@@ -57,11 +58,31 @@ type IfcppProjectLegend = {
   pile_tip_levels: IfcppLegendValueStyle[];
 };
 
+type IfcppPileCostSettings = Omit<PileCostSettings, "items"> & {
+  pile_head_level_m?: number;
+  items: Array<PileCostSettingsItem & { cost_per_m3_eur?: number }>;
+};
+
+type IfcppViewerSettings = {
+  symbol_scale_percent?: number;
+  foreground_layer?: unknown;
+  show_grid?: boolean;
+};
+
 export type IfcppPilePlan = {
   id: string;
   name: string;
   selected_piles: Record<string, IfcppSelectedPileChoice>;
   locked_load_point_ids: number[];
+};
+
+export type IfcppImportLogEntry = {
+  source_file?: string;
+  warnings?: string[];
+  source_role?: "load_points" | "cpts" | "bearing_capacities";
+  source_format?: string;
+  source_profile?: string;
+  profile_details?: Record<string, string>;
 };
 
 export type IfcppProject = {
@@ -92,12 +113,14 @@ export type IfcppProject = {
   settings: {
     global_cpt_selection: IfcppCptSelectionSettings;
     cpt_selection_by_load_point: Record<string, IfcppCptSelectionSettings>;
-    pile_costs: PileCostSettings;
+    pile_costs: IfcppPileCostSettings;
+    pile_head_level_m?: number | null;
     optimization: IfcppGreedyOptimizationSettings;
     viewer_utilization?: ViewerUtilizationSettings;
     active_pile_sizes: number[];
     active_pile_tip_levels: number[];
     pile_legend?: IfcppProjectLegend | null;
+    viewer?: IfcppViewerSettings;
   };
   user_state: {
     selected_piles?: Record<string, IfcppSelectedPileChoice>;
@@ -105,10 +128,7 @@ export type IfcppProject = {
     active_pile_plan_id?: string;
     manual_cpt_selections: Record<string, number[]>;
   };
-  import_log?: Array<{
-    source_file?: string;
-    warnings?: string[];
-  }>;
+  import_log?: IfcppImportLogEntry[];
 };
 
 export type ImportSummary = {
@@ -135,6 +155,11 @@ export type LoadedProjectData = {
   globalCptSelectionSettings: CptSelectionSettings;
   cptSelectionSettingsByLoadPoint: Map<number, CptSelectionSettings>;
   pileCostSettings: PileCostSettings;
+  pileHeadLevelM: number | null;
+  currencyCode: string;
+  symbolScalePercent: number;
+  foregroundLayer: "load-points" | "cpts";
+  showGrid: boolean;
   activePileSizes: number[];
   activePileTipLevels: number[];
   pileLegend: LegendItems;
@@ -145,6 +170,7 @@ export type LoadedProjectData = {
   activePilePlanId: string;
   selectedPileOptionKeysByLoadPoint: Map<number, string>;
   manualCptIdsByLoadPoint: Map<number, number[]>;
+  importLog: IfcppImportLogEntry[];
 };
 
 export type PilePlanData = {
@@ -162,7 +188,7 @@ export function loadIfcppProjectData(input: string | IfcppProject): LoadedProjec
     throw new Error(`Expected IFCPP project, got ${project.schema}`);
   }
 
-  if (project.schema_version !== 1 && project.schema_version !== 2) {
+  if (![1, 2, 3].includes(project.schema_version)) {
     throw new Error(`Unsupported IFCPP schema version ${project.schema_version}`);
   }
 
@@ -183,7 +209,10 @@ export function loadIfcppProjectData(input: string | IfcppProject): LoadedProjec
       numberKeyedEntries(project.settings.cpt_selection_by_load_point)
         .map(([loadPointId, settings]) => [loadPointId, fromIfcppCptSelectionSettings(settings)]),
     ),
-    pileCostSettings: project.settings.pile_costs,
+    pileCostSettings: normalizePileCostSettings(project.settings.pile_costs),
+    pileHeadLevelM: normalizePileHeadLevel(project),
+    currencyCode: normalizeCurrencyCode(project.units?.costs),
+    ...normalizeProjectViewerSettings(project.settings.viewer),
     activePileSizes: project.settings.active_pile_sizes,
     activePileTipLevels: project.settings.active_pile_tip_levels,
     pileLegend,
@@ -201,6 +230,7 @@ export function loadIfcppProjectData(input: string | IfcppProject): LoadedProjec
     manualCptIdsByLoadPoint: new Map(
       numberKeyedEntries(project.user_state.manual_cpt_selections),
     ),
+    importLog: project.import_log ?? [],
   };
 }
 
@@ -208,7 +238,7 @@ function loadPilePlans(project: IfcppProject): {
   pilePlans: PilePlanData[];
   activePilePlanId: string;
 } {
-  const wirePlans = project.schema_version === 2
+  const wirePlans = project.schema_version >= 2
     ? (project.user_state.pile_plans ?? [])
     : [{
         id: "pile-plan-1",
@@ -233,7 +263,7 @@ function loadPilePlans(project: IfcppProject): {
   }
 
   const pilePlans = normalizedWirePlans.map((plan) => pilePlanDataFromWire(plan));
-  const requestedActiveId = project.schema_version === 2
+  const requestedActiveId = project.schema_version >= 2
     ? project.user_state.active_pile_plan_id
     : "pile-plan-1";
   const activePilePlanId = pilePlans.some((plan) => plan.id === requestedActiveId)
@@ -277,6 +307,11 @@ export function createIfcppProject(input: {
   globalCptSelectionSettings: CptSelectionSettings;
   cptSelectionSettingsByLoadPoint: Map<number, CptSelectionSettings>;
   pileCostSettings: PileCostSettings;
+  pileHeadLevelM: number | null;
+  currencyCode: string;
+  symbolScalePercent: number;
+  foregroundLayer: "load-points" | "cpts";
+  showGrid: boolean;
   optimizationSettings: GreedyOptimizationSettings;
   viewerUtilizationSettings: ViewerUtilizationSettings;
   activePileSizes: number[];
@@ -286,6 +321,7 @@ export function createIfcppProject(input: {
   activePilePlanId?: string;
   selectedPileOptionKeysByLoadPoint: Map<number, string>;
   manualCptIdsByLoadPoint: Map<number, number[]>;
+  importLog: IfcppImportLogEntry[];
 }): IfcppProject {
   const sourcePlans = input.pilePlans?.length
     ? input.pilePlans
@@ -302,7 +338,7 @@ export function createIfcppProject(input: {
 
   return {
     schema: "IFCPP",
-    schema_version: 2,
+    schema_version: 3,
     application: {
       name: "Pile Plan Studio",
       version: "0.1.0-alpha",
@@ -321,7 +357,7 @@ export function createIfcppProject(input: {
       design_loads: "kN",
       pile_tip_levels: "m",
       bearing_capacities: "kN",
-      costs: "EUR",
+      costs: normalizeCurrencyCode(input.currencyCode),
     },
     inputs: {
       load_points: input.loadPoints,
@@ -335,11 +371,17 @@ export function createIfcppProject(input: {
           .map(([loadPointId, settings]) => [String(loadPointId), toIfcppCptSelectionSettings(settings)]),
       ),
       pile_costs: input.pileCostSettings,
+      pile_head_level_m: input.pileHeadLevelM,
       optimization: input.optimizationSettings,
       viewer_utilization: normalizeViewerUtilizationSettings(input.viewerUtilizationSettings),
       active_pile_sizes: input.activePileSizes,
       active_pile_tip_levels: input.activePileTipLevels,
       pile_legend: toIfcppProjectLegend(input.pileLegend),
+      viewer: {
+        symbol_scale_percent: input.symbolScalePercent,
+        foreground_layer: input.foregroundLayer,
+        show_grid: input.showGrid,
+      },
     },
     user_state: {
       pile_plans: sourcePlans.map((plan) => {
@@ -366,7 +408,7 @@ export function createIfcppProject(input: {
         [...input.manualCptIdsByLoadPoint.entries()].map(([loadPointId, cptIds]) => [String(loadPointId), cptIds]),
       ),
     },
-    import_log: [],
+    import_log: input.importLog,
   };
 }
 
@@ -427,6 +469,43 @@ function normalizeViewerUtilizationSettings(
   return {
     minimum: Math.min(minimum, maximum),
     maximum: Math.max(minimum, maximum),
+  };
+}
+
+function normalizePileCostSettings(settings: IfcppPileCostSettings): PileCostSettings {
+  return {
+    schema_version: settings.schema_version,
+    items: settings.items.map((item) => ({
+      pile_size_mm: item.pile_size_mm,
+      shape: item.shape,
+      cost_per_m3: Number.isFinite(item.cost_per_m3)
+        ? item.cost_per_m3
+        : (item.cost_per_m3_eur ?? 0),
+    })),
+  };
+}
+
+function normalizePileHeadLevel(project: IfcppProject): number | null {
+  const value = project.settings.pile_head_level_m ?? project.settings.pile_costs.pile_head_level_m;
+  return typeof value === "number" && Number.isFinite(value) ? value : null;
+}
+
+function normalizeCurrencyCode(value: unknown): string {
+  return typeof value === "string" && /^[A-Z]{3}$/.test(value.trim().toUpperCase())
+    ? value.trim().toUpperCase()
+    : "EUR";
+}
+
+function normalizeProjectViewerSettings(
+  settings: IfcppViewerSettings | undefined,
+): { symbolScalePercent: number; foregroundLayer: "load-points" | "cpts"; showGrid: boolean } {
+  const scale = typeof settings?.symbol_scale_percent === "number"
+    ? settings.symbol_scale_percent
+    : 100;
+  return {
+    symbolScalePercent: Math.round(Math.max(10, Math.min(200, scale))),
+    foregroundLayer: settings?.foreground_layer === "cpts" ? "cpts" : "load-points",
+    showGrid: settings?.show_grid !== false,
   };
 }
 

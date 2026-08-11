@@ -34,7 +34,7 @@ describe("React optimization panel model", () => {
         pile_size_mm: 350,
         pile_tip_level_m: -20,
         is_option: true,
-        cost_eur: 100,
+        cost: 100,
       }],
     });
 

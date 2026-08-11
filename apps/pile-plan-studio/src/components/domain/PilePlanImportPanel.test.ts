@@ -29,4 +29,9 @@ describe("PilePlanImportPanel", () => {
     assert.match(source, /dangerouslySetInnerHTML=\{\{ __html: ifcImportIcon \}\}/);
     assert.doesNotMatch(source, /function FileIcon/);
   });
+
+  it("uses the shared themed listbox for its import profile", () => {
+    assert.match(source, /<ThemedSelect/);
+    assert.doesNotMatch(source, /<select/);
+  });
 });

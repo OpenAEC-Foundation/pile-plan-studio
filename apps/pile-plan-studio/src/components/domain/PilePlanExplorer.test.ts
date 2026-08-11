@@ -28,8 +28,12 @@ describe("pile plan explorer", () => {
     assert.match(source, /disabled=\{creating \|\| createDisabled\}/);
   });
 
-  it("does not expose the former passive input source rows", () => {
-    assert.doesNotMatch(source, /inputSources/);
-    assert.doesNotMatch(source, /snapshot-only/);
+  it("renders navigable and independently collapsible source and pile-plan groups", () => {
+    assert.match(source, /inputSources/);
+    assert.match(source, /activeSourceKind/);
+    assert.match(source, /inputSourcesExpanded/);
+    assert.match(source, /pilePlansExpanded/);
+    assert.match(source, /onSourceActivate/);
+    assert.match(source, /onExpansionChange/);
   });
 });

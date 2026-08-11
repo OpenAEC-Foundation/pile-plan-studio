@@ -121,6 +121,7 @@ export function getCptFrdPanelModel(state: ProjectState): CptFrdPanelModel | nul
 export function getRenderablePileOptionRows(input: {
   cpts: Cpt[];
   costsByOptionKey: Map<string, number | null>;
+  currencyCode?: string;
   options: PileConfigurationOption[];
   selectedLoadPointCount: number;
   legend: LegendItems;
@@ -138,7 +139,7 @@ export function getRenderablePileOptionRows(input: {
     const tipLabel = `${formatNumber(option.pile_tip_level_m)} m`;
 
     return {
-      costLabel: cost === null ? "-" : formatCurrency(cost),
+      costLabel: cost === null ? "-" : formatCurrency(cost, input.currencyCode),
       costValue: cost,
       frdLabel: formatOptionalNumber(option.governing_frd_kn, " kN"),
       frdValue: option.governing_frd_kn,
@@ -172,9 +173,9 @@ function formatFrdRange(rows: Array<{ frd_kn: number }>): string {
   return `${formatNumber(Math.min(...values))}-${formatNumber(Math.max(...values))} kN`;
 }
 
-export function formatCurrency(value: number): string {
+export function formatCurrency(value: number, currencyCode = "EUR"): string {
   return new Intl.NumberFormat("en-US", {
-    currency: "EUR",
+    currency: currencyCode,
     maximumFractionDigits: 0,
     style: "currency",
   }).format(value);

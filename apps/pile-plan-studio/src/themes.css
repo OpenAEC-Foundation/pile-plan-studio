@@ -26,6 +26,7 @@
    ──────────────────────────────────────────────────────────── */
 :root,
 [data-theme="light"] {
+  color-scheme: light;
   /* ─── Core palette ─── */
   --theme-bg: #FAFAF9;
   --theme-bg-lighter: #FFFFFF;
@@ -131,6 +132,7 @@
    (Was the previous "light" — moved to its own name)
    ──────────────────────────────────────────────────────────── */
 [data-theme="forge"] {
+  color-scheme: dark;
   --theme-bg: #36363E;
   --theme-bg-lighter: #44444C;
   --theme-docbar-bg: #2E2E36;
@@ -226,6 +228,7 @@
    OpenAEC Theme — Darker Night Build variant
    ──────────────────────────────────────────────────────────── */
 [data-theme="openaec"] {
+  color-scheme: dark;
   --theme-bg: #27272A;
   --theme-bg-lighter: #36363E;
   --theme-docbar-bg: #1C1917;
@@ -321,6 +324,7 @@
    Blueprint Theme — Cool industrial blue
    ──────────────────────────────────────────────────────────── */
 [data-theme="blueprint"] {
+  color-scheme: dark;
   --theme-bg: #0F1B2D;
   --theme-bg-lighter: #1A2C45;
   --theme-docbar-bg: #0A1320;
@@ -416,6 +420,7 @@
    High Contrast Theme — Accessibility (WCAG AAA)
    ──────────────────────────────────────────────────────────── */
 [data-theme="contrast"] {
+  color-scheme: dark;
   --theme-bg: #000000;
   --theme-bg-lighter: #0A0A0A;
   --theme-docbar-bg: #000000;

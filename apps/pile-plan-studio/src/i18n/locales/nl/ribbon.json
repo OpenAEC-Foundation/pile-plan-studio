@@ -42,6 +42,11 @@
     "cpts": "Sonderingen",
     "grid": "Grid",
     "showGrid": "Grid tonen",
-    "hideGrid": "Grid verbergen"
+    "hideGrid": "Grid verbergen",
+    "windows": "Vensters",
+    "showExplorer": "Verkenner tonen",
+    "hideExplorer": "Verkenner verbergen",
+    "showProperties": "Eigenschappen tonen",
+    "hideProperties": "Eigenschappen verbergen"
   }
 }

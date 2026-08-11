@@ -1,7 +1,10 @@
+#![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
+
 use pile_plan_core::{
     bearing_capacity_rows_for_cpt, build_pile_options_by_load_point, build_project_analysis,
     calculate_pile_cost, choose_default_pile_option, choose_default_pile_options,
-    greedy_optimize_pile_choices, import_project_from_generic_sources, preview_import_source,
+    greedy_optimize_pile_choices, import_project_from_generic_sources_with_properties,
+    preview_import_source,
     preview_pile_plan_import, refresh_project_from_profiled_sources, selected_cpts,
     write_pile_plan_csv as write_pile_plan_csv_bytes,
     write_pile_plan_xlsx as write_pile_plan_xlsx_bytes, CptSelectionSettings,
@@ -46,18 +49,21 @@ struct ProjectAnalysisRequest {
 struct PileCostRequest {
     pile_size_mm: u32,
     pile_tip_level_m: f64,
+    pile_head_level_m: f64,
     settings: PileCostSettings,
 }
 
 #[derive(Debug, Deserialize)]
 struct DefaultPileOptionRequest {
     options: Vec<PileConfigurationOption>,
+    pile_head_level_m: f64,
     settings: PileCostSettings,
 }
 
 #[derive(Debug, Deserialize)]
 struct DefaultPileOptionsRequest {
     options_by_load_point: HashMap<u32, Vec<PileConfigurationOption>>,
+    pile_head_level_m: f64,
     cost_settings: PileCostSettings,
 }
 
@@ -70,6 +76,7 @@ struct CptFrdRowsRequest {
 #[derive(Debug, Deserialize)]
 struct GreedyOptimizationRequest {
     options_by_load_point: HashMap<u32, Vec<PileConfigurationOption>>,
+    pile_head_level_m: f64,
     cost_settings: PileCostSettings,
     settings: GreedyOptimizationSettings,
 }
@@ -77,6 +84,8 @@ struct GreedyOptimizationRequest {
 #[derive(Debug, Deserialize)]
 struct ImportProjectRequest {
     project_name: String,
+    pile_head_level_m: Option<f64>,
+    currency_code: String,
     sources: Vec<ImportSource>,
 }
 
@@ -93,7 +102,7 @@ struct PreviewImportRequest {
 
 #[derive(Debug, Serialize)]
 struct PileCostResponse {
-    cost_eur: Option<u32>,
+    cost: Option<u32>,
 }
 
 #[tauri::command(rename_all = "snake_case")]
@@ -146,9 +155,10 @@ fn calculate_project_analysis(request: ProjectAnalysisRequest) -> ProjectAnalysi
 #[tauri::command(rename_all = "snake_case")]
 fn calculate_pile_option_cost(request: PileCostRequest) -> PileCostResponse {
     PileCostResponse {
-        cost_eur: calculate_pile_cost(
+        cost: calculate_pile_cost(
             request.pile_size_mm,
             request.pile_tip_level_m,
+            request.pile_head_level_m,
             &request.settings,
         ),
     }
@@ -156,14 +166,23 @@ fn calculate_pile_option_cost(request: PileCostRequest) -> PileCostResponse {
 
 #[tauri::command(rename_all = "snake_case")]
 fn choose_default_option(request: DefaultPileOptionRequest) -> Option<PileConfigurationOption> {
-    choose_default_pile_option(&request.options, &request.settings).cloned()
+    choose_default_pile_option(
+        &request.options,
+        request.pile_head_level_m,
+        &request.settings,
+    )
+    .cloned()
 }
 
 #[tauri::command(rename_all = "snake_case")]
 fn choose_default_options(
     request: DefaultPileOptionsRequest,
 ) -> HashMap<u32, PileConfigurationKey> {
-    choose_default_pile_options(&request.options_by_load_point, &request.cost_settings)
+    choose_default_pile_options(
+        &request.options_by_load_point,
+        request.pile_head_level_m,
+        &request.cost_settings,
+    )
 }
 
 #[tauri::command(rename_all = "snake_case")]
@@ -175,6 +194,7 @@ fn cpt_frd_rows(request: CptFrdRowsRequest) -> Vec<pile_plan_core::CptBearingCap
 fn greedy_optimize(request: GreedyOptimizationRequest) -> Vec<GreedyOptimizedPileChoice> {
     greedy_optimize_pile_choices(
         &request.options_by_load_point,
+        request.pile_head_level_m,
         &request.cost_settings,
         &request.settings,
     )
@@ -182,8 +202,13 @@ fn greedy_optimize(request: GreedyOptimizationRequest) -> Vec<GreedyOptimizedPil
 
 #[tauri::command(rename_all = "snake_case")]
 fn import_project_from_files(request: ImportProjectRequest) -> Result<PilePlanProject, String> {
-    import_project_from_generic_sources(&request.project_name, &request.sources)
-        .map_err(|error| error.to_string())
+    import_project_from_generic_sources_with_properties(
+        &request.project_name,
+        &request.sources,
+        request.pile_head_level_m,
+        &request.currency_code,
+    )
+    .map_err(|error| error.to_string())
 }
 
 #[tauri::command(rename_all = "snake_case")]

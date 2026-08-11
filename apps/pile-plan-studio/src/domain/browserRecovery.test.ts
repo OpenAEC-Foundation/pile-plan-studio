@@ -7,7 +7,7 @@ import {
 
 const ifcppText = JSON.stringify({
   schema: "IFCPP",
-  schema_version: 2,
+  schema_version: 3,
   metadata: { name: "Recovered project" },
 });
 
@@ -24,7 +24,7 @@ describe("browser recovery record", () => {
 
     assert.deepEqual(parseBrowserRecoveryRecord(record), record);
     assert.equal(record.formatVersion, 1);
-    assert.equal(record.schemaVersion, 2);
+    assert.equal(record.schemaVersion, 3);
     assert.equal(record.savedProjectSignature, "saved-signature");
     assert.equal(record.isDirty, true);
   });

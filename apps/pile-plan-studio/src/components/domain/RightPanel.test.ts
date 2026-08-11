@@ -98,10 +98,11 @@ describe("React optimization panel", () => {
 describe("React cost settings panel", () => {
   it("keeps edited pile costs inside the current project", () => {
     const panel = readFileSync(resolve(import.meta.dirname, "RightPanel.tsx"), "utf8");
+    const costPanel = readFileSync(resolve(import.meta.dirname, "CostSettingsPanel.tsx"), "utf8");
 
     assert.doesNotMatch(panel, /PILE_COST_DEFAULTS_KEY/);
     assert.doesNotMatch(panel, /setSetting\(/);
-    assert.match(panel, /onStateChange\(\{ \.\.\.state, pileCostSettings: nextSettings \}\)/);
+    assert.match(costPanel, /onSettingsChange/);
   });
 });
 
@@ -150,15 +151,30 @@ describe("React CPT settings panel", () => {
     assert.match(panel, /ariaLabel=\{t\("cptSettings\.monopolyDistance"\)\}[\s\S]*min=\{0\}/);
   });
 
-  it("defers pile head level and CPT number changes until blur or Enter", () => {
+  it("defers CPT number changes until blur or Enter", () => {
     const panel = readFileSync(resolve(import.meta.dirname, "RightPanel.tsx"), "utf8");
 
     assert.match(panel, /function DraftNumberField/);
     assert.match(panel, /const \[draft, setDraft\] = useState/);
     assert.match(panel, /onBlur=\{commit\}/);
     assert.match(panel, /if \(event\.key === "Enter"\) event\.currentTarget\.blur\(\)/);
-    assert.match(panel, /value=\{state\.pileCostSettings\.pile_head_level_m\}/);
-    assert.match(panel, /onCommit=\{\(value\) => applySettings\(updatePileHeadLevel/);
+    assert.doesNotMatch(panel, /pileHeadLevelM: updatePileHeadLevel/);
+  });
+
+  it("groups CPT values into compact label-and-field rows", () => {
+    const panel = readFileSync(resolve(import.meta.dirname, "RightPanel.tsx"), "utf8");
+    const styles = readFileSync(resolve(import.meta.dirname, "rightPanel.css"), "utf8");
+
+    assert.match(panel, /SettingsGroup title=\{t\("cptSettings\.distances"\)\}[\s\S]*ariaLabel=\{t\("cptSettings\.maxDistance"\)\}[\s\S]*ariaLabel=\{t\("cptSettings\.monopolyDistance"\)\}/);
+    assert.match(panel, /label=\{t\("cptSettings\.maxDistance"\)\}/);
+    assert.match(panel, /className=\{`settings-number-row/);
+    assert.match(styles, /\.settings-number-row\s*\{[\s\S]*?grid-template-columns:\s*minmax\(0,\s*1fr\)\s+68px\s+auto/);
+  });
+
+  it("draws the shared edge when the right settings segment is selected", () => {
+    const styles = readFileSync(resolve(import.meta.dirname, "rightPanel.css"), "utf8");
+
+    assert.match(styles, /\.segmented-control button:last-child\.is-selected\s*\{[\s\S]*?border-left:\s*1px solid var\(--theme-accent\)/);
   });
 
   it("keeps mixed algorithms unselected and maximum angle editable until a concrete alternative is common", () => {

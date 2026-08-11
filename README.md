@@ -5,7 +5,7 @@
 </p>
 
 <p align="center">
-  <a href="RELEASE_NOTES.md"><img src="https://img.shields.io/badge/release-v0.1.9--alpha-D97706?style=flat-square" alt="Release v0.1.9-alpha"></a>
+  <a href="RELEASE_NOTES.md"><img src="https://img.shields.io/badge/release-v0.2.0--alpha-D97706?style=flat-square" alt="Release v0.2.0-alpha"></a>
   <a href="https://github.com/OpenAEC-Foundation/pile-plan-studio/releases"><img src="https://img.shields.io/github/downloads/OpenAEC-Foundation/pile-plan-studio/total?style=flat-square" alt="Total downloads"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-LGPL--3.0-blue?style=flat-square" alt="LGPL-3.0 license"></a>
   <a href="https://pile-plan-studio.open-aec.com/"><img src="https://img.shields.io/badge/platform-Web%20%7C%20Windows-lightgrey?style=flat-square" alt="Web and Windows"></a>
@@ -45,6 +45,8 @@ browser.
 - Override the CPT selection manually for one or multiple load points.
 - Refresh individual imported sources while retaining matched pile assignments
   and CPT selections.
+- Inspect normalized imported load points, CPTs, and foundation advice in
+  sortable, filterable source tables from the project explorer.
 - Compare utilization, foundation resistance, and estimated cost.
 - Adjust symbol size, preferred utilization range, and the foreground object
   type directly from the View ribbon.
@@ -72,6 +74,11 @@ browser.
   coordinate matching.
 - Resize both the project explorer and properties panel to suit the current
   workflow.
+- Save application-wide language, theme, interface scale, workspace layout,
+  default currency, and an optional reusable pile-cost catalog separately from
+  project-owned settings.
+- Maintain project-specific pile-size cost rows, including custom sizes, and
+  explicitly save or load a personal default catalog.
 - Use the same Rust calculation core in the browser and Windows desktop app.
 
 ## Screenshots
@@ -148,6 +155,11 @@ load from the minimum PZ envelope (`Min PZ'`, `Min PZ`, or `Min`).
 
 Imported data, source profiles, project settings, selected piles, and manual
 CPT choices are stored in an `.ifcpp` project file.
+
+When creating a project from source files, the pile head level is required.
+The project currency defaults to the user's application preference. Changing a
+currency code relabels costs; Pile Plan Studio does not perform currency
+conversion.
 
 ### Import an existing pile plan
 

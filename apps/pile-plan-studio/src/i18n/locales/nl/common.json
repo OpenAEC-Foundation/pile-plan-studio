@@ -177,10 +177,37 @@
       "changed": "gewijzigd"
     }
   },
+  "sourceViewer": {
+    "snapshot": "Projectmomentopname",
+    "replace": "Bron vervangen",
+    "warnings_one": "{{count}} importwaarschuwing",
+    "warnings_other": "{{count}} importwaarschuwingen",
+      "filter": "Filter {{column}}",
+      "searchValue": "Zoekwaarde",
+      "matchMode": "Vergelijkingsmethode",
+      "exact": "Exact",
+      "contains": "Bevat",
+      "clear": "Wissen",
+    "columns": {
+      "id": "ID",
+      "cpt": "Sondering",
+      "x": "X",
+      "y": "Y",
+      "fed": "FEd",
+      "size": "Paalafmeting",
+      "tip": "Puntniveau",
+      "capacity": "R_c;net;d"
+    }
+  },
   "importProject": {
     "title": "Projectgegevens importeren",
-    "defaultName": "Geïmporteerd project",
-    "projectName": "Projectnaam",
+      "defaultName": "Geïmporteerd project",
+      "projectName": "Projectnaam",
+        "pileHeadLevel": "Paalhoofdniveau (m)",
+        "pileHeadLevelHelp": "Verplicht voor de berekening van paalkosten.",
+        "pileHeadLevelRequired": "Vul een geldig paalhoofdniveau in om het project te importeren.",
+        "currency": "Projectvaluta",
+        "projectProperties": "Projecteigenschappen",
     "chooseFiles": "Kies maximaal drie bestanden",
     "noFile": "Geen bestand geselecteerd",
     "choose": "Kiezen",
@@ -245,8 +272,14 @@
       "cpts": "ID, X, Y",
       "foundationAdvice": "Sondering-ID, puntniveau, afmeting, R_c;net;d"
     }
-  },
-  "recovery": {
+    },
+    "projectInformation": {
+      "title": "Projectinformatie",
+      "projectName": "Projectnaam",
+      "pileHeadLevel": "Paalhoofdniveau (m)",
+      "currency": "Projectvaluta"
+    },
+    "recovery": {
     "loading": "Vorige sessie herstellen...",
     "restored": "Vorige sessie hersteld",
     "sampleOpened": "Voorbeeldproject geopend",

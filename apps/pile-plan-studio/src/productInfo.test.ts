@@ -20,6 +20,8 @@ const dutchSettings = readFileSync(
   resolve(import.meta.dirname, "i18n/locales/nl/settings.json"),
   "utf8",
 );
+const packageJson = JSON.parse(readFileSync(resolve(import.meta.dirname, "../package.json"), "utf8"));
+const tauriConfig = JSON.parse(readFileSync(resolve(import.meta.dirname, "../src-tauri/tauri.conf.json"), "utf8"));
 
 describe("product information", () => {
   it("defines one build-versioned product identity", () => {
@@ -28,6 +30,11 @@ describe("product information", () => {
     assert.match(productInfo, /status:\s*"Alpha"/);
     assert.match(productInfo, /organization:\s*"OpenAEC Foundation"/);
     assert.match(productInfo, /license:\s*"LGPL-3\.0-or-later"/);
+  });
+
+  it("identifies the 0.2.0 alpha consistently in web and desktop packages", () => {
+    assert.equal(packageJson.version, "0.2.0");
+    assert.equal(tauriConfig.version, "0.2.0");
   });
 
   it("uses the shared identity in both About views", () => {

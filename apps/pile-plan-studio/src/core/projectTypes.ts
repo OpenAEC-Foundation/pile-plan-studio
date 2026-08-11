@@ -94,6 +94,12 @@ export type ViewerUtilizationSettings = {
   maximum: number;
 };
 
+export type ProjectViewerSettings = {
+  symbolScalePercent: number;
+  foregroundLayer: "load-points" | "cpts";
+  showGrid: boolean;
+};
+
 export type PileConfigurationKey = {
   pile_size_mm: number;
   pile_tip_level_m_key: number;
@@ -110,21 +116,20 @@ export type GreedyOptimizedPileChoice = {
   pile_size_mm: number;
   pile_tip_level_m: number;
   is_option: boolean;
-  cost_eur: number | null;
+  cost: number | null;
 };
 
 export type PileCostShape = "round" | "square";
 
 export type PileCostSettings = {
   schema_version: number;
-  pile_head_level_m: number;
   items: PileCostSettingsItem[];
 };
 
 export type PileCostSettingsItem = {
   pile_size_mm: number;
   shape: PileCostShape;
-  cost_per_m3_eur: number;
+  cost_per_m3: number;
 };
 
 export type PileBaseShape =

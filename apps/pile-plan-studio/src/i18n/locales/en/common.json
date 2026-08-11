@@ -177,10 +177,37 @@
       "changed": "changed"
     }
   },
+  "sourceViewer": {
+    "snapshot": "Project snapshot",
+    "replace": "Replace source",
+    "warnings_one": "{{count}} import warning",
+    "warnings_other": "{{count}} import warnings",
+      "filter": "Filter {{column}}",
+      "searchValue": "Search value",
+      "matchMode": "Match mode",
+      "exact": "Exact",
+      "contains": "Contains",
+      "clear": "Clear",
+    "columns": {
+      "id": "ID",
+      "cpt": "CPT",
+      "x": "X",
+      "y": "Y",
+      "fed": "FEd",
+      "size": "Pile size",
+      "tip": "Tip level",
+      "capacity": "R_c;net;d"
+    }
+  },
   "importProject": {
     "title": "Import project data",
-    "defaultName": "Imported Project",
-    "projectName": "Project name",
+      "defaultName": "Imported Project",
+      "projectName": "Project name",
+        "pileHeadLevel": "Pile head level (m)",
+        "pileHeadLevelHelp": "Required to calculate pile costs.",
+        "pileHeadLevelRequired": "Enter a valid pile head level to import the project.",
+        "currency": "Project currency",
+        "projectProperties": "Project properties",
     "chooseFiles": "Choose up to three files",
     "noFile": "No file selected",
     "choose": "Choose",
@@ -245,8 +272,14 @@
       "cpts": "ID, X, Y",
       "foundationAdvice": "CPT ID, tip, size, R_c;net;d"
     }
-  },
-  "recovery": {
+    },
+    "projectInformation": {
+      "title": "Project information",
+      "projectName": "Project name",
+      "pileHeadLevel": "Pile head level (m)",
+      "currency": "Project currency"
+    },
+    "recovery": {
     "loading": "Restoring your previous session...",
     "restored": "Previous session restored",
     "sampleOpened": "Sample project opened",

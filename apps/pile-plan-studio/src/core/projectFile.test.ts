@@ -44,7 +44,7 @@ function projectFixture(): IfcppProject {
       pile_costs: {
         schema_version: 1,
         pile_head_level_m: -3.5,
-        items: [{ pile_size_mm: 290, shape: "square", cost_per_m3_eur: 220 }],
+        items: [{ pile_size_mm: 290, shape: "square", cost_per_m3: 220 }],
       },
       optimization: {
         max_pile_sizes: 1,
@@ -73,6 +73,19 @@ function projectFixture(): IfcppProject {
 }
 
 describe("IFCPP project loading", () => {
+  it("preserves source provenance for the interpreted source viewer", () => {
+    const project = projectFixture();
+    project.import_log = [{
+      source_file: "loads.xlsx",
+      source_role: "load_points",
+      source_profile: "rfem-export",
+      warnings: ["Example warning"],
+    }];
+
+    const saved = createIfcppProject(loadIfcppProjectData(project));
+
+    assert.deepEqual(saved.import_log, project.import_log);
+  });
   it("summarizes imported counts and persisted warnings", () => {
     const project = projectFixture();
     project.import_log = [{
@@ -108,6 +121,34 @@ describe("IFCPP project loading", () => {
     assert.equal(data.pilePlans.length, 1);
     assert.equal(data.pilePlans[0].name, "Pile plan 1");
     assert.deepEqual(data.pilePlans[0].lockedLoadPointIds, []);
+    assert.equal(data.pileHeadLevelM, -3.5);
+    assert.equal(data.currencyCode, "EUR");
+    assert.equal(data.symbolScalePercent, 100);
+    assert.equal(data.foregroundLayer, "load-points");
+    assert.equal(data.showGrid, true);
+  });
+
+  it("migrates schema two cost fields and writes schema three", () => {
+    const legacy = projectFixture() as unknown as Record<string, any>;
+    legacy.schema_version = 2;
+    legacy.units = { costs: "GBP" };
+    legacy.settings.pile_costs.items[0].cost_per_m3_eur = 245;
+    delete legacy.settings.pile_costs.items[0].cost_per_m3;
+
+    const loaded = loadIfcppProjectData(legacy as unknown as IfcppProject);
+    const saved = createIfcppProject(loaded);
+
+    assert.equal(loaded.pileCostSettings.items[0].cost_per_m3, 245);
+    assert.equal(loaded.currencyCode, "GBP");
+    assert.equal(saved.schema_version, 3);
+    assert.equal(saved.settings.pile_head_level_m, -3.5);
+    assert.equal(saved.settings.pile_costs.items[0].cost_per_m3, 245);
+    assert.equal("pile_head_level_m" in saved.settings.pile_costs, false);
+    assert.deepEqual(saved.settings.viewer, {
+      symbol_scale_percent: 100,
+      foreground_layer: "load-points",
+      show_grid: true,
+    });
   });
 
   it("loads the active plan from an IFCPP version two project", () => {
@@ -237,7 +278,7 @@ describe("IFCPP project loading", () => {
     const project = createIfcppProject(data);
 
     assert.equal(project.schema, "IFCPP");
-    assert.equal(project.schema_version, 2);
+    assert.equal(project.schema_version, 3);
     assert.equal(project.metadata.name, "Fixture Project");
     assert.deepEqual(project.settings.global_cpt_selection, {
       algorithm: "maximum-angle",

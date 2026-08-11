@@ -74,3 +74,9 @@
   background: var(--theme-dialog-tab-active-bg);
   color: var(--theme-dialog-tab-active-text);
 }
+
+.themed-select-item:disabled {
+  color: var(--theme-text-faint);
+  background: transparent;
+  cursor: default;
+}
