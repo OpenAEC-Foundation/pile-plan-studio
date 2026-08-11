@@ -8,3 +8,4 @@ apps/*/src-tauri/target/
 OpenAEC-style-book-main/
 docs/superpowers/
 .superpowers/
+.worktrees/
