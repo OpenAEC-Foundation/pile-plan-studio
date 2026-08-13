@@ -17,7 +17,7 @@ export type CptSelectionTableModel = {
 };
 
 export function getSelectedCptTableModel(entries: CptSelectionTableInput[]): CptSelectionTableModel {
-  if (entries.length <= 1 && !entries[0]?.isManualSelection) {
+  if (entries.length <= 1) {
     const selectedCpts = entries[0]?.selectedCpts ?? [];
 
     return {
@@ -50,9 +50,15 @@ export function getSelectedCptTableModel(entries: CptSelectionTableInput[]): Cpt
     });
   });
 
+  const usages = [...cptUsageById.values()]
+    .map((usage) => ({ ...usage, loadPointIds: [...usage.loadPointIds].sort((left, right) => left - right) }))
+    .sort((left, right) =>
+      right.loadPointIds.length - left.loadPointIds.length || left.cpt.id - right.cpt.id,
+    );
+
   return {
     columns: ["CPT", "Used by", "Load points"],
-    rows: [...cptUsageById.values()].map((usage) => ({
+    rows: usages.map((usage) => ({
       cpt: usage.cpt,
       values: [
         getCptDisplayName(usage.cpt),

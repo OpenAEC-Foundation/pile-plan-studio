@@ -11,6 +11,7 @@ describe("App save and interface shortcuts", () => {
     assert.match(source, /classifyAppShortcut\(event, isDesktop\)/);
     assert.match(source, /event\.preventDefault\(\)/);
     assert.match(source, /projectActionRef\.current/);
+    assert.match(source, /openProjectActionRef\.current/);
     assert.match(source, /saveShortcutInFlightRef/);
     assert.doesNotMatch(handler, /isEditableTarget\(event\.target\)/);
   });

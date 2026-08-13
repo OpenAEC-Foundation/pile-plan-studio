@@ -45,19 +45,13 @@ export function applyCptSelectionSettingsPatch(
 
   if (scope === "all") {
     for (const loadPointId of targetIds) {
-      if (!overwriteManualSelections && manualCptIdsByLoadPoint.has(loadPointId)) {
-        if (!settingsByLoadPoint.has(loadPointId)) {
-          settingsByLoadPoint.set(loadPointId, { ...getSettingsForLoadPoint(state, loadPointId) });
-        }
-      } else if (settingsByLoadPoint.has(loadPointId)) {
+      if (settingsByLoadPoint.has(loadPointId)) {
         settingsByLoadPoint.set(loadPointId, patchSettings(getSettingsForLoadPoint(state, loadPointId), patch));
       }
     }
   } else {
     for (const loadPointId of targetIds) {
-      if (overwriteManualSelections || !manualCptIdsByLoadPoint.has(loadPointId)) {
-        settingsByLoadPoint.set(loadPointId, patchSettings(getSettingsForLoadPoint(state, loadPointId), patch));
-      }
+      settingsByLoadPoint.set(loadPointId, patchSettings(getSettingsForLoadPoint(state, loadPointId), patch));
     }
   }
 

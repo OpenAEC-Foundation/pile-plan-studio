@@ -45,7 +45,7 @@ describe("React CPT settings model", () => {
     assert.equal(next.analysisRequest.loadPointIds, null);
   });
 
-  it("preserves inherited settings for a manual load point during an all-scope patch", () => {
+  it("updates settings for manual load points during an all-scope patch without removing their selection", () => {
     const oldGlobalSettings = settings({
       algorithm: "maximum-angle",
       maxDistanceM: 25,
@@ -60,9 +60,13 @@ describe("React CPT settings model", () => {
     });
     const next = applyCptSelectionSettingsPatch(state, { maxDistanceM: 30 });
 
-    assert.deepEqual(next.cptSelectionSettingsByLoadPoint.get(1), oldGlobalSettings);
+    assert.equal(next.cptSelectionSettingsByLoadPoint.has(1), false);
     assert.deepEqual(
       next.cptSelectionSettingsByLoadPoint.get(2) ?? next.globalCptSelectionSettings,
+      settings({ algorithm: "maximum-angle", maxDistanceM: 30, monopolyDistanceM: 2, maxAngleDegrees: 100 }),
+    );
+    assert.deepEqual(
+      next.cptSelectionSettingsByLoadPoint.get(1) ?? next.globalCptSelectionSettings,
       settings({ algorithm: "maximum-angle", maxDistanceM: 30, monopolyDistanceM: 2, maxAngleDegrees: 100 }),
     );
     assert.deepEqual(next.manualCptIdsByLoadPoint.get(1), [61]);
@@ -129,7 +133,7 @@ describe("React CPT settings model", () => {
     assert.deepEqual(next.cptSelectionSettingsByLoadPoint.get(2), settings({ algorithm: "maximum-angle", maxDistanceM: 30, maxAngleDegrees: 140 }));
   });
 
-  it("keeps manual selections and their settings untouched unless overwrite is explicit", () => {
+  it("updates settings while keeping manual selections unless overwrite is explicit", () => {
     const state = minimalState({
       cptSelectionSettingsByLoadPoint: new Map([[2, settings({ maxDistanceM: 18 })]]),
       cptSettingsScope: "selected",
@@ -140,7 +144,7 @@ describe("React CPT settings model", () => {
     const next = applyCptSelectionSettingsPatch(state, { maxDistanceM: 30 });
 
     assert.equal(next.cptSelectionSettingsByLoadPoint.get(1)?.maxDistanceM, 30);
-    assert.equal(next.cptSelectionSettingsByLoadPoint.get(2)?.maxDistanceM, 18);
+    assert.equal(next.cptSelectionSettingsByLoadPoint.get(2)?.maxDistanceM, 30);
     assert.deepEqual(next.manualCptIdsByLoadPoint.get(2), [61]);
     assert.deepEqual(next.analysisRequest.loadPointIds, [1, 2]);
   });

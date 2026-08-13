@@ -197,10 +197,66 @@ pub fn selected_cpts(
     settings: &CptSelectionSettings,
     manual_cpt_ids: Option<&[u32]>,
 ) -> Vec<SelectedCpt> {
-    if let Some(manual_cpt_ids) = manual_cpt_ids {
-        return manually_selected_cpts(load_point, cpts, manual_cpt_ids);
+    let algorithmic = algorithmically_selected_cpts(load_point, cpts, settings);
+    let Some(manual_cpt_ids) = manual_cpt_ids else {
+        return algorithmic;
+    };
+
+    let nearest_id = cpts
+        .iter()
+        .filter(|cpt| distance_mm(load_point, cpt) <= settings.max_distance_m * 1000.0)
+        .min_by(|left, right| {
+            distance_mm(load_point, left)
+                .total_cmp(&distance_mm(load_point, right))
+                .then_with(|| left.id.cmp(&right.id))
+        })
+        .map(|cpt| cpt.id);
+    let single_nearest_id = (manual_cpt_ids.len() == 1)
+        .then(|| manual_cpt_ids.first().copied())
+        .flatten()
+        .filter(|cpt_id| Some(*cpt_id) == nearest_id);
+    if let Some(cpt_id) = single_nearest_id {
+        let Some(cpt) = cpts.iter().find(|cpt| cpt.id == cpt_id).cloned() else {
+            return Vec::new();
+        };
+        return vec![SelectedCpt {
+            label: "nearest".to_string(),
+            quadrant: None,
+            distance_mm: distance_mm(load_point, &cpt),
+            cpt,
+        }];
     }
 
+    let manual_ids: HashSet<_> = manual_cpt_ids.iter().copied().collect();
+    let algorithmic_ids: HashSet<_> = algorithmic.iter().map(|selection| selection.cpt.id).collect();
+    let mut selections: Vec<_> = algorithmic
+        .into_iter()
+        .filter(|selection| manual_ids.contains(&selection.cpt.id))
+        .collect();
+    let mut additions: Vec<_> = manual_cpt_ids
+        .iter()
+        .filter(|cpt_id| !algorithmic_ids.contains(cpt_id))
+        .filter_map(|cpt_id| cpts.iter().find(|cpt| cpt.id == *cpt_id).cloned())
+        .collect();
+    additions.sort_by(|left, right| {
+        distance_mm(load_point, left)
+            .total_cmp(&distance_mm(load_point, right))
+            .then_with(|| left.id.cmp(&right.id))
+    });
+    selections.extend(additions.into_iter().enumerate().map(|(index, cpt)| SelectedCpt {
+        label: format!("manual {}", index + 1),
+        quadrant: None,
+        distance_mm: distance_mm(load_point, &cpt),
+        cpt,
+    }));
+    selections
+}
+
+fn algorithmically_selected_cpts(
+    load_point: &LoadPoint,
+    cpts: &[Cpt],
+    settings: &CptSelectionSettings,
+) -> Vec<SelectedCpt> {
     let max_distance_mm = settings.max_distance_m * 1000.0;
     if let Some(cpt) = cpts
         .iter()
@@ -1219,7 +1275,7 @@ mod tests {
     }
 
     #[test]
-    fn monopoly_preserves_manual_selection_precedence() {
+    fn manual_override_preserves_algorithm_labels_and_labels_only_additions_as_manual() {
         let selected = selected_cpts(
             &load_point(),
             &[cpt(1, 10_000.0, 10_000.0), cpt(2, -10_000.0, -10_000.0)],
@@ -1236,7 +1292,90 @@ mod tests {
             .iter()
             .map(|item| (item.label.as_str(), item.cpt.id))
             .collect();
-        assert_eq!(result, vec![("manual 1", 2), ("manual 3", 1)]);
+        assert_eq!(result, vec![("upper right", 1), ("lower left", 2)]);
+    }
+
+    #[test]
+    fn manual_override_keeps_maximum_angle_labels_and_numbers_only_added_cpts() {
+        let selected = selected_cpts(
+            &load_point(),
+            &[
+                cpt(1, 10_000.0, 0.0),
+                cpt(2, 0.0, -10_000.0),
+                cpt(3, -10_000.0, 0.0),
+                cpt(4, 0.0, 10_000.0),
+                cpt(5, 15_000.0, 0.0),
+            ],
+            &CptSelectionSettings {
+                algorithm: CptSelectionAlgorithm::MaximumAngle,
+                max_distance_m: 25.0,
+                monopoly_distance_m: 1.0,
+                max_angle_degrees: 120.0,
+            },
+            Some(&[1, 4, 3, 5]),
+        );
+
+        let result: Vec<_> = selected
+            .iter()
+            .map(|item| (item.label.as_str(), item.cpt.id))
+            .collect();
+        assert_eq!(
+            result,
+            vec![("nearest", 1), ("angle 3", 3), ("angle 4", 4), ("manual 1", 5)]
+        );
+    }
+
+    #[test]
+    fn manual_additions_follow_algorithmic_selections_in_distance_order() {
+        let selected = selected_cpts(
+            &load_point(),
+            &[
+                cpt(1, 10_000.0, 10_000.0),
+                cpt(2, -10_000.0, -10_000.0),
+                cpt(8, 20_000.0, 0.0),
+                cpt(9, 15_000.0, 0.0),
+            ],
+            &CptSelectionSettings {
+                algorithm: CptSelectionAlgorithm::Quadrants,
+                max_distance_m: 25.0,
+                monopoly_distance_m: 1.0,
+                max_angle_degrees: 120.0,
+            },
+            Some(&[8, 2, 9, 1]),
+        );
+
+        let result: Vec<_> = selected
+            .iter()
+            .map(|item| (item.label.as_str(), item.cpt.id))
+            .collect();
+        assert_eq!(
+            result,
+            vec![
+                ("upper right", 1),
+                ("lower left", 2),
+                ("manual 1", 9),
+                ("manual 2", 8),
+            ]
+        );
+    }
+
+    #[test]
+    fn single_manual_override_of_geometrically_nearest_cpt_is_named_nearest() {
+        let selected = selected_cpts(
+            &load_point(),
+            &[cpt(1, 2_000.0, 2_000.0), cpt(2, -1_000.0, -1_000.0)],
+            &CptSelectionSettings {
+                algorithm: CptSelectionAlgorithm::Quadrants,
+                max_distance_m: 25.0,
+                monopoly_distance_m: 0.0,
+                max_angle_degrees: 120.0,
+            },
+            Some(&[2]),
+        );
+
+        assert_eq!(selected.len(), 1);
+        assert_eq!(selected[0].label, "nearest");
+        assert_eq!(selected[0].cpt.id, 2);
     }
 
     #[test]

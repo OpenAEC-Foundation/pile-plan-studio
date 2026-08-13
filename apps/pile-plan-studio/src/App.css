@@ -150,9 +150,7 @@ body.is-resizing-panel {
   color: var(--theme-text-secondary);
 }
 
-.project-information-form input,
-.project-information-form select,
-.project-information-form .themed-select {
+.project-information-form input {
   width: 100%;
   box-sizing: border-box;
   min-width: 0;
@@ -166,11 +164,22 @@ body.is-resizing-panel {
   font-weight: 400;
 }
 
+.project-information-form .themed-select {
+  width: 100%;
+  min-width: 0;
+}
+
 .project-information-form .themed-select-trigger {
   min-height: 30px;
   border-radius: 4px;
   padding: 5px 8px;
   font-size: inherit;
+}
+
+input[type="number"]:focus-visible {
+  border-color: var(--theme-focus-color);
+  outline: none;
+  box-shadow: inset 0 0 0 1px var(--theme-focus-color);
 }
 
 .project-information-form select option {
@@ -318,12 +327,22 @@ body.is-resizing-panel {
 }
 
 .source-replace-button {
-  padding: 6px 10px;
+  min-height: 28px;
+  padding: 4px 8px;
   border: 1px solid var(--theme-accent);
   border-radius: 4px;
   color: var(--theme-accent);
   background: transparent;
   font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.2;
+}
+
+.source-replace-button:hover {
+  border-color: var(--theme-accent-hover);
+  color: var(--theme-accent-hover);
+  background: var(--theme-accent-soft);
 }
 
 .source-table-heading,
@@ -371,7 +390,7 @@ body.is-resizing-panel {
   flex: 0 0 auto;
 }
 
-.source-filter-menu > summary {
+.source-filter-trigger {
   display: grid;
   width: 24px;
   height: 24px;
@@ -382,21 +401,17 @@ body.is-resizing-panel {
   border-radius: 3px;
   color: var(--theme-text-secondary);
   cursor: pointer;
-  list-style: none;
+  background: transparent;
 }
 
-.source-filter-menu > summary::-webkit-details-marker {
-  display: none;
-}
-
-.source-filter-menu > summary svg {
+.source-filter-trigger svg {
   width: 14px;
   height: 14px;
 }
 
-.source-filter-menu > summary:hover,
-.source-filter-menu[open] > summary,
-.source-filter-menu.is-active > summary {
+.source-filter-trigger:hover,
+.source-filter-menu.is-open > .source-filter-trigger,
+.source-filter-menu.is-active > .source-filter-trigger {
   border-color: var(--theme-accent);
   color: var(--theme-accent);
   background: var(--theme-accent-soft);
@@ -468,6 +483,10 @@ body.is-resizing-panel {
   border-color: var(--theme-accent);
   color: var(--theme-accent);
   background: var(--theme-accent-soft);
+}
+
+.source-filter-modes button:last-child.is-active {
+  border-left: 1px solid var(--theme-accent);
 }
 
 .source-filter-clear {

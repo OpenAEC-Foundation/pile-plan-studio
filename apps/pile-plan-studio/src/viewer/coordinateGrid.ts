@@ -1,4 +1,10 @@
-import type { ProjectBounds } from "../core/projectTypes.ts";
+import {
+  getVisibleProjectBounds,
+  projectPoint,
+  projectPointPixels,
+  type ProjectViewTransform,
+} from "./viewerGeometry.ts";
+import type { Viewport } from "./viewport.ts";
 
 export type CoordinateGridLine = {
   coordinate: number;
@@ -11,8 +17,13 @@ export type CoordinateGrid = {
   horizontal: CoordinateGridLine[];
 };
 
-const VIEW_PADDING_PERCENT = 10;
-const PROJECT_VIEW_PERCENT = 80;
+export type CoordinateGridPattern = {
+  spacing: number;
+  spacingPixels: number;
+  originX: number;
+  originY: number;
+};
+
 const TARGET_LINE_COUNT = 12;
 
 export function getNiceGridSpacing(worldSpan: number, scale: number): number {
@@ -23,29 +34,56 @@ export function getNiceGridSpacing(worldSpan: number, scale: number): number {
   return factor * magnitude;
 }
 
-export function getCoordinateGridLines(bounds: ProjectBounds, scale: number): CoordinateGrid {
-  const width = Math.max(bounds.maxX - bounds.minX, 1);
-  const height = Math.max(bounds.maxY - bounds.minY, 1);
+export function getCoordinateGridLines(transform: ProjectViewTransform, scale: number): CoordinateGrid {
+  const visibleBounds = getVisibleProjectBounds(transform);
+  const width = visibleBounds.maxX - visibleBounds.minX;
+  const height = visibleBounds.maxY - visibleBounds.minY;
   const spacing = getNiceGridSpacing(Math.max(width, height), scale);
-  const worldPaddingX = width * VIEW_PADDING_PERCENT / PROJECT_VIEW_PERCENT;
-  const worldPaddingY = height * VIEW_PADDING_PERCENT / PROJECT_VIEW_PERCENT;
+  const centerX = (transform.bounds.minX + transform.bounds.maxX) / 2;
+  const centerY = (transform.bounds.minY + transform.bounds.maxY) / 2;
 
   return {
     spacing,
     vertical: coordinateLines(
-      bounds.minX - worldPaddingX,
-      bounds.maxX + worldPaddingX,
+      visibleBounds.minX,
+      visibleBounds.maxX,
       spacing,
-      (coordinate) => VIEW_PADDING_PERCENT
-        + (coordinate - bounds.minX) / width * PROJECT_VIEW_PERCENT,
+      (coordinate) => projectPoint({ x_mm: coordinate, y_mm: centerY }, transform).x,
     ),
     horizontal: coordinateLines(
-      bounds.minY - worldPaddingY,
-      bounds.maxY + worldPaddingY,
+      visibleBounds.minY,
+      visibleBounds.maxY,
       spacing,
-      (coordinate) => 100 - VIEW_PADDING_PERCENT
-        - (coordinate - bounds.minY) / height * PROJECT_VIEW_PERCENT,
+      (coordinate) => projectPoint({ x_mm: centerX, y_mm: coordinate }, transform).y,
     ),
+  };
+}
+
+export function getCoordinateGridPattern(
+  transform: ProjectViewTransform,
+  viewport: Viewport,
+  layout?: {
+    canvasSize: { width: number; height: number };
+    compensation: { x: number; y: number };
+  },
+): CoordinateGridPattern {
+  const canvasSize = layout?.canvasSize ?? transform.canvasSize;
+  const compensation = layout?.compensation ?? { x: 0, y: 0 };
+  const visibleWorldSpan = Math.max(
+    canvasSize.width / (transform.pixelsPerMillimeter * viewport.scale),
+    canvasSize.height / (transform.pixelsPerMillimeter * viewport.scale),
+  );
+  const spacing = getNiceGridSpacing(
+    visibleWorldSpan,
+    1,
+  );
+  const origin = projectPointPixels({ x_mm: 0, y_mm: 0 }, transform);
+
+  return {
+    spacing,
+    spacingPixels: spacing * transform.pixelsPerMillimeter * viewport.scale,
+    originX: origin.x * viewport.scale + viewport.offsetX + compensation.x,
+    originY: origin.y * viewport.scale + viewport.offsetY + compensation.y,
   };
 }
 

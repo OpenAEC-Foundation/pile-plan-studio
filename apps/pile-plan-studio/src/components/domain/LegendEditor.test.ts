@@ -50,9 +50,11 @@ describe("legend editor", () => {
   it("shows encoding, assignment, validation, and reset copy", () => {
     const source = readFileSync(resolve(import.meta.dirname, "LegendEditor.tsx"), "utf8");
 
-    assert.match(source, /legend\.symbolRepresents/);
-    assert.match(source, /legend\.colorRepresentsTip/);
-    assert.match(source, /legend\.colorRepresentsSize/);
+    assert.match(source, /legend\.symbol/);
+    assert.match(source, /legend\.color/);
+    assert.match(source, /legend\.swapEncoding/);
+    assert.doesNotMatch(source, /legend\.colorRepresentsTip/);
+    assert.doesNotMatch(source, /legend\.colorRepresentsSize/);
     assert.match(source, /legend\.assignmentScope/);
     assert.match(source, /legend\.assignSymbols/);
     assert.match(source, /legend\.assignColors/);
@@ -126,11 +128,10 @@ describe("legend editor", () => {
     assert.match(source, /disabled=\{!canReassignSymbols\}/);
     assert.match(source, /disabled=\{!canReassignColors\}/);
     assert.doesNotMatch(source, /is-pending/);
-    assert.match(source, /legend-editor-auto-action-row/);
-    assert.match(source, /legend-editor-auto-action-row is-color/);
-    assert.match(css, /\.legend-editor-auto-action-row\s*\{[^}]*grid-template-columns:/s);
-    assert.match(css, /\.legend-editor-auto-action-row > \.legend-editor-toolbar-button\s*\{[^}]*white-space:\s*nowrap/s);
-    assert.match(css, /\.legend-editor-auto-action-row\.is-reset > \.legend-editor-toolbar-button\s*\{[^}]*grid-column:\s*1/s);
+    assert.match(source, /legend-editor-auto-actions/);
+    assert.match(source, /legend-editor-color-action/);
+    assert.match(css, /\.legend-editor-auto-actions\s*\{[^}]*grid-template-columns:/s);
+    assert.match(css, /\.legend-editor-auto-actions \.legend-editor-toolbar-button\s*\{[^}]*white-space:\s*nowrap/s);
     assert.match(css, /\.legend-scheme-options\s*\{[^}]*right:\s*0[^}]*left:\s*auto[^}]*max-width:/s);
     assert.match(css, /\.legend-editor-toolbar-button:disabled\s*\{[^}]*opacity:/s);
     assert.doesNotMatch(css, /\.legend-editor-toolbar-button\.is-pending/);
@@ -140,5 +141,25 @@ describe("legend editor", () => {
     assert.equal(en.legend.assignColors, "Reassign colors");
     assert.equal(nl.legend.assignmentScope, "Automatische toewijzing toepassen op");
     assert.equal(en.legend.assignmentScope, "Automatic assignment applies to");
+  });
+
+  it("uses compact dialog geometry consistent with the application controls", () => {
+    const source = readFileSync(resolve(import.meta.dirname, "LegendEditor.tsx"), "utf8");
+    const css = readFileSync(resolve(import.meta.dirname, "LegendEditor.css"), "utf8");
+
+    assert.match(source, /height="min\(680px, 84vh\)"/);
+    assert.match(source, /width=\{760\}/);
+    assert.match(css, /\.legend-editor\s*\{[\s\S]*?font-size:\s*11px/);
+    assert.match(source, /className="settings-btn settings-btn-secondary"/);
+    assert.match(source, /className="settings-btn settings-btn-primary"/);
+    assert.match(source, /legend-editor-control-row/);
+    assert.match(source, /legend-editor-encoding-line/);
+    assert.match(source, /legend-editor-encoding-swap/);
+    assert.match(css, /\.legend-editor-control-row\s*\{[\s\S]*?grid-template-columns:\s*repeat\(2, minmax\(0, 1fr\)\)/);
+    assert.match(css, /\.legend-editor-auto-actions\s*\{[\s\S]*?grid-template-columns:\s*minmax\(0, 1fr\) minmax\(0, 1fr\) minmax\(190px, 1\.25fr\) minmax\(0, 1\.1fr\)/);
+    assert.match(css, /\.legend-editor-color-action\s*\{[\s\S]*?display:\s*contents/);
+    assert.match(css, /\.legend-appearance-trigger,[\s\S]*?\.legend-scheme-trigger\s*\{[\s\S]*?min-height:\s*24px/);
+    assert.match(css, /\.legend-scheme-trigger,[\s\S]*?\.legend-scheme-options\s*\{[\s\S]*?font:\s*inherit/);
+    assert.match(css, /\.legend-editor-segmented button\s*\{[\s\S]*?min-height:\s*24px/);
   });
 });

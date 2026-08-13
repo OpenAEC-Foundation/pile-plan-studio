@@ -27,4 +27,10 @@ describe("application shortcuts", () => {
     assert.equal(classifyAppShortcut(modified("-"), false), null);
     assert.equal(classifyAppShortcut(modified("0"), false), null);
   });
+
+  it("opens a project with Ctrl+O in the desktop runtime", () => {
+    const event = { key: "o", ctrlKey: true, repeat: false };
+    assert.equal(classifyAppShortcut(event, true), "open");
+    assert.equal(classifyAppShortcut(event, false), null);
+  });
 });

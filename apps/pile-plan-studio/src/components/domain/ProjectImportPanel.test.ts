@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
 const panel = readFileSync(new URL("./ProjectImportPanel.tsx", import.meta.url), "utf8");
+const styles = readFileSync(new URL("./projectImport.css", import.meta.url), "utf8");
 
 describe("ProjectImportPanel", () => {
   it("renders one profiled source card for every project role", () => {
@@ -66,6 +67,8 @@ describe("ProjectImportPanel", () => {
     assert.match(panel, /title=\{t\("importProject\.pileHeadLevelHelp"\)\}/);
     assert.match(panel, /className="project-import-submit-area"/);
     assert.doesNotMatch(panel, /className="project-import-property-help"/);
+    assert.match(styles, /\.project-import-help\s*\{[\s\S]*?cursor:\s*default/);
+    assert.doesNotMatch(styles, /\.project-import-help\s*\{[\s\S]*?cursor:\s*help/);
   });
 
   it("prefills one selected source in refresh mode", () => {

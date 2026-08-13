@@ -8,7 +8,7 @@ describe("React optimization panel", () => {
     const optimization = readFileSync(resolve(import.meta.dirname, "OptimizationPanel.tsx"), "utf8");
 
     assert.match(optimization, /useState\(String\(value\)\)/);
-    assert.match(optimization, /onChange=\{\(event\) => setDraft\(event\.currentTarget\.value\)\}/);
+    assert.match(optimization, /onValueChange=\{setDraft\}/);
     assert.match(optimization, /onBlur=\{commit\}/);
     assert.match(optimization, /event\.key === "Enter"/);
     assert.match(optimization, /min=\{1\}[\s\S]*updateLimit\("sizes"/);
@@ -43,7 +43,7 @@ describe("React optimization panel", () => {
     assert.match(optimization, /t\("optimization\.run"\)/);
     assert.match(optimization, /optimizationCreatesPilePlan/);
     assert.match(optimization, /t\("optimization\.saveAsNewPilePlan"\)/);
-    assert.match(optimization, /type="number"/);
+    assert.match(optimization, /<ThemedNumberInput/);
     assert.match(optimization, /max_utilization: value \/ 100/);
     assert.doesNotMatch(optimization, /type="range"/);
     assert.ok(
@@ -177,12 +177,25 @@ describe("React CPT settings panel", () => {
     assert.match(styles, /\.segmented-control button:last-child\.is-selected\s*\{[\s\S]*?border-left:\s*1px solid var\(--theme-accent\)/);
   });
 
+  it("highlights the permanent panel tabs on hover", () => {
+    const styles = readFileSync(resolve(import.meta.dirname, "rightPanel.css"), "utf8");
+
+    assert.match(styles, /\.right-panel-tab:hover:not\(:disabled\)\s*\{[\s\S]*?background:\s*var\(--theme-ribbon-btn-hover\)/);
+  });
+
   it("keeps mixed algorithms unselected and maximum angle editable until a concrete alternative is common", () => {
     const panel = readFileSync(resolve(import.meta.dirname, "RightPanel.tsx"), "utf8");
 
     assert.match(panel, /active=\{settings\.algorithm === "quadrants"\}/);
     assert.match(panel, /active=\{settings\.algorithm === "maximum-angle"\}/);
     assert.match(panel, /disabled=\{settings\.algorithm !== null && settings\.algorithm !== "maximum-angle"\}/);
+  });
+
+  it("uses the themed focus treatment for algorithm options", () => {
+    const styles = readFileSync(resolve(import.meta.dirname, "rightPanel.css"), "utf8");
+
+    assert.match(styles, /\.algorithm-option:focus\s*\{[\s\S]*?outline:\s*none/);
+    assert.match(styles, /\.algorithm-option:focus-visible\s*\{[\s\S]*?box-shadow:\s*0 0 0 2px var\(--theme-focus-color\)/);
   });
 
   it("routes Modify selection into the shared CPT panel edit mode", () => {
@@ -207,17 +220,59 @@ describe("React CPT panel edit mode", () => {
     assert.match(panel, /draft\.loadPointIds\.includes\(loadPoint\.id\)/);
   });
 
+  it("can restore algorithmic CPT selection directly from edit mode", () => {
+    const panel = readFileSync(resolve(import.meta.dirname, "RightPanel.tsx"), "utf8");
+    const editActions = panel.match(/\{editing \? \([\s\S]*?<div className="cpt-table-wrap">/)?.[0] ?? "";
+
+    assert.match(editActions, /clearManualCptSelection\(state\)/);
+    assert.match(editActions, /t\("actions\.useAlgorithm"\)/);
+  });
+
+  it("saves the nearest-only selection immediately and closes edit mode", () => {
+    const panel = readFileSync(resolve(import.meta.dirname, "RightPanel.tsx"), "utf8");
+    const editActions = panel.match(/\{editing \? \([\s\S]*?<div className="cpt-table-wrap">/)?.[0] ?? "";
+
+    assert.match(editActions, /saveManualCptSelection\(selectOnlyNearestCpts\(state\)\)/);
+  });
+
   it("uses icon-only remove controls in edit mode and preserves normal CPT inspection links", () => {
     const panel = readFileSync(resolve(import.meta.dirname, "RightPanel.tsx"), "utf8");
     const icons = readFileSync(resolve(import.meta.dirname, "../template/ribbon/icons.ts"), "utf8");
 
     assert.match(icons, /export const removeIcon = `<svg fill="none" stroke="currentColor" viewBox="0 0 24 24">/);
-    assert.match(panel, /import \{ removeIcon \} from "\.\.\/template\/ribbon\/icons\.ts"/);
+    assert.match(panel, /import \{[^}]*removeIcon[^}]*\} from "\.\.\/template\/ribbon\/icons\.ts"/);
     assert.match(panel, /className="cpt-remove-button"/);
     assert.match(panel, /aria-label=\{t\("actions\.removeCpt"/);
     assert.match(panel, /dangerouslySetInnerHTML=\{\{ __html: removeIcon \}\}/);
     assert.match(panel, /removeManualCpt\(state, row\.cpt\.id\)/);
     assert.match(panel, /className="cpt-link"/);
     assert.match(panel, /openCpt\(state, row\.cpt\.id\)/);
+  });
+
+  it("explains both CPT distance settings with information tooltips", () => {
+    const panel = readFileSync(resolve(import.meta.dirname, "RightPanel.tsx"), "utf8");
+
+    assert.match(panel, /helpText=\{t\("cptSettings\.maxDistanceHelp"\)\}/);
+    assert.match(panel, /helpText=\{t\("cptSettings\.monopolyDistanceHelp"\)\}/);
+    assert.match(panel, /className="settings-number-help"/);
+  });
+
+  it("keeps CPT names localized while edit mode disables their inspection links", () => {
+    const panel = readFileSync(resolve(import.meta.dirname, "RightPanel.tsx"), "utf8");
+
+    assert.match(
+      panel,
+      /overview\.columns\[index\] === "CPT"\s*\? localizeCptName\(value, t\)\s*:\s*localizeCptTableValue/,
+    );
+  });
+
+  it("localizes nearest and numbered manual selection labels", () => {
+    const panel = readFileSync(resolve(import.meta.dirname, "RightPanel.tsx"), "utf8");
+    const nl = readFileSync(resolve(import.meta.dirname, "../../i18n/locales/nl/rightPanel.json"), "utf8");
+
+    assert.match(panel, /value\.toLowerCase\(\) === "nearest"[\s\S]*?t\("selection\.nearest"\)/);
+    assert.match(panel, /value\.match\(\/\^manual[\s\S]*?t\("selection\.manual"/);
+    assert.match(nl, /"selection\.nearest":\s*"dichtstbijzijnde"/);
+    assert.match(nl, /"selection\.manual":\s*"handmatig\{\{suffix\}\}"/);
   });
 });

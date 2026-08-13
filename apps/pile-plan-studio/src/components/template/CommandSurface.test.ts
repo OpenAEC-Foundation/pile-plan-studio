@@ -109,6 +109,7 @@ describe("Alpha command surfaces", () => {
     assert.match(app, /beginRightPanelResize/);
     assert.match(app, /className="right-panel-splitter"/);
     assert.match(app, /style\.setProperty\("--right-panel-width"/);
+    assert.match(app, /dispatchViewerLayoutChange\(\)/);
     assert.doesNotMatch(app, /setRightPanelWidth/);
   });
 
@@ -120,6 +121,7 @@ describe("Alpha command surfaces", () => {
     assert.match(app, /beginExplorerResize/);
     assert.match(app, /className="explorer-splitter"/);
     assert.match(app, /style\.setProperty\("--explorer-width"/);
+    assert.match(app, /dispatchViewerLayoutChange\(\)/);
     assert.doesNotMatch(app, /setExplorerWidth/);
     assert.match(styles, /var\(--explorer-width, 240px\)/);
   });

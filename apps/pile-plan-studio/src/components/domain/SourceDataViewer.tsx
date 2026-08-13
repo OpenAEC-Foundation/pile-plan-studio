@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState, type CSSProperties, type UIEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type CSSProperties, type UIEvent } from "react";
 import { useTranslation } from "react-i18next";
 import type { BearingCapacity, Cpt, LoadPoint } from "../../core/projectTypes.ts";
 import type { InputSource } from "../../domain/projectState.ts";
@@ -31,9 +31,11 @@ export default function SourceDataViewer({
   const { t, i18n } = useTranslation();
   const [filters, setFilters] = useState<Record<string, SourceTableFilter>>({});
   const [sort, setSort] = useState<SourceTableSort>(null);
+  const [activeFilterKey, setActiveFilterKey] = useState<string | null>(null);
   const [scrollTop, setScrollTop] = useState(0);
   const [viewportHeight, setViewportHeight] = useState(500);
   const replacementInputRef = useRef<HTMLInputElement>(null);
+  const activeFilterMenuRef = useRef<HTMLDivElement>(null);
   const table = useMemo(() => buildSourceTable(source.kind, {
     loadPoints,
     cpts,
@@ -52,6 +54,21 @@ export default function SourceDataViewer({
   const paddingTop = startIndex * ROW_HEIGHT;
   const paddingBottom = Math.max(0, (rows.length - endIndex) * ROW_HEIGHT);
   const gridStyle = { "--source-column-count": table.columns.length } as CSSProperties;
+
+  useEffect(() => {
+    if (activeFilterKey === null) return undefined;
+
+    const handleOutsidePointerDown = (event: PointerEvent) => {
+      if (event.target instanceof Element && event.target.closest(".source-filter-trigger")) {
+        return;
+      }
+      if (!activeFilterMenuRef.current?.contains(event.target as Node)) {
+        setActiveFilterKey(null);
+      }
+    };
+    document.addEventListener("pointerdown", handleOutsidePointerDown);
+    return () => document.removeEventListener("pointerdown", handleOutsidePointerDown);
+  }, [activeFilterKey]);
 
   const handleScroll = (event: UIEvent<HTMLDivElement>) => {
     setScrollTop(event.currentTarget.scrollTop);
@@ -116,12 +133,19 @@ export default function SourceDataViewer({
               <span>{t(`sourceViewer.columns.${column.labelKey}`)}{column.unit ? ` (${column.unit})` : ""}</span>
               <span aria-hidden="true">{sort?.key === column.key ? (sort.direction === "asc" ? "▲" : "▼") : ""}</span>
             </button>
-            <details className={`source-filter-menu${filters[column.key]?.value ? " is-active" : ""}`}>
-              <summary
+            <div
+              className={`source-filter-menu${filters[column.key]?.value ? " is-active" : ""}${activeFilterKey === column.key ? " is-open" : ""}`}
+              ref={activeFilterKey === column.key ? activeFilterMenuRef : undefined}
+            >
+              <button
+                aria-expanded={activeFilterKey === column.key}
                 aria-label={t("sourceViewer.filter", { column: t(`sourceViewer.columns.${column.labelKey}`) })}
+                className="source-filter-trigger"
                 dangerouslySetInnerHTML={{ __html: searchIcon }}
+                onClick={() => setActiveFilterKey((current) => current === column.key ? null : column.key)}
+                type="button"
               />
-              <div className="source-filter-popover">
+              {activeFilterKey === column.key && <div className="source-filter-popover">
                 <label>
                   <span>{t("sourceViewer.searchValue")}</span>
                   <input
@@ -162,8 +186,8 @@ export default function SourceDataViewer({
                 >
                   {t("sourceViewer.clear")}
                 </button>
-              </div>
-            </details>
+              </div>}
+            </div>
           </div>
         ))}
         </div>

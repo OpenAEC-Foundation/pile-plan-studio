@@ -32,7 +32,8 @@ import {
   selectOnlyNearestCpts,
   startManualCptSelectionEdit,
 } from "./cptSettingsModel.ts";
-import { removeIcon } from "../template/ribbon/icons.ts";
+import { infoIcon, removeIcon } from "../template/ribbon/icons.ts";
+import ThemedNumberInput from "../template/ThemedNumberInput.tsx";
 import OptimizationPanel from "./OptimizationPanel.tsx";
 import CostCatalogPanel from "./CostSettingsPanel.tsx";
 import { commitNumberDraft } from "./numberInputModel.ts";
@@ -196,6 +197,7 @@ function CptSettingsPanel({ state, onStateChange, onClose }: Props & { onClose: 
           <DraftNumberField
             ariaLabel={t("cptSettings.maxDistance")}
             emptyValue={0}
+            helpText={t("cptSettings.maxDistanceHelp")}
             label={t("cptSettings.maxDistance")}
             min={0}
             placeholder={settings.maxDistanceM === null ? t("cptSettings.mixed") : undefined}
@@ -207,6 +209,7 @@ function CptSettingsPanel({ state, onStateChange, onClose }: Props & { onClose: 
           <DraftNumberField
             ariaLabel={t("cptSettings.monopolyDistance")}
             emptyValue={0}
+            helpText={t("cptSettings.monopolyDistanceHelp")}
             label={t("cptSettings.monopolyDistance")}
             min={0}
             placeholder={settings.monopolyDistanceM === null ? t("cptSettings.mixed") : undefined}
@@ -292,6 +295,7 @@ function DraftNumberField({
   ariaLabel,
   disabled = false,
   emptyValue,
+  helpText,
   label,
   max,
   min,
@@ -304,6 +308,7 @@ function DraftNumberField({
   ariaLabel: string;
   disabled?: boolean;
   emptyValue: number;
+  helpText?: string;
   label: string;
   max?: number;
   min?: number;
@@ -332,18 +337,28 @@ function DraftNumberField({
 
   return (
     <label className={`settings-number-row${disabled ? " is-muted" : ""}`}>
-      <span className="settings-number-label">{label}</span>
-      <input
+      <span className="settings-number-label">
+        <span>{label}</span>
+        {helpText ? (
+          <span
+            aria-label={helpText}
+            className="settings-number-help"
+            role="img"
+            title={helpText}
+            dangerouslySetInnerHTML={{ __html: infoIcon }}
+          />
+        ) : null}
+      </span>
+      <ThemedNumberInput
         aria-label={ariaLabel}
         disabled={disabled}
         max={max}
         min={min}
         placeholder={placeholder}
         step={step}
-        type="number"
         value={draft}
         onBlur={commit}
-        onChange={(event) => setDraft(event.currentTarget.value)}
+        onValueChange={setDraft}
         onKeyDown={(event) => {
           if (event.key === "Enter") event.currentTarget.blur();
         }}
@@ -496,9 +511,14 @@ function CptSelectionOverview({ state, onStateChange, selectedLoadPoints, editin
       </header>
       {editing ? (
         <div className="cpt-edit-actions">
-          <button type="button" onClick={() => onStateChange(selectOnlyNearestCpts(state))}>{t("actions.onlyNearest")}</button>
-          <button type="button" onClick={() => onStateChange(saveManualCptSelection(state))}>{t("actions.save")}</button>
-          <button type="button" onClick={() => onStateChange(cancelManualCptSelection(state))}>{t("actions.cancel")}</button>
+          <div className="cpt-edit-methods">
+            <button type="button" onClick={() => onStateChange(clearManualCptSelection(state))}>{t("actions.useAlgorithm")}</button>
+            <button type="button" onClick={() => onStateChange(saveManualCptSelection(selectOnlyNearestCpts(state)))}>{t("actions.onlyNearest")}</button>
+          </div>
+          <div className="cpt-edit-commit-actions">
+            <button type="button" onClick={() => onStateChange(saveManualCptSelection(state))}>{t("actions.save")}</button>
+            <button type="button" onClick={() => onStateChange(cancelManualCptSelection(state))}>{t("actions.cancel")}</button>
+          </div>
         </div>
       ) : null}
       <div className="cpt-table-wrap">
@@ -524,7 +544,9 @@ function CptSelectionOverview({ state, onStateChange, selectedLoadPoints, editin
                       >
                         {localizeCptName(value, t)}
                       </button>
-                    ) : localizeCptTableValue(overview.columns[index], value, t)}
+                    ) : overview.columns[index] === "CPT"
+                      ? localizeCptName(value, t)
+                      : localizeCptTableValue(overview.columns[index], value, t)}
                   </td>
                 ))}
                 {editing ? (
@@ -836,6 +858,9 @@ function localizeCptTableValue(column: string, value: string, t: ReturnType<type
     if (key) return t(key);
     const angle = value.match(/^angle(.*)$/i);
     if (angle) return t("selection.angle", { suffix: angle[1] });
+    if (value.toLowerCase() === "nearest") return t("selection.nearest");
+    const manual = value.match(/^manual(?:\s*(\d+))?$/i);
+    if (manual) return t("selection.manual", { suffix: manual[1] ? ` ${manual[1]}` : "" });
   }
 
   if (column === "Used by") {

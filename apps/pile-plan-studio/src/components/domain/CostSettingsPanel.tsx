@@ -9,6 +9,7 @@ import {
 } from "../../domain/pileCostCatalog.ts";
 import { formatNumber } from "../../domain/formatting.ts";
 import { commitCostInput } from "./costSettingsModel.ts";
+import ThemedNumberInput from "../template/ThemedNumberInput.tsx";
 import ThemedSelect from "../template/ThemedSelect.tsx";
 import "../template/ThemedSelect.css";
 import { removeIcon } from "../template/ribbon/icons.ts";
@@ -186,12 +187,19 @@ function CostSettingsRow({ currencyCode, item, settings, used, onSettingsChange,
         options={shapeOptions(t)}
         onChange={(value) => onSettingsChange(updatePileCostItem(settings, item.pile_size_mm, { shape: value === "round" ? "round" : "square" }))}
       /></td>
-      <td><label className="table-number-field"><span>{currencyCode}</span><input min="0" step="1" type="number" value={costDraft} onChange={(event) => setCostDraft(event.currentTarget.value)} onBlur={() => {
-        const cost = commitCostInput(costDraft);
-        if (cost === null) return setCostDraft(String(item.cost_per_m3));
-        setCostDraft(String(cost));
-        onSettingsChange(updatePileCostItem(settings, item.pile_size_mm, { cost_per_m3: cost }));
-      }} onKeyDown={(event) => { if (event.key === "Enter") event.currentTarget.blur(); }} /></label></td>
+      <td><label className="table-number-field"><span>{currencyCode}</span><ThemedNumberInput
+        min="0"
+        step="1"
+        value={costDraft}
+        onValueChange={setCostDraft}
+        onBlur={() => {
+          const cost = commitCostInput(costDraft);
+          if (cost === null) return setCostDraft(String(item.cost_per_m3));
+          setCostDraft(String(cost));
+          onSettingsChange(updatePileCostItem(settings, item.pile_size_mm, { cost_per_m3: cost }));
+        }}
+        onKeyDown={(event) => { if (event.key === "Enter") event.currentTarget.blur(); }}
+      /></label></td>
       <td><button className="cost-remove-button" type="button" disabled={used} title={used ? t("cost.inUse") : t("cost.removeSize")} onClick={onRemove} dangerouslySetInnerHTML={{ __html: removeIcon }} /></td>
     </tr>
   );

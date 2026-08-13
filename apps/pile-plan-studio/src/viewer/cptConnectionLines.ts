@@ -1,5 +1,5 @@
-import type { Cpt, ProjectBounds, SelectedCpt, ViewPoint } from "../core/projectTypes.ts";
-import { projectPoint } from "./viewerGeometry.ts";
+import type { Cpt, SelectedCpt, ViewPoint } from "../core/projectTypes.ts";
+import { projectPoint, type ProjectViewTransform } from "./viewerGeometry.ts";
 
 type CptSelectionEditDraft = {
   loadPointIds: number[];
@@ -7,7 +7,7 @@ type CptSelectionEditDraft = {
 };
 
 type CptConnectionLinesInput = {
-  bounds: ProjectBounds;
+  transform: ProjectViewTransform;
   cpts: Cpt[];
   selectedLoadPointIds: number[];
   selectedCptsByLoadPointId: ReadonlyMap<number, SelectedCpt[]>;
@@ -35,7 +35,7 @@ export function getCptConnectionSegments(input: CptConnectionLinesInput): CptCon
     if (!cpt) {
       return null;
     }
-    return { id, ...projectPoint(cpt, input.bounds) };
+    return { id, ...projectPoint(cpt, input.transform) };
   });
   if (points.some((point) => point === null)) {
     return [];

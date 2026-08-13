@@ -21,17 +21,15 @@ describe("LegendColorSchemeSelect", () => {
     assert.match(source, /document\.removeEventListener\("pointerdown"/);
   });
 
-  it("sizes the trigger and list from the longest label in the active language", () => {
+  it("fills the stable toolbar column without depending on translated label width", () => {
     const source = readFileSync(resolve(import.meta.dirname, "LegendColorSchemeSelect.tsx"), "utf8");
     const css = readFileSync(resolve(import.meta.dirname, "LegendEditor.css"), "utf8");
 
-    assert.match(source, /legend-scheme-width-probe/);
-    assert.match(source, /legend-scheme-width-labels/);
-    assert.match(source, /LEGEND_COLOR_SCHEMES\.map\(\(scheme\) => \(/);
-    assert.match(css, /\.legend-scheme-select\s*\{[^}]*display:\s*inline-grid[^}]*width:\s*fit-content[^}]*min-width:\s*0[^}]*max-width:\s*100%/s);
-    assert.match(css, /\.legend-editor-auto-action-row\s*>\s*\*\s*\{[^}]*min-width:\s*0/s);
-    assert.match(css, /\.legend-scheme-width-labels\s*>\s*span\s*\{[^}]*grid-area:\s*1\s*\/\s*1/s);
+    assert.doesNotMatch(source, /legend-scheme-width-probe/);
+    assert.match(css, /\.legend-scheme-select\s*\{[^}]*display:\s*inline-grid[^}]*width:\s*100%[^}]*min-width:\s*0[^}]*max-width:\s*100%/s);
+    assert.match(css, /\.legend-editor-auto-actions\s*\{[^}]*grid-template-columns:\s*minmax\(0, 1fr\) minmax\(0, 1fr\) minmax\(190px, 1\.25fr\) minmax\(0, 1\.1fr\)/s);
     assert.match(css, /\.legend-scheme-options\s*\{[^}]*width:\s*100%/s);
+    assert.match(css, /\.legend-scheme-options\s*>\s*button\s*>\s*span:first-child\s*\{[^}]*overflow-wrap:\s*anywhere/s);
     assert.doesNotMatch(css, /\.legend-scheme-options\s*\{[^}]*width:\s*min\(320px/s);
   });
 });

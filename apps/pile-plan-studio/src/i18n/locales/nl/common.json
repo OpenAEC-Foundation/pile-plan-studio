@@ -1,4 +1,8 @@
 {
+  "numberInput": {
+    "increment": "Waarde verhogen",
+    "decrement": "Waarde verlagen"
+  },
   "ok": "OK",
   "cancel": "Annuleren",
   "save": "Opslaan",
@@ -98,6 +102,10 @@
     "usedWarning": "Gebruikt in het actieve palenplan maar gedeactiveerd",
     "unused": "Niet gebruikt in het actieve palenplan",
     "none": "Geen",
+    "encoding": "Codering",
+    "symbol": "Symbool",
+    "color": "Kleur",
+    "swapEncoding": "Symbool- en kleurcodering omwisselen",
     "symbolRepresents": "Symbool representeert",
     "colorRepresentsTip": "Kleur representeert puntniveau",
     "colorRepresentsSize": "Kleur representeert afmeting",

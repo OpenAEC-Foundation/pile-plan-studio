@@ -2,8 +2,10 @@ import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import type { Cpt, ProjectBounds, SelectedCpt } from "../core/projectTypes.ts";
 import { getCptConnectionSegments } from "./cptConnectionLines.ts";
+import { createProjectViewTransform } from "./viewerGeometry.ts";
 
 const bounds: ProjectBounds = { minX: 0, maxX: 100, minY: 0, maxY: 100 };
+const transform = createProjectViewTransform(bounds, { width: 1_000, height: 500 });
 const cpts: Cpt[] = [
   { id: 1, name: "CPT 1", x_mm: 0, y_mm: 0 },
   { id: 2, name: "CPT 2", x_mm: 100, y_mm: 0 },
@@ -22,7 +24,7 @@ function getSegments(options: {
   draft?: Map<number, Set<number>>;
 } = {}) {
   return getCptConnectionSegments({
-    bounds,
+    transform,
     cpts,
     selectedLoadPointIds: options.selectedLoadPointIds ?? [101, 102],
     selectedCptsByLoadPointId: options.analyzed ?? new Map([
@@ -69,6 +71,13 @@ describe("getCptConnectionSegments", () => {
 
     assert.equal(segments.length, 1);
     assert.deepEqual(new Set([segments[0]?.from.id, segments[0]?.to.id]), new Set([1, 2]));
+    assert.deepEqual(
+      new Map([segments[0]!.from, segments[0]!.to].map((point) => [point.id, { x: point.x, y: point.y }])),
+      new Map([
+        [1, { x: 30, y: 90 }],
+        [2, { x: 70, y: 90 }],
+      ]),
+    );
   });
 
   it("creates a closed radially sorted polygon for three or more shared CPTs", () => {
@@ -109,7 +118,7 @@ describe("getCptConnectionSegments", () => {
       { id: 20, name: "CPT 20", x_mm: 100, y_mm: 50 },
     ];
     const segments = getCptConnectionSegments({
-      bounds,
+      transform,
       cpts: collinearCpts,
       selectedLoadPointIds: [101, 102],
       selectedCptsByLoadPointId: new Map([

@@ -1,4 +1,8 @@
 {
+  "numberInput": {
+    "increment": "Increase value",
+    "decrement": "Decrease value"
+  },
   "ok": "OK",
   "cancel": "Cancel",
   "save": "Save",
@@ -98,6 +102,10 @@
     "usedWarning": "Used in the active pile plan but disabled",
     "unused": "Not used in the active pile plan",
     "none": "None",
+    "encoding": "Encoding",
+    "symbol": "Symbol",
+    "color": "Color",
+    "swapEncoding": "Swap symbol and color encoding",
     "symbolRepresents": "Symbol represents",
     "colorRepresentsTip": "Color represents tip level",
     "colorRepresentsSize": "Color represents size",

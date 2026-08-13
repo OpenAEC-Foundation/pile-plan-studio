@@ -106,7 +106,7 @@
   height: 14px;
   place-items: center;
   color: var(--theme-text-muted);
-  cursor: help;
+  cursor: default;
 }
 
 .project-import-help svg {

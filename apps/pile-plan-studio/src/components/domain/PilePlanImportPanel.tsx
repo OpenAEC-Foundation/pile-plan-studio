@@ -7,6 +7,7 @@ import type {
   PilePlanImportProfile,
 } from "../../core/pilePlanImportContract.ts";
 import type { Cpt, LoadPoint, PileConfigurationKey } from "../../core/projectTypes.ts";
+import ThemedNumberInput from "../template/ThemedNumberInput.tsx";
 import ThemedSelect from "../template/ThemedSelect.tsx";
 import "../template/ThemedSelect.css";
 import { ifcImportIcon } from "../template/ribbon/icons.ts";
@@ -146,13 +147,12 @@ export default function PilePlanImportPanel({
           <label className="pile-plan-import-tolerance">
             <span>{t("pilePlanImport.tolerance")}</span>
             <span className="pile-plan-import-number">
-              <input
+              <ThemedNumberInput
                 className="project-import-field"
-                type="number"
                 min="0"
                 step="0.1"
                 value={draft.coordinateToleranceMm}
-                onChange={(event) => changeTolerance(event.target.value)}
+                onValueChange={changeTolerance}
               />
               <span>mm</span>
             </span>

@@ -115,6 +115,7 @@ import {
 import { changeLanguage } from "./i18n/config.ts";
 import { elementLayoutScale, screenToLocal } from "./domain/uiBaseline.ts";
 import { applyPileCostCatalogDefault, mergePileCostCatalog } from "./domain/pileCostCatalog.ts";
+import { VIEWER_LAYOUT_CHANGE_EVENT } from "./viewer/viewerGeometry.ts";
 
 const BUILT_IN_PILE_COST_DEFAULTS = loadIfcppProjectData(sampleProjectText).pileCostSettings;
 
@@ -282,6 +283,7 @@ function AppSession({
   }, []);
   const preparedProjectRef = useRef<{ signature: string; blob: Blob } | null>(null);
   const projectActionRef = useRef<(() => Promise<boolean>) | null>(null);
+  const openProjectActionRef = useRef<(() => Promise<void>) | null>(null);
   const saveShortcutInFlightRef = useRef(false);
   const isDesktop = isDesktopRuntime();
   const { workspaceLayout } = userSettings.preferences;
@@ -481,6 +483,11 @@ function AppSession({
         void projectActionRef.current().finally(() => {
           saveShortcutInFlightRef.current = false;
         });
+        return;
+      }
+
+      if (action === "open") {
+        if (openProjectActionRef.current) void openProjectActionRef.current();
         return;
       }
 
@@ -1039,6 +1046,8 @@ function AppSession({
     if (typeof path === "string") await openDesktopProjectPath(path);
   };
 
+  openProjectActionRef.current = chooseDesktopProject;
+
   return (
     <>
       <div className="app-shell" data-testid="openaec-shell">
@@ -1328,10 +1337,13 @@ function AppSession({
     const handlePointerMove = (moveEvent: PointerEvent) => {
       currentWidth = Math.max(0, startWidth + screenToLocal(moveEvent.clientX, layoutScale) - startX);
       appContentRef.current?.style.setProperty("--explorer-width", `${currentWidth}px`);
+      dispatchViewerLayoutChange();
     };
     const handlePointerUp = () => {
       const snapped = snapExplorerWidth(currentWidth);
       explorerWidthRef.current = snapped.width;
+      appContentRef.current?.style.setProperty("--explorer-width", `${snapped.width}px`);
+      dispatchViewerLayoutChange();
       updateWorkspaceLayout({ explorerVisible: snapped.visible, explorerWidth: snapped.width });
       document.body.classList.remove("is-resizing-panel");
       window.removeEventListener("pointermove", handlePointerMove);
@@ -1355,10 +1367,13 @@ function AppSession({
     const handlePointerMove = (moveEvent: PointerEvent) => {
       currentWidth = Math.max(0, startWidth + startX - screenToLocal(moveEvent.clientX, layoutScale));
       appContentRef.current?.style.setProperty("--right-panel-width", `${currentWidth}px`);
+      dispatchViewerLayoutChange();
     };
     const handlePointerUp = () => {
       const snapped = snapRightPanelWidth(currentWidth);
       rightPanelWidthRef.current = snapped.width;
+      appContentRef.current?.style.setProperty("--right-panel-width", `${snapped.width}px`);
+      dispatchViewerLayoutChange();
       updateWorkspaceLayout({ propertiesVisible: snapped.visible, propertiesWidth: snapped.width });
       document.body.classList.remove("is-resizing-panel");
       window.removeEventListener("pointermove", handlePointerMove);
@@ -1370,6 +1385,10 @@ function AppSession({
     window.addEventListener("pointerup", handlePointerUp);
     window.addEventListener("pointercancel", handlePointerUp);
   }
+}
+
+function dispatchViewerLayoutChange() {
+  window.dispatchEvent(new Event(VIEWER_LAYOUT_CHANGE_EVENT));
 }
 
 function projectFromState(state: ProjectState) {
