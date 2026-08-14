@@ -1,0 +1,24 @@
+.interface-scale-notice {
+  position: fixed;
+  z-index: 1000;
+  top: 12px;
+  right: 12px;
+  min-width: 58px;
+  box-sizing: border-box;
+  padding: 7px 10px;
+  border: 1px solid var(--theme-border);
+  border-radius: 4px;
+  color: var(--theme-text);
+  pointer-events: none;
+  background: var(--theme-surface);
+  box-shadow: 0 3px 12px color-mix(in srgb, #000 18%, transparent);
+  font-size: 12px;
+  font-weight: 600;
+  text-align: center;
+  animation: interface-scale-notice-life 1500ms ease-out both;
+}
+
+@keyframes interface-scale-notice-life {
+  0%, 82% { opacity: 1; }
+  100% { opacity: 0; }
+}

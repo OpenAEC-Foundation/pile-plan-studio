@@ -24,4 +24,10 @@ describe("App save and interface shortcuts", () => {
     assert.match(source, /stepInterfaceScale/);
     assert.match(source, /DEFAULT_INTERFACE_SCALE/);
   });
+
+  it("shows logical application scale feedback from desktop zoom shortcuts", () => {
+    assert.match(source, /<InterfaceScaleNotice/);
+    assert.match(source, /setInterfaceScaleNotice\(\{ id:[\s\S]*?percent: scale \}\)/);
+    assert.match(source, /action === "zoom-reset"/);
+  });
 });

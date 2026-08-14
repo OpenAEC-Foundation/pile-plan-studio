@@ -7,6 +7,7 @@ import Backstage from "./components/template/backstage/Backstage";
 import SettingsDialog, { applyTheme } from "./components/template/settings/SettingsDialog";
 import FeedbackDialog from "./components/template/feedback/FeedbackDialog";
 import StatusBar from "./components/template/StatusBar";
+import InterfaceScaleNotice, { type InterfaceScaleNoticeValue } from "./components/template/InterfaceScaleNotice";
 import HistoryNotice from "./components/viewer/HistoryNotice";
 import PilePlanWorkspace from "./components/domain/PilePlanWorkspace";
 import RightPanel, { type RightTaskPanel } from "./components/domain/RightPanel";
@@ -242,8 +243,14 @@ function AppSession({
   const rightPanelWidthRef = useRef(DEFAULT_RIGHT_PANEL_WIDTH);
   const userSettingsStoreRef = useRef<UserSettingsStore | null>(null);
   const [userSettings, setUserSettings] = useState<UserSettings>(DEFAULT_USER_SETTINGS);
+  const userSettingsRef = useRef(userSettings);
   const [userSettingsReady, setUserSettingsReady] = useState(false);
   const appliedInterfaceScaleRef = useRef<number | null>(null);
+  const interfaceScaleNoticeIdRef = useRef(0);
+  const [interfaceScaleNotice, setInterfaceScaleNotice] = useState<InterfaceScaleNoticeValue | null>(null);
+  const expireInterfaceScaleNotice = useCallback((id: number) => {
+    setInterfaceScaleNotice((current) => current?.id === id ? null : current);
+  }, []);
   const [creatingPilePlan, setCreatingPilePlan] = useState(false);
   const [statusMessage, setStatusMessage] = useState("");
   const statusMessageTimeoutRef = useRef<number | null>(null);
@@ -290,6 +297,7 @@ function AppSession({
   const isDesktop = isDesktopRuntime();
   const { workspaceLayout } = userSettings.preferences;
   const interfaceScalePercent = userSettings.preferences.interfaceScalePercent;
+  userSettingsRef.current = userSettings;
 
   const commitUserSettings = useCallback((next: UserSettings) => {
     setUserSettings(next);
@@ -493,15 +501,17 @@ function AppSession({
         return;
       }
 
-      setUserSettings((current) => {
-        const currentScale = current.preferences.interfaceScalePercent;
-        const scale = action === "zoom-reset"
-          ? DEFAULT_INTERFACE_SCALE
-          : stepInterfaceScale(currentScale, action === "zoom-in" ? 1 : -1);
-        const next = patchUserSettings(current, { interfaceScalePercent: scale });
-        if (userSettingsStoreRef.current) void saveUserSettings(userSettingsStoreRef.current, next);
-        return next;
-      });
+      const current = userSettingsRef.current;
+      const currentScale = current.preferences.interfaceScalePercent;
+      const scale = action === "zoom-reset"
+        ? DEFAULT_INTERFACE_SCALE
+        : stepInterfaceScale(currentScale, action === "zoom-in" ? 1 : -1);
+      const next = patchUserSettings(current, { interfaceScalePercent: scale });
+      userSettingsRef.current = next;
+      setUserSettings(next);
+      if (userSettingsStoreRef.current) void saveUserSettings(userSettingsStoreRef.current, next);
+      interfaceScaleNoticeIdRef.current += 1;
+      setInterfaceScaleNotice({ id: interfaceScaleNoticeIdRef.current, percent: scale });
     };
     window.addEventListener("keydown", handleAppShortcut);
     return () => window.removeEventListener("keydown", handleAppShortcut);
@@ -1337,6 +1347,10 @@ function AppSession({
         })}
       />
       <FeedbackDialog open={feedbackOpen} onClose={() => setFeedbackOpen(false)} />
+      {isDesktop && <InterfaceScaleNotice
+        notice={interfaceScaleNotice}
+        onExpire={expireInterfaceScaleNotice}
+      />}
     </>
   );
 
