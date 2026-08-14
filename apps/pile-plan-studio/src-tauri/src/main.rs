@@ -4,9 +4,8 @@ use pile_plan_core::{
     bearing_capacity_rows_for_cpt, build_pile_options_by_load_point, build_project_analysis,
     calculate_pile_cost, choose_default_pile_option, choose_default_pile_options,
     greedy_optimize_pile_choices, import_project_from_generic_sources_with_properties,
-    preview_import_source,
-    preview_pile_plan_import, refresh_project_from_profiled_sources, selected_cpts,
-    write_pile_plan_csv as write_pile_plan_csv_bytes,
+    preview_import_source, preview_pile_plan_import, refresh_project_from_profiled_sources,
+    selected_cpts, write_pile_plan_csv as write_pile_plan_csv_bytes,
     write_pile_plan_xlsx as write_pile_plan_xlsx_bytes, CptSelectionSettings,
     GreedyOptimizationSettings, GreedyOptimizedPileChoice, ImportSource, ImportSourcePreview,
     PileConfigurationKey, PileConfigurationOption, PileCostSettings, PilePlanExportRequest,
@@ -255,6 +254,7 @@ fn write_binary_file(path: String, contents: Vec<u8>) -> Result<(), String> {
 fn main() {
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_store::Builder::default().build())
         .invoke_handler(tauri::generate_handler![
             calculate_selected_cpts,
             calculate_pile_options,

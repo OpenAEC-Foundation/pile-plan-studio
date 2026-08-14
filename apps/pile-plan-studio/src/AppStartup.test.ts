@@ -154,6 +154,13 @@ describe("React app startup", () => {
     );
   });
 
+  it("does not leave the application behind the startup surface when settings fail", () => {
+    const source = readFileSync(resolve(import.meta.dirname, "App.tsx"), "utf8");
+
+    assert.match(source, /catch \(error\) \{[\s\S]*?Failed to initialize user settings/);
+    assert.match(source, /finally \{[\s\S]*?setUserSettingsReady\(true\)/);
+  });
+
   it("uses the sample project costs as the immutable built-in fallback", () => {
     const source = readFileSync(resolve(import.meta.dirname, "App.tsx"), "utf8");
 

@@ -744,29 +744,35 @@ function AppSession({
 
   useEffect(() => {
     let cancelled = false;
-    void createPlatformUserSettingsStore({
-      isTauri: isDesktop,
-      indexedDb: window.indexedDB,
-    }).then(async (store) => {
-      const settings = await loadUserSettings(
-        store,
-        (key, fallback) => getSetting(key, fallback),
-      );
-      if (cancelled) return;
-      applyTheme(settings.preferences.theme);
-      await changeLanguage(settings.preferences.language);
-      if (isDesktop) {
-        await applyDesktopInterfaceScale(settings.preferences.interfaceScalePercent);
-        appliedInterfaceScaleRef.current = settings.preferences.interfaceScalePercent;
+    void (async () => {
+      try {
+        const store = await createPlatformUserSettingsStore({
+          isTauri: isDesktop,
+          indexedDb: window.indexedDB,
+        });
+        const settings = await loadUserSettings(
+          store,
+          (key, fallback) => getSetting(key, fallback),
+        );
+        if (cancelled) return;
+        applyTheme(settings.preferences.theme);
+        await changeLanguage(settings.preferences.language);
+        if (isDesktop) {
+          await applyDesktopInterfaceScale(settings.preferences.interfaceScalePercent);
+          appliedInterfaceScaleRef.current = settings.preferences.interfaceScalePercent;
+        }
+        if (cancelled) return;
+        userSettingsStoreRef.current = store;
+        explorerWidthRef.current = settings.preferences.workspaceLayout.explorerWidth;
+        rightPanelWidthRef.current = settings.preferences.workspaceLayout.propertiesWidth;
+        setUserSettings(settings);
+        await saveUserSettings(store, settings);
+      } catch (error) {
+        console.error("Failed to initialize user settings", error);
+      } finally {
+        if (!cancelled) setUserSettingsReady(true);
       }
-      if (cancelled) return;
-      userSettingsStoreRef.current = store;
-      explorerWidthRef.current = settings.preferences.workspaceLayout.explorerWidth;
-      rightPanelWidthRef.current = settings.preferences.workspaceLayout.propertiesWidth;
-      setUserSettings(settings);
-      await saveUserSettings(store, settings);
-      if (!cancelled) setUserSettingsReady(true);
-    });
+    })();
     return () => { cancelled = true; };
   }, [isDesktop]);
 

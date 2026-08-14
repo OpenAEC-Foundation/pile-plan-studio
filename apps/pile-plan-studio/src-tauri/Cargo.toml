@@ -10,6 +10,7 @@ tauri-build = { version = "2", features = [] }
 [dependencies]
 tauri = { version = "2", features = [] }
 tauri-plugin-dialog = "2"
+tauri-plugin-store = "2"
 pile-plan-core = { path = "../../../crates/pile-plan-core" }
 serde = { version = "1", features = ["derive"] }
 
