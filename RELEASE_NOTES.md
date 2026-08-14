@@ -29,6 +29,16 @@ silently leaking project choices into other projects.
 - IFCPP schema version 3 stores project currency, pile head level, viewer
   presentation, and currency-neutral costs while retaining migration support
   for schema versions 1 and 2.
+- Keep equal X/Y geometry in the plan viewer and anchor the adaptive coordinate
+  grid to the project origin, independent of panel dimensions.
+- Keep world positions stable while resizing or hiding side panels, including
+  across legend wrapping and application-scale changes.
+- Use one shared compact interface scale in browser and desktop builds, with
+  persistent desktop zoom controls and matching logical percentages.
+- Preserve algorithm selection labels while manually refining CPT selections,
+  and provide direct actions for restoring the algorithm or nearest CPT.
+- Improve themed selects, number inputs, scrollbars, table filters, settings
+  panels, and hover states across light and dark themes.
 - Project viewer presentation participates in Undo and browser recovery, while
   workspace layout and reusable defaults remain application preferences.
 - New-project cost catalogs merge personal, built-in, imported, and
@@ -37,6 +47,8 @@ silently leaking project choices into other projects.
   updates.
 - Windows release builds no longer open an accompanying terminal window; debug
   builds retain their console for development.
+- Windows production builds start from bundled application assets and no longer
+  depend on a running local development server.
 
 ### Notes
 

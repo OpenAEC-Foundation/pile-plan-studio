@@ -27,7 +27,19 @@ describe("App save and interface shortcuts", () => {
 
   it("shows logical application scale feedback from desktop zoom shortcuts", () => {
     assert.match(source, /<InterfaceScaleNotice/);
-    assert.match(source, /setInterfaceScaleNotice\(\{ id:[\s\S]*?percent: scale \}\)/);
+    assert.match(source, /const applyInterfaceScale = useCallback/);
+    assert.match(source, /setInterfaceScaleNotice\(\{[\s\S]*?percent: normalizedScale,[\s\S]*?\}\)/);
     assert.match(source, /action === "zoom-reset"/);
+    assert.match(source, /onDecrease=\{\(\) => applyInterfaceScale/);
+    assert.match(source, /onIncrease=\{\(\) => applyInterfaceScale/);
+    assert.match(source, /onReset=\{\(\) => applyInterfaceScale\(DEFAULT_INTERFACE_SCALE\)\}/);
+  });
+
+  it("releases pointer focus so Shift remains available for viewer selection", () => {
+    assert.match(source, /function releasePointerActivatedControlFocus/);
+    assert.match(source, /POINTER_FOCUS_CONTROL_SELECTOR = "button, \[role='option'\], \[role='tab'\]"/);
+    assert.match(source, /target\.closest<HTMLElement>\(POINTER_FOCUS_CONTROL_SELECTOR\)/);
+    assert.match(source, /control\.blur\(\)/);
+    assert.match(source, /className="app-shell"[\s\S]*?onPointerUpCapture=\{releasePointerActivatedControlFocus\}/);
   });
 });

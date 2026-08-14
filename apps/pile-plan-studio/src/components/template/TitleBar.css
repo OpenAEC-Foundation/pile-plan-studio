@@ -83,6 +83,14 @@
   z-index: 1;
 }
 
+.titlebar-scale-anchor {
+  position: relative;
+  width: 0;
+  height: 100%;
+  flex: 0 0 0;
+  overflow: visible;
+}
+
 .titlebar-quick-access {
   display: flex;
   align-items: center;

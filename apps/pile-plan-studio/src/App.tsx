@@ -97,7 +97,7 @@ import {
 } from "./domain/browserRecoveryStore.ts";
 import { loadBrowserRecovery } from "./domain/browserRecoveryStartup.ts";
 import { classifyAppShortcut } from "./domain/appShortcuts.ts";
-import { DEFAULT_INTERFACE_SCALE, stepInterfaceScale } from "./domain/interfaceScale.ts";
+import { DEFAULT_INTERFACE_SCALE, normalizeInterfaceScale, stepInterfaceScale } from "./domain/interfaceScale.ts";
 import { applyDesktopInterfaceScale } from "./domain/interfaceScaleRuntime.ts";
 import {
   DEFAULT_USER_SETTINGS,
@@ -119,6 +119,15 @@ import { applyPileCostCatalogDefault, mergePileCostCatalog } from "./domain/pile
 import { VIEWER_LAYOUT_CHANGE_EVENT } from "./viewer/viewerGeometry.ts";
 
 const BUILT_IN_PILE_COST_DEFAULTS = loadIfcppProjectData(sampleProjectText).pileCostSettings;
+
+const POINTER_FOCUS_CONTROL_SELECTOR = "button, [role='option'], [role='tab']";
+
+function releasePointerActivatedControlFocus(event: ReactPointerEvent<HTMLDivElement>) {
+  const target = event.target;
+  if (!(target instanceof Element)) return;
+  const control = target.closest<HTMLElement>(POINTER_FOCUS_CONTROL_SELECTOR);
+  if (control && event.currentTarget.contains(control)) control.blur();
+}
 
 type AppBootstrap =
   | { kind: "loading" }
@@ -305,6 +314,20 @@ function AppSession({
       void saveUserSettings(userSettingsStoreRef.current, next);
     }
   }, []);
+
+  const applyInterfaceScale = useCallback((scale: number) => {
+    const normalizedScale = normalizeInterfaceScale(scale);
+    const next = patchUserSettings(userSettingsRef.current, {
+      interfaceScalePercent: normalizedScale,
+    });
+    userSettingsRef.current = next;
+    commitUserSettings(next);
+    interfaceScaleNoticeIdRef.current += 1;
+    setInterfaceScaleNotice({
+      id: interfaceScaleNoticeIdRef.current,
+      percent: normalizedScale,
+    });
+  }, [commitUserSettings]);
 
   const updateWorkspaceLayout = useCallback((patch: Partial<WorkspaceLayoutSettings>) => {
     setUserSettings((current) => {
@@ -506,12 +529,7 @@ function AppSession({
       const scale = action === "zoom-reset"
         ? DEFAULT_INTERFACE_SCALE
         : stepInterfaceScale(currentScale, action === "zoom-in" ? 1 : -1);
-      const next = patchUserSettings(current, { interfaceScalePercent: scale });
-      userSettingsRef.current = next;
-      setUserSettings(next);
-      if (userSettingsStoreRef.current) void saveUserSettings(userSettingsStoreRef.current, next);
-      interfaceScaleNoticeIdRef.current += 1;
-      setInterfaceScaleNotice({ id: interfaceScaleNoticeIdRef.current, percent: scale });
+      applyInterfaceScale(scale);
     };
     window.addEventListener("keydown", handleAppShortcut);
     return () => window.removeEventListener("keydown", handleAppShortcut);
@@ -774,7 +792,7 @@ function AppSession({
       }
     })();
     return () => { cancelled = true; };
-  }, [isDesktop]);
+  }, [applyInterfaceScale, isDesktop]);
 
   useEffect(() => {
     if (!isDesktop) return;
@@ -1080,7 +1098,10 @@ function AppSession({
 
   return (
     <>
-      <div className="app-shell" data-testid="openaec-shell">
+      <div className="app-shell"
+        data-testid="openaec-shell"
+        onPointerUpCapture={releasePointerActivatedControlFocus}
+      >
         <TitleBar
           projectAction={() => void (isDesktop ? saveProject() : downloadProject())}
           projectActionKind={isDesktop ? "save" : "download"}
@@ -1092,6 +1113,21 @@ function AppSession({
           onRedo={() => dispatchProject({ type: "redo" })}
           onSettingsClick={() => setSettingsOpen(true)}
           onFeedbackClick={() => setFeedbackOpen(true)}
+          interfaceScaleControl={isDesktop ? (
+            <InterfaceScaleNotice
+              notice={interfaceScaleNotice}
+              onExpire={expireInterfaceScaleNotice}
+              onDecrease={() => applyInterfaceScale(stepInterfaceScale(
+                userSettingsRef.current.preferences.interfaceScalePercent,
+                -1,
+              ))}
+              onIncrease={() => applyInterfaceScale(stepInterfaceScale(
+                userSettingsRef.current.preferences.interfaceScalePercent,
+                1,
+              ))}
+              onReset={() => applyInterfaceScale(DEFAULT_INTERFACE_SCALE)}
+            />
+          ) : undefined}
         />
         <Ribbon
           onFileTabClick={() => setBackstageOpen(true)}
@@ -1353,10 +1389,6 @@ function AppSession({
         })}
       />
       <FeedbackDialog open={feedbackOpen} onClose={() => setFeedbackOpen(false)} />
-      {isDesktop && <InterfaceScaleNotice
-        notice={interfaceScaleNotice}
-        onExpire={expireInterfaceScaleNotice}
-      />}
     </>
   );
 

@@ -61,7 +61,10 @@ import {
   toggleReactViewerLoadPoint,
 } from "./viewerInteractions.ts";
 import { toggleManualCpt } from "./cptSettingsModel.ts";
-import { getCoordinateGridPattern } from "../../viewer/coordinateGrid.ts";
+import {
+  alignCoordinateGridPatternToDevicePixels,
+  getCoordinateGridPattern,
+} from "../../viewer/coordinateGrid.ts";
 import {
   getActiveLockedLoadPointIds,
   setLassoLoadPointLocks,
@@ -109,10 +112,6 @@ export default function PilePlanViewer({ state, onStateChange }: Props) {
     state.selectedCptsByLoadPointId,
     state.selectedLoadPointIds,
   ]);
-  const coordinateGridPattern = useMemo(
-    () => getCoordinateGridPattern(projectTransform, state.viewport),
-    [projectTransform, state.viewport],
-  );
   const canvasRef = useRef<HTMLDivElement | null>(null);
   const layoutAnchorRef = useRef<HTMLDivElement | null>(null);
   const stageRef = useRef<HTMLDivElement | null>(null);
@@ -252,7 +251,6 @@ export default function PilePlanViewer({ state, onStateChange }: Props) {
             aria-hidden="true"
             className="viewer-coordinate-grid"
             ref={gridRef}
-            style={getCoordinateGridStyle(coordinateGridPattern)}
           />
         ) : null}
         <div className="viewer-layout-anchor" ref={layoutAnchorRef}>
@@ -544,14 +542,27 @@ export default function PilePlanViewer({ state, onStateChange }: Props) {
     viewport: ProjectState["viewport"],
   ) {
     const grid = gridRef.current;
-    if (!grid) return;
+    const canvas = canvasRef.current;
+    if (!grid || !canvas) return;
     const currentRect = canvasRectRef.current;
-    const style = getCoordinateGridStyle(getCoordinateGridPattern(transform, viewport, {
-      canvasSize: currentRect
-        ? { width: currentRect.width, height: currentRect.height }
-        : transform.canvasSize,
-      compensation: layoutCompensationRef.current,
-    }));
+    const rootScale = elementLayoutScale(document.documentElement);
+    const canvasScreenRect = canvas.getBoundingClientRect();
+    const gridScreenRect = grid.getBoundingClientRect();
+    const pattern = alignCoordinateGridPatternToDevicePixels(
+      getCoordinateGridPattern(transform, viewport, {
+        canvasSize: currentRect
+          ? { width: currentRect.width, height: currentRect.height }
+          : transform.canvasSize,
+        compensation: layoutCompensationRef.current,
+      }),
+      {
+        canvasScreen: { x: canvasScreenRect.left, y: canvasScreenRect.top },
+        gridScreen: { x: gridScreenRect.left, y: gridScreenRect.top },
+        rootScale,
+        devicePixelRatio: window.devicePixelRatio,
+      },
+    );
+    const style = getCoordinateGridStyle(pattern);
     grid.style.backgroundSize = style.backgroundSize;
     grid.style.backgroundPosition = style.backgroundPosition;
   }
@@ -849,7 +860,11 @@ type LocalCanvasRect = {
 };
 
 function getLocalCanvasRect(canvas: HTMLElement): LocalCanvasRect {
-  const rect = canvas.getBoundingClientRect();
+  return getLocalElementRect(canvas);
+}
+
+function getLocalElementRect(element: Element): LocalCanvasRect {
+  const rect = element.getBoundingClientRect();
   const scale = elementLayoutScale(document.documentElement);
   return {
     left: screenToLocal(rect.left, scale),

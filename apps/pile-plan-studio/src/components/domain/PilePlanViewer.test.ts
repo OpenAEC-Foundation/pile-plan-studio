@@ -310,7 +310,7 @@ describe("PilePlanViewer inputs", () => {
     assert.match(source, /const \[projectTransform, setProjectTransform\]/);
     assert.match(source, /const projectTransformRef = useRef/);
     assert.match(source, /useLayoutEffect\(\(\) => \{[\s\S]*?new ResizeObserver/);
-    assert.match(source, /getCoordinateGridPattern\(projectTransform,/);
+    assert.match(source, /getCoordinateGridPattern\((?:projectTransform|transform),/);
     assert.match(source, /getCptConnectionSegments\(\{[\s\S]*?transform: projectTransform/);
     assert.match(source, /projectPoint\(cpt, projectTransform\)/);
     assert.match(source, /projectPoint\(loadPoint, projectTransform\)/);
@@ -351,8 +351,21 @@ describe("PilePlanViewer inputs", () => {
 
     assert.ok(gridIndex >= 0 && gridIndex < stageIndex);
     assert.match(source, /getCoordinateGridPattern/);
+    assert.match(source, /alignCoordinateGridPatternToDevicePixels/);
     assert.match(source, /backgroundSize/);
     assert.match(source, /backgroundPosition/);
+  });
+
+  it("keeps coordinate-grid geometry under one imperative owner during layout changes", () => {
+    const source = readFileSync(resolve(import.meta.dirname, "PilePlanViewer.tsx"), "utf8");
+    const gridMarkup = source.match(/className="viewer-coordinate-grid"[\s\S]*?\/>/)?.[0] ?? "";
+    const css = readFileSync(resolve(import.meta.dirname, "viewer.css"), "utf8");
+
+    assert.doesNotMatch(gridMarkup, /style=/);
+    assert.match(source, /<div[\s\S]*?className="viewer-coordinate-grid"/);
+    assert.doesNotMatch(source, /className="viewer-coordinate-grid-lines"/);
+    assert.match(css, /\.viewer-coordinate-grid\s*\{[\s\S]*?background-image:/);
+    assert.doesNotMatch(css, /shape-rendering:\s*crispEdges/);
   });
 
   it("uses an opaque surface behind sticky table headers", () => {

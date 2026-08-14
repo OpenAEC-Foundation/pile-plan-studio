@@ -51,6 +51,50 @@ positions. It must not add another CSS transform. A nested transform below
 subpixel rasterization shifts when the legend wraps, even when calculated
 geometry is unchanged.
 
+## Coordinate-grid rasterization
+
+The grid is a repeating CSS background rather than an SVG path. Its world
+spacing and origin are calculated independently of the visible canvas size, so
+panel resizing cannot select another grid interval. The final background origin
+is aligned once to the global device-pixel lattice using the canvas screen
+position, root CSS zoom, and `devicePixelRatio`.
+
+Do not round the local background position or derive it from percentages. Do
+not use SVG `shape-rendering: crispEdges` for this grid: browsers may adjust both
+the path position and stroke width during rasterization, which caused line
+thickness to alternate between physical pixels after layout changes. Preserve
+subpixel world geometry until the final global device-pixel alignment step.
+
+### Known residual rasterization issue
+
+Stable computed CSS positions do not guarantee identical painted pixels. With
+the compact `0.8` application zoom and a non-integer device-pixel ratio, the
+gradient line width and repeated spacing can occupy fractional physical pixels.
+Chromium may rasterize that repeating background slightly differently when its
+element changes size. This can cause a small visible grid shift or thickness
+change even though the measured world projection, background position, and
+marker positions are unchanged.
+
+DOM geometry tests cannot prove this visual issue fixed. A future robust fix
+should use a device-pixel-aware canvas and snap every projected grid line
+independently in global screen space. Verification must compare physical-pixel
+screenshots before and after splitter movement, not only computed DOM styles.
+
+### Known initial marker rasterization issue
+
+Directly after a reload, a small subset of markers can shift by a few painted
+pixels while a side-panel splitter moves, even though their measured DOM centres
+remain unchanged. Which markers exhibit it may vary per reload. After the first
+viewer zoom, Chromium keeps the non-identity transformed marker stage in a
+different compositing mode and the movement stops.
+
+Forcing `.viewer-content` into a permanent compositing layer with
+`will-change: transform` removes the initial movement, but makes vector markers
+blurry when zoomed because Chromium enlarges the cached layer bitmap. That
+workaround is deliberately not used. Keep vector sharpness and treat the small
+pre-zoom movement as a known rendering limitation until it can be verified with
+physical-pixel screenshot tests.
+
 ## Invariants
 
 - Preserve a fixed world-to-view transform during ordinary layout changes.
@@ -77,6 +121,8 @@ geometry is unchanged.
 | Desktop symbols are larger at the same logical scale | The compact baseline is being applied twice or included in Tauri zoom |
 | Status bar percentages differ while the same plan extent is visible | Plan viewport initialization differs; do not substitute application scale |
 | Grid and markers drift apart | They use different transforms, bounds, or compensation |
+| Grid lines change thickness after panel resize | Known CSS-gradient rasterization limitation under fractional application zoom and device-pixel ratio |
+| A few markers shift during panel drag only before the first zoom | Known Chromium compositing change at the initial identity transform; do not force permanent `will-change` because it blurs zoomed vectors |
 
 For a regression check, zoom into a recognizable load point and CPT, drag both
 splitters slowly across a legend wrap, and hide/show both side panels. The same
