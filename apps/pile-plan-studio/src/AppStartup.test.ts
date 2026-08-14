@@ -140,6 +140,20 @@ describe("React app startup", () => {
     assert.doesNotMatch(source, /loadInterfaceScale|saveInterfaceScale/);
   });
 
+  it("applies loaded desktop scale before rendering the normal workspace", () => {
+    const source = readFileSync(resolve(import.meta.dirname, "App.tsx"), "utf8");
+    assert.match(source, /const \[userSettingsReady, setUserSettingsReady\] = useState\(false\)/);
+    assert.match(
+      source,
+      /if \(isDesktop\) \{[\s\S]*?await applyDesktopInterfaceScale\(settings\.preferences\.interfaceScalePercent\)[\s\S]*?setUserSettingsReady\(true\)/,
+    );
+    assert.match(source, /if \(!userSettingsReady\) \{[\s\S]*?app-startup-surface/);
+    assert.ok(
+      source.indexOf("if (!userSettingsReady)") < source.indexOf('<div className="app-shell"'),
+      "the startup gate must precede the normal workspace",
+    );
+  });
+
   it("uses the sample project costs as the immutable built-in fallback", () => {
     const source = readFileSync(resolve(import.meta.dirname, "App.tsx"), "utf8");
 

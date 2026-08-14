@@ -781,7 +781,8 @@ input[type="number"]:focus-visible {
   letter-spacing: 0.08em;
   text-transform: uppercase;
 }
-.app-bootstrap {
+.app-bootstrap,
+.app-startup-surface {
   min-height: 100vh;
   display: grid;
   place-items: center;

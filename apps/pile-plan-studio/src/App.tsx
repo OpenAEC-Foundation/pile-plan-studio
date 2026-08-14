@@ -242,6 +242,8 @@ function AppSession({
   const rightPanelWidthRef = useRef(DEFAULT_RIGHT_PANEL_WIDTH);
   const userSettingsStoreRef = useRef<UserSettingsStore | null>(null);
   const [userSettings, setUserSettings] = useState<UserSettings>(DEFAULT_USER_SETTINGS);
+  const [userSettingsReady, setUserSettingsReady] = useState(false);
+  const appliedInterfaceScaleRef = useRef<number | null>(null);
   const [creatingPilePlan, setCreatingPilePlan] = useState(false);
   const [statusMessage, setStatusMessage] = useState("");
   const statusMessageTimeoutRef = useRef<number | null>(null);
@@ -741,19 +743,27 @@ function AppSession({
         (key, fallback) => getSetting(key, fallback),
       );
       if (cancelled) return;
+      applyTheme(settings.preferences.theme);
+      await changeLanguage(settings.preferences.language);
+      if (isDesktop) {
+        await applyDesktopInterfaceScale(settings.preferences.interfaceScalePercent);
+        appliedInterfaceScaleRef.current = settings.preferences.interfaceScalePercent;
+      }
+      if (cancelled) return;
       userSettingsStoreRef.current = store;
       explorerWidthRef.current = settings.preferences.workspaceLayout.explorerWidth;
       rightPanelWidthRef.current = settings.preferences.workspaceLayout.propertiesWidth;
       setUserSettings(settings);
-      applyTheme(settings.preferences.theme);
-      await changeLanguage(settings.preferences.language);
       await saveUserSettings(store, settings);
+      if (!cancelled) setUserSettingsReady(true);
     });
     return () => { cancelled = true; };
   }, [isDesktop]);
 
   useEffect(() => {
     if (!isDesktop) return;
+    if (appliedInterfaceScaleRef.current === interfaceScalePercent) return;
+    appliedInterfaceScaleRef.current = interfaceScalePercent;
     void applyDesktopInterfaceScale(interfaceScalePercent);
   }, [interfaceScalePercent, isDesktop]);
 
@@ -1047,6 +1057,10 @@ function AppSession({
   };
 
   openProjectActionRef.current = chooseDesktopProject;
+
+  if (!userSettingsReady) {
+    return <div className="app-startup-surface" role="status" />;
+  }
 
   return (
     <>
