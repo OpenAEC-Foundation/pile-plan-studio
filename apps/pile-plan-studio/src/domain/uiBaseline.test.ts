@@ -21,16 +21,12 @@ describe("UI baseline geometry", () => {
     assert.equal(screenToLocal(80, 0), 80);
   });
 
-  it("marks only the browser document for compact CSS layout", () => {
-    const toggles: Array<[string, boolean]> = [];
-    const root = { classList: { toggle: (name: string, enabled: boolean) => toggles.push([name, enabled]) } };
+  it("marks every runtime with the shared compact application baseline", () => {
+    const additions: string[] = [];
+    const root = { classList: { add: (name: string) => additions.push(name) } };
 
-    applyRuntimeBaseline(false, root);
-    applyRuntimeBaseline(true, root);
+    applyRuntimeBaseline(root);
 
-    assert.deepEqual(toggles, [
-      ["browser-compact-baseline", true],
-      ["browser-compact-baseline", false],
-    ]);
+    assert.deepEqual(additions, ["compact-application-baseline"]);
   });
 });
