@@ -1,11 +1,11 @@
 export const BROWSER_BASELINE_ZOOM = 0.8;
 
 type ClassListTarget = {
-  classList: Pick<DOMTokenList, "toggle">;
+  classList: Pick<DOMTokenList, "add">;
 };
 
-export function applyRuntimeBaseline(isDesktop: boolean, root: ClassListTarget = document.documentElement): void {
-  root.classList.toggle("browser-compact-baseline", !isDesktop);
+export function applyRuntimeBaseline(root: ClassListTarget = document.documentElement): void {
+  root.classList.add("compact-application-baseline");
 }
 
 export function layoutScaleFromWidths(renderedWidth: number, layoutWidth: number): number {

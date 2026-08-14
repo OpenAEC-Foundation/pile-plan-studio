@@ -84,10 +84,10 @@ export default function LegendEditor({ open, state, onApply, onClose }: Props) {
 
   const footer = (
     <>
-      <button className="legend-editor-footer-button" type="button" onClick={onClose}>
+      <button className="settings-btn settings-btn-secondary" type="button" onClick={onClose}>
         {t("cancel")}
       </button>
-      <button className="legend-editor-footer-button is-primary" type="button" onClick={() => onApply(draft)}>
+      <button className="settings-btn settings-btn-primary" type="button" onClick={() => onApply(draft)}>
         {t("apply")}
       </button>
     </>
@@ -98,36 +98,42 @@ export default function LegendEditor({ open, state, onApply, onClose }: Props) {
       className="legend-editor-dialog"
       closeLabel={t("close")}
       footer={footer}
-      height="min(760px, 88vh)"
+      height="min(680px, 84vh)"
       onClose={onClose}
       open={open}
       title={t("legend.editorTitle")}
-      width={860}
+      width={760}
     >
       <div className="legend-editor">
         <div className="legend-editor-configuration">
-          <div className="legend-editor-encoding">
-            <span className="legend-editor-control-label">{t("legend.symbolRepresents")}</span>
-            <div className="legend-editor-segmented" role="group" aria-label={t("legend.symbolRepresents")}>
-              <SegmentButton
-                active={draft.legend.encodingMode === "size-symbol"}
-                label={t("legend.size")}
-                onClick={() => applyEditorActionResult(setLegendEncodingMode(draft, "size-symbol"))}
-              />
-              <SegmentButton
-                active={draft.legend.encodingMode === "tip-symbol"}
-                label={t("legend.tip")}
-                onClick={() => applyEditorActionResult(setLegendEncodingMode(draft, "tip-symbol"))}
-              />
+          <div className="legend-editor-control-row">
+            <div className="legend-editor-encoding">
+              <span className="legend-editor-control-label">{t("legend.encoding")}</span>
+              <div className="legend-editor-encoding-line">
+                <span className="legend-editor-channel-label">{t("legend.symbol")}</span>
+                <span className="legend-editor-channel-value">
+                  {t(symbolKind === "size" ? "legend.size" : "legend.tip")}
+                </span>
+                <button
+                  aria-label={t("legend.swapEncoding")}
+                  className="legend-editor-encoding-swap"
+                  title={t("legend.swapEncoding")}
+                  type="button"
+                  onClick={() => applyEditorActionResult(setLegendEncodingMode(
+                    draft,
+                    draft.legend.encodingMode === "size-symbol" ? "tip-symbol" : "size-symbol",
+                  ))}
+                >
+                  <svg aria-hidden="true" fill="none" viewBox="0 0 24 24">
+                    <path d="M5 8h12m0 0-3-3m3 3-3 3M19 16H7m0 0 3-3m-3 3 3 3" />
+                  </svg>
+                </button>
+                <span className="legend-editor-channel-label">{t("legend.color")}</span>
+                <span className="legend-editor-channel-value">
+                  {t(colorKind === "size" ? "legend.size" : "legend.tip")}
+                </span>
+              </div>
             </div>
-            <span className="legend-editor-helper">
-              {draft.legend.encodingMode === "size-symbol"
-                ? t("legend.colorRepresentsTip")
-                : t("legend.colorRepresentsSize")}
-            </span>
-          </div>
-
-          <div className="legend-editor-automatic">
             <div className="legend-editor-scope">
               <span className="legend-editor-control-label">{t("legend.assignmentScope")}</span>
               <div className="legend-editor-segmented" role="group" aria-label={t("legend.assignmentScope")}>
@@ -143,55 +149,51 @@ export default function LegendEditor({ open, state, onApply, onClose }: Props) {
                 />
               </div>
             </div>
-            <div className="legend-editor-auto-actions">
-              <div className="legend-editor-auto-action-row is-symbol">
-                <button
-                  className="legend-editor-toolbar-button"
-                  disabled={!canReassignSymbols}
-                  title={!canReassignSymbols ? t("legend.noSymbolsToReassign") : undefined}
-                  type="button"
-                  onClick={assignSymbols}
-                >
-                  {t("legend.assignSymbols")}
-                </button>
-              </div>
-              <div className="legend-editor-auto-action-row is-color">
-                <button
-                  className="legend-editor-toolbar-button"
-                  disabled={!canReassignColors}
-                  title={!canReassignColors ? t("legend.noColorsToReassign") : undefined}
-                  type="button"
-                  onClick={() => setDraft(applyAutomaticColors(draft, colorKind))}
-                >
-                  {t("legend.assignColors")}
-                </button>
-                <LegendColorSchemeSelect
-                  value={draft.legend.colorScheme}
-                  label={t("legend.colorScheme")}
-                  getSchemeLabel={schemeLabel}
-                  onChange={(scheme) => setDraft(setLegendColorScheme(draft, scheme))}
-                />
-              </div>
-              <div className="legend-editor-auto-action-row is-reset">
-                <button
-                  className="legend-editor-toolbar-button is-secondary"
-                  type="button"
-                  onClick={() => {
-                    setDraft(resetLegendEditorAppearance(draft, state.bearingCapacities));
-                    setSymbolLimitError(false);
-                  }}
-                >
-                  {t("legend.resetAppearance")}
-                </button>
-              </div>
-            </div>
-            {draft.legend.colorScheme === "colorblind-friendly" ? (
-              <p className="legend-editor-aid">{t("legend.colorblindAid")}</p>
-            ) : null}
-            {symbolLimitError ? (
-              <p className="legend-editor-error" role="alert">{t("legend.symbolLimit", { count: 54 })}</p>
-            ) : null}
           </div>
+          <div className="legend-editor-auto-actions">
+            <button
+              className="legend-editor-toolbar-button"
+              disabled={!canReassignSymbols}
+              title={!canReassignSymbols ? t("legend.noSymbolsToReassign") : undefined}
+              type="button"
+              onClick={assignSymbols}
+            >
+              {t("legend.assignSymbols")}
+            </button>
+            <div className="legend-editor-color-action">
+              <button
+                className="legend-editor-toolbar-button"
+                disabled={!canReassignColors}
+                title={!canReassignColors ? t("legend.noColorsToReassign") : undefined}
+                type="button"
+                onClick={() => setDraft(applyAutomaticColors(draft, colorKind))}
+              >
+                {t("legend.assignColors")}
+              </button>
+              <LegendColorSchemeSelect
+                value={draft.legend.colorScheme}
+                label={t("legend.colorScheme")}
+                getSchemeLabel={schemeLabel}
+                onChange={(scheme) => setDraft(setLegendColorScheme(draft, scheme))}
+              />
+            </div>
+            <button
+              className="legend-editor-toolbar-button is-secondary"
+              type="button"
+              onClick={() => {
+                setDraft(resetLegendEditorAppearance(draft, state.bearingCapacities));
+                setSymbolLimitError(false);
+              }}
+            >
+              {t("legend.resetAppearance")}
+            </button>
+          </div>
+          {draft.legend.colorScheme === "colorblind-friendly" ? (
+            <p className="legend-editor-aid">{t("legend.colorblindAid")}</p>
+          ) : null}
+          {symbolLimitError ? (
+            <p className="legend-editor-error" role="alert">{t("legend.symbolLimit", { count: 54 })}</p>
+          ) : null}
         </div>
 
         {state.legendImportWarnings.length > 0 ? (

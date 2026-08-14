@@ -24,14 +24,19 @@ describe("createInitialProjectState", () => {
     assert.equal(state.optimizationCreatesPilePlan, true);
   });
 
-  it("accepts persisted local viewer preferences", () => {
-    const state = createInitialProjectState(sampleProjectText, {
-      initializeDefaultPiles: false,
-      viewerPreferences: { symbolScalePercent: 145, foregroundLayer: "cpts" },
-    });
+  it("loads viewer preferences from the IFCPP project", () => {
+    const project = JSON.parse(sampleProjectText);
+    project.schema_version = 3;
+    project.settings.viewer = {
+      symbol_scale_percent: 145,
+      foreground_layer: "cpts",
+      show_grid: false,
+    };
+    const state = createInitialProjectState(project, { initializeDefaultPiles: false });
 
     assert.equal(state.symbolScalePercent, 145);
     assert.equal(state.foregroundLayer, "cpts");
+    assert.equal(state.showGrid, false);
   });
 
   it("preserves stored IFCPP choices without scheduling default selection", () => {

@@ -81,11 +81,13 @@ describe("pile option table", () => {
     assert.deepEqual(getPileOptionFilterValues(rows, "status"), ["Missing", "Not OK", "OK"]);
   });
 
-  it("toggles sorting direction when clicking the active column again", () => {
-    assert.deepEqual(getNextPileOptionSortState({ column: "size", direction: "asc" }, "size"), {
+  it("cycles sorting from ascending to descending to disabled", () => {
+    const descending = getNextPileOptionSortState({ column: "size", direction: "asc" }, "size");
+    assert.deepEqual(descending, {
       column: "size",
       direction: "desc",
     });
+    assert.equal(getNextPileOptionSortState(descending, "size"), null);
   });
 });
 

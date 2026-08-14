@@ -70,7 +70,7 @@ export function getNextPileOptionSortState(
     return { column, direction: "asc" };
   }
 
-  return { column, direction: current.direction === "asc" ? "desc" : "asc" };
+  return current.direction === "asc" ? { column, direction: "desc" } : null;
 }
 
 export function getPileOptionTableRows<T extends PileOptionTableRow>(

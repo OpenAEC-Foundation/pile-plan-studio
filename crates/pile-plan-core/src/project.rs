@@ -68,6 +68,8 @@ pub struct ProjectSettings {
     pub global_cpt_selection: CptSelectionSettings,
     pub cpt_selection_by_load_point: HashMap<u32, CptSelectionSettings>,
     pub pile_costs: PileCostSettings,
+    #[serde(default)]
+    pub pile_head_level_m: Option<f64>,
     pub optimization: GreedyOptimizationSettings,
     #[serde(default)]
     pub viewer_utilization: ViewerUtilizationSettings,
@@ -75,6 +77,36 @@ pub struct ProjectSettings {
     pub active_pile_tip_levels: Vec<f64>,
     #[serde(default)]
     pub pile_legend: Option<ProjectLegendSettings>,
+    #[serde(default)]
+    pub viewer: ProjectViewerSettings,
+}
+
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+pub struct ProjectViewerSettings {
+    #[serde(default = "default_symbol_scale_percent")]
+    pub symbol_scale_percent: u32,
+    #[serde(default = "default_foreground_layer")]
+    pub foreground_layer: String,
+    #[serde(default = "default_true")]
+    pub show_grid: bool,
+}
+
+impl Default for ProjectViewerSettings {
+    fn default() -> Self {
+        Self {
+            symbol_scale_percent: default_symbol_scale_percent(),
+            foreground_layer: default_foreground_layer(),
+            show_grid: true,
+        }
+    }
+}
+
+fn default_symbol_scale_percent() -> u32 {
+    100
+}
+
+fn default_foreground_layer() -> String {
+    "load-points".to_string()
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
@@ -578,13 +610,13 @@ mod tests {
                 )]),
                 pile_costs: PileCostSettings {
                     schema_version: 1,
-                    pile_head_level_m: 0.0,
                     items: vec![PileCostSettingsItem {
                         pile_size_mm: 290,
                         shape: PileCostShape::Round,
-                        cost_per_m3_eur: 1000.0,
+                        cost_per_m3: 1000.0,
                     }],
                 },
+                pile_head_level_m: Some(0.0),
                 optimization: GreedyOptimizationSettings {
                     max_pile_sizes: 1,
                     max_pile_tip_levels: 1,
@@ -600,6 +632,7 @@ mod tests {
                 active_pile_sizes: vec![290],
                 active_pile_tip_levels: vec![-18.0],
                 pile_legend: None,
+                viewer: Default::default(),
             },
             user_state: ProjectUserState {
                 pile_plans: vec![PilePlan {

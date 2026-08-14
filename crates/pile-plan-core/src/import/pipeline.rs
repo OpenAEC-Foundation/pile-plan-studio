@@ -42,6 +42,15 @@ pub fn import_project_from_profiled_sources(
     project_name: &str,
     sources: &[ImportSource],
 ) -> Result<PilePlanProject, ImportError> {
+    import_project_from_profiled_sources_with_properties(project_name, sources, None, "EUR")
+}
+
+pub fn import_project_from_profiled_sources_with_properties(
+    project_name: &str,
+    sources: &[ImportSource],
+    pile_head_level_m: Option<f64>,
+    currency_code: &str,
+) -> Result<PilePlanProject, ImportError> {
     let load_source = source_for_role(sources, ImportRole::LoadPoints)?;
     let cpt_source = source_for_role(sources, ImportRole::Cpts)?;
     let capacity_source = source_for_role(sources, ImportRole::BearingCapacities)?;
@@ -78,6 +87,8 @@ pub fn import_project_from_profiled_sources(
         cpts,
         reconciliation.bearing_capacities,
         vec![load_log, cpt_log, capacity_log],
+        pile_head_level_m,
+        currency_code,
     ))
 }
 

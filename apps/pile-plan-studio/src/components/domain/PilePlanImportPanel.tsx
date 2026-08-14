@@ -7,6 +7,9 @@ import type {
   PilePlanImportProfile,
 } from "../../core/pilePlanImportContract.ts";
 import type { Cpt, LoadPoint, PileConfigurationKey } from "../../core/projectTypes.ts";
+import ThemedNumberInput from "../template/ThemedNumberInput.tsx";
+import ThemedSelect from "../template/ThemedSelect.tsx";
+import "../template/ThemedSelect.css";
 import { ifcImportIcon } from "../template/ribbon/icons.ts";
 import {
   applyPilePlanImportPreview,
@@ -104,15 +107,16 @@ export default function PilePlanImportPanel({
           </div>
           <label className="project-import-profile">
             <span>{t("pilePlanImport.profile")}</span>
-            <select
-              className="project-import-field"
+            <ThemedSelect
+              ariaLabel={t("pilePlanImport.profile")}
               value={draft.requestedProfile}
-              onChange={(event) => changeProfile(event.target.value as PilePlanImportProfile)}
-            >
-              <option value="automatic">{t("pilePlanImport.profiles.automatic")}</option>
-              <option value="standard-table">{t("pilePlanImport.profiles.standard")}</option>
-              <option value="legacy">{t("pilePlanImport.profiles.legacy")}</option>
-            </select>
+              options={[
+                { value: "automatic", label: t("pilePlanImport.profiles.automatic") },
+                { value: "standard-table", label: t("pilePlanImport.profiles.standard") },
+                { value: "legacy", label: t("pilePlanImport.profiles.legacy") },
+              ]}
+              onChange={(value) => changeProfile(value as PilePlanImportProfile)}
+            />
           </label>
         </div>
 
@@ -143,13 +147,12 @@ export default function PilePlanImportPanel({
           <label className="pile-plan-import-tolerance">
             <span>{t("pilePlanImport.tolerance")}</span>
             <span className="pile-plan-import-number">
-              <input
+              <ThemedNumberInput
                 className="project-import-field"
-                type="number"
                 min="0"
                 step="0.1"
                 value={draft.coordinateToleranceMm}
-                onChange={(event) => changeTolerance(event.target.value)}
+                onValueChange={changeTolerance}
               />
               <span>mm</span>
             </span>

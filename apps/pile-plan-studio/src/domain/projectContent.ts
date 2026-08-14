@@ -11,13 +11,19 @@ export type ProjectContent = Pick<ProjectState,
   | "globalCptSelectionSettings"
   | "cptSelectionSettingsByLoadPoint"
   | "pileCostSettings"
+  | "pileHeadLevelM"
+  | "currencyCode"
   | "optimizationSettings"
   | "viewerUtilizationSettings"
   | "activePileSizes"
   | "activePileTipLevels"
   | "pileLegend"
+  | "symbolScalePercent"
+  | "foregroundLayer"
+  | "showGrid"
   | "pilePlans"
   | "manualCptIdsByLoadPoint"
+  | "importLog"
 >;
 
 export type AnalysisInvalidation = "none" | "all" | number[];
@@ -35,13 +41,19 @@ const PROJECT_CONTENT_KEYS = [
   "globalCptSelectionSettings",
   "cptSelectionSettingsByLoadPoint",
   "pileCostSettings",
+  "pileHeadLevelM",
+  "currencyCode",
   "optimizationSettings",
   "viewerUtilizationSettings",
   "activePileSizes",
   "activePileTipLevels",
   "pileLegend",
+  "symbolScalePercent",
+  "foregroundLayer",
+  "showGrid",
   "pilePlans",
   "manualCptIdsByLoadPoint",
+  "importLog",
 ] as const satisfies readonly (keyof ProjectContent)[];
 
 export function normalizeProjectContentState(state: ProjectState): ProjectState {

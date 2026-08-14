@@ -35,10 +35,10 @@ describe("React app startup", () => {
 
     assert.match(source, /createInitialProjectState\(\s*projectText,\s*\{[\s\S]*?initializeDefaultPiles,[\s\S]*?defaultPilePlanName: i18n\.language\.startsWith\("nl"\) \? "Basisplan" : "Base plan",[\s\S]*?\},?\s*\)/);
     assert.match(source, /initialProjectText: result\.record\.ifcppText,[\s\S]*?initializeDefaultPiles: false/);
-    assert.match(source, /createInitialProjectState\(sampleProjectText, \{[\s\S]*?initializeDefaultPiles: true,[\s\S]*?viewerPreferences: projectState/);
-    assert.match(source, /createInitialProjectState\(withCosts, \{[\s\S]*?initializeDefaultPiles: true,[\s\S]*?viewerPreferences: projectState,[\s\S]*?\}\)/);
-    assert.match(source, /createInitialProjectState\(refreshedProject, \{[\s\S]*?initializeDefaultPiles: true,[\s\S]*?viewerPreferences: projectState,[\s\S]*?\}\)/);
-    assert.match(source, /createInitialProjectState\(\s*await file\.text\(\),\s*\{ initializeDefaultPiles: false, viewerPreferences: projectState \},?\s*\)/);
+    assert.match(source, /createInitialProjectState\(sampleProjectText, \{[\s\S]*?initializeDefaultPiles: true/);
+    assert.match(source, /createInitialProjectState\(withCosts, \{[\s\S]*?initializeDefaultPiles: true/);
+    assert.match(source, /createInitialProjectState\(refreshedProject, \{[\s\S]*?initializeDefaultPiles: true/);
+    assert.match(source, /createInitialProjectState\(\s*await file\.text\(\),\s*\{ initializeDefaultPiles: false \},?\s*\)/);
   });
 
   it("runs one guarded batched default selection after complete analysis", () => {
@@ -85,7 +85,7 @@ describe("React app startup", () => {
     assert.match(source, /refreshProjectFromFilesCore/);
     assert.match(source, /mode === "refresh"/);
     assert.match(source, /currentProject:\s*projectFromState\(projectState\)/);
-    assert.match(source, /createInitialProjectState\(refreshedProject, \{[\s\S]*?initializeDefaultPiles: true,[\s\S]*?viewerPreferences: projectState,[\s\S]*?\}\)/);
+    assert.match(source, /createInitialProjectState\(refreshedProject, \{[\s\S]*?initializeDefaultPiles: true,[\s\S]*?\}\)/);
     assert.match(source, /defaultSelectionKeepsDirtyRef\.current = true/);
     assert.ok(
       handler.indexOf('mode === "refresh"') < handler.indexOf("confirmProjectReplacement()"),
@@ -122,19 +122,51 @@ describe("React app startup", () => {
     assert.doesNotMatch(source, /projectState\.inputSources\.map/);
   });
 
-  it("waits for stored viewer preferences before saving them", () => {
+  it("keeps viewer preferences inside project persistence", () => {
     const source = readFileSync(resolve(import.meta.dirname, "App.tsx"), "utf8");
 
-    assert.match(source, /viewerPreferencesLoaded/);
-    assert.match(source, /setViewerPreferencesLoaded\(true\)/);
-    assert.match(source, /if \(!viewerPreferencesLoaded\) return/);
+    assert.doesNotMatch(source, /viewerPreferencesLoaded|loadViewerPreferences|saveViewerPreferences/);
+    assert.match(source, /onSymbolScaleChange=.*handleProjectStateChange/s);
+    assert.match(source, /onForegroundLayerChange=.*handleProjectStateChange/s);
+    assert.match(source, /onGridVisibilityChange=.*handleProjectStateChange/s);
   });
 
-  it("uses the sample project costs as fixed defaults without reading mutable stored defaults", () => {
+  it("loads and persists one unified user settings record", () => {
+    const source = readFileSync(resolve(import.meta.dirname, "App.tsx"), "utf8");
+
+    assert.match(source, /createPlatformUserSettingsStore/);
+    assert.match(source, /loadUserSettings/);
+    assert.match(source, /saveUserSettings/);
+    assert.doesNotMatch(source, /loadInterfaceScale|saveInterfaceScale/);
+  });
+
+  it("applies loaded desktop scale before rendering the normal workspace", () => {
+    const source = readFileSync(resolve(import.meta.dirname, "App.tsx"), "utf8");
+    assert.match(source, /const \[userSettingsReady, setUserSettingsReady\] = useState\(false\)/);
+    assert.match(
+      source,
+      /if \(isDesktop\) \{[\s\S]*?await applyDesktopInterfaceScale\(settings\.preferences\.interfaceScalePercent\)[\s\S]*?setUserSettingsReady\(true\)/,
+    );
+    assert.match(source, /if \(!userSettingsReady\) \{[\s\S]*?app-startup-surface/);
+    assert.ok(
+      source.indexOf("if (!userSettingsReady)") < source.indexOf('<div className="app-shell"'),
+      "the startup gate must precede the normal workspace",
+    );
+  });
+
+  it("does not leave the application behind the startup surface when settings fail", () => {
+    const source = readFileSync(resolve(import.meta.dirname, "App.tsx"), "utf8");
+
+    assert.match(source, /catch \(error\) \{[\s\S]*?Failed to initialize user settings/);
+    assert.match(source, /finally \{[\s\S]*?setUserSettingsReady\(true\)/);
+  });
+
+  it("uses the sample project costs as the immutable built-in fallback", () => {
     const source = readFileSync(resolve(import.meta.dirname, "App.tsx"), "utf8");
 
     assert.match(source, /BUILT_IN_PILE_COST_DEFAULTS\s*=\s*loadIfcppProjectData\(sampleProjectText\)\.pileCostSettings/);
-    assert.match(source, /applyDefaultPileCostSettings\(project, BUILT_IN_PILE_COST_DEFAULTS\)/);
+    assert.match(source, /mergePileCostCatalog\([\s\S]*?BUILT_IN_PILE_COST_DEFAULTS/);
+    assert.match(source, /applyPileCostCatalogDefault\([\s\S]*?BUILT_IN_PILE_COST_DEFAULTS/);
     assert.doesNotMatch(source, /PILE_COST_DEFAULTS_KEY/);
     assert.doesNotMatch(source, /getSetting<PileCostSettings/);
     assert.doesNotMatch(

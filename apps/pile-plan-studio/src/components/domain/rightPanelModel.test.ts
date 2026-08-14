@@ -28,6 +28,7 @@ describe("React right panel model", () => {
     const rows = getRenderablePileOptionRows({
       cpts: state.cpts,
       costsByOptionKey: state.pileCostByOptionKey,
+      currencyCode: "GBP",
       options: [
         {
           pile_size_mm: 290,
@@ -59,7 +60,7 @@ describe("React right panel model", () => {
     assert.equal(rows[0].statusLabel, "OK");
     assert.equal(rows[0].governingLabel, "CPT 64");
     assert.equal(rows[0].governingCptId, 64);
-    assert.equal(rows[0].costLabel, "€1,234");
+    assert.equal(rows[0].costLabel, "£1,234");
     assert.equal(rows[0].useLabel, "75%");
     assert.equal(rows[0].frdLabel, "900 kN");
     assert.match(rows[0].symbolHtml, /<rect x="3" y="7" width="18" height="10"/);
@@ -192,6 +193,72 @@ describe("React right panel model", () => {
     assert.deepEqual(model.rows.map((row) => row.values.slice(0, 3)), [
       ["CPT 64", "2 / 2 load points", "1, 2"],
       ["CPT 65", "1 / 2 load points", "1"],
+    ]);
+  });
+
+  it("preserves selection and distance metadata while editing one load point", () => {
+    const cpt64 = { id: 64, name: "CPT 64", x_mm: 0, y_mm: 0 };
+    const state = minimalState({
+      cpts: [cpt64],
+      cptSelectionEditDraft: {
+        loadPointIds: [1],
+        cptIdsByLoadPoint: new Map([[1, new Set([64])]]),
+      },
+      selectedCptsByLoadPointId: new Map([[
+        1,
+        [{ cpt: cpt64, distance_mm: 12340, label: "upper left" }],
+      ]]),
+    });
+
+    const model = getSelectedCptOverviewModel(state, getSelectedLoadPoints(state));
+
+    assert.deepEqual(model.columns, ["Selection", "CPT", "Distance", "FRD range"]);
+    assert.deepEqual(model.rows[0].values.slice(0, 3), ["upper left", "CPT 64", "12.3 m"]);
+  });
+
+  it("numbers newly added manual CPTs immediately while editing", () => {
+    const cpt64 = { id: 64, name: "CPT 64", x_mm: 0, y_mm: 0 };
+    const cpt65 = { id: 65, name: "CPT 65", x_mm: 1000, y_mm: 0 };
+    const cpt66 = { id: 66, name: "CPT 66", x_mm: 2000, y_mm: 0 };
+    const state = minimalState({
+      cpts: [cpt64, cpt65, cpt66],
+      cptSelectionEditDraft: {
+        loadPointIds: [1],
+        cptIdsByLoadPoint: new Map([[1, new Set([64, 65, 66])]]),
+      },
+      selectedCptsByLoadPointId: new Map([[
+        1,
+        [{ cpt: cpt64, distance_mm: 0, label: "manual 1" }],
+      ]]),
+    });
+
+    const model = getSelectedCptOverviewModel(state, getSelectedLoadPoints(state));
+
+    assert.deepEqual(model.rows.map((row) => row.values[0]), ["manual 1", "manual 2", "manual 3"]);
+  });
+
+  it("keeps algorithm selections first and sorts draft manual additions by distance", () => {
+    const cpt61 = { id: 61, name: "CPT 61", x_mm: 1000, y_mm: 0 };
+    const cpt62 = { id: 62, name: "CPT 62", x_mm: 3000, y_mm: 0 };
+    const cpt63 = { id: 63, name: "CPT 63", x_mm: 2000, y_mm: 0 };
+    const state = minimalState({
+      cpts: [cpt61, cpt62, cpt63],
+      cptSelectionEditDraft: {
+        loadPointIds: [1],
+        cptIdsByLoadPoint: new Map([[1, new Set([62, 63, 61])]]),
+      },
+      selectedCptsByLoadPointId: new Map([[
+        1,
+        [{ cpt: cpt61, distance_mm: 1000, label: "nearest" }],
+      ]]),
+    });
+
+    const model = getSelectedCptOverviewModel(state, getSelectedLoadPoints(state));
+
+    assert.deepEqual(model.rows.map((row) => [row.cpt.id, row.values[0]]), [
+      [61, "nearest"],
+      [63, "manual 1"],
+      [62, "manual 2"],
     ]);
   });
 

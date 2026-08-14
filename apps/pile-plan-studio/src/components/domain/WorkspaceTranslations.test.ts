@@ -89,6 +89,8 @@ describe("Workspace translations", () => {
       assert.match(copy, /"cptSettings\.noSelection":/);
       assert.match(copy, /"cptSettings\.mixed":/);
       assert.match(copy, /"cptSettings\.monopolyDistance":/);
+      assert.match(copy, /"cptSettings\.maxDistanceHelp":/);
+      assert.match(copy, /"cptSettings\.monopolyDistanceHelp":/);
       assert.match(copy, /"cptSettings\.overwriteManualSelections":/);
       assert.match(copy, /"cptSettings\.manualCount":/);
       assert.match(copy, /"cptSettings\.algorithmic":/);

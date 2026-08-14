@@ -1,5 +1,6 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 
 import {
   applyImportPreview,
@@ -95,6 +96,14 @@ describe("project import model", () => {
       coordinateSheet: "1.1 Knopen",
       reactionSheet: "RC1",
     });
+  });
+
+  it("requires project properties for a new project import", () => {
+    const source = readFileSync(new URL("./ProjectImportPanel.tsx", import.meta.url), "utf8");
+
+    assert.match(source, /defaultCurrencyCode/);
+    assert.match(source, /pileHeadLevel/);
+    assert.match(source, /normalizePileHeadLevel/);
   });
 });
 

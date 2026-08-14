@@ -16,7 +16,11 @@ mod rfem;
 mod roles;
 mod table;
 
-pub use pipeline::{import_project_from_profiled_sources, preview_import_source};
+pub use pipeline::{
+    import_project_from_profiled_sources,
+    import_project_from_profiled_sources_with_properties,
+    preview_import_source,
+};
 pub use profile::{
     available_profiles, ImportDiagnostic, ImportDiagnosticCode, ImportDiagnosticLocation,
     ImportDiagnosticSeverity, ImportPreviewDetails, ImportProfile, ImportProfileOptions,
@@ -238,6 +242,8 @@ pub fn import_project_from_sources(
         cpts,
         reconciliation.bearing_capacities,
         import_log,
+        None,
+        "EUR",
     ))
 }
 
@@ -245,7 +251,21 @@ pub fn import_project_from_generic_sources(
     project_name: &str,
     sources: &[ImportSource],
 ) -> Result<PilePlanProject, ImportError> {
-    import_project_from_profiled_sources(project_name, sources)
+    import_project_from_generic_sources_with_properties(project_name, sources, None, "EUR")
+}
+
+pub fn import_project_from_generic_sources_with_properties(
+    project_name: &str,
+    sources: &[ImportSource],
+    pile_head_level_m: Option<f64>,
+    currency_code: &str,
+) -> Result<PilePlanProject, ImportError> {
+    import_project_from_profiled_sources_with_properties(
+        project_name,
+        sources,
+        pile_head_level_m,
+        currency_code,
+    )
 }
 
 fn build_imported_project(
@@ -254,12 +274,14 @@ fn build_imported_project(
     cpts: Vec<ProjectCpt>,
     bearing_capacities: Vec<ProjectBearingCapacity>,
     import_log: Vec<ProjectImportLogEntry>,
+    pile_head_level_m: Option<f64>,
+    currency_code: &str,
 ) -> PilePlanProject {
     let active_pile_sizes = unique_sorted_pile_sizes(&bearing_capacities);
     let active_pile_tip_levels = unique_sorted_tip_levels(&bearing_capacities);
     PilePlanProject {
         schema: "IFCPP".to_string(),
-        schema_version: 2,
+        schema_version: 3,
         application: ProjectApplication {
             name: "Pile Plan Studio".to_string(),
             version: "0.1.0-alpha".to_string(),
@@ -280,7 +302,7 @@ fn build_imported_project(
             design_loads: "kN".to_string(),
             pile_tip_levels: "m".to_string(),
             bearing_capacities: "kN".to_string(),
-            costs: "EUR".to_string(),
+            costs: currency_code.to_string(),
         },
         inputs: ProjectInputs {
             load_points,
@@ -296,10 +318,10 @@ fn build_imported_project(
             },
             cpt_selection_by_load_point: HashMap::new(),
             pile_costs: PileCostSettings {
-                schema_version: 1,
-                pile_head_level_m: 0.0,
+                schema_version: 2,
                 items: vec![],
             },
+            pile_head_level_m,
             optimization: GreedyOptimizationSettings {
                 max_pile_sizes: active_pile_sizes.len(),
                 max_pile_tip_levels: active_pile_tip_levels.len(),
@@ -315,6 +337,7 @@ fn build_imported_project(
             active_pile_sizes,
             active_pile_tip_levels,
             pile_legend: None,
+            viewer: Default::default(),
         },
         user_state: ProjectUserState::with_default_pile_plan(HashMap::new(), HashMap::new()),
         import_log,

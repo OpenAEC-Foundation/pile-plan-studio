@@ -8,7 +8,7 @@ import { aggregatePileOptionsForLoadPoints } from "../../domain/pileOptionAggreg
 import { getPileOptionStatus } from "../../domain/pileOptionStatus.ts";
 import type { PileOptionTableRow } from "../../domain/pileOptionTable.ts";
 import { renderPileSymbol } from "../../viewer/pileSymbols.ts";
-import type { Cpt, LegendItems, LoadPoint, PileConfigurationOption } from "../.././core/projectTypes.ts";
+import type { Cpt, LegendItems, LoadPoint, PileConfigurationOption, SelectedCpt } from "../.././core/projectTypes.ts";
 
 export type RenderablePileOptionTableRow = PileOptionTableRow & {
   governingCptId: number | null;
@@ -85,10 +85,7 @@ export function getSelectedCptOverviewModel(
       loadPoint,
       isManualSelection: draft !== null,
       selectedCpts: draft
-        ? [...(draft.cptIdsByLoadPoint.get(loadPoint.id) ?? new Set())]
-          .map((cptId) => state.cpts.find((cpt) => cpt.id === cptId))
-          .filter((cpt): cpt is Cpt => cpt !== undefined)
-          .map((cpt) => ({ cpt, distance_mm: 0, label: "manual" }))
+        ? buildDraftSelectedCpts(state, loadPoint, draft.cptIdsByLoadPoint.get(loadPoint.id) ?? new Set())
         : state.selectedCptsByLoadPointId.get(loadPoint.id) ?? [],
     })),
   );
@@ -100,6 +97,48 @@ export function getSelectedCptOverviewModel(
       values: [...row.values, formatFrdRange(state.cptFrdRowsByCptId.get(row.cpt.id) ?? [])],
     })),
   };
+}
+
+function buildDraftSelectedCpts(state: ProjectState, loadPoint: LoadPoint, cptIds: Set<number>): SelectedCpt[] {
+  const existingSelections = state.selectedCptsByLoadPointId.get(loadPoint.id) ?? [];
+  const algorithmicOrder = new Map(
+    existingSelections
+      .filter((selection) => !isManualSelectionLabel(selection.label))
+      .map((selection, index) => [selection.cpt.id, index]),
+  );
+  const selections = [...cptIds]
+    .map((cptId) => state.cpts.find((cpt) => cpt.id === cptId))
+    .filter((cpt): cpt is Cpt => cpt !== undefined)
+    .map((cpt) => {
+      const existing = existingSelections.find((selection) => selection.cpt.id === cpt.id);
+      return existing
+        ? { ...existing, cpt }
+        : {
+            cpt,
+            distance_mm: Math.hypot(cpt.x_mm - loadPoint.x_mm, cpt.y_mm - loadPoint.y_mm),
+            label: "manual",
+          };
+    });
+
+  selections.sort((left, right) => {
+    const leftOrder = algorithmicOrder.get(left.cpt.id);
+    const rightOrder = algorithmicOrder.get(right.cpt.id);
+    if (leftOrder !== undefined || rightOrder !== undefined) {
+      if (leftOrder === undefined) return 1;
+      if (rightOrder === undefined) return -1;
+      return leftOrder - rightOrder;
+    }
+    return left.distance_mm - right.distance_mm || left.cpt.id - right.cpt.id;
+  });
+
+  let manualIndex = 0;
+  return selections.map((selection) => isManualSelectionLabel(selection.label)
+    ? { ...selection, label: `manual ${++manualIndex}` }
+    : selection);
+}
+
+function isManualSelectionLabel(label: string): boolean {
+  return /^manual(?:\s*\d+)?$/i.test(label);
 }
 
 export function getCptFrdPanelModel(state: ProjectState): CptFrdPanelModel | null {
@@ -121,6 +160,7 @@ export function getCptFrdPanelModel(state: ProjectState): CptFrdPanelModel | nul
 export function getRenderablePileOptionRows(input: {
   cpts: Cpt[];
   costsByOptionKey: Map<string, number | null>;
+  currencyCode?: string;
   options: PileConfigurationOption[];
   selectedLoadPointCount: number;
   legend: LegendItems;
@@ -138,7 +178,7 @@ export function getRenderablePileOptionRows(input: {
     const tipLabel = `${formatNumber(option.pile_tip_level_m)} m`;
 
     return {
-      costLabel: cost === null ? "-" : formatCurrency(cost),
+      costLabel: cost === null ? "-" : formatCurrency(cost, input.currencyCode),
       costValue: cost,
       frdLabel: formatOptionalNumber(option.governing_frd_kn, " kN"),
       frdValue: option.governing_frd_kn,
@@ -172,9 +212,9 @@ function formatFrdRange(rows: Array<{ frd_kn: number }>): string {
   return `${formatNumber(Math.min(...values))}-${formatNumber(Math.max(...values))} kN`;
 }
 
-export function formatCurrency(value: number): string {
+export function formatCurrency(value: number, currencyCode = "EUR"): string {
   return new Intl.NumberFormat("en-US", {
-    currency: "EUR",
+    currency: currencyCode,
     maximumFractionDigits: 0,
     style: "currency",
   }).format(value);

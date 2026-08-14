@@ -3,7 +3,9 @@ import { flushSync } from "react-dom";
 import { useTranslation } from "react-i18next";
 import { useRecentFiles, type RecentFile } from "../../../hooks/useRecentFiles";
 import ProjectImportPanel from "../../domain/ProjectImportPanel";
+import type { ProjectImportProperties } from "../../domain/ProjectImportPanel.tsx";
 import type { ProjectImportMode } from "../../domain/projectImportModel.ts";
+import type { ImportFileRole } from "../../../core/importFiles.ts";
 import PilePlanImportPanel from "../../domain/PilePlanImportPanel.tsx";
 import type { ImportSourceInput } from "../../.././core/coreImportContract";
 import type { ImportSummary } from "../../.././core/projectFile";
@@ -66,7 +68,8 @@ interface BackstageProps {
   onClose: () => void;
   onOpenSettings: () => void;
   onOpenFile?: (path: string) => void;
-  onImportProject: (mode: ProjectImportMode, projectName: string | null, sources: ImportSourceInput[]) => Promise<ImportSummary | null>;
+  onImportProject: (mode: ProjectImportMode, projectName: string | null, sources: ImportSourceInput[], properties: ProjectImportProperties | null) => Promise<ImportSummary | null>;
+  defaultCurrencyCode: string;
   loadPoints: LoadPoint[];
   cpts: Cpt[];
   availablePileConfigurations: PileConfigurationKey[];
@@ -81,9 +84,10 @@ interface BackstageProps {
   onSaveProject: () => Promise<void>;
   onSaveProjectAs: () => Promise<void>;
   commands: ProjectFileCommands;
+  initialImportSource?: { role: ImportFileRole; file: File } | null;
 }
 
-export default function Backstage({ open, onClose, onOpenSettings, onOpenFile, onImportProject, loadPoints, cpts, availablePileConfigurations, activePilePlanName, onImportPilePlan, onOpenProjectFile, onOpenSampleProject, onDownloadProject, onExportPilePlanXlsx, onExportPilePlanCsv, onChooseDesktopProject, onSaveProject, onSaveProjectAs, commands }: BackstageProps) {
+export default function Backstage({ open, onClose, onOpenSettings, onOpenFile, onImportProject, defaultCurrencyCode, loadPoints, cpts, availablePileConfigurations, activePilePlanName, onImportPilePlan, onOpenProjectFile, onOpenSampleProject, onDownloadProject, onExportPilePlanXlsx, onExportPilePlanCsv, onChooseDesktopProject, onSaveProject, onSaveProjectAs, commands, initialImportSource = null }: BackstageProps) {
   const { t } = useTranslation("backstage");
   const [activePanel, setActivePanel] = useState<string>("none");
   const { recentFiles, removeRecentFile, clearRecentFiles } = useRecentFiles();
@@ -99,6 +103,10 @@ export default function Backstage({ open, onClose, onOpenSettings, onOpenFile, o
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [open, onClose]);
+
+  useEffect(() => {
+    if (open && initialImportSource) setActivePanel("import");
+  }, [initialImportSource, open]);
 
   if (!open) return null;
 
@@ -213,8 +221,8 @@ export default function Backstage({ open, onClose, onOpenSettings, onOpenFile, o
             />
           )}
           {activePanel === "about" && <AboutPanel />}
-          {activePanel === "import" && <ProjectImportPanel onImportProject={async (mode, name, sources) => {
-            return onImportProject(mode, name, sources);
+          {activePanel === "import" && <ProjectImportPanel defaultCurrencyCode={defaultCurrencyCode} initialSource={initialImportSource} onImportProject={async (mode, name, sources, properties) => {
+            return onImportProject(mode, name, sources, properties);
           }} />}
           {activePanel === "pile-plan-import" && (
             <PilePlanImportPanel

@@ -21,7 +21,16 @@ describe("SettingsDialog interface scale", () => {
     assert.match(source, /draftInterfaceScale/);
     assert.match(source, /originalInterfaceScale/);
     assert.match(source, /onInterfaceScalePreview/);
-    assert.match(source, /onInterfaceScaleChange/);
+    assert.match(source, /onPreferencesChange/);
+  });
+
+  it("edits language and default currency through the unified settings contract", () => {
+    assert.doesNotMatch(source, /getSetting|setSetting/);
+    assert.match(source, /language/);
+    assert.match(source, /defaultCurrencyCode/);
+    assert.match(source, /onPreferencesChange/);
+    assert.match(english, /Default currency/);
+    assert.match(dutch, /Standaardvaluta/);
   });
 
   it("documents the unshifted equals-key zoom shortcut", () => {

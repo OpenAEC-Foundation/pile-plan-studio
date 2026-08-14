@@ -11,6 +11,9 @@ import {
   MIN_RIGHT_PANEL_WIDTH,
   resizeExplorerWidth,
   resizeRightPanelWidth,
+  restorePanelWidth,
+  snapExplorerWidth,
+  snapRightPanelWidth,
 } from "./panelLayout.ts";
 
 describe("panel layout helpers", () => {
@@ -43,5 +46,13 @@ describe("panel layout helpers", () => {
   it("widens the project explorer when its splitter moves right", () => {
     assert.equal(resizeExplorerWidth({ startWidth: 240, startX: 240, currentX: 300 }), 300);
     assert.equal(resizeExplorerWidth({ startWidth: 240, startX: 240, currentX: 200 }), 200);
+  });
+
+  it("snaps panels closed while preserving a useful reopen width", () => {
+    assert.deepEqual(snapExplorerWidth(20), { visible: false, width: 240 });
+    assert.deepEqual(snapRightPanelWidth(30), { visible: false, width: 620 });
+    assert.deepEqual(snapExplorerWidth(312), { visible: true, width: 312 });
+    assert.deepEqual(snapRightPanelWidth(712), { visible: true, width: 712 });
+    assert.equal(restorePanelWidth(false, 412), 412);
   });
 });

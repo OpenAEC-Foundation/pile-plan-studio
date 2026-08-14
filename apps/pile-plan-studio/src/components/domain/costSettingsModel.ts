@@ -17,22 +17,22 @@ export function commitCostInput(value: string): number | null {
 }
 
 export function updatePileHeadLevel(
-  settings: PileCostSettings,
+  currentValue: number | null,
   pileHeadLevelM: number,
-): PileCostSettings {
+): number | null {
   if (!Number.isFinite(pileHeadLevelM)) {
-    return settings;
+    return currentValue;
   }
 
-  return { ...settings, pile_head_level_m: pileHeadLevelM };
+  return pileHeadLevelM;
 }
 
 export function updatePileCostItem(
   settings: PileCostSettings,
   pileSizeMm: number,
-  patch: Partial<Pick<PileCostSettingsItem, "shape" | "cost_per_m3_eur">>,
+  patch: Partial<Pick<PileCostSettingsItem, "shape" | "cost_per_m3">>,
 ): PileCostSettings {
-  if (patch.cost_per_m3_eur !== undefined && !Number.isFinite(patch.cost_per_m3_eur)) {
+  if (patch.cost_per_m3 !== undefined && !Number.isFinite(patch.cost_per_m3)) {
     return settings;
   }
 
@@ -42,9 +42,9 @@ export function updatePileCostItem(
       ? {
           ...item,
           ...patch,
-          cost_per_m3_eur: patch.cost_per_m3_eur === undefined
-            ? item.cost_per_m3_eur
-            : Math.max(0, patch.cost_per_m3_eur),
+          cost_per_m3: patch.cost_per_m3 === undefined
+            ? item.cost_per_m3
+            : Math.max(0, patch.cost_per_m3),
         }
       : item),
   };

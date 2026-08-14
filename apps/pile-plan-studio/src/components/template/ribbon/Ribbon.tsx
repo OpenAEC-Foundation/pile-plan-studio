@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import RibbonButton from "./RibbonButton";
 import RibbonButtonStack from "./RibbonButtonStack";
@@ -6,15 +6,16 @@ import RibbonGroup from "./RibbonGroup";
 import RibbonTab from "./RibbonTab";
 import type { RightPanelMode } from "../../../domain/selectionState.ts";
 import type { ForegroundLayer } from "../../../domain/viewerPreferences.ts";
-import { elementLayoutScale, screenToLocal } from "../../../domain/uiBaseline.ts";
 import {
   cptIcon,
   applyIcon,
   gridIcon,
+  explorerPanelIcon,
   loadPointIcon,
   lockIcon,
   optimizeIcon,
   projectIcon,
+  propertiesPanelIcon,
   removeIcon,
   settingsIcon,
   unlockIcon,
@@ -43,10 +44,14 @@ interface RibbonProps {
   viewerUtilizationMaximum: number;
   foregroundLayer: ForegroundLayer;
   showGrid: boolean;
+  explorerVisible: boolean;
+  propertiesVisible: boolean;
   onSymbolScaleChange: (value: number) => void;
   onViewerUtilizationRangeChange: (minimum: number, maximum: number) => void;
   onForegroundLayerChange: (value: ForegroundLayer) => void;
   onGridVisibilityChange: (visible: boolean) => void;
+  onExplorerVisibilityChange: (visible: boolean) => void;
+  onPropertiesVisibilityChange: (visible: boolean) => void;
 }
 
 export default function Ribbon({
@@ -66,12 +71,16 @@ export default function Ribbon({
   viewerUtilizationMaximum,
   foregroundLayer,
   showGrid,
+  explorerVisible,
+  propertiesVisible,
   onSymbolScaleChange,
   onViewerUtilizationRangeChange,
   onForegroundLayerChange,
   onGridVisibilityChange,
+  onExplorerVisibilityChange,
+  onPropertiesVisibilityChange,
 }: RibbonProps) {
-  const { t, i18n } = useTranslation("ribbon");
+  const { t } = useTranslation("ribbon");
   const [activeTab, setActiveTab] = useState<TabId>("plan");
   const [utilizationDraft, setUtilizationDraft] = useState({
     minimum: viewerUtilizationMinimum,
@@ -79,52 +88,6 @@ export default function Ribbon({
   });
   const utilizationDraftRef = useRef(utilizationDraft);
   const committedUtilizationRef = useRef(utilizationDraft);
-  const tabsRef = useRef<HTMLDivElement>(null);
-  const borderRef = useRef<HTMLDivElement>(null);
-  const gapRef = useRef<HTMLDivElement>(null);
-
-  const updateHighlight = useCallback(() => {
-    const tabsEl = tabsRef.current;
-    const borderEl = borderRef.current;
-    const gapEl = gapRef.current;
-    if (!tabsEl || !borderEl || !gapEl) return;
-
-    const activeEl = tabsEl.querySelector(".ribbon-tab.active") as HTMLElement | null;
-    if (!activeEl) {
-      borderEl.style.opacity = "0";
-      gapEl.style.opacity = "0";
-      return;
-    }
-
-    const tabsRect = tabsEl.getBoundingClientRect();
-    const activeRect = activeEl.getBoundingClientRect();
-    const layoutScale = elementLayoutScale(tabsEl);
-    const left = screenToLocal(activeRect.left - tabsRect.left, layoutScale);
-    const top = screenToLocal(activeRect.top - tabsRect.top, layoutScale);
-    const width = screenToLocal(activeRect.width, layoutScale);
-    const height = screenToLocal(activeRect.height, layoutScale);
-
-    borderEl.style.opacity = "1";
-    borderEl.style.left = `${left}px`;
-    borderEl.style.top = `${top}px`;
-    borderEl.style.width = `${width}px`;
-    borderEl.style.height = `${height}px`;
-
-    gapEl.style.opacity = "1";
-    gapEl.style.left = `${left + 1}px`;
-    gapEl.style.width = `${width - 2}px`;
-  }, []);
-
-  useEffect(() => {
-    updateHighlight();
-    requestAnimationFrame(updateHighlight);
-  }, [activeTab, i18n.language, updateHighlight]);
-
-  useEffect(() => {
-    window.addEventListener("resize", updateHighlight);
-    return () => window.removeEventListener("resize", updateHighlight);
-  }, [updateHighlight]);
-
   useEffect(() => {
     const range = {
       minimum: viewerUtilizationMinimum,
@@ -274,6 +237,18 @@ export default function Ribbon({
                   onClick={() => onGridVisibilityChange(!showGrid)}
                 />
               </RibbonGroup>
+              <RibbonGroup label={t("view.windows")}>
+                <RibbonButton
+                  icon={explorerPanelIcon}
+                  label={explorerVisible ? t("view.hideExplorer") : t("view.showExplorer")}
+                  onClick={() => onExplorerVisibilityChange(!explorerVisible)}
+                />
+                <RibbonButton
+                  icon={propertiesPanelIcon}
+                  label={propertiesVisible ? t("view.hideProperties") : t("view.showProperties")}
+                  onClick={() => onPropertiesVisibilityChange(!propertiesVisible)}
+                />
+              </RibbonGroup>
             </div>
           </div>
         );
@@ -282,7 +257,7 @@ export default function Ribbon({
 
   return (
     <div className="ribbon-container">
-      <div className="ribbon-tabs" ref={tabsRef}>
+      <div className="ribbon-tabs">
         <RibbonTab label={t("tabs.file")} isFileTab onClick={() => onFileTabClick?.()} />
         {TABS.map((tab) => (
           <RibbonTab
@@ -292,8 +267,6 @@ export default function Ribbon({
             onClick={() => setActiveTab(tab)}
           />
         ))}
-        <div className="ribbon-tab-border" ref={borderRef} />
-        <div className="ribbon-tab-gap" ref={gapRef} />
       </div>
 
       <div className="ribbon-content-wrapper">

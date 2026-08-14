@@ -8,6 +8,8 @@ const viewer = read("components/domain/PilePlanViewer.tsx");
 const ribbon = read("components/template/ribbon/Ribbon.tsx");
 const modal = read("components/template/Modal.tsx");
 const app = read("App.tsx");
+const baseline = read("domain/uiBaseline.ts");
+const scaleRuntime = read("domain/interfaceScaleRuntime.ts");
 
 describe("compact browser geometry integration", () => {
   it("normalizes viewer pointer positions and rendered lasso coordinates", () => {
@@ -17,10 +19,16 @@ describe("compact browser geometry integration", () => {
     assert.match(viewer, /getLocalCanvasRect/);
   });
 
-  it("normalizes measured ribbon, modal, and splitter geometry", () => {
-    assert.match(ribbon, /elementLayoutScale/);
+  it("avoids measuring ribbon tabs and normalizes modal and splitter geometry", () => {
+    assert.doesNotMatch(ribbon, /getBoundingClientRect|elementLayoutScale|screenToLocal/);
     assert.match(modal, /elementLayoutScale/);
     assert.match(app, /elementLayoutScale\(appContentRef\.current\)/);
     assert.match(app, /screenToLocal/);
+  });
+
+  it("keeps CSS layout scaling separate from the relative desktop WebView factor", () => {
+    assert.match(baseline, /compact-application-baseline/);
+    assert.match(scaleRuntime, /normalizeInterfaceScale\(scalePercent\) \/ 100/);
+    assert.doesNotMatch(scaleRuntime, /BROWSER_BASELINE_ZOOM/);
   });
 });

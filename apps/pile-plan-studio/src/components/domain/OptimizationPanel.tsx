@@ -1,6 +1,7 @@
 import { useEffect, useId, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { ProjectState } from "../../domain/projectState.ts";
+import ThemedNumberInput from "../template/ThemedNumberInput.tsx";
 import { clampOptimizationLimits } from "./optimizationPanelModel.ts";
 
 type Props = {
@@ -146,19 +147,18 @@ function NumberSetting({ label, max, min, value, onChange }: {
       }}
     >
       <label htmlFor={inputId}>{label}</label>
-      <input
+      <ThemedNumberInput
         id={inputId}
         max={max}
         min={min}
         step="1"
-        type="number"
         value={draft}
         onBlur={commit}
-        onChange={(event) => setDraft(event.currentTarget.value)}
+        onValueChange={setDraft}
         onKeyDown={(event) => {
           if (event.key === "Enter") event.currentTarget.blur();
         }}
-        ref={inputRef}
+        inputRef={inputRef}
       />
     </div>
   );

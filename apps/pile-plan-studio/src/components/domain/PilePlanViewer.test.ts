@@ -205,12 +205,12 @@ describe("PilePlanViewer inputs", () => {
     const source = readFileSync(resolve(import.meta.dirname, "PilePlanViewer.tsx"), "utf8");
     const css = readFileSync(resolve(import.meta.dirname, "viewer.css"), "utf8");
 
-    assert.match(source, /left:\s*`\$\{point\.x\}%`/);
-    assert.match(source, /top:\s*`\$\{point\.y\}%`/);
+    assert.match(source, /left:\s*`\$\{point\.x\}px`/);
+    assert.match(source, /top:\s*`\$\{point\.y\}px`/);
     assert.doesNotMatch(source, /left:\s*`\$\{(?:Math\.round|[^}]*toFixed)/);
     assert.match(source, /<svg className="cpt-triangle"[\s\S]*?<text[\s\S]*?className="cpt-label"[\s\S]*?x="12"[\s\S]*?y="9.5"/);
     assert.doesNotMatch(source, /<span className="cpt-label"/);
-    assert.match(css, /\.cpt-label\s*{[\s\S]*?text-anchor:\s*middle;[\s\S]*?dominant-baseline:\s*middle;/);
+    assert.match(css, /\.cpt-label\s*{[\s\S]*?text-anchor:\s*middle;[\s\S]*?dominant-baseline:\s*middle;[\s\S]*?text-rendering:\s*geometricPrecision;/);
     assert.match(css, /\.load-point-marker\.is-selected::before,[\s\S]*?\.cpt-marker\.is-inspected-cpt::before\s*{[\s\S]*?top:\s*0;[\s\S]*?left:\s*0;[\s\S]*?transform:\s*translate\(-50%,\s*-50%\) scale\(var\(--viewer-symbol-scale\)\);/);
   });
 
@@ -235,10 +235,11 @@ describe("PilePlanViewer inputs", () => {
     const css = readFileSync(resolve(import.meta.dirname, "viewer.css"), "utf8");
 
     assert.match(source, /ref=\{stageRef\}/);
-    assert.match(source, /style=\{getStageStyle\(state\.viewport, state\.symbolScalePercent\)\}/);
+    assert.match(source, /style=\{getStageStyle\([\s\S]*?projectTransform\.canvasSize,[\s\S]*?\)\}/);
     assert.match(source, /style=\{getProjectMarkerStyle\(point\)\}/);
     assert.doesNotMatch(source, /style=\{getMarkerStyle\(point,\s*canvasSize,\s*renderViewport\)\}/);
     assert.match(css, /--viewer-symbol-scale:\s*1/);
+    assert.match(source, /effectiveSymbolScale\(symbolScalePercent\)/);
   });
 
   it("keeps load-point selection locked while manually editing CPTs", () => {
@@ -253,14 +254,16 @@ describe("PilePlanViewer inputs", () => {
   it("renders pointer-inert CPT connection lines inside the transformed stage before map markers", () => {
     const source = readFileSync(resolve(import.meta.dirname, "PilePlanViewer.tsx"), "utf8");
     const css = readFileSync(resolve(import.meta.dirname, "viewer.css"), "utf8");
-    const gridIndex = source.indexOf('<svg className="viewer-coordinate-grid"');
-    const cptIndex = source.indexOf("{state.cpts.map", gridIndex);
-    const stageContent = source.slice(gridIndex, cptIndex);
+    const stageIndex = source.indexOf('className={`viewer-content');
+    const cptIndex = source.indexOf("{state.cpts.map", stageIndex);
+    const stageContent = source.slice(stageIndex, cptIndex);
 
     assert.match(source, /getCptConnectionSegments/);
     assert.match(stageContent, /<svg className="cpt-connection-lines"[\s\S]*?<line/);
     assert.match(css, /\.cpt-connection-lines\s*\{[\s\S]*?pointer-events:\s*none;/);
-    assert.match(css, /\.cpt-connection-line\s*\{[\s\S]*?stroke:\s*var\(--theme-text\)/);
+    assert.match(css, /\.viewer-content\s*\{[\s\S]*?--viewer-cpt-connection-line:\s*#8f999e/);
+    assert.match(css, /\.cpt-connection-line\s*\{[\s\S]*?stroke:\s*var\(--viewer-cpt-connection-line\)/);
+    assert.doesNotMatch(css, /\.cpt-connection-line\s*\{[\s\S]*?stroke:\s*var\(--theme-text\)/);
   });
 
   it("does not restore a stale React viewport while a wheel zoom is waiting to commit", () => {
@@ -300,6 +303,71 @@ describe("PilePlanViewer inputs", () => {
     assert.match(css, /\.viewer-content\s*{[\s\S]*?transform-origin:\s*0 0;/);
   });
 
+  it("shares one responsive equal-axis transform across all viewer geometry", () => {
+    const source = readFileSync(resolve(import.meta.dirname, "PilePlanViewer.tsx"), "utf8");
+
+    assert.match(source, /createProjectViewTransform/);
+    assert.match(source, /const \[projectTransform, setProjectTransform\]/);
+    assert.match(source, /const projectTransformRef = useRef/);
+    assert.match(source, /useLayoutEffect\(\(\) => \{[\s\S]*?new ResizeObserver/);
+    assert.match(source, /getCoordinateGridPattern\((?:projectTransform|transform),/);
+    assert.match(source, /getCptConnectionSegments\(\{[\s\S]*?transform: projectTransform/);
+    assert.match(source, /projectPoint\(cpt, projectTransform\)/);
+    assert.match(source, /projectPoint\(loadPoint, projectTransform\)/);
+  });
+
+  it("keeps one project transform and compensates layout movement without rerendering markers", () => {
+    const source = readFileSync(resolve(import.meta.dirname, "PilePlanViewer.tsx"), "utf8");
+    const css = readFileSync(resolve(import.meta.dirname, "viewer.css"), "utf8");
+
+    assert.doesNotMatch(source, /import \{ flushSync \} from "react-dom"/);
+    assert.doesNotMatch(source, /resizeProjectViewTransform/);
+    assert.match(source, /getCanvasLayoutCompensation/);
+    assert.match(source, /className="viewer-layout-anchor"/);
+    assert.match(source, /const resizeObserver = new ResizeObserver\(updateCanvasRect\)/);
+    assert.match(source, /window\.addEventListener\(VIEWER_LAYOUT_CHANGE_EVENT, updateCanvasRect\)/);
+    assert.match(source, /useLayoutEffect\(updateCanvasRect\);/);
+    assert.match(source, /anchor\.style\.left = `\$\{compensation\.x\}px`/);
+    assert.match(source, /anchor\.style\.top = `\$\{compensation\.y\}px`/);
+    const anchorCss = css.match(/\.viewer-layout-anchor\s*\{([^}]*)\}/)?.[1] ?? "";
+    assert.doesNotMatch(anchorCss, /transform:/);
+    assert.match(source, /elementLayoutScale\(document\.documentElement\)/);
+    assert.match(
+      source,
+      /getStageStyle\(\s*state\.viewport,\s*state\.symbolScalePercent,\s*projectTransform\.canvasSize,?\s*\)/,
+    );
+    assert.match(source, /width: `\$\{canvasSize\.width\}px`/);
+    assert.match(source, /height: `\$\{canvasSize\.height\}px`/);
+    assert.match(source, /projectPointPixels\(cpt, projectTransform\)/);
+    assert.match(source, /projectPointPixels\(loadPoint, projectTransform\)/);
+    assert.match(source, /left: `\$\{point\.x\}px`/);
+    assert.match(source, /top: `\$\{point\.y\}px`/);
+  });
+
+  it("renders a viewport-filling coordinate grid outside the finite project stage", () => {
+    const source = readFileSync(resolve(import.meta.dirname, "PilePlanViewer.tsx"), "utf8");
+    const gridIndex = source.indexOf('className="viewer-coordinate-grid"');
+    const stageIndex = source.indexOf('className={`viewer-content');
+
+    assert.ok(gridIndex >= 0 && gridIndex < stageIndex);
+    assert.match(source, /getCoordinateGridPattern/);
+    assert.match(source, /alignCoordinateGridPatternToDevicePixels/);
+    assert.match(source, /backgroundSize/);
+    assert.match(source, /backgroundPosition/);
+  });
+
+  it("keeps coordinate-grid geometry under one imperative owner during layout changes", () => {
+    const source = readFileSync(resolve(import.meta.dirname, "PilePlanViewer.tsx"), "utf8");
+    const gridMarkup = source.match(/className="viewer-coordinate-grid"[\s\S]*?\/>/)?.[0] ?? "";
+    const css = readFileSync(resolve(import.meta.dirname, "viewer.css"), "utf8");
+
+    assert.doesNotMatch(gridMarkup, /style=/);
+    assert.match(source, /<div[\s\S]*?className="viewer-coordinate-grid"/);
+    assert.doesNotMatch(source, /className="viewer-coordinate-grid-lines"/);
+    assert.match(css, /\.viewer-coordinate-grid\s*\{[\s\S]*?background-image:/);
+    assert.doesNotMatch(css, /shape-rendering:\s*crispEdges/);
+  });
+
   it("uses an opaque surface behind sticky table headers", () => {
     const css = readFileSync(resolve(import.meta.dirname, "rightPanel.css"), "utf8");
 
@@ -319,5 +387,13 @@ describe("PilePlanViewer inputs", () => {
     assert.doesNotMatch(hoverRule, /--theme-bg-lighter/);
     assert.match(chosenRule, /background:\s*var\(--theme-accent-soft\)/);
     assert.match(chosenRule, /box-shadow:\s*inset 3px 0 0 var\(--theme-accent\)/);
+  });
+
+  it("keeps the hover candidate section on the themed inspector surface", () => {
+    const css = readFileSync(resolve(import.meta.dirname, "viewer.css"), "utf8");
+    const candidateRule = css.match(/\.viewer-hover-candidates\s*\{(?<body>[^}]*)\}/s)?.groups?.body ?? "";
+
+    assert.match(candidateRule, /background:\s*var\(--theme-surface\)/);
+    assert.doesNotMatch(candidateRule, /--theme-content-bg/);
   });
 });

@@ -2,12 +2,20 @@ import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 
 import {
+  applicationScaleFactor,
   applyDesktopInterfaceScale,
   loadInterfaceScale,
   saveInterfaceScale,
 } from "./interfaceScaleRuntime.ts";
 
 describe("interface scale runtime", () => {
+  it("maps the logical percentage to a relative WebView factor", () => {
+    assert.equal(applicationScaleFactor(50), 0.5);
+    assert.equal(applicationScaleFactor(100), 1);
+    assert.equal(applicationScaleFactor(114), 1.1);
+    assert.equal(applicationScaleFactor(150), 1.5);
+  });
+
   it("normalizes a stored preference and persists normalized values", async () => {
     const saved: Array<[string, number]> = [];
     assert.equal(await loadInterfaceScale({
@@ -25,12 +33,12 @@ describe("interface scale runtime", () => {
       isDesktop: true,
       setZoom: async (factor) => { factors.push(factor); },
     }), true);
-    assert.deepEqual(factors, [0.88]);
+    assert.deepEqual(factors, [1.1]);
 
     assert.equal(await applyDesktopInterfaceScale(80, {
       isDesktop: false,
       setZoom: async (factor) => { factors.push(factor); },
     }), false);
-    assert.deepEqual(factors, [0.88]);
+    assert.deepEqual(factors, [1.1]);
   });
 });

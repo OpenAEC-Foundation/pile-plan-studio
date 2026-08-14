@@ -5,37 +5,35 @@ import { commitCostInput, parseCostInput, updatePileCostItem, updatePileHeadLeve
 
 const settings: PileCostSettings = {
   schema_version: 1,
-  pile_head_level_m: -1,
   items: [
-    { pile_size_mm: 290, shape: "round", cost_per_m3_eur: 210 },
-    { pile_size_mm: 320, shape: "square", cost_per_m3_eur: 230 },
+    { pile_size_mm: 290, shape: "round", cost_per_m3: 210 },
+    { pile_size_mm: 320, shape: "square", cost_per_m3: 230 },
   ],
 };
 
 describe("cost settings model", () => {
-  it("updates the pile head level without mutating the existing settings", () => {
-    const next = updatePileHeadLevel(settings, 1.5);
+  it("commits a finite project pile head level", () => {
+    const next = updatePileHeadLevel(-1, 1.5);
 
-    assert.equal(next.pile_head_level_m, 1.5);
-    assert.equal(settings.pile_head_level_m, -1);
+    assert.equal(next, 1.5);
   });
 
   it("updates shape and non-negative cost for one pile size", () => {
-    const next = updatePileCostItem(settings, 290, { shape: "square", cost_per_m3_eur: -10 });
+    const next = updatePileCostItem(settings, 290, { shape: "square", cost_per_m3: -10 });
 
     assert.deepEqual(next.items[0], {
       pile_size_mm: 290,
       shape: "square",
-      cost_per_m3_eur: 0,
+      cost_per_m3: 0,
     });
     assert.deepEqual(next.items[1], settings.items[1]);
     assert.notEqual(next.items, settings.items);
   });
 
   it("ignores non-finite numeric values", () => {
-    assert.equal(updatePileHeadLevel(settings, Number.NaN), settings);
+    assert.equal(updatePileHeadLevel(-1, Number.NaN), -1);
     assert.equal(
-      updatePileCostItem(settings, 290, { cost_per_m3_eur: Number.POSITIVE_INFINITY }),
+      updatePileCostItem(settings, 290, { cost_per_m3: Number.POSITIVE_INFINITY }),
       settings,
     );
   });

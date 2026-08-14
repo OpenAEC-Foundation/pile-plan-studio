@@ -6,6 +6,7 @@ import { resolve } from "node:path";
 describe("Plan and View ribbon", () => {
   it("exposes direct view controls for symbol size, utilization range, and foreground", () => {
     const source = readFileSync(resolve(import.meta.dirname, "Ribbon.tsx"), "utf8");
+    const styles = readFileSync(resolve(import.meta.dirname, "Ribbon.css"), "utf8");
 
     assert.match(source, /type TabId = "plan" \| "view"/);
     assert.match(source, /const TABS: TabId\[\] = \["plan", "view"\]/);
@@ -18,6 +19,27 @@ describe("Plan and View ribbon", () => {
     assert.match(source, /showGrid/);
     assert.match(source, /onGridVisibilityChange/);
     assert.match(source, /type="range"/);
+    assert.match(styles, /\.ribbon-foreground-control button:hover\s*{[\s\S]*?background:\s*var\(--theme-ribbon-btn-hover\)/);
+  });
+
+  it("offers independent workspace panel visibility controls", () => {
+    const source = readFileSync(resolve(import.meta.dirname, "Ribbon.tsx"), "utf8");
+
+    assert.match(source, /explorerVisible/);
+    assert.match(source, /propertiesVisible/);
+    assert.match(source, /onExplorerVisibilityChange/);
+    assert.match(source, /onPropertiesVisibilityChange/);
+    assert.match(source, /view\.windows/);
+  });
+
+  it("uses a scale-independent active tab border and separates ribbon content", () => {
+    const source = readFileSync(resolve(import.meta.dirname, "Ribbon.tsx"), "utf8");
+    const css = readFileSync(resolve(import.meta.dirname, "Ribbon.css"), "utf8");
+
+    assert.doesNotMatch(source, /ribbon-tab-border|ribbon-tab-gap|updateHighlight/);
+    assert.match(css, /\.ribbon-tab\.active\s*{[\s\S]*?border-color:\s*var\(--theme-accent\)/);
+    assert.match(css, /\.ribbon-tab\.active\s*{[\s\S]*?border-bottom-color:\s*var\(--theme-bg\)/);
+    assert.match(css, /\.ribbon-content-wrapper\s*{[\s\S]*?border-bottom:\s*1px solid var\(--theme-border\)/);
   });
 
   it("draws the preferred utilization track only between its two handles", () => {

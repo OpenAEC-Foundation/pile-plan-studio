@@ -48,11 +48,32 @@
   font-size: 11px;
 }
 
-.project-import-setup {
+.project-import-properties-section {
   display: grid;
-  grid-template-columns: minmax(240px, 1fr) auto;
-  align-items: end;
-  gap: 10px;
+  gap: 8px;
+  padding: 11px 12px 12px;
+  border: 1px solid var(--theme-border);
+  border-radius: 5px;
+  background: var(--theme-surface);
+}
+
+.project-import-properties-section h3 {
+  margin: 0;
+  color: var(--theme-text);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.project-import-file-actions {
+  display: flex;
+  justify-content: flex-start;
+}
+
+.project-import-properties {
+  display: grid;
+  min-width: 0;
+  grid-template-columns: minmax(180px, 1fr) minmax(140px, 0.7fr) minmax(110px, 0.45fr);
+  gap: 8px;
 }
 
 .project-import-name,
@@ -67,6 +88,30 @@
   color: var(--theme-text-secondary);
   font-size: 11px;
   font-weight: 600;
+}
+
+.project-import-required {
+  color: var(--theme-accent);
+}
+
+.project-import-label-with-help {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+}
+
+.project-import-help {
+  display: inline-grid;
+  width: 14px;
+  height: 14px;
+  place-items: center;
+  color: var(--theme-text-muted);
+  cursor: default;
+}
+
+.project-import-help svg {
+  width: 12px;
+  height: 12px;
 }
 
 .project-import-field {
@@ -89,6 +134,43 @@
   border-color: var(--theme-focus-color);
   outline: 1px solid var(--theme-focus-color);
   outline-offset: 0;
+}
+
+.project-import-panel .themed-select {
+  width: 100%;
+  min-width: 0;
+}
+
+.project-import-panel .themed-select-trigger {
+  min-height: 30px;
+  border-radius: 4px;
+  padding: 5px 8px;
+  font-size: inherit;
+}
+
+.project-import-field.is-invalid {
+  border-color: var(--theme-danger-color);
+  outline: 1px solid var(--theme-danger-color);
+  outline-offset: 0;
+}
+
+.project-import-property-blocker {
+  margin: 0;
+  color: var(--theme-text-secondary);
+  font-size: 10px;
+  line-height: 1.35;
+}
+
+.project-import-submit-area {
+  display: grid;
+  width: fit-content;
+  max-width: 360px;
+  gap: 5px;
+}
+
+.project-import-field option {
+  color: var(--theme-text);
+  background: var(--theme-bg-lighter);
 }
 
 .project-import-sources {
@@ -379,10 +461,13 @@
 }
 
 @media (max-width: 620px) {
-  .project-import-setup,
   .project-import-source-header {
     grid-template-columns: 1fr;
     align-items: stretch;
+  }
+
+  .project-import-properties {
+    grid-template-columns: 1fr;
   }
 
   .project-import-bulk {

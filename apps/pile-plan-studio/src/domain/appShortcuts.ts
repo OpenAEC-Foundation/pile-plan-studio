@@ -1,4 +1,4 @@
-export type AppShortcut = "save" | "zoom-in" | "zoom-out" | "zoom-reset";
+export type AppShortcut = "open" | "save" | "zoom-in" | "zoom-out" | "zoom-reset";
 
 export type ShortcutEvent = {
   key: string;
@@ -14,6 +14,7 @@ export function classifyAppShortcut(event: ShortcutEvent, isDesktop: boolean): A
 
   const key = event.key.toLowerCase();
   if (key === "s") return "save";
+  if (key === "o") return isDesktop ? "open" : null;
   if (!isDesktop) return null;
 
   if (key === "+" || key === "=") return "zoom-in";

@@ -11,15 +11,35 @@ describe("App save and interface shortcuts", () => {
     assert.match(source, /classifyAppShortcut\(event, isDesktop\)/);
     assert.match(source, /event\.preventDefault\(\)/);
     assert.match(source, /projectActionRef\.current/);
+    assert.match(source, /openProjectActionRef\.current/);
     assert.match(source, /saveShortcutInFlightRef/);
     assert.doesNotMatch(handler, /isEditableTarget\(event\.target\)/);
   });
 
   it("loads, applies, and persists desktop interface scale", () => {
-    assert.match(source, /loadInterfaceScale\(\)/);
+    assert.match(source, /createPlatformUserSettingsStore/);
+    assert.match(source, /loadUserSettings/);
     assert.match(source, /applyDesktopInterfaceScale/);
-    assert.match(source, /saveInterfaceScale/);
+    assert.match(source, /saveUserSettings/);
     assert.match(source, /stepInterfaceScale/);
     assert.match(source, /DEFAULT_INTERFACE_SCALE/);
+  });
+
+  it("shows logical application scale feedback from desktop zoom shortcuts", () => {
+    assert.match(source, /<InterfaceScaleNotice/);
+    assert.match(source, /const applyInterfaceScale = useCallback/);
+    assert.match(source, /setInterfaceScaleNotice\(\{[\s\S]*?percent: normalizedScale,[\s\S]*?\}\)/);
+    assert.match(source, /action === "zoom-reset"/);
+    assert.match(source, /onDecrease=\{\(\) => applyInterfaceScale/);
+    assert.match(source, /onIncrease=\{\(\) => applyInterfaceScale/);
+    assert.match(source, /onReset=\{\(\) => applyInterfaceScale\(DEFAULT_INTERFACE_SCALE\)\}/);
+  });
+
+  it("releases pointer focus so Shift remains available for viewer selection", () => {
+    assert.match(source, /function releasePointerActivatedControlFocus/);
+    assert.match(source, /POINTER_FOCUS_CONTROL_SELECTOR = "button, \[role='option'\], \[role='tab'\]"/);
+    assert.match(source, /target\.closest<HTMLElement>\(POINTER_FOCUS_CONTROL_SELECTOR\)/);
+    assert.match(source, /control\.blur\(\)/);
+    assert.match(source, /className="app-shell"[\s\S]*?onPointerUpCapture=\{releasePointerActivatedControlFocus\}/);
   });
 });

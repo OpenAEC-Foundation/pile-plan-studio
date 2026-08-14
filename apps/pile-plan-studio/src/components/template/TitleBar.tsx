@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import "./TitleBar.css";
 
@@ -13,6 +13,7 @@ interface TitleBarProps {
   onRedo: () => void;
   onSettingsClick?: () => void;
   onFeedbackClick?: () => void;
+  interfaceScaleControl?: ReactNode;
 }
 
 function TitleBar({
@@ -26,6 +27,7 @@ function TitleBar({
   onRedo,
   onSettingsClick,
   onFeedbackClick,
+  interfaceScaleControl,
 }: TitleBarProps) {
   const { t } = useTranslation();
   const [appVersion, setAppVersion] = useState("");
@@ -114,6 +116,9 @@ function TitleBar({
       </span>
 
       <div className="titlebar-actions">
+        <div className="titlebar-scale-anchor">
+          {interfaceScaleControl}
+        </div>
         <button
           className="send-feedback-btn"
           onClick={onFeedbackClick}

@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { previewImportSourceCore } from "../../core/coreClient.ts";
 import {
@@ -13,8 +13,11 @@ import {
   type ImportFileRole,
 } from "../../core/importFiles.ts";
 import type { ImportSummary } from "../../core/projectFile.ts";
-import { ifcImportIcon } from "../template/ribbon/icons.ts";
+import ThemedSelect from "../template/ThemedSelect.tsx";
+import "../template/ThemedSelect.css";
+import { ifcImportIcon, infoIcon } from "../template/ribbon/icons.ts";
 import { importProfileChoices } from "./importProfileChoices.ts";
+import { normalizePileHeadLevel } from "./projectInformationModel.ts";
 import {
   applyImportPreview,
   beginImportPreview,
@@ -41,23 +44,41 @@ const EMPTY_OPTIONS: ImportProfileOptions = {
   reactionSheet: null,
 };
 
+const CURRENCY_OPTIONS = ["EUR", "GBP", "USD"].map((currency) => ({ value: currency, label: currency }));
+
+export type ProjectImportProperties = {
+  pileHeadLevelM: number;
+  currencyCode: string;
+};
+
 export default function ProjectImportPanel({
   onImportProject,
+  initialSource,
+  defaultCurrencyCode,
 }: {
   onImportProject: (
     mode: ProjectImportMode,
     projectName: string | null,
     sources: ImportSourceInput[],
+    properties: ProjectImportProperties | null,
   ) => Promise<ImportSummary | null>;
+  initialSource?: { role: ImportFileRole; file: File } | null;
+  defaultCurrencyCode: string;
 }) {
   const { t } = useTranslation("common");
   const [mode, setMode] = useState<ProjectImportMode>("new-project");
   const [projectName, setProjectName] = useState(() => t("importProject.defaultName"));
+  const [pileHeadLevel, setPileHeadLevel] = useState("");
+  const [currencyCode, setCurrencyCode] = useState(defaultCurrencyCode);
   const [drafts, setDrafts] = useState(() => createEmptyImportDrafts<File>());
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [summary, setSummary] = useState<ImportSummary | null>(null);
   const nextRequestId = useRef(0);
+  const normalizedPileHeadLevel = normalizePileHeadLevel(pileHeadLevel);
+  const projectPropertiesValid = mode === "refresh" || normalizedPileHeadLevel !== null;
+  const sourcesReady = canSubmitProjectImport(drafts, mode);
+  const showPileHeadLevelBlocker = mode === "new-project" && sourcesReady && !projectPropertiesValid;
 
   const previewFile = async (
     role: ImportFileRole,
@@ -91,6 +112,12 @@ export default function ProjectImportPanel({
     if (file) void previewFile(role, file, "auto", EMPTY_OPTIONS);
   };
 
+  useEffect(() => {
+    if (!initialSource) return;
+    setMode("refresh");
+    assignRoleFile(initialSource.role, initialSource.file);
+  }, [initialSource]);
+
   const assignFiles = (files: File[]) => {
     const currentAssignments = Object.fromEntries(
       ROLES.map(({ role }) => [role, drafts[role].file]),
@@ -116,7 +143,7 @@ export default function ProjectImportPanel({
   };
 
   const importProject = async () => {
-    if (!canSubmitProjectImport(drafts, mode)) return;
+    if (!canSubmitProjectImport(drafts, mode) || !projectPropertiesValid) return;
     setBusy(true);
     setError(null);
     try {
@@ -139,6 +166,9 @@ export default function ProjectImportPanel({
         mode,
         mode === "new-project" ? projectName.trim() || "Imported Project" : null,
         sources,
+        mode === "new-project" && normalizedPileHeadLevel !== null
+          ? { pileHeadLevelM: normalizedPileHeadLevel, currencyCode }
+          : null,
       );
       if (result) setSummary(result);
     } catch (reason) {
@@ -172,17 +202,48 @@ export default function ProjectImportPanel({
       <p className="project-import-mode-description">
         {t(mode === "new-project" ? "importProject.modes.newProjectDescription" : "importProject.modes.refreshDescription")}
       </p>
-      <div className="project-import-setup">
-        {mode === "new-project" ? (
-          <label className="project-import-name">
-            <span>{t("importProject.projectName")}</span>
-            <input
-              className="project-import-field"
-              value={projectName}
-              onChange={(event) => setProjectName(event.target.value)}
-            />
-          </label>
-        ) : <span />}
+      {mode === "new-project" && (
+        <section className="project-import-properties-section">
+          <h3>{t("importProject.projectProperties")}</h3>
+          <div className="project-import-properties">
+            <label className="project-import-name">
+              <span>{t("importProject.projectName")}</span>
+              <input className="project-import-field" value={projectName} onChange={(event) => setProjectName(event.target.value)} />
+            </label>
+            <label className="project-import-name">
+              <span className="project-import-label-with-help">
+                {t("importProject.pileHeadLevel")} <b className="project-import-required" aria-hidden="true">*</b>
+                <span
+                  aria-label={t("importProject.pileHeadLevelHelp")}
+                  className="project-import-help"
+                  role="img"
+                  title={t("importProject.pileHeadLevelHelp")}
+                  dangerouslySetInnerHTML={{ __html: infoIcon }}
+                />
+              </span>
+              <input
+                aria-invalid={showPileHeadLevelBlocker}
+                className={`project-import-field${showPileHeadLevelBlocker ? " is-invalid" : ""}`}
+                inputMode="decimal"
+                required
+                value={pileHeadLevel}
+                onChange={(event) => setPileHeadLevel(event.target.value)}
+              />
+            </label>
+            <label className="project-import-name">
+              <span>{t("importProject.currency")}</span>
+              <ThemedSelect
+                ariaLabel={t("importProject.currency")}
+                className="project-import-currency-select"
+                value={currencyCode}
+                options={CURRENCY_OPTIONS}
+                onChange={setCurrencyCode}
+              />
+            </label>
+          </div>
+        </section>
+      )}
+      <div className="project-import-file-actions">
         <label className="project-import-file-button project-import-bulk">
           <FileActionIcon />
           <span>{t("importProject.chooseFiles")}</span>
@@ -209,15 +270,15 @@ export default function ProjectImportPanel({
                 </div>
                 <label className="project-import-profile">
                   <span>{t("importProject.profile.label")}</span>
-                  <select
-                    className="project-import-field"
+                  <ThemedSelect
+                    ariaLabel={t("importProject.profile.label")}
                     value={draft.requestedProfile}
-                    onChange={(event) => changeProfile(role, event.target.value as ImportProfile)}
-                  >
-                    {importProfileChoices(draft.file?.name ?? null, role, preview).map((profile) => (
-                      <option key={profile} value={profile}>{t(`importProject.profile.${profileKey(profile)}`)}</option>
-                    ))}
-                  </select>
+                    options={importProfileChoices(draft.file?.name ?? null, role, preview).map((profile) => ({
+                      value: profile,
+                      label: t(`importProject.profile.${profileKey(profile)}`),
+                    }))}
+                    onChange={(value) => changeProfile(role, value as ImportProfile)}
+                  />
                 </label>
               </div>
 
@@ -272,11 +333,18 @@ export default function ProjectImportPanel({
           {summary.warnings.length > 0 && <ul>{summary.warnings.map((warning) => <li key={warning}>{warning}</li>)}</ul>}
         </section>
       )}
-      <button className="primary-action project-import-submit" type="button" disabled={busy || !canSubmitProjectImport(drafts, mode)} onClick={importProject}>
-        {busy
-          ? t(mode === "refresh" ? "importProject.refreshing" : "importProject.importing")
-          : t(mode === "refresh" ? "importProject.refreshSubmit" : "importProject.submit")}
-      </button>
+      <div className="project-import-submit-area">
+        <button className="primary-action project-import-submit" type="button" disabled={busy || !sourcesReady || !projectPropertiesValid} onClick={importProject}>
+          {busy
+            ? t(mode === "refresh" ? "importProject.refreshing" : "importProject.importing")
+            : t(mode === "refresh" ? "importProject.refreshSubmit" : "importProject.submit")}
+        </button>
+        {showPileHeadLevelBlocker && (
+          <p className="project-import-property-blocker" role="status">
+            {t("importProject.pileHeadLevelRequired")}
+          </p>
+        )}
+      </div>
     </div>
   );
 }
@@ -379,10 +447,15 @@ function SheetValue({ candidates, value, onChange, placeholder }: {
 }) {
   if (candidates.length <= 1) return <span>{value ?? candidates[0] ?? "-"}</span>;
   return (
-    <select className="project-import-field" value={value ?? ""} onChange={(event) => onChange(event.target.value)}>
-      <option value="" disabled>{placeholder}</option>
-      {candidates.map((candidate) => <option key={candidate} value={candidate}>{candidate}</option>)}
-    </select>
+    <ThemedSelect
+      ariaLabel={placeholder}
+      value={value ?? ""}
+      options={[
+        { value: "", label: placeholder, disabled: true },
+        ...candidates.map((candidate) => ({ value: candidate, label: candidate })),
+      ]}
+      onChange={onChange}
+    />
   );
 }
 

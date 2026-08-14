@@ -69,7 +69,6 @@ pub struct PileConfigurationOption {
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
 pub struct PileCostSettings {
     pub schema_version: u32,
-    pub pile_head_level_m: f64,
     pub items: Vec<PileCostSettingsItem>,
 }
 
@@ -77,7 +76,8 @@ pub struct PileCostSettings {
 pub struct PileCostSettingsItem {
     pub pile_size_mm: u32,
     pub shape: PileCostShape,
-    pub cost_per_m3_eur: f64,
+    #[serde(alias = "cost_per_m3_eur")]
+    pub cost_per_m3: f64,
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
@@ -138,7 +138,7 @@ pub struct GreedyOptimizedPileChoice {
     pub pile_size_mm: u32,
     pub pile_tip_level_m: f64,
     pub is_option: bool,
-    pub cost_eur: Option<u32>,
+    pub cost: Option<u32>,
 }
 
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]
@@ -197,10 +197,66 @@ pub fn selected_cpts(
     settings: &CptSelectionSettings,
     manual_cpt_ids: Option<&[u32]>,
 ) -> Vec<SelectedCpt> {
-    if let Some(manual_cpt_ids) = manual_cpt_ids {
-        return manually_selected_cpts(load_point, cpts, manual_cpt_ids);
+    let algorithmic = algorithmically_selected_cpts(load_point, cpts, settings);
+    let Some(manual_cpt_ids) = manual_cpt_ids else {
+        return algorithmic;
+    };
+
+    let nearest_id = cpts
+        .iter()
+        .filter(|cpt| distance_mm(load_point, cpt) <= settings.max_distance_m * 1000.0)
+        .min_by(|left, right| {
+            distance_mm(load_point, left)
+                .total_cmp(&distance_mm(load_point, right))
+                .then_with(|| left.id.cmp(&right.id))
+        })
+        .map(|cpt| cpt.id);
+    let single_nearest_id = (manual_cpt_ids.len() == 1)
+        .then(|| manual_cpt_ids.first().copied())
+        .flatten()
+        .filter(|cpt_id| Some(*cpt_id) == nearest_id);
+    if let Some(cpt_id) = single_nearest_id {
+        let Some(cpt) = cpts.iter().find(|cpt| cpt.id == cpt_id).cloned() else {
+            return Vec::new();
+        };
+        return vec![SelectedCpt {
+            label: "nearest".to_string(),
+            quadrant: None,
+            distance_mm: distance_mm(load_point, &cpt),
+            cpt,
+        }];
     }
 
+    let manual_ids: HashSet<_> = manual_cpt_ids.iter().copied().collect();
+    let algorithmic_ids: HashSet<_> = algorithmic.iter().map(|selection| selection.cpt.id).collect();
+    let mut selections: Vec<_> = algorithmic
+        .into_iter()
+        .filter(|selection| manual_ids.contains(&selection.cpt.id))
+        .collect();
+    let mut additions: Vec<_> = manual_cpt_ids
+        .iter()
+        .filter(|cpt_id| !algorithmic_ids.contains(cpt_id))
+        .filter_map(|cpt_id| cpts.iter().find(|cpt| cpt.id == *cpt_id).cloned())
+        .collect();
+    additions.sort_by(|left, right| {
+        distance_mm(load_point, left)
+            .total_cmp(&distance_mm(load_point, right))
+            .then_with(|| left.id.cmp(&right.id))
+    });
+    selections.extend(additions.into_iter().enumerate().map(|(index, cpt)| SelectedCpt {
+        label: format!("manual {}", index + 1),
+        quadrant: None,
+        distance_mm: distance_mm(load_point, &cpt),
+        cpt,
+    }));
+    selections
+}
+
+fn algorithmically_selected_cpts(
+    load_point: &LoadPoint,
+    cpts: &[Cpt],
+    settings: &CptSelectionSettings,
+) -> Vec<SelectedCpt> {
     let max_distance_mm = settings.max_distance_m * 1000.0;
     if let Some(cpt) = cpts
         .iter()
@@ -519,36 +575,38 @@ fn grouped_bearing_capacity_rows(
 pub fn calculate_pile_cost(
     pile_size_mm: u32,
     pile_tip_level_m: f64,
+    pile_head_level_m: f64,
     settings: &PileCostSettings,
 ) -> Option<u32> {
     let settings_item = settings
         .items
         .iter()
         .find(|item| item.pile_size_mm == pile_size_mm)?;
-    let pile_length_m = (settings.pile_head_level_m - pile_tip_level_m).abs();
+    let pile_length_m = (pile_head_level_m - pile_tip_level_m).abs();
     let cross_section_m2 = match settings_item.shape {
         PileCostShape::Round => std::f64::consts::PI * (pile_size_mm as f64 / 2000.0).powi(2),
         PileCostShape::Square => (pile_size_mm as f64 / 1000.0).powi(2),
     };
 
-    Some((settings_item.cost_per_m3_eur * pile_length_m * cross_section_m2).trunc() as u32)
+    Some((settings_item.cost_per_m3 * pile_length_m * cross_section_m2).trunc() as u32)
 }
 
 pub fn choose_default_pile_option<'a>(
     options: &'a [PileConfigurationOption],
+    pile_head_level_m: f64,
     settings: &PileCostSettings,
 ) -> Option<&'a PileConfigurationOption> {
     options
         .iter()
         .filter(|option| {
             option.is_option
-                && calculate_pile_cost(option.pile_size_mm, option.pile_tip_level_m, settings)
+                && calculate_pile_cost(option.pile_size_mm, option.pile_tip_level_m, pile_head_level_m, settings)
                     .is_some()
         })
         .min_by(|left, right| {
-            let left_cost = calculate_pile_cost(left.pile_size_mm, left.pile_tip_level_m, settings);
+            let left_cost = calculate_pile_cost(left.pile_size_mm, left.pile_tip_level_m, pile_head_level_m, settings);
             let right_cost =
-                calculate_pile_cost(right.pile_size_mm, right.pile_tip_level_m, settings);
+                calculate_pile_cost(right.pile_size_mm, right.pile_tip_level_m, pile_head_level_m, settings);
 
             match (left_cost, right_cost) {
                 (Some(left_cost), Some(right_cost)) => left_cost.cmp(&right_cost),
@@ -564,12 +622,13 @@ pub fn choose_default_pile_option<'a>(
 
 pub fn choose_default_pile_options(
     options_by_load_point: &HashMap<u32, Vec<PileConfigurationOption>>,
+    pile_head_level_m: f64,
     settings: &PileCostSettings,
 ) -> HashMap<u32, PileConfigurationKey> {
     options_by_load_point
         .iter()
         .filter_map(|(load_point_id, options)| {
-            choose_default_pile_option(options, settings).map(|option| {
+            choose_default_pile_option(options, pile_head_level_m, settings).map(|option| {
                 (
                     *load_point_id,
                     PileConfigurationKey {
@@ -584,6 +643,7 @@ pub fn choose_default_pile_options(
 
 pub fn greedy_optimize_pile_choices(
     options_by_load_point: &HashMap<u32, Vec<PileConfigurationOption>>,
+    pile_head_level_m: f64,
     cost_settings: &PileCostSettings,
     settings: &GreedyOptimizationSettings,
 ) -> Vec<GreedyOptimizedPileChoice> {
@@ -613,6 +673,7 @@ pub fn greedy_optimize_pile_choices(
         let Some(config) = best_next_optimization_config(
             &eligible_options_by_load_point,
             &selected_configs,
+            pile_head_level_m,
             cost_settings,
             settings,
         ) else {
@@ -623,11 +684,13 @@ pub fn greedy_optimize_pile_choices(
             let current_score = optimization_score_for_configs(
                 &eligible_options_by_load_point,
                 &selected_configs,
+                pile_head_level_m,
                 cost_settings,
             );
             let next_score = optimization_score_for_configs(
                 &eligible_options_by_load_point,
                 &[selected_configs.as_slice(), std::slice::from_ref(&config)].concat(),
+                pile_head_level_m,
                 cost_settings,
             );
 
@@ -650,17 +713,18 @@ pub fn greedy_optimize_pile_choices(
         .iter()
         .filter_map(|(load_point_id, options)| {
             let selected_option =
-                cheapest_option_for_configs(options, &selected_configs, cost_settings)
-                    .or_else(|| cheapest_valid_option(options, cost_settings))?;
+                cheapest_option_for_configs(options, &selected_configs, pile_head_level_m, cost_settings)
+                    .or_else(|| cheapest_valid_option(options, pile_head_level_m, cost_settings))?;
 
             Some(GreedyOptimizedPileChoice {
                 load_point_id: *load_point_id,
                 pile_size_mm: selected_option.pile_size_mm,
                 pile_tip_level_m: selected_option.pile_tip_level_m,
                 is_option: selected_option.is_option,
-                cost_eur: calculate_pile_cost(
+                cost: calculate_pile_cost(
                     selected_option.pile_size_mm,
                     selected_option.pile_tip_level_m,
+                    pile_head_level_m,
                     cost_settings,
                 ),
             })
@@ -712,6 +776,7 @@ fn optimization_option_enabled(
 fn best_next_optimization_config(
     options_by_load_point: &HashMap<u32, Vec<PileConfigurationOption>>,
     selected_configs: &[OptimizationConfig],
+    pile_head_level_m: f64,
     cost_settings: &PileCostSettings,
     settings: &GreedyOptimizationSettings,
 ) -> Option<OptimizationConfig> {
@@ -725,11 +790,13 @@ fn best_next_optimization_config(
             let left_score = optimization_score_for_configs(
                 options_by_load_point,
                 &[selected_configs, std::slice::from_ref(left)].concat(),
+                pile_head_level_m,
                 cost_settings,
             );
             let right_score = optimization_score_for_configs(
                 options_by_load_point,
                 &[selected_configs, std::slice::from_ref(right)].concat(),
+                pile_head_level_m,
                 cost_settings,
             );
 
@@ -809,15 +876,16 @@ struct OptimizationScore {
 fn optimization_score_for_configs(
     options_by_load_point: &HashMap<u32, Vec<PileConfigurationOption>>,
     configs: &[OptimizationConfig],
+    pile_head_level_m: f64,
     cost_settings: &PileCostSettings,
 ) -> OptimizationScore {
     let mut uncovered_count = 0;
     let mut total_cost = 0;
 
     for options in options_by_load_point.values() {
-        if let Some(option) = cheapest_option_for_configs(options, configs, cost_settings) {
+        if let Some(option) = cheapest_option_for_configs(options, configs, pile_head_level_m, cost_settings) {
             total_cost +=
-                calculate_pile_cost(option.pile_size_mm, option.pile_tip_level_m, cost_settings)
+                calculate_pile_cost(option.pile_size_mm, option.pile_tip_level_m, pile_head_level_m, cost_settings)
                     .unwrap_or(u32::MAX / 4);
         } else {
             uncovered_count += 1;
@@ -834,6 +902,7 @@ fn optimization_score_for_configs(
 fn cheapest_option_for_configs<'a>(
     options: &'a [PileConfigurationOption],
     configs: &[OptimizationConfig],
+    pile_head_level_m: f64,
     cost_settings: &PileCostSettings,
 ) -> Option<&'a PileConfigurationOption> {
     options
@@ -841,9 +910,9 @@ fn cheapest_option_for_configs<'a>(
         .filter(|option| configs.iter().any(|config| config.matches_option(option)))
         .min_by(|left, right| {
             let left_cost =
-                calculate_pile_cost(left.pile_size_mm, left.pile_tip_level_m, cost_settings);
+                calculate_pile_cost(left.pile_size_mm, left.pile_tip_level_m, pile_head_level_m, cost_settings);
             let right_cost =
-                calculate_pile_cost(right.pile_size_mm, right.pile_tip_level_m, cost_settings);
+                calculate_pile_cost(right.pile_size_mm, right.pile_tip_level_m, pile_head_level_m, cost_settings);
 
             left_cost
                 .unwrap_or(u32::MAX)
@@ -853,13 +922,14 @@ fn cheapest_option_for_configs<'a>(
 
 fn cheapest_valid_option<'a>(
     options: &'a [PileConfigurationOption],
+    pile_head_level_m: f64,
     cost_settings: &PileCostSettings,
 ) -> Option<&'a PileConfigurationOption> {
     options.iter().min_by(|left, right| {
         let left_cost =
-            calculate_pile_cost(left.pile_size_mm, left.pile_tip_level_m, cost_settings);
+            calculate_pile_cost(left.pile_size_mm, left.pile_tip_level_m, pile_head_level_m, cost_settings);
         let right_cost =
-            calculate_pile_cost(right.pile_size_mm, right.pile_tip_level_m, cost_settings);
+            calculate_pile_cost(right.pile_size_mm, right.pile_tip_level_m, pile_head_level_m, cost_settings);
 
         left_cost
             .unwrap_or(u32::MAX)
@@ -1000,25 +1070,38 @@ mod tests {
     fn cost_settings() -> PileCostSettings {
         PileCostSettings {
             schema_version: 1,
-            pile_head_level_m: -3.5,
             items: vec![
                 PileCostSettingsItem {
                     pile_size_mm: 290,
                     shape: PileCostShape::Square,
-                    cost_per_m3_eur: 220.0,
+                    cost_per_m3: 220.0,
                 },
                 PileCostSettingsItem {
                     pile_size_mm: 320,
                     shape: PileCostShape::Square,
-                    cost_per_m3_eur: 205.0,
+                    cost_per_m3: 205.0,
                 },
                 PileCostSettingsItem {
                     pile_size_mm: 356,
                     shape: PileCostShape::Round,
-                    cost_per_m3_eur: 190.0,
+                    cost_per_m3: 190.0,
                 },
             ],
         }
+    }
+
+    #[test]
+    fn pile_cost_uses_an_explicit_pile_head_level() {
+        let settings = PileCostSettings {
+            schema_version: 2,
+            items: vec![PileCostSettingsItem {
+                pile_size_mm: 1000,
+                shape: PileCostShape::Square,
+                cost_per_m3: 100.0,
+            }],
+        };
+
+        assert_eq!(calculate_pile_cost(1000, -10.0, 0.0, &settings), Some(1000));
     }
 
     #[test]
@@ -1192,7 +1275,7 @@ mod tests {
     }
 
     #[test]
-    fn monopoly_preserves_manual_selection_precedence() {
+    fn manual_override_preserves_algorithm_labels_and_labels_only_additions_as_manual() {
         let selected = selected_cpts(
             &load_point(),
             &[cpt(1, 10_000.0, 10_000.0), cpt(2, -10_000.0, -10_000.0)],
@@ -1209,7 +1292,90 @@ mod tests {
             .iter()
             .map(|item| (item.label.as_str(), item.cpt.id))
             .collect();
-        assert_eq!(result, vec![("manual 1", 2), ("manual 3", 1)]);
+        assert_eq!(result, vec![("upper right", 1), ("lower left", 2)]);
+    }
+
+    #[test]
+    fn manual_override_keeps_maximum_angle_labels_and_numbers_only_added_cpts() {
+        let selected = selected_cpts(
+            &load_point(),
+            &[
+                cpt(1, 10_000.0, 0.0),
+                cpt(2, 0.0, -10_000.0),
+                cpt(3, -10_000.0, 0.0),
+                cpt(4, 0.0, 10_000.0),
+                cpt(5, 15_000.0, 0.0),
+            ],
+            &CptSelectionSettings {
+                algorithm: CptSelectionAlgorithm::MaximumAngle,
+                max_distance_m: 25.0,
+                monopoly_distance_m: 1.0,
+                max_angle_degrees: 120.0,
+            },
+            Some(&[1, 4, 3, 5]),
+        );
+
+        let result: Vec<_> = selected
+            .iter()
+            .map(|item| (item.label.as_str(), item.cpt.id))
+            .collect();
+        assert_eq!(
+            result,
+            vec![("nearest", 1), ("angle 3", 3), ("angle 4", 4), ("manual 1", 5)]
+        );
+    }
+
+    #[test]
+    fn manual_additions_follow_algorithmic_selections_in_distance_order() {
+        let selected = selected_cpts(
+            &load_point(),
+            &[
+                cpt(1, 10_000.0, 10_000.0),
+                cpt(2, -10_000.0, -10_000.0),
+                cpt(8, 20_000.0, 0.0),
+                cpt(9, 15_000.0, 0.0),
+            ],
+            &CptSelectionSettings {
+                algorithm: CptSelectionAlgorithm::Quadrants,
+                max_distance_m: 25.0,
+                monopoly_distance_m: 1.0,
+                max_angle_degrees: 120.0,
+            },
+            Some(&[8, 2, 9, 1]),
+        );
+
+        let result: Vec<_> = selected
+            .iter()
+            .map(|item| (item.label.as_str(), item.cpt.id))
+            .collect();
+        assert_eq!(
+            result,
+            vec![
+                ("upper right", 1),
+                ("lower left", 2),
+                ("manual 1", 9),
+                ("manual 2", 8),
+            ]
+        );
+    }
+
+    #[test]
+    fn single_manual_override_of_geometrically_nearest_cpt_is_named_nearest() {
+        let selected = selected_cpts(
+            &load_point(),
+            &[cpt(1, 2_000.0, 2_000.0), cpt(2, -1_000.0, -1_000.0)],
+            &CptSelectionSettings {
+                algorithm: CptSelectionAlgorithm::Quadrants,
+                max_distance_m: 25.0,
+                monopoly_distance_m: 0.0,
+                max_angle_degrees: 120.0,
+            },
+            Some(&[2]),
+        );
+
+        assert_eq!(selected.len(), 1);
+        assert_eq!(selected[0].label, "nearest");
+        assert_eq!(selected[0].cpt.id, 2);
     }
 
     #[test]
@@ -1347,9 +1513,9 @@ mod tests {
 
     #[test]
     fn calculates_pile_cost_with_correct_round_section_formula() {
-        assert_eq!(calculate_pile_cost(320, -18.0, &cost_settings()), Some(304));
-        assert_eq!(calculate_pile_cost(356, -18.0, &cost_settings()), Some(274));
-        assert_eq!(calculate_pile_cost(400, -18.0, &cost_settings()), None);
+        assert_eq!(calculate_pile_cost(320, -18.0, -3.5, &cost_settings()), Some(304));
+        assert_eq!(calculate_pile_cost(356, -18.0, -3.5, &cost_settings()), Some(274));
+        assert_eq!(calculate_pile_cost(400, -18.0, -3.5, &cost_settings()), None);
     }
 
     #[test]
@@ -1376,7 +1542,7 @@ mod tests {
         ];
 
         assert_eq!(
-            choose_default_pile_option(&options, &cost_settings())
+            choose_default_pile_option(&options, -3.5, &cost_settings())
                 .map(|option| option.pile_size_mm),
             Some(290)
         );
@@ -1389,7 +1555,7 @@ mod tests {
             pile_option(320, -18.0, false, 1.2),
         ];
 
-        assert!(choose_default_pile_option(&options, &cost_settings()).is_none());
+        assert!(choose_default_pile_option(&options, -3.5, &cost_settings()).is_none());
     }
 
     #[test]
@@ -1405,7 +1571,7 @@ mod tests {
             (2, vec![pile_option(290, -18.0, true, 0.8)]),
         ]);
 
-        let choices = choose_default_pile_options(&options, &cost_settings());
+        let choices = choose_default_pile_options(&options, -3.5, &cost_settings());
 
         assert_eq!(
             choices.get(&1),
@@ -1441,14 +1607,14 @@ mod tests {
             ],
         )]);
 
-        assert!(choose_default_pile_options(&options, &cost_settings()).is_empty());
+        assert!(choose_default_pile_options(&options, -3.5, &cost_settings()).is_empty());
     }
 
     #[test]
     fn default_options_omit_valid_options_without_cost_settings() {
         let options = HashMap::from([(1, vec![pile_option(999, -17.5, true, 0.7)])]);
 
-        assert!(choose_default_pile_options(&options, &cost_settings()).is_empty());
+        assert!(choose_default_pile_options(&options, -3.5, &cost_settings()).is_empty());
     }
 
     #[test]
@@ -1479,6 +1645,7 @@ mod tests {
 
         let choices = greedy_optimize_pile_choices(
             &options_by_load_point,
+            -3.5,
             &cost_settings(),
             &GreedyOptimizationSettings {
                 max_pile_sizes: 1,
@@ -1518,6 +1685,7 @@ mod tests {
 
         let choices = greedy_optimize_pile_choices(
             &options_by_load_point,
+            -3.5,
             &cost_settings(),
             &GreedyOptimizationSettings {
                 max_pile_sizes: 2,
@@ -1548,6 +1716,7 @@ mod tests {
 
         let choices = greedy_optimize_pile_choices(
             &options_by_load_point,
+            -3.5,
             &cost_settings(),
             &GreedyOptimizationSettings {
                 max_pile_sizes: 2,
@@ -1574,6 +1743,7 @@ mod tests {
 
         let choices = greedy_optimize_pile_choices(
             &options_by_load_point,
+            -3.5,
             &cost_settings(),
             &GreedyOptimizationSettings {
                 max_pile_sizes: 1,
@@ -1604,6 +1774,7 @@ mod tests {
 
         let choices = greedy_optimize_pile_choices(
             &options_by_load_point,
+            -3.5,
             &cost_settings(),
             &GreedyOptimizationSettings {
                 max_pile_sizes: 2,
@@ -1646,6 +1817,7 @@ mod tests {
 
         let choices = greedy_optimize_pile_choices(
             &options_by_load_point,
+            -3.5,
             &cost_settings(),
             &GreedyOptimizationSettings {
                 max_pile_sizes: 3,

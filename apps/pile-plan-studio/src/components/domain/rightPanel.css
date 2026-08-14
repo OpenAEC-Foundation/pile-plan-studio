@@ -23,6 +23,11 @@
   font-weight: 700;
 }
 
+.right-panel-tab:hover:not(:disabled) {
+  background: var(--theme-ribbon-btn-hover);
+  border-color: var(--theme-ribbon-btn-hover-border);
+}
+
 .right-panel-tab:disabled {
   opacity: 0.55;
 }
@@ -245,6 +250,13 @@
   font-weight: 700;
 }
 
+.segmented-control button:last-child.is-selected {
+  position: relative;
+  z-index: 1;
+  margin-left: -1px;
+  border-left: 1px solid var(--theme-accent);
+}
+
 .segmented-control button:disabled,
 .selection-actions button:disabled {
   cursor: not-allowed;
@@ -264,18 +276,25 @@
   margin: 0;
 }
 
-.number-field {
+.settings-number-row {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-columns: minmax(0, 1fr) 68px auto;
   align-items: center;
-  gap: 7px;
+  gap: 8px;
+  color: var(--theme-text-secondary);
+  font-size: 11px;
 }
 
-.number-field input {
+.settings-number-row.is-muted {
+  opacity: 0.55;
+}
+
+.settings-number-row input {
   width: 100%;
   min-width: 0;
+  min-height: 28px;
   box-sizing: border-box;
-  padding: 6px 7px;
+  padding: 5px 6px;
   border: 1px solid var(--theme-border);
   border-radius: 4px;
   color: var(--theme-text);
@@ -283,10 +302,30 @@
   font: inherit;
 }
 
-.number-field span {
+.settings-number-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  justify-self: start;
+}
+
+.settings-number-help {
+  display: inline-flex;
+  width: 13px;
+  height: 13px;
+  flex: 0 0 13px;
+  color: var(--theme-text-secondary);
+  cursor: default;
+}
+
+.settings-number-help svg {
+  width: 100%;
+  height: 100%;
+}
+
+.settings-number-unit {
   min-width: 24px;
   color: var(--theme-text-secondary);
-  font-size: 11px;
 }
 
 .algorithm-grid {
@@ -313,6 +352,14 @@
   color: var(--theme-text);
   background: var(--theme-accent-soft);
   font-weight: 700;
+}
+
+.algorithm-option:focus {
+  outline: none;
+}
+
+.algorithm-option:focus-visible {
+  box-shadow: 0 0 0 2px var(--theme-focus-color);
 }
 
 .algorithm-sketch {
@@ -439,13 +486,17 @@
 .cpt-edit-actions {
   display: flex;
   flex-wrap: wrap;
+  justify-content: space-between;
   gap: 6px;
   padding: 8px 12px;
   border-bottom: 1px solid var(--theme-border-subtle);
 }
 
-.cpt-edit-actions button:first-child {
-  margin-right: auto;
+.cpt-edit-methods,
+.cpt-edit-commit-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
 }
 
 .cpt-remove-cell {

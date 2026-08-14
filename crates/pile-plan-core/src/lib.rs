@@ -25,7 +25,8 @@ pub use export::{
 pub use ifcpp::{read_ifcpp_str, validate_ifcpp_project, write_ifcpp_string, IfcppError};
 pub use import::{
     import_bearing_capacities_xlsx, import_cpts_xlsx, import_load_points_csv,
-    import_project_from_generic_sources, import_project_from_profiled_sources,
+    import_project_from_generic_sources, import_project_from_generic_sources_with_properties,
+    import_project_from_profiled_sources, import_project_from_profiled_sources_with_properties,
     import_project_from_sources, preview_import_source, refresh_project_from_profiled_sources,
     ImportDiagnostic, ImportDiagnosticCode, ImportDiagnosticLocation, ImportDiagnosticSeverity,
     ImportError, ImportPreviewDetails, ImportProfile, ImportProfileOptions, ImportRole,

@@ -27,6 +27,16 @@ describe("binary core result", () => {
 });
 
 describe("project source refresh core contract", () => {
+  it("passes required project properties through new-project imports", () => {
+    const source = readFileSync(new URL("./coreClient.ts", import.meta.url), "utf8");
+    const start = source.indexOf("export async function importProjectFromFilesCore");
+    const handler = source.slice(start, source.indexOf("export async function refreshProjectFromFilesCore", start));
+
+    assert.match(handler, /pileHeadLevelM/);
+    assert.match(handler, /currencyCode/);
+    assert.match(handler, /pile_head_level_m/);
+    assert.match(handler, /currency_code/);
+  });
   it("converts persisted numeric record keys before refreshing in WASM", () => {
     const source = readFileSync(new URL("./coreClient.ts", import.meta.url), "utf8");
 

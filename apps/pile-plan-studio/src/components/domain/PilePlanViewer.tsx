@@ -1,5 +1,6 @@
 import {
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -24,6 +25,7 @@ import {
   updateHoverCandidateState,
   type HoverCandidateState,
   type HoverMarker,
+  effectiveSymbolScale,
   scaleHoverVisualRadius,
 } from "../../viewer/hoverCandidates.ts";
 import { renderPileSymbol } from "../../viewer/pileSymbols.ts";
@@ -32,7 +34,13 @@ import {
   getUnselectedLoadPointMarkerState,
 } from "../../viewer/loadPointMarker.ts";
 import { getCptConnectionSegments } from "../../viewer/cptConnectionLines.ts";
-import { projectPoint } from "../../viewer/viewerGeometry.ts";
+import {
+  createProjectViewTransform,
+  getCanvasLayoutCompensation,
+  projectPoint,
+  projectPointPixels,
+  VIEWER_LAYOUT_CHANGE_EVENT,
+} from "../../viewer/viewerGeometry.ts";
 import {
   clampScale,
   getViewportTransform,
@@ -53,7 +61,10 @@ import {
   toggleReactViewerLoadPoint,
 } from "./viewerInteractions.ts";
 import { toggleManualCpt } from "./cptSettingsModel.ts";
-import { getCoordinateGridLines } from "../../viewer/coordinateGrid.ts";
+import {
+  alignCoordinateGridPatternToDevicePixels,
+  getCoordinateGridPattern,
+} from "../../viewer/coordinateGrid.ts";
 import {
   getActiveLockedLoadPointIds,
   setLassoLoadPointLocks,
@@ -84,48 +95,52 @@ export default function PilePlanViewer({ state, onStateChange }: Props) {
     selectedPileOptionKeysByLoadPoint: state.selectedPileOptionKeysByLoadPoint,
   });
   const isEditingCptSelection = isReactViewerCptSelectionEditing(state);
+  const [projectTransform, setProjectTransform] = useState(
+    () => createProjectViewTransform(state.bounds, { width: 1, height: 1 }),
+  );
+  const projectTransformRef = useRef(projectTransform);
   const cptConnectionSegments = useMemo(() => getCptConnectionSegments({
-    bounds: state.bounds,
+    transform: projectTransform,
     cpts: state.cpts,
     selectedLoadPointIds: state.selectedLoadPointIds,
     selectedCptsByLoadPointId: state.selectedCptsByLoadPointId,
     cptSelectionEditDraft: state.cptSelectionEditDraft,
   }), [
-    state.bounds,
+    projectTransform,
     state.cptSelectionEditDraft,
     state.cpts,
     state.selectedCptsByLoadPointId,
     state.selectedLoadPointIds,
   ]);
-  const coordinateGrid = useMemo(
-    () => getCoordinateGridLines(state.bounds, state.viewport.scale),
-    [state.bounds, state.viewport.scale],
-  );
   const canvasRef = useRef<HTMLDivElement | null>(null);
+  const layoutAnchorRef = useRef<HTMLDivElement | null>(null);
   const stageRef = useRef<HTMLDivElement | null>(null);
+  const gridRef = useRef<HTMLDivElement | null>(null);
   const interactionRef = useRef<ViewerInteraction | null>(null);
   const viewportRef = useRef(state.viewport);
   const zoomCommitTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const hoverFrameRef = useRef<number | null>(null);
   const hoverPointerRef = useRef<{ x: number; y: number } | null>(null);
   const canvasRectRef = useRef<LocalCanvasRect | null>(null);
+  const canvasAnchorRef = useRef<LocalCanvasRect | null>(null);
+  const layoutCompensationRef = useRef({ x: 0, y: 0 });
   const [lasso, setLasso] = useState<LassoRectangle | null>(null);
   const [hoverCandidates, setHoverCandidates] = useState<HoverCandidateState | null>(null);
   const activeHoverCandidateKey = getActiveHoverCandidateKey(hoverCandidates);
   const hoverMarkers = useMemo<HoverMarker[]>(() => [
     ...(!isEditingLoadPointLocks ? state.cpts : []).map((cpt) => ({
       key: `cpt:${cpt.id}`,
-      point: projectPoint(cpt, state.bounds),
+      point: projectPoint(cpt, projectTransform),
       visualRadius: scaleHoverVisualRadius(7.5, state.symbolScalePercent),
     })),
     ...state.loadPoints.filter((loadPoint) => (
       isEditingLoadPointLocks || !lockedLoadPointIds.has(loadPoint.id)
     )).map((loadPoint) => ({
       key: `load-point:${loadPoint.id}`,
-      point: projectPoint(loadPoint, state.bounds),
+      point: projectPoint(loadPoint, projectTransform),
       visualRadius: scaleHoverVisualRadius(7, state.symbolScalePercent),
     })),
-  ], [state.bounds, state.cpts, state.loadPoints, state.symbolScalePercent, isEditingLoadPointLocks, state.loadPointLockDraft, state.pilePlans, state.activePilePlanId]);
+  ], [projectTransform, state.cpts, state.loadPoints, state.symbolScalePercent, isEditingLoadPointLocks, state.loadPointLockDraft, state.pilePlans, state.activePilePlanId]);
   const hoverMarkerIndex = useMemo(() => createHoverMarkerIndex(hoverMarkers), [hoverMarkers]);
 
   useEffect(() => {
@@ -135,25 +150,50 @@ export default function PilePlanViewer({ state, onStateChange }: Props) {
     }
   }, [state.viewport]);
 
-  useEffect(() => {
+  function updateCanvasRect() {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    const rect = getLocalCanvasRect(canvas);
+    const anchor = canvasAnchorRef.current ?? rect;
+    const compensation = getCanvasLayoutCompensation(anchor, rect);
+    canvasRectRef.current = rect;
+    layoutCompensationRef.current = compensation;
+    applyLayoutCompensation(compensation);
+    applyCoordinateGridDisplay(projectTransformRef.current, viewportRef.current);
+  }
+
+  useLayoutEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) {
       return undefined;
     }
 
-    const updateCanvasRect = () => {
-      canvasRectRef.current = getLocalCanvasRect(canvas);
-    };
-    updateCanvasRect();
+    const initialRect = getLocalCanvasRect(canvas);
+    const initialTransform = createProjectViewTransform(state.bounds, {
+      width: initialRect.width,
+      height: initialRect.height,
+    });
+    canvasRectRef.current = initialRect;
+    canvasAnchorRef.current = initialRect;
+    layoutCompensationRef.current = { x: 0, y: 0 };
+    projectTransformRef.current = initialTransform;
+    applyLayoutCompensation({ x: 0, y: 0 });
+    applyCoordinateGridDisplay(initialTransform, viewportRef.current);
+    setProjectTransform(initialTransform);
 
     const resizeObserver = new ResizeObserver(updateCanvasRect);
     resizeObserver.observe(canvas);
     window.addEventListener("resize", updateCanvasRect);
+    window.addEventListener(VIEWER_LAYOUT_CHANGE_EVENT, updateCanvasRect);
     return () => {
       resizeObserver.disconnect();
       window.removeEventListener("resize", updateCanvasRect);
+      window.removeEventListener(VIEWER_LAYOUT_CHANGE_EVENT, updateCanvasRect);
     };
-  }, []);
+  }, [state.bounds.minX, state.bounds.maxX, state.bounds.minY, state.bounds.maxY]);
+
+  useLayoutEffect(updateCanvasRect);
 
   useEffect(() => {
     function handleKeyDown(event: KeyboardEvent) {
@@ -206,21 +246,23 @@ export default function PilePlanViewer({ state, onStateChange }: Props) {
         onWheel={handleWheel}
         ref={canvasRef}
       >
-        <div
-          className={`viewer-content${getForegroundLayerClass(state.foregroundLayer)}${isEditingLoadPointLocks ? " is-lock-editing" : ""}`}
-          ref={stageRef}
-          style={getStageStyle(state.viewport, state.symbolScalePercent)}
-        >
-          {state.showGrid ? (
-            <svg className="viewer-coordinate-grid" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
-              {coordinateGrid.vertical.map((line) => (
-                <line key={`x:${line.coordinate}`} x1={line.position} x2={line.position} y1="0" y2="100" />
-              ))}
-              {coordinateGrid.horizontal.map((line) => (
-                <line key={`y:${line.coordinate}`} x1="0" x2="100" y1={line.position} y2={line.position} />
-              ))}
-            </svg>
-          ) : null}
+        {state.showGrid ? (
+          <div
+            aria-hidden="true"
+            className="viewer-coordinate-grid"
+            ref={gridRef}
+          />
+        ) : null}
+        <div className="viewer-layout-anchor" ref={layoutAnchorRef}>
+          <div
+            className={`viewer-content${getForegroundLayerClass(state.foregroundLayer)}${isEditingLoadPointLocks ? " is-lock-editing" : ""}`}
+            ref={stageRef}
+            style={getStageStyle(
+              state.viewport,
+              state.symbolScalePercent,
+              projectTransform.canvasSize,
+            )}
+          >
           {cptConnectionSegments.length > 0 ? (
             <svg className="cpt-connection-lines" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
               {cptConnectionSegments.map((segment) => (
@@ -236,7 +278,7 @@ export default function PilePlanViewer({ state, onStateChange }: Props) {
             </svg>
           ) : null}
           {state.cpts.map((cpt) => {
-            const point = projectPoint(cpt, state.bounds);
+            const point = projectPointPixels(cpt, projectTransform);
             const cptName = getCptDisplayName(cpt);
             const cptLabel = cptName.replace(/^CPT\s*/i, "");
             const isInspected = state.selectedCptId === cpt.id;
@@ -275,7 +317,7 @@ export default function PilePlanViewer({ state, onStateChange }: Props) {
             );
           })}
           {state.loadPoints.map((loadPoint) => {
-            const point = projectPoint(loadPoint, state.bounds);
+            const point = projectPointPixels(loadPoint, projectTransform);
             const isSelected = selectedLoadPointIds.has(loadPoint.id);
             const isLocked = lockedLoadPointIds.has(loadPoint.id);
             const selectedOption = getSelectedPileOption(state, loadPoint.id);
@@ -344,6 +386,7 @@ export default function PilePlanViewer({ state, onStateChange }: Props) {
               </button>
             );
           })}
+          </div>
         </div>
         {hoverCandidates ? renderHoverInspector(hoverCandidates) : null}
         {lasso ? <div className="viewer-lasso" style={getLassoStyle(lasso)} /> : null}
@@ -355,7 +398,7 @@ export default function PilePlanViewer({ state, onStateChange }: Props) {
     event.preventDefault();
     clearHoverCandidates();
     const rect = getLocalCanvasRect(event.currentTarget);
-    const pointer = getLocalPointer(event.clientX, event.clientY, rect);
+    const pointer = getProjectViewportPointer(event.clientX, event.clientY, rect);
     const scaleStep = event.deltaY < 0 ? 1.12 : 1 / 1.12;
     const currentViewport = viewportRef.current;
     const nextScale = clampScale(currentViewport.scale * scaleStep);
@@ -372,7 +415,7 @@ export default function PilePlanViewer({ state, onStateChange }: Props) {
   function handleMouseDown(event: MouseEvent<HTMLDivElement>) {
     const target = event.target as HTMLElement;
     const targetIsInteractive = Boolean(target.closest("button"));
-    const layoutScale = canvasRectRef.current?.scale ?? elementLayoutScale(event.currentTarget);
+    const layoutScale = canvasRectRef.current?.scale ?? elementLayoutScale(document.documentElement);
     const start = getLocalViewportPointer(event.clientX, event.clientY, layoutScale);
 
     if (event.shiftKey && !targetIsInteractive && (isEditingLoadPointLocks || isViewerSelectionActionAllowed(isEditingCptSelection, "lasso"))) {
@@ -411,7 +454,7 @@ export default function PilePlanViewer({ state, onStateChange }: Props) {
       return;
     }
 
-    const layoutScale = canvasRectRef.current?.scale ?? elementLayoutScale(event.currentTarget);
+    const layoutScale = canvasRectRef.current?.scale ?? elementLayoutScale(document.documentElement);
     const pointer = getLocalViewportPointer(event.clientX, event.clientY, layoutScale);
 
     if (interaction.type === "lasso") {
@@ -445,7 +488,7 @@ export default function PilePlanViewer({ state, onStateChange }: Props) {
     }
 
     if (interaction.type === "lasso") {
-      const layoutScale = canvasRectRef.current?.scale ?? elementLayoutScale(event.currentTarget);
+      const layoutScale = canvasRectRef.current?.scale ?? elementLayoutScale(document.documentElement);
       const pointer = getLocalViewportPointer(event.clientX, event.clientY, layoutScale);
       const rectangle = {
         startX: interaction.start.x,
@@ -484,6 +527,44 @@ export default function PilePlanViewer({ state, onStateChange }: Props) {
     if (stageRef.current) {
       stageRef.current.style.transform = getViewportTransform(nextViewport);
     }
+    applyCoordinateGridDisplay(projectTransformRef.current, nextViewport);
+  }
+
+  function applyLayoutCompensation(compensation: { x: number; y: number }) {
+    const anchor = layoutAnchorRef.current;
+    if (!anchor) return;
+    anchor.style.left = `${compensation.x}px`;
+    anchor.style.top = `${compensation.y}px`;
+  }
+
+  function applyCoordinateGridDisplay(
+    transform: typeof projectTransform,
+    viewport: ProjectState["viewport"],
+  ) {
+    const grid = gridRef.current;
+    const canvas = canvasRef.current;
+    if (!grid || !canvas) return;
+    const currentRect = canvasRectRef.current;
+    const rootScale = elementLayoutScale(document.documentElement);
+    const canvasScreenRect = canvas.getBoundingClientRect();
+    const gridScreenRect = grid.getBoundingClientRect();
+    const pattern = alignCoordinateGridPatternToDevicePixels(
+      getCoordinateGridPattern(transform, viewport, {
+        canvasSize: currentRect
+          ? { width: currentRect.width, height: currentRect.height }
+          : transform.canvasSize,
+        compensation: layoutCompensationRef.current,
+      }),
+      {
+        canvasScreen: { x: canvasScreenRect.left, y: canvasScreenRect.top },
+        gridScreen: { x: gridScreenRect.left, y: gridScreenRect.top },
+        rootScale,
+        devicePixelRatio: window.devicePixelRatio,
+      },
+    );
+    const style = getCoordinateGridStyle(pattern);
+    grid.style.backgroundSize = style.backgroundSize;
+    grid.style.backgroundPosition = style.backgroundPosition;
   }
 
   function scheduleViewportCommit(nextViewport: ProjectState["viewport"]) {
@@ -506,12 +587,15 @@ export default function PilePlanViewer({ state, onStateChange }: Props) {
 
     const viewport = viewportRef.current;
     return state.loadPoints.map((loadPoint) => {
-      const point = projectPoint(loadPoint, state.bounds);
-      const screenPoint = projectViewPointToScreen(point, { width: rect.width, height: rect.height }, viewport);
+      const point = projectPointPixels(loadPoint, projectTransformRef.current);
+      const screenPoint = {
+        x: point.x * viewport.scale + viewport.offsetX,
+        y: point.y * viewport.scale + viewport.offsetY,
+      };
       return {
         id: loadPoint.id,
-        x: rect.left + screenPoint.x,
-        y: rect.top + screenPoint.y,
+        x: rect.left + layoutCompensationRef.current.x + screenPoint.x,
+        y: rect.top + layoutCompensationRef.current.y + screenPoint.y,
       };
     });
   }
@@ -522,7 +606,7 @@ export default function PilePlanViewer({ state, onStateChange }: Props) {
       return;
     }
 
-    hoverPointerRef.current = getLocalPointer(event.clientX, event.clientY, rect);
+    hoverPointerRef.current = getProjectViewportPointer(event.clientX, event.clientY, rect);
     if (hoverFrameRef.current !== null) {
       return;
     }
@@ -537,7 +621,7 @@ export default function PilePlanViewer({ state, onStateChange }: Props) {
 
       const candidates = findHoverCandidates(hoverMarkerIndex, {
         pointer,
-        canvas: { width: currentRect.width, height: currentRect.height },
+        canvas: projectTransformRef.current.canvasSize,
         viewport: viewportRef.current,
         preferredMarkerType: state.foregroundLayer === "cpts" ? "cpt" : "load-point",
       });
@@ -560,8 +644,8 @@ export default function PilePlanViewer({ state, onStateChange }: Props) {
     }
 
     const candidates = findHoverCandidates(hoverMarkerIndex, {
-      pointer: getLocalPointer(event.clientX, event.clientY, rect),
-      canvas: { width: rect.width, height: rect.height },
+      pointer: getProjectViewportPointer(event.clientX, event.clientY, rect),
+      canvas: projectTransformRef.current.canvasSize,
       viewport: viewportRef.current,
       preferredMarkerType: state.foregroundLayer === "cpts" ? "cpt" : "load-point",
     });
@@ -584,6 +668,14 @@ export default function PilePlanViewer({ state, onStateChange }: Props) {
       hoverFrameRef.current = null;
     }
     setHoverCandidates(null);
+  }
+
+  function getProjectViewportPointer(clientX: number, clientY: number, rect: LocalCanvasRect) {
+    const pointer = getLocalPointer(clientX, clientY, rect);
+    return {
+      x: pointer.x - layoutCompensationRef.current.x,
+      y: pointer.y - layoutCompensationRef.current.y,
+    };
   }
 
   function renderHoverInspector(candidateState: HoverCandidateState) {
@@ -768,8 +860,12 @@ type LocalCanvasRect = {
 };
 
 function getLocalCanvasRect(canvas: HTMLElement): LocalCanvasRect {
-  const rect = canvas.getBoundingClientRect();
-  const scale = elementLayoutScale(canvas);
+  return getLocalElementRect(canvas);
+}
+
+function getLocalElementRect(element: Element): LocalCanvasRect {
+  const rect = element.getBoundingClientRect();
+  const scale = elementLayoutScale(document.documentElement);
   return {
     left: screenToLocal(rect.left, scale),
     top: screenToLocal(rect.top, scale),
@@ -884,8 +980,8 @@ function getLassoStyle(lasso: LassoRectangle) {
 
 function getProjectMarkerStyle(point: { x: number; y: number }, invalidStyle = ""): CSSProperties {
   return {
-    left: `${point.x}%`,
-    top: `${point.y}%`,
+    left: `${point.x}px`,
+    top: `${point.y}px`,
     ...getInvalidMarkerStyle(invalidStyle),
   };
 }
@@ -898,9 +994,22 @@ function getInvalidMarkerStyle(invalidStyle = ""): CSSProperties {
 function getStageStyle(
   viewport: ProjectState["viewport"],
   symbolScalePercent: number,
+  canvasSize: { width: number; height: number },
 ): CSSProperties {
   return {
+    width: `${canvasSize.width}px`,
+    height: `${canvasSize.height}px`,
     transform: getViewportTransform(viewport),
-    "--viewer-symbol-scale": symbolScalePercent / 100,
+    "--viewer-symbol-scale": effectiveSymbolScale(symbolScalePercent),
   } as CSSProperties;
+}
+
+function getCoordinateGridStyle(pattern: ReturnType<typeof getCoordinateGridPattern>): {
+  backgroundSize: string;
+  backgroundPosition: string;
+} {
+  return {
+    backgroundSize: `${pattern.spacingPixels}px ${pattern.spacingPixels}px`,
+    backgroundPosition: `${pattern.originX}px ${pattern.originY}px`,
+  };
 }

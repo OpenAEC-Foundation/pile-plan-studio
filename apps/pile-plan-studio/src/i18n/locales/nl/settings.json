@@ -12,6 +12,7 @@
   "general": {
     "application": "Applicatie",
     "language": "Taal",
+    "defaultCurrency": "Standaardvaluta",
     "startup": "Opstarten",
     "restoreSession": "Laatste sessie herstellen bij opstarten",
     "checkUpdates": "Automatisch controleren op updates",

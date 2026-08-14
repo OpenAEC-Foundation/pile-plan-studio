@@ -1,0 +1,62 @@
+.interface-scale-notice {
+  position: absolute;
+  z-index: 2;
+  top: 4px;
+  right: 12px;
+  display: flex;
+  align-items: center;
+  min-width: max-content;
+  height: 34px;
+  box-sizing: border-box;
+  padding: 3px 5px 3px 10px;
+  gap: 2px;
+  border: 1px solid var(--theme-border);
+  border-radius: 6px;
+  color: var(--theme-text);
+  pointer-events: auto;
+  background: var(--theme-surface);
+  box-shadow: 0 3px 12px color-mix(in srgb, #000 18%, transparent);
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+.interface-scale-value {
+  min-width: 36px;
+  font-weight: 600;
+  text-align: left;
+}
+
+.interface-scale-icon-button,
+.interface-scale-reset-button {
+  height: 26px;
+  border: 1px solid transparent;
+  border-radius: 3px;
+  color: var(--theme-text);
+  background: transparent;
+  font: inherit;
+  cursor: default;
+}
+
+.interface-scale-icon-button {
+  width: 26px;
+  padding: 0;
+  font-size: 17px;
+  line-height: 24px;
+}
+
+.interface-scale-reset-button {
+  padding: 0 8px;
+}
+
+.interface-scale-icon-button:hover,
+.interface-scale-reset-button:hover {
+  border-color: var(--theme-ribbon-btn-hover-border);
+  color: var(--theme-ribbon-text-hover);
+  background: var(--theme-ribbon-btn-hover);
+}
+
+.interface-scale-icon-button:focus-visible,
+.interface-scale-reset-button:focus-visible {
+  outline: 1px solid var(--theme-accent);
+  outline-offset: 1px;
+}

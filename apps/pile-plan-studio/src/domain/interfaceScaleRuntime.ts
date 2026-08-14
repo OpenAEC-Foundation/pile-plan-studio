@@ -1,7 +1,6 @@
 import { getSetting, setSetting } from "../store.ts";
 import { isDesktopRuntime } from "./projectPersistence.ts";
 import { DEFAULT_INTERFACE_SCALE, normalizeInterfaceScale } from "./interfaceScale.ts";
-import { BROWSER_BASELINE_ZOOM } from "./uiBaseline.ts";
 
 const INTERFACE_SCALE_KEY = "interface-scale-percent";
 
@@ -25,6 +24,10 @@ export async function saveInterfaceScale(
   await write(INTERFACE_SCALE_KEY, normalizeInterfaceScale(scalePercent));
 }
 
+export function applicationScaleFactor(scalePercent: number): number {
+  return normalizeInterfaceScale(scalePercent) / 100;
+}
+
 export async function applyDesktopInterfaceScale(
   scalePercent: number,
   environment: InterfaceScaleEnvironment = {},
@@ -36,7 +39,7 @@ export async function applyDesktopInterfaceScale(
       const { getCurrentWebview } = await import("@tauri-apps/api/webview");
       await getCurrentWebview().setZoom(factor);
     });
-    await setZoom(BROWSER_BASELINE_ZOOM * normalizeInterfaceScale(scalePercent) / 100);
+    await setZoom(applicationScaleFactor(scalePercent));
     return true;
   } catch (error) {
     console.error("Failed to apply desktop interface scale", error);

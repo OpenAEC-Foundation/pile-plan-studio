@@ -6,6 +6,7 @@ import type { Cpt, LoadPoint, SelectedCpt } from "../core/projectTypes.ts";
 
 const cpt61: Cpt = { id: 61, name: "CPT 61", x_mm: 0, y_mm: 0 };
 const cpt62: Cpt = { id: 62, name: "CPT 62", x_mm: 1000, y_mm: 0 };
+const cpt63: Cpt = { id: 63, name: "CPT 63", x_mm: 2000, y_mm: 0 };
 const loadPoint15: LoadPoint = { id: 15, name: "Load point 15", x_mm: 0, y_mm: 0, design_load_kn: 79 };
 const loadPoint16: LoadPoint = { id: 16, name: "Load point 16", x_mm: 1000, y_mm: 0, design_load_kn: 82 };
 
@@ -69,7 +70,7 @@ describe("CPT selection table", () => {
     ]);
   });
 
-  it("shows manual draft CPTs with all-or-some usage metadata even for one load point", () => {
+  it("keeps the single-load-point columns while editing a manual draft", () => {
     const model = getSelectedCptTableModel([
       {
         loadPoint: loadPoint15,
@@ -78,10 +79,39 @@ describe("CPT selection table", () => {
       },
     ]);
 
-    assert.deepEqual(model.columns, ["CPT", "Used by", "Load points"]);
+    assert.deepEqual(model.columns, ["Selection", "CPT", "Distance"]);
     assert.deepEqual(model.rows, [{
       cpt: cpt61,
-      values: ["CPT 61", "1 / 1 load points", "15"],
+      values: ["manual", "CPT 61", "0 m"],
     }]);
+  });
+
+  it("sorts multiple-load-point CPTs by usage descending and CPT id ascending", () => {
+    const loadPoint17 = { ...loadPoint16, id: 17, name: "Load point 17" };
+    const model = getSelectedCptTableModel([
+      {
+        loadPoint: loadPoint15,
+        selectedCpts: [
+          selectedCpt("manual 1", cpt61, 1000),
+          selectedCpt("manual 2", cpt62, 2000),
+          selectedCpt("manual 3", cpt63, 3000),
+        ],
+      },
+      {
+        loadPoint: loadPoint16,
+        selectedCpts: [selectedCpt("manual 1", cpt63, 2000)],
+      },
+      {
+        loadPoint: loadPoint17,
+        selectedCpts: [selectedCpt("manual 1", cpt62, 1000), selectedCpt("manual 2", cpt63, 2000)],
+      },
+    ]);
+
+    assert.deepEqual(model.rows.map((row) => row.cpt.id), [63, 62, 61]);
+    assert.deepEqual(model.rows.map((row) => row.values[1]), [
+      "3 / 3 load points",
+      "2 / 3 load points",
+      "1 / 3 load points",
+    ]);
   });
 });

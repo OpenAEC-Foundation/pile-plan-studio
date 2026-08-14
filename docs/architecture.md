@@ -28,3 +28,14 @@ be the source of truth for calculations.
 Use the browser preview for most visual and interaction work. Use the desktop app
 when testing anything that depends on Tauri, local file access, window behavior,
 or native integrations.
+
+## Viewer
+
+The plan viewer uses a fixed, uniform project transform and keeps application
+scale, layout compensation, and interactive plan zoom as separate layers. This
+prevents markers and pointer interactions from drifting when panels resize or
+when browser and desktop presentation scales differ.
+
+The implementation invariants, coordinate pipeline, regression symptoms, and
+manual test procedure live beside the viewer code in
+[`apps/pile-plan-studio/src/viewer/README.md`](../apps/pile-plan-studio/src/viewer/README.md).

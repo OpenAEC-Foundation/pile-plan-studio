@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 
 import type { PilePlanData } from "../../core/projectFile.ts";
 import type { ProjectCostSummary } from "../../domain/projectCostSummary.ts";
+import type { InputSource, InputSourceKind } from "../../domain/projectState.ts";
 
 type Props = {
   projectName: string;
@@ -10,6 +11,11 @@ type Props = {
   pilePlans: PilePlanData[];
   activePilePlanId: string;
   costSummaries: Map<string, ProjectCostSummary>;
+  currencyCode: string;
+  inputSources: InputSource[];
+  activeSourceKind: InputSourceKind | null;
+  inputSourcesExpanded: boolean;
+  pilePlansExpanded: boolean;
   creating?: boolean;
   createDisabled?: boolean;
   onActivate: (pilePlanId: string) => void;
@@ -17,6 +23,8 @@ type Props = {
   onRename: (pilePlanId: string, name: string) => void;
   onDuplicate: (pilePlanId: string) => void;
   onDelete: (pilePlanId: string) => void;
+  onSourceActivate: (kind: InputSourceKind) => void;
+  onExpansionChange: (group: "inputSources" | "pilePlans", expanded: boolean) => void;
 };
 
 export default function PilePlanExplorer({
@@ -25,6 +33,11 @@ export default function PilePlanExplorer({
   pilePlans,
   activePilePlanId,
   costSummaries,
+  currencyCode,
+  inputSources,
+  activeSourceKind,
+  inputSourcesExpanded,
+  pilePlansExpanded,
   creating = false,
   createDisabled = false,
   onActivate,
@@ -32,6 +45,8 @@ export default function PilePlanExplorer({
   onRename,
   onDuplicate,
   onDelete,
+  onSourceActivate,
+  onExpansionChange,
 }: Props) {
   const { t, i18n } = useTranslation();
   const [renamingId, setRenamingId] = useState<string | null>(null);
@@ -39,7 +54,7 @@ export default function PilePlanExplorer({
 
   const formatCurrency = (value: number) => new Intl.NumberFormat(i18n.language, {
     style: "currency",
-    currency: "EUR",
+    currency: currencyCode,
     maximumFractionDigits: 0,
   }).format(value);
 
@@ -76,8 +91,32 @@ export default function PilePlanExplorer({
           </div>
         </section>
 
+        <section className="project-tree-section" aria-label={t("projectExplorer.inputSources")}>
+          <GroupHeading
+            expanded={inputSourcesExpanded}
+            label={t("projectExplorer.inputSources")}
+            onToggle={() => onExpansionChange("inputSources", !inputSourcesExpanded)}
+          />
+          {inputSourcesExpanded && inputSources.map((source) => (
+            <button
+              className={`project-tree-item${activeSourceKind === source.kind ? " active" : ""}`}
+              key={source.kind}
+              onClick={() => onSourceActivate(source.kind)}
+              type="button"
+            >
+              <span>{t(`projectExplorer.sources.${source.kind}`)}</span>
+              <small>{t("projectExplorer.rows", { count: source.itemCount })}</small>
+            </button>
+          ))}
+        </section>
+
         <section className="project-tree-section pile-plan-tree" aria-label={t("projectExplorer.pilePlans")}>
-          <div className="project-tree-label">{t("projectExplorer.pilePlans")}</div>
+          <GroupHeading
+            expanded={pilePlansExpanded}
+            label={t("projectExplorer.pilePlans")}
+            onToggle={() => onExpansionChange("pilePlans", !pilePlansExpanded)}
+          />
+          {pilePlansExpanded && <>
           <div className="pile-plan-list" role="listbox" aria-label={t("projectExplorer.pilePlans")}>
             {pilePlans.map((plan) => {
               const active = plan.id === activePilePlanId;
@@ -135,9 +174,32 @@ export default function PilePlanExplorer({
             <Icon kind="plus" />
             <span>{creating ? t("projectExplorer.creating") : t("projectExplorer.newPilePlan")}</span>
           </button>
+          </>}
         </section>
       </div>
     </aside>
+  );
+}
+
+function GroupHeading({
+  expanded,
+  label,
+  onToggle,
+}: {
+  expanded: boolean;
+  label: string;
+  onToggle: () => void;
+}) {
+  return (
+    <button
+      aria-expanded={expanded}
+      className="project-tree-group-heading"
+      onClick={onToggle}
+      type="button"
+    >
+      <svg aria-hidden="true" viewBox="0 0 16 16"><path d={expanded ? "m4 6 4 4 4-4" : "m6 4 4 4-4 4"} /></svg>
+      <span>{label}</span>
+    </button>
   );
 }
 

@@ -178,6 +178,7 @@ export async function calculateProjectAnalysisCore(input: {
 export async function calculatePileCostCore(input: {
   pileSizeMm: number;
   pileTipLevelM: number;
+  pileHeadLevelM: number;
   settings: PileCostSettings;
 }): Promise<number | null> {
   if (!isTauriRuntime()) {
@@ -185,31 +186,35 @@ export async function calculatePileCostCore(input: {
     const response = calculate_pile_option_cost({
       pile_size_mm: input.pileSizeMm,
       pile_tip_level_m: input.pileTipLevelM,
+      pile_head_level_m: input.pileHeadLevelM,
       settings: input.settings,
-    }) as { cost_eur: number | null };
+    }) as { cost: number | null };
 
-    return response.cost_eur;
+    return response.cost;
   }
 
-  const response = await invoke<{ cost_eur: number | null }>("calculate_pile_option_cost", {
+  const response = await invoke<{ cost: number | null }>("calculate_pile_option_cost", {
     request: {
       pile_size_mm: input.pileSizeMm,
       pile_tip_level_m: input.pileTipLevelM,
+      pile_head_level_m: input.pileHeadLevelM,
       settings: input.settings,
     },
   });
 
-  return response.cost_eur;
+  return response.cost;
 }
 
 export async function chooseDefaultPileOptionCore(input: {
   options: PileConfigurationOption[];
+  pileHeadLevelM: number;
   settings: PileCostSettings;
 }): Promise<PileConfigurationOption | null> {
   if (!isTauriRuntime()) {
     await initializeWasm();
     const option = choose_default_option({
       options: input.options.map(toCorePileOption),
+      pile_head_level_m: input.pileHeadLevelM,
       settings: input.settings,
     }) as CorePileConfigurationOption | null;
 
@@ -219,6 +224,7 @@ export async function chooseDefaultPileOptionCore(input: {
   const option = await invoke<CorePileConfigurationOption | null>("choose_default_option", {
     request: {
       options: input.options.map(toCorePileOption),
+      pile_head_level_m: input.pileHeadLevelM,
       settings: input.settings,
     },
   });
@@ -228,6 +234,7 @@ export async function chooseDefaultPileOptionCore(input: {
 
 export async function chooseDefaultPileOptionsCore(input: {
   optionsByLoadPointId: Map<number, PileConfigurationOption[]>;
+  pileHeadLevelM: number;
   costSettings: PileCostSettings;
 }): Promise<Map<number, string>> {
   const coreOptions = toCorePileOptionsByLoadPoint(input.optionsByLoadPointId);
@@ -237,12 +244,14 @@ export async function chooseDefaultPileOptionsCore(input: {
     await initializeWasm();
     choices = choose_default_options({
       options_by_load_point: toWasmNumberKeyedMap(coreOptions),
+      pile_head_level_m: input.pileHeadLevelM,
       cost_settings: input.costSettings,
     }) as Map<number, PileConfigurationKey>;
   } else {
     choices = await invoke<Record<string, PileConfigurationKey>>("choose_default_options", {
       request: {
         options_by_load_point: toStringKeyedRecord(coreOptions),
+        pile_head_level_m: input.pileHeadLevelM,
         cost_settings: input.costSettings,
       },
     });
@@ -278,6 +287,7 @@ export async function getBearingCapacityRowsForCptCore(input: {
 
 export async function greedyOptimizeCore(input: {
   optionsByLoadPoint: Map<number, PileConfigurationOption[]>;
+  pileHeadLevelM: number;
   costSettings: PileCostSettings;
   settings: GreedyOptimizationSettings;
 }): Promise<GreedyOptimizedPileChoice[]> {
@@ -285,6 +295,7 @@ export async function greedyOptimizeCore(input: {
     await initializeWasm();
     const request = {
       options_by_load_point: toWasmNumberKeyedMap(toCorePileOptionsByLoadPoint(input.optionsByLoadPoint)),
+      pile_head_level_m: input.pileHeadLevelM,
       cost_settings: input.costSettings,
       settings: input.settings,
     };
@@ -294,6 +305,7 @@ export async function greedyOptimizeCore(input: {
 
   const request = {
     options_by_load_point: toStringKeyedRecord(toCorePileOptionsByLoadPoint(input.optionsByLoadPoint)),
+    pile_head_level_m: input.pileHeadLevelM,
     cost_settings: input.costSettings,
     settings: input.settings,
   };
@@ -303,10 +315,14 @@ export async function greedyOptimizeCore(input: {
 
 export async function importProjectFromFilesCore(input: {
   projectName: string;
+  pileHeadLevelM: number;
+  currencyCode: string;
   sources: ImportSourceInput[];
 }): Promise<IfcppProject> {
   const request = {
     project_name: input.projectName,
+    pile_head_level_m: input.pileHeadLevelM,
+    currency_code: input.currencyCode,
     sources: input.sources.map(toCoreImportSource),
   };
   if (!isTauriRuntime()) {
@@ -376,7 +392,7 @@ export async function writeIfcppProjectCore(project: IfcppProject): Promise<stri
 }
 
 function toWasmIfcppProject(project: IfcppProject) {
-  const userState = project.schema_version === 2
+  const userState = project.schema_version >= 2
     ? {
         pile_plans: (project.user_state.pile_plans ?? []).map((plan) => ({
           ...plan,

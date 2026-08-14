@@ -14,6 +14,7 @@
   "general": {
     "application": "Application",
     "language": "Language",
+    "defaultCurrency": "Default currency",
     "startup": "Startup",
     "restoreSession": "Restore last session on startup",
     "checkUpdates": "Check for updates automatically",

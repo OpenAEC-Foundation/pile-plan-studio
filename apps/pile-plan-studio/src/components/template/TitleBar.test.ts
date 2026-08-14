@@ -40,4 +40,15 @@ describe("title bar history controls", () => {
     assert.doesNotMatch(source, /titlebar-close/);
     assert.doesNotMatch(source, /toggleMaximize|\.minimize\(\)|\.close\(\)/);
   });
+
+  it("anchors application-scale controls immediately before feedback without taking layout width", () => {
+    const css = readFileSync(resolve(import.meta.dirname, "TitleBar.css"), "utf8");
+    assert.match(source, /interfaceScaleControl\?: ReactNode/);
+    assert.match(
+      source,
+      /className="titlebar-scale-anchor"[\s\S]*?\{interfaceScaleControl\}[\s\S]*?className="send-feedback-btn"/,
+    );
+    assert.match(css, /\.titlebar-scale-anchor\s*\{[\s\S]*?position:\s*relative/);
+    assert.match(css, /\.titlebar-scale-anchor\s*\{[\s\S]*?width:\s*0/);
+  });
 });
