@@ -481,7 +481,7 @@ assert!(!restored.settings.viewer.show_tip_level_regions);
 
 - [ ] **Step 2: Write failing TypeScript project round-trip tests**
 
-Extend `projectFile.test.ts` to assert that a missing field loads as `false`, a saved `true` value writes `show_tip_level_regions: true`, and save/reload preserves it. Extend `projectContent.test.ts` so changing only this field makes project content unequal and therefore undoable/dirty-trackable. Extend the valid-record case in `browserRecoveryStartup.test.ts`: create a recovery record whose serialized IFCPP has `show_tip_level_regions: true`, restore it through `loadBrowserRecovery`, and assert `result.project.showTipLevelRegions === true`.
+Extend `projectFile.test.ts` to assert that a missing field loads as `false`, a saved `true` value writes `show_tip_level_regions: true`, and save/reload preserves it. Extend `projectContent.test.ts` so changing only this field makes project content unequal and therefore undoable/dirty-trackable. Add a `browserRecoveryStartup.test.ts` case whose serialized IFCPP has `show_tip_level_regions: true`; restore it through `loadBrowserRecovery` and assert that the recovered record's IFCPP text still contains that exact field. Project parsing remains covered by `projectFile.test.ts`, matching the existing recovery boundary that returns a record rather than a parsed project.
 
 - [ ] **Step 3: Run focused tests and confirm failure**
 
