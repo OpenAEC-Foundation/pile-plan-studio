@@ -189,6 +189,15 @@
   vector-effect: non-scaling-stroke;
 }
 
+.tip-level-region-overlay {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  pointer-events: none;
+}
+
 .viewer-content {
   --viewer-cpt-connection-line: #8f999e;
   --viewer-symbol-scale: 1;

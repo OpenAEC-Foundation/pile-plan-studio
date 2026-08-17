@@ -88,6 +88,7 @@ import {
 } from "../../viewer/tipLevelRegionGeometry.ts";
 import { presentTipLevelRegionGeometry } from "../../viewer/tipLevelRegionPresentation.ts";
 import { useTipLevelRegionTopology } from "./useTipLevelRegionTopology.ts";
+import TipLevelRegionOverlay from "./TipLevelRegionOverlay.tsx";
 
 type Props = {
   state: ProjectState;
@@ -311,6 +312,11 @@ export default function PilePlanViewer({ state, lassoSelectionActive, onStateCha
               projectTransform.canvasSize,
             )}
           >
+          <TipLevelRegionOverlay
+            height={projectTransform.canvasSize.height}
+            layers={tipLevelRegionPresentation}
+            width={projectTransform.canvasSize.width}
+          />
           {cptConnectionSegments.length > 0 ? (
             <svg className="cpt-connection-lines" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
               {cptConnectionSegments.map((segment) => (
