@@ -88,6 +88,7 @@ export type ProjectState = LoadedProjectData & {
   symbolScalePercent: number;
   foregroundLayer: ForegroundLayer;
   showGrid: boolean;
+  showTipLevelRegions: boolean;
 };
 
 type InitialProjectStateOptions = {

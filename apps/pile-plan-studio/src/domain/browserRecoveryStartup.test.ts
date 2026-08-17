@@ -42,6 +42,32 @@ describe("browser recovery startup", () => {
     assert.deepEqual(result, { kind: "restored", record });
   });
 
+  it("preserves tip-level region visibility in the recovered IFCPP text", async () => {
+    const projectText = JSON.stringify({
+      schema: "IFCPP",
+      schema_version: 3,
+      metadata: { name: "Recovered project" },
+      settings: { viewer: { show_tip_level_regions: true } },
+    });
+    const record = createBrowserRecoveryRecord({
+      appVersion: "0.3.0",
+      ifcppText: projectText,
+      projectName: "Recovered project",
+      savedProjectSignature: "",
+      isDirty: true,
+      updatedAt: "2026-08-17T10:00:00.000Z",
+    });
+
+    const result = await loadBrowserRecovery({ isDesktop: false, store: store(record).recoveryStore });
+
+    assert.equal(result.kind, "restored");
+    assert.equal(
+      JSON.parse(result.kind === "restored" ? result.record.ifcppText : "{}").settings.viewer
+        .show_tip_level_regions,
+      true,
+    );
+  });
+
   it("opens the sample when no recovery record exists", async () => {
     const test = store(null);
     assert.deepEqual(

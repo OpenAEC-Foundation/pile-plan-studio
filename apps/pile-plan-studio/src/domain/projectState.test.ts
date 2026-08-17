@@ -37,6 +37,11 @@ describe("createInitialProjectState", () => {
     assert.equal(state.symbolScalePercent, 145);
     assert.equal(state.foregroundLayer, "cpts");
     assert.equal(state.showGrid, false);
+    assert.equal(state.showTipLevelRegions, false);
+
+    project.settings.viewer.show_tip_level_regions = true;
+    const visibleState = createInitialProjectState(project, { initializeDefaultPiles: false });
+    assert.equal(visibleState.showTipLevelRegions, true);
   });
 
   it("preserves stored IFCPP choices without scheduling default selection", () => {

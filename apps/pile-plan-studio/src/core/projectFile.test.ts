@@ -123,6 +123,17 @@ describe("IFCPP project loading", () => {
     assert.equal(data.symbolScalePercent, 100);
     assert.equal(data.foregroundLayer, "load-points");
     assert.equal(data.showGrid, true);
+    assert.equal(data.showTipLevelRegions, false);
+  });
+
+  it("round-trips tip-level region visibility without changing the schema version", () => {
+    const loaded = loadIfcppProjectData(projectFixture());
+    const saved = createIfcppProject({ ...loaded, showTipLevelRegions: true });
+    const restored = loadIfcppProjectData(saved);
+
+    assert.equal(saved.schema_version, 3);
+    assert.equal(saved.settings.viewer?.show_tip_level_regions, true);
+    assert.equal(restored.showTipLevelRegions, true);
   });
 
   it("migrates schema two cost fields and writes schema three", () => {
@@ -145,6 +156,7 @@ describe("IFCPP project loading", () => {
       symbol_scale_percent: 100,
       foreground_layer: "load-points",
       show_grid: true,
+      show_tip_level_regions: false,
     });
   });
 

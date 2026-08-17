@@ -97,6 +97,7 @@ export type ProjectViewerSettings = {
   symbolScalePercent: number;
   foregroundLayer: "load-points" | "cpts";
   showGrid: boolean;
+  showTipLevelRegions: boolean;
 };
 
 export type PileConfigurationKey = {

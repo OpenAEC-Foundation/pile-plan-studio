@@ -68,6 +68,7 @@ type IfcppViewerSettings = {
   symbol_scale_percent?: number;
   foreground_layer?: unknown;
   show_grid?: boolean;
+  show_tip_level_regions?: boolean;
 };
 
 export type IfcppPilePlan = {
@@ -162,6 +163,7 @@ export type LoadedProjectData = {
   symbolScalePercent: number;
   foregroundLayer: "load-points" | "cpts";
   showGrid: boolean;
+  showTipLevelRegions: boolean;
   activePileSizes: number[];
   activePileTipLevels: number[];
   pileLegend: LegendItems;
@@ -318,6 +320,7 @@ export function createIfcppProject(input: {
   symbolScalePercent: number;
   foregroundLayer: "load-points" | "cpts";
   showGrid: boolean;
+  showTipLevelRegions: boolean;
   optimizationSettings: GreedyOptimizationSettings;
   viewerUtilizationSettings: ViewerUtilizationSettings;
   activePileSizes: number[];
@@ -388,6 +391,7 @@ export function createIfcppProject(input: {
         symbol_scale_percent: input.symbolScalePercent,
         foreground_layer: input.foregroundLayer,
         show_grid: input.showGrid,
+        show_tip_level_regions: input.showTipLevelRegions,
       },
     },
     user_state: {
@@ -508,7 +512,12 @@ function normalizeCurrencyCode(value: unknown): string {
 
 function normalizeProjectViewerSettings(
   settings: IfcppViewerSettings | undefined,
-): { symbolScalePercent: number; foregroundLayer: "load-points" | "cpts"; showGrid: boolean } {
+): {
+  symbolScalePercent: number;
+  foregroundLayer: "load-points" | "cpts";
+  showGrid: boolean;
+  showTipLevelRegions: boolean;
+} {
   const scale = typeof settings?.symbol_scale_percent === "number"
     ? settings.symbol_scale_percent
     : 100;
@@ -516,6 +525,7 @@ function normalizeProjectViewerSettings(
     symbolScalePercent: Math.round(Math.max(10, Math.min(200, scale))),
     foregroundLayer: settings?.foreground_layer === "cpts" ? "cpts" : "load-points",
     showGrid: settings?.show_grid !== false,
+    showTipLevelRegions: settings?.show_tip_level_regions === true,
   };
 }
 

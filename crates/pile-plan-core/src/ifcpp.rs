@@ -106,7 +106,8 @@ fn migrate_legacy_project_value(value: &mut Value) {
     settings.entry("viewer").or_insert_with(|| serde_json::json!({
         "symbol_scale_percent": 100,
         "foreground_layer": "load-points",
-        "show_grid": true
+        "show_grid": true,
+        "show_tip_level_regions": false
     }));
     value["schema_version"] = Value::from(3);
 }

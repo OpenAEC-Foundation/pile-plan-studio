@@ -21,6 +21,7 @@ export type ProjectContent = Pick<ProjectState,
   | "symbolScalePercent"
   | "foregroundLayer"
   | "showGrid"
+  | "showTipLevelRegions"
   | "pilePlans"
   | "manualCptIdsByLoadPoint"
   | "importLog"
@@ -51,6 +52,7 @@ const PROJECT_CONTENT_KEYS = [
   "symbolScalePercent",
   "foregroundLayer",
   "showGrid",
+  "showTipLevelRegions",
   "pilePlans",
   "manualCptIdsByLoadPoint",
   "importLog",

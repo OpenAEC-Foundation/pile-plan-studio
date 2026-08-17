@@ -6,6 +6,7 @@ import {
   captureProjectContent,
   normalizeProjectContentState,
   restoreProjectContent,
+  projectContentEquals,
 } from "./projectContent.ts";
 
 const sampleProjectText = readFileSync("../../sample_project/sample_project.ifcpp", "utf8");
@@ -29,6 +30,18 @@ describe("project content", () => {
     assert.equal("selectedCptsByLoadPointId" in content, false);
     assert.equal("viewport" in content, false);
     assert.equal("activePilePlanId" in content, false);
+    assert.equal(content.showTipLevelRegions, false);
+  });
+
+  it("treats tip-level region visibility as undoable project content", () => {
+    const state = normalizeProjectContentState(createInitialProjectState(
+      sampleProjectText,
+      { initializeDefaultPiles: false },
+    ));
+    const hidden = captureProjectContent(state);
+    const visible = captureProjectContent({ ...state, showTipLevelRegions: true });
+
+    assert.equal(projectContentEquals(hidden, visible), false);
   });
 
   it("normalizes active pile choices into the active plan without copying project inputs", () => {
