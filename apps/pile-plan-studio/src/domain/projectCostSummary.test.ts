@@ -27,6 +27,7 @@ describe("project cost summary", () => {
         selectedPileOptionKeysByLoadPoint: new Map([[1, "a"], [2, "missing"]]),
         externalReferencesByLoadPoint: new Map(),
         lockedLoadPointIds: [],
+        optimizationUnassignedByLoadPoint: new Map(),
       },
       {
         id: "pile-plan-2",
@@ -34,6 +35,7 @@ describe("project cost summary", () => {
         selectedPileOptionKeysByLoadPoint: new Map([[3, "b"]]),
         externalReferencesByLoadPoint: new Map(),
         lockedLoadPointIds: [],
+        optimizationUnassignedByLoadPoint: new Map(),
       },
     ];
 

@@ -181,6 +181,37 @@ describe("IFCPP project loading", () => {
     assert.equal(data.selectedPileOptionKeysByLoadPoint.get(1), "290|-18");
   });
 
+  it("round-trips optimizer outcomes per pile plan", () => {
+    const legacy = projectFixture();
+    const project = {
+      ...legacy,
+      schema_version: 3,
+      user_state: {
+        pile_plans: [{
+          id: "basis",
+          name: "Basis",
+          selected_piles: legacy.user_state.selected_piles,
+          locked_load_point_ids: [],
+          optimization_unassigned: {
+            "7": "configuration_limits",
+            "8": "optimization_constraints",
+          },
+        }],
+        active_pile_plan_id: "basis",
+        manual_cpt_selections: legacy.user_state.manual_cpt_selections,
+      },
+    } as unknown as IfcppProject;
+
+    const loaded = loadIfcppProjectData(project);
+    const saved = createIfcppProject(loaded);
+    const reloaded = loadIfcppProjectData(saved);
+
+    assert.deepEqual(
+      reloaded.pilePlans[0].optimizationUnassignedByLoadPoint,
+      new Map([[7, "configuration_limits"], [8, "optimization_constraints"]]),
+    );
+  });
+
   it("normalizes an empty plan list and an unknown active plan", () => {
     const legacy = projectFixture();
     const project = {

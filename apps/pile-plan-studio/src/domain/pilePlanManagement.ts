@@ -19,6 +19,10 @@ export function synchronizeActivePilePlan(
   return pilePlans.map((plan) => plan.id === activePilePlanId ? ({
     ...plan,
     selectedPileOptionKeysByLoadPoint: new Map(selectedPileOptionKeysByLoadPoint),
+    optimizationUnassignedByLoadPoint: new Map(
+      [...plan.optimizationUnassignedByLoadPoint]
+        .filter(([loadPointId]) => !selectedPileOptionKeysByLoadPoint.has(loadPointId)),
+    ),
   }) : plan);
 }
 
@@ -83,6 +87,7 @@ export function duplicatePilePlan(
     selectedPileOptionKeysByLoadPoint: new Map(source.selectedPileOptionKeysByLoadPoint),
     externalReferencesByLoadPoint: cloneReferenceMap(source.externalReferencesByLoadPoint),
     lockedLoadPointIds: [...source.lockedLoadPointIds],
+    optimizationUnassignedByLoadPoint: new Map(source.optimizationUnassignedByLoadPoint),
   };
   const nextPlans = [...pilePlans, copy];
   return transitionToPlan(nextPlans, copy);
@@ -106,6 +111,7 @@ export function createPilePlan(
     selectedPileOptionKeysByLoadPoint: new Map(input.choices),
     externalReferencesByLoadPoint: new Map(),
     lockedLoadPointIds: [],
+    optimizationUnassignedByLoadPoint: new Map(),
   };
   const nextPlans = [...pilePlans, created];
   return transitionToPlan(nextPlans, created);
@@ -135,6 +141,7 @@ export function createOptimizationPilePlan(
     selectedPileOptionKeysByLoadPoint: new Map(input.optimizedChoices),
     externalReferencesByLoadPoint,
     lockedLoadPointIds: [...source.lockedLoadPointIds],
+    optimizationUnassignedByLoadPoint: new Map(source.optimizationUnassignedByLoadPoint),
   };
   return transitionToPlan([...pilePlans, created], created);
 }

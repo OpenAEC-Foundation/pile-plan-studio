@@ -133,5 +133,6 @@ function plan(
     selectedPileOptionKeysByLoadPoint: new Map(choices),
     externalReferencesByLoadPoint: new Map(),
     lockedLoadPointIds: [],
+    optimizationUnassignedByLoadPoint: new Map(),
   };
 }

@@ -19,6 +19,7 @@ function plan(
   name: string,
   choices: Array<[number, string]>,
   lockedLoadPointIds: number[] = [],
+  optimizationOutcomes: Array<[number, "configuration_limits" | "optimization_constraints"]> = [],
 ): PilePlanData {
   return {
     id,
@@ -26,6 +27,7 @@ function plan(
     selectedPileOptionKeysByLoadPoint: new Map(choices),
     externalReferencesByLoadPoint: new Map(),
     lockedLoadPointIds,
+    optimizationUnassignedByLoadPoint: new Map(optimizationOutcomes),
   };
 }
 
@@ -40,6 +42,28 @@ describe("pile plan management", () => {
     assert.equal(result[0].selectedPileOptionKeysByLoadPoint.get(1), "new");
     assert.notEqual(result[0], original);
     assert.notEqual(result[0].selectedPileOptionKeysByLoadPoint, choices);
+  });
+
+  it("clears only optimizer outcomes that now have a manual assignment", () => {
+    const original = plan(
+      "pile-plan-1",
+      "Basisplan",
+      [],
+      [],
+      [[7, "configuration_limits"], [8, "optimization_constraints"]],
+    );
+
+    const result = synchronizeActivePilePlan(
+      [original],
+      original.id,
+      new Map([[7, "290|-18"]]),
+    );
+
+    assert.deepEqual(
+      result[0].optimizationUnassignedByLoadPoint,
+      new Map([[8, "optimization_constraints"]]),
+    );
+    assert.equal(original.optimizationUnassignedByLoadPoint.has(7), true);
   });
 
   it("stores active edits before switching and returns a copy of the target choices", () => {
@@ -91,6 +115,7 @@ describe("pile plan management", () => {
   it("duplicates assignments, references, and locks into a new active plan", () => {
     const source = plan("pile-plan-1", "Basisplan", [[1, "290|-17500"]], [1]);
     source.externalReferencesByLoadPoint.set(1, [{ source: "legacy" }]);
+    source.optimizationUnassignedByLoadPoint.set(8, "configuration_limits");
 
     const result = duplicatePilePlan({
       pilePlans: [source],
@@ -108,6 +133,11 @@ describe("pile plan management", () => {
     assert.notEqual(
       result.pilePlans[1].externalReferencesByLoadPoint,
       source.externalReferencesByLoadPoint,
+    );
+    assert.deepEqual(result.pilePlans[1].optimizationUnassignedByLoadPoint, new Map([[8, "configuration_limits"]]));
+    assert.notEqual(
+      result.pilePlans[1].optimizationUnassignedByLoadPoint,
+      source.optimizationUnassignedByLoadPoint,
     );
   });
 
@@ -167,8 +197,15 @@ describe("pile plan management", () => {
   });
 
   it("creates an optimization plan from the active plan and preserves its locks", () => {
+    const source = plan(
+      "pile-plan-1",
+      "Basisplan",
+      [[1, "old"]],
+      [1],
+      [[8, "configuration_limits"]],
+    );
     const result = createOptimizationPilePlan({
-      pilePlans: [plan("pile-plan-1", "Basisplan", [[1, "old"]], [1])],
+      pilePlans: [source],
       activePilePlanId: "pile-plan-1",
       selectedPileOptionKeysByLoadPoint: new Map([[1, "current"]]),
       optimizedChoices: new Map([[1, "optimized"]]),
@@ -179,5 +216,6 @@ describe("pile plan management", () => {
     assert.equal(result.pilePlans[1].name, "Optimalisatie 1");
     assert.equal(result.selectedPileOptionKeysByLoadPoint.get(1), "optimized");
     assert.deepEqual(result.pilePlans[1].lockedLoadPointIds, [1]);
+    assert.deepEqual(result.pilePlans[1].optimizationUnassignedByLoadPoint, new Map([[8, "configuration_limits"]]));
   });
 });

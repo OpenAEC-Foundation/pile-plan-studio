@@ -96,6 +96,7 @@ function content(name: string): ProjectContent {
       selectedPileOptionKeysByLoadPoint: new Map(),
       externalReferencesByLoadPoint: new Map(),
       lockedLoadPointIds: [],
+      optimizationUnassignedByLoadPoint: new Map(),
     }],
     manualCptIdsByLoadPoint: new Map(),
   };
