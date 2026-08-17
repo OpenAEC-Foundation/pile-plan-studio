@@ -14,10 +14,11 @@ pub use analysis::{
     pile_configuration_options, selected_cpts, selected_cpts_by_maximum_angle,
     selected_cpts_by_quadrant, BearingCapacity as ProjectBearingCapacity, BearingCapacitySummary,
     Cpt as ProjectCpt, CptBearingCapacityRow, CptSelectionAlgorithm, CptSelectionSettings,
-    GreedyOptimizationResult, GreedyOptimizationSettings, GreedyOptimizedPileChoice,
-    GreedyUnassignedLoadPoint, GreedyUnassignedReason, LoadPoint as ProjectLoadPoint,
-    PileConfigurationKey, PileConfigurationOption, PileCostSettings, PileCostSettingsItem,
-    PileCostShape, ProjectAnalysisResult, SelectedCpt,
+    GreedyOptimizationInput, GreedyOptimizationResult, GreedyOptimizationSettings,
+    GreedyOptimizedPileChoice, GreedyUnassignedLoadPoint, GreedyUnassignedReason,
+    LoadPoint as ProjectLoadPoint, OptimizationLimitScope, PileConfigurationKey,
+    PileConfigurationOption, PileCostSettings, PileCostSettingsItem, PileCostShape,
+    ProjectAnalysisResult, SelectedCpt,
 };
 pub use export::{
     build_pile_plan_export_rows, write_pile_plan_csv, write_pile_plan_xlsx, ExportError,

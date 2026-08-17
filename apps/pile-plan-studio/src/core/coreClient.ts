@@ -33,7 +33,8 @@ import {
   type Cpt,
   type CptSelectionSettings,
   type GreedyOptimizationSettings,
-  type GreedyOptimizedPileChoice,
+  type GreedyOptimizationResult,
+  type OptimizationLimitScope,
   type LoadPoint,
   type PileConfigurationOption,
   type PileConfigurationKey,
@@ -287,30 +288,42 @@ export async function getBearingCapacityRowsForCptCore(input: {
 
 export async function greedyOptimizeCore(input: {
   optionsByLoadPoint: Map<number, PileConfigurationOption[]>;
+  targetLoadPointIds: number[];
+  lockedLoadPointIds: number[];
+  currentAssignments: Map<number, PileConfigurationKey>;
+  limitScope: OptimizationLimitScope;
   pileHeadLevelM: number;
   costSettings: PileCostSettings;
   settings: GreedyOptimizationSettings;
-}): Promise<GreedyOptimizedPileChoice[]> {
+}): Promise<GreedyOptimizationResult> {
   if (!isTauriRuntime()) {
     await initializeWasm();
     const request = {
       options_by_load_point: toWasmNumberKeyedMap(toCorePileOptionsByLoadPoint(input.optionsByLoadPoint)),
+      target_load_point_ids: input.targetLoadPointIds,
+      locked_load_point_ids: input.lockedLoadPointIds,
+      current_assignments: toWasmNumberKeyedMap(input.currentAssignments),
+      limit_scope: input.limitScope,
       pile_head_level_m: input.pileHeadLevelM,
       cost_settings: input.costSettings,
       settings: input.settings,
     };
 
-    return greedy_optimize(request) as GreedyOptimizedPileChoice[];
+    return greedy_optimize(request) as GreedyOptimizationResult;
   }
 
   const request = {
     options_by_load_point: toStringKeyedRecord(toCorePileOptionsByLoadPoint(input.optionsByLoadPoint)),
+    target_load_point_ids: input.targetLoadPointIds,
+    locked_load_point_ids: input.lockedLoadPointIds,
+    current_assignments: toStringKeyedRecord(input.currentAssignments),
+    limit_scope: input.limitScope,
     pile_head_level_m: input.pileHeadLevelM,
     cost_settings: input.costSettings,
     settings: input.settings,
   };
 
-  return invoke<GreedyOptimizedPileChoice[]>("greedy_optimize", { request });
+  return invoke<GreedyOptimizationResult>("greedy_optimize", { request });
 }
 
 export async function importProjectFromFilesCore(input: {

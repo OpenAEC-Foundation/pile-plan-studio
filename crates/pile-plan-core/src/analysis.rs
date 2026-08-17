@@ -117,9 +117,6 @@ pub struct GreedyOptimizationSettings {
     pub max_utilization: f64,
     pub enabled_pile_sizes: Vec<u32>,
     pub enabled_pile_tip_levels: Vec<f64>,
-    pub baseline_pile_sizes: Vec<u32>,
-    pub baseline_pile_tip_levels: Vec<f64>,
-    pub baseline_pile_configurations: Vec<PileConfigurationKey>,
 }
 
 fn default_max_utilization() -> f64 {
@@ -130,6 +127,27 @@ fn default_max_utilization() -> f64 {
 pub struct PileConfigurationKey {
     pub pile_size_mm: u32,
     pub pile_tip_level_m_key: i64,
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum OptimizationLimitScope {
+    Target,
+    WholePlan,
+}
+
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+pub struct GreedyOptimizationInput {
+    pub options_by_load_point: HashMap<u32, Vec<PileConfigurationOption>>,
+    pub target_load_point_ids: Vec<u32>,
+    #[serde(default)]
+    pub locked_load_point_ids: Vec<u32>,
+    #[serde(default)]
+    pub current_assignments: HashMap<u32, PileConfigurationKey>,
+    pub limit_scope: OptimizationLimitScope,
+    pub pile_head_level_m: f64,
+    pub cost_settings: PileCostSettings,
+    pub settings: GreedyOptimizationSettings,
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
@@ -665,12 +683,51 @@ pub fn choose_default_pile_options(
         .collect()
 }
 
-pub fn greedy_optimize_pile_choices(
-    options_by_load_point: &HashMap<u32, Vec<PileConfigurationOption>>,
-    pile_head_level_m: f64,
-    cost_settings: &PileCostSettings,
-    settings: &GreedyOptimizationSettings,
-) -> GreedyOptimizationResult {
+pub fn greedy_optimize_pile_choices(input: &GreedyOptimizationInput) -> GreedyOptimizationResult {
+    let locked_ids = input
+        .locked_load_point_ids
+        .iter()
+        .copied()
+        .collect::<HashSet<_>>();
+    let mut effective_target_ids = input
+        .target_load_point_ids
+        .iter()
+        .copied()
+        .filter(|load_point_id| !locked_ids.contains(load_point_id))
+        .collect::<Vec<_>>();
+    effective_target_ids.sort_unstable();
+    effective_target_ids.dedup();
+    let effective_target_set = effective_target_ids.iter().copied().collect::<HashSet<_>>();
+    let options_by_load_point = effective_target_ids
+        .iter()
+        .map(|load_point_id| {
+            (
+                *load_point_id,
+                input
+                    .options_by_load_point
+                    .get(load_point_id)
+                    .cloned()
+                    .unwrap_or_default(),
+            )
+        })
+        .collect::<HashMap<_, _>>();
+    let mut baseline_configurations = if input.limit_scope == OptimizationLimitScope::WholePlan {
+        input
+            .current_assignments
+            .iter()
+            .filter(|(load_point_id, _)| !effective_target_set.contains(load_point_id))
+            .map(|(_, config)| config.clone())
+            .collect::<Vec<_>>()
+    } else {
+        Vec::new()
+    };
+    baseline_configurations.sort_by(|left, right| {
+        left.pile_size_mm
+            .cmp(&right.pile_size_mm)
+            .then_with(|| right.pile_tip_level_m_key.cmp(&left.pile_tip_level_m_key))
+    });
+    baseline_configurations.dedup();
+
     let eligible_options_by_load_point: HashMap<u32, Vec<PileConfigurationOption>> =
         options_by_load_point
             .iter()
@@ -682,9 +739,9 @@ pub fn greedy_optimize_pile_choices(
                         .filter(|option| {
                             option.is_option
                                 && option.utilization.is_some_and(|utilization| {
-                                    utilization <= settings.max_utilization.clamp(0.0, 1.0)
+                                    utilization <= input.settings.max_utilization.clamp(0.0, 1.0)
                                 })
-                                && optimization_option_enabled(option, settings)
+                                && optimization_option_enabled(option, &input.settings)
                         })
                         .cloned()
                         .collect(),
@@ -697,9 +754,10 @@ pub fn greedy_optimize_pile_choices(
         let Some(config) = best_next_optimization_config(
             &eligible_options_by_load_point,
             &selected_configs,
-            pile_head_level_m,
-            cost_settings,
-            settings,
+            input.pile_head_level_m,
+            &input.cost_settings,
+            &input.settings,
+            &baseline_configurations,
         ) else {
             break;
         };
@@ -708,14 +766,14 @@ pub fn greedy_optimize_pile_choices(
             let current_score = optimization_score_for_configs(
                 &eligible_options_by_load_point,
                 &selected_configs,
-                pile_head_level_m,
-                cost_settings,
+                input.pile_head_level_m,
+                &input.cost_settings,
             );
             let next_score = optimization_score_for_configs(
                 &eligible_options_by_load_point,
                 &[selected_configs.as_slice(), std::slice::from_ref(&config)].concat(),
-                pile_head_level_m,
-                cost_settings,
+                input.pile_head_level_m,
+                &input.cost_settings,
             );
 
             if next_score >= current_score {
@@ -732,8 +790,8 @@ pub fn greedy_optimize_pile_choices(
             let selected_option = cheapest_option_for_configs(
                 options,
                 &selected_configs,
-                pile_head_level_m,
-                cost_settings,
+                input.pile_head_level_m,
+                &input.cost_settings,
             )?;
 
             Some(GreedyOptimizedPileChoice {
@@ -744,8 +802,8 @@ pub fn greedy_optimize_pile_choices(
                 cost: calculate_pile_cost(
                     selected_option.pile_size_mm,
                     selected_option.pile_tip_level_m,
-                    pile_head_level_m,
-                    cost_settings,
+                    input.pile_head_level_m,
+                    &input.cost_settings,
                 ),
             })
         })
@@ -787,17 +845,15 @@ pub fn greedy_optimize_pile_choices(
             .cmp(&right.pile_size_mm)
             .then_with(|| right.pile_tip_level_m_key.cmp(&left.pile_tip_level_m_key))
     });
-    let pile_size_count = settings
-        .baseline_pile_sizes
+    let pile_size_count = baseline_configurations
         .iter()
-        .copied()
+        .map(|item| item.pile_size_mm)
         .chain(selected_configs.iter().map(|item| item.pile_size_mm))
         .collect::<HashSet<_>>()
         .len();
-    let pile_tip_level_count = settings
-        .baseline_pile_tip_levels
+    let pile_tip_level_count = baseline_configurations
         .iter()
-        .map(|level| scaled_level_key(*level))
+        .map(|item| item.pile_tip_level_m_key)
         .chain(
             selected_configs
                 .iter()
@@ -805,8 +861,7 @@ pub fn greedy_optimize_pile_choices(
         )
         .collect::<HashSet<_>>()
         .len();
-    let configuration_count = settings
-        .baseline_pile_configurations
+    let configuration_count = baseline_configurations
         .iter()
         .cloned()
         .chain(selected_configs.iter().map(OptimizationConfig::as_key))
@@ -867,12 +922,19 @@ fn best_next_optimization_config(
     pile_head_level_m: f64,
     cost_settings: &PileCostSettings,
     settings: &GreedyOptimizationSettings,
+    baseline_configurations: &[PileConfigurationKey],
 ) -> Option<OptimizationConfig> {
     all_optimization_configs(options_by_load_point)
         .into_iter()
         .filter(|config| !selected_configs.contains(config))
         .filter(|config| {
-            config_respects_limits(config, selected_configs, options_by_load_point, settings)
+            config_respects_limits(
+                config,
+                selected_configs,
+                options_by_load_point,
+                settings,
+                baseline_configurations,
+            )
         })
         .min_by(|left, right| {
             let left_score = optimization_score_for_configs(
@@ -926,24 +988,22 @@ fn config_respects_limits(
     selected_configs: &[OptimizationConfig],
     options_by_load_point: &HashMap<u32, Vec<PileConfigurationOption>>,
     settings: &GreedyOptimizationSettings,
+    baseline_configurations: &[PileConfigurationKey],
 ) -> bool {
     let next_configs = [selected_configs, std::slice::from_ref(config)].concat();
-    let size_count = settings
-        .baseline_pile_sizes
+    let size_count = baseline_configurations
         .iter()
-        .copied()
+        .map(|item| item.pile_size_mm)
         .chain(next_configs.iter().map(|item| item.pile_size_mm))
         .collect::<HashSet<_>>()
         .len();
-    let tip_count = settings
-        .baseline_pile_tip_levels
+    let tip_count = baseline_configurations
         .iter()
-        .map(|level| scaled_level_key(*level))
+        .map(|item| item.pile_tip_level_m_key)
         .chain(next_configs.iter().map(|item| item.pile_tip_level_m_key))
         .collect::<HashSet<_>>()
         .len();
-    let configuration_count = settings
-        .baseline_pile_configurations
+    let configuration_count = baseline_configurations
         .iter()
         .cloned()
         .chain(next_configs.iter().map(OptimizationConfig::as_key))
@@ -1737,7 +1797,7 @@ mod tests {
             ),
         ]);
 
-        let result = greedy_optimize_pile_choices(
+        let result = greedy_optimize_test(
             &options_by_load_point,
             -3.5,
             &cost_settings(),
@@ -1748,9 +1808,6 @@ mod tests {
                 max_utilization: 1.0,
                 enabled_pile_sizes: vec![290, 320, 350],
                 enabled_pile_tip_levels: vec![-17.5, -18.0, -19.0],
-                baseline_pile_sizes: vec![],
-                baseline_pile_tip_levels: vec![],
-                baseline_pile_configurations: vec![],
             },
         );
 
@@ -1781,7 +1838,7 @@ mod tests {
             ],
         )]);
 
-        let result = greedy_optimize_pile_choices(
+        let result = greedy_optimize_test(
             &options_by_load_point,
             -3.5,
             &cost_settings(),
@@ -1792,9 +1849,6 @@ mod tests {
                 max_utilization: 1.0,
                 enabled_pile_sizes: vec![320],
                 enabled_pile_tip_levels: vec![-18.0],
-                baseline_pile_sizes: vec![],
-                baseline_pile_tip_levels: vec![],
-                baseline_pile_configurations: vec![],
             },
         );
 
@@ -1812,7 +1866,7 @@ mod tests {
             ],
         )]);
 
-        let result = greedy_optimize_pile_choices(
+        let result = greedy_optimize_test(
             &options_by_load_point,
             -3.5,
             &cost_settings(),
@@ -1823,9 +1877,6 @@ mod tests {
                 max_utilization: 1.0,
                 enabled_pile_sizes: vec![],
                 enabled_pile_tip_levels: vec![],
-                baseline_pile_sizes: vec![],
-                baseline_pile_tip_levels: vec![],
-                baseline_pile_configurations: vec![],
             },
         );
 
@@ -1839,7 +1890,7 @@ mod tests {
             (2, vec![pile_option(290, -17.5, true, 0.800_001)]),
         ]);
 
-        let result = greedy_optimize_pile_choices(
+        let result = greedy_optimize_test(
             &options_by_load_point,
             -3.5,
             &cost_settings(),
@@ -1850,9 +1901,6 @@ mod tests {
                 max_utilization: 0.8,
                 enabled_pile_sizes: vec![290],
                 enabled_pile_tip_levels: vec![-17.5],
-                baseline_pile_sizes: vec![],
-                baseline_pile_tip_levels: vec![],
-                baseline_pile_configurations: vec![],
             },
         );
 
@@ -1870,25 +1918,23 @@ mod tests {
             ],
         )]);
 
-        let result = greedy_optimize_pile_choices(
-            &options_by_load_point,
-            -3.5,
-            &cost_settings(),
-            &GreedyOptimizationSettings {
+        let result = greedy_optimize_pile_choices(&GreedyOptimizationInput {
+            options_by_load_point,
+            target_load_point_ids: vec![1],
+            locked_load_point_ids: vec![],
+            current_assignments: HashMap::from([(99, config_key(320, -18.0))]),
+            limit_scope: OptimizationLimitScope::WholePlan,
+            pile_head_level_m: -3.5,
+            cost_settings: cost_settings(),
+            settings: GreedyOptimizationSettings {
                 max_pile_sizes: 2,
                 max_pile_tip_levels: 2,
                 max_pile_configurations: 1,
                 max_utilization: 1.0,
                 enabled_pile_sizes: vec![320, 350],
                 enabled_pile_tip_levels: vec![-18.0, -19.0],
-                baseline_pile_sizes: vec![320],
-                baseline_pile_tip_levels: vec![-18.0],
-                baseline_pile_configurations: vec![PileConfigurationKey {
-                    pile_size_mm: 320,
-                    pile_tip_level_m_key: scaled_level_key(-18.0),
-                }],
             },
-        );
+        });
 
         assert_eq!(result.assignments[0].pile_size_mm, 320);
         assert_eq!(result.assignments[0].pile_tip_level_m, -18.0);
@@ -1913,7 +1959,7 @@ mod tests {
             ),
         ]);
 
-        let result = greedy_optimize_pile_choices(
+        let result = greedy_optimize_test(
             &options_by_load_point,
             -3.5,
             &cost_settings(),
@@ -1924,9 +1970,6 @@ mod tests {
                 max_utilization: 1.0,
                 enabled_pile_sizes: vec![290, 320, 356],
                 enabled_pile_tip_levels: vec![-18.0, -20.0],
-                baseline_pile_sizes: vec![],
-                baseline_pile_tip_levels: vec![],
-                baseline_pile_configurations: vec![],
             },
         );
 
@@ -1952,7 +1995,7 @@ mod tests {
         ]);
         let settings = greedy_settings(1, 1, 1, vec![290, 320], vec![-18.0, -19.0]);
 
-        let result = greedy_optimize_pile_choices(&options, -3.5, &cost_settings(), &settings);
+        let result = greedy_optimize_test(&options, -3.5, &cost_settings(), &settings);
 
         assert_eq!(result.assignments.len(), 1);
         assert_eq!(result.unassigned.len(), 1);
@@ -1976,7 +2019,7 @@ mod tests {
         ]);
         let settings = greedy_settings(1, 1, 1, vec![290], vec![-18.0]);
 
-        let result = greedy_optimize_pile_choices(&options, -3.5, &cost_settings(), &settings);
+        let result = greedy_optimize_test(&options, -3.5, &cost_settings(), &settings);
 
         assert_eq!(
             result.unassigned,
@@ -1996,7 +2039,7 @@ mod tests {
     #[test]
     fn greedy_optimizer_counts_many_uncovered_points_without_overflow() {
         let options = (1..=20_000).map(|id| (id, Vec::new())).collect();
-        let result = greedy_optimize_pile_choices(
+        let result = greedy_optimize_test(
             &options,
             -3.5,
             &cost_settings(),
@@ -2016,7 +2059,7 @@ mod tests {
                 pile_option(999, -18.0, true, 0.6),
             ],
         )]);
-        let result = greedy_optimize_pile_choices(
+        let result = greedy_optimize_test(
             &options,
             -3.5,
             &cost_settings(),
@@ -2024,6 +2067,52 @@ mod tests {
         );
 
         assert_eq!(result.assignments[0].pile_size_mm, 290);
+    }
+
+    #[test]
+    fn greedy_optimizer_excludes_locked_targets_in_core() {
+        let mut input = optimization_input(HashMap::from([
+            (1, vec![pile_option(290, -18.0, true, 0.6)]),
+            (2, vec![pile_option(320, -19.0, true, 0.7)]),
+        ]));
+        input.target_load_point_ids = vec![1, 2];
+        input.locked_load_point_ids = vec![2];
+        input.current_assignments.insert(2, config_key(320, -19.0));
+
+        let result = greedy_optimize_pile_choices(&input);
+
+        assert_eq!(
+            result
+                .assignments
+                .iter()
+                .map(|item| item.load_point_id)
+                .collect::<Vec<_>>(),
+            vec![1],
+        );
+        assert!(result
+            .unassigned
+            .iter()
+            .all(|item| item.load_point_id != 2));
+    }
+
+    #[test]
+    fn whole_plan_limits_derive_baseline_from_non_targets() {
+        let mut input = optimization_input(HashMap::from([
+            (1, vec![pile_option(290, -18.0, true, 0.6)]),
+            (2, vec![pile_option(320, -19.0, true, 0.7)]),
+        ]));
+        input.target_load_point_ids = vec![2];
+        input.current_assignments.insert(1, config_key(290, -18.0));
+        input.limit_scope = OptimizationLimitScope::WholePlan;
+        input.settings.max_pile_configurations = 1;
+
+        let result = greedy_optimize_pile_choices(&input);
+
+        assert!(result.assignments.is_empty());
+        assert_eq!(
+            result.unassigned[0].reason,
+            GreedyUnassignedReason::ConfigurationLimits
+        );
     }
 
     #[test]
@@ -2082,9 +2171,47 @@ mod tests {
             max_utilization: 1.0,
             enabled_pile_sizes,
             enabled_pile_tip_levels,
-            baseline_pile_sizes: vec![],
-            baseline_pile_tip_levels: vec![],
-            baseline_pile_configurations: vec![],
         }
+    }
+
+    fn config_key(pile_size_mm: u32, pile_tip_level_m: f64) -> PileConfigurationKey {
+        PileConfigurationKey {
+            pile_size_mm,
+            pile_tip_level_m_key: scaled_level_key(pile_tip_level_m),
+        }
+    }
+
+    fn optimization_input(
+        options_by_load_point: HashMap<u32, Vec<PileConfigurationOption>>,
+    ) -> GreedyOptimizationInput {
+        let target_load_point_ids = options_by_load_point.keys().copied().collect();
+        GreedyOptimizationInput {
+            options_by_load_point,
+            target_load_point_ids,
+            locked_load_point_ids: vec![],
+            current_assignments: HashMap::new(),
+            limit_scope: OptimizationLimitScope::Target,
+            pile_head_level_m: -3.5,
+            cost_settings: cost_settings(),
+            settings: greedy_settings(3, 5, 15, vec![290, 320, 350, 356], vec![-18.0, -19.0]),
+        }
+    }
+
+    fn greedy_optimize_test(
+        options_by_load_point: &HashMap<u32, Vec<PileConfigurationOption>>,
+        pile_head_level_m: f64,
+        cost_settings: &PileCostSettings,
+        settings: &GreedyOptimizationSettings,
+    ) -> GreedyOptimizationResult {
+        greedy_optimize_pile_choices(&GreedyOptimizationInput {
+            options_by_load_point: options_by_load_point.clone(),
+            target_load_point_ids: options_by_load_point.keys().copied().collect(),
+            locked_load_point_ids: vec![],
+            current_assignments: HashMap::new(),
+            limit_scope: OptimizationLimitScope::Target,
+            pile_head_level_m,
+            cost_settings: cost_settings.clone(),
+            settings: settings.clone(),
+        })
     }
 }

@@ -12,6 +12,11 @@ describe("App optimization integration", () => {
 
     assert.ok(start >= 0 && end > start);
     assert.match(optimizationBlock, /applyOptimizationChoices/);
+    assert.match(optimizationBlock, /targetLoadPointIds/);
+    assert.match(optimizationBlock, /lockedLoadPointIds/);
+    assert.match(optimizationBlock, /currentAssignments/);
+    assert.match(optimizationBlock, /limitScope: snapshot\.optimizationLimitScope/);
+    assert.doesNotMatch(optimizationBlock, /baselineOptions/);
     assert.doesNotMatch(optimizationBlock, /activePileSizes:\s*applied/);
     assert.doesNotMatch(optimizationBlock, /activePileTipLevels:\s*applied/);
   });

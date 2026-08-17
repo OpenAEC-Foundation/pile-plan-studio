@@ -35,6 +35,7 @@ import { createInitialProjectState, type ProjectState } from "./domain/projectSt
 import { getSetting } from "./store";
 import { optionKey } from "./components/domain/rightPanelModel";
 import { buildGreedyOptimizationSettings } from "./domain/optimizationSettings";
+import { pileConfigurationKey } from "./domain/activePileConfigurations.ts";
 import {
   applyOptimizationChoices,
   clampOptimizationLimits,
@@ -958,27 +959,36 @@ function AppSession({
 
   const runGreedyOptimization = async () => {
     const snapshot = projectState;
-    const targetIds = getOptimizationTargetIds(
+    const lockedLoadPointIds = getActiveLockedLoadPointIds(
+      snapshot.pilePlans,
+      snapshot.activePilePlanId,
+    );
+    const targetLoadPointIds = getOptimizationTargetIds(
       snapshot.optimizationTargetScope,
       snapshot.loadPoints.map((loadPoint) => loadPoint.id),
       snapshot.selectedLoadPointIds,
-      getActiveLockedLoadPointIds(snapshot.pilePlans, snapshot.activePilePlanId),
+      lockedLoadPointIds,
     );
     if (
       snapshot.optimizationRunning
-      || targetIds.length === 0
+      || targetLoadPointIds.length === 0
       || snapshot.activePileSizes.length === 0
       || snapshot.activePileTipLevels.length === 0
     ) {
       return;
     }
 
-    const targetSet = new Set(targetIds);
     const chosenOption = (loadPointId: number) => {
       const chosenKey = snapshot.selectedPileOptionKeysByLoadPoint.get(loadPointId);
       return snapshot.pileOptionsByLoadPointId.get(loadPointId)
         ?.find((option) => optionKey(option) === chosenKey) ?? null;
     };
+    const currentAssignments = new Map(
+      snapshot.loadPoints.flatMap((loadPoint) => {
+        const option = chosenOption(loadPoint.id);
+        return option ? [[loadPoint.id, pileConfigurationKey(option)] as const] : [];
+      }),
+    );
     const limits = clampOptimizationLimits({
       sizes: snapshot.optimizationSettings.max_pile_sizes,
       tips: snapshot.optimizationSettings.max_pile_tip_levels,
@@ -994,15 +1004,9 @@ function AppSession({
         maxDifferentTips: limits.tips,
         maxDifferentConfigurations: limits.configurations,
       },
-      baselineOptions: snapshot.loadPoints
-        .filter((loadPoint) => !targetSet.has(loadPoint.id))
-        .map((loadPoint) => chosenOption(loadPoint.id)),
       maxUtilization: snapshot.optimizationSettings.max_utilization,
     });
-    const optionsByLoadPoint = new Map(targetIds.map((id) => [
-      id,
-      snapshot.pileOptionsByLoadPointId.get(id) ?? [],
-    ]));
+    const optionsByLoadPoint = snapshot.pileOptionsByLoadPointId;
 
     setProjectState((current) => ({
       ...current,
@@ -1013,16 +1017,23 @@ function AppSession({
     }));
 
     try {
-      const choices = await greedyOptimizeCore({
+      const result = await greedyOptimizeCore({
         optionsByLoadPoint,
+        targetLoadPointIds,
+        lockedLoadPointIds,
+        currentAssignments,
+        limitScope: snapshot.optimizationLimitScope,
         pileHeadLevelM: snapshot.pileHeadLevelM ?? 0,
         costSettings: snapshot.pileCostSettings,
         settings,
       });
       const applied = applyOptimizationChoices({
         previousChoices: snapshot.selectedPileOptionKeysByLoadPoint,
-        targetIds,
-        choices,
+        targetIds: [
+          ...result.assignments.map((choice) => choice.load_point_id),
+          ...result.unassigned.map((item) => item.load_point_id),
+        ],
+        choices: result.assignments,
       });
       commitProjectState((current) => {
         if (current.analysisRequest !== snapshot.analysisRequest) return current;

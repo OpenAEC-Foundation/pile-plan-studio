@@ -84,10 +84,9 @@ export type GreedyOptimizationSettings = {
   max_utilization: number;
   enabled_pile_sizes: number[];
   enabled_pile_tip_levels: number[];
-  baseline_pile_sizes: number[];
-  baseline_pile_tip_levels: number[];
-  baseline_pile_configurations: PileConfigurationKey[];
 };
+
+export type OptimizationLimitScope = "target" | "whole-plan";
 
 export type ViewerUtilizationSettings = {
   minimum: number;
@@ -117,6 +116,25 @@ export type GreedyOptimizedPileChoice = {
   pile_tip_level_m: number;
   is_option: boolean;
   cost: number | null;
+};
+
+export type GreedyUnassignedReason =
+  | "no_valid_option"
+  | "optimization_constraints"
+  | "configuration_limits";
+
+export type GreedyUnassignedLoadPoint = {
+  load_point_id: number;
+  reason: GreedyUnassignedReason;
+};
+
+export type GreedyOptimizationResult = {
+  assignments: GreedyOptimizedPileChoice[];
+  unassigned: GreedyUnassignedLoadPoint[];
+  selected_configurations: PileConfigurationKey[];
+  pile_size_count: number;
+  pile_tip_level_count: number;
+  configuration_count: number;
 };
 
 export type PileCostShape = "round" | "square";

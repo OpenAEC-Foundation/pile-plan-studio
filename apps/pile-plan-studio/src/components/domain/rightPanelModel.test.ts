@@ -309,9 +309,6 @@ function minimalState(overrides: Partial<ProjectState> = {}): ProjectState {
     manualCptIdsByLoadPoint: new Map(),
     name: "Test",
     optimizationSettings: {
-      baseline_pile_configurations: [],
-      baseline_pile_sizes: [],
-      baseline_pile_tip_levels: [],
       enabled_pile_sizes: [290, 320],
       enabled_pile_tip_levels: [-17.5, -18],
       max_pile_configurations: 4,

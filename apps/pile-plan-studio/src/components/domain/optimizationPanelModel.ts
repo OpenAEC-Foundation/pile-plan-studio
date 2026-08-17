@@ -27,10 +27,9 @@ export function getOptimizationTargetIds(
   scope: OptimizationTargetScope,
   allIds: number[],
   selectedIds: number[],
-  lockedIds: number[] = [],
+  _lockedIds: number[] = [],
 ): number[] {
-  const locked = new Set(lockedIds);
-  return (scope === "selected" ? selectedIds : allIds).filter((id) => !locked.has(id));
+  return scope === "selected" ? selectedIds : allIds;
 }
 
 export function applyOptimizationChoices(input: {

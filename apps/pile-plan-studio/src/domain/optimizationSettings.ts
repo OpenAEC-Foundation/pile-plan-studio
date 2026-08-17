@@ -1,6 +1,5 @@
-import { pileConfigurationKey } from "./activePileConfigurations.ts";
 import type { ActivePileConfigurations } from "./activePileConfigurations.ts";
-import type { GreedyOptimizationSettings, PileConfigurationOption } from "../core/projectTypes.ts";
+import type { GreedyOptimizationSettings } from "../core/projectTypes.ts";
 
 export type OptimizationTargetScope = "all" | "selected";
 export type OptimizationLimitScope = "target" | "whole-plan";
@@ -127,17 +126,12 @@ export function buildGreedyOptimizationSettings(input: {
   activePileSizes: number[];
   activePileTipLevels: number[];
   uiSettings: OptimizationUiSettings;
-  baselineOptions: Array<PileConfigurationOption | null>;
   maxUtilization: number;
 }): GreedyOptimizationSettings {
   const uiSettings = clampOptimizationUiSettingsToActiveConfigurations(input.uiSettings, {
     pileSizes: input.activePileSizes,
     pileTipLevels: input.activePileTipLevels,
   });
-  const baselineOptions = uiSettings.limitScope === "whole-plan"
-    ? input.baselineOptions.filter((option): option is PileConfigurationOption => option !== null)
-    : [];
-
   return {
     max_pile_sizes: uiSettings.maxDifferentSizes,
     max_pile_tip_levels: uiSettings.maxDifferentTips,
@@ -145,10 +139,5 @@ export function buildGreedyOptimizationSettings(input: {
     max_utilization: Math.max(0, Math.min(1, input.maxUtilization)),
     enabled_pile_sizes: input.activePileSizes,
     enabled_pile_tip_levels: input.activePileTipLevels,
-    baseline_pile_sizes: [...new Set(baselineOptions.map((option) => option.pile_size_mm))],
-    baseline_pile_tip_levels: [...new Set(baselineOptions.map((option) => option.pile_tip_level_m))],
-    baseline_pile_configurations: [
-      ...new Map(baselineOptions.map((option) => [`${option.pile_size_mm}|${option.pile_tip_level_m}`, pileConfigurationKey(option)])).values(),
-    ],
   };
 }
