@@ -42,4 +42,8 @@ pub use project::{
     ProjectInputs, ProjectMetadata, ProjectSettings, ProjectUnits, ProjectUserState,
     SelectedPileChoice, ViewerUtilizationSettings,
 };
-pub use spatial::{build_spatial_neighborhood, SpatialEdge, SpatialNeighborhood, SpatialNode};
+pub use spatial::{
+    build_spatial_neighborhood, build_tip_level_region_topology, SpatialEdge, SpatialNeighborhood,
+    SpatialNode, SpatialPileAssignment, TipLevelRegionComponent, TipLevelRegionGroup,
+    TipLevelRegionTopology,
+};

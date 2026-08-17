@@ -675,7 +675,7 @@ pub fn choose_default_pile_options(
                     *load_point_id,
                     PileConfigurationKey {
                         pile_size_mm: option.pile_size_mm,
-                        pile_tip_level_m_key: scaled_level_key(option.pile_tip_level_m),
+                        pile_tip_level_m_key: pile_tip_level_key(option.pile_tip_level_m),
                     },
                 )
             })
@@ -888,13 +888,13 @@ impl OptimizationConfig {
     fn from_option(option: &PileConfigurationOption) -> Self {
         Self {
             pile_size_mm: option.pile_size_mm,
-            pile_tip_level_m_key: scaled_level_key(option.pile_tip_level_m),
+            pile_tip_level_m_key: pile_tip_level_key(option.pile_tip_level_m),
         }
     }
 
     fn matches_option(&self, option: &PileConfigurationOption) -> bool {
         self.pile_size_mm == option.pile_size_mm
-            && self.pile_tip_level_m_key == scaled_level_key(option.pile_tip_level_m)
+            && self.pile_tip_level_m_key == pile_tip_level_key(option.pile_tip_level_m)
     }
 
     fn as_key(&self) -> PileConfigurationKey {
@@ -913,7 +913,7 @@ fn optimization_option_enabled(
         && settings
             .enabled_pile_tip_levels
             .iter()
-            .any(|level| scaled_level_key(*level) == scaled_level_key(option.pile_tip_level_m))
+            .any(|level| pile_tip_level_key(*level) == pile_tip_level_key(option.pile_tip_level_m))
 }
 
 fn best_next_optimization_config(
@@ -1085,8 +1085,8 @@ fn cheapest_option_for_configs<'a>(
                 .then_with(|| left_cost.unwrap_or_default().cmp(&right_cost.unwrap_or_default()))
                 .then_with(|| left.pile_size_mm.cmp(&right.pile_size_mm))
                 .then_with(|| {
-                    scaled_level_key(right.pile_tip_level_m)
-                        .cmp(&scaled_level_key(left.pile_tip_level_m))
+                    pile_tip_level_key(right.pile_tip_level_m)
+                        .cmp(&pile_tip_level_key(left.pile_tip_level_m))
                 })
         })
 }
@@ -1139,11 +1139,11 @@ fn capacity_key(cpt_id: u32, pile_size_mm: u32, pile_tip_level_m: f64) -> Capaci
     CapacityKey {
         cpt_id,
         pile_size_mm,
-        pile_tip_level_m_key: scaled_level_key(pile_tip_level_m),
+        pile_tip_level_m_key: pile_tip_level_key(pile_tip_level_m),
     }
 }
 
-fn scaled_level_key(pile_tip_level_m: f64) -> i64 {
+pub(crate) fn pile_tip_level_key(pile_tip_level_m: f64) -> i64 {
     (pile_tip_level_m * 1000.0).round() as i64
 }
 
@@ -1731,14 +1731,14 @@ mod tests {
             choices.get(&1),
             Some(&PileConfigurationKey {
                 pile_size_mm: 290,
-                pile_tip_level_m_key: scaled_level_key(-17.5),
+                pile_tip_level_m_key: pile_tip_level_key(-17.5),
             })
         );
         assert_eq!(
             choices.get(&2),
             Some(&PileConfigurationKey {
                 pile_size_mm: 290,
-                pile_tip_level_m_key: scaled_level_key(-18.0),
+                pile_tip_level_m_key: pile_tip_level_key(-18.0),
             })
         );
     }
@@ -2006,7 +2006,7 @@ mod tests {
         assert!(result.assignments.iter().all(|choice| {
             result.selected_configurations.iter().any(|config| {
                 config.pile_size_mm == choice.pile_size_mm
-                    && config.pile_tip_level_m_key == scaled_level_key(choice.pile_tip_level_m)
+                    && config.pile_tip_level_m_key == pile_tip_level_key(choice.pile_tip_level_m)
             })
         }));
     }
@@ -2177,7 +2177,7 @@ mod tests {
     fn config_key(pile_size_mm: u32, pile_tip_level_m: f64) -> PileConfigurationKey {
         PileConfigurationKey {
             pile_size_mm,
-            pile_tip_level_m_key: scaled_level_key(pile_tip_level_m),
+            pile_tip_level_m_key: pile_tip_level_key(pile_tip_level_m),
         }
     }
 
