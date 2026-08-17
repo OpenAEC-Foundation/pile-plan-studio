@@ -2,9 +2,31 @@ import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 
 import type { TipLevelRegionTopology } from "../core/spatialTopologyContract.ts";
-import { buildTipLevelRegionGeometry } from "./tipLevelRegionGeometry.ts";
+import {
+  buildTipLevelRegionGeometry,
+  projectTipLevelRegionPoints,
+} from "./tipLevelRegionGeometry.ts";
 
 describe("tip-level region geometry", () => {
+  it("projects fractional load-point coordinates without rounding", () => {
+    const projected = projectTipLevelRegionPoints([
+      {
+        id: 9,
+        name: "fractional",
+        x_mm: 112.5,
+        y_mm: 737.25,
+        design_load_kn: 500,
+      },
+    ], {
+      bounds: { minX: 0, maxX: 1000, minY: 0, maxY: 1000 },
+      canvasSize: { width: 500, height: 400 },
+      pixelsPerMillimeter: 0.2,
+      projectCenterPx: { x: 250, y: 200 },
+    });
+
+    assert.deepEqual(projected, new Map([[9, { x: 172.5, y: 152.55 }]]));
+  });
+
   it("builds circles and a capsule segment at the shared marker scale", () => {
     const topology: TipLevelRegionTopology = {
       groups: [{

@@ -1,6 +1,10 @@
 import type { TipLevelRegionTopology } from "../core/spatialTopologyContract.ts";
-import type { ViewPoint } from "../core/projectTypes.ts";
+import type { LoadPoint, ViewPoint } from "../core/projectTypes.ts";
 import { loadPointMarkerDiameter } from "./hoverCandidates.ts";
+import {
+  projectPointPixels,
+  type ProjectViewTransform,
+} from "./viewerGeometry.ts";
 
 export type TipLevelRegionCircle = {
   loadPointId: number;
@@ -33,6 +37,16 @@ type TipLevelRegionGeometryInput = {
 };
 
 const REGION_MARGIN_PX = 8;
+
+export function projectTipLevelRegionPoints(
+  loadPoints: LoadPoint[],
+  transform: ProjectViewTransform,
+): Map<number, ViewPoint> {
+  return new Map(loadPoints.map((loadPoint) => [
+    loadPoint.id,
+    projectPointPixels(loadPoint, transform),
+  ]));
+}
 
 export function buildTipLevelRegionGeometry({
   topology,

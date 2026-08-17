@@ -82,6 +82,12 @@ import {
 import { elementLayoutScale, screenToLocal } from "../../domain/uiBaseline.ts";
 import OptimizerUnresolvedMarker from "../viewer/OptimizerUnresolvedMarker.tsx";
 import { CoordinateReadout } from "./CoordinateReadout.ts";
+import {
+  buildTipLevelRegionGeometry,
+  projectTipLevelRegionPoints,
+} from "../../viewer/tipLevelRegionGeometry.ts";
+import { presentTipLevelRegionGeometry } from "../../viewer/tipLevelRegionPresentation.ts";
+import { useTipLevelRegionTopology } from "./useTipLevelRegionTopology.ts";
 
 type Props = {
   state: ProjectState;
@@ -115,6 +121,29 @@ export default function PilePlanViewer({ state, lassoSelectionActive, onStateCha
     () => createProjectViewTransform(state.bounds, { width: 1, height: 1 }),
   );
   const projectTransformRef = useRef(projectTransform);
+  const tipLevelRegionTopology = useTipLevelRegionTopology({
+    enabled: state.showTipLevelRegions,
+    loadPoints: state.loadPoints,
+    selectedPileOptionKeysByLoadPoint: state.selectedPileOptionKeysByLoadPoint,
+    pileOptionsByLoadPointId: state.pileOptionsByLoadPointId,
+  });
+  const tipLevelRegionPoints = useMemo(
+    () => projectTipLevelRegionPoints(state.loadPoints, projectTransform),
+    [projectTransform, state.loadPoints],
+  );
+  const tipLevelRegionGeometry = useMemo(() => (
+    tipLevelRegionTopology
+      ? buildTipLevelRegionGeometry({
+          topology: tipLevelRegionTopology,
+          pointsByLoadPointId: tipLevelRegionPoints,
+          symbolScalePercent: state.symbolScalePercent,
+        })
+      : []
+  ), [tipLevelRegionPoints, tipLevelRegionTopology, state.symbolScalePercent]);
+  const tipLevelRegionPresentation = useMemo(
+    () => presentTipLevelRegionGeometry(tipLevelRegionGeometry, legend),
+    [tipLevelRegionGeometry, legend],
+  );
   const cptConnectionSegments = useMemo(() => getCptConnectionSegments({
     transform: projectTransform,
     cpts: state.cpts,
