@@ -52,6 +52,8 @@ describe("React optimization panel", () => {
       "utilization limit should appear before the save-as-new-plan option",
     );
     assert.match(optimization, /optimizationSummary/);
+    assert.match(optimization, /optimization\.assigned/);
+    assert.match(optimization, /optimization\.unassigned/);
     assert.match(optimization, /optimizationError/);
   });
 

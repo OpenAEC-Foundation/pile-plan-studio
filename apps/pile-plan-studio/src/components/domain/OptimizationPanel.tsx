@@ -112,7 +112,13 @@ export default function OptimizationPanel({ state, onStateChange, onRunOptimizat
         {!hasTarget ? <p className="panel-message is-warning">{t("optimization.selectLoadPoints")}</p> : null}
         {state.optimizationError ? <p className="panel-message is-error">{state.optimizationError}</p> : null}
         {state.optimizationSummary ? (
-          <div className="optimization-summary"><strong>{t("optimization.applied", { count: state.optimizationSummary.appliedCount })}</strong><span>{t("optimization.changed", { count: state.optimizationSummary.changedCount })}</span></div>
+          <div className="optimization-summary">
+            <strong>{t("optimization.assigned", { count: state.optimizationSummary.assignedCount })}</strong>
+            <span>{t("optimization.changed", { count: state.optimizationSummary.changedCount })}</span>
+            {state.optimizationSummary.unassignedCount > 0
+              ? <span>{t("optimization.unassigned", { count: state.optimizationSummary.unassignedCount })}</span>
+              : null}
+          </div>
         ) : null}
         <button className="primary-action" disabled={disabled} type="button" onClick={onRunOptimization}>{state.optimizationRunning ? t("optimization.running") : t("optimization.run")}</button>
       </div>

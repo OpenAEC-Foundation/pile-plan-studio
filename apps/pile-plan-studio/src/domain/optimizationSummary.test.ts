@@ -17,8 +17,9 @@ describe("optimization summary", () => {
     );
 
     assert.deepEqual(summary, {
-      appliedCount: 2,
+      assignedCount: 2,
       changedCount: 1,
+      unassignedCount: 0,
     });
   });
 
@@ -29,12 +30,13 @@ describe("optimization summary", () => {
         [2, ""],
       ]),
       [],
-      [1, 2],
+      [1, 2, 3],
     );
 
     assert.deepEqual(summary, {
-      appliedCount: 2,
+      assignedCount: 0,
       changedCount: 1,
+      unassignedCount: 3,
     });
   });
 });

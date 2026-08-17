@@ -11,7 +11,8 @@ describe("App optimization integration", () => {
     const optimizationBlock = source.slice(start, end);
 
     assert.ok(start >= 0 && end > start);
-    assert.match(optimizationBlock, /applyOptimizationChoices/);
+    assert.match(optimizationBlock, /applyOptimizationResult/);
+    assert.match(optimizationBlock, /replaceOptimizationOutcomesForTargets/);
     assert.match(optimizationBlock, /targetLoadPointIds/);
     assert.match(optimizationBlock, /lockedLoadPointIds/);
     assert.match(optimizationBlock, /currentAssignments/);

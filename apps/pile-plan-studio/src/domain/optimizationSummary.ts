@@ -1,8 +1,9 @@
 import type { GreedyOptimizedPileChoice } from "../core/projectTypes.ts";
 
 export type OptimizationRunSummary = {
-  appliedCount: number;
+  assignedCount: number;
   changedCount: number;
+  unassignedCount: number;
 };
 
 export function summarizeOptimizationRun(
@@ -20,13 +21,15 @@ export function summarizeOptimizationRun(
   }
 
   for (const loadPointId of clearedLoadPointIds) {
-    if (previousChoiceKeys.get(loadPointId) !== "") {
+    const previous = previousChoiceKeys.get(loadPointId);
+    if (previous !== undefined && previous !== "") {
       changedCount += 1;
     }
   }
 
   return {
-    appliedCount: choices.length + clearedLoadPointIds.length,
+    assignedCount: choices.length,
     changedCount,
+    unassignedCount: clearedLoadPointIds.length,
   };
 }

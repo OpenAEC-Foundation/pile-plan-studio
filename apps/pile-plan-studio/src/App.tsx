@@ -37,7 +37,7 @@ import { optionKey } from "./components/domain/rightPanelModel";
 import { buildGreedyOptimizationSettings } from "./domain/optimizationSettings";
 import { pileConfigurationKey } from "./domain/activePileConfigurations.ts";
 import {
-  applyOptimizationChoices,
+  applyOptimizationResult,
   clampOptimizationLimits,
   getOptimizationTargetIds,
 } from "./components/domain/optimizationPanelModel";
@@ -71,6 +71,7 @@ import {
   deletePilePlan,
   duplicatePilePlan,
   renamePilePlan,
+  replaceOptimizationOutcomesForTargets,
   switchPilePlan,
   synchronizeActivePilePlan,
   type PilePlanLanguage,
@@ -1027,23 +1028,37 @@ function AppSession({
         costSettings: snapshot.pileCostSettings,
         settings,
       });
-      const applied = applyOptimizationChoices({
+      const applied = applyOptimizationResult({
         previousChoices: snapshot.selectedPileOptionKeysByLoadPoint,
-        targetIds: [
-          ...result.assignments.map((choice) => choice.load_point_id),
-          ...result.unassigned.map((item) => item.load_point_id),
-        ],
-        choices: result.assignments,
+        result,
       });
       commitProjectState((current) => {
         if (current.analysisRequest !== snapshot.analysisRequest) return current;
+        const activePlan = current.pilePlans.find(
+          (plan) => plan.id === current.activePilePlanId,
+        ) ?? current.pilePlans[0];
+        const optimizationUnassignedByLoadPoint = replaceOptimizationOutcomesForTargets(
+          activePlan.optimizationUnassignedByLoadPoint,
+          applied.affectedLoadPointIds,
+          applied.optimizationUnassignedByLoadPoint,
+        );
         const pilePlanTransition = snapshot.optimizationCreatesPilePlan
           ? createOptimizationPilePlan({
               ...current,
               optimizedChoices: applied.choices,
+              optimizationUnassignedByLoadPoint,
               language: pilePlanLanguage(),
             })
-          : { selectedPileOptionKeysByLoadPoint: applied.choices };
+          : {
+              selectedPileOptionKeysByLoadPoint: applied.choices,
+              pilePlans: current.pilePlans.map((plan) => plan.id === current.activePilePlanId
+                ? {
+                    ...plan,
+                    selectedPileOptionKeysByLoadPoint: new Map(applied.choices),
+                    optimizationUnassignedByLoadPoint,
+                  }
+                : plan),
+            };
         return {
           ...current,
           ...pilePlanTransition,
