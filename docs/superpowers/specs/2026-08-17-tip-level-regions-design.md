@@ -27,6 +27,8 @@ valid assignments; it never creates, changes, or validates pile assignments.
 - Preserve selection, hover, pan, zoom, and viewer projection behavior.
 - Define one deterministic neighbourhood graph that can later be reused for
   evaluation and optimization research.
+- Keep neighbourhood construction, grouping, geometry generation, visual
+  compositing, and SVG rendering independently replaceable.
 - Update the overlay immediately and atomically when accepted project state
   changes.
 - Persist overlay visibility as a project viewer setting.
@@ -44,7 +46,8 @@ The first experiment does not:
 - export regions to images, PDF, CAD, or IFC;
 - couple the overlay to #21 or any particular optimizer;
 - define final UX for measuring or limiting region counts;
-- resolve the general PPN precision policy tracked in #29.
+- resolve the general PPN precision policy tracked in #29;
+- provide a runtime-selectable plugin framework for graph or region strategies.
 
 ## Terminology
 
@@ -137,18 +140,42 @@ performance gate is part of this phase. The module boundary allows a spatial
 index or specialized algorithm to replace the implementation later without
 changing consumers.
 
-### `tipLevelRegions`
+### Stable pipeline contracts
 
-A second pure module receives:
+The experiment uses five small stages rather than one module that mixes
+topology, drawing geometry, and presentation. These are internal module
+boundaries, not a user-facing strategy or plugin system.
 
-- the cached neighbourhood graph;
-- the active plan's accepted valid assignments;
-- PPN legend colors;
-- the current symbol scale.
+1. **Neighbourhood construction** receives load-point IDs and project
+   coordinates and returns a `NeighborhoodGraph` containing stable nodes and
+   undirected edges.
+2. **Region grouping** receives that graph plus accepted assignments and
+   returns `RegionTopology<PPNKey>` containing eligible nodes, retained edges,
+   and connected components. It knows how PPN keys compare, but knows nothing
+   about circles, SVG, colors, or opacity.
+3. **Geometry generation** receives region topology, projected node positions,
+   and visual dimensions and returns `RegionGeometry<PPNKey>`. Geometry consists
+   of explicit primitives such as circles and segments. The primitive model is
+   extensible with polygons or paths when bounded-face filling is designed.
+4. **Presentation** maps each geometry layer to legend color, stable layer
+   order, opacity, and blend behavior. It is pure and does not determine
+   neighbourhoods, components, or SVG structure.
+5. **SVG rendering** renders presented primitive layers without inspecting
+   assignments or choosing graph, grouping, geometry, or overlap rules.
 
-It returns stable render data grouped by PPN key: nodes, same-PPN edges,
-components, color, circle diameter, and layer order. It does not contain React
-or SVG markup and does not depend on an optimizer.
+The contracts use IDs, keys, edges, components, and simple geometric
+primitives. Consumers must not depend on intermediate details of the direct
+pairwise graph algorithm or the initial capsule generator.
+
+This separation permits the following changes without rewriting project
+persistence, ribbon integration, viewer layering, or pointer behavior:
+
+- replace the empty-rectangle graph with another graph algorithm;
+- replace PPN equality with a later configuration or grouping policy;
+- add bounded-face polygons to the geometry stage;
+- add clipping, masking, priority, or other overlap policies to presentation;
+- replace the complete topology and geometry algorithms while preserving the
+  overlay's viewer contract.
 
 ### Viewer integration
 
@@ -166,10 +193,19 @@ The SVG:
   indicators, and hover UI;
 - is not recomputed during ordinary pan or zoom frames.
 
-The neighbourhood graph is recomputed only when load-point IDs or coordinates
-change. PPN filtering and render data are recomputed when accepted assignments,
-the active pile plan, accepted validity results, legend colors, or symbol scale
-change.
+Caching follows the pipeline boundaries:
+
+- the neighbourhood graph is recomputed only when load-point IDs or coordinates
+  change;
+- region grouping is recomputed when the graph, accepted assignments, active
+  pile plan, accepted validity result, or grouping policy changes;
+- geometry is recomputed when topology, projected coordinates, symbol scale, or
+  the geometry policy changes;
+- presentation is recomputed when geometry, legend colors, opacity, layer
+  ordering, or overlap policy changes.
+
+Ordinary plan pan and zoom reuse every stage and only apply the existing
+`.viewer-content` transform.
 
 ## Rendering rules
 
@@ -220,7 +256,9 @@ around an unfilled center. Filling bounded faces is intentionally deferred.
 The likely future rule is to planarize same-PPN segments at visual
 intersections, extract bounded faces, and fill every face whose complete
 boundary consists of same-PPN edges. This rule is documented but must not be
-implemented in this experiment.
+implemented in this experiment. Its polygons can later be added by the geometry
+stage without changing neighbourhood construction, grouping, persistence, or
+the SVG overlay's position in the viewer.
 
 ## UI and persistence
 
@@ -282,6 +320,17 @@ renders regions for the newly active plan.
 - Layer ordering is shallow-to-deep and deterministic.
 - No bounded-face fill geometry is generated.
 
+### Pipeline contract tests
+
+- Neighbourhood construction has no dependency on assignments or rendering.
+- Region grouping produces identical topology for equivalent graph contracts,
+  regardless of how the graph was constructed.
+- Geometry generation consumes topology without recalculating adjacency or
+  PPN equality.
+- Presentation changes do not alter graph, component, or geometry output.
+- The SVG renderer consumes primitive render data without inspecting project
+  assignments or rebuilding components.
+
 ### Integration and persistence tests
 
 - The View-ribbon toggle defaults to off and has Dutch and English labels.
@@ -321,6 +370,8 @@ The experiment is complete when:
 5. Automated tests and the four focused manual cases pass.
 6. The implementation has no optimizer dependency and does not implement any
    explicitly deferred feature.
+7. Neighbourhood, grouping, geometry, presentation, and SVG rendering remain
+   separated by the contracts defined in this document.
 
 ## Follow-up use in #21
 
