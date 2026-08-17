@@ -14,7 +14,8 @@ pub use analysis::{
     pile_configuration_options, selected_cpts, selected_cpts_by_maximum_angle,
     selected_cpts_by_quadrant, BearingCapacity as ProjectBearingCapacity, BearingCapacitySummary,
     Cpt as ProjectCpt, CptBearingCapacityRow, CptSelectionAlgorithm, CptSelectionSettings,
-    GreedyOptimizationSettings, GreedyOptimizedPileChoice, LoadPoint as ProjectLoadPoint,
+    GreedyOptimizationResult, GreedyOptimizationSettings, GreedyOptimizedPileChoice,
+    GreedyUnassignedLoadPoint, GreedyUnassignedReason, LoadPoint as ProjectLoadPoint,
     PileConfigurationKey, PileConfigurationOption, PileCostSettings, PileCostSettingsItem,
     PileCostShape, ProjectAnalysisResult, SelectedCpt,
 };
