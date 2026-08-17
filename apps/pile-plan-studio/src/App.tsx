@@ -35,7 +35,6 @@ import { createInitialProjectState, type ProjectState } from "./domain/projectSt
 import { getSetting } from "./store";
 import { optionKey } from "./components/domain/rightPanelModel";
 import { buildGreedyOptimizationSettings } from "./domain/optimizationSettings";
-import { pileConfigurationKey } from "./domain/activePileConfigurations.ts";
 import {
   applyOptimizationResult,
   clampOptimizationLimits,
@@ -979,15 +978,18 @@ function AppSession({
       return;
     }
 
-    const chosenOption = (loadPointId: number) => {
-      const chosenKey = snapshot.selectedPileOptionKeysByLoadPoint.get(loadPointId);
-      return snapshot.pileOptionsByLoadPointId.get(loadPointId)
-        ?.find((option) => optionKey(option) === chosenKey) ?? null;
-    };
     const currentAssignments = new Map(
-      snapshot.loadPoints.flatMap((loadPoint) => {
-        const option = chosenOption(loadPoint.id);
-        return option ? [[loadPoint.id, pileConfigurationKey(option)] as const] : [];
+      [...snapshot.selectedPileOptionKeysByLoadPoint].flatMap(([loadPointId, key]) => {
+        const [pileSizeMm, pileTipLevelM] = key.split("|").map(Number);
+        return Number.isFinite(pileSizeMm) && Number.isFinite(pileTipLevelM)
+          ? [[
+              loadPointId,
+              {
+                pile_size_mm: pileSizeMm,
+                pile_tip_level_m_key: Math.round(pileTipLevelM * 1000),
+              },
+            ] as const]
+          : [];
       }),
     );
     const limits = clampOptimizationLimits({

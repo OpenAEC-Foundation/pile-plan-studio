@@ -16,6 +16,8 @@ describe("App optimization integration", () => {
     assert.match(optimizationBlock, /targetLoadPointIds/);
     assert.match(optimizationBlock, /lockedLoadPointIds/);
     assert.match(optimizationBlock, /currentAssignments/);
+    assert.match(optimizationBlock, /pile_tip_level_m_key: Math\.round\(pileTipLevelM \* 1000\)/);
+    assert.doesNotMatch(optimizationBlock, /const chosenOption/);
     assert.match(optimizationBlock, /limitScope: snapshot\.optimizationLimitScope/);
     assert.doesNotMatch(optimizationBlock, /baselineOptions/);
     assert.doesNotMatch(optimizationBlock, /activePileSizes:\s*applied/);
