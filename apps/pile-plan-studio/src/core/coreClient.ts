@@ -410,6 +410,9 @@ function toWasmIfcppProject(project: IfcppProject) {
         pile_plans: (project.user_state.pile_plans ?? []).map((plan) => ({
           ...plan,
           selected_piles: toWasmNumberKeyedRecord(plan.selected_piles),
+          optimization_unassigned: toWasmNumberKeyedRecord(
+            plan.optimization_unassigned ?? {},
+          ),
         })),
         active_pile_plan_id: project.user_state.active_pile_plan_id,
         manual_cpt_selections: toWasmNumberKeyedRecord(project.user_state.manual_cpt_selections),
