@@ -4,6 +4,30 @@
  * @param {any} request
  * @returns {any}
  */
+export function build_spatial_neighborhood(request) {
+    const ret = wasm.build_spatial_neighborhood(request);
+    if (ret[2]) {
+        throw takeFromExternrefTable0(ret[1]);
+    }
+    return takeFromExternrefTable0(ret[0]);
+}
+
+/**
+ * @param {any} request
+ * @returns {any}
+ */
+export function build_tip_level_region_topology(request) {
+    const ret = wasm.build_tip_level_region_topology(request);
+    if (ret[2]) {
+        throw takeFromExternrefTable0(ret[1]);
+    }
+    return takeFromExternrefTable0(ret[0]);
+}
+
+/**
+ * @param {any} request
+ * @returns {any}
+ */
 export function calculate_pile_option_cost(request) {
     const ret = wasm.calculate_pile_option_cost(request);
     if (ret[2]) {

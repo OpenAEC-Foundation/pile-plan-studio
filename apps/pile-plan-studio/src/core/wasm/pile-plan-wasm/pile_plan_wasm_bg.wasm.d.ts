@@ -1,6 +1,8 @@
 /* tslint:disable */
 /* eslint-disable */
 export const memory: WebAssembly.Memory;
+export const build_spatial_neighborhood: (a: any) => [number, number, number];
+export const build_tip_level_region_topology: (a: any) => [number, number, number];
 export const calculate_pile_option_cost: (a: any) => [number, number, number];
 export const calculate_pile_options: (a: any) => [number, number, number];
 export const calculate_project_analysis: (a: any) => [number, number, number];

@@ -1,1 +1,5 @@
-*
+!.gitignore
+!package.json
+!*.js
+!*.d.ts
+!*.wasm

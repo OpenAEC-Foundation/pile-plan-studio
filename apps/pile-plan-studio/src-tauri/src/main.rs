@@ -2,15 +2,18 @@
 
 use pile_plan_core::{
     bearing_capacity_rows_for_cpt, build_pile_options_by_load_point, build_project_analysis,
-    calculate_pile_cost, choose_default_pile_option, choose_default_pile_options,
-    greedy_optimize_pile_choices, import_project_from_generic_sources_with_properties,
-    preview_import_source, preview_pile_plan_import, refresh_project_from_profiled_sources,
-    selected_cpts, write_pile_plan_csv as write_pile_plan_csv_bytes,
+    build_spatial_neighborhood as build_spatial_neighborhood_core,
+    build_tip_level_region_topology as build_tip_level_region_topology_core, calculate_pile_cost,
+    choose_default_pile_option, choose_default_pile_options, greedy_optimize_pile_choices,
+    import_project_from_generic_sources_with_properties, preview_import_source,
+    preview_pile_plan_import, refresh_project_from_profiled_sources, selected_cpts,
+    write_pile_plan_csv as write_pile_plan_csv_bytes,
     write_pile_plan_xlsx as write_pile_plan_xlsx_bytes, CptSelectionSettings,
     GreedyOptimizationInput, GreedyOptimizationResult, ImportSource, ImportSourcePreview,
     PileConfigurationKey, PileConfigurationOption, PileCostSettings, PilePlanExportRequest,
     PilePlanImportPreview, PilePlanImportRequest, PilePlanProject, ProjectAnalysisResult,
-    ProjectBearingCapacity, ProjectCpt, ProjectLoadPoint, SelectedCpt,
+    ProjectBearingCapacity, ProjectCpt, ProjectLoadPoint, SelectedCpt, SpatialNeighborhood,
+    SpatialPileAssignment, TipLevelRegionTopology,
 };
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -89,6 +92,18 @@ struct RefreshProjectRequest {
 #[derive(Debug, Deserialize)]
 struct PreviewImportRequest {
     source: ImportSource,
+}
+
+#[derive(Debug, Deserialize)]
+struct SpatialNeighborhoodRequest {
+    load_points: Vec<ProjectLoadPoint>,
+}
+
+#[derive(Debug, Deserialize)]
+struct TipLevelRegionTopologyRequest {
+    neighborhood: SpatialNeighborhood,
+    selected_assignments: HashMap<u32, SpatialPileAssignment>,
+    options_by_load_point: HashMap<u32, Vec<PileConfigurationOption>>,
 }
 
 #[derive(Debug, Serialize)]
@@ -238,11 +253,29 @@ fn write_binary_file(path: String, contents: Vec<u8>) -> Result<(), String> {
     std::fs::write(path, contents).map_err(|error| error.to_string())
 }
 
+#[tauri::command(rename_all = "snake_case")]
+fn build_spatial_neighborhood(request: SpatialNeighborhoodRequest) -> SpatialNeighborhood {
+    build_spatial_neighborhood_core(&request.load_points)
+}
+
+#[tauri::command(rename_all = "snake_case")]
+fn build_tip_level_region_topology(
+    request: TipLevelRegionTopologyRequest,
+) -> TipLevelRegionTopology {
+    build_tip_level_region_topology_core(
+        &request.neighborhood,
+        &request.selected_assignments,
+        &request.options_by_load_point,
+    )
+}
+
 fn main() {
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_store::Builder::default().build())
         .invoke_handler(tauri::generate_handler![
+            build_spatial_neighborhood,
+            build_tip_level_region_topology,
             calculate_selected_cpts,
             calculate_pile_options,
             calculate_project_analysis,
@@ -263,4 +296,23 @@ fn main() {
         ])
         .run(tauri::generate_context!())
         .expect("failed to run Pile Plan Studio");
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn spatial_commands_return_core_results() {
+        let neighborhood = build_spatial_neighborhood(SpatialNeighborhoodRequest {
+            load_points: vec![],
+        });
+        let topology = build_tip_level_region_topology(TipLevelRegionTopologyRequest {
+            neighborhood,
+            selected_assignments: HashMap::new(),
+            options_by_load_point: HashMap::new(),
+        });
+
+        assert!(topology.groups.is_empty());
+    }
 }

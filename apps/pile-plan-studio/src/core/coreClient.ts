@@ -1,5 +1,7 @@
 import { invoke } from "@tauri-apps/api/core";
 import initWasm, {
+  build_spatial_neighborhood,
+  build_tip_level_region_topology,
   calculate_pile_option_cost,
   calculate_pile_options,
   calculate_project_analysis,
@@ -56,6 +58,13 @@ import {
   type PilePlanImportPreview,
   type PilePlanImportRequest,
 } from "./pilePlanImportContract.ts";
+import {
+  toBrowserTipLevelRegionTopologyRequest,
+  toDesktopTipLevelRegionTopologyRequest,
+  type SpatialNeighborhood,
+  type SpatialPileAssignment,
+  type TipLevelRegionTopology,
+} from "./spatialTopologyContract.ts";
 
 type CoreCptSelectionSettings = {
   algorithm: CptSelectionSettings["algorithm"];
@@ -72,6 +81,36 @@ let wasmReady: Promise<void> | null = null;
 
 export function isTauriRuntime(): boolean {
   return typeof window !== "undefined" && "__TAURI_INTERNALS__" in window;
+}
+
+export async function buildSpatialNeighborhoodCore(
+  loadPoints: LoadPoint[],
+): Promise<SpatialNeighborhood> {
+  if (!isTauriRuntime()) {
+    await initializeWasm();
+    return build_spatial_neighborhood({ load_points: loadPoints }) as SpatialNeighborhood;
+  }
+
+  return invoke<SpatialNeighborhood>("build_spatial_neighborhood", {
+    request: { load_points: loadPoints },
+  });
+}
+
+export async function buildTipLevelRegionTopologyCore(input: {
+  neighborhood: SpatialNeighborhood;
+  selectedAssignments: Map<number, SpatialPileAssignment>;
+  optionsByLoadPoint: Map<number, PileConfigurationOption[]>;
+}): Promise<TipLevelRegionTopology> {
+  if (!isTauriRuntime()) {
+    await initializeWasm();
+    return build_tip_level_region_topology(
+      toBrowserTipLevelRegionTopologyRequest(input),
+    ) as TipLevelRegionTopology;
+  }
+
+  return invoke<TipLevelRegionTopology>("build_tip_level_region_topology", {
+    request: toDesktopTipLevelRegionTopologyRequest(input),
+  });
 }
 
 export async function calculateSelectedCptsCore(input: {
