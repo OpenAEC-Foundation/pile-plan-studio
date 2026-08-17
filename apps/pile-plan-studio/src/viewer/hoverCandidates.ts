@@ -32,9 +32,14 @@ type CandidateQuery = {
 const MINIMUM_POINTER_RADIUS_PX = 9;
 const DEFAULT_CELL_SIZE = 4;
 export const SYMBOL_BASE_SCALE = 0.75;
+export const LOAD_POINT_MARKER_BASE_PX = 14;
 
 export function effectiveSymbolScale(symbolScalePercent: number): number {
   return SYMBOL_BASE_SCALE * Math.max(10, Math.min(200, symbolScalePercent)) / 100;
+}
+
+export function loadPointMarkerDiameter(symbolScalePercent: number): number {
+  return LOAD_POINT_MARKER_BASE_PX * effectiveSymbolScale(symbolScalePercent);
 }
 
 export function scaleHoverVisualRadius(baseRadius: number, symbolScalePercent: number): number {
