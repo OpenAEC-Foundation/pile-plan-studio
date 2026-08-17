@@ -121,11 +121,27 @@ until the new result is accepted; the overlay is then replaced atomically.
 
 ## Architecture and data flow
 
-### `spatialNeighborhood`
+### Rust core: spatial topology
 
-A pure TypeScript viewer/domain module receives load-point IDs and coordinates
-and returns the deterministic undirected neighbourhood graph. It knows nothing
-about PPN values, pile plans, legends, React, SVG, or optimization.
+`pile-plan-core` owns neighbourhood construction, canonical PPN identity,
+assignment-validity resolution for this feature, and connected-component
+grouping. These operations define reusable spatial domain topology rather than
+viewer presentation. Browser and desktop reach the same implementation through
+thin WASM and Tauri contracts.
+
+The core exposes serializable, deterministic DTOs for:
+
+- `SpatialNeighborhood`, containing stable load-point nodes and undirected
+  edges;
+- `TipLevelRegionTopology`, containing eligible PPN-keyed nodes, retained
+  same-PPN edges, and connected components.
+
+The topology request receives the cached neighbourhood, the active pile plan's
+selected configuration keys, and the last accepted pile options by load point.
+Rust resolves each selected key with its canonical millimetre PPN identity and
+includes it only when the matching calculated option has `is_option == true`.
+TypeScript must not independently round PPN values or reinterpret engineering
+validity for the overlay.
 
 The initial graph builder uses the direct pairwise algorithm:
 
@@ -140,28 +156,34 @@ performance gate is part of this phase. The module boundary allows a spatial
 index or specialized algorithm to replace the implementation later without
 changing consumers.
 
+The connected-component traversal is implemented as a reusable internal Rust
+primitive over stable group keys. #22 exposes PPN-keyed topology, while a later
+optimizer may call the same primitive with full configuration keys without
+changing the viewer wire contract.
+
 ### Stable pipeline contracts
 
 The experiment uses five small stages rather than one module that mixes
 topology, drawing geometry, and presentation. These are internal module
 boundaries, not a user-facing strategy or plugin system.
 
-1. **Neighbourhood construction** receives load-point IDs and project
-   coordinates and returns a `NeighborhoodGraph` containing stable nodes and
+1. **Neighbourhood construction (Rust)** receives load-point IDs and project
+   coordinates and returns `SpatialNeighborhood` with stable nodes and
    undirected edges.
-2. **Region grouping** receives that graph plus accepted assignments and
-   returns `RegionTopology<PPNKey>` containing eligible nodes, retained edges,
-   and connected components. It knows how PPN keys compare, but knows nothing
-   about circles, SVG, colors, or opacity.
-3. **Geometry generation** receives region topology, projected node positions,
+2. **Region grouping (Rust)** receives that graph, selected configuration keys,
+   and accepted pile options and returns `TipLevelRegionTopology` containing
+   eligible PPN-keyed nodes, retained edges, and connected components. It knows
+   nothing about circles, SVG, colors, or opacity.
+3. **Geometry generation (TypeScript)** receives region topology, projected node positions,
    and visual dimensions and returns `RegionGeometry<PPNKey>`. Geometry consists
    of explicit primitives such as circles and segments. The primitive model is
    extensible with polygons or paths when bounded-face filling is designed.
-4. **Presentation** maps each geometry layer to legend color, stable layer
-   order, opacity, and blend behavior. It is pure and does not determine
-   neighbourhoods, components, or SVG structure.
-5. **SVG rendering** renders presented primitive layers without inspecting
-   assignments or choosing graph, grouping, geometry, or overlap rules.
+4. **Presentation (TypeScript)** maps each geometry layer to legend color,
+   stable layer order, opacity, and blend behavior. It is pure and does not
+   determine neighbourhoods, components, or SVG structure.
+5. **SVG rendering (React/TypeScript)** renders presented primitive layers
+   without inspecting assignments or choosing graph, grouping, geometry, or
+   overlap rules.
 
 The contracts use IDs, keys, edges, components, and simple geometric
 primitives. Consumers must not depend on intermediate details of the direct
@@ -176,6 +198,18 @@ persistence, ribbon integration, viewer layering, or pointer behavior:
 - add clipping, masking, priority, or other overlap policies to presentation;
 - replace the complete topology and geometry algorithms while preserving the
   overlay's viewer contract.
+
+### Runtime adapters and frontend orchestration
+
+`pile-plan-wasm` and Tauri commands only deserialize requests, call
+`pile-plan-core`, and serialize topology results. They contain no graph or
+grouping rules.
+
+`coreClient.ts` provides one browser/desktop-neutral asynchronous API for the
+two Rust calculations. The frontend owns orchestration and caching, but treats
+the Rust DTOs as authoritative and opaque domain results. It may map DTO
+collections into convenient read-only TypeScript structures; it must not
+recalculate missing edges, components, PPN keys, or validity.
 
 ### Viewer integration
 
@@ -196,9 +230,10 @@ The SVG:
 Caching follows the pipeline boundaries:
 
 - the neighbourhood graph is recomputed only when load-point IDs or coordinates
-  change;
+  change; the frontend then calls the Rust graph builder and caches its DTO;
 - region grouping is recomputed when the graph, accepted assignments, active
-  pile plan, accepted validity result, or grouping policy changes;
+  pile plan, accepted validity result, or grouping policy changes; the frontend
+  calls the Rust topology builder;
 - geometry is recomputed when topology, projected coordinates, symbol scale, or
   the geometry policy changes;
 - presentation is recomputed when geometry, legend colors, opacity, layer
@@ -297,6 +332,9 @@ renders regions for the newly active plan.
 
 ### Neighbourhood graph unit tests
 
+These tests live in `pile-plan-core` and exercise both native Rust behavior and
+the serialized DTO contract.
+
 - One node and two nodes.
 - Three collinear nodes: the middle node blocks the long edge.
 - Four rectangular-grid nodes: four perimeter edges and no diagonals.
@@ -307,13 +345,20 @@ renders regions for the newly active plan.
 - Input permutation does not change normalized output.
 - The complete neighbourhood graph has one connected component for fixtures.
 
-### PPN component and render-data tests
+### Rust PPN topology tests
 
-- One eligible isolated node produces one circle.
-- A same-PPN A–B–C chain produces one component and two connections.
+- One eligible isolated node produces one component with no retained edge.
+- A same-PPN A–B–C chain produces one component and two retained edges.
 - Assignment changes split and merge components.
 - Values with the same millimetre-normalized key group together.
 - Unassigned, missing, invalid, and unresolved assignments are excluded.
+- WASM and Tauri adapters preserve the same nodes, edges, keys, and component
+  ordering as the core DTO.
+
+### TypeScript geometry and presentation tests
+
+- One isolated topology node produces one circle.
+- A topology chain produces the expected circle and segment primitives.
 - Circle diameter follows current marker diameter plus 8 px.
 - Connection width equals circle diameter.
 - Opacity is applied once per PPN layer at 25%.
@@ -325,6 +370,8 @@ renders regions for the newly active plan.
 - Neighbourhood construction has no dependency on assignments or rendering.
 - Region grouping produces identical topology for equivalent graph contracts,
   regardless of how the graph was constructed.
+- WASM, Tauri, and `coreClient.ts` contain no alternative graph, PPN-key, or
+  component algorithm.
 - Geometry generation consumes topology without recalculating adjacency or
   PPN equality.
 - Presentation changes do not alter graph, component, or geometry output.
@@ -372,6 +419,9 @@ The experiment is complete when:
    explicitly deferred feature.
 7. Neighbourhood, grouping, geometry, presentation, and SVG rendering remain
    separated by the contracts defined in this document.
+8. Neighbourhood construction, PPN normalization, validity resolution, and
+   connected-component grouping have one source of truth in `pile-plan-core`;
+   TypeScript starts at the returned topology DTO.
 
 ## Follow-up use in #21
 
