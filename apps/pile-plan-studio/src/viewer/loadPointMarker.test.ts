@@ -81,6 +81,40 @@ describe("unselected load point marker state", () => {
       "invalid",
     );
   });
+
+  it("uses optimizer status only after missing and invalid engineering states", () => {
+    const validOption = option({ isOption: true, utilization: 0.7 });
+    const missingOption = option({ isOption: false, utilization: null, missingCptIds: [64] });
+    const invalidOption = option({ isOption: false, utilization: 1.2 });
+
+    assert.equal(
+      getUnselectedLoadPointMarkerState(
+        [validOption],
+        false,
+        false,
+        "configuration_limits",
+      ),
+      "optimizer-unassigned",
+    );
+    assert.equal(
+      getUnselectedLoadPointMarkerState(
+        [missingOption],
+        false,
+        false,
+        "configuration_limits",
+      ),
+      "missing",
+    );
+    assert.equal(
+      getUnselectedLoadPointMarkerState(
+        [invalidOption],
+        false,
+        false,
+        "configuration_limits",
+      ),
+      "invalid",
+    );
+  });
 });
 
 function extractIntensity(style: string): number {

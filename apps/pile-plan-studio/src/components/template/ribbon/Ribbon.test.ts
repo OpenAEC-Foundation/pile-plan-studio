@@ -107,9 +107,17 @@ describe("Plan and View ribbon", () => {
 
   it("uses a domain optimization icon for the run command", () => {
     const source = readFileSync(resolve(import.meta.dirname, "Ribbon.tsx"), "utf8");
+    const icons = readFileSync(resolve(import.meta.dirname, "icons.ts"), "utf8");
 
     assert.match(source, /optimizeIcon/);
     assert.match(source, /icon=\{optimizeIcon\} label=\{t\("optimize\.run"\)\}/);
+    const optimizeIcon = icons.slice(
+      icons.indexOf("export const optimizeIcon"),
+      icons.indexOf("export const lockIcon"),
+    );
+    assert.equal((optimizeIcon.match(/<circle/g) ?? []).length, 4);
+    assert.match(optimizeIcon, /fill="currentColor"/);
+    assert.match(optimizeIcon, /stroke-linecap="round"/);
   });
 
   it("uses distinct Dutch labels for information and settings commands", () => {

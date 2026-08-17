@@ -1,16 +1,25 @@
-import type { PileConfigurationOption, ViewerUtilizationSettings } from "../core/projectTypes.ts";
+import type {
+  GreedyUnassignedReason,
+  PileConfigurationOption,
+  ViewerUtilizationSettings,
+} from "../core/projectTypes.ts";
 
 export type LoadPointMarkerInvalidVisual = {
   className: string;
   style: string;
 };
 
-export type UnselectedLoadPointMarkerState = "pending" | "missing" | "invalid";
+export type UnselectedLoadPointMarkerState =
+  | "pending"
+  | "missing"
+  | "invalid"
+  | "optimizer-unassigned";
 
 export function getUnselectedLoadPointMarkerState(
   options: PileConfigurationOption[] | undefined,
   isPending: boolean,
   hasAnalysisError: boolean,
+  optimizationUnassignedReason?: GreedyUnassignedReason,
 ): UnselectedLoadPointMarkerState {
   if (isPending || hasAnalysisError || !options) {
     return "pending";
@@ -18,6 +27,17 @@ export function getUnselectedLoadPointMarkerState(
 
   if (options.length > 0 && options.every((option) => option.missing_cpt_ids.length > 0)) {
     return "missing";
+  }
+
+  if (!options.some((option) => option.isOption)) {
+    return "invalid";
+  }
+
+  if (
+    optimizationUnassignedReason
+    && optimizationUnassignedReason !== "no_valid_option"
+  ) {
+    return "optimizer-unassigned";
   }
 
   return "invalid";

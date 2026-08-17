@@ -75,6 +75,7 @@
   "explorer": "Explorer",
   "properties": "Properties",
   "viewer": {
+    "optimizerUnassigned": "The last optimization did not find an assignment within the configured limits.",
     "hover": {
       "loadPoint": "Load point",
       "cpt": "CPT",
