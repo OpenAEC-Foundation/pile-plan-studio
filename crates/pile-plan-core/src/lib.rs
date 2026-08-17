@@ -6,6 +6,7 @@ pub mod model;
 pub mod pile_options;
 pub mod pile_plan_import;
 pub mod project;
+pub mod spatial;
 
 pub use analysis::{
     bearing_capacity_rows_for_cpt, bearing_capacity_summary, build_pile_options_by_load_point,
@@ -41,3 +42,4 @@ pub use project::{
     ProjectInputs, ProjectMetadata, ProjectSettings, ProjectUnits, ProjectUserState,
     SelectedPileChoice, ViewerUtilizationSettings,
 };
+pub use spatial::{build_spatial_neighborhood, SpatialEdge, SpatialNeighborhood, SpatialNode};
