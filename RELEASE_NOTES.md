@@ -1,5 +1,27 @@
 # Pile Plan Studio Release Notes
 
+## 0.2.1 (in development)
+
+### Improved
+
+- Greedy optimization now keeps every enabled-value, utilization, size,
+  tip-level, configuration, lock, and whole-plan limit in the shared Rust
+  core instead of silently applying a fallback outside the selected
+  configurations.
+- Partial optimizer results explicitly report and persist load points that
+  could not be assigned within the configured limits. The viewer distinguishes
+  these outcomes from missing or invalid engineering options with a dedicated
+  zoom-aware marker.
+- Optimization summaries now report assigned, changed, and unassigned load
+  points separately in both Dutch and English.
+
+### Notes
+
+- Configuration selection remains a deterministic local greedy heuristic:
+  each step maximizes newly covered load points and then minimizes cost. It
+  does not guarantee a global optimum; follow-up limitations are tracked in
+  issue #31.
+
 ## 0.2.0-alpha
 
 This alpha establishes a clearer project and application boundary, adds
