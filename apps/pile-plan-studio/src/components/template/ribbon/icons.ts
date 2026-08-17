@@ -46,6 +46,7 @@ export const lockIcon = `<svg fill="none" stroke="currentColor" viewBox="0 0 24 
 export const unlockIcon = `<svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><rect x="5" y="10" width="14" height="11" rx="2" stroke-width="2"/><path stroke-linecap="round" stroke-width="2" d="M16 10V7a4 4 0 0 0-7.5-2"/></svg>`;
 export const applyIcon = `<svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m5 12 4 4L19 6"/></svg>`;
 export const gridIcon = `<svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-width="1.5" d="M4 4h16v16H4zM4 9.33h16M4 14.67h16M9.33 4v16M14.67 4v16"/></svg>`;
+export const tipLevelRegionsIcon = `<svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M8 12h8" stroke-linecap="round" stroke-width="6" opacity=".25"/><circle cx="7" cy="12" r="4" fill="currentColor" fill-opacity=".25" stroke-width="1.5"/><circle cx="17" cy="12" r="4" fill="currentColor" fill-opacity=".25" stroke-width="1.5"/></svg>`;
 export const explorerPanelIcon = `<svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="1" stroke-width="1.8"/><path d="M9 4v16" stroke-width="1.8"/></svg>`;
 export const propertiesPanelIcon = `<svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="1" stroke-width="1.8"/><path d="M15 4v16" stroke-width="1.8"/></svg>`;
 

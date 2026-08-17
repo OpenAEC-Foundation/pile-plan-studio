@@ -1290,6 +1290,7 @@ function AppSession({
           viewerUtilizationMaximum={projectState.viewerUtilizationSettings.maximum}
           foregroundLayer={projectState.foregroundLayer}
           showGrid={projectState.showGrid}
+          showTipLevelRegions={projectState.showTipLevelRegions}
           explorerVisible={workspaceLayout.explorerVisible}
           propertiesVisible={workspaceLayout.propertiesVisible}
           onSymbolScaleChange={(symbolScalePercent) => handleProjectStateChange({
@@ -1307,6 +1308,10 @@ function AppSession({
           onGridVisibilityChange={(showGrid) => handleProjectStateChange({
             ...projectState,
             showGrid,
+          })}
+          onTipLevelRegionVisibilityChange={(showTipLevelRegions) => handleProjectStateChange({
+            ...projectState,
+            showTipLevelRegions,
           })}
           onExplorerVisibilityChange={(explorerVisible) => updateWorkspaceLayout({ explorerVisible })}
           onPropertiesVisibilityChange={(propertiesVisible) => updateWorkspaceLayout({ propertiesVisible })}

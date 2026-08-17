@@ -19,8 +19,10 @@ import {
   propertiesPanelIcon,
   removeIcon,
   settingsIcon,
+  tipLevelRegionsIcon,
   unlockIcon,
 } from "./icons";
+import { getTipLevelRegionToggle } from "./tipLevelRegionToggle.ts";
 import "./Ribbon.css";
 
 type TabId = "plan" | "view";
@@ -48,12 +50,14 @@ interface RibbonProps {
   viewerUtilizationMaximum: number;
   foregroundLayer: ForegroundLayer;
   showGrid: boolean;
+  showTipLevelRegions: boolean;
   explorerVisible: boolean;
   propertiesVisible: boolean;
   onSymbolScaleChange: (value: number) => void;
   onViewerUtilizationRangeChange: (minimum: number, maximum: number) => void;
   onForegroundLayerChange: (value: ForegroundLayer) => void;
   onGridVisibilityChange: (visible: boolean) => void;
+  onTipLevelRegionVisibilityChange: (visible: boolean) => void;
   onExplorerVisibilityChange: (visible: boolean) => void;
   onPropertiesVisibilityChange: (visible: boolean) => void;
 }
@@ -78,16 +82,19 @@ export default function Ribbon({
   viewerUtilizationMaximum,
   foregroundLayer,
   showGrid,
+  showTipLevelRegions,
   explorerVisible,
   propertiesVisible,
   onSymbolScaleChange,
   onViewerUtilizationRangeChange,
   onForegroundLayerChange,
   onGridVisibilityChange,
+  onTipLevelRegionVisibilityChange,
   onExplorerVisibilityChange,
   onPropertiesVisibilityChange,
 }: RibbonProps) {
   const { t } = useTranslation("ribbon");
+  const tipLevelRegionToggle = getTipLevelRegionToggle(showTipLevelRegions);
   const [activeTab, setActiveTab] = useState<TabId>("plan");
   const [utilizationDraft, setUtilizationDraft] = useState({
     minimum: viewerUtilizationMinimum,
@@ -253,6 +260,13 @@ export default function Ribbon({
                   icon={gridIcon}
                   label={showGrid ? t("view.hideGrid") : t("view.showGrid")}
                   onClick={() => onGridVisibilityChange(!showGrid)}
+                />
+              </RibbonGroup>
+              <RibbonGroup label={t("view.regions")}>
+                <RibbonButton
+                  icon={tipLevelRegionsIcon}
+                  label={t(tipLevelRegionToggle.labelKey)}
+                  onClick={() => onTipLevelRegionVisibilityChange(tipLevelRegionToggle.nextVisible)}
                 />
               </RibbonGroup>
               <RibbonGroup label={t("view.windows")}>

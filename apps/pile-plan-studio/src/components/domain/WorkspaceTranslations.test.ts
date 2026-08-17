@@ -4,6 +4,16 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
 describe("Workspace translations", () => {
+  it("provides bilingual tip-level region toggle labels", () => {
+    const en = JSON.parse(readFileSync(resolve(import.meta.dirname, "../../i18n/locales/en/ribbon.json"), "utf8"));
+    const nl = JSON.parse(readFileSync(resolve(import.meta.dirname, "../../i18n/locales/nl/ribbon.json"), "utf8"));
+
+    assert.equal(en.view.showTipLevelRegions, "Show tip-level regions");
+    assert.equal(en.view.hideTipLevelRegions, "Hide tip-level regions");
+    assert.equal(nl.view.showTipLevelRegions, "PPN-gebieden tonen");
+    assert.equal(nl.view.hideTipLevelRegions, "PPN-gebieden verbergen");
+  });
+
   it("translates the explorer and legend through the common language setting", () => {
     const explorer = readFileSync(resolve(import.meta.dirname, "PilePlanExplorer.tsx"), "utf8");
     const legend = readFileSync(resolve(import.meta.dirname, "Legend.tsx"), "utf8");
