@@ -2,6 +2,12 @@
 
 ## 0.2.1 (in development)
 
+### Added
+
+- Activate persistent box selection from the Plan ribbon while retaining
+  `Shift`+drag as a direct shortcut and as the lasso action during load-point
+  lock editing.
+
 ### Improved
 
 - Greedy optimization now keeps every enabled-value, utilization, size,

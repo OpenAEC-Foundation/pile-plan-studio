@@ -10,7 +10,12 @@ import {
 import { useTranslation } from "react-i18next";
 import type { ProjectState } from "../../domain/projectState";
 import { getCptDisplayName } from "../../domain/cptDisplayName.ts";
-import { getPointIdsInRectangle, type LassoRectangle } from "../../viewer/lassoSelection.ts";
+import {
+  getPointIdsInRectangle,
+  shouldClearViewerSelectionOnEscape,
+  shouldStartLassoInteraction,
+  type LassoRectangle,
+} from "../../viewer/lassoSelection.ts";
 import { getConfigurationStyle } from "../../viewer/legend.ts";
 import { getCptMarkerLayerClass, getForegroundLayerClass, getLoadPointMarkerLayerClass } from "../../viewer/mapMarkerLayer.ts";
 import { shouldStartMapPan } from "../../viewer/mapInteraction.ts";
@@ -75,10 +80,11 @@ import OptimizerUnresolvedMarker from "../viewer/OptimizerUnresolvedMarker.tsx";
 
 type Props = {
   state: ProjectState;
+  lassoSelectionActive: boolean;
   onStateChange: (nextState: ProjectState) => void;
 };
 
-export default function PilePlanViewer({ state, onStateChange }: Props) {
+export default function PilePlanViewer({ state, lassoSelectionActive, onStateChange }: Props) {
   const { t, i18n } = useTranslation("common");
   const legend = state.pileLegend;
   const selectedLoadPointIds = new Set(state.selectedLoadPointIds);
@@ -217,8 +223,11 @@ export default function PilePlanViewer({ state, onStateChange }: Props) {
 
       if (event.key === "Escape") {
         clearHoverCandidates();
-        if (isEditingLoadPointLocks) return;
-        if (isViewerSelectionActionAllowed(isEditingCptSelection, "background")) {
+        if (shouldClearViewerSelectionOnEscape({
+          lassoSelectionActive,
+          isEditingLoadPointLocks,
+          selectionAllowed: isViewerSelectionActionAllowed(isEditingCptSelection, "background"),
+        })) {
           onStateChange({ ...state, ...clearReactViewerSelection(state), viewport: viewportRef.current });
         }
       }
@@ -429,7 +438,13 @@ export default function PilePlanViewer({ state, onStateChange }: Props) {
     const layoutScale = canvasRectRef.current?.scale ?? elementLayoutScale(document.documentElement);
     const start = getLocalViewportPointer(event.clientX, event.clientY, layoutScale);
 
-    if (event.shiftKey && !targetIsInteractive && (isEditingLoadPointLocks || isViewerSelectionActionAllowed(isEditingCptSelection, "lasso"))) {
+    if (shouldStartLassoInteraction({
+      lassoSelectionActive,
+      shiftKey: event.shiftKey,
+      targetIsInteractive,
+      selectionAllowed: isViewerSelectionActionAllowed(isEditingCptSelection, "lasso"),
+      isEditingLoadPointLocks,
+    })) {
       event.preventDefault();
       clearHoverCandidates();
       interactionRef.current = { type: "lasso", start, current: start };

@@ -21,6 +21,7 @@ export default function RibbonButton({
 }: RibbonButtonProps) {
   return (
     <button
+      aria-pressed={active}
       className={`ribbon-btn${size === "small" ? " small" : ""}${size === "medium" ? " medium" : ""}${wide ? " wide" : ""}${active ? " active" : ""}`}
       title={title || label}
       disabled={disabled}

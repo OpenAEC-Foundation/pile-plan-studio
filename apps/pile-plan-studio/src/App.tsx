@@ -118,6 +118,7 @@ import { changeLanguage } from "./i18n/config.ts";
 import { elementLayoutScale, screenToLocal } from "./domain/uiBaseline.ts";
 import { applyPileCostCatalogDefault, mergePileCostCatalog } from "./domain/pileCostCatalog.ts";
 import { VIEWER_LAYOUT_CHANGE_EVENT } from "./viewer/viewerGeometry.ts";
+import { transitionLassoSelectionMode } from "./viewer/lassoSelection.ts";
 
 const BUILT_IN_PILE_COST_DEFAULTS = loadIfcppProjectData(sampleProjectText).pileCostSettings;
 
@@ -243,6 +244,7 @@ function AppSession({
   const [feedbackOpen, setFeedbackOpen] = useState(false);
   const [projectInformationOpen, setProjectInformationOpen] = useState(false);
   const [rightTaskPanel, setRightTaskPanel] = useState<RightTaskPanel | null>(null);
+  const [lassoSelectionActive, setLassoSelectionActive] = useState(false);
   const [activeSourceKind, setActiveSourceKind] = useState<InputSourceKind | null>(null);
   const [initialImportSource, setInitialImportSource] = useState<{ role: ImportFileRole; file: File } | null>(null);
   const [isDirty, setIsDirty] = useState(initialWasDirty);
@@ -264,6 +266,24 @@ function AppSession({
   const [creatingPilePlan, setCreatingPilePlan] = useState(false);
   const [statusMessage, setStatusMessage] = useState("");
   const statusMessageTimeoutRef = useRef<number | null>(null);
+  const lassoSelectionAvailable = projectState.loadPointLockDraft === null
+    && projectState.cptSelectionEditDraft === null;
+
+  useEffect(() => {
+    setLassoSelectionActive((active) => transitionLassoSelectionMode(active, {
+      type: "editing-context",
+      available: lassoSelectionAvailable,
+    }));
+  }, [lassoSelectionAvailable]);
+
+  useEffect(() => {
+    const dismissLassoSelection = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") return;
+      setLassoSelectionActive((active) => transitionLassoSelectionMode(active, { type: "dismiss" }));
+    };
+    window.addEventListener("keydown", dismissLassoSelection);
+    return () => window.removeEventListener("keydown", dismissLassoSelection);
+  }, []);
   const showStatusMessage = useCallback((message: string) => {
     if (statusMessageTimeoutRef.current !== null) window.clearTimeout(statusMessageTimeoutRef.current);
     setStatusMessage(message);
@@ -1093,6 +1113,7 @@ function AppSession({
     || (projectState.optimizationTargetScope === "selected" && projectState.selectedLoadPointIds.length === 0);
 
   const installOpenedProject = (project: ProjectState, path: string | null) => {
+    setLassoSelectionActive((active) => transitionLassoSelectionMode(active, { type: "dismiss" }));
     replaceProjectState(project);
     setProjectPath(path);
     updateSavedProjectSignature(JSON.stringify(projectFromState(project)));
@@ -1179,6 +1200,11 @@ function AppSession({
           }}
           onRunOptimization={runGreedyOptimization}
           optimizationDisabled={optimizationDisabled}
+          isLassoSelectionActive={lassoSelectionActive}
+          lassoSelectionDisabled={!lassoSelectionAvailable}
+          onToggleLassoSelection={() => setLassoSelectionActive((active) => (
+            transitionLassoSelectionMode(active, { type: "toggle" })
+          ))}
           isLockEditing={projectState.loadPointLockDraft !== null}
           onStartLockEditing={startLockEditing}
           onApplyLockEditing={applyLockEditing}
@@ -1256,7 +1282,11 @@ function AppSession({
           />}
           <main className="workspace" aria-label="Pile plan workspace">
             {activeSourceKind === null ? (
-              <PilePlanWorkspace state={projectState} onStateChange={handleProjectStateChange} />
+              <PilePlanWorkspace
+                state={projectState}
+                lassoSelectionActive={lassoSelectionActive}
+                onStateChange={handleProjectStateChange}
+              />
             ) : (
               <SourceDataViewer
                 source={projectState.inputSources.find(({ kind }) => kind === activeSourceKind)!}
