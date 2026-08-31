@@ -11,9 +11,11 @@ import { useTranslation } from "react-i18next";
 import type { ProjectState } from "../../domain/projectState";
 import { getCptDisplayName } from "../../domain/cptDisplayName.ts";
 import {
+  getLassoSelectionOperation,
   getPointIdsInRectangle,
   shouldClearViewerSelectionOnEscape,
   shouldStartLassoInteraction,
+  type LassoSelectionOperation,
   type LassoRectangle,
 } from "../../viewer/lassoSelection.ts";
 import { getConfigurationStyle } from "../../viewer/legend.ts";
@@ -62,6 +64,7 @@ import {
   isViewerSelectionActionAllowed,
   openReactViewerCpt,
   selectReactViewerLoadPoint,
+  setReactViewerLoadPoints,
   shouldRaiseCptMarker,
   toggleReactViewerLoadPoint,
 } from "./viewerInteractions.ts";
@@ -447,7 +450,16 @@ export default function PilePlanViewer({ state, lassoSelectionActive, onStateCha
     })) {
       event.preventDefault();
       clearHoverCandidates();
-      interactionRef.current = { type: "lasso", start, current: start };
+      interactionRef.current = {
+        type: "lasso",
+        start,
+        current: start,
+        operation: getLassoSelectionOperation({
+          lassoSelectionActive,
+          shiftKey: event.shiftKey,
+          isEditingLoadPointLocks,
+        }),
+      };
       setLasso({ startX: start.x, startY: start.y, endX: start.x, endY: start.y });
       return;
     }
@@ -524,19 +536,22 @@ export default function PilePlanViewer({ state, lassoSelectionActive, onStateCha
       };
       setLasso(null);
       const loadPointIds = getPointIdsInRectangle(getVisibleLoadPointScreenPoints(), rectangle);
-      if (loadPointIds.length > 0) {
-        if (isEditingLoadPointLocks) {
+      if (interaction.operation === "lock") {
+        if (loadPointIds.length > 0) {
           onStateChange({
             ...state,
             loadPointLockDraft: setLassoLoadPointLocks(state.loadPointLockDraft!, loadPointIds),
             viewport: viewportRef.current,
           });
-        } else {
-          const unlockedIds = loadPointIds.filter((id) => !lockedLoadPointIds.has(id));
-          if (unlockedIds.length > 0) {
-            onStateChange({ ...state, ...addReactViewerLoadPoints(state, unlockedIds), viewport: viewportRef.current });
-          }
         }
+        return;
+      }
+
+      const unlockedIds = loadPointIds.filter((id) => !lockedLoadPointIds.has(id));
+      if (interaction.operation === "replace") {
+        onStateChange({ ...state, ...setReactViewerLoadPoints(state, unlockedIds), viewport: viewportRef.current });
+      } else if (unlockedIds.length > 0) {
+        onStateChange({ ...state, ...addReactViewerLoadPoints(state, unlockedIds), viewport: viewportRef.current });
       }
       return;
     }
@@ -883,6 +898,7 @@ type ViewerInteraction =
     type: "lasso";
     start: { x: number; y: number };
     current: { x: number; y: number };
+    operation: LassoSelectionOperation;
   };
 
 type LocalCanvasRect = {

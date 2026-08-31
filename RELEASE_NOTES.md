@@ -4,9 +4,9 @@
 
 ### Added
 
-- Activate persistent box selection from the Plan ribbon while retaining
-  `Shift`+drag as a direct shortcut and as the lasso action during load-point
-  lock editing.
+- Activate persistent box selection from the Plan ribbon. Plain dragging
+  replaces the selection, clicking empty space clears it, and `Shift`+drag
+  adds to the selection or controls the lasso during load-point lock editing.
 
 ### Improved
 

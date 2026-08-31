@@ -9,6 +9,7 @@ import {
   isViewerSelectionActionAllowed,
   openReactViewerCpt,
   selectReactViewerLoadPoint,
+  setReactViewerLoadPoints,
   shouldClearLegendSelectionFromPointerTarget,
   shouldRaiseCptMarker,
   toggleReactViewerLoadPoint,
@@ -66,6 +67,25 @@ describe("React viewer interactions", () => {
     assert.equal(selectReactViewerLoadPoint(state, 3).cptSettingsScope, "all");
     assert.equal(toggleReactViewerLoadPoint(state, 2).cptSettingsScope, "all");
     assert.equal(addReactViewerLoadPoints(state, [3]).cptSettingsScope, "all");
+  });
+
+  it("replaces the viewer selection and clears its previous CPT and legend context", () => {
+    const state = {
+      selectedLoadPointId: 1,
+      selectedLoadPointIds: [1, 2],
+      selectedCptId: 64,
+      rightPanelMode: "cpts" as const,
+      cptSettingsScope: "all" as const,
+      legendSelectionFilter: { pileSizes: [290], pileTipLevels: [-17.5] },
+    };
+
+    const next = setReactViewerLoadPoints(state, [3, 4]);
+
+    assert.deepEqual(next.selectedLoadPointIds, [3, 4]);
+    assert.equal(next.selectedLoadPointId, 3);
+    assert.equal(next.selectedCptId, null);
+    assert.equal(next.cptSettingsScope, "all");
+    assert.deepEqual(next.legendSelectionFilter, { pileSizes: [], pileTipLevels: [] });
   });
 
   it("selects one load point and clears the selected CPT", () => {

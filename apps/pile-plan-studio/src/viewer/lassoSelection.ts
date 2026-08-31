@@ -19,6 +19,8 @@ type LassoInteractionInput = {
   isEditingLoadPointLocks: boolean;
 };
 
+export type LassoSelectionOperation = "replace" | "add" | "lock";
+
 export type LassoSelectionModeEvent =
   | { type: "toggle" | "dismiss" }
   | { type: "editing-context"; available: boolean };
@@ -36,6 +38,15 @@ export function shouldStartLassoInteraction(input: LassoInteractionInput): boole
   if (input.targetIsInteractive || !input.selectionAllowed) return false;
   if (input.isEditingLoadPointLocks) return input.shiftKey;
   return input.shiftKey || input.lassoSelectionActive;
+}
+
+export function getLassoSelectionOperation(input: {
+  lassoSelectionActive: boolean;
+  shiftKey: boolean;
+  isEditingLoadPointLocks: boolean;
+}): LassoSelectionOperation {
+  if (input.isEditingLoadPointLocks) return "lock";
+  return input.lassoSelectionActive && !input.shiftKey ? "replace" : "add";
 }
 
 export function shouldClearViewerSelectionOnEscape(input: {

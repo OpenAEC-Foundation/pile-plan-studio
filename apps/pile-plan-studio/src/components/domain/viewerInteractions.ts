@@ -3,6 +3,7 @@ import {
   clearSelection,
   openCpt,
   selectLoadPoint,
+  setLoadPointSelection,
   type SelectionState,
 } from "../.././domain/selectionState.ts";
 import type { LegendSelectionFilter } from "../../viewer/legendSelection.ts";
@@ -44,6 +45,13 @@ export function addReactViewerLoadPoints(
   loadPointIds: number[],
 ): ReactViewerSelectionState {
   return clearLegendSelection(applySelectionTransition(state, addLoadPointsToSelection(state, loadPointIds)));
+}
+
+export function setReactViewerLoadPoints(
+  state: ReactViewerSelectionState,
+  loadPointIds: number[],
+): ReactViewerSelectionState {
+  return clearLegendSelection(applySelectionTransition(state, setLoadPointSelection(state, loadPointIds)));
 }
 
 export function clearReactViewerSelection(state: ReactViewerSelectionState): ReactViewerSelectionState {
