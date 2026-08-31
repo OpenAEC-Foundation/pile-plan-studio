@@ -52,9 +52,6 @@ function projectFixture(): IfcppProject {
         max_pile_configurations: 1,
         enabled_pile_sizes: [290],
         enabled_pile_tip_levels: [-18],
-        baseline_pile_sizes: [],
-        baseline_pile_tip_levels: [],
-        baseline_pile_configurations: [],
       },
       active_pile_sizes: [290],
       active_pile_tip_levels: [-18],
@@ -182,6 +179,37 @@ describe("IFCPP project loading", () => {
     assert.equal(data.pilePlans.length, 2);
     assert.deepEqual(data.pilePlans[0].lockedLoadPointIds, [1]);
     assert.equal(data.selectedPileOptionKeysByLoadPoint.get(1), "290|-18");
+  });
+
+  it("round-trips optimizer outcomes per pile plan", () => {
+    const legacy = projectFixture();
+    const project = {
+      ...legacy,
+      schema_version: 3,
+      user_state: {
+        pile_plans: [{
+          id: "basis",
+          name: "Basis",
+          selected_piles: legacy.user_state.selected_piles,
+          locked_load_point_ids: [],
+          optimization_unassigned: {
+            "7": "configuration_limits",
+            "8": "optimization_constraints",
+          },
+        }],
+        active_pile_plan_id: "basis",
+        manual_cpt_selections: legacy.user_state.manual_cpt_selections,
+      },
+    } as unknown as IfcppProject;
+
+    const loaded = loadIfcppProjectData(project);
+    const saved = createIfcppProject(loaded);
+    const reloaded = loadIfcppProjectData(saved);
+
+    assert.deepEqual(
+      reloaded.pilePlans[0].optimizationUnassignedByLoadPoint,
+      new Map([[7, "configuration_limits"], [8, "optimization_constraints"]]),
+    );
   });
 
   it("normalizes an empty plan list and an unknown active plan", () => {

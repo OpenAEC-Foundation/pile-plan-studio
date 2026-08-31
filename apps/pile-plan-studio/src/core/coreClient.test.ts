@@ -45,4 +45,15 @@ describe("project source refresh core contract", () => {
     assert.match(source, /sources:\s*input\.sources\.map\(toCoreImportSource\)/);
     assert.match(source, /invoke<IfcppProject>\("refresh_project_from_files"/);
   });
+
+  it("converts persisted optimizer outcome keys before writing in WASM", () => {
+    const source = readFileSync(new URL("./coreClient.ts", import.meta.url), "utf8");
+    const start = source.indexOf("function toWasmIfcppProject");
+    const converter = source.slice(start, source.indexOf("async function exportPilePlanCore", start));
+
+    assert.match(
+      converter,
+      /optimization_unassigned:\s*toWasmNumberKeyedRecord\(\s*plan\.optimization_unassigned\s*\?\?\s*\{\}/,
+    );
+  });
 });

@@ -98,7 +98,8 @@ describe("React app startup", () => {
 
     assert.match(source, /greedyOptimizeCore/);
     assert.match(source, /buildGreedyOptimizationSettings/);
-    assert.match(source, /applyOptimizationChoices/);
+    assert.match(source, /applyOptimizationResult/);
+    assert.match(source, /replaceOptimizationOutcomesForTargets/);
     assert.match(source, /optimizationRunning:\s*true/);
     assert.match(source, /onRunOptimization=\{runGreedyOptimization\}/);
     assert.match(source, /snapshot\.optimizationCreatesPilePlan/);

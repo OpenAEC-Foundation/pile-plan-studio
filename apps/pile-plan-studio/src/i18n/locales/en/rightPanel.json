@@ -113,7 +113,7 @@
   "optimization.title": "Optimization",
   "optimization.subtitle": "Greedy pile selection",
   "optimization.close": "Close optimization settings",
-  "optimization.description": "The Greedy optimizer adds configurations one at a time and keeps the combination that reduces total cost while covering the most load points.",
+  "optimization.description": "The Greedy optimizer selects the configuration that covers the most unassigned load points at each step and uses the lowest cost for equal coverage. It does not guarantee a global optimum.",
   "optimization.optimize": "Optimize",
   "optimization.allLoadPoints": "All load points",
   "optimization.selected": "Selected ({{count}})",
@@ -129,8 +129,10 @@
   "optimization.saveAsNewPilePlan": "Save optimization as a new pile plan",
   "optimization.enableLegend": "Enable at least one size and tip level in the legend.",
   "optimization.selectLoadPoints": "Select one or more load points.",
-  "optimization.applied": "Applied to {{count}} load points.",
+  "optimization.assigned": "{{count}} assigned.",
   "optimization.changed": "{{count}} changed.",
+  "optimization.noValidOption": "{{count}} without a valid pile option.",
+  "optimization.unassigned": "{{count}} not assigned within the configured limits.",
   "optimization.running": "Optimizing...",
   "optimization.run": "Run Greedy Optimization"
 }

@@ -64,7 +64,6 @@ describe("optimization settings", () => {
         maxDifferentTips: 1,
         maxDifferentConfigurations: 1,
       },
-      baselineOptions: [],
       maxUtilization: 0.85,
     });
 
@@ -196,7 +195,7 @@ describe("optimization settings", () => {
     assert.equal(settings.maxDifferentConfigurations, 1);
   });
 
-  it("includes existing plan configurations as baseline when limits apply to the whole plan", () => {
+  it("leaves whole-plan baseline derivation to the core", () => {
     const settings = buildGreedyOptimizationSettings({
       activePileSizes: [290, 320],
       activePileTipLevels: [-18, -19],
@@ -207,12 +206,11 @@ describe("optimization settings", () => {
         maxDifferentTips: 2,
         maxDifferentConfigurations: 2,
       },
-      baselineOptions: [option(320, -18), option(320, -18), null],
       maxUtilization: 1,
     });
 
-    assert.deepEqual(settings.baseline_pile_sizes, [320]);
-    assert.deepEqual(settings.baseline_pile_tip_levels, [-18]);
-    assert.deepEqual(settings.baseline_pile_configurations, [{ pile_size_mm: 320, pile_tip_level_m_key: -18000 }]);
+    assert.equal("baseline_pile_sizes" in settings, false);
+    assert.equal("baseline_pile_tip_levels" in settings, false);
+    assert.equal("baseline_pile_configurations" in settings, false);
   });
 });

@@ -7,7 +7,7 @@ use pile_plan_core::{
     preview_import_source, preview_pile_plan_import, refresh_project_from_profiled_sources,
     selected_cpts, write_pile_plan_csv as write_pile_plan_csv_bytes,
     write_pile_plan_xlsx as write_pile_plan_xlsx_bytes, CptSelectionSettings,
-    GreedyOptimizationSettings, GreedyOptimizedPileChoice, ImportSource, ImportSourcePreview,
+    GreedyOptimizationInput, GreedyOptimizationResult, ImportSource, ImportSourcePreview,
     PileConfigurationKey, PileConfigurationOption, PileCostSettings, PilePlanExportRequest,
     PilePlanImportPreview, PilePlanImportRequest, PilePlanProject, ProjectAnalysisResult,
     ProjectBearingCapacity, ProjectCpt, ProjectLoadPoint, SelectedCpt,
@@ -70,14 +70,6 @@ struct DefaultPileOptionsRequest {
 struct CptFrdRowsRequest {
     bearing_capacities: Vec<ProjectBearingCapacity>,
     cpt_id: u32,
-}
-
-#[derive(Debug, Deserialize)]
-struct GreedyOptimizationRequest {
-    options_by_load_point: HashMap<u32, Vec<PileConfigurationOption>>,
-    pile_head_level_m: f64,
-    cost_settings: PileCostSettings,
-    settings: GreedyOptimizationSettings,
 }
 
 #[derive(Debug, Deserialize)]
@@ -190,13 +182,8 @@ fn cpt_frd_rows(request: CptFrdRowsRequest) -> Vec<pile_plan_core::CptBearingCap
 }
 
 #[tauri::command(rename_all = "snake_case")]
-fn greedy_optimize(request: GreedyOptimizationRequest) -> Vec<GreedyOptimizedPileChoice> {
-    greedy_optimize_pile_choices(
-        &request.options_by_load_point,
-        request.pile_head_level_m,
-        &request.cost_settings,
-        &request.settings,
-    )
+fn greedy_optimize(request: GreedyOptimizationInput) -> GreedyOptimizationResult {
+    greedy_optimize_pile_choices(&request)
 }
 
 #[tauri::command(rename_all = "snake_case")]

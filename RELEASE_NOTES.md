@@ -1,5 +1,39 @@
 # Pile Plan Studio Release Notes
 
+## 0.2.1-alpha
+
+This alpha makes constrained greedy optimization more predictable and easier
+to inspect, adds persistent lasso selection, and completes the Windows
+installer branding.
+
+### Added
+
+- Activate persistent box selection from the Plan ribbon. Plain dragging
+  replaces the selection, clicking empty space clears it, and `Shift`+drag
+  adds to the selection or controls the lasso during load-point lock editing.
+
+### Improved
+
+- Brand the Windows application, installer, and uninstaller with the Pile Plan
+  Studio logo.
+- Greedy optimization now keeps every enabled-value, utilization, size,
+  tip-level, configuration, lock, and whole-plan limit in the shared Rust
+  core instead of silently applying a fallback outside the selected
+  configurations.
+- Partial optimizer results explicitly report and persist load points that
+  could not be assigned within the configured limits. The viewer distinguishes
+  these outcomes from missing or invalid engineering options with a dedicated
+  compact marker.
+- Optimization summaries now report assigned, changed, and unassigned load
+  points separately in both Dutch and English.
+
+### Notes
+
+- Configuration selection remains a deterministic local greedy heuristic:
+  each step maximizes newly covered load points and then minimizes cost. It
+  does not guarantee a global optimum; follow-up limitations are tracked in
+  issue #31.
+
 ## 0.2.0-alpha
 
 This alpha establishes a clearer project and application boundary, adds

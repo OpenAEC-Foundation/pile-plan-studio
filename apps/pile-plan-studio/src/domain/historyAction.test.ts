@@ -108,9 +108,6 @@ function content(): ProjectContent {
       max_utilization: 1,
       enabled_pile_sizes: [],
       enabled_pile_tip_levels: [],
-      baseline_pile_sizes: [],
-      baseline_pile_tip_levels: [],
-      baseline_pile_configurations: [],
     },
     viewerUtilizationSettings: { minimum: 0, maximum: 1 },
     activePileSizes: [],
@@ -136,5 +133,6 @@ function plan(
     selectedPileOptionKeysByLoadPoint: new Map(choices),
     externalReferencesByLoadPoint: new Map(),
     lockedLoadPointIds: [],
+    optimizationUnassignedByLoadPoint: new Map(),
   };
 }

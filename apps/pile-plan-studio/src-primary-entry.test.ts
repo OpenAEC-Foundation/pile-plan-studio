@@ -19,9 +19,28 @@ describe("primary frontend entry", () => {
     assert.doesNotMatch(packageJson, /dev:react|build:react/);
     assert.match(tauriConfig, /"beforeDevCommand": "npm run dev"/);
     assert.match(tauriConfig, /"beforeBuildCommand": "npm run build"/);
-    assert.match(tauriConfig, /"icon": \[\s*"icons\/icon\.ico"\s*\]/);
     assert.match(packageJson, /allow_wasm_package\.mjs src\/core\/wasm\/pile-plan-wasm/);
     assert.match(wasmPackageHelper, /process\.argv\[2\]/);
+  });
+
+  it("uses the shared Windows icon for the app, installer, and uninstaller", () => {
+    const tauriConfig = JSON.parse(
+      readFileSync(resolve(import.meta.dirname, "src-tauri/tauri.conf.json"), "utf8"),
+    ) as {
+      bundle?: {
+        icon?: string[];
+        windows?: {
+          nsis?: {
+            installerIcon?: string;
+            uninstallerIcon?: string;
+          };
+        };
+      };
+    };
+
+    assert.deepEqual(tauriConfig.bundle?.icon, ["icons/icon.ico"]);
+    assert.equal(tauriConfig.bundle?.windows?.nsis?.installerIcon, "icons/icon.ico");
+    assert.equal(tauriConfig.bundle?.windows?.nsis?.uninstallerIcon, "icons/icon.ico");
   });
 
   it("allows the desktop app to open project file dialogs", () => {

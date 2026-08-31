@@ -41,7 +41,7 @@ export const projectIcon = `<svg fill="none" stroke="currentColor" viewBox="0 0 
 
 export const loadPointIcon = `<svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-width="2" d="M12 3v13m-4-4 4 4 4-4"/><circle cx="12" cy="19" r="2" stroke-width="2"/></svg>`;
 export const cptIcon = `<svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linejoin="round" stroke-width="2" d="M4 5h16l-8 14L4 5z"/><path stroke-linecap="round" stroke-width="1.5" d="M9 9h6m-4 3h2"/></svg>`;
-export const optimizeIcon = `<svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><circle cx="5" cy="6" r="2" stroke-width="2"/><circle cx="5" cy="12" r="2" stroke-width="2"/><circle cx="5" cy="18" r="2" stroke-width="2"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 6h3l3 6 3-6h2M8 12h3m-3 6h3l3-6 3 6h2"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m17 6 2 0-1-2m-1 14h2l-1 2"/></svg>`;
+export const optimizeIcon = `<svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><circle cx="4.5" cy="5" r="1.7" stroke-width="1.7"/><circle cx="4.5" cy="12" r="1.7" stroke-width="1.7"/><circle cx="4.5" cy="19" r="1.7" stroke-width="1.7"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.7" d="M7 5c4 0 5 4 9 6M7 12h9M7 19c4 0 5-4 9-6"/><circle cx="19" cy="12" r="3" fill="currentColor" stroke="currentColor" stroke-width="1.5"/></svg>`;
 export const lockIcon = `<svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><rect x="5" y="10" width="14" height="11" rx="2" stroke-width="2"/><path stroke-linecap="round" stroke-width="2" d="M8 10V7a4 4 0 0 1 8 0v3"/></svg>`;
 export const unlockIcon = `<svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><rect x="5" y="10" width="14" height="11" rx="2" stroke-width="2"/><path stroke-linecap="round" stroke-width="2" d="M16 10V7a4 4 0 0 0-7.5-2"/></svg>`;
 export const applyIcon = `<svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m5 12 4 4L19 6"/></svg>`;
@@ -76,6 +76,7 @@ export const lineIcon = `<svg fill="none" stroke="currentColor" viewBox="0 0 24 
 export const arrowIcon = `<svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 19L19 5M19 5h-7M19 5v7"/></svg>`;
 export const circleIcon = `<svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" stroke-width="2"/></svg>`;
 export const rectangleIcon = `<svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="1" stroke-width="2"/></svg>`;
+export const lassoIcon = `<svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="1" stroke-width="2" stroke-dasharray="3 2"/><path d="m14 13 6 6m0-6v6h-6" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/></svg>`;
 
 // Insert
 export const imageIcon = `<svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2" ry="2" stroke-width="2"/><circle cx="8.5" cy="8.5" r="1.5" stroke-width="2"/><polyline points="21 15 16 10 5 21" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>`;

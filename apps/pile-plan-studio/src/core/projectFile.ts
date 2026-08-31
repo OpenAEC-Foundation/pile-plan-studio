@@ -4,6 +4,7 @@ import type {
   CptSelectionAlgorithm,
   CptSelectionSettings,
   GreedyOptimizationSettings,
+  GreedyUnassignedReason,
   LegendColorScheme,
   LegendItems,
   LoadPoint,
@@ -74,6 +75,7 @@ export type IfcppPilePlan = {
   name: string;
   selected_piles: Record<string, IfcppSelectedPileChoice>;
   locked_load_point_ids: number[];
+  optimization_unassigned?: Record<string, GreedyUnassignedReason>;
 };
 
 export type IfcppImportLogEntry = {
@@ -179,6 +181,7 @@ export type PilePlanData = {
   selectedPileOptionKeysByLoadPoint: Map<number, string>;
   externalReferencesByLoadPoint: Map<number, unknown[]>;
   lockedLoadPointIds: number[];
+  optimizationUnassignedByLoadPoint: Map<number, GreedyUnassignedReason>;
 };
 
 export function loadIfcppProjectData(input: string | IfcppProject): LoadedProjectData {
@@ -288,6 +291,9 @@ function pilePlanDataFromWire(plan: IfcppPilePlan): PilePlanData {
         .map(([loadPointId, choice]) => [loadPointId, choice.external_references ?? []]),
     ),
     lockedLoadPointIds: [...(plan.locked_load_point_ids ?? [])],
+    optimizationUnassignedByLoadPoint: new Map(
+      numberKeyedEntries(plan.optimization_unassigned ?? {}),
+    ),
   };
 }
 
@@ -331,6 +337,7 @@ export function createIfcppProject(input: {
         selectedPileOptionKeysByLoadPoint: input.selectedPileOptionKeysByLoadPoint,
         externalReferencesByLoadPoint: new Map<number, unknown[]>(),
         lockedLoadPointIds: [],
+        optimizationUnassignedByLoadPoint: new Map(),
       }];
   const activePilePlanId = sourcePlans.some((plan) => plan.id === input.activePilePlanId)
     ? input.activePilePlanId!
@@ -401,6 +408,9 @@ export function createIfcppProject(input: {
             }]),
           ),
           locked_load_point_ids: [...plan.lockedLoadPointIds],
+          optimization_unassigned: Object.fromEntries(
+            plan.optimizationUnassignedByLoadPoint,
+          ),
         };
       }),
       active_pile_plan_id: activePilePlanId,

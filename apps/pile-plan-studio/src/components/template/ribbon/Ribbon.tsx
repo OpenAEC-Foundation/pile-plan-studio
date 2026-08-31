@@ -11,6 +11,7 @@ import {
   applyIcon,
   gridIcon,
   explorerPanelIcon,
+  lassoIcon,
   loadPointIcon,
   lockIcon,
   optimizeIcon,
@@ -34,6 +35,9 @@ interface RibbonProps {
   onOpenTaskPanel?: (panel: TaskPanel) => void;
   onRunOptimization?: () => void;
   optimizationDisabled?: boolean;
+  isLassoSelectionActive: boolean;
+  lassoSelectionDisabled: boolean;
+  onToggleLassoSelection: () => void;
   isLockEditing: boolean;
   onStartLockEditing: () => void;
   onApplyLockEditing: () => void;
@@ -61,6 +65,9 @@ export default function Ribbon({
   onOpenTaskPanel,
   onRunOptimization,
   optimizationDisabled = false,
+  isLassoSelectionActive,
+  lassoSelectionDisabled,
+  onToggleLassoSelection,
   isLockEditing,
   onStartLockEditing,
   onApplyLockEditing,
@@ -124,6 +131,17 @@ export default function Ribbon({
               <RibbonGroup label={t("plan.inspect")}>
                 <RibbonButton icon={loadPointIcon} label={t("plan.loadPoints")} wide onClick={() => onOpenRightPanel?.("load-point")} />
                 <RibbonButton icon={cptIcon} label={t("plan.cpts")} onClick={() => onOpenRightPanel?.("cpts")} />
+              </RibbonGroup>
+              <RibbonGroup label={t("plan.selection")}>
+                <RibbonButton
+                  active={isLassoSelectionActive}
+                  disabled={lassoSelectionDisabled}
+                  icon={lassoIcon}
+                  label={t("plan.lassoSelection")}
+                  title={t("plan.lassoSelectionTooltip")}
+                  wide
+                  onClick={onToggleLassoSelection}
+                />
               </RibbonGroup>
               <RibbonGroup label={t("plan.settings")}>
                 <RibbonButtonStack>

@@ -1,14 +1,19 @@
-import type { GreedyOptimizedPileChoice } from "../core/projectTypes.ts";
+import type {
+  GreedyOptimizedPileChoice,
+  GreedyUnassignedLoadPoint,
+} from "../core/projectTypes.ts";
 
 export type OptimizationRunSummary = {
-  appliedCount: number;
+  assignedCount: number;
   changedCount: number;
+  noValidOptionCount: number;
+  optimizerUnassignedCount: number;
 };
 
 export function summarizeOptimizationRun(
   previousChoiceKeys: Map<number, string>,
   choices: GreedyOptimizedPileChoice[],
-  clearedLoadPointIds: number[] = [],
+  unassigned: GreedyUnassignedLoadPoint[] = [],
 ): OptimizationRunSummary {
   let changedCount = 0;
 
@@ -19,14 +24,21 @@ export function summarizeOptimizationRun(
     }
   }
 
-  for (const loadPointId of clearedLoadPointIds) {
-    if (previousChoiceKeys.get(loadPointId) !== "") {
+  for (const item of unassigned) {
+    const previous = previousChoiceKeys.get(item.load_point_id);
+    if (previous !== undefined && previous !== "") {
       changedCount += 1;
     }
   }
 
+  const noValidOptionCount = unassigned.filter(
+    (item) => item.reason === "no_valid_option",
+  ).length;
+
   return {
-    appliedCount: choices.length + clearedLoadPointIds.length,
+    assignedCount: choices.length,
     changedCount,
+    noValidOptionCount,
+    optimizerUnassignedCount: unassigned.length - noValidOptionCount,
   };
 }

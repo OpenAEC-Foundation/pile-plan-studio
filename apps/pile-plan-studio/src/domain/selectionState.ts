@@ -56,6 +56,19 @@ export function addLoadPointsToSelection(
   };
 }
 
+export function setLoadPointSelection(
+  state: SelectionState,
+  loadPointIds: number[],
+): SelectionState {
+  const selectedLoadPointIds = [...new Set(loadPointIds)];
+  return {
+    selectedLoadPointId: selectedLoadPointIds[0] ?? null,
+    selectedLoadPointIds,
+    selectedCptId: null,
+    rightPanelMode: state.rightPanelMode,
+  };
+}
+
 export function clearSelection(state: SelectionState): SelectionState {
   return {
     ...state,

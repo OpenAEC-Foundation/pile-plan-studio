@@ -14,6 +14,9 @@
   },
   "plan": {
     "inspect": "Inspecteren",
+    "selection": "Selecteren",
+    "lassoSelection": "Kaderselectie",
+    "lassoSelectionTooltip": "Selecteer belastinglocaties door een kader te slepen. Sneltoets: Shift+slepen.",
     "loadPoints": "Belastinglocaties",
     "cpts": "Sonderingen",
     "settings": "Instellingen",

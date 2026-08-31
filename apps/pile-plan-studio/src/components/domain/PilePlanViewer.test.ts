@@ -297,6 +297,16 @@ describe("PilePlanViewer inputs", () => {
     assert.match(css, /\.load-point-marker\.has-invalid-options \.load-point-empty/);
   });
 
+  it("renders compact optimizer outcomes at the load-point anchor at every zoom level", () => {
+    const source = readFileSync(resolve(import.meta.dirname, "PilePlanViewer.tsx"), "utf8");
+
+    assert.match(source, /OptimizerUnresolvedMarker/);
+    assert.doesNotMatch(source, /state\.viewport\.scale >= 1\.8/);
+    assert.doesNotMatch(source, /<OptimizerUnresolvedMarker[^>]*detailed=/);
+    assert.match(source, /optimizationUnassignedByLoadPoint/);
+    assert.match(source, /unselectedState === "optimizer-unassigned"/);
+  });
+
   it("anchors the stage at the same top-left origin used by lasso projection", () => {
     const css = readFileSync(resolve(import.meta.dirname, "viewer.css"), "utf8");
 

@@ -5,6 +5,7 @@ import {
   addLoadPointsToSelection,
   clearSelection,
   openCpt,
+  setLoadPointSelection,
   switchRightPanelMode,
   selectLoadPoint,
   type SelectionState,
@@ -40,6 +41,24 @@ describe("selection state transitions", () => {
     assert.deepEqual(addLoadPointsToSelection(cptOpenState, [18, 22, 15]), {
       selectedLoadPointId: 15,
       selectedLoadPointIds: [15, 18, 22],
+      selectedCptId: null,
+      rightPanelMode: "cpts",
+    });
+  });
+
+  it("replaces the current selection with every load point in a plain lasso", () => {
+    assert.deepEqual(setLoadPointSelection(cptOpenState, [18, 22]), {
+      selectedLoadPointId: 18,
+      selectedLoadPointIds: [18, 22],
+      selectedCptId: null,
+      rightPanelMode: "cpts",
+    });
+  });
+
+  it("clears the current selection when a plain lasso contains no load points", () => {
+    assert.deepEqual(setLoadPointSelection(cptOpenState, []), {
+      selectedLoadPointId: null,
+      selectedLoadPointIds: [],
       selectedCptId: null,
       rightPanelMode: "cpts",
     });

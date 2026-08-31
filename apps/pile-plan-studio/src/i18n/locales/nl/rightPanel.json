@@ -113,7 +113,7 @@
   "optimization.title": "Optimalisatie",
   "optimization.subtitle": "Greedy paalselectie",
   "optimization.close": "Optimalisatie-instellingen sluiten",
-  "optimization.description": "De Greedy-optimizer voegt configuraties een voor een toe en behoudt de combinatie die de totale kosten verlaagt en de meeste belastinglocaties afdekt.",
+  "optimization.description": "De Greedy-optimizer kiest stap voor stap de configuratie die de meeste nog niet toegewezen belastinglocaties afdekt en bij gelijke dekking de laagste kosten heeft. Dit garandeert geen globaal optimum.",
   "optimization.optimize": "Optimaliseren",
   "optimization.allLoadPoints": "Alle belastinglocaties",
   "optimization.selected": "Geselecteerd ({{count}})",
@@ -129,8 +129,10 @@
   "optimization.saveAsNewPilePlan": "Optimalisatie als nieuw palenplan opslaan",
   "optimization.enableLegend": "Zet minimaal één afmeting en puntniveau aan in de legenda.",
   "optimization.selectLoadPoints": "Selecteer een of meer belastinglocaties.",
-  "optimization.applied": "Toegepast op {{count}} belastinglocaties.",
+  "optimization.assigned": "{{count}} toegewezen.",
   "optimization.changed": "{{count}} gewijzigd.",
+  "optimization.noValidOption": "{{count}} zonder geldige paaloptie.",
+  "optimization.unassigned": "{{count}} niet toegewezen binnen de ingestelde limieten.",
   "optimization.running": "Optimaliseren...",
   "optimization.run": "Greedy-optimalisatie uitvoeren"
 }

@@ -14,6 +14,9 @@
   },
   "plan": {
     "inspect": "Inspect",
+    "selection": "Selection",
+    "lassoSelection": "Box selection",
+    "lassoSelectionTooltip": "Select load points by dragging a box. Shortcut: Shift+drag.",
     "loadPoints": "Load points",
     "cpts": "CPTs",
     "settings": "Settings",

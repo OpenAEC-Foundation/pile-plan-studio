@@ -31,6 +31,12 @@ export function applyPilePlanImportAsNewPlan(
       ? unchangedExternalReferences(source, choices)
       : new Map(),
     lockedLoadPointIds: source ? [...source.lockedLoadPointIds] : [],
+    optimizationUnassignedByLoadPoint: new Map(
+      source
+        ? [...source.optimizationUnassignedByLoadPoint]
+            .filter(([loadPointId]) => !choices.has(loadPointId))
+        : [],
+    ),
   };
 
   return {
