@@ -4,6 +4,9 @@ use serde::{Deserialize, Serialize};
 
 use crate::analysis::{pile_tip_level_key, LoadPoint, PileConfigurationOption};
 
+mod faces;
+mod gabriel;
+
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
 pub struct SpatialNode {
     pub load_point_id: u32,
@@ -49,9 +52,39 @@ pub struct TipLevelRegionTopology {
 
 #[derive(Debug)]
 struct GeometricSite {
+    site_id: u32,
     x_mm: f64,
     y_mm: f64,
     load_point_ids: Vec<u32>,
+}
+
+#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
+struct SiteEdge {
+    from_site_id: u32,
+    to_site_id: u32,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+struct SiteFace {
+    boundary_site_ids: Vec<u32>,
+}
+
+#[derive(Debug)]
+struct GabrielGraph {
+    sites: Vec<GeometricSite>,
+    edges: Vec<SiteEdge>,
+}
+
+#[derive(Debug)]
+struct GabrielEmbedding {
+    graph: GabrielGraph,
+    faces: Vec<SiteFace>,
+}
+
+fn build_gabriel_embedding(nodes: &[SpatialNode]) -> GabrielEmbedding {
+    let graph = gabriel::build_gabriel_graph(nodes);
+    let faces = faces::extract_bounded_faces(&graph);
+    GabrielEmbedding { graph, faces }
 }
 
 pub fn build_spatial_neighborhood(load_points: &[LoadPoint]) -> SpatialNeighborhood {
@@ -65,24 +98,13 @@ pub fn build_spatial_neighborhood(load_points: &[LoadPoint]) -> SpatialNeighborh
         .collect::<Vec<_>>();
     nodes.sort_by_key(|node| node.load_point_id);
 
-    let mut sites: Vec<GeometricSite> = Vec::new();
-    for node in &nodes {
-        if let Some(site) = sites
-            .iter_mut()
-            .find(|site| site.x_mm == node.x_mm && site.y_mm == node.y_mm)
-        {
-            site.load_point_ids.push(node.load_point_id);
-        } else {
-            sites.push(GeometricSite {
-                x_mm: node.x_mm,
-                y_mm: node.y_mm,
-                load_point_ids: vec![node.load_point_id],
-            });
-        }
-    }
+    let GabrielEmbedding {
+        graph,
+        faces: _faces,
+    } = build_gabriel_embedding(&nodes);
 
     let mut edge_pairs = BTreeSet::new();
-    for site in &sites {
+    for site in &graph.sites {
         for (index, &from_id) in site.load_point_ids.iter().enumerate() {
             for &to_id in &site.load_point_ids[index + 1..] {
                 edge_pairs.insert(normalized_edge_pair(from_id, to_id));
@@ -90,30 +112,17 @@ pub fn build_spatial_neighborhood(load_points: &[LoadPoint]) -> SpatialNeighborh
         }
     }
 
-    for first_index in 0..sites.len() {
-        for second_index in first_index + 1..sites.len() {
-            let first = &sites[first_index];
-            let second = &sites[second_index];
-            let min_x = first.x_mm.min(second.x_mm);
-            let max_x = first.x_mm.max(second.x_mm);
-            let min_y = first.y_mm.min(second.y_mm);
-            let max_y = first.y_mm.max(second.y_mm);
-            let blocked = sites.iter().enumerate().any(|(site_index, site)| {
-                site_index != first_index
-                    && site_index != second_index
-                    && site.x_mm >= min_x
-                    && site.x_mm <= max_x
-                    && site.y_mm >= min_y
-                    && site.y_mm <= max_y
-            });
-            if blocked {
-                continue;
-            }
-
-            for &from_id in &first.load_point_ids {
-                for &to_id in &second.load_point_ids {
-                    edge_pairs.insert(normalized_edge_pair(from_id, to_id));
-                }
+    let sites_by_id = graph
+        .sites
+        .iter()
+        .map(|site| (site.site_id, site))
+        .collect::<BTreeMap<_, _>>();
+    for edge in &graph.edges {
+        let first = sites_by_id[&edge.from_site_id];
+        let second = sites_by_id[&edge.to_site_id];
+        for &from_id in &first.load_point_ids {
+            for &to_id in &second.load_point_ids {
+                edge_pairs.insert(normalized_edge_pair(from_id, to_id));
             }
         }
     }
@@ -370,7 +379,7 @@ mod tests {
     }
 
     #[test]
-    fn plus_shape_keeps_both_crossing_axis_edges() {
+    fn plus_shape_uses_four_non_crossing_gabriel_edges() {
         let graph = build_spatial_neighborhood(&[
             point(1, 0.0, 1.0),
             point(2, 0.0, -1.0),
@@ -378,9 +387,18 @@ mod tests {
             point(4, -1.0, 0.0),
         ]);
 
-        assert!(pairs(&graph).contains(&(1, 2)));
-        assert!(pairs(&graph).contains(&(3, 4)));
-        assert!(is_connected(&graph));
+        assert_eq!(pairs(&graph), vec![(1, 3), (1, 4), (2, 3), (2, 4)]);
+    }
+
+    #[test]
+    fn point_outside_axis_aligned_rectangle_but_inside_diameter_circle_blocks() {
+        let graph = build_spatial_neighborhood(&[
+            point(1, 0.0, 0.0),
+            point(2, 4.0, 2.0),
+            point(3, 2.0, -1.0),
+        ]);
+
+        assert!(!pairs(&graph).contains(&(1, 2)));
     }
 
     #[test]
