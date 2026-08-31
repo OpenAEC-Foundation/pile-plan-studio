@@ -1,30 +1,18 @@
 import type { PresentedTipLevelRegionLayer } from "../../viewer/tipLevelRegionPresentation.ts";
 
-export type TipLevelRegionSvgLine = {
-  key: string;
-  x1: number;
-  y1: number;
-  x2: number;
-  y2: number;
+export type TipLevelRegionSvgEdgePath = {
+  d: string;
   strokeWidth: number;
-  strokeLinecap: "round";
-  strokeLinejoin: "round";
-};
-
-export type TipLevelRegionSvgCircle = {
-  key: string;
-  cx: number;
-  cy: number;
-  r: number;
+  strokeLinecap: "butt";
 };
 
 export type TipLevelRegionSvgGroup = {
   key: string;
-  fill: string;
-  stroke: string;
+  color: string;
   opacity: 0.25;
-  lines: TipLevelRegionSvgLine[];
-  circles: TipLevelRegionSvgCircle[];
+  facePath: string | null;
+  edgePath: TipLevelRegionSvgEdgePath | null;
+  nodePath: string | null;
 };
 
 export type TipLevelRegionSvgModel = {
@@ -41,25 +29,26 @@ export function buildTipLevelRegionSvgModel(
     ariaHidden: true,
     groups: layers.map((layer) => ({
       key: `tip-level:${layer.pileTipLevelMKey}`,
-      fill: layer.color,
-      stroke: layer.color,
+      color: layer.color,
       opacity: layer.opacity,
-      lines: layer.segments.map((segment) => ({
-        key: `segment:${Math.min(segment.fromLoadPointId, segment.toLoadPointId)}:${Math.max(segment.fromLoadPointId, segment.toLoadPointId)}`,
-        x1: segment.x1,
-        y1: segment.y1,
-        x2: segment.x2,
-        y2: segment.y2,
+      facePath: joinSubpaths(layer.faces.map(({ points }) => (
+        `M ${points.map(({ x, y }, index) => `${index === 0 ? "" : "L "}${x} ${y}`).join(" ")} Z`
+      ))),
+      edgePath: layer.segments.length === 0 ? null : {
+        d: joinSubpaths(layer.segments.map(({ x1, y1, x2, y2 }) => (
+          `M ${x1} ${y1} L ${x2} ${y2}`
+        )))!,
         strokeWidth: layer.diameterPx,
-        strokeLinecap: "round",
-        strokeLinejoin: "round",
-      })),
-      circles: layer.circles.map((circle) => ({
-        key: `circle:${circle.loadPointId}`,
-        cx: circle.x,
-        cy: circle.y,
-        r: circle.radius,
-      })),
+        strokeLinecap: "butt",
+      },
+      nodePath: joinSubpaths(layer.circles.map(({ x, y, radius }) => (
+        `M ${x + radius} ${y} A ${radius} ${radius} 0 1 0 ${x - radius} ${y} `
+          + `A ${radius} ${radius} 0 1 0 ${x + radius} ${y} Z`
+      ))),
     })),
   };
+}
+
+function joinSubpaths(subpaths: string[]): string | null {
+  return subpaths.length > 0 ? subpaths.join(" ") : null;
 }

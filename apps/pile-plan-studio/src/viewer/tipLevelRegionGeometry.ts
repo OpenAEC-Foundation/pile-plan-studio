@@ -7,36 +7,42 @@ import {
 } from "./viewerGeometry.ts";
 
 export type TipLevelRegionCircle = {
-  loadPointId: number;
+  siteId: number;
   x: number;
   y: number;
   radius: number;
 };
 
 export type TipLevelRegionSegment = {
-  fromLoadPointId: number;
-  toLoadPointId: number;
+  fromSiteId: number;
+  toSiteId: number;
   x1: number;
   y1: number;
   x2: number;
   y2: number;
 };
 
+export type TipLevelRegionFace = {
+  boundarySiteIds: number[];
+  points: ViewPoint[];
+};
+
 export type TipLevelRegionGeometryLayer = {
   pileTipLevelMKey: number;
   legendValueM: number;
   diameterPx: number;
+  faces: TipLevelRegionFace[];
   circles: TipLevelRegionCircle[];
   segments: TipLevelRegionSegment[];
 };
 
 type TipLevelRegionGeometryInput = {
   topology: TipLevelRegionTopology;
-  pointsByLoadPointId: Map<number, ViewPoint>;
+  pointsBySiteId: Map<number, ViewPoint>;
   symbolScalePercent: number;
 };
 
-const REGION_MARGIN_PX = 8;
+const REGION_MARGIN_PX = 6;
 
 export function projectTipLevelRegionPoints(
   loadPoints: LoadPoint[],
@@ -50,7 +56,7 @@ export function projectTipLevelRegionPoints(
 
 export function buildTipLevelRegionGeometry({
   topology,
-  pointsByLoadPointId,
+  pointsBySiteId,
   symbolScalePercent,
 }: TipLevelRegionGeometryInput): TipLevelRegionGeometryLayer[] {
   const diameterPx = loadPointMarkerDiameter(symbolScalePercent) + REGION_MARGIN_PX;
@@ -60,25 +66,27 @@ export function buildTipLevelRegionGeometry({
     pileTipLevelMKey: group.pile_tip_level_m_key,
     legendValueM: group.legend_value_m,
     diameterPx,
-    circles: group.components.flatMap((component) => (
-      component.load_point_ids.flatMap((loadPointId) => {
-        const point = pointsByLoadPointId.get(loadPointId);
-        return point ? [{ loadPointId, x: point.x, y: point.y, radius }] : [];
-      })
-    )),
-    segments: group.components.flatMap((component) => (
-      component.edges.flatMap((edge) => {
-        const from = pointsByLoadPointId.get(edge.from_load_point_id);
-        const to = pointsByLoadPointId.get(edge.to_load_point_id);
-        return from && to ? [{
-          fromLoadPointId: edge.from_load_point_id,
-          toLoadPointId: edge.to_load_point_id,
-          x1: from.x,
-          y1: from.y,
-          x2: to.x,
-          y2: to.y,
-        }] : [];
-      })
-    )),
+    faces: group.faces.flatMap((face) => {
+      const points = face.boundary_site_ids.map((siteId) => pointsBySiteId.get(siteId));
+      return points.every((point): point is ViewPoint => point !== undefined)
+        ? [{ boundarySiteIds: face.boundary_site_ids, points }]
+        : [];
+    }),
+    circles: group.site_ids.flatMap((siteId) => {
+      const point = pointsBySiteId.get(siteId);
+      return point ? [{ siteId, x: point.x, y: point.y, radius }] : [];
+    }),
+    segments: group.edges.flatMap((edge) => {
+      const from = pointsBySiteId.get(edge.from_site_id);
+      const to = pointsBySiteId.get(edge.to_site_id);
+      return from && to ? [{
+        fromSiteId: edge.from_site_id,
+        toSiteId: edge.to_site_id,
+        x1: from.x,
+        y1: from.y,
+        x2: to.x,
+        y2: to.y,
+      }] : [];
+    }),
   }));
 }

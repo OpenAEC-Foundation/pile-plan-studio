@@ -136,7 +136,7 @@ export default function PilePlanViewer({ state, lassoSelectionActive, onStateCha
     tipLevelRegionTopology
       ? buildTipLevelRegionGeometry({
           topology: tipLevelRegionTopology,
-          pointsByLoadPointId: tipLevelRegionPoints,
+          pointsBySiteId: tipLevelRegionPoints,
           symbolScalePercent: state.symbolScalePercent,
         })
       : []

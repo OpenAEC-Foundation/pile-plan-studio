@@ -7,17 +7,28 @@ import {
   projectTipLevelRegionPoints,
 } from "./tipLevelRegionGeometry.ts";
 
+const topology: TipLevelRegionTopology = {
+  groups: [{
+    pile_tip_level_m_key: -18000,
+    legend_value_m: -18,
+    site_ids: [1, 2, 3],
+    edges: [
+      { from_site_id: 1, to_site_id: 2 },
+      { from_site_id: 2, to_site_id: 3 },
+    ],
+    faces: [{ boundary_site_ids: [1, 2, 3] }],
+  }],
+};
+
 describe("tip-level region geometry", () => {
   it("projects fractional load-point coordinates without rounding", () => {
-    const projected = projectTipLevelRegionPoints([
-      {
-        id: 9,
-        name: "fractional",
-        x_mm: 112.5,
-        y_mm: 737.25,
-        design_load_kn: 500,
-      },
-    ], {
+    const projected = projectTipLevelRegionPoints([{
+      id: 9,
+      name: "fractional",
+      x_mm: 112.5,
+      y_mm: 737.25,
+      design_load_kn: 500,
+    }], {
       bounds: { minX: 0, maxX: 1000, minY: 0, maxY: 1000 },
       canvasSize: { width: 500, height: 400 },
       pixelsPerMillimeter: 0.2,
@@ -27,114 +38,57 @@ describe("tip-level region geometry", () => {
     assert.deepEqual(projected, new Map([[9, { x: 172.5, y: 152.55 }]]));
   });
 
-  it("builds circles and a capsule segment at the shared marker scale", () => {
-    const topology: TipLevelRegionTopology = {
-      groups: [{
-        pile_tip_level_m_key: -18000,
-        legend_value_m: -18,
-        components: [{
-          load_point_ids: [1, 2],
-          edges: [{ from_load_point_id: 1, to_load_point_id: 2 }],
-        }],
-      }],
-    };
-
+  it("builds faces, stroke inputs, and site circles with six pixels total margin", () => {
     const geometry = buildTipLevelRegionGeometry({
       topology,
-      pointsByLoadPointId: new Map([
+      pointsBySiteId: new Map([
         [1, { x: 10, y: 20 }],
         [2, { x: 30, y: 20 }],
+        [3, { x: 20, y: 40 }],
       ]),
       symbolScalePercent: 100,
     });
 
-    assert.equal(geometry[0].diameterPx, 18.5);
+    assert.equal(geometry[0].diameterPx, 16.5);
     assert.deepEqual(geometry[0].circles, [
-      { loadPointId: 1, x: 10, y: 20, radius: 9.25 },
-      { loadPointId: 2, x: 30, y: 20, radius: 9.25 },
+      { siteId: 1, x: 10, y: 20, radius: 8.25 },
+      { siteId: 2, x: 30, y: 20, radius: 8.25 },
+      { siteId: 3, x: 20, y: 40, radius: 8.25 },
     ]);
     assert.deepEqual(geometry[0].segments, [{
-      fromLoadPointId: 1,
-      toLoadPointId: 2,
+      fromSiteId: 1,
+      toSiteId: 2,
       x1: 10,
       y1: 20,
       x2: 30,
       y2: 20,
+    }, {
+      fromSiteId: 2,
+      toSiteId: 3,
+      x1: 30,
+      y1: 20,
+      x2: 20,
+      y2: 40,
+    }]);
+    assert.deepEqual(geometry[0].faces, [{
+      boundarySiteIds: [1, 2, 3],
+      points: [{ x: 10, y: 20 }, { x: 30, y: 20 }, { x: 20, y: 40 }],
     }]);
   });
 
-  it("keeps an isolated eligible node as one circle", () => {
+  it("keeps projected sites and edges but drops a face with a missing boundary point", () => {
     const geometry = buildTipLevelRegionGeometry({
-      topology: {
-        groups: [{
-          pile_tip_level_m_key: -12000,
-          legend_value_m: -12,
-          components: [{ load_point_ids: [7], edges: [] }],
-        }],
-      },
-      pointsByLoadPointId: new Map([[7, { x: 4.5, y: 8.25 }]]),
+      topology,
+      pointsBySiteId: new Map([
+        [1, { x: 10, y: 20 }],
+        [2, { x: 30, y: 20 }],
+      ]),
       symbolScalePercent: 200,
     });
 
-    assert.deepEqual(geometry[0].circles, [
-      { loadPointId: 7, x: 4.5, y: 8.25, radius: 14.5 },
-    ]);
-    assert.deepEqual(geometry[0].segments, []);
-  });
-
-  it("excludes missing projected nodes and edges without both endpoints", () => {
-    const geometry = buildTipLevelRegionGeometry({
-      topology: {
-        groups: [{
-          pile_tip_level_m_key: -18000,
-          legend_value_m: -18,
-          components: [{
-            load_point_ids: [1, 2, 3],
-            edges: [
-              { from_load_point_id: 1, to_load_point_id: 2 },
-              { from_load_point_id: 2, to_load_point_id: 3 },
-            ],
-          }],
-        }],
-      },
-      pointsByLoadPointId: new Map([
-        [1, { x: 10, y: 20 }],
-        [3, { x: 50, y: 20 }],
-      ]),
-      symbolScalePercent: 100,
-    });
-
-    assert.deepEqual(geometry[0].circles.map(({ loadPointId }) => loadPointId), [1, 3]);
-    assert.deepEqual(geometry[0].segments, []);
-  });
-
-  it("preserves deterministic core component order and emits no face primitives", () => {
-    const geometry = buildTipLevelRegionGeometry({
-      topology: {
-        groups: [{
-          pile_tip_level_m_key: -15000,
-          legend_value_m: -15,
-          components: [
-            { load_point_ids: [1, 2], edges: [] },
-            { load_point_ids: [8], edges: [] },
-          ],
-        }],
-      },
-      pointsByLoadPointId: new Map([
-        [1, { x: 1, y: 1 }],
-        [2, { x: 2, y: 2 }],
-        [8, { x: 8, y: 8 }],
-      ]),
-      symbolScalePercent: 100,
-    });
-
-    assert.deepEqual(geometry[0].circles.map(({ loadPointId }) => loadPointId), [1, 2, 8]);
-    assert.deepEqual(Object.keys(geometry[0]).sort(), [
-      "circles",
-      "diameterPx",
-      "legendValueM",
-      "pileTipLevelMKey",
-      "segments",
-    ]);
+    assert.equal(geometry[0].diameterPx, 27);
+    assert.deepEqual(geometry[0].circles.map(({ siteId }) => siteId), [1, 2]);
+    assert.equal(geometry[0].segments.length, 1);
+    assert.deepEqual(geometry[0].faces, []);
   });
 });

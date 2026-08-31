@@ -20,31 +20,24 @@ export default function TipLevelRegionOverlay({ layers, width, height }: Props) 
     >
       {model.groups.map((group) => (
         <g
-          fill={group.fill}
           key={group.key}
           opacity={group.opacity}
-          stroke={group.stroke}
         >
-          {group.lines.map((line) => (
-            <line
-              key={line.key}
-              strokeLinecap={line.strokeLinecap}
-              strokeLinejoin={line.strokeLinejoin}
-              strokeWidth={line.strokeWidth}
-              x1={line.x1}
-              y1={line.y1}
-              x2={line.x2}
-              y2={line.y2}
+          {group.facePath && (
+            <path d={group.facePath} fill={group.color} stroke="none" />
+          )}
+          {group.edgePath && (
+            <path
+              d={group.edgePath.d}
+              fill="none"
+              stroke={group.color}
+              strokeLinecap={group.edgePath.strokeLinecap}
+              strokeWidth={group.edgePath.strokeWidth}
             />
-          ))}
-          {group.circles.map((circle) => (
-            <circle
-              cx={circle.cx}
-              cy={circle.cy}
-              key={circle.key}
-              r={circle.r}
-            />
-          ))}
+          )}
+          {group.nodePath && (
+            <path d={group.nodePath} fill={group.color} stroke="none" />
+          )}
         </g>
       ))}
     </svg>

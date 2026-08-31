@@ -2,13 +2,23 @@ import { toStringKeyedRecord, toWasmNumberKeyedMap } from "./coreSerialization.t
 import type { PileConfigurationOption } from "./projectTypes.ts";
 
 export type SpatialEdge = {
-  from_load_point_id: number;
-  to_load_point_id: number;
+  from_site_id: number;
+  to_site_id: number;
+};
+
+export type SpatialFace = {
+  boundary_site_ids: number[];
 };
 
 export type SpatialNeighborhood = {
-  nodes: Array<{ load_point_id: number; x_mm: number; y_mm: number }>;
+  sites: Array<{
+    site_id: number;
+    load_point_ids: number[];
+    x_mm: number;
+    y_mm: number;
+  }>;
   edges: SpatialEdge[];
+  faces: SpatialFace[];
 };
 
 export type SpatialPileAssignment = {
@@ -20,7 +30,9 @@ export type TipLevelRegionTopology = {
   groups: Array<{
     pile_tip_level_m_key: number;
     legend_value_m: number;
-    components: Array<{ load_point_ids: number[]; edges: SpatialEdge[] }>;
+    site_ids: number[];
+    edges: SpatialEdge[];
+    faces: SpatialFace[];
   }>;
 };
 

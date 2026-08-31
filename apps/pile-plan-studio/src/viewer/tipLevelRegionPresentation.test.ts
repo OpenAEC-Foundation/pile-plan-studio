@@ -21,6 +21,7 @@ function layer(legendValueM: number): TipLevelRegionGeometryLayer {
     pileTipLevelMKey: legendValueM * 1000,
     legendValueM,
     diameterPx: 18.5,
+    faces: [],
     circles: [],
     segments: [],
   };
