@@ -8,10 +8,11 @@ import "./viewer.css";
 
 type Props = {
   state: ProjectState;
+  lassoSelectionActive: boolean;
   onStateChange: (nextState: ProjectState) => void;
 };
 
-export default function PilePlanWorkspace({ state, onStateChange }: Props) {
+export default function PilePlanWorkspace({ state, lassoSelectionActive, onStateChange }: Props) {
   const [legendEditorOpen, setLegendEditorOpen] = useState(false);
 
   return (
@@ -21,7 +22,11 @@ export default function PilePlanWorkspace({ state, onStateChange }: Props) {
         onEdit={() => setLegendEditorOpen(true)}
         onStateChange={onStateChange}
       />
-      <PilePlanViewer state={state} onStateChange={onStateChange} />
+      <PilePlanViewer
+        state={state}
+        lassoSelectionActive={lassoSelectionActive}
+        onStateChange={onStateChange}
+      />
       <LegendEditor
         open={legendEditorOpen}
         state={state}

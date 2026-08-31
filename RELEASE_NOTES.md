@@ -2,6 +2,12 @@
 
 ## 0.2.1 (in development)
 
+### Added
+
+- Activate persistent box selection from the Plan ribbon. Plain dragging
+  replaces the selection, clicking empty space clears it, and `Shift`+drag
+  adds to the selection or controls the lasso during load-point lock editing.
+
 ### Improved
 
 - Greedy optimization now keeps every enabled-value, utilization, size,

@@ -11,6 +11,54 @@ export type ScreenPoint = {
   y: number;
 };
 
+type LassoInteractionInput = {
+  lassoSelectionActive: boolean;
+  shiftKey: boolean;
+  targetIsInteractive: boolean;
+  selectionAllowed: boolean;
+  isEditingLoadPointLocks: boolean;
+};
+
+export type LassoSelectionOperation = "replace" | "add" | "lock";
+
+export type LassoSelectionModeEvent =
+  | { type: "toggle" | "dismiss" }
+  | { type: "editing-context"; available: boolean };
+
+export function transitionLassoSelectionMode(
+  active: boolean,
+  event: LassoSelectionModeEvent,
+): boolean {
+  if (event.type === "toggle") return !active;
+  if (event.type === "editing-context") return event.available && active;
+  return false;
+}
+
+export function shouldStartLassoInteraction(input: LassoInteractionInput): boolean {
+  if (input.targetIsInteractive || !input.selectionAllowed) return false;
+  if (input.isEditingLoadPointLocks) return input.shiftKey;
+  return input.shiftKey || input.lassoSelectionActive;
+}
+
+export function getLassoSelectionOperation(input: {
+  lassoSelectionActive: boolean;
+  shiftKey: boolean;
+  isEditingLoadPointLocks: boolean;
+}): LassoSelectionOperation {
+  if (input.isEditingLoadPointLocks) return "lock";
+  return input.lassoSelectionActive && !input.shiftKey ? "replace" : "add";
+}
+
+export function shouldClearViewerSelectionOnEscape(input: {
+  lassoSelectionActive: boolean;
+  isEditingLoadPointLocks: boolean;
+  selectionAllowed: boolean;
+}): boolean {
+  return !input.lassoSelectionActive
+    && !input.isEditingLoadPointLocks
+    && input.selectionAllowed;
+}
+
 export function getPointIdsInRectangle(points: ScreenPoint[], rectangle: LassoRectangle): number[] {
   const minX = Math.min(rectangle.startX, rectangle.endX);
   const maxX = Math.max(rectangle.startX, rectangle.endX);
