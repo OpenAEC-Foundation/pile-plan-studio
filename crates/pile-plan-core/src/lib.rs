@@ -44,6 +44,5 @@ pub use project::{
 };
 pub use spatial::{
     build_spatial_neighborhood, build_tip_level_region_topology, SpatialEdge, SpatialNeighborhood,
-    SpatialNode, SpatialPileAssignment, TipLevelRegionComponent, TipLevelRegionGroup,
-    TipLevelRegionTopology,
+    SpatialFace, SpatialPileAssignment, SpatialSite, TipLevelRegionGroup, TipLevelRegionTopology,
 };

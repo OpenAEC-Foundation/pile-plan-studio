@@ -469,8 +469,9 @@ mod tests {
         };
         let topology_request = TipLevelRegionTopologyRequest {
             neighborhood: SpatialNeighborhood {
-                nodes: vec![],
+                sites: vec![],
                 edges: vec![],
+                faces: vec![],
             },
             selected_assignments: HashMap::new(),
             options_by_load_point: HashMap::new(),
@@ -480,6 +481,6 @@ mod tests {
             build_tip_level_region_topology;
 
         assert!(neighborhood_request.load_points.is_empty());
-        assert!(topology_request.neighborhood.nodes.is_empty());
+        assert!(topology_request.neighborhood.sites.is_empty());
     }
 }

@@ -1,24 +1,26 @@
 use std::collections::BTreeSet;
 
-use super::{GabrielGraph, GeometricSite, SiteEdge, SpatialNode};
+use crate::analysis::LoadPoint;
 
-pub(super) fn build_gabriel_graph(nodes: &[SpatialNode]) -> GabrielGraph {
-    let mut ordered_nodes = nodes.to_vec();
-    ordered_nodes.sort_by_key(|node| node.load_point_id);
+use super::{GabrielGraph, GeometricSite, SiteEdge};
+
+pub(super) fn build_gabriel_graph(load_points: &[LoadPoint]) -> GabrielGraph {
+    let mut ordered_load_points = load_points.to_vec();
+    ordered_load_points.sort_by_key(|load_point| load_point.id);
 
     let mut sites: Vec<GeometricSite> = Vec::new();
-    for node in ordered_nodes {
+    for load_point in ordered_load_points {
         if let Some(site) = sites
             .iter_mut()
-            .find(|site| site.x_mm == node.x_mm && site.y_mm == node.y_mm)
+            .find(|site| site.x_mm == load_point.x_mm && site.y_mm == load_point.y_mm)
         {
-            site.load_point_ids.push(node.load_point_id);
+            site.load_point_ids.push(load_point.id);
         } else {
             sites.push(GeometricSite {
-                site_id: node.load_point_id,
-                x_mm: node.x_mm,
-                y_mm: node.y_mm,
-                load_point_ids: vec![node.load_point_id],
+                site_id: load_point.id,
+                x_mm: load_point.x_mm,
+                y_mm: load_point.y_mm,
+                load_point_ids: vec![load_point.id],
             });
         }
     }
@@ -57,18 +59,20 @@ pub(super) fn build_gabriel_graph(nodes: &[SpatialNode]) -> GabrielGraph {
 #[cfg(test)]
 mod tests {
     use super::build_gabriel_graph;
-    use crate::spatial::SpatialNode;
+    use crate::analysis::LoadPoint;
 
-    fn node(load_point_id: u32, x_mm: f64, y_mm: f64) -> SpatialNode {
-        SpatialNode {
-            load_point_id,
+    fn node(load_point_id: u32, x_mm: f64, y_mm: f64) -> LoadPoint {
+        LoadPoint {
+            id: load_point_id,
+            name: format!("LP {load_point_id}"),
             x_mm,
             y_mm,
+            design_load_kn: 100.0,
         }
     }
 
-    fn edge_pairs(nodes: &[SpatialNode]) -> Vec<(u32, u32)> {
-        build_gabriel_graph(nodes)
+    fn edge_pairs(load_points: &[LoadPoint]) -> Vec<(u32, u32)> {
+        build_gabriel_graph(load_points)
             .edges
             .into_iter()
             .map(|edge| (edge.from_site_id, edge.to_site_id))

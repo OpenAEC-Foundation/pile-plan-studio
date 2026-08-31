@@ -8,22 +8,29 @@ mod faces;
 mod gabriel;
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
-pub struct SpatialNode {
-    pub load_point_id: u32,
+pub struct SpatialSite {
+    pub site_id: u32,
+    pub load_point_ids: Vec<u32>,
     pub x_mm: f64,
     pub y_mm: f64,
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, Ord, PartialEq, PartialOrd, Serialize)]
 pub struct SpatialEdge {
-    pub from_load_point_id: u32,
-    pub to_load_point_id: u32,
+    pub from_site_id: u32,
+    pub to_site_id: u32,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+pub struct SpatialFace {
+    pub boundary_site_ids: Vec<u32>,
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
 pub struct SpatialNeighborhood {
-    pub nodes: Vec<SpatialNode>,
+    pub sites: Vec<SpatialSite>,
     pub edges: Vec<SpatialEdge>,
+    pub faces: Vec<SpatialFace>,
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
@@ -33,16 +40,12 @@ pub struct SpatialPileAssignment {
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
-pub struct TipLevelRegionComponent {
-    pub load_point_ids: Vec<u32>,
-    pub edges: Vec<SpatialEdge>,
-}
-
-#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
 pub struct TipLevelRegionGroup {
     pub pile_tip_level_m_key: i64,
     pub legend_value_m: f64,
-    pub components: Vec<TipLevelRegionComponent>,
+    pub site_ids: Vec<u32>,
+    pub edges: Vec<SpatialEdge>,
+    pub faces: Vec<SpatialFace>,
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
@@ -81,66 +84,41 @@ struct GabrielEmbedding {
     faces: Vec<SiteFace>,
 }
 
-fn build_gabriel_embedding(nodes: &[SpatialNode]) -> GabrielEmbedding {
-    let graph = gabriel::build_gabriel_graph(nodes);
+fn build_gabriel_embedding(load_points: &[LoadPoint]) -> GabrielEmbedding {
+    let graph = gabriel::build_gabriel_graph(load_points);
     let faces = faces::extract_bounded_faces(&graph);
     GabrielEmbedding { graph, faces }
 }
 
 pub fn build_spatial_neighborhood(load_points: &[LoadPoint]) -> SpatialNeighborhood {
-    let mut nodes = load_points
-        .iter()
-        .map(|load_point| SpatialNode {
-            load_point_id: load_point.id,
-            x_mm: load_point.x_mm,
-            y_mm: load_point.y_mm,
-        })
-        .collect::<Vec<_>>();
-    nodes.sort_by_key(|node| node.load_point_id);
-
-    let GabrielEmbedding {
-        graph,
-        faces: _faces,
-    } = build_gabriel_embedding(&nodes);
-
-    let mut edge_pairs = BTreeSet::new();
-    for site in &graph.sites {
-        for (index, &from_id) in site.load_point_ids.iter().enumerate() {
-            for &to_id in &site.load_point_ids[index + 1..] {
-                edge_pairs.insert(normalized_edge_pair(from_id, to_id));
-            }
-        }
-    }
-
-    let sites_by_id = graph
-        .sites
-        .iter()
-        .map(|site| (site.site_id, site))
-        .collect::<BTreeMap<_, _>>();
-    for edge in &graph.edges {
-        let first = sites_by_id[&edge.from_site_id];
-        let second = sites_by_id[&edge.to_site_id];
-        for &from_id in &first.load_point_ids {
-            for &to_id in &second.load_point_ids {
-                edge_pairs.insert(normalized_edge_pair(from_id, to_id));
-            }
-        }
-    }
+    let GabrielEmbedding { graph, faces } = build_gabriel_embedding(load_points);
 
     SpatialNeighborhood {
-        nodes,
-        edges: edge_pairs
+        sites: graph
+            .sites
             .into_iter()
-            .map(|(from_load_point_id, to_load_point_id)| SpatialEdge {
-                from_load_point_id,
-                to_load_point_id,
+            .map(|site| SpatialSite {
+                site_id: site.site_id,
+                load_point_ids: site.load_point_ids,
+                x_mm: site.x_mm,
+                y_mm: site.y_mm,
+            })
+            .collect(),
+        edges: graph
+            .edges
+            .into_iter()
+            .map(|edge| SpatialEdge {
+                from_site_id: edge.from_site_id,
+                to_site_id: edge.to_site_id,
+            })
+            .collect(),
+        faces: faces
+            .into_iter()
+            .map(|face| SpatialFace {
+                boundary_site_ids: face.boundary_site_ids,
             })
             .collect(),
     }
-}
-
-fn normalized_edge_pair(first_id: u32, second_id: u32) -> (u32, u32) {
-    (first_id.min(second_id), first_id.max(second_id))
 }
 
 pub fn build_tip_level_region_topology(
@@ -149,50 +127,84 @@ pub fn build_tip_level_region_topology(
     options_by_load_point: &HashMap<u32, Vec<PileConfigurationOption>>,
 ) -> TipLevelRegionTopology {
     let mut valid_assignments = BTreeMap::new();
-    for node in &neighborhood.nodes {
-        let Some(assignment) = selected_assignments.get(&node.load_point_id) else {
-            continue;
-        };
-        let assignment_key = pile_tip_level_key(assignment.pile_tip_level_m);
-        let Some(matched_option) = options_by_load_point
-            .get(&node.load_point_id)
-            .into_iter()
-            .flatten()
-            .find(|option| {
-                option.is_option
-                    && option.pile_size_mm == assignment.pile_size_mm
-                    && pile_tip_level_key(option.pile_tip_level_m) == assignment_key
-            })
-        else {
-            continue;
-        };
-        valid_assignments.insert(
-            node.load_point_id,
-            (assignment_key, matched_option.pile_tip_level_m),
-        );
+    for site in &neighborhood.sites {
+        for &load_point_id in &site.load_point_ids {
+            let Some(assignment) = selected_assignments.get(&load_point_id) else {
+                continue;
+            };
+            let assignment_key = pile_tip_level_key(assignment.pile_tip_level_m);
+            let Some(matched_option) = options_by_load_point
+                .get(&load_point_id)
+                .into_iter()
+                .flatten()
+                .find(|option| {
+                    option.is_option
+                        && option.pile_size_mm == assignment.pile_size_mm
+                        && pile_tip_level_key(option.pile_tip_level_m) == assignment_key
+                })
+            else {
+                continue;
+            };
+            valid_assignments.insert(
+                load_point_id,
+                (assignment_key, matched_option.pile_tip_level_m),
+            );
+        }
     }
 
-    let mut ids_by_key: BTreeMap<i64, Vec<u32>> = BTreeMap::new();
-    for (&load_point_id, &(key, _)) in &valid_assignments {
-        ids_by_key.entry(key).or_default().push(load_point_id);
+    let mut site_keys: BTreeMap<u32, BTreeSet<i64>> = BTreeMap::new();
+    let mut load_point_ids_by_key: BTreeMap<i64, Vec<u32>> = BTreeMap::new();
+    for site in &neighborhood.sites {
+        let keys = site_keys.entry(site.site_id).or_default();
+        for &load_point_id in &site.load_point_ids {
+            if let Some(&(key, _)) = valid_assignments.get(&load_point_id) {
+                keys.insert(key);
+                load_point_ids_by_key
+                    .entry(key)
+                    .or_default()
+                    .push(load_point_id);
+            }
+        }
     }
 
-    let mut groups = Vec::with_capacity(ids_by_key.len());
-    for (key, load_point_ids) in ids_by_key.into_iter().rev() {
-        let same_key_edges = neighborhood
+    let mut groups = Vec::with_capacity(load_point_ids_by_key.len());
+    for (key, load_point_ids) in load_point_ids_by_key.into_iter().rev() {
+        let site_ids = neighborhood
+            .sites
+            .iter()
+            .filter(|site| site_keys[&site.site_id].contains(&key))
+            .map(|site| site.site_id)
+            .collect::<Vec<_>>();
+        let edges = neighborhood
             .edges
             .iter()
             .filter(|edge| {
-                valid_assignments
-                    .get(&edge.from_load_point_id)
-                    .is_some_and(|(from_key, _)| *from_key == key)
-                    && valid_assignments
-                        .get(&edge.to_load_point_id)
-                        .is_some_and(|(to_key, _)| *to_key == key)
+                site_keys[&edge.from_site_id].contains(&key)
+                    && site_keys[&edge.to_site_id].contains(&key)
             })
             .cloned()
             .collect::<Vec<_>>();
-        let components = connected_components(&load_point_ids, &same_key_edges);
+        let faces = neighborhood
+            .faces
+            .iter()
+            .filter(|face| {
+                face.boundary_site_ids.iter().all(|site_id| {
+                    neighborhood
+                        .sites
+                        .iter()
+                        .find(|site| site.site_id == *site_id)
+                        .expect("face site belongs to neighborhood")
+                        .load_point_ids
+                        .iter()
+                        .all(|load_point_id| {
+                            valid_assignments
+                                .get(load_point_id)
+                                .is_some_and(|(load_point_key, _)| *load_point_key == key)
+                        })
+                })
+            })
+            .cloned()
+            .collect::<Vec<_>>();
         let legend_value_m = load_point_ids
             .iter()
             .find_map(|load_point_id| {
@@ -204,68 +216,13 @@ pub fn build_tip_level_region_topology(
         groups.push(TipLevelRegionGroup {
             pile_tip_level_m_key: key,
             legend_value_m,
-            components,
+            site_ids,
+            edges,
+            faces,
         });
     }
 
     TipLevelRegionTopology { groups }
-}
-
-fn connected_components(
-    load_point_ids: &[u32],
-    edges: &[SpatialEdge],
-) -> Vec<TipLevelRegionComponent> {
-    let mut neighbors: BTreeMap<u32, Vec<u32>> = load_point_ids
-        .iter()
-        .map(|&load_point_id| (load_point_id, Vec::new()))
-        .collect();
-    for edge in edges {
-        neighbors
-            .get_mut(&edge.from_load_point_id)
-            .expect("edge start belongs to PPN group")
-            .push(edge.to_load_point_id);
-        neighbors
-            .get_mut(&edge.to_load_point_id)
-            .expect("edge end belongs to PPN group")
-            .push(edge.from_load_point_id);
-    }
-
-    let mut visited = BTreeSet::new();
-    let mut components = Vec::new();
-    for &start_id in load_point_ids {
-        if visited.contains(&start_id) {
-            continue;
-        }
-        let mut component_ids = Vec::new();
-        let mut frontier = vec![start_id];
-        visited.insert(start_id);
-        while let Some(load_point_id) = frontier.pop() {
-            component_ids.push(load_point_id);
-            for &neighbor in neighbors
-                .get(&load_point_id)
-                .expect("PPN group node has an adjacency entry")
-            {
-                if visited.insert(neighbor) {
-                    frontier.push(neighbor);
-                }
-            }
-        }
-        component_ids.sort_unstable();
-        let component_id_set = component_ids.iter().copied().collect::<BTreeSet<_>>();
-        let component_edges = edges
-            .iter()
-            .filter(|edge| {
-                component_id_set.contains(&edge.from_load_point_id)
-                    && component_id_set.contains(&edge.to_load_point_id)
-            })
-            .cloned()
-            .collect();
-        components.push(TipLevelRegionComponent {
-            load_point_ids: component_ids,
-            edges: component_edges,
-        });
-    }
-    components
 }
 
 #[cfg(test)]
@@ -287,22 +244,22 @@ mod tests {
         graph
             .edges
             .iter()
-            .map(|edge| (edge.from_load_point_id, edge.to_load_point_id))
+            .map(|edge| (edge.from_site_id, edge.to_site_id))
             .collect()
     }
 
     fn is_connected(graph: &SpatialNeighborhood) -> bool {
-        let Some(first) = graph.nodes.first() else {
+        let Some(first) = graph.sites.first() else {
             return true;
         };
-        let mut reached = BTreeSet::from([first.load_point_id]);
-        let mut frontier = vec![first.load_point_id];
-        while let Some(load_point_id) = frontier.pop() {
+        let mut reached = BTreeSet::from([first.site_id]);
+        let mut frontier = vec![first.site_id];
+        while let Some(site_id) = frontier.pop() {
             for edge in &graph.edges {
-                let neighbor = if edge.from_load_point_id == load_point_id {
-                    Some(edge.to_load_point_id)
-                } else if edge.to_load_point_id == load_point_id {
-                    Some(edge.from_load_point_id)
+                let neighbor = if edge.from_site_id == site_id {
+                    Some(edge.to_site_id)
+                } else if edge.to_site_id == site_id {
+                    Some(edge.from_site_id)
                 } else {
                     None
                 };
@@ -313,7 +270,7 @@ mod tests {
                 }
             }
         }
-        reached.len() == graph.nodes.len()
+        reached.len() == graph.sites.len()
     }
 
     #[test]
@@ -321,7 +278,7 @@ mod tests {
         assert!(build_spatial_neighborhood(&[]).edges.is_empty());
 
         let graph = build_spatial_neighborhood(&[point(4, 1.25, -2.5)]);
-        assert_eq!(graph.nodes[0].load_point_id, 4);
+        assert_eq!(graph.sites[0].site_id, 4);
         assert!(graph.edges.is_empty());
     }
 
@@ -357,6 +314,21 @@ mod tests {
     }
 
     #[test]
+    fn neighborhood_exposes_geometric_sites_and_bounded_faces() {
+        let graph = build_spatial_neighborhood(&[
+            point(7, 0.0, 0.0),
+            point(2, 0.0, 0.0),
+            point(3, 2.0, 0.0),
+            point(4, 1.0, 2.0),
+        ]);
+
+        assert_eq!(graph.sites[0].site_id, 2);
+        assert_eq!(graph.sites[0].load_point_ids, vec![2, 7]);
+        assert_eq!(graph.faces.len(), 1);
+        assert_eq!(graph.faces[0].boundary_site_ids, vec![2, 3, 4]);
+    }
+
+    #[test]
     fn boundary_point_blocks_an_edge() {
         let graph = build_spatial_neighborhood(&[
             point(1, 0.0, 0.0),
@@ -368,14 +340,16 @@ mod tests {
     }
 
     #[test]
-    fn coincident_sites_stay_connected_to_each_other_and_other_sites() {
+    fn coincident_load_points_share_one_site_connected_to_other_sites() {
         let graph = build_spatial_neighborhood(&[
             point(1, 0.0, 0.0),
             point(2, 0.0, 0.0),
             point(3, 1.0, 0.0),
         ]);
 
-        assert_eq!(pairs(&graph), vec![(1, 2), (1, 3), (2, 3)]);
+        assert_eq!(graph.sites.len(), 2);
+        assert_eq!(graph.sites[0].load_point_ids, vec![1, 2]);
+        assert_eq!(pairs(&graph), vec![(1, 3)]);
     }
 
     #[test]
@@ -452,6 +426,86 @@ mod tests {
             }
         }
 
+        fn assignment(pile_tip_level_m: f64) -> SpatialPileAssignment {
+            SpatialPileAssignment {
+                pile_size_mm: 320,
+                pile_tip_level_m,
+            }
+        }
+
+        #[test]
+        fn colors_a_face_only_when_every_boundary_load_point_has_one_ppn_key() {
+            let neighborhood = build_spatial_neighborhood(&[
+                point(1, 0.0, 0.0),
+                point(2, 2.0, 0.0),
+                point(3, 2.0, 2.0),
+                point(4, 0.0, 2.0),
+            ]);
+            let all_same_assignments = [1, 2, 3, 4]
+                .into_iter()
+                .map(|id| (id, assignment(-18.0)))
+                .collect::<HashMap<_, _>>();
+            let all_same_options = [1, 2, 3, 4]
+                .into_iter()
+                .map(|id| (id, vec![option(320, -18.0, true)]))
+                .collect::<HashMap<_, _>>();
+
+            let all_same = build_tip_level_region_topology(
+                &neighborhood,
+                &all_same_assignments,
+                &all_same_options,
+            );
+
+            assert_eq!(all_same.groups[0].faces, neighborhood.faces);
+
+            let mixed_assignments = HashMap::from([
+                (1, assignment(-18.0)),
+                (2, assignment(-18.0)),
+                (3, assignment(-19.0)),
+                (4, assignment(-18.0)),
+            ]);
+            let mixed_options = HashMap::from([
+                (1, vec![option(320, -18.0, true)]),
+                (2, vec![option(320, -18.0, true)]),
+                (3, vec![option(320, -19.0, true)]),
+                (4, vec![option(320, -18.0, true)]),
+            ]);
+
+            let mixed =
+                build_tip_level_region_topology(&neighborhood, &mixed_assignments, &mixed_options);
+
+            assert!(mixed.groups.iter().all(|group| group.faces.is_empty()));
+        }
+
+        #[test]
+        fn coincident_mixed_ppn_load_points_make_the_shared_face_unresolved() {
+            let neighborhood = build_spatial_neighborhood(&[
+                point(1, 0.0, 0.0),
+                point(5, 0.0, 0.0),
+                point(2, 2.0, 0.0),
+                point(3, 1.0, 2.0),
+            ]);
+            let assignments = HashMap::from([
+                (1, assignment(-18.0)),
+                (5, assignment(-19.0)),
+                (2, assignment(-18.0)),
+                (3, assignment(-18.0)),
+            ]);
+            let options = HashMap::from([
+                (1, vec![option(320, -18.0, true)]),
+                (5, vec![option(320, -19.0, true)]),
+                (2, vec![option(320, -18.0, true)]),
+                (3, vec![option(320, -18.0, true)]),
+            ]);
+
+            let topology = build_tip_level_region_topology(&neighborhood, &assignments, &options);
+
+            assert!(topology.groups.iter().all(|group| group.faces.is_empty()));
+            assert_eq!(topology.groups[0].site_ids, vec![1, 2, 3]);
+            assert_eq!(topology.groups[0].edges.len(), 3);
+            assert_eq!(topology.groups[1].site_ids, vec![1]);
+        }
+
         #[test]
         fn groups_valid_neighbors_by_millimeter_ppn_and_ignores_size() {
             let neighborhood = build_spatial_neighborhood(&[
@@ -493,10 +547,10 @@ mod tests {
             assert_eq!(topology.groups.len(), 2);
             assert_eq!(topology.groups[0].pile_tip_level_m_key, -18_000);
             assert_eq!(topology.groups[0].legend_value_m, -18.00049);
-            assert_eq!(topology.groups[0].components[0].load_point_ids, vec![1, 2]);
-            assert_eq!(topology.groups[0].components[0].edges.len(), 1);
+            assert_eq!(topology.groups[0].site_ids, vec![1, 2]);
+            assert_eq!(topology.groups[0].edges.len(), 1);
             assert_eq!(topology.groups[1].pile_tip_level_m_key, -19_000);
-            assert_eq!(topology.groups[1].components[0].load_point_ids, vec![3]);
+            assert_eq!(topology.groups[1].site_ids, vec![3]);
         }
 
         #[test]
@@ -548,12 +602,12 @@ mod tests {
             let topology = build_tip_level_region_topology(&neighborhood, &assignments, &options);
 
             assert_eq!(topology.groups.len(), 1);
-            assert_eq!(topology.groups[0].components[0].load_point_ids, vec![5]);
-            assert!(topology.groups[0].components[0].edges.is_empty());
+            assert_eq!(topology.groups[0].site_ids, vec![5]);
+            assert!(topology.groups[0].edges.is_empty());
         }
 
         #[test]
-        fn equal_ppn_nodes_split_into_components_when_no_equal_ppn_edge_connects_them() {
+        fn equal_ppn_sites_keep_only_edges_whose_endpoints_share_the_ppn() {
             let neighborhood = build_spatial_neighborhood(&[
                 point(1, 0.0, 0.0),
                 point(2, 1.0, 0.0),
@@ -590,9 +644,8 @@ mod tests {
 
             let topology = build_tip_level_region_topology(&neighborhood, &assignments, &options);
 
-            assert_eq!(topology.groups[0].components.len(), 2);
-            assert_eq!(topology.groups[0].components[0].load_point_ids, vec![1]);
-            assert_eq!(topology.groups[0].components[1].load_point_ids, vec![3]);
+            assert_eq!(topology.groups[0].site_ids, vec![1, 3]);
+            assert!(topology.groups[0].edges.is_empty());
         }
 
         #[test]
@@ -655,11 +708,8 @@ mod tests {
             );
 
             assert_eq!(forward, reverse);
-            assert_eq!(
-                forward.groups[0].components[0].load_point_ids,
-                vec![1, 2, 3]
-            );
-            assert_eq!(forward.groups[0].components[0].edges.len(), 2);
+            assert_eq!(forward.groups[0].site_ids, vec![1, 2, 3]);
+            assert_eq!(forward.groups[0].edges.len(), 2);
         }
     }
 }
