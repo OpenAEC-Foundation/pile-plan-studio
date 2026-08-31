@@ -60,7 +60,7 @@ export function applyOptimizationResult(input: {
     summary: summarizeOptimizationRun(
       input.previousChoices,
       input.result.assignments,
-      input.result.unassigned.map((item) => item.load_point_id),
+      input.result.unassigned,
     ),
   };
 }

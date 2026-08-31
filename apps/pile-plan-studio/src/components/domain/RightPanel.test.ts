@@ -16,6 +16,18 @@ describe("React optimization panel", () => {
     assert.doesNotMatch(optimization, /onChange=\{\(event\) => onChange\(Number\(event\.currentTarget\.value\)\)\}/);
   });
 
+  it("clears the last run feedback when optimization scopes change", () => {
+    const optimization = readFileSync(resolve(import.meta.dirname, "OptimizationPanel.tsx"), "utf8");
+
+    assert.match(optimization, /function updateScope/);
+    assert.match(optimization, /optimizationSummary:\s*null/);
+    assert.match(optimization, /optimizationError:\s*null/);
+    assert.match(optimization, /updateScope\(\{ optimizationTargetScope: "all" \}\)/);
+    assert.match(optimization, /updateScope\(\{ optimizationTargetScope: "selected" \}\)/);
+    assert.match(optimization, /updateScope\(\{ optimizationLimitScope: "target" \}\)/);
+    assert.match(optimization, /updateScope\(\{ optimizationLimitScope: "whole-plan" \}\)/);
+  });
+
   it("does not refocus a numeric field when the empty part of its row is clicked", () => {
     const optimization = readFileSync(resolve(import.meta.dirname, "OptimizationPanel.tsx"), "utf8");
     const styles = readFileSync(resolve(import.meta.dirname, "rightPanel.css"), "utf8");
@@ -53,6 +65,7 @@ describe("React optimization panel", () => {
     );
     assert.match(optimization, /optimizationSummary/);
     assert.match(optimization, /optimization\.assigned/);
+    assert.match(optimization, /optimization\.noValidOption/);
     assert.match(optimization, /optimization\.unassigned/);
     assert.match(optimization, /optimizationError/);
   });

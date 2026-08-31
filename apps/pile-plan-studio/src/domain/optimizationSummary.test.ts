@@ -19,24 +19,31 @@ describe("optimization summary", () => {
     assert.deepEqual(summary, {
       assignedCount: 2,
       changedCount: 1,
-      unassignedCount: 0,
+      noValidOptionCount: 0,
+      optimizerUnassignedCount: 0,
     });
   });
 
-  it("counts load points cleared to no pile as applied and changed", () => {
+  it("separates invalid engineering options from optimizer exclusions", () => {
     const summary = summarizeOptimizationRun(
       new Map([
         [1, "290|-17.5"],
         [2, ""],
       ]),
       [],
-      [1, 2, 3],
+      [
+        { load_point_id: 1, reason: "no_valid_option" },
+        { load_point_id: 2, reason: "no_valid_option" },
+        { load_point_id: 3, reason: "optimization_constraints" },
+        { load_point_id: 4, reason: "configuration_limits" },
+      ],
     );
 
     assert.deepEqual(summary, {
       assignedCount: 0,
       changedCount: 1,
-      unassignedCount: 3,
+      noValidOptionCount: 2,
+      optimizerUnassignedCount: 2,
     });
   });
 });

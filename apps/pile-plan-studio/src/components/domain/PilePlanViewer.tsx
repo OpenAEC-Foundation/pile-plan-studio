@@ -385,7 +385,6 @@ export default function PilePlanViewer({ state, onStateChange }: Props) {
                   <span className="load-point-pending" aria-hidden="true" />
                 ) : unselectedState === "optimizer-unassigned" ? (
                   <OptimizerUnresolvedMarker
-                    detailed={state.viewport.scale >= 1.8}
                     title={t("viewer.optimizerUnassigned")}
                   />
                 ) : (
@@ -821,7 +820,6 @@ export default function PilePlanViewer({ state, onStateChange }: Props) {
           <span className="load-point-pending" aria-hidden="true" />
         ) : unselectedState === "optimizer-unassigned" ? (
           <OptimizerUnresolvedMarker
-            detailed={state.viewport.scale >= 1.8}
             title={t("viewer.optimizerUnassigned")}
           />
         ) : (

@@ -23,4 +23,20 @@ describe("App optimization integration", () => {
     assert.doesNotMatch(optimizationBlock, /activePileSizes:\s*applied/);
     assert.doesNotMatch(optimizationBlock, /activePileTipLevels:\s*applied/);
   });
+
+  it("clears transient run feedback after plan switches and manual pile changes", () => {
+    const source = readFileSync(resolve(import.meta.dirname, "App.tsx"), "utf8");
+    const changeStart = source.indexOf("const handleProjectStateChange");
+    const changeEnd = source.indexOf("const importPilePlan", changeStart);
+    const changeBlock = source.slice(changeStart, changeEnd);
+    const activateStart = source.indexOf("const activatePilePlan");
+    const activateEnd = source.indexOf("const startLockEditing", activateStart);
+    const activateBlock = source.slice(activateStart, activateEnd);
+
+    assert.match(changeBlock, /selectedPileOptionKeysByLoadPoint\s*!==\s*projectState\.selectedPileOptionKeysByLoadPoint/);
+    assert.match(changeBlock, /optimizationSummary:\s*null/);
+    assert.match(changeBlock, /optimizationError:\s*null/);
+    assert.match(activateBlock, /optimizationSummary:\s*null/);
+    assert.match(activateBlock, /optimizationError:\s*null/);
+  });
 });

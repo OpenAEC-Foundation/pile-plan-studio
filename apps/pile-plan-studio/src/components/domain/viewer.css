@@ -584,8 +584,8 @@
   top: 0;
   left: 0;
   display: grid;
-  width: 20px;
-  height: 20px;
+  width: 16px;
+  height: 16px;
   color: #46545b;
   place-items: center;
   transform: translate(-50%, -50%) scale(var(--viewer-symbol-scale));
@@ -614,14 +614,6 @@
   fill: none;
   stroke: currentColor;
   stroke-width: 1.8;
-}
-
-.optimizer-marker-candidates circle.marker-halo {
-  fill: #f7fafb;
-}
-
-.optimizer-marker-candidates circle.marker-foreground {
-  fill: #f7fafb;
 }
 
 .optimizer-marker-question circle.marker-halo {

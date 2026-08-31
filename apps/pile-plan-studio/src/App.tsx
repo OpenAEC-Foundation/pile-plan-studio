@@ -573,7 +573,13 @@ function AppSession({
   };
 
   const handleProjectStateChange = (nextState: typeof projectState) => {
-    commitProjectState(nextState);
+    const pileChoicesChanged = nextState.selectedPileOptionKeysByLoadPoint
+      !== projectState.selectedPileOptionKeysByLoadPoint;
+    commitProjectState(pileChoicesChanged ? {
+      ...nextState,
+      optimizationSummary: null,
+      optimizationError: null,
+    } : nextState);
   };
 
   const importPilePlan = (patch: PilePlanImportPatch, fileName: string) => {
@@ -603,6 +609,8 @@ function AppSession({
           ? current.selectedLoadPointId
           : selectedLoadPointIds[0] ?? null,
         selectedCptId: null,
+        optimizationSummary: null,
+        optimizationError: null,
       };
     });
   };
