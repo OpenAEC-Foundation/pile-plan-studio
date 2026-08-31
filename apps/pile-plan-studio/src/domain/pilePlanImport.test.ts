@@ -94,6 +94,7 @@ describe("pile plan file import", () => {
       selectedPileOptionKeysByLoadPoint: new Map([[1, "290|-18"]]),
       externalReferencesByLoadPoint: new Map(),
       lockedLoadPointIds: [],
+      optimizationUnassignedByLoadPoint: new Map(),
     };
     const state = {
       pilePlans: [currentPlan],
@@ -129,6 +130,7 @@ describe("pile plan file import", () => {
       selectedPileOptionKeysByLoadPoint: new Map(),
       externalReferencesByLoadPoint: new Map(),
       lockedLoadPointIds: [],
+      optimizationUnassignedByLoadPoint: new Map(),
     }));
     const state = {
       pilePlans: plans,

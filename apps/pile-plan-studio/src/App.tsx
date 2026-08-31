@@ -36,7 +36,7 @@ import { getSetting } from "./store";
 import { optionKey } from "./components/domain/rightPanelModel";
 import { buildGreedyOptimizationSettings } from "./domain/optimizationSettings";
 import {
-  applyOptimizationChoices,
+  applyOptimizationResult,
   clampOptimizationLimits,
   getOptimizationTargetIds,
 } from "./components/domain/optimizationPanelModel";
@@ -70,6 +70,7 @@ import {
   deletePilePlan,
   duplicatePilePlan,
   renamePilePlan,
+  replaceOptimizationOutcomesForTargets,
   switchPilePlan,
   synchronizeActivePilePlan,
   type PilePlanLanguage,
@@ -572,7 +573,13 @@ function AppSession({
   };
 
   const handleProjectStateChange = (nextState: typeof projectState) => {
-    commitProjectState(nextState);
+    const pileChoicesChanged = nextState.selectedPileOptionKeysByLoadPoint
+      !== projectState.selectedPileOptionKeysByLoadPoint;
+    commitProjectState(pileChoicesChanged ? {
+      ...nextState,
+      optimizationSummary: null,
+      optimizationError: null,
+    } : nextState);
   };
 
   const importPilePlan = (patch: PilePlanImportPatch, fileName: string) => {
@@ -602,6 +609,8 @@ function AppSession({
           ? current.selectedLoadPointId
           : selectedLoadPointIds[0] ?? null,
         selectedCptId: null,
+        optimizationSummary: null,
+        optimizationError: null,
       };
     });
   };
@@ -958,27 +967,39 @@ function AppSession({
 
   const runGreedyOptimization = async () => {
     const snapshot = projectState;
-    const targetIds = getOptimizationTargetIds(
+    const lockedLoadPointIds = getActiveLockedLoadPointIds(
+      snapshot.pilePlans,
+      snapshot.activePilePlanId,
+    );
+    const targetLoadPointIds = getOptimizationTargetIds(
       snapshot.optimizationTargetScope,
       snapshot.loadPoints.map((loadPoint) => loadPoint.id),
       snapshot.selectedLoadPointIds,
-      getActiveLockedLoadPointIds(snapshot.pilePlans, snapshot.activePilePlanId),
+      lockedLoadPointIds,
     );
     if (
       snapshot.optimizationRunning
-      || targetIds.length === 0
+      || targetLoadPointIds.length === 0
       || snapshot.activePileSizes.length === 0
       || snapshot.activePileTipLevels.length === 0
     ) {
       return;
     }
 
-    const targetSet = new Set(targetIds);
-    const chosenOption = (loadPointId: number) => {
-      const chosenKey = snapshot.selectedPileOptionKeysByLoadPoint.get(loadPointId);
-      return snapshot.pileOptionsByLoadPointId.get(loadPointId)
-        ?.find((option) => optionKey(option) === chosenKey) ?? null;
-    };
+    const currentAssignments = new Map(
+      [...snapshot.selectedPileOptionKeysByLoadPoint].flatMap(([loadPointId, key]) => {
+        const [pileSizeMm, pileTipLevelM] = key.split("|").map(Number);
+        return Number.isFinite(pileSizeMm) && Number.isFinite(pileTipLevelM)
+          ? [[
+              loadPointId,
+              {
+                pile_size_mm: pileSizeMm,
+                pile_tip_level_m_key: Math.round(pileTipLevelM * 1000),
+              },
+            ] as const]
+          : [];
+      }),
+    );
     const limits = clampOptimizationLimits({
       sizes: snapshot.optimizationSettings.max_pile_sizes,
       tips: snapshot.optimizationSettings.max_pile_tip_levels,
@@ -994,15 +1015,9 @@ function AppSession({
         maxDifferentTips: limits.tips,
         maxDifferentConfigurations: limits.configurations,
       },
-      baselineOptions: snapshot.loadPoints
-        .filter((loadPoint) => !targetSet.has(loadPoint.id))
-        .map((loadPoint) => chosenOption(loadPoint.id)),
       maxUtilization: snapshot.optimizationSettings.max_utilization,
     });
-    const optionsByLoadPoint = new Map(targetIds.map((id) => [
-      id,
-      snapshot.pileOptionsByLoadPointId.get(id) ?? [],
-    ]));
+    const optionsByLoadPoint = snapshot.pileOptionsByLoadPointId;
 
     setProjectState((current) => ({
       ...current,
@@ -1013,26 +1028,47 @@ function AppSession({
     }));
 
     try {
-      const choices = await greedyOptimizeCore({
+      const result = await greedyOptimizeCore({
         optionsByLoadPoint,
+        targetLoadPointIds,
+        lockedLoadPointIds,
+        currentAssignments,
+        limitScope: snapshot.optimizationLimitScope,
         pileHeadLevelM: snapshot.pileHeadLevelM ?? 0,
         costSettings: snapshot.pileCostSettings,
         settings,
       });
-      const applied = applyOptimizationChoices({
+      const applied = applyOptimizationResult({
         previousChoices: snapshot.selectedPileOptionKeysByLoadPoint,
-        targetIds,
-        choices,
+        result,
       });
       commitProjectState((current) => {
         if (current.analysisRequest !== snapshot.analysisRequest) return current;
+        const activePlan = current.pilePlans.find(
+          (plan) => plan.id === current.activePilePlanId,
+        ) ?? current.pilePlans[0];
+        const optimizationUnassignedByLoadPoint = replaceOptimizationOutcomesForTargets(
+          activePlan.optimizationUnassignedByLoadPoint,
+          applied.affectedLoadPointIds,
+          applied.optimizationUnassignedByLoadPoint,
+        );
         const pilePlanTransition = snapshot.optimizationCreatesPilePlan
           ? createOptimizationPilePlan({
               ...current,
               optimizedChoices: applied.choices,
+              optimizationUnassignedByLoadPoint,
               language: pilePlanLanguage(),
             })
-          : { selectedPileOptionKeysByLoadPoint: applied.choices };
+          : {
+              selectedPileOptionKeysByLoadPoint: applied.choices,
+              pilePlans: current.pilePlans.map((plan) => plan.id === current.activePilePlanId
+                ? {
+                    ...plan,
+                    selectedPileOptionKeysByLoadPoint: new Map(applied.choices),
+                    optimizationUnassignedByLoadPoint,
+                  }
+                : plan),
+            };
         return {
           ...current,
           ...pilePlanTransition,

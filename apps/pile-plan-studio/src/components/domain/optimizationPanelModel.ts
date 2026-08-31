@@ -1,4 +1,8 @@
-import type { GreedyOptimizedPileChoice } from "../.././core/projectTypes.ts";
+import type {
+  GreedyOptimizationResult,
+  GreedyUnassignedReason,
+} from "../.././core/projectTypes.ts";
+import { summarizeOptimizationRun } from "../../domain/optimizationSummary.ts";
 
 export type OptimizationTargetScope = "all" | "selected";
 export type OptimizationLimitScope = "target" | "whole-plan";
@@ -27,29 +31,37 @@ export function getOptimizationTargetIds(
   scope: OptimizationTargetScope,
   allIds: number[],
   selectedIds: number[],
-  lockedIds: number[] = [],
+  _lockedIds: number[] = [],
 ): number[] {
-  const locked = new Set(lockedIds);
-  return (scope === "selected" ? selectedIds : allIds).filter((id) => !locked.has(id));
+  return scope === "selected" ? selectedIds : allIds;
 }
 
-export function applyOptimizationChoices(input: {
+export function applyOptimizationResult(input: {
   previousChoices: Map<number, string>;
-  targetIds: number[];
-  choices: GreedyOptimizedPileChoice[];
+  result: GreedyOptimizationResult;
 }) {
   const nextChoices = new Map(input.previousChoices);
-  const previousForTargets = new Map(input.targetIds.map((id) => [id, nextChoices.get(id)]));
-  input.targetIds.forEach((id) => nextChoices.delete(id));
-  input.choices.forEach((choice) => {
+  const affectedLoadPointIds = [...new Set([
+    ...input.result.assignments.map((choice) => choice.load_point_id),
+    ...input.result.unassigned.map((item) => item.load_point_id),
+  ])].sort((left, right) => left - right);
+  affectedLoadPointIds.forEach((id) => nextChoices.delete(id));
+  input.result.assignments.forEach((choice) => {
     nextChoices.set(choice.load_point_id, `${choice.pile_size_mm}|${choice.pile_tip_level_m}`);
   });
-
-  const changedCount = input.targetIds.filter((id) => previousForTargets.get(id) !== nextChoices.get(id)).length;
+  const optimizationUnassignedByLoadPoint = new Map<number, GreedyUnassignedReason>(
+    input.result.unassigned.map((item) => [item.load_point_id, item.reason]),
+  );
 
   return {
     choices: nextChoices,
-    summary: { appliedCount: input.targetIds.length, changedCount },
+    affectedLoadPointIds,
+    optimizationUnassignedByLoadPoint,
+    summary: summarizeOptimizationRun(
+      input.previousChoices,
+      input.result.assignments,
+      input.result.unassigned,
+    ),
   };
 }
 

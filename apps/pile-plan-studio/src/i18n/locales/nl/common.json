@@ -75,6 +75,7 @@
   "explorer": "Verkenner",
   "properties": "Eigenschappen",
   "viewer": {
+    "optimizerUnassigned": "De laatste optimalisatie vond binnen de ingestelde limieten geen toewijzing.",
     "hover": {
       "loadPoint": "Belastinglocatie",
       "cpt": "Sondering",

@@ -5,8 +5,8 @@ use serde::{de::Error as _, Deserialize, Deserializer, Serialize};
 use crate::import::{ImportProfile, ImportRole, SourceFormat};
 
 use crate::analysis::{
-    BearingCapacity, Cpt, CptSelectionSettings, GreedyOptimizationSettings, LoadPoint,
-    PileConfigurationKey, PileCostSettings,
+    BearingCapacity, Cpt, CptSelectionSettings, GreedyOptimizationSettings,
+    GreedyUnassignedReason, LoadPoint, PileConfigurationKey, PileCostSettings,
 };
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
@@ -186,6 +186,8 @@ pub struct PilePlan {
     pub selected_piles: HashMap<u32, SelectedPileChoice>,
     #[serde(default)]
     pub locked_load_point_ids: Vec<u32>,
+    #[serde(default)]
+    pub optimization_unassigned: HashMap<u32, GreedyUnassignedReason>,
 }
 
 impl PilePlan {
@@ -195,6 +197,7 @@ impl PilePlan {
             name: "Pile plan 1".to_string(),
             selected_piles,
             locked_load_point_ids: Vec::new(),
+            optimization_unassigned: HashMap::new(),
         }
     }
 }
@@ -345,6 +348,42 @@ mod tests {
         let parsed: PilePlanProject = serde_json::from_str(&json).expect("project deserializes");
 
         assert_eq!(parsed, project);
+    }
+
+    #[test]
+    fn pile_plan_round_trips_optimizer_unassigned_outcomes() {
+        let mut project = sample_project();
+        project.user_state.pile_plans[0].optimization_unassigned.insert(
+            7,
+            crate::analysis::GreedyUnassignedReason::ConfigurationLimits,
+        );
+
+        let value = serde_json::to_value(&project).expect("project serializes");
+        let restored: PilePlanProject =
+            serde_json::from_value(value).expect("project deserializes");
+
+        assert_eq!(
+            restored.user_state.pile_plans[0]
+                .optimization_unassigned
+                .get(&7),
+            Some(&crate::analysis::GreedyUnassignedReason::ConfigurationLimits),
+        );
+    }
+
+    #[test]
+    fn pile_plan_defaults_missing_optimizer_outcomes_to_empty() {
+        let mut value = serde_json::to_value(sample_project()).expect("project serializes");
+        value["user_state"]["pile_plans"][0]
+            .as_object_mut()
+            .expect("pile plan is an object")
+            .remove("optimization_unassigned");
+
+        let restored: PilePlanProject =
+            serde_json::from_value(value).expect("legacy project deserializes");
+
+        assert!(restored.user_state.pile_plans[0]
+            .optimization_unassigned
+            .is_empty());
     }
 
     #[test]
@@ -624,9 +663,6 @@ mod tests {
                     max_utilization: 1.0,
                     enabled_pile_sizes: vec![290],
                     enabled_pile_tip_levels: vec![-18.0],
-                    baseline_pile_sizes: vec![],
-                    baseline_pile_tip_levels: vec![],
-                    baseline_pile_configurations: vec![],
                 },
                 viewer_utilization: ViewerUtilizationSettings::default(),
                 active_pile_sizes: vec![290],
@@ -654,6 +690,7 @@ mod tests {
                         },
                     )]),
                     locked_load_point_ids: Vec::new(),
+                    optimization_unassigned: HashMap::new(),
                 }],
                 active_pile_plan_id: "pile-plan-1".to_string(),
                 manual_cpt_selections: HashMap::from([(1, vec![10, 11])]),

@@ -23,6 +23,18 @@ export default function OptimizationPanel({ state, onStateChange, onRunOptimizat
   const hasTarget = state.optimizationTargetScope === "all" || state.selectedLoadPointIds.length > 0;
   const disabled = state.optimizationRunning || activeSizes.length === 0 || activeTips.length === 0 || !hasTarget;
 
+  function updateScope(patch: Partial<Pick<
+    ProjectState,
+    "optimizationTargetScope" | "optimizationLimitScope"
+  >>) {
+    onStateChange({
+      ...state,
+      ...patch,
+      optimizationSummary: null,
+      optimizationError: null,
+    });
+  }
+
   function updateLimit(field: "sizes" | "tips" | "configurations", value: number) {
     const next = clampOptimizationLimits({ ...limits, [field]: value }, activeSizes, activeTips);
     onStateChange({
@@ -66,16 +78,16 @@ export default function OptimizationPanel({ state, onStateChange, onRunOptimizat
         <section className="settings-group">
           <h3>{t("optimization.optimize")}</h3>
           <div className="segmented-control">
-            <button className={state.optimizationTargetScope === "all" ? "is-selected" : ""} type="button" onClick={() => onStateChange({ ...state, optimizationTargetScope: "all" })}>{t("optimization.allLoadPoints")}</button>
-            <button className={state.optimizationTargetScope === "selected" ? "is-selected" : ""} type="button" onClick={() => onStateChange({ ...state, optimizationTargetScope: "selected" })}>{t("optimization.selected", { count: state.selectedLoadPointIds.length })}</button>
+            <button className={state.optimizationTargetScope === "all" ? "is-selected" : ""} type="button" onClick={() => updateScope({ optimizationTargetScope: "all" })}>{t("optimization.allLoadPoints")}</button>
+            <button className={state.optimizationTargetScope === "selected" ? "is-selected" : ""} type="button" onClick={() => updateScope({ optimizationTargetScope: "selected" })}>{t("optimization.selected", { count: state.selectedLoadPointIds.length })}</button>
           </div>
         </section>
         {state.optimizationTargetScope === "selected" ? (
           <section className="settings-group">
             <h3>{t("optimization.limitsApplyWithin")}</h3>
             <div className="segmented-control">
-              <button className={state.optimizationLimitScope === "target" ? "is-selected" : ""} type="button" onClick={() => onStateChange({ ...state, optimizationLimitScope: "target" })}>{t("optimization.selectedPoints")}</button>
-              <button className={state.optimizationLimitScope === "whole-plan" ? "is-selected" : ""} type="button" onClick={() => onStateChange({ ...state, optimizationLimitScope: "whole-plan" })}>{t("optimization.wholePlan")}</button>
+              <button className={state.optimizationLimitScope === "target" ? "is-selected" : ""} type="button" onClick={() => updateScope({ optimizationLimitScope: "target" })}>{t("optimization.selectedPoints")}</button>
+              <button className={state.optimizationLimitScope === "whole-plan" ? "is-selected" : ""} type="button" onClick={() => updateScope({ optimizationLimitScope: "whole-plan" })}>{t("optimization.wholePlan")}</button>
             </div>
           </section>
         ) : null}
@@ -112,7 +124,16 @@ export default function OptimizationPanel({ state, onStateChange, onRunOptimizat
         {!hasTarget ? <p className="panel-message is-warning">{t("optimization.selectLoadPoints")}</p> : null}
         {state.optimizationError ? <p className="panel-message is-error">{state.optimizationError}</p> : null}
         {state.optimizationSummary ? (
-          <div className="optimization-summary"><strong>{t("optimization.applied", { count: state.optimizationSummary.appliedCount })}</strong><span>{t("optimization.changed", { count: state.optimizationSummary.changedCount })}</span></div>
+          <div className="optimization-summary">
+            <strong>{t("optimization.assigned", { count: state.optimizationSummary.assignedCount })}</strong>
+            <span>{t("optimization.changed", { count: state.optimizationSummary.changedCount })}</span>
+            {state.optimizationSummary.noValidOptionCount > 0
+              ? <span>{t("optimization.noValidOption", { count: state.optimizationSummary.noValidOptionCount })}</span>
+              : null}
+            {state.optimizationSummary.optimizerUnassignedCount > 0
+              ? <span>{t("optimization.unassigned", { count: state.optimizationSummary.optimizerUnassignedCount })}</span>
+              : null}
+          </div>
         ) : null}
         <button className="primary-action" disabled={disabled} type="button" onClick={onRunOptimization}>{state.optimizationRunning ? t("optimization.running") : t("optimization.run")}</button>
       </div>

@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 
 import {
   getLoadPointMarkerInvalidVisual,
+  getOptimizerUnresolvedMarkerStyle,
   getUnselectedLoadPointMarkerState,
 } from "./loadPointMarker.ts";
 import type { PileConfigurationOption } from "../core/projectTypes.ts";
@@ -80,6 +81,49 @@ describe("unselected load point marker state", () => {
       getUnselectedLoadPointMarkerState([missingOption, invalidOption], false, false),
       "invalid",
     );
+  });
+
+  it("uses optimizer status only after missing and invalid engineering states", () => {
+    const validOption = option({ isOption: true, utilization: 0.7 });
+    const missingOption = option({ isOption: false, utilization: null, missingCptIds: [64] });
+    const invalidOption = option({ isOption: false, utilization: 1.2 });
+
+    assert.equal(
+      getUnselectedLoadPointMarkerState(
+        [validOption],
+        false,
+        false,
+        "configuration_limits",
+      ),
+      "optimizer-unassigned",
+    );
+    assert.equal(
+      getUnselectedLoadPointMarkerState(
+        [missingOption],
+        false,
+        false,
+        "configuration_limits",
+      ),
+      "missing",
+    );
+    assert.equal(
+      getUnselectedLoadPointMarkerState(
+        [invalidOption],
+        false,
+        false,
+        "configuration_limits",
+      ),
+      "invalid",
+    );
+  });
+});
+
+describe("optimizer unresolved marker placement", () => {
+  it("removes map anchoring when the marker is rendered in a hover preview", () => {
+    assert.deepEqual(getOptimizerUnresolvedMarkerStyle("inline"), {
+      position: "static",
+      transform: "none",
+    });
   });
 });
 

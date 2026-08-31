@@ -22,7 +22,11 @@ describe("App Undo integration", () => {
   });
 
   it("routes central workspace changes and project operations through commits", () => {
-    assert.match(source, /handleProjectStateChange[\s\S]*?commitProjectState\(nextState\)/);
+    const workspaceChangeStart = source.indexOf("const handleProjectStateChange");
+    const workspaceChangeEnd = source.indexOf("const importPilePlan", workspaceChangeStart);
+    const workspaceChangeBlock = source.slice(workspaceChangeStart, workspaceChangeEnd);
+
+    assert.match(workspaceChangeBlock, /commitProjectState\(/);
     assert.match(source, /const importPilePlan[\s\S]*?commitProjectState/);
     assert.match(source, /const applyLockEditing[\s\S]*?commitProjectState/);
     assert.match(source, /const renameProjectPilePlan[\s\S]*?commitProjectState/);

@@ -7,9 +7,9 @@ use pile_plan_core::{
     preview_import_source,
     preview_pile_plan_import, refresh_project_from_profiled_sources, selected_cpts,
     write_ifcpp_string, write_pile_plan_csv, write_pile_plan_xlsx, CptSelectionSettings,
-    GreedyOptimizationSettings, GreedyOptimizedPileChoice, ImportSource, PileConfigurationKey,
-    PileConfigurationOption, PileCostSettings, PilePlanExportRequest, PilePlanImportRequest,
-    PilePlanProject, ProjectBearingCapacity, ProjectCpt, ProjectLoadPoint,
+    GreedyOptimizationInput, ImportSource, PileConfigurationKey, PileConfigurationOption,
+    PileCostSettings, PilePlanExportRequest, PilePlanImportRequest, PilePlanProject,
+    ProjectBearingCapacity, ProjectCpt, ProjectLoadPoint,
 };
 use serde::{Deserialize, Serialize};
 use wasm_bindgen::prelude::*;
@@ -69,14 +69,6 @@ pub struct DefaultPileOptionsRequest {
 pub struct CptFrdRowsRequest {
     pub bearing_capacities: Vec<ProjectBearingCapacity>,
     pub cpt_id: u32,
-}
-
-#[derive(Debug, Deserialize)]
-pub struct GreedyOptimizationRequest {
-    pub options_by_load_point: HashMap<u32, Vec<PileConfigurationOption>>,
-    pub pile_head_level_m: f64,
-    pub cost_settings: PileCostSettings,
-    pub settings: GreedyOptimizationSettings,
 }
 
 #[derive(Debug, Deserialize)]
@@ -203,15 +195,8 @@ pub fn cpt_frd_rows(request: JsValue) -> Result<JsValue, JsValue> {
 
 #[wasm_bindgen]
 pub fn greedy_optimize(request: JsValue) -> Result<JsValue, JsValue> {
-    let request: GreedyOptimizationRequest = from_js_value(request)?;
-    let choices: Vec<GreedyOptimizedPileChoice> = greedy_optimize_pile_choices(
-        &request.options_by_load_point,
-        request.pile_head_level_m,
-        &request.cost_settings,
-        &request.settings,
-    );
-
-    to_js_value(&choices)
+    let request: GreedyOptimizationInput = from_js_value(request)?;
+    to_js_value(&greedy_optimize_pile_choices(&request))
 }
 
 #[wasm_bindgen]
@@ -288,7 +273,10 @@ fn to_error_value(error: impl std::fmt::Display) -> JsValue {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use pile_plan_core::{CptSelectionAlgorithm, SelectedCpt};
+    use pile_plan_core::{
+        CptSelectionAlgorithm, GreedyOptimizationSettings, OptimizationLimitScope,
+        SelectedCpt,
+    };
 
     #[test]
     fn wasm_request_types_match_core_contract() {
@@ -357,6 +345,43 @@ mod tests {
         };
 
         assert!(request.options_by_load_point.contains_key(&1));
+    }
+
+    #[test]
+    fn greedy_optimizer_uses_the_shared_core_request_and_result() {
+        let request = GreedyOptimizationInput {
+            options_by_load_point: HashMap::from([(1, vec![])]),
+            target_load_point_ids: vec![1],
+            locked_load_point_ids: vec![],
+            current_assignments: HashMap::from([(
+                2,
+                PileConfigurationKey {
+                    pile_size_mm: 320,
+                    pile_tip_level_m_key: -18_000,
+                },
+            )]),
+            limit_scope: OptimizationLimitScope::WholePlan,
+            pile_head_level_m: -3.5,
+            cost_settings: PileCostSettings {
+                schema_version: 1,
+                items: vec![],
+            },
+            settings: GreedyOptimizationSettings {
+                max_pile_sizes: 1,
+                max_pile_tip_levels: 1,
+                max_pile_configurations: 1,
+                max_utilization: 1.0,
+                enabled_pile_sizes: vec![320],
+                enabled_pile_tip_levels: vec![-18.0],
+            },
+        };
+
+        let result = greedy_optimize_pile_choices(&request);
+
+        assert_eq!(result.unassigned[0].load_point_id, 1);
+        assert_eq!(result.pile_size_count, 1);
+        assert_eq!(result.pile_tip_level_count, 1);
+        assert_eq!(result.configuration_count, 1);
     }
 
     #[test]

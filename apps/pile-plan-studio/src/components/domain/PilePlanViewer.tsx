@@ -71,6 +71,7 @@ import {
   toggleLoadPointLock,
 } from "../../domain/loadPointLocking.ts";
 import { elementLayoutScale, screenToLocal } from "../../domain/uiBaseline.ts";
+import OptimizerUnresolvedMarker from "../viewer/OptimizerUnresolvedMarker.tsx";
 
 type Props = {
   state: ProjectState;
@@ -81,6 +82,9 @@ export default function PilePlanViewer({ state, onStateChange }: Props) {
   const { t, i18n } = useTranslation("common");
   const legend = state.pileLegend;
   const selectedLoadPointIds = new Set(state.selectedLoadPointIds);
+  const activePilePlan = state.pilePlans.find(
+    (plan) => plan.id === state.activePilePlanId,
+  ) ?? state.pilePlans[0];
   const isEditingLoadPointLocks = state.loadPointLockDraft !== null;
   const lockedLoadPointIds = new Set(
     state.loadPointLockDraft
@@ -332,6 +336,7 @@ export default function PilePlanViewer({ state, onStateChange }: Props) {
               state.pileOptionsByLoadPointId.get(loadPoint.id),
               state.defaultPileSelectionPending,
               state.analysisError !== null,
+              activePilePlan.optimizationUnassignedByLoadPoint.get(loadPoint.id),
             );
             const unselectedClass = unselectedState === "pending"
               ? " is-pending"
@@ -339,6 +344,8 @@ export default function PilePlanViewer({ state, onStateChange }: Props) {
                 ? " has-missing-options"
                 : unselectedState === "invalid"
                   ? " has-invalid-options"
+                  : unselectedState === "optimizer-unassigned"
+                    ? " has-optimizer-unassigned"
                   : "";
 
             return (
@@ -376,6 +383,10 @@ export default function PilePlanViewer({ state, onStateChange }: Props) {
                   />
                 ) : unselectedState === "pending" ? (
                   <span className="load-point-pending" aria-hidden="true" />
+                ) : unselectedState === "optimizer-unassigned" ? (
+                  <OptimizerUnresolvedMarker
+                    title={t("viewer.optimizerUnassigned")}
+                  />
                 ) : (
                   <span className="load-point-empty" aria-hidden="true">
                     <svg viewBox="0 0 24 24" focusable="false">
@@ -787,6 +798,7 @@ export default function PilePlanViewer({ state, onStateChange }: Props) {
       state.pileOptionsByLoadPointId.get(item.id),
       state.defaultPileSelectionPending,
       state.analysisError !== null,
+      activePilePlan.optimizationUnassignedByLoadPoint.get(item.id),
     );
     const statusClass = unselectedState === "pending"
       ? " is-pending"
@@ -794,6 +806,8 @@ export default function PilePlanViewer({ state, onStateChange }: Props) {
         ? " has-missing-options"
         : unselectedState === "invalid"
           ? " has-invalid-options"
+          : unselectedState === "optimizer-unassigned"
+            ? " has-optimizer-unassigned"
           : "";
     return (
       <span
@@ -804,6 +818,11 @@ export default function PilePlanViewer({ state, onStateChange }: Props) {
           <span dangerouslySetInnerHTML={{ __html: renderPileSymbol(symbolStyle.symbol, symbolStyle.color) }} />
         ) : unselectedState === "pending" ? (
           <span className="load-point-pending" aria-hidden="true" />
+        ) : unselectedState === "optimizer-unassigned" ? (
+          <OptimizerUnresolvedMarker
+            placement="inline"
+            title={t("viewer.optimizerUnassigned")}
+          />
         ) : (
           <span className="load-point-empty" aria-hidden="true">
             <svg viewBox="0 0 24 24" focusable="false"><path d="M6 6L18 18M18 6L6 18" /></svg>
