@@ -1,8 +1,10 @@
 # Connected Pile Tip Level Regions — Design
 
-**Status:** Approved for implementation planning
+**Status:** Design approved; written spec awaiting final review
 
-**Date:** 2026-08-17
+**Created:** 2026-08-17
+
+**Last revised:** 2026-08-31
 
 **Target:** Pile Plan Studio 0.3.0
 
@@ -12,292 +14,367 @@
 
 ## Purpose
 
-Add an experimental viewer overlay that reveals spatially connected groups of
+Add an experimental viewer overlay that shows local and enclosed regions of
 load points with the same pile tip level (PPN). The experiment establishes a
-concrete neighbourhood graph and region model that can later inform #21, while
-remaining independent of any optimizer.
+Gabriel neighbourhood graph and a conservative planar face model that can
+later inform #21, while remaining independent of any optimizer.
 
-Engineering validity remains authoritative. The overlay visualizes existing
-valid assignments; it never creates, changes, or validates pile assignments.
+Engineering validity remains authoritative. The overlay visualizes the last
+accepted valid assignments; it never creates, changes, or validates pile
+assignments.
 
 ## Goals
 
 - Show coherent PPN patterns without obscuring exact load-point or CPT
   locations.
-- Preserve selection, hover, pan, zoom, and viewer projection behavior.
-- Define one deterministic neighbourhood graph that can later be reused for
-  evaluation and optimization research.
-- Keep neighbourhood construction, grouping, geometry generation, visual
-  compositing, and SVG rendering independently replaceable.
-- Update the overlay immediately and atomically when accepted project state
-  changes.
+- Fill elementary planar faces only when their complete boundary has one PPN.
+- Preserve gaps around mixed or unavailable PPN data instead of assigning a
+  large enclosing cycle to one PPN.
+- Preserve selection, hover, pan, zoom, and the documented viewer projection.
+- Define a deterministic neighbourhood graph that can later be reused by
+  evaluation or optimization research without coupling the viewer to #21.
+- Keep graph construction, face extraction, PPN classification, visual
+  geometry, and SVG presentation independently replaceable.
 - Persist overlay visibility as a project viewer setting.
-- Keep the first experiment small enough to revise after live evaluation.
+- Keep the first implementation deliberately direct and easy to evaluate in
+  the live viewer.
 
 ## Non-goals
 
-The first experiment does not:
+The first Gabriel/face experiment does not:
 
-- fill bounded faces enclosed by same-PPN graph edges;
-- prevent or resolve overlap between different PPN regions;
+- count connected PPN components;
+- prescribe an objective or constraint formulation for #21;
+- implement ILP connectivity, flow, cut, or component variables;
 - include pile size in region membership;
-- expose opacity, diameter, or neighbourhood-rule settings;
-- optimize the graph builder for large projects;
+- use Delaunay triangulation or another acceleration structure;
+- merge adjacent faces into explicit outer-boundary polygons;
+- clip capsules or circles at ownership boundaries;
+- assign every point of the plane exclusively to one PPN;
+- expose opacity, margin, or graph-strategy settings in the UI;
+- optimize or certify runtime for 1,000-location projects;
 - export regions to images, PDF, CAD, or IFC;
-- couple the overlay to #21 or any particular optimizer;
-- define final UX for measuring or limiting region counts;
 - resolve the general PPN precision policy tracked in #29;
 - provide a runtime-selectable plugin framework for graph or region strategies.
 
 ## Terminology
 
-- A **node** is one load point.
-- An **edge** connects two direct neighbours in the neighbourhood graph.
+- A **load-point node** is one load point with a stable `loadPointId`.
+- A **geometric site** is one exact project coordinate. Multiple coincident
+  load-point nodes may belong to one site.
+- A **Gabriel edge** connects two sites whose closed diametral disk contains no
+  third site.
+- A **half-edge** is one directed orientation of an undirected Gabriel edge.
+- An **elementary face** is a bounded face walk in the planar embedding of the
+  complete Gabriel Graph.
 - A **PPN key** is `round(pile_tip_level_m * 1000)`, matching the existing
   millimetre-normalized configuration identity.
-- A **PPN component** is a connected component after excluding ineligible
-  nodes and retaining only edges whose endpoints have the same PPN key.
-- A **PPN layer** is all render geometry for one PPN key. A layer may contain
-  multiple disconnected PPN components.
+- A **unanimous face** is an elementary face for which every boundary
+  load-point node is eligible and has the same PPN key.
+- A **PPN layer** is all unanimous faces, same-PPN edges, and eligible nodes for
+  one PPN key. One layer may contain multiple disconnected regions.
 
-## Neighbourhood graph
+## Complete Gabriel neighbourhood graph
 
-### Exact rule
+### Closed diametral-disk rule
 
-For two geometric sites A and B, define their smallest closed, axis-aligned
-rectangle:
+For every unordered pair of distinct geometric sites `A` and `B`, scan every
+other site `C`. Site `C` blocks edge `A–B` exactly when:
 
 ```text
-[min(A.x, B.x), max(A.x, B.x)]
-×
-[min(A.y, B.y), max(A.y, B.y)]
+(C - A) · (C - B) <= 0
 ```
 
-A and B are direct neighbours exactly when no third geometric site lies inside
-or on the boundary of this rectangle. There is no distance threshold, margin,
-or tolerance. When A and B have the same X or Y coordinate, the rectangle
-degenerates to the closed line segment between them.
+By Thales' theorem this means that `C` lies inside or on the circle with `AB`
+as diameter. Edge `A–B` exists only when no blocker is found.
 
-The closed boundary intentionally makes aligned intermediate points block
-longer edges and prevents diagonals across a four-corner rectangular grid.
-Under unique coordinates, the resulting graph is connected.
+The comparison has no user margin or geometric tolerance. A site on the circle
+blocks the edge. This closed rule removes both crossing diagonals in cocircular
+four-point cases and keeps the straight-line graph planar. It also makes an
+intermediate collinear site block a longer edge.
+
+The first implementation tests all site pairs directly and scans all other
+sites, giving `O(n^3)` worst-case construction time. This is intentional: the
+goal is to validate Gabriel semantics before introducing Delaunay or spatial
+index dependencies. The graph is cached and coordinate changes are expected to
+be infrequent.
 
 ### Coincident coordinates
 
 Projects are expected to have unique load-point coordinates. For robustness,
-coincident locations are treated as one geometric site while building the
-empty-rectangle graph:
+coincident load points are grouped into one geometric site for Gabriel tests.
+The core preserves all load-point identities at that site.
 
-- all load-point nodes at one site are pairwise neighbours;
-- colocated nodes at either endpoint site do not block an outgoing site edge;
-- a site edge expands to edges between the nodes at its two endpoint sites.
+- Other load points at an endpoint site do not block an outgoing site edge.
+- Coincident load points are considered mutually adjacent for downstream
+  topology, but their zero-length visual edge is omitted.
+- A face is unanimous only when all boundary load-point nodes represented by
+  its sites are eligible and share one PPN key.
+- Node circles and outgoing site edges are deduplicated per geometric site and
+  PPN key, so coincident nodes do not create repeated SVG geometry.
 
-This preserves individual load-point identity and keeps the graph connected.
+This prevents zero-length geometry from destabilizing angle sorting while
+keeping coincident assignments explicit.
 
-### Determinism
+### Determinism and graph properties
 
-Input nodes are normalized into stable `loadPointId` order. Each unordered
-site pair is tested once. Returned node, edge, PPN, and component collections
-use stable ordering; an edge is represented with its lower endpoint ID first.
+Sites and load-point nodes are normalized into stable ID order. Each unordered
+site pair is tested once. Edges store their lower endpoint identifier first,
+and returned collections use stable ordering.
 
-## Eligibility and PPN components
+For distinct sites, the closed Gabriel Graph is connected and planar. As a
+planar graph it is sparse, with at most approximately `3n - 6` edges. Face
+extraction and rendering therefore remain linear in project size after graph
+construction.
 
-A load point participates only when its active pile-plan assignment resolves
-to a currently calculated pile option whose `isOption` value is true. The
-overlay excludes:
+The implementation must not assume that every face is triangular or convex,
+or that every edge bounds a positive-area face. Gabriel graphs may contain
+bridges, dangling branches, non-triangular faces, and collinear degeneracies.
+
+## Planar face extraction
+
+Face extraction runs on the complete Gabriel Graph before any PPN filtering.
+Using the complete graph is essential: an enclosing ring of one PPN must not
+claim a large interior that contains load points with other PPN values.
+
+### Half-edge traversal
+
+1. Create two half-edges, `A→B` and `B→A`, for every Gabriel edge.
+2. Sort every site's outgoing half-edges counter-clockwise by exact project
+   direction. Use stable site identity as the deterministic final tie-breaker.
+3. Start at each not-yet-visited half-edge.
+4. After traversing `U→V`, choose at `V` the outgoing half-edge immediately
+   clockwise from the reverse direction `V→U`. This keeps the traversed face
+   on the left.
+5. Continue until the starting half-edge is reached and mark the complete walk
+   visited.
+6. Retain only positive-area walks as bounded elementary faces.
+
+Each half-edge participates in one face walk. Sorting costs
+`O(E log degree)` overall and traversal costs `O(E)`.
+
+### Signed area
+
+Signed area distinguishes bounded, outer, and degenerate walks:
+
+- positive area: bounded elementary face;
+- negative area: the outer face;
+- zero area: collinear or degenerate walk with no fillable surface.
+
+The shoelace sum is evaluated relative to the first coordinate in the walk to
+avoid unnecessary cancellation from large project coordinates. Across all
+walks, area evaluation visits exactly `2E` half-edges and is negligible beside
+Gabriel construction.
+
+Bridge excursions may repeat an edge in opposite directions within one face
+walk. Their zero-area contribution is valid; the face still uses every
+boundary node when testing PPN unanimity.
+
+## Eligibility and PPN classification
+
+The complete spatial graph contains every load-point site, regardless of
+whether the active plan currently has an eligible assignment there. This
+ensures that unassigned or invalid locations still influence neighbourhood and
+face topology rather than disappearing geometrically.
+
+A load-point node is eligible for colored region geometry only when its active
+pile-plan assignment resolves to a currently calculated pile option whose
+`isOption` value is true. The overlay excludes colored node and edge geometry
+for:
 
 - unassigned load points;
 - assignments with missing bearing-capacity data;
 - technically invalid assignments;
 - assignments that cannot be resolved against the accepted analysis result.
 
-Component construction uses only the PPN key. Pile size is deliberately
-ignored. The cached neighbourhood graph is filtered to eligible endpoints with
-equal PPN keys, then traversed to produce the connected PPN components.
+For every bounded elementary face, Rust collects all boundary load-point nodes:
 
-The overlay uses the last accepted, complete analysis result. If engineering
-inputs trigger a new asynchronous analysis, existing regions remain unchanged
-until the new result is accepted; the overlay is then replaced atomically.
+- if all are eligible and have one PPN key, assign the face to that PPN layer;
+- if their PPN keys differ, leave the face uncolored;
+- if any boundary node is ineligible or unresolved, leave the face uncolored.
+
+Consequently, mixed transition faces and larger internal gaps remain visible.
+An enclosing same-PPN cycle does not fill over internal different-PPN topology.
+The rule is deliberately conservative: ambiguous faces may remain unfilled,
+but no mixed face receives a misleading dominant color.
+
+Same-PPN edge geometry is selected independently. For ordinary unique-site
+data, a Gabriel edge is retained for rendering only when both endpoint load
+points are eligible and have the same PPN key. At a coincident site, Rust first
+deduplicates eligible PPN keys; a site edge is emitted once in each PPN layer
+present at both endpoint sites. Cross-PPN edges remain in the cached graph and
+face topology but are never drawn as colored connections.
+
+No connected-component traversal or count is needed for #22. Visual
+connectivity emerges from shared faces, edges, and node circles. A later #21
+design may formulate connectivity directly in an ILP rather than consuming a
+post-hoc component count.
+
+The overlay uses the last accepted complete analysis result. When engineering
+inputs start a new asynchronous analysis, existing region data remains visible
+until the new result is accepted. Classification and displayed geometry are
+then replaced atomically.
 
 ## Architecture and data flow
 
-### Rust core: spatial topology
+### Rust core: spatial and PPN topology
 
-`pile-plan-core` owns neighbourhood construction, canonical PPN identity,
-assignment-validity resolution for this feature, and connected-component
-grouping. These operations define reusable spatial domain topology rather than
-viewer presentation. Browser and desktop reach the same implementation through
-thin WASM and Tauri contracts.
+`pile-plan-core` owns all spatial and domain decisions:
 
-The core exposes serializable, deterministic DTOs for:
+- geometric-site normalization;
+- direct closed-disk Gabriel construction;
+- stable adjacency ordering;
+- half-edge face extraction;
+- signed-area face classification;
+- canonical millimetre PPN identity;
+- assignment-validity resolution;
+- unanimous-face classification;
+- same-PPN edge and eligible-node selection.
 
-- `SpatialNeighborhood`, containing stable load-point nodes and undirected
-  edges;
-- `TipLevelRegionTopology`, containing eligible PPN-keyed nodes, retained
-  same-PPN edges, and connected components.
+The core exposes serializable DTOs conceptually equivalent to:
 
-The topology request receives the cached neighbourhood, the active pile plan's
-selected configuration keys, and the last accepted pile options by load point.
-Rust resolves each selected key with its canonical millimetre PPN identity and
-includes it only when the matching calculated option has `is_option == true`.
-TypeScript must not independently round PPN values or reinterpret engineering
-validity for the overlay.
+```text
+SpatialSubdivision
+  sites
+  load_point_nodes
+  gabriel_site_edges
+  bounded_face_site_walks
 
-The initial graph builder uses the direct pairwise algorithm:
+TipLevelRegionLayer
+  pile_tip_level_m_key
+  legend_value_m
+  face_boundary_site_ids
+  same_ppn_site_edges
+  node_site_ids
+```
 
-1. Enumerate each unordered geometric-site pair.
-2. Scan other sites for a blocker in the closed rectangle.
-3. Stop at the first blocker.
-4. Add an edge when no blocker exists.
+Exact wire names may follow existing repository conventions, but the contract
+must not expose SVG strings, colors, opacity, marker sizes, or viewer pixels.
+It also must not expose a component count as required #22 output.
+All DTO collections retain deterministic stable-ID and numeric-key ordering;
+TypeScript still owns the chosen visual shallow-to-deep layer order.
 
-This has `O(n^3)` worst-case time. It is accepted for the experiment because
-the graph is cached and coordinate changes are infrequent. No 1,000-location
-performance gate is part of this phase. The module boundary allows a spatial
-index or specialized algorithm to replace the implementation later without
-changing consumers.
+Browser and desktop use the same core behavior through thin WASM and Tauri
+adapters. Adapters deserialize, call `pile-plan-core`, and serialize; they do
+not reimplement graph, face, validity, or PPN rules.
 
-The connected-component traversal is implemented as a reusable internal Rust
-primitive over stable group keys. #22 exposes PPN-keyed topology, while a later
-optimizer may call the same primitive with full configuration keys without
-changing the viewer wire contract.
+### TypeScript: orchestration and visual geometry
 
-### Stable pipeline contracts
+TypeScript owns viewer-specific work only:
 
-The experiment uses five small stages rather than one module that mixes
-topology, drawing geometry, and presentation. These are internal module
-boundaries, not a user-facing strategy or plugin system.
+- cache and request Rust topology at the correct lifecycle boundaries;
+- map returned load-point IDs to exact projected viewer coordinates;
+- derive the current marker diameter from `symbolScalePercent`;
+- build SVG subpaths for face walks, edge strokes, and node circles;
+- apply legend colors, fixed opacity, visual dimensions, and draw order;
+- integrate the overlay, ribbon toggle, persistence, and bilingual UI;
+- preserve selection, hover, pan, zoom, and pointer behavior.
 
-1. **Neighbourhood construction (Rust)** receives load-point IDs and project
-   coordinates and returns `SpatialNeighborhood` with stable nodes and
-   undirected edges.
-2. **Region grouping (Rust)** receives that graph, selected configuration keys,
-   and accepted pile options and returns `TipLevelRegionTopology` containing
-   eligible PPN-keyed nodes, retained edges, and connected components. It knows
-   nothing about circles, SVG, colors, or opacity.
-3. **Geometry generation (TypeScript)** receives region topology, projected node positions,
-   and visual dimensions and returns `RegionGeometry<PPNKey>`. Geometry consists
-   of explicit primitives such as circles and segments. The primitive model is
-   extensible with polygons or paths when bounded-face filling is designed.
-4. **Presentation (TypeScript)** maps each geometry layer to legend color,
-   stable layer order, opacity, and blend behavior. It is pure and does not
-   determine neighbourhoods, components, or SVG structure.
-5. **SVG rendering (React/TypeScript)** renders presented primitive layers
-   without inspecting assignments or choosing graph, grouping, geometry, or
-   overlap rules.
+TypeScript must not calculate Gabriel adjacency, extract faces, classify PPN
+unanimity, reinterpret validity, or count components.
 
-The contracts use IDs, keys, edges, components, and simple geometric
-primitives. Consumers must not depend on intermediate details of the direct
-pairwise graph algorithm or the initial capsule generator.
+### Caching and refresh boundaries
 
-This separation permits the following changes without rewriting project
-persistence, ribbon integration, viewer layering, or pointer behavior:
+- Recompute the Gabriel Graph and bounded faces only when load-point IDs or
+  exact coordinates change.
+- Recompute Rust PPN-layer classification when the spatial topology, active
+  pile plan, selected assignments, or accepted analysis result changes.
+- Recompute projected SVG geometry when classified layers, the fixed project
+  projection, viewer dimensions, or symbol scale changes.
+- Do not rebuild topology or SVG path data during ordinary pan or zoom frames;
+  reuse the existing `.viewer-content` transform.
+- Replace region layers only after a complete new analysis result is accepted.
 
-- replace the empty-rectangle graph with another graph algorithm;
-- replace PPN equality with a later configuration or grouping policy;
-- add bounded-face polygons to the geometry stage;
-- add clipping, masking, priority, or other overlap policies to presentation;
-- replace the complete topology and geometry algorithms while preserving the
-  overlay's viewer contract.
+These boundaries keep the Gabriel implementation replaceable and avoid
+duplicating domain logic in TypeScript.
 
-### Runtime adapters and frontend orchestration
+## SVG geometry and rendering
 
-`pile-plan-wasm` and Tauri commands only deserialize requests, call
-`pile-plan-core`, and serialize topology results. They contain no graph or
-grouping rules.
+### Face subpaths: visual union without polygon union
 
-`coreClient.ts` provides one browser/desktop-neutral asynchronous API for the
-two Rust calculations. The frontend owns orchestration and caching, but treats
-the Rust DTOs as authoritative and opaque domain results. It may map DTO
-collections into convenient read-only TypeScript structures; it must not
-recalculate missing edges, components, PPN keys, or validity.
+Adjacent unanimous faces are not merged into new outer-boundary polygons.
+Instead, all unanimous faces for one PPN key are emitted as closed subpaths in
+one compound SVG face path.
+
+Faces share exact projected edge coordinates. One compound path rasterizes
+them as one continuous fill while their Rust topology remains elementary and
+independently testable. A face omitted because it is mixed or unresolved stays
+an unfilled gap. Explicit shared-edge cancellation, outer-ring reconstruction,
+and polygon union are deferred until clipping, export, or area calculations
+actually require them.
+
+### Butt-capped edge strokes and node circles
+
+Every rendered same-PPN edge remains present in the first experiment,
+including an edge shared by two filled faces. Edges for one PPN key are batched
+as independent `M … L …` subpaths in one SVG stroke path with:
+
+- `fill="none"`;
+- stroke width equal to the region diameter;
+- `stroke-linecap="butt"`;
+- no rounded edge geometry.
+
+A butt-capped thick stroke is a rectangle from one endpoint center to the
+other. Every eligible load point is also rendered as a circle whose diameter
+equals the stroke width. The union of an edge rectangle and its endpoint
+circles is exactly a capsule. Node circles also close junctions between
+multiple edges and preserve isolated one-node regions.
+
+The region diameter is:
+
+```text
+current rendered load-point marker diameter + 6 CSS px
+```
+
+The six-pixel addition is the total diameter margin, leaving three CSS pixels
+of background beyond the symbol on each side at the unzoomed viewer scale. The
+normal plan viewport transform scales symbols and overlay together. Do not use
+`vector-effect="non-scaling-stroke"`.
+
+Keeping internal edges costs at most linear path data, masks possible
+antialiasing seams between face subpaths, and avoids premature edge
+classification. Internal-edge removal may be added later only after measured
+need.
+
+### Color, opacity, and draw order
+
+Each PPN layer contains solid-color face, edge, and node geometry in this order:
+
+1. unanimous face fill path;
+2. butt-capped edge stroke path;
+3. node-circle compound path.
+
+A fixed opacity of 25% is applied once to the complete PPN group, not to its
+individual subshapes. Same-PPN overlap therefore does not darken internal edges
+or junctions. Different PPN groups use normal alpha compositing and may mix
+where their buffered edges or circles overlap. No clipping is applied.
+
+PPN layers are drawn from shallow to deep: numerically higher metre values
+first and increasingly negative values later. For `-10 m`, `-15 m`, and
+`-20 m`, the order is `-10`, `-15`, `-20`. Deeper layers are composed last.
 
 ### Viewer integration
 
-`PilePlanViewer` derives projected pixel coordinates using the existing fixed
-`ProjectViewTransform`. The overlay is an SVG inside the existing
-`.viewer-content` stage, so the one existing viewport transform controls pan
-and zoom. Marker positions and region geometry use the same unrounded projected
-pixel coordinates.
+`PilePlanViewer` derives all node and face coordinates through the existing
+fixed `ProjectViewTransform`. Geometry uses exact unrounded projected pixel
+coordinates. The overlay SVG sits inside the existing `.viewer-content` stage,
+so the one existing viewport transform controls pan and zoom.
 
 The SVG:
 
 - has `pointer-events: none`;
 - sits above the coordinate grid;
-- sits below CPT connection lines, CPT markers, load-point markers, selection
+- sits below CPT connections, CPT markers, load-point markers, selection
   indicators, and hover UI;
+- introduces no nested viewport transform;
 - is not recomputed during ordinary pan or zoom frames.
 
-Caching follows the pipeline boundaries:
-
-- the neighbourhood graph is recomputed only when load-point IDs or coordinates
-  change; the frontend then calls the Rust graph builder and caches its DTO;
-- region grouping is recomputed when the graph, accepted assignments, active
-  pile plan, accepted validity result, or grouping policy changes; the frontend
-  calls the Rust topology builder;
-- geometry is recomputed when topology, projected coordinates, symbol scale, or
-  the geometry policy changes;
-- presentation is recomputed when geometry, legend colors, opacity, layer
-  ordering, or overlap policy changes.
-
-Ordinary plan pan and zoom reuse every stage and only apply the existing
-`.viewer-content` transform.
-
-## Rendering rules
-
-### Base geometry
-
-Every eligible node receives one circle in its PPN legend color. Its diameter
-is:
-
-```text
-current rendered load-point marker diameter + 8 CSS px
-```
-
-The current symbol-size setting therefore changes the base diameter while the
-additional margin stays fixed at 8 CSS px in the unzoomed viewer stage. The
-normal plan viewport transform scales the entire overlay during plan zoom.
-
-Every neighbourhood edge whose eligible endpoints have the same PPN key is
-drawn as a straight line with:
-
-- stroke width equal to the region-circle diameter;
-- round line caps;
-- round joins.
-
-Circles and thick lines form round-ended capsule geometry. An isolated
-eligible node remains one circle. An open A–B–C chain becomes one continuous
-capsule-like region.
-
-### Color and compositing
-
-All opaque circles and lines for one PPN key are placed in one isolated SVG
-group. A fixed opacity of 25% is applied once to that group, not separately to
-its primitives. Internal overlap therefore does not create darker seams.
-
-PPN layers are drawn from shallow to deep: numerically higher metre values
-first and increasingly negative values later. For `-10 m`, `-15 m`, and
-`-20 m`, the exact order is `-10`, `-15`, `-20`. Different PPN layers use
-normal alpha compositing, so overlap produces a visible mixed color and deeper
-layers are composed last.
-
-Within one PPN key, components use the smallest contained `loadPointId` as a
-stable secondary order. This does not normally change the image because all
-components share one color and one group opacity.
-
-### Deferred enclosed-face filling
-
-A four-node rectangular cycle initially renders as four capsule connections
-around an unfilled center. Filling bounded faces is intentionally deferred.
-The likely future rule is to planarize same-PPN segments at visual
-intersections, extract bounded faces, and fill every face whose complete
-boundary consists of same-PPN edges. This rule is documented but must not be
-implemented in this experiment. Its polygons can later be added by the geometry
-stage without changing neighbourhood construction, grouping, persistence, or
-the SVG overlay's position in the viewer.
+This preserves the projection and rasterization constraints documented in the
+viewer README and known limitations.
 
 ## UI and persistence
 
-The bilingual View ribbon gains a project-wide toggle:
+The existing bilingual View-ribbon toggle remains:
 
 - Dutch: **PPN-gebieden tonen**
 - English: **Show tip-level regions**
@@ -307,125 +384,187 @@ The setting is named `showTipLevelRegions` in TypeScript and
 
 It follows the existing `showGrid` persistence pattern:
 
-- it is stored under project `settings.viewer` in IFCPP;
-- missing fields in older projects normalize to `false`;
-- it is included in browser recovery stored in IndexedDB;
-- IndexedDB remains recovery storage, while IFCPP is explicit durable storage;
-- changing the toggle is a project content change;
-- the value applies across pile-plan variants in the same project.
+- store under project `settings.viewer` in IFCPP;
+- normalize a missing field in older projects to `false`;
+- include it in browser recovery stored in IndexedDB;
+- treat IndexedDB as recovery storage and IFCPP as explicit durable storage;
+- treat changing the toggle as a project content change;
+- apply one visibility value across pile-plan variants in the project.
 
 Changing the active pile plan keeps the visibility setting and atomically
-renders regions for the newly active plan.
+renders the accepted regions for the newly active plan.
 
 ## Error handling
 
-- No valid assigned nodes produces no overlay and no warning.
+- No eligible assigned nodes produces no colored overlay and no warning.
+- A graph with fewer than three distinct sites produces nodes and eligible
+  edges but no bounded faces.
 - A PPN assignment without a resolvable legend color is skipped rather than
   crashing the viewer.
-- Malformed or unresolvable assignments are ineligible and produce no geometry.
-- The overlay never blocks pointer events, even if geometry generation yields
-  overlapping or degenerate shapes.
-- An accepted analysis update replaces region data atomically; the viewer does
-  not present partially recalculated components.
+- Malformed or unresolved assignments remain part of spatial topology but
+  produce no colored node, edge, or unanimous-face geometry.
+- Degenerate zero-area face walks are ignored.
+- The overlay never blocks pointer events.
+- A failed background classification keeps the last accepted overlay and
+  reports through the existing analysis error path; it does not show partial
+  topology.
+
+## Performance model
+
+- Direct Gabriel construction: `O(n^3)`, cached by stable IDs and coordinates.
+- Adjacency sorting: `O(E log degree)`.
+- Half-edge traversal and signed area: `O(E)`.
+- PPN classification and SVG primitive selection: `O(E + F + N)`.
+- Gabriel sparsity bounds edges and total face-boundary occurrences linearly;
+  all face walks together visit `2E` half-edges.
+- SVG DOM cost is approximately three path elements per distinct rendered PPN
+  key, not one element per node, edge, or face.
+
+For illustration, a 1,000-site planar graph has fewer than roughly 3,000
+edges and 6,000 total face-edge occurrences. No 1,000-location acceptance gate
+is required for this experiment; live profiling should precede optimization.
 
 ## Verification
 
-### Neighbourhood graph unit tests
+### Gabriel Graph unit tests
 
-These tests live in `pile-plan-core` and exercise both native Rust behavior and
-the serialized DTO contract.
+- Zero, one, and two distinct sites.
+- Three collinear sites: the middle site blocks the long edge.
+- Four square corners: perimeter edges exist and both diagonals are blocked by
+  sites on their closed diametral circles.
+- A blocker exactly on the diametral-circle boundary.
+- A site just outside the diametral circle does not block.
+- Coincident-coordinate grouping and preserved load-point identities.
+- Input permutation does not change normalized graph output.
+- Representative distinct-site fixtures produce a connected planar graph.
 
-- One node and two nodes.
-- Three collinear nodes: the middle node blocks the long edge.
-- Four rectangular-grid nodes: four perimeter edges and no diagonals.
-- Four plus-shape nodes: verify the expected graph and the two crossing
-  same-PPN connections after PPN filtering.
-- A blocker exactly on a rectangle boundary.
-- Coincident-coordinate sites and their outgoing connectivity.
-- Input permutation does not change normalized output.
-- The complete neighbourhood graph has one connected component for fixtures.
+### Face-extraction unit tests
 
-### Rust PPN topology tests
+- A triangle produces one positive bounded walk and one negative outer walk.
+- A square produces its one bounded elementary face.
+- A generic planar fixture with a diagonal produces two elementary faces.
+- A tree produces no positive-area face.
+- Bridge excursions do not add area or create a false face.
+- Collinear walks have zero area.
+- Large translated project coordinates preserve the same signed-area result.
+- Every half-edge is visited exactly once.
 
-- One eligible isolated node produces one component with no retained edge.
-- A same-PPN A–B–C chain produces one component and two retained edges.
-- Assignment changes split and merge components.
-- Values with the same millimetre-normalized key group together.
-- Unassigned, missing, invalid, and unresolved assignments are excluded.
-- WASM and Tauri adapters preserve the same nodes, edges, keys, and component
-  ordering as the core DTO.
+### PPN-classification unit tests
+
+- A face whose complete boundary has one eligible PPN is assigned to that key.
+- A mixed-PPN face remains uncolored.
+- A face with one unresolved or invalid boundary node remains uncolored.
+- A regular same-PPN ring with a different-PPN interior point and Gabriel
+  spokes does not become one blanket outer fill.
+- Same-PPN edges are retained; cross-PPN edges are not rendered.
+- Internal same-PPN edges between filled faces remain in the returned edge
+  geometry.
+- Equivalent millimetre-normalized PPN values classify identically.
+- WASM and Tauri adapters preserve stable nodes, edges, face walks, and keys.
 
 ### TypeScript geometry and presentation tests
 
-- One isolated topology node produces one circle.
-- A topology chain produces the expected circle and segment primitives.
-- Circle diameter follows current marker diameter plus 8 px.
-- Connection width equals circle diameter.
-- Opacity is applied once per PPN layer at 25%.
+- One eligible isolated node produces one circle and no face or edge geometry.
+- A same-PPN A–B edge produces one butt-capped stroke plus two endpoint
+  circles.
+- Region diameter equals current marker diameter plus 6 CSS px.
+- Face boundaries become closed subpaths in the correct PPN fill path.
+- Multiple faces and edges are batched rather than emitted as individual SVG
+  elements.
+- Opacity is applied once per PPN group at 25%.
 - Layer ordering is shallow-to-deep and deterministic.
-- No bounded-face fill geometry is generated.
+- Projected coordinates remain exact and unrounded.
 
 ### Pipeline contract tests
 
-- Neighbourhood construction has no dependency on assignments or rendering.
-- Region grouping produces identical topology for equivalent graph contracts,
-  regardless of how the graph was constructed.
-- WASM, Tauri, and `coreClient.ts` contain no alternative graph, PPN-key, or
-  component algorithm.
-- Geometry generation consumes topology without recalculating adjacency or
-  PPN equality.
-- Presentation changes do not alter graph, component, or geometry output.
-- The SVG renderer consumes primitive render data without inspecting project
-  assignments or rebuilding components.
+- Spatial topology does not depend on assignments, colors, or rendering.
+- PPN classification consumes Rust spatial topology without changing Gabriel
+  adjacency or face walks.
+- WASM, Tauri, and `coreClient.ts` contain no alternative graph, face, PPN, or
+  validity algorithm.
+- TypeScript does not calculate components or reinterpret face unanimity.
+- Presentation changes do not alter Rust topology output.
+- SVG rendering consumes prepared primitives without inspecting assignments.
 
 ### Integration and persistence tests
 
 - The View-ribbon toggle defaults to off and has Dutch and English labels.
 - New and old IFCPP data round-trip with the correct default.
 - Browser recovery preserves the toggle.
-- Changing assignments, active pile plan, accepted analysis, symbol size, or
-  legend colors refreshes the overlay.
+- Accepted assignment, plan, analysis, symbol-size, and legend-color changes
+  refresh the overlay atomically.
+- Pending analysis leaves the previous accepted overlay visible.
 - The overlay uses `pointer-events: none` and the required layer position.
-- Viewer projection continues to use exact unrounded pixel positions.
+- Selection, hover, pan, zoom, panel resizing, and exact marker positions remain
+  unchanged.
 
 ### Manual live-viewer checks
 
-Evaluate the sample project (328 load points) plus focused fixtures for:
+Evaluate the sample project plus focused fixtures for:
 
 - a single isolated node;
-- an A–B–C line;
-- a four-node rectangle;
-- the two-PPN plus shape.
+- an open A–B–C chain;
+- a one-PPN square face;
+- two adjacent unanimous faces with their internal edge retained;
+- a mixed face;
+- a same-PPN outer ring containing different-PPN interior topology;
+- overlapping buffered circles or edges from different PPN layers.
 
-Verify visibility, alpha mixing, immediate updates, selection, hover, panel
-resizing, plan pan, and plan zoom. The overlay must not introduce noticeable
-pan or zoom lag. Browser and Tauri should produce equivalent geometry at the
-same project viewport.
+Verify face filling, preserved gaps, 25% alpha mixing, deterministic draw order,
+selection, hover, panel resizing, plan pan, and plan zoom. The overlay must not
+introduce noticeable interaction lag. Browser and Tauri should produce
+equivalent topology and visual geometry at the same project viewport.
 
 ## Acceptance criteria
 
-The experiment is complete when:
+The Gabriel/face experiment is complete when:
 
-1. The persisted View-ribbon toggle shows deterministic PPN regions for valid
-   assignments only.
-2. Graph construction, PPN filtering, color ordering, and geometry match the
-   rules in this document.
-3. Assignment, plan, validity, legend, and symbol-size changes update the
-   overlay atomically.
-4. Exact marker locations, selection, hover, pan, zoom, and panel-resize
-   behavior remain intact.
-5. Automated tests and the four focused manual cases pass.
-6. The implementation has no optimizer dependency and does not implement any
-   explicitly deferred feature.
-7. Neighbourhood, grouping, geometry, presentation, and SVG rendering remain
-   separated by the contracts defined in this document.
-8. Neighbourhood construction, PPN normalization, validity resolution, and
-   connected-component grouping have one source of truth in `pile-plan-core`;
-   TypeScript starts at the returned topology DTO.
+1. The persisted View-ribbon toggle shows deterministic PPN regions for the
+   last accepted valid assignments.
+2. Closed-disk Gabriel construction and full-graph face extraction match this
+   document.
+3. Only unanimous bounded faces are filled; mixed and unresolved faces remain
+   uncolored.
+4. Same-PPN edges use butt-capped strokes, all eligible nodes use equal-width
+   circles, and the region diameter is marker diameter plus 6 CSS px.
+5. Faces, edges, and circles are batched per PPN layer with opacity applied once
+   at 25%; internal same-PPN edges remain present.
+6. Assignment, plan, accepted analysis, legend, and symbol-size changes update
+   the overlay atomically at the documented lifecycle boundary.
+7. Exact locations, selection, hover, pan, zoom, and panel-resize behavior
+   remain intact.
+8. Automated tests and focused manual cases pass without a new 1,000-location
+   performance requirement.
+9. Rust remains the sole source of Gabriel, face, PPN, and validity logic;
+   TypeScript begins with authoritative topology DTOs and owns only viewer
+   geometry and presentation.
+10. The implementation has no optimizer dependency and does not implement
+    component counting, ILP policy, clipping, polygon union, or Delaunay
+    acceleration.
 
 ## Follow-up use in #21
 
-After live evaluation, the graph and PPN components can provide objective
-measurements for #21, such as component count and same-configuration adjacency.
-That later design must decide separately how component count, configuration
-variety, and cost interact. This experiment does not make that policy choice.
+The cached Gabriel Graph provides an explicit, optimizer-independent spatial
+adjacency model. A later #21 design may consume those edges in an ILP or another
+optimization approach and may introduce binary variables, flow constraints,
+cut constraints, or evaluation metrics for spatial coherence.
+
+Issue #22 deliberately does not prescribe or compute a connected-component
+count.
+Cost, configuration variety, connected-region limits, technical validity,
+locked load points, reproducibility, and runtime remain requirements for the
+separate #21 design.
+
+## Deferred follow-up directions
+
+The following ideas require separate design or issues before implementation:
+
+- accelerate Gabriel construction through Delaunay triangulation after the
+  direct graph has been validated;
+- reconstruct explicit outer and inner boundary loops when clipping, export,
+  or area calculations need real polygons;
+- clip buffered geometry at shared ownership boundaries if transparent overlap
+  proves visually misleading;
+- revisit the six-pixel margin or 25% opacity only after live evaluation;
+- reconcile display and core precision under #29;
+- integrate later compatible 0.2.x changes before final 0.3.0 integration.
