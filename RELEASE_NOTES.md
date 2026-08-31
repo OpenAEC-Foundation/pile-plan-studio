@@ -11,7 +11,7 @@
 - Partial optimizer results explicitly report and persist load points that
   could not be assigned within the configured limits. The viewer distinguishes
   these outcomes from missing or invalid engineering options with a dedicated
-  zoom-aware marker.
+  compact marker.
 - Optimization summaries now report assigned, changed, and unassigned load
   points separately in both Dutch and English.
 
