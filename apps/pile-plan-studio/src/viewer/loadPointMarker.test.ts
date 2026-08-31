@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 
 import {
   getLoadPointMarkerInvalidVisual,
+  getOptimizerUnresolvedMarkerStyle,
   getUnselectedLoadPointMarkerState,
 } from "./loadPointMarker.ts";
 import type { PileConfigurationOption } from "../core/projectTypes.ts";
@@ -114,6 +115,15 @@ describe("unselected load point marker state", () => {
       ),
       "invalid",
     );
+  });
+});
+
+describe("optimizer unresolved marker placement", () => {
+  it("removes map anchoring when the marker is rendered in a hover preview", () => {
+    assert.deepEqual(getOptimizerUnresolvedMarkerStyle("inline"), {
+      position: "static",
+      transform: "none",
+    });
   });
 });
 

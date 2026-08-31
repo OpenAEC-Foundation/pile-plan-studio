@@ -820,6 +820,7 @@ export default function PilePlanViewer({ state, onStateChange }: Props) {
           <span className="load-point-pending" aria-hidden="true" />
         ) : unselectedState === "optimizer-unassigned" ? (
           <OptimizerUnresolvedMarker
+            placement="inline"
             title={t("viewer.optimizerUnassigned")}
           />
         ) : (

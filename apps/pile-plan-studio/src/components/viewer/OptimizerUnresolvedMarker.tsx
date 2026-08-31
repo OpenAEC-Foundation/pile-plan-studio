@@ -1,15 +1,22 @@
+import {
+  getOptimizerUnresolvedMarkerStyle,
+  type OptimizerUnresolvedMarkerPlacement,
+} from "../../viewer/loadPointMarker.ts";
+
 type Props = {
+  placement?: OptimizerUnresolvedMarkerPlacement;
   title: string;
 };
 
 const questionPath = "M-3-3C-3-6 3-6 3-2C3 1 0 1 0 3";
 
-export default function OptimizerUnresolvedMarker({ title }: Props) {
+export default function OptimizerUnresolvedMarker({ placement = "map", title }: Props) {
   return (
     <span
       aria-label={title}
       className="optimizer-unresolved-marker"
       role="img"
+      style={getOptimizerUnresolvedMarkerStyle(placement)}
       title={title}
     >
       <svg aria-hidden="true" focusable="false" viewBox="-12 -12 24 24">

@@ -15,6 +15,16 @@ export type UnselectedLoadPointMarkerState =
   | "invalid"
   | "optimizer-unassigned";
 
+export type OptimizerUnresolvedMarkerPlacement = "map" | "inline";
+
+export function getOptimizerUnresolvedMarkerStyle(
+  placement: OptimizerUnresolvedMarkerPlacement,
+) {
+  return placement === "inline"
+    ? { position: "static", transform: "none" } as const
+    : undefined;
+}
+
 export function getUnselectedLoadPointMarkerState(
   options: PileConfigurationOption[] | undefined,
   isPending: boolean,
