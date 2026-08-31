@@ -119,6 +119,12 @@ import { elementLayoutScale, screenToLocal } from "./domain/uiBaseline.ts";
 import { applyPileCostCatalogDefault, mergePileCostCatalog } from "./domain/pileCostCatalog.ts";
 import { VIEWER_LAYOUT_CHANGE_EVENT } from "./viewer/viewerGeometry.ts";
 import { transitionLassoSelectionMode } from "./viewer/lassoSelection.ts";
+import {
+  applyCptSelectionPreviewResult,
+  beginCptSelectionPreview,
+  failCptSelectionPreview,
+  getCptSelectionPreviewInput,
+} from "./components/domain/cptSettingsModel.ts";
 
 const BUILT_IN_PILE_COST_DEFAULTS = loadIfcppProjectData(sampleProjectText).pileCostSettings;
 
@@ -842,6 +848,41 @@ function AppSession({
     });
     return () => { cancelled = true; };
   }, [persistedProjectSignature]);
+
+  useEffect(() => {
+    const previewInput = getCptSelectionPreviewInput(projectState);
+    if (!previewInput) return;
+    const { draft } = previewInput;
+    let cancelled = false;
+    setProjectState((current) => beginCptSelectionPreview(current, draft));
+
+    calculateProjectAnalysisCore({
+      bearingCapacities: projectState.bearingCapacities,
+      cpts: projectState.cpts,
+      globalSettings: projectState.globalCptSelectionSettings,
+      loadPoints: previewInput.loadPoints,
+      manualCptIdsByLoadPoint: previewInput.manualCptIdsByLoadPoint,
+      settingsByLoadPoint: projectState.cptSelectionSettingsByLoadPoint,
+      includeCptFrdRows: false,
+    }).then((analysis) => {
+      if (!cancelled) {
+        setProjectState((current) => applyCptSelectionPreviewResult(current, draft, analysis));
+      }
+    }).catch((error: unknown) => {
+      console.error("Failed to preview CPT selection", error);
+      if (!cancelled) {
+        setProjectState((current) => failCptSelectionPreview(
+          current,
+          draft,
+          error instanceof Error ? error.message : String(error),
+        ));
+      }
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [projectState.cptSelectionEditDraft]);
 
   useEffect(() => {
     let cancelled = false;

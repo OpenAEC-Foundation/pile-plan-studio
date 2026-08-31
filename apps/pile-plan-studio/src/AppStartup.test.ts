@@ -19,6 +19,15 @@ describe("React app startup", () => {
     assert.doesNotMatch(source, /Promise\.all\(projectState\.cpts\.map/);
   });
 
+  it("runs transient CPT draft previews through the shared project analysis core", () => {
+    const source = readFileSync(resolve(import.meta.dirname, "App.tsx"), "utf8");
+
+    assert.match(source, /getCptSelectionPreviewInput/);
+    assert.match(source, /projectState\.cptSelectionEditDraft/);
+    assert.match(source, /applyCptSelectionPreviewResult/);
+    assert.match(source, /calculateProjectAnalysisCore\(\{/);
+  });
+
   it("stores analysis failures instead of leaving a permanent loading state", () => {
     const appSource = readFileSync(resolve(import.meta.dirname, "App.tsx"), "utf8");
     const panelSource = readFileSync(

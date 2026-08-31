@@ -1,5 +1,5 @@
-import type { CptSettingsScope, ProjectState } from "../../domain/projectState.ts";
-import type { CptSelectionSettings } from "../.././core/projectTypes.ts";
+import type { CptSelectionEditDraft, CptSettingsScope, ProjectState } from "../../domain/projectState.ts";
+import type { CptSelectionSettings, PileConfigurationOption, ProjectAnalysisResult } from "../.././core/projectTypes.ts";
 
 export type CptSelectionSettingsPatch = Partial<CptSelectionSettings>;
 
@@ -93,6 +93,7 @@ export function beginManualCptSelection(state: ProjectState, _legacySelectedCptI
       loadPointIds,
       cptIdsByLoadPoint,
     },
+    cptSelectionPreview: null,
   };
 }
 
@@ -152,6 +153,7 @@ export function selectOnlyNearestCpts(state: ProjectState): ProjectState {
   return {
     ...state,
     cptSelectionEditDraft: { ...draft, cptIdsByLoadPoint },
+    cptSelectionPreview: null,
   };
 }
 
@@ -168,11 +170,12 @@ export function saveManualCptSelection(state: ProjectState): ProjectState {
     ...state,
     manualCptIdsByLoadPoint: manualSelections,
     cptSelectionEditDraft: null,
+    cptSelectionPreview: null,
   }, draft.loadPointIds);
 }
 
 export function cancelManualCptSelection(state: ProjectState): ProjectState {
-  return { ...state, cptSelectionEditDraft: null };
+  return { ...state, cptSelectionEditDraft: null, cptSelectionPreview: null };
 }
 
 export function clearManualCptSelection(state: ProjectState): ProjectState {
@@ -185,7 +188,75 @@ export function clearManualCptSelection(state: ProjectState): ProjectState {
     ...state,
     manualCptIdsByLoadPoint: manualSelections,
     cptSelectionEditDraft: null,
+    cptSelectionPreview: null,
   }, state.selectedLoadPointIds);
+}
+
+export function getCptSelectionPreviewInput(state: ProjectState): {
+  draft: CptSelectionEditDraft;
+  loadPoints: ProjectState["loadPoints"];
+  manualCptIdsByLoadPoint: Map<number, number[]>;
+} | null {
+  const draft = state.cptSelectionEditDraft;
+  if (!draft) return null;
+  const targetIds = new Set(draft.loadPointIds);
+  const manualCptIdsByLoadPoint = new Map(state.manualCptIdsByLoadPoint);
+  for (const loadPointId of draft.loadPointIds) {
+    manualCptIdsByLoadPoint.set(
+      loadPointId,
+      [...(draft.cptIdsByLoadPoint.get(loadPointId) ?? new Set())].sort((left, right) => left - right),
+    );
+  }
+  return {
+    draft,
+    loadPoints: state.loadPoints.filter((loadPoint) => targetIds.has(loadPoint.id)),
+    manualCptIdsByLoadPoint,
+  };
+}
+
+export function beginCptSelectionPreview(
+  state: ProjectState,
+  draft: CptSelectionEditDraft,
+): ProjectState {
+  return state.cptSelectionEditDraft === draft
+    ? { ...state, cptSelectionPreview: { draft, status: "analyzing" } }
+    : state;
+}
+
+export function applyCptSelectionPreviewResult(
+  state: ProjectState,
+  draft: CptSelectionEditDraft | null,
+  analysis: ProjectAnalysisResult,
+): ProjectState {
+  if (!draft || state.cptSelectionEditDraft !== draft) return state;
+  return {
+    ...state,
+    cptSelectionPreview: {
+      draft,
+      status: "ready",
+      pileOptionsByLoadPointId: analysis.pileOptionsByLoadPointId,
+    },
+  };
+}
+
+export function failCptSelectionPreview(
+  state: ProjectState,
+  draft: CptSelectionEditDraft,
+  error: string,
+): ProjectState {
+  return state.cptSelectionEditDraft === draft
+    ? { ...state, cptSelectionPreview: { draft, status: "failed", error } }
+    : state;
+}
+
+export function getEffectivePileOptionsByLoadPointId(
+  state: ProjectState,
+): Map<number, PileConfigurationOption[]> {
+  const preview = state.cptSelectionPreview;
+  if (!preview || preview.status !== "ready" || preview.draft !== state.cptSelectionEditDraft) {
+    return state.pileOptionsByLoadPointId;
+  }
+  return new Map([...state.pileOptionsByLoadPointId, ...preview.pileOptionsByLoadPointId]);
 }
 
 function requestAnalysis(state: ProjectState, loadPointIds: number[] | null): ProjectState {
@@ -216,6 +287,7 @@ function updateManualCptDraft(
   return {
     ...state,
     cptSelectionEditDraft: { ...draft, cptIdsByLoadPoint },
+    cptSelectionPreview: null,
   };
 }
 

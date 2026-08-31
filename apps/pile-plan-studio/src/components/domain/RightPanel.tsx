@@ -491,6 +491,9 @@ function CptSelectionOverview({ state, onStateChange, selectedLoadPoints, editin
 }) {
   const { t } = useTranslation("rightPanel");
   const overview = getSelectedCptOverviewModel(state, selectedLoadPoints);
+  const preview = state.cptSelectionPreview?.draft === state.cptSelectionEditDraft
+    ? state.cptSelectionPreview
+    : editing ? { status: "analyzing" as const } : null;
   const heading = selectedLoadPoints.length > 1
     ? t("cpts.selectedHeading")
     : `${localizeLoadPointName(selectedLoadPoints[0].name, t)} - ${t("tabs.cpts")}`;
@@ -501,6 +504,8 @@ function CptSelectionOverview({ state, onStateChange, selectedLoadPoints, editin
     "Used by": t("cpts.usedBy"),
     "Load points": t("cpts.loadPoints"),
     "FRD range": <span aria-label={t("cpts.frdRange")}><ResistanceLabel qualifier={t("cpts.rangeQualifier")} /></span>,
+    "Chosen pile FRD": <span aria-label={t("cpts.chosenPileFrd")}><ResistanceLabel qualifier={t("cpts.assignedPileQualifier")} /></span>,
+    "Governing for": t("cpts.governingFor"),
   };
 
   return (
@@ -521,6 +526,14 @@ function CptSelectionOverview({ state, onStateChange, selectedLoadPoints, editin
           </div>
         </div>
       ) : null}
+      {editing && preview?.status === "analyzing" ? (
+        <div className="cpt-preview-status" role="status">{t("cpts.previewCalculating")}</div>
+      ) : null}
+      {editing && preview?.status === "failed" ? (
+        <div className="cpt-preview-status is-error" role="alert">
+          {t("cpts.previewFailed", { error: preview.error })}
+        </div>
+      ) : null}
       <div className="cpt-table-wrap">
         <table className="cpt-table">
           <thead>
@@ -533,7 +546,13 @@ function CptSelectionOverview({ state, onStateChange, selectedLoadPoints, editin
             {overview.rows.length === 0 ? (
               <tr><td className="empty-table-cell" colSpan={overview.columns.length + (editing ? 1 : 0)}>{t("empty.noCptsAvailable")}</td></tr>
             ) : overview.rows.map((row) => (
-              <tr key={row.cpt.id}>
+              <tr
+                className={row.governingLoadPointCount > 0 ? "is-governing" : undefined}
+                key={row.cpt.id}
+                title={row.governingLoadPointCount > 0
+                  ? t("cpts.governingCount", { used: row.governingLoadPointCount, total: selectedLoadPoints.length })
+                  : undefined}
+              >
                 {row.values.map((value, index) => (
                   <td key={`${row.cpt.id}-${overview.columns[index]}`}>
                     {overview.columns[index] === "CPT" && !editing ? (
@@ -866,6 +885,11 @@ function localizeCptTableValue(column: string, value: string, t: ReturnType<type
   if (column === "Used by") {
     const usage = value.match(/^(\d+)\s*\/\s*(\d+)\s+load points$/i);
     if (usage) return t("cpts.usedByValue", { used: usage[1], total: usage[2] });
+  }
+
+  if (column === "Governing for") {
+    const usage = value.match(/^(\d+)\s*\/\s*(\d+)\s+load points$/i);
+    if (usage) return t("cpts.governingForValue", { used: usage[1], total: usage[2] });
   }
 
   return value;

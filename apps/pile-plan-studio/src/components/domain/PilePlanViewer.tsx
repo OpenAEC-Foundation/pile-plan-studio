@@ -68,7 +68,7 @@ import {
   shouldRaiseCptMarker,
   toggleReactViewerLoadPoint,
 } from "./viewerInteractions.ts";
-import { toggleManualCpt } from "./cptSettingsModel.ts";
+import { getEffectivePileOptionsByLoadPointId, toggleManualCpt } from "./cptSettingsModel.ts";
 import {
   alignCoordinateGridPatternToDevicePixels,
   getCoordinateGridPattern,
@@ -101,9 +101,10 @@ export default function PilePlanViewer({ state, lassoSelectionActive, onStateCha
   );
   const contextSelectedCptIds = new Set(getReactViewerContextCptIds(state));
   const selectedCptIds = new Set(getReactViewerSelectedCptIds(state));
+  const pileOptionsByLoadPointId = getEffectivePileOptionsByLoadPointId(state);
   const governingCptId = getHighlightedGoverningCptId({
     activeSelectedCptIds: [...contextSelectedCptIds],
-    pileOptionsByLoadPointId: state.pileOptionsByLoadPointId,
+    pileOptionsByLoadPointId,
     selectedLoadPointIds: state.selectedLoadPointIds,
     selectedPileOptionKeysByLoadPoint: state.selectedPileOptionKeysByLoadPoint,
   });
@@ -336,7 +337,7 @@ export default function PilePlanViewer({ state, lassoSelectionActive, onStateCha
             const point = projectPointPixels(loadPoint, projectTransform);
             const isSelected = selectedLoadPointIds.has(loadPoint.id);
             const isLocked = lockedLoadPointIds.has(loadPoint.id);
-            const selectedOption = getSelectedPileOption(state, loadPoint.id);
+            const selectedOption = getSelectedPileOption(state, loadPoint.id, pileOptionsByLoadPointId);
             const invalidVisual = getLoadPointMarkerInvalidVisual(
               selectedOption,
               state.viewerUtilizationSettings,
@@ -345,7 +346,7 @@ export default function PilePlanViewer({ state, lassoSelectionActive, onStateCha
               ? getConfigurationStyle(selectedOption, legend)
               : null;
             const unselectedState = selectedOption ? null : getUnselectedLoadPointMarkerState(
-              state.pileOptionsByLoadPointId.get(loadPoint.id),
+              pileOptionsByLoadPointId.get(loadPoint.id),
               state.defaultPileSelectionPending,
               state.analysisError !== null,
               activePilePlan.optimizationUnassignedByLoadPoint.get(loadPoint.id),
@@ -736,7 +737,7 @@ export default function PilePlanViewer({ state, lassoSelectionActive, onStateCha
       return null;
     }
 
-    const selectedOption = loadPoint ? getSelectedPileOption(state, loadPoint.id) : null;
+    const selectedOption = loadPoint ? getSelectedPileOption(state, loadPoint.id, pileOptionsByLoadPointId) : null;
     return (
       <section className="viewer-hover-inspector" aria-live="polite">
         <div className="viewer-hover-title">
@@ -818,14 +819,14 @@ export default function PilePlanViewer({ state, lassoSelectionActive, onStateCha
       );
     }
 
-    const selectedOption = getSelectedPileOption(state, item.id);
+    const selectedOption = getSelectedPileOption(state, item.id, pileOptionsByLoadPointId);
     const symbolStyle = selectedOption ? getConfigurationStyle(selectedOption, legend) : null;
     const invalidVisual = getLoadPointMarkerInvalidVisual(
       selectedOption,
       state.viewerUtilizationSettings,
     );
     const unselectedState = selectedOption ? null : getUnselectedLoadPointMarkerState(
-      state.pileOptionsByLoadPointId.get(item.id),
+      pileOptionsByLoadPointId.get(item.id),
       state.defaultPileSelectionPending,
       state.analysisError !== null,
       activePilePlan.optimizationUnassignedByLoadPoint.get(item.id),
@@ -993,7 +994,11 @@ function blurActiveNonTextControl(): void {
   }
 }
 
-function getSelectedPileOption(state: ProjectState, loadPointId: number) {
+function getSelectedPileOption(
+  state: ProjectState,
+  loadPointId: number,
+  pileOptionsByLoadPointId: ProjectState["pileOptionsByLoadPointId"],
+) {
   const key = state.selectedPileOptionKeysByLoadPoint.get(loadPointId);
   if (!key) {
     return null;
@@ -1004,7 +1009,7 @@ function getSelectedPileOption(state: ProjectState, loadPointId: number) {
     return null;
   }
 
-  return state.pileOptionsByLoadPointId.get(loadPointId)?.find((option) => (
+  return pileOptionsByLoadPointId.get(loadPointId)?.find((option) => (
     option.pile_size_mm === pileSize && option.pile_tip_level_m === pileTipLevel
   )) ?? {
     pile_size_mm: pileSize,

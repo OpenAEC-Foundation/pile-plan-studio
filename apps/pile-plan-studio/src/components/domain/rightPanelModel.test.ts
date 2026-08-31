@@ -4,6 +4,7 @@ import {
   formatLoadPointPanelTitle,
   getCptFrdPanelModel,
   getChosenPileOptionKeyForSelection,
+  getPileOptionsForSelectedLoadPoints,
   getRenderablePileOptionRows,
   getSelectedCptOverviewModel,
   getSelectedLoadPoints,
@@ -131,7 +132,7 @@ describe("React right panel model", () => {
     assert.equal(formatLoadPointPanelTitle("15"), "Load point 15");
   });
 
-  it("builds a selected CPT overview for one load point with FRD ranges", () => {
+  it("shows the CPT capacity for the pile assigned to one load point", () => {
     const state = minimalState({
       cptFrdRowsByCptId: new Map([
         [64, [
@@ -146,12 +147,23 @@ describe("React right panel model", () => {
           label: "upper left",
         }]],
       ]),
+      selectedPileOptionKeysByLoadPoint: new Map([[1, "290|-17.5"]]),
+      pileOptionsByLoadPointId: new Map([[1, [{
+        pile_size_mm: 290,
+        pile_tip_level_m: -17.5,
+        isOption: true,
+        governing_cpt_id: 64,
+        governing_frd_kn: 693,
+        utilization: 0.75,
+        missing_cpt_ids: [],
+      }]]]),
     });
 
     const model = getSelectedCptOverviewModel(state, getSelectedLoadPoints(state));
 
-    assert.deepEqual(model.columns, ["Selection", "CPT", "Distance", "FRD range"]);
-    assert.deepEqual(model.rows[0].values, ["upper left", "CPT 64", "12.3 m", "693-911 kN"]);
+    assert.deepEqual(model.columns, ["Selection", "CPT", "Distance", "Chosen pile FRD"]);
+    assert.deepEqual(model.rows[0].values, ["upper left", "CPT 64", "12.3 m", "693 kN"]);
+    assert.equal(model.rows[0].governingLoadPointCount, 1);
   });
 
   it("builds the union of CPTs for multiple selected load points", () => {
@@ -166,9 +178,60 @@ describe("React right panel model", () => {
 
     const model = getSelectedCptOverviewModel(state, getSelectedLoadPoints(state));
 
-    assert.deepEqual(model.columns, ["CPT", "Used by", "Load points", "FRD range"]);
+    assert.deepEqual(model.columns, ["CPT", "Used by", "Load points", "Governing for"]);
     assert.equal(model.rows.length, 1);
     assert.deepEqual(model.rows[0].values.slice(0, 3), ["CPT 64", "2 / 2 load points", "1, 2"]);
+    assert.equal(model.rows[0].values[3], "0 / 2 load points");
+  });
+
+  it("counts governing CPTs when selected load points have different assigned piles", () => {
+    const cpt64 = { id: 64, name: "CPT 64", x_mm: 0, y_mm: 0 };
+    const cpt65 = { id: 65, name: "CPT 65", x_mm: 10, y_mm: 10 };
+    const state = minimalState({
+      cpts: [cpt64, cpt65],
+      selectedLoadPointIds: [1, 2],
+      selectedCptsByLoadPointId: new Map([
+        [1, [{ cpt: cpt64, distance_mm: 1000, label: "upper left" }]],
+        [2, [{ cpt: cpt64, distance_mm: 2000, label: "lower right" }, { cpt: cpt65, distance_mm: 3000, label: "upper right" }]],
+      ]),
+      selectedPileOptionKeysByLoadPoint: new Map([[1, "290|-17.5"], [2, "320|-18"]]),
+      pileOptionsByLoadPointId: new Map([
+        [1, [{ pile_size_mm: 290, pile_tip_level_m: -17.5, isOption: true, governing_cpt_id: 64, governing_frd_kn: 693, utilization: 0.8, missing_cpt_ids: [] }]],
+        [2, [{ pile_size_mm: 320, pile_tip_level_m: -18, isOption: true, governing_cpt_id: 65, governing_frd_kn: 800, utilization: 0.7, missing_cpt_ids: [] }]],
+      ]),
+    });
+
+    const model = getSelectedCptOverviewModel(state, getSelectedLoadPoints(state));
+
+    assert.equal(model.columns[3], "Governing for");
+    assert.deepEqual(model.rows.map((row) => [row.cpt.id, row.values[3], row.governingLoadPointCount]), [
+      [64, "1 / 2 load points", 1],
+      [65, "1 / 2 load points", 1],
+    ]);
+  });
+
+  it("uses a ready CPT draft preview for pile feasibility", () => {
+    const savedOption = { pile_size_mm: 290, pile_tip_level_m: -17.5, isOption: true, governing_cpt_id: 64, governing_frd_kn: 900, utilization: 0.5, missing_cpt_ids: [] };
+    const previewOption = { ...savedOption, governing_cpt_id: 65, governing_frd_kn: 600, utilization: 0.75 };
+    const draft = {
+      loadPointIds: [1],
+      cptIdsByLoadPoint: new Map([[1, new Set([65])]]),
+    };
+    const state = minimalState({
+      cptSelectionEditDraft: draft,
+      pileOptionsByLoadPointId: new Map([[1, [savedOption]]]),
+    }) as ProjectState & { cptSelectionPreview: unknown };
+    state.cptSelectionPreview = {
+      draft,
+      status: "ready",
+      pileOptionsByLoadPointId: new Map([[1, [previewOption]]]),
+      selectedCptsByLoadPointId: new Map(),
+    };
+
+    const options = getPileOptionsForSelectedLoadPoints(state, getSelectedLoadPoints(state));
+
+    assert.equal(options[0].governing_cpt_id, 65);
+    assert.equal(options[0].utilization, 0.75);
   });
 
   it("builds the CPT overview from a manual draft with all-or-some usage", () => {
@@ -212,7 +275,7 @@ describe("React right panel model", () => {
 
     const model = getSelectedCptOverviewModel(state, getSelectedLoadPoints(state));
 
-    assert.deepEqual(model.columns, ["Selection", "CPT", "Distance", "FRD range"]);
+    assert.deepEqual(model.columns, ["Selection", "CPT", "Distance", "Chosen pile FRD"]);
     assert.deepEqual(model.rows[0].values.slice(0, 3), ["upper left", "CPT 64", "12.3 m"]);
   });
 

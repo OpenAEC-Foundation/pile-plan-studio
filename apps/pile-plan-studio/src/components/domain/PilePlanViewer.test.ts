@@ -175,6 +175,15 @@ describe("PilePlanViewer inputs", () => {
     assert.doesNotMatch(css, /#fff7c2/);
   });
 
+  it("renders feasibility and governing CPTs from the active draft preview", () => {
+    const source = readFileSync(resolve(import.meta.dirname, "PilePlanViewer.tsx"), "utf8");
+
+    assert.match(source, /getEffectivePileOptionsByLoadPointId/);
+    assert.match(source, /const pileOptionsByLoadPointId = getEffectivePileOptionsByLoadPointId\(state\)/);
+    assert.match(source, /pileOptionsByLoadPointId\.get\(loadPoint\.id\)/);
+    assert.match(source, /getSelectedPileOption\(state, loadPoint\.id, pileOptionsByLoadPointId\)/);
+  });
+
   it("lets pile-size legend symbols inherit the active theme text color", () => {
     const source = readFileSync(resolve(import.meta.dirname, "Legend.tsx"), "utf8");
     const css = readFileSync(resolve(import.meta.dirname, "viewer.css"), "utf8");

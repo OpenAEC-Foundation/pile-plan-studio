@@ -290,4 +290,24 @@ describe("React CPT panel edit mode", () => {
     assert.match(nl, /"selection\.nearest":\s*"dichtstbijzijnde"/);
     assert.match(nl, /"selection\.manual":\s*"handmatig\{\{suffix\}\}"/);
   });
+
+  it("shows live preview progress, failures, and governing CPT rows", () => {
+    const panel = readFileSync(resolve(import.meta.dirname, "RightPanel.tsx"), "utf8");
+    const styles = readFileSync(resolve(import.meta.dirname, "rightPanel.css"), "utf8");
+    const en = readFileSync(resolve(import.meta.dirname, "../../i18n/locales/en/rightPanel.json"), "utf8");
+    const nl = readFileSync(resolve(import.meta.dirname, "../../i18n/locales/nl/rightPanel.json"), "utf8");
+
+    assert.match(panel, /state\.cptSelectionPreview/);
+    assert.match(panel, /cpts\.previewCalculating/);
+    assert.match(panel, /cpts\.previewFailed/);
+    assert.match(panel, /row\.governingLoadPointCount > 0/);
+    assert.match(styles, /\.cpt-preview-status/);
+    assert.match(styles, /\.cpt-table tr\.is-governing/);
+    for (const translations of [en, nl]) {
+      assert.match(translations, /"cpts\.chosenPileFrd":/);
+      assert.match(translations, /"cpts\.governingFor":/);
+      assert.match(translations, /"cpts\.previewCalculating":/);
+      assert.match(translations, /"cpts\.previewFailed":/);
+    }
+  });
 });

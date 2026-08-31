@@ -453,6 +453,21 @@
   box-shadow: 0 1px 0 var(--theme-border);
 }
 
+.cpt-preview-status {
+  padding: 6px 10px;
+  border-top: 1px solid var(--theme-border);
+  color: var(--theme-text-muted);
+  font-size: 12px;
+}
+
+.cpt-preview-status.is-error {
+  color: var(--theme-danger-color);
+}
+
+.cpt-table tr.is-governing td {
+  background: color-mix(in srgb, var(--theme-accent) 7%, var(--theme-surface));
+}
+
 .cpt-link {
   padding: 0;
   border: 0;
