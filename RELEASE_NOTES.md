@@ -1,6 +1,10 @@
 # Pile Plan Studio Release Notes
 
-## 0.2.1 (in development)
+## 0.2.1-alpha
+
+This alpha makes constrained greedy optimization more predictable and easier
+to inspect, adds persistent lasso selection, and completes the Windows
+installer branding.
 
 ### Added
 
@@ -10,6 +14,8 @@
 
 ### Improved
 
+- Brand the Windows application, installer, and uninstaller with the Pile Plan
+  Studio logo.
 - Greedy optimization now keeps every enabled-value, utilization, size,
   tip-level, configuration, lock, and whole-plan limit in the shared Rust
   core instead of silently applying a fallback outside the selected
