@@ -15,8 +15,8 @@ probably belong to the same pile cap.
 
 The work prepares a reusable hard equality constraint for the future spatial
 optimizer without coupling groups to the current greedy optimizer. It also
-allows a manual configuration choice made through one load point to propagate
-atomically to the other members of its group.
+allows a manual configuration choice made through one or more selected load
+points to propagate atomically to every member of the involved groups.
 
 ## Terminology and boundaries
 
@@ -118,15 +118,16 @@ remain visible until the user changes them or an optimizer resolves them.
 
 ## Manual configuration propagation
 
-Selection remains load-point based. Choosing a pile option through one selected
-load point starts one Rust-owned group-assignment operation for the active pile
-plan.
+Selection remains load-point based. Choosing a pile option starts one Rust-owned
+group-assignment operation for the active pile plan. Every group containing at
+least one selected load point participates. The target is the union of those
+groups, with duplicate groups and members removed.
 
 Inputs include:
 
-- the target load-point ID;
+- the selected target load-point IDs;
 - the requested canonical `PileConfigurationKey`;
-- the target's `LoadPointGroup`;
+- the derived `LoadPointGroup` partition;
 - the active plan's current assignments;
 - the active plan's locked load-point IDs.
 
@@ -135,9 +136,11 @@ TypeScript does not reproduce group or lock decisions.
 
 The operation follows these rules:
 
-1. Every unlocked group member receives the requested complete configuration.
+1. Every unlocked member of every involved group receives the requested
+   complete configuration.
 2. A locked member already using the requested configuration remains unchanged.
-3. A locked member using another configuration blocks the whole operation.
+3. A locked member using another configuration blocks the whole operation,
+   including otherwise valid involved groups.
 4. A locked member without an assignment also blocks the whole operation.
 5. A blocked operation returns no partial patch and changes no project state.
 6. The operation does not check whether the requested configuration is valid
@@ -145,8 +148,9 @@ The operation follows these rules:
    responsible for exposing invalid manual assignments.
 
 A successful patch is applied to the active pile plan only and is recorded as
-one undo/redo action. Other pile plans use the same project-wide group partition
-but keep their own assignments and locks.
+one undo/redo action, including when multiple selected points involve multiple
+groups. Other pile plans use the same project-wide group partition but keep
+their own assignments and locks.
 
 ### Conflict feedback
 
@@ -324,6 +328,7 @@ reproduced from load points and the fixed Rust default.
 - groups refresh only for changed load-point geometry;
 - stale group and assignment responses are ignored;
 - one selected member changes the complete group;
+- multiple selected members change the union of their groups atomically;
 - only the active pile plan changes;
 - one undo restores the entire group;
 - lock conflicts show an error `ActionNotice` and apply no change;
@@ -337,11 +342,13 @@ Use the sample project on the development viewer:
 1. Identify an automatically derived two-member group and six-member group.
 2. Select one member and apply another configuration.
 3. Verify that every member changes while selection remains individual.
-4. Undo once and verify that all members are restored.
-5. Lock one member to a conflicting configuration and verify that the next
+4. Select members from two groups, apply one configuration, and verify that the
+   union of both groups changes as one action.
+5. Undo once and verify that all members are restored.
+6. Lock one member to a conflicting configuration and verify that the next
    group assignment is blocked with a bottom-center error notice.
-6. Verify that another pile plan remains unchanged.
-7. Verify that tip-level regions update after a successful change.
+7. Verify that another pile plan remains unchanged.
+8. Verify that tip-level regions update after a successful change.
 
 ## Alternatives considered
 
