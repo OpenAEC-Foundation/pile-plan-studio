@@ -37,7 +37,7 @@ describe("selection state transitions", () => {
     });
   });
 
-  it("adds load points to the current selection with Shift interaction", () => {
+  it("adds load points to the current selection with an additive interaction", () => {
     assert.deepEqual(addLoadPointsToSelection(cptOpenState, [18, 22, 15]), {
       selectedLoadPointId: 15,
       selectedLoadPointIds: [15, 18, 22],
@@ -64,7 +64,7 @@ describe("selection state transitions", () => {
     });
   });
 
-  it("removes a selected load point when Shift-clicking it again", () => {
+  it("removes a selected load point when modifier-clicking it again", () => {
     assert.deepEqual(
       addLoadPointsToSelection({ ...cptOpenState, selectedLoadPointIds: [15, 18] }, [15], { toggle: true }),
       {

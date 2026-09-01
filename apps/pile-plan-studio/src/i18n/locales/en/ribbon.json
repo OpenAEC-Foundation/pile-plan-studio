@@ -16,7 +16,7 @@
     "inspect": "Inspect",
     "selection": "Selection",
     "lassoSelection": "Box selection",
-    "lassoSelectionTooltip": "Select load points by dragging a box. Shortcut: Shift+drag.",
+    "lassoSelectionTooltip": "Select load points by dragging a box. Shortcut: Shift+drag; hold Ctrl to add.",
     "loadPoints": "Load points",
     "cpts": "CPTs",
     "settings": "Settings",

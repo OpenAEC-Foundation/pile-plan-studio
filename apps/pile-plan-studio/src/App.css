@@ -514,6 +514,25 @@ input[type="number"]:focus-visible {
   background: var(--theme-row-hover, var(--theme-bg-lighter));
 }
 
+.source-table-row.is-selectable {
+  cursor: pointer;
+  user-select: none;
+}
+
+.source-table-row.is-selected {
+  background: var(--theme-accent-soft);
+  box-shadow: inset 3px 0 var(--theme-accent);
+}
+
+.source-table-row.is-selected:hover {
+  background: var(--theme-accent-soft);
+}
+
+.source-table-row.is-disabled {
+  color: var(--theme-text-faint);
+  cursor: default;
+}
+
 .source-table-row span {
   overflow: hidden;
   padding: 7px 8px;

@@ -2,6 +2,7 @@ import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 
 import {
+  getAdditiveSelectionModifier,
   getLassoSelectionOperation,
   getPointIdsInRectangle,
   shouldClearViewerSelectionOnEscape,
@@ -10,6 +11,12 @@ import {
 } from "./lassoSelection.ts";
 
 describe("lasso selection", () => {
+  it("recognizes Ctrl and Cmd as additive selection modifiers", () => {
+    assert.equal(getAdditiveSelectionModifier({ ctrlKey: true, metaKey: false }), true);
+    assert.equal(getAdditiveSelectionModifier({ ctrlKey: false, metaKey: true }), true);
+    assert.equal(getAdditiveSelectionModifier({ ctrlKey: false, metaKey: false }), false);
+  });
+
   it("selects points inside a screen-space rectangle", () => {
     const selected = getPointIdsInRectangle(
       [
@@ -68,25 +75,25 @@ describe("lasso selection", () => {
     }), false);
   });
 
-  it("replaces only for an unmodified ribbon-mode lasso", () => {
+  it("uses Ctrl or Cmd, rather than Shift, to add a lasso selection", () => {
     assert.equal(getLassoSelectionOperation({
-      lassoSelectionActive: true,
-      shiftKey: false,
+      additiveKey: false,
       isEditingLoadPointLocks: false,
     }), "replace");
     assert.equal(getLassoSelectionOperation({
-      lassoSelectionActive: true,
-      shiftKey: true,
+      additiveKey: false,
+      isEditingLoadPointLocks: false,
+    }), "replace");
+    assert.equal(getLassoSelectionOperation({
+      additiveKey: true,
       isEditingLoadPointLocks: false,
     }), "add");
     assert.equal(getLassoSelectionOperation({
-      lassoSelectionActive: false,
-      shiftKey: true,
+      additiveKey: false,
       isEditingLoadPointLocks: false,
-    }), "add");
+    }), "replace");
     assert.equal(getLassoSelectionOperation({
-      lassoSelectionActive: false,
-      shiftKey: true,
+      additiveKey: true,
       isEditingLoadPointLocks: true,
     }), "lock");
   });

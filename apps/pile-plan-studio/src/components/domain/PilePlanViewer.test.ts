@@ -49,7 +49,7 @@ describe("PilePlanViewer inputs", () => {
     assert.ok(state.bounds.maxY > state.bounds.minY);
   });
 
-  it("shows Shift-click as an explicit shortcut when a selection already exists", () => {
+  it("shows Ctrl-click as an explicit shortcut when a selection already exists", () => {
     const source = readFileSync(resolve(import.meta.dirname, "PilePlanViewer.tsx"), "utf8");
 
     assert.doesNotMatch(source, /title=\{t\("viewer\.selectionHelp"\)\}/);
@@ -58,6 +58,7 @@ describe("PilePlanViewer inputs", () => {
     assert.match(source, /viewer\.hover\.clickKey/);
     assert.match(source, /viewer-hover-shortcut-plus/);
     assert.match(source, /viewer\.hover\.addToSelection/);
+    assert.match(source, />Ctrl</);
     assert.doesNotMatch(source, /viewer\.hover\.shiftHint/);
   });
 

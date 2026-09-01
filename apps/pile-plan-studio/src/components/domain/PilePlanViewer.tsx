@@ -11,6 +11,7 @@ import { useTranslation } from "react-i18next";
 import type { ProjectState } from "../../domain/projectState";
 import { getCptDisplayName } from "../../domain/cptDisplayName.ts";
 import {
+  getAdditiveSelectionModifier,
   getLassoSelectionOperation,
   getPointIdsInRectangle,
   shouldClearViewerSelectionOnEscape,
@@ -317,7 +318,7 @@ export default function PilePlanViewer({ state, lassoSelectionActive, onStateCha
                   if (isEditingLoadPointLocks) return;
                   const clickedKey = getClickCandidateKey(event, `cpt:${cpt.id}`);
                   clearHoverCandidates();
-                  selectMapMarker(clickedKey, event.shiftKey);
+                  selectMapMarker(clickedKey, getAdditiveSelectionModifier(event));
                 }}
               >
                 <svg className="cpt-triangle" viewBox="0 0 24 22" aria-hidden="true" focusable="false">
@@ -387,7 +388,7 @@ export default function PilePlanViewer({ state, lassoSelectionActive, onStateCha
                   }
                   const clickedKey = getClickCandidateKey(event, `load-point:${loadPoint.id}`);
                   clearHoverCandidates();
-                  selectMapMarker(clickedKey, event.shiftKey);
+                  selectMapMarker(clickedKey, getAdditiveSelectionModifier(event));
                 }}
               >
                 {style ? (
@@ -457,8 +458,7 @@ export default function PilePlanViewer({ state, lassoSelectionActive, onStateCha
         start,
         current: start,
         operation: getLassoSelectionOperation({
-          lassoSelectionActive,
-          shiftKey: event.shiftKey,
+          additiveKey: getAdditiveSelectionModifier(event),
           isEditingLoadPointLocks,
         }),
       };
@@ -791,7 +791,7 @@ export default function PilePlanViewer({ state, lassoSelectionActive, onStateCha
         {loadPoint && selectedLoadPointIds.size > 0 ? (
           <div className="viewer-hover-shortcut is-stacked">
             <span className="viewer-hover-shortcut-combination">
-              <span className="viewer-hover-keycap">Shift</span>
+              <span className="viewer-hover-keycap">Ctrl</span>
               <span className="viewer-hover-shortcut-plus" aria-hidden="true">+</span>
               <span className="viewer-hover-keycap">{t("viewer.hover.clickKey")}</span>
             </span>
@@ -864,7 +864,7 @@ export default function PilePlanViewer({ state, lassoSelectionActive, onStateCha
     return `${value.toLocaleString(i18n.language, { maximumFractionDigits: 1 })}${suffix}`;
   }
 
-  function selectMapMarker(key: string, shiftKey: boolean) {
+  function selectMapMarker(key: string, additiveKey: boolean) {
     const item = parseMarkerKey(key);
     if (item.type === "cpt") {
       const nextState = isEditingCptSelection
@@ -878,7 +878,7 @@ export default function PilePlanViewer({ state, lassoSelectionActive, onStateCha
       return;
     }
 
-    const selection = shiftKey
+    const selection = additiveKey
       ? toggleReactViewerLoadPoint(state, item.id)
       : selectReactViewerLoadPoint(state, item.id);
     onStateChange({ ...state, ...selection, viewport: viewportRef.current });

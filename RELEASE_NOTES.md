@@ -1,5 +1,34 @@
 # Pile Plan Studio Release Notes
 
+## 0.2.2-alpha
+
+This alpha adds live CPT-selection feasibility feedback, restores coordinate
+inspection, and aligns selection behavior between source tables and the plan
+viewer.
+
+### Improved
+
+- Preview CPT-selection feasibility while editing: single load-point
+  selections show the design resistance for the assigned pile, while
+  multi-selections show how often each CPT is governing. Governing CPTs are
+  highlighted consistently in the table and viewer.
+- Show localized X/Y coordinates consistently for inspected load points and
+  CPTs in the properties panel and compact hover inspector, while omitting
+  misleading coordinate values for multi-selections.
+- Select load points and CPTs directly from their normalized source tables,
+  including shared row highlighting, Explorer-style `Ctrl` toggles and
+  `Shift` ranges for load points, selection persistence across workspace
+  views, and clearing from the source header or with `Escape`.
+- Use `Ctrl`+click to toggle individual load points in the plan viewer. Outside
+  persistent box-selection mode, `Shift`+drag replaces the selection and
+  `Ctrl`+`Shift`+drag adds to it; inside that mode, plain dragging replaces and
+  `Ctrl`+drag adds.
+- Source tables now measure their virtualized viewport immediately and after
+  layout changes, keep pointer-driven selections stable while scrolling, and
+  render all visible rows without requiring an initial scroll.
+- Keep the ribbon tabs visibly separated from the title bar across interface
+  scales.
+
 ## 0.2.1-alpha
 
 This alpha makes constrained greedy optimization more predictable and easier
@@ -26,9 +55,6 @@ installer branding.
   compact marker.
 - Optimization summaries now report assigned, changed, and unassigned load
   points separately in both Dutch and English.
-- Show localized X/Y coordinates consistently for inspected load points and
-  CPTs in the properties panel and compact hover inspector, while omitting
-  misleading coordinate values for multi-selections.
 
 ### Notes
 
