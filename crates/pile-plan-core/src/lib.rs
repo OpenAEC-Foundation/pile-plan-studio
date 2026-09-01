@@ -3,6 +3,7 @@ pub mod export;
 pub mod ifcpp;
 pub mod import;
 pub mod model;
+pub mod pile_configuration;
 pub mod pile_options;
 pub mod pile_plan_import;
 pub mod project;
@@ -17,9 +18,8 @@ pub use analysis::{
     Cpt as ProjectCpt, CptBearingCapacityRow, CptSelectionAlgorithm, CptSelectionSettings,
     GreedyOptimizationInput, GreedyOptimizationResult, GreedyOptimizationSettings,
     GreedyOptimizedPileChoice, GreedyUnassignedLoadPoint, GreedyUnassignedReason,
-    LoadPoint as ProjectLoadPoint, OptimizationLimitScope, PileConfigurationKey,
-    PileConfigurationOption, PileCostSettings, PileCostSettingsItem, PileCostShape,
-    ProjectAnalysisResult, SelectedCpt,
+    LoadPoint as ProjectLoadPoint, OptimizationLimitScope, PileConfigurationOption,
+    PileCostSettings, PileCostSettingsItem, PileCostShape, ProjectAnalysisResult, SelectedCpt,
 };
 pub use export::{
     build_pile_plan_export_rows, write_pile_plan_csv, write_pile_plan_xlsx, ExportError,
@@ -35,6 +35,7 @@ pub use import::{
     ImportError, ImportPreviewDetails, ImportProfile, ImportProfileOptions, ImportRole,
     ImportSource, ImportSourcePreview, ProjectImportSources, RfemPreviewDetails, SourceFormat,
 };
+pub use pile_configuration::PileConfigurationKey;
 pub use pile_options::{calculate_pile_option, find_pile_options};
 pub use pile_plan_import::*;
 pub use project::{
@@ -43,6 +44,7 @@ pub use project::{
     SelectedPileChoice, ViewerUtilizationSettings,
 };
 pub use spatial::{
-    build_spatial_neighborhood, build_tip_level_region_topology, SpatialEdge, SpatialNeighborhood,
-    SpatialFace, SpatialPileAssignment, SpatialSite, TipLevelRegionGroup, TipLevelRegionTopology,
+    build_spatial_neighborhood, build_tip_level_region_topology, SpatialEdge, SpatialFace,
+    SpatialNeighborhood, SpatialPileAssignment, SpatialSite, TipLevelRegionGroup,
+    TipLevelRegionTopology,
 };

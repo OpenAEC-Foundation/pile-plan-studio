@@ -248,7 +248,7 @@ pub fn preview_pile_plan_import(request: &PilePlanImportRequest) -> PilePlanImpo
                         format!(
                             "Pile configuration {} mm / {} m is not available in the active project; the pile assignment is preserved.",
                             pile.pile_size_mm,
-                            pile.pile_tip_level_m_key as f64 / 1000.0
+                            pile.pile_tip_level_m()
                         ),
                     ));
                     PilePlanImportedValue::Preserve
@@ -544,7 +544,7 @@ fn parse_standard_table(
                 pile_size_mm: parse_positive_u32(size).map_err(|message| {
                     invalid_cell(table, source_row.number, columns.pile_size, message)
                 })?,
-                pile_tip_level_m_key: parse_tip_level_key(tip).map_err(|message| {
+                pile_tip_level_mm: parse_tip_level_key(tip).map_err(|message| {
                     invalid_cell(table, source_row.number, columns.pile_tip, message)
                 })?,
             }),
@@ -619,7 +619,7 @@ fn parse_legacy_table(
             y_mm: parse_f64_cell(table, source_row.number, 6)?,
             pile: PilePlanImportedValue::Set(PileConfigurationKey {
                 pile_size_mm: parse_positive_u32_cell(table, source_row.number, 3)?,
-                pile_tip_level_m_key: parse_tip_level_key_cell(table, source_row.number, 2)?,
+                pile_tip_level_mm: parse_tip_level_key_cell(table, source_row.number, 2)?,
             }),
             manual_cpt_ids: PilePlanImportedValue::Preserve,
             sheet_name: table.sheet_name.clone(),
@@ -877,7 +877,7 @@ mod tests {
             parsed.rows[1].pile,
             PilePlanImportedValue::Set(PileConfigurationKey {
                 pile_size_mm: 320,
-                pile_tip_level_m_key: -18_500,
+                pile_tip_level_mm: -18_500,
             })
         );
         assert_eq!(
@@ -890,7 +890,7 @@ mod tests {
     fn parses_standard_xlsx_created_by_the_exporter() {
         let pile = PileConfigurationKey {
             pile_size_mm: 320,
-            pile_tip_level_m_key: -18_500,
+            pile_tip_level_mm: -18_500,
         };
         let bytes = crate::write_pile_plan_xlsx(&crate::PilePlanExportRequest {
             load_points: vec![load_point(7, 1000.0, 1500.0)],
@@ -1067,7 +1067,7 @@ mod tests {
             preview.patch.changes[0].pile,
             PilePlanImportedValue::Set(PileConfigurationKey {
                 pile_size_mm: 320,
-                pile_tip_level_m_key: -18_000,
+                pile_tip_level_mm: -18_000,
             })
         );
         assert_eq!(preview.summary.matched_rows, 1);
@@ -1253,7 +1253,7 @@ mod tests {
             cpts,
             available_pile_configurations: vec![PileConfigurationKey {
                 pile_size_mm: 320,
-                pile_tip_level_m_key: -18_500,
+                pile_tip_level_mm: -18_500,
             }],
         })
     }
@@ -1323,11 +1323,11 @@ mod tests {
             available_pile_configurations: vec![
                 PileConfigurationKey {
                     pile_size_mm: 290,
-                    pile_tip_level_m_key: -17_750,
+                    pile_tip_level_mm: -17_750,
                 },
                 PileConfigurationKey {
                     pile_size_mm: 320,
-                    pile_tip_level_m_key: -18_000,
+                    pile_tip_level_mm: -18_000,
                 },
             ],
         })

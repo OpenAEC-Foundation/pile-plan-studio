@@ -387,7 +387,7 @@ mod tests {
                 2,
                 PileConfigurationKey {
                     pile_size_mm: 320,
-                    pile_tip_level_m_key: -18_000,
+                    pile_tip_level_mm: -18_000,
                 },
             )]),
             limit_scope: OptimizationLimitScope::WholePlan,

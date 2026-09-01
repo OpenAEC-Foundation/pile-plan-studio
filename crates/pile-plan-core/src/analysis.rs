@@ -2,6 +2,8 @@ use std::collections::{HashMap, HashSet};
 
 use serde::{Deserialize, Serialize};
 
+use crate::pile_configuration::{pile_tip_level_mm, PileConfigurationKey};
+
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
 pub struct LoadPoint {
     pub id: u32,
@@ -57,6 +59,7 @@ pub struct SelectedCpt {
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
 pub struct PileConfigurationOption {
+    pub configuration: PileConfigurationKey,
     pub pile_size_mm: u32,
     pub pile_tip_level_m: f64,
     pub is_option: bool,
@@ -123,12 +126,6 @@ fn default_max_utilization() -> f64 {
     1.0
 }
 
-#[derive(Clone, Debug, Deserialize, Eq, Hash, PartialEq, Serialize)]
-pub struct PileConfigurationKey {
-    pub pile_size_mm: u32,
-    pub pile_tip_level_m_key: i64,
-}
-
 #[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize)]
 #[serde(rename_all = "kebab-case")]
 pub enum OptimizationLimitScope {
@@ -187,7 +184,7 @@ pub struct GreedyOptimizationResult {
 struct CapacityKey {
     cpt_id: u32,
     pile_size_mm: u32,
-    pile_tip_level_m_key: i64,
+    pile_tip_level_mm: i64,
 }
 
 pub fn bearing_capacity_summary(
@@ -270,7 +267,10 @@ pub fn selected_cpts(
     }
 
     let manual_ids: HashSet<_> = manual_cpt_ids.iter().copied().collect();
-    let algorithmic_ids: HashSet<_> = algorithmic.iter().map(|selection| selection.cpt.id).collect();
+    let algorithmic_ids: HashSet<_> = algorithmic
+        .iter()
+        .map(|selection| selection.cpt.id)
+        .collect();
     let mut selections: Vec<_> = algorithmic
         .into_iter()
         .filter(|selection| manual_ids.contains(&selection.cpt.id))
@@ -285,12 +285,17 @@ pub fn selected_cpts(
             .total_cmp(&distance_mm(load_point, right))
             .then_with(|| left.id.cmp(&right.id))
     });
-    selections.extend(additions.into_iter().enumerate().map(|(index, cpt)| SelectedCpt {
-        label: format!("manual {}", index + 1),
-        quadrant: None,
-        distance_mm: distance_mm(load_point, &cpt),
-        cpt,
-    }));
+    selections.extend(
+        additions
+            .into_iter()
+            .enumerate()
+            .map(|(index, cpt)| SelectedCpt {
+                label: format!("manual {}", index + 1),
+                quadrant: None,
+                distance_mm: distance_mm(load_point, &cpt),
+                cpt,
+            }),
+    );
     selections
 }
 
@@ -518,6 +523,7 @@ fn pile_configuration_options_with_index(
             let utilization = governing_frd_kn.map(|frd_kn| design_load_kn / frd_kn);
 
             PileConfigurationOption {
+                configuration: PileConfigurationKey::from_metres(pile_size_mm, pile_tip_level_m),
                 pile_size_mm,
                 pile_tip_level_m,
                 is_option: missing_cpt_ids.is_empty()
@@ -642,13 +648,27 @@ pub fn choose_default_pile_option<'a>(
         .iter()
         .filter(|option| {
             option.is_option
-                && calculate_pile_cost(option.pile_size_mm, option.pile_tip_level_m, pile_head_level_m, settings)
-                    .is_some()
+                && calculate_pile_cost(
+                    option.pile_size_mm,
+                    option.pile_tip_level_m,
+                    pile_head_level_m,
+                    settings,
+                )
+                .is_some()
         })
         .min_by(|left, right| {
-            let left_cost = calculate_pile_cost(left.pile_size_mm, left.pile_tip_level_m, pile_head_level_m, settings);
-            let right_cost =
-                calculate_pile_cost(right.pile_size_mm, right.pile_tip_level_m, pile_head_level_m, settings);
+            let left_cost = calculate_pile_cost(
+                left.pile_size_mm,
+                left.pile_tip_level_m,
+                pile_head_level_m,
+                settings,
+            );
+            let right_cost = calculate_pile_cost(
+                right.pile_size_mm,
+                right.pile_tip_level_m,
+                pile_head_level_m,
+                settings,
+            );
 
             match (left_cost, right_cost) {
                 (Some(left_cost), Some(right_cost)) => left_cost.cmp(&right_cost),
@@ -670,15 +690,8 @@ pub fn choose_default_pile_options(
     options_by_load_point
         .iter()
         .filter_map(|(load_point_id, options)| {
-            choose_default_pile_option(options, pile_head_level_m, settings).map(|option| {
-                (
-                    *load_point_id,
-                    PileConfigurationKey {
-                        pile_size_mm: option.pile_size_mm,
-                        pile_tip_level_m_key: pile_tip_level_key(option.pile_tip_level_m),
-                    },
-                )
-            })
+            choose_default_pile_option(options, pile_head_level_m, settings)
+                .map(|option| (*load_point_id, option.configuration.clone()))
         })
         .collect()
 }
@@ -724,7 +737,7 @@ pub fn greedy_optimize_pile_choices(input: &GreedyOptimizationInput) -> GreedyOp
     baseline_configurations.sort_by(|left, right| {
         left.pile_size_mm
             .cmp(&right.pile_size_mm)
-            .then_with(|| right.pile_tip_level_m_key.cmp(&left.pile_tip_level_m_key))
+            .then_with(|| right.pile_tip_level_mm.cmp(&left.pile_tip_level_mm))
     });
     baseline_configurations.dedup();
 
@@ -843,7 +856,7 @@ pub fn greedy_optimize_pile_choices(input: &GreedyOptimizationInput) -> GreedyOp
     selected_configurations.sort_by(|left, right| {
         left.pile_size_mm
             .cmp(&right.pile_size_mm)
-            .then_with(|| right.pile_tip_level_m_key.cmp(&left.pile_tip_level_m_key))
+            .then_with(|| right.pile_tip_level_mm.cmp(&left.pile_tip_level_mm))
     });
     let pile_size_count = baseline_configurations
         .iter()
@@ -853,12 +866,8 @@ pub fn greedy_optimize_pile_choices(input: &GreedyOptimizationInput) -> GreedyOp
         .len();
     let pile_tip_level_count = baseline_configurations
         .iter()
-        .map(|item| item.pile_tip_level_m_key)
-        .chain(
-            selected_configs
-                .iter()
-                .map(|item| item.pile_tip_level_m_key),
-        )
+        .map(|item| item.pile_tip_level_mm)
+        .chain(selected_configs.iter().map(|item| item.pile_tip_level_mm))
         .collect::<HashSet<_>>()
         .len();
     let configuration_count = baseline_configurations
@@ -881,26 +890,26 @@ pub fn greedy_optimize_pile_choices(input: &GreedyOptimizationInput) -> GreedyOp
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]
 struct OptimizationConfig {
     pile_size_mm: u32,
-    pile_tip_level_m_key: i64,
+    pile_tip_level_mm: i64,
 }
 
 impl OptimizationConfig {
     fn from_option(option: &PileConfigurationOption) -> Self {
         Self {
-            pile_size_mm: option.pile_size_mm,
-            pile_tip_level_m_key: pile_tip_level_key(option.pile_tip_level_m),
+            pile_size_mm: option.configuration.pile_size_mm,
+            pile_tip_level_mm: option.configuration.pile_tip_level_mm,
         }
     }
 
     fn matches_option(&self, option: &PileConfigurationOption) -> bool {
-        self.pile_size_mm == option.pile_size_mm
-            && self.pile_tip_level_m_key == pile_tip_level_key(option.pile_tip_level_m)
+        self.pile_size_mm == option.configuration.pile_size_mm
+            && self.pile_tip_level_mm == option.configuration.pile_tip_level_mm
     }
 
     fn as_key(&self) -> PileConfigurationKey {
         PileConfigurationKey {
             pile_size_mm: self.pile_size_mm,
-            pile_tip_level_m_key: self.pile_tip_level_m_key,
+            pile_tip_level_mm: self.pile_tip_level_mm,
         }
     }
 }
@@ -913,7 +922,7 @@ fn optimization_option_enabled(
         && settings
             .enabled_pile_tip_levels
             .iter()
-            .any(|level| pile_tip_level_key(*level) == pile_tip_level_key(option.pile_tip_level_m))
+            .any(|level| pile_tip_level_mm(*level) == option.configuration.pile_tip_level_mm)
 }
 
 fn best_next_optimization_config(
@@ -951,11 +960,9 @@ fn best_next_optimization_config(
             );
 
             left_score.cmp(&right_score).then_with(|| {
-                left.pile_size_mm.cmp(&right.pile_size_mm).then_with(|| {
-                    right
-                        .pile_tip_level_m_key
-                        .cmp(&left.pile_tip_level_m_key)
-                })
+                left.pile_size_mm
+                    .cmp(&right.pile_size_mm)
+                    .then_with(|| right.pile_tip_level_mm.cmp(&left.pile_tip_level_mm))
             })
         })
 }
@@ -978,7 +985,7 @@ fn all_optimization_configs(
     configs.sort_by(|left, right| {
         left.pile_size_mm
             .cmp(&right.pile_size_mm)
-            .then_with(|| right.pile_tip_level_m_key.cmp(&left.pile_tip_level_m_key))
+            .then_with(|| right.pile_tip_level_mm.cmp(&left.pile_tip_level_mm))
     });
     configs
 }
@@ -999,8 +1006,8 @@ fn config_respects_limits(
         .len();
     let tip_count = baseline_configurations
         .iter()
-        .map(|item| item.pile_tip_level_m_key)
-        .chain(next_configs.iter().map(|item| item.pile_tip_level_m_key))
+        .map(|item| item.pile_tip_level_mm)
+        .chain(next_configs.iter().map(|item| item.pile_tip_level_mm))
         .collect::<HashSet<_>>()
         .len();
     let configuration_count = baseline_configurations
@@ -1074,19 +1081,31 @@ fn cheapest_option_for_configs<'a>(
         .iter()
         .filter(|option| configs.iter().any(|config| config.matches_option(option)))
         .min_by(|left, right| {
-            let left_cost =
-                calculate_pile_cost(left.pile_size_mm, left.pile_tip_level_m, pile_head_level_m, cost_settings);
-            let right_cost =
-                calculate_pile_cost(right.pile_size_mm, right.pile_tip_level_m, pile_head_level_m, cost_settings);
+            let left_cost = calculate_pile_cost(
+                left.pile_size_mm,
+                left.pile_tip_level_m,
+                pile_head_level_m,
+                cost_settings,
+            );
+            let right_cost = calculate_pile_cost(
+                right.pile_size_mm,
+                right.pile_tip_level_m,
+                pile_head_level_m,
+                cost_settings,
+            );
 
             left_cost
                 .is_none()
                 .cmp(&right_cost.is_none())
-                .then_with(|| left_cost.unwrap_or_default().cmp(&right_cost.unwrap_or_default()))
+                .then_with(|| {
+                    left_cost
+                        .unwrap_or_default()
+                        .cmp(&right_cost.unwrap_or_default())
+                })
                 .then_with(|| left.pile_size_mm.cmp(&right.pile_size_mm))
                 .then_with(|| {
-                    pile_tip_level_key(right.pile_tip_level_m)
-                        .cmp(&pile_tip_level_key(left.pile_tip_level_m))
+                    pile_tip_level_mm(right.pile_tip_level_m)
+                        .cmp(&pile_tip_level_mm(left.pile_tip_level_m))
                 })
         })
 }
@@ -1101,7 +1120,7 @@ fn unique_pile_configurations(bearing_capacities: &[BearingCapacity]) -> Vec<(u3
                 capacity.pile_size_mm,
                 capacity.pile_tip_level_m,
             );
-            if seen.insert((key.pile_size_mm, key.pile_tip_level_m_key)) {
+            if seen.insert((key.pile_size_mm, key.pile_tip_level_mm)) {
                 Some((capacity.pile_size_mm, capacity.pile_tip_level_m))
             } else {
                 None
@@ -1139,12 +1158,9 @@ fn capacity_key(cpt_id: u32, pile_size_mm: u32, pile_tip_level_m: f64) -> Capaci
     CapacityKey {
         cpt_id,
         pile_size_mm,
-        pile_tip_level_m_key: pile_tip_level_key(pile_tip_level_m),
+        pile_tip_level_mm: PileConfigurationKey::from_metres(pile_size_mm, pile_tip_level_m)
+            .pile_tip_level_mm,
     }
-}
-
-pub(crate) fn pile_tip_level_key(pile_tip_level_m: f64) -> i64 {
-    (pile_tip_level_m * 1000.0).round() as i64
 }
 
 fn cpt_quadrant(load_point: &LoadPoint, cpt: &Cpt) -> &'static str {
@@ -1475,7 +1491,12 @@ mod tests {
             .collect();
         assert_eq!(
             result,
-            vec![("nearest", 1), ("angle 3", 3), ("angle 4", 4), ("manual 1", 5)]
+            vec![
+                ("nearest", 1),
+                ("angle 3", 3),
+                ("angle 4", 4),
+                ("manual 1", 5)
+            ]
         );
     }
 
@@ -1561,6 +1582,7 @@ mod tests {
             options,
             vec![
                 PileConfigurationOption {
+                    configuration: PileConfigurationKey::from_metres(320, -18.0),
                     pile_size_mm: 320,
                     pile_tip_level_m: -18.0,
                     is_option: true,
@@ -1570,6 +1592,7 @@ mod tests {
                     missing_cpt_ids: vec![],
                 },
                 PileConfigurationOption {
+                    configuration: PileConfigurationKey::from_metres(320, -19.0),
                     pile_size_mm: 320,
                     pile_tip_level_m: -19.0,
                     is_option: false,
@@ -1667,15 +1690,25 @@ mod tests {
 
     #[test]
     fn calculates_pile_cost_with_correct_round_section_formula() {
-        assert_eq!(calculate_pile_cost(320, -18.0, -3.5, &cost_settings()), Some(304));
-        assert_eq!(calculate_pile_cost(356, -18.0, -3.5, &cost_settings()), Some(274));
-        assert_eq!(calculate_pile_cost(400, -18.0, -3.5, &cost_settings()), None);
+        assert_eq!(
+            calculate_pile_cost(320, -18.0, -3.5, &cost_settings()),
+            Some(304)
+        );
+        assert_eq!(
+            calculate_pile_cost(356, -18.0, -3.5, &cost_settings()),
+            Some(274)
+        );
+        assert_eq!(
+            calculate_pile_cost(400, -18.0, -3.5, &cost_settings()),
+            None
+        );
     }
 
     #[test]
     fn chooses_the_cheapest_valid_pile_option_by_default() {
         let options = vec![
             PileConfigurationOption {
+                configuration: PileConfigurationKey::from_metres(320, -18.0),
                 pile_size_mm: 320,
                 pile_tip_level_m: -18.0,
                 is_option: true,
@@ -1685,6 +1718,7 @@ mod tests {
                 missing_cpt_ids: vec![],
             },
             PileConfigurationOption {
+                configuration: PileConfigurationKey::from_metres(290, -18.0),
                 pile_size_mm: 290,
                 pile_tip_level_m: -18.0,
                 is_option: true,
@@ -1731,14 +1765,14 @@ mod tests {
             choices.get(&1),
             Some(&PileConfigurationKey {
                 pile_size_mm: 290,
-                pile_tip_level_m_key: pile_tip_level_key(-17.5),
+                pile_tip_level_mm: pile_tip_level_mm(-17.5),
             })
         );
         assert_eq!(
             choices.get(&2),
             Some(&PileConfigurationKey {
                 pile_size_mm: 290,
-                pile_tip_level_m_key: pile_tip_level_key(-18.0),
+                pile_tip_level_mm: pile_tip_level_mm(-18.0),
             })
         );
     }
@@ -1750,6 +1784,7 @@ mod tests {
             vec![
                 pile_option(290, -17.5, false, 1.1),
                 PileConfigurationOption {
+                    configuration: PileConfigurationKey::from_metres(320, -18.0),
                     pile_size_mm: 320,
                     pile_tip_level_m: -18.0,
                     is_option: false,
@@ -2006,7 +2041,7 @@ mod tests {
         assert!(result.assignments.iter().all(|choice| {
             result.selected_configurations.iter().any(|config| {
                 config.pile_size_mm == choice.pile_size_mm
-                    && config.pile_tip_level_m_key == pile_tip_level_key(choice.pile_tip_level_m)
+                    && config.pile_tip_level_mm == pile_tip_level_mm(choice.pile_tip_level_m)
             })
         }));
     }
@@ -2089,10 +2124,7 @@ mod tests {
                 .collect::<Vec<_>>(),
             vec![1],
         );
-        assert!(result
-            .unassigned
-            .iter()
-            .all(|item| item.load_point_id != 2));
+        assert!(result.unassigned.iter().all(|item| item.load_point_id != 2));
     }
 
     #[test]
@@ -2147,6 +2179,7 @@ mod tests {
         utilization: f64,
     ) -> PileConfigurationOption {
         PileConfigurationOption {
+            configuration: PileConfigurationKey::from_metres(pile_size_mm, pile_tip_level_m),
             pile_size_mm,
             pile_tip_level_m,
             is_option,
@@ -2177,7 +2210,7 @@ mod tests {
     fn config_key(pile_size_mm: u32, pile_tip_level_m: f64) -> PileConfigurationKey {
         PileConfigurationKey {
             pile_size_mm,
-            pile_tip_level_m_key: pile_tip_level_key(pile_tip_level_m),
+            pile_tip_level_mm: pile_tip_level_mm(pile_tip_level_m),
         }
     }
 

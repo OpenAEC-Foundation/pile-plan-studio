@@ -567,7 +567,7 @@ mod tests {
         SelectedPileChoice {
             pile: Some(PileConfigurationKey {
                 pile_size_mm: 290,
-                pile_tip_level_m_key: -17500,
+                pile_tip_level_mm: -17500,
             }),
             external_references: vec![],
         }

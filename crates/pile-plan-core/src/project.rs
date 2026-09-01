@@ -1,13 +1,14 @@
 use std::collections::HashMap;
 
-use serde::{de::Error as _, Deserialize, Deserializer, Serialize};
+use serde::{de::Error as _, Deserialize, Deserializer, Serialize, Serializer};
 
 use crate::import::{ImportProfile, ImportRole, SourceFormat};
 
 use crate::analysis::{
-    BearingCapacity, Cpt, CptSelectionSettings, GreedyOptimizationSettings,
-    GreedyUnassignedReason, LoadPoint, PileConfigurationKey, PileCostSettings,
+    BearingCapacity, Cpt, CptSelectionSettings, GreedyOptimizationSettings, GreedyUnassignedReason,
+    LoadPoint, PileCostSettings,
 };
+use crate::pile_configuration::PileConfigurationKey;
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
 pub struct PilePlanProject {
@@ -284,8 +285,50 @@ impl<'de> Deserialize<'de> for ProjectUserState {
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
 pub struct SelectedPileChoice {
+    #[serde(
+        serialize_with = "serialize_project_pile_configuration",
+        deserialize_with = "deserialize_project_pile_configuration"
+    )]
     pub pile: Option<PileConfigurationKey>,
     pub external_references: Vec<ExternalReference>,
+}
+
+#[derive(Deserialize, Serialize)]
+struct LegacyProjectPileConfigurationKey {
+    pile_size_mm: u32,
+    pile_tip_level_m_key: i64,
+}
+
+fn serialize_project_pile_configuration<S>(
+    value: &Option<PileConfigurationKey>,
+    serializer: S,
+) -> Result<S::Ok, S::Error>
+where
+    S: Serializer,
+{
+    value
+        .as_ref()
+        .map(|key| LegacyProjectPileConfigurationKey {
+            pile_size_mm: key.pile_size_mm,
+            pile_tip_level_m_key: key.pile_tip_level_mm,
+        })
+        .serialize(serializer)
+}
+
+fn deserialize_project_pile_configuration<'de, D>(
+    deserializer: D,
+) -> Result<Option<PileConfigurationKey>, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    Ok(
+        Option::<LegacyProjectPileConfigurationKey>::deserialize(deserializer)?.map(|key| {
+            PileConfigurationKey {
+                pile_size_mm: key.pile_size_mm,
+                pile_tip_level_mm: key.pile_tip_level_m_key,
+            }
+        }),
+    )
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
@@ -361,10 +404,12 @@ mod tests {
     #[test]
     fn pile_plan_round_trips_optimizer_unassigned_outcomes() {
         let mut project = sample_project();
-        project.user_state.pile_plans[0].optimization_unassigned.insert(
-            7,
-            crate::analysis::GreedyUnassignedReason::ConfigurationLimits,
-        );
+        project.user_state.pile_plans[0]
+            .optimization_unassigned
+            .insert(
+                7,
+                crate::analysis::GreedyUnassignedReason::ConfigurationLimits,
+            );
 
         let value = serde_json::to_value(&project).expect("project serializes");
         let restored: PilePlanProject =
@@ -392,6 +437,15 @@ mod tests {
         assert!(restored.user_state.pile_plans[0]
             .optimization_unassigned
             .is_empty());
+    }
+
+    #[test]
+    fn selected_piles_keep_the_legacy_ifcpp_tip_key_field() {
+        let value = serde_json::to_value(sample_project()).expect("project serializes");
+        let pile = &value["user_state"]["pile_plans"][0]["selected_piles"]["1"]["pile"];
+
+        assert_eq!(pile["pile_tip_level_m_key"], -18_000);
+        assert!(pile.get("pile_tip_level_mm").is_none());
     }
 
     #[test]
@@ -566,8 +620,12 @@ mod tests {
             "pile_tip_levels": []
         });
 
-        let parsed: PilePlanProject = serde_json::from_value(value).expect("legacy legend deserializes");
-        let legend = parsed.settings.pile_legend.expect("legend remains available");
+        let parsed: PilePlanProject =
+            serde_json::from_value(value).expect("legacy legend deserializes");
+        let legend = parsed
+            .settings
+            .pile_legend
+            .expect("legend remains available");
 
         assert_eq!(legend.color_scheme, "tableau-extended");
         assert!(legend.pile_sizes[0].symbol_automatic);
@@ -687,7 +745,7 @@ mod tests {
                         SelectedPileChoice {
                             pile: Some(PileConfigurationKey {
                                 pile_size_mm: 290,
-                                pile_tip_level_m_key: -18000,
+                                pile_tip_level_mm: -18000,
                             }),
                             external_references: vec![ExternalReference {
                                 source_file: Some("model.ifc".to_string()),

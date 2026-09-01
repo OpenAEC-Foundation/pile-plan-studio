@@ -2,7 +2,10 @@ use std::collections::{BTreeMap, BTreeSet, HashMap};
 
 use serde::{Deserialize, Serialize};
 
-use crate::analysis::{pile_tip_level_key, LoadPoint, PileConfigurationOption};
+use crate::analysis::{LoadPoint, PileConfigurationOption};
+use crate::pile_configuration::pile_tip_level_mm;
+#[cfg(test)]
+use crate::pile_configuration::PileConfigurationKey;
 
 mod faces;
 mod gabriel;
@@ -41,7 +44,7 @@ pub struct SpatialPileAssignment {
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
 pub struct TipLevelRegionGroup {
-    pub pile_tip_level_m_key: i64,
+    pub pile_tip_level_mm: i64,
     pub legend_value_m: f64,
     pub site_ids: Vec<u32>,
     pub edges: Vec<SpatialEdge>,
@@ -132,7 +135,7 @@ pub fn build_tip_level_region_topology(
             let Some(assignment) = selected_assignments.get(&load_point_id) else {
                 continue;
             };
-            let assignment_key = pile_tip_level_key(assignment.pile_tip_level_m);
+            let assignment_key = pile_tip_level_mm(assignment.pile_tip_level_m);
             let Some(matched_option) = options_by_load_point
                 .get(&load_point_id)
                 .into_iter()
@@ -140,7 +143,7 @@ pub fn build_tip_level_region_topology(
                 .find(|option| {
                     option.is_option
                         && option.pile_size_mm == assignment.pile_size_mm
-                        && pile_tip_level_key(option.pile_tip_level_m) == assignment_key
+                        && pile_tip_level_mm(option.pile_tip_level_m) == assignment_key
                 })
             else {
                 continue;
@@ -214,7 +217,7 @@ pub fn build_tip_level_region_topology(
             })
             .expect("PPN group contains at least one valid load point");
         groups.push(TipLevelRegionGroup {
-            pile_tip_level_m_key: key,
+            pile_tip_level_mm: key,
             legend_value_m,
             site_ids,
             edges,
@@ -416,6 +419,7 @@ mod tests {
             is_option: bool,
         ) -> PileConfigurationOption {
             PileConfigurationOption {
+                configuration: PileConfigurationKey::from_metres(pile_size_mm, pile_tip_level_m),
                 pile_size_mm,
                 pile_tip_level_m,
                 is_option,
@@ -545,11 +549,11 @@ mod tests {
             let topology = build_tip_level_region_topology(&neighborhood, &assignments, &options);
 
             assert_eq!(topology.groups.len(), 2);
-            assert_eq!(topology.groups[0].pile_tip_level_m_key, -18_000);
+            assert_eq!(topology.groups[0].pile_tip_level_mm, -18_000);
             assert_eq!(topology.groups[0].legend_value_m, -18.00049);
             assert_eq!(topology.groups[0].site_ids, vec![1, 2]);
             assert_eq!(topology.groups[0].edges.len(), 1);
-            assert_eq!(topology.groups[1].pile_tip_level_m_key, -19_000);
+            assert_eq!(topology.groups[1].pile_tip_level_mm, -19_000);
             assert_eq!(topology.groups[1].site_ids, vec![3]);
         }
 
