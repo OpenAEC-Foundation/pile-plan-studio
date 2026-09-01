@@ -57,17 +57,30 @@ describe("CPT selection table", () => {
       },
     ]);
 
-    assert.deepEqual(model.columns, ["CPT", "Used by", "Load points"]);
+    assert.deepEqual(model.columns, ["CPT", "Used by"]);
     assert.deepEqual(model.rows, [
       {
         cpt: cpt61,
-        values: ["CPT 61", "2 / 2 load points", "15, 16"],
+        usageDetails: "15, 16",
+        values: ["CPT 61", "2 / 2 load points"],
       },
       {
         cpt: cpt62,
-        values: ["CPT 62", "1 / 2 load points", "15"],
+        usageDetails: "15",
+        values: ["CPT 62", "1 / 2 load points"],
       },
     ]);
+  });
+
+  it("omits usage details when more than ten load points use a CPT", () => {
+    const entries = Array.from({ length: 11 }, (_, index) => ({
+      loadPoint: { ...loadPoint15, id: index + 1, name: `Load point ${index + 1}` },
+      selectedCpts: [selectedCpt("manual", cpt61, 1000)],
+    }));
+
+    const model = getSelectedCptTableModel(entries);
+
+    assert.equal(model.rows[0].usageDetails, null);
   });
 
   it("keeps the single-load-point columns while editing a manual draft", () => {

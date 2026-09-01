@@ -502,9 +502,8 @@ function CptSelectionOverview({ state, onStateChange, selectedLoadPoints, editin
     Selection: t("cpts.selection"),
     Distance: t("cpts.distance"),
     "Used by": t("cpts.usedBy"),
-    "Load points": t("cpts.loadPoints"),
     "FRD range": <span aria-label={t("cpts.frdRange")}><ResistanceLabel qualifier={t("cpts.rangeQualifier")} /></span>,
-    "Chosen pile FRD": <span aria-label={t("cpts.chosenPileFrd")}><ResistanceLabel qualifier={t("cpts.assignedPileQualifier")} /></span>,
+    "Chosen pile FRD": <span aria-label={t("cpts.chosenPileFrd")} title={t("cpts.chosenPileFrd")}><ResistanceLabel /></span>,
     "Governing for": t("cpts.governingFor"),
   };
 
@@ -539,7 +538,7 @@ function CptSelectionOverview({ state, onStateChange, selectedLoadPoints, editin
           <thead>
             <tr>
               {overview.columns.map((column) => <th key={column}>{columnLabels[column] ?? column}</th>)}
-              {editing ? <th><span className="sr-only">{t("actions.remove")}</span></th> : null}
+              {editing ? <th className="cpt-remove-cell"><span className="sr-only">{t("actions.remove")}</span></th> : null}
             </tr>
           </thead>
           <tbody>
@@ -553,21 +552,28 @@ function CptSelectionOverview({ state, onStateChange, selectedLoadPoints, editin
                   ? t("cpts.governingCount", { used: row.governingLoadPointCount, total: selectedLoadPoints.length })
                   : undefined}
               >
-                {row.values.map((value, index) => (
-                  <td key={`${row.cpt.id}-${overview.columns[index]}`}>
-                    {overview.columns[index] === "CPT" && !editing ? (
-                      <button
-                        className="cpt-link"
-                        type="button"
-                        onClick={() => onStateChange({ ...state, ...openCpt(state, row.cpt.id) })}
-                      >
-                        {localizeCptName(value, t)}
-                      </button>
-                    ) : overview.columns[index] === "CPT"
-                      ? localizeCptName(value, t)
-                      : localizeCptTableValue(overview.columns[index], value, t)}
-                  </td>
-                ))}
+                {row.values.map((value, index) => {
+                  const column = overview.columns[index];
+                  const usageTitle = column === "Used by" && row.usageDetails
+                    ? t("cpts.usedByDetails", { loadPoints: row.usageDetails })
+                    : undefined;
+
+                  return (
+                    <td key={`${row.cpt.id}-${column}`} title={usageTitle}>
+                      {overview.columns[index] === "CPT" && !editing ? (
+                        <button
+                          className="cpt-link"
+                          type="button"
+                          onClick={() => onStateChange({ ...state, ...openCpt(state, row.cpt.id) })}
+                        >
+                          {localizeCptName(value, t)}
+                        </button>
+                      ) : overview.columns[index] === "CPT"
+                        ? localizeCptName(value, t)
+                        : localizeCptTableValue(overview.columns[index], value, t)}
+                    </td>
+                  );
+                })}
                 {editing ? (
                   <td className="cpt-remove-cell">
                     <button

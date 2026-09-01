@@ -22,6 +22,7 @@ export type SelectedCptOverviewModel = {
   rows: Array<{
     cpt: Cpt;
     governingLoadPointCount: number;
+    usageDetails?: string | null;
     values: string[];
   }>;
 };
@@ -117,6 +118,7 @@ export function getSelectedCptOverviewModel(
       return {
         cpt: row.cpt,
         governingLoadPointCount,
+        usageDetails: row.usageDetails,
         values: [
           ...row.values,
           showChosenPileCapacity

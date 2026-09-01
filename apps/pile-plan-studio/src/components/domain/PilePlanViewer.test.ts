@@ -394,18 +394,20 @@ describe("PilePlanViewer inputs", () => {
     assert.match(css, /\.cpt-table th\s*{[\s\S]*?background:\s*var\(--theme-surface\);/);
   });
 
-  it("highlights the selected pile option with a subtle accent background", () => {
+  it("shares one subtle accent highlight between the chosen pile and governing CPT", () => {
     const css = readFileSync(resolve(import.meta.dirname, "rightPanel.css"), "utf8");
     const hoverRule = css.match(/\.pile-option-row:hover\s*\{(?<body>[^}]*)\}/s)?.groups?.body ?? "";
-    const chosenRule = css.match(/\.pile-option-row\.is-chosen\s*\{(?<body>[^}]*)\}/s)?.groups?.body ?? "";
+    const accentRule = css.match(
+      /\.pile-option-row\.is-chosen,\s*\.cpt-table tr\.is-governing\s*\{(?<body>[^}]*)\}/s,
+    )?.groups?.body ?? "";
 
     assert.match(
       hoverRule,
       /background:\s*color-mix\(in srgb,\s*var\(--theme-text\) 6%,\s*var\(--theme-surface\)\)/,
     );
     assert.doesNotMatch(hoverRule, /--theme-bg-lighter/);
-    assert.match(chosenRule, /background:\s*var\(--theme-accent-soft\)/);
-    assert.match(chosenRule, /box-shadow:\s*inset 3px 0 0 var\(--theme-accent\)/);
+    assert.match(accentRule, /background:\s*var\(--theme-accent-soft\)/);
+    assert.match(accentRule, /box-shadow:\s*inset 3px 0 0 var\(--theme-accent\)/);
   });
 
   it("keeps the hover candidate section on the themed inspector surface", () => {

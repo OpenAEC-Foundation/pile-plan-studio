@@ -178,10 +178,10 @@ describe("React right panel model", () => {
 
     const model = getSelectedCptOverviewModel(state, getSelectedLoadPoints(state));
 
-    assert.deepEqual(model.columns, ["CPT", "Used by", "Load points", "Governing for"]);
+    assert.deepEqual(model.columns, ["CPT", "Used by", "Governing for"]);
     assert.equal(model.rows.length, 1);
-    assert.deepEqual(model.rows[0].values.slice(0, 3), ["CPT 64", "2 / 2 load points", "1, 2"]);
-    assert.equal(model.rows[0].values[3], "0 / 2 load points");
+    assert.deepEqual(model.rows[0].values, ["CPT 64", "2 / 2 load points", "0 / 2 load points"]);
+    assert.equal(model.rows[0].usageDetails, "1, 2");
   });
 
   it("counts governing CPTs when selected load points have different assigned piles", () => {
@@ -203,8 +203,8 @@ describe("React right panel model", () => {
 
     const model = getSelectedCptOverviewModel(state, getSelectedLoadPoints(state));
 
-    assert.equal(model.columns[3], "Governing for");
-    assert.deepEqual(model.rows.map((row) => [row.cpt.id, row.values[3], row.governingLoadPointCount]), [
+    assert.equal(model.columns[2], "Governing for");
+    assert.deepEqual(model.rows.map((row) => [row.cpt.id, row.values[2], row.governingLoadPointCount]), [
       [64, "1 / 2 load points", 1],
       [65, "1 / 2 load points", 1],
     ]);
@@ -252,11 +252,12 @@ describe("React right panel model", () => {
 
     const model = getSelectedCptOverviewModel(state, getSelectedLoadPoints(state));
 
-    assert.deepEqual(model.columns.slice(0, 3), ["CPT", "Used by", "Load points"]);
-    assert.deepEqual(model.rows.map((row) => row.values.slice(0, 3)), [
-      ["CPT 64", "2 / 2 load points", "1, 2"],
-      ["CPT 65", "1 / 2 load points", "1"],
+    assert.deepEqual(model.columns.slice(0, 2), ["CPT", "Used by"]);
+    assert.deepEqual(model.rows.map((row) => row.values.slice(0, 2)), [
+      ["CPT 64", "2 / 2 load points"],
+      ["CPT 65", "1 / 2 load points"],
     ]);
+    assert.deepEqual(model.rows.map((row) => row.usageDetails), ["1, 2", "1"]);
   });
 
   it("preserves selection and distance metadata while editing one load point", () => {
