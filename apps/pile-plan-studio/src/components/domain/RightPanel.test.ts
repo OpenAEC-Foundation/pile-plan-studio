@@ -311,3 +311,19 @@ describe("React CPT panel edit mode", () => {
     }
   });
 });
+
+describe("React coordinate inspection", () => {
+  it("uses the shared two-column coordinate readout for CPTs and load points", () => {
+    const panel = readFileSync(resolve(import.meta.dirname, "RightPanel.tsx"), "utf8");
+    const styles = readFileSync(resolve(import.meta.dirname, "rightPanel.css"), "utf8");
+
+    assert.match(panel, /import \{ CoordinateReadout \} from "\.\/CoordinateReadout\.ts"/);
+    assert.match(panel, /<CoordinateReadout points=\{\[selectedCpt\.cpt\]\} locale=\{i18n\.language\} \/>/);
+    assert.match(panel, /<CoordinateReadout points=\{selectedLoadPoints\} locale=\{i18n\.language\} \/>/);
+    assert.doesNotMatch(panel, /cpt-detail-grid/);
+    assert.match(styles, /\.load-point-panel > \.coordinate-readout,[\s\S]*?grid-template-columns:\s*repeat\(2,\s*minmax\(0,\s*1fr\)\)/);
+    assert.match(styles, /\.load-point-panel > \.coordinate-readout div,[\s\S]*?display:\s*flex;[\s\S]*?align-items:\s*baseline/);
+    assert.match(panel, /className="load-point-force-label">F<sub>Ed<\/sub><\/span>/);
+    assert.match(panel, /selectedLoadPoints\.length > 1 \? <span>\{t\("loadPoints\.selection"\)\}<\/span> : null/);
+  });
+});

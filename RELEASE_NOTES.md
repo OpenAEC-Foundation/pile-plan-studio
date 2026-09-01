@@ -26,6 +26,9 @@ installer branding.
   compact marker.
 - Optimization summaries now report assigned, changed, and unassigned load
   points separately in both Dutch and English.
+- Show localized X/Y coordinates consistently for inspected load points and
+  CPTs in the properties panel and compact hover inspector, while omitting
+  misleading coordinate values for multi-selections.
 
 ### Notes
 

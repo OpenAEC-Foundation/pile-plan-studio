@@ -20,7 +20,6 @@ import {
   getSelectedCptOverviewModel,
   getSelectedLoadPoints,
 } from "./rightPanelModel.ts";
-import { formatNumber } from "../../domain/formatting.ts";
 import { openCpt, switchRightPanelMode, type RightPanelMode } from "../.././domain/selectionState.ts";
 import {
   applyCptSelectionSettingsPatch,
@@ -36,6 +35,7 @@ import { infoIcon, removeIcon } from "../template/ribbon/icons.ts";
 import ThemedNumberInput from "../template/ThemedNumberInput.tsx";
 import OptimizationPanel from "./OptimizationPanel.tsx";
 import CostCatalogPanel from "./CostSettingsPanel.tsx";
+import { CoordinateReadout } from "./CoordinateReadout.ts";
 import { commitNumberDraft } from "./numberInputModel.ts";
 import "./rightPanel.css";
 
@@ -431,7 +431,7 @@ function CptPanel({ state, onStateChange, selectedLoadPoints }: {
   onStateChange: (nextState: ProjectState) => void;
   selectedLoadPoints: ReturnType<typeof getSelectedLoadPoints>;
 }) {
-  const { t } = useTranslation("rightPanel");
+  const { t, i18n } = useTranslation("rightPanel");
   const selectedCpt = getCptFrdPanelModel(state);
   const draft = state.cptSelectionEditDraft;
   const isEditing = draft !== null;
@@ -453,10 +453,7 @@ function CptPanel({ state, onStateChange, selectedLoadPoints }: {
           </div>
           <CptModifyButton state={state} onStateChange={onStateChange} selectedLoadPoints={selectedLoadPoints} />
         </header>
-        <dl className="cpt-detail-grid">
-          <div><dt>X</dt><dd>{formatNumber(selectedCpt.cpt.x_mm)} mm</dd></div>
-          <div><dt>Y</dt><dd>{formatNumber(selectedCpt.cpt.y_mm)} mm</dd></div>
-        </dl>
+        <CoordinateReadout points={[selectedCpt.cpt]} locale={i18n.language} />
         <CptTable
           columns={[t("columns.size"), t("columns.tip"), <ResistanceLabel key="resistance" />]}
           rows={selectedCpt.rows.map((row) => [row.sizeLabel, row.tipLabel, row.frdLabel])}
@@ -665,10 +662,17 @@ function LoadPointPanel({ state, onStateChange, selectedLabel, selectedLoadPoint
       <header className="right-panel-header">
         <div>
           <h2>{selectedLabel}</h2>
-          <span>{selectedLoadPoints.length === 1 ? "FED" : t("loadPoints.selection")}</span>
+          {selectedLoadPoints.length > 1 ? <span>{t("loadPoints.selection")}</span> : null}
         </div>
-        <strong>{fedLabel}</strong>
+        <strong className={selectedLoadPoints.length === 1 ? "load-point-force" : undefined}>
+          {selectedLoadPoints.length === 1 ? (
+            <span className="load-point-force-label">F<sub>Ed</sub></span>
+          ) : null}
+          {fedLabel}
+        </strong>
       </header>
+
+      <CoordinateReadout points={selectedLoadPoints} locale={i18n.language} />
 
       <section className="pile-options-section">
         <div className="section-heading">

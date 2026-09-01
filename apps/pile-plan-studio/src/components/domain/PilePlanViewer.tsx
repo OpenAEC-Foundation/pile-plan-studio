@@ -80,6 +80,7 @@ import {
 } from "../../domain/loadPointLocking.ts";
 import { elementLayoutScale, screenToLocal } from "../../domain/uiBaseline.ts";
 import OptimizerUnresolvedMarker from "../viewer/OptimizerUnresolvedMarker.tsx";
+import { CoordinateReadout } from "./CoordinateReadout.ts";
 
 type Props = {
   state: ProjectState;
@@ -766,12 +767,8 @@ export default function PilePlanViewer({ state, lassoSelectionActive, onStateCha
                   : formatHoverNumber(selectedOption.utilization * 100, "%")}</strong>
               </div>
             </>
-          ) : (
-            <>
-              <div className="viewer-hover-fact"><span>X</span><strong>{formatHoverNumber(cpt!.x_mm, " mm")}</strong></div>
-              <div className="viewer-hover-fact"><span>Y</span><strong>{formatHoverNumber(cpt!.y_mm, " mm")}</strong></div>
-            </>
-          )}
+          ) : null}
+          <CoordinateReadout points={[loadPoint ?? cpt!]} locale={i18n.language} />
         </div>
         {candidateState.keys.length > 1 ? (
           <>

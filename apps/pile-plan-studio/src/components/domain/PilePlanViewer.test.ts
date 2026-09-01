@@ -175,6 +175,30 @@ describe("PilePlanViewer inputs", () => {
     assert.doesNotMatch(css, /#fff7c2/);
   });
 
+  it("aligns full-width hover facts and paired coordinates on shared guides", () => {
+    const source = readFileSync(resolve(import.meta.dirname, "PilePlanViewer.tsx"), "utf8");
+    const css = readFileSync(resolve(import.meta.dirname, "viewer.css"), "utf8");
+
+    assert.match(source, /import \{ CoordinateReadout \} from "\.\/CoordinateReadout\.ts"/);
+    assert.match(source, /<CoordinateReadout points=\{\[loadPoint \?\? cpt!\]\} locale=\{i18n\.language\} \/>/);
+    assert.doesNotMatch(source, /formatHoverNumber\(cpt!\.x_mm/);
+    assert.doesNotMatch(source, /formatHoverNumber\(cpt!\.y_mm/);
+    assert.match(css, /\.viewer-hover-facts\s*\{[\s\S]*?grid-template-columns:\s*repeat\(2,\s*minmax\(0,\s*1fr\)\)/);
+    assert.match(css, /\.viewer-hover-inspector \.coordinate-readout\s*\{[\s\S]*?display:\s*contents/);
+    const hoverFactRule = css.match(/\.viewer-hover-fact\s*\{([\s\S]*?)\}/)?.[1] ?? "";
+    assert.match(hoverFactRule, /grid-column:\s*1\s*\/\s*-1/);
+    assert.match(hoverFactRule, /display:\s*grid/);
+    assert.match(hoverFactRule, /grid-template-columns:\s*minmax\(0,\s*1fr\)\s+auto/);
+    assert.match(hoverFactRule, /align-items:\s*baseline/);
+    assert.match(hoverFactRule, /align-content:\s*center/);
+    const coordinateFactRule = [...css.matchAll(/\.viewer-hover-inspector \.coordinate-readout > div\s*\{([\s\S]*?)\}/g)].at(-1)?.[1] ?? "";
+    assert.match(coordinateFactRule, /display:\s*grid/);
+    assert.match(coordinateFactRule, /grid-template-columns:\s*auto\s+minmax\(0,\s*1fr\)/);
+    assert.match(coordinateFactRule, /align-items:\s*baseline/);
+    assert.match(coordinateFactRule, /align-content:\s*center/);
+    assert.match(css, /\.viewer-hover-inspector \.coordinate-readout dd\s*\{[^}]*text-align:\s*right/);
+  });
+
   it("renders feasibility and governing CPTs from the active draft preview", () => {
     const source = readFileSync(resolve(import.meta.dirname, "PilePlanViewer.tsx"), "utf8");
 
