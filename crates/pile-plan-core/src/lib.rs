@@ -4,6 +4,7 @@ pub mod ifcpp;
 pub mod import;
 pub mod load_point_groups;
 pub mod model;
+pub mod optimization_units;
 pub mod pile_configuration;
 pub mod pile_option_aggregation;
 pub mod pile_options;
@@ -42,6 +43,11 @@ pub use load_point_groups::{
     ApplyLoadPointGroupAssignmentInput, ApplyLoadPointGroupAssignmentResult,
     BlockingLockedLoadPoint, LoadPointGroup, LoadPointGroupAssignmentChange,
     LoadPointGroupingSettings, DEFAULT_MAX_GROUP_EDGE_DISTANCE_MM,
+};
+pub use optimization_units::{
+    prepare_optimization_units, OptimizationCandidateSettings, OptimizationPreparationDiagnostic,
+    OptimizationPreparationDiagnosticKind, OptimizationPreparationResult, OptimizationUnit,
+    OptimizationUnitOption, PrepareOptimizationUnitsInput,
 };
 pub use pile_configuration::PileConfigurationKey;
 pub use pile_option_aggregation::{
