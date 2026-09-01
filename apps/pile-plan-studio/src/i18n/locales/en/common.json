@@ -49,6 +49,9 @@
       "project-change": "Changed the project"
     }
   },
+  "loadPointGroups": {
+    "assignmentBlocked": "Not changed: locked load point(s) {{names}} use another or no pile configuration."
+  },
   "search": "Search",
   "find": "Find",
   "open": "Open",

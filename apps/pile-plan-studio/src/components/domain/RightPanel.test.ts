@@ -4,6 +4,18 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
 describe("React optimization panel", () => {
+  it("delegates canonical pile choices and disables rows while assignment is pending", () => {
+    const panel = readFileSync(resolve(import.meta.dirname, "RightPanel.tsx"), "utf8");
+
+    assert.match(panel, /pileAssignmentPending\?: boolean/);
+    assert.match(panel, /onApplyPileConfiguration\?: \(/);
+    assert.match(panel, /selectedLoadPoints\.map\(\(\{ id \}\) => id\)/);
+    assert.match(panel, /onApplyPileConfiguration\([^;]+configuration/s);
+    assert.match(panel, /aria-disabled=\{pileAssignmentPending\}/);
+    assert.match(panel, /if \(pileAssignmentPending\) return/);
+    assert.doesNotMatch(panel, /new Map\(state\.selectedPileConfigurationsByLoadPoint\)/);
+  });
+
   it("defers numeric optimization limits until blur or Enter", () => {
     const optimization = readFileSync(resolve(import.meta.dirname, "OptimizationPanel.tsx"), "utf8");
 

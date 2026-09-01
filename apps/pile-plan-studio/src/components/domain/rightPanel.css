@@ -643,6 +643,15 @@
   background: color-mix(in srgb, var(--theme-text) 6%, var(--theme-surface));
 }
 
+.pile-option-row[aria-disabled="true"] {
+  opacity: 0.6;
+  cursor: wait;
+}
+
+.pile-option-row[aria-disabled="true"]:hover {
+  background: transparent;
+}
+
 .pile-option-row.is-chosen,
 .cpt-table tr.is-governing {
   background: var(--theme-accent-soft);

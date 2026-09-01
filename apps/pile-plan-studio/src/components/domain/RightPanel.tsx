@@ -1,7 +1,7 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import type { ProjectState } from "../../domain/projectState";
-import type { PileCostSettings } from "../.././core/projectTypes.ts";
+import type { PileConfigurationKey, PileCostSettings } from "../.././core/projectTypes.ts";
 import {
   getNextPileOptionSortState,
   getPileOptionColumns,
@@ -47,6 +47,11 @@ export type RightTaskPanel = "cpt-settings" | "cost-settings" | "optimization";
 type Props = {
   state: ProjectState;
   onStateChange: (nextState: ProjectState) => void;
+  pileAssignmentPending?: boolean;
+  onApplyPileConfiguration?: (
+    selectedLoadPointIds: number[],
+    configuration: PileConfigurationKey,
+  ) => void;
   onRunOptimization?: () => void;
   taskPanel?: RightTaskPanel | null;
   onCloseTaskPanel?: () => void;
@@ -60,6 +65,8 @@ type Props = {
 export default function RightPanel({
   state,
   onStateChange,
+  pileAssignmentPending = false,
+  onApplyPileConfiguration = () => undefined,
   onRunOptimization = () => undefined,
   taskPanel = null,
   onCloseTaskPanel = () => undefined,
@@ -107,6 +114,8 @@ export default function RightPanel({
         <LoadPointPanel
           state={state}
           onStateChange={onStateChange}
+          pileAssignmentPending={pileAssignmentPending}
+          onApplyPileConfiguration={onApplyPileConfiguration}
           selectedLabel={selectedLabel}
           selectedLoadPoints={selectedLoadPoints}
         />
@@ -632,9 +641,21 @@ function CptTable({ columns, rows }: { columns: ReactNode[]; rows: string[][] })
   );
 }
 
-function LoadPointPanel({ state, onStateChange, selectedLabel, selectedLoadPoints }: {
+function LoadPointPanel({
+  state,
+  onStateChange,
+  pileAssignmentPending,
+  onApplyPileConfiguration,
+  selectedLabel,
+  selectedLoadPoints,
+}: {
   state: ProjectState;
   onStateChange: (nextState: ProjectState) => void;
+  pileAssignmentPending: boolean;
+  onApplyPileConfiguration: (
+    selectedLoadPointIds: number[],
+    configuration: PileConfigurationKey,
+  ) => void;
   selectedLabel: string;
   selectedLoadPoints: ReturnType<typeof getSelectedLoadPoints>;
 }) {
@@ -768,7 +789,14 @@ function LoadPointPanel({ state, onStateChange, selectedLabel, selectedLoadPoint
                     <tr
                       className={`pile-option-row${row.key === chosenKey ? " is-chosen" : ""}`}
                       key={row.key}
-                      onClick={() => applyPileOption(state, onStateChange, selectedLoadPoints, row.key)}
+                      aria-disabled={pileAssignmentPending}
+                      onClick={() => applyPileOption(
+                        state,
+                        onApplyPileConfiguration,
+                        pileAssignmentPending,
+                        selectedLoadPoints,
+                        row.key,
+                      )}
                     >
                       {columns.map(({ key }) => (
                         <td className={key === "symbol" ? "pile-option-symbol-cell" : undefined} key={key}>
@@ -901,17 +929,23 @@ function ColumnHeader({ column, label, labelText, rows, state, onStateChange }: 
 
 function applyPileOption(
   state: ProjectState,
-  onStateChange: (nextState: ProjectState) => void,
+  onApplyPileConfiguration: (
+    selectedLoadPointIds: number[],
+    configuration: PileConfigurationKey,
+  ) => void,
+  pileAssignmentPending: boolean,
   selectedLoadPoints: ReturnType<typeof getSelectedLoadPoints>,
   configurationToken: string,
 ) {
+  if (pileAssignmentPending) return;
   const configuration = selectedLoadPoints
     .flatMap((loadPoint) => state.pileOptionsByLoadPointId.get(loadPoint.id) ?? [])
     .find((option) => optionKey(option) === configurationToken)?.configuration;
   if (!configuration) return;
-  const nextSelections = new Map(state.selectedPileConfigurationsByLoadPoint);
-  selectedLoadPoints.forEach((loadPoint) => nextSelections.set(loadPoint.id, { ...configuration }));
-  onStateChange({ ...state, selectedPileConfigurationsByLoadPoint: nextSelections });
+  onApplyPileConfiguration(
+    selectedLoadPoints.map(({ id }) => id),
+    { ...configuration },
+  );
 }
 
 function ResistanceLabel({ qualifier }: { qualifier?: string }) {

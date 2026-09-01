@@ -11,6 +11,7 @@ import InterfaceScaleNotice, { type InterfaceScaleNoticeValue } from "./componen
 import ActionNotice, { type ActionNoticeTone } from "./components/viewer/ActionNotice";
 import PilePlanWorkspace from "./components/domain/PilePlanWorkspace";
 import RightPanel, { type RightTaskPanel } from "./components/domain/RightPanel";
+import { useLoadPointGroups } from "./components/domain/useLoadPointGroups.ts";
 import ProjectInformationDialog from "./components/domain/ProjectInformationDialog";
 import UnsavedChangesDialog from "./components/domain/UnsavedChangesDialog.tsx";
 import PilePlanExplorer from "./components/domain/PilePlanExplorer.tsx";
@@ -18,6 +19,7 @@ import SourceDataViewer from "./components/domain/SourceDataViewer.tsx";
 import type { InputSourceKind } from "./domain/projectState.ts";
 import type { SourceLoadPointSelection } from "./domain/sourceTableModel.ts";
 import {
+  applyLoadPointGroupAssignmentCore,
   calculatePileCostCore,
   calculateProjectAnalysisCore,
   chooseDefaultPileOptionsCore,
@@ -27,6 +29,7 @@ import {
   importProjectFromFilesCore,
   refreshProjectFromFilesCore,
 } from "./core/coreClient";
+import type { PileConfigurationKey } from "./core/projectTypes.ts";
 import type { ImportSourceInput } from "./core/coreImportContract";
 import type { ProjectImportProperties } from "./components/domain/ProjectImportPanel.tsx";
 import type { ImportFileRole } from "./core/importFiles.ts";
@@ -248,6 +251,15 @@ function AppSession({
     )),
   );
   const projectState = managedProject.present;
+  const projectStateRef = useRef(projectState);
+  projectStateRef.current = projectState;
+  const loadPointGroups = useLoadPointGroups(projectState.loadPoints);
+  const pileAssignmentRequestIdRef = useRef(0);
+  const [pileAssignmentPending, setPileAssignmentPending] = useState(false);
+  const invalidatePileAssignmentRequests = useCallback(() => {
+    pileAssignmentRequestIdRef.current += 1;
+    setPileAssignmentPending(false);
+  }, []);
   const setProjectState = useCallback((update: SetStateAction<ProjectState>) => {
     dispatchProject({ type: "runtime", update });
   }, []);
@@ -258,8 +270,9 @@ function AppSession({
     dispatchProject({ type: "amend", update });
   }, []);
   const replaceProjectState = useCallback((state: ProjectState) => {
+    invalidatePileAssignmentRequests();
     dispatchProject({ type: "replace", state });
-  }, []);
+  }, [invalidatePileAssignmentRequests]);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [backstageOpen, setBackstageOpen] = useState(false);
   const [feedbackOpen, setFeedbackOpen] = useState(false);
@@ -293,6 +306,10 @@ function AppSession({
     projectState.pilePlans,
     projectState.activePilePlanId,
   )), [projectState.activePilePlanId, projectState.pilePlans]);
+
+  useEffect(() => {
+    invalidatePileAssignmentRequests();
+  }, [invalidatePileAssignmentRequests, projectState.activePilePlanId]);
 
   useEffect(() => {
     setLassoSelectionActive((active) => transitionLassoSelectionMode(active, {
@@ -651,6 +668,89 @@ function AppSession({
     handleProjectStateChange({ ...projectState, ...clearReactViewerSelection(projectState) });
   };
 
+  const applyGroupedPileConfiguration = async (
+    selectedLoadPointIds: number[],
+    requestedConfiguration: PileConfigurationKey,
+  ): Promise<void> => {
+    const groupsReady = !loadPointGroups.pending
+      && loadPointGroups.error === null
+      && (projectState.loadPoints.length === 0 || loadPointGroups.groups.length > 0);
+    if (!groupsReady || selectedLoadPointIds.length === 0) return;
+
+    pileAssignmentRequestIdRef.current += 1;
+    const requestId = pileAssignmentRequestIdRef.current;
+    const capturedActivePilePlanId = projectState.activePilePlanId;
+    const capturedAssignments = projectState.selectedPileConfigurationsByLoadPoint;
+    const capturedLoadPoints = projectState.loadPoints;
+    const lockedLoadPointIds = getActiveLockedLoadPointIds(
+      projectState.pilePlans,
+      capturedActivePilePlanId,
+    );
+    setPileAssignmentPending(true);
+
+    try {
+      const result = await applyLoadPointGroupAssignmentCore({
+        selectedLoadPointIds,
+        groups: loadPointGroups.groups,
+        requestedConfiguration,
+        currentAssignments: capturedAssignments,
+        lockedLoadPointIds,
+      });
+      const latest = projectStateRef.current;
+      if (
+        requestId !== pileAssignmentRequestIdRef.current
+        || latest.activePilePlanId !== capturedActivePilePlanId
+        || latest.selectedPileConfigurationsByLoadPoint !== capturedAssignments
+      ) {
+        return;
+      }
+
+      if (result.status === "blocked") {
+        const names = result.blocking_locked_load_points.map(({ load_point_id }) =>
+          capturedLoadPoints.find(({ id }) => id === load_point_id)?.name ?? String(load_point_id));
+        showActionNotice(
+          t("loadPointGroups.assignmentBlocked", { names: names.join(", ") }),
+          "error",
+        );
+        return;
+      }
+
+      if (result.changes.length === 0) return;
+
+      commitProjectState((current) => {
+        if (
+          current.activePilePlanId !== capturedActivePilePlanId
+          || current.selectedPileConfigurationsByLoadPoint !== capturedAssignments
+        ) {
+          return current;
+        }
+        const nextAssignments = new Map(capturedAssignments);
+        for (const change of result.changes) {
+          nextAssignments.set(change.load_point_id, { ...change.configuration });
+        }
+        return {
+          ...current,
+          selectedPileConfigurationsByLoadPoint: nextAssignments,
+          pilePlans: synchronizeActivePilePlan(
+            current.pilePlans,
+            capturedActivePilePlanId,
+            nextAssignments,
+          ),
+          optimizationSummary: null,
+          optimizationError: null,
+        };
+      });
+    } catch (error) {
+      if (requestId === pileAssignmentRequestIdRef.current) {
+        showActionNotice(error instanceof Error ? error.message : String(error), "error");
+      }
+    } finally {
+      if (requestId === pileAssignmentRequestIdRef.current) {
+        setPileAssignmentPending(false);
+      }
+    }
+  };
+
   const importPilePlan = (patch: PilePlanImportPatch, fileName: string) => {
     commitProjectState((current) => applyPilePlanImportAsNewPlan(
       current,
@@ -663,6 +763,7 @@ function AppSession({
 
   const activatePilePlan = (pilePlanId: string) => {
     setActiveSourceKind(null);
+    invalidatePileAssignmentRequests();
     setProjectState((current) => {
       if (pilePlanId === current.activePilePlanId) return current;
       const transition = switchPilePlan({ ...current, targetPilePlanId: pilePlanId });
@@ -1398,6 +1499,11 @@ function AppSession({
           {workspaceLayout.propertiesVisible && <RightPanel
             state={projectState}
             onStateChange={handleProjectStateChange}
+            pileAssignmentPending={pileAssignmentPending
+              || loadPointGroups.pending
+              || loadPointGroups.error !== null
+              || (projectState.loadPoints.length > 0 && loadPointGroups.groups.length === 0)}
+            onApplyPileConfiguration={applyGroupedPileConfiguration}
             onRunOptimization={runGreedyOptimization}
             taskPanel={rightTaskPanel}
             onCloseTaskPanel={() => setRightTaskPanel(null)}

@@ -49,6 +49,9 @@
       "project-change": "Project gewijzigd"
     }
   },
+  "loadPointGroups": {
+    "assignmentBlocked": "Niet gewijzigd: vergrendelde belastinglocatie(s) {{names}} gebruiken een andere of geen paalconfiguratie."
+  },
   "search": "Zoeken",
   "find": "Zoeken",
   "open": "Openen",
