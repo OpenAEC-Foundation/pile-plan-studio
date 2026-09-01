@@ -21,6 +21,7 @@ export function useAggregatedPileOptions({
   controllerRef.current ??= createPileOptionAggregationController(aggregatePileOptionsCore);
   const controller = controllerRef.current;
   const [state, setState] = useState<PileOptionAggregationState>(() => controller.getState());
+  const selectionKey = selectedLoadPointIds.join("|");
 
   useEffect(() => {
     const unsubscribe = controller.subscribe(setState);
@@ -32,7 +33,7 @@ export function useAggregatedPileOptions({
 
   useEffect(() => {
     void controller.update({ selectedLoadPointIds, pileOptionsByLoadPointId });
-  }, [controller, selectedLoadPointIds, pileOptionsByLoadPointId]);
+  }, [controller, selectionKey, pileOptionsByLoadPointId]);
 
   return state;
 }

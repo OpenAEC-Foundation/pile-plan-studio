@@ -1,4 +1,5 @@
 import type { ProjectState } from "../../domain/projectState";
+import type { AggregatedPileConfiguration } from "../../core/pileOptionAggregationContract.ts";
 import { filterActivePileOptions } from "../../domain/activePileConfigurations.ts";
 import { getCptDisplayName } from "../../domain/cptDisplayName.ts";
 import { getSelectedCptTableModel } from "../../domain/cptSelectionTable.ts";
@@ -16,6 +17,7 @@ import type { Cpt, LegendItems, LoadPoint, PileConfigurationOption, SelectedCpt 
 import { getEffectivePileOptionsByLoadPointId } from "./cptSettingsModel.ts";
 
 export type RenderablePileOptionTableRow = PileOptionTableRow & {
+  criticalLoadPointId: number | null;
   governingCptId: number | null;
   statusClassName: string;
   symbolHtml: string;
@@ -232,10 +234,14 @@ export function getRenderablePileOptionRows(input: {
     return {
       costLabel: cost === null ? "-" : formatCurrency(cost, input.currencyCode),
       costValue: cost,
+      totalCostLabel: cost === null ? "-" : formatCurrency(cost, input.currencyCode),
+      totalCostValue: cost,
       frdLabel: formatOptionalNumber(option.governing_frd_kn, " kN"),
       frdValue: option.governing_frd_kn,
       governingCptId: governingCpt?.id ?? null,
       governingLabel,
+      criticalLoadPointId: null,
+      criticalLoadPointLabel: "-",
       key,
       sizeLabel,
       sizeValue: option.pile_size_mm,
@@ -247,6 +253,66 @@ export function getRenderablePileOptionRows(input: {
       tipValue: option.pile_tip_level_m,
       useLabel: formatOptionalNumber(option.utilization, "%", 100),
       useValue: option.utilization,
+      maxUseLabel: formatOptionalNumber(option.utilization, "%", 100),
+      maxUseValue: option.utilization,
+    };
+  });
+}
+
+export function getRenderableAggregatedPileOptionRows(input: {
+  aggregates: AggregatedPileConfiguration[];
+  costsByOptionKey: Map<string, number | null>;
+  currencyCode?: string;
+  legend: LegendItems;
+  loadPoints: LoadPoint[];
+  selectedLoadPointCount: number;
+}): RenderablePileOptionTableRow[] {
+  return input.aggregates.map((aggregate) => {
+    const key = pileConfigurationToken(aggregate.configuration);
+    const unitCost = input.costsByOptionKey.get(key) ?? null;
+    const totalCost = unitCost === null ? null : unitCost * input.selectedLoadPointCount;
+    const criticalLoadPoint = aggregate.critical_load_point_id === null
+      ? null
+      : input.loadPoints.find(({ id }) => id === aggregate.critical_load_point_id) ?? null;
+    const pileSizeMm = aggregate.configuration.pile_size_mm;
+    const style = getConfigurationStyle({
+      pile_size_mm: pileSizeMm,
+      pile_tip_level_m: aggregate.pile_tip_level_m,
+    }, input.legend);
+    const status = aggregate.status === "valid"
+      ? { className: "is-ok", label: "OK" }
+      : aggregate.status === "missing"
+        ? { className: "is-missing", label: "Missing" }
+        : { className: "is-not-ok", label: "Not OK" };
+    const sizeLabel = `${formatNumber(pileSizeMm)} mm`;
+    const tipLabel = `${formatNumber(aggregate.pile_tip_level_m)} m`;
+
+    return {
+      costLabel: unitCost === null ? "-" : formatCurrency(unitCost, input.currencyCode),
+      costValue: unitCost,
+      totalCostLabel: totalCost === null ? "-" : formatCurrency(totalCost, input.currencyCode),
+      totalCostValue: totalCost,
+      useLabel: formatOptionalNumber(aggregate.maximum_utilization, "%", 100),
+      useValue: aggregate.maximum_utilization,
+      maxUseLabel: formatOptionalNumber(aggregate.maximum_utilization, "%", 100),
+      maxUseValue: aggregate.maximum_utilization,
+      governingCptId: aggregate.critical_governing_cpt_id,
+      governingLabel: "-",
+      frdLabel: formatOptionalNumber(aggregate.critical_governing_frd_kn, " kN"),
+      frdValue: aggregate.critical_governing_frd_kn,
+      criticalLoadPointId: criticalLoadPoint?.id ?? null,
+      criticalLoadPointLabel: criticalLoadPoint?.name || (
+        aggregate.critical_load_point_id === null ? "-" : `Load point ${aggregate.critical_load_point_id}`
+      ),
+      key,
+      sizeLabel,
+      sizeValue: pileSizeMm,
+      statusClassName: status.className,
+      statusLabel: status.label,
+      symbolHtml: renderPileSymbol(style.symbol, style.color),
+      symbolLabel: `${sizeLabel} ${tipLabel}`,
+      tipLabel,
+      tipValue: aggregate.pile_tip_level_m,
     };
   });
 }

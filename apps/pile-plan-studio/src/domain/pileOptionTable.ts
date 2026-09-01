@@ -4,9 +4,12 @@ export type PileOptionTableColumn =
   | "tip"
   | "status"
   | "cost"
+  | "totalCost"
   | "use"
+  | "maxUse"
   | "governing"
-  | "frd";
+  | "frd"
+  | "criticalLoadPoint";
 
 export type PileOptionTableRow = {
   key: string;
@@ -18,11 +21,17 @@ export type PileOptionTableRow = {
   statusLabel: string;
   costValue: number | null;
   costLabel: string;
+  totalCostValue: number | null;
+  totalCostLabel: string;
   useValue: number | null;
   useLabel: string;
+  maxUseValue: number | null;
+  maxUseLabel: string;
   governingLabel: string;
   frdValue: number | null;
   frdLabel: string;
+  criticalLoadPointId: number | null;
+  criticalLoadPointLabel: string;
 };
 
 export type PileOptionSortState = {
@@ -30,10 +39,10 @@ export type PileOptionSortState = {
   direction: "asc" | "desc";
 } | null;
 
-export type PileOptionFilterState = Record<PileOptionTableColumn, string[]>;
+export type PileOptionFilterState = Partial<Record<PileOptionTableColumn, string[]>>;
 export type SortablePileOptionTableColumn = Exclude<PileOptionTableColumn, "symbol">;
 
-export const PILE_OPTION_COLUMNS: Array<{ key: PileOptionTableColumn; label: string }> = [
+const SINGLE_PILE_OPTION_COLUMNS: Array<{ key: PileOptionTableColumn; label: string }> = [
   { key: "symbol", label: "Symbol" },
   { key: "size", label: "Size" },
   { key: "tip", label: "Tip" },
@@ -43,8 +52,26 @@ export const PILE_OPTION_COLUMNS: Array<{ key: PileOptionTableColumn; label: str
   { key: "governing", label: "Governing" },
   { key: "frd", label: "R_c;net;d min" },
 ];
+const MULTI_PILE_OPTION_COLUMNS: Array<{ key: PileOptionTableColumn; label: string }> = [
+  { key: "symbol", label: "Symbol" },
+  { key: "size", label: "Size" },
+  { key: "tip", label: "Tip" },
+  { key: "status", label: "Status" },
+  { key: "totalCost", label: "Total cost" },
+  { key: "maxUse", label: "Max use" },
+  { key: "criticalLoadPoint", label: "Critical load point" },
+];
+const ALL_PILE_OPTION_COLUMNS = [...SINGLE_PILE_OPTION_COLUMNS, ...MULTI_PILE_OPTION_COLUMNS]
+  .filter((column, index, columns) => columns.findIndex(({ key }) => key === column.key) === index);
+
+export function getPileOptionColumns(
+  selectedLoadPointCount: number,
+): Array<{ key: PileOptionTableColumn; label: string }> {
+  return selectedLoadPointCount > 1 ? MULTI_PILE_OPTION_COLUMNS : SINGLE_PILE_OPTION_COLUMNS;
+}
+
 export const SORTABLE_PILE_OPTION_COLUMNS: Array<{ key: SortablePileOptionTableColumn; label: string }> =
-  PILE_OPTION_COLUMNS.filter(
+  ALL_PILE_OPTION_COLUMNS.filter(
     (column): column is { key: SortablePileOptionTableColumn; label: string } => column.key !== "symbol",
   );
 export const FILTERABLE_PILE_OPTION_COLUMNS = SORTABLE_PILE_OPTION_COLUMNS;
@@ -52,6 +79,7 @@ export const FILTERABLE_PILE_OPTION_COLUMNS = SORTABLE_PILE_OPTION_COLUMNS;
 export function createEmptyPileOptionFilters(): PileOptionFilterState {
   return {
     cost: [],
+    totalCost: [],
     frd: [],
     governing: [],
     size: [],
@@ -59,6 +87,8 @@ export function createEmptyPileOptionFilters(): PileOptionFilterState {
     symbol: [],
     tip: [],
     use: [],
+    maxUse: [],
+    criticalLoadPoint: [],
   };
 }
 
@@ -81,7 +111,7 @@ export function getPileOptionTableRows<T extends PileOptionTableRow>(
   const normalizedFilters = Object.entries(filters)
     .map(([column, values]) => [
       column as PileOptionTableColumn,
-      values.map((value) => value.trim().toLowerCase()).filter((value) => value.length > 0),
+      (values ?? []).map((value) => value.trim().toLowerCase()).filter((value) => value.length > 0),
     ] as const)
     .filter(([, values]) => values.length > 0);
 
@@ -120,12 +150,18 @@ function getFilterText(row: PileOptionTableRow, column: PileOptionTableColumn): 
       return row.statusLabel;
     case "cost":
       return row.costLabel;
+    case "totalCost":
+      return row.totalCostLabel;
     case "use":
       return row.useLabel;
+    case "maxUse":
+      return row.maxUseLabel;
     case "governing":
       return row.governingLabel;
     case "frd":
       return row.frdLabel;
+    case "criticalLoadPoint":
+      return row.criticalLoadPointLabel;
   }
 }
 
@@ -141,12 +177,18 @@ function compareRows(left: PileOptionTableRow, right: PileOptionTableRow, column
       return compareText(left.statusLabel, right.statusLabel);
     case "cost":
       return compareOptionalNumbers(left.costValue, right.costValue);
+    case "totalCost":
+      return compareOptionalNumbers(left.totalCostValue, right.totalCostValue);
     case "use":
       return compareOptionalNumbers(left.useValue, right.useValue);
+    case "maxUse":
+      return compareOptionalNumbers(left.maxUseValue, right.maxUseValue);
     case "governing":
       return compareText(left.governingLabel, right.governingLabel);
     case "frd":
       return compareOptionalNumbers(left.frdValue, right.frdValue);
+    case "criticalLoadPoint":
+      return compareText(left.criticalLoadPointLabel, right.criticalLoadPointLabel);
   }
 }
 

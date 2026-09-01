@@ -3,11 +3,10 @@ import { useTranslation } from "react-i18next";
 import type { ProjectState } from "../../domain/projectState";
 import type { PileCostSettings } from "../.././core/projectTypes.ts";
 import {
-  FILTERABLE_PILE_OPTION_COLUMNS,
   getNextPileOptionSortState,
+  getPileOptionColumns,
   getPileOptionFilterValues,
   getPileOptionTableRows,
-  PILE_OPTION_COLUMNS,
   type PileOptionTableColumn,
   type SortablePileOptionTableColumn,
 } from "../../domain/pileOptionTable.ts";
@@ -15,13 +14,15 @@ import {
   getCptFrdPanelModel,
   getChosenPileOptionKeyForSelection,
   formatLoadPointPanelTitle,
-  getPileOptionsForSelectedLoadPoints,
+  getRenderableAggregatedPileOptionRows,
   getRenderablePileOptionRows,
   getSelectedCptOverviewModel,
   getSelectedLoadPoints,
   optionKey,
 } from "./rightPanelModel.ts";
-import { openCpt, switchRightPanelMode, type RightPanelMode } from "../.././domain/selectionState.ts";
+import { formatNumber } from "../../domain/formatting.ts";
+import { openCpt, selectLoadPoint, switchRightPanelMode, type RightPanelMode } from "../.././domain/selectionState.ts";
+import { isPileConfigurationActive } from "../../domain/activePileConfigurations.ts";
 import {
   applyCptSelectionSettingsPatch,
   cancelManualCptSelection,
@@ -38,6 +39,7 @@ import OptimizationPanel from "./OptimizationPanel.tsx";
 import CostCatalogPanel from "./CostSettingsPanel.tsx";
 import { CoordinateReadout } from "./CoordinateReadout.ts";
 import { commitNumberDraft } from "./numberInputModel.ts";
+import { useAggregatedPileOptions } from "./useAggregatedPileOptions.ts";
 import "./rightPanel.css";
 
 export type RightTaskPanel = "cpt-settings" | "cost-settings" | "optimization";
@@ -637,23 +639,61 @@ function LoadPointPanel({ state, onStateChange, selectedLabel, selectedLoadPoint
   selectedLoadPoints: ReturnType<typeof getSelectedLoadPoints>;
 }) {
   const { t, i18n } = useTranslation("rightPanel");
-  const options = getPileOptionsForSelectedLoadPoints(state, selectedLoadPoints);
-  const rows = getRenderablePileOptionRows({
-    cpts: state.cpts,
-    costsByOptionKey: state.pileCostByOptionKey,
-    currencyCode: state.currencyCode,
-    legend: state.pileLegend,
-    options,
-    selectedLoadPointCount: selectedLoadPoints.length,
-  }).map((row) => ({
+  const aggregation = useAggregatedPileOptions({
+    selectedLoadPointIds: selectedLoadPoints.map(({ id }) => id),
+    pileOptionsByLoadPointId: state.pileOptionsByLoadPointId,
+  });
+  const selectedCount = selectedLoadPoints.length;
+  const columns = getPileOptionColumns(selectedCount);
+  const rows = (selectedCount > 1
+    ? getRenderableAggregatedPileOptionRows({
+        aggregates: aggregation.status === "ready"
+          ? aggregation.result.filter((item) => isPileConfigurationActive({
+              pile_size_mm: item.configuration.pile_size_mm,
+              pile_tip_level_m: item.pile_tip_level_m,
+            }, {
+              pileSizes: state.activePileSizes,
+              pileTipLevels: state.activePileTipLevels,
+            }))
+          : [],
+        costsByOptionKey: state.pileCostByOptionKey,
+        currencyCode: state.currencyCode,
+        legend: state.pileLegend,
+        loadPoints: state.loadPoints,
+        selectedLoadPointCount: selectedCount,
+      })
+    : getRenderablePileOptionRows({
+        cpts: state.cpts,
+        costsByOptionKey: state.pileCostByOptionKey,
+        currencyCode: state.currencyCode,
+        legend: state.pileLegend,
+        options: selectedLoadPoints[0]
+          ? (state.pileOptionsByLoadPointId.get(selectedLoadPoints[0].id) ?? []).filter((option) =>
+              isPileConfigurationActive(option, {
+                pileSizes: state.activePileSizes,
+                pileTipLevels: state.activePileTipLevels,
+              }))
+          : [],
+        selectedLoadPointCount: selectedCount,
+      })).map((row) => ({
     ...row,
     statusLabel: row.statusLabel === "Missing"
       ? t("status.missing")
       : row.statusLabel === "Not OK" ? t("status.notOk") : t("status.ok"),
   }));
-  const tableRows = getPileOptionTableRows(rows, state.pileOptionFilters, state.pileOptionSort);
+  const visibleFilters = Object.fromEntries(
+    columns.map(({ key }) => [key, state.pileOptionFilters[key] ?? []]),
+  );
+  const visibleSort = state.pileOptionSort && columns.some(({ key }) => key === state.pileOptionSort?.column)
+    ? state.pileOptionSort
+    : null;
+  const tableRows = getPileOptionTableRows(rows, visibleFilters, visibleSort);
   const chosenKey = getChosenPileOptionKeyForSelection(state, selectedLoadPoints);
-  const isLoading = state.pileOptionsByLoadPointId.size === 0;
+  const isLoading = state.pileOptionsByLoadPointId.size === 0
+    || (selectedCount > 1 && aggregation.status === "loading");
+  const tableError = selectedCount > 1 && aggregation.status === "error"
+    ? aggregation.error
+    : state.analysisError;
   const fedLabel = selectedLoadPoints.length === 1
     ? `${selectedLoadPoints[0].design_load_kn.toLocaleString(i18n.language, { maximumFractionDigits: 1 })} kN`
     : t("loadPoints.selectedCount", { count: selectedLoadPoints.length });
@@ -680,15 +720,15 @@ function LoadPointPanel({ state, onStateChange, selectedLabel, selectedLoadPoint
           <h3>{t("pileOptions.title")}</h3>
           <span>{isLoading ? t("pileOptions.loading") : t("pileOptions.shown", { count: tableRows.length })}</span>
         </div>
-        {!isLoading && state.analysisError ? (
+        {!isLoading && tableError ? (
           <div className="right-panel-empty is-inline" role="alert">
-            {t("pileOptions.failed", { error: state.analysisError })}
+            {t("pileOptions.failed", { error: tableError })}
           </div>
         ) : null}
         {isLoading ? (
-          <div className="right-panel-empty is-inline" role={state.analysisError ? "alert" : undefined}>
-            {state.analysisError
-              ? t("pileOptions.failed", { error: state.analysisError })
+          <div className="right-panel-empty is-inline" role={tableError ? "alert" : undefined}>
+            {tableError
+              ? t("pileOptions.failed", { error: tableError })
               : t("pileOptions.calculating")}
           </div>
         ) : (
@@ -696,7 +736,7 @@ function LoadPointPanel({ state, onStateChange, selectedLabel, selectedLoadPoint
             <table className="pile-options-table">
               <thead>
                 <tr>
-                  {PILE_OPTION_COLUMNS.map((column) => (
+                  {columns.map((column) => (
                     <th className={`pile-option-column-${column.key}`} key={column.key}>
                       {column.key === "symbol" ? (
                         <span className="sr-only">{t("columns.symbol", "Symbol")}</span>
@@ -705,8 +745,8 @@ function LoadPointPanel({ state, onStateChange, selectedLabel, selectedLoadPoint
                           column={column.key}
                           label={column.key === "frd"
                             ? <ResistanceLabel qualifier={t("columns.minimumQualifier")} />
-                            : t(`columns.${column.key === "use" && selectedLoadPoints.length > 1 ? "useAvg" : column.key}`)}
-                          labelText={t(`columns.${column.key === "use" && selectedLoadPoints.length > 1 ? "useAvg" : column.key}`)}
+                            : t(`columns.${column.key}`)}
+                          labelText={t(`columns.${column.key}`)}
                           rows={rows}
                           state={state}
                           onStateChange={onStateChange}
@@ -719,7 +759,7 @@ function LoadPointPanel({ state, onStateChange, selectedLabel, selectedLoadPoint
               <tbody>
                 {tableRows.length === 0 ? (
                   <tr>
-                    <td className="empty-table-cell" colSpan={PILE_OPTION_COLUMNS.length}>
+                    <td className="empty-table-cell" colSpan={columns.length}>
                       {t("pileOptions.noMatch")}
                     </td>
                   </tr>
@@ -730,29 +770,43 @@ function LoadPointPanel({ state, onStateChange, selectedLabel, selectedLoadPoint
                       key={row.key}
                       onClick={() => applyPileOption(state, onStateChange, selectedLoadPoints, row.key)}
                     >
-                      <td className="pile-option-symbol-cell">
-                        <span dangerouslySetInnerHTML={{ __html: row.symbolHtml }} />
-                      </td>
-                      <td>{row.sizeLabel}</td>
-                      <td>{row.tipLabel}</td>
-                      <td><span className={`status-pill ${row.statusClassName}`}>{row.statusLabel}</span></td>
-                      <td>{row.costLabel}</td>
-                      <td>{row.useLabel}</td>
-                      <td>
-                        {row.governingCptId === null ? row.governingLabel : (
-                          <button
-                            className="cpt-link"
-                            type="button"
-                            onClick={(event) => {
-                              event.stopPropagation();
-                              onStateChange({ ...state, ...openCpt(state, row.governingCptId as number) });
-                            }}
-                          >
-                            {localizeCptName(row.governingLabel, t)}
-                          </button>
-                        )}
-                      </td>
-                      <td>{row.frdLabel}</td>
+                      {columns.map(({ key }) => (
+                        <td className={key === "symbol" ? "pile-option-symbol-cell" : undefined} key={key}>
+                          {key === "symbol" ? <span dangerouslySetInnerHTML={{ __html: row.symbolHtml }} />
+                            : key === "size" ? row.sizeLabel
+                            : key === "tip" ? row.tipLabel
+                            : key === "status" ? <span className={`status-pill ${row.statusClassName}`}>{row.statusLabel}</span>
+                            : key === "cost" ? row.costLabel
+                            : key === "totalCost" ? row.totalCostLabel
+                            : key === "use" ? row.useLabel
+                            : key === "maxUse" ? row.maxUseLabel
+                            : key === "governing" ? (row.governingCptId === null ? row.governingLabel : (
+                              <button
+                                className="cpt-link"
+                                type="button"
+                                onClick={(event) => {
+                                  event.stopPropagation();
+                                  onStateChange({ ...state, ...openCpt(state, row.governingCptId as number) });
+                                }}
+                              >
+                                {localizeCptName(row.governingLabel, t)}
+                              </button>
+                            ))
+                            : key === "frd" ? row.frdLabel
+                            : row.criticalLoadPointId === null ? row.criticalLoadPointLabel : (
+                              <button
+                                className="cpt-link"
+                                type="button"
+                                onClick={(event) => {
+                                  event.stopPropagation();
+                                  onStateChange({ ...state, ...selectLoadPoint(state, row.criticalLoadPointId as number) });
+                                }}
+                              >
+                                {localizeLoadPointName(row.criticalLoadPointLabel, t)}
+                              </button>
+                            )}
+                        </td>
+                      ))}
                     </tr>
                   ))
                 )}
@@ -775,10 +829,8 @@ function ColumnHeader({ column, label, labelText, rows, state, onStateChange }: 
 }) {
   const { t } = useTranslation("rightPanel");
   const sortColumn = column as SortablePileOptionTableColumn;
-  const filterValues = FILTERABLE_PILE_OPTION_COLUMNS.some((item) => item.key === sortColumn)
-    ? getPileOptionFilterValues(rows, sortColumn)
-    : [];
-  const selectedValues = new Set(state.pileOptionFilters[column]);
+  const filterValues = getPileOptionFilterValues(rows, sortColumn);
+  const selectedValues = new Set(state.pileOptionFilters[column] ?? []);
   const sortMark = state.pileOptionSort?.column === column
     ? state.pileOptionSort.direction === "asc" ? "↑" : "↓"
     : "";
@@ -853,7 +905,8 @@ function applyPileOption(
   selectedLoadPoints: ReturnType<typeof getSelectedLoadPoints>,
   configurationToken: string,
 ) {
-  const configuration = getPileOptionsForSelectedLoadPoints(state, selectedLoadPoints)
+  const configuration = selectedLoadPoints
+    .flatMap((loadPoint) => state.pileOptionsByLoadPointId.get(loadPoint.id) ?? [])
     .find((option) => optionKey(option) === configurationToken)?.configuration;
   if (!configuration) return;
   const nextSelections = new Map(state.selectedPileConfigurationsByLoadPoint);

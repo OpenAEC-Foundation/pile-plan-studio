@@ -5,6 +5,7 @@ import {
   getCptFrdPanelModel,
   getChosenPileOptionKeyForSelection,
   getPileOptionsForSelectedLoadPoints,
+  getRenderableAggregatedPileOptionRows,
   getRenderablePileOptionRows,
   getSelectedCptOverviewModel,
   getSelectedLoadPoints,
@@ -101,6 +102,58 @@ describe("React right panel model", () => {
 
     assert.equal(rows[0].governingLabel, "CPT 64");
     assert.equal(rows[0].governingCptId, 64);
+  });
+
+  it("builds multi-selection rows with total cost, maximum use, and critical location", () => {
+    const state = minimalState({
+      pileCostByOptionKey: new Map([["320|-18500", 1200]]),
+    });
+    const rows = getRenderableAggregatedPileOptionRows({
+      aggregates: [{
+        configuration: { pile_size_mm: 320, pile_tip_level_mm: -18_500 },
+        pile_tip_level_m: -18.5,
+        status: "valid",
+        missing_load_point_ids: [],
+        invalid_load_point_ids: [],
+        maximum_utilization: 0.9,
+        critical_load_point_id: 2,
+        critical_governing_cpt_id: 64,
+        critical_governing_frd_kn: 900,
+      }],
+      costsByOptionKey: state.pileCostByOptionKey,
+      currencyCode: "EUR",
+      legend: state.pileLegend,
+      loadPoints: state.loadPoints,
+      selectedLoadPointCount: 3,
+    });
+
+    assert.equal(rows[0].totalCostLabel, "€3,600");
+    assert.equal(rows[0].maxUseLabel, "90%");
+    assert.equal(rows[0].criticalLoadPointLabel, "Load point 2");
+    assert.equal(rows[0].criticalLoadPointId, 2);
+  });
+
+  it("shows an unknown total cost when the unit cost is unavailable", () => {
+    const rows = getRenderableAggregatedPileOptionRows({
+      aggregates: [{
+        configuration: { pile_size_mm: 320, pile_tip_level_mm: -18_500 },
+        pile_tip_level_m: -18.5,
+        status: "missing",
+        missing_load_point_ids: [2],
+        invalid_load_point_ids: [],
+        maximum_utilization: null,
+        critical_load_point_id: null,
+        critical_governing_cpt_id: null,
+        critical_governing_frd_kn: null,
+      }],
+      costsByOptionKey: new Map(),
+      legend: minimalState().pileLegend,
+      loadPoints: minimalState().loadPoints,
+      selectedLoadPointCount: 2,
+    });
+
+    assert.equal(rows[0].totalCostLabel, "-");
+    assert.equal(rows[0].criticalLoadPointLabel, "-");
   });
 
   it("uses a shared chosen option key only when all selected load points match", () => {

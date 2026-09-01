@@ -1,6 +1,5 @@
 import type { PileConfigurationKey, PileConfigurationOption } from "../core/projectTypes.ts";
 import { samePileConfiguration } from "../core/pileConfigurationKey.ts";
-import { aggregatePileOptionsForLoadPoints } from "../domain/pileOptionAggregation.ts";
 
 export type LegendSelectionFilter = {
   pileSizes: number[];
@@ -57,7 +56,7 @@ export function getHighlightedGoverningCptId(input: {
   selectedLoadPointIds: number[];
   selectedPileConfigurationsByLoadPoint: Map<number, PileConfigurationKey>;
 }): number | null {
-  if (input.selectedLoadPointIds.length === 0) {
+  if (input.selectedLoadPointIds.length !== 1) {
     return null;
   }
 
@@ -71,12 +70,7 @@ export function getHighlightedGoverningCptId(input: {
     return null;
   }
 
-  const optionGroups = input.selectedLoadPointIds.map(
-    (loadPointId) => input.pileOptionsByLoadPointId.get(loadPointId) ?? [],
-  );
-  const options = optionGroups.length === 1
-    ? optionGroups[0]
-    : aggregatePileOptionsForLoadPoints(optionGroups);
+  const options = input.pileOptionsByLoadPointId.get(input.selectedLoadPointIds[0]) ?? [];
   const governingCptId = options.find(
     (option) => samePileConfiguration(option.configuration, chosenConfiguration),
   )?.governing_cpt_id ?? null;

@@ -98,15 +98,20 @@ describe("pile option aggregation controller", () => {
 
   it("reuses a completed result for the same selected analysis facts", async () => {
     let calls = 0;
+    let readyNotifications = 0;
     const controller = createPileOptionAggregationController(async () => {
       calls += 1;
       return [aggregate(-18_000)];
+    });
+    controller.subscribe((state) => {
+      if (state.status === "ready") readyNotifications += 1;
     });
 
     await controller.update(input([2, 1]));
     await controller.update(input([1, 2]));
 
     assert.equal(calls, 1);
+    assert.equal(readyNotifications, 1);
     assert.equal(controller.getState().status, "ready");
   });
 

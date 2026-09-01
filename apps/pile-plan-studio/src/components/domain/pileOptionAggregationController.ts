@@ -49,8 +49,12 @@ export function createPileOptionAggregationController(
         return;
       }
 
-      const requestGeneration = ++generation;
       const key = buildAggregationKey(selectedLoadPointIds, input.pileOptionsByLoadPointId);
+      if (currentKey === key && (currentState.status === "loading" || currentState.status === "ready")) {
+        return;
+      }
+
+      const requestGeneration = ++generation;
       currentKey = key;
       const completed = completedResults.get(key);
       if (completed) {
