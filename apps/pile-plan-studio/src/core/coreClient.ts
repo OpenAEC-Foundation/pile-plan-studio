@@ -1,6 +1,7 @@
 import { invoke } from "@tauri-apps/api/core";
 import initWasm, {
   aggregate_pile_options,
+  apply_load_point_group_assignment,
   build_spatial_neighborhood,
   build_tip_level_region_topology,
   calculate_pile_option_cost,
@@ -10,6 +11,7 @@ import initWasm, {
   choose_default_option,
   choose_default_options,
   cpt_frd_rows,
+  derive_load_point_groups,
   export_pile_plan_csv,
   export_pile_plan_xlsx,
   greedy_optimize,
@@ -73,6 +75,16 @@ import {
   type SpatialPileAssignment,
   type TipLevelRegionTopology,
 } from "./spatialTopologyContract.ts";
+import {
+  loadPointGroupAssignmentResultFromCore,
+  loadPointGroupsFromCore,
+  toBrowserLoadPointGroupAssignmentRequest,
+  toDeriveLoadPointGroupsRequest,
+  toDesktopLoadPointGroupAssignmentRequest,
+  type ApplyLoadPointGroupAssignmentResult,
+  type LoadPointGroup,
+  type LoadPointGroupAssignmentInput,
+} from "./loadPointGroupContract.ts";
 
 type CoreCptSelectionSettings = {
   algorithm: CptSelectionSettings["algorithm"];
@@ -308,6 +320,40 @@ export async function chooseDefaultPileOptionsCore(input: {
   return new Map(
     [...numericMap(choices)].map(([loadPointId, key]) => [loadPointId, { ...key }]),
   );
+}
+
+export async function deriveLoadPointGroupsCore(
+  loadPoints: LoadPoint[],
+): Promise<LoadPointGroup[]> {
+  const request = toDeriveLoadPointGroupsRequest(loadPoints);
+  let result: LoadPointGroup[];
+  if (!isTauriRuntime()) {
+    await initializeWasm();
+    result = derive_load_point_groups(request) as LoadPointGroup[];
+  } else {
+    result = await invoke<LoadPointGroup[]>("derive_load_point_groups", { request });
+  }
+
+  return loadPointGroupsFromCore(result);
+}
+
+export async function applyLoadPointGroupAssignmentCore(
+  input: LoadPointGroupAssignmentInput,
+): Promise<ApplyLoadPointGroupAssignmentResult> {
+  let result: ApplyLoadPointGroupAssignmentResult;
+  if (!isTauriRuntime()) {
+    await initializeWasm();
+    result = apply_load_point_group_assignment(
+      toBrowserLoadPointGroupAssignmentRequest(input),
+    ) as ApplyLoadPointGroupAssignmentResult;
+  } else {
+    result = await invoke<ApplyLoadPointGroupAssignmentResult>(
+      "apply_load_point_group_assignment",
+      { request: toDesktopLoadPointGroupAssignmentRequest(input) },
+    );
+  }
+
+  return loadPointGroupAssignmentResultFromCore(result);
 }
 
 export async function aggregatePileOptionsCore(
