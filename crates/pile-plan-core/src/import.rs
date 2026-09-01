@@ -17,8 +17,7 @@ mod roles;
 mod table;
 
 pub use pipeline::{
-    import_project_from_profiled_sources,
-    import_project_from_profiled_sources_with_properties,
+    import_project_from_profiled_sources, import_project_from_profiled_sources_with_properties,
     preview_import_source,
 };
 pub use profile::{

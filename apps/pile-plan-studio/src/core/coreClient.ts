@@ -1,5 +1,6 @@
 import { invoke } from "@tauri-apps/api/core";
 import initWasm, {
+  aggregate_pile_options,
   build_spatial_neighborhood,
   build_tip_level_region_topology,
   calculate_pile_option_cost,
@@ -58,6 +59,13 @@ import {
   type PilePlanImportPreview,
   type PilePlanImportRequest,
 } from "./pilePlanImportContract.ts";
+import {
+  aggregatedPileConfigurationsFromCore,
+  toBrowserAggregatePileOptionsRequest,
+  toDesktopAggregatePileOptionsRequest,
+  type AggregatedPileConfiguration,
+  type CoreAggregatedPileConfiguration,
+} from "./pileOptionAggregationContract.ts";
 import {
   toBrowserTipLevelRegionTopologyRequest,
   toDesktopTipLevelRegionTopologyRequest,
@@ -300,6 +308,24 @@ export async function chooseDefaultPileOptionsCore(input: {
   return new Map(
     [...numericMap(choices)].map(([loadPointId, key]) => [loadPointId, { ...key }]),
   );
+}
+
+export async function aggregatePileOptionsCore(
+  optionsByLoadPoint: Map<number, PileConfigurationOption[]>,
+): Promise<AggregatedPileConfiguration[]> {
+  let result: CoreAggregatedPileConfiguration[];
+  if (!isTauriRuntime()) {
+    await initializeWasm();
+    result = aggregate_pile_options(
+      toBrowserAggregatePileOptionsRequest(optionsByLoadPoint),
+    ) as CoreAggregatedPileConfiguration[];
+  } else {
+    result = await invoke<CoreAggregatedPileConfiguration[]>("aggregate_pile_options", {
+      request: toDesktopAggregatePileOptionsRequest(optionsByLoadPoint),
+    });
+  }
+
+  return aggregatedPileConfigurationsFromCore(result);
 }
 
 export async function getBearingCapacityRowsForCptCore(input: {

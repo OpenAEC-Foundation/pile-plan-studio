@@ -4,6 +4,18 @@
  * @param {any} request
  * @returns {any}
  */
+export function aggregate_pile_options(request) {
+    const ret = wasm.aggregate_pile_options(request);
+    if (ret[2]) {
+        throw takeFromExternrefTable0(ret[1]);
+    }
+    return takeFromExternrefTable0(ret[0]);
+}
+
+/**
+ * @param {any} request
+ * @returns {any}
+ */
 export function build_spatial_neighborhood(request) {
     const ret = wasm.build_spatial_neighborhood(request);
     if (ret[2]) {

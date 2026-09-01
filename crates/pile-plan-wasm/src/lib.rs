@@ -1,7 +1,8 @@
 use std::collections::HashMap;
 
 use pile_plan_core::{
-    bearing_capacity_rows_for_cpt, build_pile_options_by_load_point, build_project_analysis,
+    aggregate_pile_options_for_load_points, bearing_capacity_rows_for_cpt,
+    build_pile_options_by_load_point, build_project_analysis,
     build_spatial_neighborhood as build_spatial_neighborhood_core,
     build_tip_level_region_topology as build_tip_level_region_topology_core, calculate_pile_cost,
     choose_default_pile_option, choose_default_pile_options, greedy_optimize_pile_choices,
@@ -65,6 +66,11 @@ pub struct DefaultPileOptionsRequest {
     pub options_by_load_point: HashMap<u32, Vec<PileConfigurationOption>>,
     pub pile_head_level_m: f64,
     pub cost_settings: PileCostSettings,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct AggregatePileOptionsRequest {
+    pub options_by_load_point: HashMap<u32, Vec<PileConfigurationOption>>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -198,6 +204,14 @@ pub fn choose_default_options(request: JsValue) -> Result<JsValue, JsValue> {
 }
 
 #[wasm_bindgen]
+pub fn aggregate_pile_options(request: JsValue) -> Result<JsValue, JsValue> {
+    let request: AggregatePileOptionsRequest = from_js_value(request)?;
+    to_js_value(&aggregate_pile_options_for_load_points(
+        &request.options_by_load_point,
+    ))
+}
+
+#[wasm_bindgen]
 pub fn cpt_frd_rows(request: JsValue) -> Result<JsValue, JsValue> {
     let request: CptFrdRowsRequest = from_js_value(request)?;
     to_js_value(&bearing_capacity_rows_for_cpt(
@@ -304,8 +318,7 @@ fn to_error_value(error: impl std::fmt::Display) -> JsValue {
 mod tests {
     use super::*;
     use pile_plan_core::{
-        CptSelectionAlgorithm, GreedyOptimizationSettings, OptimizationLimitScope,
-        SelectedCpt,
+        CptSelectionAlgorithm, GreedyOptimizationSettings, OptimizationLimitScope, SelectedCpt,
     };
 
     #[test]
@@ -375,6 +388,39 @@ mod tests {
         };
 
         assert!(request.options_by_load_point.contains_key(&1));
+    }
+
+    #[test]
+    fn aggregate_adapter_exposes_authoritative_core_facts() {
+        let request = AggregatePileOptionsRequest {
+            options_by_load_point: HashMap::from([
+                (1, vec![aggregation_option(0.72, 61)]),
+                (2, vec![aggregation_option(0.91, 62)]),
+            ]),
+        };
+
+        let result = aggregate_pile_options_for_load_points(&request.options_by_load_point);
+
+        assert_eq!(result[0].configuration.pile_tip_level_mm, -18_500);
+        assert_eq!(result[0].maximum_utilization, Some(0.91));
+        assert_eq!(result[0].critical_load_point_id, Some(2));
+        let _export: fn(JsValue) -> Result<JsValue, JsValue> = aggregate_pile_options;
+    }
+
+    fn aggregation_option(utilization: f64, governing_cpt_id: u32) -> PileConfigurationOption {
+        PileConfigurationOption {
+            configuration: PileConfigurationKey {
+                pile_size_mm: 320,
+                pile_tip_level_mm: -18_500,
+            },
+            pile_size_mm: 320,
+            pile_tip_level_m: -18.5,
+            is_option: true,
+            governing_cpt_id: Some(governing_cpt_id),
+            governing_frd_kn: Some(700.0),
+            utilization: Some(utilization),
+            missing_cpt_ids: vec![],
+        }
     }
 
     #[test]

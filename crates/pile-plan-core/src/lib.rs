@@ -4,6 +4,7 @@ pub mod ifcpp;
 pub mod import;
 pub mod model;
 pub mod pile_configuration;
+pub mod pile_option_aggregation;
 pub mod pile_options;
 pub mod pile_plan_import;
 pub mod project;
@@ -36,6 +37,10 @@ pub use import::{
     ImportSource, ImportSourcePreview, ProjectImportSources, RfemPreviewDetails, SourceFormat,
 };
 pub use pile_configuration::PileConfigurationKey;
+pub use pile_option_aggregation::{
+    aggregate_pile_options_for_load_points, AggregatedPileConfiguration,
+    AggregatedPileConfigurationStatus,
+};
 pub use pile_options::{calculate_pile_option, find_pile_options};
 pub use pile_plan_import::*;
 pub use project::{

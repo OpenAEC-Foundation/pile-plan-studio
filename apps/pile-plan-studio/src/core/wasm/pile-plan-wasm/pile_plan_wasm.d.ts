@@ -1,6 +1,8 @@
 /* tslint:disable */
 /* eslint-disable */
 
+export function aggregate_pile_options(request: any): any;
+
 export function build_spatial_neighborhood(request: any): any;
 
 export function build_tip_level_region_topology(request: any): any;
@@ -39,6 +41,7 @@ export type InitInput = RequestInfo | URL | Response | BufferSource | WebAssembl
 
 export interface InitOutput {
     readonly memory: WebAssembly.Memory;
+    readonly aggregate_pile_options: (a: any) => [number, number, number];
     readonly build_spatial_neighborhood: (a: any) => [number, number, number];
     readonly build_tip_level_region_topology: (a: any) => [number, number, number];
     readonly calculate_pile_option_cost: (a: any) => [number, number, number];

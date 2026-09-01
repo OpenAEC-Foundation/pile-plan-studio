@@ -1,7 +1,8 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 use pile_plan_core::{
-    bearing_capacity_rows_for_cpt, build_pile_options_by_load_point, build_project_analysis,
+    aggregate_pile_options_for_load_points, bearing_capacity_rows_for_cpt,
+    build_pile_options_by_load_point, build_project_analysis,
     build_spatial_neighborhood as build_spatial_neighborhood_core,
     build_tip_level_region_topology as build_tip_level_region_topology_core, calculate_pile_cost,
     choose_default_pile_option, choose_default_pile_options, greedy_optimize_pile_choices,
@@ -9,7 +10,7 @@ use pile_plan_core::{
     preview_pile_plan_import, refresh_project_from_profiled_sources, selected_cpts,
     write_pile_plan_csv as write_pile_plan_csv_bytes,
     write_pile_plan_xlsx as write_pile_plan_xlsx_bytes, CptSelectionSettings,
-    GreedyOptimizationInput, GreedyOptimizationResult, ImportSource, ImportSourcePreview,
+    AggregatedPileConfiguration, GreedyOptimizationInput, GreedyOptimizationResult, ImportSource, ImportSourcePreview,
     PileConfigurationKey, PileConfigurationOption, PileCostSettings, PilePlanExportRequest,
     PilePlanImportPreview, PilePlanImportRequest, PilePlanProject, ProjectAnalysisResult,
     ProjectBearingCapacity, ProjectCpt, ProjectLoadPoint, SelectedCpt, SpatialNeighborhood,
@@ -67,6 +68,11 @@ struct DefaultPileOptionsRequest {
     options_by_load_point: HashMap<u32, Vec<PileConfigurationOption>>,
     pile_head_level_m: f64,
     cost_settings: PileCostSettings,
+}
+
+#[derive(Debug, Deserialize)]
+struct AggregatePileOptionsRequest {
+    options_by_load_point: HashMap<u32, Vec<PileConfigurationOption>>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -192,6 +198,13 @@ fn choose_default_options(
 }
 
 #[tauri::command(rename_all = "snake_case")]
+fn aggregate_pile_options(
+    request: AggregatePileOptionsRequest,
+) -> Vec<AggregatedPileConfiguration> {
+    aggregate_pile_options_for_load_points(&request.options_by_load_point)
+}
+
+#[tauri::command(rename_all = "snake_case")]
 fn cpt_frd_rows(request: CptFrdRowsRequest) -> Vec<pile_plan_core::CptBearingCapacityRow> {
     bearing_capacity_rows_for_cpt(&request.bearing_capacities, request.cpt_id)
 }
@@ -274,6 +287,7 @@ fn main() {
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_store::Builder::default().build())
         .invoke_handler(tauri::generate_handler![
+            aggregate_pile_options,
             build_spatial_neighborhood,
             build_tip_level_region_topology,
             calculate_selected_cpts,
@@ -314,5 +328,29 @@ mod tests {
         });
 
         assert!(topology.groups.is_empty());
+    }
+
+    #[test]
+    fn aggregate_command_returns_authoritative_core_facts() {
+        let option = PileConfigurationOption {
+            configuration: PileConfigurationKey {
+                pile_size_mm: 320,
+                pile_tip_level_mm: -18_500,
+            },
+            pile_size_mm: 320,
+            pile_tip_level_m: -18.5,
+            is_option: true,
+            governing_cpt_id: Some(61),
+            governing_frd_kn: Some(700.0),
+            utilization: Some(0.82),
+            missing_cpt_ids: vec![],
+        };
+        let result = aggregate_pile_options(AggregatePileOptionsRequest {
+            options_by_load_point: HashMap::from([(7, vec![option])]),
+        });
+
+        assert_eq!(result[0].configuration.pile_tip_level_mm, -18_500);
+        assert_eq!(result[0].maximum_utilization, Some(0.82));
+        assert_eq!(result[0].critical_load_point_id, Some(7));
     }
 }
