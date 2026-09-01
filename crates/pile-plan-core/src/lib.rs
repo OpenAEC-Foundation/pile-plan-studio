@@ -2,6 +2,7 @@ pub mod analysis;
 pub mod export;
 pub mod ifcpp;
 pub mod import;
+pub mod load_point_groups;
 pub mod model;
 pub mod pile_configuration;
 pub mod pile_option_aggregation;
@@ -35,6 +36,10 @@ pub use import::{
     ImportDiagnostic, ImportDiagnosticCode, ImportDiagnosticLocation, ImportDiagnosticSeverity,
     ImportError, ImportPreviewDetails, ImportProfile, ImportProfileOptions, ImportRole,
     ImportSource, ImportSourcePreview, ProjectImportSources, RfemPreviewDetails, SourceFormat,
+};
+pub use load_point_groups::{
+    derive_load_point_groups, LoadPointGroup, LoadPointGroupingSettings,
+    DEFAULT_MAX_GROUP_EDGE_DISTANCE_MM,
 };
 pub use pile_configuration::PileConfigurationKey;
 pub use pile_option_aggregation::{
