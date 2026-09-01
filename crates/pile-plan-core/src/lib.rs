@@ -38,8 +38,10 @@ pub use import::{
     ImportSource, ImportSourcePreview, ProjectImportSources, RfemPreviewDetails, SourceFormat,
 };
 pub use load_point_groups::{
-    derive_load_point_groups, LoadPointGroup, LoadPointGroupingSettings,
-    DEFAULT_MAX_GROUP_EDGE_DISTANCE_MM,
+    apply_load_point_group_assignment, derive_load_point_groups,
+    ApplyLoadPointGroupAssignmentInput, ApplyLoadPointGroupAssignmentResult,
+    BlockingLockedLoadPoint, LoadPointGroup, LoadPointGroupAssignmentChange,
+    LoadPointGroupingSettings, DEFAULT_MAX_GROUP_EDGE_DISTANCE_MM,
 };
 pub use pile_configuration::PileConfigurationKey;
 pub use pile_option_aggregation::{
