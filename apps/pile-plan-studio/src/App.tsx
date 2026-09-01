@@ -8,7 +8,7 @@ import SettingsDialog, { applyTheme } from "./components/template/settings/Setti
 import FeedbackDialog from "./components/template/feedback/FeedbackDialog";
 import StatusBar from "./components/template/StatusBar";
 import InterfaceScaleNotice, { type InterfaceScaleNoticeValue } from "./components/template/InterfaceScaleNotice";
-import HistoryNotice from "./components/viewer/HistoryNotice";
+import ActionNotice, { type ActionNoticeTone } from "./components/viewer/ActionNotice";
 import PilePlanWorkspace from "./components/domain/PilePlanWorkspace";
 import RightPanel, { type RightTaskPanel } from "./components/domain/RightPanel";
 import ProjectInformationDialog from "./components/domain/ProjectInformationDialog";
@@ -157,6 +157,12 @@ type AppBootstrap =
       initialStatusKey?: string;
       recoveryStore?: BrowserRecoveryStore;
     };
+
+type ActionNoticeValue = {
+  id: number;
+  message: string;
+  tone: ActionNoticeTone;
+};
 
 export default function App() {
   const { t } = useTranslation();
@@ -311,16 +317,20 @@ function AppSession({
       statusMessageTimeoutRef.current = null;
     }, 3500);
   }, []);
-  const [historyNotice, setHistoryNotice] = useState({ id: 0, message: "" });
-  const historyNoticeIdRef = useRef(0);
-  const historyNoticeTimeoutRef = useRef<number | null>(null);
-  const showHistoryNotice = useCallback((message: string) => {
-    if (historyNoticeTimeoutRef.current !== null) window.clearTimeout(historyNoticeTimeoutRef.current);
-    historyNoticeIdRef.current += 1;
-    setHistoryNotice({ id: historyNoticeIdRef.current, message });
-    historyNoticeTimeoutRef.current = window.setTimeout(() => {
-      setHistoryNotice((current) => ({ ...current, message: "" }));
-      historyNoticeTimeoutRef.current = null;
+  const [actionNotice, setActionNotice] = useState<ActionNoticeValue>({
+    id: 0,
+    message: "",
+    tone: "neutral",
+  });
+  const actionNoticeIdRef = useRef(0);
+  const actionNoticeTimeoutRef = useRef<number | null>(null);
+  const showActionNotice = useCallback((message: string, tone: ActionNoticeTone = "neutral") => {
+    if (actionNoticeTimeoutRef.current !== null) window.clearTimeout(actionNoticeTimeoutRef.current);
+    actionNoticeIdRef.current += 1;
+    setActionNotice({ id: actionNoticeIdRef.current, message, tone });
+    actionNoticeTimeoutRef.current = window.setTimeout(() => {
+      setActionNotice((current) => ({ ...current, message: "" }));
+      actionNoticeTimeoutRef.current = null;
     }, 3500);
   }, []);
   const defaultSelectionRequestRef = useRef<typeof projectState.analysisRequest | null>(null);
@@ -419,7 +429,7 @@ function AppSession({
     if (initialStatusKey) showStatusMessage(t(initialStatusKey));
     return () => {
       if (statusMessageTimeoutRef.current !== null) window.clearTimeout(statusMessageTimeoutRef.current);
-      if (historyNoticeTimeoutRef.current !== null) window.clearTimeout(historyNoticeTimeoutRef.current);
+      if (actionNoticeTimeoutRef.current !== null) window.clearTimeout(actionNoticeTimeoutRef.current);
     };
   }, [initialStatusKey, showStatusMessage, t]);
 
@@ -460,8 +470,8 @@ function AppSession({
   useEffect(() => {
     const result = managedProject.lastResult;
     if (!result) return;
-    showHistoryNotice(describeHistoryResult(historyTranslate, result));
-  }, [historyTranslate, managedProject.lastResult, showHistoryNotice]);
+    showActionNotice(describeHistoryResult(historyTranslate, result), "neutral");
+  }, [historyTranslate, managedProject.lastResult, showActionNotice]);
 
   useEffect(() => {
     const handleHistoryShortcut = (event: KeyboardEvent) => {
@@ -1373,7 +1383,11 @@ function AppSession({
                 }}
               />
             )}
-            <HistoryNotice message={historyNotice.message} noticeId={historyNotice.id} />
+            <ActionNotice
+              message={actionNotice.message}
+              noticeId={actionNotice.id}
+              tone={actionNotice.tone}
+            />
           </main>
           {workspaceLayout.propertiesVisible && <div
             aria-label={t("properties")}

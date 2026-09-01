@@ -54,9 +54,9 @@ describe("App Undo integration", () => {
   });
 
   it("shows history results in the viewer without replacing general status feedback", () => {
-    assert.match(source, /import HistoryNotice/);
-    assert.match(source, /showHistoryNotice\(describeHistoryResult/);
-    assert.match(source, /<HistoryNotice/);
+    assert.match(source, /import ActionNotice/);
+    assert.match(source, /showActionNotice\(describeHistoryResult/);
+    assert.match(source, /<ActionNotice/);
     assert.match(source, /message=\{statusMessage\}/);
     assert.doesNotMatch(source, /historyMessage=\{historyMessage\}/);
   });
