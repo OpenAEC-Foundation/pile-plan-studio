@@ -80,7 +80,7 @@ describe("React app startup", () => {
     assert.doesNotMatch(beforeChooser, /defaultPileSelectionPending:\s*false/);
     assert.match(
       source.slice(chooserIndex),
-      /selectedPileOptionKeysByLoadPoint:\s*mergeDefaultPileChoices\([\s\S]*?defaultPileSelectionPending:\s*false/,
+      /selectedPileConfigurationsByLoadPoint:\s*mergeDefaultPileChoices\([\s\S]*?defaultPileSelectionPending:\s*false/,
     );
   });
 

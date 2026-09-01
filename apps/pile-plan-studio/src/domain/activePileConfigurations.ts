@@ -69,10 +69,7 @@ export function shouldDisableActivePileConfigurationToggle(
 }
 
 export function pileConfigurationKey(
-  option: Pick<PileConfigurationOption, "pile_size_mm" | "pile_tip_level_m">,
+  option: Pick<PileConfigurationOption, "configuration">,
 ): PileConfigurationKey {
-  return {
-    pile_size_mm: option.pile_size_mm,
-    pile_tip_level_m_key: Math.round(option.pile_tip_level_m * 1000),
-  };
+  return { ...option.configuration };
 }

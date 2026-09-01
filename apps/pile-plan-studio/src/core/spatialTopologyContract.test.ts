@@ -18,6 +18,7 @@ const neighborhood: SpatialNeighborhood = {
 };
 
 const option: PileConfigurationOption = {
+  configuration: { pile_size_mm: 320, pile_tip_level_mm: -18_000 },
   pile_size_mm: 320,
   pile_tip_level_m: -18.0004,
   isOption: true,
@@ -28,26 +29,30 @@ const option: PileConfigurationOption = {
 };
 
 describe("spatial topology transport contract", () => {
-  it("parses existing selection strings without normalizing PPN identity", () => {
+  it("copies canonical assignments without normalizing PPN identity", () => {
     assert.deepEqual(
-      parseSpatialPileAssignments(new Map([[7, "320|-18.0004"], [8, "bad"]])),
-      new Map([[7, { pile_size_mm: 320, pile_tip_level_m: -18.0004 }]]),
+      parseSpatialPileAssignments(new Map([[
+        7,
+        { pile_size_mm: 320, pile_tip_level_mm: -18_000 },
+      ]])),
+      new Map([[7, { pile_size_mm: 320, pile_tip_level_mm: -18_000 }]]),
     );
   });
 
   it("builds numeric-keyed WASM maps with core option fields", () => {
     const result = toBrowserTipLevelRegionTopologyRequest({
       neighborhood,
-      selectedAssignments: new Map([[7, { pile_size_mm: 320, pile_tip_level_m: -18.0004 }]]),
+      selectedAssignments: new Map([[7, { pile_size_mm: 320, pile_tip_level_mm: -18_000 }]]),
       optionsByLoadPoint: new Map([[7, [option]]]),
     });
 
     assert.equal(result.selected_assignments instanceof Map, true);
     assert.deepEqual(result.selected_assignments.get(7), {
       pile_size_mm: 320,
-      pile_tip_level_m: -18.0004,
+      pile_tip_level_mm: -18_000,
     });
     assert.deepEqual(result.options_by_load_point.get(7)?.[0], {
+      configuration: { pile_size_mm: 320, pile_tip_level_mm: -18_000 },
       pile_size_mm: 320,
       pile_tip_level_m: -18.0004,
       is_option: true,
@@ -61,12 +66,12 @@ describe("spatial topology transport contract", () => {
   it("builds string-keyed Tauri records without changing raw PPN values", () => {
     const result = toDesktopTipLevelRegionTopologyRequest({
       neighborhood,
-      selectedAssignments: new Map([[7, { pile_size_mm: 320, pile_tip_level_m: -18.0004 }]]),
+      selectedAssignments: new Map([[7, { pile_size_mm: 320, pile_tip_level_mm: -18_000 }]]),
       optionsByLoadPoint: new Map([[7, [option]]]),
     });
 
     assert.deepEqual(result.selected_assignments, {
-      "7": { pile_size_mm: 320, pile_tip_level_m: -18.0004 },
+      "7": { pile_size_mm: 320, pile_tip_level_mm: -18_000 },
     });
     assert.equal(result.options_by_load_point["7"][0].pile_tip_level_m, -18.0004);
     assert.equal(result.options_by_load_point["7"][0].is_option, true);

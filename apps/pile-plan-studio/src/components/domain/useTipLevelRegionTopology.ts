@@ -4,7 +4,11 @@ import {
   buildSpatialNeighborhoodCore,
   buildTipLevelRegionTopologyCore,
 } from "../../core/coreClient.ts";
-import type { LoadPoint, PileConfigurationOption } from "../../core/projectTypes.ts";
+import type {
+  LoadPoint,
+  PileConfigurationKey,
+  PileConfigurationOption,
+} from "../../core/projectTypes.ts";
 import type { TipLevelRegionTopology } from "../../core/spatialTopologyContract.ts";
 import {
   createTipLevelRegionTopologyController,
@@ -14,14 +18,14 @@ import {
 type UseTipLevelRegionTopologyInput = {
   enabled: boolean;
   loadPoints: LoadPoint[];
-  selectedPileOptionKeysByLoadPoint: Map<number, string>;
+  selectedPileConfigurationsByLoadPoint: Map<number, PileConfigurationKey>;
   pileOptionsByLoadPointId: Map<number, PileConfigurationOption[]>;
 };
 
 export function useTipLevelRegionTopology({
   enabled,
   loadPoints,
-  selectedPileOptionKeysByLoadPoint,
+  selectedPileConfigurationsByLoadPoint,
   pileOptionsByLoadPointId,
 }: UseTipLevelRegionTopologyInput): TipLevelRegionTopology | null {
   const controllerRef = useRef<TipLevelRegionTopologyController | null>(null);
@@ -49,7 +53,7 @@ export function useTipLevelRegionTopology({
 
     void controller.update({
       loadPoints,
-      selectedPileOptionKeysByLoadPoint,
+      selectedPileConfigurationsByLoadPoint,
       pileOptionsByLoadPointId,
     }).catch((error: unknown) => {
       console.error("Failed to build tip-level region topology", error);
@@ -58,7 +62,7 @@ export function useTipLevelRegionTopology({
     controller,
     enabled,
     loadPoints,
-    selectedPileOptionKeysByLoadPoint,
+    selectedPileConfigurationsByLoadPoint,
     pileOptionsByLoadPointId,
   ]);
 

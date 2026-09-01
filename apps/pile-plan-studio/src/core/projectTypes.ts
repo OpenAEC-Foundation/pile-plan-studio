@@ -62,6 +62,7 @@ export type CptSelectionSettings = {
 };
 
 export type PileConfigurationOption = {
+  configuration: PileConfigurationKey;
   pile_size_mm: number;
   pile_tip_level_m: number;
   isOption: boolean;
@@ -102,6 +103,11 @@ export type ProjectViewerSettings = {
 
 export type PileConfigurationKey = {
   pile_size_mm: number;
+  pile_tip_level_mm: number;
+};
+
+export type IfcppPileConfigurationKey = {
+  pile_size_mm: number;
   pile_tip_level_m_key: number;
 };
 
@@ -113,6 +119,7 @@ export type PilePlanExportInput = {
 
 export type GreedyOptimizedPileChoice = {
   load_point_id: number;
+  configuration: PileConfigurationKey;
   pile_size_mm: number;
   pile_tip_level_m: number;
   is_option: boolean;

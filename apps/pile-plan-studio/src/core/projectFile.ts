@@ -8,6 +8,7 @@ import type {
   LegendColorScheme,
   LegendItems,
   LoadPoint,
+  IfcppPileConfigurationKey,
   PileConfigurationKey,
   PileCostSettings,
   PileCostSettingsItem,
@@ -17,6 +18,7 @@ import {
   reconcileProjectLegend,
   type LegendImportWarning,
 } from "../viewer/legend.ts";
+import { samePileConfiguration } from "./pileConfigurationKey.ts";
 
 type IfcppGreedyOptimizationSettings = Omit<GreedyOptimizationSettings, "max_utilization"> & {
   max_utilization?: number;
@@ -35,7 +37,7 @@ type IfcppCptSelectionSettings = {
 };
 
 type IfcppSelectedPileChoice = {
-  pile: PileConfigurationKey | null;
+  pile: IfcppPileConfigurationKey | null;
   external_references?: unknown[];
 };
 
@@ -172,7 +174,7 @@ export type LoadedProjectData = {
   viewerUtilizationSettings: ViewerUtilizationSettings;
   pilePlans: PilePlanData[];
   activePilePlanId: string;
-  selectedPileOptionKeysByLoadPoint: Map<number, string>;
+  selectedPileConfigurationsByLoadPoint: Map<number, PileConfigurationKey>;
   manualCptIdsByLoadPoint: Map<number, number[]>;
   importLog: IfcppImportLogEntry[];
 };
@@ -180,7 +182,7 @@ export type LoadedProjectData = {
 export type PilePlanData = {
   id: string;
   name: string;
-  selectedPileOptionKeysByLoadPoint: Map<number, string>;
+  selectedPileConfigurationsByLoadPoint: Map<number, PileConfigurationKey>;
   externalReferencesByLoadPoint: Map<number, unknown[]>;
   lockedLoadPointIds: number[];
   optimizationUnassignedByLoadPoint: Map<number, GreedyUnassignedReason>;
@@ -231,7 +233,9 @@ export function loadIfcppProjectData(input: string | IfcppProject): LoadedProjec
     ),
     pilePlans,
     activePilePlanId,
-    selectedPileOptionKeysByLoadPoint: new Map(activePilePlan.selectedPileOptionKeysByLoadPoint),
+    selectedPileConfigurationsByLoadPoint: clonePileConfigurationMap(
+      activePilePlan.selectedPileConfigurationsByLoadPoint,
+    ),
     manualCptIdsByLoadPoint: new Map(
       numberKeyedEntries(project.user_state.manual_cpt_selections),
     ),
@@ -281,13 +285,13 @@ function loadPilePlans(project: IfcppProject): {
 function pilePlanDataFromWire(plan: IfcppPilePlan): PilePlanData {
   const selectedEntries = numberKeyedEntries(plan.selected_piles)
     .flatMap(([loadPointId, choice]) => choice.pile
-      ? [[loadPointId, pileConfigurationKeyToOptionKey(choice.pile)] as const]
+      ? [[loadPointId, pileConfigurationKeyFromWire(choice.pile)] as const]
       : []);
 
   return {
     id: plan.id,
     name: plan.name,
-    selectedPileOptionKeysByLoadPoint: new Map(selectedEntries),
+    selectedPileConfigurationsByLoadPoint: new Map(selectedEntries),
     externalReferencesByLoadPoint: new Map(
       numberKeyedEntries(plan.selected_piles)
         .map(([loadPointId, choice]) => [loadPointId, choice.external_references ?? []]),
@@ -328,7 +332,7 @@ export function createIfcppProject(input: {
   pileLegend: LegendItems;
   pilePlans?: PilePlanData[];
   activePilePlanId?: string;
-  selectedPileOptionKeysByLoadPoint: Map<number, string>;
+  selectedPileConfigurationsByLoadPoint: Map<number, PileConfigurationKey>;
   manualCptIdsByLoadPoint: Map<number, number[]>;
   importLog: IfcppImportLogEntry[];
 }): IfcppProject {
@@ -337,7 +341,7 @@ export function createIfcppProject(input: {
     : [{
         id: "pile-plan-1",
         name: "Pile plan 1",
-        selectedPileOptionKeysByLoadPoint: input.selectedPileOptionKeysByLoadPoint,
+        selectedPileConfigurationsByLoadPoint: input.selectedPileConfigurationsByLoadPoint,
         externalReferencesByLoadPoint: new Map<number, unknown[]>(),
         lockedLoadPointIds: [],
         optimizationUnassignedByLoadPoint: new Map(),
@@ -397,16 +401,19 @@ export function createIfcppProject(input: {
     user_state: {
       pile_plans: sourcePlans.map((plan) => {
         const selectedPiles = plan.id === activePilePlanId
-          ? input.selectedPileOptionKeysByLoadPoint
-          : plan.selectedPileOptionKeysByLoadPoint;
+          ? input.selectedPileConfigurationsByLoadPoint
+          : plan.selectedPileConfigurationsByLoadPoint;
         return {
           id: plan.id,
           name: plan.name,
           selected_piles: Object.fromEntries(
-            [...selectedPiles.entries()].map(([loadPointId, optionKey]) => [String(loadPointId), {
-              pile: optionKeyToPileConfigurationKey(optionKey),
+            [...selectedPiles.entries()].map(([loadPointId, configuration]) => [String(loadPointId), {
+              pile: pileConfigurationKeyToWire(configuration),
               external_references: plan.id !== activePilePlanId ||
-                plan.selectedPileOptionKeysByLoadPoint.get(loadPointId) === optionKey
+                samePileConfiguration(
+                  plan.selectedPileConfigurationsByLoadPoint.get(loadPointId),
+                  configuration,
+                )
                 ? (plan.externalReferencesByLoadPoint.get(loadPointId) ?? [])
                 : [],
             }]),
@@ -568,19 +575,22 @@ function toIfcppCptSelectionSettings(settings: CptSelectionSettings): IfcppCptSe
   };
 }
 
-function pileConfigurationKeyToOptionKey(key: PileConfigurationKey): string {
-  return `${key.pile_size_mm}|${key.pile_tip_level_m_key / 1000}`;
+function pileConfigurationKeyFromWire(key: IfcppPileConfigurationKey): PileConfigurationKey {
+  return {
+    pile_size_mm: key.pile_size_mm,
+    pile_tip_level_mm: key.pile_tip_level_m_key,
+  };
 }
 
-function optionKeyToPileConfigurationKey(optionKey: string): PileConfigurationKey | null {
-  const [pileSize, pileTipLevel] = optionKey.split("|").map(Number);
-
-  if (!Number.isFinite(pileSize) || !Number.isFinite(pileTipLevel)) {
-    return null;
-  }
-
+function pileConfigurationKeyToWire(key: PileConfigurationKey): IfcppPileConfigurationKey {
   return {
-    pile_size_mm: pileSize,
-    pile_tip_level_m_key: Math.round(pileTipLevel * 1000),
+    pile_size_mm: key.pile_size_mm,
+    pile_tip_level_m_key: key.pile_tip_level_mm,
   };
+}
+
+function clonePileConfigurationMap(
+  values: Map<number, PileConfigurationKey>,
+): Map<number, PileConfigurationKey> {
+  return new Map([...values].map(([loadPointId, key]) => [loadPointId, { ...key }]));
 }

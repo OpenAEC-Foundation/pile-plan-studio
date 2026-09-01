@@ -394,7 +394,7 @@ function minimalState(overrides: Partial<ProjectState> = {}): ProjectState {
     selectedCptsByLoadPointId: new Map(),
     selectedLoadPointId: 1,
     selectedLoadPointIds: [1],
-    selectedPileOptionKeysByLoadPoint: new Map(),
+    selectedPileConfigurationsByLoadPoint: new Map(),
     viewport: { scale: 1, offsetX: 0, offsetY: 0 },
     ...overrides,
   };

@@ -39,7 +39,7 @@ pub struct SpatialNeighborhood {
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
 pub struct SpatialPileAssignment {
     pub pile_size_mm: u32,
-    pub pile_tip_level_m: f64,
+    pub pile_tip_level_mm: i64,
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
@@ -135,7 +135,7 @@ pub fn build_tip_level_region_topology(
             let Some(assignment) = selected_assignments.get(&load_point_id) else {
                 continue;
             };
-            let assignment_key = pile_tip_level_mm(assignment.pile_tip_level_m);
+            let assignment_key = assignment.pile_tip_level_mm;
             let Some(matched_option) = options_by_load_point
                 .get(&load_point_id)
                 .into_iter()
@@ -433,7 +433,7 @@ mod tests {
         fn assignment(pile_tip_level_m: f64) -> SpatialPileAssignment {
             SpatialPileAssignment {
                 pile_size_mm: 320,
-                pile_tip_level_m,
+                pile_tip_level_mm: pile_tip_level_mm(pile_tip_level_m),
             }
         }
 
@@ -522,21 +522,21 @@ mod tests {
                     1,
                     SpatialPileAssignment {
                         pile_size_mm: 320,
-                        pile_tip_level_m: -18.0004,
+                        pile_tip_level_mm: -18_000,
                     },
                 ),
                 (
                     2,
                     SpatialPileAssignment {
                         pile_size_mm: 400,
-                        pile_tip_level_m: -18.0001,
+                        pile_tip_level_mm: -18_000,
                     },
                 ),
                 (
                     3,
                     SpatialPileAssignment {
                         pile_size_mm: 320,
-                        pile_tip_level_m: -19.0,
+                        pile_tip_level_mm: -19_000,
                     },
                 ),
             ]);
@@ -571,28 +571,28 @@ mod tests {
                     2,
                     SpatialPileAssignment {
                         pile_size_mm: 320,
-                        pile_tip_level_m: -18.0,
+                        pile_tip_level_mm: -18_000,
                     },
                 ),
                 (
                     3,
                     SpatialPileAssignment {
                         pile_size_mm: 320,
-                        pile_tip_level_m: -18.0,
+                        pile_tip_level_mm: -18_000,
                     },
                 ),
                 (
                     4,
                     SpatialPileAssignment {
                         pile_size_mm: 320,
-                        pile_tip_level_m: -18.0,
+                        pile_tip_level_mm: -18_000,
                     },
                 ),
                 (
                     5,
                     SpatialPileAssignment {
                         pile_size_mm: 320,
-                        pile_tip_level_m: -18.0,
+                        pile_tip_level_mm: -18_000,
                     },
                 ),
             ]);
@@ -622,21 +622,21 @@ mod tests {
                     1,
                     SpatialPileAssignment {
                         pile_size_mm: 320,
-                        pile_tip_level_m: -18.0,
+                        pile_tip_level_mm: -18_000,
                     },
                 ),
                 (
                     2,
                     SpatialPileAssignment {
                         pile_size_mm: 320,
-                        pile_tip_level_m: -19.0,
+                        pile_tip_level_mm: -19_000,
                     },
                 ),
                 (
                     3,
                     SpatialPileAssignment {
                         pile_size_mm: 320,
-                        pile_tip_level_m: -18.0,
+                        pile_tip_level_mm: -18_000,
                     },
                 ),
             ]);
@@ -664,21 +664,21 @@ mod tests {
                     1,
                     SpatialPileAssignment {
                         pile_size_mm: 320,
-                        pile_tip_level_m: -18.0,
+                        pile_tip_level_mm: -18_000,
                     },
                 ),
                 (
                     2,
                     SpatialPileAssignment {
                         pile_size_mm: 320,
-                        pile_tip_level_m: -18.0,
+                        pile_tip_level_mm: -18_000,
                     },
                 ),
                 (
                     3,
                     SpatialPileAssignment {
                         pile_size_mm: 320,
-                        pile_tip_level_m: -18.0,
+                        pile_tip_level_mm: -18_000,
                     },
                 ),
             ]);
@@ -694,7 +694,7 @@ mod tests {
                     load_point_id,
                     SpatialPileAssignment {
                         pile_size_mm: 320,
-                        pile_tip_level_m: -18.0,
+                        pile_tip_level_mm: -18_000,
                     },
                 );
                 reverse_options.insert(load_point_id, vec![option(320, -18.0, true)]);

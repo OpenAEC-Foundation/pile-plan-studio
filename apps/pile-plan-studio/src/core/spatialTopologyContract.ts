@@ -1,5 +1,5 @@
 import { toStringKeyedRecord, toWasmNumberKeyedMap } from "./coreSerialization.ts";
-import type { PileConfigurationOption } from "./projectTypes.ts";
+import type { PileConfigurationKey, PileConfigurationOption } from "./projectTypes.ts";
 
 export type SpatialEdge = {
   from_site_id: number;
@@ -21,14 +21,11 @@ export type SpatialNeighborhood = {
   faces: SpatialFace[];
 };
 
-export type SpatialPileAssignment = {
-  pile_size_mm: number;
-  pile_tip_level_m: number;
-};
+export type SpatialPileAssignment = PileConfigurationKey;
 
 export type TipLevelRegionTopology = {
   groups: Array<{
-    pile_tip_level_m_key: number;
+    pile_tip_level_mm: number;
     legend_value_m: number;
     site_ids: number[];
     edges: SpatialEdge[];
@@ -59,25 +56,14 @@ export type DesktopTipLevelRegionTopologyRequest = {
 };
 
 export function parseSpatialPileAssignments(
-  selectedOptionKeysByLoadPoint: Map<number, string>,
+  selectedConfigurationsByLoadPoint: Map<number, PileConfigurationKey>,
 ): Map<number, SpatialPileAssignment> {
-  const assignments = new Map<number, SpatialPileAssignment>();
-  for (const [loadPointId, optionKey] of selectedOptionKeysByLoadPoint) {
-    const parts = optionKey.split("|");
-    if (parts.length !== 2) {
-      continue;
-    }
-    const pileSizeMm = Number(parts[0]);
-    const pileTipLevelM = Number(parts[1]);
-    if (!Number.isFinite(pileSizeMm) || !Number.isFinite(pileTipLevelM)) {
-      continue;
-    }
-    assignments.set(loadPointId, {
-      pile_size_mm: pileSizeMm,
-      pile_tip_level_m: pileTipLevelM,
-    });
-  }
-  return assignments;
+  return new Map(
+    [...selectedConfigurationsByLoadPoint].map(([loadPointId, configuration]) => [
+      loadPointId,
+      { ...configuration },
+    ]),
+  );
 }
 
 export function toBrowserTipLevelRegionTopologyRequest(

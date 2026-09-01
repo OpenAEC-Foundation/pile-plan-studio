@@ -1,7 +1,9 @@
 import type {
   GreedyOptimizedPileChoice,
   GreedyUnassignedLoadPoint,
+  PileConfigurationKey,
 } from "../core/projectTypes.ts";
+import { samePileConfiguration } from "../core/pileConfigurationKey.ts";
 
 export type OptimizationRunSummary = {
   assignedCount: number;
@@ -11,22 +13,24 @@ export type OptimizationRunSummary = {
 };
 
 export function summarizeOptimizationRun(
-  previousChoiceKeys: Map<number, string>,
+  previousChoiceKeys: Map<number, PileConfigurationKey>,
   choices: GreedyOptimizedPileChoice[],
   unassigned: GreedyUnassignedLoadPoint[] = [],
 ): OptimizationRunSummary {
   let changedCount = 0;
 
   for (const choice of choices) {
-    const nextKey = `${choice.pile_size_mm}|${choice.pile_tip_level_m}`;
-    if (previousChoiceKeys.get(choice.load_point_id) !== nextKey) {
+    if (!samePileConfiguration(
+      previousChoiceKeys.get(choice.load_point_id),
+      choice.configuration,
+    )) {
       changedCount += 1;
     }
   }
 
   for (const item of unassigned) {
     const previous = previousChoiceKeys.get(item.load_point_id);
-    if (previous !== undefined && previous !== "") {
+    if (previous !== undefined) {
       changedCount += 1;
     }
   }

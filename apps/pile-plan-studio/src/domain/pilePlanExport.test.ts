@@ -14,7 +14,10 @@ describe("pile plan export input", () => {
         y_mm: 2000,
         design_load_kn: 90,
       }],
-      selectedPileOptionKeysByLoadPoint: new Map([[7, "320|-18.5"]]),
+      selectedPileConfigurationsByLoadPoint: new Map([[7, {
+        pile_size_mm: 320,
+        pile_tip_level_mm: -18_500,
+      }]]),
       selectedCptsByLoadPointId: new Map([[
         7,
         [
@@ -32,26 +35,26 @@ describe("pile plan export input", () => {
       ]]),
     } as Pick<
       ProjectState,
-      "loadPoints" | "selectedPileOptionKeysByLoadPoint" | "selectedCptsByLoadPointId"
+      "loadPoints" | "selectedPileConfigurationsByLoadPoint" | "selectedCptsByLoadPointId"
     >;
 
     const input = buildPilePlanExportInput(state);
 
     assert.deepEqual(input.selectedPiles.get(7), {
       pile_size_mm: 320,
-      pile_tip_level_m_key: -18_500,
+      pile_tip_level_mm: -18_500,
     });
     assert.deepEqual(input.selectedCpts.get(7), [12, 3]);
   });
 
-  it("omits absent and malformed pile choices", () => {
+  it("omits absent pile choices", () => {
     const state = {
       loadPoints: [],
-      selectedPileOptionKeysByLoadPoint: new Map([[1, "invalid"]]),
+      selectedPileConfigurationsByLoadPoint: new Map(),
       selectedCptsByLoadPointId: new Map(),
     } as Pick<
       ProjectState,
-      "loadPoints" | "selectedPileOptionKeysByLoadPoint" | "selectedCptsByLoadPointId"
+      "loadPoints" | "selectedPileConfigurationsByLoadPoint" | "selectedCptsByLoadPointId"
     >;
 
     assert.deepEqual(buildPilePlanExportInput(state).selectedPiles, new Map());

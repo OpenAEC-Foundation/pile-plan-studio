@@ -9,7 +9,7 @@ import {
 
 const topology: TipLevelRegionTopology = {
   groups: [{
-    pile_tip_level_m_key: -18000,
+    pile_tip_level_mm: -18000,
     legend_value_m: -18,
     site_ids: [1, 2, 3],
     edges: [

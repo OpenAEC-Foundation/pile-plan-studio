@@ -1,4 +1,5 @@
 import type { PileConfigurationOption } from "../core/projectTypes";
+import { pileConfigurationToken } from "../core/pileConfigurationKey.ts";
 
 export function aggregatePileOptionsForLoadPoints(
   optionsByLoadPoint: PileConfigurationOption[][],
@@ -37,6 +38,7 @@ export function aggregatePileOptionsForLoadPoints(
 
       return [
         {
+          configuration: { ...template.configuration },
           pile_size_mm: template.pile_size_mm,
           pile_tip_level_m: template.pile_tip_level_m,
           isOption: matchingOptions.length > 0 && matchingOptions.every((option) => option?.isOption === true),
@@ -53,6 +55,6 @@ export function aggregatePileOptionsForLoadPoints(
     );
 }
 
-function optionKey(option: Pick<PileConfigurationOption, "pile_size_mm" | "pile_tip_level_m">): string {
-  return `${option.pile_size_mm}|${option.pile_tip_level_m}`;
+function optionKey(option: Pick<PileConfigurationOption, "configuration">): string {
+  return pileConfigurationToken(option.configuration);
 }

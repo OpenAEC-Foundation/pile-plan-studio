@@ -53,6 +53,7 @@ export function numericMap<T>(value: Map<number, T> | Record<string, T>): Map<nu
 
 export function fromCorePileOption(option: CorePileConfigurationOption): PileConfigurationOption {
   return {
+    configuration: { ...option.configuration },
     pile_size_mm: option.pile_size_mm,
     pile_tip_level_m: option.pile_tip_level_m,
     isOption: option.is_option,

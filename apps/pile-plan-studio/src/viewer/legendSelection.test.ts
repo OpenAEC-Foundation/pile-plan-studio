@@ -12,6 +12,7 @@ import type { PileConfigurationOption } from "../core/projectTypes.ts";
 
 function option(size: number, tip: number): PileConfigurationOption {
   return {
+    configuration: { pile_size_mm: size, pile_tip_level_mm: tip * 1000 },
     pile_size_mm: size,
     pile_tip_level_m: tip,
     isOption: true,
@@ -95,7 +96,10 @@ describe("legend selection", () => {
       activeSelectedCptIds: [61, 62],
       pileOptionsByLoadPointId: new Map([[1, [option(290, -18)]]]),
       selectedLoadPointIds: [1],
-      selectedPileOptionKeysByLoadPoint: new Map([[1, "290|-18"]]),
+      selectedPileConfigurationsByLoadPoint: new Map([[
+        1,
+        { pile_size_mm: 290, pile_tip_level_mm: -18_000 },
+      ]]),
     });
 
     assert.equal(highlighted, 61);
@@ -109,9 +113,9 @@ describe("legend selection", () => {
         [2, [option(320, -18)]],
       ]),
       selectedLoadPointIds: [1, 2],
-      selectedPileOptionKeysByLoadPoint: new Map([
-        [1, "290|-18"],
-        [2, "320|-18"],
+      selectedPileConfigurationsByLoadPoint: new Map([
+        [1, { pile_size_mm: 290, pile_tip_level_mm: -18_000 }],
+        [2, { pile_size_mm: 320, pile_tip_level_mm: -18_000 }],
       ]),
     });
 

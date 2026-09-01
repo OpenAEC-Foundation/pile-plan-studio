@@ -1,3 +1,6 @@
+import { pileConfigurationToken } from "../core/pileConfigurationKey.ts";
+import type { PilePlanData } from "../core/projectFile.ts";
+
 export type ProjectCostSummary = {
   missingCount: number;
   totalCost: number;
@@ -23,9 +26,8 @@ export function summarizePilePlanCosts(
   return new Map(pilePlans.map((plan) => [
     plan.id,
     summarizeProjectCosts(
-      [...plan.selectedPileOptionKeysByLoadPoint.values()]
-        .map((optionKey) => pileCostByOptionKey.get(optionKey)),
+      [...plan.selectedPileConfigurationsByLoadPoint.values()]
+        .map((configuration) => pileCostByOptionKey.get(pileConfigurationToken(configuration))),
     ),
   ]));
 }
-import type { PilePlanData } from "../core/projectFile.ts";

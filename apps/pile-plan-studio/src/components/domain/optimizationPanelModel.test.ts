@@ -27,24 +27,32 @@ describe("React optimization panel model", () => {
 
   it("applies assignments and explicit unassigned outcomes atomically", () => {
     const result = applyOptimizationResult({
-      previousChoices: new Map([[1, "290|-18"], [2, "320|-19"], [3, "290|-18"]]),
+      previousChoices: new Map([
+        [1, { pile_size_mm: 290, pile_tip_level_mm: -18_000 }],
+        [2, { pile_size_mm: 320, pile_tip_level_mm: -19_000 }],
+        [3, { pile_size_mm: 290, pile_tip_level_mm: -18_000 }],
+      ]),
       result: {
         assignments: [{
           load_point_id: 1,
+          configuration: { pile_size_mm: 350, pile_tip_level_mm: -20_000 },
           pile_size_mm: 350,
           pile_tip_level_m: -20,
           is_option: true,
           cost: 100,
         }],
         unassigned: [{ load_point_id: 2, reason: "configuration_limits" }],
-        selected_configurations: [{ pile_size_mm: 350, pile_tip_level_m_key: -20000 }],
+        selected_configurations: [{ pile_size_mm: 350, pile_tip_level_mm: -20000 }],
         pile_size_count: 1,
         pile_tip_level_count: 1,
         configuration_count: 1,
       },
     });
 
-    assert.deepEqual(result.choices, new Map([[1, "350|-20"], [3, "290|-18"]]));
+    assert.deepEqual(result.choices, new Map([
+      [1, { pile_size_mm: 350, pile_tip_level_mm: -20_000 }],
+      [3, { pile_size_mm: 290, pile_tip_level_mm: -18_000 }],
+    ]));
     assert.deepEqual(result.optimizationUnassignedByLoadPoint, new Map([[2, "configuration_limits"]]));
     assert.equal("activePileSizes" in result, false);
     assert.equal("activePileTipLevels" in result, false);

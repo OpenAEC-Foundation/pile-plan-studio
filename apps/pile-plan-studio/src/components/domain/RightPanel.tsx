@@ -19,6 +19,7 @@ import {
   getRenderablePileOptionRows,
   getSelectedCptOverviewModel,
   getSelectedLoadPoints,
+  optionKey,
 } from "./rightPanelModel.ts";
 import { openCpt, switchRightPanelMode, type RightPanelMode } from "../.././domain/selectionState.ts";
 import {
@@ -850,11 +851,14 @@ function applyPileOption(
   state: ProjectState,
   onStateChange: (nextState: ProjectState) => void,
   selectedLoadPoints: ReturnType<typeof getSelectedLoadPoints>,
-  optionKey: string,
+  configurationToken: string,
 ) {
-  const nextSelections = new Map(state.selectedPileOptionKeysByLoadPoint);
-  selectedLoadPoints.forEach((loadPoint) => nextSelections.set(loadPoint.id, optionKey));
-  onStateChange({ ...state, selectedPileOptionKeysByLoadPoint: nextSelections });
+  const configuration = getPileOptionsForSelectedLoadPoints(state, selectedLoadPoints)
+    .find((option) => optionKey(option) === configurationToken)?.configuration;
+  if (!configuration) return;
+  const nextSelections = new Map(state.selectedPileConfigurationsByLoadPoint);
+  selectedLoadPoints.forEach((loadPoint) => nextSelections.set(loadPoint.id, { ...configuration }));
+  onStateChange({ ...state, selectedPileConfigurationsByLoadPoint: nextSelections });
 }
 
 function ResistanceLabel({ qualifier }: { qualifier?: string }) {

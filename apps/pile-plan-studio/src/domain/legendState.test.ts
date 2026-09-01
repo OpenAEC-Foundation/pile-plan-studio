@@ -10,9 +10,8 @@ describe("legend state", () => {
   it("derives used sizes and tips from the active pile plan choices", () => {
     assert.deepEqual(
       deriveUsedPileConfigurations(new Map([
-        [1, "320|-18"],
-        [2, "290|-19"],
-        [3, "invalid"],
+        [1, { pile_size_mm: 320, pile_tip_level_mm: -18_000 }],
+        [2, { pile_size_mm: 290, pile_tip_level_mm: -19_000 }],
       ]).values()),
       {
         pileSizes: [290, 320],

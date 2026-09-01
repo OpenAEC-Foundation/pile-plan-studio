@@ -33,6 +33,7 @@ const loadPoint = (x = 0): LoadPoint => ({
 });
 
 const option = (tip: number): PileConfigurationOption => ({
+  configuration: { pile_size_mm: 300, pile_tip_level_mm: tip * 1000 },
   pile_size_mm: 300,
   pile_tip_level_m: tip,
   isOption: true,
@@ -50,7 +51,7 @@ const neighborhood = (x = 0): SpatialNeighborhood => ({
 
 const topology = (tip: number): TipLevelRegionTopology => ({
   groups: [{
-    pile_tip_level_m_key: tip * 1000,
+    pile_tip_level_mm: tip * 1000,
     legend_value_m: tip,
     site_ids: [1],
     edges: [],
@@ -61,7 +62,10 @@ const topology = (tip: number): TipLevelRegionTopology => ({
 function input(tip: number, x = 0): TipLevelRegionTopologyControllerInput {
   return {
     loadPoints: [loadPoint(x)],
-    selectedPileOptionKeysByLoadPoint: new Map([[1, `300|${tip}`]]),
+    selectedPileConfigurationsByLoadPoint: new Map([[
+      1,
+      { pile_size_mm: 300, pile_tip_level_mm: tip * 1000 },
+    ]]),
     pileOptionsByLoadPointId: new Map([[1, [option(tip)]]]),
   };
 }
@@ -113,7 +117,7 @@ describe("tip-level region topology controller", () => {
         return neighborhood(loadPoints[0].x_mm);
       },
       buildTopology: async ({ selectedAssignments }) => {
-        const tip = selectedAssignments.get(1)?.pile_tip_level_m ?? 0;
+        const tip = (selectedAssignments.get(1)?.pile_tip_level_mm ?? 0) / 1000;
         topologyInputs.push(tip);
         return topology(tip);
       },

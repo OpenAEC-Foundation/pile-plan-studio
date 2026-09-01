@@ -8,6 +8,10 @@ import { aggregatePileOptionsForLoadPoints } from "../../domain/pileOptionAggreg
 import { getPileOptionStatus } from "../../domain/pileOptionStatus.ts";
 import type { PileOptionTableRow } from "../../domain/pileOptionTable.ts";
 import { renderPileSymbol } from "../../viewer/pileSymbols.ts";
+import {
+  pileConfigurationToken,
+  samePileConfiguration,
+} from "../../core/pileConfigurationKey.ts";
 import type { Cpt, LegendItems, LoadPoint, PileConfigurationOption, SelectedCpt } from "../.././core/projectTypes.ts";
 import { getEffectivePileOptionsByLoadPointId } from "./cptSettingsModel.ts";
 
@@ -69,11 +73,13 @@ export function getChosenPileOptionKeyForSelection(
   selectedLoadPoints: LoadPoint[],
 ): string {
   const selectedKeys = selectedLoadPoints.map((loadPoint) =>
-    state.selectedPileOptionKeysByLoadPoint.get(loadPoint.id) ?? "",
+    state.selectedPileConfigurationsByLoadPoint.get(loadPoint.id),
   );
-  const firstKey = selectedKeys[0] ?? "";
+  const firstKey = selectedKeys[0];
 
-  return selectedKeys.every((key) => key === firstKey) ? firstKey : "";
+  return firstKey && selectedKeys.every((key) => samePileConfiguration(key, firstKey))
+    ? pileConfigurationToken(firstKey)
+    : "";
 }
 
 export function getSelectedCptOverviewModel(
@@ -245,8 +251,8 @@ export function getRenderablePileOptionRows(input: {
   });
 }
 
-export function optionKey(option: Pick<PileConfigurationOption, "pile_size_mm" | "pile_tip_level_m">): string {
-  return `${option.pile_size_mm}|${option.pile_tip_level_m}`;
+export function optionKey(option: Pick<PileConfigurationOption, "configuration">): string {
+  return pileConfigurationToken(option.configuration);
 }
 
 export function formatCurrency(value: number, currencyCode = "EUR"): string {

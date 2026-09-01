@@ -2,7 +2,12 @@ import type {
   buildSpatialNeighborhoodCore,
   buildTipLevelRegionTopologyCore,
 } from "../../core/coreClient.ts";
-import type { LoadPoint, PileConfigurationOption } from "../../core/projectTypes.ts";
+import type {
+  LoadPoint,
+  PileConfigurationKey,
+  PileConfigurationOption,
+} from "../../core/projectTypes.ts";
+import { pileConfigurationToken } from "../../core/pileConfigurationKey.ts";
 import {
   parseSpatialPileAssignments,
   type SpatialNeighborhood,
@@ -16,7 +21,7 @@ export type SpatialTopologyDependencies = {
 
 export type TipLevelRegionTopologyControllerInput = {
   loadPoints: LoadPoint[];
-  selectedPileOptionKeysByLoadPoint: Map<number, string>;
+  selectedPileConfigurationsByLoadPoint: Map<number, PileConfigurationKey>;
   pileOptionsByLoadPointId: Map<number, PileConfigurationOption[]>;
 };
 
@@ -52,11 +57,11 @@ export function createTipLevelRegionTopologyController(
       }
 
       const selectedAssignments = parseSpatialPileAssignments(
-        input.selectedPileOptionKeysByLoadPoint,
+        input.selectedPileConfigurationsByLoadPoint,
       );
       const topologyKey = buildTopologyKey(
         neighborhoodKey,
-        input.selectedPileOptionKeysByLoadPoint,
+        input.selectedPileConfigurationsByLoadPoint,
         input.pileOptionsByLoadPointId,
       );
       if (completedTopologyKey === topologyKey && currentTopology) return;
@@ -102,18 +107,21 @@ function buildNeighborhoodKey(loadPoints: LoadPoint[]): string {
 
 function buildTopologyKey(
   neighborhoodKey: string,
-  selectedPileOptionKeysByLoadPoint: Map<number, string>,
+  selectedPileConfigurationsByLoadPoint: Map<number, PileConfigurationKey>,
   pileOptionsByLoadPointId: Map<number, PileConfigurationOption[]>,
 ): string {
-  const selected = [...selectedPileOptionKeysByLoadPoint]
-    .sort(([firstId], [secondId]) => firstId - secondId);
+  const selected = [...selectedPileConfigurationsByLoadPoint]
+    .sort(([firstId], [secondId]) => firstId - secondId)
+    .map(([loadPointId, configuration]) => [
+      loadPointId,
+      pileConfigurationToken(configuration),
+    ]);
   const options = [...pileOptionsByLoadPointId]
     .sort(([firstId], [secondId]) => firstId - secondId)
     .map(([loadPointId, loadPointOptions]) => [
       loadPointId,
-      loadPointOptions.map(({ pile_size_mm, pile_tip_level_m, isOption }) => [
-        pile_size_mm,
-        pile_tip_level_m,
+      loadPointOptions.map(({ configuration, isOption }) => [
+        pileConfigurationToken(configuration),
         isOption,
       ]),
     ]);

@@ -31,6 +31,7 @@ import type { ImportSourceInput } from "./core/coreImportContract";
 import type { ProjectImportProperties } from "./components/domain/ProjectImportPanel.tsx";
 import type { ImportFileRole } from "./core/importFiles.ts";
 import { getImportSummary, loadIfcppProjectData } from "./core/projectFile";
+import { pileConfigurationToken } from "./core/pileConfigurationKey.ts";
 import { writeIfcppProjectCore } from "./core/coreClient";
 import { createInitialProjectState, type ProjectState } from "./domain/projectState";
 import { getSetting } from "./store";
@@ -392,14 +393,12 @@ function AppSession({
     ? t("history.redoLabel", { action: describeHistoryAction(historyTranslate, redoEntry.action) })
     : `${t("redo")} (Ctrl+Y)`;
   const availablePileConfigurations = useMemo(() => [
-    ...new Map(projectState.bearingCapacities.map((capacity) => {
-      const configuration = {
-        pile_size_mm: capacity.pile_size_mm,
-        pile_tip_level_m_key: Math.round(capacity.pile_tip_level_m * 1000),
-      };
-      return [`${configuration.pile_size_mm}|${configuration.pile_tip_level_m_key}`, configuration] as const;
-    })).values(),
-  ], [projectState.bearingCapacities]);
+    ...new Map(
+      [...projectState.pileOptionsByLoadPointId.values()]
+        .flat()
+        .map(({ configuration }) => [pileConfigurationToken(configuration), configuration] as const),
+    ).values(),
+  ], [projectState.pileOptionsByLoadPointId]);
   const persistedProject = projectFromState(projectState);
   const persistedProjectSignature = JSON.stringify(persistedProject);
   useEffect(() => {
@@ -485,13 +484,13 @@ function AppSession({
     synchronizeActivePilePlan(
       projectState.pilePlans,
       projectState.activePilePlanId,
-      projectState.selectedPileOptionKeysByLoadPoint,
+      projectState.selectedPileConfigurationsByLoadPoint,
     ),
     projectState.pileCostByOptionKey,
   ), [
     projectState.activePilePlanId,
     projectState.pilePlans,
-    projectState.selectedPileOptionKeysByLoadPoint,
+    projectState.selectedPileConfigurationsByLoadPoint,
     projectState.pileCostByOptionKey,
   ]);
 
@@ -611,8 +610,8 @@ function AppSession({
   };
 
   const handleProjectStateChange = (nextState: typeof projectState) => {
-    const pileChoicesChanged = nextState.selectedPileOptionKeysByLoadPoint
-      !== projectState.selectedPileOptionKeysByLoadPoint;
+    const pileChoicesChanged = nextState.selectedPileConfigurationsByLoadPoint
+      !== projectState.selectedPileConfigurationsByLoadPoint;
     commitProjectState(pileChoicesChanged ? {
       ...nextState,
       optimizationSummary: null,
@@ -753,7 +752,7 @@ function AppSession({
       const synchronized = synchronizeActivePilePlan(
         current.pilePlans,
         current.activePilePlanId,
-        current.selectedPileOptionKeysByLoadPoint,
+        current.selectedPileConfigurationsByLoadPoint,
       );
       const pilePlans = renamePilePlan(synchronized, pilePlanId, name);
       if (pilePlans === synchronized || pilePlans.every((plan, index) => plan.name === synchronized[index]?.name)) {
@@ -804,7 +803,7 @@ function AppSession({
               && activeTips.has(option.pile_tip_level_m)),
           ]));
       const choices = optionsByLoadPointId.size === 0
-        ? new Map<number, string>()
+        ? new Map()
         : await chooseDefaultPileOptionsCore({
             optionsByLoadPointId,
             pileHeadLevelM: snapshot.pileHeadLevelM ?? 0,
@@ -990,8 +989,8 @@ function AppSession({
         if (current.analysisRequest !== analysisRequest) return current;
         const next = {
           ...current,
-          selectedPileOptionKeysByLoadPoint: mergeDefaultPileChoices(
-            current.selectedPileOptionKeysByLoadPoint,
+          selectedPileConfigurationsByLoadPoint: mergeDefaultPileChoices(
+            current.selectedPileConfigurationsByLoadPoint,
             choices,
           ),
           defaultPileSelectionPending: false,
@@ -1081,20 +1080,7 @@ function AppSession({
       return;
     }
 
-    const currentAssignments = new Map(
-      [...snapshot.selectedPileOptionKeysByLoadPoint].flatMap(([loadPointId, key]) => {
-        const [pileSizeMm, pileTipLevelM] = key.split("|").map(Number);
-        return Number.isFinite(pileSizeMm) && Number.isFinite(pileTipLevelM)
-          ? [[
-              loadPointId,
-              {
-                pile_size_mm: pileSizeMm,
-                pile_tip_level_m_key: Math.round(pileTipLevelM * 1000),
-              },
-            ] as const]
-          : [];
-      }),
-    );
+    const currentAssignments = new Map(snapshot.selectedPileConfigurationsByLoadPoint);
     const limits = clampOptimizationLimits({
       sizes: snapshot.optimizationSettings.max_pile_sizes,
       tips: snapshot.optimizationSettings.max_pile_tip_levels,
@@ -1134,7 +1120,7 @@ function AppSession({
         settings,
       });
       const applied = applyOptimizationResult({
-        previousChoices: snapshot.selectedPileOptionKeysByLoadPoint,
+        previousChoices: snapshot.selectedPileConfigurationsByLoadPoint,
         result,
       });
       commitProjectState((current) => {
@@ -1155,11 +1141,11 @@ function AppSession({
               language: pilePlanLanguage(),
             })
           : {
-              selectedPileOptionKeysByLoadPoint: applied.choices,
+              selectedPileConfigurationsByLoadPoint: applied.choices,
               pilePlans: current.pilePlans.map((plan) => plan.id === current.activePilePlanId
                 ? {
                     ...plan,
-                    selectedPileOptionKeysByLoadPoint: new Map(applied.choices),
+                    selectedPileConfigurationsByLoadPoint: new Map(applied.choices),
                     optimizationUnassignedByLoadPoint,
                   }
                 : plan),

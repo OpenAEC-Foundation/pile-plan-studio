@@ -1,6 +1,7 @@
 import type {
   GreedyOptimizationResult,
   GreedyUnassignedReason,
+  PileConfigurationKey,
 } from "../.././core/projectTypes.ts";
 import { summarizeOptimizationRun } from "../../domain/optimizationSummary.ts";
 
@@ -37,7 +38,7 @@ export function getOptimizationTargetIds(
 }
 
 export function applyOptimizationResult(input: {
-  previousChoices: Map<number, string>;
+  previousChoices: Map<number, PileConfigurationKey>;
   result: GreedyOptimizationResult;
 }) {
   const nextChoices = new Map(input.previousChoices);
@@ -47,7 +48,7 @@ export function applyOptimizationResult(input: {
   ])].sort((left, right) => left - right);
   affectedLoadPointIds.forEach((id) => nextChoices.delete(id));
   input.result.assignments.forEach((choice) => {
-    nextChoices.set(choice.load_point_id, `${choice.pile_size_mm}|${choice.pile_tip_level_m}`);
+    nextChoices.set(choice.load_point_id, { ...choice.configuration });
   });
   const optimizationUnassignedByLoadPoint = new Map<number, GreedyUnassignedReason>(
     input.result.unassigned.map((item) => [item.load_point_id, item.reason]),

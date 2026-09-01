@@ -115,7 +115,7 @@ export default function PilePlanViewer({ state, lassoSelectionActive, onStateCha
     activeSelectedCptIds: [...contextSelectedCptIds],
     pileOptionsByLoadPointId,
     selectedLoadPointIds: state.selectedLoadPointIds,
-    selectedPileOptionKeysByLoadPoint: state.selectedPileOptionKeysByLoadPoint,
+    selectedPileConfigurationsByLoadPoint: state.selectedPileConfigurationsByLoadPoint,
   });
   const isEditingCptSelection = isReactViewerCptSelectionEditing(state);
   const [projectTransform, setProjectTransform] = useState(
@@ -125,7 +125,7 @@ export default function PilePlanViewer({ state, lassoSelectionActive, onStateCha
   const tipLevelRegionTopology = useTipLevelRegionTopology({
     enabled: state.showTipLevelRegions,
     loadPoints: state.loadPoints,
-    selectedPileOptionKeysByLoadPoint: state.selectedPileOptionKeysByLoadPoint,
+    selectedPileConfigurationsByLoadPoint: state.selectedPileConfigurationsByLoadPoint,
     pileOptionsByLoadPointId: state.pileOptionsByLoadPointId,
   });
   const tipLevelRegionPoints = useMemo(
@@ -1031,21 +1031,18 @@ function getSelectedPileOption(
   loadPointId: number,
   pileOptionsByLoadPointId: ProjectState["pileOptionsByLoadPointId"],
 ) {
-  const key = state.selectedPileOptionKeysByLoadPoint.get(loadPointId);
-  if (!key) {
-    return null;
-  }
-
-  const [pileSize, pileTipLevel] = key.split("|").map(Number);
-  if (!Number.isFinite(pileSize) || !Number.isFinite(pileTipLevel)) {
+  const configuration = state.selectedPileConfigurationsByLoadPoint.get(loadPointId);
+  if (!configuration) {
     return null;
   }
 
   return pileOptionsByLoadPointId.get(loadPointId)?.find((option) => (
-    option.pile_size_mm === pileSize && option.pile_tip_level_m === pileTipLevel
+    option.configuration.pile_size_mm === configuration.pile_size_mm
+      && option.configuration.pile_tip_level_mm === configuration.pile_tip_level_mm
   )) ?? {
-    pile_size_mm: pileSize,
-    pile_tip_level_m: pileTipLevel,
+    configuration: { ...configuration },
+    pile_size_mm: configuration.pile_size_mm,
+    pile_tip_level_m: configuration.pile_tip_level_mm / 1000,
     isOption: false,
     governing_cpt_id: null,
     governing_frd_kn: null,

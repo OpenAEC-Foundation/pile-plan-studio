@@ -13,6 +13,10 @@ function option(input: {
   utilization?: number | null;
 }): PileConfigurationOption {
   return {
+    configuration: {
+      pile_size_mm: input.pileSizeMm,
+      pile_tip_level_mm: input.pileTipLevelM * 1000,
+    },
     pile_size_mm: input.pileSizeMm,
     pile_tip_level_m: input.pileTipLevelM,
     isOption: input.isOption,

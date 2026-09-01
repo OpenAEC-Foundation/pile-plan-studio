@@ -51,10 +51,12 @@ describe("active pile configurations", () => {
     assert.equal(shouldDisableActivePileConfigurationToggle({ pileSizes: [290], pileTipLevels: [-18] }, "tip", -18), false);
   });
 
-  it("builds the scaled Rust configuration key", () => {
-    assert.deepEqual(pileConfigurationKey({ pile_size_mm: 320, pile_tip_level_m: -18.5 }), {
+  it("copies the canonical Rust configuration key", () => {
+    assert.deepEqual(pileConfigurationKey({
+      configuration: { pile_size_mm: 320, pile_tip_level_mm: -18_500 },
+    }), {
       pile_size_mm: 320,
-      pile_tip_level_m_key: -18500,
+      pile_tip_level_mm: -18500,
     });
   });
 

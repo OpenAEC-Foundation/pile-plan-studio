@@ -150,6 +150,7 @@ pub struct GreedyOptimizationInput {
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
 pub struct GreedyOptimizedPileChoice {
     pub load_point_id: u32,
+    pub configuration: PileConfigurationKey,
     pub pile_size_mm: u32,
     pub pile_tip_level_m: f64,
     pub is_option: bool,
@@ -809,6 +810,7 @@ pub fn greedy_optimize_pile_choices(input: &GreedyOptimizationInput) -> GreedyOp
 
             Some(GreedyOptimizedPileChoice {
                 load_point_id: *load_point_id,
+                configuration: selected_option.configuration.clone(),
                 pile_size_mm: selected_option.pile_size_mm,
                 pile_tip_level_m: selected_option.pile_tip_level_m,
                 is_option: selected_option.is_option,

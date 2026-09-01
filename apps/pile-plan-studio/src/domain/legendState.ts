@@ -1,4 +1,4 @@
-import type { LegendItems } from "../core/projectTypes.ts";
+import type { LegendItems, PileConfigurationKey } from "../core/projectTypes.ts";
 import type { ActivePileConfigurations } from "./activePileConfigurations.ts";
 
 export type LegendPresentationState =
@@ -19,15 +19,17 @@ export type LegendPresentation = {
   pileTipLevels: Array<LegendItems["pileTipLevels"][number] & { state: LegendPresentationState }>;
 };
 
-export function deriveUsedPileConfigurations(optionKeys: Iterable<string>): ActivePileConfigurations {
-  const configurations = [...optionKeys].flatMap((key) => {
-    const [size, tip] = key.split("|").map(Number);
-    return Number.isFinite(size) && Number.isFinite(tip) ? [{ size, tip }] : [];
-  });
+export function deriveUsedPileConfigurations(
+  configurations: Iterable<PileConfigurationKey>,
+): ActivePileConfigurations {
+  const values = [...configurations].map((configuration) => ({
+    size: configuration.pile_size_mm,
+    tip: configuration.pile_tip_level_mm / 1000,
+  }));
 
   return {
-    pileSizes: uniqueSorted(configurations.map(({ size }) => size), false),
-    pileTipLevels: uniqueSorted(configurations.map(({ tip }) => tip), true),
+    pileSizes: uniqueSorted(values.map(({ size }) => size), false),
+    pileTipLevels: uniqueSorted(values.map(({ tip }) => tip), true),
   };
 }
 

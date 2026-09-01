@@ -63,7 +63,7 @@ export function buildTipLevelRegionGeometry({
   const radius = diameterPx / 2;
 
   return topology.groups.map((group) => ({
-    pileTipLevelMKey: group.pile_tip_level_m_key,
+    pileTipLevelMKey: group.pile_tip_level_mm,
     legendValueM: group.legend_value_m,
     diameterPx,
     faces: group.faces.flatMap((face) => {

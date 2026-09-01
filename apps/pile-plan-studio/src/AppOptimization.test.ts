@@ -16,7 +16,8 @@ describe("App optimization integration", () => {
     assert.match(optimizationBlock, /targetLoadPointIds/);
     assert.match(optimizationBlock, /lockedLoadPointIds/);
     assert.match(optimizationBlock, /currentAssignments/);
-    assert.match(optimizationBlock, /pile_tip_level_m_key: Math\.round\(pileTipLevelM \* 1000\)/);
+    assert.match(optimizationBlock, /new Map\(snapshot\.selectedPileConfigurationsByLoadPoint\)/);
+    assert.doesNotMatch(optimizationBlock, /Math\.round/);
     assert.doesNotMatch(optimizationBlock, /const chosenOption/);
     assert.match(optimizationBlock, /limitScope: snapshot\.optimizationLimitScope/);
     assert.doesNotMatch(optimizationBlock, /baselineOptions/);
@@ -33,7 +34,7 @@ describe("App optimization integration", () => {
     const activateEnd = source.indexOf("const startLockEditing", activateStart);
     const activateBlock = source.slice(activateStart, activateEnd);
 
-    assert.match(changeBlock, /selectedPileOptionKeysByLoadPoint\s*!==\s*projectState\.selectedPileOptionKeysByLoadPoint/);
+    assert.match(changeBlock, /selectedPileConfigurationsByLoadPoint\s*!==\s*projectState\.selectedPileConfigurationsByLoadPoint/);
     assert.match(changeBlock, /optimizationSummary:\s*null/);
     assert.match(changeBlock, /optimizationError:\s*null/);
     assert.match(activateBlock, /optimizationSummary:\s*null/);

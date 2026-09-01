@@ -23,7 +23,7 @@ describe("React right panel model", () => {
 
   it("builds renderable pile option rows with status, governing CPT, and cost", () => {
     const state = minimalState({
-      pileCostByOptionKey: new Map([["290|-17.5", 1234]]),
+      pileCostByOptionKey: new Map([["290|-17500", 1234]]),
     });
 
     const rows = getRenderablePileOptionRows({
@@ -32,6 +32,7 @@ describe("React right panel model", () => {
       currencyCode: "GBP",
       options: [
         {
+          configuration: { pile_size_mm: 290, pile_tip_level_mm: -17_500 },
           pile_size_mm: 290,
           pile_tip_level_m: -17.5,
           isOption: true,
@@ -57,7 +58,7 @@ describe("React right panel model", () => {
       },
     });
 
-    assert.equal(rows[0].key, "290|-17.5");
+    assert.equal(rows[0].key, "290|-17500");
     assert.equal(rows[0].statusLabel, "OK");
     assert.equal(rows[0].governingLabel, "CPT 64");
     assert.equal(rows[0].governingCptId, 64);
@@ -73,6 +74,7 @@ describe("React right panel model", () => {
       cpts: [{ id: 64, name: "", x_mm: 0, y_mm: 0 }],
       costsByOptionKey: new Map(),
       options: [{
+        configuration: { pile_size_mm: 290, pile_tip_level_mm: -17_500 },
         pile_size_mm: 290,
         pile_tip_level_m: -17.5,
         isOption: true,
@@ -104,19 +106,19 @@ describe("React right panel model", () => {
   it("uses a shared chosen option key only when all selected load points match", () => {
     const state = minimalState({
       selectedLoadPointIds: [1, 2],
-      selectedPileOptionKeysByLoadPoint: new Map([
-        [1, "290|-17.5"],
-        [2, "290|-17.5"],
+      selectedPileConfigurationsByLoadPoint: new Map([
+        [1, { pile_size_mm: 290, pile_tip_level_mm: -17_500 }],
+        [2, { pile_size_mm: 290, pile_tip_level_mm: -17_500 }],
       ]),
     });
 
-    assert.equal(getChosenPileOptionKeyForSelection(state, getSelectedLoadPoints(state)), "290|-17.5");
+    assert.equal(getChosenPileOptionKeyForSelection(state, getSelectedLoadPoints(state)), "290|-17500");
 
     const mixed = minimalState({
       selectedLoadPointIds: [1, 2],
-      selectedPileOptionKeysByLoadPoint: new Map([
-        [1, "290|-17.5"],
-        [2, "320|-18"],
+      selectedPileConfigurationsByLoadPoint: new Map([
+        [1, { pile_size_mm: 290, pile_tip_level_mm: -17_500 }],
+        [2, { pile_size_mm: 320, pile_tip_level_mm: -18_000 }],
       ]),
     });
 
@@ -124,7 +126,9 @@ describe("React right panel model", () => {
   });
 
   it("builds stable pile option keys", () => {
-    assert.equal(optionKey({ pile_size_mm: 350, pile_tip_level_m: -20.3 }), "350|-20.3");
+    assert.equal(optionKey({
+      configuration: { pile_size_mm: 350, pile_tip_level_mm: -20_300 },
+    }), "350|-20300");
   });
 
   it("does not duplicate the load point prefix in panel titles", () => {
@@ -398,7 +402,7 @@ function minimalState(overrides: Partial<ProjectState> = {}): ProjectState {
     selectedCptsByLoadPointId: new Map(),
     selectedLoadPointId: 1,
     selectedLoadPointIds: [1],
-    selectedPileOptionKeysByLoadPoint: new Map(),
+    selectedPileConfigurationsByLoadPoint: new Map(),
     viewport: { scale: 1, offsetX: 0, offsetY: 0 },
     ...overrides,
   };

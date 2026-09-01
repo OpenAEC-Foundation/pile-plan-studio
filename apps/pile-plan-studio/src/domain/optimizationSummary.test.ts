@@ -7,12 +7,12 @@ describe("optimization summary", () => {
   it("counts applied and changed load point choices", () => {
     const summary = summarizeOptimizationRun(
       new Map([
-        [1, "290|-17.5"],
-        [2, "320|-18"],
+        [1, { pile_size_mm: 290, pile_tip_level_mm: -17_500 }],
+        [2, { pile_size_mm: 320, pile_tip_level_mm: -18_000 }],
       ]),
       [
-        { load_point_id: 1, pile_size_mm: 290, pile_tip_level_m: -17.5, is_option: true, cost: 100 },
-        { load_point_id: 2, pile_size_mm: 350, pile_tip_level_m: -19, is_option: true, cost: 200 },
+        { load_point_id: 1, configuration: { pile_size_mm: 290, pile_tip_level_mm: -17_500 }, pile_size_mm: 290, pile_tip_level_m: -17.5, is_option: true, cost: 100 },
+        { load_point_id: 2, configuration: { pile_size_mm: 350, pile_tip_level_mm: -19_000 }, pile_size_mm: 350, pile_tip_level_m: -19, is_option: true, cost: 200 },
       ],
     );
 
@@ -27,8 +27,7 @@ describe("optimization summary", () => {
   it("separates invalid engineering options from optimizer exclusions", () => {
     const summary = summarizeOptimizationRun(
       new Map([
-        [1, "290|-17.5"],
-        [2, ""],
+        [1, { pile_size_mm: 290, pile_tip_level_mm: -17_500 }],
       ]),
       [],
       [

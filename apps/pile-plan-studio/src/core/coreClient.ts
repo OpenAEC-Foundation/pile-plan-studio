@@ -276,7 +276,7 @@ export async function chooseDefaultPileOptionsCore(input: {
   optionsByLoadPointId: Map<number, PileConfigurationOption[]>;
   pileHeadLevelM: number;
   costSettings: PileCostSettings;
-}): Promise<Map<number, string>> {
+}): Promise<Map<number, PileConfigurationKey>> {
   const coreOptions = toCorePileOptionsByLoadPoint(input.optionsByLoadPointId);
   let choices: Map<number, PileConfigurationKey> | Record<string, PileConfigurationKey>;
 
@@ -298,10 +298,7 @@ export async function chooseDefaultPileOptionsCore(input: {
   }
 
   return new Map(
-    [...numericMap(choices)].map(([loadPointId, key]) => [
-      loadPointId,
-      `${key.pile_size_mm}|${key.pile_tip_level_m_key / 1000}`,
-    ]),
+    [...numericMap(choices)].map(([loadPointId, key]) => [loadPointId, { ...key }]),
   );
 }
 
@@ -553,6 +550,7 @@ function toCoreSettingsMapByLoadPoint(
 
 function toCorePileOption(option: PileConfigurationOption): CorePileConfigurationOption {
   return {
+    configuration: { ...option.configuration },
     pile_size_mm: option.pile_size_mm,
     pile_tip_level_m: option.pile_tip_level_m,
     is_option: option.isOption,

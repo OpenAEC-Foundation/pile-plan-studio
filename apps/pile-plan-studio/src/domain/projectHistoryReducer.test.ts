@@ -66,7 +66,10 @@ describe("project history reducer", () => {
       type: "commit",
       update: (current) => ({
         ...current,
-        selectedPileOptionKeysByLoadPoint: new Map([[1, "320|-18.5"]]),
+        selectedPileConfigurationsByLoadPoint: new Map([[1, {
+          pile_size_mm: 320,
+          pile_tip_level_mm: -18_500,
+        }]]),
       }),
     });
     const secondId = managed.present.pilePlans.find((plan) => plan.id !== firstId)!.id;
@@ -83,7 +86,7 @@ describe("project history reducer", () => {
     assert.equal(managed.present.activePilePlanId, secondId);
     assert.equal(
       managed.present.pilePlans.find((plan) => plan.id === firstId)
-        ?.selectedPileOptionKeysByLoadPoint.has(1),
+        ?.selectedPileConfigurationsByLoadPoint.has(1),
       false,
     );
   });
@@ -159,22 +162,25 @@ describe("project history reducer", () => {
       update: (current) => ({ ...current, name: "Imported" }),
       action: { kind: "project-import" },
     });
-    const choices = new Map([[1, "320|-18.5"]]);
+    const choices = new Map([[1, {
+      pile_size_mm: 320,
+      pile_tip_level_mm: -18_500,
+    }]]);
 
     managed = projectHistoryReducer(managed, {
       type: "amend",
-      update: (current) => ({ ...current, selectedPileOptionKeysByLoadPoint: choices }),
+      update: (current) => ({ ...current, selectedPileConfigurationsByLoadPoint: choices }),
     });
 
     assert.equal(managed.history.past.length, 1);
     assert.equal(managed.history.past[0].action.kind, "project-import");
     assert.equal(
-      managed.history.past[0].after.pilePlans[0].selectedPileOptionKeysByLoadPoint,
+      managed.history.past[0].after.pilePlans[0].selectedPileConfigurationsByLoadPoint,
       choices,
     );
     managed = projectHistoryReducer(managed, { type: "undo" });
     managed = projectHistoryReducer(managed, { type: "redo" });
-    assert.equal(managed.present.selectedPileOptionKeysByLoadPoint, choices);
+    assert.equal(managed.present.selectedPileConfigurationsByLoadPoint, choices);
   });
 });
 
