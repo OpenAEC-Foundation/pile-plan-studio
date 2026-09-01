@@ -12,6 +12,62 @@ export type SourceTableData = {
   rows: SourceTableRow[];
 };
 
+export type SourceLoadPointSelection = {
+  mode: "replace" | "add" | "toggle";
+  loadPointIds: number[];
+  anchorId: number;
+};
+
+export function getSourceLoadPointSelection(input: {
+  rowIds: number[];
+  clickedId: number;
+  anchorId: number | null;
+  unavailableIds: Set<number>;
+  shiftKey: boolean;
+  additiveKey: boolean;
+}): SourceLoadPointSelection {
+  const anchorIndex = input.anchorId === null ? -1 : input.rowIds.indexOf(input.anchorId);
+  const clickedIndex = input.rowIds.indexOf(input.clickedId);
+  if (input.shiftKey && anchorIndex >= 0 && clickedIndex >= 0) {
+    const firstIndex = Math.min(anchorIndex, clickedIndex);
+    const lastIndex = Math.max(anchorIndex, clickedIndex);
+    return {
+      mode: input.additiveKey ? "add" : "replace",
+      loadPointIds: input.rowIds
+        .slice(firstIndex, lastIndex + 1)
+        .filter((id) => !input.unavailableIds.has(id)),
+      anchorId: input.anchorId!,
+    };
+  }
+
+  return {
+    mode: input.additiveKey ? "toggle" : "replace",
+    loadPointIds: [input.clickedId],
+    anchorId: input.clickedId,
+  };
+}
+
+export function getSourceSelectionRevealScrollTop(input: {
+  currentScrollTop: number;
+  selectedRowIndex: number;
+  rowHeight: number;
+  viewportHeight: number;
+  initiatedInTable: boolean;
+}): number {
+  if (input.initiatedInTable || input.selectedRowIndex < 0 || input.viewportHeight <= 0) {
+    return input.currentScrollTop;
+  }
+
+  const rowTop = input.selectedRowIndex * input.rowHeight;
+  const rowBottom = rowTop + input.rowHeight;
+  const visibleBottom = input.currentScrollTop + input.viewportHeight;
+  if (rowTop >= input.currentScrollTop && rowBottom <= visibleBottom) {
+    return input.currentScrollTop;
+  }
+
+  return Math.max(0, rowTop - Math.max(0, (input.viewportHeight - input.rowHeight) / 2));
+}
+
 export function buildSourceTable(
   kind: InputSourceKind,
   data: { loadPoints: LoadPoint[]; cpts: Cpt[]; bearingCapacities: BearingCapacity[] },

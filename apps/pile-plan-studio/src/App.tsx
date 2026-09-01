@@ -16,6 +16,7 @@ import UnsavedChangesDialog from "./components/domain/UnsavedChangesDialog.tsx";
 import PilePlanExplorer from "./components/domain/PilePlanExplorer.tsx";
 import SourceDataViewer from "./components/domain/SourceDataViewer.tsx";
 import type { InputSourceKind } from "./domain/projectState.ts";
+import type { SourceLoadPointSelection } from "./domain/sourceTableModel.ts";
 import {
   calculatePileCostCore,
   calculateProjectAnalysisCore,
@@ -119,10 +120,23 @@ import { elementLayoutScale, screenToLocal } from "./domain/uiBaseline.ts";
 import { applyPileCostCatalogDefault, mergePileCostCatalog } from "./domain/pileCostCatalog.ts";
 import { VIEWER_LAYOUT_CHANGE_EVENT } from "./viewer/viewerGeometry.ts";
 import { transitionLassoSelectionMode } from "./viewer/lassoSelection.ts";
+import {
+  applyCptSelectionPreviewResult,
+  beginCptSelectionPreview,
+  failCptSelectionPreview,
+  getCptSelectionPreviewInput,
+} from "./components/domain/cptSettingsModel.ts";
+import {
+  addReactViewerLoadPoints,
+  clearReactViewerSelection,
+  openReactViewerCpt,
+  setReactViewerLoadPoints,
+  toggleReactViewerLoadPoint,
+} from "./components/domain/viewerInteractions.ts";
 
 const BUILT_IN_PILE_COST_DEFAULTS = loadIfcppProjectData(sampleProjectText).pileCostSettings;
 
-const POINTER_FOCUS_CONTROL_SELECTOR = "button, [role='option'], [role='tab']";
+const POINTER_FOCUS_CONTROL_SELECTOR = "button, [role='option'], [role='tab'], [role='row'][tabindex='0']";
 
 function releasePointerActivatedControlFocus(event: ReactPointerEvent<HTMLDivElement>) {
   const target = event.target;
@@ -268,6 +282,10 @@ function AppSession({
   const statusMessageTimeoutRef = useRef<number | null>(null);
   const lassoSelectionAvailable = projectState.loadPointLockDraft === null
     && projectState.cptSelectionEditDraft === null;
+  const activeLockedLoadPointIdSet = useMemo(() => new Set(getActiveLockedLoadPointIds(
+    projectState.pilePlans,
+    projectState.activePilePlanId,
+  )), [projectState.activePilePlanId, projectState.pilePlans]);
 
   useEffect(() => {
     setLassoSelectionActive((active) => transitionLassoSelectionMode(active, {
@@ -602,6 +620,28 @@ function AppSession({
     } : nextState);
   };
 
+  const handleSourceLoadPointSelection = (intent: SourceLoadPointSelection) => {
+    if (projectState.loadPointLockDraft !== null || projectState.cptSelectionEditDraft !== null) return;
+    const loadPointIds = intent.loadPointIds.filter((id) => !activeLockedLoadPointIdSet.has(id));
+    if (loadPointIds.length === 0) return;
+    const selection = intent.mode === "toggle"
+      ? toggleReactViewerLoadPoint(projectState, loadPointIds[0])
+      : intent.mode === "add"
+        ? addReactViewerLoadPoints(projectState, loadPointIds)
+        : setReactViewerLoadPoints(projectState, loadPointIds);
+    handleProjectStateChange({ ...projectState, ...selection });
+  };
+
+  const handleSourceCptSelection = (cptId: number) => {
+    if (projectState.loadPointLockDraft !== null || projectState.cptSelectionEditDraft !== null) return;
+    handleProjectStateChange({ ...projectState, ...openReactViewerCpt(projectState, cptId) });
+  };
+
+  const clearSourceSelection = () => {
+    if (projectState.loadPointLockDraft !== null || projectState.cptSelectionEditDraft !== null) return;
+    handleProjectStateChange({ ...projectState, ...clearReactViewerSelection(projectState) });
+  };
+
   const importPilePlan = (patch: PilePlanImportPatch, fileName: string) => {
     commitProjectState((current) => applyPilePlanImportAsNewPlan(
       current,
@@ -842,6 +882,41 @@ function AppSession({
     });
     return () => { cancelled = true; };
   }, [persistedProjectSignature]);
+
+  useEffect(() => {
+    const previewInput = getCptSelectionPreviewInput(projectState);
+    if (!previewInput) return;
+    const { draft } = previewInput;
+    let cancelled = false;
+    setProjectState((current) => beginCptSelectionPreview(current, draft));
+
+    calculateProjectAnalysisCore({
+      bearingCapacities: projectState.bearingCapacities,
+      cpts: projectState.cpts,
+      globalSettings: projectState.globalCptSelectionSettings,
+      loadPoints: previewInput.loadPoints,
+      manualCptIdsByLoadPoint: previewInput.manualCptIdsByLoadPoint,
+      settingsByLoadPoint: projectState.cptSelectionSettingsByLoadPoint,
+      includeCptFrdRows: false,
+    }).then((analysis) => {
+      if (!cancelled) {
+        setProjectState((current) => applyCptSelectionPreviewResult(current, draft, analysis));
+      }
+    }).catch((error: unknown) => {
+      console.error("Failed to preview CPT selection", error);
+      if (!cancelled) {
+        setProjectState((current) => failCptSelectionPreview(
+          current,
+          draft,
+          error instanceof Error ? error.message : String(error),
+        ));
+      }
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [projectState.cptSelectionEditDraft]);
 
   useEffect(() => {
     let cancelled = false;
@@ -1293,6 +1368,14 @@ function AppSession({
                 loadPoints={projectState.loadPoints}
                 cpts={projectState.cpts}
                 bearingCapacities={projectState.bearingCapacities}
+                selectedLoadPointId={projectState.selectedLoadPointId}
+                selectedLoadPointIds={projectState.selectedLoadPointIds}
+                selectedCptId={projectState.selectedCptId}
+                lockedLoadPointIds={activeLockedLoadPointIdSet}
+                selectionDisabled={projectState.loadPointLockDraft !== null || projectState.cptSelectionEditDraft !== null}
+                onSelectLoadPoints={handleSourceLoadPointSelection}
+                onSelectCpt={handleSourceCptSelection}
+                onClearSelection={clearSourceSelection}
                 onReplaceSource={(file) => {
                   setInitialImportSource({ role: importRoleForSource(activeSourceKind), file });
                   setBackstageOpen(true);

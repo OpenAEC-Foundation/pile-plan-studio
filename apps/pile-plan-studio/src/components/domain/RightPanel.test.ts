@@ -290,4 +290,40 @@ describe("React CPT panel edit mode", () => {
     assert.match(nl, /"selection\.nearest":\s*"dichtstbijzijnde"/);
     assert.match(nl, /"selection\.manual":\s*"handmatig\{\{suffix\}\}"/);
   });
+
+  it("shows live preview progress, failures, and governing CPT rows", () => {
+    const panel = readFileSync(resolve(import.meta.dirname, "RightPanel.tsx"), "utf8");
+    const styles = readFileSync(resolve(import.meta.dirname, "rightPanel.css"), "utf8");
+    const en = readFileSync(resolve(import.meta.dirname, "../../i18n/locales/en/rightPanel.json"), "utf8");
+    const nl = readFileSync(resolve(import.meta.dirname, "../../i18n/locales/nl/rightPanel.json"), "utf8");
+
+    assert.match(panel, /state\.cptSelectionPreview/);
+    assert.match(panel, /cpts\.previewCalculating/);
+    assert.match(panel, /cpts\.previewFailed/);
+    assert.match(panel, /row\.governingLoadPointCount > 0/);
+    assert.match(styles, /\.cpt-preview-status/);
+    assert.match(styles, /\.cpt-table tr\.is-governing/);
+    for (const translations of [en, nl]) {
+      assert.match(translations, /"cpts\.chosenPileFrd":/);
+      assert.match(translations, /"cpts\.governingFor":/);
+      assert.match(translations, /"cpts\.previewCalculating":/);
+      assert.match(translations, /"cpts\.previewFailed":/);
+    }
+  });
+});
+
+describe("React coordinate inspection", () => {
+  it("uses the shared two-column coordinate readout for CPTs and load points", () => {
+    const panel = readFileSync(resolve(import.meta.dirname, "RightPanel.tsx"), "utf8");
+    const styles = readFileSync(resolve(import.meta.dirname, "rightPanel.css"), "utf8");
+
+    assert.match(panel, /import \{ CoordinateReadout \} from "\.\/CoordinateReadout\.ts"/);
+    assert.match(panel, /<CoordinateReadout points=\{\[selectedCpt\.cpt\]\} locale=\{i18n\.language\} \/>/);
+    assert.match(panel, /<CoordinateReadout points=\{selectedLoadPoints\} locale=\{i18n\.language\} \/>/);
+    assert.doesNotMatch(panel, /cpt-detail-grid/);
+    assert.match(styles, /\.load-point-panel > \.coordinate-readout,[\s\S]*?grid-template-columns:\s*repeat\(2,\s*minmax\(0,\s*1fr\)\)/);
+    assert.match(styles, /\.load-point-panel > \.coordinate-readout div,[\s\S]*?display:\s*flex;[\s\S]*?align-items:\s*baseline/);
+    assert.match(panel, /className="load-point-force-label">F<sub>Ed<\/sub><\/span>/);
+    assert.match(panel, /selectedLoadPoints\.length > 1 \? <span>\{t\("loadPoints\.selection"\)\}<\/span> : null/);
+  });
 });

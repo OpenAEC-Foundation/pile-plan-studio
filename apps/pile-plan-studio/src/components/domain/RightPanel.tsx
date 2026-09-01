@@ -20,7 +20,6 @@ import {
   getSelectedCptOverviewModel,
   getSelectedLoadPoints,
 } from "./rightPanelModel.ts";
-import { formatNumber } from "../../domain/formatting.ts";
 import { openCpt, switchRightPanelMode, type RightPanelMode } from "../.././domain/selectionState.ts";
 import {
   applyCptSelectionSettingsPatch,
@@ -36,6 +35,7 @@ import { infoIcon, removeIcon } from "../template/ribbon/icons.ts";
 import ThemedNumberInput from "../template/ThemedNumberInput.tsx";
 import OptimizationPanel from "./OptimizationPanel.tsx";
 import CostCatalogPanel from "./CostSettingsPanel.tsx";
+import { CoordinateReadout } from "./CoordinateReadout.ts";
 import { commitNumberDraft } from "./numberInputModel.ts";
 import "./rightPanel.css";
 
@@ -431,7 +431,7 @@ function CptPanel({ state, onStateChange, selectedLoadPoints }: {
   onStateChange: (nextState: ProjectState) => void;
   selectedLoadPoints: ReturnType<typeof getSelectedLoadPoints>;
 }) {
-  const { t } = useTranslation("rightPanel");
+  const { t, i18n } = useTranslation("rightPanel");
   const selectedCpt = getCptFrdPanelModel(state);
   const draft = state.cptSelectionEditDraft;
   const isEditing = draft !== null;
@@ -453,10 +453,7 @@ function CptPanel({ state, onStateChange, selectedLoadPoints }: {
           </div>
           <CptModifyButton state={state} onStateChange={onStateChange} selectedLoadPoints={selectedLoadPoints} />
         </header>
-        <dl className="cpt-detail-grid">
-          <div><dt>X</dt><dd>{formatNumber(selectedCpt.cpt.x_mm)} mm</dd></div>
-          <div><dt>Y</dt><dd>{formatNumber(selectedCpt.cpt.y_mm)} mm</dd></div>
-        </dl>
+        <CoordinateReadout points={[selectedCpt.cpt]} locale={i18n.language} />
         <CptTable
           columns={[t("columns.size"), t("columns.tip"), <ResistanceLabel key="resistance" />]}
           rows={selectedCpt.rows.map((row) => [row.sizeLabel, row.tipLabel, row.frdLabel])}
@@ -491,6 +488,9 @@ function CptSelectionOverview({ state, onStateChange, selectedLoadPoints, editin
 }) {
   const { t } = useTranslation("rightPanel");
   const overview = getSelectedCptOverviewModel(state, selectedLoadPoints);
+  const preview = state.cptSelectionPreview?.draft === state.cptSelectionEditDraft
+    ? state.cptSelectionPreview
+    : editing ? { status: "analyzing" as const } : null;
   const heading = selectedLoadPoints.length > 1
     ? t("cpts.selectedHeading")
     : `${localizeLoadPointName(selectedLoadPoints[0].name, t)} - ${t("tabs.cpts")}`;
@@ -499,8 +499,9 @@ function CptSelectionOverview({ state, onStateChange, selectedLoadPoints, editin
     Selection: t("cpts.selection"),
     Distance: t("cpts.distance"),
     "Used by": t("cpts.usedBy"),
-    "Load points": t("cpts.loadPoints"),
     "FRD range": <span aria-label={t("cpts.frdRange")}><ResistanceLabel qualifier={t("cpts.rangeQualifier")} /></span>,
+    "Chosen pile FRD": <span aria-label={t("cpts.chosenPileFrd")} title={t("cpts.chosenPileFrd")}><ResistanceLabel /></span>,
+    "Governing for": t("cpts.governingFor"),
   };
 
   return (
@@ -521,34 +522,55 @@ function CptSelectionOverview({ state, onStateChange, selectedLoadPoints, editin
           </div>
         </div>
       ) : null}
+      {editing && preview?.status === "analyzing" ? (
+        <div className="cpt-preview-status" role="status">{t("cpts.previewCalculating")}</div>
+      ) : null}
+      {editing && preview?.status === "failed" ? (
+        <div className="cpt-preview-status is-error" role="alert">
+          {t("cpts.previewFailed", { error: preview.error })}
+        </div>
+      ) : null}
       <div className="cpt-table-wrap">
         <table className="cpt-table">
           <thead>
             <tr>
               {overview.columns.map((column) => <th key={column}>{columnLabels[column] ?? column}</th>)}
-              {editing ? <th><span className="sr-only">{t("actions.remove")}</span></th> : null}
+              {editing ? <th className="cpt-remove-cell"><span className="sr-only">{t("actions.remove")}</span></th> : null}
             </tr>
           </thead>
           <tbody>
             {overview.rows.length === 0 ? (
               <tr><td className="empty-table-cell" colSpan={overview.columns.length + (editing ? 1 : 0)}>{t("empty.noCptsAvailable")}</td></tr>
             ) : overview.rows.map((row) => (
-              <tr key={row.cpt.id}>
-                {row.values.map((value, index) => (
-                  <td key={`${row.cpt.id}-${overview.columns[index]}`}>
-                    {overview.columns[index] === "CPT" && !editing ? (
-                      <button
-                        className="cpt-link"
-                        type="button"
-                        onClick={() => onStateChange({ ...state, ...openCpt(state, row.cpt.id) })}
-                      >
-                        {localizeCptName(value, t)}
-                      </button>
-                    ) : overview.columns[index] === "CPT"
-                      ? localizeCptName(value, t)
-                      : localizeCptTableValue(overview.columns[index], value, t)}
-                  </td>
-                ))}
+              <tr
+                className={row.governingLoadPointCount > 0 ? "is-governing" : undefined}
+                key={row.cpt.id}
+                title={row.governingLoadPointCount > 0
+                  ? t("cpts.governingCount", { used: row.governingLoadPointCount, total: selectedLoadPoints.length })
+                  : undefined}
+              >
+                {row.values.map((value, index) => {
+                  const column = overview.columns[index];
+                  const usageTitle = column === "Used by" && row.usageDetails
+                    ? t("cpts.usedByDetails", { loadPoints: row.usageDetails })
+                    : undefined;
+
+                  return (
+                    <td key={`${row.cpt.id}-${column}`} title={usageTitle}>
+                      {overview.columns[index] === "CPT" && !editing ? (
+                        <button
+                          className="cpt-link"
+                          type="button"
+                          onClick={() => onStateChange({ ...state, ...openCpt(state, row.cpt.id) })}
+                        >
+                          {localizeCptName(value, t)}
+                        </button>
+                      ) : overview.columns[index] === "CPT"
+                        ? localizeCptName(value, t)
+                        : localizeCptTableValue(overview.columns[index], value, t)}
+                    </td>
+                  );
+                })}
                 {editing ? (
                   <td className="cpt-remove-cell">
                     <button
@@ -640,10 +662,17 @@ function LoadPointPanel({ state, onStateChange, selectedLabel, selectedLoadPoint
       <header className="right-panel-header">
         <div>
           <h2>{selectedLabel}</h2>
-          <span>{selectedLoadPoints.length === 1 ? "FED" : t("loadPoints.selection")}</span>
+          {selectedLoadPoints.length > 1 ? <span>{t("loadPoints.selection")}</span> : null}
         </div>
-        <strong>{fedLabel}</strong>
+        <strong className={selectedLoadPoints.length === 1 ? "load-point-force" : undefined}>
+          {selectedLoadPoints.length === 1 ? (
+            <span className="load-point-force-label">F<sub>Ed</sub></span>
+          ) : null}
+          {fedLabel}
+        </strong>
       </header>
+
+      <CoordinateReadout points={selectedLoadPoints} locale={i18n.language} />
 
       <section className="pile-options-section">
         <div className="section-heading">
@@ -866,6 +895,11 @@ function localizeCptTableValue(column: string, value: string, t: ReturnType<type
   if (column === "Used by") {
     const usage = value.match(/^(\d+)\s*\/\s*(\d+)\s+load points$/i);
     if (usage) return t("cpts.usedByValue", { used: usage[1], total: usage[2] });
+  }
+
+  if (column === "Governing for") {
+    const usage = value.match(/^(\d+)\s*\/\s*(\d+)\s+load points$/i);
+    if (usage) return t("cpts.governingForValue", { used: usage[1], total: usage[2] });
   }
 
   return value;

@@ -5,7 +5,7 @@
   flex-shrink: 0;
   user-select: none;
   cursor: default;
-  margin-top: 32px; /* titlebar height */
+  margin-top: var(--titlebar-height);
 }
 
 /* Ribbon Tabs */

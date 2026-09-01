@@ -108,7 +108,7 @@ describe("React viewer interactions", () => {
     assert.deepEqual(next.legendSelectionFilter, { pileSizes: [], pileTipLevels: [] });
   });
 
-  it("toggles a load point with shift-click", () => {
+  it("toggles a load point for additive modifier-click selection", () => {
     const next = toggleReactViewerLoadPoint(
       {
         selectedLoadPointId: 1,

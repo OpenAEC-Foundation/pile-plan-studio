@@ -1,8 +1,78 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { buildSourceTable, filterAndSortSourceRows } from "./sourceTableModel.ts";
+import {
+  buildSourceTable,
+  filterAndSortSourceRows,
+  getSourceLoadPointSelection,
+  getSourceSelectionRevealScrollTop,
+} from "./sourceTableModel.ts";
 
 describe("normalized source tables", () => {
+  it("selects a Shift range in visible row order and skips unavailable rows", () => {
+    assert.deepEqual(getSourceLoadPointSelection({
+      rowIds: [40, 10, 30, 20],
+      clickedId: 20,
+      anchorId: 10,
+      unavailableIds: new Set([30]),
+      shiftKey: true,
+      additiveKey: false,
+    }), {
+      mode: "replace",
+      loadPointIds: [10, 20],
+      anchorId: 10,
+    });
+  });
+
+  it("toggles one row with Ctrl or Cmd and moves the range anchor", () => {
+    assert.deepEqual(getSourceLoadPointSelection({
+      rowIds: [10, 20, 30],
+      clickedId: 30,
+      anchorId: 10,
+      unavailableIds: new Set(),
+      shiftKey: false,
+      additiveKey: true,
+    }), {
+      mode: "toggle",
+      loadPointIds: [30],
+      anchorId: 30,
+    });
+  });
+
+  it("adds a Shift range when Ctrl or Cmd is also held", () => {
+    assert.deepEqual(getSourceLoadPointSelection({
+      rowIds: [10, 20, 30, 40],
+      clickedId: 40,
+      anchorId: 20,
+      unavailableIds: new Set(),
+      shiftKey: true,
+      additiveKey: true,
+    }), {
+      mode: "add",
+      loadPointIds: [20, 30, 40],
+      anchorId: 20,
+    });
+  });
+
+  it("preserves the table scroll position for a selection initiated by a table row", () => {
+    assert.equal(getSourceSelectionRevealScrollTop({
+      currentScrollTop: 15,
+      selectedRowIndex: 0,
+      rowHeight: 30,
+      viewportHeight: 600,
+      initiatedInTable: true,
+    }), 15);
+  });
+
+  it("centers a partially visible selection that originated outside the source table", () => {
+    assert.equal(getSourceSelectionRevealScrollTop({
+      currentScrollTop: 15,
+      selectedRowIndex: 0,
+      rowHeight: 30,
+      viewportHeight: 600,
+      initiatedInTable: false,
+    }), 0);
+  });
+
   it("builds interpreted columns for every source role", () => {
     const loadPoints = buildSourceTable("load_points", {
       loadPoints: [{ id: 2, name: "LP 2", x_mm: 100, y_mm: 200, design_load_kn: 350 }],

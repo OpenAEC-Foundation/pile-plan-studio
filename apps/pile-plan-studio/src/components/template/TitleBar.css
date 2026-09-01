@@ -1,8 +1,9 @@
 .titlebar {
   display: flex;
+  box-sizing: border-box;
   align-items: center;
   justify-content: space-between;
-  height: 32px;
+  height: var(--titlebar-height);
   background-color: var(--theme-bg-lighter);
   border-bottom: 1px solid var(--theme-bg-lighter);
   user-select: none;

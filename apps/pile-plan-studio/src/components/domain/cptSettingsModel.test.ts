@@ -12,7 +12,9 @@ import {
   selectOnlyNearestCpts,
   toggleManualCpt,
 } from "./cptSettingsModel.ts";
+import * as cptSettingsModel from "./cptSettingsModel.ts";
 import type { ProjectState } from "../../domain/projectState.ts";
+import type { ProjectAnalysisResult } from "../../core/projectTypes.ts";
 
 describe("React CPT settings model", () => {
   it("keeps the manual draft when switching into CPT edit mode", () => {
@@ -284,6 +286,77 @@ describe("React CPT settings model", () => {
     assert.equal(cleared.manualCptIdsByLoadPoint.has(2), false);
     assert.deepEqual(cleared.manualCptIdsByLoadPoint.get(3), [63]);
     assert.deepEqual(cleared.analysisRequest.loadPointIds, [1, 2]);
+  });
+
+  it("builds a preview request from draft selections without persisting them", () => {
+    const api = cptSettingsModel as unknown as Record<string, unknown>;
+    assert.equal(typeof api.getCptSelectionPreviewInput, "function");
+    if (typeof api.getCptSelectionPreviewInput !== "function") return;
+    const state = minimalState({
+      loadPoints: [loadPoint(1), loadPoint(2), loadPoint(3)],
+      manualCptIdsByLoadPoint: new Map([[3, [99]]]),
+      cptSelectionEditDraft: {
+        loadPointIds: [1, 2],
+        cptIdsByLoadPoint: new Map([[1, new Set([62, 61])], [2, new Set([63])]]),
+      },
+    });
+
+    const input = (api.getCptSelectionPreviewInput as (state: ProjectState) => {
+      loadPoints: ProjectState["loadPoints"];
+      manualCptIdsByLoadPoint: Map<number, number[]>;
+    } | null)(state);
+
+    assert.deepEqual(input?.loadPoints.map(({ id }) => id), [1, 2]);
+    assert.deepEqual(input?.manualCptIdsByLoadPoint.get(1), [61, 62]);
+    assert.deepEqual(input?.manualCptIdsByLoadPoint.get(2), [63]);
+    assert.deepEqual(input?.manualCptIdsByLoadPoint.get(3), [99]);
+    assert.equal(state.manualCptIdsByLoadPoint.has(1), false);
+  });
+
+  it("ignores an analysis result from an older CPT draft", () => {
+    const api = cptSettingsModel as unknown as Record<string, unknown>;
+    assert.equal(typeof api.applyCptSelectionPreviewResult, "function");
+    if (typeof api.applyCptSelectionPreviewResult !== "function") return;
+    const currentDraft = { loadPointIds: [1], cptIdsByLoadPoint: new Map([[1, new Set([62])]]) };
+    const staleDraft = { loadPointIds: [1], cptIdsByLoadPoint: new Map([[1, new Set([61])]]) };
+    const state = minimalState({ cptSelectionEditDraft: currentDraft });
+    const analysis: ProjectAnalysisResult = {
+      pileOptionsByLoadPointId: new Map([[1, [{
+        pile_size_mm: 290,
+        pile_tip_level_m: -17.5,
+        isOption: true,
+        governing_cpt_id: 62,
+        governing_frd_kn: 700,
+        utilization: 0.5,
+        missing_cpt_ids: [],
+      }]]]),
+      selectedCptsByLoadPointId: new Map(),
+      cptFrdRowsByCptId: null,
+    };
+    const applyResult = api.applyCptSelectionPreviewResult as (
+      state: ProjectState,
+      draft: ProjectState["cptSelectionEditDraft"],
+      analysis: ProjectAnalysisResult,
+    ) => ProjectState;
+
+    assert.equal(applyResult(state, staleDraft, analysis), state);
+    const applied = applyResult(state, currentDraft, analysis) as ProjectState & {
+      cptSelectionPreview?: { status: string; draft: unknown; pileOptionsByLoadPointId: Map<number, unknown[]> };
+    };
+    assert.equal(applied.cptSelectionPreview?.status, "ready");
+    assert.equal(applied.cptSelectionPreview?.draft, currentDraft);
+    assert.equal(applied.cptSelectionPreview?.pileOptionsByLoadPointId.get(1)?.length, 1);
+  });
+
+  it("invalidates preview results when the CPT draft changes, saves, or is cancelled", () => {
+    const draft = { loadPointIds: [1], cptIdsByLoadPoint: new Map([[1, new Set([61])]]) };
+    const state = minimalState({ cptSelectionEditDraft: draft }) as ProjectState & { cptSelectionPreview: unknown };
+    state.cptSelectionPreview = { draft, status: "ready", pileOptionsByLoadPointId: new Map() };
+
+    assert.equal((toggleManualCpt(state, 62) as typeof state).cptSelectionPreview, null);
+    assert.equal((removeManualCpt(state, 61) as typeof state).cptSelectionPreview, null);
+    assert.equal((saveManualCptSelection(state) as typeof state).cptSelectionPreview, null);
+    assert.equal((cancelManualCptSelection(state) as typeof state).cptSelectionPreview, null);
   });
 });
 

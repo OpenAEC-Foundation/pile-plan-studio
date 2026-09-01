@@ -49,7 +49,7 @@ describe("PilePlanViewer inputs", () => {
     assert.ok(state.bounds.maxY > state.bounds.minY);
   });
 
-  it("shows Shift-click as an explicit shortcut when a selection already exists", () => {
+  it("shows Ctrl-click as an explicit shortcut when a selection already exists", () => {
     const source = readFileSync(resolve(import.meta.dirname, "PilePlanViewer.tsx"), "utf8");
 
     assert.doesNotMatch(source, /title=\{t\("viewer\.selectionHelp"\)\}/);
@@ -58,6 +58,7 @@ describe("PilePlanViewer inputs", () => {
     assert.match(source, /viewer\.hover\.clickKey/);
     assert.match(source, /viewer-hover-shortcut-plus/);
     assert.match(source, /viewer\.hover\.addToSelection/);
+    assert.match(source, />Ctrl</);
     assert.doesNotMatch(source, /viewer\.hover\.shiftHint/);
   });
 
@@ -173,6 +174,39 @@ describe("PilePlanViewer inputs", () => {
     assert.doesNotMatch(selectedRule, /--theme-accent-soft/);
     assert.match(selectedRule, /--cpt-stroke:\s*var\(--theme-accent\)/);
     assert.doesNotMatch(css, /#fff7c2/);
+  });
+
+  it("aligns full-width hover facts and paired coordinates on shared guides", () => {
+    const source = readFileSync(resolve(import.meta.dirname, "PilePlanViewer.tsx"), "utf8");
+    const css = readFileSync(resolve(import.meta.dirname, "viewer.css"), "utf8");
+
+    assert.match(source, /import \{ CoordinateReadout \} from "\.\/CoordinateReadout\.ts"/);
+    assert.match(source, /<CoordinateReadout points=\{\[loadPoint \?\? cpt!\]\} locale=\{i18n\.language\} \/>/);
+    assert.doesNotMatch(source, /formatHoverNumber\(cpt!\.x_mm/);
+    assert.doesNotMatch(source, /formatHoverNumber\(cpt!\.y_mm/);
+    assert.match(css, /\.viewer-hover-facts\s*\{[\s\S]*?grid-template-columns:\s*repeat\(2,\s*minmax\(0,\s*1fr\)\)/);
+    assert.match(css, /\.viewer-hover-inspector \.coordinate-readout\s*\{[\s\S]*?display:\s*contents/);
+    const hoverFactRule = css.match(/\.viewer-hover-fact\s*\{([\s\S]*?)\}/)?.[1] ?? "";
+    assert.match(hoverFactRule, /grid-column:\s*1\s*\/\s*-1/);
+    assert.match(hoverFactRule, /display:\s*grid/);
+    assert.match(hoverFactRule, /grid-template-columns:\s*minmax\(0,\s*1fr\)\s+auto/);
+    assert.match(hoverFactRule, /align-items:\s*baseline/);
+    assert.match(hoverFactRule, /align-content:\s*center/);
+    const coordinateFactRule = [...css.matchAll(/\.viewer-hover-inspector \.coordinate-readout > div\s*\{([\s\S]*?)\}/g)].at(-1)?.[1] ?? "";
+    assert.match(coordinateFactRule, /display:\s*grid/);
+    assert.match(coordinateFactRule, /grid-template-columns:\s*auto\s+minmax\(0,\s*1fr\)/);
+    assert.match(coordinateFactRule, /align-items:\s*baseline/);
+    assert.match(coordinateFactRule, /align-content:\s*center/);
+    assert.match(css, /\.viewer-hover-inspector \.coordinate-readout dd\s*\{[^}]*text-align:\s*right/);
+  });
+
+  it("renders feasibility and governing CPTs from the active draft preview", () => {
+    const source = readFileSync(resolve(import.meta.dirname, "PilePlanViewer.tsx"), "utf8");
+
+    assert.match(source, /getEffectivePileOptionsByLoadPointId/);
+    assert.match(source, /const pileOptionsByLoadPointId = getEffectivePileOptionsByLoadPointId\(state\)/);
+    assert.match(source, /pileOptionsByLoadPointId\.get\(loadPoint\.id\)/);
+    assert.match(source, /getSelectedPileOption\(state, loadPoint\.id, pileOptionsByLoadPointId\)/);
   });
 
   it("lets pile-size legend symbols inherit the active theme text color", () => {
@@ -385,18 +419,20 @@ describe("PilePlanViewer inputs", () => {
     assert.match(css, /\.cpt-table th\s*{[\s\S]*?background:\s*var\(--theme-surface\);/);
   });
 
-  it("highlights the selected pile option with a subtle accent background", () => {
+  it("shares one subtle accent highlight between the chosen pile and governing CPT", () => {
     const css = readFileSync(resolve(import.meta.dirname, "rightPanel.css"), "utf8");
     const hoverRule = css.match(/\.pile-option-row:hover\s*\{(?<body>[^}]*)\}/s)?.groups?.body ?? "";
-    const chosenRule = css.match(/\.pile-option-row\.is-chosen\s*\{(?<body>[^}]*)\}/s)?.groups?.body ?? "";
+    const accentRule = css.match(
+      /\.pile-option-row\.is-chosen,\s*\.cpt-table tr\.is-governing\s*\{(?<body>[^}]*)\}/s,
+    )?.groups?.body ?? "";
 
     assert.match(
       hoverRule,
       /background:\s*color-mix\(in srgb,\s*var\(--theme-text\) 6%,\s*var\(--theme-surface\)\)/,
     );
     assert.doesNotMatch(hoverRule, /--theme-bg-lighter/);
-    assert.match(chosenRule, /background:\s*var\(--theme-accent-soft\)/);
-    assert.match(chosenRule, /box-shadow:\s*inset 3px 0 0 var\(--theme-accent\)/);
+    assert.match(accentRule, /background:\s*var\(--theme-accent-soft\)/);
+    assert.match(accentRule, /box-shadow:\s*inset 3px 0 0 var\(--theme-accent\)/);
   });
 
   it("keeps the hover candidate section on the themed inspector surface", () => {

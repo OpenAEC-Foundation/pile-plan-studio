@@ -12,9 +12,12 @@ export type CptSelectionTableModel = {
   columns: string[];
   rows: Array<{
     cpt: Cpt;
+    usageDetails?: string | null;
     values: string[];
   }>;
 };
+
+const MAX_USAGE_TOOLTIP_LOAD_POINTS = 10;
 
 export function getSelectedCptTableModel(entries: CptSelectionTableInput[]): CptSelectionTableModel {
   if (entries.length <= 1) {
@@ -57,13 +60,15 @@ export function getSelectedCptTableModel(entries: CptSelectionTableInput[]): Cpt
     );
 
   return {
-    columns: ["CPT", "Used by", "Load points"],
+    columns: ["CPT", "Used by"],
     rows: usages.map((usage) => ({
       cpt: usage.cpt,
+      usageDetails: usage.loadPointIds.length <= MAX_USAGE_TOOLTIP_LOAD_POINTS
+        ? usage.loadPointIds.join(", ")
+        : null,
       values: [
         getCptDisplayName(usage.cpt),
         `${usage.loadPointIds.length} / ${entries.length} load points`,
-        usage.loadPointIds.join(", "),
       ],
     })),
   };

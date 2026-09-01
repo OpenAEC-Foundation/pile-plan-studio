@@ -25,6 +25,13 @@ export type LassoSelectionModeEvent =
   | { type: "toggle" | "dismiss" }
   | { type: "editing-context"; available: boolean };
 
+export function getAdditiveSelectionModifier(input: {
+  ctrlKey: boolean;
+  metaKey: boolean;
+}): boolean {
+  return input.ctrlKey || input.metaKey;
+}
+
 export function transitionLassoSelectionMode(
   active: boolean,
   event: LassoSelectionModeEvent,
@@ -41,12 +48,11 @@ export function shouldStartLassoInteraction(input: LassoInteractionInput): boole
 }
 
 export function getLassoSelectionOperation(input: {
-  lassoSelectionActive: boolean;
-  shiftKey: boolean;
+  additiveKey: boolean;
   isEditingLoadPointLocks: boolean;
 }): LassoSelectionOperation {
   if (input.isEditingLoadPointLocks) return "lock";
-  return input.lassoSelectionActive && !input.shiftKey ? "replace" : "add";
+  return input.additiveKey ? "add" : "replace";
 }
 
 export function shouldClearViewerSelectionOnEscape(input: {

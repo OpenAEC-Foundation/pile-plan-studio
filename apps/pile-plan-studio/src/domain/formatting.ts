@@ -13,3 +13,16 @@ export function formatOptionalNumber(
 
   return `${formatNumber(value * multiplier)}${suffix}`;
 }
+
+export function formatCoordinateReadout(
+  points: ReadonlyArray<{ x_mm: number; y_mm: number }>,
+  locale: string,
+): { x: string; y: string } | null {
+  if (points.length !== 1) return null;
+
+  const formatter = new Intl.NumberFormat(locale, { maximumFractionDigits: 1 });
+  return {
+    x: `${formatter.format(points[0].x_mm)} mm`,
+    y: `${formatter.format(points[0].y_mm)} mm`,
+  };
+}

@@ -3,7 +3,7 @@
   "schema_version": 3,
   "application": {
     "name": "Pile Plan Studio",
-    "version": "0.2.1-alpha"
+    "version": "0.2.2-alpha"
   },
   "metadata": {
     "name": "Sample Project",

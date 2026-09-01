@@ -36,6 +36,15 @@ export type CptSelectionEditDraft = {
   cptIdsByLoadPoint: Map<number, Set<number>>;
 };
 
+export type CptSelectionPreview =
+  | { draft: CptSelectionEditDraft; status: "analyzing" }
+  | { draft: CptSelectionEditDraft; status: "failed"; error: string }
+  | {
+      draft: CptSelectionEditDraft;
+      status: "ready";
+      pileOptionsByLoadPointId: Map<number, PileConfigurationOption[]>;
+    };
+
 export type LoadPointLockSelectionSnapshot = {
   selectedLoadPointIds: number[];
   selectedLoadPointId: number | null;
@@ -63,6 +72,7 @@ export type ProjectState = LoadedProjectData & {
   cptFrdRowsByCptId: Map<number, CptBearingCapacityRow[]>;
   cptSettingsScope: CptSettingsScope;
   cptSelectionEditDraft: CptSelectionEditDraft | null;
+  cptSelectionPreview?: CptSelectionPreview | null;
   loadPointLockDraft: LoadPointLockDraft | null;
   loadPointLockSelectionSnapshot: LoadPointLockSelectionSnapshot | null;
   analysisRequest: AnalysisRequest;
@@ -131,6 +141,7 @@ export function createInitialProjectState(
     cptFrdRowsByCptId: new Map(),
     cptSettingsScope: firstLoadPointId === null ? "all" : "selected",
     cptSelectionEditDraft: null,
+    cptSelectionPreview: null,
     loadPointLockDraft: null,
     loadPointLockSelectionSnapshot: null,
     analysisRequest: { revision: 0, loadPointIds: null },

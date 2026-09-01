@@ -31,9 +31,62 @@ describe("source data viewer", () => {
     assert.match(source, /paddingBottom/);
   });
 
+  it("measures the virtualized viewport before scrolling", () => {
+    assert.match(source, /const tableScrollRef = useRef<HTMLDivElement>\(null\)/);
+    assert.match(source, /useLayoutEffect\(\(\) =>/);
+    assert.match(source, /setViewportHeight\(scrollElement\.clientHeight\)/);
+    assert.match(source, /new ResizeObserver\(measureViewport\)/);
+    assert.doesNotMatch(source, /handleScroll[\s\S]*?setViewportHeight/);
+  });
+
   it("keeps the header and data rows in the same scrollbar viewport", () => {
     assert.match(source, /className="source-table-scroll"[\s\S]*className="source-table-heading"/);
     assert.match(source, /className="source-table-body"/);
+  });
+
+  it("selects load-point and CPT rows through shared callbacks", () => {
+    assert.match(source, /onSelectLoadPoints: \(selection: SourceLoadPointSelection\) => void/);
+    assert.match(source, /onSelectCpt: \(cptId: number\) => void/);
+    assert.match(source, /onSelectLoadPoints\(selection\)/);
+    assert.match(source, /onSelectCpt\(rowId\)/);
+    assert.match(source, /getSourceLoadPointSelection/);
+    assert.match(source, /getAdditiveSelectionModifier/);
+  });
+
+  it("marks selected rows and leaves foundation advice non-selectable", () => {
+    assert.match(source, /source\.kind !== "bearing_capacities"/);
+    assert.match(source, /aria-selected=\{isSelectable \? isSelected : undefined\}/);
+    assert.match(source, /is-selected/);
+    assert.match(source, /tabIndex=\{isSelectable && !isDisabled \? 0 : undefined\}/);
+    assert.match(styles, /\.source-table-row\.is-selected\s*\{[\s\S]*?box-shadow:/);
+    assert.match(styles, /\.source-table-row\.is-selectable\s*\{[\s\S]*?user-select:\s*none/);
+  });
+
+  it("disables locked load points and selection during edit modes", () => {
+    assert.match(source, /lockedLoadPointIds\.has\(rowId\)/);
+    assert.match(source, /selectionDisabled/);
+    assert.match(source, /aria-disabled=\{isSelectable && isDisabled \? true : undefined\}/);
+  });
+
+  it("clears selection with Escape or the non-interactive source header", () => {
+    assert.match(source, /event\.key === "Escape"/);
+    assert.match(source, /window\.addEventListener\("keydown", handleKeyDown\)/);
+    assert.match(source, /onPointerDown=\{handleHeaderPointerDown\}/);
+    assert.match(source, /closest\("button, input"\)/);
+    assert.match(source, /onClearSelection\(\)/);
+  });
+
+  it("supports keyboard activation for selectable rows", () => {
+    assert.match(source, /event\.key !== "Enter" && event\.key !== " "/);
+    assert.match(source, /onKeyDown=/);
+  });
+
+  it("reveals the primary matching selection without changing table filters", () => {
+    assert.match(source, /selectedLoadPointId: number \| null/);
+    assert.match(source, /const primarySelectedRowId = source\.kind === "load_points"/);
+    assert.match(source, /rows\.findIndex\(\(row\) => row\.id === primarySelectedRowId\)/);
+    assert.match(source, /scrollElement\.scrollTop = nextScrollTop/);
+    assert.match(source, /setScrollTop\(nextScrollTop\)/);
   });
 
   it("opens the first column filter toward the inside of the viewer", () => {

@@ -16,6 +16,21 @@ describe("App save and interface shortcuts", () => {
     assert.doesNotMatch(handler, /isEditableTarget\(event\.target\)/);
   });
 
+  it("shares viewer selection with the source data tables", () => {
+    assert.match(source, /clearReactViewerSelection/);
+    assert.match(source, /openReactViewerCpt/);
+    assert.match(source, /setReactViewerLoadPoints/);
+    assert.match(source, /addReactViewerLoadPoints/);
+    assert.match(source, /toggleReactViewerLoadPoint/);
+    assert.match(source, /selectedLoadPointId=\{projectState\.selectedLoadPointId\}/);
+    assert.match(source, /selectedLoadPointIds=\{projectState\.selectedLoadPointIds\}/);
+    assert.match(source, /selectedCptId=\{projectState\.selectedCptId\}/);
+    assert.match(source, /lockedLoadPointIds=\{activeLockedLoadPointIdSet\}/);
+    assert.match(source, /onSelectLoadPoints=\{handleSourceLoadPointSelection\}/);
+    assert.match(source, /onSelectCpt=\{handleSourceCptSelection\}/);
+    assert.match(source, /onClearSelection=\{clearSourceSelection\}/);
+  });
+
   it("loads, applies, and persists desktop interface scale", () => {
     assert.match(source, /createPlatformUserSettingsStore/);
     assert.match(source, /loadUserSettings/);
@@ -35,9 +50,9 @@ describe("App save and interface shortcuts", () => {
     assert.match(source, /onReset=\{\(\) => applyInterfaceScale\(DEFAULT_INTERFACE_SCALE\)\}/);
   });
 
-  it("releases pointer focus so Shift remains available for viewer selection", () => {
+  it("releases pointer focus so modifier keys remain available for viewer selection", () => {
     assert.match(source, /function releasePointerActivatedControlFocus/);
-    assert.match(source, /POINTER_FOCUS_CONTROL_SELECTOR = "button, \[role='option'\], \[role='tab'\]"/);
+    assert.match(source, /POINTER_FOCUS_CONTROL_SELECTOR = "button, \[role='option'\], \[role='tab'\], \[role='row'\]\[tabindex='0'\]"/);
     assert.match(source, /target\.closest<HTMLElement>\(POINTER_FOCUS_CONTROL_SELECTOR\)/);
     assert.match(source, /control\.blur\(\)/);
     assert.match(source, /className="app-shell"[\s\S]*?onPointerUpCapture=\{releasePointerActivatedControlFocus\}/);

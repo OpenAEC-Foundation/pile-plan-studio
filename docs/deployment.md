@@ -20,7 +20,7 @@ apps/pile-plan-studio/dist/
 ```
 
 Deploy the complete contents of this directory from one commit or release tag.
-For the current public alpha source, use release version `0.2.1-alpha`.
+For the current public alpha source, use release version `0.2.2-alpha`.
 
 ## Hosting Requirements
 
