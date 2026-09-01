@@ -16,6 +16,18 @@ export function aggregate_pile_options(request) {
  * @param {any} request
  * @returns {any}
  */
+export function apply_load_point_group_assignment(request) {
+    const ret = wasm.apply_load_point_group_assignment(request);
+    if (ret[2]) {
+        throw takeFromExternrefTable0(ret[1]);
+    }
+    return takeFromExternrefTable0(ret[0]);
+}
+
+/**
+ * @param {any} request
+ * @returns {any}
+ */
 export function build_spatial_neighborhood(request) {
     const ret = wasm.build_spatial_neighborhood(request);
     if (ret[2]) {
@@ -114,6 +126,18 @@ export function choose_default_options(request) {
  */
 export function cpt_frd_rows(request) {
     const ret = wasm.cpt_frd_rows(request);
+    if (ret[2]) {
+        throw takeFromExternrefTable0(ret[1]);
+    }
+    return takeFromExternrefTable0(ret[0]);
+}
+
+/**
+ * @param {any} request
+ * @returns {any}
+ */
+export function derive_load_point_groups(request) {
+    const ret = wasm.derive_load_point_groups(request);
     if (ret[2]) {
         throw takeFromExternrefTable0(ret[1]);
     }

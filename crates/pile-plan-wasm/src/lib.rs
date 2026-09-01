@@ -1,18 +1,21 @@
 use std::collections::HashMap;
 
 use pile_plan_core::{
-    aggregate_pile_options_for_load_points, bearing_capacity_rows_for_cpt,
-    build_pile_options_by_load_point, build_project_analysis,
+    aggregate_pile_options_for_load_points,
+    apply_load_point_group_assignment as apply_load_point_group_assignment_core,
+    bearing_capacity_rows_for_cpt, build_pile_options_by_load_point, build_project_analysis,
     build_spatial_neighborhood as build_spatial_neighborhood_core,
     build_tip_level_region_topology as build_tip_level_region_topology_core, calculate_pile_cost,
-    choose_default_pile_option, choose_default_pile_options, greedy_optimize_pile_choices,
+    choose_default_pile_option, choose_default_pile_options,
+    derive_load_point_groups as derive_load_point_groups_core, greedy_optimize_pile_choices,
     import_project_from_generic_sources_with_properties, preview_import_source,
     preview_pile_plan_import, refresh_project_from_profiled_sources, selected_cpts,
-    write_ifcpp_string, write_pile_plan_csv, write_pile_plan_xlsx, CptSelectionSettings,
-    GreedyOptimizationInput, ImportSource, PileConfigurationKey, PileConfigurationOption,
-    PileCostSettings, PilePlanExportRequest, PilePlanImportRequest, PilePlanProject,
-    ProjectBearingCapacity, ProjectCpt, ProjectLoadPoint, SpatialNeighborhood,
-    SpatialPileAssignment, TipLevelRegionTopology,
+    write_ifcpp_string, write_pile_plan_csv, write_pile_plan_xlsx,
+    ApplyLoadPointGroupAssignmentInput, ApplyLoadPointGroupAssignmentResult, CptSelectionSettings,
+    GreedyOptimizationInput, ImportSource, LoadPointGroup, LoadPointGroupingSettings,
+    PileConfigurationKey, PileConfigurationOption, PileCostSettings, PilePlanExportRequest,
+    PilePlanImportRequest, PilePlanProject, ProjectBearingCapacity, ProjectCpt, ProjectLoadPoint,
+    SpatialNeighborhood, SpatialPileAssignment, TipLevelRegionTopology,
 };
 use serde::{Deserialize, Serialize};
 use wasm_bindgen::prelude::*;
@@ -100,6 +103,11 @@ pub struct PreviewImportRequest {
 
 #[derive(Debug, Deserialize)]
 pub struct SpatialNeighborhoodRequest {
+    pub load_points: Vec<ProjectLoadPoint>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct DeriveLoadPointGroupsRequest {
     pub load_points: Vec<ProjectLoadPoint>,
 }
 
@@ -294,6 +302,22 @@ pub fn build_tip_level_region_topology(request: JsValue) -> Result<JsValue, JsVa
         &request.options_by_load_point,
     );
     to_js_value(&topology)
+}
+
+#[wasm_bindgen]
+pub fn derive_load_point_groups(request: JsValue) -> Result<JsValue, JsValue> {
+    let request: DeriveLoadPointGroupsRequest = from_js_value(request)?;
+    let groups: Vec<LoadPointGroup> =
+        derive_load_point_groups_core(&request.load_points, &LoadPointGroupingSettings::default());
+    to_js_value(&groups)
+}
+
+#[wasm_bindgen]
+pub fn apply_load_point_group_assignment(request: JsValue) -> Result<JsValue, JsValue> {
+    let request: ApplyLoadPointGroupAssignmentInput = from_js_value(request)?;
+    let result: ApplyLoadPointGroupAssignmentResult =
+        apply_load_point_group_assignment_core(&request);
+    to_js_value(&result)
 }
 
 fn from_js_value<T>(value: JsValue) -> Result<T, JsValue>
@@ -528,5 +552,51 @@ mod tests {
 
         assert!(neighborhood_request.load_points.is_empty());
         assert!(topology_request.neighborhood.sites.is_empty());
+    }
+
+    #[test]
+    fn load_point_group_requests_expose_core_results_for_browser_runtime() {
+        let request = DeriveLoadPointGroupsRequest {
+            load_points: vec![],
+        };
+        let groups = derive_load_point_groups_core(
+            &request.load_points,
+            &LoadPointGroupingSettings::default(),
+        );
+        let _derive_export: fn(JsValue) -> Result<JsValue, JsValue> = derive_load_point_groups;
+        let _assignment_export: fn(JsValue) -> Result<JsValue, JsValue> =
+            apply_load_point_group_assignment;
+
+        assert!(groups.is_empty());
+
+        let requested_configuration = PileConfigurationKey {
+            pile_size_mm: 320,
+            pile_tip_level_mm: -18_000,
+        };
+        let assignment =
+            apply_load_point_group_assignment_core(&ApplyLoadPointGroupAssignmentInput {
+                selected_load_point_ids: vec![2],
+                groups: vec![LoadPointGroup {
+                    load_point_ids: vec![1, 2],
+                }],
+                requested_configuration: requested_configuration.clone(),
+                current_assignments: HashMap::new(),
+                locked_load_point_ids: vec![],
+            });
+        assert_eq!(
+            assignment,
+            ApplyLoadPointGroupAssignmentResult::Applied {
+                changes: vec![
+                    pile_plan_core::LoadPointGroupAssignmentChange {
+                        load_point_id: 1,
+                        configuration: requested_configuration.clone(),
+                    },
+                    pile_plan_core::LoadPointGroupAssignmentChange {
+                        load_point_id: 2,
+                        configuration: requested_configuration,
+                    },
+                ],
+            }
+        );
     }
 }

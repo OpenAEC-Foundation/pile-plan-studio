@@ -1,16 +1,21 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 use pile_plan_core::{
-    aggregate_pile_options_for_load_points, bearing_capacity_rows_for_cpt,
+    aggregate_pile_options_for_load_points,
+    apply_load_point_group_assignment as apply_load_point_group_assignment_core,
+    bearing_capacity_rows_for_cpt,
     build_pile_options_by_load_point, build_project_analysis,
     build_spatial_neighborhood as build_spatial_neighborhood_core,
     build_tip_level_region_topology as build_tip_level_region_topology_core, calculate_pile_cost,
     choose_default_pile_option, choose_default_pile_options, greedy_optimize_pile_choices,
+    derive_load_point_groups as derive_load_point_groups_core,
     import_project_from_generic_sources_with_properties, preview_import_source,
     preview_pile_plan_import, refresh_project_from_profiled_sources, selected_cpts,
     write_pile_plan_csv as write_pile_plan_csv_bytes,
     write_pile_plan_xlsx as write_pile_plan_xlsx_bytes, CptSelectionSettings,
-    AggregatedPileConfiguration, GreedyOptimizationInput, GreedyOptimizationResult, ImportSource, ImportSourcePreview,
+    AggregatedPileConfiguration, ApplyLoadPointGroupAssignmentInput,
+    ApplyLoadPointGroupAssignmentResult, GreedyOptimizationInput, GreedyOptimizationResult,
+    ImportSource, ImportSourcePreview, LoadPointGroup, LoadPointGroupingSettings,
     PileConfigurationKey, PileConfigurationOption, PileCostSettings, PilePlanExportRequest,
     PilePlanImportPreview, PilePlanImportRequest, PilePlanProject, ProjectAnalysisResult,
     ProjectBearingCapacity, ProjectCpt, ProjectLoadPoint, SelectedCpt, SpatialNeighborhood,
@@ -102,6 +107,11 @@ struct PreviewImportRequest {
 
 #[derive(Debug, Deserialize)]
 struct SpatialNeighborhoodRequest {
+    load_points: Vec<ProjectLoadPoint>,
+}
+
+#[derive(Debug, Deserialize)]
+struct DeriveLoadPointGroupsRequest {
     load_points: Vec<ProjectLoadPoint>,
 }
 
@@ -282,12 +292,28 @@ fn build_tip_level_region_topology(
     )
 }
 
+#[tauri::command(rename_all = "snake_case")]
+fn derive_load_point_groups(request: DeriveLoadPointGroupsRequest) -> Vec<LoadPointGroup> {
+    derive_load_point_groups_core(
+        &request.load_points,
+        &LoadPointGroupingSettings::default(),
+    )
+}
+
+#[tauri::command(rename_all = "snake_case")]
+fn apply_load_point_group_assignment(
+    request: ApplyLoadPointGroupAssignmentInput,
+) -> ApplyLoadPointGroupAssignmentResult {
+    apply_load_point_group_assignment_core(&request)
+}
+
 fn main() {
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_store::Builder::default().build())
         .invoke_handler(tauri::generate_handler![
             aggregate_pile_options,
+            apply_load_point_group_assignment,
             build_spatial_neighborhood,
             build_tip_level_region_topology,
             calculate_selected_cpts,
@@ -297,6 +323,7 @@ fn main() {
             choose_default_option,
             choose_default_options,
             cpt_frd_rows,
+            derive_load_point_groups,
             greedy_optimize,
             import_project_from_files,
             refresh_project_from_files,
@@ -352,5 +379,34 @@ mod tests {
         assert_eq!(result[0].configuration.pile_tip_level_mm, -18_500);
         assert_eq!(result[0].maximum_utilization, Some(0.82));
         assert_eq!(result[0].critical_load_point_id, Some(7));
+    }
+
+    #[test]
+    fn load_point_group_commands_return_core_results() {
+        let groups = derive_load_point_groups(DeriveLoadPointGroupsRequest {
+            load_points: vec![],
+        });
+        let requested_configuration = PileConfigurationKey {
+            pile_size_mm: 320,
+            pile_tip_level_mm: -18_000,
+        };
+        let result = apply_load_point_group_assignment(
+            pile_plan_core::ApplyLoadPointGroupAssignmentInput {
+                selected_load_point_ids: vec![2],
+                groups: vec![pile_plan_core::LoadPointGroup {
+                    load_point_ids: vec![1, 2],
+                }],
+                requested_configuration,
+                current_assignments: HashMap::new(),
+                locked_load_point_ids: vec![],
+            },
+        );
+
+        assert!(groups.is_empty());
+        assert!(matches!(
+            result,
+            pile_plan_core::ApplyLoadPointGroupAssignmentResult::Applied { changes }
+                if changes.len() == 2
+        ));
     }
 }
