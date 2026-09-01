@@ -86,6 +86,7 @@ body {
 }
 
 .app-shell {
+  --titlebar-height: 32px;
   display: flex;
   flex-direction: column;
   width: 100%;

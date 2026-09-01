@@ -8,6 +8,9 @@ const viewer = read("components/domain/PilePlanViewer.tsx");
 const ribbon = read("components/template/ribbon/Ribbon.tsx");
 const modal = read("components/template/Modal.tsx");
 const app = read("App.tsx");
+const appStyles = read("App.css");
+const titleBarStyles = read("components/template/TitleBar.css");
+const ribbonStyles = read("components/template/ribbon/Ribbon.css");
 const baseline = read("domain/uiBaseline.ts");
 const scaleRuntime = read("domain/interfaceScaleRuntime.ts");
 
@@ -30,5 +33,16 @@ describe("compact browser geometry integration", () => {
     assert.match(baseline, /compact-application-baseline/);
     assert.match(scaleRuntime, /normalizeInterfaceScale\(scalePercent\) \/ 100/);
     assert.doesNotMatch(scaleRuntime, /BROWSER_BASELINE_ZOOM/);
+  });
+
+  it("keeps the fixed title bar border inside the height reserved by the ribbon", () => {
+    const shellRule = appStyles.match(/\.app-shell\s*\{([\s\S]*?)\}/)?.[1] ?? "";
+    const titleBarRule = titleBarStyles.match(/\.titlebar\s*\{([\s\S]*?)\}/)?.[1] ?? "";
+    const ribbonRule = ribbonStyles.match(/\.ribbon-container\s*\{([\s\S]*?)\}/)?.[1] ?? "";
+
+    assert.match(shellRule, /--titlebar-height:\s*32px/);
+    assert.match(titleBarRule, /box-sizing:\s*border-box/);
+    assert.match(titleBarRule, /height:\s*var\(--titlebar-height\)/);
+    assert.match(ribbonRule, /margin-top:\s*var\(--titlebar-height\)/);
   });
 });
