@@ -48,6 +48,6 @@ export function summarizeOptimizationRun(
     noValidOptionCount,
     optimizerUnassignedCount: unassigned.length - noValidOptionCount,
     unresolvedGroupCount: unassignedGroupCount,
-    unresolvedLoadPointCount: unassigned.length,
+    unresolvedLoadPointCount: unassigned.length - noValidOptionCount,
   };
 }

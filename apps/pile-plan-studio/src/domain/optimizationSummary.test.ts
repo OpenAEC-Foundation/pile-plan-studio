@@ -47,7 +47,28 @@ describe("optimization summary", () => {
       noValidOptionCount: 2,
       optimizerUnassignedCount: 2,
       unresolvedGroupCount: 2,
-      unresolvedLoadPointCount: 4,
+      unresolvedLoadPointCount: 2,
+    });
+  });
+
+  it("does not repeat technically invalid load points in the unresolved group total", () => {
+    const summary = summarizeOptimizationRun(
+      new Map(),
+      [],
+      [
+        { load_point_id: 1, reason: "no_valid_option" },
+        { load_point_id: 2, reason: "no_valid_option" },
+      ],
+      0,
+    );
+
+    assert.deepEqual(summary, {
+      assignedCount: 0,
+      changedCount: 0,
+      noValidOptionCount: 2,
+      optimizerUnassignedCount: 0,
+      unresolvedGroupCount: 0,
+      unresolvedLoadPointCount: 0,
     });
   });
 });

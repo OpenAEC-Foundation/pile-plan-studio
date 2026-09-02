@@ -490,7 +490,7 @@ mod tests {
         assert!(matches!(
             result,
             pile_plan_core::GreedyOptimizationOutcome::Completed { result }
-                if result.unassigned_group_count == 1
+                if result.unassigned_group_count == 0
                     && result.unassigned.len() == 1
         ));
     }

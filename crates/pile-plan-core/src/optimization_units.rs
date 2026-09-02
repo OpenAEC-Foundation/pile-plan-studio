@@ -30,6 +30,7 @@ pub struct OptimizationUnit {
     pub load_point_ids: Vec<u32>,
     pub forced_configuration: Option<PileConfigurationKey>,
     pub has_technically_valid_configuration: bool,
+    pub technically_valid_load_point_ids: Vec<u32>,
     pub options: Vec<OptimizationUnitOption>,
 }
 
@@ -142,6 +143,13 @@ pub fn prepare_optimization_units(
         let has_technically_valid_configuration = aggregates
             .iter()
             .any(|candidate| candidate.status == AggregatedPileConfigurationStatus::Valid);
+        let technically_valid_load_point_ids = member_options
+            .iter()
+            .filter(|(_, options)| options.iter().any(|option| option.is_option))
+            .map(|(load_point_id, _)| *load_point_id)
+            .collect::<BTreeSet<_>>()
+            .into_iter()
+            .collect::<Vec<_>>();
         let locked_members = group
             .load_point_ids
             .iter()
@@ -276,6 +284,7 @@ pub fn prepare_optimization_units(
             load_point_ids: group.load_point_ids,
             forced_configuration,
             has_technically_valid_configuration,
+            technically_valid_load_point_ids,
             options,
         });
     }

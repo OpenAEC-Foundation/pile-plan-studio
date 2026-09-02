@@ -336,27 +336,32 @@ fn expand_unit_results(
                 });
             }
         } else {
-            if unit
+            let has_unlocked_member = unit
                 .load_point_ids
                 .iter()
-                .any(|load_point_id| !locked_load_point_ids.contains(load_point_id))
-            {
+                .any(|load_point_id| !locked_load_point_ids.contains(load_point_id));
+            let is_group_constraint = !unit.options.is_empty()
+                || unit.has_technically_valid_configuration
+                || !unit.technically_valid_load_point_ids.is_empty();
+            if has_unlocked_member && is_group_constraint {
                 unassigned_group_count += 1;
             }
-            let reason = if unit.options.is_empty() {
-                if unit.has_technically_valid_configuration {
-                    GreedyUnassignedReason::OptimizationConstraints
-                } else {
-                    GreedyUnassignedReason::NoValidOption
-                }
-            } else {
-                GreedyUnassignedReason::ConfigurationLimits
-            };
             for load_point_id in &unit.load_point_ids {
                 if !locked_load_point_ids.contains(load_point_id) {
+                    let reason = if !unit.options.is_empty() {
+                        GreedyUnassignedReason::ConfigurationLimits
+                    } else if unit.has_technically_valid_configuration
+                        || unit
+                            .technically_valid_load_point_ids
+                            .contains(load_point_id)
+                    {
+                        GreedyUnassignedReason::OptimizationConstraints
+                    } else {
+                        GreedyUnassignedReason::NoValidOption
+                    };
                     unassigned.push(GreedyUnassignedLoadPoint {
                         load_point_id: *load_point_id,
-                        reason: reason.clone(),
+                        reason,
                     });
                 }
             }
@@ -537,6 +542,7 @@ mod tests {
             load_point_ids: load_point_ids.to_vec(),
             forced_configuration,
             has_technically_valid_configuration: true,
+            technically_valid_load_point_ids: load_point_ids.to_vec(),
             options,
         }
     }
@@ -635,7 +641,7 @@ mod tests {
     }
 
     #[test]
-    fn group_without_a_common_technically_valid_configuration_is_unassigned() {
+    fn group_with_individually_valid_but_no_common_configuration_is_unresolved() {
         let input = optimization_input(
             vec![group(&[1, 2])],
             HashMap::from([
@@ -656,14 +662,34 @@ mod tests {
             vec![
                 GreedyUnassignedLoadPoint {
                     load_point_id: 1,
-                    reason: GreedyUnassignedReason::NoValidOption,
+                    reason: GreedyUnassignedReason::OptimizationConstraints,
                 },
                 GreedyUnassignedLoadPoint {
                     load_point_id: 2,
-                    reason: GreedyUnassignedReason::NoValidOption,
+                    reason: GreedyUnassignedReason::OptimizationConstraints,
                 },
             ],
         );
+    }
+
+    #[test]
+    fn group_whose_members_all_lack_valid_options_is_not_counted_as_unresolved() {
+        let input = optimization_input(
+            vec![group(&[1, 2])],
+            HashMap::from([(1, vec![]), (2, vec![])]),
+        );
+
+        let GreedyOptimizationOutcome::Completed { result } = greedy_optimize_pile_choices(&input)
+        else {
+            panic!("an analyzed group without options should not block optimization");
+        };
+
+        assert!(result.assignments.is_empty());
+        assert_eq!(result.unassigned_group_count, 0);
+        assert!(result
+            .unassigned
+            .iter()
+            .all(|item| item.reason == GreedyUnassignedReason::NoValidOption));
     }
 
     #[test]
@@ -712,10 +738,19 @@ mod tests {
 
         assert!(result.assignments.is_empty());
         assert_eq!(result.unassigned_group_count, 1);
-        assert!(result
-            .unassigned
-            .iter()
-            .all(|item| { item.reason == GreedyUnassignedReason::NoValidOption }));
+        assert_eq!(
+            result.unassigned,
+            vec![
+                GreedyUnassignedLoadPoint {
+                    load_point_id: 1,
+                    reason: GreedyUnassignedReason::OptimizationConstraints,
+                },
+                GreedyUnassignedLoadPoint {
+                    load_point_id: 2,
+                    reason: GreedyUnassignedReason::NoValidOption,
+                },
+            ],
+        );
     }
 
     #[test]
