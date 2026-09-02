@@ -245,17 +245,17 @@ git commit -m "feat: expose grouped greedy outcomes"
 - Consumes: `LoadPointGroup[]`, maps of options/current assignments, nullable pile-head level, cost settings, and current greedy settings.
 - Produces: browser and desktop request DTOs plus normalized `GreedyOptimizationOutcome` discriminated unions.
 
-- [ ] **Step 1: Write failing request and outcome contract tests**
+- [x] **Step 1: Write failing request and outcome contract tests**
 
 Assert that browser requests retain numeric `Map` keys, desktop requests contain string-keyed records, group arrays are cloned, `pile_head_level_m` remains `null`, and both completed/blocked outcomes are deeply normalized without shared mutable arrays.
 
-- [ ] **Step 2: Run the contract test and verify RED**
+- [x] **Step 2: Run the contract test and verify RED**
 
 Run: `node --test src/core/greedyOptimizationContract.test.ts`
 
 Expected: module-not-found or missing-export failure.
 
-- [ ] **Step 3: Implement the focused contract**
+- [x] **Step 3: Implement the focused contract**
 
 Define:
 
@@ -267,11 +267,11 @@ export type GreedyOptimizationOutcome =
 
 Define the diagnostic-kind union including `invalid_group_partition`, and create `toBrowserGreedyOptimizationRequest`, `toDesktopGreedyOptimizationRequest`, and `greedyOptimizationOutcomeFromCore`. Reuse `toWasmNumberKeyedMap`, `toStringKeyedRecord`, pile-option conversion, and `loadPointGroupsFromCore`.
 
-- [ ] **Step 4: Verify both serialization paths through the pure contract**
+- [x] **Step 4: Verify both serialization paths through the pure contract**
 
 Exercise both request serializers with the same semantic input and assert that only the required map representation differs. Exercise `greedyOptimizationOutcomeFromCore` for both status variants. Leave `coreClient.ts` unchanged until Task 5 so this checkpoint remains type-correct and independently usable.
 
-- [ ] **Step 5: Run focused tests and typecheck**
+- [x] **Step 5: Run focused tests and typecheck**
 
 Run: `node --test src/core/greedyOptimizationContract.test.ts`
 
@@ -279,7 +279,7 @@ Run: `npx tsc -p tsconfig.json --noEmit`
 
 Expected: contract tests and the complete TypeScript typecheck pass.
 
-- [ ] **Step 6: Commit the TypeScript contract**
+- [x] **Step 6: Commit the TypeScript contract**
 
 ```powershell
 git add apps/pile-plan-studio/src/core/greedyOptimizationContract.ts apps/pile-plan-studio/src/core/greedyOptimizationContract.test.ts apps/pile-plan-studio/src/core/projectTypes.ts

@@ -59,7 +59,7 @@ export function toBrowserAggregatePileOptionsRequest(
   optionsByLoadPoint: Map<number, PileConfigurationOption[]>,
 ): BrowserAggregatePileOptionsRequest {
   return {
-    options_by_load_point: toWasmNumberKeyedMap(toCoreOptionsByLoadPoint(optionsByLoadPoint)),
+    options_by_load_point: toWasmNumberKeyedMap(toCorePileOptionsByLoadPoint(optionsByLoadPoint)),
   };
 }
 
@@ -67,11 +67,11 @@ export function toDesktopAggregatePileOptionsRequest(
   optionsByLoadPoint: Map<number, PileConfigurationOption[]>,
 ): DesktopAggregatePileOptionsRequest {
   return {
-    options_by_load_point: toStringKeyedRecord(toCoreOptionsByLoadPoint(optionsByLoadPoint)),
+    options_by_load_point: toStringKeyedRecord(toCorePileOptionsByLoadPoint(optionsByLoadPoint)),
   };
 }
 
-function toCoreOptionsByLoadPoint(
+export function toCorePileOptionsByLoadPoint(
   optionsByLoadPoint: Map<number, PileConfigurationOption[]>,
 ): Map<number, CorePileConfigurationOption[]> {
   return new Map(

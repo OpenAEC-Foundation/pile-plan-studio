@@ -145,6 +145,27 @@ export type GreedyOptimizationResult = {
   configuration_count: number;
 };
 
+export type OptimizationPreparationDiagnosticKind =
+  | "invalid_group_partition"
+  | "missing_pile_head_level"
+  | "missing_analysis_data"
+  | "conflicting_locked_configurations"
+  | "locked_member_unassigned"
+  | "locked_configuration_unavailable"
+  | "locked_configuration_exceeds_utilization_limit"
+  | "missing_relevant_cost"
+  | "no_eligible_configuration";
+
+export type OptimizationPreparationDiagnostic = {
+  kind: OptimizationPreparationDiagnosticKind;
+  load_point_ids: number[];
+  configuration: PileConfigurationKey | null;
+};
+
+export type GreedyOptimizationOutcome =
+  | { status: "completed"; result: GreedyOptimizationResult }
+  | { status: "blocked"; diagnostics: OptimizationPreparationDiagnostic[] };
+
 export type PileCostShape = "round" | "square";
 
 export type PileCostSettings = {
