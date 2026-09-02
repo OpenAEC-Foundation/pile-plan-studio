@@ -16,18 +16,21 @@ pub mod spatial;
 pub use analysis::{
     bearing_capacity_rows_for_cpt, bearing_capacity_summary, build_pile_options_by_load_point,
     build_project_analysis, calculate_pile_cost, choose_default_pile_option,
-    choose_default_pile_options, greedy_optimize_pile_choices, manually_selected_cpts,
-    pile_configuration_options, selected_cpts, selected_cpts_by_maximum_angle,
-    selected_cpts_by_quadrant, BearingCapacity as ProjectBearingCapacity, BearingCapacitySummary,
-    Cpt as ProjectCpt, CptBearingCapacityRow, CptSelectionAlgorithm, CptSelectionSettings,
-    GreedyOptimizationInput, GreedyOptimizationResult, GreedyOptimizationSettings,
-    GreedyOptimizedPileChoice, GreedyUnassignedLoadPoint, GreedyUnassignedReason,
-    LoadPoint as ProjectLoadPoint, OptimizationLimitScope, PileConfigurationOption,
-    PileCostSettings, PileCostSettingsItem, PileCostShape, ProjectAnalysisResult, SelectedCpt,
+    choose_default_pile_options, manually_selected_cpts, pile_configuration_options, selected_cpts,
+    selected_cpts_by_maximum_angle, selected_cpts_by_quadrant,
+    BearingCapacity as ProjectBearingCapacity, BearingCapacitySummary, Cpt as ProjectCpt,
+    CptBearingCapacityRow, CptSelectionAlgorithm, CptSelectionSettings,
+    LoadPoint as ProjectLoadPoint, PileConfigurationOption, PileCostSettings, PileCostSettingsItem,
+    PileCostShape, ProjectAnalysisResult, SelectedCpt,
 };
 pub use export::{
     build_pile_plan_export_rows, write_pile_plan_csv, write_pile_plan_xlsx, ExportError,
     PilePlanExportRequest, PilePlanExportRow, PILE_PLAN_EXPORT_HEADERS,
+};
+pub use greedy_optimizer::{
+    greedy_optimize_pile_choices, GreedyOptimizationInput, GreedyOptimizationOutcome,
+    GreedyOptimizationResult, GreedyOptimizationSettings, GreedyOptimizedPileChoice,
+    GreedyUnassignedLoadPoint, GreedyUnassignedReason, OptimizationLimitScope,
 };
 pub use ifcpp::{read_ifcpp_str, validate_ifcpp_project, write_ifcpp_string, IfcppError};
 pub use import::{

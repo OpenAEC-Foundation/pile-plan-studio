@@ -100,12 +100,13 @@ git commit -m "feat: select complete optimization target groups"
 - Modify: `crates/pile-plan-core/src/greedy_optimizer.rs`
 - Modify: `crates/pile-plan-core/src/analysis.rs`
 - Modify: `crates/pile-plan-core/src/lib.rs`
+- Modify: `crates/pile-plan-core/src/project.rs`
 
 **Interfaces:**
 - Consumes: `prepare_optimization_units(&PrepareOptimizationUnitsInput) -> OptimizationPreparationResult` and canonical unit options with concrete `total_cost`.
 - Produces: `greedy_optimize_pile_choices(&GreedyOptimizationInput) -> GreedyOptimizationOutcome` plus the existing completed `GreedyOptimizationResult` payload.
 
-- [ ] **Step 1: Write failing tests for completed, grouped, forced, and blocked runs**
+- [x] **Step 1: Write failing tests for completed, grouped, forced, and blocked runs**
 
 Cover at minimum:
 
@@ -125,13 +126,13 @@ assert!(matches!(
 
 Add explicit cases for a six-member unit outweighing a singleton in coverage, total unit cost breaking equal-coverage ties, a forced configuration propagating only to unlocked members, non-target groups not blocking, and whole-plan baselines excluding expanded target members.
 
-- [ ] **Step 2: Run the focused tests and verify RED**
+- [x] **Step 2: Run the focused tests and verify RED**
 
 Run: `cargo test -p pile-plan-core greedy_optimizer::tests --no-fail-fast`
 
 Expected: failures because the public input/outcome and unit solver are incomplete.
 
-- [ ] **Step 3: Move greedy-owned DTOs and implement the tagged outcome**
+- [x] **Step 3: Move greedy-owned DTOs and implement the tagged outcome**
 
 Move `GreedyOptimizationSettings`, `OptimizationLimitScope`, `GreedyOptimizationInput`, `GreedyOptimizedPileChoice`, `GreedyUnassignedReason`, `GreedyUnassignedLoadPoint`, and `GreedyOptimizationResult` from `analysis.rs` to `greedy_optimizer.rs`.
 
@@ -148,13 +149,13 @@ pub enum GreedyOptimizationOutcome {
 
 Add `groups: Vec<LoadPointGroup>` and change `pile_head_level_m` to `Option<f64>` on `GreedyOptimizationInput`. Re-export all moved public types from `lib.rs`.
 
-- [ ] **Step 4: Implement the outer preparation adapter**
+- [x] **Step 4: Implement the outer preparation adapter**
 
 Select target groups in Rust, compute the expanded target ID set, construct canonical `OptimizationCandidateSettings`, and call `prepare_optimization_units` once. Convert every legacy enabled metre tip with `PileConfigurationKey::from_metres(0, level).pile_tip_level_mm` or the focused canonical helper.
 
 If group validation or preparation yields diagnostics, return `Blocked` immediately. For `whole-plan`, build baseline keys only from assignments outside the expanded target.
 
-- [ ] **Step 5: Implement greedy scoring and selection over units**
+- [x] **Step 5: Implement greedy scoring and selection over units**
 
 Use a score with the exact ordering:
 
@@ -170,24 +171,24 @@ For each unit, choose its minimum-cost option whose configuration is selected. S
 
 Permit a candidate when its union with baseline, forced, and already selected keys stays within every limit. If a fixed baseline already exceeds a limit, permit only candidates that do not increase any exceeded count; reusing an already-counted key remains legal.
 
-- [ ] **Step 6: Expand results atomically to group members**
+- [x] **Step 6: Expand results atomically to group members**
 
 For a covered unit, output its chosen configuration for every unlocked member. Do not output locked members as changed or unassigned. For an uncovered unforced unit, output `configuration_limits` for every member. Sort assignments and unassigned entries by load-point ID and calculate summary counts from the union of baseline and selected canonical keys.
 
-- [ ] **Step 7: Adapt the existing singleton regression tests**
+- [x] **Step 7: Adapt the existing singleton regression tests**
 
 Move greedy tests out of `analysis.rs`, construct singleton `LoadPointGroup`s in shared test helpers, unwrap only `Completed` outcomes, and preserve current expected assignments and deterministic ordering. Update the missing/invalid cases to expect `Blocked` preparation diagnostics where the approved group spec strengthened behavior.
 
-- [ ] **Step 8: Run the core suite and verify GREEN**
+- [x] **Step 8: Run the core suite and verify GREEN**
 
 Run: `cargo test -p pile-plan-core --no-fail-fast`
 
 Expected: all core tests pass.
 
-- [ ] **Step 9: Commit the unit solver**
+- [x] **Step 9: Commit the unit solver**
 
 ```powershell
-git add crates/pile-plan-core/src/analysis.rs crates/pile-plan-core/src/greedy_optimizer.rs crates/pile-plan-core/src/lib.rs
+git add crates/pile-plan-core/src/analysis.rs crates/pile-plan-core/src/greedy_optimizer.rs crates/pile-plan-core/src/lib.rs crates/pile-plan-core/src/project.rs docs/superpowers/plans/2026-09-02-greedy-optimization-units.md
 git commit -m "feat: run greedy optimization over grouped units"
 ```
 

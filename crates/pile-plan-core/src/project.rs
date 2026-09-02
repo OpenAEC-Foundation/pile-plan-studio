@@ -4,10 +4,8 @@ use serde::{de::Error as _, Deserialize, Deserializer, Serialize, Serializer};
 
 use crate::import::{ImportProfile, ImportRole, SourceFormat};
 
-use crate::analysis::{
-    BearingCapacity, Cpt, CptSelectionSettings, GreedyOptimizationSettings, GreedyUnassignedReason,
-    LoadPoint, PileCostSettings,
-};
+use crate::analysis::{BearingCapacity, Cpt, CptSelectionSettings, LoadPoint, PileCostSettings};
+use crate::greedy_optimizer::{GreedyOptimizationSettings, GreedyUnassignedReason};
 use crate::pile_configuration::PileConfigurationKey;
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
@@ -406,10 +404,7 @@ mod tests {
         let mut project = sample_project();
         project.user_state.pile_plans[0]
             .optimization_unassigned
-            .insert(
-                7,
-                crate::analysis::GreedyUnassignedReason::ConfigurationLimits,
-            );
+            .insert(7, crate::GreedyUnassignedReason::ConfigurationLimits);
 
         let value = serde_json::to_value(&project).expect("project serializes");
         let restored: PilePlanProject =
@@ -419,7 +414,7 @@ mod tests {
             restored.user_state.pile_plans[0]
                 .optimization_unassigned
                 .get(&7),
-            Some(&crate::analysis::GreedyUnassignedReason::ConfigurationLimits),
+            Some(&crate::GreedyUnassignedReason::ConfigurationLimits),
         );
     }
 
