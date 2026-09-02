@@ -14,7 +14,7 @@ use pile_plan_core::{
     write_pile_plan_csv as write_pile_plan_csv_bytes,
     write_pile_plan_xlsx as write_pile_plan_xlsx_bytes, CptSelectionSettings,
     AggregatedPileConfiguration, ApplyLoadPointGroupAssignmentInput,
-    ApplyLoadPointGroupAssignmentResult, GreedyOptimizationInput, GreedyOptimizationResult,
+    ApplyLoadPointGroupAssignmentResult, GreedyOptimizationInput, GreedyOptimizationOutcome,
     ImportSource, ImportSourcePreview, LoadPointGroup, LoadPointGroupingSettings,
     PileConfigurationKey, PileConfigurationOption, PileCostSettings, PilePlanExportRequest,
     PilePlanImportPreview, PilePlanImportRequest, PilePlanProject, ProjectAnalysisResult,
@@ -220,7 +220,7 @@ fn cpt_frd_rows(request: CptFrdRowsRequest) -> Vec<pile_plan_core::CptBearingCap
 }
 
 #[tauri::command(rename_all = "snake_case")]
-fn greedy_optimize(request: GreedyOptimizationInput) -> GreedyOptimizationResult {
+fn greedy_optimize(request: GreedyOptimizationInput) -> GreedyOptimizationOutcome {
     greedy_optimize_pile_choices(&request)
 }
 
@@ -407,6 +407,38 @@ mod tests {
             result,
             pile_plan_core::ApplyLoadPointGroupAssignmentResult::Applied { changes }
                 if changes.len() == 2
+        ));
+    }
+
+    #[test]
+    fn greedy_optimize_command_returns_the_tagged_core_outcome() {
+        let outcome = greedy_optimize(GreedyOptimizationInput {
+            groups: vec![LoadPointGroup {
+                load_point_ids: vec![1],
+            }],
+            options_by_load_point: HashMap::from([(1, vec![])]),
+            target_load_point_ids: vec![1],
+            locked_load_point_ids: vec![],
+            current_assignments: HashMap::new(),
+            limit_scope: pile_plan_core::OptimizationLimitScope::Target,
+            pile_head_level_m: None,
+            cost_settings: PileCostSettings {
+                schema_version: 1,
+                items: vec![],
+            },
+            settings: pile_plan_core::GreedyOptimizationSettings {
+                max_pile_sizes: 1,
+                max_pile_tip_levels: 1,
+                max_pile_configurations: 1,
+                max_utilization: 1.0,
+                enabled_pile_sizes: vec![320],
+                enabled_pile_tip_levels: vec![-18.0],
+            },
+        });
+
+        assert!(matches!(
+            outcome,
+            pile_plan_core::GreedyOptimizationOutcome::Blocked { .. }
         ));
     }
 }

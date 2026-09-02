@@ -450,6 +450,9 @@ mod tests {
     #[test]
     fn greedy_optimizer_uses_the_shared_core_request_and_result() {
         let request = GreedyOptimizationInput {
+            groups: vec![LoadPointGroup {
+                load_point_ids: vec![1],
+            }],
             options_by_load_point: HashMap::from([(1, vec![])]),
             target_load_point_ids: vec![1],
             locked_load_point_ids: vec![],
@@ -461,7 +464,7 @@ mod tests {
                 },
             )]),
             limit_scope: OptimizationLimitScope::WholePlan,
-            pile_head_level_m: -3.5,
+            pile_head_level_m: Some(-3.5),
             cost_settings: PileCostSettings {
                 schema_version: 1,
                 items: vec![],
@@ -478,10 +481,11 @@ mod tests {
 
         let result = greedy_optimize_pile_choices(&request);
 
-        assert_eq!(result.unassigned[0].load_point_id, 1);
-        assert_eq!(result.pile_size_count, 1);
-        assert_eq!(result.pile_tip_level_count, 1);
-        assert_eq!(result.configuration_count, 1);
+        assert!(matches!(
+            result,
+            pile_plan_core::GreedyOptimizationOutcome::Blocked { diagnostics }
+                if diagnostics.len() == 1
+        ));
     }
 
     #[test]

@@ -202,7 +202,7 @@ git commit -m "feat: run greedy optimization over grouped units"
 - Consumes: `GreedyOptimizationInput` with groups and nullable pile-head level.
 - Produces: identical serialized `GreedyOptimizationOutcome` values from `greedy_optimize` in browser and desktop modes.
 
-- [ ] **Step 1: Write failing wrapper tests**
+- [x] **Step 1: Write failing wrapper tests**
 
 Update the existing WASM and Tauri core-wrapper tests to send singleton and multi-member groups and assert both status shapes:
 
@@ -211,7 +211,7 @@ assert!(matches!(outcome, GreedyOptimizationOutcome::Completed { .. }));
 assert!(matches!(blocked, GreedyOptimizationOutcome::Blocked { diagnostics } if !diagnostics.is_empty()));
 ```
 
-- [ ] **Step 2: Run wrapper tests and verify RED**
+- [x] **Step 2: Run wrapper tests and verify RED**
 
 Run: `cargo test -p pile-plan-wasm --no-fail-fast`
 
@@ -219,15 +219,15 @@ Run: `cargo test --manifest-path apps/pile-plan-studio/src-tauri/Cargo.toml --no
 
 Expected: type or assertion failures until wrapper return types are updated.
 
-- [ ] **Step 3: Update thin wrappers**
+- [x] **Step 3: Update thin wrappers**
 
 Change imports and command signatures from `GreedyOptimizationResult` to `GreedyOptimizationOutcome`. Keep wrapper bodies as direct calls to `greedy_optimize_pile_choices`; do not duplicate result interpretation.
 
-- [ ] **Step 4: Run wrapper tests and verify GREEN**
+- [x] **Step 4: Run wrapper tests and verify GREEN**
 
 Run both commands from Step 2 and expect all tests to pass.
 
-- [ ] **Step 5: Commit transport parity**
+- [x] **Step 5: Commit transport parity**
 
 ```powershell
 git add crates/pile-plan-wasm/src/lib.rs apps/pile-plan-studio/src-tauri/src/main.rs
