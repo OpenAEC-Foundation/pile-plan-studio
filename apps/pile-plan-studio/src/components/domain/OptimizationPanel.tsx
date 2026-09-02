@@ -2,7 +2,11 @@ import { useEffect, useId, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { ProjectState } from "../../domain/projectState.ts";
 import ThemedNumberInput from "../template/ThemedNumberInput.tsx";
-import { clampOptimizationLimits } from "./optimizationPanelModel.ts";
+import { selectLoadPoint } from "../../domain/selectionState.ts";
+import {
+  clampOptimizationLimits,
+  splitOptimizationErrorLoadPoints,
+} from "./optimizationPanelModel.ts";
 
 type Props = {
   state: ProjectState;
@@ -22,6 +26,12 @@ export default function OptimizationPanel({ state, onStateChange, onRunOptimizat
   }, activeSizes, activeTips);
   const hasTarget = state.optimizationTargetScope === "all" || state.selectedLoadPointIds.length > 0;
   const disabled = state.optimizationRunning || activeSizes.length === 0 || activeTips.length === 0 || !hasTarget;
+  const optimizationErrorParts = state.optimizationError
+    ? splitOptimizationErrorLoadPoints(
+        state.optimizationError,
+        state.optimizationErrorLoadPointIds,
+      )
+    : null;
 
   function updateScope(patch: Partial<Pick<
     ProjectState,
@@ -122,11 +132,35 @@ export default function OptimizationPanel({ state, onStateChange, onRunOptimizat
         </section>
         {activeSizes.length === 0 || activeTips.length === 0 ? <p className="panel-message is-warning">{t("optimization.enableLegend")}</p> : null}
         {!hasTarget ? <p className="panel-message is-warning">{t("optimization.selectLoadPoints")}</p> : null}
-        {state.optimizationError ? <p className="panel-message is-error">{state.optimizationError}</p> : null}
+        {state.optimizationError ? (
+          <p className="panel-message is-error">
+            {optimizationErrorParts ? <>
+              {optimizationErrorParts.before}
+              {optimizationErrorParts.loadPointIds.map((loadPointId, index) => <span key={loadPointId}>
+                {index > 0 ? ", " : null}
+                <button
+                  className="optimization-load-point-link"
+                  type="button"
+                  onClick={() => onStateChange({
+                    ...state,
+                    ...selectLoadPoint(state, loadPointId),
+                  })}
+                >{loadPointId}</button>
+              </span>)}
+              {optimizationErrorParts.after}
+            </> : state.optimizationError}
+          </p>
+        ) : null}
         {state.optimizationSummary ? (
           <div className="optimization-summary">
             <strong>{t("optimization.assigned", { count: state.optimizationSummary.assignedCount })}</strong>
             <span>{t("optimization.changed", { count: state.optimizationSummary.changedCount })}</span>
+            {state.optimizationSummary.unresolvedGroupCount > 0
+              ? <span>{t("optimization.unresolvedGroups", {
+                  groupCount: state.optimizationSummary.unresolvedGroupCount,
+                  loadPointCount: state.optimizationSummary.unresolvedLoadPointCount,
+                })}</span>
+              : null}
             {state.optimizationSummary.noValidOptionCount > 0
               ? <span>{t("optimization.noValidOption", { count: state.optimizationSummary.noValidOptionCount })}</span>
               : null}

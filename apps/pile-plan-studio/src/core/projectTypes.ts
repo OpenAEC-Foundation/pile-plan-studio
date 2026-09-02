@@ -139,6 +139,7 @@ export type GreedyUnassignedLoadPoint = {
 export type GreedyOptimizationResult = {
   assignments: GreedyOptimizedPileChoice[];
   unassigned: GreedyUnassignedLoadPoint[];
+  unassigned_group_count: number;
   selected_configurations: PileConfigurationKey[];
   pile_size_count: number;
   pile_tip_level_count: number;

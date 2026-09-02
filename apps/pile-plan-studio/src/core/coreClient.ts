@@ -90,6 +90,10 @@ import {
   toBrowserGreedyOptimizationRequest,
   toDesktopGreedyOptimizationRequest,
 } from "./greedyOptimizationContract.ts";
+import {
+  toBrowserDefaultPileSelectionRequest,
+  toDesktopDefaultPileSelectionRequest,
+} from "./defaultPileSelectionContract.ts";
 
 type CoreCptSelectionSettings = {
   algorithm: CptSelectionSettings["algorithm"];
@@ -298,27 +302,21 @@ export async function chooseDefaultPileOptionCore(input: {
 }
 
 export async function chooseDefaultPileOptionsCore(input: {
+  groups: LoadPointGroup[];
   optionsByLoadPointId: Map<number, PileConfigurationOption[]>;
   pileHeadLevelM: number;
   costSettings: PileCostSettings;
 }): Promise<Map<number, PileConfigurationKey>> {
-  const coreOptions = toCorePileOptionsByLoadPoint(input.optionsByLoadPointId);
   let choices: Map<number, PileConfigurationKey> | Record<string, PileConfigurationKey>;
 
   if (!isTauriRuntime()) {
     await initializeWasm();
-    choices = choose_default_options({
-      options_by_load_point: toWasmNumberKeyedMap(coreOptions),
-      pile_head_level_m: input.pileHeadLevelM,
-      cost_settings: input.costSettings,
-    }) as Map<number, PileConfigurationKey>;
+    choices = choose_default_options(
+      toBrowserDefaultPileSelectionRequest(input),
+    ) as Map<number, PileConfigurationKey>;
   } else {
     choices = await invoke<Record<string, PileConfigurationKey>>("choose_default_options", {
-      request: {
-        options_by_load_point: toStringKeyedRecord(coreOptions),
-        pile_head_level_m: input.pileHeadLevelM,
-        cost_settings: input.costSettings,
-      },
+      request: toDesktopDefaultPileSelectionRequest(input),
     });
   }
 

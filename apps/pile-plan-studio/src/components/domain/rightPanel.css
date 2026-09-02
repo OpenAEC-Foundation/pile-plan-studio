@@ -483,6 +483,19 @@
   cursor: pointer;
 }
 
+.optimization-load-point-link {
+  padding: 0;
+  border: 0;
+  color: var(--theme-text);
+  background: transparent;
+  font: inherit;
+  font-weight: 700;
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+
 .cpt-modify-button,
 .cpt-edit-actions button {
   padding: 6px 8px;

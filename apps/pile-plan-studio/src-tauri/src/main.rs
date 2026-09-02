@@ -71,6 +71,7 @@ struct DefaultPileOptionRequest {
 #[derive(Debug, Deserialize)]
 struct DefaultPileOptionsRequest {
     options_by_load_point: HashMap<u32, Vec<PileConfigurationOption>>,
+    groups: Vec<LoadPointGroup>,
     pile_head_level_m: f64,
     cost_settings: PileCostSettings,
 }
@@ -202,6 +203,7 @@ fn choose_default_options(
 ) -> HashMap<u32, PileConfigurationKey> {
     choose_default_pile_options(
         &request.options_by_load_point,
+        &request.groups,
         request.pile_head_level_m,
         &request.cost_settings,
     )

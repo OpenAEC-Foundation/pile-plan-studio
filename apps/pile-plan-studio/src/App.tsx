@@ -903,6 +903,9 @@ function AppSession({
     if (
       snapshot.pileOptionsByLoadPointId.size !== snapshot.loadPoints.length
       || snapshot.analysisError !== null
+      || loadPointGroups.pending
+      || loadPointGroups.error !== null
+      || (snapshot.loadPoints.length > 0 && loadPointGroups.groups.length === 0)
     ) {
       return;
     }
@@ -920,6 +923,7 @@ function AppSession({
       const choices = optionsByLoadPointId.size === 0
         ? new Map()
         : await chooseDefaultPileOptionsCore({
+            groups: loadPointGroups.groups,
             optionsByLoadPointId,
             pileHeadLevelM: snapshot.pileHeadLevelM ?? 0,
             costSettings: snapshot.pileCostSettings,
@@ -1086,6 +1090,9 @@ function AppSession({
     if (
       !projectState.defaultPileSelectionPending
       || projectState.pileOptionsByLoadPointId.size !== projectState.loadPoints.length
+      || loadPointGroups.pending
+      || loadPointGroups.error !== null
+      || (projectState.loadPoints.length > 0 && loadPointGroups.groups.length === 0)
     ) {
       return;
     }
@@ -1096,6 +1103,7 @@ function AppSession({
     defaultSelectionRequestRef.current = analysisRequest;
 
     chooseDefaultPileOptionsCore({
+      groups: loadPointGroups.groups,
       optionsByLoadPointId: projectState.pileOptionsByLoadPointId,
       pileHeadLevelM: projectState.pileHeadLevelM ?? 0,
       costSettings: projectState.pileCostSettings,
@@ -1139,6 +1147,9 @@ function AppSession({
     projectState.analysisRequest,
     projectState.defaultPileSelectionPending,
     projectState.loadPoints.length,
+    loadPointGroups.error,
+    loadPointGroups.groups,
+    loadPointGroups.pending,
     projectState.pileCostSettings,
     projectState.pileOptionsByLoadPointId,
   ]);
@@ -1227,6 +1238,7 @@ function AppSession({
       optimizationSettings: settings,
       optimizationRunning: true,
       optimizationError: null,
+      optimizationErrorLoadPointIds: [],
       optimizationSummary: null,
     }));
 
@@ -1260,6 +1272,7 @@ function AppSession({
             outcome.diagnostics,
             (key, options) => t(key, options),
           ),
+          optimizationErrorLoadPointIds: outcome.diagnostics[0]?.load_point_ids ?? [],
           optimizationSummary: null,
         }));
         return;
@@ -1305,6 +1318,7 @@ function AppSession({
           optimizationSettings: settings,
           optimizationRunning: false,
           optimizationError: null,
+          optimizationErrorLoadPointIds: [],
           optimizationSummary: applied.summary,
         };
       });
@@ -1318,6 +1332,7 @@ function AppSession({
           ...current,
           optimizationRunning: false,
           optimizationError: error instanceof Error ? error.message : String(error),
+          optimizationErrorLoadPointIds: [],
         }));
     }
   };

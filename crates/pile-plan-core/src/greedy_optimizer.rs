@@ -74,6 +74,7 @@ pub struct GreedyUnassignedLoadPoint {
 pub struct GreedyOptimizationResult {
     pub assignments: Vec<GreedyOptimizedPileChoice>,
     pub unassigned: Vec<GreedyUnassignedLoadPoint>,
+    pub unassigned_group_count: usize,
     pub selected_configurations: Vec<PileConfigurationKey>,
     pub pile_size_count: usize,
     pub pile_tip_level_count: usize,
@@ -313,6 +314,7 @@ fn expand_unit_results(
         .collect::<HashSet<_>>();
     let mut assignments = Vec::new();
     let mut unassigned = Vec::new();
+    let mut unassigned_group_count = 0;
 
     for unit in units {
         if let Some(option) = cheapest_unit_option(unit, selected_configurations) {
@@ -334,11 +336,27 @@ fn expand_unit_results(
                 });
             }
         } else {
+            if unit
+                .load_point_ids
+                .iter()
+                .any(|load_point_id| !locked_load_point_ids.contains(load_point_id))
+            {
+                unassigned_group_count += 1;
+            }
+            let reason = if unit.options.is_empty() {
+                if unit.has_technically_valid_configuration {
+                    GreedyUnassignedReason::OptimizationConstraints
+                } else {
+                    GreedyUnassignedReason::NoValidOption
+                }
+            } else {
+                GreedyUnassignedReason::ConfigurationLimits
+            };
             for load_point_id in &unit.load_point_ids {
                 if !locked_load_point_ids.contains(load_point_id) {
                     unassigned.push(GreedyUnassignedLoadPoint {
                         load_point_id: *load_point_id,
-                        reason: GreedyUnassignedReason::ConfigurationLimits,
+                        reason: reason.clone(),
                     });
                 }
             }
@@ -359,6 +377,7 @@ fn expand_unit_results(
     GreedyOptimizationResult {
         assignments,
         unassigned,
+        unassigned_group_count,
         selected_configurations,
         pile_size_count: distinct_size_count(&counted_configurations),
         pile_tip_level_count: distinct_tip_count(&counted_configurations),
@@ -436,7 +455,8 @@ mod tests {
 
     use super::{
         greedy_optimize_pile_choices, select_target_groups, GreedyOptimizationInput,
-        GreedyOptimizationOutcome, GreedyOptimizationSettings, OptimizationLimitScope,
+        GreedyOptimizationOutcome, GreedyOptimizationSettings, GreedyUnassignedLoadPoint,
+        GreedyUnassignedReason, OptimizationLimitScope,
     };
 
     fn group(load_point_ids: &[u32]) -> LoadPointGroup {
@@ -516,6 +536,7 @@ mod tests {
         crate::OptimizationUnit {
             load_point_ids: load_point_ids.to_vec(),
             forced_configuration,
+            has_technically_valid_configuration: true,
             options,
         }
     }
@@ -611,6 +632,90 @@ mod tests {
                 (2, configuration(290, -18_000)),
             ],
         );
+    }
+
+    #[test]
+    fn group_without_a_common_technically_valid_configuration_is_unassigned() {
+        let input = optimization_input(
+            vec![group(&[1, 2])],
+            HashMap::from([
+                (1, vec![option(290, -18_000, 0.70)]),
+                (2, vec![option(320, -19_000, 0.80)]),
+            ]),
+        );
+
+        let GreedyOptimizationOutcome::Completed { result } = greedy_optimize_pile_choices(&input)
+        else {
+            panic!("an infeasible group should not block other optimization units");
+        };
+
+        assert!(result.assignments.is_empty());
+        assert_eq!(result.unassigned_group_count, 1);
+        assert_eq!(
+            result.unassigned,
+            vec![
+                GreedyUnassignedLoadPoint {
+                    load_point_id: 1,
+                    reason: GreedyUnassignedReason::NoValidOption,
+                },
+                GreedyUnassignedLoadPoint {
+                    load_point_id: 2,
+                    reason: GreedyUnassignedReason::NoValidOption,
+                },
+            ],
+        );
+    }
+
+    #[test]
+    fn group_filtered_by_optimizer_settings_is_unassigned_as_an_optimization_constraint() {
+        let mut input = optimization_input(
+            vec![group(&[1, 2])],
+            HashMap::from([
+                (1, vec![option(320, -19_000, 0.70)]),
+                (2, vec![option(320, -19_000, 0.80)]),
+            ]),
+        );
+        input.settings.enabled_pile_sizes = vec![290];
+        input.settings.enabled_pile_tip_levels = vec![-18.0];
+
+        let GreedyOptimizationOutcome::Completed { result } = greedy_optimize_pile_choices(&input)
+        else {
+            panic!("filtered groups should not block other optimization units");
+        };
+
+        assert_eq!(
+            result.unassigned,
+            vec![
+                GreedyUnassignedLoadPoint {
+                    load_point_id: 1,
+                    reason: GreedyUnassignedReason::OptimizationConstraints,
+                },
+                GreedyUnassignedLoadPoint {
+                    load_point_id: 2,
+                    reason: GreedyUnassignedReason::OptimizationConstraints,
+                },
+            ],
+        );
+    }
+
+    #[test]
+    fn one_member_without_options_leaves_the_complete_group_unassigned() {
+        let input = optimization_input(
+            vec![group(&[1, 2])],
+            HashMap::from([(1, vec![option(290, -18_000, 0.70)]), (2, vec![])]),
+        );
+
+        let GreedyOptimizationOutcome::Completed { result } = greedy_optimize_pile_choices(&input)
+        else {
+            panic!("an analyzed group without options should remain unresolved");
+        };
+
+        assert!(result.assignments.is_empty());
+        assert_eq!(result.unassigned_group_count, 1);
+        assert!(result
+            .unassigned
+            .iter()
+            .all(|item| { item.reason == GreedyUnassignedReason::NoValidOption }));
     }
 
     #[test]

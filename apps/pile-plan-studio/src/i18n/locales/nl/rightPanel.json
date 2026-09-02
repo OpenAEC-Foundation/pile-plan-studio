@@ -139,6 +139,7 @@
   "optimization.selectLoadPoints": "Selecteer een of meer belastinglocaties.",
   "optimization.assigned": "{{count}} toegewezen.",
   "optimization.changed": "{{count}} gewijzigd.",
+  "optimization.unresolvedGroups": "Onopgeloste groepen: {{groupCount}} ({{loadPointCount}} belastinglocaties).",
   "optimization.noValidOption": "{{count}} zonder geldige paaloptie.",
   "optimization.unassigned": "{{count}} niet toegewezen binnen de ingestelde limieten.",
   "optimization.running": "Optimaliseren...",

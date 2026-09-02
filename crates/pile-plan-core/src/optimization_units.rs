@@ -29,6 +29,7 @@ pub struct PrepareOptimizationUnitsInput {
 pub struct OptimizationUnit {
     pub load_point_ids: Vec<u32>,
     pub forced_configuration: Option<PileConfigurationKey>,
+    pub has_technically_valid_configuration: bool,
     pub options: Vec<OptimizationUnitOption>,
 }
 
@@ -138,6 +139,9 @@ pub fn prepare_optimization_units(
         } else {
             Vec::new()
         };
+        let has_technically_valid_configuration = aggregates
+            .iter()
+            .any(|candidate| candidate.status == AggregatedPileConfigurationStatus::Valid);
         let locked_members = group
             .load_point_ids
             .iter()
@@ -232,13 +236,6 @@ pub fn prepare_optimization_units(
                             .maximum_utilization
                             .is_some_and(|utilization| utilization <= max_utilization)
                 }));
-                if eligible.is_empty() {
-                    diagnostics.push(OptimizationPreparationDiagnostic {
-                        kind: OptimizationPreparationDiagnosticKind::NoEligibleConfiguration,
-                        load_point_ids: group.load_point_ids.clone(),
-                        configuration: None,
-                    });
-                }
             }
         }
 
@@ -278,6 +275,7 @@ pub fn prepare_optimization_units(
         units.push(OptimizationUnit {
             load_point_ids: group.load_point_ids,
             forced_configuration,
+            has_technically_valid_configuration,
             options,
         });
     }
@@ -647,16 +645,15 @@ mod tests {
     }
 
     #[test]
-    fn empty_candidate_domain_is_reported() {
+    fn empty_candidate_domain_is_retained_as_a_non_blocking_unit() {
         let result = prepare_optimization_units(&input(
             &[&[1]],
             HashMap::from([(1, vec![option(1000, -10_000, false, 1.10, 11)])]),
         ));
 
-        assert_eq!(
-            result.diagnostics[0].kind,
-            OptimizationPreparationDiagnosticKind::NoEligibleConfiguration
-        );
+        assert!(result.diagnostics.is_empty());
+        assert!(result.units[0].options.is_empty());
+        assert!(!result.units[0].has_technically_valid_configuration);
     }
 
     #[test]

@@ -79,7 +79,11 @@ describe("React optimization panel", () => {
     assert.match(optimization, /optimization\.assigned/);
     assert.match(optimization, /optimization\.noValidOption/);
     assert.match(optimization, /optimization\.unassigned/);
+    assert.match(optimization, /optimization\.unresolvedGroups/);
     assert.match(optimization, /optimizationError/);
+    assert.match(optimization, /optimizationErrorLoadPointIds/);
+    assert.match(optimization, /className="optimization-load-point-link"/);
+    assert.match(optimization, /selectLoadPoint\(state, loadPointId\)/);
   });
 
   it("does not mark a permanent panel tab active while the optimization task is open", () => {

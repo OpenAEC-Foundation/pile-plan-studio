@@ -63,15 +63,15 @@ type TranslateOptimizationDiagnostic = (
 ) => string;
 
 const DIAGNOSTIC_MESSAGE_KEYS: Record<OptimizationPreparationDiagnostic["kind"], string> = {
-  invalid_group_partition: "optimization.blocked.invalidGroupPartition",
-  missing_pile_head_level: "optimization.blocked.missingPileHeadLevel",
-  missing_analysis_data: "optimization.blocked.missingAnalysisData",
-  conflicting_locked_configurations: "optimization.blocked.conflictingLockedConfigurations",
-  locked_member_unassigned: "optimization.blocked.lockedMemberUnassigned",
-  locked_configuration_unavailable: "optimization.blocked.lockedConfigurationUnavailable",
-  locked_configuration_exceeds_utilization_limit: "optimization.blocked.lockedConfigurationExceedsUtilizationLimit",
-  missing_relevant_cost: "optimization.blocked.missingRelevantCost",
-  no_eligible_configuration: "optimization.blocked.noEligibleConfiguration",
+  invalid_group_partition: "rightPanel:optimization.blocked.invalidGroupPartition",
+  missing_pile_head_level: "rightPanel:optimization.blocked.missingPileHeadLevel",
+  missing_analysis_data: "rightPanel:optimization.blocked.missingAnalysisData",
+  conflicting_locked_configurations: "rightPanel:optimization.blocked.conflictingLockedConfigurations",
+  locked_member_unassigned: "rightPanel:optimization.blocked.lockedMemberUnassigned",
+  locked_configuration_unavailable: "rightPanel:optimization.blocked.lockedConfigurationUnavailable",
+  locked_configuration_exceeds_utilization_limit: "rightPanel:optimization.blocked.lockedConfigurationExceedsUtilizationLimit",
+  missing_relevant_cost: "rightPanel:optimization.blocked.missingRelevantCost",
+  no_eligible_configuration: "rightPanel:optimization.blocked.noEligibleConfiguration",
 };
 
 export function formatOptimizationDiagnostics(
@@ -79,7 +79,7 @@ export function formatOptimizationDiagnostics(
   translate: TranslateOptimizationDiagnostic,
 ): string {
   if (diagnostics.length === 0) {
-    return translate("optimization.blocked.unknown");
+    return translate("rightPanel:optimization.blocked.unknown");
   }
 
   const first = diagnostics[0];
@@ -92,9 +92,24 @@ export function formatOptimizationDiagnostics(
   });
   return diagnostics.length === 1
     ? message
-    : `${message} ${translate("optimization.blocked.additional", {
+    : `${message} ${translate("rightPanel:optimization.blocked.additional", {
       count: diagnostics.length - 1,
     })}`;
+}
+
+export function splitOptimizationErrorLoadPoints(
+  message: string,
+  loadPointIds: number[],
+): { before: string; loadPointIds: number[]; after: string } | null {
+  if (loadPointIds.length === 0) return null;
+  const renderedIds = loadPointIds.join(", ");
+  const start = message.indexOf(renderedIds);
+  if (start < 0) return null;
+  return {
+    before: message.slice(0, start),
+    loadPointIds: [...loadPointIds],
+    after: message.slice(start + renderedIds.length),
+  };
 }
 
 export function applyOptimizationResult(input: {
@@ -122,6 +137,7 @@ export function applyOptimizationResult(input: {
       input.previousChoices,
       input.result.assignments,
       input.result.unassigned,
+      input.result.unassigned_group_count,
     ),
   };
 }

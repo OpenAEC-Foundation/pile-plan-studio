@@ -21,6 +21,8 @@ describe("optimization summary", () => {
       changedCount: 1,
       noValidOptionCount: 0,
       optimizerUnassignedCount: 0,
+      unresolvedGroupCount: 0,
+      unresolvedLoadPointCount: 0,
     });
   });
 
@@ -36,6 +38,7 @@ describe("optimization summary", () => {
         { load_point_id: 3, reason: "optimization_constraints" },
         { load_point_id: 4, reason: "configuration_limits" },
       ],
+      2,
     );
 
     assert.deepEqual(summary, {
@@ -43,6 +46,8 @@ describe("optimization summary", () => {
       changedCount: 1,
       noValidOptionCount: 2,
       optimizerUnassignedCount: 2,
+      unresolvedGroupCount: 2,
+      unresolvedLoadPointCount: 4,
     });
   });
 });

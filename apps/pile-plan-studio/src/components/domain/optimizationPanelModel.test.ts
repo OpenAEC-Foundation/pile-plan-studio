@@ -5,11 +5,25 @@ import {
   applyOptimizationResult,
   clampOptimizationLimits,
   formatOptimizationDiagnostics,
+  splitOptimizationErrorLoadPoints,
   getOptimizationTargetIds,
   isOptimizationDisabled,
 } from "./optimizationPanelModel.ts";
 
 describe("React optimization panel model", () => {
+  it("isolates diagnostic load point IDs without changing the translated sentence", () => {
+    assert.deepEqual(
+      splitOptimizationErrorLoadPoints(
+        "Load points 7, 8 require conflicting configurations.",
+        [7, 8],
+      ),
+      {
+        before: "Load points ",
+        loadPointIds: [7, 8],
+        after: " require conflicting configurations.",
+      },
+    );
+  });
   it("clamps simple limits to active sizes and tips", () => {
     assert.deepEqual(
       clampOptimizationLimits({ sizes: 8, tips: 0, configurations: 99 }, [290, 320], [-18, -19, -20]),
@@ -44,6 +58,7 @@ describe("React optimization panel model", () => {
           cost: 100,
         }],
         unassigned: [{ load_point_id: 2, reason: "configuration_limits" }],
+        unassigned_group_count: 1,
         selected_configurations: [{ pile_size_mm: 350, pile_tip_level_mm: -20000 }],
         pile_size_count: 1,
         pile_tip_level_count: 1,
@@ -63,6 +78,8 @@ describe("React optimization panel model", () => {
       changedCount: 2,
       noValidOptionCount: 0,
       optimizerUnassignedCount: 1,
+      unresolvedGroupCount: 1,
+      unresolvedLoadPointCount: 1,
     });
   });
 
@@ -98,6 +115,6 @@ describe("React optimization panel model", () => {
       kind: "missing_relevant_cost",
       load_point_ids: [9],
       configuration: { pile_size_mm: 320, pile_tip_level_mm: -18_500 },
-    }], translate), "optimization.blocked.conflictingLockedConfigurations:7, 8 optimization.blocked.additional:1");
+    }], translate), "rightPanel:optimization.blocked.conflictingLockedConfigurations:7, 8 rightPanel:optimization.blocked.additional:1");
   });
 });

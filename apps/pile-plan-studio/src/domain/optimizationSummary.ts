@@ -10,12 +10,15 @@ export type OptimizationRunSummary = {
   changedCount: number;
   noValidOptionCount: number;
   optimizerUnassignedCount: number;
+  unresolvedGroupCount: number;
+  unresolvedLoadPointCount: number;
 };
 
 export function summarizeOptimizationRun(
   previousChoiceKeys: Map<number, PileConfigurationKey>,
   choices: GreedyOptimizedPileChoice[],
   unassigned: GreedyUnassignedLoadPoint[] = [],
+  unassignedGroupCount = 0,
 ): OptimizationRunSummary {
   let changedCount = 0;
 
@@ -44,5 +47,7 @@ export function summarizeOptimizationRun(
     changedCount,
     noValidOptionCount,
     optimizerUnassignedCount: unassigned.length - noValidOptionCount,
+    unresolvedGroupCount: unassignedGroupCount,
+    unresolvedLoadPointCount: unassigned.length,
   };
 }

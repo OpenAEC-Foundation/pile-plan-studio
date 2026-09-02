@@ -75,6 +75,7 @@ describe("greedy optimization transport contract", () => {
           cost: 123,
         }],
         unassigned: [{ load_point_id: 9, reason: "configuration_limits" as const }],
+        unassigned_group_count: 1,
         selected_configurations: [{ pile_size_mm: 320, pile_tip_level_mm: -18_500 }],
         pile_size_count: 1,
         pile_tip_level_count: 1,

@@ -139,6 +139,7 @@
   "optimization.selectLoadPoints": "Select one or more load points.",
   "optimization.assigned": "{{count}} assigned.",
   "optimization.changed": "{{count}} changed.",
+  "optimization.unresolvedGroups": "Unresolved groups: {{groupCount}} ({{loadPointCount}} load points).",
   "optimization.noValidOption": "{{count}} without a valid pile option.",
   "optimization.unassigned": "{{count}} not assigned within the configured limits.",
   "optimization.running": "Optimizing...",

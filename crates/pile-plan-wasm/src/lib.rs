@@ -67,6 +67,7 @@ pub struct DefaultPileOptionRequest {
 #[derive(Debug, Deserialize)]
 pub struct DefaultPileOptionsRequest {
     pub options_by_load_point: HashMap<u32, Vec<PileConfigurationOption>>,
+    pub groups: Vec<LoadPointGroup>,
     pub pile_head_level_m: f64,
     pub cost_settings: PileCostSettings,
 }
@@ -205,6 +206,7 @@ pub fn choose_default_options(request: JsValue) -> Result<JsValue, JsValue> {
     let request: DefaultPileOptionsRequest = from_js_value(request)?;
     let choices: HashMap<u32, PileConfigurationKey> = choose_default_pile_options(
         &request.options_by_load_point,
+        &request.groups,
         request.pile_head_level_m,
         &request.cost_settings,
     );
@@ -404,6 +406,9 @@ mod tests {
     fn default_pile_options_request_accepts_grouped_options() {
         let request = DefaultPileOptionsRequest {
             options_by_load_point: HashMap::from([(1, vec![])]),
+            groups: vec![LoadPointGroup {
+                load_point_ids: vec![1],
+            }],
             pile_head_level_m: 0.0,
             cost_settings: PileCostSettings {
                 schema_version: 1,
@@ -412,6 +417,7 @@ mod tests {
         };
 
         assert!(request.options_by_load_point.contains_key(&1));
+        assert_eq!(request.groups[0].load_point_ids, vec![1]);
     }
 
     #[test]
@@ -483,8 +489,9 @@ mod tests {
 
         assert!(matches!(
             result,
-            pile_plan_core::GreedyOptimizationOutcome::Blocked { diagnostics }
-                if diagnostics.len() == 1
+            pile_plan_core::GreedyOptimizationOutcome::Completed { result }
+                if result.unassigned_group_count == 1
+                    && result.unassigned.len() == 1
         ));
     }
 

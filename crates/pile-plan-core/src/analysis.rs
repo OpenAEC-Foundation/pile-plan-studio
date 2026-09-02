@@ -615,16 +615,44 @@ pub fn choose_default_pile_option<'a>(
 
 pub fn choose_default_pile_options(
     options_by_load_point: &HashMap<u32, Vec<PileConfigurationOption>>,
+    groups: &[crate::load_point_groups::LoadPointGroup],
     pile_head_level_m: f64,
     settings: &PileCostSettings,
 ) -> HashMap<u32, PileConfigurationKey> {
-    options_by_load_point
-        .iter()
-        .filter_map(|(load_point_id, options)| {
-            choose_default_pile_option(options, pile_head_level_m, settings)
-                .map(|option| (*load_point_id, option.configuration.clone()))
-        })
-        .collect()
+    let mut choices = HashMap::new();
+    for group in groups {
+        let Some(first_member_id) = group.load_point_ids.first() else {
+            continue;
+        };
+        let Some(first_member_options) = options_by_load_point.get(first_member_id) else {
+            continue;
+        };
+        let common_options = first_member_options
+            .iter()
+            .filter(|candidate| {
+                candidate.is_option
+                    && group.load_point_ids.iter().all(|load_point_id| {
+                        options_by_load_point
+                            .get(load_point_id)
+                            .is_some_and(|options| {
+                                options.iter().any(|option| {
+                                    option.is_option
+                                        && option.configuration == candidate.configuration
+                                })
+                            })
+                    })
+            })
+            .cloned()
+            .collect::<Vec<_>>();
+        let Some(choice) = choose_default_pile_option(&common_options, pile_head_level_m, settings)
+        else {
+            continue;
+        };
+        for load_point_id in &group.load_point_ids {
+            choices.insert(*load_point_id, choice.configuration.clone());
+        }
+    }
+    choices
 }
 
 fn unique_pile_configurations(bearing_capacities: &[BearingCapacity]) -> Vec<(u32, f64)> {
@@ -1276,7 +1304,15 @@ mod tests {
             (2, vec![pile_option(290, -18.0, true, 0.8)]),
         ]);
 
-        let choices = choose_default_pile_options(&options, -3.5, &cost_settings());
+        let groups = vec![
+            crate::LoadPointGroup {
+                load_point_ids: vec![1],
+            },
+            crate::LoadPointGroup {
+                load_point_ids: vec![2],
+            },
+        ];
+        let choices = choose_default_pile_options(&options, &groups, -3.5, &cost_settings());
 
         assert_eq!(
             choices.get(&1),
@@ -1292,6 +1328,34 @@ mod tests {
                 pile_tip_level_mm: PileConfigurationKey::from_metres(290, -18.0).pile_tip_level_mm,
             })
         );
+    }
+
+    #[test]
+    fn chooses_one_cheapest_common_default_for_every_group_member() {
+        let options = HashMap::from([
+            (
+                1,
+                vec![
+                    pile_option(290, -17.5, true, 0.7),
+                    pile_option(320, -18.0, true, 0.6),
+                ],
+            ),
+            (
+                2,
+                vec![
+                    pile_option(290, -18.0, true, 0.7),
+                    pile_option(320, -18.0, true, 0.6),
+                ],
+            ),
+        ]);
+        let groups = vec![crate::LoadPointGroup {
+            load_point_ids: vec![1, 2],
+        }];
+
+        let choices = choose_default_pile_options(&options, &groups, -3.5, &cost_settings());
+
+        let common = PileConfigurationKey::from_metres(320, -18.0);
+        assert_eq!(choices, HashMap::from([(1, common.clone()), (2, common)]));
     }
 
     #[test]
@@ -1313,14 +1377,20 @@ mod tests {
             ],
         )]);
 
-        assert!(choose_default_pile_options(&options, -3.5, &cost_settings()).is_empty());
+        let groups = vec![crate::LoadPointGroup {
+            load_point_ids: vec![1],
+        }];
+        assert!(choose_default_pile_options(&options, &groups, -3.5, &cost_settings()).is_empty());
     }
 
     #[test]
     fn default_options_omit_valid_options_without_cost_settings() {
         let options = HashMap::from([(1, vec![pile_option(999, -17.5, true, 0.7)])]);
 
-        assert!(choose_default_pile_options(&options, -3.5, &cost_settings()).is_empty());
+        let groups = vec![crate::LoadPointGroup {
+            load_point_ids: vec![1],
+        }];
+        assert!(choose_default_pile_options(&options, &groups, -3.5, &cost_settings()).is_empty());
     }
 
     #[test]
