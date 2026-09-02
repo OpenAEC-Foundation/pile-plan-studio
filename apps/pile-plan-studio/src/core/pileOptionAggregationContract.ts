@@ -15,7 +15,18 @@ export type AggregatedPileConfiguration = {
   critical_governing_frd_kn: number | null;
 };
 
-export type CoreAggregatedPileConfiguration = AggregatedPileConfiguration;
+export type CoreAggregatedPileConfiguration = Omit<
+  AggregatedPileConfiguration,
+  | "maximum_utilization"
+  | "critical_load_point_id"
+  | "critical_governing_cpt_id"
+  | "critical_governing_frd_kn"
+> & {
+  maximum_utilization?: number | null;
+  critical_load_point_id?: number | null;
+  critical_governing_cpt_id?: number | null;
+  critical_governing_frd_kn?: number | null;
+};
 
 export type CorePileConfigurationOption = Omit<PileConfigurationOption, "isOption"> & {
   is_option: boolean;
@@ -37,6 +48,10 @@ export function aggregatedPileConfigurationsFromCore(
     configuration: { ...item.configuration },
     missing_load_point_ids: [...item.missing_load_point_ids],
     invalid_load_point_ids: [...item.invalid_load_point_ids],
+    maximum_utilization: item.maximum_utilization ?? null,
+    critical_load_point_id: item.critical_load_point_id ?? null,
+    critical_governing_cpt_id: item.critical_governing_cpt_id ?? null,
+    critical_governing_frd_kn: item.critical_governing_frd_kn ?? null,
   }));
 }
 

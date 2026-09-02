@@ -47,6 +47,21 @@ describe("pile option aggregation transport contract", () => {
     });
   });
 
+  it("normalizes optional facts omitted by WASM to null", () => {
+    const [result] = aggregatedPileConfigurationsFromCore([{
+      configuration: { pile_size_mm: 320, pile_tip_level_mm: -20_000 },
+      pile_tip_level_m: -20,
+      status: "missing",
+      missing_load_point_ids: [2],
+      invalid_load_point_ids: [],
+    }]);
+
+    assert.equal(result.maximum_utilization, null);
+    assert.equal(result.critical_load_point_id, null);
+    assert.equal(result.critical_governing_cpt_id, null);
+    assert.equal(result.critical_governing_frd_kn, null);
+  });
+
   it("uses numeric map keys for WASM and core option field names", () => {
     const request = toBrowserAggregatePileOptionsRequest(new Map([[7, [option]]]));
 
