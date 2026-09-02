@@ -14,6 +14,7 @@ import {
   getCptFrdPanelModel,
   getChosenPileOptionKeyForSelection,
   formatLoadPointPanelTitle,
+  getPileOptionsByLoadPointIdForPanel,
   getRenderableAggregatedPileOptionRows,
   getRenderablePileOptionRows,
   getSelectedCptOverviewModel,
@@ -660,9 +661,10 @@ function LoadPointPanel({
   selectedLoadPoints: ReturnType<typeof getSelectedLoadPoints>;
 }) {
   const { t, i18n } = useTranslation("rightPanel");
+  const pileOptionsByLoadPointId = getPileOptionsByLoadPointIdForPanel(state);
   const aggregation = useAggregatedPileOptions({
     selectedLoadPointIds: selectedLoadPoints.map(({ id }) => id),
-    pileOptionsByLoadPointId: state.pileOptionsByLoadPointId,
+    pileOptionsByLoadPointId,
   });
   const selectedCount = selectedLoadPoints.length;
   const columns = getPileOptionColumns(selectedCount);
@@ -689,7 +691,7 @@ function LoadPointPanel({
         currencyCode: state.currencyCode,
         legend: state.pileLegend,
         options: selectedLoadPoints[0]
-          ? (state.pileOptionsByLoadPointId.get(selectedLoadPoints[0].id) ?? []).filter((option) =>
+          ? (pileOptionsByLoadPointId.get(selectedLoadPoints[0].id) ?? []).filter((option) =>
               isPileConfigurationActive(option, {
                 pileSizes: state.activePileSizes,
                 pileTipLevels: state.activePileTipLevels,

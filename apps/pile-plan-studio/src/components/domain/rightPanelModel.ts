@@ -1,11 +1,9 @@
 import type { ProjectState } from "../../domain/projectState";
 import type { AggregatedPileConfiguration } from "../../core/pileOptionAggregationContract.ts";
-import { filterActivePileOptions } from "../../domain/activePileConfigurations.ts";
 import { getCptDisplayName } from "../../domain/cptDisplayName.ts";
 import { getSelectedCptTableModel } from "../../domain/cptSelectionTable.ts";
 import { formatNumber, formatOptionalNumber } from "../../domain/formatting.ts";
 import { getConfigurationStyle } from "../../viewer/legend.ts";
-import { aggregatePileOptionsForLoadPoints } from "../../domain/pileOptionAggregation.ts";
 import { getPileOptionStatus } from "../../domain/pileOptionStatus.ts";
 import type { PileOptionTableRow } from "../../domain/pileOptionTable.ts";
 import { renderPileSymbol } from "../../viewer/pileSymbols.ts";
@@ -13,7 +11,14 @@ import {
   pileConfigurationToken,
   samePileConfiguration,
 } from "../../core/pileConfigurationKey.ts";
-import type { Cpt, LegendItems, LoadPoint, PileConfigurationOption, SelectedCpt } from "../.././core/projectTypes.ts";
+import type {
+  Cpt,
+  LegendItems,
+  LoadPoint,
+  PileConfigurationKey,
+  PileConfigurationOption,
+  SelectedCpt,
+} from "../.././core/projectTypes.ts";
 import { getEffectivePileOptionsByLoadPointId } from "./cptSettingsModel.ts";
 
 export type RenderablePileOptionTableRow = PileOptionTableRow & {
@@ -51,23 +56,10 @@ export function formatLoadPointPanelTitle(name: string): string {
   return /^load point\b/i.test(name.trim()) ? name.trim() : `Load point ${name.trim()}`;
 }
 
-export function getPileOptionsForSelectedLoadPoints(
+export function getPileOptionsByLoadPointIdForPanel(
   state: ProjectState,
-  selectedLoadPoints: LoadPoint[],
-): PileConfigurationOption[] {
-  const pileOptionsByLoadPointId = getEffectivePileOptionsByLoadPointId(state);
-  const options = selectedLoadPoints.length <= 1
-    ? selectedLoadPoints[0]
-      ? pileOptionsByLoadPointId.get(selectedLoadPoints[0].id) ?? []
-      : []
-    : aggregatePileOptionsForLoadPoints(
-      selectedLoadPoints.map((loadPoint) => pileOptionsByLoadPointId.get(loadPoint.id) ?? []),
-    );
-
-  return filterActivePileOptions(options, {
-    pileSizes: state.activePileSizes,
-    pileTipLevels: state.activePileTipLevels,
-  });
+): Map<number, PileConfigurationOption[]> {
+  return getEffectivePileOptionsByLoadPointId(state);
 }
 
 export function getChosenPileOptionKeyForSelection(
@@ -102,25 +94,28 @@ export function getSelectedCptOverviewModel(
     })),
   );
   const pileOptionsByLoadPointId = getEffectivePileOptionsByLoadPointId(state);
-  const chosenKeys = loadPoints.map((loadPoint) => state.selectedPileOptionKeysByLoadPoint.get(loadPoint.id) ?? "");
-  const commonChosenKey = chosenKeys[0] && chosenKeys.every((key) => key === chosenKeys[0])
-    ? chosenKeys[0]
-    : "";
-  const showChosenPileCapacity = loadPoints.length === 1 || commonChosenKey !== "";
-  const chosenConfiguration = parseOptionKey(commonChosenKey);
+  const chosenConfigurations = loadPoints.map((loadPoint) =>
+    state.selectedPileConfigurationsByLoadPoint.get(loadPoint.id));
+  const firstChosenConfiguration = chosenConfigurations[0];
+  const chosenConfiguration = firstChosenConfiguration
+    && chosenConfigurations.every((configuration) =>
+      samePileConfiguration(configuration, firstChosenConfiguration))
+    ? firstChosenConfiguration
+    : null;
+  const showChosenPileCapacity = loadPoints.length === 1 || chosenConfiguration !== null;
 
   return {
     columns: [...table.columns, showChosenPileCapacity ? "Chosen pile FRD" : "Governing for"],
     rows: table.rows.map((row) => {
       const governingLoadPointCount = loadPoints.filter((loadPoint) => {
-        const chosenKey = state.selectedPileOptionKeysByLoadPoint.get(loadPoint.id) ?? "";
-        return findOptionByKey(pileOptionsByLoadPointId.get(loadPoint.id) ?? [], chosenKey)
+        const configuration = state.selectedPileConfigurationsByLoadPoint.get(loadPoint.id);
+        return findOptionByConfiguration(pileOptionsByLoadPointId.get(loadPoint.id) ?? [], configuration)
           ?.governing_cpt_id === row.cpt.id;
       }).length;
       const chosenPileCapacity = chosenConfiguration
         ? state.cptFrdRowsByCptId.get(row.cpt.id)?.find((capacity) => (
-            capacity.pile_size_mm === chosenConfiguration.pileSizeMm
-            && capacity.pile_tip_level_m === chosenConfiguration.pileTipLevelM
+            capacity.pile_size_mm === chosenConfiguration.pile_size_mm
+            && capacity.pile_tip_level_m === chosenConfiguration.pile_tip_level_mm / 1000
           ))?.frd_kn ?? null
         : null;
       return {
@@ -138,18 +133,12 @@ export function getSelectedCptOverviewModel(
   };
 }
 
-function findOptionByKey(options: PileConfigurationOption[], key: string): PileConfigurationOption | null {
-  const configuration = parseOptionKey(key);
+function findOptionByConfiguration(
+  options: PileConfigurationOption[],
+  configuration: PileConfigurationKey | undefined,
+): PileConfigurationOption | null {
   return configuration
-    ? options.find((option) => option.pile_size_mm === configuration.pileSizeMm
-      && option.pile_tip_level_m === configuration.pileTipLevelM) ?? null
-    : null;
-}
-
-function parseOptionKey(key: string): { pileSizeMm: number; pileTipLevelM: number } | null {
-  const [pileSizeMm, pileTipLevelM] = key.split("|").map(Number);
-  return Number.isFinite(pileSizeMm) && Number.isFinite(pileTipLevelM)
-    ? { pileSizeMm, pileTipLevelM }
+    ? options.find((option) => samePileConfiguration(option.configuration, configuration)) ?? null
     : null;
 }
 
