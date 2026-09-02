@@ -370,7 +370,7 @@ git commit -m "feat: optimize load point groups atomically"
 - Consumes: verified Rust and TypeScript contracts.
 - Produces: checked-in browser artifact matching the source and a fully verified feature branch.
 
-- [ ] **Step 1: Rebuild the WASM package**
+- [x] **Step 1: Rebuild the WASM package**
 
 Run from `apps/pile-plan-studio`:
 
@@ -380,7 +380,7 @@ npm run build:wasm
 
 Expected: generated JS, declarations, and `.wasm` reflect the new request/outcome without hand editing generated files.
 
-- [ ] **Step 2: Run complete automated verification**
+- [x] **Step 2: Run complete automated verification**
 
 Run:
 
@@ -395,7 +395,7 @@ git diff --check
 
 Expected: every command exits zero.
 
-- [ ] **Step 3: Commit generated artifacts**
+- [x] **Step 3: Commit generated artifacts**
 
 ```powershell
 git add apps/pile-plan-studio/src/core/wasm/pile-plan-wasm
