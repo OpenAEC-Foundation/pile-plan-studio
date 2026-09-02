@@ -1,6 +1,6 @@
 # Greedy optimization over optimization units
 
-**Status:** Proposed for review
+**Status:** Approved in design discussion
 
 **Target:** Pile Plan Studio 0.3.0
 
