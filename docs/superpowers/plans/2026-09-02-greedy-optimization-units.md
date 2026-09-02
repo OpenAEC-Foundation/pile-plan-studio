@@ -35,7 +35,7 @@
 - Consumes: `LoadPointGroup`, `PrepareOptimizationUnitsInput`, `OptimizationCandidateSettings`, and `prepare_optimization_units`.
 - Produces: `select_target_groups(groups: &[LoadPointGroup], target_ids: &[u32]) -> Result<Vec<LoadPointGroup>, OptimizationPreparationDiagnostic>` and `InvalidGroupPartition` diagnostic support.
 
-- [ ] **Step 1: Write failing Rust tests for target expansion and malformed partitions**
+- [x] **Step 1: Write failing Rust tests for target expansion and malformed partitions**
 
 Add focused module tests equivalent to:
 
@@ -61,13 +61,13 @@ fn missing_target_membership_is_blocked() {
 }
 ```
 
-- [ ] **Step 2: Run the focused tests and verify RED**
+- [x] **Step 2: Run the focused tests and verify RED**
 
 Run: `cargo test -p pile-plan-core greedy_optimizer::tests --no-fail-fast`
 
 Expected: compilation fails because the module, selector, or diagnostic variant does not exist.
 
-- [ ] **Step 3: Implement deterministic selection and validation**
+- [x] **Step 3: Implement deterministic selection and validation**
 
 Normalize target IDs with `BTreeSet`. Sort/deduplicate every group copy, select groups intersecting the target, and count membership for requested target IDs. Return one `InvalidGroupPartition` diagnostic containing sorted missing or multiply represented target IDs. Return selected groups sorted lexicographically.
 
@@ -79,13 +79,15 @@ InvalidGroupPartition,
 
 to `OptimizationPreparationDiagnosticKind` and register `mod greedy_optimizer` in `lib.rs` without yet replacing the public optimizer export.
 
-- [ ] **Step 4: Run focused and preparation tests and verify GREEN**
+- [x] **Step 4: Run focused and preparation tests and verify GREEN**
 
-Run: `cargo test -p pile-plan-core greedy_optimizer::tests optimization_units::tests --no-fail-fast`
+Run: `cargo test -p pile-plan-core greedy_optimizer::tests --no-fail-fast`
+
+Run: `cargo test -p pile-plan-core optimization_units::tests --no-fail-fast`
 
 Expected: all selected tests pass.
 
-- [ ] **Step 5: Commit the target boundary**
+- [x] **Step 5: Commit the target boundary**
 
 ```powershell
 git add crates/pile-plan-core/src/greedy_optimizer.rs crates/pile-plan-core/src/optimization_units.rs crates/pile-plan-core/src/lib.rs

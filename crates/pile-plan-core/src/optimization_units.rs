@@ -45,6 +45,7 @@ pub struct OptimizationUnitOption {
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 #[serde(rename_all = "snake_case")]
 pub enum OptimizationPreparationDiagnosticKind {
+    InvalidGroupPartition,
     MissingPileHeadLevel,
     MissingAnalysisData,
     ConflictingLockedConfigurations,

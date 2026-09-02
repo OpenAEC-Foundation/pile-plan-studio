@@ -1,5 +1,6 @@
 pub mod analysis;
 pub mod export;
+pub mod greedy_optimizer;
 pub mod ifcpp;
 pub mod import;
 pub mod load_point_groups;
