@@ -43,7 +43,9 @@ import { buildGreedyOptimizationSettings } from "./domain/optimizationSettings";
 import {
   applyOptimizationResult,
   clampOptimizationLimits,
+  formatOptimizationDiagnostics,
   getOptimizationTargetIds,
+  isOptimizationDisabled,
 } from "./components/domain/optimizationPanelModel";
 import { switchRightPanelMode } from "./domain/selectionState";
 import {
@@ -254,6 +256,8 @@ function AppSession({
   const projectStateRef = useRef(projectState);
   projectStateRef.current = projectState;
   const loadPointGroups = useLoadPointGroups(projectState.loadPoints);
+  const loadPointGroupsRef = useRef(loadPointGroups.groups);
+  loadPointGroupsRef.current = loadPointGroups.groups;
   const pileAssignmentRequestIdRef = useRef(0);
   const [pileAssignmentPending, setPileAssignmentPending] = useState(false);
   const invalidatePileAssignmentRequests = useCallback(() => {
@@ -1187,11 +1191,18 @@ function AppSession({
       || targetLoadPointIds.length === 0
       || snapshot.activePileSizes.length === 0
       || snapshot.activePileTipLevels.length === 0
+      || loadPointGroups.pending
+      || loadPointGroups.error !== null
+      || (snapshot.loadPoints.length > 0 && loadPointGroups.groups.length === 0)
     ) {
       return;
     }
 
-    const currentAssignments = new Map(snapshot.selectedPileConfigurationsByLoadPoint);
+    const activePilePlanId = snapshot.activePilePlanId;
+    const analysisRequest = snapshot.analysisRequest;
+    const currentAssignmentsIdentity = snapshot.selectedPileConfigurationsByLoadPoint;
+    const currentAssignments = new Map(currentAssignmentsIdentity);
+    const optimizationGroups = loadPointGroups.groups;
     const limits = clampOptimizationLimits({
       sizes: snapshot.optimizationSettings.max_pile_sizes,
       tips: snapshot.optimizationSettings.max_pile_tip_levels,
@@ -1220,22 +1231,49 @@ function AppSession({
     }));
 
     try {
-      const result = await greedyOptimizeCore({
+      const outcome = await greedyOptimizeCore({
+        groups: loadPointGroups.groups,
         optionsByLoadPoint,
         targetLoadPointIds,
         lockedLoadPointIds,
         currentAssignments,
         limitScope: snapshot.optimizationLimitScope,
-        pileHeadLevelM: snapshot.pileHeadLevelM ?? 0,
+        pileHeadLevelM: snapshot.pileHeadLevelM,
         costSettings: snapshot.pileCostSettings,
         settings,
       });
+      const currentSnapshot = projectStateRef.current;
+      if (
+        currentSnapshot.analysisRequest !== analysisRequest
+        || currentSnapshot.activePilePlanId !== activePilePlanId
+        || currentSnapshot.selectedPileConfigurationsByLoadPoint !== currentAssignmentsIdentity
+        || loadPointGroupsRef.current !== optimizationGroups
+      ) {
+        setProjectState((current) => ({ ...current, optimizationRunning: false }));
+        return;
+      }
+      if (outcome.status === "blocked") {
+        setProjectState((current) => ({
+          ...current,
+          optimizationRunning: false,
+          optimizationError: formatOptimizationDiagnostics(
+            outcome.diagnostics,
+            (key, options) => t(key, options),
+          ),
+          optimizationSummary: null,
+        }));
+        return;
+      }
       const applied = applyOptimizationResult({
         previousChoices: snapshot.selectedPileConfigurationsByLoadPoint,
-        result,
+        result: outcome.result,
       });
       commitProjectState((current) => {
-        if (current.analysisRequest !== snapshot.analysisRequest) return current;
+        if (
+          current.analysisRequest !== analysisRequest
+          || current.activePilePlanId !== activePilePlanId
+          || current.selectedPileConfigurationsByLoadPoint !== currentAssignmentsIdentity
+        ) return { ...current, optimizationRunning: false };
         const activePlan = current.pilePlans.find(
           (plan) => plan.id === current.activePilePlanId,
         ) ?? current.pilePlans[0];
@@ -1271,18 +1309,30 @@ function AppSession({
         };
       });
     } catch (error) {
-      setProjectState((current) => current.analysisRequest !== snapshot.analysisRequest ? current : ({
-        ...current,
-        optimizationRunning: false,
-        optimizationError: error instanceof Error ? error.message : String(error),
-      }));
+      setProjectState((current) => (
+        current.analysisRequest !== analysisRequest
+        || current.activePilePlanId !== activePilePlanId
+        || current.selectedPileConfigurationsByLoadPoint !== currentAssignmentsIdentity
+        || loadPointGroupsRef.current !== optimizationGroups
+      ) ? { ...current, optimizationRunning: false } : ({
+          ...current,
+          optimizationRunning: false,
+          optimizationError: error instanceof Error ? error.message : String(error),
+        }));
     }
   };
 
-  const optimizationDisabled = projectState.optimizationRunning
-    || projectState.activePileSizes.length === 0
-    || projectState.activePileTipLevels.length === 0
-    || (projectState.optimizationTargetScope === "selected" && projectState.selectedLoadPointIds.length === 0);
+  const optimizationDisabled = isOptimizationDisabled({
+    optimizationRunning: projectState.optimizationRunning,
+    hasActivePileSizes: projectState.activePileSizes.length > 0,
+    hasActivePileTipLevels: projectState.activePileTipLevels.length > 0,
+    selectedTargetIsEmpty: projectState.optimizationTargetScope === "selected"
+      && projectState.selectedLoadPointIds.length === 0,
+    loadPointCount: projectState.loadPoints.length,
+    groupsPending: loadPointGroups.pending,
+    groupsError: loadPointGroups.error,
+    groupCount: loadPointGroups.groups.length,
+  });
 
   const installOpenedProject = (project: ProjectState, path: string | null) => {
     setLassoSelectionActive((active) => transitionLassoSelectionMode(active, { type: "dismiss" }));

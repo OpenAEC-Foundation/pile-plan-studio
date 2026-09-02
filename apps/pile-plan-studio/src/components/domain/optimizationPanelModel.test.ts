@@ -4,7 +4,9 @@ import assert from "node:assert/strict";
 import {
   applyOptimizationResult,
   clampOptimizationLimits,
+  formatOptimizationDiagnostics,
   getOptimizationTargetIds,
+  isOptimizationDisabled,
 } from "./optimizationPanelModel.ts";
 
 describe("React optimization panel model", () => {
@@ -62,5 +64,40 @@ describe("React optimization panel model", () => {
       noValidOptionCount: 0,
       optimizerUnassignedCount: 1,
     });
+  });
+
+  it("disables optimization until a non-empty project has ready groups", () => {
+    const base = {
+      optimizationRunning: false,
+      hasActivePileSizes: true,
+      hasActivePileTipLevels: true,
+      selectedTargetIsEmpty: false,
+      loadPointCount: 2,
+      groupsPending: false,
+      groupsError: null,
+      groupCount: 1,
+    };
+
+    assert.equal(isOptimizationDisabled(base), false);
+    assert.equal(isOptimizationDisabled({ ...base, groupsPending: true }), true);
+    assert.equal(isOptimizationDisabled({ ...base, groupsError: "failed" }), true);
+    assert.equal(isOptimizationDisabled({ ...base, groupCount: 0 }), true);
+    assert.equal(isOptimizationDisabled({ ...base, loadPointCount: 0, groupCount: 0 }), false);
+  });
+
+  it("formats the first preparation diagnostic and reports additional diagnostics", () => {
+    const translate = (key: string, options?: Record<string, unknown>) => (
+      options?.count ? `${key}:${options.count}` : `${key}:${options?.loadPoints ?? ""}`
+    );
+
+    assert.equal(formatOptimizationDiagnostics([{
+      kind: "conflicting_locked_configurations",
+      load_point_ids: [7, 8],
+      configuration: null,
+    }, {
+      kind: "missing_relevant_cost",
+      load_point_ids: [9],
+      configuration: { pile_size_mm: 320, pile_tip_level_mm: -18_500 },
+    }], translate), "optimization.blocked.conflictingLockedConfigurations:7, 8 optimization.blocked.additional:1");
   });
 });

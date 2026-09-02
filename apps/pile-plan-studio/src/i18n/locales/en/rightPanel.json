@@ -142,5 +142,16 @@
   "optimization.noValidOption": "{{count}} without a valid pile option.",
   "optimization.unassigned": "{{count}} not assigned within the configured limits.",
   "optimization.running": "Optimizing...",
-  "optimization.run": "Run Greedy Optimization"
+  "optimization.run": "Run Greedy Optimization",
+  "optimization.blocked.invalidGroupPartition": "The load point groups are incomplete or overlap ({{loadPoints}}).",
+  "optimization.blocked.missingPileHeadLevel": "Enter a pile head level before optimizing.",
+  "optimization.blocked.missingAnalysisData": "Analysis data is missing for load points {{loadPoints}}.",
+  "optimization.blocked.conflictingLockedConfigurations": "Locked load points {{loadPoints}} require conflicting pile configurations.",
+  "optimization.blocked.lockedMemberUnassigned": "Locked load points {{loadPoints}} do not have an assigned pile configuration.",
+  "optimization.blocked.lockedConfigurationUnavailable": "The locked pile configuration is not technically available for all group members ({{loadPoints}}).",
+  "optimization.blocked.lockedConfigurationExceedsUtilizationLimit": "The locked pile configuration exceeds the utilization limit for load points {{loadPoints}}.",
+  "optimization.blocked.missingRelevantCost": "Cost data is missing for a relevant pile configuration.",
+  "optimization.blocked.noEligibleConfiguration": "No eligible common pile configuration exists for load points {{loadPoints}}.",
+  "optimization.blocked.additional": "There are {{count}} additional optimization issues.",
+  "optimization.blocked.unknown": "Optimization could not be prepared."
 }

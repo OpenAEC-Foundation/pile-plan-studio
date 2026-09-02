@@ -142,5 +142,16 @@
   "optimization.noValidOption": "{{count}} zonder geldige paaloptie.",
   "optimization.unassigned": "{{count}} niet toegewezen binnen de ingestelde limieten.",
   "optimization.running": "Optimaliseren...",
-  "optimization.run": "Greedy-optimalisatie uitvoeren"
+  "optimization.run": "Greedy-optimalisatie uitvoeren",
+  "optimization.blocked.invalidGroupPartition": "De belastinglocatiegroepen zijn onvolledig of overlappen ({{loadPoints}}).",
+  "optimization.blocked.missingPileHeadLevel": "Vul een paalkopniveau in voordat je optimaliseert.",
+  "optimization.blocked.missingAnalysisData": "Analyseresultaten ontbreken voor belastinglocaties {{loadPoints}}.",
+  "optimization.blocked.conflictingLockedConfigurations": "Vergrendelde belastinglocaties {{loadPoints}} vereisen conflicterende paalconfiguraties.",
+  "optimization.blocked.lockedMemberUnassigned": "Vergrendelde belastinglocaties {{loadPoints}} hebben geen toegewezen paalconfiguratie.",
+  "optimization.blocked.lockedConfigurationUnavailable": "De vergrendelde paalconfiguratie is niet technisch beschikbaar voor alle groepsleden ({{loadPoints}}).",
+  "optimization.blocked.lockedConfigurationExceedsUtilizationLimit": "De vergrendelde paalconfiguratie overschrijdt de benuttingslimiet voor belastinglocaties {{loadPoints}}.",
+  "optimization.blocked.missingRelevantCost": "Kostengegevens ontbreken voor een relevante paalconfiguratie.",
+  "optimization.blocked.noEligibleConfiguration": "Er bestaat geen geldige gezamenlijke paalconfiguratie voor belastinglocaties {{loadPoints}}.",
+  "optimization.blocked.additional": "Er zijn nog {{count}} aanvullende optimalisatieproblemen.",
+  "optimization.blocked.unknown": "De optimalisatie kon niet worden voorbereid."
 }

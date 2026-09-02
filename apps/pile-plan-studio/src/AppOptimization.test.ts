@@ -16,13 +16,31 @@ describe("App optimization integration", () => {
     assert.match(optimizationBlock, /targetLoadPointIds/);
     assert.match(optimizationBlock, /lockedLoadPointIds/);
     assert.match(optimizationBlock, /currentAssignments/);
-    assert.match(optimizationBlock, /new Map\(snapshot\.selectedPileConfigurationsByLoadPoint\)/);
+    assert.match(optimizationBlock, /new Map\(currentAssignmentsIdentity\)/);
     assert.doesNotMatch(optimizationBlock, /Math\.round/);
     assert.doesNotMatch(optimizationBlock, /const chosenOption/);
     assert.match(optimizationBlock, /limitScope: snapshot\.optimizationLimitScope/);
+    assert.match(optimizationBlock, /groups: loadPointGroups\.groups/);
+    assert.match(optimizationBlock, /pileHeadLevelM: snapshot\.pileHeadLevelM/);
+    assert.match(optimizationBlock, /outcome\.status === "blocked"/);
+    assert.match(optimizationBlock, /formatOptimizationDiagnostics/);
+    assert.match(optimizationBlock, /activePilePlanId !== activePilePlanId/);
+    assert.match(optimizationBlock, /selectedPileConfigurationsByLoadPoint !== currentAssignmentsIdentity/);
     assert.doesNotMatch(optimizationBlock, /baselineOptions/);
     assert.doesNotMatch(optimizationBlock, /activePileSizes:\s*applied/);
     assert.doesNotMatch(optimizationBlock, /activePileTipLevels:\s*applied/);
+  });
+
+  it("waits for the project-wide group partition before optimization", () => {
+    const source = readFileSync(resolve(import.meta.dirname, "App.tsx"), "utf8");
+    const start = source.indexOf("const optimizationDisabled");
+    const end = source.indexOf("const installOpenedProject", start);
+    const disabledBlock = source.slice(start, end);
+
+    assert.match(disabledBlock, /isOptimizationDisabled/);
+    assert.match(disabledBlock, /groupsPending: loadPointGroups\.pending/);
+    assert.match(disabledBlock, /groupsError: loadPointGroups\.error/);
+    assert.match(disabledBlock, /groupCount: loadPointGroups\.groups\.length/);
   });
 
   it("clears transient run feedback after plan switches and manual pile changes", () => {

@@ -38,7 +38,7 @@ import {
   type Cpt,
   type CptSelectionSettings,
   type GreedyOptimizationSettings,
-  type GreedyOptimizationResult,
+  type GreedyOptimizationOutcome,
   type OptimizationLimitScope,
   type LoadPoint,
   type PileConfigurationOption,
@@ -85,6 +85,11 @@ import {
   type LoadPointGroup,
   type LoadPointGroupAssignmentInput,
 } from "./loadPointGroupContract.ts";
+import {
+  greedyOptimizationOutcomeFromCore,
+  toBrowserGreedyOptimizationRequest,
+  toDesktopGreedyOptimizationRequest,
+} from "./greedyOptimizationContract.ts";
 
 type CoreCptSelectionSettings = {
   algorithm: CptSelectionSettings["algorithm"];
@@ -395,43 +400,28 @@ export async function getBearingCapacityRowsForCptCore(input: {
 }
 
 export async function greedyOptimizeCore(input: {
+  groups: LoadPointGroup[];
   optionsByLoadPoint: Map<number, PileConfigurationOption[]>;
   targetLoadPointIds: number[];
   lockedLoadPointIds: number[];
   currentAssignments: Map<number, PileConfigurationKey>;
   limitScope: OptimizationLimitScope;
-  pileHeadLevelM: number;
+  pileHeadLevelM: number | null;
   costSettings: PileCostSettings;
   settings: GreedyOptimizationSettings;
-}): Promise<GreedyOptimizationResult> {
+}): Promise<GreedyOptimizationOutcome> {
   if (!isTauriRuntime()) {
     await initializeWasm();
-    const request = {
-      options_by_load_point: toWasmNumberKeyedMap(toCorePileOptionsByLoadPoint(input.optionsByLoadPoint)),
-      target_load_point_ids: input.targetLoadPointIds,
-      locked_load_point_ids: input.lockedLoadPointIds,
-      current_assignments: toWasmNumberKeyedMap(input.currentAssignments),
-      limit_scope: input.limitScope,
-      pile_head_level_m: input.pileHeadLevelM,
-      cost_settings: input.costSettings,
-      settings: input.settings,
-    };
-
-    return greedy_optimize(request) as GreedyOptimizationResult;
+    const outcome = greedy_optimize(
+      toBrowserGreedyOptimizationRequest(input),
+    ) as GreedyOptimizationOutcome;
+    return greedyOptimizationOutcomeFromCore(outcome);
   }
 
-  const request = {
-    options_by_load_point: toStringKeyedRecord(toCorePileOptionsByLoadPoint(input.optionsByLoadPoint)),
-    target_load_point_ids: input.targetLoadPointIds,
-    locked_load_point_ids: input.lockedLoadPointIds,
-    current_assignments: toStringKeyedRecord(input.currentAssignments),
-    limit_scope: input.limitScope,
-    pile_head_level_m: input.pileHeadLevelM,
-    cost_settings: input.costSettings,
-    settings: input.settings,
-  };
-
-  return invoke<GreedyOptimizationResult>("greedy_optimize", { request });
+  const outcome = await invoke<GreedyOptimizationOutcome>("greedy_optimize", {
+    request: toDesktopGreedyOptimizationRequest(input),
+  });
+  return greedyOptimizationOutcomeFromCore(outcome);
 }
 
 export async function importProjectFromFilesCore(input: {

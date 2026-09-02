@@ -301,7 +301,7 @@ git commit -m "feat: add grouped greedy transport contract"
 - Consumes: cached `loadPointGroups` and `GreedyOptimizationOutcome`.
 - Produces: one completed atomic plan transition or a localized non-mutating blocked state.
 
-- [ ] **Step 1: Write failing app orchestration tests**
+- [x] **Step 1: Write failing app orchestration tests**
 
 Assert source-level and pure-model behavior for:
 
@@ -311,23 +311,23 @@ Assert source-level and pure-model behavior for:
 - preserving state and setting `optimizationError` on blocked results;
 - rejecting results after active-plan, assignment, or analysis-request changes.
 
-- [ ] **Step 2: Run focused frontend tests and verify RED**
+- [x] **Step 2: Run focused frontend tests and verify RED**
 
 Run: `node --test src/AppOptimization.test.ts src/components/domain/optimizationPanelModel.test.ts`
 
 Expected: assertions fail until grouped orchestration and blocked outcome handling exist.
 
-- [ ] **Step 3: Add localized diagnostic formatting**
+- [x] **Step 3: Add localized diagnostic formatting**
 
 Add a pure helper that maps the first structured diagnostic to a localized message and appends the number of additional diagnostics when present. Keep the complete diagnostic array at the contract boundary for future UI; this phase stores only the formatted message in existing `optimizationError` state.
 
 Add Dutch and English strings for invalid group partition, missing analysis/head/cost, locked conflicts/unavailability/utilization, no eligible configuration, and an additional-diagnostic count.
 
-- [ ] **Step 4: Route `greedyOptimizeCore` through the contract**
+- [x] **Step 4: Route `greedyOptimizeCore` through the contract**
 
 Extend its input with `groups`, change `pileHeadLevelM` to `number | null`, build requests with the Task 4 serializers, and return `Promise<GreedyOptimizationOutcome>`. Normalize both WASM and Tauri responses through `greedyOptimizationOutcomeFromCore`.
 
-- [ ] **Step 5: Update the optimizer handler**
+- [x] **Step 5: Update the optimizer handler**
 
 Capture active plan ID, current assignment-map identity, analysis request, and the ready group list before starting. Pass groups and the nullable head level. Branch on outcome status:
 
@@ -341,11 +341,11 @@ const applied = applyOptimizationResult({ previousChoices, result: outcome.resul
 
 Retain the existing single commit for completed runs and refuse stale completed or blocked outcomes.
 
-- [ ] **Step 6: Update disabled-state behavior**
+- [x] **Step 6: Update disabled-state behavior**
 
 Disable the existing optimizer action while grouping is pending, contains an error, or has no groups for a non-empty project. Do not add a control, dialog, marker, or legend change.
 
-- [ ] **Step 7: Run focused tests and typecheck and verify GREEN**
+- [x] **Step 7: Run focused tests and typecheck and verify GREEN**
 
 Run: `node --test src/AppOptimization.test.ts src/components/domain/optimizationPanelModel.test.ts src/core/greedyOptimizationContract.test.ts`
 
@@ -353,7 +353,7 @@ Run: `npx tsc -p tsconfig.json --noEmit`
 
 Expected: all pass without weakening stale-result guards.
 
-- [ ] **Step 8: Commit application integration**
+- [x] **Step 8: Commit application integration**
 
 ```powershell
 git add apps/pile-plan-studio/src/App.tsx apps/pile-plan-studio/src/AppOptimization.test.ts apps/pile-plan-studio/src/core/coreClient.ts apps/pile-plan-studio/src/components/domain/optimizationPanelModel.ts apps/pile-plan-studio/src/components/domain/optimizationPanelModel.test.ts apps/pile-plan-studio/src/i18n/locales/en/rightPanel.json apps/pile-plan-studio/src/i18n/locales/nl/rightPanel.json

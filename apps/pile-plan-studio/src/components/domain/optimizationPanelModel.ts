@@ -1,6 +1,7 @@
 import type {
   GreedyOptimizationResult,
   GreedyUnassignedReason,
+  OptimizationPreparationDiagnostic,
   PileConfigurationKey,
 } from "../.././core/projectTypes.ts";
 import { summarizeOptimizationRun } from "../../domain/optimizationSummary.ts";
@@ -35,6 +36,65 @@ export function getOptimizationTargetIds(
   _lockedIds: number[] = [],
 ): number[] {
   return scope === "selected" ? selectedIds : allIds;
+}
+
+export function isOptimizationDisabled(input: {
+  optimizationRunning: boolean;
+  hasActivePileSizes: boolean;
+  hasActivePileTipLevels: boolean;
+  selectedTargetIsEmpty: boolean;
+  loadPointCount: number;
+  groupsPending: boolean;
+  groupsError: string | Error | null;
+  groupCount: number;
+}): boolean {
+  return input.optimizationRunning
+    || !input.hasActivePileSizes
+    || !input.hasActivePileTipLevels
+    || input.selectedTargetIsEmpty
+    || input.groupsPending
+    || input.groupsError !== null
+    || (input.loadPointCount > 0 && input.groupCount === 0);
+}
+
+type TranslateOptimizationDiagnostic = (
+  key: string,
+  options?: Record<string, unknown>,
+) => string;
+
+const DIAGNOSTIC_MESSAGE_KEYS: Record<OptimizationPreparationDiagnostic["kind"], string> = {
+  invalid_group_partition: "optimization.blocked.invalidGroupPartition",
+  missing_pile_head_level: "optimization.blocked.missingPileHeadLevel",
+  missing_analysis_data: "optimization.blocked.missingAnalysisData",
+  conflicting_locked_configurations: "optimization.blocked.conflictingLockedConfigurations",
+  locked_member_unassigned: "optimization.blocked.lockedMemberUnassigned",
+  locked_configuration_unavailable: "optimization.blocked.lockedConfigurationUnavailable",
+  locked_configuration_exceeds_utilization_limit: "optimization.blocked.lockedConfigurationExceedsUtilizationLimit",
+  missing_relevant_cost: "optimization.blocked.missingRelevantCost",
+  no_eligible_configuration: "optimization.blocked.noEligibleConfiguration",
+};
+
+export function formatOptimizationDiagnostics(
+  diagnostics: OptimizationPreparationDiagnostic[],
+  translate: TranslateOptimizationDiagnostic,
+): string {
+  if (diagnostics.length === 0) {
+    return translate("optimization.blocked.unknown");
+  }
+
+  const first = diagnostics[0];
+  const message = translate(DIAGNOSTIC_MESSAGE_KEYS[first.kind], {
+    loadPoints: first.load_point_ids.join(", "),
+    pileSize: first.configuration?.pile_size_mm,
+    pileTipLevel: first.configuration
+      ? first.configuration.pile_tip_level_mm / 1_000
+      : undefined,
+  });
+  return diagnostics.length === 1
+    ? message
+    : `${message} ${translate("optimization.blocked.additional", {
+      count: diagnostics.length - 1,
+    })}`;
 }
 
 export function applyOptimizationResult(input: {
