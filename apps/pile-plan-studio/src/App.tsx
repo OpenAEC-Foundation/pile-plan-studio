@@ -1526,6 +1526,7 @@ function AppSession({
             {activeSourceKind === null ? (
               <PilePlanWorkspace
                 state={projectState}
+                loadPointGroups={loadPointGroups.groups}
                 lassoSelectionActive={lassoSelectionActive}
                 onStateChange={handleProjectStateChange}
               />
@@ -1563,6 +1564,7 @@ function AppSession({
           />}
           {workspaceLayout.propertiesVisible && <RightPanel
             state={projectState}
+            loadPointGroups={loadPointGroups.groups}
             onStateChange={handleProjectStateChange}
             pileAssignmentPending={pileAssignmentPending
               || loadPointGroups.pending

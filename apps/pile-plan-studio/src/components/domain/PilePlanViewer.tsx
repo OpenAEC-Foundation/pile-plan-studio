@@ -89,14 +89,17 @@ import {
 import { presentTipLevelRegionGeometry } from "../../viewer/tipLevelRegionPresentation.ts";
 import { useTipLevelRegionTopology } from "./useTipLevelRegionTopology.ts";
 import TipLevelRegionOverlay from "./TipLevelRegionOverlay.tsx";
+import type { LoadPointGroup } from "../../core/loadPointGroupContract.ts";
+import { getOptimizationConflictDetails } from "../../domain/optimizationConflict.ts";
 
 type Props = {
   state: ProjectState;
+  loadPointGroups: LoadPointGroup[];
   lassoSelectionActive: boolean;
   onStateChange: (nextState: ProjectState) => void;
 };
 
-export default function PilePlanViewer({ state, lassoSelectionActive, onStateChange }: Props) {
+export default function PilePlanViewer({ state, loadPointGroups, lassoSelectionActive, onStateChange }: Props) {
   const { t, i18n } = useTranslation("common");
   const legend = state.pileLegend;
   const selectedLoadPointIds = new Set(state.selectedLoadPointIds);
@@ -388,6 +391,7 @@ export default function PilePlanViewer({ state, lassoSelectionActive, onStateCha
               state.analysisError !== null,
               activePilePlan.optimizationUnassignedByLoadPoint.get(loadPoint.id),
             );
+            const optimizerTitle = getOptimizerUnresolvedTitle(loadPoint.id);
             const unselectedClass = unselectedState === "pending"
               ? " is-pending"
               : unselectedState === "missing"
@@ -435,7 +439,7 @@ export default function PilePlanViewer({ state, lassoSelectionActive, onStateCha
                   <span className="load-point-pending" aria-hidden="true" />
                 ) : unselectedState === "optimizer-unassigned" ? (
                   <OptimizerUnresolvedMarker
-                    title={t("viewer.optimizerUnassigned")}
+                    title={optimizerTitle}
                   />
                 ) : (
                   <span className="load-point-empty" aria-hidden="true">
@@ -748,6 +752,24 @@ export default function PilePlanViewer({ state, lassoSelectionActive, onStateCha
     setHoverCandidates(null);
   }
 
+  function getOptimizerUnresolvedTitle(loadPointId: number): string {
+    const conflict = getOptimizationConflictDetails({
+      loadPointId,
+      reason: activePilePlan.optimizationUnassignedByLoadPoint.get(loadPointId),
+      groups: loadPointGroups,
+      optionsByLoadPointId: pileOptionsByLoadPointId,
+    });
+    if (conflict?.kind === "group_member_without_valid_option") {
+      return t("viewer.optimizerGroupMemberWithoutValidOption", {
+        loadPoints: conflict.relatedLoadPointIds.join(", "),
+      });
+    }
+    if (conflict?.kind === "no_common_group_configuration") {
+      return t("viewer.optimizerNoCommonGroupConfiguration");
+    }
+    return t("viewer.optimizerUnassigned");
+  }
+
   function getProjectViewportPointer(clientX: number, clientY: number, rect: LocalCanvasRect) {
     const pointer = getLocalPointer(clientX, clientY, rect);
     return {
@@ -884,7 +906,7 @@ export default function PilePlanViewer({ state, lassoSelectionActive, onStateCha
         ) : unselectedState === "optimizer-unassigned" ? (
           <OptimizerUnresolvedMarker
             placement="inline"
-            title={t("viewer.optimizerUnassigned")}
+            title={getOptimizerUnresolvedTitle(item.id)}
           />
         ) : (
           <span className="load-point-empty" aria-hidden="true">

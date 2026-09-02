@@ -79,6 +79,8 @@
   "properties": "Eigenschappen",
   "viewer": {
     "optimizerUnassigned": "De laatste optimalisatie vond binnen de ingestelde limieten geen toewijzing.",
+    "optimizerGroupMemberWithoutValidOption": "Geen toewijzing mogelijk omdat de volgende groepsleden geen geldige paaloptie hebben: {{loadPoints}}.",
+    "optimizerNoCommonGroupConfiguration": "De locaties in deze groep hebben afzonderlijk geldige opties, maar geen gemeenschappelijke configuratie.",
     "hover": {
       "loadPoint": "Belastinglocatie",
       "cpt": "Sondering",

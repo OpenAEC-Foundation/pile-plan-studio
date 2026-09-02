@@ -35,8 +35,10 @@ describe("optimization summary", () => {
       [
         { load_point_id: 1, reason: "no_valid_option" },
         { load_point_id: 2, reason: "no_valid_option" },
-        { load_point_id: 3, reason: "optimization_constraints" },
-        { load_point_id: 4, reason: "configuration_limits" },
+        { load_point_id: 3, reason: "group_member_without_valid_option" },
+        { load_point_id: 4, reason: "no_common_group_configuration" },
+        { load_point_id: 5, reason: "optimization_constraints" },
+        { load_point_id: 6, reason: "configuration_limits" },
       ],
       2,
     );
@@ -47,7 +49,7 @@ describe("optimization summary", () => {
       noValidOptionCount: 2,
       optimizerUnassignedCount: 2,
       unresolvedGroupCount: 2,
-      unresolvedLoadPointCount: 2,
+      unresolvedLoadPointCount: 4,
     });
   });
 

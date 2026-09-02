@@ -128,6 +128,8 @@ export type GreedyOptimizedPileChoice = {
 
 export type GreedyUnassignedReason =
   | "no_valid_option"
+  | "group_member_without_valid_option"
+  | "no_common_group_configuration"
   | "optimization_constraints"
   | "configuration_limits";
 

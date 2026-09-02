@@ -60,6 +60,8 @@ pub struct GreedyOptimizedPileChoice {
 #[serde(rename_all = "snake_case")]
 pub enum GreedyUnassignedReason {
     NoValidOption,
+    GroupMemberWithoutValidOption,
+    NoCommonGroupConfiguration,
     OptimizationConstraints,
     ConfigurationLimits,
 }
@@ -350,12 +352,17 @@ fn expand_unit_results(
                 if !locked_load_point_ids.contains(load_point_id) {
                     let reason = if !unit.options.is_empty() {
                         GreedyUnassignedReason::ConfigurationLimits
-                    } else if unit.has_technically_valid_configuration
-                        || unit
-                            .technically_valid_load_point_ids
-                            .contains(load_point_id)
-                    {
+                    } else if unit.has_technically_valid_configuration {
                         GreedyUnassignedReason::OptimizationConstraints
+                    } else if unit
+                        .technically_valid_load_point_ids
+                        .contains(load_point_id)
+                    {
+                        if unit.technically_valid_load_point_ids.len() < unit.load_point_ids.len() {
+                            GreedyUnassignedReason::GroupMemberWithoutValidOption
+                        } else {
+                            GreedyUnassignedReason::NoCommonGroupConfiguration
+                        }
                     } else {
                         GreedyUnassignedReason::NoValidOption
                     };
@@ -662,11 +669,11 @@ mod tests {
             vec![
                 GreedyUnassignedLoadPoint {
                     load_point_id: 1,
-                    reason: GreedyUnassignedReason::OptimizationConstraints,
+                    reason: GreedyUnassignedReason::NoCommonGroupConfiguration,
                 },
                 GreedyUnassignedLoadPoint {
                     load_point_id: 2,
-                    reason: GreedyUnassignedReason::OptimizationConstraints,
+                    reason: GreedyUnassignedReason::NoCommonGroupConfiguration,
                 },
             ],
         );
@@ -743,7 +750,7 @@ mod tests {
             vec![
                 GreedyUnassignedLoadPoint {
                     load_point_id: 1,
-                    reason: GreedyUnassignedReason::OptimizationConstraints,
+                    reason: GreedyUnassignedReason::GroupMemberWithoutValidOption,
                 },
                 GreedyUnassignedLoadPoint {
                     load_point_id: 2,

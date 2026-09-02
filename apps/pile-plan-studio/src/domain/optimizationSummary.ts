@@ -41,12 +41,16 @@ export function summarizeOptimizationRun(
   const noValidOptionCount = unassigned.filter(
     (item) => item.reason === "no_valid_option",
   ).length;
+  const optimizerUnassignedCount = unassigned.filter(
+    (item) => item.reason === "optimization_constraints"
+      || item.reason === "configuration_limits",
+  ).length;
 
   return {
     assignedCount: choices.length,
     changedCount,
     noValidOptionCount,
-    optimizerUnassignedCount: unassigned.length - noValidOptionCount,
+    optimizerUnassignedCount,
     unresolvedGroupCount: unassignedGroupCount,
     unresolvedLoadPointCount: unassigned.length - noValidOptionCount,
   };

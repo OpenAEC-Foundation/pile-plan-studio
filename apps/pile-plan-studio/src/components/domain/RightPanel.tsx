@@ -42,11 +42,14 @@ import { CoordinateReadout } from "./CoordinateReadout.ts";
 import { commitNumberDraft } from "./numberInputModel.ts";
 import { useAggregatedPileOptions } from "./useAggregatedPileOptions.ts";
 import "./rightPanel.css";
+import type { LoadPointGroup } from "../../core/loadPointGroupContract.ts";
+import { getOptimizationConflictDetails } from "../../domain/optimizationConflict.ts";
 
 export type RightTaskPanel = "cpt-settings" | "cost-settings" | "optimization";
 
 type Props = {
   state: ProjectState;
+  loadPointGroups?: LoadPointGroup[];
   onStateChange: (nextState: ProjectState) => void;
   pileAssignmentPending?: boolean;
   onApplyPileConfiguration?: (
@@ -65,6 +68,7 @@ type Props = {
 
 export default function RightPanel({
   state,
+  loadPointGroups = [],
   onStateChange,
   pileAssignmentPending = false,
   onApplyPileConfiguration = () => undefined,
@@ -119,6 +123,7 @@ export default function RightPanel({
           onApplyPileConfiguration={onApplyPileConfiguration}
           selectedLabel={selectedLabel}
           selectedLoadPoints={selectedLoadPoints}
+          loadPointGroups={loadPointGroups}
         />
       )}
     </aside>
@@ -649,6 +654,7 @@ function LoadPointPanel({
   onApplyPileConfiguration,
   selectedLabel,
   selectedLoadPoints,
+  loadPointGroups,
 }: {
   state: ProjectState;
   onStateChange: (nextState: ProjectState) => void;
@@ -659,6 +665,7 @@ function LoadPointPanel({
   ) => void;
   selectedLabel: string;
   selectedLoadPoints: ReturnType<typeof getSelectedLoadPoints>;
+  loadPointGroups: LoadPointGroup[];
 }) {
   const { t, i18n } = useTranslation("rightPanel");
   const pileOptionsByLoadPointId = getPileOptionsByLoadPointIdForPanel(state);
@@ -720,6 +727,16 @@ function LoadPointPanel({
   const fedLabel = selectedLoadPoints.length === 1
     ? `${selectedLoadPoints[0].design_load_kn.toLocaleString(i18n.language, { maximumFractionDigits: 1 })} kN`
     : t("loadPoints.selectedCount", { count: selectedLoadPoints.length });
+  const activePilePlan = state.pilePlans.find((plan) => plan.id === state.activePilePlanId)
+    ?? state.pilePlans[0];
+  const selectedOptimizationConflict = selectedLoadPoints.length === 1 && activePilePlan
+    ? getOptimizationConflictDetails({
+        loadPointId: selectedLoadPoints[0].id,
+        reason: activePilePlan.optimizationUnassignedByLoadPoint.get(selectedLoadPoints[0].id),
+        groups: loadPointGroups,
+        optionsByLoadPointId: pileOptionsByLoadPointId,
+      })
+    : null;
 
   return (
     <div className="load-point-panel">
@@ -737,6 +754,31 @@ function LoadPointPanel({
       </header>
 
       <CoordinateReadout points={selectedLoadPoints} locale={i18n.language} />
+
+      {selectedOptimizationConflict?.kind === "group_member_without_valid_option" ? (
+        <div className="panel-message is-warning optimization-group-conflict">
+          <span>
+            {t("groupConflict.memberWithoutValidOption")}{" "}
+            {selectedOptimizationConflict.relatedLoadPointIds.map((loadPointId, index) => (
+              <span key={loadPointId}>
+                {index > 0 ? ", " : null}
+                <button
+                  className="optimization-load-point-link"
+                  type="button"
+                  onClick={() => onStateChange({
+                    ...state,
+                    ...selectLoadPoint(state, loadPointId),
+                  })}
+                >{loadPointId}</button>
+              </span>
+            ))}
+          </span>
+        </div>
+      ) : selectedOptimizationConflict?.kind === "no_common_group_configuration" ? (
+        <div className="panel-message is-warning optimization-group-conflict">
+          {t("groupConflict.noCommonConfiguration")}
+        </div>
+      ) : null}
 
       <section className="pile-options-section">
         <div className="section-heading">

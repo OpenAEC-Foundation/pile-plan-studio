@@ -140,6 +140,8 @@
   "optimization.assigned": "{{count}} toegewezen.",
   "optimization.changed": "{{count}} gewijzigd.",
   "optimization.unresolvedGroups": "Onopgeloste groepen: {{groupCount}} ({{loadPointCount}} belastinglocaties).",
+  "groupConflict.memberWithoutValidOption": "Geen toewijzing mogelijk. Groepsleden zonder geldige paaloptie:",
+  "groupConflict.noCommonConfiguration": "De groepsleden hebben afzonderlijk geldige opties, maar geen gemeenschappelijke configuratie.",
   "optimization.noValidOption": "{{count}} zonder geldige paaloptie.",
   "optimization.unassigned": "{{count}} niet toegewezen binnen de ingestelde limieten.",
   "optimization.running": "Optimaliseren...",

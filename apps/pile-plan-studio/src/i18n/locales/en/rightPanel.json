@@ -140,6 +140,8 @@
   "optimization.assigned": "{{count}} assigned.",
   "optimization.changed": "{{count}} changed.",
   "optimization.unresolvedGroups": "Unresolved groups: {{groupCount}} ({{loadPointCount}} load points).",
+  "groupConflict.memberWithoutValidOption": "No assignment is possible. Group members without a valid pile option:",
+  "groupConflict.noCommonConfiguration": "The group members have individually valid options, but no common configuration.",
   "optimization.noValidOption": "{{count}} without a valid pile option.",
   "optimization.unassigned": "{{count}} not assigned within the configured limits.",
   "optimization.running": "Optimizing...",
