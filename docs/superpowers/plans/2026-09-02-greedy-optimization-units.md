@@ -406,7 +406,9 @@ git commit -m "build: refresh grouped optimizer WASM"
 
 Start the existing development viewer on port 4303. Optimize a target containing one member of an automatic two-member group and then a six-member group. Verify complete unlocked-group assignment, unchanged locked members, one undo action, deterministic rerun, and no changes to legend behavior.
 
-- [ ] **Step 5: Review final branch state and push**
+Attempted on 2026-09-02 after a successful production build. The in-app browser reloaded the localhost tab, but its URL policy blocked further inspection. Manual acceptance remains outstanding.
+
+- [x] **Step 5: Review final branch state and push**
 
 Run:
 
