@@ -18,6 +18,15 @@ describe("missing CPT popover", () => {
   });
 });
 
+describe("technical assignment availability", () => {
+  it("uses the unavailable explanation instead of a filter no-match message", () => {
+    const panel = readFileSync(resolve(import.meta.dirname, "RightPanel.tsx"), "utf8");
+
+    assert.match(panel, /technicalAssignment\.status === "unavailable"/);
+    assert.match(panel, /isUnavailable[\s\S]*?technicalNotice\.unavailableExplanation/);
+  });
+});
+
 describe("React optimization panel", () => {
   it("delegates canonical pile choices and disables rows while assignment is pending", () => {
     const panel = readFileSync(resolve(import.meta.dirname, "RightPanel.tsx"), "utf8");

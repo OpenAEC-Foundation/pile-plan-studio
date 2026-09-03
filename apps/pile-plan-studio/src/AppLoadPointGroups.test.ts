@@ -7,6 +7,8 @@ const source = readFileSync(new URL("./App.tsx", import.meta.url), "utf8");
 describe("App load point group integration", () => {
   it("uses the derived runtime partition and delegates assignment decisions to Rust", () => {
     assert.match(source, /useLoadPointGroups\(projectState\.loadPoints\)/);
+    assert.match(source, /getEffectivePileOptionsByLoadPointId\(projectState\)/);
+    assert.match(source, /currentPreview\?\.status === "analyzing"/);
     assert.match(source, /applyLoadPointGroupAssignmentCore\(\{/);
     assert.doesNotMatch(source, /distance.*1200|1200.*distance/i);
   });

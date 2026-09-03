@@ -42,7 +42,7 @@ export default function TechnicalAssignmentNotice({ state, assessment, onStateCh
   function renderCause() {
     if (!model) return null;
     if (model.cause === "no_valid_option") {
-      return <>{t("technicalNotice.location")} {renderIds(model.loadPointIds)} {t("technicalNotice.noValidOption", { count: 1 })}</>;
+      return <>{t("technicalNotice.location")} {renderIds([model.loadPointId])} {t("technicalNotice.noValidOption", { count: 1 })}</>;
     }
     if (model.cause === "group_member_without_valid_option") {
       return <>

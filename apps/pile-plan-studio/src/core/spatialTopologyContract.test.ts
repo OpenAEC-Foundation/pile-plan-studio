@@ -26,6 +26,7 @@ const option: PileConfigurationOption = {
   governing_frd_kn: 500,
   utilization: 0.5,
   missing_cpt_ids: [],
+  technicalStatus: "valid",
 };
 
 describe("spatial topology transport contract", () => {
@@ -60,6 +61,7 @@ describe("spatial topology transport contract", () => {
       governing_frd_kn: 500,
       utilization: 0.5,
       missing_cpt_ids: [],
+      technical_status: "valid",
     });
   });
 
@@ -75,5 +77,6 @@ describe("spatial topology transport contract", () => {
     });
     assert.equal(result.options_by_load_point["7"][0].pile_tip_level_m, -18.0004);
     assert.equal(result.options_by_load_point["7"][0].is_option, true);
+    assert.equal(result.options_by_load_point["7"][0].technical_status, "valid");
   });
 });

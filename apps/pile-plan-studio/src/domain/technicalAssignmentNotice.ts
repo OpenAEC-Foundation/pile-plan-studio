@@ -5,6 +5,7 @@ import type {
 } from "../core/technicalAssignmentContract.ts";
 
 export type TechnicalAssignmentNoticeModel = {
+  loadPointId: number;
   cause: TechnicalAssignmentIssueCause;
   status: TechnicalAssignmentIssueStatus;
   loadPointIds: number[];
@@ -23,6 +24,7 @@ export function getTechnicalAssignmentNotice(input: {
   const issue = input.issuesByLoadPointId.get(input.selectedLoadPointIds[0]);
   if (!issue) return null;
   return {
+    loadPointId: issue.load_point_id,
     cause: issue.cause,
     status: issue.status,
     loadPointIds: sortedUnique(issue.group_load_point_ids),

@@ -23,6 +23,7 @@ describe("technical assignment notice", () => {
     });
 
     assert.deepEqual(model, {
+      loadPointId: 12,
       cause: "group_member_without_valid_option",
       status: "insufficient_capacity",
       loadPointIds: [12, 14],
@@ -30,6 +31,25 @@ describe("technical assignment notice", () => {
       hasMissingCapacityData: true,
     });
     assert.notEqual(model?.loadPointIds, issue.group_load_point_ids);
+  });
+
+  it("keeps the affected location separate from the full group", () => {
+    const individualIssue: TechnicalAssignmentIssue = {
+      ...issue,
+      load_point_id: 14,
+      cause: "no_valid_option",
+      group_load_point_ids: [12, 14],
+      blocking_load_point_ids: [14],
+    };
+
+    const model = getTechnicalAssignmentNotice({
+      selectedLoadPointIds: [14],
+      assessmentStatus: "ready",
+      issuesByLoadPointId: new Map([[14, individualIssue]]),
+    });
+
+    assert.equal(model?.loadPointId, 14);
+    assert.deepEqual(model?.loadPointIds, [12, 14]);
   });
 
   it("returns null outside a ready single affected selection", () => {

@@ -731,6 +731,7 @@ function LoadPointPanel({
     : null;
   const tableRows = getPileOptionTableRows(rows, visibleFilters, visibleSort);
   const chosenKey = getChosenPileOptionKeyForSelection(state, selectedLoadPoints);
+  const isUnavailable = technicalAssignment.status === "unavailable";
   const isLoading = state.pileOptionsByLoadPointId.size === 0
     || (selectedCount > 1 && aggregation.status === "loading");
   const tableError = selectedCount > 1 && aggregation.status === "error"
@@ -807,7 +808,9 @@ function LoadPointPanel({
                 {tableRows.length === 0 ? (
                   <tr>
                     <td className="empty-table-cell" colSpan={columns.length}>
-                      {t("pileOptions.noMatch")}
+                      {isUnavailable
+                        ? t("technicalNotice.unavailableExplanation")
+                        : t("pileOptions.noMatch")}
                     </td>
                   </tr>
                 ) : (

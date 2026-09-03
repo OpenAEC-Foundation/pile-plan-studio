@@ -33,8 +33,9 @@ export type TipLevelRegionTopology = {
   }>;
 };
 
-type CorePileConfigurationOption = Omit<PileConfigurationOption, "isOption"> & {
+type CorePileConfigurationOption = Omit<PileConfigurationOption, "isOption" | "technicalStatus"> & {
   is_option: boolean;
+  technical_status: PileConfigurationOption["technicalStatus"];
 };
 
 type TipLevelRegionTopologyInput = {
@@ -92,7 +93,11 @@ function toCoreOptionsByLoadPoint(
   return new Map(
     [...optionsByLoadPoint].map(([loadPointId, options]) => [
       loadPointId,
-      options.map(({ isOption, ...option }) => ({ ...option, is_option: isOption })),
+      options.map(({ isOption, technicalStatus, ...option }) => ({
+        ...option,
+        is_option: isOption,
+        technical_status: technicalStatus,
+      })),
     ]),
   );
 }

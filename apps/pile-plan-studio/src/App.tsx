@@ -131,6 +131,7 @@ import {
   applyCptSelectionPreviewResult,
   beginCptSelectionPreview,
   failCptSelectionPreview,
+  getEffectivePileOptionsByLoadPointId,
   getCptSelectionPreviewInput,
 } from "./components/domain/cptSettingsModel.ts";
 import {
@@ -257,20 +258,31 @@ function AppSession({
   const projectStateRef = useRef(projectState);
   projectStateRef.current = projectState;
   const loadPointGroups = useLoadPointGroups(projectState.loadPoints);
+  const technicalPileOptionsByLoadPointId = useMemo(
+    () => getEffectivePileOptionsByLoadPointId(projectState),
+    [projectState.cptSelectionEditDraft, projectState.cptSelectionPreview, projectState.pileOptionsByLoadPointId],
+  );
+  const currentPreview = projectState.cptSelectionPreview?.draft === projectState.cptSelectionEditDraft
+    ? projectState.cptSelectionPreview
+    : null;
   const technicalAssignmentInput = useMemo(() => (
     loadPointGroups.pending
       || loadPointGroups.error !== null
       || projectState.analysisError !== null
-      || projectState.pileOptionsByLoadPointId.size !== projectState.loadPoints.length
+      || currentPreview?.status === "analyzing"
+      || currentPreview?.status === "failed"
+      || technicalPileOptionsByLoadPointId.size !== projectState.loadPoints.length
       ? null
       : {
           groups: loadPointGroups.groups,
-          optionsByLoadPoint: projectState.pileOptionsByLoadPointId,
+          optionsByLoadPoint: technicalPileOptionsByLoadPointId,
         }
-  ), [loadPointGroups.error, loadPointGroups.groups, loadPointGroups.pending, projectState.analysisError, projectState.loadPoints.length, projectState.pileOptionsByLoadPointId]);
+  ), [currentPreview?.status, loadPointGroups.error, loadPointGroups.groups, loadPointGroups.pending, projectState.analysisError, projectState.loadPoints.length, technicalPileOptionsByLoadPointId]);
   const assessedTechnicalAssignment = useTechnicalAssignment(technicalAssignmentInput);
   const technicalAssignment = useMemo(() => {
-    const upstreamError = projectState.analysisError ?? loadPointGroups.error;
+    const upstreamError = projectState.analysisError
+      ?? loadPointGroups.error
+      ?? (currentPreview?.status === "failed" ? currentPreview.error : null);
     if (upstreamError) {
       return {
         status: "error" as const,
@@ -288,7 +300,7 @@ function AppSession({
       };
     }
     return assessedTechnicalAssignment;
-  }, [assessedTechnicalAssignment, loadPointGroups.error, projectState.analysisError, technicalAssignmentInput]);
+  }, [assessedTechnicalAssignment, currentPreview, loadPointGroups.error, projectState.analysisError, technicalAssignmentInput]);
   const loadPointGroupsRef = useRef(loadPointGroups.groups);
   loadPointGroupsRef.current = loadPointGroups.groups;
   const pileAssignmentRequestIdRef = useRef(0);
@@ -934,7 +946,7 @@ function AppSession({
     if (creatingPilePlan) return;
     const snapshot = projectState;
     if (
-      snapshot.pileOptionsByLoadPointId.size !== snapshot.loadPoints.length
+      technicalPileOptionsByLoadPointId.size !== snapshot.loadPoints.length
       || snapshot.analysisError !== null
       || loadPointGroups.pending
       || loadPointGroups.error !== null
@@ -943,27 +955,29 @@ function AppSession({
     ) {
       return;
     }
+    const capturedTechnicalOptions = technicalPileOptionsByLoadPointId;
+    const capturedGroups = loadPointGroups.groups;
     setCreatingPilePlan(true);
     try {
-      const activeSizes = new Set(snapshot.activePileSizes);
-      const activeTips = new Set(snapshot.activePileTipLevels);
-      const optionsByLoadPointId = activeSizes.size === 0 || activeTips.size === 0
-        ? new Map<number, never[]>()
-        : new Map([...snapshot.pileOptionsByLoadPointId].map(([loadPointId, options]) => [
-            loadPointId,
-            options.filter((option) => activeSizes.has(option.pile_size_mm)
-              && activeTips.has(option.pile_tip_level_m)),
-          ]));
-      const choices = optionsByLoadPointId.size === 0
+      const choices = capturedTechnicalOptions.size === 0
         ? new Map()
         : await chooseDefaultPileOptionsCore({
-            groups: loadPointGroups.groups,
-            optionsByLoadPointId,
+            groups: capturedGroups,
+            optionsByLoadPointId: capturedTechnicalOptions,
             pileHeadLevelM: snapshot.pileHeadLevelM ?? 0,
             costSettings: snapshot.pileCostSettings,
           });
       commitProjectState((current) => {
-        if (current.analysisRequest !== snapshot.analysisRequest) return current;
+        if (
+          current.analysisRequest !== snapshot.analysisRequest
+          || current.pileOptionsByLoadPointId !== snapshot.pileOptionsByLoadPointId
+          || current.cptSelectionEditDraft !== snapshot.cptSelectionEditDraft
+          || current.cptSelectionPreview !== snapshot.cptSelectionPreview
+          || loadPointGroupsRef.current !== capturedGroups
+          || current.pileCostSettings !== snapshot.pileCostSettings
+          || current.pileHeadLevelM !== snapshot.pileHeadLevelM
+          || current.activePilePlanId !== snapshot.activePilePlanId
+        ) return current;
         return {
           ...current,
           ...createPilePlan({
