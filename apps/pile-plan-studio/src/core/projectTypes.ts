@@ -61,6 +61,11 @@ export type CptSelectionSettings = {
   maxAngleDegrees: number;
 };
 
+export type PileOptionTechnicalStatus =
+  | "valid"
+  | "missing_capacity_data"
+  | "insufficient_capacity";
+
 export type PileConfigurationOption = {
   configuration: PileConfigurationKey;
   pile_size_mm: number;
@@ -70,6 +75,7 @@ export type PileConfigurationOption = {
   governing_frd_kn: number | null;
   utilization: number | null;
   missing_cpt_ids: number[];
+  technicalStatus: PileOptionTechnicalStatus;
 };
 
 export type ProjectAnalysisResult = {
@@ -126,12 +132,19 @@ export type GreedyOptimizedPileChoice = {
   cost: number | null;
 };
 
-export type GreedyUnassignedReason =
-  | "no_valid_option"
-  | "group_member_without_valid_option"
-  | "no_common_group_configuration"
+export type OptimizationUnassignedReason =
   | "optimization_constraints"
   | "configuration_limits";
+
+export type OptimizationUnassignedLoadPoint = {
+  load_point_id: number;
+  reason: OptimizationUnassignedReason;
+};
+
+export type GreedyUnassignedReason = OptimizationUnassignedReason
+  | "no_valid_option"
+  | "group_member_without_valid_option"
+  | "no_common_group_configuration";
 
 export type GreedyUnassignedLoadPoint = {
   load_point_id: number;
@@ -140,7 +153,8 @@ export type GreedyUnassignedLoadPoint = {
 
 export type GreedyOptimizationResult = {
   assignments: GreedyOptimizedPileChoice[];
-  unassigned: GreedyUnassignedLoadPoint[];
+  unassigned: OptimizationUnassignedLoadPoint[];
+  technical_unassigned_load_point_ids: number[];
   unassigned_group_count: number;
   selected_configurations: PileConfigurationKey[];
   pile_size_count: number;
@@ -157,7 +171,8 @@ export type OptimizationPreparationDiagnosticKind =
   | "locked_configuration_unavailable"
   | "locked_configuration_exceeds_utilization_limit"
   | "missing_relevant_cost"
-  | "no_eligible_configuration";
+  | "no_eligible_configuration"
+  | "no_pile_configurations";
 
 export type OptimizationPreparationDiagnostic = {
   kind: OptimizationPreparationDiagnosticKind;

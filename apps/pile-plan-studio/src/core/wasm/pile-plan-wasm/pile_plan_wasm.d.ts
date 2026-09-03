@@ -5,6 +5,8 @@ export function aggregate_pile_options(request: any): any;
 
 export function apply_load_point_group_assignment(request: any): any;
 
+export function assess_technical_assignment(request: any): any;
+
 export function build_spatial_neighborhood(request: any): any;
 
 export function build_tip_level_region_topology(request: any): any;
@@ -47,6 +49,7 @@ export interface InitOutput {
     readonly memory: WebAssembly.Memory;
     readonly aggregate_pile_options: (a: any) => [number, number, number];
     readonly apply_load_point_group_assignment: (a: any) => [number, number, number];
+    readonly assess_technical_assignment: (a: any) => [number, number, number];
     readonly build_spatial_neighborhood: (a: any) => [number, number, number];
     readonly build_tip_level_region_topology: (a: any) => [number, number, number];
     readonly calculate_pile_option_cost: (a: any) => [number, number, number];

@@ -8,6 +8,7 @@ export type AggregatedPileConfiguration = {
   pile_tip_level_m: number;
   status: AggregatedPileConfigurationStatus;
   missing_load_point_ids: number[];
+  missing_cpt_ids: number[];
   invalid_load_point_ids: number[];
   maximum_utilization: number | null;
   critical_load_point_id: number | null;
@@ -28,8 +29,12 @@ export type CoreAggregatedPileConfiguration = Omit<
   critical_governing_frd_kn?: number | null;
 };
 
-export type CorePileConfigurationOption = Omit<PileConfigurationOption, "isOption"> & {
+export type CorePileConfigurationOption = Omit<
+  PileConfigurationOption,
+  "isOption" | "technicalStatus"
+> & {
   is_option: boolean;
+  technical_status: PileConfigurationOption["technicalStatus"];
 };
 
 export type BrowserAggregatePileOptionsRequest = {
@@ -47,6 +52,7 @@ export function aggregatedPileConfigurationsFromCore(
     ...item,
     configuration: { ...item.configuration },
     missing_load_point_ids: [...item.missing_load_point_ids],
+    missing_cpt_ids: [...item.missing_cpt_ids],
     invalid_load_point_ids: [...item.invalid_load_point_ids],
     maximum_utilization: item.maximum_utilization ?? null,
     critical_load_point_id: item.critical_load_point_id ?? null,
@@ -77,7 +83,13 @@ export function toCorePileOptionsByLoadPoint(
   return new Map(
     [...optionsByLoadPoint].map(([loadPointId, options]) => [
       loadPointId,
-      options.map(({ isOption, ...option }) => ({ ...option, is_option: isOption })),
+      options.map(({ isOption, technicalStatus, ...option }) => ({
+        ...option,
+        configuration: { ...option.configuration },
+        missing_cpt_ids: [...option.missing_cpt_ids],
+        is_option: isOption,
+        technical_status: technicalStatus,
+      })),
     ]),
   );
 }

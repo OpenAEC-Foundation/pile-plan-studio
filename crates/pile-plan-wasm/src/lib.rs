@@ -3,7 +3,8 @@ use std::collections::HashMap;
 use pile_plan_core::{
     aggregate_pile_options_for_load_points,
     apply_load_point_group_assignment as apply_load_point_group_assignment_core,
-    bearing_capacity_rows_for_cpt, build_pile_options_by_load_point, build_project_analysis,
+    assess_technical_assignment as assess_technical_assignment_core, bearing_capacity_rows_for_cpt,
+    build_pile_options_by_load_point, build_project_analysis,
     build_spatial_neighborhood as build_spatial_neighborhood_core,
     build_tip_level_region_topology as build_tip_level_region_topology_core, calculate_pile_cost,
     choose_default_pile_option, choose_default_pile_options,
@@ -74,6 +75,12 @@ pub struct DefaultPileOptionsRequest {
 
 #[derive(Debug, Deserialize)]
 pub struct AggregatePileOptionsRequest {
+    pub options_by_load_point: HashMap<u32, Vec<PileConfigurationOption>>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct TechnicalAssignmentRequest {
+    pub groups: Vec<LoadPointGroup>,
     pub options_by_load_point: HashMap<u32, Vec<PileConfigurationOption>>,
 }
 
@@ -219,6 +226,15 @@ pub fn aggregate_pile_options(request: JsValue) -> Result<JsValue, JsValue> {
     to_js_value(&aggregate_pile_options_for_load_points(
         &request.options_by_load_point,
     ))
+}
+
+#[wasm_bindgen]
+pub fn assess_technical_assignment(request: JsValue) -> Result<JsValue, JsValue> {
+    let request: TechnicalAssignmentRequest = from_js_value(request)?;
+    match assess_technical_assignment_core(&request.groups, &request.options_by_load_point) {
+        Ok(assessment) => to_js_value(&assessment),
+        Err(error) => Err(to_js_value(&error)?),
+    }
 }
 
 #[wasm_bindgen]
@@ -435,6 +451,34 @@ mod tests {
         assert_eq!(result[0].maximum_utilization, Some(0.91));
         assert_eq!(result[0].critical_load_point_id, Some(2));
         let _export: fn(JsValue) -> Result<JsValue, JsValue> = aggregate_pile_options;
+    }
+
+    #[test]
+    fn technical_assignment_request_exposes_grouped_missing_result() {
+        let mut missing = aggregation_option(1.20, 62);
+        missing.is_option = false;
+        missing.missing_cpt_ids = vec![62];
+        missing.technical_status = pile_plan_core::PileOptionTechnicalStatus::MissingCapacityData;
+        let request = TechnicalAssignmentRequest {
+            groups: vec![LoadPointGroup {
+                load_point_ids: vec![1, 2],
+            }],
+            options_by_load_point: HashMap::from([
+                (1, vec![aggregation_option(0.72, 61)]),
+                (2, vec![missing]),
+            ]),
+        };
+
+        let result =
+            assess_technical_assignment_core(&request.groups, &request.options_by_load_point)
+                .unwrap();
+
+        assert_eq!(result.issues[0].group_load_point_ids, vec![1, 2]);
+        assert_eq!(
+            result.issues[0].status,
+            pile_plan_core::TechnicalAssignmentIssueStatus::MissingCapacityData
+        );
+        let _export: fn(JsValue) -> Result<JsValue, JsValue> = assess_technical_assignment;
     }
 
     fn aggregation_option(utilization: f64, governing_cpt_id: u32) -> PileConfigurationOption {

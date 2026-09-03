@@ -131,6 +131,7 @@ function cloneResult(result: GreedyOptimizationResult): GreedyOptimizationResult
       configuration: { ...assignment.configuration },
     })),
     unassigned: result.unassigned.map((unassigned) => ({ ...unassigned })),
+    technical_unassigned_load_point_ids: [...result.technical_unassigned_load_point_ids],
     unassigned_group_count: result.unassigned_group_count,
     selected_configurations: result.selected_configurations.map((configuration) => ({
       ...configuration,

@@ -5,8 +5,12 @@ import type {
   SelectedCpt,
 } from "./projectTypes.ts";
 
-export type CorePileConfigurationOption = Omit<PileConfigurationOption, "isOption"> & {
+export type CorePileConfigurationOption = Omit<
+  PileConfigurationOption,
+  "isOption" | "technicalStatus"
+> & {
   is_option: boolean;
+  technical_status: PileConfigurationOption["technicalStatus"];
 };
 
 export type CoreProjectAnalysisResult = {
@@ -60,7 +64,8 @@ export function fromCorePileOption(option: CorePileConfigurationOption): PileCon
     governing_cpt_id: normalizeOptionalNumber(option.governing_cpt_id),
     governing_frd_kn: normalizeOptionalNumber(option.governing_frd_kn),
     utilization: normalizeOptionalNumber(option.utilization),
-    missing_cpt_ids: option.missing_cpt_ids,
+    missing_cpt_ids: [...option.missing_cpt_ids],
+    technicalStatus: option.technical_status,
   };
 }
 

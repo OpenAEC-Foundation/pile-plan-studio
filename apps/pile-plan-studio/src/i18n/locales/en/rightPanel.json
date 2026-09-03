@@ -155,6 +155,7 @@
   "optimization.blocked.lockedConfigurationExceedsUtilizationLimit": "The locked pile configuration exceeds the utilization limit for load points {{loadPoints}}.",
   "optimization.blocked.missingRelevantCost": "Cost data is missing for a relevant pile configuration.",
   "optimization.blocked.noEligibleConfiguration": "No eligible common pile configuration exists for load points {{loadPoints}}.",
+  "optimization.blocked.noPileConfigurations": "Pile options cannot be determined because the foundation advice contains no usable bearing-capacity configurations.",
   "optimization.blocked.additional": "There are {{count}} additional optimization issues.",
   "optimization.blocked.unknown": "Optimization could not be prepared."
 }

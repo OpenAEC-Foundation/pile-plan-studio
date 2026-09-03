@@ -174,6 +174,7 @@ function optionFromConfiguration(configuration: PileConfigurationKey) {
     governing_frd_kn: null,
     utilization: null,
     missing_cpt_ids: [],
+    technicalStatus: "valid" as const,
   };
 }
 

@@ -72,6 +72,7 @@ const DIAGNOSTIC_MESSAGE_KEYS: Record<OptimizationPreparationDiagnostic["kind"],
   locked_configuration_exceeds_utilization_limit: "rightPanel:optimization.blocked.lockedConfigurationExceedsUtilizationLimit",
   missing_relevant_cost: "rightPanel:optimization.blocked.missingRelevantCost",
   no_eligible_configuration: "rightPanel:optimization.blocked.noEligibleConfiguration",
+  no_pile_configurations: "rightPanel:optimization.blocked.noPileConfigurations",
 };
 
 export function formatOptimizationDiagnostics(

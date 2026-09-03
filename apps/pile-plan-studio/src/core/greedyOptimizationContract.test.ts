@@ -19,6 +19,7 @@ const input: GreedyOptimizationContractInput = {
     governing_frd_kn: 700,
     utilization: 0.72,
     missing_cpt_ids: [],
+    technicalStatus: "valid",
   }]]]),
   targetLoadPointIds: [7],
   lockedLoadPointIds: [8],
@@ -75,6 +76,7 @@ describe("greedy optimization transport contract", () => {
           cost: 123,
         }],
         unassigned: [{ load_point_id: 9, reason: "configuration_limits" as const }],
+        technical_unassigned_load_point_ids: [11, 12],
         unassigned_group_count: 1,
         selected_configurations: [{ pile_size_mm: 320, pile_tip_level_mm: -18_500 }],
         pile_size_count: 1,
@@ -92,6 +94,10 @@ describe("greedy optimization transport contract", () => {
       assert.notEqual(result.result.assignments, source.result.assignments);
       assert.notEqual(result.result.assignments[0].configuration, source.result.assignments[0].configuration);
       assert.notEqual(result.result.selected_configurations, source.result.selected_configurations);
+      assert.notEqual(
+        result.result.technical_unassigned_load_point_ids,
+        source.result.technical_unassigned_load_point_ids,
+      );
     }
   });
 

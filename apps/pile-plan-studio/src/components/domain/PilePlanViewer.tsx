@@ -1070,6 +1070,7 @@ function getSelectedPileOption(
     governing_frd_kn: null,
     utilization: null,
     missing_cpt_ids: [0],
+    technicalStatus: "missing_capacity_data" as const,
   };
 }
 

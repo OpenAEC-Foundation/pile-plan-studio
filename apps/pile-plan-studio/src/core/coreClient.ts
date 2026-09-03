@@ -1,6 +1,7 @@
 import { invoke } from "@tauri-apps/api/core";
 import initWasm, {
   aggregate_pile_options,
+  assess_technical_assignment,
   apply_load_point_group_assignment,
   build_spatial_neighborhood,
   build_tip_level_region_topology,
@@ -94,6 +95,14 @@ import {
   toBrowserDefaultPileSelectionRequest,
   toDesktopDefaultPileSelectionRequest,
 } from "./defaultPileSelectionContract.ts";
+import {
+  technicalAssignmentAssessmentFromCore,
+  toBrowserTechnicalAssignmentRequest,
+  toDesktopTechnicalAssignmentRequest,
+  type CoreTechnicalAssignmentAssessment,
+  type TechnicalAssignmentAssessment,
+  type TechnicalAssignmentContractInput,
+} from "./technicalAssignmentContract.ts";
 
 type CoreCptSelectionSettings = {
   algorithm: CptSelectionSettings["algorithm"];
@@ -377,6 +386,24 @@ export async function aggregatePileOptionsCore(
   return aggregatedPileConfigurationsFromCore(result);
 }
 
+export async function assessTechnicalAssignmentCore(
+  input: TechnicalAssignmentContractInput,
+): Promise<TechnicalAssignmentAssessment> {
+  let result: CoreTechnicalAssignmentAssessment;
+  if (!isTauriRuntime()) {
+    await initializeWasm();
+    result = assess_technical_assignment(
+      toBrowserTechnicalAssignmentRequest(input),
+    ) as CoreTechnicalAssignmentAssessment;
+  } else {
+    result = await invoke<CoreTechnicalAssignmentAssessment>("assess_technical_assignment", {
+      request: toDesktopTechnicalAssignmentRequest(input),
+    });
+  }
+
+  return technicalAssignmentAssessmentFromCore(result);
+}
+
 export async function getBearingCapacityRowsForCptCore(input: {
   bearingCapacities: BearingCapacity[];
   cptId: number;
@@ -617,6 +644,7 @@ function toCorePileOption(option: PileConfigurationOption): CorePileConfiguratio
     governing_cpt_id: option.governing_cpt_id,
     governing_frd_kn: option.governing_frd_kn,
     utilization: option.utilization,
-    missing_cpt_ids: option.missing_cpt_ids,
+    missing_cpt_ids: [...option.missing_cpt_ids],
+    technical_status: option.technicalStatus,
   };
 }

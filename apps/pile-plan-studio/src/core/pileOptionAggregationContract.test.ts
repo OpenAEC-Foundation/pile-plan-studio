@@ -18,6 +18,7 @@ const option: PileConfigurationOption = {
   governing_frd_kn: 700,
   utilization: 0.72,
   missing_cpt_ids: [],
+  technicalStatus: "valid",
 };
 
 describe("pile option aggregation transport contract", () => {
@@ -27,6 +28,7 @@ describe("pile option aggregation transport contract", () => {
       pile_tip_level_m: -18.5,
       status: "missing",
       missing_load_point_ids: [2, 7],
+      missing_cpt_ids: [61, 62],
       invalid_load_point_ids: [3],
       maximum_utilization: 0.91,
       critical_load_point_id: 2,
@@ -39,6 +41,7 @@ describe("pile option aggregation transport contract", () => {
       pile_tip_level_m: -18.5,
       status: "missing",
       missing_load_point_ids: [2, 7],
+      missing_cpt_ids: [61, 62],
       invalid_load_point_ids: [3],
       maximum_utilization: 0.91,
       critical_load_point_id: 2,
@@ -53,6 +56,7 @@ describe("pile option aggregation transport contract", () => {
       pile_tip_level_m: -20,
       status: "missing",
       missing_load_point_ids: [2],
+      missing_cpt_ids: [],
       invalid_load_point_ids: [],
     }]);
 

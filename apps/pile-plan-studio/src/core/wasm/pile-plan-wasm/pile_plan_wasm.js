@@ -28,6 +28,18 @@ export function apply_load_point_group_assignment(request) {
  * @param {any} request
  * @returns {any}
  */
+export function assess_technical_assignment(request) {
+    const ret = wasm.assess_technical_assignment(request);
+    if (ret[2]) {
+        throw takeFromExternrefTable0(ret[1]);
+    }
+    return takeFromExternrefTable0(ret[0]);
+}
+
+/**
+ * @param {any} request
+ * @returns {any}
+ */
 export function build_spatial_neighborhood(request) {
     const ret = wasm.build_spatial_neighborhood(request);
     if (ret[2]) {

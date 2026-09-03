@@ -2,6 +2,7 @@
 
 use pile_plan_core::{
     aggregate_pile_options_for_load_points,
+    assess_technical_assignment as assess_technical_assignment_core,
     apply_load_point_group_assignment as apply_load_point_group_assignment_core,
     bearing_capacity_rows_for_cpt,
     build_pile_options_by_load_point, build_project_analysis,
@@ -20,6 +21,7 @@ use pile_plan_core::{
     PilePlanImportPreview, PilePlanImportRequest, PilePlanProject, ProjectAnalysisResult,
     ProjectBearingCapacity, ProjectCpt, ProjectLoadPoint, SelectedCpt, SpatialNeighborhood,
     SpatialPileAssignment, TipLevelRegionTopology,
+    TechnicalAssignmentAssessment, TechnicalAssignmentAssessmentError,
 };
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -78,6 +80,12 @@ struct DefaultPileOptionsRequest {
 
 #[derive(Debug, Deserialize)]
 struct AggregatePileOptionsRequest {
+    options_by_load_point: HashMap<u32, Vec<PileConfigurationOption>>,
+}
+
+#[derive(Debug, Deserialize)]
+struct TechnicalAssignmentRequest {
+    groups: Vec<LoadPointGroup>,
     options_by_load_point: HashMap<u32, Vec<PileConfigurationOption>>,
 }
 
@@ -217,6 +225,13 @@ fn aggregate_pile_options(
 }
 
 #[tauri::command(rename_all = "snake_case")]
+fn assess_technical_assignment(
+    request: TechnicalAssignmentRequest,
+) -> Result<TechnicalAssignmentAssessment, TechnicalAssignmentAssessmentError> {
+    assess_technical_assignment_core(&request.groups, &request.options_by_load_point)
+}
+
+#[tauri::command(rename_all = "snake_case")]
 fn cpt_frd_rows(request: CptFrdRowsRequest) -> Vec<pile_plan_core::CptBearingCapacityRow> {
     bearing_capacity_rows_for_cpt(&request.bearing_capacities, request.cpt_id)
 }
@@ -315,6 +330,7 @@ fn main() {
         .plugin(tauri_plugin_store::Builder::default().build())
         .invoke_handler(tauri::generate_handler![
             aggregate_pile_options,
+            assess_technical_assignment,
             apply_load_point_group_assignment,
             build_spatial_neighborhood,
             build_tip_level_region_topology,
@@ -382,6 +398,43 @@ mod tests {
         assert_eq!(result[0].configuration.pile_tip_level_mm, -18_500);
         assert_eq!(result[0].maximum_utilization, Some(0.82));
         assert_eq!(result[0].critical_load_point_id, Some(7));
+    }
+
+    #[test]
+    fn technical_assignment_command_returns_grouped_missing_result() {
+        let mut valid = PileConfigurationOption {
+            configuration: PileConfigurationKey {
+                pile_size_mm: 320,
+                pile_tip_level_mm: -18_500,
+            },
+            pile_size_mm: 320,
+            pile_tip_level_m: -18.5,
+            is_option: true,
+            governing_cpt_id: Some(61),
+            governing_frd_kn: Some(700.0),
+            utilization: Some(0.82),
+            missing_cpt_ids: vec![],
+            technical_status: pile_plan_core::PileOptionTechnicalStatus::Valid,
+        };
+        let mut missing = valid.clone();
+        missing.is_option = false;
+        missing.missing_cpt_ids = vec![62];
+        missing.technical_status = pile_plan_core::PileOptionTechnicalStatus::MissingCapacityData;
+        valid.governing_cpt_id = Some(61);
+
+        let result = assess_technical_assignment(TechnicalAssignmentRequest {
+            groups: vec![LoadPointGroup {
+                load_point_ids: vec![1, 2],
+            }],
+            options_by_load_point: HashMap::from([(1, vec![valid]), (2, vec![missing])]),
+        })
+        .unwrap();
+
+        assert_eq!(result.issues[0].group_load_point_ids, vec![1, 2]);
+        assert_eq!(
+            result.issues[0].status,
+            pile_plan_core::TechnicalAssignmentIssueStatus::MissingCapacityData
+        );
     }
 
     #[test]

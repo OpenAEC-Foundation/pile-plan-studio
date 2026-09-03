@@ -155,6 +155,7 @@
   "optimization.blocked.lockedConfigurationExceedsUtilizationLimit": "De vergrendelde paalconfiguratie overschrijdt de benuttingslimiet voor belastinglocaties {{loadPoints}}.",
   "optimization.blocked.missingRelevantCost": "Kostengegevens ontbreken voor een relevante paalconfiguratie.",
   "optimization.blocked.noEligibleConfiguration": "Er bestaat geen geldige gezamenlijke paalconfiguratie voor belastinglocaties {{loadPoints}}.",
+  "optimization.blocked.noPileConfigurations": "Paalopties kunnen niet worden bepaald omdat het funderingsadvies geen bruikbare draagvermogenconfiguraties bevat.",
   "optimization.blocked.additional": "Er zijn nog {{count}} aanvullende optimalisatieproblemen.",
   "optimization.blocked.unknown": "De optimalisatie kon niet worden voorbereid."
 }
