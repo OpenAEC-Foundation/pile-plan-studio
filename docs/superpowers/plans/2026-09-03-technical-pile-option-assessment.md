@@ -1,6 +1,6 @@
 # Technical Pile-Option Assessment Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [x]`) syntax for tracking.
 
 **Goal:** Make default assignment, grouped greedy optimization, viewer markers, permanent notices, and pile-option tables share one Rust-owned interpretation of valid, missing-capacity, and insufficient-capacity configurations.
 
@@ -58,7 +58,7 @@
 - Consumes: `PileConfigurationOption` and canonical `PileConfigurationKey`.
 - Produces: serialized `PileConfigurationOption.technical_status: PileOptionTechnicalStatus`, one pure `pile_option_technical_status(is_option, utilization, missing_cpt_ids)` classifier used while constructing options, and `AggregatedPileConfiguration.missing_cpt_ids: Vec<u32>`.
 
-- [ ] **Step 1: Write failing Rust tests for effective single-option status**
+- [x] **Step 1: Write failing Rust tests for effective single-option status**
 
 Add tests in `pile_option_status.rs` for the exact precedence:
 
@@ -80,7 +80,7 @@ assert_eq!(
 
 The missing fixture deliberately retains a partial utilization to prove that it remains inconclusive.
 
-- [ ] **Step 2: Run the focused test and verify RED**
+- [x] **Step 2: Run the focused test and verify RED**
 
 Run:
 
@@ -91,7 +91,7 @@ cargo test -p pile-plan-core pile_option_status::tests --no-fail-fast
 
 Expected: compilation fails because the module and enum do not exist.
 
-- [ ] **Step 3: Implement the minimal Rust status rule**
+- [x] **Step 3: Implement the minimal Rust status rule**
 
 Define:
 
@@ -123,7 +123,7 @@ Register and re-export the focused module from `lib.rs`.
 
 Add `technical_status: PileOptionTechnicalStatus` to `PileConfigurationOption` and populate it in Rust analysis when each option is created. Update existing analysis fixtures and add a serialization assertion proving the wire value is `missing_capacity_data`. The status field is authoritative across the core boundary; downstream TypeScript must not reconstruct it from `is_option`, utilization, or missing-CPT arrays.
 
-- [ ] **Step 4: Write failing aggregation tests for Missing rows**
+- [x] **Step 4: Write failing aggregation tests for Missing rows**
 
 Extend `pile_option_aggregation.rs` tests to assert:
 
@@ -138,7 +138,7 @@ assert_eq!(result[0].critical_governing_frd_kn, None);
 
 Use duplicated and unsorted missing CPT IDs across two locations to prove union sorting and deduplication. Retain `invalid_load_point_ids` in the fixture to prove a Missing aggregate may still report supporting invalid-member facts.
 
-- [ ] **Step 5: Run aggregation tests and verify RED**
+- [x] **Step 5: Run aggregation tests and verify RED**
 
 Run:
 
@@ -148,17 +148,17 @@ cargo test -p pile-plan-core pile_option_aggregation::tests --no-fail-fast
 
 Expected: field and assertion failures because missing CPT IDs are absent and partial critical facts are still populated.
 
-- [ ] **Step 6: Implement missing-CPT union and conclusive metrics**
+- [x] **Step 6: Implement missing-CPT union and conclusive metrics**
 
 Add `missing_cpt_ids: Vec<u32>` to `AggregatedPileConfiguration`. Accumulate identifiers in a `BTreeSet<u32>`. After determining aggregate status, publish critical fields only for `Valid` or `Invalid`; publish `None` for every utilization/governing field when status is `Missing`.
 
 Use each option's Rust-produced `technical_status` instead of reconstructing the per-option precedence locally.
 
-- [ ] **Step 7: Run focused Rust tests and verify GREEN**
+- [x] **Step 7: Run focused Rust tests and verify GREEN**
 
 Run both Task 1 focused commands. Expected: all tests pass.
 
-- [ ] **Step 8: Commit the status and aggregation boundary**
+- [x] **Step 8: Commit the status and aggregation boundary**
 
 ```powershell
 git add crates/pile-plan-core/src/pile_option_status.rs crates/pile-plan-core/src/analysis.rs crates/pile-plan-core/src/pile_option_aggregation.rs crates/pile-plan-core/src/lib.rs
@@ -175,7 +175,7 @@ git commit -m "feat: classify technical pile option status"
 - Consumes: complete `LoadPointGroup[]` and `HashMap<u32, Vec<PileConfigurationOption>>`.
 - Produces: `assess_technical_assignment(&[LoadPointGroup], &HashMap<u32, Vec<PileConfigurationOption>>) -> Result<TechnicalAssignmentAssessment, TechnicalAssignmentAssessmentError>`.
 
-- [ ] **Step 1: Write failing classification tests**
+- [x] **Step 1: Write failing classification tests**
 
 Create fixtures and assertions for:
 
@@ -197,7 +197,7 @@ assert!(mixed_issue.has_missing_capacity_data);
 
 Also assert that every member of an invalid group receives the same status. When at least one member is individually invalid, those locations use `NoValidOption` and otherwise valid linked locations use `GroupMemberWithoutValidOption`. When every member is individually valid but no common valid configuration exists, every member uses `NoCommonValidGroupConfiguration`.
 
-- [ ] **Step 2: Write failing availability and contract-error tests**
+- [x] **Step 2: Write failing availability and contract-error tests**
 
 Cover:
 
@@ -218,7 +218,7 @@ assert_eq!(
 );
 ```
 
-- [ ] **Step 3: Run the assessment tests and verify RED**
+- [x] **Step 3: Run the assessment tests and verify RED**
 
 Run:
 
@@ -228,7 +228,7 @@ cargo test -p pile-plan-core technical_assignment::tests --no-fail-fast
 
 Expected: missing types and function failures.
 
-- [ ] **Step 4: Define the structured assessment contract**
+- [x] **Step 4: Define the structured assessment contract**
 
 Add:
 
@@ -278,7 +278,7 @@ pub struct TechnicalAssignmentAssessmentError {
 }
 ```
 
-- [ ] **Step 5: Implement deterministic group classification**
+- [x] **Step 5: Implement deterministic group classification**
 
 Normalize group members and iterate groups lexicographically. Reject absent expected option-map entries. Treat a non-empty group set whose global canonical-configuration union is empty as `NoPileConfigurations`.
 
@@ -296,11 +296,11 @@ let status = if aggregates.iter().any(|item| item.status == Valid) {
 
 Determine individually valid members once. Emit sorted per-location issues with group IDs, blocker IDs, missing-CPT union, and the mixed-case flag. Do not inspect optimizer settings.
 
-- [ ] **Step 6: Run focused tests and verify GREEN**
+- [x] **Step 6: Run focused tests and verify GREEN**
 
 Run the Task 2 test command. Expected: all tests pass deterministically under shuffled group/map/option input.
 
-- [ ] **Step 7: Commit the group assessor**
+- [x] **Step 7: Commit the group assessor**
 
 ```powershell
 git add crates/pile-plan-core/src/technical_assignment.rs crates/pile-plan-core/src/lib.rs
@@ -320,7 +320,7 @@ git commit -m "feat: assess grouped technical assignability"
 - Consumes: Task 2 group assessment.
 - Produces: optimizer-only `OptimizationUnassignedReason`, `technical_unassigned_load_point_ids`, and units containing only technically valid groups.
 
-- [ ] **Step 1: Write failing default-assignment agreement tests**
+- [x] **Step 1: Write failing default-assignment agreement tests**
 
 In `analysis.rs`, add grouped fixtures asserting:
 
@@ -333,7 +333,7 @@ assert_eq!(choices.get(&valid_group_member), Some(&expected_common_configuration
 
 Include one missing-member group and one no-common-overlap group. Every member of each invalid group must remain unassigned.
 
-- [ ] **Step 2: Write failing optimization tests for separated outcomes**
+- [x] **Step 2: Write failing optimization tests for separated outcomes**
 
 Update greedy fixtures to require:
 
@@ -350,7 +350,7 @@ assert!(result.unassigned.iter().all(|item|
 
 Add a mixed run proving a technically invalid unlocked group is cleared while another valid group is optimized. Retain tests for candidate filters producing `optimization_constraints`, global limits producing `configuration_limits`, and locked/invariant failures blocking atomically.
 
-- [ ] **Step 3: Run focused core tests and verify RED**
+- [x] **Step 3: Run focused core tests and verify RED**
 
 Run:
 
@@ -362,11 +362,11 @@ cargo test -p pile-plan-core greedy_optimizer::tests --no-fail-fast
 
 Expected: result-shape and old technical-reason assertions fail.
 
-- [ ] **Step 4: Make default assignment consume shared group assessment**
+- [x] **Step 4: Make default assignment consume shared group assessment**
 
 Use an internal Task 2 group helper that returns valid aggregate candidates plus the assessment. Skip invalid groups and retain the existing deterministic cheapest-cost selection among common valid configurations. Do not add TypeScript classification.
 
-- [ ] **Step 5: Simplify prepared optimization units**
+- [x] **Step 5: Simplify prepared optimization units**
 
 Remove these technical-proxy fields from `OptimizationUnit`:
 
@@ -385,7 +385,7 @@ Assess every group before candidate filters. Exclude invalid unlocked groups fro
 
 Add `NoPileConfigurations` to `OptimizationPreparationDiagnosticKind` for the defensive case where a direct core call bypasses the disabled UI.
 
-- [ ] **Step 6: Restrict greedy optimizer reasons**
+- [x] **Step 6: Restrict greedy optimizer reasons**
 
 Rename the public persisted enum and item for clarity:
 
@@ -403,13 +403,13 @@ pub struct OptimizationUnassignedLoadPoint {
 
 Add `technical_unassigned_load_point_ids: Vec<u32>` to `GreedyOptimizationResult`. Carry the prepared list through the result. In expansion, an uncovered technically valid unit gets `ConfigurationLimits` when it has eligible options and `OptimizationConstraints` when optimizer filters left it none. Count only those units in `unassigned_group_count`.
 
-- [ ] **Step 7: Filter legacy technical reasons during Rust project loading**
+- [x] **Step 7: Filter legacy technical reasons during Rust project loading**
 
 Keep schema-3 compatibility with a custom deserializer for `PilePlan.optimization_unassigned`. Accept and retain only `optimization_constraints` and `configuration_limits`; silently discard `no_valid_option`, `group_member_without_valid_option`, and `no_common_group_configuration`. Serialization writes only the two current variants.
 
 Add a `project.rs` round-trip test using a legacy technical reason plus a current optimizer reason and assert only the current reason survives.
 
-- [ ] **Step 8: Run the complete core suite and verify GREEN**
+- [x] **Step 8: Run the complete core suite and verify GREEN**
 
 Run:
 
@@ -419,7 +419,7 @@ cargo test -p pile-plan-core --no-fail-fast
 
 Expected: all core tests pass, including default/optimizer agreement and legacy-load filtering.
 
-- [ ] **Step 9: Commit shared operation behavior**
+- [x] **Step 9: Commit shared operation behavior**
 
 ```powershell
 git add crates/pile-plan-core/src/analysis.rs crates/pile-plan-core/src/optimization_units.rs crates/pile-plan-core/src/greedy_optimizer.rs crates/pile-plan-core/src/project.rs crates/pile-plan-core/src/lib.rs
@@ -445,7 +445,7 @@ git commit -m "feat: separate technical and optimizer outcomes"
 - Consumes: Rust DTOs from Tasks 1–3.
 - Produces: `assessTechnicalAssignmentCore(input) -> Promise<TechnicalAssignmentAssessment>`, extended aggregation DTOs, and optimizer-only result contracts.
 
-- [ ] **Step 1: Write failing Rust wrapper tests**
+- [x] **Step 1: Write failing Rust wrapper tests**
 
 In WASM and Tauri wrapper tests, build the same two-member missing fixture and assert:
 
@@ -457,7 +457,7 @@ assert_eq!(result.issues[0].group_load_point_ids, vec![1, 2]);
 
 Also update greedy wrapper assertions for `technical_unassigned_load_point_ids` and the two-value optimizer reason enum.
 
-- [ ] **Step 2: Run wrapper tests and verify RED**
+- [x] **Step 2: Run wrapper tests and verify RED**
 
 Run:
 
@@ -468,7 +468,7 @@ cargo test --manifest-path apps/pile-plan-studio/src-tauri/Cargo.toml --no-fail-
 
 Expected: missing command/import and changed DTO failures.
 
-- [ ] **Step 3: Add thin Rust assessment commands**
+- [x] **Step 3: Add thin Rust assessment commands**
 
 Add serializable request structs containing `groups` and `options_by_load_point`. Expose:
 
@@ -478,11 +478,11 @@ assess_technical_assignment(request) -> Result<TechnicalAssignmentAssessment, Te
 
 through `#[wasm_bindgen]` and `#[tauri::command]`; register the Tauri command. Both wrappers deserialize, call the pure core function once, and serialize without classifying results.
 
-- [ ] **Step 4: Run wrapper tests and verify GREEN**
+- [x] **Step 4: Run wrapper tests and verify GREEN**
 
 Run both Task 4 Rust commands. Expected: all pass.
 
-- [ ] **Step 5: Write failing TypeScript contract tests**
+- [x] **Step 5: Write failing TypeScript contract tests**
 
 Define a fixture and assert browser numeric maps versus desktop records, deep cloning, missing-CPT arrays, and optimizer normalization:
 
@@ -500,7 +500,7 @@ assert.deepEqual(aggregate.missing_cpt_ids, [61, 62]);
 assert.deepEqual(greedy.technical_unassigned_load_point_ids, [1, 2]);
 ```
 
-- [ ] **Step 6: Run TypeScript contract tests and verify RED**
+- [x] **Step 6: Run TypeScript contract tests and verify RED**
 
 Run from `apps/pile-plan-studio`:
 
@@ -511,7 +511,7 @@ node --test src/core/technicalAssignmentContract.test.ts src/core/pileOptionAggr
 
 Expected: missing module/fields and old optimizer union failures.
 
-- [ ] **Step 7: Implement TypeScript DTOs and client routing**
+- [x] **Step 7: Implement TypeScript DTOs and client routing**
 
 Define exact string unions matching Rust:
 
@@ -530,7 +530,7 @@ export type OptimizationUnassignedReason =
 
 Implement browser/desktop request conversion using the existing serialization helpers and add `assessTechnicalAssignmentCore`. Carry Rust's option `technical_status` into the TypeScript `technicalStatus` field, extend aggregate conversion with `missing_cpt_ids`, and normalize all returned arrays defensively. TypeScript consumes the serialized effective status and does not reclassify an option.
 
-- [ ] **Step 8: Regenerate browser bindings**
+- [x] **Step 8: Regenerate browser bindings**
 
 Run from `apps/pile-plan-studio`:
 
@@ -540,7 +540,7 @@ npm run build:wasm
 
 Expected: generated JS and declarations expose `assess_technical_assignment` and the current DTO shape.
 
-- [ ] **Step 9: Run focused frontend tests and typecheck**
+- [x] **Step 9: Run focused frontend tests and typecheck**
 
 Run:
 
@@ -551,7 +551,7 @@ npx tsc -p tsconfig.json --noEmit
 
 Expected: contract tests pass and TypeScript reports no errors.
 
-- [ ] **Step 10: Commit transport source and generated changes**
+- [x] **Step 10: Commit transport source and generated changes**
 
 ```powershell
 git add crates/pile-plan-wasm/src/lib.rs apps/pile-plan-studio/src-tauri/src/main.rs apps/pile-plan-studio/src/core/technicalAssignmentContract.ts apps/pile-plan-studio/src/core/technicalAssignmentContract.test.ts apps/pile-plan-studio/src/core/pileOptionAggregationContract.ts apps/pile-plan-studio/src/core/pileOptionAggregationContract.test.ts apps/pile-plan-studio/src/core/greedyOptimizationContract.ts apps/pile-plan-studio/src/core/greedyOptimizationContract.test.ts apps/pile-plan-studio/src/core/projectTypes.ts apps/pile-plan-studio/src/core/coreClient.ts apps/pile-plan-studio/src/core/wasm/pile-plan-wasm
@@ -573,7 +573,7 @@ git commit -m "feat: expose technical assignment assessment"
 - Consumes: ready groups, current analyzed options, and `assessTechnicalAssignmentCore`.
 - Produces: `TechnicalAssignmentSnapshot` with `idle | loading | ready | unavailable | error` and `issuesByLoadPointId`.
 
-- [ ] **Step 1: Write failing controller lifecycle tests**
+- [x] **Step 1: Write failing controller lifecycle tests**
 
 Cover the same guarantees as other controllers:
 
@@ -586,7 +586,7 @@ assert.equal(controller.getState().issuesByLoadPointId.get(1)?.cause, "no_valid_
 
 Add deferred-promise tests proving an older response cannot replace a newer result, equal signatures reuse a completed result, `no_pile_configurations` becomes `unavailable`, errors contain no guessed issues, and `dispose()` suppresses publication.
 
-- [ ] **Step 2: Run the controller test and verify RED**
+- [x] **Step 2: Run the controller test and verify RED**
 
 Run:
 
@@ -596,7 +596,7 @@ node --test src/components/domain/technicalAssignmentController.test.ts
 
 Expected: module-not-found failure.
 
-- [ ] **Step 3: Implement the controller and React hook**
+- [x] **Step 3: Implement the controller and React hook**
 
 Define:
 
@@ -610,15 +610,15 @@ export type TechnicalAssignmentSnapshot =
 
 Build a deterministic signature from sorted group IDs and complete option facts. Clone maps/arrays at publication. `useTechnicalAssignment` owns subscribe/update/dispose and follows `useLoadPointGroups` lifecycle style.
 
-- [ ] **Step 4: Wire one derived assessment at App scope**
+- [x] **Step 4: Wire one derived assessment at App scope**
 
 Call the hook after `useLoadPointGroups`. Do not add it to `ProjectState`. Pass the snapshot through `PilePlanWorkspace` to `PilePlanViewer` and directly to `RightPanel`. Suspend assessment while groups or project analysis are pending/failed; preserve stale guards when project content changes.
 
-- [ ] **Step 5: Disable optimization for unavailable assessment**
+- [x] **Step 5: Disable optimization for unavailable assessment**
 
 Extend `isOptimizationDisabled` with `technicalAssessmentStatus`. Return `true` for `idle`, `loading`, `unavailable`, or `error`, and only permit a run for `ready`. Add `noPileConfigurations` localized blocked text as a defensive fallback in `formatOptimizationDiagnostics`.
 
-- [ ] **Step 6: Run focused lifecycle/orchestration tests and typecheck**
+- [x] **Step 6: Run focused lifecycle/orchestration tests and typecheck**
 
 Run:
 
@@ -629,7 +629,7 @@ npx tsc -p tsconfig.json --noEmit
 
 Expected: controller and App ownership tests pass without placing derived assessment in persisted state.
 
-- [ ] **Step 7: Commit the frontend assessment lifecycle**
+- [x] **Step 7: Commit the frontend assessment lifecycle**
 
 ```powershell
 git add apps/pile-plan-studio/src/components/domain/technicalAssignmentController.ts apps/pile-plan-studio/src/components/domain/technicalAssignmentController.test.ts apps/pile-plan-studio/src/components/domain/useTechnicalAssignment.ts apps/pile-plan-studio/src/App.tsx apps/pile-plan-studio/src/AppLoadPointGroups.test.ts apps/pile-plan-studio/src/components/domain/PilePlanWorkspace.tsx apps/pile-plan-studio/src/components/domain/RightPanel.tsx apps/pile-plan-studio/src/components/domain/optimizationPanelModel.ts apps/pile-plan-studio/src/components/domain/optimizationPanelModel.test.ts apps/pile-plan-studio/src/i18n/locales/en/rightPanel.json apps/pile-plan-studio/src/i18n/locales/nl/rightPanel.json
@@ -662,7 +662,7 @@ git commit -m "feat: derive current technical assignment state"
 - Consumes: `technical_unassigned_load_point_ids`, optimizer-only reasons, and `TechnicalAssignmentSnapshot`.
 - Produces: atomic clearing, location-only summary counts, persisted optimizer-only maps, and correct neutral/cross/question-mark markers.
 
-- [ ] **Step 1: Write failing optimization application and summary tests**
+- [x] **Step 1: Write failing optimization application and summary tests**
 
 Assert:
 
@@ -681,7 +681,7 @@ assert.deepEqual(applied.summary, {
 
 Use duplicate-free affected IDs and prove the summary contains no group-count field even when `result.unassigned_group_count` is nonzero.
 
-- [ ] **Step 2: Write failing persistence filtering tests**
+- [x] **Step 2: Write failing persistence filtering tests**
 
 Load an IFCPP fixture containing all five old reason strings. Assert only:
 
@@ -694,7 +694,7 @@ new Map([
 
 is present at runtime and written back. Unknown future reason strings must also be ignored rather than trusted.
 
-- [ ] **Step 3: Write failing marker tests**
+- [x] **Step 3: Write failing marker tests**
 
 Replace option-scanning fixtures with structured states:
 
@@ -718,7 +718,7 @@ assert.equal(getUnselectedLoadPointMarkerState({
 assert.equal(getUnselectedLoadPointMarkerState({ analysisStatus: "ready" }), "unassigned");
 ```
 
-- [ ] **Step 4: Run focused frontend tests and verify RED**
+- [x] **Step 4: Run focused frontend tests and verify RED**
 
 Run:
 
@@ -728,7 +728,7 @@ node --test src/components/domain/optimizationPanelModel.test.ts src/domain/opti
 
 Expected: old result, persistence, and marker semantics fail.
 
-- [ ] **Step 5: Apply optimizer results atomically without persisting technical causes**
+- [x] **Step 5: Apply optimizer results atomically without persisting technical causes**
 
 Build `affectedLoadPointIds` from assignments, optimizer-unassigned entries, and `technical_unassigned_load_point_ids`. Delete all affected previous choices, apply assignments, and persist only the optimizer-unassigned entries.
 
@@ -745,7 +745,7 @@ export type OptimizationRunSummary = {
 
 Count unique technical IDs. Render four location-only lines when nonzero; never render `unassigned_group_count` in `OptimizationPanel`.
 
-- [ ] **Step 6: Filter optimizer reasons at the TypeScript persistence boundary**
+- [x] **Step 6: Filter optimizer reasons at the TypeScript persistence boundary**
 
 Implement:
 
@@ -757,7 +757,7 @@ function isOptimizationUnassignedReason(value: unknown): value is OptimizationUn
 
 Use it while loading wire entries and serialize the already-filtered runtime map. Remove obsolete technical optimizer translation keys and delete `optimizationConflict.ts`, whose permanent responsibility moves to Task 7.
 
-- [ ] **Step 7: Render marker priority from derived assessment**
+- [x] **Step 7: Render marker priority from derived assessment**
 
 Use this priority for an unassigned location while preserving distinct semantic states:
 
@@ -773,7 +773,7 @@ fallback technically valid unassigned state -> neutral unassigned dot
 
 The neutral states may share the current 9 px grey-dot visual, but `pending`, `analysis-error`, `unavailable`, and `unassigned` remain distinct values with suitable accessible/title text. All members receive the Rust-provided group status; do not inspect raw options in the viewer.
 
-- [ ] **Step 8: Run focused frontend tests and typecheck and verify GREEN**
+- [x] **Step 8: Run focused frontend tests and typecheck and verify GREEN**
 
 Run the Task 6 test command and:
 
@@ -783,7 +783,7 @@ npx tsc -p tsconfig.json --noEmit
 
 Expected: all pass and no UI summary references a group count.
 
-- [ ] **Step 9: Commit optimizer and viewer semantics**
+- [x] **Step 9: Commit optimizer and viewer semantics**
 
 ```powershell
 git add apps/pile-plan-studio/src/components/domain/optimizationPanelModel.ts apps/pile-plan-studio/src/components/domain/optimizationPanelModel.test.ts apps/pile-plan-studio/src/domain/optimizationSummary.ts apps/pile-plan-studio/src/domain/optimizationSummary.test.ts apps/pile-plan-studio/src/core/projectFile.ts apps/pile-plan-studio/src/core/projectFile.test.ts apps/pile-plan-studio/src/domain/optimizationConflict.ts apps/pile-plan-studio/src/domain/optimizationConflict.test.ts apps/pile-plan-studio/src/viewer/loadPointMarker.ts apps/pile-plan-studio/src/viewer/loadPointMarker.test.ts apps/pile-plan-studio/src/components/domain/PilePlanViewer.tsx apps/pile-plan-studio/src/components/domain/PilePlanViewer.test.ts apps/pile-plan-studio/src/components/domain/viewer.css apps/pile-plan-studio/src/components/domain/OptimizationPanel.tsx apps/pile-plan-studio/src/i18n/locales/en/common.json apps/pile-plan-studio/src/i18n/locales/nl/common.json apps/pile-plan-studio/src/i18n/locales/en/rightPanel.json apps/pile-plan-studio/src/i18n/locales/nl/rightPanel.json
@@ -806,7 +806,7 @@ git commit -m "fix: separate technical and optimizer feedback"
 - Consumes: selected location ID and `TechnicalAssignmentSnapshot`.
 - Produces: `TechnicalAssignmentNoticeModel` and a localized warning/error block with inline load-point links.
 
-- [ ] **Step 1: Write failing pure notice-model tests**
+- [x] **Step 1: Write failing pure notice-model tests**
 
 Define a model that preserves structured composition:
 
@@ -822,7 +822,7 @@ export type TechnicalAssignmentNoticeModel = {
 
 Assert selection returns the matching issue, clones and sorts IDs, and returns `null` for a valid location, multi-selection, loading, unavailable, or error states.
 
-- [ ] **Step 2: Run notice-model tests and verify RED**
+- [x] **Step 2: Run notice-model tests and verify RED**
 
 Run:
 
@@ -832,7 +832,7 @@ node --test src/domain/technicalAssignmentNotice.test.ts
 
 Expected: module-not-found failure.
 
-- [ ] **Step 3: Implement the pure model and coherent translation matrix**
+- [x] **Step 3: Implement the pure model and coherent translation matrix**
 
 Map the three causes to lead-sentence keys and the two statuses plus mixed flag to explanation keys. Provide Dutch and English text that:
 
@@ -841,7 +841,7 @@ Map the three causes to lead-sentence keys and the two statuses plus mixed flag 
 - mentions missing data, insufficient capacity, or both accurately;
 - permits later rephrasing to "the group of locations 12 and 14" without changing DTOs.
 
-- [ ] **Step 4: Implement linked notice rendering**
+- [x] **Step 4: Implement linked notice rendering**
 
 Render all sorted relevant IDs as inline buttons. Use `selectLoadPoint(state, id)` for navigation. Cause text and explanation remain visible without hover. Style `missing_capacity_data` as warning/yellow and `insufficient_capacity` as error/red while retaining readable neutral body text.
 
@@ -852,11 +852,11 @@ Pile options cannot be determined.
 The foundation advice contains no usable bearing-capacity configurations.
 ```
 
-- [ ] **Step 5: Integrate above the pile-option section**
+- [x] **Step 5: Integrate above the pile-option section**
 
 Replace the old optimization-conflict block in `LoadPointPanel` with `TechnicalAssignmentNotice`. Pass the derived snapshot from `RightPanel` props. Ensure notices appear before any optimizer run and update after analysis/group changes.
 
-- [ ] **Step 6: Run focused UI/model tests and typecheck**
+- [x] **Step 6: Run focused UI/model tests and typecheck**
 
 Run:
 
@@ -867,7 +867,7 @@ npx tsc -p tsconfig.json --noEmit
 
 Expected: copy keys exist in both languages, location navigation is wired, and no user-facing "group member" string remains in this flow.
 
-- [ ] **Step 7: Commit permanent technical notices**
+- [x] **Step 7: Commit permanent technical notices**
 
 ```powershell
 git add apps/pile-plan-studio/src/domain/technicalAssignmentNotice.ts apps/pile-plan-studio/src/domain/technicalAssignmentNotice.test.ts apps/pile-plan-studio/src/components/domain/TechnicalAssignmentNotice.tsx apps/pile-plan-studio/src/components/domain/RightPanel.tsx apps/pile-plan-studio/src/components/domain/RightPanel.test.ts apps/pile-plan-studio/src/components/domain/rightPanel.css apps/pile-plan-studio/src/i18n/locales/en/rightPanel.json apps/pile-plan-studio/src/i18n/locales/nl/rightPanel.json
@@ -894,7 +894,7 @@ git commit -m "feat: explain permanent technical assignment issues"
 - Consumes: Rust-produced option `technicalStatus`, aggregate status, and `missing_cpt_ids` from core.
 - Produces: rows with `missingCptIds`, inconclusive metrics replaced by `-`, and keyboard-accessible CPT navigation.
 
-- [ ] **Step 1: Write failing row-model tests**
+- [x] **Step 1: Write failing row-model tests**
 
 For a single Missing option with a partial utilization and FRd, assert:
 
@@ -910,11 +910,11 @@ assert.deepEqual(row.missingCptIds, [61, 62]);
 
 For a multi-selection Missing aggregate, assert `maxUseValue`, `criticalLoadPointId`, and their labels are null/dashes while total cost remains. Valid and insufficient rows must retain their conclusive fields.
 
-- [ ] **Step 2: Write failing status and sorting/filtering tests**
+- [x] **Step 2: Write failing status and sorting/filtering tests**
 
 Change the third effective label from generic `Not OK` to `Insufficient capacity` and verify Missing/insufficient filters still use localized display values. Add `missingCptIds: number[]` to `PileOptionTableRow` but do not make it a separate sortable column.
 
-- [ ] **Step 3: Run focused model tests and verify RED**
+- [x] **Step 3: Run focused model tests and verify RED**
 
 Run:
 
@@ -924,21 +924,21 @@ node --test src/domain/pileOptionStatus.test.ts src/domain/pileOptionTable.test.
 
 Expected: partial metrics remain and the row field/label does not exist.
 
-- [ ] **Step 4: Implement conclusive presentation rows**
+- [x] **Step 4: Implement conclusive presentation rows**
 
 Consume `technicalStatus` once per single row; do not reconstruct it from `isOption`, utilization, or missing IDs. For Missing rows explicitly set all inconclusive numeric values to `null` and labels to `-`; do not merely hide cells in JSX. Clone sorted unique missing IDs from both individual options and aggregates. Keep cost/total cost intact.
 
-- [ ] **Step 5: Implement the compact anchored popover**
+- [x] **Step 5: Implement the compact anchored popover**
 
 `MissingCptPopover` owns its open state and trigger reference. The trigger displays localized Missing status and a concise native title. The open popover lists only identifier values such as `61`, `62`; each button invokes `openCpt`, calls `stopPropagation`, and closes.
 
 Add document-level outside-pointer and Escape handling only while open. Restore focus to the trigger after Escape, close if its row unmounts, and provide appropriate `aria-expanded`, `aria-haspopup`, dialog/list labeling, and focus-visible styles.
 
-- [ ] **Step 6: Integrate without triggering row assignment**
+- [x] **Step 6: Integrate without triggering row assignment**
 
 In the status-cell branch, render the popover only when `missingCptIds.length > 0`; otherwise render the ordinary noninteractive Missing pill with an explanatory title, never an empty popover. Stop pointer/click propagation at both trigger and popover. Preserve the existing row click for actual pile assignment and the existing governing-CPT/critical-location links.
 
-- [ ] **Step 7: Run focused UI tests and typecheck**
+- [x] **Step 7: Run focused UI tests and typecheck**
 
 Run:
 
@@ -949,7 +949,7 @@ npx tsc -p tsconfig.json --noEmit
 
 Expected: row values, popover wiring, translations, and interaction guards pass.
 
-- [ ] **Step 8: Commit table and popover behavior**
+- [x] **Step 8: Commit table and popover behavior**
 
 ```powershell
 git add apps/pile-plan-studio/src/domain/pileOptionStatus.ts apps/pile-plan-studio/src/domain/pileOptionStatus.test.ts apps/pile-plan-studio/src/domain/pileOptionTable.ts apps/pile-plan-studio/src/domain/pileOptionTable.test.ts apps/pile-plan-studio/src/components/domain/rightPanelModel.ts apps/pile-plan-studio/src/components/domain/rightPanelModel.test.ts apps/pile-plan-studio/src/components/domain/MissingCptPopover.tsx apps/pile-plan-studio/src/components/domain/RightPanel.tsx apps/pile-plan-studio/src/components/domain/RightPanel.test.ts apps/pile-plan-studio/src/components/domain/rightPanel.css apps/pile-plan-studio/src/i18n/locales/en/rightPanel.json apps/pile-plan-studio/src/i18n/locales/nl/rightPanel.json
@@ -967,11 +967,11 @@ git commit -m "feat: explain missing pile option capacities"
 - Consumes: verified source contracts and integrated UI.
 - Produces: integration coverage, a checked-in browser artifact matching Rust, full automated evidence, and completed live acceptance notes.
 
-- [ ] **Step 1: Add the end-to-end optimization integration cases**
+- [x] **Step 1: Add the end-to-end optimization integration cases**
 
 Extend `AppOptimization.test.ts` with grouped missing, grouped insufficient, and optimizer-only unassigned fixtures. Assert technical IDs are cleared without persisted optimizer reasons, optimizer-only IDs retain their two supported reasons, and the visible summary contains location counts but no group count.
 
-- [ ] **Step 2: Rebuild and verify checked-in WASM bindings**
+- [x] **Step 2: Rebuild and verify checked-in WASM bindings**
 
 Run from `apps/pile-plan-studio`:
 
@@ -982,7 +982,7 @@ npm run build:wasm
 
 Expected: generated JS/declarations expose `assess_technical_assignment`; the `.wasm` binary reflects current Rust.
 
-- [ ] **Step 3: Run complete Rust verification**
+- [x] **Step 3: Run complete Rust verification**
 
 Run from repository root:
 
@@ -993,7 +993,7 @@ cargo test --manifest-path apps/pile-plan-studio/src-tauri/Cargo.toml --no-fail-
 
 Expected: core, WASM wrapper, and Tauri wrapper suites all exit zero.
 
-- [ ] **Step 4: Run complete frontend verification**
+- [x] **Step 4: Run complete frontend verification**
 
 Run from `apps/pile-plan-studio`:
 
@@ -1005,7 +1005,7 @@ npm run build
 
 Expected: all Node tests pass, TypeScript reports no errors, and production build exits zero.
 
-- [ ] **Step 5: Check generated and source diffs**
+- [x] **Step 5: Check generated and source diffs**
 
 Run from repository root:
 
@@ -1016,14 +1016,14 @@ git status --short
 
 Expected: no whitespace errors; only intended source, generated WASM, tests, translations, and this plan are modified.
 
-- [ ] **Step 6: Commit integration coverage and completed plan checkboxes**
+- [x] **Step 6: Commit integration coverage and completed plan checkboxes**
 
 ```powershell
 git add apps/pile-plan-studio/src/AppOptimization.test.ts apps/pile-plan-studio/src/core/wasm/pile-plan-wasm docs/superpowers/plans/2026-09-03-technical-pile-option-assessment.md
 git commit -m "test: cover technical optimization outcomes"
 ```
 
-- [ ] **Step 7: Run live viewer acceptance**
+- [x] **Step 7: Run live viewer acceptance**
 
 Use the existing development viewer for the current branch and verify:
 
@@ -1042,6 +1042,8 @@ Use the existing development viewer for the current branch and verify:
 
 Record the observed result under this step before marking it complete.
 
-- [ ] **Step 8: Request code review and finish the branch**
+Acceptance result (2026-09-03): the sample viewer reloaded without console errors after the final transport fix. It showed 25 yellow technical markers, retained cost while displaying dashes for inconclusive values, opened a deduplicated `61, 62, 63, 64` Missing popover, and navigated from identifier `61` to the corresponding CPT panel without assigning the row. The classifier, marker, optimizer, persistence, unavailable-state, English/Dutch copy, and grouped missing/non-overlapping/insufficient/mixed cases are covered by the complete automated suites. The sample data does not contain every red/question-mark fixture, so those scenario-specific visuals were verified through their model and integration tests rather than by mutating the live project.
+
+- [x] **Step 8: Request code review and finish the branch**
 
 Use `superpowers:requesting-code-review` against the approved spec and this plan. Resolve findings through test-first changes, rerun affected and full gates, then use `superpowers:finishing-a-development-branch` to present merge/push options. Do not push or merge merely because automated tests passed.
