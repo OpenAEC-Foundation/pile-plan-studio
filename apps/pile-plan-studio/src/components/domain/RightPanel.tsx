@@ -680,6 +680,9 @@ function LoadPointPanel({
   technicalAssignment: TechnicalAssignmentSnapshot;
 }) {
   const { t, i18n } = useTranslation("rightPanel");
+  const [openMissingCptKey, setOpenMissingCptKey] = useState<string | null>(null);
+  const selectedLoadPointKey = selectedLoadPoints.map(({ id }) => id).join(",");
+  useEffect(() => setOpenMissingCptKey(null), [selectedLoadPointKey]);
   const pileOptionsByLoadPointId = getPileOptionsByLoadPointIdForPanel(state);
   const aggregation = useAggregatedPileOptions({
     selectedLoadPointIds: selectedLoadPoints.map(({ id }) => id),
@@ -834,7 +837,16 @@ function LoadPointPanel({
                             : key === "tip" ? row.tipLabel
                             : key === "status" ? (
                               row.statusClassName === "is-missing" && row.missingCptIds.length > 0
-                                ? <MissingCptPopover cptIds={row.missingCptIds} label={row.statusLabel} state={state} onStateChange={onStateChange} />
+                                ? <MissingCptPopover
+                                    cptIds={row.missingCptIds}
+                                    label={row.statusLabel}
+                                    open={openMissingCptKey === row.key}
+                                    state={state}
+                                    onOpenChange={(nextOpen) => setOpenMissingCptKey((current) => nextOpen
+                                      ? toggleMissingCptPopover(current, row.key)
+                                      : current === row.key ? null : current)}
+                                    onStateChange={onStateChange}
+                                  />
                                 : <span
                                     className={`status-pill ${row.statusClassName}`}
                                     title={row.statusClassName === "is-missing" ? t("pileOptions.missingNoCptIdsTitle") : undefined}
@@ -881,6 +893,10 @@ function LoadPointPanel({
       </section>
     </div>
   );
+}
+
+export function toggleMissingCptPopover(current: string | null, requested: string): string | null {
+  return current === requested ? null : requested;
 }
 
 function ColumnHeader({ column, label, labelText, rows, state, onStateChange }: {

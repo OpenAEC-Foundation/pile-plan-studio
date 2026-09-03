@@ -1,4 +1,4 @@
-import { useEffect, useId, useRef, useState } from "react";
+import { useEffect, useId, useRef } from "react";
 import { useTranslation } from "react-i18next";
 
 import type { ProjectState } from "../../domain/projectState.ts";
@@ -7,13 +7,14 @@ import { openCpt } from "../../domain/selectionState.ts";
 type Props = {
   cptIds: number[];
   label: string;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
   state: ProjectState;
   onStateChange: (state: ProjectState) => void;
 };
 
-export default function MissingCptPopover({ cptIds, label, state, onStateChange }: Props) {
+export default function MissingCptPopover({ cptIds, label, open, onOpenChange, state, onStateChange }: Props) {
   const { t } = useTranslation("rightPanel");
-  const [open, setOpen] = useState(false);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const rootRef = useRef<HTMLSpanElement>(null);
   const popoverId = useId();
@@ -21,12 +22,12 @@ export default function MissingCptPopover({ cptIds, label, state, onStateChange 
   useEffect(() => {
     if (!open) return undefined;
     const handlePointerDown = (event: PointerEvent) => {
-      if (!rootRef.current?.contains(event.target as Node)) setOpen(false);
+      if (!rootRef.current?.contains(event.target as Node)) onOpenChange(false);
     };
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key !== "Escape") return;
       event.preventDefault();
-      setOpen(false);
+      onOpenChange(false);
       triggerRef.current?.focus();
     };
     document.addEventListener("pointerdown", handlePointerDown);
@@ -35,7 +36,7 @@ export default function MissingCptPopover({ cptIds, label, state, onStateChange 
       document.removeEventListener("pointerdown", handlePointerDown);
       document.removeEventListener("keydown", handleKeyDown);
     };
-  }, [open]);
+  }, [onOpenChange, open]);
 
   return (
     <span className="missing-cpt-popover" ref={rootRef} onClick={(event) => event.stopPropagation()}>
@@ -50,7 +51,7 @@ export default function MissingCptPopover({ cptIds, label, state, onStateChange 
         onPointerDown={(event) => event.stopPropagation()}
         onClick={(event) => {
           event.stopPropagation();
-          setOpen((current) => !current);
+          onOpenChange(!open);
         }}
       >{label}</button>
       {open ? (
@@ -70,7 +71,7 @@ export default function MissingCptPopover({ cptIds, label, state, onStateChange 
                 type="button"
                 onClick={(event) => {
                   event.stopPropagation();
-                  setOpen(false);
+                  onOpenChange(false);
                   onStateChange({ ...state, ...openCpt(state, cptId) });
                 }}
               >{cptId}</button>

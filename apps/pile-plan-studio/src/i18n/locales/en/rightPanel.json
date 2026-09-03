@@ -120,7 +120,7 @@
   "filter.label": "Filter {{label}}",
   "status.ok": "OK",
   "status.missing": "Missing",
-  "status.insufficientCapacity": "Insufficient capacity",
+  "status.insufficientCapacity": "Not OK",
   "optimization.title": "Optimization",
   "optimization.subtitle": "Greedy pile selection",
   "optimization.close": "Close optimization settings",

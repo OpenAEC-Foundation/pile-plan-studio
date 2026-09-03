@@ -16,6 +16,26 @@ describe("missing CPT popover", () => {
     assert.match(popover, /openCpt\(state, cptId\)/);
     assert.match(popover, />\{cptId\}<\/button>/);
   });
+
+  it("controls all Missing popovers with one active row key", () => {
+    const panel = readFileSync(resolve(import.meta.dirname, "RightPanel.tsx"), "utf8");
+    const popover = readFileSync(resolve(import.meta.dirname, "MissingCptPopover.tsx"), "utf8");
+
+    assert.match(panel, /const \[openMissingCptKey, setOpenMissingCptKey\] = useState<string \| null>\(null\)/);
+    assert.match(panel, /open=\{openMissingCptKey === row\.key\}/);
+    assert.match(panel, /toggleMissingCptPopover\(current, row\.key\)/);
+    assert.match(popover, /open: boolean/);
+    assert.match(popover, /onOpenChange: \(open: boolean\) => void/);
+    assert.doesNotMatch(popover, /useState\(false\)/);
+  });
+
+  it("uses the compact Not OK label in both languages", () => {
+    const english = JSON.parse(readFileSync(resolve(import.meta.dirname, "../../i18n/locales/en/rightPanel.json"), "utf8"));
+    const dutch = JSON.parse(readFileSync(resolve(import.meta.dirname, "../../i18n/locales/nl/rightPanel.json"), "utf8"));
+
+    assert.equal(english["status.insufficientCapacity"], "Not OK");
+    assert.equal(dutch["status.insufficientCapacity"], "Not OK");
+  });
 });
 
 describe("technical assignment availability", () => {

@@ -120,7 +120,7 @@
   "filter.label": "Filter {{label}}",
   "status.ok": "OK",
   "status.missing": "Ontbreekt",
-  "status.insufficientCapacity": "Onvoldoende draagvermogen",
+  "status.insufficientCapacity": "Not OK",
   "optimization.title": "Optimalisatie",
   "optimization.subtitle": "Greedy paalselectie",
   "optimization.close": "Optimalisatie-instellingen sluiten",
