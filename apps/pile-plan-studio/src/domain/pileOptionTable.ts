@@ -32,6 +32,7 @@ export type PileOptionTableRow = {
   frdLabel: string;
   criticalLoadPointId: number | null;
   criticalLoadPointLabel: string;
+  missingCptIds: number[];
 };
 
 export type PileOptionSortState = {

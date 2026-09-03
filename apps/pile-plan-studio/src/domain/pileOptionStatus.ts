@@ -1,19 +1,20 @@
+import type { PileOptionTechnicalStatus } from "../core/projectTypes.ts";
+
 export type PileOptionStatus = {
   className: "is-ok" | "is-missing" | "is-not-ok";
-  label: "OK" | "Missing" | "Not OK";
+  label: "OK" | "Missing" | "Insufficient capacity";
 };
 
 export function getPileOptionStatus(option: {
-  isOption: boolean;
-  missing_cpt_ids: number[];
+  technicalStatus: PileOptionTechnicalStatus;
 }): PileOptionStatus {
-  if (option.isOption) {
+  if (option.technicalStatus === "valid") {
     return { className: "is-ok", label: "OK" };
   }
 
-  if (option.missing_cpt_ids.length > 0) {
+  if (option.technicalStatus === "missing_capacity_data") {
     return { className: "is-missing", label: "Missing" };
   }
 
-  return { className: "is-not-ok", label: "Not OK" };
+  return { className: "is-not-ok", label: "Insufficient capacity" };
 }

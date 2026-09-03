@@ -210,7 +210,8 @@ export function getRenderablePileOptionRows(input: {
 }): RenderablePileOptionTableRow[] {
   return input.options.map((option) => {
     const status = getPileOptionStatus(option);
-    const governingCpt = option.governing_cpt_id
+    const isMissing = option.technicalStatus === "missing_capacity_data";
+    const governingCpt = !isMissing && option.governing_cpt_id
       ? input.cpts.find((cpt) => cpt.id === option.governing_cpt_id) ?? null
       : null;
     const governingLabel = governingCpt ? getCptDisplayName(governingCpt) : "-";
@@ -225,10 +226,11 @@ export function getRenderablePileOptionRows(input: {
       costValue: cost,
       totalCostLabel: cost === null ? "-" : formatCurrency(cost, input.currencyCode),
       totalCostValue: cost,
-      frdLabel: formatOptionalNumber(option.governing_frd_kn, " kN"),
-      frdValue: option.governing_frd_kn,
+      frdLabel: isMissing ? "-" : formatOptionalNumber(option.governing_frd_kn, " kN"),
+      frdValue: isMissing ? null : option.governing_frd_kn,
       governingCptId: governingCpt?.id ?? null,
       governingLabel,
+      missingCptIds: sortedUniqueIds(option.missing_cpt_ids),
       criticalLoadPointId: null,
       criticalLoadPointLabel: "-",
       key,
@@ -240,10 +242,10 @@ export function getRenderablePileOptionRows(input: {
       symbolLabel: `${sizeLabel} ${tipLabel}`,
       tipLabel,
       tipValue: option.pile_tip_level_m,
-      useLabel: formatOptionalNumber(option.utilization, "%", 100),
-      useValue: option.utilization,
-      maxUseLabel: formatOptionalNumber(option.utilization, "%", 100),
-      maxUseValue: option.utilization,
+      useLabel: isMissing ? "-" : formatOptionalNumber(option.utilization, "%", 100),
+      useValue: isMissing ? null : option.utilization,
+      maxUseLabel: isMissing ? "-" : formatOptionalNumber(option.utilization, "%", 100),
+      maxUseValue: isMissing ? null : option.utilization,
     };
   });
 }
@@ -272,7 +274,8 @@ export function getRenderableAggregatedPileOptionRows(input: {
       ? { className: "is-ok", label: "OK" }
       : aggregate.status === "missing"
         ? { className: "is-missing", label: "Missing" }
-        : { className: "is-not-ok", label: "Not OK" };
+        : { className: "is-not-ok", label: "Insufficient capacity" };
+    const isMissing = aggregate.status === "missing";
     const sizeLabel = `${formatNumber(pileSizeMm)} mm`;
     const tipLabel = `${formatNumber(aggregate.pile_tip_level_m)} m`;
 
@@ -281,18 +284,19 @@ export function getRenderableAggregatedPileOptionRows(input: {
       costValue: unitCost,
       totalCostLabel: totalCost === null ? "-" : formatCurrency(totalCost, input.currencyCode),
       totalCostValue: totalCost,
-      useLabel: formatOptionalNumber(aggregate.maximum_utilization, "%", 100),
-      useValue: aggregate.maximum_utilization,
-      maxUseLabel: formatOptionalNumber(aggregate.maximum_utilization, "%", 100),
-      maxUseValue: aggregate.maximum_utilization,
-      governingCptId: aggregate.critical_governing_cpt_id,
+      useLabel: isMissing ? "-" : formatOptionalNumber(aggregate.maximum_utilization, "%", 100),
+      useValue: isMissing ? null : aggregate.maximum_utilization,
+      maxUseLabel: isMissing ? "-" : formatOptionalNumber(aggregate.maximum_utilization, "%", 100),
+      maxUseValue: isMissing ? null : aggregate.maximum_utilization,
+      governingCptId: isMissing ? null : aggregate.critical_governing_cpt_id,
       governingLabel: "-",
-      frdLabel: formatOptionalNumber(aggregate.critical_governing_frd_kn, " kN"),
-      frdValue: aggregate.critical_governing_frd_kn,
-      criticalLoadPointId: criticalLoadPoint?.id ?? null,
-      criticalLoadPointLabel: criticalLoadPoint?.name || (
+      frdLabel: isMissing ? "-" : formatOptionalNumber(aggregate.critical_governing_frd_kn, " kN"),
+      frdValue: isMissing ? null : aggregate.critical_governing_frd_kn,
+      criticalLoadPointId: isMissing ? null : criticalLoadPoint?.id ?? null,
+      criticalLoadPointLabel: isMissing ? "-" : criticalLoadPoint?.name || (
         aggregate.critical_load_point_id === null ? "-" : `Load point ${aggregate.critical_load_point_id}`
       ),
+      missingCptIds: sortedUniqueIds(aggregate.missing_cpt_ids),
       key,
       sizeLabel,
       sizeValue: pileSizeMm,
@@ -304,6 +308,10 @@ export function getRenderableAggregatedPileOptionRows(input: {
       tipValue: aggregate.pile_tip_level_m,
     };
   });
+}
+
+function sortedUniqueIds(ids: number[]): number[] {
+  return [...new Set(ids.filter(Number.isFinite))].sort((left, right) => left - right);
 }
 
 export function optionKey(option: Pick<PileConfigurationOption, "configuration">): string {

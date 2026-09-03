@@ -13,7 +13,7 @@ import {
 describe("pile option table", () => {
   const rows: PileOptionTableRow[] = [
     row({ key: "290|-18", costValue: 900, statusLabel: "OK", sizeValue: 290, tipValue: -18 }),
-    row({ key: "350|-20", costValue: 700, statusLabel: "Not OK", sizeValue: 350, tipValue: -20 }),
+    row({ key: "350|-20", costValue: 700, statusLabel: "Insufficient capacity", sizeValue: 350, tipValue: -20 }),
     row({ key: "320|-19", costValue: null, statusLabel: "Missing", sizeValue: 320, tipValue: -19 }),
   ];
 
@@ -72,7 +72,7 @@ describe("pile option table", () => {
   });
 
   it("lists unique filter values for a column", () => {
-    assert.deepEqual(getPileOptionFilterValues(rows, "status"), ["Missing", "Not OK", "OK"]);
+    assert.deepEqual(getPileOptionFilterValues(rows, "status"), ["Insufficient capacity", "Missing", "OK"]);
   });
 
   it("cycles sorting from ascending to descending to disabled", () => {
@@ -100,6 +100,7 @@ function row(input: {
     criticalLoadPointId: 1,
     criticalLoadPointLabel: "Load point 1",
     governingLabel: "CPT 1",
+    missingCptIds: [],
     key: input.key,
     sizeLabel: `${input.sizeValue} mm`,
     sizeValue: input.sizeValue,

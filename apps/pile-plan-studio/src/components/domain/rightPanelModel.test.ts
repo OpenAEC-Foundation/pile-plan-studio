@@ -41,6 +41,7 @@ describe("React right panel model", () => {
           governing_frd_kn: 900,
           utilization: 0.75,
           missing_cpt_ids: [],
+          technicalStatus: "valid",
         },
       ],
       selectedLoadPointCount: 1,
@@ -83,6 +84,7 @@ describe("React right panel model", () => {
         governing_frd_kn: 900,
         utilization: 0.75,
         missing_cpt_ids: [],
+        technicalStatus: "valid",
       }],
       selectedLoadPointCount: 1,
       legend: {
@@ -114,6 +116,7 @@ describe("React right panel model", () => {
         pile_tip_level_m: -18.5,
         status: "valid",
         missing_load_point_ids: [],
+        missing_cpt_ids: [],
         invalid_load_point_ids: [],
         maximum_utilization: 0.9,
         critical_load_point_id: 2,
@@ -133,27 +136,60 @@ describe("React right panel model", () => {
     assert.equal(rows[0].criticalLoadPointId, 2);
   });
 
-  it("shows an unknown total cost when the unit cost is unavailable", () => {
+  it("keeps total cost but suppresses inconclusive metrics for a missing aggregate", () => {
     const rows = getRenderableAggregatedPileOptionRows({
       aggregates: [{
         configuration: { pile_size_mm: 320, pile_tip_level_mm: -18_500 },
         pile_tip_level_m: -18.5,
         status: "missing",
         missing_load_point_ids: [2],
+        missing_cpt_ids: [62, 61, 62],
         invalid_load_point_ids: [],
         maximum_utilization: null,
         critical_load_point_id: null,
         critical_governing_cpt_id: null,
         critical_governing_frd_kn: null,
       }],
-      costsByOptionKey: new Map(),
+      costsByOptionKey: new Map([["320|-18500", 600]]),
       legend: minimalState().pileLegend,
       loadPoints: minimalState().loadPoints,
       selectedLoadPointCount: 2,
     });
 
-    assert.equal(rows[0].totalCostLabel, "-");
+    assert.equal(rows[0].totalCostLabel, "€1,200");
+    assert.equal(rows[0].maxUseValue, null);
+    assert.equal(rows[0].maxUseLabel, "-");
+    assert.deepEqual(rows[0].missingCptIds, [61, 62]);
     assert.equal(rows[0].criticalLoadPointLabel, "-");
+  });
+
+  it("suppresses inconclusive single-location metrics for missing capacity data", () => {
+    const rows = getRenderablePileOptionRows({
+      cpts: [{ id: 64, name: "CPT 64", x_mm: 0, y_mm: 0 }],
+      costsByOptionKey: new Map([["290|-17500", 500]]),
+      options: [{
+        configuration: { pile_size_mm: 290, pile_tip_level_mm: -17_500 },
+        pile_size_mm: 290,
+        pile_tip_level_m: -17.5,
+        isOption: false,
+        governing_cpt_id: 64,
+        governing_frd_kn: 900,
+        utilization: 0.75,
+        missing_cpt_ids: [62, 61, 62],
+        technicalStatus: "missing_capacity_data",
+      }],
+      selectedLoadPointCount: 1,
+      legend: minimalState().pileLegend,
+    });
+
+    assert.equal(rows[0].costValue, 500);
+    assert.equal(rows[0].useValue, null);
+    assert.equal(rows[0].useLabel, "-");
+    assert.equal(rows[0].governingCptId, null);
+    assert.equal(rows[0].governingLabel, "-");
+    assert.equal(rows[0].frdValue, null);
+    assert.equal(rows[0].frdLabel, "-");
+    assert.deepEqual(rows[0].missingCptIds, [61, 62]);
   });
 
   it("uses a shared chosen option key only when all selected load points match", () => {

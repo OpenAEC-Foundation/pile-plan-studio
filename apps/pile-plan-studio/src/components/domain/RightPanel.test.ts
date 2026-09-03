@@ -3,6 +3,21 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
+describe("missing CPT popover", () => {
+  it("opens from Missing without assigning the row and links identifier-only CPT buttons", () => {
+    const panel = readFileSync(resolve(import.meta.dirname, "RightPanel.tsx"), "utf8");
+    const popover = readFileSync(resolve(import.meta.dirname, "MissingCptPopover.tsx"), "utf8");
+
+    assert.match(panel, /row\.missingCptIds\.length > 0/);
+    assert.match(panel, /<MissingCptPopover/);
+    assert.match(popover, /aria-haspopup="dialog"/);
+    assert.match(popover, /event\.stopPropagation\(\)/);
+    assert.match(popover, /event\.key !== "Escape"/);
+    assert.match(popover, /openCpt\(state, cptId\)/);
+    assert.match(popover, />\{cptId\}<\/button>/);
+  });
+});
+
 describe("React optimization panel", () => {
   it("delegates canonical pile choices and disables rows while assignment is pending", () => {
     const panel = readFileSync(resolve(import.meta.dirname, "RightPanel.tsx"), "utf8");

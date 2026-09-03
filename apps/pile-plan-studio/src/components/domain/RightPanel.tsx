@@ -45,6 +45,7 @@ import "./rightPanel.css";
 import type { LoadPointGroup } from "../../core/loadPointGroupContract.ts";
 import type { TechnicalAssignmentSnapshot } from "./technicalAssignmentController.ts";
 import TechnicalAssignmentNotice from "./TechnicalAssignmentNotice.tsx";
+import MissingCptPopover from "./MissingCptPopover.tsx";
 
 export type RightTaskPanel = "cpt-settings" | "cost-settings" | "optimization";
 
@@ -720,7 +721,7 @@ function LoadPointPanel({
     ...row,
     statusLabel: row.statusLabel === "Missing"
       ? t("status.missing")
-      : row.statusLabel === "Not OK" ? t("status.notOk") : t("status.ok"),
+      : row.statusLabel === "Insufficient capacity" ? t("status.insufficientCapacity") : t("status.ok"),
   }));
   const visibleFilters = Object.fromEntries(
     columns.map(({ key }) => [key, state.pileOptionFilters[key] ?? []]),
@@ -828,7 +829,14 @@ function LoadPointPanel({
                           {key === "symbol" ? <span dangerouslySetInnerHTML={{ __html: row.symbolHtml }} />
                             : key === "size" ? row.sizeLabel
                             : key === "tip" ? row.tipLabel
-                            : key === "status" ? <span className={`status-pill ${row.statusClassName}`}>{row.statusLabel}</span>
+                            : key === "status" ? (
+                              row.statusClassName === "is-missing" && row.missingCptIds.length > 0
+                                ? <MissingCptPopover cptIds={row.missingCptIds} label={row.statusLabel} state={state} onStateChange={onStateChange} />
+                                : <span
+                                    className={`status-pill ${row.statusClassName}`}
+                                    title={row.statusClassName === "is-missing" ? t("pileOptions.missingNoCptIdsTitle") : undefined}
+                                  >{row.statusLabel}</span>
+                            )
                             : key === "cost" ? row.costLabel
                             : key === "totalCost" ? row.totalCostLabel
                             : key === "use" ? row.useLabel
