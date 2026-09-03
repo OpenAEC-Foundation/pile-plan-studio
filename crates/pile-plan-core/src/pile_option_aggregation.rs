@@ -2,7 +2,7 @@ use std::collections::{BTreeSet, HashMap};
 
 use serde::{Deserialize, Serialize};
 
-use crate::{PileConfigurationKey, PileConfigurationOption};
+use crate::{PileConfigurationKey, PileConfigurationOption, PileOptionTechnicalStatus};
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
 pub struct AggregatedPileConfiguration {
@@ -10,6 +10,7 @@ pub struct AggregatedPileConfiguration {
     pub pile_tip_level_m: f64,
     pub status: AggregatedPileConfigurationStatus,
     pub missing_load_point_ids: Vec<u32>,
+    pub missing_cpt_ids: Vec<u32>,
     pub invalid_load_point_ids: Vec<u32>,
     pub maximum_utilization: Option<f64>,
     pub critical_load_point_id: Option<u32>,
@@ -62,6 +63,7 @@ pub fn aggregate_pile_options_for_load_points(
         .into_iter()
         .map(|configuration| {
             let mut missing_load_point_ids = Vec::new();
+            let mut missing_cpt_ids = BTreeSet::new();
             let mut invalid_load_point_ids = Vec::new();
             let mut critical: Option<(f64, u32, &PileConfigurationOption)> = None;
 
@@ -74,12 +76,17 @@ pub fn aggregate_pile_options_for_load_points(
                     continue;
                 };
 
-                if matching
-                    .iter()
-                    .any(|option| !option.missing_cpt_ids.is_empty())
-                {
+                for option in matching {
+                    missing_cpt_ids.extend(option.missing_cpt_ids.iter().copied());
+                }
+
+                if matching.iter().any(|option| {
+                    option.technical_status == PileOptionTechnicalStatus::MissingCapacityData
+                }) {
                     missing_load_point_ids.push(*load_point_id);
-                } else if matching.iter().any(|option| !option.is_option) {
+                } else if matching.iter().any(|option| {
+                    option.technical_status == PileOptionTechnicalStatus::InsufficientCapacity
+                }) {
                     invalid_load_point_ids.push(*load_point_id);
                 }
 
@@ -110,17 +117,23 @@ pub fn aggregate_pile_options_for_load_points(
             } else {
                 AggregatedPileConfigurationStatus::Valid
             };
-            let (maximum_utilization, critical_load_point_id, critical_option) = critical
-                .map(|(utilization, load_point_id, option)| {
-                    (Some(utilization), Some(load_point_id), Some(option))
-                })
-                .unwrap_or((None, None, None));
+            let (maximum_utilization, critical_load_point_id, critical_option) =
+                if status == AggregatedPileConfigurationStatus::Missing {
+                    (None, None, None)
+                } else {
+                    critical
+                        .map(|(utilization, load_point_id, option)| {
+                            (Some(utilization), Some(load_point_id), Some(option))
+                        })
+                        .unwrap_or((None, None, None))
+                };
 
             AggregatedPileConfiguration {
                 pile_tip_level_m: configuration.pile_tip_level_m(),
                 configuration,
                 status,
                 missing_load_point_ids,
+                missing_cpt_ids: missing_cpt_ids.into_iter().collect(),
                 invalid_load_point_ids,
                 maximum_utilization,
                 critical_load_point_id,
@@ -161,6 +174,7 @@ mod tests {
             governing_frd_kn,
             utilization,
             missing_cpt_ids: Vec::new(),
+            technical_status: crate::pile_option_technical_status(is_option, utilization, &[]),
         }
     }
 
@@ -238,20 +252,36 @@ mod tests {
 
     #[test]
     fn missing_cpt_capacity_marks_the_load_point_missing() {
-        let mut missing_capacity = option(320, -18_500, false, None, None, None);
-        missing_capacity.missing_cpt_ids = vec![4];
+        let mut first_missing = option(320, -18_500, false, Some(1.20), Some(64), Some(500.0));
+        first_missing.missing_cpt_ids = vec![9, 4, 4];
+        first_missing.technical_status = crate::PileOptionTechnicalStatus::MissingCapacityData;
+        let mut second_missing = option(320, -18_500, false, None, None, None);
+        second_missing.missing_cpt_ids = vec![9];
 
         let result = aggregate_pile_options_for_load_points(&HashMap::from([
-            (1, vec![missing_capacity]),
+            (1, vec![first_missing]),
+            (2, vec![second_missing]),
             (
-                2,
-                vec![option(320, -18_500, true, Some(0.7), Some(61), Some(700.0))],
+                3,
+                vec![option(
+                    320,
+                    -18_500,
+                    false,
+                    Some(1.10),
+                    Some(61),
+                    Some(550.0),
+                )],
             ),
         ]));
 
         assert_eq!(result[0].status, AggregatedPileConfigurationStatus::Missing);
-        assert_eq!(result[0].missing_load_point_ids, vec![1]);
-        assert!(result[0].invalid_load_point_ids.is_empty());
+        assert_eq!(result[0].missing_load_point_ids, vec![1, 2]);
+        assert_eq!(result[0].invalid_load_point_ids, vec![3]);
+        assert_eq!(result[0].missing_cpt_ids, vec![4, 9]);
+        assert_eq!(result[0].maximum_utilization, None);
+        assert_eq!(result[0].critical_load_point_id, None);
+        assert_eq!(result[0].critical_governing_cpt_id, None);
+        assert_eq!(result[0].critical_governing_frd_kn, None);
     }
 
     #[test]

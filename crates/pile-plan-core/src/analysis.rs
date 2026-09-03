@@ -2,7 +2,10 @@ use std::collections::{HashMap, HashSet};
 
 use serde::{Deserialize, Serialize};
 
-use crate::pile_configuration::PileConfigurationKey;
+use crate::{
+    pile_configuration::PileConfigurationKey,
+    pile_option_status::{pile_option_technical_status, PileOptionTechnicalStatus},
+};
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
 pub struct LoadPoint {
@@ -67,6 +70,7 @@ pub struct PileConfigurationOption {
     pub governing_frd_kn: Option<f64>,
     pub utilization: Option<f64>,
     pub missing_cpt_ids: Vec<u32>,
+    pub technical_status: PileOptionTechnicalStatus,
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
@@ -452,17 +456,21 @@ fn pile_configuration_options_with_index(
                 .min_by(|left, right| left.frd_kn.total_cmp(&right.frd_kn));
             let governing_frd_kn = governing_capacity.map(|capacity| capacity.frd_kn);
             let utilization = governing_frd_kn.map(|frd_kn| design_load_kn / frd_kn);
+            let is_option =
+                missing_cpt_ids.is_empty() && utilization.is_some_and(|value| value <= 1.0);
+            let technical_status =
+                pile_option_technical_status(is_option, utilization, &missing_cpt_ids);
 
             PileConfigurationOption {
                 configuration: PileConfigurationKey::from_metres(pile_size_mm, pile_tip_level_m),
                 pile_size_mm,
                 pile_tip_level_m,
-                is_option: missing_cpt_ids.is_empty()
-                    && utilization.is_some_and(|value| value <= 1.0),
+                is_option,
                 governing_cpt_id: governing_capacity.map(|capacity| capacity.cpt_id),
                 governing_frd_kn,
                 utilization,
                 missing_cpt_ids,
+                technical_status,
             }
         })
         .collect()
@@ -1135,6 +1143,7 @@ mod tests {
                     governing_frd_kn: Some(650.0),
                     utilization: Some(600.0 / 650.0),
                     missing_cpt_ids: vec![],
+                    technical_status: crate::PileOptionTechnicalStatus::Valid,
                 },
                 PileConfigurationOption {
                     configuration: PileConfigurationKey::from_metres(320, -19.0),
@@ -1145,8 +1154,13 @@ mod tests {
                     governing_frd_kn: Some(740.0),
                     utilization: Some(600.0 / 740.0),
                     missing_cpt_ids: vec![12],
+                    technical_status: crate::PileOptionTechnicalStatus::MissingCapacityData,
                 },
             ]
+        );
+        assert_eq!(
+            serde_json::to_value(&options[1]).unwrap()["technical_status"],
+            "missing_capacity_data",
         );
     }
 
@@ -1261,6 +1275,7 @@ mod tests {
                 governing_frd_kn: Some(700.0),
                 utilization: Some(0.7),
                 missing_cpt_ids: vec![],
+                technical_status: PileOptionTechnicalStatus::Valid,
             },
             PileConfigurationOption {
                 configuration: PileConfigurationKey::from_metres(290, -18.0),
@@ -1271,6 +1286,7 @@ mod tests {
                 governing_frd_kn: Some(650.0),
                 utilization: Some(0.75),
                 missing_cpt_ids: vec![],
+                technical_status: PileOptionTechnicalStatus::Valid,
             },
         ];
 
@@ -1373,6 +1389,7 @@ mod tests {
                     governing_frd_kn: None,
                     utilization: None,
                     missing_cpt_ids: vec![1],
+                    technical_status: PileOptionTechnicalStatus::MissingCapacityData,
                 },
             ],
         )]);
@@ -1433,6 +1450,7 @@ mod tests {
             governing_frd_kn: Some(1000.0),
             utilization: Some(utilization),
             missing_cpt_ids: vec![],
+            technical_status: pile_option_technical_status(is_option, Some(utilization), &[]),
         }
     }
 }

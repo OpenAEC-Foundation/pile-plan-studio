@@ -498,6 +498,7 @@ mod tests {
             governing_frd_kn: Some(1_000.0),
             utilization: Some(utilization),
             missing_cpt_ids: Vec::new(),
+            technical_status: crate::pile_option_technical_status(true, Some(utilization), &[]),
         }
     }
 
@@ -508,6 +509,7 @@ mod tests {
     ) -> PileConfigurationOption {
         PileConfigurationOption {
             is_option: false,
+            technical_status: crate::PileOptionTechnicalStatus::InsufficientCapacity,
             ..option(pile_size_mm, pile_tip_level_mm, utilization)
         }
     }

@@ -329,6 +329,11 @@ mod tests {
             governing_frd_kn: Some(1_000.0),
             utilization: Some(utilization),
             missing_cpt_ids: Vec::new(),
+            technical_status: crate::pile_option_technical_status(
+                is_option,
+                Some(utilization),
+                &[],
+            ),
         }
     }
 
