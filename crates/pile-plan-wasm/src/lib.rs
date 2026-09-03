@@ -450,6 +450,7 @@ mod tests {
             governing_frd_kn: Some(700.0),
             utilization: Some(utilization),
             missing_cpt_ids: vec![],
+            technical_status: pile_plan_core::PileOptionTechnicalStatus::Valid,
         }
     }
 
@@ -489,9 +490,10 @@ mod tests {
 
         assert!(matches!(
             result,
-            pile_plan_core::GreedyOptimizationOutcome::Completed { result }
-                if result.unassigned_group_count == 0
-                    && result.unassigned.len() == 1
+            pile_plan_core::GreedyOptimizationOutcome::Blocked { diagnostics }
+                if diagnostics.len() == 1
+                    && diagnostics[0].kind
+                        == pile_plan_core::OptimizationPreparationDiagnosticKind::NoPileConfigurations
         ));
     }
 

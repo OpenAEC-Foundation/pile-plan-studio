@@ -32,7 +32,7 @@ pub use export::{
 pub use greedy_optimizer::{
     greedy_optimize_pile_choices, GreedyOptimizationInput, GreedyOptimizationOutcome,
     GreedyOptimizationResult, GreedyOptimizationSettings, GreedyOptimizedPileChoice,
-    GreedyUnassignedLoadPoint, GreedyUnassignedReason, OptimizationLimitScope,
+    OptimizationLimitScope, OptimizationUnassignedLoadPoint, OptimizationUnassignedReason,
 };
 pub use ifcpp::{read_ifcpp_str, validate_ifcpp_project, write_ifcpp_string, IfcppError};
 pub use import::{

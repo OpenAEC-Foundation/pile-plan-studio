@@ -3,8 +3,9 @@ use std::collections::{BTreeSet, HashMap, HashSet};
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    aggregate_pile_options_for_load_points, calculate_pile_cost, AggregatedPileConfigurationStatus,
-    LoadPointGroup, PileConfigurationKey, PileConfigurationOption, PileCostSettings,
+    aggregate_pile_options_for_load_points, assess_technical_assignment, calculate_pile_cost,
+    AggregatedPileConfigurationStatus, LoadPointGroup, PileConfigurationKey,
+    PileConfigurationOption, PileCostSettings, TechnicalAssignmentAvailability,
 };
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
@@ -29,8 +30,6 @@ pub struct PrepareOptimizationUnitsInput {
 pub struct OptimizationUnit {
     pub load_point_ids: Vec<u32>,
     pub forced_configuration: Option<PileConfigurationKey>,
-    pub has_technically_valid_configuration: bool,
-    pub technically_valid_load_point_ids: Vec<u32>,
     pub options: Vec<OptimizationUnitOption>,
 }
 
@@ -56,6 +55,7 @@ pub enum OptimizationPreparationDiagnosticKind {
     LockedConfigurationExceedsUtilizationLimit,
     MissingRelevantCost,
     NoEligibleConfiguration,
+    NoPileConfigurations,
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
@@ -69,6 +69,7 @@ pub struct OptimizationPreparationDiagnostic {
 pub struct OptimizationPreparationResult {
     pub units: Vec<OptimizationUnit>,
     pub diagnostics: Vec<OptimizationPreparationDiagnostic>,
+    pub technical_unassigned_load_point_ids: Vec<u32>,
 }
 
 pub fn prepare_optimization_units(
@@ -100,6 +101,29 @@ pub fn prepare_optimization_units(
     groups.sort_by(|left, right| left.load_point_ids.cmp(&right.load_point_ids));
     let mut diagnostics = Vec::new();
 
+    let technical_assessment = assess_technical_assignment(&groups, &input.options_by_load_point);
+    if technical_assessment.as_ref().is_ok_and(|assessment| {
+        assessment.availability == TechnicalAssignmentAvailability::NoPileConfigurations
+    }) {
+        diagnostics.push(OptimizationPreparationDiagnostic {
+            kind: OptimizationPreparationDiagnosticKind::NoPileConfigurations,
+            load_point_ids: Vec::new(),
+            configuration: None,
+        });
+        return OptimizationPreparationResult {
+            units: Vec::new(),
+            diagnostics,
+            technical_unassigned_load_point_ids: Vec::new(),
+        };
+    }
+    let technically_invalid_load_point_ids = technical_assessment
+        .as_ref()
+        .ok()
+        .into_iter()
+        .flat_map(|assessment| assessment.issues.iter())
+        .map(|issue| issue.load_point_id)
+        .collect::<HashSet<_>>();
+
     if input.pile_head_level_m.is_none() {
         diagnostics.push(OptimizationPreparationDiagnostic {
             kind: OptimizationPreparationDiagnosticKind::MissingPileHeadLevel,
@@ -109,6 +133,7 @@ pub fn prepare_optimization_units(
     }
 
     let mut units = Vec::with_capacity(groups.len());
+    let mut technical_unassigned_load_point_ids = Vec::new();
     for group in groups {
         let missing_analysis_ids = group
             .load_point_ids
@@ -140,22 +165,23 @@ pub fn prepare_optimization_units(
         } else {
             Vec::new()
         };
-        let has_technically_valid_configuration = aggregates
-            .iter()
-            .any(|candidate| candidate.status == AggregatedPileConfigurationStatus::Valid);
-        let technically_valid_load_point_ids = member_options
-            .iter()
-            .filter(|(_, options)| options.iter().any(|option| option.is_option))
-            .map(|(load_point_id, _)| *load_point_id)
-            .collect::<BTreeSet<_>>()
-            .into_iter()
-            .collect::<Vec<_>>();
         let locked_members = group
             .load_point_ids
             .iter()
             .filter(|load_point_id| locked_load_point_ids.contains(load_point_id))
             .copied()
             .collect::<Vec<_>>();
+        let group_is_technically_invalid = group
+            .load_point_ids
+            .iter()
+            .any(|load_point_id| technically_invalid_load_point_ids.contains(load_point_id));
+        if missing_analysis_ids.is_empty()
+            && group_is_technically_invalid
+            && locked_members.is_empty()
+        {
+            technical_unassigned_load_point_ids.extend(group.load_point_ids.iter().copied());
+            continue;
+        }
         let unassigned_locked_members = locked_members
             .iter()
             .filter(|load_point_id| !input.current_assignments.contains_key(load_point_id))
@@ -283,13 +309,17 @@ pub fn prepare_optimization_units(
         units.push(OptimizationUnit {
             load_point_ids: group.load_point_ids,
             forced_configuration,
-            has_technically_valid_configuration,
-            technically_valid_load_point_ids,
             options,
         });
     }
 
-    OptimizationPreparationResult { units, diagnostics }
+    technical_unassigned_load_point_ids.sort_unstable();
+    technical_unassigned_load_point_ids.dedup();
+    OptimizationPreparationResult {
+        units,
+        diagnostics,
+        technical_unassigned_load_point_ids,
+    }
 }
 
 #[cfg(test)]
@@ -666,8 +696,8 @@ mod tests {
         ));
 
         assert!(result.diagnostics.is_empty());
-        assert!(result.units[0].options.is_empty());
-        assert!(!result.units[0].has_technically_valid_configuration);
+        assert!(result.units.is_empty());
+        assert_eq!(result.technical_unassigned_load_point_ids, vec![1]);
     }
 
     #[test]

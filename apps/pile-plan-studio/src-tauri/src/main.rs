@@ -373,6 +373,7 @@ mod tests {
             governing_frd_kn: Some(700.0),
             utilization: Some(0.82),
             missing_cpt_ids: vec![],
+            technical_status: pile_plan_core::PileOptionTechnicalStatus::Valid,
         };
         let result = aggregate_pile_options(AggregatePileOptionsRequest {
             options_by_load_point: HashMap::from([(7, vec![option])]),

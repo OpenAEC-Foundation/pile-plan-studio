@@ -5,7 +5,7 @@ use serde::{de::Error as _, Deserialize, Deserializer, Serialize, Serializer};
 use crate::import::{ImportProfile, ImportRole, SourceFormat};
 
 use crate::analysis::{BearingCapacity, Cpt, CptSelectionSettings, LoadPoint, PileCostSettings};
-use crate::greedy_optimizer::{GreedyOptimizationSettings, GreedyUnassignedReason};
+use crate::greedy_optimizer::{GreedyOptimizationSettings, OptimizationUnassignedReason};
 use crate::pile_configuration::PileConfigurationKey;
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
@@ -188,8 +188,28 @@ pub struct PilePlan {
     pub selected_piles: HashMap<u32, SelectedPileChoice>,
     #[serde(default)]
     pub locked_load_point_ids: Vec<u32>,
-    #[serde(default)]
-    pub optimization_unassigned: HashMap<u32, GreedyUnassignedReason>,
+    #[serde(default, deserialize_with = "deserialize_optimization_unassigned")]
+    pub optimization_unassigned: HashMap<u32, OptimizationUnassignedReason>,
+}
+
+fn deserialize_optimization_unassigned<'de, D>(
+    deserializer: D,
+) -> Result<HashMap<u32, OptimizationUnassignedReason>, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let raw = HashMap::<u32, String>::deserialize(deserializer)?;
+    Ok(raw
+        .into_iter()
+        .filter_map(|(load_point_id, reason)| {
+            let reason = match reason.as_str() {
+                "optimization_constraints" => OptimizationUnassignedReason::OptimizationConstraints,
+                "configuration_limits" => OptimizationUnassignedReason::ConfigurationLimits,
+                _ => return None,
+            };
+            Some((load_point_id, reason))
+        })
+        .collect())
 }
 
 impl PilePlan {
@@ -404,7 +424,7 @@ mod tests {
         let mut project = sample_project();
         project.user_state.pile_plans[0]
             .optimization_unassigned
-            .insert(7, crate::GreedyUnassignedReason::ConfigurationLimits);
+            .insert(7, crate::OptimizationUnassignedReason::ConfigurationLimits);
 
         let value = serde_json::to_value(&project).expect("project serializes");
         let restored: PilePlanProject =
@@ -414,7 +434,7 @@ mod tests {
             restored.user_state.pile_plans[0]
                 .optimization_unassigned
                 .get(&7),
-            Some(&crate::GreedyUnassignedReason::ConfigurationLimits),
+            Some(&crate::OptimizationUnassignedReason::ConfigurationLimits),
         );
     }
 
@@ -432,6 +452,33 @@ mod tests {
         assert!(restored.user_state.pile_plans[0]
             .optimization_unassigned
             .is_empty());
+    }
+
+    #[test]
+    fn pile_plan_discards_legacy_and_unknown_optimizer_reasons() {
+        let mut value = serde_json::to_value(sample_project()).expect("project serializes");
+        value["user_state"]["pile_plans"][0]["optimization_unassigned"] = serde_json::json!({
+            "1": "no_valid_option",
+            "2": "group_member_without_valid_option",
+            "3": "no_common_group_configuration",
+            "4": "optimization_constraints",
+            "5": "configuration_limits",
+            "6": "future_reason"
+        });
+
+        let restored: PilePlanProject =
+            serde_json::from_value(value).expect("legacy project deserializes");
+
+        assert_eq!(
+            restored.user_state.pile_plans[0].optimization_unassigned,
+            HashMap::from([
+                (
+                    4,
+                    crate::OptimizationUnassignedReason::OptimizationConstraints
+                ),
+                (5, crate::OptimizationUnassignedReason::ConfigurationLimits),
+            ]),
+        );
     }
 
     #[test]

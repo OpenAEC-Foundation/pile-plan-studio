@@ -627,29 +627,50 @@ pub fn choose_default_pile_options(
     pile_head_level_m: f64,
     settings: &PileCostSettings,
 ) -> HashMap<u32, PileConfigurationKey> {
+    let Ok(assessment) = crate::assess_technical_assignment(groups, options_by_load_point) else {
+        return HashMap::new();
+    };
+    if assessment.availability != crate::TechnicalAssignmentAvailability::Available {
+        return HashMap::new();
+    }
+    let invalid_load_point_ids = assessment
+        .issues
+        .iter()
+        .map(|issue| issue.load_point_id)
+        .collect::<HashSet<_>>();
     let mut choices = HashMap::new();
     for group in groups {
+        if group
+            .load_point_ids
+            .iter()
+            .any(|load_point_id| invalid_load_point_ids.contains(load_point_id))
+        {
+            continue;
+        }
         let Some(first_member_id) = group.load_point_ids.first() else {
             continue;
         };
         let Some(first_member_options) = options_by_load_point.get(first_member_id) else {
             continue;
         };
+        let member_options = group
+            .load_point_ids
+            .iter()
+            .filter_map(|load_point_id| {
+                options_by_load_point
+                    .get(load_point_id)
+                    .cloned()
+                    .map(|options| (*load_point_id, options))
+            })
+            .collect::<HashMap<_, _>>();
+        let valid_configurations = crate::aggregate_pile_options_for_load_points(&member_options)
+            .into_iter()
+            .filter(|candidate| candidate.status == crate::AggregatedPileConfigurationStatus::Valid)
+            .map(|candidate| candidate.configuration)
+            .collect::<HashSet<_>>();
         let common_options = first_member_options
             .iter()
-            .filter(|candidate| {
-                candidate.is_option
-                    && group.load_point_ids.iter().all(|load_point_id| {
-                        options_by_load_point
-                            .get(load_point_id)
-                            .is_some_and(|options| {
-                                options.iter().any(|option| {
-                                    option.is_option
-                                        && option.configuration == candidate.configuration
-                                })
-                            })
-                    })
-            })
+            .filter(|candidate| valid_configurations.contains(&candidate.configuration))
             .cloned()
             .collect::<Vec<_>>();
         let Some(choice) = choose_default_pile_option(&common_options, pile_head_level_m, settings)
@@ -1398,6 +1419,22 @@ mod tests {
             load_point_ids: vec![1],
         }];
         assert!(choose_default_pile_options(&options, &groups, -3.5, &cost_settings()).is_empty());
+    }
+
+    #[test]
+    fn grouped_default_assignment_uses_the_shared_technical_status() {
+        let mut inconsistent = pile_option(290, -17.5, true, 0.7);
+        inconsistent.technical_status = PileOptionTechnicalStatus::InsufficientCapacity;
+        let options = HashMap::from([(1, vec![inconsistent])]);
+        let groups = vec![crate::LoadPointGroup {
+            load_point_ids: vec![1],
+        }];
+
+        let assessment = crate::assess_technical_assignment(&groups, &options).unwrap();
+        let choices = choose_default_pile_options(&options, &groups, -3.5, &cost_settings());
+
+        assert_eq!(assessment.issues[0].load_point_id, 1);
+        assert!(choices.is_empty());
     }
 
     #[test]
