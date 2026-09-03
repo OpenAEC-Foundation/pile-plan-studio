@@ -44,12 +44,14 @@ import { useAggregatedPileOptions } from "./useAggregatedPileOptions.ts";
 import "./rightPanel.css";
 import type { LoadPointGroup } from "../../core/loadPointGroupContract.ts";
 import { getOptimizationConflictDetails } from "../../domain/optimizationConflict.ts";
+import type { TechnicalAssignmentSnapshot } from "./technicalAssignmentController.ts";
 
 export type RightTaskPanel = "cpt-settings" | "cost-settings" | "optimization";
 
 type Props = {
   state: ProjectState;
   loadPointGroups?: LoadPointGroup[];
+  technicalAssignment?: TechnicalAssignmentSnapshot;
   onStateChange: (nextState: ProjectState) => void;
   pileAssignmentPending?: boolean;
   onApplyPileConfiguration?: (
@@ -69,6 +71,12 @@ type Props = {
 export default function RightPanel({
   state,
   loadPointGroups = [],
+  technicalAssignment: _technicalAssignment = {
+    status: "idle",
+    assessment: null,
+    issuesByLoadPointId: new Map(),
+    error: null,
+  },
   onStateChange,
   pileAssignmentPending = false,
   onApplyPileConfiguration = () => undefined,

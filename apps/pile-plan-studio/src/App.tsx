@@ -12,6 +12,7 @@ import ActionNotice, { type ActionNoticeTone } from "./components/viewer/ActionN
 import PilePlanWorkspace from "./components/domain/PilePlanWorkspace";
 import RightPanel, { type RightTaskPanel } from "./components/domain/RightPanel";
 import { useLoadPointGroups } from "./components/domain/useLoadPointGroups.ts";
+import { useTechnicalAssignment } from "./components/domain/useTechnicalAssignment.ts";
 import ProjectInformationDialog from "./components/domain/ProjectInformationDialog";
 import UnsavedChangesDialog from "./components/domain/UnsavedChangesDialog.tsx";
 import PilePlanExplorer from "./components/domain/PilePlanExplorer.tsx";
@@ -256,6 +257,15 @@ function AppSession({
   const projectStateRef = useRef(projectState);
   projectStateRef.current = projectState;
   const loadPointGroups = useLoadPointGroups(projectState.loadPoints);
+  const technicalAssignmentInput = useMemo(() => (
+    loadPointGroups.pending || loadPointGroups.error !== null
+      ? null
+      : {
+          groups: loadPointGroups.groups,
+          optionsByLoadPoint: projectState.pileOptionsByLoadPointId,
+        }
+  ), [loadPointGroups.error, loadPointGroups.groups, loadPointGroups.pending, projectState.pileOptionsByLoadPointId]);
+  const technicalAssignment = useTechnicalAssignment(technicalAssignmentInput);
   const loadPointGroupsRef = useRef(loadPointGroups.groups);
   loadPointGroupsRef.current = loadPointGroups.groups;
   const pileAssignmentRequestIdRef = useRef(0);
@@ -1527,6 +1537,7 @@ function AppSession({
               <PilePlanWorkspace
                 state={projectState}
                 loadPointGroups={loadPointGroups.groups}
+                technicalAssignment={technicalAssignment}
                 lassoSelectionActive={lassoSelectionActive}
                 onStateChange={handleProjectStateChange}
               />
@@ -1565,6 +1576,7 @@ function AppSession({
           {workspaceLayout.propertiesVisible && <RightPanel
             state={projectState}
             loadPointGroups={loadPointGroups.groups}
+            technicalAssignment={technicalAssignment}
             onStateChange={handleProjectStateChange}
             pileAssignmentPending={pileAssignmentPending
               || loadPointGroups.pending

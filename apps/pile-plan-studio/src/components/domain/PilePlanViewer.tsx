@@ -91,15 +91,17 @@ import { useTipLevelRegionTopology } from "./useTipLevelRegionTopology.ts";
 import TipLevelRegionOverlay from "./TipLevelRegionOverlay.tsx";
 import type { LoadPointGroup } from "../../core/loadPointGroupContract.ts";
 import { getOptimizationConflictDetails } from "../../domain/optimizationConflict.ts";
+import type { TechnicalAssignmentSnapshot } from "./technicalAssignmentController.ts";
 
 type Props = {
   state: ProjectState;
   loadPointGroups: LoadPointGroup[];
+  technicalAssignment: TechnicalAssignmentSnapshot;
   lassoSelectionActive: boolean;
   onStateChange: (nextState: ProjectState) => void;
 };
 
-export default function PilePlanViewer({ state, loadPointGroups, lassoSelectionActive, onStateChange }: Props) {
+export default function PilePlanViewer({ state, loadPointGroups, technicalAssignment: _technicalAssignment, lassoSelectionActive, onStateChange }: Props) {
   const { t, i18n } = useTranslation("common");
   const legend = state.pileLegend;
   const selectedLoadPointIds = new Set(state.selectedLoadPointIds);
