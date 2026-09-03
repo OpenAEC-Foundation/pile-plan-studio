@@ -895,7 +895,7 @@ function LoadPointPanel({
   );
 }
 
-export function toggleMissingCptPopover(current: string | null, requested: string): string | null {
+function toggleMissingCptPopover(current: string | null, requested: string): string | null {
   return current === requested ? null : requested;
 }
 

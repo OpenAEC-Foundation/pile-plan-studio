@@ -24,6 +24,7 @@ describe("missing CPT popover", () => {
     assert.match(panel, /const \[openMissingCptKey, setOpenMissingCptKey\] = useState<string \| null>\(null\)/);
     assert.match(panel, /open=\{openMissingCptKey === row\.key\}/);
     assert.match(panel, /toggleMissingCptPopover\(current, row\.key\)/);
+    assert.doesNotMatch(panel, /export function toggleMissingCptPopover/);
     assert.match(popover, /open: boolean/);
     assert.match(popover, /onOpenChange: \(open: boolean\) => void/);
     assert.doesNotMatch(popover, /useState\(false\)/);
