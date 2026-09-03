@@ -8,6 +8,13 @@
 
 **Related issues:** #21, #28, and #30
 
+**Amendment:** The technical-diagnostic, unassigned-reason, and summary rules in
+this document are superseded by
+[`2026-09-03-technical-pile-option-assessment-design.md`](2026-09-03-technical-pile-option-assessment-design.md).
+Technically invalid unlocked groups are derived engineering state rather than
+persisted optimizer outcomes; only genuine optimizer constraints receive
+question marks or unresolved optimizer counts.
+
 ## Purpose
 
 Connect the existing greedy optimizer to the solver-independent
