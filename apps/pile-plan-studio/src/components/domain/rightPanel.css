@@ -173,6 +173,16 @@
   background: #fff0f0;
 }
 
+.technical-assignment-notice {
+  gap: 5px;
+  line-height: 1.4;
+}
+
+.technical-assignment-notice.is-neutral strong,
+.technical-assignment-notice.is-neutral span {
+  display: block;
+}
+
 .primary-action {
   margin: 12px;
   padding: 7px 10px;

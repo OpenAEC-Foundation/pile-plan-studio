@@ -44,6 +44,7 @@ import { useAggregatedPileOptions } from "./useAggregatedPileOptions.ts";
 import "./rightPanel.css";
 import type { LoadPointGroup } from "../../core/loadPointGroupContract.ts";
 import type { TechnicalAssignmentSnapshot } from "./technicalAssignmentController.ts";
+import TechnicalAssignmentNotice from "./TechnicalAssignmentNotice.tsx";
 
 export type RightTaskPanel = "cpt-settings" | "cost-settings" | "optimization";
 
@@ -753,6 +754,12 @@ function LoadPointPanel({
       </header>
 
       <CoordinateReadout points={selectedLoadPoints} locale={i18n.language} />
+
+      <TechnicalAssignmentNotice
+        state={state}
+        assessment={technicalAssignment}
+        onStateChange={onStateChange}
+      />
 
       <section className="pile-options-section">
         <div className="section-heading">
