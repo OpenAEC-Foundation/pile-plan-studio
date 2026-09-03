@@ -96,18 +96,21 @@ changing the domain model.
 Each analyzed option has one effective status:
 
 1. `valid` when data is complete and utilization is at most 100 percent;
-2. `missing_capacity_data` when at least one selected CPT lacks capacity data;
+2. `missing_capacity_data` when at least one selected CPT lacks capacity data
+   or no utilization can be determined at all;
 3. `insufficient_capacity` when data is complete and utilization exceeds 100
    percent.
 
 Missing data has precedence within one option. A utilization calculated from
 only the available CPTs is not a conclusive engineering result and must not
-turn an incomplete option into `insufficient_capacity`.
+turn an incomplete option into `insufficient_capacity`. An option with no
+determined utilization and no concrete missing CPT identifier is also Missing,
+but it does not offer an empty CPT popover.
 
-The existing `is_option`, `missing_cpt_ids`, and utilization facts may remain
-the low-level analysis representation if that avoids an unnecessary wire
-migration. All consumers must nevertheless obtain the effective status from
-one Rust rule rather than reconstructing it independently.
+`PileConfigurationOption` carries the Rust-produced effective technical status
+across the core boundary. The existing `is_option`, `missing_cpt_ids`, and
+utilization facts remain for compatibility and detailed presentation, but
+TypeScript does not reconstruct status from them.
 
 ## Group assessment
 
@@ -330,7 +333,8 @@ For a `missing_capacity_data` row:
 
 - cost remains available when it can be calculated from the configuration;
 - utilization, governing CPT, and FRd display `-`;
-- the Missing status provides access to the missing CPT identifiers.
+- the Missing status provides access to the missing CPT identifiers when the
+  analysis can identify them.
 
 For `valid` and `insufficient_capacity` rows, the existing utilization,
 governing CPT, and FRd values remain relevant and visible.
@@ -357,8 +361,10 @@ configuration is completely assessable and insufficient.
 
 ### Missing-CPT popover
 
-The Missing status is a button-like control. Clicking it opens a compact
-popover anchored to the status cell. The popover:
+When a Missing row contains concrete CPT identifiers, the status is a
+button-like control. Clicking it opens a compact popover anchored to the status
+cell. A Missing row without concrete identifiers remains a non-interactive
+status with an explanatory title. The popover:
 
 - identifies that bearing-capacity data is missing;
 - lists only the sorted CPT identifiers, without repeating "CPT" or
