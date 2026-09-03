@@ -1,6 +1,6 @@
 # Technical pile-option assessment and missing-capacity presentation
 
-**Status:** Approved in design discussion; pending written review
+**Status:** Approved
 
 **Created:** 2026-09-03
 
@@ -269,13 +269,22 @@ with the optimizer result. Its concepts remain separate, for example:
 303 assigned.
 123 changed.
 25 without a valid pile option.
-2 not assigned within the optimization settings (1 group).
+2 not assigned within the optimization settings.
 ```
 
 All members of a technically invalid target group count in the technical line.
 They do not count as unresolved optimizer locations or unresolved optimizer
 groups. The last line counts only `optimization_constraints` and
 `configuration_limits` outcomes.
+
+The compact summary reports load-point counts only. It does not append a group
+count to either the technical line or the optimizer line. Internally every
+singleton is also a `LoadPointGroup`, so a result containing one linked group
+of three locations and two separate locations would technically contain three
+groups; presenting that as "5 locations (3 groups)" would be ambiguous before
+a groups UI exists. Structured group or optimization-unit counts remain
+available for diagnostics and tests, and a future detailed view may spell out
+"1 linked group of 3 locations and 2 separate locations" explicitly.
 
 ## Permanent technical notices
 
@@ -462,6 +471,8 @@ missing-CPT arrays.
   IDs;
 - technical and optimizer counts remain separate for whole-plan and selected
   target runs;
+- compact summary lines report locations only and do not show an ambiguous
+  count that includes singleton groups;
 - single Missing rows replace utilization, governing CPT, and FRd with `-`;
 - multi Missing rows replace maximum utilization and critical location with
   `-`;
@@ -526,8 +537,8 @@ The slice is complete when:
 2. initial assignment, greedy optimization, viewer markers, and notices agree;
 3. technical issues are current derived state and never optimizer question
    marks or persisted optimizer reasons;
-4. optimizer summaries count technical issues separately from groups unresolved
-   by optimizer settings;
+4. optimizer summaries count technical issues separately from locations not
+   assigned within optimizer settings and show no group count;
 5. red and yellow group colors follow the approved common-configuration rule;
 6. no global configuration data produces neutral dots and disables
    optimization;
