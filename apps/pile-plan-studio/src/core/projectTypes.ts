@@ -141,16 +141,6 @@ export type OptimizationUnassignedLoadPoint = {
   reason: OptimizationUnassignedReason;
 };
 
-export type GreedyUnassignedReason = OptimizationUnassignedReason
-  | "no_valid_option"
-  | "group_member_without_valid_option"
-  | "no_common_group_configuration";
-
-export type GreedyUnassignedLoadPoint = {
-  load_point_id: number;
-  reason: GreedyUnassignedReason;
-};
-
 export type GreedyOptimizationResult = {
   assignments: GreedyOptimizedPileChoice[];
   unassigned: OptimizationUnassignedLoadPoint[];

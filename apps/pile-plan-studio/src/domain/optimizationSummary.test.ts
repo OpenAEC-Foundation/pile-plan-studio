@@ -19,37 +19,30 @@ describe("optimization summary", () => {
     assert.deepEqual(summary, {
       assignedCount: 2,
       changedCount: 1,
-      noValidOptionCount: 0,
+      technicalUnassignedCount: 0,
       optimizerUnassignedCount: 0,
-      unresolvedGroupCount: 0,
-      unresolvedLoadPointCount: 0,
     });
   });
 
-  it("separates invalid engineering options from optimizer exclusions", () => {
+  it("separates technical outcomes from optimizer exclusions without group counts", () => {
     const summary = summarizeOptimizationRun(
       new Map([
         [1, { pile_size_mm: 290, pile_tip_level_mm: -17_500 }],
       ]),
       [],
       [
-        { load_point_id: 1, reason: "no_valid_option" },
-        { load_point_id: 2, reason: "no_valid_option" },
-        { load_point_id: 3, reason: "group_member_without_valid_option" },
-        { load_point_id: 4, reason: "no_common_group_configuration" },
         { load_point_id: 5, reason: "optimization_constraints" },
         { load_point_id: 6, reason: "configuration_limits" },
       ],
       2,
+      [1, 2, 2],
     );
 
     assert.deepEqual(summary, {
       assignedCount: 0,
       changedCount: 1,
-      noValidOptionCount: 2,
+      technicalUnassignedCount: 2,
       optimizerUnassignedCount: 2,
-      unresolvedGroupCount: 2,
-      unresolvedLoadPointCount: 4,
     });
   });
 
@@ -57,20 +50,16 @@ describe("optimization summary", () => {
     const summary = summarizeOptimizationRun(
       new Map(),
       [],
-      [
-        { load_point_id: 1, reason: "no_valid_option" },
-        { load_point_id: 2, reason: "no_valid_option" },
-      ],
+      [],
       0,
+      [1, 2],
     );
 
     assert.deepEqual(summary, {
       assignedCount: 0,
       changedCount: 0,
-      noValidOptionCount: 2,
+      technicalUnassignedCount: 2,
       optimizerUnassignedCount: 0,
-      unresolvedGroupCount: 0,
-      unresolvedLoadPointCount: 0,
     });
   });
 });

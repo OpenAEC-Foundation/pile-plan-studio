@@ -258,14 +258,37 @@ function AppSession({
   projectStateRef.current = projectState;
   const loadPointGroups = useLoadPointGroups(projectState.loadPoints);
   const technicalAssignmentInput = useMemo(() => (
-    loadPointGroups.pending || loadPointGroups.error !== null
+    loadPointGroups.pending
+      || loadPointGroups.error !== null
+      || projectState.analysisError !== null
+      || projectState.pileOptionsByLoadPointId.size !== projectState.loadPoints.length
       ? null
       : {
           groups: loadPointGroups.groups,
           optionsByLoadPoint: projectState.pileOptionsByLoadPointId,
         }
-  ), [loadPointGroups.error, loadPointGroups.groups, loadPointGroups.pending, projectState.pileOptionsByLoadPointId]);
-  const technicalAssignment = useTechnicalAssignment(technicalAssignmentInput);
+  ), [loadPointGroups.error, loadPointGroups.groups, loadPointGroups.pending, projectState.analysisError, projectState.loadPoints.length, projectState.pileOptionsByLoadPointId]);
+  const assessedTechnicalAssignment = useTechnicalAssignment(technicalAssignmentInput);
+  const technicalAssignment = useMemo(() => {
+    const upstreamError = projectState.analysisError ?? loadPointGroups.error;
+    if (upstreamError) {
+      return {
+        status: "error" as const,
+        assessment: null,
+        issuesByLoadPointId: new Map(),
+        error: upstreamError instanceof Error ? upstreamError : new Error(upstreamError),
+      };
+    }
+    if (technicalAssignmentInput === null) {
+      return {
+        status: "loading" as const,
+        assessment: null,
+        issuesByLoadPointId: new Map(),
+        error: null,
+      };
+    }
+    return assessedTechnicalAssignment;
+  }, [assessedTechnicalAssignment, loadPointGroups.error, projectState.analysisError, technicalAssignmentInput]);
   const loadPointGroupsRef = useRef(loadPointGroups.groups);
   loadPointGroupsRef.current = loadPointGroups.groups;
   const pileAssignmentRequestIdRef = useRef(0);
@@ -916,6 +939,7 @@ function AppSession({
       || loadPointGroups.pending
       || loadPointGroups.error !== null
       || (snapshot.loadPoints.length > 0 && loadPointGroups.groups.length === 0)
+      || technicalAssignment.status !== "ready"
     ) {
       return;
     }
@@ -1357,6 +1381,7 @@ function AppSession({
     groupsPending: loadPointGroups.pending,
     groupsError: loadPointGroups.error,
     groupCount: loadPointGroups.groups.length,
+    technicalAssessmentStatus: technicalAssignment.status,
   });
 
   const installOpenedProject = (project: ProjectState, path: string | null) => {

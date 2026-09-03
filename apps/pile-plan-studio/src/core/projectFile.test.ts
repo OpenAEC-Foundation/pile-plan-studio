@@ -213,6 +213,10 @@ describe("IFCPP project loading", () => {
           optimization_unassigned: {
             "7": "configuration_limits",
             "8": "optimization_constraints",
+            "9": "no_valid_option",
+            "10": "group_member_without_valid_option",
+            "11": "no_common_group_configuration",
+            "12": "future_reason",
           },
         }],
         active_pile_plan_id: "basis",

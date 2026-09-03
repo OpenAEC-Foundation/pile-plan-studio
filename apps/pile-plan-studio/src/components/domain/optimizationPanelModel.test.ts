@@ -58,6 +58,7 @@ describe("React optimization panel model", () => {
           cost: 100,
         }],
         unassigned: [{ load_point_id: 2, reason: "configuration_limits" }],
+        technical_unassigned_load_point_ids: [3],
         unassigned_group_count: 1,
         selected_configurations: [{ pile_size_mm: 350, pile_tip_level_mm: -20000 }],
         pile_size_count: 1,
@@ -68,18 +69,15 @@ describe("React optimization panel model", () => {
 
     assert.deepEqual(result.choices, new Map([
       [1, { pile_size_mm: 350, pile_tip_level_mm: -20_000 }],
-      [3, { pile_size_mm: 290, pile_tip_level_mm: -18_000 }],
     ]));
     assert.deepEqual(result.optimizationUnassignedByLoadPoint, new Map([[2, "configuration_limits"]]));
     assert.equal("activePileSizes" in result, false);
     assert.equal("activePileTipLevels" in result, false);
     assert.deepEqual(result.summary, {
       assignedCount: 1,
-      changedCount: 2,
-      noValidOptionCount: 0,
+      changedCount: 3,
+      technicalUnassignedCount: 1,
       optimizerUnassignedCount: 1,
-      unresolvedGroupCount: 1,
-      unresolvedLoadPointCount: 1,
     });
   });
 
@@ -93,11 +91,13 @@ describe("React optimization panel model", () => {
       groupsPending: false,
       groupsError: null,
       groupCount: 1,
+      technicalAssessmentStatus: "ready" as const,
     };
 
     assert.equal(isOptimizationDisabled(base), false);
     assert.equal(isOptimizationDisabled({ ...base, groupsPending: true }), true);
     assert.equal(isOptimizationDisabled({ ...base, groupsError: "failed" }), true);
+    assert.equal(isOptimizationDisabled({ ...base, technicalAssessmentStatus: "unavailable" }), true);
     assert.equal(isOptimizationDisabled({ ...base, groupCount: 0 }), true);
     assert.equal(isOptimizationDisabled({ ...base, loadPointCount: 0, groupCount: 0 }), false);
   });

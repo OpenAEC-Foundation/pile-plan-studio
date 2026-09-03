@@ -7,6 +7,7 @@ import {
   getUnselectedLoadPointMarkerState,
 } from "./loadPointMarker.ts";
 import type { PileConfigurationOption } from "../core/projectTypes.ts";
+import type { TechnicalAssignmentIssueStatus } from "../core/technicalAssignmentContract.ts";
 
 function option(input: {
   isOption: boolean;
@@ -67,54 +68,33 @@ describe("load point marker invalid visual", () => {
 });
 
 describe("unselected load point marker state", () => {
-  it("keeps unresolved and failed calculations neutral", () => {
-    assert.equal(getUnselectedLoadPointMarkerState(undefined, true, false), "pending");
-    assert.equal(getUnselectedLoadPointMarkerState(undefined, false, true), "pending");
+  it("keeps unresolved, unavailable, and failed assessments neutral", () => {
+    assert.equal(getUnselectedLoadPointMarkerState({ analysisStatus: "loading" }), "pending");
+    assert.equal(getUnselectedLoadPointMarkerState({ analysisStatus: "unavailable" }), "unavailable");
+    assert.equal(getUnselectedLoadPointMarkerState({ analysisStatus: "error" }), "analysis-error");
   });
 
-  it("uses Missing only when every option lacks CPT capacities", () => {
-    const missingOption = option({ isOption: false, utilization: null, missingCptIds: [64] });
-    const invalidOption = option({ isOption: false, utilization: 1.2 });
-
-    assert.equal(getUnselectedLoadPointMarkerState([missingOption], false, false), "missing");
-    assert.equal(
-      getUnselectedLoadPointMarkerState([missingOption, invalidOption], false, false),
-      "invalid",
-    );
+  it("uses the shared technical group status for both group members", () => {
+    const missing: TechnicalAssignmentIssueStatus = "missing_capacity_data";
+    const insufficient: TechnicalAssignmentIssueStatus = "insufficient_capacity";
+    assert.equal(getUnselectedLoadPointMarkerState({ analysisStatus: "ready", technicalIssueStatus: missing }), "missing-capacity-data");
+    assert.equal(getUnselectedLoadPointMarkerState({ analysisStatus: "ready", technicalIssueStatus: insufficient }), "insufficient-capacity");
   });
 
   it("uses optimizer status only after missing and invalid engineering states", () => {
-    const validOption = option({ isOption: true, utilization: 0.7 });
-    const missingOption = option({ isOption: false, utilization: null, missingCptIds: [64] });
-    const invalidOption = option({ isOption: false, utilization: 1.2 });
-
     assert.equal(
-      getUnselectedLoadPointMarkerState(
-        [validOption],
-        false,
-        false,
-        "configuration_limits",
-      ),
+      getUnselectedLoadPointMarkerState({ analysisStatus: "ready", optimizationUnassignedReason: "configuration_limits" }),
       "optimizer-unassigned",
     );
     assert.equal(
-      getUnselectedLoadPointMarkerState(
-        [missingOption],
-        false,
-        false,
-        "configuration_limits",
-      ),
-      "missing",
+      getUnselectedLoadPointMarkerState({ analysisStatus: "ready", technicalIssueStatus: "missing_capacity_data", optimizationUnassignedReason: "configuration_limits" }),
+      "missing-capacity-data",
     );
     assert.equal(
-      getUnselectedLoadPointMarkerState(
-        [invalidOption],
-        false,
-        false,
-        "configuration_limits",
-      ),
-      "invalid",
+      getUnselectedLoadPointMarkerState({ analysisStatus: "ready", technicalIssueStatus: "insufficient_capacity", optimizationUnassignedReason: "configuration_limits" }),
+      "insufficient-capacity",
     );
+    assert.equal(getUnselectedLoadPointMarkerState({ analysisStatus: "ready" }), "unassigned");
   });
 });
 

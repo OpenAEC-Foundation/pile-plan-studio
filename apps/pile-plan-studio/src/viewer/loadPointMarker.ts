@@ -1,8 +1,9 @@
 import type {
-  GreedyUnassignedReason,
+  OptimizationUnassignedReason,
   PileConfigurationOption,
   ViewerUtilizationSettings,
 } from "../core/projectTypes.ts";
+import type { TechnicalAssignmentIssueStatus } from "../core/technicalAssignmentContract.ts";
 
 export type LoadPointMarkerInvalidVisual = {
   className: string;
@@ -11,9 +12,12 @@ export type LoadPointMarkerInvalidVisual = {
 
 export type UnselectedLoadPointMarkerState =
   | "pending"
-  | "missing"
-  | "invalid"
-  | "optimizer-unassigned";
+  | "analysis-error"
+  | "unavailable"
+  | "missing-capacity-data"
+  | "insufficient-capacity"
+  | "optimizer-unassigned"
+  | "unassigned";
 
 export type OptimizerUnresolvedMarkerPlacement = "map" | "inline";
 
@@ -26,31 +30,19 @@ export function getOptimizerUnresolvedMarkerStyle(
 }
 
 export function getUnselectedLoadPointMarkerState(
-  options: PileConfigurationOption[] | undefined,
-  isPending: boolean,
-  hasAnalysisError: boolean,
-  optimizationUnassignedReason?: GreedyUnassignedReason,
+  input: {
+    analysisStatus: "idle" | "loading" | "ready" | "unavailable" | "error";
+    technicalIssueStatus?: TechnicalAssignmentIssueStatus | null;
+    optimizationUnassignedReason?: OptimizationUnassignedReason;
+  },
 ): UnselectedLoadPointMarkerState {
-  if (isPending || hasAnalysisError || !options) {
-    return "pending";
-  }
-
-  if (options.length > 0 && options.every((option) => option.missing_cpt_ids.length > 0)) {
-    return "missing";
-  }
-
-  if (!options.some((option) => option.isOption)) {
-    return "invalid";
-  }
-
-  if (
-    optimizationUnassignedReason
-    && optimizationUnassignedReason !== "no_valid_option"
-  ) {
-    return "optimizer-unassigned";
-  }
-
-  return "invalid";
+  if (input.analysisStatus === "error") return "analysis-error";
+  if (input.analysisStatus === "unavailable") return "unavailable";
+  if (input.analysisStatus !== "ready") return "pending";
+  if (input.technicalIssueStatus === "missing_capacity_data") return "missing-capacity-data";
+  if (input.technicalIssueStatus === "insufficient_capacity") return "insufficient-capacity";
+  if (input.optimizationUnassignedReason) return "optimizer-unassigned";
+  return "unassigned";
 }
 
 export function getLoadPointMarkerInvalidVisual(

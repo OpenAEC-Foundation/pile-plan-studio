@@ -79,8 +79,15 @@
   "properties": "Eigenschappen",
   "viewer": {
     "optimizerUnassigned": "De laatste optimalisatie vond binnen de ingestelde limieten geen toewijzing.",
-    "optimizerGroupMemberWithoutValidOption": "Geen toewijzing mogelijk omdat de volgende groepsleden geen geldige paaloptie hebben: {{loadPoints}}.",
-    "optimizerNoCommonGroupConfiguration": "De locaties in deze groep hebben afzonderlijk geldige opties, maar geen gemeenschappelijke configuratie.",
+    "unselected": {
+      "pending": "De paalopties worden beoordeeld.",
+      "analysis-error": "De paalopties konden niet worden beoordeeld.",
+      "unavailable": "Er zijn geen bruikbare draagvermogenconfiguraties beschikbaar.",
+      "missing-capacity-data": "Er is geen geldige paaloptie omdat draagvermogeninformatie ontbreekt.",
+      "insufficient-capacity": "Geen geldige paaloptie heeft voldoende draagvermogen.",
+      "optimizer-unassigned": "De laatste optimalisatie vond binnen de ingestelde limieten geen toewijzing.",
+      "unassigned": "Er is geen paal toegewezen."
+    },
     "hover": {
       "loadPoint": "Belastinglocatie",
       "cpt": "Sondering",

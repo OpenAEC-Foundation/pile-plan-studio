@@ -4,7 +4,7 @@ import type {
   CptSelectionAlgorithm,
   CptSelectionSettings,
   GreedyOptimizationSettings,
-  GreedyUnassignedReason,
+  OptimizationUnassignedReason,
   LegendColorScheme,
   LegendItems,
   LoadPoint,
@@ -78,7 +78,7 @@ export type IfcppPilePlan = {
   name: string;
   selected_piles: Record<string, IfcppSelectedPileChoice>;
   locked_load_point_ids: number[];
-  optimization_unassigned?: Record<string, GreedyUnassignedReason>;
+  optimization_unassigned?: Record<string, unknown>;
 };
 
 export type IfcppImportLogEntry = {
@@ -185,7 +185,7 @@ export type PilePlanData = {
   selectedPileConfigurationsByLoadPoint: Map<number, PileConfigurationKey>;
   externalReferencesByLoadPoint: Map<number, unknown[]>;
   lockedLoadPointIds: number[];
-  optimizationUnassignedByLoadPoint: Map<number, GreedyUnassignedReason>;
+  optimizationUnassignedByLoadPoint: Map<number, OptimizationUnassignedReason>;
 };
 
 export function loadIfcppProjectData(input: string | IfcppProject): LoadedProjectData {
@@ -298,7 +298,10 @@ function pilePlanDataFromWire(plan: IfcppPilePlan): PilePlanData {
     ),
     lockedLoadPointIds: [...(plan.locked_load_point_ids ?? [])],
     optimizationUnassignedByLoadPoint: new Map(
-      numberKeyedEntries(plan.optimization_unassigned ?? {}),
+      numberKeyedEntries(plan.optimization_unassigned ?? {})
+        .filter((entry): entry is [number, OptimizationUnassignedReason] => (
+          entry[1] === "optimization_constraints" || entry[1] === "configuration_limits"
+        )),
     ),
   };
 }

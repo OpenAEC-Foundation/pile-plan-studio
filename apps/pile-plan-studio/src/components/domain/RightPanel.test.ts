@@ -79,7 +79,7 @@ describe("React optimization panel", () => {
     assert.match(optimization, /optimization\.assigned/);
     assert.match(optimization, /optimization\.noValidOption/);
     assert.match(optimization, /optimization\.unassigned/);
-    assert.match(optimization, /optimization\.unresolvedGroups/);
+    assert.doesNotMatch(optimization, /optimization\.unresolvedGroups/);
     assert.match(optimization, /optimizationError/);
     assert.match(optimization, /optimizationErrorLoadPointIds/);
     assert.match(optimization, /className="optimization-load-point-link"/);

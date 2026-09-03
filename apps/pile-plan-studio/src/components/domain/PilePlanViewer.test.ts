@@ -205,7 +205,7 @@ describe("PilePlanViewer inputs", () => {
 
     assert.match(source, /getEffectivePileOptionsByLoadPointId/);
     assert.match(source, /const pileOptionsByLoadPointId = getEffectivePileOptionsByLoadPointId\(state\)/);
-    assert.match(source, /pileOptionsByLoadPointId\.get\(loadPoint\.id\)/);
+    assert.match(source, /technicalAssignment\.issuesByLoadPointId\.get\(loadPoint\.id\)/);
     assert.match(source, /getSelectedPileOption\(state, loadPoint\.id, pileOptionsByLoadPointId\)/);
   });
 

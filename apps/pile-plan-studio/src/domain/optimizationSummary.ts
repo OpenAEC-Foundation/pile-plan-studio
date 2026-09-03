@@ -1,6 +1,6 @@
 import type {
   GreedyOptimizedPileChoice,
-  GreedyUnassignedLoadPoint,
+  OptimizationUnassignedLoadPoint,
   PileConfigurationKey,
 } from "../core/projectTypes.ts";
 import { samePileConfiguration } from "../core/pileConfigurationKey.ts";
@@ -8,17 +8,16 @@ import { samePileConfiguration } from "../core/pileConfigurationKey.ts";
 export type OptimizationRunSummary = {
   assignedCount: number;
   changedCount: number;
-  noValidOptionCount: number;
+  technicalUnassignedCount: number;
   optimizerUnassignedCount: number;
-  unresolvedGroupCount: number;
-  unresolvedLoadPointCount: number;
 };
 
 export function summarizeOptimizationRun(
   previousChoiceKeys: Map<number, PileConfigurationKey>,
   choices: GreedyOptimizedPileChoice[],
-  unassigned: GreedyUnassignedLoadPoint[] = [],
-  unassignedGroupCount = 0,
+  unassigned: OptimizationUnassignedLoadPoint[] = [],
+  _unassignedGroupCount = 0,
+  technicalUnassignedLoadPointIds: number[] = [],
 ): OptimizationRunSummary {
   let changedCount = 0;
 
@@ -31,27 +30,23 @@ export function summarizeOptimizationRun(
     }
   }
 
-  for (const item of unassigned) {
-    const previous = previousChoiceKeys.get(item.load_point_id);
+  for (const loadPointId of new Set([
+    ...unassigned.map((item) => item.load_point_id),
+    ...technicalUnassignedLoadPointIds,
+  ])) {
+    const previous = previousChoiceKeys.get(loadPointId);
     if (previous !== undefined) {
       changedCount += 1;
     }
   }
 
-  const noValidOptionCount = unassigned.filter(
-    (item) => item.reason === "no_valid_option",
-  ).length;
-  const optimizerUnassignedCount = unassigned.filter(
-    (item) => item.reason === "optimization_constraints"
-      || item.reason === "configuration_limits",
-  ).length;
+  const technicalUnassignedCount = new Set(technicalUnassignedLoadPointIds).size;
+  const optimizerUnassignedCount = unassigned.length;
 
   return {
     assignedCount: choices.length,
     changedCount,
-    noValidOptionCount,
+    technicalUnassignedCount,
     optimizerUnassignedCount,
-    unresolvedGroupCount: unassignedGroupCount,
-    unresolvedLoadPointCount: unassigned.length - noValidOptionCount,
   };
 }

@@ -43,7 +43,6 @@ import { commitNumberDraft } from "./numberInputModel.ts";
 import { useAggregatedPileOptions } from "./useAggregatedPileOptions.ts";
 import "./rightPanel.css";
 import type { LoadPointGroup } from "../../core/loadPointGroupContract.ts";
-import { getOptimizationConflictDetails } from "../../domain/optimizationConflict.ts";
 import type { TechnicalAssignmentSnapshot } from "./technicalAssignmentController.ts";
 
 export type RightTaskPanel = "cpt-settings" | "cost-settings" | "optimization";
@@ -71,7 +70,7 @@ type Props = {
 export default function RightPanel({
   state,
   loadPointGroups = [],
-  technicalAssignment: _technicalAssignment = {
+  technicalAssignment = {
     status: "idle",
     assessment: null,
     issuesByLoadPointId: new Map(),
@@ -102,7 +101,7 @@ export default function RightPanel({
         <PanelTab active={taskPanel === null} label={t("tabs.cpts")} mode="cpts" state={state} onActivate={onCloseTaskPanel} onStateChange={onStateChange} />
       </div>
       {taskPanel === "optimization" ? (
-        <OptimizationPanel state={state} onStateChange={onStateChange} onRunOptimization={onRunOptimization} onClose={onCloseTaskPanel} />
+        <OptimizationPanel state={state} technicalAssessmentStatus={technicalAssignment.status} onStateChange={onStateChange} onRunOptimization={onRunOptimization} onClose={onCloseTaskPanel} />
       ) : taskPanel === "cost-settings" ? (
         <CostSettingsPanel
           state={state}
@@ -132,6 +131,7 @@ export default function RightPanel({
           selectedLabel={selectedLabel}
           selectedLoadPoints={selectedLoadPoints}
           loadPointGroups={loadPointGroups}
+          technicalAssignment={technicalAssignment}
         />
       )}
     </aside>
@@ -663,6 +663,7 @@ function LoadPointPanel({
   selectedLabel,
   selectedLoadPoints,
   loadPointGroups,
+  technicalAssignment,
 }: {
   state: ProjectState;
   onStateChange: (nextState: ProjectState) => void;
@@ -674,6 +675,7 @@ function LoadPointPanel({
   selectedLabel: string;
   selectedLoadPoints: ReturnType<typeof getSelectedLoadPoints>;
   loadPointGroups: LoadPointGroup[];
+  technicalAssignment: TechnicalAssignmentSnapshot;
 }) {
   const { t, i18n } = useTranslation("rightPanel");
   const pileOptionsByLoadPointId = getPileOptionsByLoadPointIdForPanel(state);
@@ -735,17 +737,6 @@ function LoadPointPanel({
   const fedLabel = selectedLoadPoints.length === 1
     ? `${selectedLoadPoints[0].design_load_kn.toLocaleString(i18n.language, { maximumFractionDigits: 1 })} kN`
     : t("loadPoints.selectedCount", { count: selectedLoadPoints.length });
-  const activePilePlan = state.pilePlans.find((plan) => plan.id === state.activePilePlanId)
-    ?? state.pilePlans[0];
-  const selectedOptimizationConflict = selectedLoadPoints.length === 1 && activePilePlan
-    ? getOptimizationConflictDetails({
-        loadPointId: selectedLoadPoints[0].id,
-        reason: activePilePlan.optimizationUnassignedByLoadPoint.get(selectedLoadPoints[0].id),
-        groups: loadPointGroups,
-        optionsByLoadPointId: pileOptionsByLoadPointId,
-      })
-    : null;
-
   return (
     <div className="load-point-panel">
       <header className="right-panel-header">
@@ -762,31 +753,6 @@ function LoadPointPanel({
       </header>
 
       <CoordinateReadout points={selectedLoadPoints} locale={i18n.language} />
-
-      {selectedOptimizationConflict?.kind === "group_member_without_valid_option" ? (
-        <div className="panel-message is-warning optimization-group-conflict">
-          <span>
-            {t("groupConflict.memberWithoutValidOption")}{" "}
-            {selectedOptimizationConflict.relatedLoadPointIds.map((loadPointId, index) => (
-              <span key={loadPointId}>
-                {index > 0 ? ", " : null}
-                <button
-                  className="optimization-load-point-link"
-                  type="button"
-                  onClick={() => onStateChange({
-                    ...state,
-                    ...selectLoadPoint(state, loadPointId),
-                  })}
-                >{loadPointId}</button>
-              </span>
-            ))}
-          </span>
-        </div>
-      ) : selectedOptimizationConflict?.kind === "no_common_group_configuration" ? (
-        <div className="panel-message is-warning optimization-group-conflict">
-          {t("groupConflict.noCommonConfiguration")}
-        </div>
-      ) : null}
 
       <section className="pile-options-section">
         <div className="section-heading">

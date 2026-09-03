@@ -1,6 +1,6 @@
 import type {
   GreedyOptimizationResult,
-  GreedyUnassignedReason,
+  OptimizationUnassignedReason,
   OptimizationPreparationDiagnostic,
   PileConfigurationKey,
 } from "../.././core/projectTypes.ts";
@@ -47,6 +47,7 @@ export function isOptimizationDisabled(input: {
   groupsPending: boolean;
   groupsError: string | Error | null;
   groupCount: number;
+  technicalAssessmentStatus: "idle" | "loading" | "ready" | "unavailable" | "error";
 }): boolean {
   return input.optimizationRunning
     || !input.hasActivePileSizes
@@ -54,6 +55,7 @@ export function isOptimizationDisabled(input: {
     || input.selectedTargetIsEmpty
     || input.groupsPending
     || input.groupsError !== null
+    || input.technicalAssessmentStatus !== "ready"
     || (input.loadPointCount > 0 && input.groupCount === 0);
 }
 
@@ -121,12 +123,13 @@ export function applyOptimizationResult(input: {
   const affectedLoadPointIds = [...new Set([
     ...input.result.assignments.map((choice) => choice.load_point_id),
     ...input.result.unassigned.map((item) => item.load_point_id),
+    ...input.result.technical_unassigned_load_point_ids,
   ])].sort((left, right) => left - right);
   affectedLoadPointIds.forEach((id) => nextChoices.delete(id));
   input.result.assignments.forEach((choice) => {
     nextChoices.set(choice.load_point_id, { ...choice.configuration });
   });
-  const optimizationUnassignedByLoadPoint = new Map<number, GreedyUnassignedReason>(
+  const optimizationUnassignedByLoadPoint = new Map<number, OptimizationUnassignedReason>(
     input.result.unassigned.map((item) => [item.load_point_id, item.reason]),
   );
 
@@ -139,6 +142,7 @@ export function applyOptimizationResult(input: {
       input.result.assignments,
       input.result.unassigned,
       input.result.unassigned_group_count,
+      input.result.technical_unassigned_load_point_ids,
     ),
   };
 }

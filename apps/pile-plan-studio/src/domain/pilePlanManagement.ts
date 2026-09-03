@@ -1,5 +1,5 @@
 import type { PilePlanData } from "../core/projectFile.ts";
-import type { GreedyUnassignedReason, PileConfigurationKey } from "../core/projectTypes.ts";
+import type { OptimizationUnassignedReason, PileConfigurationKey } from "../core/projectTypes.ts";
 import { samePileConfiguration } from "../core/pileConfigurationKey.ts";
 
 export type PilePlanLanguage = "nl" | "en";
@@ -31,10 +31,10 @@ export function synchronizeActivePilePlan(
 }
 
 export function replaceOptimizationOutcomesForTargets(
-  previous: Map<number, GreedyUnassignedReason>,
+  previous: Map<number, OptimizationUnassignedReason>,
   targetIds: number[],
-  next: Map<number, GreedyUnassignedReason>,
-): Map<number, GreedyUnassignedReason> {
+  next: Map<number, OptimizationUnassignedReason>,
+): Map<number, OptimizationUnassignedReason> {
   const targetSet = new Set(targetIds);
   return new Map([
     ...[...previous].filter(([loadPointId]) => !targetSet.has(loadPointId)),
@@ -138,7 +138,7 @@ export function createPilePlan(
 export function createOptimizationPilePlan(
   input: ActivePilePlanInput & {
     optimizedChoices: Map<number, PileConfigurationKey>;
-    optimizationUnassignedByLoadPoint?: Map<number, GreedyUnassignedReason>;
+    optimizationUnassignedByLoadPoint?: Map<number, OptimizationUnassignedReason>;
     language: PilePlanLanguage;
   },
 ): PilePlanTransition {
