@@ -13,6 +13,7 @@ pub mod pile_options;
 pub mod pile_plan_import;
 pub mod project;
 pub mod spatial;
+pub mod technical_assignment;
 
 pub use analysis::{
     bearing_capacity_rows_for_cpt, bearing_capacity_summary, build_pile_options_by_load_point,
@@ -71,4 +72,9 @@ pub use spatial::{
     build_spatial_neighborhood, build_tip_level_region_topology, SpatialEdge, SpatialFace,
     SpatialNeighborhood, SpatialPileAssignment, SpatialSite, TipLevelRegionGroup,
     TipLevelRegionTopology,
+};
+pub use technical_assignment::{
+    assess_technical_assignment, TechnicalAssignmentAssessment, TechnicalAssignmentAssessmentError,
+    TechnicalAssignmentAvailability, TechnicalAssignmentIssue, TechnicalAssignmentIssueCause,
+    TechnicalAssignmentIssueStatus,
 };
