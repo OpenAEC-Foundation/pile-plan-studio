@@ -112,6 +112,7 @@
   "pileOptions.loading": "Loading...",
   "pileOptions.shown": "{{count}} shown",
   "pileOptions.clearAssignment": "Clear assignment",
+  "pileOptions.inactive": "Off",
   "pileOptions.failed": "Pile option analysis failed: {{error}}",
   "pileOptions.calculating": "Calculating pile options...",
   "pileOptions.noMatch": "No pile options match the filters.",

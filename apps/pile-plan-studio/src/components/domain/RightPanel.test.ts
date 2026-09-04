@@ -96,6 +96,21 @@ describe("React optimization panel", () => {
     assert.equal(dutch["pileOptions.clearAssignment"], "Toewijzing wissen");
   });
 
+  it("retains and labels an assigned option with inactive legend properties", () => {
+    const panel = readFileSync(resolve(import.meta.dirname, "RightPanel.tsx"), "utf8");
+    const styles = readFileSync(resolve(import.meta.dirname, "rightPanel.css"), "utf8");
+    const english = JSON.parse(readFileSync(resolve(import.meta.dirname, "../../i18n/locales/en/rightPanel.json"), "utf8"));
+    const dutch = JSON.parse(readFileSync(resolve(import.meta.dirname, "../../i18n/locales/nl/rightPanel.json"), "utf8"));
+
+    assert.match(panel, /filterActivePileOptions\(aggregation\.result, active, retainedConfiguration\)/);
+    assert.match(panel, /!row\.sizeActive \? <InactiveLabel \/>/);
+    assert.match(panel, /!row\.tipActive \? <InactiveLabel \/>/);
+    assert.match(panel, /row\.smallDot \? "is-small-dot"/);
+    assert.match(styles, /\.pile-option-symbol-cell \.is-small-dot \.pile-symbol-svg/);
+    assert.equal(english["pileOptions.inactive"], "Off");
+    assert.equal(dutch["pileOptions.inactive"], "Uit");
+  });
+
   it("defers numeric optimization limits until blur or Enter", () => {
     const optimization = readFileSync(resolve(import.meta.dirname, "OptimizationPanel.tsx"), "utf8");
 

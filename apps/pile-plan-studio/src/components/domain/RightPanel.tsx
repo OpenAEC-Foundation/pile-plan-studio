@@ -13,6 +13,7 @@ import {
 import {
   getCptFrdPanelModel,
   getChosenPileOptionKeyForSelection,
+  getChosenPileOptionConfigurationForSelection,
   formatLoadPointPanelTitle,
   getPileOptionsByLoadPointIdForPanel,
   getRenderableAggregatedPileOptionRows,
@@ -23,7 +24,7 @@ import {
 } from "./rightPanelModel.ts";
 import { formatNumber } from "../../domain/formatting.ts";
 import { openCpt, selectLoadPoint, switchRightPanelMode, type RightPanelMode } from "../.././domain/selectionState.ts";
-import { isPileConfigurationActive } from "../../domain/activePileConfigurations.ts";
+import { filterActivePileOptions } from "../../domain/activePileConfigurations.ts";
 import { getActivePilePlan, getPilePlanActivation } from "../../domain/pilePlanActivation.ts";
 import {
   applyCptSelectionSettingsPatch,
@@ -692,14 +693,13 @@ function LoadPointPanel({
   });
   const selectedCount = selectedLoadPoints.length;
   const columns = getPileOptionColumns(selectedCount);
+  const retainedConfiguration = getChosenPileOptionConfigurationForSelection(state, selectedLoadPoints);
   const rows = (selectedCount > 1
     ? getRenderableAggregatedPileOptionRows({
         aggregates: aggregation.status === "ready"
-          ? aggregation.result.filter((item) => isPileConfigurationActive({
-              pile_size_mm: item.configuration.pile_size_mm,
-              pile_tip_level_m: item.pile_tip_level_m,
-            }, active))
+          ? filterActivePileOptions(aggregation.result, active, retainedConfiguration)
           : [],
+        activeConfigurations: active,
         costsByOptionKey: state.pileCostByOptionKey,
         currencyCode: state.currencyCode,
         legend: state.pileLegend,
@@ -707,13 +707,17 @@ function LoadPointPanel({
         selectedLoadPointCount: selectedCount,
       })
     : getRenderablePileOptionRows({
+        activeConfigurations: active,
         cpts: state.cpts,
         costsByOptionKey: state.pileCostByOptionKey,
         currencyCode: state.currencyCode,
         legend: state.pileLegend,
         options: selectedLoadPoints[0]
-          ? (pileOptionsByLoadPointId.get(selectedLoadPoints[0].id) ?? []).filter((option) =>
-              isPileConfigurationActive(option, active))
+          ? filterActivePileOptions(
+              pileOptionsByLoadPointId.get(selectedLoadPoints[0].id) ?? [],
+              active,
+              retainedConfiguration,
+            )
           : [],
         selectedLoadPointCount: selectedCount,
       })).map((row) => ({
@@ -850,9 +854,9 @@ function LoadPointPanel({
                     >
                       {columns.map(({ key }) => (
                         <td className={key === "symbol" ? "pile-option-symbol-cell" : undefined} key={key}>
-                          {key === "symbol" ? <span dangerouslySetInnerHTML={{ __html: row.symbolHtml }} />
-                            : key === "size" ? row.sizeLabel
-                            : key === "tip" ? row.tipLabel
+                          {key === "symbol" ? <span className={row.smallDot ? "is-small-dot" : undefined} dangerouslySetInnerHTML={{ __html: row.symbolHtml }} />
+                            : key === "size" ? <>{row.sizeLabel}{!row.sizeActive ? <InactiveLabel /> : null}</>
+                            : key === "tip" ? <>{row.tipLabel}{!row.tipActive ? <InactiveLabel /> : null}</>
                             : key === "status" ? (
                               row.statusClassName === "is-missing" && row.missingCptIds.length > 0
                                 ? <MissingCptPopover
@@ -1025,6 +1029,11 @@ function ResistanceLabel({ qualifier }: { qualifier?: string }) {
       <i>R</i><sub>c;net;d</sub>{qualifier ? ` ${qualifier}` : ""}
     </span>
   );
+}
+
+function InactiveLabel() {
+  const { t } = useTranslation("rightPanel");
+  return <span className="pile-option-inactive-label">{t("pileOptions.inactive")}</span>;
 }
 
 function localizeLoadPointName(name: string, t: ReturnType<typeof useTranslation>["t"]): string {

@@ -691,6 +691,17 @@
   height: 18px;
 }
 
+.pile-option-symbol-cell .is-small-dot .pile-symbol-svg {
+  width: 6px;
+  height: 6px;
+}
+
+.pile-option-inactive-label {
+  margin-left: 4px;
+  color: var(--theme-text-muted);
+  font-size: 0.85em;
+}
+
 .pile-option-column-symbol {
   width: 26px;
 }

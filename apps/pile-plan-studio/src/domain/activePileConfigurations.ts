@@ -1,4 +1,5 @@
 import type { PileConfigurationOption, PileConfigurationKey } from "../core/projectTypes.ts";
+import { samePileConfiguration } from "../core/pileConfigurationKey.ts";
 
 export type ActivePileConfigurations = {
   pileSizes: number[];
@@ -12,11 +13,21 @@ export function isPileConfigurationActive(
   return active.pileSizes.includes(option.pile_size_mm) && active.pileTipLevels.includes(option.pile_tip_level_m);
 }
 
-export function filterActivePileOptions<T extends Pick<PileConfigurationOption, "pile_size_mm" | "pile_tip_level_m">>(
+export function filterActivePileOptions<T extends {
+  configuration: PileConfigurationKey;
+  pile_size_mm?: number;
+  pile_tip_level_m: number;
+}>(
   options: T[],
   active: ActivePileConfigurations,
+  retainedConfiguration?: PileConfigurationKey,
 ): T[] {
-  return options.filter((option) => isPileConfigurationActive(option, active));
+  return options.filter((option) => {
+    const isActive = active.pileSizes.includes(option.pile_size_mm ?? option.configuration.pile_size_mm)
+      && active.pileTipLevels.includes(option.pile_tip_level_m);
+    return isActive || (retainedConfiguration !== undefined
+      && samePileConfiguration(option.configuration, retainedConfiguration));
+  });
 }
 
 export function getUsedPileConfigurations(

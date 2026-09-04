@@ -22,11 +22,28 @@ describe("active pile configurations", () => {
 
   it("filters pile options by the shared active configuration set", () => {
     const options = [
-      { pile_size_mm: 290, pile_tip_level_m: -18 },
-      { pile_size_mm: 320, pile_tip_level_m: -18 },
+      { configuration: { pile_size_mm: 290, pile_tip_level_mm: -18_000 }, pile_size_mm: 290, pile_tip_level_m: -18 },
+      { configuration: { pile_size_mm: 320, pile_tip_level_mm: -18_000 }, pile_size_mm: 320, pile_tip_level_m: -18 },
     ];
 
     assert.deepEqual(filterActivePileOptions(options, { pileSizes: [290], pileTipLevels: [-18] }), [options[0]]);
+  });
+
+  it("keeps only the inactive current assignment beside active options", () => {
+    const options = [
+      { configuration: { pile_size_mm: 290, pile_tip_level_mm: -18_000 }, pile_size_mm: 290, pile_tip_level_m: -18 },
+      { configuration: { pile_size_mm: 320, pile_tip_level_mm: -18_000 }, pile_size_mm: 320, pile_tip_level_m: -18 },
+      { configuration: { pile_size_mm: 350, pile_tip_level_mm: -19_000 }, pile_size_mm: 350, pile_tip_level_m: -19 },
+    ];
+
+    assert.deepEqual(
+      filterActivePileOptions(
+        options,
+        { pileSizes: [290], pileTipLevels: [-18] },
+        { pile_size_mm: 350, pile_tip_level_mm: -19_000 },
+      ),
+      [options[0], options[2]],
+    );
   });
 
   it("toggles numeric values and keeps them sorted", () => {

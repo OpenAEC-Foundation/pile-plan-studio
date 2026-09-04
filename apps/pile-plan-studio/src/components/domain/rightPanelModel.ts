@@ -3,7 +3,10 @@ import type { AggregatedPileConfiguration } from "../../core/pileOptionAggregati
 import { getCptDisplayName } from "../../domain/cptDisplayName.ts";
 import { getSelectedCptTableModel } from "../../domain/cptSelectionTable.ts";
 import { formatNumber, formatOptionalNumber } from "../../domain/formatting.ts";
-import { getConfigurationStyle } from "../../viewer/legend.ts";
+import {
+  getConfigurationActivationPresentation,
+} from "../../domain/legendActivationPresentation.ts";
+import type { ActivePileConfigurations } from "../../domain/activePileConfigurations.ts";
 import { getPileOptionStatus } from "../../domain/pileOptionStatus.ts";
 import type { PileOptionTableRow } from "../../domain/pileOptionTable.ts";
 import { renderPileSymbol } from "../../viewer/pileSymbols.ts";
@@ -26,6 +29,9 @@ export type RenderablePileOptionTableRow = PileOptionTableRow & {
   governingCptId: number | null;
   statusClassName: string;
   symbolHtml: string;
+  sizeActive: boolean;
+  tipActive: boolean;
+  smallDot: boolean;
 };
 
 export type SelectedCptOverviewModel = {
@@ -66,14 +72,21 @@ export function getChosenPileOptionKeyForSelection(
   state: ProjectState,
   selectedLoadPoints: LoadPoint[],
 ): string {
+  const configuration = getChosenPileOptionConfigurationForSelection(state, selectedLoadPoints);
+  return configuration ? pileConfigurationToken(configuration) : "";
+}
+
+export function getChosenPileOptionConfigurationForSelection(
+  state: ProjectState,
+  selectedLoadPoints: LoadPoint[],
+): PileConfigurationKey | undefined {
   const selectedKeys = selectedLoadPoints.map((loadPoint) =>
     state.selectedPileConfigurationsByLoadPoint.get(loadPoint.id),
   );
   const firstKey = selectedKeys[0];
-
   return firstKey && selectedKeys.every((key) => samePileConfiguration(key, firstKey))
-    ? pileConfigurationToken(firstKey)
-    : "";
+    ? firstKey
+    : undefined;
 }
 
 export function getSelectedCptOverviewModel(
@@ -201,6 +214,7 @@ export function getCptFrdPanelModel(state: ProjectState): CptFrdPanelModel | nul
 }
 
 export function getRenderablePileOptionRows(input: {
+  activeConfigurations: ActivePileConfigurations;
   cpts: Cpt[];
   costsByOptionKey: Map<string, number | null>;
   currencyCode?: string;
@@ -217,7 +231,7 @@ export function getRenderablePileOptionRows(input: {
     const governingLabel = governingCpt ? getCptDisplayName(governingCpt) : "-";
     const key = optionKey(option);
     const cost = input.costsByOptionKey.get(key) ?? null;
-    const style = getConfigurationStyle(option, input.legend);
+    const style = getConfigurationActivationPresentation(option, input.legend, input.activeConfigurations);
     const sizeLabel = `${formatNumber(option.pile_size_mm)} mm`;
     const tipLabel = `${formatNumber(option.pile_tip_level_m)} m`;
 
@@ -239,6 +253,9 @@ export function getRenderablePileOptionRows(input: {
       statusClassName: status.className,
       statusLabel: status.label,
       symbolHtml: renderPileSymbol(style.symbol, style.color),
+      sizeActive: style.sizeActive,
+      tipActive: style.tipActive,
+      smallDot: style.smallDot,
       symbolLabel: `${sizeLabel} ${tipLabel}`,
       tipLabel,
       tipValue: option.pile_tip_level_m,
@@ -251,6 +268,7 @@ export function getRenderablePileOptionRows(input: {
 }
 
 export function getRenderableAggregatedPileOptionRows(input: {
+  activeConfigurations: ActivePileConfigurations;
   aggregates: AggregatedPileConfiguration[];
   costsByOptionKey: Map<string, number | null>;
   currencyCode?: string;
@@ -266,10 +284,10 @@ export function getRenderableAggregatedPileOptionRows(input: {
       ? null
       : input.loadPoints.find(({ id }) => id === aggregate.critical_load_point_id) ?? null;
     const pileSizeMm = aggregate.configuration.pile_size_mm;
-    const style = getConfigurationStyle({
+    const style = getConfigurationActivationPresentation({
       pile_size_mm: pileSizeMm,
       pile_tip_level_m: aggregate.pile_tip_level_m,
-    }, input.legend);
+    }, input.legend, input.activeConfigurations);
     const status = aggregate.status === "valid"
       ? { className: "is-ok", label: "OK" }
       : aggregate.status === "missing"
@@ -303,6 +321,9 @@ export function getRenderableAggregatedPileOptionRows(input: {
       statusClassName: status.className,
       statusLabel: status.label,
       symbolHtml: renderPileSymbol(style.symbol, style.color),
+      sizeActive: style.sizeActive,
+      tipActive: style.tipActive,
+      smallDot: style.smallDot,
       symbolLabel: `${sizeLabel} ${tipLabel}`,
       tipLabel,
       tipValue: aggregate.pile_tip_level_m,

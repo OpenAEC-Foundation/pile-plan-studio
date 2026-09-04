@@ -112,6 +112,7 @@
   "pileOptions.loading": "Laden...",
   "pileOptions.shown": "{{count}} getoond",
   "pileOptions.clearAssignment": "Toewijzing wissen",
+  "pileOptions.inactive": "Uit",
   "pileOptions.failed": "Analyse van paalopties mislukt: {{error}}",
   "pileOptions.calculating": "Paalopties worden berekend...",
   "pileOptions.noMatch": "Geen paalopties voldoen aan de filters.",

@@ -45,6 +45,7 @@ describe("React right panel model", () => {
         },
       ],
       selectedLoadPointCount: 1,
+      activeConfigurations: { pileSizes: [290], pileTipLevels: [-17.5] },
       legend: {
         encodingMode: "tip-symbol",
         pileSizes: [{
@@ -71,8 +72,40 @@ describe("React right panel model", () => {
     assert.match(rows[0].symbolHtml, /fill="#123456"/);
   });
 
+  it("marks each inactive property on a retained pile-option row", () => {
+    const state = minimalState();
+    const rows = getRenderablePileOptionRows({
+      cpts: state.cpts,
+      costsByOptionKey: state.pileCostByOptionKey,
+      options: [{
+        configuration: { pile_size_mm: 320, pile_tip_level_mm: -18_500 },
+        pile_size_mm: 320,
+        pile_tip_level_m: -18.5,
+        isOption: true,
+        governing_cpt_id: 64,
+        governing_frd_kn: 900,
+        utilization: 0.75,
+        missing_cpt_ids: [],
+        technicalStatus: "valid",
+      }],
+      selectedLoadPointCount: 1,
+      activeConfigurations: { pileSizes: [290], pileTipLevels: [-17.5] },
+      legend: {
+        encodingMode: "size-symbol",
+        pileSizes: [{ value: 320, symbol: { baseShape: "square", fillPattern: "full" }, color: "#123456" }],
+        pileTipLevels: [{ value: -18.5, symbol: { baseShape: "triangle", fillPattern: "full" }, color: "#ABCDEF" }],
+      },
+    });
+
+    assert.equal(rows[0].sizeActive, false);
+    assert.equal(rows[0].tipActive, false);
+    assert.equal(rows[0].smallDot, true);
+    assert.match(rows[0].symbolHtml, /fill="#8C989F"/);
+  });
+
   it("shows the governing CPT id when an imported CPT has no name", () => {
     const rows = getRenderablePileOptionRows({
+      activeConfigurations: { pileSizes: [290], pileTipLevels: [-17.5] },
       cpts: [{ id: 64, name: "", x_mm: 0, y_mm: 0 }],
       costsByOptionKey: new Map(),
       options: [{
@@ -111,6 +144,7 @@ describe("React right panel model", () => {
       pileCostByOptionKey: new Map([["320|-18500", 1200]]),
     });
     const rows = getRenderableAggregatedPileOptionRows({
+      activeConfigurations: { pileSizes: [320], pileTipLevels: [-18.5] },
       aggregates: [{
         configuration: { pile_size_mm: 320, pile_tip_level_mm: -18_500 },
         pile_tip_level_m: -18.5,
@@ -138,6 +172,7 @@ describe("React right panel model", () => {
 
   it("keeps total cost but suppresses inconclusive metrics for a missing aggregate", () => {
     const rows = getRenderableAggregatedPileOptionRows({
+      activeConfigurations: { pileSizes: [320], pileTipLevels: [-18.5] },
       aggregates: [{
         configuration: { pile_size_mm: 320, pile_tip_level_mm: -18_500 },
         pile_tip_level_m: -18.5,
@@ -165,6 +200,7 @@ describe("React right panel model", () => {
 
   it("suppresses inconclusive single-location metrics for missing capacity data", () => {
     const rows = getRenderablePileOptionRows({
+      activeConfigurations: { pileSizes: [290], pileTipLevels: [-17.5] },
       cpts: [{ id: 64, name: "CPT 64", x_mm: 0, y_mm: 0 }],
       costsByOptionKey: new Map([["290|-17500", 500]]),
       options: [{
