@@ -90,6 +90,7 @@ import {
   greedyOptimizationOutcomeFromCore,
   toBrowserGreedyOptimizationRequest,
   toDesktopGreedyOptimizationRequest,
+  type GreedyOptimizationContractInput,
 } from "./greedyOptimizationContract.ts";
 import {
   toBrowserDefaultPileSelectionRequest,
@@ -424,17 +425,9 @@ export async function getBearingCapacityRowsForCptCore(input: {
   });
 }
 
-export async function greedyOptimizeCore(input: {
-  groups: LoadPointGroup[];
-  optionsByLoadPoint: Map<number, PileConfigurationOption[]>;
-  targetLoadPointIds: number[];
-  lockedLoadPointIds: number[];
-  currentAssignments: Map<number, PileConfigurationKey>;
-  limitScope: OptimizationLimitScope;
-  pileHeadLevelM: number | null;
-  costSettings: PileCostSettings;
-  settings: GreedyOptimizationSettings;
-}): Promise<GreedyOptimizationOutcome> {
+export async function greedyOptimizeCore(
+  input: GreedyOptimizationContractInput,
+): Promise<GreedyOptimizationOutcome> {
   if (!isTauriRuntime()) {
     await initializeWasm();
     const outcome = greedy_optimize(

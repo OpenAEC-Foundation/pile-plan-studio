@@ -55,8 +55,7 @@ describe("optimization settings", () => {
 
   it("builds optimizer limits without persisting resolved candidate values", () => {
     const settings = buildGreedyOptimizationSettings({
-      activePileSizes: [290],
-      activePileTipLevels: [-18],
+      candidateSource: "active_legend",
       uiSettings: {
         targetScope: "all",
         limitScope: "target",
@@ -67,7 +66,7 @@ describe("optimization settings", () => {
       maxUtilization: 0.85,
     });
 
-    assert.equal(settings.candidate_source, "all_available");
+    assert.equal(settings.candidate_source, "active_legend");
     assert.equal("enabled_pile_sizes" in settings, false);
     assert.equal("enabled_pile_tip_levels" in settings, false);
     assert.equal(settings.max_utilization, 0.85);
@@ -198,8 +197,7 @@ describe("optimization settings", () => {
 
   it("leaves whole-plan baseline derivation to the core", () => {
     const settings = buildGreedyOptimizationSettings({
-      activePileSizes: [290, 320],
-      activePileTipLevels: [-18, -19],
+      candidateSource: "all_available",
       uiSettings: {
         targetScope: "selected",
         limitScope: "whole-plan",

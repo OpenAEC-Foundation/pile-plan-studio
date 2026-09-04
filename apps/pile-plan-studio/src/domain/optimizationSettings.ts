@@ -1,5 +1,5 @@
 import type { ActivePileConfigurations } from "./activePileConfigurations.ts";
-import type { GreedyOptimizationSettings } from "../core/projectTypes.ts";
+import type { GreedyOptimizationSettings, OptimizationCandidateSource } from "../core/projectTypes.ts";
 
 export type OptimizationTargetScope = "all" | "selected";
 export type OptimizationLimitScope = "target" | "whole-plan";
@@ -123,20 +123,15 @@ export function reconcileOptimizationUiSettingsWithActiveConfigurations(input: {
 }
 
 export function buildGreedyOptimizationSettings(input: {
-  activePileSizes: number[];
-  activePileTipLevels: number[];
+  candidateSource: OptimizationCandidateSource;
   uiSettings: OptimizationUiSettings;
   maxUtilization: number;
 }): GreedyOptimizationSettings {
-  const uiSettings = clampOptimizationUiSettingsToActiveConfigurations(input.uiSettings, {
-    pileSizes: input.activePileSizes,
-    pileTipLevels: input.activePileTipLevels,
-  });
   return {
-    max_pile_sizes: uiSettings.maxDifferentSizes,
-    max_pile_tip_levels: uiSettings.maxDifferentTips,
-    max_pile_configurations: uiSettings.maxDifferentConfigurations,
+    max_pile_sizes: input.uiSettings.maxDifferentSizes,
+    max_pile_tip_levels: input.uiSettings.maxDifferentTips,
+    max_pile_configurations: input.uiSettings.maxDifferentConfigurations,
     max_utilization: Math.max(0, Math.min(1, input.maxUtilization)),
-    candidate_source: "all_available",
+    candidate_source: input.candidateSource,
   };
 }

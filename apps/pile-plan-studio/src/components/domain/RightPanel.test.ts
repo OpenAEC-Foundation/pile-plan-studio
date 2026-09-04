@@ -135,6 +135,21 @@ describe("React optimization panel", () => {
     assert.match(optimization, /updateScope\(\{ optimizationLimitScope: "whole-plan" \}\)/);
   });
 
+  it("selects an exact optimizer candidate source and blocks an empty domain", () => {
+    const optimization = readFileSync(resolve(import.meta.dirname, "OptimizationPanel.tsx"), "utf8");
+    const english = JSON.parse(readFileSync(resolve(import.meta.dirname, "../../i18n/locales/en/rightPanel.json"), "utf8"));
+    const dutch = JSON.parse(readFileSync(resolve(import.meta.dirname, "../../i18n/locales/nl/rightPanel.json"), "utf8"));
+
+    assert.match(optimization, /resolveOptimizationCandidates/);
+    assert.match(optimization, /updateCandidateSource\("all_available"\)/);
+    assert.match(optimization, /updateCandidateSource\("active_legend"\)/);
+    assert.match(optimization, /candidates\.length === 0/);
+    assert.equal(english["optimization.candidatesAll"], "All available");
+    assert.equal(english["optimization.candidatesActiveLegend"], "Active in legend");
+    assert.equal(dutch["optimization.candidatesAll"], "Alle beschikbare");
+    assert.equal(dutch["optimization.candidatesActiveLegend"], "Actief in legenda");
+  });
+
   it("does not refocus a numeric field when the empty part of its row is clicked", () => {
     const optimization = readFileSync(resolve(import.meta.dirname, "OptimizationPanel.tsx"), "utf8");
     const styles = readFileSync(resolve(import.meta.dirname, "rightPanel.css"), "utf8");

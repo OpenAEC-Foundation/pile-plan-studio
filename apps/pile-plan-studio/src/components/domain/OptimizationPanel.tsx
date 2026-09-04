@@ -6,6 +6,10 @@ import ThemedNumberInput from "../template/ThemedNumberInput.tsx";
 import { selectLoadPoint } from "../../domain/selectionState.ts";
 import { getActivePilePlan, getPilePlanActivation } from "../../domain/pilePlanActivation.ts";
 import {
+  getAvailablePileConfigurationCatalog,
+  resolveOptimizationCandidates,
+} from "../../domain/optimizationCandidates.ts";
+import {
   clampOptimizationLimits,
   splitOptimizationErrorLoadPoints,
 } from "./optimizationPanelModel.ts";
@@ -21,15 +25,18 @@ type Props = {
 export default function OptimizationPanel({ state, technicalAssessmentStatus, onStateChange, onRunOptimization, onClose }: Props) {
   const { t } = useTranslation("rightPanel");
   const active = getPilePlanActivation(getActivePilePlan(state));
-  const activeSizes = active.pileSizes;
-  const activeTips = active.pileTipLevels;
+  const candidates = resolveOptimizationCandidates(
+    getAvailablePileConfigurationCatalog(state.pileOptionsByLoadPointId),
+    state.optimizationSettings.candidate_source,
+    active,
+  );
   const limits = clampOptimizationLimits({
     sizes: state.optimizationSettings.max_pile_sizes,
     tips: state.optimizationSettings.max_pile_tip_levels,
     configurations: state.optimizationSettings.max_pile_configurations,
-  }, activeSizes, activeTips);
+  }, candidates);
   const hasTarget = state.optimizationTargetScope === "all" || state.selectedLoadPointIds.length > 0;
-  const disabled = state.optimizationRunning || activeSizes.length === 0 || activeTips.length === 0 || !hasTarget || technicalAssessmentStatus !== "ready";
+  const disabled = state.optimizationRunning || candidates.length === 0 || !hasTarget || technicalAssessmentStatus !== "ready";
   const optimizationErrorParts = state.optimizationError
     ? splitOptimizationErrorLoadPoints(
         state.optimizationError,
@@ -50,7 +57,7 @@ export default function OptimizationPanel({ state, technicalAssessmentStatus, on
   }
 
   function updateLimit(field: "sizes" | "tips" | "configurations", value: number) {
-    const next = clampOptimizationLimits({ ...limits, [field]: value }, activeSizes, activeTips);
+    const next = clampOptimizationLimits({ ...limits, [field]: value }, candidates);
     onStateChange({
       ...state,
       optimizationSettings: {
@@ -63,6 +70,18 @@ export default function OptimizationPanel({ state, technicalAssessmentStatus, on
       optimizationError: null,
     });
     return next[field];
+  }
+
+  function updateCandidateSource(candidateSource: "all_available" | "active_legend") {
+    onStateChange({
+      ...state,
+      optimizationSettings: {
+        ...state.optimizationSettings,
+        candidate_source: candidateSource,
+      },
+      optimizationSummary: null,
+      optimizationError: null,
+    });
   }
 
   function updateMaxUtilization(value: number) {
@@ -105,6 +124,13 @@ export default function OptimizationPanel({ state, technicalAssessmentStatus, on
             </div>
           </section>
         ) : null}
+        <section className="settings-group">
+          <h3>{t("optimization.candidates")}</h3>
+          <div className="segmented-control">
+            <button className={state.optimizationSettings.candidate_source === "all_available" ? "is-selected" : ""} type="button" onClick={() => updateCandidateSource("all_available")}>{t("optimization.candidatesAll")}</button>
+            <button className={state.optimizationSettings.candidate_source === "active_legend" ? "is-selected" : ""} type="button" onClick={() => updateCandidateSource("active_legend")}>{t("optimization.candidatesActiveLegend")}</button>
+          </div>
+        </section>
         <section className="settings-group optimization-limits">
           <h3>{t("optimization.configurationLimits")}</h3>
           <NumberSetting label={t("optimization.maxSizes")} min={1} value={limits.sizes} onChange={(value) => updateLimit("sizes", value)} />
@@ -134,7 +160,7 @@ export default function OptimizationPanel({ state, technicalAssessmentStatus, on
             <span>{t("optimization.saveAsNewPilePlan")}</span>
           </label>
         </section>
-        {activeSizes.length === 0 || activeTips.length === 0 ? <p className="panel-message is-warning">{t("optimization.enableLegend")}</p> : null}
+        {candidates.length === 0 ? <p className="panel-message is-warning">{t("optimization.noCandidates")}</p> : null}
         {!hasTarget ? <p className="panel-message is-warning">{t("optimization.selectLoadPoints")}</p> : null}
         {state.optimizationError ? (
           <p className="panel-message is-error">

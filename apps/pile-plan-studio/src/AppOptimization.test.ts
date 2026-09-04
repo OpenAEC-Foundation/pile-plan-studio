@@ -25,6 +25,12 @@ describe("App optimization integration", () => {
     assert.match(optimizationBlock, /pileHeadLevelM: snapshot\.pileHeadLevelM/);
     assert.match(optimizationBlock, /outcome\.status === "blocked"/);
     assert.match(optimizationBlock, /formatOptimizationDiagnostics/);
+    assert.match(optimizationBlock, /resolveOptimizationCandidates/);
+    assert.match(optimizationBlock, /candidateConfigurations/);
+    assert.match(optimizationBlock, /candidateConfigurations,\s*\n\s*\}\)/);
+    assert.match(optimizationBlock, /resolvedCandidateConfigurations: candidateConfigurations/);
+    assert.match(optimizationBlock, /optimizationCandidateToken\(currentCandidates\) !== candidateSnapshotToken/);
+    assert.match(optimizationBlock, /currentSnapshot\.optimizationSettings\.candidate_source !== candidateSource/);
     assert.match(optimizationBlock, /activePilePlanId !== activePilePlanId/);
     assert.match(optimizationBlock, /selectedPileConfigurationsByLoadPoint !== currentAssignmentsIdentity/);
     assert.doesNotMatch(optimizationBlock, /baselineOptions/);

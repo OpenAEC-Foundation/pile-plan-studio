@@ -17,15 +17,14 @@ export type SimpleOptimizationLimits = {
 
 export function clampOptimizationLimits(
   limits: SimpleOptimizationLimits,
-  activePileSizes: number[],
-  activePileTipLevels: number[],
+  candidates: PileConfigurationKey[],
 ): SimpleOptimizationLimits {
-  const sizes = clampInteger(limits.sizes, activePileSizes.length);
-  const tips = clampInteger(limits.tips, activePileTipLevels.length);
+  const sizes = clampInteger(limits.sizes, new Set(candidates.map((item) => item.pile_size_mm)).size);
+  const tips = clampInteger(limits.tips, new Set(candidates.map((item) => item.pile_tip_level_mm)).size);
   return {
     sizes,
     tips,
-    configurations: clampInteger(limits.configurations, sizes * tips),
+    configurations: clampInteger(limits.configurations, Math.min(candidates.length, sizes * tips)),
   };
 }
 
@@ -40,8 +39,7 @@ export function getOptimizationTargetIds(
 
 export function isOptimizationDisabled(input: {
   optimizationRunning: boolean;
-  hasActivePileSizes: boolean;
-  hasActivePileTipLevels: boolean;
+  candidateCount: number;
   selectedTargetIsEmpty: boolean;
   loadPointCount: number;
   groupsPending: boolean;
@@ -50,8 +48,7 @@ export function isOptimizationDisabled(input: {
   technicalAssessmentStatus: "idle" | "loading" | "ready" | "unavailable" | "error";
 }): boolean {
   return input.optimizationRunning
-    || !input.hasActivePileSizes
-    || !input.hasActivePileTipLevels
+    || input.candidateCount === 0
     || input.selectedTargetIsEmpty
     || input.groupsPending
     || input.groupsError !== null

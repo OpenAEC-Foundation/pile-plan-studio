@@ -24,6 +24,7 @@ export type GreedyOptimizationContractInput = {
   pileHeadLevelM: number | null;
   costSettings: PileCostSettings;
   settings: GreedyOptimizationSettings;
+  candidateConfigurations: PileConfigurationKey[];
 };
 
 type CoreGreedyOptimizationRequest<TOptions, TAssignments> = {
@@ -36,6 +37,7 @@ type CoreGreedyOptimizationRequest<TOptions, TAssignments> = {
   pile_head_level_m: number | null;
   cost_settings: PileCostSettings;
   settings: GreedyOptimizationSettings;
+  candidate_configurations: PileConfigurationKey[];
 };
 
 export type BrowserGreedyOptimizationRequest = CoreGreedyOptimizationRequest<
@@ -106,6 +108,7 @@ function toCoreRequest<TOptions, TAssignments>(
       items: input.costSettings.items.map((item) => ({ ...item })),
     },
     settings: { ...input.settings },
+    candidate_configurations: input.candidateConfigurations.map((configuration) => ({ ...configuration })),
   };
 }
 

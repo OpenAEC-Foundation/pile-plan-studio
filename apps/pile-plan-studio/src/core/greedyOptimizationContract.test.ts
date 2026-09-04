@@ -30,13 +30,16 @@ const input: GreedyOptimizationContractInput = {
   limitScope: "whole-plan",
   pileHeadLevelM: null,
   costSettings: { schema_version: 1, items: [] },
+  candidateConfigurations: [
+    { pile_size_mm: 290, pile_tip_level_mm: -18_000 },
+    { pile_size_mm: 320, pile_tip_level_mm: -18_500 },
+  ],
   settings: {
     max_pile_sizes: 2,
     max_pile_tip_levels: 3,
     max_pile_configurations: 4,
     max_utilization: 1,
-    enabled_pile_sizes: [290, 320],
-    enabled_pile_tip_levels: [-18.5],
+    candidate_source: "active_legend",
   },
 };
 
@@ -52,6 +55,9 @@ describe("greedy optimization transport contract", () => {
     assert.deepEqual(request.groups, [{ load_point_ids: [7, 8] }]);
     assert.notEqual(request.groups, input.groups);
     assert.notEqual(request.groups[0].load_point_ids, input.groups[0].load_point_ids);
+    assert.deepEqual(request.candidate_configurations, input.candidateConfigurations);
+    assert.notEqual(request.candidate_configurations, input.candidateConfigurations);
+    assert.equal("enabled_pile_sizes" in request.settings, false);
   });
 
   it("uses string record keys for Tauri with the same semantic payload", () => {
@@ -61,6 +67,8 @@ describe("greedy optimization transport contract", () => {
     assert.equal(request.current_assignments["8"].pile_tip_level_mm, -18_500);
     assert.equal(request.pile_head_level_m, null);
     assert.deepEqual(request.groups, [{ load_point_ids: [7, 8] }]);
+    assert.deepEqual(request.candidate_configurations, input.candidateConfigurations);
+    assert.notEqual(request.candidate_configurations, input.candidateConfigurations);
   });
 
   it("deeply normalizes a completed outcome", () => {

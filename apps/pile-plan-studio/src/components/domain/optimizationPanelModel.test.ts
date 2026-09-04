@@ -24,10 +24,16 @@ describe("React optimization panel model", () => {
       },
     );
   });
-  it("clamps simple limits to active sizes and tips", () => {
+  it("clamps limits after exact candidate resolution", () => {
     assert.deepEqual(
-      clampOptimizationLimits({ sizes: 8, tips: 0, configurations: 99 }, [290, 320], [-18, -19, -20]),
-      { sizes: 2, tips: 1, configurations: 2 },
+      clampOptimizationLimits(
+        { sizes: 9, tips: 9, configurations: 9 },
+        [
+          { pile_size_mm: 290, pile_tip_level_mm: -18_000 },
+          { pile_size_mm: 320, pile_tip_level_mm: -19_000 },
+        ],
+      ),
+      { sizes: 2, tips: 2, configurations: 2 },
     );
   });
 
@@ -84,8 +90,7 @@ describe("React optimization panel model", () => {
   it("disables optimization until a non-empty project has ready groups", () => {
     const base = {
       optimizationRunning: false,
-      hasActivePileSizes: true,
-      hasActivePileTipLevels: true,
+      candidateCount: 2,
       selectedTargetIsEmpty: false,
       loadPointCount: 2,
       groupsPending: false,
@@ -95,6 +100,7 @@ describe("React optimization panel model", () => {
     };
 
     assert.equal(isOptimizationDisabled(base), false);
+    assert.equal(isOptimizationDisabled({ ...base, candidateCount: 0 }), true);
     assert.equal(isOptimizationDisabled({ ...base, groupsPending: true }), true);
     assert.equal(isOptimizationDisabled({ ...base, groupsError: "failed" }), true);
     assert.equal(isOptimizationDisabled({ ...base, technicalAssessmentStatus: "unavailable" }), true);

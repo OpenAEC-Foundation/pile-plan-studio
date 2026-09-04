@@ -89,6 +89,11 @@ import {
   getPilePlanActivation,
 } from "./domain/pilePlanActivation.ts";
 import {
+  getAvailablePileConfigurationCatalog,
+  optimizationCandidateToken,
+  resolveOptimizationCandidates,
+} from "./domain/optimizationCandidates.ts";
+import {
   applyLoadPointLockDraft,
   getActiveLockedLoadPointIds,
   startLoadPointLockDraft,
@@ -498,13 +503,15 @@ function AppSession({
   const redoLabel = redoEntry
     ? t("history.redoLabel", { action: describeHistoryAction(historyTranslate, redoEntry.action) })
     : `${t("redo")} (Ctrl+Y)`;
-  const availablePileConfigurations = useMemo(() => [
-    ...new Map(
-      [...projectState.pileOptionsByLoadPointId.values()]
-        .flat()
-        .map(({ configuration }) => [pileConfigurationToken(configuration), configuration] as const),
-    ).values(),
-  ], [projectState.pileOptionsByLoadPointId]);
+  const availablePileConfigurations = useMemo(
+    () => getAvailablePileConfigurationCatalog(projectState.pileOptionsByLoadPointId),
+    [projectState.pileOptionsByLoadPointId],
+  );
+  const optimizationCandidates = useMemo(() => resolveOptimizationCandidates(
+    availablePileConfigurations,
+    projectState.optimizationSettings.candidate_source,
+    getPilePlanActivation(getActivePilePlan(projectState)),
+  ), [availablePileConfigurations, projectState.activePilePlanId, projectState.optimizationSettings.candidate_source, projectState.pilePlans]);
   const persistedProject = projectFromState(projectState);
   const persistedProjectSignature = JSON.stringify(persistedProject);
   useEffect(() => {
@@ -1282,6 +1289,12 @@ function AppSession({
   const runGreedyOptimization = async () => {
     const snapshot = projectState;
     const active = getPilePlanActivation(getActivePilePlan(snapshot));
+    const candidateSource = snapshot.optimizationSettings.candidate_source;
+    const candidateCatalog = getAvailablePileConfigurationCatalog(snapshot.pileOptionsByLoadPointId);
+    const candidateConfigurations = resolveOptimizationCandidates(candidateCatalog, candidateSource, active);
+    const candidateSnapshotToken = optimizationCandidateToken(candidateConfigurations);
+    const candidateCatalogToken = optimizationCandidateToken(candidateCatalog);
+    const activationSnapshotToken = JSON.stringify(active);
     const lockedLoadPointIds = getActiveLockedLoadPointIds(
       snapshot.pilePlans,
       snapshot.activePilePlanId,
@@ -1295,8 +1308,7 @@ function AppSession({
     if (
       snapshot.optimizationRunning
       || targetLoadPointIds.length === 0
-      || active.pileSizes.length === 0
-      || active.pileTipLevels.length === 0
+      || candidateConfigurations.length === 0
       || loadPointGroups.pending
       || loadPointGroups.error !== null
       || (snapshot.loadPoints.length > 0 && loadPointGroups.groups.length === 0)
@@ -1313,10 +1325,9 @@ function AppSession({
       sizes: snapshot.optimizationSettings.max_pile_sizes,
       tips: snapshot.optimizationSettings.max_pile_tip_levels,
       configurations: snapshot.optimizationSettings.max_pile_configurations,
-    }, active.pileSizes, active.pileTipLevels);
+    }, candidateConfigurations);
     const settings = buildGreedyOptimizationSettings({
-      activePileSizes: active.pileSizes,
-      activePileTipLevels: active.pileTipLevels,
+      candidateSource,
       uiSettings: {
         targetScope: snapshot.optimizationTargetScope,
         limitScope: snapshot.optimizationLimitScope,
@@ -1348,13 +1359,25 @@ function AppSession({
         pileHeadLevelM: snapshot.pileHeadLevelM,
         costSettings: snapshot.pileCostSettings,
         settings,
+        candidateConfigurations,
       });
       const currentSnapshot = projectStateRef.current;
+      const currentActive = getPilePlanActivation(getActivePilePlan(currentSnapshot));
+      const currentCatalog = getAvailablePileConfigurationCatalog(currentSnapshot.pileOptionsByLoadPointId);
+      const currentCandidates = resolveOptimizationCandidates(
+        currentCatalog,
+        currentSnapshot.optimizationSettings.candidate_source,
+        currentActive,
+      );
       if (
         currentSnapshot.analysisRequest !== analysisRequest
         || currentSnapshot.activePilePlanId !== activePilePlanId
         || currentSnapshot.selectedPileConfigurationsByLoadPoint !== currentAssignmentsIdentity
         || loadPointGroupsRef.current !== optimizationGroups
+        || currentSnapshot.optimizationSettings.candidate_source !== candidateSource
+        || optimizationCandidateToken(currentCandidates) !== candidateSnapshotToken
+        || optimizationCandidateToken(currentCatalog) !== candidateCatalogToken
+        || JSON.stringify(currentActive) !== activationSnapshotToken
       ) {
         setProjectState((current) => ({ ...current, optimizationRunning: false }));
         return;
@@ -1377,10 +1400,21 @@ function AppSession({
         result: outcome.result,
       });
       commitProjectState((current) => {
+        const currentActive = getPilePlanActivation(getActivePilePlan(current));
+        const currentCatalog = getAvailablePileConfigurationCatalog(current.pileOptionsByLoadPointId);
+        const currentCandidates = resolveOptimizationCandidates(
+          currentCatalog,
+          current.optimizationSettings.candidate_source,
+          currentActive,
+        );
         if (
           current.analysisRequest !== analysisRequest
           || current.activePilePlanId !== activePilePlanId
           || current.selectedPileConfigurationsByLoadPoint !== currentAssignmentsIdentity
+          || current.optimizationSettings.candidate_source !== candidateSource
+          || optimizationCandidateToken(currentCandidates) !== candidateSnapshotToken
+          || optimizationCandidateToken(currentCatalog) !== candidateCatalogToken
+          || JSON.stringify(currentActive) !== activationSnapshotToken
         ) return { ...current, optimizationRunning: false };
         const activePlan = current.pilePlans.find(
           (plan) => plan.id === current.activePilePlanId,
@@ -1394,7 +1428,7 @@ function AppSession({
           ? createOptimizationPilePlan({
               ...current,
               optimizedChoices: applied.choices,
-              resolvedCandidateConfigurations: availablePileConfigurations,
+              resolvedCandidateConfigurations: candidateConfigurations,
               optimizationUnassignedByLoadPoint,
               language: pilePlanLanguage(),
             })
@@ -1419,24 +1453,36 @@ function AppSession({
         };
       });
     } catch (error) {
-      setProjectState((current) => (
-        current.analysisRequest !== analysisRequest
-        || current.activePilePlanId !== activePilePlanId
-        || current.selectedPileConfigurationsByLoadPoint !== currentAssignmentsIdentity
-        || loadPointGroupsRef.current !== optimizationGroups
-      ) ? { ...current, optimizationRunning: false } : ({
+      setProjectState((current) => {
+        const currentActive = getPilePlanActivation(getActivePilePlan(current));
+        const currentCatalog = getAvailablePileConfigurationCatalog(current.pileOptionsByLoadPointId);
+        const currentCandidates = resolveOptimizationCandidates(
+          currentCatalog,
+          current.optimizationSettings.candidate_source,
+          currentActive,
+        );
+        return (
+          current.analysisRequest !== analysisRequest
+          || current.activePilePlanId !== activePilePlanId
+          || current.selectedPileConfigurationsByLoadPoint !== currentAssignmentsIdentity
+          || loadPointGroupsRef.current !== optimizationGroups
+          || current.optimizationSettings.candidate_source !== candidateSource
+          || optimizationCandidateToken(currentCandidates) !== candidateSnapshotToken
+          || optimizationCandidateToken(currentCatalog) !== candidateCatalogToken
+          || JSON.stringify(currentActive) !== activationSnapshotToken
+        ) ? { ...current, optimizationRunning: false } : ({
           ...current,
           optimizationRunning: false,
           optimizationError: error instanceof Error ? error.message : String(error),
           optimizationErrorLoadPointIds: [],
-        }));
+        });
+      });
     }
   };
 
   const optimizationDisabled = isOptimizationDisabled({
     optimizationRunning: projectState.optimizationRunning,
-    hasActivePileSizes: getActivePilePlan(projectState).activePileSizes.length > 0,
-    hasActivePileTipLevels: getActivePilePlan(projectState).activePileTipLevels.length > 0,
+    candidateCount: optimizationCandidates.length,
     selectedTargetIsEmpty: projectState.optimizationTargetScope === "selected"
       && projectState.selectedLoadPointIds.length === 0,
     loadPointCount: projectState.loadPoints.length,
