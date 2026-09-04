@@ -72,8 +72,6 @@ pub struct ProjectSettings {
     pub optimization: GreedyOptimizationSettings,
     #[serde(default)]
     pub viewer_utilization: ViewerUtilizationSettings,
-    pub active_pile_sizes: Vec<u32>,
-    pub active_pile_tip_levels: Vec<f64>,
     #[serde(default)]
     pub pile_legend: Option<ProjectLegendSettings>,
     #[serde(default)]
@@ -185,6 +183,8 @@ pub struct ProjectUserState {
 pub struct PilePlan {
     pub id: String,
     pub name: String,
+    pub active_pile_sizes: Vec<u32>,
+    pub active_pile_tip_levels: Vec<f64>,
     pub selected_piles: HashMap<u32, SelectedPileChoice>,
     #[serde(default)]
     pub locked_load_point_ids: Vec<u32>,
@@ -213,10 +213,16 @@ where
 }
 
 impl PilePlan {
-    pub fn default_with_selected_piles(selected_piles: HashMap<u32, SelectedPileChoice>) -> Self {
+    pub fn default_with_selected_piles(
+        selected_piles: HashMap<u32, SelectedPileChoice>,
+        active_pile_sizes: Vec<u32>,
+        active_pile_tip_levels: Vec<f64>,
+    ) -> Self {
         Self {
             id: "pile-plan-1".to_string(),
             name: "Pile plan 1".to_string(),
+            active_pile_sizes,
+            active_pile_tip_levels,
             selected_piles,
             locked_load_point_ids: Vec::new(),
             optimization_unassigned: HashMap::new(),
@@ -228,9 +234,15 @@ impl ProjectUserState {
     pub fn with_default_pile_plan(
         selected_piles: HashMap<u32, SelectedPileChoice>,
         manual_cpt_selections: HashMap<u32, Vec<u32>>,
+        active_pile_sizes: Vec<u32>,
+        active_pile_tip_levels: Vec<f64>,
     ) -> Self {
         Self {
-            pile_plans: vec![PilePlan::default_with_selected_piles(selected_piles)],
+            pile_plans: vec![PilePlan::default_with_selected_piles(
+                selected_piles,
+                active_pile_sizes,
+                active_pile_tip_levels,
+            )],
             active_pile_plan_id: "pile-plan-1".to_string(),
             manual_cpt_selections,
         }
@@ -270,7 +282,11 @@ impl<'de> Deserialize<'de> for ProjectUserState {
         let mut pile_plans = wire.pile_plans;
 
         if pile_plans.is_empty() {
-            pile_plans.push(PilePlan::default_with_selected_piles(wire.selected_piles));
+            pile_plans.push(PilePlan::default_with_selected_piles(
+                wire.selected_piles,
+                Vec::new(),
+                Vec::new(),
+            ));
         }
 
         let mut plan_ids = std::collections::HashSet::new();
@@ -550,6 +566,8 @@ mod tests {
             serde_json::json!([{
                 "id": "alternative",
                 "name": "Alternative",
+                "active_pile_sizes": [],
+                "active_pile_tip_levels": [],
                 "selected_piles": {},
                 "locked_load_point_ids": []
             }]),
@@ -769,12 +787,9 @@ mod tests {
                     max_pile_tip_levels: 1,
                     max_pile_configurations: 1,
                     max_utilization: 1.0,
-                    enabled_pile_sizes: vec![290],
-                    enabled_pile_tip_levels: vec![-18.0],
+                    candidate_source: Default::default(),
                 },
                 viewer_utilization: ViewerUtilizationSettings::default(),
-                active_pile_sizes: vec![290],
-                active_pile_tip_levels: vec![-18.0],
                 pile_legend: None,
                 viewer: Default::default(),
             },
@@ -782,6 +797,8 @@ mod tests {
                 pile_plans: vec![PilePlan {
                     id: "pile-plan-1".to_string(),
                     name: "Pile plan 1".to_string(),
+                    active_pile_sizes: vec![290],
+                    active_pile_tip_levels: vec![-18.0],
                     selected_piles: HashMap::from([(
                         1,
                         SelectedPileChoice {

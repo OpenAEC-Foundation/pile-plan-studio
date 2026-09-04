@@ -201,16 +201,26 @@ pub fn refresh_project_from_profiled_sources(
         remap_manual_cpt_selections(current, &load_point_mapping, &cpt_mapping);
 
     if capacity_source.is_some() {
-        refreshed.settings.active_pile_sizes = reconcile_active_sizes(
-            &current.inputs.bearing_capacities,
-            &current.settings.active_pile_sizes,
-            &refreshed.inputs.bearing_capacities,
-        );
-        refreshed.settings.active_pile_tip_levels = reconcile_active_tip_levels(
-            &current.inputs.bearing_capacities,
-            &current.settings.active_pile_tip_levels,
-            &refreshed.inputs.bearing_capacities,
-        );
+        for plan in &mut refreshed.user_state.pile_plans {
+            let Some(current_plan) = current
+                .user_state
+                .pile_plans
+                .iter()
+                .find(|current_plan| current_plan.id == plan.id)
+            else {
+                continue;
+            };
+            plan.active_pile_sizes = reconcile_active_sizes(
+                &current.inputs.bearing_capacities,
+                &current_plan.active_pile_sizes,
+                &refreshed.inputs.bearing_capacities,
+            );
+            plan.active_pile_tip_levels = reconcile_active_tip_levels(
+                &current.inputs.bearing_capacities,
+                &current_plan.active_pile_tip_levels,
+                &refreshed.inputs.bearing_capacities,
+            );
+        }
     }
 
     let supplied_roles: HashSet<ImportRole> = sources.iter().map(|source| source.role).collect();
@@ -500,8 +510,12 @@ mod tests {
             .expect("active plan")
             .selected_piles
             .insert(1, selected_pile());
-        current.settings.active_pile_sizes.clear();
-        current.settings.active_pile_tip_levels = vec![-17.5];
+        let current_plan = current
+            .user_state
+            .active_pile_plan_mut()
+            .expect("active plan");
+        current_plan.active_pile_sizes.clear();
+        current_plan.active_pile_tip_levels = vec![-17.5];
 
         let refreshed = refresh_project_from_profiled_sources(
             &current,
@@ -523,11 +537,12 @@ mod tests {
                 .get(&1),
             Some(&selected_pile())
         );
-        assert_eq!(refreshed.settings.active_pile_sizes, vec![320]);
-        assert_eq!(
-            refreshed.settings.active_pile_tip_levels,
-            vec![-17.5, -20.0]
-        );
+        let refreshed_plan = refreshed
+            .user_state
+            .active_pile_plan()
+            .expect("active plan");
+        assert_eq!(refreshed_plan.active_pile_sizes, vec![320]);
+        assert_eq!(refreshed_plan.active_pile_tip_levels, vec![-17.5, -20.0]);
     }
 
     #[test]

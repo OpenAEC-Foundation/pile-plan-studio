@@ -48,8 +48,8 @@ pub fn read_ifcpp_str(input: &str) -> Result<PilePlanProject, IfcppError> {
 
 pub fn write_ifcpp_string(project: &PilePlanProject) -> Result<String, IfcppError> {
     let mut canonical = project.clone();
-    if canonical.schema_version < 3 {
-        canonical.schema_version = 3;
+    if canonical.schema_version < 4 {
+        canonical.schema_version = 4;
     }
     validate_ifcpp_project(&canonical)?;
 
@@ -61,7 +61,7 @@ pub fn validate_ifcpp_project(project: &PilePlanProject) -> Result<(), IfcppErro
         return Err(IfcppError::InvalidSchema(project.schema.clone()));
     }
 
-    if !matches!(project.schema_version, 1 | 2 | 3) {
+    if !matches!(project.schema_version, 1 | 2 | 3 | 4) {
         return Err(IfcppError::UnsupportedSchemaVersion(project.schema_version));
     }
 
@@ -69,51 +69,123 @@ pub fn validate_ifcpp_project(project: &PilePlanProject) -> Result<(), IfcppErro
 }
 
 fn migrate_legacy_project_value(value: &mut Value) {
-    let schema_version = value
+    let original_schema_version = value
         .get("schema_version")
         .and_then(Value::as_u64)
         .unwrap_or(0);
-    if !matches!(schema_version, 1 | 2) {
+    if !matches!(original_schema_version, 1 | 2 | 3) {
         return;
     }
 
-    let Some(settings) = value.get_mut("settings").and_then(Value::as_object_mut) else {
-        return;
-    };
-    let legacy_head_level = settings
-        .get_mut("pile_costs")
-        .and_then(Value::as_object_mut)
-        .and_then(|costs| {
-            let head_level = costs.remove("pile_head_level_m");
-            if let Some(items) = costs.get_mut("items").and_then(Value::as_array_mut) {
-                for item in items {
-                    let Some(item) = item.as_object_mut() else {
-                        continue;
-                    };
-                    if !item.contains_key("cost_per_m3") {
-                        if let Some(cost) = item.remove("cost_per_m3_eur") {
-                            item.insert("cost_per_m3".to_string(), cost);
+    if matches!(original_schema_version, 1 | 2) {
+        let Some(settings) = value.get_mut("settings").and_then(Value::as_object_mut) else {
+            return;
+        };
+        let legacy_head_level = settings
+            .get_mut("pile_costs")
+            .and_then(Value::as_object_mut)
+            .and_then(|costs| {
+                let head_level = costs.remove("pile_head_level_m");
+                if let Some(items) = costs.get_mut("items").and_then(Value::as_array_mut) {
+                    for item in items {
+                        let Some(item) = item.as_object_mut() else {
+                            continue;
+                        };
+                        if !item.contains_key("cost_per_m3") {
+                            if let Some(cost) = item.remove("cost_per_m3_eur") {
+                                item.insert("cost_per_m3".to_string(), cost);
+                            }
                         }
                     }
                 }
-            }
-            head_level
+                head_level
+            });
+        if !settings.contains_key("pile_head_level_m") {
+            settings.insert(
+                "pile_head_level_m".to_string(),
+                legacy_head_level.unwrap_or(Value::Null),
+            );
+        }
+        settings.entry("viewer").or_insert_with(|| {
+            serde_json::json!({
+                "symbol_scale_percent": 100,
+                "foreground_layer": "load-points",
+                "show_grid": true,
+                "show_tip_level_regions": true
+            })
         });
-    if !settings.contains_key("pile_head_level_m") {
-        settings.insert(
-            "pile_head_level_m".to_string(),
-            legacy_head_level.unwrap_or(Value::Null),
+    }
+
+    migrate_legend_activation_to_schema_four(value);
+}
+
+fn migrate_legend_activation_to_schema_four(value: &mut Value) {
+    let (active_pile_sizes, active_pile_tip_levels) = {
+        let Some(settings) = value.get_mut("settings").and_then(Value::as_object_mut) else {
+            return;
+        };
+        let active_pile_sizes = settings
+            .remove("active_pile_sizes")
+            .unwrap_or_else(|| Value::Array(Vec::new()));
+        let active_pile_tip_levels = settings
+            .remove("active_pile_tip_levels")
+            .unwrap_or_else(|| Value::Array(Vec::new()));
+        if let Some(optimization) = settings
+            .get_mut("optimization")
+            .and_then(Value::as_object_mut)
+        {
+            optimization.remove("enabled_pile_sizes");
+            optimization.remove("enabled_pile_tip_levels");
+            optimization.insert(
+                "candidate_source".to_string(),
+                Value::String("all_available".to_string()),
+            );
+        }
+        (active_pile_sizes, active_pile_tip_levels)
+    };
+
+    let Some(user_state) = value.get_mut("user_state").and_then(Value::as_object_mut) else {
+        return;
+    };
+    let needs_default_plan = user_state
+        .get("pile_plans")
+        .and_then(Value::as_array)
+        .is_none_or(Vec::is_empty);
+    if needs_default_plan {
+        let selected_piles = user_state
+            .remove("selected_piles")
+            .unwrap_or_else(|| serde_json::json!({}));
+        user_state.insert(
+            "pile_plans".to_string(),
+            serde_json::json!([{
+                "id": "pile-plan-1",
+                "name": "Pile plan 1",
+                "selected_piles": selected_piles,
+                "locked_load_point_ids": [],
+                "optimization_unassigned": {}
+            }]),
+        );
+        user_state.insert(
+            "active_pile_plan_id".to_string(),
+            Value::String("pile-plan-1".to_string()),
         );
     }
-    settings.entry("viewer").or_insert_with(|| {
-        serde_json::json!({
-            "symbol_scale_percent": 100,
-            "foreground_layer": "load-points",
-            "show_grid": true,
-            "show_tip_level_regions": true
-        })
-    });
-    value["schema_version"] = Value::from(3);
+    if let Some(plans) = user_state
+        .get_mut("pile_plans")
+        .and_then(Value::as_array_mut)
+    {
+        for plan in plans {
+            let Some(plan) = plan.as_object_mut() else {
+                continue;
+            };
+            plan.insert("active_pile_sizes".to_string(), active_pile_sizes.clone());
+            plan.insert(
+                "active_pile_tip_levels".to_string(),
+                active_pile_tip_levels.clone(),
+            );
+        }
+    }
+    value["schema_version"] = Value::from(4);
 }
 
 #[cfg(test)]
@@ -156,14 +228,14 @@ mod tests {
     }
 
     #[test]
-    fn writing_a_legacy_project_emits_schema_version_three() {
+    fn writing_a_legacy_project_emits_schema_version_four() {
         let mut project = project_fixture();
         project.schema_version = 1;
 
         let json = write_ifcpp_string(&project).expect("legacy project writes canonically");
         let value: serde_json::Value = serde_json::from_str(&json).expect("written JSON parses");
 
-        assert_eq!(value["schema_version"], 3);
+        assert_eq!(value["schema_version"], 4);
         assert!(value["user_state"].get("selected_piles").is_none());
     }
 
@@ -180,7 +252,7 @@ mod tests {
     }
 
     #[test]
-    fn schema_two_costs_migrate_to_schema_three() {
+    fn schema_two_costs_migrate_to_schema_four() {
         let mut value = serde_json::to_value(project_fixture()).expect("fixture serializes");
         value["schema_version"] = serde_json::json!(2);
         value["units"]["costs"] = serde_json::json!("GBP");
@@ -202,7 +274,7 @@ mod tests {
         let json = serde_json::to_string(&value).expect("legacy JSON writes");
         let project = read_ifcpp_str(&json).expect("schema two migrates");
 
-        assert_eq!(project.schema_version, 3);
+        assert_eq!(project.schema_version, 4);
         assert_eq!(project.settings.pile_head_level_m, Some(-1.25));
         assert_eq!(project.settings.pile_costs.items[0].cost_per_m3, 190.0);
         assert_eq!(project.units.costs, "GBP");
@@ -210,6 +282,74 @@ mod tests {
         assert_eq!(project.settings.viewer.foreground_layer, "load-points");
         assert!(project.settings.viewer.show_grid);
         assert!(project.settings.viewer.show_tip_level_regions);
+    }
+
+    #[test]
+    fn schema_three_activation_migrates_to_every_pile_plan() {
+        let mut value = serde_json::to_value(project_fixture()).expect("fixture serializes");
+        value["schema_version"] = serde_json::json!(3);
+        value["settings"]["active_pile_sizes"] = serde_json::json!([290, 320]);
+        value["settings"]["active_pile_tip_levels"] = serde_json::json!([-17.5, -18.0]);
+        let first_plan = value["user_state"]["pile_plans"][0].clone();
+        let mut second_plan = first_plan;
+        second_plan["id"] = serde_json::json!("pile-plan-2");
+        second_plan["name"] = serde_json::json!("Pile plan 2");
+        value["user_state"]["pile_plans"] =
+            serde_json::json!([value["user_state"]["pile_plans"][0].clone(), second_plan,]);
+
+        let project = read_ifcpp_str(&serde_json::to_string(&value).expect("legacy JSON writes"))
+            .expect("schema three migrates");
+        let migrated = serde_json::to_value(project).expect("migrated project serializes");
+
+        assert_eq!(migrated["schema_version"], 4);
+        for plan in migrated["user_state"]["pile_plans"]
+            .as_array()
+            .expect("pile plans remain an array")
+        {
+            assert_eq!(plan["active_pile_sizes"], serde_json::json!([290, 320]));
+            assert_eq!(
+                plan["active_pile_tip_levels"],
+                serde_json::json!([-17.5, -18.0]),
+            );
+        }
+        assert_eq!(
+            migrated["settings"]["optimization"]["candidate_source"],
+            "all_available",
+        );
+        assert!(migrated["settings"].get("active_pile_sizes").is_none());
+        assert!(migrated["settings"].get("active_pile_tip_levels").is_none());
+        assert!(migrated["settings"]["optimization"]
+            .get("enabled_pile_sizes")
+            .is_none());
+        assert!(migrated["settings"]["optimization"]
+            .get("enabled_pile_tip_levels")
+            .is_none());
+    }
+
+    #[test]
+    fn schema_four_round_trips_distinct_pile_plan_activation() {
+        let mut project = project_fixture();
+        project.schema_version = 4;
+        project.user_state.pile_plans[0].active_pile_sizes = vec![290];
+        project.user_state.pile_plans[0].active_pile_tip_levels = vec![-18.0];
+        let mut second_plan = project.user_state.pile_plans[0].clone();
+        second_plan.id = "pile-plan-2".to_string();
+        second_plan.name = "Pile plan 2".to_string();
+        second_plan.active_pile_sizes = vec![320];
+        second_plan.active_pile_tip_levels = vec![-19.0];
+        project.user_state.pile_plans.push(second_plan);
+
+        let json = write_ifcpp_string(&project).expect("schema four writes");
+        let restored = read_ifcpp_str(&json).expect("schema four reads");
+
+        assert_eq!(restored, project);
+        let written: serde_json::Value = serde_json::from_str(&json).expect("JSON parses");
+        assert_eq!(written["schema_version"], 4);
+        assert!(written["settings"].get("active_pile_sizes").is_none());
+        assert_eq!(
+            written["user_state"]["pile_plans"][1]["active_pile_sizes"],
+            serde_json::json!([320]),
+        );
     }
 
     #[test]
@@ -226,7 +366,7 @@ mod tests {
     fn project_fixture() -> PilePlanProject {
         PilePlanProject {
             schema: "IFCPP".to_string(),
-            schema_version: 3,
+            schema_version: 4,
             application: ProjectApplication {
                 name: "Pile Plan Studio".to_string(),
                 version: "0.1.0-alpha".to_string(),
@@ -274,16 +414,15 @@ mod tests {
                     max_pile_tip_levels: 0,
                     max_pile_configurations: 0,
                     max_utilization: 1.0,
-                    enabled_pile_sizes: vec![],
-                    enabled_pile_tip_levels: vec![],
+                    candidate_source: Default::default(),
                 },
                 viewer_utilization: Default::default(),
-                active_pile_sizes: vec![],
-                active_pile_tip_levels: vec![],
                 pile_legend: None,
                 viewer: Default::default(),
             },
             user_state: ProjectUserState::with_default_pile_plan(
+                Default::default(),
+                Default::default(),
                 Default::default(),
                 Default::default(),
             ),

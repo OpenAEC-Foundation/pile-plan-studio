@@ -280,7 +280,7 @@ fn build_imported_project(
     let active_pile_tip_levels = unique_sorted_tip_levels(&bearing_capacities);
     PilePlanProject {
         schema: "IFCPP".to_string(),
-        schema_version: 3,
+        schema_version: 4,
         application: ProjectApplication {
             name: "Pile Plan Studio".to_string(),
             version: "0.1.0-alpha".to_string(),
@@ -326,16 +326,18 @@ fn build_imported_project(
                 max_pile_tip_levels: active_pile_tip_levels.len(),
                 max_pile_configurations: active_pile_sizes.len() * active_pile_tip_levels.len(),
                 max_utilization: 1.0,
-                enabled_pile_sizes: active_pile_sizes.clone(),
-                enabled_pile_tip_levels: active_pile_tip_levels.clone(),
+                candidate_source: Default::default(),
             },
             viewer_utilization: Default::default(),
-            active_pile_sizes,
-            active_pile_tip_levels,
             pile_legend: None,
             viewer: Default::default(),
         },
-        user_state: ProjectUserState::with_default_pile_plan(HashMap::new(), HashMap::new()),
+        user_state: ProjectUserState::with_default_pile_plan(
+            HashMap::new(),
+            HashMap::new(),
+            active_pile_sizes,
+            active_pile_tip_levels,
+        ),
         import_log,
     }
 }

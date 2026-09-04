@@ -11,8 +11,7 @@ use crate::{
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
 pub struct OptimizationCandidateSettings {
     pub max_utilization: f64,
-    pub enabled_pile_sizes: Vec<u32>,
-    pub enabled_pile_tip_levels_mm: Vec<i64>,
+    pub enabled_configurations: Vec<PileConfigurationKey>,
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
@@ -75,17 +74,11 @@ pub struct OptimizationPreparationResult {
 pub fn prepare_optimization_units(
     input: &PrepareOptimizationUnitsInput,
 ) -> OptimizationPreparationResult {
-    let enabled_sizes = input
+    let enabled_configurations = input
         .candidate_settings
-        .enabled_pile_sizes
+        .enabled_configurations
         .iter()
-        .copied()
-        .collect::<HashSet<_>>();
-    let enabled_tip_levels = input
-        .candidate_settings
-        .enabled_pile_tip_levels_mm
-        .iter()
-        .copied()
+        .cloned()
         .collect::<HashSet<_>>();
     let max_utilization = input.candidate_settings.max_utilization.clamp(0.0, 1.0);
     let locked_load_point_ids = input
@@ -264,8 +257,7 @@ pub fn prepare_optimization_units(
             } else {
                 eligible.extend(aggregates.iter().filter(|candidate| {
                     candidate.status == AggregatedPileConfigurationStatus::Valid
-                        && enabled_sizes.contains(&candidate.configuration.pile_size_mm)
-                        && enabled_tip_levels.contains(&candidate.configuration.pile_tip_level_mm)
+                        && enabled_configurations.contains(&candidate.configuration)
                         && candidate
                             .maximum_utilization
                             .is_some_and(|utilization| utilization <= max_utilization)
@@ -399,8 +391,12 @@ mod tests {
             },
             candidate_settings: OptimizationCandidateSettings {
                 max_utilization: 0.95,
-                enabled_pile_sizes: vec![1000, 1200],
-                enabled_pile_tip_levels_mm: vec![-10_000, -12_000],
+                enabled_configurations: vec![
+                    configuration(1000, -10_000),
+                    configuration(1000, -12_000),
+                    configuration(1200, -10_000),
+                    configuration(1200, -12_000),
+                ],
             },
         }
     }
@@ -462,11 +458,42 @@ mod tests {
                 ],
             )]),
         );
-        prepared_input.candidate_settings.enabled_pile_sizes = vec![1000];
+        prepared_input.candidate_settings.enabled_configurations =
+            vec![configuration(1000, -10_000)];
 
         let result = prepare_optimization_units(&prepared_input);
 
         assert!(result.units[0].options.is_empty());
+    }
+
+    #[test]
+    fn exact_candidate_domain_does_not_enable_cartesian_gaps() {
+        let mut prepared_input = input(
+            &[&[1]],
+            HashMap::from([(
+                1,
+                vec![
+                    option(1000, -10_000, true, 0.70, 11),
+                    option(1000, -12_000, true, 0.70, 11),
+                    option(1200, -10_000, true, 0.70, 11),
+                    option(1200, -12_000, true, 0.70, 11),
+                ],
+            )]),
+        );
+        prepared_input.candidate_settings.enabled_configurations =
+            vec![configuration(1000, -10_000), configuration(1200, -12_000)];
+
+        let result = prepare_optimization_units(&prepared_input);
+        let configurations = result.units[0]
+            .options
+            .iter()
+            .map(|option| option.configuration.clone())
+            .collect::<Vec<_>>();
+
+        assert_eq!(
+            configurations,
+            vec![configuration(1000, -10_000), configuration(1200, -12_000),],
+        );
     }
 
     #[test]
@@ -510,8 +537,8 @@ mod tests {
                 (2, vec![option(1200, -12_000, true, 0.75, 21)]),
             ]),
         );
-        prepared_input.candidate_settings.enabled_pile_sizes = vec![1000];
-        prepared_input.candidate_settings.enabled_pile_tip_levels_mm = vec![-10_000];
+        prepared_input.candidate_settings.enabled_configurations =
+            vec![configuration(1000, -10_000)];
         prepared_input.current_assignments = HashMap::from([(1, forced.clone())]);
         prepared_input.locked_load_point_ids = vec![1];
 

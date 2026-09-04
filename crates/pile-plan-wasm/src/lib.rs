@@ -520,13 +520,16 @@ mod tests {
                 schema_version: 1,
                 items: vec![],
             },
+            candidate_configurations: vec![PileConfigurationKey {
+                pile_size_mm: 320,
+                pile_tip_level_mm: -18_000,
+            }],
             settings: GreedyOptimizationSettings {
                 max_pile_sizes: 1,
                 max_pile_tip_levels: 1,
                 max_pile_configurations: 1,
                 max_utilization: 1.0,
-                enabled_pile_sizes: vec![320],
-                enabled_pile_tip_levels: vec![-18.0],
+                candidate_source: Default::default(),
             },
         };
 
