@@ -11,7 +11,9 @@ describe("legend editor", () => {
     assert.match(source, /createLegendEditorDraft/);
     assert.match(source, /applyLegendEditorBulkAction/);
     assert.match(source, /setLegendEncodingMode/);
-    assert.match(source, /setLegendAssignmentScope/);
+    assert.doesNotMatch(source, /setLegendAssignmentScope/);
+    assert.match(source, /unionActivationForPlans/);
+    assert.match(source, /unionUsedConfigurationsForPlans/);
     assert.match(source, /applyAutomaticSymbols/);
     assert.match(source, /applyAutomaticColors/);
     assert.match(source, /resetLegendEditorAppearance/);
@@ -29,7 +31,8 @@ describe("legend editor", () => {
     assert.match(source, /setLegendEditorItemEnabled/);
     assert.doesNotMatch(source, /toggleLegendEditorItem/);
     assert.match(source, /legend-editor-activation-button/);
-    assert.match(source, /isDisabled \? null : \(\s*<AppearanceControl/);
+    assert.doesNotMatch(source, /isDisabled \? null : \(\s*<AppearanceControl/);
+    assert.match(source, /<AppearanceControl/);
     assert.match(source, /disabled-used/);
     assert.match(source, /legend\.usedWarning/);
   });
@@ -55,7 +58,8 @@ describe("legend editor", () => {
     assert.match(source, /legend\.swapEncoding/);
     assert.doesNotMatch(source, /legend\.colorRepresentsTip/);
     assert.doesNotMatch(source, /legend\.colorRepresentsSize/);
-    assert.match(source, /legend\.assignmentScope/);
+    assert.match(source, /legend\.pilePlansInScope/);
+    assert.match(source, /scopePlanIds/);
     assert.match(source, /legend\.assignSymbols/);
     assert.match(source, /legend\.assignColors/);
     assert.match(source, /legend\.symbolLimit/);
@@ -63,6 +67,16 @@ describe("legend editor", () => {
     assert.match(source, /applyEditorActionResult/);
     assert.match(source, /draft\.legend\.colorScheme/);
     assert.doesNotMatch(source, /draft\.colorScheme/);
+  });
+
+  it("shows cross-plan counts and co-active conflicts", () => {
+    const source = readFileSync(resolve(import.meta.dirname, "LegendEditor.tsx"), "utf8");
+
+    assert.match(source, /otherActivePlanNames/);
+    assert.match(source, /legend-editor-plan-count/);
+    assert.match(source, /\+\{item\.otherPlanNames\.length\}/);
+    assert.match(source, /findCoactiveLegendConflicts/);
+    assert.match(source, /legend\.coactiveConflict/);
   });
 
   it("uses the normal legend only for selection and opens editing separately", () => {
@@ -138,8 +152,8 @@ describe("legend editor", () => {
     assert.equal(nl.legend.assignColors, "Kleuren opnieuw toewijzen");
     assert.equal(en.legend.assignSymbols, "Reassign symbols");
     assert.equal(en.legend.assignColors, "Reassign colors");
-    assert.equal(nl.legend.assignmentScope, "Automatische toewijzing toepassen op");
-    assert.equal(en.legend.assignmentScope, "Automatic assignment applies to");
+    assert.equal(nl.legend.pilePlansInScope, "Palenplannen in bereik");
+    assert.equal(en.legend.pilePlansInScope, "Pile plans in scope");
   });
 
   it("uses compact dialog geometry consistent with the application controls", () => {

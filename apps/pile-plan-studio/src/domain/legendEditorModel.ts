@@ -15,7 +15,6 @@ import {
 import type { LegendColorScheme } from "../viewer/legendColors.ts";
 import type { ActivePileConfigurations } from "./activePileConfigurations.ts";
 
-export type LegendAssignmentScope = "enabled" | "all";
 export type LegendEditorBulkAction = "enable-all" | "enable-used" | "disable-all";
 export type LegendEditorItemKind = "size" | "tip";
 export type LegendAppearanceProperty = "symbol" | "color";
@@ -23,7 +22,6 @@ export type LegendAppearanceProperty = "symbol" | "color";
 export type LegendEditorDraft = {
   active: ActivePileConfigurations;
   legend: LegendItems;
-  assignmentScope: LegendAssignmentScope;
 };
 
 export type LegendEditorActionResult =
@@ -37,7 +35,6 @@ export function createLegendEditorDraft(
   return {
     active: copyConfigurations(active),
     legend: copyLegend(legend),
-    assignmentScope: "all",
   };
 }
 
@@ -93,26 +90,21 @@ export function updateLegendColor(
 export function setLegendEncodingMode(
   draft: LegendEditorDraft,
   encodingMode: LegendEncodingMode,
+  included: ActivePileConfigurations,
 ): LegendEditorActionResult {
-  return refreshAutomaticMappings({ ...draft, legend: { ...draft.legend, encodingMode } });
-}
-
-export function setLegendAssignmentScope(
-  draft: LegendEditorDraft,
-  assignmentScope: LegendAssignmentScope,
-): LegendEditorActionResult {
-  return { ok: true, draft: { ...draft, assignmentScope } };
+  return refreshAutomaticMappings({ ...draft, legend: { ...draft.legend, encodingMode } }, included);
 }
 
 export function setLegendColorScheme(
   draft: LegendEditorDraft,
   colorScheme: LegendColorScheme,
+  includedValues: number[],
 ): LegendEditorDraft {
   const legend = { ...draft.legend, colorScheme };
   const colorKind = legend.encodingMode === "size-symbol" ? "tip" : "size";
   return {
     ...draft,
-    legend: refreshAutomaticLegendColors(legend, legendKey(colorKind), scopedValues(draft, colorKind)),
+    legend: refreshAutomaticLegendColors(legend, legendKey(colorKind), includedValues),
   };
 }
 
@@ -131,9 +123,10 @@ export function applyLegendEditorBulkAction(
 export function applyAutomaticSymbols(
   draft: LegendEditorDraft,
   kind: LegendEditorItemKind,
+  includedValues: number[],
 ): LegendEditorActionResult {
   const valueKind = legendKey(kind);
-  const result = assignLegendSymbols(draft.legend, valueKind, scopedValues(draft, kind));
+  const result = assignLegendSymbols(draft.legend, valueKind, includedValues);
   return result.ok
     ? { ok: true, draft: { ...draft, legend: result.legend } }
     : { ok: false, draft, error: result.reason, limit: result.limit };
@@ -142,13 +135,14 @@ export function applyAutomaticSymbols(
 export function applyAutomaticColors(
   draft: LegendEditorDraft,
   kind: LegendEditorItemKind,
+  includedValues: number[],
 ): LegendEditorDraft {
   return {
     ...draft,
     legend: assignLegendColors(
       draft.legend,
       legendKey(kind),
-      scopedValues(draft, kind),
+      includedValues,
       draft.legend.colorScheme,
     ),
   };
@@ -158,10 +152,11 @@ export function wouldReassignLegendAppearance(
   draft: LegendEditorDraft,
   kind: LegendEditorItemKind,
   property: LegendAppearanceProperty,
+  includedValues: number[],
 ): boolean {
   const assigned = property === "symbol"
-    ? applyAutomaticSymbols(draft, kind)
-    : { ok: true as const, draft: applyAutomaticColors(draft, kind) };
+    ? applyAutomaticSymbols(draft, kind, includedValues)
+    : { ok: true as const, draft: applyAutomaticColors(draft, kind, includedValues) };
   if (!assigned.ok) return true;
 
   const key = legendKey(kind);
@@ -184,28 +179,24 @@ export function resetLegendEditorAppearance(
   return {
     ...draft,
     legend: resetLegendAppearance(draft.legend, bearingCapacities),
-    assignmentScope: "all",
   };
 }
 
-function scopedValues(draft: LegendEditorDraft, kind: LegendEditorItemKind): number[] {
-  return draft.assignmentScope === "all"
-    ? draft.legend[legendKey(kind)].map(({ value }) => value)
-    : draft.active[activeKey(kind)];
-}
-
-function refreshAutomaticMappings(draft: LegendEditorDraft): LegendEditorActionResult {
+function refreshAutomaticMappings(
+  draft: LegendEditorDraft,
+  included: ActivePileConfigurations,
+): LegendEditorActionResult {
   const symbolKind: LegendEditorItemKind = draft.legend.encodingMode === "size-symbol" ? "size" : "tip";
   const colorKind: LegendEditorItemKind = symbolKind === "size" ? "tip" : "size";
   const colors = refreshAutomaticLegendColors(
     draft.legend,
     legendKey(colorKind),
-    scopedValues(draft, colorKind),
+    included[activeKey(colorKind)],
   );
   const symbols = refreshAutomaticLegendSymbols(
     colors,
     legendKey(symbolKind),
-    scopedValues(draft, symbolKind),
+    included[activeKey(symbolKind)],
   );
   return symbols.ok
     ? { ok: true, draft: { ...draft, legend: symbols.legend } }

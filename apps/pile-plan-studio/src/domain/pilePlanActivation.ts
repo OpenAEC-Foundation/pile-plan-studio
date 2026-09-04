@@ -44,3 +44,30 @@ export function activationFromConfigurations(
       .sort((left, right) => right - left),
   };
 }
+
+export function unionActivationForPlans(
+  pilePlans: PilePlanData[],
+  planIds: ReadonlySet<string>,
+): ActivePileConfigurations {
+  return {
+    pileSizes: [...new Set(pilePlans
+      .filter(({ id }) => planIds.has(id))
+      .flatMap(({ activePileSizes }) => activePileSizes))].sort((left, right) => left - right),
+    pileTipLevels: [...new Set(pilePlans
+      .filter(({ id }) => planIds.has(id))
+      .flatMap(({ activePileTipLevels }) => activePileTipLevels))].sort((left, right) => right - left),
+  };
+}
+
+export function unionUsedConfigurationsForPlans(
+  pilePlans: PilePlanData[],
+  planIds: ReadonlySet<string>,
+): ActivePileConfigurations {
+  return activationFromConfigurations(
+    pilePlans
+      .filter(({ id }) => planIds.has(id))
+      .flatMap(({ selectedPileConfigurationsByLoadPoint }) => (
+        [...selectedPileConfigurationsByLoadPoint.values()]
+      )),
+  );
+}

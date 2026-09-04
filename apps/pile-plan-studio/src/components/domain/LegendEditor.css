@@ -101,6 +101,25 @@
   background: var(--theme-accent);
 }
 
+.legend-editor-plan-scope {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 10px;
+}
+
+.legend-editor-plan-scope label {
+  display: inline-flex;
+  min-width: 0;
+  align-items: center;
+  gap: 4px;
+}
+
+.legend-editor-plan-scope span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .legend-editor-auto-actions {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(190px, 1.25fr) minmax(0, 1.1fr);
@@ -193,10 +212,15 @@
 }
 
 .legend-editor-error,
-.legend-editor-import-warning {
+.legend-editor-import-warning,
+.legend-editor-conflict {
   margin: 0;
   color: var(--theme-danger, #A61B1B);
   font-size: 10px;
+}
+
+.legend-editor-conflict {
+  color: var(--theme-dialog-content-secondary);
 }
 
 .legend-editor-import-warning {
@@ -266,7 +290,7 @@
 .legend-editor-item {
   display: grid;
   min-height: 32px;
-  grid-template-columns: auto minmax(0, 1fr) auto auto;
+  grid-template-columns: auto minmax(0, 1fr) auto auto auto;
   align-items: center;
   gap: 5px;
   padding: 2px 4px;
@@ -274,6 +298,12 @@
   border-radius: 3px;
   color: var(--theme-dialog-content-text);
   background: var(--theme-dialog-content-bg);
+}
+
+.legend-editor-plan-count {
+  color: var(--theme-dialog-content-secondary);
+  font-size: 10px;
+  white-space: nowrap;
 }
 
 .legend-editor-item:hover {

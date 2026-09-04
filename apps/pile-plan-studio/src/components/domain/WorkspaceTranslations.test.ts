@@ -43,9 +43,8 @@ describe("Workspace translations", () => {
       assert.equal(typeof copy.symbolRepresents, "string");
       assert.equal(typeof copy.colorRepresentsTip, "string");
       assert.equal(typeof copy.colorRepresentsSize, "string");
-      assert.equal(typeof copy.assignmentScope, "string");
-      assert.equal(typeof copy.enabledItems, "string");
-      assert.equal(typeof copy.allItems, "string");
+      assert.equal(typeof copy.pilePlansInScope, "string");
+      assert.equal(typeof copy.coactiveConflict, "string");
       assert.equal(typeof copy.assignSymbols, "string");
       assert.equal(typeof copy.assignColors, "string");
       assert.equal(typeof copy.resetAppearance, "string");

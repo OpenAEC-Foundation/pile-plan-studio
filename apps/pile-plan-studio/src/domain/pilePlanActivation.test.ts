@@ -2,7 +2,12 @@ import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 
 import type { PilePlanData } from "../core/projectFile.ts";
-import { getActivePilePlan, getPilePlanActivation } from "./pilePlanActivation.ts";
+import {
+  getActivePilePlan,
+  getPilePlanActivation,
+  unionActivationForPlans,
+  unionUsedConfigurationsForPlans,
+} from "./pilePlanActivation.ts";
 
 function plan(id: string, sizes: number[], tips: number[]): PilePlanData {
   return {
@@ -33,5 +38,27 @@ describe("pile-plan activation", () => {
   it("falls back to the first plan for an unknown active id", () => {
     const first = plan("first", [290], [-18]);
     assert.equal(getActivePilePlan({ pilePlans: [first], activePilePlanId: "missing" }), first);
+  });
+
+  it("unions activation and used configurations across selected plans", () => {
+    const first = plan("first", [290], [-18]);
+    first.selectedPileConfigurationsByLoadPoint.set(1, {
+      pile_size_mm: 290,
+      pile_tip_level_mm: -18_000,
+    });
+    const second = plan("second", [320], [-19]);
+    second.selectedPileConfigurationsByLoadPoint.set(2, {
+      pile_size_mm: 350,
+      pile_tip_level_mm: -20_000,
+    });
+
+    assert.deepEqual(unionActivationForPlans([first, second], new Set(["first", "second"])), {
+      pileSizes: [290, 320],
+      pileTipLevels: [-18, -19],
+    });
+    assert.deepEqual(unionUsedConfigurationsForPlans([first, second], new Set(["first", "second"])), {
+      pileSizes: [290, 350],
+      pileTipLevels: [-18, -20],
+    });
   });
 });
