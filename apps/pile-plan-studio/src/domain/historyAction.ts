@@ -1,4 +1,5 @@
 import type { PilePlanData } from "../core/projectFile.ts";
+import { samePileConfiguration } from "../core/pileConfigurationKey.ts";
 import type { ProjectContent } from "./projectContent.ts";
 
 export type HistoryActionKind =
@@ -83,8 +84,9 @@ export function inferHistoryAction(
 
   const pileChange = changedPlan(before.pilePlans, afterPlans, (left, right) => (
     changedMapEntryCount(
-      left.selectedPileOptionKeysByLoadPoint,
-      right.selectedPileOptionKeysByLoadPoint,
+      left.selectedPileConfigurationsByLoadPoint,
+      right.selectedPileConfigurationsByLoadPoint,
+      samePileConfiguration,
     )
   ));
   if (pileChange && pileChange.count > 0) {
@@ -112,11 +114,15 @@ function changedPlan(
   return null;
 }
 
-function changedMapEntryCount<K, V>(before: Map<K, V>, after: Map<K, V>): number {
+function changedMapEntryCount<K, V>(
+  before: Map<K, V>,
+  after: Map<K, V>,
+  equal: (left: V | undefined, right: V | undefined) => boolean = (left, right) => left === right,
+): number {
   if (before === after) return 0;
   let count = 0;
   for (const key of new Set([...before.keys(), ...after.keys()])) {
-    if (before.has(key) !== after.has(key) || before.get(key) !== after.get(key)) count += 1;
+    if (before.has(key) !== after.has(key) || !equal(before.get(key), after.get(key))) count += 1;
   }
   return count;
 }

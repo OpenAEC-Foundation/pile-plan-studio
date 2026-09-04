@@ -24,7 +24,10 @@ describe("project cost summary", () => {
       {
         id: "pile-plan-1",
         name: "Basisplan",
-        selectedPileOptionKeysByLoadPoint: new Map([[1, "a"], [2, "missing"]]),
+        selectedPileConfigurationsByLoadPoint: new Map([
+          [1, { pile_size_mm: 290, pile_tip_level_mm: -18_000 }],
+          [2, { pile_size_mm: 320, pile_tip_level_mm: -18_000 }],
+        ]),
         externalReferencesByLoadPoint: new Map(),
         lockedLoadPointIds: [],
         optimizationUnassignedByLoadPoint: new Map(),
@@ -32,7 +35,9 @@ describe("project cost summary", () => {
       {
         id: "pile-plan-2",
         name: "Variant 1",
-        selectedPileOptionKeysByLoadPoint: new Map([[3, "b"]]),
+        selectedPileConfigurationsByLoadPoint: new Map([
+          [3, { pile_size_mm: 350, pile_tip_level_mm: -19_000 }],
+        ]),
         externalReferencesByLoadPoint: new Map(),
         lockedLoadPointIds: [],
         optimizationUnassignedByLoadPoint: new Map(),
@@ -40,8 +45,8 @@ describe("project cost summary", () => {
     ];
 
     assert.deepEqual(summarizePilePlanCosts(plans, new Map([
-      ["a", 100],
-      ["b", 250],
+      ["290|-18000", 100],
+      ["350|-19000", 250],
     ])), new Map([
       ["pile-plan-1", { missingCount: 1, totalCost: 100 }],
       ["pile-plan-2", { missingCount: 0, totalCost: 250 }],

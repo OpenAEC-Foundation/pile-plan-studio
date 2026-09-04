@@ -2,6 +2,7 @@ import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 
 import type { PilePlanData } from "../core/projectFile.ts";
+import type { PileConfigurationKey } from "../core/projectTypes.ts";
 import {
   createPilePlan,
   createOptimizationPilePlan,
@@ -25,24 +26,38 @@ function plan(
   return {
     id,
     name,
-    selectedPileOptionKeysByLoadPoint: new Map(choices),
+    selectedPileConfigurationsByLoadPoint: configurationMap(choices),
     externalReferencesByLoadPoint: new Map(),
     lockedLoadPointIds,
     optimizationUnassignedByLoadPoint: new Map(optimizationOutcomes),
   };
 }
 
+function configuration(label: string): PileConfigurationKey {
+  return {
+    pile_size_mm: [...label].reduce((sum, character) => sum + character.charCodeAt(0), 0),
+    pile_tip_level_mm: -18_000,
+  };
+}
+
+function configurationMap(
+  choices: Array<[number, string]>,
+): Map<number, PileConfigurationKey> {
+  return new Map(choices.map(([loadPointId, label]) => [loadPointId, configuration(label)]));
+}
+
 describe("pile plan management", () => {
   it("synchronizes active edits without mutating the existing plan", () => {
     const original = plan("pile-plan-1", "Basisplan", [[1, "old"]]);
-    const choices = new Map([[1, "new"]]);
+    const choices = configurationMap([[1, "new"]]);
 
     const result = synchronizeActivePilePlan([original], original.id, choices);
 
-    assert.equal(original.selectedPileOptionKeysByLoadPoint.get(1), "old");
-    assert.equal(result[0].selectedPileOptionKeysByLoadPoint.get(1), "new");
+    assert.deepEqual(original.selectedPileConfigurationsByLoadPoint.get(1), configuration("old"));
+    assert.deepEqual(result[0].selectedPileConfigurationsByLoadPoint.get(1), configuration("new"));
     assert.notEqual(result[0], original);
-    assert.notEqual(result[0].selectedPileOptionKeysByLoadPoint, choices);
+    assert.notEqual(result[0].selectedPileConfigurationsByLoadPoint, choices);
+    assert.notEqual(result[0].selectedPileConfigurationsByLoadPoint.get(1), choices.get(1));
   });
 
   it("clears only optimizer outcomes that now have a manual assignment", () => {
@@ -57,7 +72,7 @@ describe("pile plan management", () => {
     const result = synchronizeActivePilePlan(
       [original],
       original.id,
-      new Map([[7, "290|-18"]]),
+      configurationMap([[7, "290|-18"]]),
     );
 
     assert.deepEqual(
@@ -89,16 +104,16 @@ describe("pile plan management", () => {
     const result = switchPilePlan({
       pilePlans: plans,
       activePilePlanId: "pile-plan-1",
-      selectedPileOptionKeysByLoadPoint: new Map([[1, "edited"]]),
+      selectedPileConfigurationsByLoadPoint: configurationMap([[1, "edited"]]),
       targetPilePlanId: "pile-plan-2",
     });
 
-    assert.equal(result.pilePlans[0].selectedPileOptionKeysByLoadPoint.get(1), "edited");
+    assert.deepEqual(result.pilePlans[0].selectedPileConfigurationsByLoadPoint.get(1), configuration("edited"));
     assert.equal(result.activePilePlanId, "pile-plan-2");
-    assert.deepEqual([...result.selectedPileOptionKeysByLoadPoint], [[2, "target"]]);
+    assert.deepEqual([...result.selectedPileConfigurationsByLoadPoint], [[2, configuration("target")]]);
     assert.notEqual(
-      result.selectedPileOptionKeysByLoadPoint,
-      result.pilePlans[1].selectedPileOptionKeysByLoadPoint,
+      result.selectedPileConfigurationsByLoadPoint,
+      result.pilePlans[1].selectedPileConfigurationsByLoadPoint,
     );
   });
 
@@ -134,14 +149,14 @@ describe("pile plan management", () => {
     const result = duplicatePilePlan({
       pilePlans: [source],
       activePilePlanId: source.id,
-      selectedPileOptionKeysByLoadPoint: new Map([[1, "320|-17500"]]),
+      selectedPileConfigurationsByLoadPoint: configurationMap([[1, "320|-17500"]]),
       sourcePilePlanId: source.id,
       language: "nl",
     });
 
     assert.equal(result.activePilePlanId, "pile-plan-2");
     assert.equal(result.pilePlans[1].name, "Basisplan - kopie");
-    assert.deepEqual([...result.selectedPileOptionKeysByLoadPoint], [[1, "320|-17500"]]);
+    assert.deepEqual([...result.selectedPileConfigurationsByLoadPoint], [[1, configuration("320|-17500")]]);
     assert.deepEqual(result.pilePlans[1].lockedLoadPointIds, [1]);
     assert.notEqual(result.pilePlans[1].lockedLoadPointIds, source.lockedLoadPointIds);
     assert.notEqual(
@@ -172,13 +187,13 @@ describe("pile plan management", () => {
     const result = deletePilePlan({
       pilePlans: plans,
       activePilePlanId: "pile-plan-2",
-      selectedPileOptionKeysByLoadPoint: new Map([[2, "edited"]]),
+      selectedPileConfigurationsByLoadPoint: configurationMap([[2, "edited"]]),
       pilePlanId: "pile-plan-2",
     });
 
     assert.equal(result.activePilePlanId, "pile-plan-1");
     assert.deepEqual(result.pilePlans.map(({ id }) => id), ["pile-plan-1", "pile-plan-3"]);
-    assert.deepEqual([...result.selectedPileOptionKeysByLoadPoint], [[1, "one"]]);
+    assert.deepEqual([...result.selectedPileConfigurationsByLoadPoint], [[1, configuration("one")]]);
   });
 
   it("keeps the final pile plan", () => {
@@ -186,27 +201,27 @@ describe("pile plan management", () => {
     const result = deletePilePlan({
       pilePlans: plans,
       activePilePlanId: "pile-plan-1",
-      selectedPileOptionKeysByLoadPoint: new Map([[1, "edited"]]),
+      selectedPileConfigurationsByLoadPoint: configurationMap([[1, "edited"]]),
       pilePlanId: "pile-plan-1",
     });
 
     assert.equal(result.pilePlans.length, 1);
-    assert.equal(result.selectedPileOptionKeysByLoadPoint.get(1), "edited");
+    assert.deepEqual(result.selectedPileConfigurationsByLoadPoint.get(1), configuration("edited"));
   });
 
   it("creates an unlocked active plan from supplied default assignments", () => {
     const result = createPilePlan({
       pilePlans: [plan("pile-plan-1", "Basisplan", [[1, "old"]], [1])],
       activePilePlanId: "pile-plan-1",
-      selectedPileOptionKeysByLoadPoint: new Map([[1, "edited"]]),
-      choices: new Map([[2, "default"]]),
+      selectedPileConfigurationsByLoadPoint: configurationMap([[1, "edited"]]),
+      choices: configurationMap([[2, "default"]]),
       kind: "variant",
       language: "nl",
     });
 
     assert.equal(result.activePilePlanId, "pile-plan-2");
     assert.equal(result.pilePlans[1].name, "Variant 1");
-    assert.deepEqual([...result.selectedPileOptionKeysByLoadPoint], [[2, "default"]]);
+    assert.deepEqual([...result.selectedPileConfigurationsByLoadPoint], [[2, configuration("default")]]);
     assert.deepEqual(result.pilePlans[1].lockedLoadPointIds, []);
   });
 
@@ -221,14 +236,14 @@ describe("pile plan management", () => {
     const result = createOptimizationPilePlan({
       pilePlans: [source],
       activePilePlanId: "pile-plan-1",
-      selectedPileOptionKeysByLoadPoint: new Map([[1, "current"]]),
-      optimizedChoices: new Map([[1, "optimized"]]),
+      selectedPileConfigurationsByLoadPoint: configurationMap([[1, "current"]]),
+      optimizedChoices: configurationMap([[1, "optimized"]]),
       language: "nl",
     });
 
-    assert.equal(result.pilePlans[0].selectedPileOptionKeysByLoadPoint.get(1), "current");
+    assert.deepEqual(result.pilePlans[0].selectedPileConfigurationsByLoadPoint.get(1), configuration("current"));
     assert.equal(result.pilePlans[1].name, "Optimalisatie 1");
-    assert.equal(result.selectedPileOptionKeysByLoadPoint.get(1), "optimized");
+    assert.deepEqual(result.selectedPileConfigurationsByLoadPoint.get(1), configuration("optimized"));
     assert.deepEqual(result.pilePlans[1].lockedLoadPointIds, [1]);
     assert.deepEqual(result.pilePlans[1].optimizationUnassignedByLoadPoint, new Map([[8, "configuration_limits"]]));
   });

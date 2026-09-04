@@ -11,6 +11,64 @@ import { createPilePlan, switchPilePlan } from "./pilePlanManagement.ts";
 const sampleProjectText = readFileSync("../../sample_project/sample_project.ifcpp", "utf8");
 
 describe("project history reducer", () => {
+  it("undoes one grouped pile assignment atomically without changing another plan", () => {
+    const initial = state();
+    const [firstLoadPoint, secondLoadPoint] = initial.loadPoints;
+    const original = { pile_size_mm: 290, pile_tip_level_mm: -17_500 };
+    const grouped = { pile_size_mm: 320, pile_tip_level_mm: -18_000 };
+    const secondary = {
+      ...initial.pilePlans[0],
+      id: "secondary-plan",
+      name: "Secondary",
+      selectedPileConfigurationsByLoadPoint: new Map([
+        [firstLoadPoint.id, { pile_size_mm: 350, pile_tip_level_mm: -19_000 }],
+      ]),
+    };
+    initial.selectedPileConfigurationsByLoadPoint = new Map([
+      [firstLoadPoint.id, original],
+      [secondLoadPoint.id, original],
+    ]);
+    initial.pilePlans = [
+      {
+        ...initial.pilePlans[0],
+        selectedPileConfigurationsByLoadPoint: new Map(initial.selectedPileConfigurationsByLoadPoint),
+      },
+      secondary,
+    ];
+    let managed = createManagedProjectState(initial);
+
+    managed = projectHistoryReducer(managed, {
+      type: "commit",
+      update: (current) => {
+        const choices = new Map(current.selectedPileConfigurationsByLoadPoint);
+        choices.set(firstLoadPoint.id, grouped);
+        choices.set(secondLoadPoint.id, grouped);
+        return {
+          ...current,
+          selectedPileConfigurationsByLoadPoint: choices,
+          pilePlans: current.pilePlans.map((plan) => plan.id === current.activePilePlanId
+            ? { ...plan, selectedPileConfigurationsByLoadPoint: new Map(choices) }
+            : plan),
+        };
+      },
+    });
+    managed = projectHistoryReducer(managed, { type: "undo" });
+
+    assert.deepEqual(
+      managed.present.selectedPileConfigurationsByLoadPoint.get(firstLoadPoint.id),
+      original,
+    );
+    assert.deepEqual(
+      managed.present.selectedPileConfigurationsByLoadPoint.get(secondLoadPoint.id),
+      original,
+    );
+    assert.deepEqual(
+      managed.present.pilePlans.find(({ id }) => id === secondary.id)
+        ?.selectedPileConfigurationsByLoadPoint,
+      secondary.selectedPileConfigurationsByLoadPoint,
+    );
+  });
+
   it("records committed content but not runtime-only viewer changes", () => {
     let managed = createManagedProjectState(state());
     managed = projectHistoryReducer(managed, {
@@ -66,7 +124,10 @@ describe("project history reducer", () => {
       type: "commit",
       update: (current) => ({
         ...current,
-        selectedPileOptionKeysByLoadPoint: new Map([[1, "320|-18.5"]]),
+        selectedPileConfigurationsByLoadPoint: new Map([[1, {
+          pile_size_mm: 320,
+          pile_tip_level_mm: -18_500,
+        }]]),
       }),
     });
     const secondId = managed.present.pilePlans.find((plan) => plan.id !== firstId)!.id;
@@ -83,7 +144,7 @@ describe("project history reducer", () => {
     assert.equal(managed.present.activePilePlanId, secondId);
     assert.equal(
       managed.present.pilePlans.find((plan) => plan.id === firstId)
-        ?.selectedPileOptionKeysByLoadPoint.has(1),
+        ?.selectedPileConfigurationsByLoadPoint.has(1),
       false,
     );
   });
@@ -159,22 +220,25 @@ describe("project history reducer", () => {
       update: (current) => ({ ...current, name: "Imported" }),
       action: { kind: "project-import" },
     });
-    const choices = new Map([[1, "320|-18.5"]]);
+    const choices = new Map([[1, {
+      pile_size_mm: 320,
+      pile_tip_level_mm: -18_500,
+    }]]);
 
     managed = projectHistoryReducer(managed, {
       type: "amend",
-      update: (current) => ({ ...current, selectedPileOptionKeysByLoadPoint: choices }),
+      update: (current) => ({ ...current, selectedPileConfigurationsByLoadPoint: choices }),
     });
 
     assert.equal(managed.history.past.length, 1);
     assert.equal(managed.history.past[0].action.kind, "project-import");
     assert.equal(
-      managed.history.past[0].after.pilePlans[0].selectedPileOptionKeysByLoadPoint,
+      managed.history.past[0].after.pilePlans[0].selectedPileConfigurationsByLoadPoint,
       choices,
     );
     managed = projectHistoryReducer(managed, { type: "undo" });
     managed = projectHistoryReducer(managed, { type: "redo" });
-    assert.equal(managed.present.selectedPileOptionKeysByLoadPoint, choices);
+    assert.equal(managed.present.selectedPileConfigurationsByLoadPoint, choices);
   });
 });
 

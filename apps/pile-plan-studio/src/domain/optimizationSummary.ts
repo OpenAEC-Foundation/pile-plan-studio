@@ -1,44 +1,52 @@
 import type {
   GreedyOptimizedPileChoice,
-  GreedyUnassignedLoadPoint,
+  OptimizationUnassignedLoadPoint,
+  PileConfigurationKey,
 } from "../core/projectTypes.ts";
+import { samePileConfiguration } from "../core/pileConfigurationKey.ts";
 
 export type OptimizationRunSummary = {
   assignedCount: number;
   changedCount: number;
-  noValidOptionCount: number;
+  technicalUnassignedCount: number;
   optimizerUnassignedCount: number;
 };
 
 export function summarizeOptimizationRun(
-  previousChoiceKeys: Map<number, string>,
+  previousChoiceKeys: Map<number, PileConfigurationKey>,
   choices: GreedyOptimizedPileChoice[],
-  unassigned: GreedyUnassignedLoadPoint[] = [],
+  unassigned: OptimizationUnassignedLoadPoint[] = [],
+  _unassignedGroupCount = 0,
+  technicalUnassignedLoadPointIds: number[] = [],
 ): OptimizationRunSummary {
   let changedCount = 0;
 
   for (const choice of choices) {
-    const nextKey = `${choice.pile_size_mm}|${choice.pile_tip_level_m}`;
-    if (previousChoiceKeys.get(choice.load_point_id) !== nextKey) {
+    if (!samePileConfiguration(
+      previousChoiceKeys.get(choice.load_point_id),
+      choice.configuration,
+    )) {
       changedCount += 1;
     }
   }
 
-  for (const item of unassigned) {
-    const previous = previousChoiceKeys.get(item.load_point_id);
-    if (previous !== undefined && previous !== "") {
+  for (const loadPointId of new Set([
+    ...unassigned.map((item) => item.load_point_id),
+    ...technicalUnassignedLoadPointIds,
+  ])) {
+    const previous = previousChoiceKeys.get(loadPointId);
+    if (previous !== undefined) {
       changedCount += 1;
     }
   }
 
-  const noValidOptionCount = unassigned.filter(
-    (item) => item.reason === "no_valid_option",
-  ).length;
+  const technicalUnassignedCount = new Set(technicalUnassignedLoadPointIds).size;
+  const optimizerUnassignedCount = unassigned.length;
 
   return {
     assignedCount: choices.length,
     changedCount,
-    noValidOptionCount,
-    optimizerUnassignedCount: unassigned.length - noValidOptionCount,
+    technicalUnassignedCount,
+    optimizerUnassignedCount,
   };
 }

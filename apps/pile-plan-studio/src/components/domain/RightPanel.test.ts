@@ -3,7 +3,99 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
+describe("missing CPT popover", () => {
+  it("opens from Missing without assigning the row and links identifier-only CPT buttons", () => {
+    const panel = readFileSync(resolve(import.meta.dirname, "RightPanel.tsx"), "utf8");
+    const popover = readFileSync(resolve(import.meta.dirname, "MissingCptPopover.tsx"), "utf8");
+
+    assert.match(panel, /row\.missingCptIds\.length > 0/);
+    assert.match(panel, /<MissingCptPopover/);
+    assert.match(popover, /aria-haspopup="dialog"/);
+    assert.match(popover, /event\.stopPropagation\(\)/);
+    assert.match(popover, /event\.key !== "Escape"/);
+    assert.match(popover, /openCpt\(state, cptId\)/);
+    assert.match(popover, />\{cptId\}<\/button>/);
+  });
+
+  it("controls all Missing popovers with one active row key", () => {
+    const panel = readFileSync(resolve(import.meta.dirname, "RightPanel.tsx"), "utf8");
+    const popover = readFileSync(resolve(import.meta.dirname, "MissingCptPopover.tsx"), "utf8");
+
+    assert.match(panel, /const \[openMissingCptKey, setOpenMissingCptKey\] = useState<string \| null>\(null\)/);
+    assert.match(panel, /open=\{openMissingCptKey === row\.key\}/);
+    assert.match(panel, /toggleMissingCptPopover\(current, row\.key\)/);
+    assert.doesNotMatch(panel, /export function toggleMissingCptPopover/);
+    assert.match(popover, /open: boolean/);
+    assert.match(popover, /onOpenChange: \(open: boolean\) => void/);
+    assert.doesNotMatch(popover, /useState\(false\)/);
+  });
+
+  it("uses the compact Not OK label in both languages", () => {
+    const english = JSON.parse(readFileSync(resolve(import.meta.dirname, "../../i18n/locales/en/rightPanel.json"), "utf8"));
+    const dutch = JSON.parse(readFileSync(resolve(import.meta.dirname, "../../i18n/locales/nl/rightPanel.json"), "utf8"));
+
+    assert.equal(english["status.insufficientCapacity"], "Not OK");
+    assert.equal(dutch["status.insufficientCapacity"], "Not OK");
+  });
+
+  it("describes Missing as a click action in both languages", () => {
+    const english = JSON.parse(readFileSync(resolve(import.meta.dirname, "../../i18n/locales/en/rightPanel.json"), "utf8"));
+    const dutch = JSON.parse(readFileSync(resolve(import.meta.dirname, "../../i18n/locales/nl/rightPanel.json"), "utf8"));
+
+    assert.equal(english["pileOptions.missingCptsTitle"], "Click to view CPTs with missing bearing-capacity data");
+    assert.equal(dutch["pileOptions.missingCptsTitle"], "Klik om sonderingen met ontbrekende draagvermogengegevens te bekijken");
+  });
+});
+
+describe("technical assignment availability", () => {
+  it("uses the unavailable explanation instead of a filter no-match message", () => {
+    const panel = readFileSync(resolve(import.meta.dirname, "RightPanel.tsx"), "utf8");
+
+    assert.match(panel, /technicalAssignment\.status === "unavailable"/);
+    assert.match(panel, /isUnavailable[\s\S]*?technicalNotice\.unavailableExplanation/);
+  });
+
+  it("shows one compact analysis error instead of a second pile-options error section", () => {
+    const panel = readFileSync(resolve(import.meta.dirname, "RightPanel.tsx"), "utf8");
+    const notice = readFileSync(resolve(import.meta.dirname, "TechnicalAssignmentNotice.tsx"), "utf8");
+    const styles = readFileSync(resolve(import.meta.dirname, "rightPanel.css"), "utf8");
+
+    assert.match(panel, /technicalAssignment\.status !== "error"\s*\?\s*\(\s*<section className="pile-options-section">/s);
+    assert.match(notice, /getAnalysisFailureNotice/);
+    assert.match(notice, /technicalNotice\.analysisErrorExplanation/);
+    assert.match(styles, /\.load-point-panel\s*\{[^}]*display:\s*flex;[^}]*flex-direction:\s*column;/s);
+    assert.match(styles, /\.pile-options-section\s*\{[^}]*flex:\s*1;/s);
+  });
+});
+
 describe("React optimization panel", () => {
+  it("delegates canonical pile choices and disables rows while assignment is pending", () => {
+    const panel = readFileSync(resolve(import.meta.dirname, "RightPanel.tsx"), "utf8");
+
+    assert.match(panel, /pileAssignmentPending\?: boolean/);
+    assert.match(panel, /onApplyPileConfiguration\?: \(/);
+    assert.match(panel, /selectedLoadPoints\.map\(\(\{ id \}\) => id\)/);
+    assert.match(panel, /onApplyPileConfiguration\([^;]+configuration/s);
+    assert.match(panel, /aria-disabled=\{pileAssignmentPending\}/);
+    assert.match(panel, /if \(pileAssignmentPending\) return/);
+    assert.doesNotMatch(panel, /new Map\(state\.selectedPileConfigurationsByLoadPoint\)/);
+  });
+
+  it("offers one group-aware action to clear the selected assignment", () => {
+    const panel = readFileSync(resolve(import.meta.dirname, "RightPanel.tsx"), "utf8");
+    const english = JSON.parse(readFileSync(resolve(import.meta.dirname, "../../i18n/locales/en/rightPanel.json"), "utf8"));
+    const dutch = JSON.parse(readFileSync(resolve(import.meta.dirname, "../../i18n/locales/nl/rightPanel.json"), "utf8"));
+
+    assert.match(panel, /hasAssignedSelection/);
+    assert.match(panel, /group\.load_point_ids\.some\(\(loadPointId\) => selectedLoadPointIds\.has\(loadPointId\)\)/);
+    assert.match(panel, /group\.load_point_ids\.forEach\(\(loadPointId\) => involvedLoadPointIds\.add\(loadPointId\)\)/);
+    assert.match(panel, /onApplyPileConfiguration\(selectedLoadPoints\.map\(\(\{ id \}\) => id\), null\)/);
+    assert.match(panel, /disabled=\{pileAssignmentPending\}/);
+    assert.match(panel, /configuration: PileConfigurationKey \| null/);
+    assert.equal(english["pileOptions.clearAssignment"], "Clear assignment");
+    assert.equal(dutch["pileOptions.clearAssignment"], "Toewijzing wissen");
+  });
+
   it("defers numeric optimization limits until blur or Enter", () => {
     const optimization = readFileSync(resolve(import.meta.dirname, "OptimizationPanel.tsx"), "utf8");
 
@@ -67,7 +159,11 @@ describe("React optimization panel", () => {
     assert.match(optimization, /optimization\.assigned/);
     assert.match(optimization, /optimization\.noValidOption/);
     assert.match(optimization, /optimization\.unassigned/);
+    assert.doesNotMatch(optimization, /optimization\.unresolvedGroups/);
     assert.match(optimization, /optimizationError/);
+    assert.match(optimization, /optimizationErrorLoadPointIds/);
+    assert.match(optimization, /className="optimization-load-point-link"/);
+    assert.match(optimization, /selectLoadPoint\(state, loadPointId\)/);
   });
 
   it("does not mark a permanent panel tab active while the optimization task is open", () => {

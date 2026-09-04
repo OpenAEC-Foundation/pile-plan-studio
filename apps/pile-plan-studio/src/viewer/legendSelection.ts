@@ -1,5 +1,5 @@
-import type { PileConfigurationOption } from "../core/projectTypes.ts";
-import { aggregatePileOptionsForLoadPoints } from "../domain/pileOptionAggregation.ts";
+import type { PileConfigurationKey, PileConfigurationOption } from "../core/projectTypes.ts";
+import { samePileConfiguration } from "../core/pileConfigurationKey.ts";
 
 export type LegendSelectionFilter = {
   pileSizes: number[];
@@ -54,28 +54,25 @@ export function getHighlightedGoverningCptId(input: {
   activeSelectedCptIds: number[];
   pileOptionsByLoadPointId: Map<number, PileConfigurationOption[]>;
   selectedLoadPointIds: number[];
-  selectedPileOptionKeysByLoadPoint: Map<number, string>;
+  selectedPileConfigurationsByLoadPoint: Map<number, PileConfigurationKey>;
 }): number | null {
-  if (input.selectedLoadPointIds.length === 0) {
+  if (input.selectedLoadPointIds.length !== 1) {
     return null;
   }
 
-  const chosenKeys = input.selectedLoadPointIds.map(
-    (loadPointId) => input.selectedPileOptionKeysByLoadPoint.get(loadPointId) ?? "",
+  const chosenConfigurations = input.selectedLoadPointIds.map(
+    (loadPointId) => input.selectedPileConfigurationsByLoadPoint.get(loadPointId),
   );
-  const chosenKey = chosenKeys[0];
-  if (!chosenKey || chosenKeys.some((key) => key !== chosenKey)) {
+  const chosenConfiguration = chosenConfigurations[0];
+  if (!chosenConfiguration || chosenConfigurations.some(
+    (configuration) => !samePileConfiguration(configuration, chosenConfiguration),
+  )) {
     return null;
   }
 
-  const optionGroups = input.selectedLoadPointIds.map(
-    (loadPointId) => input.pileOptionsByLoadPointId.get(loadPointId) ?? [],
-  );
-  const options = optionGroups.length === 1
-    ? optionGroups[0]
-    : aggregatePileOptionsForLoadPoints(optionGroups);
+  const options = input.pileOptionsByLoadPointId.get(input.selectedLoadPointIds[0]) ?? [];
   const governingCptId = options.find(
-    (option) => `${option.pile_size_mm}|${option.pile_tip_level_m}` === chosenKey,
+    (option) => samePileConfiguration(option.configuration, chosenConfiguration),
   )?.governing_cpt_id ?? null;
 
   return shouldHighlightGoverningCpt(governingCptId, input.activeSelectedCptIds)

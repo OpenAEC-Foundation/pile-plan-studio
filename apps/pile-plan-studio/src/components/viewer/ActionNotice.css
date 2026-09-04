@@ -1,4 +1,4 @@
-.history-notice-region {
+.action-notice-region {
   position: absolute;
   z-index: 30;
   left: 50%;
@@ -8,7 +8,7 @@
   transform: translateX(-50%);
 }
 
-.history-notice {
+.action-notice {
   display: -webkit-box;
   max-width: 100%;
   margin: 0 auto;
@@ -26,11 +26,16 @@
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
   animation:
-    history-notice-enter 120ms ease-out,
-    history-notice-fade 180ms ease-in 3.2s forwards;
+    action-notice-enter 120ms ease-out,
+    action-notice-fade 180ms ease-in 3.2s forwards;
 }
 
-@keyframes history-notice-enter {
+.action-notice.is-error {
+  border-color: #c94343;
+  background: rgba(92, 28, 28, 0.96);
+}
+
+@keyframes action-notice-enter {
   from {
     opacity: 0;
     transform: translateY(4px);
@@ -42,14 +47,14 @@
   }
 }
 
-@keyframes history-notice-fade {
+@keyframes action-notice-fade {
   to {
     opacity: 0;
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .history-notice {
+  .action-notice {
     animation: none;
   }
 }

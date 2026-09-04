@@ -74,7 +74,7 @@ describe("PilePlanViewer inputs", () => {
     assert.match(css, /\.cpt-label\s*{[\s\S]*?dominant-baseline:\s*middle;/);
   });
 
-  it("keeps scaled pile symbols centered on their project coordinates", () => {
+  it("keeps scaled pile symbols and status halos centered on their project coordinates", () => {
     const css = readFileSync(resolve(import.meta.dirname, "viewer.css"), "utf8");
 
     assert.match(
@@ -83,11 +83,11 @@ describe("PilePlanViewer inputs", () => {
     );
     assert.match(
       css,
-      /\.load-point-symbol,\s*\.load-point-empty,\s*\.load-point-pending,\s*\.cpt-triangle\s*{[\s\S]*?position:\s*absolute;[\s\S]*?top:\s*0;[\s\S]*?left:\s*0;[\s\S]*?transform:\s*translate\(-50%,\s*-50%\) scale\(var\(--viewer-symbol-scale\)\);/,
+      /\.load-point-symbol,\s*\.load-point-empty,\s*\.load-point-marker \.load-point-unassigned,\s*\.cpt-triangle\s*{[\s\S]*?position:\s*absolute;[\s\S]*?top:\s*0;[\s\S]*?left:\s*0;[\s\S]*?transform:\s*translate\(-50%,\s*-50%\) scale\(var\(--viewer-symbol-scale\)\);/,
     );
     assert.match(
       css,
-      /\.load-point-marker\.is-above-range \.load-point-symbol,[\s\S]*?\.viewer-hover-marker\.is-load-point\.is-above-range/,
+      /\.load-point-status-halo\.is-above-range,[\s\S]*?\.viewer-hover-marker\.is-load-point\.is-above-range/,
     );
     assert.doesNotMatch(css, /\.load-point-marker\.is-above-range,\s*\.viewer-hover-marker/);
     assert.match(css, /box-shadow:[\s\S]*?0 0 0 2px/);
@@ -103,6 +103,23 @@ describe("PilePlanViewer inputs", () => {
     assert.match(source, /viewer-hover-inspector/);
     assert.match(source, /viewer\.hover\.addToSelection/);
     assert.match(css, /\.viewer-hover-inspector\s*{[\s\S]*?right:\s*12px;[\s\S]*?bottom:\s*12px;[\s\S]*?pointer-events:\s*none;/);
+  });
+
+  it("places red, green, and yellow status halos in one non-interactive layer below all markers", () => {
+    const source = readFileSync(resolve(import.meta.dirname, "PilePlanViewer.tsx"), "utf8");
+    const css = readFileSync(resolve(import.meta.dirname, "viewer.css"), "utf8");
+
+    assert.match(source, /className=\{`load-point-status-halo/);
+    assert.match(source, /style=\{getProjectMarkerStyle\(point, invalidVisual\.style\)\}/);
+    assert.match(css, /\.load-point-status-halo\s*\{[\s\S]*?pointer-events:\s*none;[\s\S]*?z-index:\s*5;/);
+    assert.match(css, /\.load-point-status-halo,\s*\.load-point-symbol,[\s\S]*?transform:\s*translate\(-50%,\s*-50%\) scale\(var\(--viewer-symbol-scale\)\);/);
+    assert.match(css, /\.load-point-status-halo\.is-above-range,/);
+    assert.match(css, /\.load-point-status-halo\.is-below-range,/);
+    assert.match(css, /\.load-point-status-halo\.is-missing,/);
+    assert.match(source, /load-point-status-halo\$\{invalidVisual\.className\}\$\{isLocked \? " is-locked" : ""\}/);
+    assert.match(css, /\.load-point-status-halo\.is-locked\s*\{[\s\S]*?opacity:\s*0\.28;/);
+    assert.match(css, /\.viewer-content\.is-lock-editing \.load-point-status-halo\.is-locked\s*\{[\s\S]*?opacity:\s*0\.45;/);
+    assert.doesNotMatch(css, /\.load-point-marker\.is-(?:above-range|below-range|missing) \.load-point-symbol/);
   });
 
   it("raises the current hover candidate and selects it on click", () => {
@@ -205,7 +222,7 @@ describe("PilePlanViewer inputs", () => {
 
     assert.match(source, /getEffectivePileOptionsByLoadPointId/);
     assert.match(source, /const pileOptionsByLoadPointId = getEffectivePileOptionsByLoadPointId\(state\)/);
-    assert.match(source, /pileOptionsByLoadPointId\.get\(loadPoint\.id\)/);
+    assert.match(source, /technicalAssignment\.issuesByLoadPointId\.get\(loadPoint\.id\)/);
     assert.match(source, /getSelectedPileOption\(state, loadPoint\.id, pileOptionsByLoadPointId\)/);
   });
 
@@ -318,17 +335,25 @@ describe("PilePlanViewer inputs", () => {
     assert.match(source, /invalidVisual\.style/);
   });
 
-  it("renders neutral pending markers and colour-coded no-pile crosses", () => {
+  it("renders every technical and pending no-pile state as a small neutral dot", () => {
     const source = readFileSync(resolve(import.meta.dirname, "PilePlanViewer.tsx"), "utf8");
     const css = readFileSync(resolve(import.meta.dirname, "viewer.css"), "utf8");
 
     assert.match(source, /getUnselectedLoadPointMarkerState/);
-    assert.match(source, /load-point-pending/);
-    assert.match(source, /has-missing-options/);
-    assert.match(source, /has-invalid-options/);
-    assert.match(css, /\.load-point-marker\.is-pending/);
-    assert.match(css, /\.load-point-marker\.has-missing-options \.load-point-empty/);
-    assert.match(css, /\.load-point-marker\.has-invalid-options \.load-point-empty/);
+    assert.match(source, /usesNeutralUnassignedMarker/);
+    assert.match(source, /load-point-unassigned/);
+    assert.doesNotMatch(source, /title=\{unselectedTitle\}/);
+    assert.doesNotMatch(source, /className="load-point-unassigned" title=/);
+    assert.match(css, /\.load-point-unassigned\s*\{[\s\S]*?width:\s*6px;[\s\S]*?height:\s*6px;[\s\S]*?border:\s*0;/);
+  });
+
+  it("keeps load-point hover status backgrounds circular without stretching a neutral dot", () => {
+    const source = readFileSync(resolve(import.meta.dirname, "PilePlanViewer.tsx"), "utf8");
+    const css = readFileSync(resolve(import.meta.dirname, "viewer.css"), "utf8");
+
+    assert.match(source, /viewer-hover-pile-symbol/);
+    assert.match(css, /\.viewer-hover-marker\.is-load-point\s*\{[\s\S]*?border-radius:\s*50%;/);
+    assert.doesNotMatch(css, /\.viewer-hover-marker\.is-load-point\s*>\s*span\s*\{/);
   });
 
   it("renders compact optimizer outcomes at the load-point anchor at every zoom level", () => {

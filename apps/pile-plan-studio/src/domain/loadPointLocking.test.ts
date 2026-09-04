@@ -12,7 +12,7 @@ function plan(id: string, lockedLoadPointIds: number[]): PilePlanData {
   return {
     id,
     name: id,
-    selectedPileOptionKeysByLoadPoint: new Map(),
+    selectedPileConfigurationsByLoadPoint: new Map(),
     externalReferencesByLoadPoint: new Map(),
     lockedLoadPointIds,
     optimizationUnassignedByLoadPoint: new Map(),

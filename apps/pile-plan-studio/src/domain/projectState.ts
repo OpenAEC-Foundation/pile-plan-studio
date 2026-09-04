@@ -84,10 +84,12 @@ export type ProjectState = LoadedProjectData & {
   optimizationCreatesPilePlan: boolean;
   optimizationRunning: boolean;
   optimizationError: string | null;
+  optimizationErrorLoadPointIds: number[];
   optimizationSummary: OptimizationRunSummary | null;
   symbolScalePercent: number;
   foregroundLayer: ForegroundLayer;
   showGrid: boolean;
+  showTipLevelRegions: boolean;
 };
 
 type InitialProjectStateOptions = {
@@ -153,6 +155,7 @@ export function createInitialProjectState(
     optimizationCreatesPilePlan: true,
     optimizationRunning: false,
     optimizationError: null,
+    optimizationErrorLoadPointIds: [],
     optimizationSummary: null,
   };
 }

@@ -1,16 +1,27 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 use pile_plan_core::{
-    bearing_capacity_rows_for_cpt, build_pile_options_by_load_point, build_project_analysis,
-    calculate_pile_cost, choose_default_pile_option, choose_default_pile_options,
-    greedy_optimize_pile_choices, import_project_from_generic_sources_with_properties,
-    preview_import_source, preview_pile_plan_import, refresh_project_from_profiled_sources,
-    selected_cpts, write_pile_plan_csv as write_pile_plan_csv_bytes,
+    aggregate_pile_options_for_load_points,
+    assess_technical_assignment as assess_technical_assignment_core,
+    apply_load_point_group_assignment as apply_load_point_group_assignment_core,
+    bearing_capacity_rows_for_cpt,
+    build_pile_options_by_load_point, build_project_analysis,
+    build_spatial_neighborhood as build_spatial_neighborhood_core,
+    build_tip_level_region_topology as build_tip_level_region_topology_core, calculate_pile_cost,
+    choose_default_pile_option, choose_default_pile_options, greedy_optimize_pile_choices,
+    derive_load_point_groups as derive_load_point_groups_core,
+    import_project_from_generic_sources_with_properties, preview_import_source,
+    preview_pile_plan_import, refresh_project_from_profiled_sources, selected_cpts,
+    write_pile_plan_csv as write_pile_plan_csv_bytes,
     write_pile_plan_xlsx as write_pile_plan_xlsx_bytes, CptSelectionSettings,
-    GreedyOptimizationInput, GreedyOptimizationResult, ImportSource, ImportSourcePreview,
+    AggregatedPileConfiguration, ApplyLoadPointGroupAssignmentInput,
+    ApplyLoadPointGroupAssignmentResult, GreedyOptimizationInput, GreedyOptimizationOutcome,
+    ImportSource, ImportSourcePreview, LoadPointGroup, LoadPointGroupingSettings,
     PileConfigurationKey, PileConfigurationOption, PileCostSettings, PilePlanExportRequest,
     PilePlanImportPreview, PilePlanImportRequest, PilePlanProject, ProjectAnalysisResult,
-    ProjectBearingCapacity, ProjectCpt, ProjectLoadPoint, SelectedCpt,
+    ProjectBearingCapacity, ProjectCpt, ProjectLoadPoint, SelectedCpt, SpatialNeighborhood,
+    SpatialPileAssignment, TipLevelRegionTopology,
+    TechnicalAssignmentAssessment, TechnicalAssignmentAssessmentError,
 };
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -62,8 +73,20 @@ struct DefaultPileOptionRequest {
 #[derive(Debug, Deserialize)]
 struct DefaultPileOptionsRequest {
     options_by_load_point: HashMap<u32, Vec<PileConfigurationOption>>,
+    groups: Vec<LoadPointGroup>,
     pile_head_level_m: f64,
     cost_settings: PileCostSettings,
+}
+
+#[derive(Debug, Deserialize)]
+struct AggregatePileOptionsRequest {
+    options_by_load_point: HashMap<u32, Vec<PileConfigurationOption>>,
+}
+
+#[derive(Debug, Deserialize)]
+struct TechnicalAssignmentRequest {
+    groups: Vec<LoadPointGroup>,
+    options_by_load_point: HashMap<u32, Vec<PileConfigurationOption>>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -89,6 +112,23 @@ struct RefreshProjectRequest {
 #[derive(Debug, Deserialize)]
 struct PreviewImportRequest {
     source: ImportSource,
+}
+
+#[derive(Debug, Deserialize)]
+struct SpatialNeighborhoodRequest {
+    load_points: Vec<ProjectLoadPoint>,
+}
+
+#[derive(Debug, Deserialize)]
+struct DeriveLoadPointGroupsRequest {
+    load_points: Vec<ProjectLoadPoint>,
+}
+
+#[derive(Debug, Deserialize)]
+struct TipLevelRegionTopologyRequest {
+    neighborhood: SpatialNeighborhood,
+    selected_assignments: HashMap<u32, SpatialPileAssignment>,
+    options_by_load_point: HashMap<u32, Vec<PileConfigurationOption>>,
 }
 
 #[derive(Debug, Serialize)]
@@ -171,9 +211,24 @@ fn choose_default_options(
 ) -> HashMap<u32, PileConfigurationKey> {
     choose_default_pile_options(
         &request.options_by_load_point,
+        &request.groups,
         request.pile_head_level_m,
         &request.cost_settings,
     )
+}
+
+#[tauri::command(rename_all = "snake_case")]
+fn aggregate_pile_options(
+    request: AggregatePileOptionsRequest,
+) -> Vec<AggregatedPileConfiguration> {
+    aggregate_pile_options_for_load_points(&request.options_by_load_point)
+}
+
+#[tauri::command(rename_all = "snake_case")]
+fn assess_technical_assignment(
+    request: TechnicalAssignmentRequest,
+) -> Result<TechnicalAssignmentAssessment, TechnicalAssignmentAssessmentError> {
+    assess_technical_assignment_core(&request.groups, &request.options_by_load_point)
 }
 
 #[tauri::command(rename_all = "snake_case")]
@@ -182,7 +237,7 @@ fn cpt_frd_rows(request: CptFrdRowsRequest) -> Vec<pile_plan_core::CptBearingCap
 }
 
 #[tauri::command(rename_all = "snake_case")]
-fn greedy_optimize(request: GreedyOptimizationInput) -> GreedyOptimizationResult {
+fn greedy_optimize(request: GreedyOptimizationInput) -> GreedyOptimizationOutcome {
     greedy_optimize_pile_choices(&request)
 }
 
@@ -238,11 +293,47 @@ fn write_binary_file(path: String, contents: Vec<u8>) -> Result<(), String> {
     std::fs::write(path, contents).map_err(|error| error.to_string())
 }
 
+#[tauri::command(rename_all = "snake_case")]
+fn build_spatial_neighborhood(request: SpatialNeighborhoodRequest) -> SpatialNeighborhood {
+    build_spatial_neighborhood_core(&request.load_points)
+}
+
+#[tauri::command(rename_all = "snake_case")]
+fn build_tip_level_region_topology(
+    request: TipLevelRegionTopologyRequest,
+) -> TipLevelRegionTopology {
+    build_tip_level_region_topology_core(
+        &request.neighborhood,
+        &request.selected_assignments,
+        &request.options_by_load_point,
+    )
+}
+
+#[tauri::command(rename_all = "snake_case")]
+fn derive_load_point_groups(request: DeriveLoadPointGroupsRequest) -> Vec<LoadPointGroup> {
+    derive_load_point_groups_core(
+        &request.load_points,
+        &LoadPointGroupingSettings::default(),
+    )
+}
+
+#[tauri::command(rename_all = "snake_case")]
+fn apply_load_point_group_assignment(
+    request: ApplyLoadPointGroupAssignmentInput,
+) -> ApplyLoadPointGroupAssignmentResult {
+    apply_load_point_group_assignment_core(&request)
+}
+
 fn main() {
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_store::Builder::default().build())
         .invoke_handler(tauri::generate_handler![
+            aggregate_pile_options,
+            assess_technical_assignment,
+            apply_load_point_group_assignment,
+            build_spatial_neighborhood,
+            build_tip_level_region_topology,
             calculate_selected_cpts,
             calculate_pile_options,
             calculate_project_analysis,
@@ -250,6 +341,7 @@ fn main() {
             choose_default_option,
             choose_default_options,
             cpt_frd_rows,
+            derive_load_point_groups,
             greedy_optimize,
             import_project_from_files,
             refresh_project_from_files,
@@ -263,4 +355,146 @@ fn main() {
         ])
         .run(tauri::generate_context!())
         .expect("failed to run Pile Plan Studio");
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn spatial_commands_return_core_results() {
+        let neighborhood = build_spatial_neighborhood(SpatialNeighborhoodRequest {
+            load_points: vec![],
+        });
+        let topology = build_tip_level_region_topology(TipLevelRegionTopologyRequest {
+            neighborhood,
+            selected_assignments: HashMap::new(),
+            options_by_load_point: HashMap::new(),
+        });
+
+        assert!(topology.groups.is_empty());
+    }
+
+    #[test]
+    fn aggregate_command_returns_authoritative_core_facts() {
+        let option = PileConfigurationOption {
+            configuration: PileConfigurationKey {
+                pile_size_mm: 320,
+                pile_tip_level_mm: -18_500,
+            },
+            pile_size_mm: 320,
+            pile_tip_level_m: -18.5,
+            is_option: true,
+            governing_cpt_id: Some(61),
+            governing_frd_kn: Some(700.0),
+            utilization: Some(0.82),
+            missing_cpt_ids: vec![],
+            technical_status: pile_plan_core::PileOptionTechnicalStatus::Valid,
+        };
+        let result = aggregate_pile_options(AggregatePileOptionsRequest {
+            options_by_load_point: HashMap::from([(7, vec![option])]),
+        });
+
+        assert_eq!(result[0].configuration.pile_tip_level_mm, -18_500);
+        assert_eq!(result[0].maximum_utilization, Some(0.82));
+        assert_eq!(result[0].critical_load_point_id, Some(7));
+    }
+
+    #[test]
+    fn technical_assignment_command_returns_grouped_missing_result() {
+        let mut valid = PileConfigurationOption {
+            configuration: PileConfigurationKey {
+                pile_size_mm: 320,
+                pile_tip_level_mm: -18_500,
+            },
+            pile_size_mm: 320,
+            pile_tip_level_m: -18.5,
+            is_option: true,
+            governing_cpt_id: Some(61),
+            governing_frd_kn: Some(700.0),
+            utilization: Some(0.82),
+            missing_cpt_ids: vec![],
+            technical_status: pile_plan_core::PileOptionTechnicalStatus::Valid,
+        };
+        let mut missing = valid.clone();
+        missing.is_option = false;
+        missing.missing_cpt_ids = vec![62];
+        missing.technical_status = pile_plan_core::PileOptionTechnicalStatus::MissingCapacityData;
+        valid.governing_cpt_id = Some(61);
+
+        let result = assess_technical_assignment(TechnicalAssignmentRequest {
+            groups: vec![LoadPointGroup {
+                load_point_ids: vec![1, 2],
+            }],
+            options_by_load_point: HashMap::from([(1, vec![valid]), (2, vec![missing])]),
+        })
+        .unwrap();
+
+        assert_eq!(result.issues[0].group_load_point_ids, vec![1, 2]);
+        assert_eq!(
+            result.issues[0].status,
+            pile_plan_core::TechnicalAssignmentIssueStatus::MissingCapacityData
+        );
+    }
+
+    #[test]
+    fn load_point_group_commands_return_core_results() {
+        let groups = derive_load_point_groups(DeriveLoadPointGroupsRequest {
+            load_points: vec![],
+        });
+        let requested_configuration = PileConfigurationKey {
+            pile_size_mm: 320,
+            pile_tip_level_mm: -18_000,
+        };
+        let result = apply_load_point_group_assignment(
+            pile_plan_core::ApplyLoadPointGroupAssignmentInput {
+                selected_load_point_ids: vec![2],
+                groups: vec![pile_plan_core::LoadPointGroup {
+                    load_point_ids: vec![1, 2],
+                }],
+                requested_configuration: Some(requested_configuration),
+                current_assignments: HashMap::new(),
+                locked_load_point_ids: vec![],
+            },
+        );
+
+        assert!(groups.is_empty());
+        assert!(matches!(
+            result,
+            pile_plan_core::ApplyLoadPointGroupAssignmentResult::Applied { changes }
+                if changes.len() == 2
+        ));
+    }
+
+    #[test]
+    fn greedy_optimize_command_returns_the_tagged_core_outcome() {
+        let outcome = greedy_optimize(GreedyOptimizationInput {
+            groups: vec![LoadPointGroup {
+                load_point_ids: vec![1],
+            }],
+            options_by_load_point: HashMap::from([(1, vec![])]),
+            target_load_point_ids: vec![1],
+            locked_load_point_ids: vec![],
+            current_assignments: HashMap::new(),
+            limit_scope: pile_plan_core::OptimizationLimitScope::Target,
+            pile_head_level_m: None,
+            cost_settings: PileCostSettings {
+                schema_version: 1,
+                items: vec![],
+            },
+            settings: pile_plan_core::GreedyOptimizationSettings {
+                max_pile_sizes: 1,
+                max_pile_tip_levels: 1,
+                max_pile_configurations: 1,
+                max_utilization: 1.0,
+                enabled_pile_sizes: vec![320],
+                enabled_pile_tip_levels: vec![-18.0],
+            },
+        });
+
+        assert!(matches!(
+            outcome,
+            pile_plan_core::GreedyOptimizationOutcome::Blocked { .. }
+        ));
+    }
 }

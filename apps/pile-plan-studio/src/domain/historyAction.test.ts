@@ -130,7 +130,12 @@ function plan(
   return {
     id,
     name,
-    selectedPileOptionKeysByLoadPoint: new Map(choices),
+    selectedPileConfigurationsByLoadPoint: new Map(
+      choices.map(([loadPointId, value]) => [loadPointId, {
+        pile_size_mm: value.length,
+        pile_tip_level_mm: -18_000,
+      }]),
+    ),
     externalReferencesByLoadPoint: new Map(),
     lockedLoadPointIds: [],
     optimizationUnassignedByLoadPoint: new Map(),

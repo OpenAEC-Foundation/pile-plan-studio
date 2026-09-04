@@ -5,14 +5,18 @@ import LegendEditor from "./LegendEditor";
 import PilePlanViewer from "./PilePlanViewer";
 import { clearLegendSelection, shouldClearLegendSelectionFromPointerTarget } from "./viewerInteractions";
 import "./viewer.css";
+import type { LoadPointGroup } from "../../core/loadPointGroupContract.ts";
+import type { TechnicalAssignmentSnapshot } from "./technicalAssignmentController.ts";
 
 type Props = {
   state: ProjectState;
+  loadPointGroups: LoadPointGroup[];
+  technicalAssignment: TechnicalAssignmentSnapshot;
   lassoSelectionActive: boolean;
   onStateChange: (nextState: ProjectState) => void;
 };
 
-export default function PilePlanWorkspace({ state, lassoSelectionActive, onStateChange }: Props) {
+export default function PilePlanWorkspace({ state, loadPointGroups, technicalAssignment, lassoSelectionActive, onStateChange }: Props) {
   const [legendEditorOpen, setLegendEditorOpen] = useState(false);
 
   return (
@@ -24,6 +28,8 @@ export default function PilePlanWorkspace({ state, lassoSelectionActive, onState
       />
       <PilePlanViewer
         state={state}
+        loadPointGroups={loadPointGroups}
+        technicalAssignment={technicalAssignment}
         lassoSelectionActive={lassoSelectionActive}
         onStateChange={onStateChange}
       />

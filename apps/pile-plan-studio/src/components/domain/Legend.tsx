@@ -1,4 +1,5 @@
 import type { ProjectState } from "../../domain/projectState";
+import type { PileConfigurationKey } from "../../core/projectTypes.ts";
 import { useTranslation } from "react-i18next";
 import { buildLegendPresentation, deriveUsedPileConfigurations } from "../../domain/legendState.ts";
 import {
@@ -19,7 +20,7 @@ type Props = {
 export default function Legend({ state, onStateChange, onEdit }: Props) {
   const { t, i18n } = useTranslation("common");
   const legend = state.pileLegend;
-  const used = deriveUsedPileConfigurations(state.selectedPileOptionKeysByLoadPoint.values());
+  const used = deriveUsedPileConfigurations(state.selectedPileConfigurationsByLoadPoint.values());
   const presentation = buildLegendPresentation({
     legend,
     enabled: {
@@ -156,27 +157,24 @@ function legendItemClass(state: string, selected: boolean): string {
 
 function selectedPileOptionsByLoadPoint(state: ProjectState) {
   return new Map(
-    [...state.selectedPileOptionKeysByLoadPoint.entries()].map(([loadPointId, key]) => [
+    [...state.selectedPileConfigurationsByLoadPoint.entries()].map(([loadPointId, configuration]) => [
       loadPointId,
-      optionFromKey(key),
+      optionFromConfiguration(configuration),
     ]),
   );
 }
 
-function optionFromKey(key: string) {
-  const [pileSize, pileTipLevel] = key.split("|").map(Number);
-  if (!Number.isFinite(pileSize) || !Number.isFinite(pileTipLevel)) {
-    return null;
-  }
-
+function optionFromConfiguration(configuration: PileConfigurationKey) {
   return {
-    pile_size_mm: pileSize,
-    pile_tip_level_m: pileTipLevel,
+    configuration: { ...configuration },
+    pile_size_mm: configuration.pile_size_mm,
+    pile_tip_level_m: configuration.pile_tip_level_mm / 1000,
     isOption: true,
     governing_cpt_id: null,
     governing_frd_kn: null,
     utilization: null,
     missing_cpt_ids: [],
+    technicalStatus: "valid" as const,
   };
 }
 

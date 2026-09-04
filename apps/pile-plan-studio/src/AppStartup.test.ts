@@ -80,7 +80,7 @@ describe("React app startup", () => {
     assert.doesNotMatch(beforeChooser, /defaultPileSelectionPending:\s*false/);
     assert.match(
       source.slice(chooserIndex),
-      /selectedPileOptionKeysByLoadPoint:\s*mergeDefaultPileChoices\([\s\S]*?defaultPileSelectionPending:\s*false/,
+      /selectedPileConfigurationsByLoadPoint:\s*mergeDefaultPileChoices\([\s\S]*?defaultPileSelectionPending:\s*false/,
     );
   });
 
@@ -121,7 +121,32 @@ describe("React app startup", () => {
     const createEnd = source.indexOf("useEffect(() =>", createStart);
     const createHandler = source.slice(createStart, createEnd);
 
-    assert.match(createHandler, /pileOptionsByLoadPointId\.size !== snapshot\.loadPoints\.length/);
+    assert.match(createHandler, /technicalPileOptionsByLoadPointId\.size !== snapshot\.loadPoints\.length/);
+  });
+
+  it("chooses defaults from the full technical option set, independent of optimizer filters", () => {
+    const source = readFileSync(resolve(import.meta.dirname, "App.tsx"), "utf8");
+    const createStart = source.indexOf("const createFreshPilePlan");
+    const createEnd = source.indexOf("useEffect(() =>", createStart);
+    const createHandler = source.slice(createStart, createEnd);
+
+    assert.match(createHandler, /capturedTechnicalOptions = technicalPileOptionsByLoadPointId/);
+    assert.match(createHandler, /optionsByLoadPointId:\s*capturedTechnicalOptions/);
+    assert.doesNotMatch(createHandler, /activePileSizes|activePileTipLevels|isPileConfigurationActive/);
+  });
+
+  it("discards a fresh-plan default choice when its technical input changes", () => {
+    const source = readFileSync(resolve(import.meta.dirname, "App.tsx"), "utf8");
+    const createStart = source.indexOf("const createFreshPilePlan");
+    const createEnd = source.indexOf("useEffect(() =>", createStart);
+    const createHandler = source.slice(createStart, createEnd);
+
+    assert.match(createHandler, /capturedTechnicalOptions = technicalPileOptionsByLoadPointId/);
+    assert.match(createHandler, /capturedGroups = loadPointGroups\.groups/);
+    assert.match(createHandler, /current\.cptSelectionPreview !== snapshot\.cptSelectionPreview/);
+    assert.match(createHandler, /loadPointGroupsRef\.current !== capturedGroups/);
+    assert.match(createHandler, /current\.pileCostSettings !== snapshot\.pileCostSettings/);
+    assert.match(createHandler, /current\.pileHeadLevelM !== snapshot\.pileHeadLevelM/);
   });
 
   it("uses the working pile plan explorer instead of passive source rows", () => {

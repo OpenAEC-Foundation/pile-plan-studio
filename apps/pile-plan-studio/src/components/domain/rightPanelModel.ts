@@ -1,17 +1,28 @@
 import type { ProjectState } from "../../domain/projectState";
-import { filterActivePileOptions } from "../../domain/activePileConfigurations.ts";
+import type { AggregatedPileConfiguration } from "../../core/pileOptionAggregationContract.ts";
 import { getCptDisplayName } from "../../domain/cptDisplayName.ts";
 import { getSelectedCptTableModel } from "../../domain/cptSelectionTable.ts";
 import { formatNumber, formatOptionalNumber } from "../../domain/formatting.ts";
 import { getConfigurationStyle } from "../../viewer/legend.ts";
-import { aggregatePileOptionsForLoadPoints } from "../../domain/pileOptionAggregation.ts";
 import { getPileOptionStatus } from "../../domain/pileOptionStatus.ts";
 import type { PileOptionTableRow } from "../../domain/pileOptionTable.ts";
 import { renderPileSymbol } from "../../viewer/pileSymbols.ts";
-import type { Cpt, LegendItems, LoadPoint, PileConfigurationOption, SelectedCpt } from "../.././core/projectTypes.ts";
+import {
+  pileConfigurationToken,
+  samePileConfiguration,
+} from "../../core/pileConfigurationKey.ts";
+import type {
+  Cpt,
+  LegendItems,
+  LoadPoint,
+  PileConfigurationKey,
+  PileConfigurationOption,
+  SelectedCpt,
+} from "../.././core/projectTypes.ts";
 import { getEffectivePileOptionsByLoadPointId } from "./cptSettingsModel.ts";
 
 export type RenderablePileOptionTableRow = PileOptionTableRow & {
+  criticalLoadPointId: number | null;
   governingCptId: number | null;
   statusClassName: string;
   symbolHtml: string;
@@ -45,23 +56,10 @@ export function formatLoadPointPanelTitle(name: string): string {
   return /^load point\b/i.test(name.trim()) ? name.trim() : `Load point ${name.trim()}`;
 }
 
-export function getPileOptionsForSelectedLoadPoints(
+export function getPileOptionsByLoadPointIdForPanel(
   state: ProjectState,
-  selectedLoadPoints: LoadPoint[],
-): PileConfigurationOption[] {
-  const pileOptionsByLoadPointId = getEffectivePileOptionsByLoadPointId(state);
-  const options = selectedLoadPoints.length <= 1
-    ? selectedLoadPoints[0]
-      ? pileOptionsByLoadPointId.get(selectedLoadPoints[0].id) ?? []
-      : []
-    : aggregatePileOptionsForLoadPoints(
-      selectedLoadPoints.map((loadPoint) => pileOptionsByLoadPointId.get(loadPoint.id) ?? []),
-    );
-
-  return filterActivePileOptions(options, {
-    pileSizes: state.activePileSizes,
-    pileTipLevels: state.activePileTipLevels,
-  });
+): Map<number, PileConfigurationOption[]> {
+  return getEffectivePileOptionsByLoadPointId(state);
 }
 
 export function getChosenPileOptionKeyForSelection(
@@ -69,11 +67,13 @@ export function getChosenPileOptionKeyForSelection(
   selectedLoadPoints: LoadPoint[],
 ): string {
   const selectedKeys = selectedLoadPoints.map((loadPoint) =>
-    state.selectedPileOptionKeysByLoadPoint.get(loadPoint.id) ?? "",
+    state.selectedPileConfigurationsByLoadPoint.get(loadPoint.id),
   );
-  const firstKey = selectedKeys[0] ?? "";
+  const firstKey = selectedKeys[0];
 
-  return selectedKeys.every((key) => key === firstKey) ? firstKey : "";
+  return firstKey && selectedKeys.every((key) => samePileConfiguration(key, firstKey))
+    ? pileConfigurationToken(firstKey)
+    : "";
 }
 
 export function getSelectedCptOverviewModel(
@@ -94,25 +94,28 @@ export function getSelectedCptOverviewModel(
     })),
   );
   const pileOptionsByLoadPointId = getEffectivePileOptionsByLoadPointId(state);
-  const chosenKeys = loadPoints.map((loadPoint) => state.selectedPileOptionKeysByLoadPoint.get(loadPoint.id) ?? "");
-  const commonChosenKey = chosenKeys[0] && chosenKeys.every((key) => key === chosenKeys[0])
-    ? chosenKeys[0]
-    : "";
-  const showChosenPileCapacity = loadPoints.length === 1 || commonChosenKey !== "";
-  const chosenConfiguration = parseOptionKey(commonChosenKey);
+  const chosenConfigurations = loadPoints.map((loadPoint) =>
+    state.selectedPileConfigurationsByLoadPoint.get(loadPoint.id));
+  const firstChosenConfiguration = chosenConfigurations[0];
+  const chosenConfiguration = firstChosenConfiguration
+    && chosenConfigurations.every((configuration) =>
+      samePileConfiguration(configuration, firstChosenConfiguration))
+    ? firstChosenConfiguration
+    : null;
+  const showChosenPileCapacity = loadPoints.length === 1 || chosenConfiguration !== null;
 
   return {
     columns: [...table.columns, showChosenPileCapacity ? "Chosen pile FRD" : "Governing for"],
     rows: table.rows.map((row) => {
       const governingLoadPointCount = loadPoints.filter((loadPoint) => {
-        const chosenKey = state.selectedPileOptionKeysByLoadPoint.get(loadPoint.id) ?? "";
-        return findOptionByKey(pileOptionsByLoadPointId.get(loadPoint.id) ?? [], chosenKey)
+        const configuration = state.selectedPileConfigurationsByLoadPoint.get(loadPoint.id);
+        return findOptionByConfiguration(pileOptionsByLoadPointId.get(loadPoint.id) ?? [], configuration)
           ?.governing_cpt_id === row.cpt.id;
       }).length;
       const chosenPileCapacity = chosenConfiguration
         ? state.cptFrdRowsByCptId.get(row.cpt.id)?.find((capacity) => (
-            capacity.pile_size_mm === chosenConfiguration.pileSizeMm
-            && capacity.pile_tip_level_m === chosenConfiguration.pileTipLevelM
+            capacity.pile_size_mm === chosenConfiguration.pile_size_mm
+            && capacity.pile_tip_level_m === chosenConfiguration.pile_tip_level_mm / 1000
           ))?.frd_kn ?? null
         : null;
       return {
@@ -130,18 +133,12 @@ export function getSelectedCptOverviewModel(
   };
 }
 
-function findOptionByKey(options: PileConfigurationOption[], key: string): PileConfigurationOption | null {
-  const configuration = parseOptionKey(key);
+function findOptionByConfiguration(
+  options: PileConfigurationOption[],
+  configuration: PileConfigurationKey | undefined,
+): PileConfigurationOption | null {
   return configuration
-    ? options.find((option) => option.pile_size_mm === configuration.pileSizeMm
-      && option.pile_tip_level_m === configuration.pileTipLevelM) ?? null
-    : null;
-}
-
-function parseOptionKey(key: string): { pileSizeMm: number; pileTipLevelM: number } | null {
-  const [pileSizeMm, pileTipLevelM] = key.split("|").map(Number);
-  return Number.isFinite(pileSizeMm) && Number.isFinite(pileTipLevelM)
-    ? { pileSizeMm, pileTipLevelM }
+    ? options.find((option) => samePileConfiguration(option.configuration, configuration)) ?? null
     : null;
 }
 
@@ -213,7 +210,8 @@ export function getRenderablePileOptionRows(input: {
 }): RenderablePileOptionTableRow[] {
   return input.options.map((option) => {
     const status = getPileOptionStatus(option);
-    const governingCpt = option.governing_cpt_id
+    const isMissing = option.technicalStatus === "missing_capacity_data";
+    const governingCpt = !isMissing && option.governing_cpt_id
       ? input.cpts.find((cpt) => cpt.id === option.governing_cpt_id) ?? null
       : null;
     const governingLabel = governingCpt ? getCptDisplayName(governingCpt) : "-";
@@ -226,10 +224,15 @@ export function getRenderablePileOptionRows(input: {
     return {
       costLabel: cost === null ? "-" : formatCurrency(cost, input.currencyCode),
       costValue: cost,
-      frdLabel: formatOptionalNumber(option.governing_frd_kn, " kN"),
-      frdValue: option.governing_frd_kn,
+      totalCostLabel: cost === null ? "-" : formatCurrency(cost, input.currencyCode),
+      totalCostValue: cost,
+      frdLabel: isMissing ? "-" : formatOptionalNumber(option.governing_frd_kn, " kN"),
+      frdValue: isMissing ? null : option.governing_frd_kn,
       governingCptId: governingCpt?.id ?? null,
       governingLabel,
+      missingCptIds: sortedUniqueIds(option.missing_cpt_ids),
+      criticalLoadPointId: null,
+      criticalLoadPointLabel: "-",
       key,
       sizeLabel,
       sizeValue: option.pile_size_mm,
@@ -239,14 +242,80 @@ export function getRenderablePileOptionRows(input: {
       symbolLabel: `${sizeLabel} ${tipLabel}`,
       tipLabel,
       tipValue: option.pile_tip_level_m,
-      useLabel: formatOptionalNumber(option.utilization, "%", 100),
-      useValue: option.utilization,
+      useLabel: isMissing ? "-" : formatOptionalNumber(option.utilization, "%", 100),
+      useValue: isMissing ? null : option.utilization,
+      maxUseLabel: isMissing ? "-" : formatOptionalNumber(option.utilization, "%", 100),
+      maxUseValue: isMissing ? null : option.utilization,
     };
   });
 }
 
-export function optionKey(option: Pick<PileConfigurationOption, "pile_size_mm" | "pile_tip_level_m">): string {
-  return `${option.pile_size_mm}|${option.pile_tip_level_m}`;
+export function getRenderableAggregatedPileOptionRows(input: {
+  aggregates: AggregatedPileConfiguration[];
+  costsByOptionKey: Map<string, number | null>;
+  currencyCode?: string;
+  legend: LegendItems;
+  loadPoints: LoadPoint[];
+  selectedLoadPointCount: number;
+}): RenderablePileOptionTableRow[] {
+  return input.aggregates.map((aggregate) => {
+    const key = pileConfigurationToken(aggregate.configuration);
+    const unitCost = input.costsByOptionKey.get(key) ?? null;
+    const totalCost = unitCost === null ? null : unitCost * input.selectedLoadPointCount;
+    const criticalLoadPoint = aggregate.critical_load_point_id === null
+      ? null
+      : input.loadPoints.find(({ id }) => id === aggregate.critical_load_point_id) ?? null;
+    const pileSizeMm = aggregate.configuration.pile_size_mm;
+    const style = getConfigurationStyle({
+      pile_size_mm: pileSizeMm,
+      pile_tip_level_m: aggregate.pile_tip_level_m,
+    }, input.legend);
+    const status = aggregate.status === "valid"
+      ? { className: "is-ok", label: "OK" }
+      : aggregate.status === "missing"
+        ? { className: "is-missing", label: "Missing" }
+        : { className: "is-not-ok", label: "Insufficient capacity" };
+    const isMissing = aggregate.status === "missing";
+    const sizeLabel = `${formatNumber(pileSizeMm)} mm`;
+    const tipLabel = `${formatNumber(aggregate.pile_tip_level_m)} m`;
+
+    return {
+      costLabel: unitCost === null ? "-" : formatCurrency(unitCost, input.currencyCode),
+      costValue: unitCost,
+      totalCostLabel: totalCost === null ? "-" : formatCurrency(totalCost, input.currencyCode),
+      totalCostValue: totalCost,
+      useLabel: isMissing ? "-" : formatOptionalNumber(aggregate.maximum_utilization, "%", 100),
+      useValue: isMissing ? null : aggregate.maximum_utilization,
+      maxUseLabel: isMissing ? "-" : formatOptionalNumber(aggregate.maximum_utilization, "%", 100),
+      maxUseValue: isMissing ? null : aggregate.maximum_utilization,
+      governingCptId: isMissing ? null : aggregate.critical_governing_cpt_id,
+      governingLabel: "-",
+      frdLabel: isMissing ? "-" : formatOptionalNumber(aggregate.critical_governing_frd_kn, " kN"),
+      frdValue: isMissing ? null : aggregate.critical_governing_frd_kn,
+      criticalLoadPointId: isMissing ? null : criticalLoadPoint?.id ?? null,
+      criticalLoadPointLabel: isMissing ? "-" : criticalLoadPoint?.name || (
+        aggregate.critical_load_point_id === null ? "-" : `Load point ${aggregate.critical_load_point_id}`
+      ),
+      missingCptIds: sortedUniqueIds(aggregate.missing_cpt_ids),
+      key,
+      sizeLabel,
+      sizeValue: pileSizeMm,
+      statusClassName: status.className,
+      statusLabel: status.label,
+      symbolHtml: renderPileSymbol(style.symbol, style.color),
+      symbolLabel: `${sizeLabel} ${tipLabel}`,
+      tipLabel,
+      tipValue: aggregate.pile_tip_level_m,
+    };
+  });
+}
+
+function sortedUniqueIds(ids: number[]): number[] {
+  return [...new Set(ids.filter(Number.isFinite))].sort((left, right) => left - right);
+}
+
+export function optionKey(option: Pick<PileConfigurationOption, "configuration">): string {
+  return pileConfigurationToken(option.configuration);
 }
 
 export function formatCurrency(value: number, currencyCode = "EUR"): string {

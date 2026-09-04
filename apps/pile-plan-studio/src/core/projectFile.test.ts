@@ -110,7 +110,10 @@ describe("IFCPP project loading", () => {
     });
     assert.equal(data.cptSelectionSettingsByLoadPoint.get(1)?.monopolyDistanceM, 1);
     assert.equal(data.cptSelectionSettingsByLoadPoint.get(1)?.maxDistanceM, 25);
-    assert.equal(data.selectedPileOptionKeysByLoadPoint.get(1), "290|-18");
+    assert.deepEqual(data.selectedPileConfigurationsByLoadPoint.get(1), {
+      pile_size_mm: 290,
+      pile_tip_level_mm: -18_000,
+    });
     assert.deepEqual(data.manualCptIdsByLoadPoint.get(1), [10, 11]);
     assert.deepEqual(data.viewerUtilizationSettings, { minimum: 0, maximum: 1 });
     assert.equal(data.optimizationSettings.max_utilization, 1);
@@ -123,6 +126,28 @@ describe("IFCPP project loading", () => {
     assert.equal(data.symbolScalePercent, 100);
     assert.equal(data.foregroundLayer, "load-points");
     assert.equal(data.showGrid, true);
+    assert.equal(data.showTipLevelRegions, true);
+  });
+
+  it("round-trips tip-level region visibility without changing the schema version", () => {
+    const loaded = loadIfcppProjectData(projectFixture());
+    const saved = createIfcppProject({ ...loaded, showTipLevelRegions: true });
+    const restored = loadIfcppProjectData(saved);
+
+    assert.equal(saved.schema_version, 3);
+    assert.equal(saved.settings.viewer?.show_tip_level_regions, true);
+    assert.equal(restored.showTipLevelRegions, true);
+  });
+
+  it("preserves an explicitly hidden tip-level region setting", () => {
+    const project = projectFixture();
+    project.settings.viewer = { show_tip_level_regions: false };
+
+    const loaded = loadIfcppProjectData(project);
+    const saved = createIfcppProject(loaded);
+
+    assert.equal(loaded.showTipLevelRegions, false);
+    assert.equal(saved.settings.viewer?.show_tip_level_regions, false);
   });
 
   it("migrates schema two cost fields and writes schema three", () => {
@@ -145,6 +170,7 @@ describe("IFCPP project loading", () => {
       symbol_scale_percent: 100,
       foreground_layer: "load-points",
       show_grid: true,
+      show_tip_level_regions: true,
     });
   });
 
@@ -178,7 +204,10 @@ describe("IFCPP project loading", () => {
     assert.equal(data.activePilePlanId, "basis");
     assert.equal(data.pilePlans.length, 2);
     assert.deepEqual(data.pilePlans[0].lockedLoadPointIds, [1]);
-    assert.equal(data.selectedPileOptionKeysByLoadPoint.get(1), "290|-18");
+    assert.deepEqual(data.selectedPileConfigurationsByLoadPoint.get(1), {
+      pile_size_mm: 290,
+      pile_tip_level_mm: -18_000,
+    });
   });
 
   it("round-trips optimizer outcomes per pile plan", () => {
@@ -195,6 +224,10 @@ describe("IFCPP project loading", () => {
           optimization_unassigned: {
             "7": "configuration_limits",
             "8": "optimization_constraints",
+            "9": "no_valid_option",
+            "10": "group_member_without_valid_option",
+            "11": "no_common_group_configuration",
+            "12": "future_reason",
           },
         }],
         active_pile_plan_id: "basis",
@@ -277,7 +310,10 @@ describe("IFCPP project loading", () => {
     const data = loadIfcppProjectData(project);
 
     assert.equal(data.cptSelectionSettingsByLoadPoint.get(1)?.maxDistanceM, 25);
-    assert.equal(data.selectedPileOptionKeysByLoadPoint.get(1), "290|-18");
+    assert.deepEqual(data.selectedPileConfigurationsByLoadPoint.get(1), {
+      pile_size_mm: 290,
+      pile_tip_level_mm: -18_000,
+    });
     assert.deepEqual(data.manualCptIdsByLoadPoint.get(1), [10, 11]);
   });
 
@@ -332,7 +368,10 @@ describe("IFCPP project loading", () => {
     const loaded = loadIfcppProjectData(projectFixture());
     loaded.activePileSizes = [290];
     loaded.activePileTipLevels = [-18];
-    loaded.selectedPileOptionKeysByLoadPoint.set(1, "320|-19");
+    loaded.selectedPileConfigurationsByLoadPoint.set(1, {
+      pile_size_mm: 320,
+      pile_tip_level_mm: -19_000,
+    });
 
     const saved = createIfcppProject(loaded);
     const reloaded = loadIfcppProjectData(saved);
@@ -341,7 +380,10 @@ describe("IFCPP project loading", () => {
     assert.deepEqual(saved.settings.active_pile_tip_levels, [-18]);
     assert.deepEqual(reloaded.activePileSizes, [290]);
     assert.deepEqual(reloaded.activePileTipLevels, [-18]);
-    assert.equal(reloaded.selectedPileOptionKeysByLoadPoint.get(1), "320|-19");
+    assert.deepEqual(reloaded.selectedPileConfigurationsByLoadPoint.get(1), {
+      pile_size_mm: 320,
+      pile_tip_level_mm: -19_000,
+    });
   });
 
   it("creates a built-in legend when an older IFCPP file has no mapping", () => {
@@ -469,7 +511,10 @@ describe("IFCPP project loading", () => {
         manual_cpt_selections: legacy.user_state.manual_cpt_selections,
       },
     } as unknown as IfcppProject);
-    loaded.selectedPileOptionKeysByLoadPoint.set(1, "350|-20");
+    loaded.selectedPileConfigurationsByLoadPoint.set(1, {
+      pile_size_mm: 350,
+      pile_tip_level_mm: -20_000,
+    });
 
     const saved = createIfcppProject(loaded);
 
@@ -489,7 +534,10 @@ describe("IFCPP project loading", () => {
       [{ entity: "IfcPile" }],
     );
 
-    loaded.selectedPileOptionKeysByLoadPoint.set(1, "320|-18.5");
+    loaded.selectedPileConfigurationsByLoadPoint.set(1, {
+      pile_size_mm: 320,
+      pile_tip_level_mm: -18_500,
+    });
     const changed = createIfcppProject(loaded);
     assert.deepEqual(
       changed.user_state.pile_plans![0].selected_piles["1"].external_references,

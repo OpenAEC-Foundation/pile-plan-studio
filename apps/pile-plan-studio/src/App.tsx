@@ -8,9 +8,11 @@ import SettingsDialog, { applyTheme } from "./components/template/settings/Setti
 import FeedbackDialog from "./components/template/feedback/FeedbackDialog";
 import StatusBar from "./components/template/StatusBar";
 import InterfaceScaleNotice, { type InterfaceScaleNoticeValue } from "./components/template/InterfaceScaleNotice";
-import HistoryNotice from "./components/viewer/HistoryNotice";
+import ActionNotice, { type ActionNoticeTone } from "./components/viewer/ActionNotice";
 import PilePlanWorkspace from "./components/domain/PilePlanWorkspace";
 import RightPanel, { type RightTaskPanel } from "./components/domain/RightPanel";
+import { useLoadPointGroups } from "./components/domain/useLoadPointGroups.ts";
+import { useTechnicalAssignment } from "./components/domain/useTechnicalAssignment.ts";
 import ProjectInformationDialog from "./components/domain/ProjectInformationDialog";
 import UnsavedChangesDialog from "./components/domain/UnsavedChangesDialog.tsx";
 import PilePlanExplorer from "./components/domain/PilePlanExplorer.tsx";
@@ -18,6 +20,7 @@ import SourceDataViewer from "./components/domain/SourceDataViewer.tsx";
 import type { InputSourceKind } from "./domain/projectState.ts";
 import type { SourceLoadPointSelection } from "./domain/sourceTableModel.ts";
 import {
+  applyLoadPointGroupAssignmentCore,
   calculatePileCostCore,
   calculateProjectAnalysisCore,
   chooseDefaultPileOptionsCore,
@@ -27,10 +30,12 @@ import {
   importProjectFromFilesCore,
   refreshProjectFromFilesCore,
 } from "./core/coreClient";
+import type { PileConfigurationKey } from "./core/projectTypes.ts";
 import type { ImportSourceInput } from "./core/coreImportContract";
 import type { ProjectImportProperties } from "./components/domain/ProjectImportPanel.tsx";
 import type { ImportFileRole } from "./core/importFiles.ts";
 import { getImportSummary, loadIfcppProjectData } from "./core/projectFile";
+import { pileConfigurationToken } from "./core/pileConfigurationKey.ts";
 import { writeIfcppProjectCore } from "./core/coreClient";
 import { createInitialProjectState, type ProjectState } from "./domain/projectState";
 import { getSetting } from "./store";
@@ -39,7 +44,9 @@ import { buildGreedyOptimizationSettings } from "./domain/optimizationSettings";
 import {
   applyOptimizationResult,
   clampOptimizationLimits,
+  formatOptimizationDiagnostics,
   getOptimizationTargetIds,
+  isOptimizationDisabled,
 } from "./components/domain/optimizationPanelModel";
 import { switchRightPanelMode } from "./domain/selectionState";
 import {
@@ -124,6 +131,7 @@ import {
   applyCptSelectionPreviewResult,
   beginCptSelectionPreview,
   failCptSelectionPreview,
+  getEffectivePileOptionsByLoadPointId,
   getCptSelectionPreviewInput,
 } from "./components/domain/cptSettingsModel.ts";
 import {
@@ -137,6 +145,15 @@ import {
 const BUILT_IN_PILE_COST_DEFAULTS = loadIfcppProjectData(sampleProjectText).pileCostSettings;
 
 const POINTER_FOCUS_CONTROL_SELECTOR = "button, [role='option'], [role='tab'], [role='row'][tabindex='0']";
+
+function getLoadPointLockSignature(
+  pilePlans: ProjectState["pilePlans"],
+  activePilePlanId: ProjectState["activePilePlanId"],
+): string {
+  return getActiveLockedLoadPointIds(pilePlans, activePilePlanId)
+    .sort((left, right) => left - right)
+    .join(",");
+}
 
 function releasePointerActivatedControlFocus(event: ReactPointerEvent<HTMLDivElement>) {
   const target = event.target;
@@ -156,6 +173,12 @@ type AppBootstrap =
       initialStatusKey?: string;
       recoveryStore?: BrowserRecoveryStore;
     };
+
+type ActionNoticeValue = {
+  id: number;
+  message: string;
+  tone: ActionNoticeTone;
+};
 
 export default function App() {
   const { t } = useTranslation();
@@ -241,6 +264,60 @@ function AppSession({
     )),
   );
   const projectState = managedProject.present;
+  const projectStateRef = useRef(projectState);
+  projectStateRef.current = projectState;
+  const loadPointGroups = useLoadPointGroups(projectState.loadPoints);
+  const technicalPileOptionsByLoadPointId = useMemo(
+    () => getEffectivePileOptionsByLoadPointId(projectState),
+    [projectState.cptSelectionEditDraft, projectState.cptSelectionPreview, projectState.pileOptionsByLoadPointId],
+  );
+  const currentPreview = projectState.cptSelectionPreview?.draft === projectState.cptSelectionEditDraft
+    ? projectState.cptSelectionPreview
+    : null;
+  const technicalAssignmentInput = useMemo(() => (
+    loadPointGroups.pending
+      || loadPointGroups.error !== null
+      || projectState.analysisError !== null
+      || currentPreview?.status === "analyzing"
+      || currentPreview?.status === "failed"
+      || technicalPileOptionsByLoadPointId.size !== projectState.loadPoints.length
+      ? null
+      : {
+          groups: loadPointGroups.groups,
+          optionsByLoadPoint: technicalPileOptionsByLoadPointId,
+        }
+  ), [currentPreview?.status, loadPointGroups.error, loadPointGroups.groups, loadPointGroups.pending, projectState.analysisError, projectState.loadPoints.length, technicalPileOptionsByLoadPointId]);
+  const assessedTechnicalAssignment = useTechnicalAssignment(technicalAssignmentInput);
+  const technicalAssignment = useMemo(() => {
+    const upstreamError = projectState.analysisError
+      ?? loadPointGroups.error
+      ?? (currentPreview?.status === "failed" ? currentPreview.error : null);
+    if (upstreamError) {
+      return {
+        status: "error" as const,
+        assessment: null,
+        issuesByLoadPointId: new Map(),
+        error: upstreamError instanceof Error ? upstreamError : new Error(upstreamError),
+      };
+    }
+    if (technicalAssignmentInput === null) {
+      return {
+        status: "loading" as const,
+        assessment: null,
+        issuesByLoadPointId: new Map(),
+        error: null,
+      };
+    }
+    return assessedTechnicalAssignment;
+  }, [assessedTechnicalAssignment, currentPreview, loadPointGroups.error, projectState.analysisError, technicalAssignmentInput]);
+  const loadPointGroupsRef = useRef(loadPointGroups.groups);
+  loadPointGroupsRef.current = loadPointGroups.groups;
+  const pileAssignmentRequestIdRef = useRef(0);
+  const [pileAssignmentPending, setPileAssignmentPending] = useState(false);
+  const invalidatePileAssignmentRequests = useCallback(() => {
+    pileAssignmentRequestIdRef.current += 1;
+    setPileAssignmentPending(false);
+  }, []);
   const setProjectState = useCallback((update: SetStateAction<ProjectState>) => {
     dispatchProject({ type: "runtime", update });
   }, []);
@@ -250,9 +327,26 @@ function AppSession({
   const amendProjectState = useCallback((update: SetStateAction<ProjectState>) => {
     dispatchProject({ type: "amend", update });
   }, []);
-  const replaceProjectState = useCallback((state: ProjectState) => {
-    dispatchProject({ type: "replace", state });
+  const symbolScaleHistoryRef = useRef<"idle" | "commit" | "amend">("idle");
+  const beginSymbolScaleChange = useCallback(() => {
+    if (symbolScaleHistoryRef.current === "idle") symbolScaleHistoryRef.current = "commit";
   }, []);
+  const commitSymbolScaleChange = useCallback((symbolScalePercent: number) => {
+    const update = (current: ProjectState) => ({ ...current, symbolScalePercent });
+    if (symbolScaleHistoryRef.current === "amend") {
+      amendProjectState(update);
+      return;
+    }
+    commitProjectState(update);
+    if (symbolScaleHistoryRef.current === "commit") symbolScaleHistoryRef.current = "amend";
+  }, [amendProjectState, commitProjectState]);
+  const endSymbolScaleChange = useCallback(() => {
+    symbolScaleHistoryRef.current = "idle";
+  }, []);
+  const replaceProjectState = useCallback((state: ProjectState) => {
+    invalidatePileAssignmentRequests();
+    dispatchProject({ type: "replace", state });
+  }, [invalidatePileAssignmentRequests]);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [backstageOpen, setBackstageOpen] = useState(false);
   const [feedbackOpen, setFeedbackOpen] = useState(false);
@@ -288,6 +382,10 @@ function AppSession({
   )), [projectState.activePilePlanId, projectState.pilePlans]);
 
   useEffect(() => {
+    invalidatePileAssignmentRequests();
+  }, [invalidatePileAssignmentRequests, projectState.activePilePlanId]);
+
+  useEffect(() => {
     setLassoSelectionActive((active) => transitionLassoSelectionMode(active, {
       type: "editing-context",
       available: lassoSelectionAvailable,
@@ -310,16 +408,20 @@ function AppSession({
       statusMessageTimeoutRef.current = null;
     }, 3500);
   }, []);
-  const [historyNotice, setHistoryNotice] = useState({ id: 0, message: "" });
-  const historyNoticeIdRef = useRef(0);
-  const historyNoticeTimeoutRef = useRef<number | null>(null);
-  const showHistoryNotice = useCallback((message: string) => {
-    if (historyNoticeTimeoutRef.current !== null) window.clearTimeout(historyNoticeTimeoutRef.current);
-    historyNoticeIdRef.current += 1;
-    setHistoryNotice({ id: historyNoticeIdRef.current, message });
-    historyNoticeTimeoutRef.current = window.setTimeout(() => {
-      setHistoryNotice((current) => ({ ...current, message: "" }));
-      historyNoticeTimeoutRef.current = null;
+  const [actionNotice, setActionNotice] = useState<ActionNoticeValue>({
+    id: 0,
+    message: "",
+    tone: "neutral",
+  });
+  const actionNoticeIdRef = useRef(0);
+  const actionNoticeTimeoutRef = useRef<number | null>(null);
+  const showActionNotice = useCallback((message: string, tone: ActionNoticeTone = "neutral") => {
+    if (actionNoticeTimeoutRef.current !== null) window.clearTimeout(actionNoticeTimeoutRef.current);
+    actionNoticeIdRef.current += 1;
+    setActionNotice({ id: actionNoticeIdRef.current, message, tone });
+    actionNoticeTimeoutRef.current = window.setTimeout(() => {
+      setActionNotice((current) => ({ ...current, message: "" }));
+      actionNoticeTimeoutRef.current = null;
     }, 3500);
   }, []);
   const defaultSelectionRequestRef = useRef<typeof projectState.analysisRequest | null>(null);
@@ -392,14 +494,12 @@ function AppSession({
     ? t("history.redoLabel", { action: describeHistoryAction(historyTranslate, redoEntry.action) })
     : `${t("redo")} (Ctrl+Y)`;
   const availablePileConfigurations = useMemo(() => [
-    ...new Map(projectState.bearingCapacities.map((capacity) => {
-      const configuration = {
-        pile_size_mm: capacity.pile_size_mm,
-        pile_tip_level_m_key: Math.round(capacity.pile_tip_level_m * 1000),
-      };
-      return [`${configuration.pile_size_mm}|${configuration.pile_tip_level_m_key}`, configuration] as const;
-    })).values(),
-  ], [projectState.bearingCapacities]);
+    ...new Map(
+      [...projectState.pileOptionsByLoadPointId.values()]
+        .flat()
+        .map(({ configuration }) => [pileConfigurationToken(configuration), configuration] as const),
+    ).values(),
+  ], [projectState.pileOptionsByLoadPointId]);
   const persistedProject = projectFromState(projectState);
   const persistedProjectSignature = JSON.stringify(persistedProject);
   useEffect(() => {
@@ -420,7 +520,7 @@ function AppSession({
     if (initialStatusKey) showStatusMessage(t(initialStatusKey));
     return () => {
       if (statusMessageTimeoutRef.current !== null) window.clearTimeout(statusMessageTimeoutRef.current);
-      if (historyNoticeTimeoutRef.current !== null) window.clearTimeout(historyNoticeTimeoutRef.current);
+      if (actionNoticeTimeoutRef.current !== null) window.clearTimeout(actionNoticeTimeoutRef.current);
     };
   }, [initialStatusKey, showStatusMessage, t]);
 
@@ -461,8 +561,8 @@ function AppSession({
   useEffect(() => {
     const result = managedProject.lastResult;
     if (!result) return;
-    showHistoryNotice(describeHistoryResult(historyTranslate, result));
-  }, [historyTranslate, managedProject.lastResult, showHistoryNotice]);
+    showActionNotice(describeHistoryResult(historyTranslate, result), "neutral");
+  }, [historyTranslate, managedProject.lastResult, showActionNotice]);
 
   useEffect(() => {
     const handleHistoryShortcut = (event: KeyboardEvent) => {
@@ -485,13 +585,13 @@ function AppSession({
     synchronizeActivePilePlan(
       projectState.pilePlans,
       projectState.activePilePlanId,
-      projectState.selectedPileOptionKeysByLoadPoint,
+      projectState.selectedPileConfigurationsByLoadPoint,
     ),
     projectState.pileCostByOptionKey,
   ), [
     projectState.activePilePlanId,
     projectState.pilePlans,
-    projectState.selectedPileOptionKeysByLoadPoint,
+    projectState.selectedPileConfigurationsByLoadPoint,
     projectState.pileCostByOptionKey,
   ]);
 
@@ -611,8 +711,8 @@ function AppSession({
   };
 
   const handleProjectStateChange = (nextState: typeof projectState) => {
-    const pileChoicesChanged = nextState.selectedPileOptionKeysByLoadPoint
-      !== projectState.selectedPileOptionKeysByLoadPoint;
+    const pileChoicesChanged = nextState.selectedPileConfigurationsByLoadPoint
+      !== projectState.selectedPileConfigurationsByLoadPoint;
     commitProjectState(pileChoicesChanged ? {
       ...nextState,
       optimizationSummary: null,
@@ -642,6 +742,104 @@ function AppSession({
     handleProjectStateChange({ ...projectState, ...clearReactViewerSelection(projectState) });
   };
 
+  const applyGroupedPileConfiguration = async (
+    selectedLoadPointIds: number[],
+    requestedConfiguration: PileConfigurationKey | null,
+  ): Promise<void> => {
+    const groupsReady = !loadPointGroups.pending
+      && loadPointGroups.error === null
+      && (projectState.loadPoints.length === 0 || loadPointGroups.groups.length > 0);
+    if (!groupsReady || selectedLoadPointIds.length === 0) return;
+
+    pileAssignmentRequestIdRef.current += 1;
+    const requestId = pileAssignmentRequestIdRef.current;
+    const capturedActivePilePlanId = projectState.activePilePlanId;
+    const capturedAssignments = projectState.selectedPileConfigurationsByLoadPoint;
+    const capturedLoadPoints = projectState.loadPoints;
+    const capturedGroups = loadPointGroups.groups;
+    const capturedLockedLoadPointSignature = getLoadPointLockSignature(
+      projectState.pilePlans,
+      capturedActivePilePlanId,
+    );
+    const lockedLoadPointIds = getActiveLockedLoadPointIds(
+      projectState.pilePlans,
+      capturedActivePilePlanId,
+    );
+    setPileAssignmentPending(true);
+
+    try {
+      const result = await applyLoadPointGroupAssignmentCore({
+        selectedLoadPointIds,
+        groups: capturedGroups,
+        requestedConfiguration,
+        currentAssignments: capturedAssignments,
+        lockedLoadPointIds,
+      });
+      const latest = projectStateRef.current;
+      if (
+        requestId !== pileAssignmentRequestIdRef.current
+        || latest.activePilePlanId !== capturedActivePilePlanId
+        || latest.selectedPileConfigurationsByLoadPoint !== capturedAssignments
+        || loadPointGroupsRef.current !== capturedGroups
+        || getLoadPointLockSignature(latest.pilePlans, capturedActivePilePlanId)
+          !== capturedLockedLoadPointSignature
+      ) {
+        return;
+      }
+
+      if (result.status === "blocked") {
+        const names = result.blocking_locked_load_points.map(({ load_point_id }) =>
+          capturedLoadPoints.find(({ id }) => id === load_point_id)?.name ?? String(load_point_id));
+        showActionNotice(
+          t("loadPointGroups.assignmentBlocked", { names: names.join(", ") }),
+          "error",
+        );
+        return;
+      }
+
+      if (result.changes.length === 0) return;
+
+      commitProjectState((current) => {
+        if (
+          current.activePilePlanId !== capturedActivePilePlanId
+          || current.selectedPileConfigurationsByLoadPoint !== capturedAssignments
+          || loadPointGroupsRef.current !== capturedGroups
+          || getLoadPointLockSignature(current.pilePlans, capturedActivePilePlanId)
+            !== capturedLockedLoadPointSignature
+        ) {
+          return current;
+        }
+        const nextAssignments = new Map(capturedAssignments);
+        for (const change of result.changes) {
+          if (change.configuration) {
+            nextAssignments.set(change.load_point_id, { ...change.configuration });
+          } else {
+            nextAssignments.delete(change.load_point_id);
+          }
+        }
+        return {
+          ...current,
+          selectedPileConfigurationsByLoadPoint: nextAssignments,
+          pilePlans: synchronizeActivePilePlan(
+            current.pilePlans,
+            capturedActivePilePlanId,
+            nextAssignments,
+          ),
+          optimizationSummary: null,
+          optimizationError: null,
+        };
+      });
+    } catch (error) {
+      if (requestId === pileAssignmentRequestIdRef.current) {
+        showActionNotice(error instanceof Error ? error.message : String(error), "error");
+      }
+    } finally {
+      if (requestId === pileAssignmentRequestIdRef.current) {
+        setPileAssignmentPending(false);
+      }
+    }
+  };
+
   const importPilePlan = (patch: PilePlanImportPatch, fileName: string) => {
     commitProjectState((current) => applyPilePlanImportAsNewPlan(
       current,
@@ -654,6 +852,7 @@ function AppSession({
 
   const activatePilePlan = (pilePlanId: string) => {
     setActiveSourceKind(null);
+    invalidatePileAssignmentRequests();
     setProjectState((current) => {
       if (pilePlanId === current.activePilePlanId) return current;
       const transition = switchPilePlan({ ...current, targetPilePlanId: pilePlanId });
@@ -753,7 +952,7 @@ function AppSession({
       const synchronized = synchronizeActivePilePlan(
         current.pilePlans,
         current.activePilePlanId,
-        current.selectedPileOptionKeysByLoadPoint,
+        current.selectedPileConfigurationsByLoadPoint,
       );
       const pilePlans = renamePilePlan(synchronized, pilePlanId, name);
       if (pilePlans === synchronized || pilePlans.every((plan, index) => plan.name === synchronized[index]?.name)) {
@@ -787,31 +986,38 @@ function AppSession({
     if (creatingPilePlan) return;
     const snapshot = projectState;
     if (
-      snapshot.pileOptionsByLoadPointId.size !== snapshot.loadPoints.length
+      technicalPileOptionsByLoadPointId.size !== snapshot.loadPoints.length
       || snapshot.analysisError !== null
+      || loadPointGroups.pending
+      || loadPointGroups.error !== null
+      || (snapshot.loadPoints.length > 0 && loadPointGroups.groups.length === 0)
+      || technicalAssignment.status !== "ready"
     ) {
       return;
     }
+    const capturedTechnicalOptions = technicalPileOptionsByLoadPointId;
+    const capturedGroups = loadPointGroups.groups;
     setCreatingPilePlan(true);
     try {
-      const activeSizes = new Set(snapshot.activePileSizes);
-      const activeTips = new Set(snapshot.activePileTipLevels);
-      const optionsByLoadPointId = activeSizes.size === 0 || activeTips.size === 0
-        ? new Map<number, never[]>()
-        : new Map([...snapshot.pileOptionsByLoadPointId].map(([loadPointId, options]) => [
-            loadPointId,
-            options.filter((option) => activeSizes.has(option.pile_size_mm)
-              && activeTips.has(option.pile_tip_level_m)),
-          ]));
-      const choices = optionsByLoadPointId.size === 0
-        ? new Map<number, string>()
+      const choices = capturedTechnicalOptions.size === 0
+        ? new Map()
         : await chooseDefaultPileOptionsCore({
-            optionsByLoadPointId,
+            groups: capturedGroups,
+            optionsByLoadPointId: capturedTechnicalOptions,
             pileHeadLevelM: snapshot.pileHeadLevelM ?? 0,
             costSettings: snapshot.pileCostSettings,
           });
       commitProjectState((current) => {
-        if (current.analysisRequest !== snapshot.analysisRequest) return current;
+        if (
+          current.analysisRequest !== snapshot.analysisRequest
+          || current.pileOptionsByLoadPointId !== snapshot.pileOptionsByLoadPointId
+          || current.cptSelectionEditDraft !== snapshot.cptSelectionEditDraft
+          || current.cptSelectionPreview !== snapshot.cptSelectionPreview
+          || loadPointGroupsRef.current !== capturedGroups
+          || current.pileCostSettings !== snapshot.pileCostSettings
+          || current.pileHeadLevelM !== snapshot.pileHeadLevelM
+          || current.activePilePlanId !== snapshot.activePilePlanId
+        ) return current;
         return {
           ...current,
           ...createPilePlan({
@@ -972,6 +1178,9 @@ function AppSession({
     if (
       !projectState.defaultPileSelectionPending
       || projectState.pileOptionsByLoadPointId.size !== projectState.loadPoints.length
+      || loadPointGroups.pending
+      || loadPointGroups.error !== null
+      || (projectState.loadPoints.length > 0 && loadPointGroups.groups.length === 0)
     ) {
       return;
     }
@@ -982,6 +1191,7 @@ function AppSession({
     defaultSelectionRequestRef.current = analysisRequest;
 
     chooseDefaultPileOptionsCore({
+      groups: loadPointGroups.groups,
       optionsByLoadPointId: projectState.pileOptionsByLoadPointId,
       pileHeadLevelM: projectState.pileHeadLevelM ?? 0,
       costSettings: projectState.pileCostSettings,
@@ -990,8 +1200,8 @@ function AppSession({
         if (current.analysisRequest !== analysisRequest) return current;
         const next = {
           ...current,
-          selectedPileOptionKeysByLoadPoint: mergeDefaultPileChoices(
-            current.selectedPileOptionKeysByLoadPoint,
+          selectedPileConfigurationsByLoadPoint: mergeDefaultPileChoices(
+            current.selectedPileConfigurationsByLoadPoint,
             choices,
           ),
           defaultPileSelectionPending: false,
@@ -1025,6 +1235,9 @@ function AppSession({
     projectState.analysisRequest,
     projectState.defaultPileSelectionPending,
     projectState.loadPoints.length,
+    loadPointGroups.error,
+    loadPointGroups.groups,
+    loadPointGroups.pending,
     projectState.pileCostSettings,
     projectState.pileOptionsByLoadPointId,
   ]);
@@ -1077,24 +1290,18 @@ function AppSession({
       || targetLoadPointIds.length === 0
       || snapshot.activePileSizes.length === 0
       || snapshot.activePileTipLevels.length === 0
+      || loadPointGroups.pending
+      || loadPointGroups.error !== null
+      || (snapshot.loadPoints.length > 0 && loadPointGroups.groups.length === 0)
     ) {
       return;
     }
 
-    const currentAssignments = new Map(
-      [...snapshot.selectedPileOptionKeysByLoadPoint].flatMap(([loadPointId, key]) => {
-        const [pileSizeMm, pileTipLevelM] = key.split("|").map(Number);
-        return Number.isFinite(pileSizeMm) && Number.isFinite(pileTipLevelM)
-          ? [[
-              loadPointId,
-              {
-                pile_size_mm: pileSizeMm,
-                pile_tip_level_m_key: Math.round(pileTipLevelM * 1000),
-              },
-            ] as const]
-          : [];
-      }),
-    );
+    const activePilePlanId = snapshot.activePilePlanId;
+    const analysisRequest = snapshot.analysisRequest;
+    const currentAssignmentsIdentity = snapshot.selectedPileConfigurationsByLoadPoint;
+    const currentAssignments = new Map(currentAssignmentsIdentity);
+    const optimizationGroups = loadPointGroups.groups;
     const limits = clampOptimizationLimits({
       sizes: snapshot.optimizationSettings.max_pile_sizes,
       tips: snapshot.optimizationSettings.max_pile_tip_levels,
@@ -1119,26 +1326,55 @@ function AppSession({
       optimizationSettings: settings,
       optimizationRunning: true,
       optimizationError: null,
+      optimizationErrorLoadPointIds: [],
       optimizationSummary: null,
     }));
 
     try {
-      const result = await greedyOptimizeCore({
+      const outcome = await greedyOptimizeCore({
+        groups: loadPointGroups.groups,
         optionsByLoadPoint,
         targetLoadPointIds,
         lockedLoadPointIds,
         currentAssignments,
         limitScope: snapshot.optimizationLimitScope,
-        pileHeadLevelM: snapshot.pileHeadLevelM ?? 0,
+        pileHeadLevelM: snapshot.pileHeadLevelM,
         costSettings: snapshot.pileCostSettings,
         settings,
       });
+      const currentSnapshot = projectStateRef.current;
+      if (
+        currentSnapshot.analysisRequest !== analysisRequest
+        || currentSnapshot.activePilePlanId !== activePilePlanId
+        || currentSnapshot.selectedPileConfigurationsByLoadPoint !== currentAssignmentsIdentity
+        || loadPointGroupsRef.current !== optimizationGroups
+      ) {
+        setProjectState((current) => ({ ...current, optimizationRunning: false }));
+        return;
+      }
+      if (outcome.status === "blocked") {
+        setProjectState((current) => ({
+          ...current,
+          optimizationRunning: false,
+          optimizationError: formatOptimizationDiagnostics(
+            outcome.diagnostics,
+            (key, options) => t(key, options),
+          ),
+          optimizationErrorLoadPointIds: outcome.diagnostics[0]?.load_point_ids ?? [],
+          optimizationSummary: null,
+        }));
+        return;
+      }
       const applied = applyOptimizationResult({
-        previousChoices: snapshot.selectedPileOptionKeysByLoadPoint,
-        result,
+        previousChoices: snapshot.selectedPileConfigurationsByLoadPoint,
+        result: outcome.result,
       });
       commitProjectState((current) => {
-        if (current.analysisRequest !== snapshot.analysisRequest) return current;
+        if (
+          current.analysisRequest !== analysisRequest
+          || current.activePilePlanId !== activePilePlanId
+          || current.selectedPileConfigurationsByLoadPoint !== currentAssignmentsIdentity
+        ) return { ...current, optimizationRunning: false };
         const activePlan = current.pilePlans.find(
           (plan) => plan.id === current.activePilePlanId,
         ) ?? current.pilePlans[0];
@@ -1155,11 +1391,11 @@ function AppSession({
               language: pilePlanLanguage(),
             })
           : {
-              selectedPileOptionKeysByLoadPoint: applied.choices,
+              selectedPileConfigurationsByLoadPoint: applied.choices,
               pilePlans: current.pilePlans.map((plan) => plan.id === current.activePilePlanId
                 ? {
                     ...plan,
-                    selectedPileOptionKeysByLoadPoint: new Map(applied.choices),
+                    selectedPileConfigurationsByLoadPoint: new Map(applied.choices),
                     optimizationUnassignedByLoadPoint,
                   }
                 : plan),
@@ -1170,22 +1406,37 @@ function AppSession({
           optimizationSettings: settings,
           optimizationRunning: false,
           optimizationError: null,
+          optimizationErrorLoadPointIds: [],
           optimizationSummary: applied.summary,
         };
       });
     } catch (error) {
-      setProjectState((current) => current.analysisRequest !== snapshot.analysisRequest ? current : ({
-        ...current,
-        optimizationRunning: false,
-        optimizationError: error instanceof Error ? error.message : String(error),
-      }));
+      setProjectState((current) => (
+        current.analysisRequest !== analysisRequest
+        || current.activePilePlanId !== activePilePlanId
+        || current.selectedPileConfigurationsByLoadPoint !== currentAssignmentsIdentity
+        || loadPointGroupsRef.current !== optimizationGroups
+      ) ? { ...current, optimizationRunning: false } : ({
+          ...current,
+          optimizationRunning: false,
+          optimizationError: error instanceof Error ? error.message : String(error),
+          optimizationErrorLoadPointIds: [],
+        }));
     }
   };
 
-  const optimizationDisabled = projectState.optimizationRunning
-    || projectState.activePileSizes.length === 0
-    || projectState.activePileTipLevels.length === 0
-    || (projectState.optimizationTargetScope === "selected" && projectState.selectedLoadPointIds.length === 0);
+  const optimizationDisabled = isOptimizationDisabled({
+    optimizationRunning: projectState.optimizationRunning,
+    hasActivePileSizes: projectState.activePileSizes.length > 0,
+    hasActivePileTipLevels: projectState.activePileTipLevels.length > 0,
+    selectedTargetIsEmpty: projectState.optimizationTargetScope === "selected"
+      && projectState.selectedLoadPointIds.length === 0,
+    loadPointCount: projectState.loadPoints.length,
+    groupsPending: loadPointGroups.pending,
+    groupsError: loadPointGroups.error,
+    groupCount: loadPointGroups.groups.length,
+    technicalAssessmentStatus: technicalAssignment.status,
+  });
 
   const installOpenedProject = (project: ProjectState, path: string | null) => {
     setLassoSelectionActive((active) => transitionLassoSelectionMode(active, { type: "dismiss" }));
@@ -1290,12 +1541,12 @@ function AppSession({
           viewerUtilizationMaximum={projectState.viewerUtilizationSettings.maximum}
           foregroundLayer={projectState.foregroundLayer}
           showGrid={projectState.showGrid}
+          showTipLevelRegions={projectState.showTipLevelRegions}
           explorerVisible={workspaceLayout.explorerVisible}
           propertiesVisible={workspaceLayout.propertiesVisible}
-          onSymbolScaleChange={(symbolScalePercent) => handleProjectStateChange({
-            ...projectState,
-            symbolScalePercent,
-          })}
+          onSymbolScaleChangeStart={beginSymbolScaleChange}
+          onSymbolScaleChange={commitSymbolScaleChange}
+          onSymbolScaleChangeEnd={endSymbolScaleChange}
           onViewerUtilizationRangeChange={(minimum, maximum) => handleProjectStateChange({
             ...projectState,
             viewerUtilizationSettings: { minimum, maximum },
@@ -1307,6 +1558,10 @@ function AppSession({
           onGridVisibilityChange={(showGrid) => handleProjectStateChange({
             ...projectState,
             showGrid,
+          })}
+          onTipLevelRegionVisibilityChange={(showTipLevelRegions) => handleProjectStateChange({
+            ...projectState,
+            showTipLevelRegions,
           })}
           onExplorerVisibilityChange={(explorerVisible) => updateWorkspaceLayout({ explorerVisible })}
           onPropertiesVisibilityChange={(propertiesVisible) => updateWorkspaceLayout({ propertiesVisible })}
@@ -1359,6 +1614,8 @@ function AppSession({
             {activeSourceKind === null ? (
               <PilePlanWorkspace
                 state={projectState}
+                loadPointGroups={loadPointGroups.groups}
+                technicalAssignment={technicalAssignment}
                 lassoSelectionActive={lassoSelectionActive}
                 onStateChange={handleProjectStateChange}
               />
@@ -1382,7 +1639,11 @@ function AppSession({
                 }}
               />
             )}
-            <HistoryNotice message={historyNotice.message} noticeId={historyNotice.id} />
+            <ActionNotice
+              message={actionNotice.message}
+              noticeId={actionNotice.id}
+              tone={actionNotice.tone}
+            />
           </main>
           {workspaceLayout.propertiesVisible && <div
             aria-label={t("properties")}
@@ -1392,7 +1653,14 @@ function AppSession({
           />}
           {workspaceLayout.propertiesVisible && <RightPanel
             state={projectState}
+            loadPointGroups={loadPointGroups.groups}
+            technicalAssignment={technicalAssignment}
             onStateChange={handleProjectStateChange}
+            pileAssignmentPending={pileAssignmentPending
+              || loadPointGroups.pending
+              || loadPointGroups.error !== null
+              || (projectState.loadPoints.length > 0 && loadPointGroups.groups.length === 0)}
+            onApplyPileConfiguration={applyGroupedPileConfiguration}
             onRunOptimization={runGreedyOptimization}
             taskPanel={rightTaskPanel}
             onCloseTaskPanel={() => setRightTaskPanel(null)}
@@ -1613,7 +1881,7 @@ function projectFromState(state: ProjectState) {
 
 function isEditableTarget(target: EventTarget | null): boolean {
   return target instanceof HTMLElement && (
-    target.matches("input, textarea, select") || target.isContentEditable
+    target.matches("input:not([type='range']), textarea, select") || target.isContentEditable
   );
 }
 

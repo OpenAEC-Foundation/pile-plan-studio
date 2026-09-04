@@ -5,8 +5,12 @@ import type {
   SelectedCpt,
 } from "./projectTypes.ts";
 
-export type CorePileConfigurationOption = Omit<PileConfigurationOption, "isOption"> & {
+export type CorePileConfigurationOption = Omit<
+  PileConfigurationOption,
+  "isOption" | "technicalStatus"
+> & {
   is_option: boolean;
+  technical_status: PileConfigurationOption["technicalStatus"];
 };
 
 export type CoreProjectAnalysisResult = {
@@ -53,13 +57,15 @@ export function numericMap<T>(value: Map<number, T> | Record<string, T>): Map<nu
 
 export function fromCorePileOption(option: CorePileConfigurationOption): PileConfigurationOption {
   return {
+    configuration: { ...option.configuration },
     pile_size_mm: option.pile_size_mm,
     pile_tip_level_m: option.pile_tip_level_m,
     isOption: option.is_option,
     governing_cpt_id: normalizeOptionalNumber(option.governing_cpt_id),
     governing_frd_kn: normalizeOptionalNumber(option.governing_frd_kn),
     utilization: normalizeOptionalNumber(option.utilization),
-    missing_cpt_ids: option.missing_cpt_ids,
+    missing_cpt_ids: [...option.missing_cpt_ids],
+    technicalStatus: option.technical_status,
   };
 }
 

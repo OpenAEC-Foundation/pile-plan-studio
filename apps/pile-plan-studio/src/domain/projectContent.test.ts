@@ -6,6 +6,7 @@ import {
   captureProjectContent,
   normalizeProjectContentState,
   restoreProjectContent,
+  projectContentEquals,
 } from "./projectContent.ts";
 
 const sampleProjectText = readFileSync("../../sample_project/sample_project.ifcpp", "utf8");
@@ -29,22 +30,37 @@ describe("project content", () => {
     assert.equal("selectedCptsByLoadPointId" in content, false);
     assert.equal("viewport" in content, false);
     assert.equal("activePilePlanId" in content, false);
+    assert.equal(content.showTipLevelRegions, true);
+  });
+
+  it("treats tip-level region visibility as undoable project content", () => {
+    const state = normalizeProjectContentState(createInitialProjectState(
+      sampleProjectText,
+      { initializeDefaultPiles: false },
+    ));
+    const visible = captureProjectContent(state);
+    const hidden = captureProjectContent({ ...state, showTipLevelRegions: false });
+
+    assert.equal(projectContentEquals(hidden, visible), false);
   });
 
   it("normalizes active pile choices into the active plan without copying project inputs", () => {
     const state = createInitialProjectState(sampleProjectText, { initializeDefaultPiles: false });
-    const selectedPileOptionKeysByLoadPoint = new Map([[1, "320|-18.5"]]);
+    const selectedPileConfigurationsByLoadPoint = new Map([[1, {
+      pile_size_mm: 320,
+      pile_tip_level_mm: -18_500,
+    }]]);
 
     const normalized = normalizeProjectContentState({
       ...state,
-      selectedPileOptionKeysByLoadPoint,
+      selectedPileConfigurationsByLoadPoint,
     });
 
     assert.notEqual(normalized.pilePlans, state.pilePlans);
     assert.equal(
       normalized.pilePlans.find((plan) => plan.id === normalized.activePilePlanId)
-        ?.selectedPileOptionKeysByLoadPoint,
-      selectedPileOptionKeysByLoadPoint,
+        ?.selectedPileConfigurationsByLoadPoint,
+      selectedPileConfigurationsByLoadPoint,
     );
     assert.equal(normalized.loadPoints, state.loadPoints);
     assert.equal(normalized.cpts, state.cpts);
@@ -84,13 +100,16 @@ describe("project content", () => {
       ...first,
       id: "second",
       name: "Second",
-      selectedPileOptionKeysByLoadPoint: new Map([[1, "320|-18.5"]]),
+      selectedPileConfigurationsByLoadPoint: new Map([[1, {
+        pile_size_mm: 320,
+        pile_tip_level_mm: -18_500,
+      }]]),
     };
     const current = {
       ...state,
       pilePlans: [first, second],
       activePilePlanId: second.id,
-      selectedPileOptionKeysByLoadPoint: second.selectedPileOptionKeysByLoadPoint,
+      selectedPileConfigurationsByLoadPoint: second.selectedPileConfigurationsByLoadPoint,
     };
     const content = {
       ...captureProjectContent(current),
@@ -101,8 +120,8 @@ describe("project content", () => {
 
     assert.equal(restored.state.activePilePlanId, first.id);
     assert.equal(
-      restored.state.selectedPileOptionKeysByLoadPoint,
-      first.selectedPileOptionKeysByLoadPoint,
+      restored.state.selectedPileConfigurationsByLoadPoint,
+      first.selectedPileConfigurationsByLoadPoint,
     );
   });
 

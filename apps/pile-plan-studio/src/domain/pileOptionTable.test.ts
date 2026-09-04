@@ -2,11 +2,9 @@ import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 
 import {
-  FILTERABLE_PILE_OPTION_COLUMNS,
-  PILE_OPTION_COLUMNS,
-  SORTABLE_PILE_OPTION_COLUMNS,
   createEmptyPileOptionFilters,
   getNextPileOptionSortState,
+  getPileOptionColumns,
   getPileOptionFilterValues,
   getPileOptionTableRows,
   type PileOptionTableRow,
@@ -15,25 +13,21 @@ import {
 describe("pile option table", () => {
   const rows: PileOptionTableRow[] = [
     row({ key: "290|-18", costValue: 900, statusLabel: "OK", sizeValue: 290, tipValue: -18 }),
-    row({ key: "350|-20", costValue: 700, statusLabel: "Not OK", sizeValue: 350, tipValue: -20 }),
+    row({ key: "350|-20", costValue: 700, statusLabel: "Insufficient capacity", sizeValue: 350, tipValue: -20 }),
     row({ key: "320|-19", costValue: null, statusLabel: "Missing", sizeValue: 320, tipValue: -19 }),
   ];
 
-  it("defines the requested table column order", () => {
+  it("keeps governing CPT and FRd for a single location", () => {
     assert.deepEqual(
-      PILE_OPTION_COLUMNS.map((column) => column.label),
-      ["Symbol", "Size", "Tip", "Status", "Cost", "Use", "Governing", "R_c;net;d min"],
+      getPileOptionColumns(1).map((column) => column.key),
+      ["symbol", "size", "tip", "status", "cost", "use", "governing", "frd"],
     );
   });
 
-  it("does not sort or filter the symbol column", () => {
+  it("shows critical multiselection facts instead of averages and governing CPT", () => {
     assert.deepEqual(
-      SORTABLE_PILE_OPTION_COLUMNS.map((column) => column.key),
-      ["size", "tip", "status", "cost", "use", "governing", "frd"],
-    );
-    assert.deepEqual(
-      FILTERABLE_PILE_OPTION_COLUMNS.map((column) => column.key),
-      ["size", "tip", "status", "cost", "use", "governing", "frd"],
+      getPileOptionColumns(2).map((column) => column.key),
+      ["symbol", "size", "tip", "status", "totalCost", "maxUse", "criticalLoadPoint"],
     );
   });
 
@@ -78,7 +72,7 @@ describe("pile option table", () => {
   });
 
   it("lists unique filter values for a column", () => {
-    assert.deepEqual(getPileOptionFilterValues(rows, "status"), ["Missing", "Not OK", "OK"]);
+    assert.deepEqual(getPileOptionFilterValues(rows, "status"), ["Insufficient capacity", "Missing", "OK"]);
   });
 
   it("cycles sorting from ascending to descending to disabled", () => {
@@ -103,7 +97,10 @@ function row(input: {
     costValue: input.costValue,
     frdLabel: "800 kN",
     frdValue: 800,
+    criticalLoadPointId: 1,
+    criticalLoadPointLabel: "Load point 1",
     governingLabel: "CPT 1",
+    missingCptIds: [],
     key: input.key,
     sizeLabel: `${input.sizeValue} mm`,
     sizeValue: input.sizeValue,
@@ -111,6 +108,10 @@ function row(input: {
     symbolLabel: `${input.sizeValue} mm ${input.tipValue} m`,
     tipLabel: `${input.tipValue} m`,
     tipValue: input.tipValue,
+    totalCostLabel: input.costValue === null ? "-" : `${input.costValue}`,
+    totalCostValue: input.costValue,
+    maxUseLabel: "10%",
+    maxUseValue: 0.1,
     useLabel: "10%",
     useValue: 0.1,
   };

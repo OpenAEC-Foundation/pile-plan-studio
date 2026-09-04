@@ -21,6 +21,7 @@ export type ProjectContent = Pick<ProjectState,
   | "symbolScalePercent"
   | "foregroundLayer"
   | "showGrid"
+  | "showTipLevelRegions"
   | "pilePlans"
   | "manualCptIdsByLoadPoint"
   | "importLog"
@@ -51,6 +52,7 @@ const PROJECT_CONTENT_KEYS = [
   "symbolScalePercent",
   "foregroundLayer",
   "showGrid",
+  "showTipLevelRegions",
   "pilePlans",
   "manualCptIdsByLoadPoint",
   "importLog",
@@ -58,14 +60,14 @@ const PROJECT_CONTENT_KEYS = [
 
 export function normalizeProjectContentState(state: ProjectState): ProjectState {
   const active = state.pilePlans.find((plan) => plan.id === state.activePilePlanId);
-  if (!active || active.selectedPileOptionKeysByLoadPoint === state.selectedPileOptionKeysByLoadPoint) {
+  if (!active || active.selectedPileConfigurationsByLoadPoint === state.selectedPileConfigurationsByLoadPoint) {
     return state;
   }
 
   return {
     ...state,
     pilePlans: state.pilePlans.map((plan) => plan.id === state.activePilePlanId
-      ? { ...plan, selectedPileOptionKeysByLoadPoint: state.selectedPileOptionKeysByLoadPoint }
+      ? { ...plan, selectedPileConfigurationsByLoadPoint: state.selectedPileConfigurationsByLoadPoint }
       : plan),
   };
 }
@@ -119,7 +121,7 @@ export function restoreProjectContent(
             : content.bearingCapacities.length,
       })),
       activePilePlanId: active?.id ?? current.activePilePlanId,
-      selectedPileOptionKeysByLoadPoint: active?.selectedPileOptionKeysByLoadPoint ?? new Map(),
+      selectedPileConfigurationsByLoadPoint: active?.selectedPileConfigurationsByLoadPoint ?? new Map(),
       selectedLoadPointIds,
       selectedLoadPointId,
       selectedCptId: current.selectedCptId !== null && validCptIds.has(current.selectedCptId)
@@ -139,7 +141,7 @@ export function projectFromContent(
   return createIfcppProject({
     ...content,
     activePilePlanId: active?.id,
-    selectedPileOptionKeysByLoadPoint: active?.selectedPileOptionKeysByLoadPoint ?? new Map(),
+    selectedPileConfigurationsByLoadPoint: active?.selectedPileConfigurationsByLoadPoint ?? new Map(),
   });
 }
 

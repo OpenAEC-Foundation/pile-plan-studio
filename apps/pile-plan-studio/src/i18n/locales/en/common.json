@@ -49,6 +49,9 @@
       "project-change": "Changed the project"
     }
   },
+  "loadPointGroups": {
+    "assignmentBlocked": "Not changed: locked load point(s) {{names}} use another or no pile configuration."
+  },
   "search": "Search",
   "find": "Find",
   "open": "Open",
@@ -76,6 +79,15 @@
   "properties": "Properties",
   "viewer": {
     "optimizerUnassigned": "The last optimization did not find an assignment within the configured limits.",
+    "unselected": {
+      "pending": "Pile options are being assessed.",
+      "analysis-error": "Pile options could not be assessed.",
+      "unavailable": "No usable bearing-capacity configurations are available.",
+      "missing-capacity-data": "No valid pile option is available because bearing-capacity data is missing.",
+      "insufficient-capacity": "No valid pile option has sufficient capacity.",
+      "optimizer-unassigned": "The last optimization did not find an assignment within the configured limits.",
+      "unassigned": "No pile has been assigned."
+    },
     "hover": {
       "loadPoint": "Load point",
       "cpt": "CPT",

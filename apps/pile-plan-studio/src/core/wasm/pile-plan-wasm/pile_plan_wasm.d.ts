@@ -1,6 +1,16 @@
 /* tslint:disable */
 /* eslint-disable */
 
+export function aggregate_pile_options(request: any): any;
+
+export function apply_load_point_group_assignment(request: any): any;
+
+export function assess_technical_assignment(request: any): any;
+
+export function build_spatial_neighborhood(request: any): any;
+
+export function build_tip_level_region_topology(request: any): any;
+
 export function calculate_pile_option_cost(request: any): any;
 
 export function calculate_pile_options(request: any): any;
@@ -14,6 +24,8 @@ export function choose_default_option(request: any): any;
 export function choose_default_options(request: any): any;
 
 export function cpt_frd_rows(request: any): any;
+
+export function derive_load_point_groups(request: any): any;
 
 export function export_pile_plan_csv(request: any): Uint8Array;
 
@@ -35,6 +47,11 @@ export type InitInput = RequestInfo | URL | Response | BufferSource | WebAssembl
 
 export interface InitOutput {
     readonly memory: WebAssembly.Memory;
+    readonly aggregate_pile_options: (a: any) => [number, number, number];
+    readonly apply_load_point_group_assignment: (a: any) => [number, number, number];
+    readonly assess_technical_assignment: (a: any) => [number, number, number];
+    readonly build_spatial_neighborhood: (a: any) => [number, number, number];
+    readonly build_tip_level_region_topology: (a: any) => [number, number, number];
     readonly calculate_pile_option_cost: (a: any) => [number, number, number];
     readonly calculate_pile_options: (a: any) => [number, number, number];
     readonly calculate_project_analysis: (a: any) => [number, number, number];
@@ -42,6 +59,7 @@ export interface InitOutput {
     readonly choose_default_option: (a: any) => [number, number, number];
     readonly choose_default_options: (a: any) => [number, number, number];
     readonly cpt_frd_rows: (a: any) => [number, number, number];
+    readonly derive_load_point_groups: (a: any) => [number, number, number];
     readonly export_pile_plan_csv: (a: any) => [number, number, number, number];
     readonly export_pile_plan_xlsx: (a: any) => [number, number, number, number];
     readonly greedy_optimize: (a: any) => [number, number, number];

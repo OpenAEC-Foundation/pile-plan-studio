@@ -21,6 +21,7 @@ describe("createInitialProjectState", () => {
     assert.equal(state.defaultPileSelectionPending, true);
     assert.equal(state.symbolScalePercent, 100);
     assert.equal(state.foregroundLayer, "load-points");
+    assert.equal(state.showTipLevelRegions, true);
     assert.equal(state.optimizationCreatesPilePlan, true);
   });
 
@@ -37,6 +38,11 @@ describe("createInitialProjectState", () => {
     assert.equal(state.symbolScalePercent, 145);
     assert.equal(state.foregroundLayer, "cpts");
     assert.equal(state.showGrid, false);
+    assert.equal(state.showTipLevelRegions, true);
+
+    project.settings.viewer.show_tip_level_regions = false;
+    const hiddenState = createInitialProjectState(project, { initializeDefaultPiles: false });
+    assert.equal(hiddenState.showTipLevelRegions, false);
   });
 
   it("preserves stored IFCPP choices without scheduling default selection", () => {
@@ -48,7 +54,10 @@ describe("createInitialProjectState", () => {
     const state = createInitialProjectState(project, { initializeDefaultPiles: false });
 
     assert.equal(state.defaultPileSelectionPending, false);
-    assert.equal(state.selectedPileOptionKeysByLoadPoint.get(1), "290|-18");
+    assert.deepEqual(state.selectedPileConfigurationsByLoadPoint.get(1), {
+      pile_size_mm: 290,
+      pile_tip_level_mm: -18_000,
+    });
   });
 
   it("uses a localized base-plan name for a newly imported project", () => {
@@ -89,7 +98,10 @@ describe("createInitialProjectState", () => {
 
     assert.equal(state.activePilePlanId, "active");
     assert.equal(state.pilePlans.length, 2);
-    assert.equal(state.selectedPileOptionKeysByLoadPoint.get(1), "320|-18.5");
+    assert.deepEqual(state.selectedPileConfigurationsByLoadPoint.get(1), {
+      pile_size_mm: 320,
+      pile_tip_level_mm: -18_500,
+    });
   });
 
   it("summarizes imported project sources for the project explorer", () => {

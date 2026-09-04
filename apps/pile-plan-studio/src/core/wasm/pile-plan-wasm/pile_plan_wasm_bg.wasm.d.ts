@@ -1,6 +1,11 @@
 /* tslint:disable */
 /* eslint-disable */
 export const memory: WebAssembly.Memory;
+export const aggregate_pile_options: (a: any) => [number, number, number];
+export const apply_load_point_group_assignment: (a: any) => [number, number, number];
+export const assess_technical_assignment: (a: any) => [number, number, number];
+export const build_spatial_neighborhood: (a: any) => [number, number, number];
+export const build_tip_level_region_topology: (a: any) => [number, number, number];
 export const calculate_pile_option_cost: (a: any) => [number, number, number];
 export const calculate_pile_options: (a: any) => [number, number, number];
 export const calculate_project_analysis: (a: any) => [number, number, number];
@@ -8,6 +13,7 @@ export const calculate_selected_cpts: (a: any) => [number, number, number];
 export const choose_default_option: (a: any) => [number, number, number];
 export const choose_default_options: (a: any) => [number, number, number];
 export const cpt_frd_rows: (a: any) => [number, number, number];
+export const derive_load_point_groups: (a: any) => [number, number, number];
 export const export_pile_plan_csv: (a: any) => [number, number, number, number];
 export const export_pile_plan_xlsx: (a: any) => [number, number, number, number];
 export const greedy_optimize: (a: any) => [number, number, number];

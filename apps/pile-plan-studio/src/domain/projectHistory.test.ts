@@ -93,7 +93,7 @@ function content(name: string): ProjectContent {
     pilePlans: [{
       id: "plan-1",
       name: "Plan 1",
-      selectedPileOptionKeysByLoadPoint: new Map(),
+      selectedPileConfigurationsByLoadPoint: new Map(),
       externalReferencesByLoadPoint: new Map(),
       lockedLoadPointIds: [],
       optimizationUnassignedByLoadPoint: new Map(),

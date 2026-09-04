@@ -4,7 +4,8 @@ import {
   formatLoadPointPanelTitle,
   getCptFrdPanelModel,
   getChosenPileOptionKeyForSelection,
-  getPileOptionsForSelectedLoadPoints,
+  getPileOptionsByLoadPointIdForPanel,
+  getRenderableAggregatedPileOptionRows,
   getRenderablePileOptionRows,
   getSelectedCptOverviewModel,
   getSelectedLoadPoints,
@@ -23,7 +24,7 @@ describe("React right panel model", () => {
 
   it("builds renderable pile option rows with status, governing CPT, and cost", () => {
     const state = minimalState({
-      pileCostByOptionKey: new Map([["290|-17.5", 1234]]),
+      pileCostByOptionKey: new Map([["290|-17500", 1234]]),
     });
 
     const rows = getRenderablePileOptionRows({
@@ -32,6 +33,7 @@ describe("React right panel model", () => {
       currencyCode: "GBP",
       options: [
         {
+          configuration: { pile_size_mm: 290, pile_tip_level_mm: -17_500 },
           pile_size_mm: 290,
           pile_tip_level_m: -17.5,
           isOption: true,
@@ -39,6 +41,7 @@ describe("React right panel model", () => {
           governing_frd_kn: 900,
           utilization: 0.75,
           missing_cpt_ids: [],
+          technicalStatus: "valid",
         },
       ],
       selectedLoadPointCount: 1,
@@ -57,7 +60,7 @@ describe("React right panel model", () => {
       },
     });
 
-    assert.equal(rows[0].key, "290|-17.5");
+    assert.equal(rows[0].key, "290|-17500");
     assert.equal(rows[0].statusLabel, "OK");
     assert.equal(rows[0].governingLabel, "CPT 64");
     assert.equal(rows[0].governingCptId, 64);
@@ -73,6 +76,7 @@ describe("React right panel model", () => {
       cpts: [{ id: 64, name: "", x_mm: 0, y_mm: 0 }],
       costsByOptionKey: new Map(),
       options: [{
+        configuration: { pile_size_mm: 290, pile_tip_level_mm: -17_500 },
         pile_size_mm: 290,
         pile_tip_level_m: -17.5,
         isOption: true,
@@ -80,6 +84,7 @@ describe("React right panel model", () => {
         governing_frd_kn: 900,
         utilization: 0.75,
         missing_cpt_ids: [],
+        technicalStatus: "valid",
       }],
       selectedLoadPointCount: 1,
       legend: {
@@ -101,22 +106,108 @@ describe("React right panel model", () => {
     assert.equal(rows[0].governingCptId, 64);
   });
 
+  it("builds multi-selection rows with total cost, maximum use, and critical location", () => {
+    const state = minimalState({
+      pileCostByOptionKey: new Map([["320|-18500", 1200]]),
+    });
+    const rows = getRenderableAggregatedPileOptionRows({
+      aggregates: [{
+        configuration: { pile_size_mm: 320, pile_tip_level_mm: -18_500 },
+        pile_tip_level_m: -18.5,
+        status: "valid",
+        missing_load_point_ids: [],
+        missing_cpt_ids: [],
+        invalid_load_point_ids: [],
+        maximum_utilization: 0.9,
+        critical_load_point_id: 2,
+        critical_governing_cpt_id: 64,
+        critical_governing_frd_kn: 900,
+      }],
+      costsByOptionKey: state.pileCostByOptionKey,
+      currencyCode: "EUR",
+      legend: state.pileLegend,
+      loadPoints: state.loadPoints,
+      selectedLoadPointCount: 3,
+    });
+
+    assert.equal(rows[0].totalCostLabel, "€3,600");
+    assert.equal(rows[0].maxUseLabel, "90%");
+    assert.equal(rows[0].criticalLoadPointLabel, "Load point 2");
+    assert.equal(rows[0].criticalLoadPointId, 2);
+  });
+
+  it("keeps total cost but suppresses inconclusive metrics for a missing aggregate", () => {
+    const rows = getRenderableAggregatedPileOptionRows({
+      aggregates: [{
+        configuration: { pile_size_mm: 320, pile_tip_level_mm: -18_500 },
+        pile_tip_level_m: -18.5,
+        status: "missing",
+        missing_load_point_ids: [2],
+        missing_cpt_ids: [62, 61, 62],
+        invalid_load_point_ids: [],
+        maximum_utilization: null,
+        critical_load_point_id: null,
+        critical_governing_cpt_id: null,
+        critical_governing_frd_kn: null,
+      }],
+      costsByOptionKey: new Map([["320|-18500", 600]]),
+      legend: minimalState().pileLegend,
+      loadPoints: minimalState().loadPoints,
+      selectedLoadPointCount: 2,
+    });
+
+    assert.equal(rows[0].totalCostLabel, "€1,200");
+    assert.equal(rows[0].maxUseValue, null);
+    assert.equal(rows[0].maxUseLabel, "-");
+    assert.deepEqual(rows[0].missingCptIds, [61, 62]);
+    assert.equal(rows[0].criticalLoadPointLabel, "-");
+  });
+
+  it("suppresses inconclusive single-location metrics for missing capacity data", () => {
+    const rows = getRenderablePileOptionRows({
+      cpts: [{ id: 64, name: "CPT 64", x_mm: 0, y_mm: 0 }],
+      costsByOptionKey: new Map([["290|-17500", 500]]),
+      options: [{
+        configuration: { pile_size_mm: 290, pile_tip_level_mm: -17_500 },
+        pile_size_mm: 290,
+        pile_tip_level_m: -17.5,
+        isOption: false,
+        governing_cpt_id: 64,
+        governing_frd_kn: 900,
+        utilization: 0.75,
+        missing_cpt_ids: [62, 61, 62],
+        technicalStatus: "missing_capacity_data",
+      }],
+      selectedLoadPointCount: 1,
+      legend: minimalState().pileLegend,
+    });
+
+    assert.equal(rows[0].costValue, 500);
+    assert.equal(rows[0].useValue, null);
+    assert.equal(rows[0].useLabel, "-");
+    assert.equal(rows[0].governingCptId, null);
+    assert.equal(rows[0].governingLabel, "-");
+    assert.equal(rows[0].frdValue, null);
+    assert.equal(rows[0].frdLabel, "-");
+    assert.deepEqual(rows[0].missingCptIds, [61, 62]);
+  });
+
   it("uses a shared chosen option key only when all selected load points match", () => {
     const state = minimalState({
       selectedLoadPointIds: [1, 2],
-      selectedPileOptionKeysByLoadPoint: new Map([
-        [1, "290|-17.5"],
-        [2, "290|-17.5"],
+      selectedPileConfigurationsByLoadPoint: new Map([
+        [1, { pile_size_mm: 290, pile_tip_level_mm: -17_500 }],
+        [2, { pile_size_mm: 290, pile_tip_level_mm: -17_500 }],
       ]),
     });
 
-    assert.equal(getChosenPileOptionKeyForSelection(state, getSelectedLoadPoints(state)), "290|-17.5");
+    assert.equal(getChosenPileOptionKeyForSelection(state, getSelectedLoadPoints(state)), "290|-17500");
 
     const mixed = minimalState({
       selectedLoadPointIds: [1, 2],
-      selectedPileOptionKeysByLoadPoint: new Map([
-        [1, "290|-17.5"],
-        [2, "320|-18"],
+      selectedPileConfigurationsByLoadPoint: new Map([
+        [1, { pile_size_mm: 290, pile_tip_level_mm: -17_500 }],
+        [2, { pile_size_mm: 320, pile_tip_level_mm: -18_000 }],
       ]),
     });
 
@@ -124,7 +215,9 @@ describe("React right panel model", () => {
   });
 
   it("builds stable pile option keys", () => {
-    assert.equal(optionKey({ pile_size_mm: 350, pile_tip_level_m: -20.3 }), "350|-20.3");
+    assert.equal(optionKey({
+      configuration: { pile_size_mm: 350, pile_tip_level_mm: -20_300 },
+    }), "350|-20300");
   });
 
   it("does not duplicate the load point prefix in panel titles", () => {
@@ -147,8 +240,12 @@ describe("React right panel model", () => {
           label: "upper left",
         }]],
       ]),
-      selectedPileOptionKeysByLoadPoint: new Map([[1, "290|-17.5"]]),
+      selectedPileConfigurationsByLoadPoint: new Map([[
+        1,
+        { pile_size_mm: 290, pile_tip_level_mm: -17_500 },
+      ]]),
       pileOptionsByLoadPointId: new Map([[1, [{
+        configuration: { pile_size_mm: 290, pile_tip_level_mm: -17_500 },
         pile_size_mm: 290,
         pile_tip_level_m: -17.5,
         isOption: true,
@@ -194,10 +291,13 @@ describe("React right panel model", () => {
         [1, [{ cpt: cpt64, distance_mm: 1000, label: "upper left" }]],
         [2, [{ cpt: cpt64, distance_mm: 2000, label: "lower right" }, { cpt: cpt65, distance_mm: 3000, label: "upper right" }]],
       ]),
-      selectedPileOptionKeysByLoadPoint: new Map([[1, "290|-17.5"], [2, "320|-18"]]),
+      selectedPileConfigurationsByLoadPoint: new Map([
+        [1, { pile_size_mm: 290, pile_tip_level_mm: -17_500 }],
+        [2, { pile_size_mm: 320, pile_tip_level_mm: -18_000 }],
+      ]),
       pileOptionsByLoadPointId: new Map([
-        [1, [{ pile_size_mm: 290, pile_tip_level_m: -17.5, isOption: true, governing_cpt_id: 64, governing_frd_kn: 693, utilization: 0.8, missing_cpt_ids: [] }]],
-        [2, [{ pile_size_mm: 320, pile_tip_level_m: -18, isOption: true, governing_cpt_id: 65, governing_frd_kn: 800, utilization: 0.7, missing_cpt_ids: [] }]],
+        [1, [{ configuration: { pile_size_mm: 290, pile_tip_level_mm: -17_500 }, pile_size_mm: 290, pile_tip_level_m: -17.5, isOption: true, governing_cpt_id: 64, governing_frd_kn: 693, utilization: 0.8, missing_cpt_ids: [] }]],
+        [2, [{ configuration: { pile_size_mm: 320, pile_tip_level_mm: -18_000 }, pile_size_mm: 320, pile_tip_level_m: -18, isOption: true, governing_cpt_id: 65, governing_frd_kn: 800, utilization: 0.7, missing_cpt_ids: [] }]],
       ]),
     });
 
@@ -210,8 +310,8 @@ describe("React right panel model", () => {
     ]);
   });
 
-  it("uses a ready CPT draft preview for pile feasibility", () => {
-    const savedOption = { pile_size_mm: 290, pile_tip_level_m: -17.5, isOption: true, governing_cpt_id: 64, governing_frd_kn: 900, utilization: 0.5, missing_cpt_ids: [] };
+  it("uses a ready CPT draft preview as the panel option source", () => {
+    const savedOption = { configuration: { pile_size_mm: 290, pile_tip_level_mm: -17_500 }, pile_size_mm: 290, pile_tip_level_m: -17.5, isOption: true, governing_cpt_id: 64, governing_frd_kn: 900, utilization: 0.5, missing_cpt_ids: [] };
     const previewOption = { ...savedOption, governing_cpt_id: 65, governing_frd_kn: 600, utilization: 0.75 };
     const draft = {
       loadPointIds: [1],
@@ -228,7 +328,7 @@ describe("React right panel model", () => {
       selectedCptsByLoadPointId: new Map(),
     };
 
-    const options = getPileOptionsForSelectedLoadPoints(state, getSelectedLoadPoints(state));
+    const options = getPileOptionsByLoadPointIdForPanel(state).get(1) ?? [];
 
     assert.equal(options[0].governing_cpt_id, 65);
     assert.equal(options[0].utilization, 0.75);
@@ -360,6 +460,8 @@ function minimalState(overrides: Partial<ProjectState> = {}): ProjectState {
     defaultPileSelectionPending: false,
     bearingCapacities: [],
     bounds: { minX: 0, maxX: 1, minY: 0, maxY: 1 },
+    cptSelectionEditDraft: null,
+    cptSelectionPreview: null,
     cptSelectionSettingsByLoadPoint: new Map(),
     cptFrdRowsByCptId: new Map(),
     cpts: [{ id: 64, name: "CPT 64", x_mm: 0, y_mm: 0 }],
@@ -398,7 +500,7 @@ function minimalState(overrides: Partial<ProjectState> = {}): ProjectState {
     selectedCptsByLoadPointId: new Map(),
     selectedLoadPointId: 1,
     selectedLoadPointIds: [1],
-    selectedPileOptionKeysByLoadPoint: new Map(),
+    selectedPileConfigurationsByLoadPoint: new Map(),
     viewport: { scale: 1, offsetX: 0, offsetY: 0 },
     ...overrides,
   };

@@ -1,6 +1,7 @@
 import type { PilePlanImportPatch, PilePlanImportedValue } from "../core/pilePlanImportContract.ts";
 import type { PilePlanData } from "../core/projectFile.ts";
 import type { PileConfigurationKey } from "../core/projectTypes.ts";
+import { samePileConfiguration } from "../core/pileConfigurationKey.ts";
 import type { ProjectState } from "./projectState.ts";
 import { nextPilePlanId, synchronizeActivePilePlan } from "./pilePlanManagement.ts";
 
@@ -18,15 +19,15 @@ export function applyPilePlanImportAsNewPlan(
   const pilePlans = synchronizeActivePilePlan(
     state.pilePlans,
     state.activePilePlanId,
-    state.selectedPileOptionKeysByLoadPoint,
+    state.selectedPileConfigurationsByLoadPoint,
   );
   const source = pilePlans.find((plan) => plan.id === state.activePilePlanId) ?? pilePlans[0];
   const patched = applyPilePlanImportPatch({ ...state, pilePlans }, patch);
-  const choices = new Map(patched.selectedPileOptionKeysByLoadPoint);
+  const choices = new Map(patched.selectedPileConfigurationsByLoadPoint);
   const created: PilePlanData = {
     id: nextPilePlanId(pilePlans),
     name: uniquePilePlanName(pilePlans, requestedName),
-    selectedPileOptionKeysByLoadPoint: choices,
+    selectedPileConfigurationsByLoadPoint: choices,
     externalReferencesByLoadPoint: source
       ? unchangedExternalReferences(source, choices)
       : new Map(),
@@ -43,7 +44,7 @@ export function applyPilePlanImportAsNewPlan(
     ...patched,
     pilePlans: [...pilePlans, created],
     activePilePlanId: created.id,
-    selectedPileOptionKeysByLoadPoint: new Map(choices),
+    selectedPileConfigurationsByLoadPoint: new Map(choices),
   };
 }
 
@@ -51,15 +52,15 @@ export function applyPilePlanImportPatch(
   state: ProjectState,
   patch: PilePlanImportPatch,
 ): ProjectState {
-  let pileChoices = state.selectedPileOptionKeysByLoadPoint;
+  let pileChoices = state.selectedPileConfigurationsByLoadPoint;
   let manualCptSelections = state.manualCptIdsByLoadPoint;
 
   for (const change of patch.changes) {
     if (change.pile.action !== "preserve") {
-      if (pileChoices === state.selectedPileOptionKeysByLoadPoint) {
+      if (pileChoices === state.selectedPileConfigurationsByLoadPoint) {
         pileChoices = new Map(pileChoices);
       }
-      applyImportedValue(pileChoices, change.load_point_id, change.pile, pileOptionKey);
+      applyImportedValue(pileChoices, change.load_point_id, change.pile, (pile) => ({ ...pile }));
     }
 
     if (change.manual_cpt_ids.action !== "preserve") {
@@ -76,7 +77,7 @@ export function applyPilePlanImportPatch(
   }
 
   if (
-    pileChoices === state.selectedPileOptionKeysByLoadPoint &&
+    pileChoices === state.selectedPileConfigurationsByLoadPoint &&
     manualCptSelections === state.manualCptIdsByLoadPoint
   ) {
     return state;
@@ -84,7 +85,7 @@ export function applyPilePlanImportPatch(
 
   return {
     ...state,
-    selectedPileOptionKeysByLoadPoint: pileChoices,
+    selectedPileConfigurationsByLoadPoint: pileChoices,
     manualCptIdsByLoadPoint: manualCptSelections,
     analysisRequest: {
       revision: state.analysisRequest.revision + 1,
@@ -108,10 +109,6 @@ function applyImportedValue<TSource, TValue>(
   }
 }
 
-function pileOptionKey(pile: PileConfigurationKey): string {
-  return `${pile.pile_size_mm}|${pile.pile_tip_level_m_key / 1000}`;
-}
-
 function uniquePilePlanName(pilePlans: PilePlanData[], requestedName: string): string {
   const base = requestedName.trim() || "Imported pile plan";
   const existingNames = new Set(pilePlans.map((plan) => plan.name));
@@ -123,12 +120,15 @@ function uniquePilePlanName(pilePlans: PilePlanData[], requestedName: string): s
 
 function unchangedExternalReferences(
   source: PilePlanData,
-  choices: ReadonlyMap<number, string>,
+  choices: ReadonlyMap<number, PileConfigurationKey>,
 ): Map<number, unknown[]> {
   return new Map(
     [...source.externalReferencesByLoadPoint]
       .filter(([loadPointId]) => (
-        source.selectedPileOptionKeysByLoadPoint.get(loadPointId) === choices.get(loadPointId)
+        samePileConfiguration(
+          source.selectedPileConfigurationsByLoadPoint.get(loadPointId),
+          choices.get(loadPointId),
+        )
       ))
       .map(([loadPointId, references]) => [loadPointId, [...references]]),
   );

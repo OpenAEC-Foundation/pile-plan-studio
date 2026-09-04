@@ -87,7 +87,9 @@ fn migrate_legacy_project_value(value: &mut Value) {
             let head_level = costs.remove("pile_head_level_m");
             if let Some(items) = costs.get_mut("items").and_then(Value::as_array_mut) {
                 for item in items {
-                    let Some(item) = item.as_object_mut() else { continue };
+                    let Some(item) = item.as_object_mut() else {
+                        continue;
+                    };
                     if !item.contains_key("cost_per_m3") {
                         if let Some(cost) = item.remove("cost_per_m3_eur") {
                             item.insert("cost_per_m3".to_string(), cost);
@@ -103,11 +105,14 @@ fn migrate_legacy_project_value(value: &mut Value) {
             legacy_head_level.unwrap_or(Value::Null),
         );
     }
-    settings.entry("viewer").or_insert_with(|| serde_json::json!({
-        "symbol_scale_percent": 100,
-        "foreground_layer": "load-points",
-        "show_grid": true
-    }));
+    settings.entry("viewer").or_insert_with(|| {
+        serde_json::json!({
+            "symbol_scale_percent": 100,
+            "foreground_layer": "load-points",
+            "show_grid": true,
+            "show_tip_level_regions": true
+        })
+    });
     value["schema_version"] = Value::from(3);
 }
 
@@ -180,8 +185,7 @@ mod tests {
         value["schema_version"] = serde_json::json!(2);
         value["units"]["costs"] = serde_json::json!("GBP");
         value["settings"]["pile_costs"]["pile_head_level_m"] = serde_json::json!(-1.25);
-        value["settings"]["pile_costs"]["items"][0]["cost_per_m3_eur"] =
-            serde_json::json!(190.0);
+        value["settings"]["pile_costs"]["items"][0]["cost_per_m3_eur"] = serde_json::json!(190.0);
         value["settings"]["pile_costs"]["items"][0]
             .as_object_mut()
             .expect("cost row is object")
@@ -205,6 +209,18 @@ mod tests {
         assert_eq!(project.settings.viewer.symbol_scale_percent, 100);
         assert_eq!(project.settings.viewer.foreground_layer, "load-points");
         assert!(project.settings.viewer.show_grid);
+        assert!(project.settings.viewer.show_tip_level_regions);
+    }
+
+    #[test]
+    fn preserves_explicitly_hidden_tip_level_regions() {
+        let mut project = project_fixture();
+        project.settings.viewer.show_tip_level_regions = false;
+
+        let json = write_ifcpp_string(&project).expect("project writes");
+        let parsed = read_ifcpp_str(&json).expect("project reads");
+
+        assert!(!parsed.settings.viewer.show_tip_level_regions);
     }
 
     fn project_fixture() -> PilePlanProject {

@@ -5,13 +5,22 @@ import { mergeDefaultPileChoices } from "./defaultPileChoices.ts";
 
 describe("mergeDefaultPileChoices", () => {
   it("fills missing defaults without replacing retained choices", () => {
-    const retained = new Map([[1, "290|-18"]]);
-    const defaults = new Map([[1, "320|-20"], [2, "290|-17.5"]]);
+    const retained = new Map([[1, { pile_size_mm: 290, pile_tip_level_mm: -18_000 }]]);
+    const defaults = new Map([
+      [1, { pile_size_mm: 320, pile_tip_level_mm: -20_000 }],
+      [2, { pile_size_mm: 290, pile_tip_level_mm: -17_500 }],
+    ]);
 
     const merged = mergeDefaultPileChoices(retained, defaults);
 
-    assert.deepEqual([...merged], [[1, "290|-18"], [2, "290|-17.5"]]);
-    assert.deepEqual([...retained], [[1, "290|-18"]]);
-    assert.deepEqual([...defaults], [[1, "320|-20"], [2, "290|-17.5"]]);
+    assert.deepEqual([...merged], [
+      [1, { pile_size_mm: 290, pile_tip_level_mm: -18_000 }],
+      [2, { pile_size_mm: 290, pile_tip_level_mm: -17_500 }],
+    ]);
+    assert.deepEqual([...retained], [[1, { pile_size_mm: 290, pile_tip_level_mm: -18_000 }]]);
+    assert.deepEqual([...defaults], [
+      [1, { pile_size_mm: 320, pile_tip_level_mm: -20_000 }],
+      [2, { pile_size_mm: 290, pile_tip_level_mm: -17_500 }],
+    ]);
   });
 });

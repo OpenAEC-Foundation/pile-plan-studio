@@ -189,6 +189,15 @@
   vector-effect: non-scaling-stroke;
 }
 
+.tip-level-region-overlay {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  pointer-events: none;
+}
+
 .viewer-content {
   --viewer-cpt-connection-line: #8f999e;
   --viewer-symbol-scale: 1;
@@ -410,9 +419,13 @@
 }
 
 .viewer-hover-marker.is-load-point .pile-symbol-svg,
-.viewer-hover-marker.is-load-point > span {
+.viewer-hover-marker.is-load-point .viewer-hover-pile-symbol {
   width: 100%;
   height: 100%;
+}
+
+.viewer-hover-marker.is-load-point {
+  border-radius: 50%;
 }
 
 .viewer-hover-marker.is-cpt {
@@ -480,7 +493,24 @@
   pointer-events: none;
 }
 
-.load-point-marker.is-above-range .load-point-symbol,
+.load-point-status-halo {
+  --utilization-intensity: 0;
+  width: var(--load-point-symbol-base);
+  height: var(--load-point-symbol-base);
+  border-radius: 50%;
+  pointer-events: none;
+  z-index: 5;
+}
+
+.load-point-status-halo.is-locked {
+  opacity: 0.28;
+}
+
+.viewer-content.is-lock-editing .load-point-status-halo.is-locked {
+  opacity: 0.45;
+}
+
+.load-point-status-halo.is-above-range,
 .viewer-hover-marker.is-load-point.is-above-range {
   background:
     radial-gradient(
@@ -494,7 +524,7 @@
     0 0 8px rgba(199, 53, 42, calc(0.08 + var(--utilization-intensity) * 0.42));
 }
 
-.load-point-marker.is-below-range .load-point-symbol,
+.load-point-status-halo.is-below-range,
 .viewer-hover-marker.is-load-point.is-below-range {
   background:
     radial-gradient(
@@ -508,7 +538,7 @@
     0 0 8px rgba(48, 153, 76, calc(0.08 + var(--utilization-intensity) * 0.42));
 }
 
-.load-point-marker.is-missing .load-point-symbol,
+.load-point-status-halo.is-missing,
 .viewer-hover-marker.is-load-point.is-missing {
   background: rgba(255, 193, 7, 0.22);
   box-shadow:
@@ -540,9 +570,10 @@
   transform-origin: center;
 }
 
+.load-point-status-halo,
 .load-point-symbol,
 .load-point-empty,
-.load-point-pending,
+.load-point-marker .load-point-unassigned,
 .cpt-triangle {
   position: absolute;
   top: 0;
@@ -570,12 +601,12 @@
   box-shadow: none;
 }
 
-.load-point-pending {
-  width: 9px;
-  height: 9px;
-  border: 1.5px solid #a2adb3;
+.load-point-unassigned {
+  width: 6px;
+  height: 6px;
+  border: 0;
   border-radius: 50%;
-  background: #d4dade;
+  background: #8f999e;
 }
 
 .load-point-empty {

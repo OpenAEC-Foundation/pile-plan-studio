@@ -1,13 +1,12 @@
 use std::collections::HashMap;
 
-use serde::{de::Error as _, Deserialize, Deserializer, Serialize};
+use serde::{de::Error as _, Deserialize, Deserializer, Serialize, Serializer};
 
 use crate::import::{ImportProfile, ImportRole, SourceFormat};
 
-use crate::analysis::{
-    BearingCapacity, Cpt, CptSelectionSettings, GreedyOptimizationSettings,
-    GreedyUnassignedReason, LoadPoint, PileConfigurationKey, PileCostSettings,
-};
+use crate::analysis::{BearingCapacity, Cpt, CptSelectionSettings, LoadPoint, PileCostSettings};
+use crate::greedy_optimizer::{GreedyOptimizationSettings, OptimizationUnassignedReason};
+use crate::pile_configuration::PileConfigurationKey;
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
 pub struct PilePlanProject {
@@ -89,6 +88,8 @@ pub struct ProjectViewerSettings {
     pub foreground_layer: String,
     #[serde(default = "default_true")]
     pub show_grid: bool,
+    #[serde(default = "default_true")]
+    pub show_tip_level_regions: bool,
 }
 
 impl Default for ProjectViewerSettings {
@@ -97,6 +98,7 @@ impl Default for ProjectViewerSettings {
             symbol_scale_percent: default_symbol_scale_percent(),
             foreground_layer: default_foreground_layer(),
             show_grid: true,
+            show_tip_level_regions: true,
         }
     }
 }
@@ -186,8 +188,28 @@ pub struct PilePlan {
     pub selected_piles: HashMap<u32, SelectedPileChoice>,
     #[serde(default)]
     pub locked_load_point_ids: Vec<u32>,
-    #[serde(default)]
-    pub optimization_unassigned: HashMap<u32, GreedyUnassignedReason>,
+    #[serde(default, deserialize_with = "deserialize_optimization_unassigned")]
+    pub optimization_unassigned: HashMap<u32, OptimizationUnassignedReason>,
+}
+
+fn deserialize_optimization_unassigned<'de, D>(
+    deserializer: D,
+) -> Result<HashMap<u32, OptimizationUnassignedReason>, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let raw = HashMap::<u32, String>::deserialize(deserializer)?;
+    Ok(raw
+        .into_iter()
+        .filter_map(|(load_point_id, reason)| {
+            let reason = match reason.as_str() {
+                "optimization_constraints" => OptimizationUnassignedReason::OptimizationConstraints,
+                "configuration_limits" => OptimizationUnassignedReason::ConfigurationLimits,
+                _ => return None,
+            };
+            Some((load_point_id, reason))
+        })
+        .collect())
 }
 
 impl PilePlan {
@@ -281,8 +303,50 @@ impl<'de> Deserialize<'de> for ProjectUserState {
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
 pub struct SelectedPileChoice {
+    #[serde(
+        serialize_with = "serialize_project_pile_configuration",
+        deserialize_with = "deserialize_project_pile_configuration"
+    )]
     pub pile: Option<PileConfigurationKey>,
     pub external_references: Vec<ExternalReference>,
+}
+
+#[derive(Deserialize, Serialize)]
+struct LegacyProjectPileConfigurationKey {
+    pile_size_mm: u32,
+    pile_tip_level_m_key: i64,
+}
+
+fn serialize_project_pile_configuration<S>(
+    value: &Option<PileConfigurationKey>,
+    serializer: S,
+) -> Result<S::Ok, S::Error>
+where
+    S: Serializer,
+{
+    value
+        .as_ref()
+        .map(|key| LegacyProjectPileConfigurationKey {
+            pile_size_mm: key.pile_size_mm,
+            pile_tip_level_m_key: key.pile_tip_level_mm,
+        })
+        .serialize(serializer)
+}
+
+fn deserialize_project_pile_configuration<'de, D>(
+    deserializer: D,
+) -> Result<Option<PileConfigurationKey>, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    Ok(
+        Option::<LegacyProjectPileConfigurationKey>::deserialize(deserializer)?.map(|key| {
+            PileConfigurationKey {
+                pile_size_mm: key.pile_size_mm,
+                pile_tip_level_mm: key.pile_tip_level_m_key,
+            }
+        }),
+    )
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
@@ -307,6 +371,11 @@ pub struct ProjectImportLogEntry {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn tip_level_regions_default_to_visible() {
+        assert!(ProjectViewerSettings::default().show_tip_level_regions);
+    }
     use crate::{CptSelectionAlgorithm, PileCostSettingsItem, PileCostShape};
 
     #[test]
@@ -353,10 +422,9 @@ mod tests {
     #[test]
     fn pile_plan_round_trips_optimizer_unassigned_outcomes() {
         let mut project = sample_project();
-        project.user_state.pile_plans[0].optimization_unassigned.insert(
-            7,
-            crate::analysis::GreedyUnassignedReason::ConfigurationLimits,
-        );
+        project.user_state.pile_plans[0]
+            .optimization_unassigned
+            .insert(7, crate::OptimizationUnassignedReason::ConfigurationLimits);
 
         let value = serde_json::to_value(&project).expect("project serializes");
         let restored: PilePlanProject =
@@ -366,7 +434,7 @@ mod tests {
             restored.user_state.pile_plans[0]
                 .optimization_unassigned
                 .get(&7),
-            Some(&crate::analysis::GreedyUnassignedReason::ConfigurationLimits),
+            Some(&crate::OptimizationUnassignedReason::ConfigurationLimits),
         );
     }
 
@@ -384,6 +452,42 @@ mod tests {
         assert!(restored.user_state.pile_plans[0]
             .optimization_unassigned
             .is_empty());
+    }
+
+    #[test]
+    fn pile_plan_discards_legacy_and_unknown_optimizer_reasons() {
+        let mut value = serde_json::to_value(sample_project()).expect("project serializes");
+        value["user_state"]["pile_plans"][0]["optimization_unassigned"] = serde_json::json!({
+            "1": "no_valid_option",
+            "2": "group_member_without_valid_option",
+            "3": "no_common_group_configuration",
+            "4": "optimization_constraints",
+            "5": "configuration_limits",
+            "6": "future_reason"
+        });
+
+        let restored: PilePlanProject =
+            serde_json::from_value(value).expect("legacy project deserializes");
+
+        assert_eq!(
+            restored.user_state.pile_plans[0].optimization_unassigned,
+            HashMap::from([
+                (
+                    4,
+                    crate::OptimizationUnassignedReason::OptimizationConstraints
+                ),
+                (5, crate::OptimizationUnassignedReason::ConfigurationLimits),
+            ]),
+        );
+    }
+
+    #[test]
+    fn selected_piles_keep_the_legacy_ifcpp_tip_key_field() {
+        let value = serde_json::to_value(sample_project()).expect("project serializes");
+        let pile = &value["user_state"]["pile_plans"][0]["selected_piles"]["1"]["pile"];
+
+        assert_eq!(pile["pile_tip_level_m_key"], -18_000);
+        assert!(pile.get("pile_tip_level_mm").is_none());
     }
 
     #[test]
@@ -558,8 +662,12 @@ mod tests {
             "pile_tip_levels": []
         });
 
-        let parsed: PilePlanProject = serde_json::from_value(value).expect("legacy legend deserializes");
-        let legend = parsed.settings.pile_legend.expect("legend remains available");
+        let parsed: PilePlanProject =
+            serde_json::from_value(value).expect("legacy legend deserializes");
+        let legend = parsed
+            .settings
+            .pile_legend
+            .expect("legend remains available");
 
         assert_eq!(legend.color_scheme, "tableau-extended");
         assert!(legend.pile_sizes[0].symbol_automatic);
@@ -679,7 +787,7 @@ mod tests {
                         SelectedPileChoice {
                             pile: Some(PileConfigurationKey {
                                 pile_size_mm: 290,
-                                pile_tip_level_m_key: -18000,
+                                pile_tip_level_mm: -18000,
                             }),
                             external_references: vec![ExternalReference {
                                 source_file: Some("model.ifc".to_string()),

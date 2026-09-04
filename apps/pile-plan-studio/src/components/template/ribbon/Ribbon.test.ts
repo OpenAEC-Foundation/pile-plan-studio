@@ -32,6 +32,15 @@ describe("Plan and View ribbon", () => {
     assert.match(source, /view\.windows/);
   });
 
+  it("keeps the tip-level region subject intact above its toggle action", () => {
+    const source = readFileSync(resolve(import.meta.dirname, "Ribbon.tsx"), "utf8");
+    const styles = readFileSync(resolve(import.meta.dirname, "Ribbon.css"), "utf8");
+
+    assert.match(source, /className="tip-level-regions-toggle"/);
+    assert.match(styles, /\.ribbon-btn\.tip-level-regions-toggle\s*{[\s\S]*?width:\s*104px/);
+    assert.match(styles, /\.ribbon-btn\.tip-level-regions-toggle \.ribbon-btn-label\s*{[\s\S]*?max-width:\s*100px/);
+  });
+
   it("uses a scale-independent active tab border and separates ribbon content", () => {
     const source = readFileSync(resolve(import.meta.dirname, "Ribbon.tsx"), "utf8");
     const css = readFileSync(resolve(import.meta.dirname, "Ribbon.css"), "utf8");
@@ -63,6 +72,21 @@ describe("Plan and View ribbon", () => {
     assert.match(source, /onPointerUp=\{commitUtilizationRange\}/);
     assert.match(source, /onKeyUp=\{commitUtilizationRange\}/);
     assert.doesNotMatch(source, /onChange=\{\(event\) => onViewerUtilizationRangeChange/);
+  });
+
+  it("delimits pointer and keyboard symbol-scale gestures", () => {
+    const source = readFileSync(resolve(import.meta.dirname, "Ribbon.tsx"), "utf8");
+
+    assert.match(source, /onSymbolScaleChangeStart/);
+    assert.match(source, /onSymbolScaleChangeEnd/);
+    assert.match(source, /onPointerDown=\{onSymbolScaleChangeStart\}/);
+    assert.match(source, /onPointerUp=\{onSymbolScaleChangeEnd\}/);
+    assert.match(source, /onPointerCancel=\{onSymbolScaleChangeEnd\}/);
+    assert.match(source, /isRangeAdjustmentKey/);
+    assert.match(source, /onKeyDown=\{handleSymbolScaleKeyDown\}/);
+    assert.match(source, /onKeyUp=\{handleSymbolScaleKeyUp\}/);
+    assert.match(source, /handleSymbolScaleBlur/);
+    assert.match(source, /onBlur=\{handleSymbolScaleBlur\}/);
   });
 
   it("connects settings and run commands", () => {
@@ -118,6 +142,19 @@ describe("Plan and View ribbon", () => {
     assert.equal((optimizeIcon.match(/<circle/g) ?? []).length, 4);
     assert.match(optimizeIcon, /fill="currentColor"/);
     assert.match(optimizeIcon, /stroke-linecap="round"/);
+  });
+
+  it("depicts tip-level regions as three mapped areas with location points", () => {
+    const icons = readFileSync(resolve(import.meta.dirname, "icons.ts"), "utf8");
+    const tipLevelRegionsIcon = icons.slice(
+      icons.indexOf("export const tipLevelRegionsIcon"),
+      icons.indexOf("export const explorerPanelIcon"),
+    );
+
+    assert.equal((tipLevelRegionsIcon.match(/<path/g) ?? []).length, 3);
+    assert.equal((tipLevelRegionsIcon.match(/<circle/g) ?? []).length, 3);
+    assert.match(tipLevelRegionsIcon, /stroke-linejoin="round"/);
+    assert.doesNotMatch(tipLevelRegionsIcon, /stroke-width="6"/);
   });
 
   it("uses distinct Dutch labels for information and settings commands", () => {

@@ -2,6 +2,11 @@ use std::collections::{HashMap, HashSet};
 
 use serde::{Deserialize, Serialize};
 
+use crate::{
+    pile_configuration::PileConfigurationKey,
+    pile_option_status::{pile_option_technical_status, PileOptionTechnicalStatus},
+};
+
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
 pub struct LoadPoint {
     pub id: u32,
@@ -57,6 +62,7 @@ pub struct SelectedCpt {
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
 pub struct PileConfigurationOption {
+    pub configuration: PileConfigurationKey,
     pub pile_size_mm: u32,
     pub pile_tip_level_m: f64,
     pub is_option: bool,
@@ -64,6 +70,7 @@ pub struct PileConfigurationOption {
     pub governing_frd_kn: Option<f64>,
     pub utilization: Option<f64>,
     pub missing_cpt_ids: Vec<u32>,
+    pub technical_status: PileOptionTechnicalStatus,
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
@@ -108,86 +115,11 @@ pub struct ProjectAnalysisResult {
     pub cpt_frd_rows_by_cpt_id: Option<HashMap<u32, Vec<CptBearingCapacityRow>>>,
 }
 
-#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
-pub struct GreedyOptimizationSettings {
-    pub max_pile_sizes: usize,
-    pub max_pile_tip_levels: usize,
-    pub max_pile_configurations: usize,
-    #[serde(default = "default_max_utilization")]
-    pub max_utilization: f64,
-    pub enabled_pile_sizes: Vec<u32>,
-    pub enabled_pile_tip_levels: Vec<f64>,
-}
-
-fn default_max_utilization() -> f64 {
-    1.0
-}
-
-#[derive(Clone, Debug, Deserialize, Eq, Hash, PartialEq, Serialize)]
-pub struct PileConfigurationKey {
-    pub pile_size_mm: u32,
-    pub pile_tip_level_m_key: i64,
-}
-
-#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize)]
-#[serde(rename_all = "kebab-case")]
-pub enum OptimizationLimitScope {
-    Target,
-    WholePlan,
-}
-
-#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
-pub struct GreedyOptimizationInput {
-    pub options_by_load_point: HashMap<u32, Vec<PileConfigurationOption>>,
-    pub target_load_point_ids: Vec<u32>,
-    #[serde(default)]
-    pub locked_load_point_ids: Vec<u32>,
-    #[serde(default)]
-    pub current_assignments: HashMap<u32, PileConfigurationKey>,
-    pub limit_scope: OptimizationLimitScope,
-    pub pile_head_level_m: f64,
-    pub cost_settings: PileCostSettings,
-    pub settings: GreedyOptimizationSettings,
-}
-
-#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
-pub struct GreedyOptimizedPileChoice {
-    pub load_point_id: u32,
-    pub pile_size_mm: u32,
-    pub pile_tip_level_m: f64,
-    pub is_option: bool,
-    pub cost: Option<u32>,
-}
-
-#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
-#[serde(rename_all = "snake_case")]
-pub enum GreedyUnassignedReason {
-    NoValidOption,
-    OptimizationConstraints,
-    ConfigurationLimits,
-}
-
-#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
-pub struct GreedyUnassignedLoadPoint {
-    pub load_point_id: u32,
-    pub reason: GreedyUnassignedReason,
-}
-
-#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
-pub struct GreedyOptimizationResult {
-    pub assignments: Vec<GreedyOptimizedPileChoice>,
-    pub unassigned: Vec<GreedyUnassignedLoadPoint>,
-    pub selected_configurations: Vec<PileConfigurationKey>,
-    pub pile_size_count: usize,
-    pub pile_tip_level_count: usize,
-    pub configuration_count: usize,
-}
-
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]
 struct CapacityKey {
     cpt_id: u32,
     pile_size_mm: u32,
-    pile_tip_level_m_key: i64,
+    pile_tip_level_mm: i64,
 }
 
 pub fn bearing_capacity_summary(
@@ -270,7 +202,10 @@ pub fn selected_cpts(
     }
 
     let manual_ids: HashSet<_> = manual_cpt_ids.iter().copied().collect();
-    let algorithmic_ids: HashSet<_> = algorithmic.iter().map(|selection| selection.cpt.id).collect();
+    let algorithmic_ids: HashSet<_> = algorithmic
+        .iter()
+        .map(|selection| selection.cpt.id)
+        .collect();
     let mut selections: Vec<_> = algorithmic
         .into_iter()
         .filter(|selection| manual_ids.contains(&selection.cpt.id))
@@ -285,12 +220,17 @@ pub fn selected_cpts(
             .total_cmp(&distance_mm(load_point, right))
             .then_with(|| left.id.cmp(&right.id))
     });
-    selections.extend(additions.into_iter().enumerate().map(|(index, cpt)| SelectedCpt {
-        label: format!("manual {}", index + 1),
-        quadrant: None,
-        distance_mm: distance_mm(load_point, &cpt),
-        cpt,
-    }));
+    selections.extend(
+        additions
+            .into_iter()
+            .enumerate()
+            .map(|(index, cpt)| SelectedCpt {
+                label: format!("manual {}", index + 1),
+                quadrant: None,
+                distance_mm: distance_mm(load_point, &cpt),
+                cpt,
+            }),
+    );
     selections
 }
 
@@ -516,16 +456,21 @@ fn pile_configuration_options_with_index(
                 .min_by(|left, right| left.frd_kn.total_cmp(&right.frd_kn));
             let governing_frd_kn = governing_capacity.map(|capacity| capacity.frd_kn);
             let utilization = governing_frd_kn.map(|frd_kn| design_load_kn / frd_kn);
+            let is_option =
+                missing_cpt_ids.is_empty() && utilization.is_some_and(|value| value <= 1.0);
+            let technical_status =
+                pile_option_technical_status(is_option, utilization, &missing_cpt_ids);
 
             PileConfigurationOption {
+                configuration: PileConfigurationKey::from_metres(pile_size_mm, pile_tip_level_m),
                 pile_size_mm,
                 pile_tip_level_m,
-                is_option: missing_cpt_ids.is_empty()
-                    && utilization.is_some_and(|value| value <= 1.0),
+                is_option,
                 governing_cpt_id: governing_capacity.map(|capacity| capacity.cpt_id),
                 governing_frd_kn,
                 utilization,
                 missing_cpt_ids,
+                technical_status,
             }
         })
         .collect()
@@ -642,13 +587,27 @@ pub fn choose_default_pile_option<'a>(
         .iter()
         .filter(|option| {
             option.is_option
-                && calculate_pile_cost(option.pile_size_mm, option.pile_tip_level_m, pile_head_level_m, settings)
-                    .is_some()
+                && calculate_pile_cost(
+                    option.pile_size_mm,
+                    option.pile_tip_level_m,
+                    pile_head_level_m,
+                    settings,
+                )
+                .is_some()
         })
         .min_by(|left, right| {
-            let left_cost = calculate_pile_cost(left.pile_size_mm, left.pile_tip_level_m, pile_head_level_m, settings);
-            let right_cost =
-                calculate_pile_cost(right.pile_size_mm, right.pile_tip_level_m, pile_head_level_m, settings);
+            let left_cost = calculate_pile_cost(
+                left.pile_size_mm,
+                left.pile_tip_level_m,
+                pile_head_level_m,
+                settings,
+            );
+            let right_cost = calculate_pile_cost(
+                right.pile_size_mm,
+                right.pile_tip_level_m,
+                pile_head_level_m,
+                settings,
+            );
 
             match (left_cost, right_cost) {
                 (Some(left_cost), Some(right_cost)) => left_cost.cmp(&right_cost),
@@ -664,431 +623,65 @@ pub fn choose_default_pile_option<'a>(
 
 pub fn choose_default_pile_options(
     options_by_load_point: &HashMap<u32, Vec<PileConfigurationOption>>,
+    groups: &[crate::load_point_groups::LoadPointGroup],
     pile_head_level_m: f64,
     settings: &PileCostSettings,
 ) -> HashMap<u32, PileConfigurationKey> {
-    options_by_load_point
+    let Ok(assessment) = crate::assess_technical_assignment(groups, options_by_load_point) else {
+        return HashMap::new();
+    };
+    if assessment.availability != crate::TechnicalAssignmentAvailability::Available {
+        return HashMap::new();
+    }
+    let invalid_load_point_ids = assessment
+        .issues
         .iter()
-        .filter_map(|(load_point_id, options)| {
-            choose_default_pile_option(options, pile_head_level_m, settings).map(|option| {
-                (
-                    *load_point_id,
-                    PileConfigurationKey {
-                        pile_size_mm: option.pile_size_mm,
-                        pile_tip_level_m_key: scaled_level_key(option.pile_tip_level_m),
-                    },
-                )
-            })
-        })
-        .collect()
-}
-
-pub fn greedy_optimize_pile_choices(input: &GreedyOptimizationInput) -> GreedyOptimizationResult {
-    let locked_ids = input
-        .locked_load_point_ids
-        .iter()
-        .copied()
+        .map(|issue| issue.load_point_id)
         .collect::<HashSet<_>>();
-    let mut effective_target_ids = input
-        .target_load_point_ids
-        .iter()
-        .copied()
-        .filter(|load_point_id| !locked_ids.contains(load_point_id))
-        .collect::<Vec<_>>();
-    effective_target_ids.sort_unstable();
-    effective_target_ids.dedup();
-    let effective_target_set = effective_target_ids.iter().copied().collect::<HashSet<_>>();
-    let options_by_load_point = effective_target_ids
-        .iter()
-        .map(|load_point_id| {
-            (
-                *load_point_id,
-                input
-                    .options_by_load_point
+    let mut choices = HashMap::new();
+    for group in groups {
+        if group
+            .load_point_ids
+            .iter()
+            .any(|load_point_id| invalid_load_point_ids.contains(load_point_id))
+        {
+            continue;
+        }
+        let Some(first_member_id) = group.load_point_ids.first() else {
+            continue;
+        };
+        let Some(first_member_options) = options_by_load_point.get(first_member_id) else {
+            continue;
+        };
+        let member_options = group
+            .load_point_ids
+            .iter()
+            .filter_map(|load_point_id| {
+                options_by_load_point
                     .get(load_point_id)
                     .cloned()
-                    .unwrap_or_default(),
-            )
-        })
-        .collect::<HashMap<_, _>>();
-    let mut baseline_configurations = if input.limit_scope == OptimizationLimitScope::WholePlan {
-        input
-            .current_assignments
-            .iter()
-            .filter(|(load_point_id, _)| !effective_target_set.contains(load_point_id))
-            .map(|(_, config)| config.clone())
-            .collect::<Vec<_>>()
-    } else {
-        Vec::new()
-    };
-    baseline_configurations.sort_by(|left, right| {
-        left.pile_size_mm
-            .cmp(&right.pile_size_mm)
-            .then_with(|| right.pile_tip_level_m_key.cmp(&left.pile_tip_level_m_key))
-    });
-    baseline_configurations.dedup();
-
-    let eligible_options_by_load_point: HashMap<u32, Vec<PileConfigurationOption>> =
-        options_by_load_point
-            .iter()
-            .map(|(load_point_id, options)| {
-                (
-                    *load_point_id,
-                    options
-                        .iter()
-                        .filter(|option| {
-                            option.is_option
-                                && option.utilization.is_some_and(|utilization| {
-                                    utilization <= input.settings.max_utilization.clamp(0.0, 1.0)
-                                })
-                                && optimization_option_enabled(option, &input.settings)
-                        })
-                        .cloned()
-                        .collect(),
-                )
+                    .map(|options| (*load_point_id, options))
             })
-            .collect();
-    let mut selected_configs = Vec::<OptimizationConfig>::new();
-
-    loop {
-        let Some(config) = best_next_optimization_config(
-            &eligible_options_by_load_point,
-            &selected_configs,
-            input.pile_head_level_m,
-            &input.cost_settings,
-            &input.settings,
-            &baseline_configurations,
-        ) else {
-            break;
+            .collect::<HashMap<_, _>>();
+        let valid_configurations = crate::aggregate_pile_options_for_load_points(&member_options)
+            .into_iter()
+            .filter(|candidate| candidate.status == crate::AggregatedPileConfigurationStatus::Valid)
+            .map(|candidate| candidate.configuration)
+            .collect::<HashSet<_>>();
+        let common_options = first_member_options
+            .iter()
+            .filter(|candidate| valid_configurations.contains(&candidate.configuration))
+            .cloned()
+            .collect::<Vec<_>>();
+        let Some(choice) = choose_default_pile_option(&common_options, pile_head_level_m, settings)
+        else {
+            continue;
         };
-
-        if !selected_configs.is_empty() {
-            let current_score = optimization_score_for_configs(
-                &eligible_options_by_load_point,
-                &selected_configs,
-                input.pile_head_level_m,
-                &input.cost_settings,
-            );
-            let next_score = optimization_score_for_configs(
-                &eligible_options_by_load_point,
-                &[selected_configs.as_slice(), std::slice::from_ref(&config)].concat(),
-                input.pile_head_level_m,
-                &input.cost_settings,
-            );
-
-            if next_score >= current_score {
-                break;
-            }
-        }
-
-        selected_configs.push(config);
-    }
-
-    let mut assignments: Vec<_> = eligible_options_by_load_point
-        .iter()
-        .filter_map(|(load_point_id, options)| {
-            let selected_option = cheapest_option_for_configs(
-                options,
-                &selected_configs,
-                input.pile_head_level_m,
-                &input.cost_settings,
-            )?;
-
-            Some(GreedyOptimizedPileChoice {
-                load_point_id: *load_point_id,
-                pile_size_mm: selected_option.pile_size_mm,
-                pile_tip_level_m: selected_option.pile_tip_level_m,
-                is_option: selected_option.is_option,
-                cost: calculate_pile_cost(
-                    selected_option.pile_size_mm,
-                    selected_option.pile_tip_level_m,
-                    input.pile_head_level_m,
-                    &input.cost_settings,
-                ),
-            })
-        })
-        .collect();
-
-    assignments.sort_by_key(|choice| choice.load_point_id);
-    let assigned_ids = assignments
-        .iter()
-        .map(|choice| choice.load_point_id)
-        .collect::<HashSet<_>>();
-    let mut unassigned: Vec<_> = options_by_load_point
-        .iter()
-        .filter(|(load_point_id, _)| !assigned_ids.contains(load_point_id))
-        .map(|(load_point_id, options)| {
-            let reason = if !options.iter().any(|option| option.is_option) {
-                GreedyUnassignedReason::NoValidOption
-            } else if eligible_options_by_load_point
-                .get(load_point_id)
-                .is_none_or(Vec::is_empty)
-            {
-                GreedyUnassignedReason::OptimizationConstraints
-            } else {
-                GreedyUnassignedReason::ConfigurationLimits
-            };
-            GreedyUnassignedLoadPoint {
-                load_point_id: *load_point_id,
-                reason,
-            }
-        })
-        .collect();
-    unassigned.sort_by_key(|item| item.load_point_id);
-
-    let mut selected_configurations = selected_configs
-        .iter()
-        .map(OptimizationConfig::as_key)
-        .collect::<Vec<_>>();
-    selected_configurations.sort_by(|left, right| {
-        left.pile_size_mm
-            .cmp(&right.pile_size_mm)
-            .then_with(|| right.pile_tip_level_m_key.cmp(&left.pile_tip_level_m_key))
-    });
-    let pile_size_count = baseline_configurations
-        .iter()
-        .map(|item| item.pile_size_mm)
-        .chain(selected_configs.iter().map(|item| item.pile_size_mm))
-        .collect::<HashSet<_>>()
-        .len();
-    let pile_tip_level_count = baseline_configurations
-        .iter()
-        .map(|item| item.pile_tip_level_m_key)
-        .chain(
-            selected_configs
-                .iter()
-                .map(|item| item.pile_tip_level_m_key),
-        )
-        .collect::<HashSet<_>>()
-        .len();
-    let configuration_count = baseline_configurations
-        .iter()
-        .cloned()
-        .chain(selected_configs.iter().map(OptimizationConfig::as_key))
-        .collect::<HashSet<_>>()
-        .len();
-
-    GreedyOptimizationResult {
-        assignments,
-        unassigned,
-        selected_configurations,
-        pile_size_count,
-        pile_tip_level_count,
-        configuration_count,
-    }
-}
-
-#[derive(Clone, Debug, Eq, Hash, PartialEq)]
-struct OptimizationConfig {
-    pile_size_mm: u32,
-    pile_tip_level_m_key: i64,
-}
-
-impl OptimizationConfig {
-    fn from_option(option: &PileConfigurationOption) -> Self {
-        Self {
-            pile_size_mm: option.pile_size_mm,
-            pile_tip_level_m_key: scaled_level_key(option.pile_tip_level_m),
+        for load_point_id in &group.load_point_ids {
+            choices.insert(*load_point_id, choice.configuration.clone());
         }
     }
-
-    fn matches_option(&self, option: &PileConfigurationOption) -> bool {
-        self.pile_size_mm == option.pile_size_mm
-            && self.pile_tip_level_m_key == scaled_level_key(option.pile_tip_level_m)
-    }
-
-    fn as_key(&self) -> PileConfigurationKey {
-        PileConfigurationKey {
-            pile_size_mm: self.pile_size_mm,
-            pile_tip_level_m_key: self.pile_tip_level_m_key,
-        }
-    }
-}
-
-fn optimization_option_enabled(
-    option: &PileConfigurationOption,
-    settings: &GreedyOptimizationSettings,
-) -> bool {
-    settings.enabled_pile_sizes.contains(&option.pile_size_mm)
-        && settings
-            .enabled_pile_tip_levels
-            .iter()
-            .any(|level| scaled_level_key(*level) == scaled_level_key(option.pile_tip_level_m))
-}
-
-fn best_next_optimization_config(
-    options_by_load_point: &HashMap<u32, Vec<PileConfigurationOption>>,
-    selected_configs: &[OptimizationConfig],
-    pile_head_level_m: f64,
-    cost_settings: &PileCostSettings,
-    settings: &GreedyOptimizationSettings,
-    baseline_configurations: &[PileConfigurationKey],
-) -> Option<OptimizationConfig> {
-    all_optimization_configs(options_by_load_point)
-        .into_iter()
-        .filter(|config| !selected_configs.contains(config))
-        .filter(|config| {
-            config_respects_limits(
-                config,
-                selected_configs,
-                options_by_load_point,
-                settings,
-                baseline_configurations,
-            )
-        })
-        .min_by(|left, right| {
-            let left_score = optimization_score_for_configs(
-                options_by_load_point,
-                &[selected_configs, std::slice::from_ref(left)].concat(),
-                pile_head_level_m,
-                cost_settings,
-            );
-            let right_score = optimization_score_for_configs(
-                options_by_load_point,
-                &[selected_configs, std::slice::from_ref(right)].concat(),
-                pile_head_level_m,
-                cost_settings,
-            );
-
-            left_score.cmp(&right_score).then_with(|| {
-                left.pile_size_mm.cmp(&right.pile_size_mm).then_with(|| {
-                    right
-                        .pile_tip_level_m_key
-                        .cmp(&left.pile_tip_level_m_key)
-                })
-            })
-        })
-}
-
-fn all_optimization_configs(
-    options_by_load_point: &HashMap<u32, Vec<PileConfigurationOption>>,
-) -> Vec<OptimizationConfig> {
-    let mut configs = Vec::new();
-    let mut seen = HashSet::new();
-
-    for options in options_by_load_point.values() {
-        for option in options {
-            let config = OptimizationConfig::from_option(option);
-            if seen.insert(config.clone()) {
-                configs.push(config);
-            }
-        }
-    }
-
-    configs.sort_by(|left, right| {
-        left.pile_size_mm
-            .cmp(&right.pile_size_mm)
-            .then_with(|| right.pile_tip_level_m_key.cmp(&left.pile_tip_level_m_key))
-    });
-    configs
-}
-
-fn config_respects_limits(
-    config: &OptimizationConfig,
-    selected_configs: &[OptimizationConfig],
-    options_by_load_point: &HashMap<u32, Vec<PileConfigurationOption>>,
-    settings: &GreedyOptimizationSettings,
-    baseline_configurations: &[PileConfigurationKey],
-) -> bool {
-    let next_configs = [selected_configs, std::slice::from_ref(config)].concat();
-    let size_count = baseline_configurations
-        .iter()
-        .map(|item| item.pile_size_mm)
-        .chain(next_configs.iter().map(|item| item.pile_size_mm))
-        .collect::<HashSet<_>>()
-        .len();
-    let tip_count = baseline_configurations
-        .iter()
-        .map(|item| item.pile_tip_level_m_key)
-        .chain(next_configs.iter().map(|item| item.pile_tip_level_m_key))
-        .collect::<HashSet<_>>()
-        .len();
-    let configuration_count = baseline_configurations
-        .iter()
-        .cloned()
-        .chain(next_configs.iter().map(OptimizationConfig::as_key))
-        .collect::<HashSet<_>>()
-        .len();
-    let max_sizes = settings.max_pile_sizes.max(1);
-    let max_tips = settings.max_pile_tip_levels.max(1);
-    let max_configurations = settings.max_pile_configurations.max(1);
-
-    size_count <= max_sizes
-        && tip_count <= max_tips
-        && configuration_count <= max_configurations
-        && options_by_load_point
-            .values()
-            .any(|options| options.iter().any(|option| config.matches_option(option)))
-}
-
-#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
-struct OptimizationScore {
-    uncovered_count: usize,
-    unknown_cost_count: usize,
-    known_total_cost: u64,
-}
-
-fn optimization_score_for_configs(
-    options_by_load_point: &HashMap<u32, Vec<PileConfigurationOption>>,
-    configs: &[OptimizationConfig],
-    pile_head_level_m: f64,
-    cost_settings: &PileCostSettings,
-) -> OptimizationScore {
-    let mut uncovered_count = 0;
-    let mut unknown_cost_count = 0;
-    let mut known_total_cost = 0;
-
-    for options in options_by_load_point.values() {
-        if let Some(option) =
-            cheapest_option_for_configs(options, configs, pile_head_level_m, cost_settings)
-        {
-            if let Some(cost) = calculate_pile_cost(
-                option.pile_size_mm,
-                option.pile_tip_level_m,
-                pile_head_level_m,
-                cost_settings,
-            ) {
-                known_total_cost += u64::from(cost);
-            } else {
-                unknown_cost_count += 1;
-            }
-        } else {
-            uncovered_count += 1;
-        }
-    }
-
-    OptimizationScore {
-        uncovered_count,
-        unknown_cost_count,
-        known_total_cost,
-    }
-}
-
-fn cheapest_option_for_configs<'a>(
-    options: &'a [PileConfigurationOption],
-    configs: &[OptimizationConfig],
-    pile_head_level_m: f64,
-    cost_settings: &PileCostSettings,
-) -> Option<&'a PileConfigurationOption> {
-    options
-        .iter()
-        .filter(|option| configs.iter().any(|config| config.matches_option(option)))
-        .min_by(|left, right| {
-            let left_cost =
-                calculate_pile_cost(left.pile_size_mm, left.pile_tip_level_m, pile_head_level_m, cost_settings);
-            let right_cost =
-                calculate_pile_cost(right.pile_size_mm, right.pile_tip_level_m, pile_head_level_m, cost_settings);
-
-            left_cost
-                .is_none()
-                .cmp(&right_cost.is_none())
-                .then_with(|| left_cost.unwrap_or_default().cmp(&right_cost.unwrap_or_default()))
-                .then_with(|| left.pile_size_mm.cmp(&right.pile_size_mm))
-                .then_with(|| {
-                    scaled_level_key(right.pile_tip_level_m)
-                        .cmp(&scaled_level_key(left.pile_tip_level_m))
-                })
-        })
+    choices
 }
 
 fn unique_pile_configurations(bearing_capacities: &[BearingCapacity]) -> Vec<(u32, f64)> {
@@ -1101,7 +694,7 @@ fn unique_pile_configurations(bearing_capacities: &[BearingCapacity]) -> Vec<(u3
                 capacity.pile_size_mm,
                 capacity.pile_tip_level_m,
             );
-            if seen.insert((key.pile_size_mm, key.pile_tip_level_m_key)) {
+            if seen.insert((key.pile_size_mm, key.pile_tip_level_mm)) {
                 Some((capacity.pile_size_mm, capacity.pile_tip_level_m))
             } else {
                 None
@@ -1139,12 +732,9 @@ fn capacity_key(cpt_id: u32, pile_size_mm: u32, pile_tip_level_m: f64) -> Capaci
     CapacityKey {
         cpt_id,
         pile_size_mm,
-        pile_tip_level_m_key: scaled_level_key(pile_tip_level_m),
+        pile_tip_level_mm: PileConfigurationKey::from_metres(pile_size_mm, pile_tip_level_m)
+            .pile_tip_level_mm,
     }
-}
-
-fn scaled_level_key(pile_tip_level_m: f64) -> i64 {
-    (pile_tip_level_m * 1000.0).round() as i64
 }
 
 fn cpt_quadrant(load_point: &LoadPoint, cpt: &Cpt) -> &'static str {
@@ -1475,7 +1065,12 @@ mod tests {
             .collect();
         assert_eq!(
             result,
-            vec![("nearest", 1), ("angle 3", 3), ("angle 4", 4), ("manual 1", 5)]
+            vec![
+                ("nearest", 1),
+                ("angle 3", 3),
+                ("angle 4", 4),
+                ("manual 1", 5)
+            ]
         );
     }
 
@@ -1561,6 +1156,7 @@ mod tests {
             options,
             vec![
                 PileConfigurationOption {
+                    configuration: PileConfigurationKey::from_metres(320, -18.0),
                     pile_size_mm: 320,
                     pile_tip_level_m: -18.0,
                     is_option: true,
@@ -1568,8 +1164,10 @@ mod tests {
                     governing_frd_kn: Some(650.0),
                     utilization: Some(600.0 / 650.0),
                     missing_cpt_ids: vec![],
+                    technical_status: crate::PileOptionTechnicalStatus::Valid,
                 },
                 PileConfigurationOption {
+                    configuration: PileConfigurationKey::from_metres(320, -19.0),
                     pile_size_mm: 320,
                     pile_tip_level_m: -19.0,
                     is_option: false,
@@ -1577,8 +1175,13 @@ mod tests {
                     governing_frd_kn: Some(740.0),
                     utilization: Some(600.0 / 740.0),
                     missing_cpt_ids: vec![12],
+                    technical_status: crate::PileOptionTechnicalStatus::MissingCapacityData,
                 },
             ]
+        );
+        assert_eq!(
+            serde_json::to_value(&options[1]).unwrap()["technical_status"],
+            "missing_capacity_data",
         );
     }
 
@@ -1667,15 +1270,25 @@ mod tests {
 
     #[test]
     fn calculates_pile_cost_with_correct_round_section_formula() {
-        assert_eq!(calculate_pile_cost(320, -18.0, -3.5, &cost_settings()), Some(304));
-        assert_eq!(calculate_pile_cost(356, -18.0, -3.5, &cost_settings()), Some(274));
-        assert_eq!(calculate_pile_cost(400, -18.0, -3.5, &cost_settings()), None);
+        assert_eq!(
+            calculate_pile_cost(320, -18.0, -3.5, &cost_settings()),
+            Some(304)
+        );
+        assert_eq!(
+            calculate_pile_cost(356, -18.0, -3.5, &cost_settings()),
+            Some(274)
+        );
+        assert_eq!(
+            calculate_pile_cost(400, -18.0, -3.5, &cost_settings()),
+            None
+        );
     }
 
     #[test]
     fn chooses_the_cheapest_valid_pile_option_by_default() {
         let options = vec![
             PileConfigurationOption {
+                configuration: PileConfigurationKey::from_metres(320, -18.0),
                 pile_size_mm: 320,
                 pile_tip_level_m: -18.0,
                 is_option: true,
@@ -1683,8 +1296,10 @@ mod tests {
                 governing_frd_kn: Some(700.0),
                 utilization: Some(0.7),
                 missing_cpt_ids: vec![],
+                technical_status: PileOptionTechnicalStatus::Valid,
             },
             PileConfigurationOption {
+                configuration: PileConfigurationKey::from_metres(290, -18.0),
                 pile_size_mm: 290,
                 pile_tip_level_m: -18.0,
                 is_option: true,
@@ -1692,6 +1307,7 @@ mod tests {
                 governing_frd_kn: Some(650.0),
                 utilization: Some(0.75),
                 missing_cpt_ids: vec![],
+                technical_status: PileOptionTechnicalStatus::Valid,
             },
         ];
 
@@ -1725,22 +1341,58 @@ mod tests {
             (2, vec![pile_option(290, -18.0, true, 0.8)]),
         ]);
 
-        let choices = choose_default_pile_options(&options, -3.5, &cost_settings());
+        let groups = vec![
+            crate::LoadPointGroup {
+                load_point_ids: vec![1],
+            },
+            crate::LoadPointGroup {
+                load_point_ids: vec![2],
+            },
+        ];
+        let choices = choose_default_pile_options(&options, &groups, -3.5, &cost_settings());
 
         assert_eq!(
             choices.get(&1),
             Some(&PileConfigurationKey {
                 pile_size_mm: 290,
-                pile_tip_level_m_key: scaled_level_key(-17.5),
+                pile_tip_level_mm: PileConfigurationKey::from_metres(290, -17.5).pile_tip_level_mm,
             })
         );
         assert_eq!(
             choices.get(&2),
             Some(&PileConfigurationKey {
                 pile_size_mm: 290,
-                pile_tip_level_m_key: scaled_level_key(-18.0),
+                pile_tip_level_mm: PileConfigurationKey::from_metres(290, -18.0).pile_tip_level_mm,
             })
         );
+    }
+
+    #[test]
+    fn chooses_one_cheapest_common_default_for_every_group_member() {
+        let options = HashMap::from([
+            (
+                1,
+                vec![
+                    pile_option(290, -17.5, true, 0.7),
+                    pile_option(320, -18.0, true, 0.6),
+                ],
+            ),
+            (
+                2,
+                vec![
+                    pile_option(290, -18.0, true, 0.7),
+                    pile_option(320, -18.0, true, 0.6),
+                ],
+            ),
+        ]);
+        let groups = vec![crate::LoadPointGroup {
+            load_point_ids: vec![1, 2],
+        }];
+
+        let choices = choose_default_pile_options(&options, &groups, -3.5, &cost_settings());
+
+        let common = PileConfigurationKey::from_metres(320, -18.0);
+        assert_eq!(choices, HashMap::from([(1, common.clone()), (2, common)]));
     }
 
     #[test]
@@ -1750,6 +1402,7 @@ mod tests {
             vec![
                 pile_option(290, -17.5, false, 1.1),
                 PileConfigurationOption {
+                    configuration: PileConfigurationKey::from_metres(320, -18.0),
                     pile_size_mm: 320,
                     pile_tip_level_m: -18.0,
                     is_option: false,
@@ -1757,362 +1410,41 @@ mod tests {
                     governing_frd_kn: None,
                     utilization: None,
                     missing_cpt_ids: vec![1],
+                    technical_status: PileOptionTechnicalStatus::MissingCapacityData,
                 },
             ],
         )]);
 
-        assert!(choose_default_pile_options(&options, -3.5, &cost_settings()).is_empty());
+        let groups = vec![crate::LoadPointGroup {
+            load_point_ids: vec![1],
+        }];
+        assert!(choose_default_pile_options(&options, &groups, -3.5, &cost_settings()).is_empty());
+    }
+
+    #[test]
+    fn grouped_default_assignment_uses_the_shared_technical_status() {
+        let mut inconsistent = pile_option(290, -17.5, true, 0.7);
+        inconsistent.technical_status = PileOptionTechnicalStatus::InsufficientCapacity;
+        let options = HashMap::from([(1, vec![inconsistent])]);
+        let groups = vec![crate::LoadPointGroup {
+            load_point_ids: vec![1],
+        }];
+
+        let assessment = crate::assess_technical_assignment(&groups, &options).unwrap();
+        let choices = choose_default_pile_options(&options, &groups, -3.5, &cost_settings());
+
+        assert_eq!(assessment.issues[0].load_point_id, 1);
+        assert!(choices.is_empty());
     }
 
     #[test]
     fn default_options_omit_valid_options_without_cost_settings() {
         let options = HashMap::from([(1, vec![pile_option(999, -17.5, true, 0.7)])]);
 
-        assert!(choose_default_pile_options(&options, -3.5, &cost_settings()).is_empty());
-    }
-
-    #[test]
-    fn greedy_optimizer_limits_distinct_sizes_and_tip_levels() {
-        let options_by_load_point = HashMap::from([
-            (
-                1,
-                vec![
-                    pile_option(290, -17.5, true, 0.5),
-                    pile_option(320, -18.0, true, 0.6),
-                ],
-            ),
-            (
-                2,
-                vec![
-                    pile_option(290, -17.5, false, 1.1),
-                    pile_option(320, -18.0, true, 0.7),
-                ],
-            ),
-            (
-                3,
-                vec![
-                    pile_option(350, -19.0, true, 0.8),
-                    pile_option(320, -18.0, true, 0.9),
-                ],
-            ),
-        ]);
-
-        let result = greedy_optimize_test(
-            &options_by_load_point,
-            -3.5,
-            &cost_settings(),
-            &GreedyOptimizationSettings {
-                max_pile_sizes: 1,
-                max_pile_tip_levels: 1,
-                max_pile_configurations: 1,
-                max_utilization: 1.0,
-                enabled_pile_sizes: vec![290, 320, 350],
-                enabled_pile_tip_levels: vec![-17.5, -18.0, -19.0],
-            },
-        );
-
-        assert_eq!(
-            result
-                .assignments
-                .iter()
-                .map(|choice| (
-                    choice.load_point_id,
-                    choice.pile_size_mm,
-                    choice.pile_tip_level_m
-                ))
-                .collect::<Vec<_>>(),
-            vec![(1, 320, -18.0), (2, 320, -18.0), (3, 320, -18.0)]
-        );
-        assert_eq!(result.pile_size_count, 1);
-        assert_eq!(result.pile_tip_level_count, 1);
-        assert_eq!(result.configuration_count, 1);
-    }
-
-    #[test]
-    fn greedy_optimizer_respects_disabled_configurations() {
-        let options_by_load_point = HashMap::from([(
-            1,
-            vec![
-                pile_option(290, -17.5, true, 0.5),
-                pile_option(320, -18.0, true, 0.6),
-            ],
-        )]);
-
-        let result = greedy_optimize_test(
-            &options_by_load_point,
-            -3.5,
-            &cost_settings(),
-            &GreedyOptimizationSettings {
-                max_pile_sizes: 2,
-                max_pile_tip_levels: 2,
-                max_pile_configurations: 4,
-                max_utilization: 1.0,
-                enabled_pile_sizes: vec![320],
-                enabled_pile_tip_levels: vec![-18.0],
-            },
-        );
-
-        assert_eq!(result.assignments[0].pile_size_mm, 320);
-        assert_eq!(result.assignments[0].pile_tip_level_m, -18.0);
-    }
-
-    #[test]
-    fn greedy_optimizer_treats_empty_enabled_configurations_as_none_enabled() {
-        let options_by_load_point = HashMap::from([(
-            1,
-            vec![
-                pile_option(290, -17.5, true, 0.5),
-                pile_option(320, -18.0, true, 0.6),
-            ],
-        )]);
-
-        let result = greedy_optimize_test(
-            &options_by_load_point,
-            -3.5,
-            &cost_settings(),
-            &GreedyOptimizationSettings {
-                max_pile_sizes: 2,
-                max_pile_tip_levels: 2,
-                max_pile_configurations: 4,
-                max_utilization: 1.0,
-                enabled_pile_sizes: vec![],
-                enabled_pile_tip_levels: vec![],
-            },
-        );
-
-        assert!(result.assignments.is_empty());
-    }
-
-    #[test]
-    fn greedy_optimizer_enforces_maximum_utilization_inclusively() {
-        let options_by_load_point = HashMap::from([
-            (1, vec![pile_option(290, -17.5, true, 0.8)]),
-            (2, vec![pile_option(290, -17.5, true, 0.800_001)]),
-        ]);
-
-        let result = greedy_optimize_test(
-            &options_by_load_point,
-            -3.5,
-            &cost_settings(),
-            &GreedyOptimizationSettings {
-                max_pile_sizes: 1,
-                max_pile_tip_levels: 1,
-                max_pile_configurations: 1,
-                max_utilization: 0.8,
-                enabled_pile_sizes: vec![290],
-                enabled_pile_tip_levels: vec![-17.5],
-            },
-        );
-
-        assert_eq!(result.assignments.len(), 1);
-        assert_eq!(result.assignments[0].load_point_id, 1);
-    }
-
-    #[test]
-    fn greedy_optimizer_respects_configuration_limit_with_baseline_plan() {
-        let options_by_load_point = HashMap::from([(
-            1,
-            vec![
-                pile_option(320, -18.0, true, 0.6),
-                pile_option(350, -19.0, true, 0.7),
-            ],
-        )]);
-
-        let result = greedy_optimize_pile_choices(&GreedyOptimizationInput {
-            options_by_load_point,
-            target_load_point_ids: vec![1],
-            locked_load_point_ids: vec![],
-            current_assignments: HashMap::from([(99, config_key(320, -18.0))]),
-            limit_scope: OptimizationLimitScope::WholePlan,
-            pile_head_level_m: -3.5,
-            cost_settings: cost_settings(),
-            settings: GreedyOptimizationSettings {
-                max_pile_sizes: 2,
-                max_pile_tip_levels: 2,
-                max_pile_configurations: 1,
-                max_utilization: 1.0,
-                enabled_pile_sizes: vec![320, 350],
-                enabled_pile_tip_levels: vec![-18.0, -19.0],
-            },
-        });
-
-        assert_eq!(result.assignments[0].pile_size_mm, 320);
-        assert_eq!(result.assignments[0].pile_tip_level_m, -18.0);
-    }
-
-    #[test]
-    fn greedy_optimizer_keeps_adding_configs_when_cost_improves_after_full_coverage() {
-        let options_by_load_point = HashMap::from([
-            (
-                1,
-                vec![
-                    pile_option(320, -20.0, true, 0.6),
-                    pile_option(290, -18.0, true, 0.7),
-                ],
-            ),
-            (
-                2,
-                vec![
-                    pile_option(320, -20.0, true, 0.6),
-                    pile_option(356, -18.0, true, 0.7),
-                ],
-            ),
-        ]);
-
-        let result = greedy_optimize_test(
-            &options_by_load_point,
-            -3.5,
-            &cost_settings(),
-            &GreedyOptimizationSettings {
-                max_pile_sizes: 3,
-                max_pile_tip_levels: 5,
-                max_pile_configurations: 3,
-                max_utilization: 1.0,
-                enabled_pile_sizes: vec![290, 320, 356],
-                enabled_pile_tip_levels: vec![-18.0, -20.0],
-            },
-        );
-
-        assert_eq!(
-            result
-                .assignments
-                .iter()
-                .map(|choice| (
-                    choice.load_point_id,
-                    choice.pile_size_mm,
-                    choice.pile_tip_level_m
-                ))
-                .collect::<Vec<_>>(),
-            vec![(1, 290, -18.0), (2, 356, -18.0)]
-        );
-    }
-
-    #[test]
-    fn greedy_optimizer_does_not_fall_back_outside_selected_configurations() {
-        let options = HashMap::from([
-            (1, vec![pile_option(290, -18.0, true, 0.6)]),
-            (2, vec![pile_option(320, -19.0, true, 0.7)]),
-        ]);
-        let settings = greedy_settings(1, 1, 1, vec![290, 320], vec![-18.0, -19.0]);
-
-        let result = greedy_optimize_test(&options, -3.5, &cost_settings(), &settings);
-
-        assert_eq!(result.assignments.len(), 1);
-        assert_eq!(result.unassigned.len(), 1);
-        assert_eq!(
-            result.unassigned[0].reason,
-            GreedyUnassignedReason::ConfigurationLimits
-        );
-        assert!(result.assignments.iter().all(|choice| {
-            result.selected_configurations.iter().any(|config| {
-                config.pile_size_mm == choice.pile_size_mm
-                    && config.pile_tip_level_m_key == scaled_level_key(choice.pile_tip_level_m)
-            })
-        }));
-    }
-
-    #[test]
-    fn greedy_optimizer_reports_invalid_and_filtered_options_separately() {
-        let options = HashMap::from([
-            (1, vec![pile_option(290, -18.0, false, 1.2)]),
-            (2, vec![pile_option(320, -19.0, true, 0.7)]),
-        ]);
-        let settings = greedy_settings(1, 1, 1, vec![290], vec![-18.0]);
-
-        let result = greedy_optimize_test(&options, -3.5, &cost_settings(), &settings);
-
-        assert_eq!(
-            result.unassigned,
-            vec![
-                GreedyUnassignedLoadPoint {
-                    load_point_id: 1,
-                    reason: GreedyUnassignedReason::NoValidOption,
-                },
-                GreedyUnassignedLoadPoint {
-                    load_point_id: 2,
-                    reason: GreedyUnassignedReason::OptimizationConstraints,
-                },
-            ]
-        );
-    }
-
-    #[test]
-    fn greedy_optimizer_counts_many_uncovered_points_without_overflow() {
-        let options = (1..=20_000).map(|id| (id, Vec::new())).collect();
-        let result = greedy_optimize_test(
-            &options,
-            -3.5,
-            &cost_settings(),
-            &greedy_settings(1, 1, 1, vec![290], vec![-18.0]),
-        );
-
-        assert!(result.assignments.is_empty());
-        assert_eq!(result.unassigned.len(), 20_000);
-    }
-
-    #[test]
-    fn greedy_optimizer_prefers_known_cost_with_equal_coverage() {
-        let options = HashMap::from([(
-            1,
-            vec![
-                pile_option(290, -18.0, true, 0.6),
-                pile_option(999, -18.0, true, 0.6),
-            ],
-        )]);
-        let result = greedy_optimize_test(
-            &options,
-            -3.5,
-            &cost_settings(),
-            &greedy_settings(2, 1, 1, vec![290, 999], vec![-18.0]),
-        );
-
-        assert_eq!(result.assignments[0].pile_size_mm, 290);
-    }
-
-    #[test]
-    fn greedy_optimizer_excludes_locked_targets_in_core() {
-        let mut input = optimization_input(HashMap::from([
-            (1, vec![pile_option(290, -18.0, true, 0.6)]),
-            (2, vec![pile_option(320, -19.0, true, 0.7)]),
-        ]));
-        input.target_load_point_ids = vec![1, 2];
-        input.locked_load_point_ids = vec![2];
-        input.current_assignments.insert(2, config_key(320, -19.0));
-
-        let result = greedy_optimize_pile_choices(&input);
-
-        assert_eq!(
-            result
-                .assignments
-                .iter()
-                .map(|item| item.load_point_id)
-                .collect::<Vec<_>>(),
-            vec![1],
-        );
-        assert!(result
-            .unassigned
-            .iter()
-            .all(|item| item.load_point_id != 2));
-    }
-
-    #[test]
-    fn whole_plan_limits_derive_baseline_from_non_targets() {
-        let mut input = optimization_input(HashMap::from([
-            (1, vec![pile_option(290, -18.0, true, 0.6)]),
-            (2, vec![pile_option(320, -19.0, true, 0.7)]),
-        ]));
-        input.target_load_point_ids = vec![2];
-        input.current_assignments.insert(1, config_key(290, -18.0));
-        input.limit_scope = OptimizationLimitScope::WholePlan;
-        input.settings.max_pile_configurations = 1;
-
-        let result = greedy_optimize_pile_choices(&input);
-
-        assert!(result.assignments.is_empty());
-        assert_eq!(
-            result.unassigned[0].reason,
-            GreedyUnassignedReason::ConfigurationLimits
-        );
+        let groups = vec![crate::LoadPointGroup {
+            load_point_ids: vec![1],
+        }];
+        assert!(choose_default_pile_options(&options, &groups, -3.5, &cost_settings()).is_empty());
     }
 
     #[test]
@@ -2147,6 +1479,7 @@ mod tests {
         utilization: f64,
     ) -> PileConfigurationOption {
         PileConfigurationOption {
+            configuration: PileConfigurationKey::from_metres(pile_size_mm, pile_tip_level_m),
             pile_size_mm,
             pile_tip_level_m,
             is_option,
@@ -2154,64 +1487,7 @@ mod tests {
             governing_frd_kn: Some(1000.0),
             utilization: Some(utilization),
             missing_cpt_ids: vec![],
+            technical_status: pile_option_technical_status(is_option, Some(utilization), &[]),
         }
-    }
-
-    fn greedy_settings(
-        max_pile_sizes: usize,
-        max_pile_tip_levels: usize,
-        max_pile_configurations: usize,
-        enabled_pile_sizes: Vec<u32>,
-        enabled_pile_tip_levels: Vec<f64>,
-    ) -> GreedyOptimizationSettings {
-        GreedyOptimizationSettings {
-            max_pile_sizes,
-            max_pile_tip_levels,
-            max_pile_configurations,
-            max_utilization: 1.0,
-            enabled_pile_sizes,
-            enabled_pile_tip_levels,
-        }
-    }
-
-    fn config_key(pile_size_mm: u32, pile_tip_level_m: f64) -> PileConfigurationKey {
-        PileConfigurationKey {
-            pile_size_mm,
-            pile_tip_level_m_key: scaled_level_key(pile_tip_level_m),
-        }
-    }
-
-    fn optimization_input(
-        options_by_load_point: HashMap<u32, Vec<PileConfigurationOption>>,
-    ) -> GreedyOptimizationInput {
-        let target_load_point_ids = options_by_load_point.keys().copied().collect();
-        GreedyOptimizationInput {
-            options_by_load_point,
-            target_load_point_ids,
-            locked_load_point_ids: vec![],
-            current_assignments: HashMap::new(),
-            limit_scope: OptimizationLimitScope::Target,
-            pile_head_level_m: -3.5,
-            cost_settings: cost_settings(),
-            settings: greedy_settings(3, 5, 15, vec![290, 320, 350, 356], vec![-18.0, -19.0]),
-        }
-    }
-
-    fn greedy_optimize_test(
-        options_by_load_point: &HashMap<u32, Vec<PileConfigurationOption>>,
-        pile_head_level_m: f64,
-        cost_settings: &PileCostSettings,
-        settings: &GreedyOptimizationSettings,
-    ) -> GreedyOptimizationResult {
-        greedy_optimize_pile_choices(&GreedyOptimizationInput {
-            options_by_load_point: options_by_load_point.clone(),
-            target_load_point_ids: options_by_load_point.keys().copied().collect(),
-            locked_load_point_ids: vec![],
-            current_assignments: HashMap::new(),
-            limit_scope: OptimizationLimitScope::Target,
-            pile_head_level_m,
-            cost_settings: cost_settings.clone(),
-            settings: settings.clone(),
-        })
     }
 }

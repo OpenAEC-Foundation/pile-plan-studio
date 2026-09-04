@@ -58,7 +58,7 @@ export default function LegendEditor({ open, state, onApply, onClose }: Props) {
   const [draft, setDraft] = useState(() => createLegendEditorDraft(activeFromState(state), state.pileLegend));
   const [symbolLimitError, setSymbolLimitError] = useState(false);
   const openedPlanId = useRef(state.activePilePlanId);
-  const used = deriveUsedPileConfigurations(state.selectedPileOptionKeysByLoadPoint.values());
+  const used = deriveUsedPileConfigurations(state.selectedPileConfigurationsByLoadPoint.values());
   const presentation = buildLegendPresentation({ legend: draft.legend, enabled: draft.active, used });
   const available = {
     pileSizes: presentation.pileSizes.map(({ value }) => value),

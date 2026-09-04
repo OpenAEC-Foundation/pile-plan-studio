@@ -1,5 +1,10 @@
 import { invoke } from "@tauri-apps/api/core";
 import initWasm, {
+  aggregate_pile_options,
+  assess_technical_assignment,
+  apply_load_point_group_assignment,
+  build_spatial_neighborhood,
+  build_tip_level_region_topology,
   calculate_pile_option_cost,
   calculate_pile_options,
   calculate_project_analysis,
@@ -7,6 +12,7 @@ import initWasm, {
   choose_default_option,
   choose_default_options,
   cpt_frd_rows,
+  derive_load_point_groups,
   export_pile_plan_csv,
   export_pile_plan_xlsx,
   greedy_optimize,
@@ -33,7 +39,7 @@ import {
   type Cpt,
   type CptSelectionSettings,
   type GreedyOptimizationSettings,
-  type GreedyOptimizationResult,
+  type GreedyOptimizationOutcome,
   type OptimizationLimitScope,
   type LoadPoint,
   type PileConfigurationOption,
@@ -56,6 +62,47 @@ import {
   type PilePlanImportPreview,
   type PilePlanImportRequest,
 } from "./pilePlanImportContract.ts";
+import {
+  aggregatedPileConfigurationsFromCore,
+  toBrowserAggregatePileOptionsRequest,
+  toDesktopAggregatePileOptionsRequest,
+  type AggregatedPileConfiguration,
+  type CoreAggregatedPileConfiguration,
+} from "./pileOptionAggregationContract.ts";
+import {
+  toBrowserTipLevelRegionTopologyRequest,
+  toDesktopTipLevelRegionTopologyRequest,
+  type SpatialNeighborhood,
+  type SpatialPileAssignment,
+  type TipLevelRegionTopology,
+} from "./spatialTopologyContract.ts";
+import {
+  loadPointGroupAssignmentResultFromCore,
+  loadPointGroupsFromCore,
+  toBrowserLoadPointGroupAssignmentRequest,
+  toDeriveLoadPointGroupsRequest,
+  toDesktopLoadPointGroupAssignmentRequest,
+  type ApplyLoadPointGroupAssignmentResult,
+  type LoadPointGroup,
+  type LoadPointGroupAssignmentInput,
+} from "./loadPointGroupContract.ts";
+import {
+  greedyOptimizationOutcomeFromCore,
+  toBrowserGreedyOptimizationRequest,
+  toDesktopGreedyOptimizationRequest,
+} from "./greedyOptimizationContract.ts";
+import {
+  toBrowserDefaultPileSelectionRequest,
+  toDesktopDefaultPileSelectionRequest,
+} from "./defaultPileSelectionContract.ts";
+import {
+  technicalAssignmentAssessmentFromCore,
+  toBrowserTechnicalAssignmentRequest,
+  toDesktopTechnicalAssignmentRequest,
+  type CoreTechnicalAssignmentAssessment,
+  type TechnicalAssignmentAssessment,
+  type TechnicalAssignmentContractInput,
+} from "./technicalAssignmentContract.ts";
 
 type CoreCptSelectionSettings = {
   algorithm: CptSelectionSettings["algorithm"];
@@ -72,6 +119,36 @@ let wasmReady: Promise<void> | null = null;
 
 export function isTauriRuntime(): boolean {
   return typeof window !== "undefined" && "__TAURI_INTERNALS__" in window;
+}
+
+export async function buildSpatialNeighborhoodCore(
+  loadPoints: LoadPoint[],
+): Promise<SpatialNeighborhood> {
+  if (!isTauriRuntime()) {
+    await initializeWasm();
+    return build_spatial_neighborhood({ load_points: loadPoints }) as SpatialNeighborhood;
+  }
+
+  return invoke<SpatialNeighborhood>("build_spatial_neighborhood", {
+    request: { load_points: loadPoints },
+  });
+}
+
+export async function buildTipLevelRegionTopologyCore(input: {
+  neighborhood: SpatialNeighborhood;
+  selectedAssignments: Map<number, SpatialPileAssignment>;
+  optionsByLoadPoint: Map<number, PileConfigurationOption[]>;
+}): Promise<TipLevelRegionTopology> {
+  if (!isTauriRuntime()) {
+    await initializeWasm();
+    return build_tip_level_region_topology(
+      toBrowserTipLevelRegionTopologyRequest(input),
+    ) as TipLevelRegionTopology;
+  }
+
+  return invoke<TipLevelRegionTopology>("build_tip_level_region_topology", {
+    request: toDesktopTipLevelRegionTopologyRequest(input),
+  });
 }
 
 export async function calculateSelectedCptsCore(input: {
@@ -234,36 +311,97 @@ export async function chooseDefaultPileOptionCore(input: {
 }
 
 export async function chooseDefaultPileOptionsCore(input: {
+  groups: LoadPointGroup[];
   optionsByLoadPointId: Map<number, PileConfigurationOption[]>;
   pileHeadLevelM: number;
   costSettings: PileCostSettings;
-}): Promise<Map<number, string>> {
-  const coreOptions = toCorePileOptionsByLoadPoint(input.optionsByLoadPointId);
+}): Promise<Map<number, PileConfigurationKey>> {
   let choices: Map<number, PileConfigurationKey> | Record<string, PileConfigurationKey>;
 
   if (!isTauriRuntime()) {
     await initializeWasm();
-    choices = choose_default_options({
-      options_by_load_point: toWasmNumberKeyedMap(coreOptions),
-      pile_head_level_m: input.pileHeadLevelM,
-      cost_settings: input.costSettings,
-    }) as Map<number, PileConfigurationKey>;
+    choices = choose_default_options(
+      toBrowserDefaultPileSelectionRequest(input),
+    ) as Map<number, PileConfigurationKey>;
   } else {
     choices = await invoke<Record<string, PileConfigurationKey>>("choose_default_options", {
-      request: {
-        options_by_load_point: toStringKeyedRecord(coreOptions),
-        pile_head_level_m: input.pileHeadLevelM,
-        cost_settings: input.costSettings,
-      },
+      request: toDesktopDefaultPileSelectionRequest(input),
     });
   }
 
   return new Map(
-    [...numericMap(choices)].map(([loadPointId, key]) => [
-      loadPointId,
-      `${key.pile_size_mm}|${key.pile_tip_level_m_key / 1000}`,
-    ]),
+    [...numericMap(choices)].map(([loadPointId, key]) => [loadPointId, { ...key }]),
   );
+}
+
+export async function deriveLoadPointGroupsCore(
+  loadPoints: LoadPoint[],
+): Promise<LoadPointGroup[]> {
+  const request = toDeriveLoadPointGroupsRequest(loadPoints);
+  let result: LoadPointGroup[];
+  if (!isTauriRuntime()) {
+    await initializeWasm();
+    result = derive_load_point_groups(request) as LoadPointGroup[];
+  } else {
+    result = await invoke<LoadPointGroup[]>("derive_load_point_groups", { request });
+  }
+
+  return loadPointGroupsFromCore(result);
+}
+
+export async function applyLoadPointGroupAssignmentCore(
+  input: LoadPointGroupAssignmentInput,
+): Promise<ApplyLoadPointGroupAssignmentResult> {
+  let result: ApplyLoadPointGroupAssignmentResult;
+  if (!isTauriRuntime()) {
+    await initializeWasm();
+    result = apply_load_point_group_assignment(
+      toBrowserLoadPointGroupAssignmentRequest(input),
+    ) as ApplyLoadPointGroupAssignmentResult;
+  } else {
+    result = await invoke<ApplyLoadPointGroupAssignmentResult>(
+      "apply_load_point_group_assignment",
+      { request: toDesktopLoadPointGroupAssignmentRequest(input) },
+    );
+  }
+
+  return loadPointGroupAssignmentResultFromCore(result);
+}
+
+export async function aggregatePileOptionsCore(
+  optionsByLoadPoint: Map<number, PileConfigurationOption[]>,
+): Promise<AggregatedPileConfiguration[]> {
+  let result: CoreAggregatedPileConfiguration[];
+  if (!isTauriRuntime()) {
+    await initializeWasm();
+    result = aggregate_pile_options(
+      toBrowserAggregatePileOptionsRequest(optionsByLoadPoint),
+    ) as CoreAggregatedPileConfiguration[];
+  } else {
+    result = await invoke<CoreAggregatedPileConfiguration[]>("aggregate_pile_options", {
+      request: toDesktopAggregatePileOptionsRequest(optionsByLoadPoint),
+    });
+  }
+
+  return aggregatedPileConfigurationsFromCore(result);
+}
+
+export async function assessTechnicalAssignmentCore(
+  input: TechnicalAssignmentContractInput,
+): Promise<TechnicalAssignmentAssessment> {
+  let result: CoreTechnicalAssignmentAssessment;
+  if (!isTauriRuntime()) {
+    await initializeWasm();
+    result = assess_technical_assignment(
+      toBrowserTechnicalAssignmentRequest(input),
+    ) as CoreTechnicalAssignmentAssessment;
+  } else {
+    result = await invoke<CoreTechnicalAssignmentAssessment>("assess_technical_assignment", {
+      request: toDesktopTechnicalAssignmentRequest(input),
+    });
+  }
+
+  return technicalAssignmentAssessmentFromCore(result);
 }
 
 export async function getBearingCapacityRowsForCptCore(input: {
@@ -287,43 +425,28 @@ export async function getBearingCapacityRowsForCptCore(input: {
 }
 
 export async function greedyOptimizeCore(input: {
+  groups: LoadPointGroup[];
   optionsByLoadPoint: Map<number, PileConfigurationOption[]>;
   targetLoadPointIds: number[];
   lockedLoadPointIds: number[];
   currentAssignments: Map<number, PileConfigurationKey>;
   limitScope: OptimizationLimitScope;
-  pileHeadLevelM: number;
+  pileHeadLevelM: number | null;
   costSettings: PileCostSettings;
   settings: GreedyOptimizationSettings;
-}): Promise<GreedyOptimizationResult> {
+}): Promise<GreedyOptimizationOutcome> {
   if (!isTauriRuntime()) {
     await initializeWasm();
-    const request = {
-      options_by_load_point: toWasmNumberKeyedMap(toCorePileOptionsByLoadPoint(input.optionsByLoadPoint)),
-      target_load_point_ids: input.targetLoadPointIds,
-      locked_load_point_ids: input.lockedLoadPointIds,
-      current_assignments: toWasmNumberKeyedMap(input.currentAssignments),
-      limit_scope: input.limitScope,
-      pile_head_level_m: input.pileHeadLevelM,
-      cost_settings: input.costSettings,
-      settings: input.settings,
-    };
-
-    return greedy_optimize(request) as GreedyOptimizationResult;
+    const outcome = greedy_optimize(
+      toBrowserGreedyOptimizationRequest(input),
+    ) as GreedyOptimizationOutcome;
+    return greedyOptimizationOutcomeFromCore(outcome);
   }
 
-  const request = {
-    options_by_load_point: toStringKeyedRecord(toCorePileOptionsByLoadPoint(input.optionsByLoadPoint)),
-    target_load_point_ids: input.targetLoadPointIds,
-    locked_load_point_ids: input.lockedLoadPointIds,
-    current_assignments: toStringKeyedRecord(input.currentAssignments),
-    limit_scope: input.limitScope,
-    pile_head_level_m: input.pileHeadLevelM,
-    cost_settings: input.costSettings,
-    settings: input.settings,
-  };
-
-  return invoke<GreedyOptimizationResult>("greedy_optimize", { request });
+  const outcome = await invoke<GreedyOptimizationOutcome>("greedy_optimize", {
+    request: toDesktopGreedyOptimizationRequest(input),
+  });
+  return greedyOptimizationOutcomeFromCore(outcome);
 }
 
 export async function importProjectFromFilesCore(input: {
@@ -514,12 +637,14 @@ function toCoreSettingsMapByLoadPoint(
 
 function toCorePileOption(option: PileConfigurationOption): CorePileConfigurationOption {
   return {
+    configuration: { ...option.configuration },
     pile_size_mm: option.pile_size_mm,
     pile_tip_level_m: option.pile_tip_level_m,
     is_option: option.isOption,
     governing_cpt_id: option.governing_cpt_id,
     governing_frd_kn: option.governing_frd_kn,
     utilization: option.utilization,
-    missing_cpt_ids: option.missing_cpt_ids,
+    missing_cpt_ids: [...option.missing_cpt_ids],
+    technical_status: option.technicalStatus,
   };
 }

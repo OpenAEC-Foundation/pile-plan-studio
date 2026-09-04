@@ -1,5 +1,6 @@
 import type { PilePlanData } from "../core/projectFile.ts";
-import type { GreedyUnassignedReason } from "../core/projectTypes.ts";
+import type { OptimizationUnassignedReason, PileConfigurationKey } from "../core/projectTypes.ts";
+import { samePileConfiguration } from "../core/pileConfigurationKey.ts";
 
 export type PilePlanLanguage = "nl" | "en";
 export type GeneratedPilePlanKind = "variant" | "duplicate" | "optimization";
@@ -7,7 +8,7 @@ export type GeneratedPilePlanKind = "variant" | "duplicate" | "optimization";
 export type PilePlanTransition = {
   pilePlans: PilePlanData[];
   activePilePlanId: string;
-  selectedPileOptionKeysByLoadPoint: Map<number, string>;
+  selectedPileConfigurationsByLoadPoint: Map<number, PileConfigurationKey>;
 };
 
 type ActivePilePlanInput = PilePlanTransition;
@@ -15,23 +16,25 @@ type ActivePilePlanInput = PilePlanTransition;
 export function synchronizeActivePilePlan(
   pilePlans: PilePlanData[],
   activePilePlanId: string,
-  selectedPileOptionKeysByLoadPoint: Map<number, string>,
+  selectedPileConfigurationsByLoadPoint: Map<number, PileConfigurationKey>,
 ): PilePlanData[] {
   return pilePlans.map((plan) => plan.id === activePilePlanId ? ({
     ...plan,
-    selectedPileOptionKeysByLoadPoint: new Map(selectedPileOptionKeysByLoadPoint),
+    selectedPileConfigurationsByLoadPoint: cloneConfigurationMap(
+      selectedPileConfigurationsByLoadPoint,
+    ),
     optimizationUnassignedByLoadPoint: new Map(
       [...plan.optimizationUnassignedByLoadPoint]
-        .filter(([loadPointId]) => !selectedPileOptionKeysByLoadPoint.has(loadPointId)),
+        .filter(([loadPointId]) => !selectedPileConfigurationsByLoadPoint.has(loadPointId)),
     ),
   }) : plan);
 }
 
 export function replaceOptimizationOutcomesForTargets(
-  previous: Map<number, GreedyUnassignedReason>,
+  previous: Map<number, OptimizationUnassignedReason>,
   targetIds: number[],
-  next: Map<number, GreedyUnassignedReason>,
-): Map<number, GreedyUnassignedReason> {
+  next: Map<number, OptimizationUnassignedReason>,
+): Map<number, OptimizationUnassignedReason> {
   const targetSet = new Set(targetIds);
   return new Map([
     ...[...previous].filter(([loadPointId]) => !targetSet.has(loadPointId)),
@@ -45,7 +48,7 @@ export function switchPilePlan(
   const pilePlans = synchronizeActivePilePlan(
     input.pilePlans,
     input.activePilePlanId,
-    input.selectedPileOptionKeysByLoadPoint,
+    input.selectedPileConfigurationsByLoadPoint,
   );
   const target = pilePlans.find((plan) => plan.id === input.targetPilePlanId);
   if (!target) return { ...input, pilePlans };
@@ -88,7 +91,7 @@ export function duplicatePilePlan(
   const pilePlans = synchronizeActivePilePlan(
     input.pilePlans,
     input.activePilePlanId,
-    input.selectedPileOptionKeysByLoadPoint,
+    input.selectedPileConfigurationsByLoadPoint,
   );
   const source = pilePlans.find((plan) => plan.id === input.sourcePilePlanId);
   if (!source) return { ...input, pilePlans };
@@ -97,7 +100,9 @@ export function duplicatePilePlan(
     ...source,
     id: nextPilePlanId(pilePlans),
     name: generatedPilePlanName(pilePlans, "duplicate", input.language, source.name),
-    selectedPileOptionKeysByLoadPoint: new Map(source.selectedPileOptionKeysByLoadPoint),
+    selectedPileConfigurationsByLoadPoint: cloneConfigurationMap(
+      source.selectedPileConfigurationsByLoadPoint,
+    ),
     externalReferencesByLoadPoint: cloneReferenceMap(source.externalReferencesByLoadPoint),
     lockedLoadPointIds: [...source.lockedLoadPointIds],
     optimizationUnassignedByLoadPoint: new Map(source.optimizationUnassignedByLoadPoint),
@@ -108,7 +113,7 @@ export function duplicatePilePlan(
 
 export function createPilePlan(
   input: ActivePilePlanInput & {
-    choices: Map<number, string>;
+    choices: Map<number, PileConfigurationKey>;
     kind: "variant" | "optimization";
     language: PilePlanLanguage;
   },
@@ -116,12 +121,12 @@ export function createPilePlan(
   const pilePlans = synchronizeActivePilePlan(
     input.pilePlans,
     input.activePilePlanId,
-    input.selectedPileOptionKeysByLoadPoint,
+    input.selectedPileConfigurationsByLoadPoint,
   );
   const created: PilePlanData = {
     id: nextPilePlanId(pilePlans),
     name: generatedPilePlanName(pilePlans, input.kind, input.language),
-    selectedPileOptionKeysByLoadPoint: new Map(input.choices),
+    selectedPileConfigurationsByLoadPoint: cloneConfigurationMap(input.choices),
     externalReferencesByLoadPoint: new Map(),
     lockedLoadPointIds: [],
     optimizationUnassignedByLoadPoint: new Map(),
@@ -132,27 +137,29 @@ export function createPilePlan(
 
 export function createOptimizationPilePlan(
   input: ActivePilePlanInput & {
-    optimizedChoices: Map<number, string>;
-    optimizationUnassignedByLoadPoint?: Map<number, GreedyUnassignedReason>;
+    optimizedChoices: Map<number, PileConfigurationKey>;
+    optimizationUnassignedByLoadPoint?: Map<number, OptimizationUnassignedReason>;
     language: PilePlanLanguage;
   },
 ): PilePlanTransition {
   const pilePlans = synchronizeActivePilePlan(
     input.pilePlans,
     input.activePilePlanId,
-    input.selectedPileOptionKeysByLoadPoint,
+    input.selectedPileConfigurationsByLoadPoint,
   );
   const source = pilePlans.find((plan) => plan.id === input.activePilePlanId) ?? pilePlans[0];
   const externalReferencesByLoadPoint = new Map(
     [...source.externalReferencesByLoadPoint]
-      .filter(([loadPointId]) => source.selectedPileOptionKeysByLoadPoint.get(loadPointId)
-        === input.optimizedChoices.get(loadPointId))
+      .filter(([loadPointId]) => samePileConfiguration(
+        source.selectedPileConfigurationsByLoadPoint.get(loadPointId),
+        input.optimizedChoices.get(loadPointId),
+      ))
       .map(([loadPointId, references]) => [loadPointId, [...references]]),
   );
   const created: PilePlanData = {
     id: nextPilePlanId(pilePlans),
     name: generatedPilePlanName(pilePlans, "optimization", input.language),
-    selectedPileOptionKeysByLoadPoint: new Map(input.optimizedChoices),
+    selectedPileConfigurationsByLoadPoint: cloneConfigurationMap(input.optimizedChoices),
     externalReferencesByLoadPoint,
     lockedLoadPointIds: [...source.lockedLoadPointIds],
     optimizationUnassignedByLoadPoint: new Map(
@@ -178,7 +185,7 @@ export function deletePilePlan(
   const pilePlans = synchronizeActivePilePlan(
     input.pilePlans,
     input.activePilePlanId,
-    input.selectedPileOptionKeysByLoadPoint,
+    input.selectedPileConfigurationsByLoadPoint,
   );
   if (pilePlans.length <= 1) {
     const active = pilePlans.find((plan) => plan.id === input.activePilePlanId) ?? pilePlans[0];
@@ -201,7 +208,9 @@ function transitionToPlan(pilePlans: PilePlanData[], plan: PilePlanData): PilePl
   return {
     pilePlans,
     activePilePlanId: plan.id,
-    selectedPileOptionKeysByLoadPoint: new Map(plan.selectedPileOptionKeysByLoadPoint),
+    selectedPileConfigurationsByLoadPoint: cloneConfigurationMap(
+      plan.selectedPileConfigurationsByLoadPoint,
+    ),
   };
 }
 
@@ -220,4 +229,15 @@ function cloneReferenceMap(
   references: Map<number, unknown[]>,
 ): Map<number, unknown[]> {
   return new Map([...references].map(([loadPointId, values]) => [loadPointId, [...values]]));
+}
+
+function cloneConfigurationMap(
+  configurations: Map<number, PileConfigurationKey>,
+): Map<number, PileConfigurationKey> {
+  return new Map(
+    [...configurations].map(([loadPointId, configuration]) => [
+      loadPointId,
+      { ...configuration },
+    ]),
+  );
 }

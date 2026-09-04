@@ -61,7 +61,13 @@ export type CptSelectionSettings = {
   maxAngleDegrees: number;
 };
 
+export type PileOptionTechnicalStatus =
+  | "valid"
+  | "missing_capacity_data"
+  | "insufficient_capacity";
+
 export type PileConfigurationOption = {
+  configuration: PileConfigurationKey;
   pile_size_mm: number;
   pile_tip_level_m: number;
   isOption: boolean;
@@ -69,6 +75,7 @@ export type PileConfigurationOption = {
   governing_frd_kn: number | null;
   utilization: number | null;
   missing_cpt_ids: number[];
+  technicalStatus: PileOptionTechnicalStatus;
 };
 
 export type ProjectAnalysisResult = {
@@ -97,9 +104,15 @@ export type ProjectViewerSettings = {
   symbolScalePercent: number;
   foregroundLayer: "load-points" | "cpts";
   showGrid: boolean;
+  showTipLevelRegions: boolean;
 };
 
 export type PileConfigurationKey = {
+  pile_size_mm: number;
+  pile_tip_level_mm: number;
+};
+
+export type IfcppPileConfigurationKey = {
   pile_size_mm: number;
   pile_tip_level_m_key: number;
 };
@@ -112,30 +125,54 @@ export type PilePlanExportInput = {
 
 export type GreedyOptimizedPileChoice = {
   load_point_id: number;
+  configuration: PileConfigurationKey;
   pile_size_mm: number;
   pile_tip_level_m: number;
   is_option: boolean;
   cost: number | null;
 };
 
-export type GreedyUnassignedReason =
-  | "no_valid_option"
+export type OptimizationUnassignedReason =
   | "optimization_constraints"
   | "configuration_limits";
 
-export type GreedyUnassignedLoadPoint = {
+export type OptimizationUnassignedLoadPoint = {
   load_point_id: number;
-  reason: GreedyUnassignedReason;
+  reason: OptimizationUnassignedReason;
 };
 
 export type GreedyOptimizationResult = {
   assignments: GreedyOptimizedPileChoice[];
-  unassigned: GreedyUnassignedLoadPoint[];
+  unassigned: OptimizationUnassignedLoadPoint[];
+  technical_unassigned_load_point_ids: number[];
+  unassigned_group_count: number;
   selected_configurations: PileConfigurationKey[];
   pile_size_count: number;
   pile_tip_level_count: number;
   configuration_count: number;
 };
+
+export type OptimizationPreparationDiagnosticKind =
+  | "invalid_group_partition"
+  | "missing_pile_head_level"
+  | "missing_analysis_data"
+  | "conflicting_locked_configurations"
+  | "locked_member_unassigned"
+  | "locked_configuration_unavailable"
+  | "locked_configuration_exceeds_utilization_limit"
+  | "missing_relevant_cost"
+  | "no_eligible_configuration"
+  | "no_pile_configurations";
+
+export type OptimizationPreparationDiagnostic = {
+  kind: OptimizationPreparationDiagnosticKind;
+  load_point_ids: number[];
+  configuration: PileConfigurationKey | null;
+};
+
+export type GreedyOptimizationOutcome =
+  | { status: "completed"; result: GreedyOptimizationResult }
+  | { status: "blocked"; diagnostics: OptimizationPreparationDiagnostic[] };
 
 export type PileCostShape = "round" | "square";
 

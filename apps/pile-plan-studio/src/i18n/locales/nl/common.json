@@ -49,6 +49,9 @@
       "project-change": "Project gewijzigd"
     }
   },
+  "loadPointGroups": {
+    "assignmentBlocked": "Niet gewijzigd: vergrendelde belastinglocatie(s) {{names}} gebruiken een andere of geen paalconfiguratie."
+  },
   "search": "Zoeken",
   "find": "Zoeken",
   "open": "Openen",
@@ -76,6 +79,15 @@
   "properties": "Eigenschappen",
   "viewer": {
     "optimizerUnassigned": "De laatste optimalisatie vond binnen de ingestelde limieten geen toewijzing.",
+    "unselected": {
+      "pending": "De paalopties worden beoordeeld.",
+      "analysis-error": "De paalopties konden niet worden beoordeeld.",
+      "unavailable": "Er zijn geen bruikbare draagvermogenconfiguraties beschikbaar.",
+      "missing-capacity-data": "Er is geen geldige paaloptie omdat draagvermogeninformatie ontbreekt.",
+      "insufficient-capacity": "Geen geldige paaloptie heeft voldoende draagvermogen.",
+      "optimizer-unassigned": "De laatste optimalisatie vond binnen de ingestelde limieten geen toewijzing.",
+      "unassigned": "Er is geen paal toegewezen."
+    },
     "hover": {
       "loadPoint": "Belastinglocatie",
       "cpt": "Sondering",

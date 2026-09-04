@@ -40,6 +40,7 @@ import { renderPileSymbol } from "../../viewer/pileSymbols.ts";
 import {
   getLoadPointMarkerInvalidVisual,
   getUnselectedLoadPointMarkerState,
+  usesNeutralUnassignedMarker,
 } from "../../viewer/loadPointMarker.ts";
 import { getCptConnectionSegments } from "../../viewer/cptConnectionLines.ts";
 import {
@@ -82,14 +83,25 @@ import {
 import { elementLayoutScale, screenToLocal } from "../../domain/uiBaseline.ts";
 import OptimizerUnresolvedMarker from "../viewer/OptimizerUnresolvedMarker.tsx";
 import { CoordinateReadout } from "./CoordinateReadout.ts";
+import {
+  buildTipLevelRegionGeometry,
+  projectTipLevelRegionPoints,
+} from "../../viewer/tipLevelRegionGeometry.ts";
+import { presentTipLevelRegionGeometry } from "../../viewer/tipLevelRegionPresentation.ts";
+import { useTipLevelRegionTopology } from "./useTipLevelRegionTopology.ts";
+import TipLevelRegionOverlay from "./TipLevelRegionOverlay.tsx";
+import type { LoadPointGroup } from "../../core/loadPointGroupContract.ts";
+import type { TechnicalAssignmentSnapshot } from "./technicalAssignmentController.ts";
 
 type Props = {
   state: ProjectState;
+  loadPointGroups: LoadPointGroup[];
+  technicalAssignment: TechnicalAssignmentSnapshot;
   lassoSelectionActive: boolean;
   onStateChange: (nextState: ProjectState) => void;
 };
 
-export default function PilePlanViewer({ state, lassoSelectionActive, onStateChange }: Props) {
+export default function PilePlanViewer({ state, loadPointGroups, technicalAssignment, lassoSelectionActive, onStateChange }: Props) {
   const { t, i18n } = useTranslation("common");
   const legend = state.pileLegend;
   const selectedLoadPointIds = new Set(state.selectedLoadPointIds);
@@ -108,13 +120,36 @@ export default function PilePlanViewer({ state, lassoSelectionActive, onStateCha
     activeSelectedCptIds: [...contextSelectedCptIds],
     pileOptionsByLoadPointId,
     selectedLoadPointIds: state.selectedLoadPointIds,
-    selectedPileOptionKeysByLoadPoint: state.selectedPileOptionKeysByLoadPoint,
+    selectedPileConfigurationsByLoadPoint: state.selectedPileConfigurationsByLoadPoint,
   });
   const isEditingCptSelection = isReactViewerCptSelectionEditing(state);
   const [projectTransform, setProjectTransform] = useState(
     () => createProjectViewTransform(state.bounds, { width: 1, height: 1 }),
   );
   const projectTransformRef = useRef(projectTransform);
+  const tipLevelRegionTopology = useTipLevelRegionTopology({
+    enabled: state.showTipLevelRegions,
+    loadPoints: state.loadPoints,
+    selectedPileConfigurationsByLoadPoint: state.selectedPileConfigurationsByLoadPoint,
+    pileOptionsByLoadPointId: state.pileOptionsByLoadPointId,
+  });
+  const tipLevelRegionPoints = useMemo(
+    () => projectTipLevelRegionPoints(state.loadPoints, projectTransform),
+    [projectTransform, state.loadPoints],
+  );
+  const tipLevelRegionGeometry = useMemo(() => (
+    tipLevelRegionTopology
+      ? buildTipLevelRegionGeometry({
+          topology: tipLevelRegionTopology,
+          pointsBySiteId: tipLevelRegionPoints,
+          symbolScalePercent: state.symbolScalePercent,
+        })
+      : []
+  ), [tipLevelRegionPoints, tipLevelRegionTopology, state.symbolScalePercent]);
+  const tipLevelRegionPresentation = useMemo(
+    () => presentTipLevelRegionGeometry(tipLevelRegionGeometry, legend),
+    [tipLevelRegionGeometry, legend],
+  );
   const cptConnectionSegments = useMemo(() => getCptConnectionSegments({
     transform: projectTransform,
     cpts: state.cpts,
@@ -282,6 +317,11 @@ export default function PilePlanViewer({ state, lassoSelectionActive, onStateCha
               projectTransform.canvasSize,
             )}
           >
+          <TipLevelRegionOverlay
+            height={projectTransform.canvasSize.height}
+            layers={tipLevelRegionPresentation}
+            width={projectTransform.canvasSize.width}
+          />
           {cptConnectionSegments.length > 0 ? (
             <svg className="cpt-connection-lines" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
               {cptConnectionSegments.map((segment) => (
@@ -296,6 +336,25 @@ export default function PilePlanViewer({ state, lassoSelectionActive, onStateCha
               ))}
             </svg>
           ) : null}
+          {state.loadPoints.map((loadPoint) => {
+            const isLocked = lockedLoadPointIds.has(loadPoint.id);
+            const selectedOption = getSelectedPileOption(state, loadPoint.id, pileOptionsByLoadPointId);
+            const invalidVisual = getLoadPointMarkerInvalidVisual(
+              selectedOption,
+              state.viewerUtilizationSettings,
+            );
+            if (!invalidVisual.className) return null;
+
+            const point = projectPointPixels(loadPoint, projectTransform);
+            return (
+              <span
+                aria-hidden="true"
+                className={`load-point-status-halo${invalidVisual.className}${isLocked ? " is-locked" : ""}`}
+                key={`load-point-status-${loadPoint.id}`}
+                style={getProjectMarkerStyle(point, invalidVisual.style)}
+              />
+            );
+          })}
           {state.cpts.map((cpt) => {
             const point = projectPointPixels(cpt, projectTransform);
             const cptName = getCptDisplayName(cpt);
@@ -340,36 +399,31 @@ export default function PilePlanViewer({ state, lassoSelectionActive, onStateCha
             const isSelected = selectedLoadPointIds.has(loadPoint.id);
             const isLocked = lockedLoadPointIds.has(loadPoint.id);
             const selectedOption = getSelectedPileOption(state, loadPoint.id, pileOptionsByLoadPointId);
-            const invalidVisual = getLoadPointMarkerInvalidVisual(
-              selectedOption,
-              state.viewerUtilizationSettings,
-            );
             const style = selectedOption
               ? getConfigurationStyle(selectedOption, legend)
               : null;
-            const unselectedState = selectedOption ? null : getUnselectedLoadPointMarkerState(
-              pileOptionsByLoadPointId.get(loadPoint.id),
-              state.defaultPileSelectionPending,
-              state.analysisError !== null,
-              activePilePlan.optimizationUnassignedByLoadPoint.get(loadPoint.id),
-            );
-            const unselectedClass = unselectedState === "pending"
+            const unselectedState = selectedOption ? null : getUnselectedLoadPointMarkerState({
+              analysisStatus: technicalAssignment.status,
+              technicalIssueStatus: technicalAssignment.issuesByLoadPointId.get(loadPoint.id)?.status,
+              optimizationUnassignedReason: activePilePlan.optimizationUnassignedByLoadPoint.get(loadPoint.id),
+            });
+            const optimizerTitle = getOptimizerUnresolvedTitle(loadPoint.id);
+            const unselectedTitle = unselectedState === "optimizer-unassigned"
+              ? optimizerTitle
+              : unselectedState ? t(`viewer.unselected.${unselectedState}`) : undefined;
+            const unselectedClass = unselectedState && usesNeutralUnassignedMarker(unselectedState)
               ? " is-pending"
-              : unselectedState === "missing"
-                ? " has-missing-options"
-                : unselectedState === "invalid"
-                  ? " has-invalid-options"
-                  : unselectedState === "optimizer-unassigned"
-                    ? " has-optimizer-unassigned"
+              : unselectedState === "optimizer-unassigned"
+                ? " has-optimizer-unassigned"
                   : "";
 
             return (
               <button
-                aria-label={`Load point ${loadPoint.name}`}
-                className={`load-point-marker${getLoadPointMarkerLayerClass(isSelected)}${isSelected ? " is-selected" : ""}${isLocked ? " is-locked" : ""}${invalidVisual.className}${unselectedClass}${activeHoverCandidateKey === `load-point:${loadPoint.id}` ? " is-hover-candidate" : ""}`}
+                aria-label={`Load point ${loadPoint.name}${unselectedTitle ? `. ${unselectedTitle}` : ""}`}
+                className={`load-point-marker${getLoadPointMarkerLayerClass(isSelected)}${isSelected ? " is-selected" : ""}${isLocked ? " is-locked" : ""}${unselectedClass}${activeHoverCandidateKey === `load-point:${loadPoint.id}` ? " is-hover-candidate" : ""}`}
                 data-map-marker-key={`load-point:${loadPoint.id}`}
                 key={loadPoint.id}
-                style={getProjectMarkerStyle(point, invalidVisual.style)}
+                style={getProjectMarkerStyle(point)}
                 type="button"
                 onClick={(event) => {
                   event.stopPropagation();
@@ -396,11 +450,11 @@ export default function PilePlanViewer({ state, lassoSelectionActive, onStateCha
                     className="load-point-symbol"
                     dangerouslySetInnerHTML={{ __html: renderPileSymbol(style.symbol, style.color) }}
                   />
-                ) : unselectedState === "pending" ? (
-                  <span className="load-point-pending" aria-hidden="true" />
+                ) : unselectedState && usesNeutralUnassignedMarker(unselectedState) ? (
+                  <span className="load-point-unassigned" aria-hidden="true" />
                 ) : unselectedState === "optimizer-unassigned" ? (
                   <OptimizerUnresolvedMarker
-                    title={t("viewer.optimizerUnassigned")}
+                    label={optimizerTitle}
                   />
                 ) : (
                   <span className="load-point-empty" aria-hidden="true">
@@ -713,6 +767,11 @@ export default function PilePlanViewer({ state, lassoSelectionActive, onStateCha
     setHoverCandidates(null);
   }
 
+  function getOptimizerUnresolvedTitle(loadPointId: number): string {
+    void loadPointId;
+    return t("viewer.optimizerUnassigned");
+  }
+
   function getProjectViewportPointer(clientX: number, clientY: number, rect: LocalCanvasRect) {
     const pointer = getLocalPointer(clientX, clientY, rect);
     return {
@@ -822,20 +881,15 @@ export default function PilePlanViewer({ state, lassoSelectionActive, onStateCha
       selectedOption,
       state.viewerUtilizationSettings,
     );
-    const unselectedState = selectedOption ? null : getUnselectedLoadPointMarkerState(
-      pileOptionsByLoadPointId.get(item.id),
-      state.defaultPileSelectionPending,
-      state.analysisError !== null,
-      activePilePlan.optimizationUnassignedByLoadPoint.get(item.id),
-    );
-    const statusClass = unselectedState === "pending"
+    const unselectedState = selectedOption ? null : getUnselectedLoadPointMarkerState({
+      analysisStatus: technicalAssignment.status,
+      technicalIssueStatus: technicalAssignment.issuesByLoadPointId.get(item.id)?.status,
+      optimizationUnassignedReason: activePilePlan.optimizationUnassignedByLoadPoint.get(item.id),
+    });
+    const statusClass = unselectedState && usesNeutralUnassignedMarker(unselectedState)
       ? " is-pending"
-      : unselectedState === "missing"
-        ? " has-missing-options"
-        : unselectedState === "invalid"
-          ? " has-invalid-options"
-          : unselectedState === "optimizer-unassigned"
-            ? " has-optimizer-unassigned"
+      : unselectedState === "optimizer-unassigned"
+        ? " has-optimizer-unassigned"
           : "";
     return (
       <span
@@ -843,13 +897,13 @@ export default function PilePlanViewer({ state, lassoSelectionActive, onStateCha
         style={getInvalidMarkerStyle(invalidVisual.style)}
       >
         {symbolStyle ? (
-          <span dangerouslySetInnerHTML={{ __html: renderPileSymbol(symbolStyle.symbol, symbolStyle.color) }} />
-        ) : unselectedState === "pending" ? (
-          <span className="load-point-pending" aria-hidden="true" />
+          <span className="viewer-hover-pile-symbol" dangerouslySetInnerHTML={{ __html: renderPileSymbol(symbolStyle.symbol, symbolStyle.color) }} />
+        ) : unselectedState && usesNeutralUnassignedMarker(unselectedState) ? (
+          <span className="load-point-unassigned" aria-hidden="true" />
         ) : unselectedState === "optimizer-unassigned" ? (
           <OptimizerUnresolvedMarker
             placement="inline"
-            title={t("viewer.optimizerUnassigned")}
+            label={getOptimizerUnresolvedTitle(item.id)}
           />
         ) : (
           <span className="load-point-empty" aria-hidden="true">
@@ -996,26 +1050,24 @@ function getSelectedPileOption(
   loadPointId: number,
   pileOptionsByLoadPointId: ProjectState["pileOptionsByLoadPointId"],
 ) {
-  const key = state.selectedPileOptionKeysByLoadPoint.get(loadPointId);
-  if (!key) {
-    return null;
-  }
-
-  const [pileSize, pileTipLevel] = key.split("|").map(Number);
-  if (!Number.isFinite(pileSize) || !Number.isFinite(pileTipLevel)) {
+  const configuration = state.selectedPileConfigurationsByLoadPoint.get(loadPointId);
+  if (!configuration) {
     return null;
   }
 
   return pileOptionsByLoadPointId.get(loadPointId)?.find((option) => (
-    option.pile_size_mm === pileSize && option.pile_tip_level_m === pileTipLevel
+    option.configuration.pile_size_mm === configuration.pile_size_mm
+      && option.configuration.pile_tip_level_mm === configuration.pile_tip_level_mm
   )) ?? {
-    pile_size_mm: pileSize,
-    pile_tip_level_m: pileTipLevel,
+    configuration: { ...configuration },
+    pile_size_mm: configuration.pile_size_mm,
+    pile_tip_level_m: configuration.pile_tip_level_mm / 1000,
     isOption: false,
     governing_cpt_id: null,
     governing_frd_kn: null,
     utilization: null,
     missing_cpt_ids: [0],
+    technicalStatus: "missing_capacity_data" as const,
   };
 }
 

@@ -1,17 +1,23 @@
 import { useEffect, useId, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { ProjectState } from "../../domain/projectState.ts";
+import type { TechnicalAssignmentSnapshot } from "./technicalAssignmentController.ts";
 import ThemedNumberInput from "../template/ThemedNumberInput.tsx";
-import { clampOptimizationLimits } from "./optimizationPanelModel.ts";
+import { selectLoadPoint } from "../../domain/selectionState.ts";
+import {
+  clampOptimizationLimits,
+  splitOptimizationErrorLoadPoints,
+} from "./optimizationPanelModel.ts";
 
 type Props = {
   state: ProjectState;
+  technicalAssessmentStatus: TechnicalAssignmentSnapshot["status"];
   onStateChange: (state: ProjectState) => void;
   onRunOptimization: () => void;
   onClose: () => void;
 };
 
-export default function OptimizationPanel({ state, onStateChange, onRunOptimization, onClose }: Props) {
+export default function OptimizationPanel({ state, technicalAssessmentStatus, onStateChange, onRunOptimization, onClose }: Props) {
   const { t } = useTranslation("rightPanel");
   const activeSizes = state.activePileSizes;
   const activeTips = state.activePileTipLevels;
@@ -21,7 +27,13 @@ export default function OptimizationPanel({ state, onStateChange, onRunOptimizat
     configurations: state.optimizationSettings.max_pile_configurations,
   }, activeSizes, activeTips);
   const hasTarget = state.optimizationTargetScope === "all" || state.selectedLoadPointIds.length > 0;
-  const disabled = state.optimizationRunning || activeSizes.length === 0 || activeTips.length === 0 || !hasTarget;
+  const disabled = state.optimizationRunning || activeSizes.length === 0 || activeTips.length === 0 || !hasTarget || technicalAssessmentStatus !== "ready";
+  const optimizationErrorParts = state.optimizationError
+    ? splitOptimizationErrorLoadPoints(
+        state.optimizationError,
+        state.optimizationErrorLoadPointIds,
+      )
+    : null;
 
   function updateScope(patch: Partial<Pick<
     ProjectState,
@@ -122,13 +134,31 @@ export default function OptimizationPanel({ state, onStateChange, onRunOptimizat
         </section>
         {activeSizes.length === 0 || activeTips.length === 0 ? <p className="panel-message is-warning">{t("optimization.enableLegend")}</p> : null}
         {!hasTarget ? <p className="panel-message is-warning">{t("optimization.selectLoadPoints")}</p> : null}
-        {state.optimizationError ? <p className="panel-message is-error">{state.optimizationError}</p> : null}
+        {state.optimizationError ? (
+          <p className="panel-message is-error">
+            {optimizationErrorParts ? <>
+              {optimizationErrorParts.before}
+              {optimizationErrorParts.loadPointIds.map((loadPointId, index) => <span key={loadPointId}>
+                {index > 0 ? ", " : null}
+                <button
+                  className="optimization-load-point-link"
+                  type="button"
+                  onClick={() => onStateChange({
+                    ...state,
+                    ...selectLoadPoint(state, loadPointId),
+                  })}
+                >{loadPointId}</button>
+              </span>)}
+              {optimizationErrorParts.after}
+            </> : state.optimizationError}
+          </p>
+        ) : null}
         {state.optimizationSummary ? (
           <div className="optimization-summary">
             <strong>{t("optimization.assigned", { count: state.optimizationSummary.assignedCount })}</strong>
             <span>{t("optimization.changed", { count: state.optimizationSummary.changedCount })}</span>
-            {state.optimizationSummary.noValidOptionCount > 0
-              ? <span>{t("optimization.noValidOption", { count: state.optimizationSummary.noValidOptionCount })}</span>
+            {state.optimizationSummary.technicalUnassignedCount > 0
+              ? <span>{t("optimization.noValidOption", { count: state.optimizationSummary.technicalUnassignedCount })}</span>
               : null}
             {state.optimizationSummary.optimizerUnassignedCount > 0
               ? <span>{t("optimization.unassigned", { count: state.optimizationSummary.optimizerUnassignedCount })}</span>

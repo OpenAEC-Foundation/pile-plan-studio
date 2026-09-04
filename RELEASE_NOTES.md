@@ -1,5 +1,53 @@
 # Pile Plan Studio Release Notes
 
+## 0.3.0-alpha
+
+This alpha adds connected pile-tip-level regions, makes grouped pile
+assignments and greedy optimization consistent, and provides clearer technical
+feedback when pile configurations cannot be assigned.
+
+### Added
+
+- Show connected pile-tip-level regions in the plan viewer. Region boundaries
+  are derived from the shared spatial topology and are coloured only where all
+  boundary load points use the same pile-tip level.
+- Treat nearby load points as assignment groups. Manual pile changes, default
+  selection, locking, and greedy optimization now apply one common
+  configuration to every group member or leave the complete group unchanged.
+- Inspect aggregated pile options for multiple selected load points, including
+  maximum utilization and the governing load point for each configuration.
+- Open a compact list of the CPTs whose bearing-capacity data is missing for a
+  configuration and navigate directly to those CPTs.
+
+### Improved
+
+- Distinguish missing bearing-capacity data, insufficient capacity, permanent
+  grouped technical conflicts, and configurations excluded only by optimizer
+  settings. The properties panel explains these states for single and multiple
+  selections without relying on marker tooltips.
+- Show every technically unassigned load point as a calm neutral marker while
+  retaining the question-mark marker for assignments blocked specifically by
+  optimization limits.
+- Count unresolved optimization results by both load point and group, without
+  treating permanent technical conflicts as optimizer failures.
+- Use canonical pile-configuration identities throughout Rust, WebAssembly,
+  project persistence, aggregation, grouping, and optimization.
+- Keep map selection and status overlays centred on exact marker coordinates
+  and below the selectable pile symbol.
+- Rename the region control consistently to **Puntniveaugebieden**, give it a
+  dedicated map-style icon, and enable the regions by default for the sample,
+  new imports, and older projects without an explicit preference.
+- Make symbol-size and preferred-utilization slider changes predictable in the
+  project history: immediate Undo and Redo work while a slider has focus, and
+  one continuous adjustment creates one history entry.
+
+### Notes
+
+- The optimizer remains a deterministic greedy heuristic and does not guarantee
+  a global optimum. A future optimization method is tracked separately.
+- Explicitly hidden pile-tip-level regions remain hidden when an existing
+  project is reopened or its sources are refreshed.
+
 ## 0.2.2-alpha
 
 This alpha adds live CPT-selection feasibility feedback, restores coordinate

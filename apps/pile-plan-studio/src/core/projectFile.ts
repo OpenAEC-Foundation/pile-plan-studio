@@ -4,10 +4,11 @@ import type {
   CptSelectionAlgorithm,
   CptSelectionSettings,
   GreedyOptimizationSettings,
-  GreedyUnassignedReason,
+  OptimizationUnassignedReason,
   LegendColorScheme,
   LegendItems,
   LoadPoint,
+  IfcppPileConfigurationKey,
   PileConfigurationKey,
   PileCostSettings,
   PileCostSettingsItem,
@@ -17,6 +18,7 @@ import {
   reconcileProjectLegend,
   type LegendImportWarning,
 } from "../viewer/legend.ts";
+import { samePileConfiguration } from "./pileConfigurationKey.ts";
 
 type IfcppGreedyOptimizationSettings = Omit<GreedyOptimizationSettings, "max_utilization"> & {
   max_utilization?: number;
@@ -35,7 +37,7 @@ type IfcppCptSelectionSettings = {
 };
 
 type IfcppSelectedPileChoice = {
-  pile: PileConfigurationKey | null;
+  pile: IfcppPileConfigurationKey | null;
   external_references?: unknown[];
 };
 
@@ -68,6 +70,7 @@ type IfcppViewerSettings = {
   symbol_scale_percent?: number;
   foreground_layer?: unknown;
   show_grid?: boolean;
+  show_tip_level_regions?: boolean;
 };
 
 export type IfcppPilePlan = {
@@ -75,7 +78,7 @@ export type IfcppPilePlan = {
   name: string;
   selected_piles: Record<string, IfcppSelectedPileChoice>;
   locked_load_point_ids: number[];
-  optimization_unassigned?: Record<string, GreedyUnassignedReason>;
+  optimization_unassigned?: Record<string, unknown>;
 };
 
 export type IfcppImportLogEntry = {
@@ -162,6 +165,7 @@ export type LoadedProjectData = {
   symbolScalePercent: number;
   foregroundLayer: "load-points" | "cpts";
   showGrid: boolean;
+  showTipLevelRegions: boolean;
   activePileSizes: number[];
   activePileTipLevels: number[];
   pileLegend: LegendItems;
@@ -170,7 +174,7 @@ export type LoadedProjectData = {
   viewerUtilizationSettings: ViewerUtilizationSettings;
   pilePlans: PilePlanData[];
   activePilePlanId: string;
-  selectedPileOptionKeysByLoadPoint: Map<number, string>;
+  selectedPileConfigurationsByLoadPoint: Map<number, PileConfigurationKey>;
   manualCptIdsByLoadPoint: Map<number, number[]>;
   importLog: IfcppImportLogEntry[];
 };
@@ -178,10 +182,10 @@ export type LoadedProjectData = {
 export type PilePlanData = {
   id: string;
   name: string;
-  selectedPileOptionKeysByLoadPoint: Map<number, string>;
+  selectedPileConfigurationsByLoadPoint: Map<number, PileConfigurationKey>;
   externalReferencesByLoadPoint: Map<number, unknown[]>;
   lockedLoadPointIds: number[];
-  optimizationUnassignedByLoadPoint: Map<number, GreedyUnassignedReason>;
+  optimizationUnassignedByLoadPoint: Map<number, OptimizationUnassignedReason>;
 };
 
 export function loadIfcppProjectData(input: string | IfcppProject): LoadedProjectData {
@@ -229,7 +233,9 @@ export function loadIfcppProjectData(input: string | IfcppProject): LoadedProjec
     ),
     pilePlans,
     activePilePlanId,
-    selectedPileOptionKeysByLoadPoint: new Map(activePilePlan.selectedPileOptionKeysByLoadPoint),
+    selectedPileConfigurationsByLoadPoint: clonePileConfigurationMap(
+      activePilePlan.selectedPileConfigurationsByLoadPoint,
+    ),
     manualCptIdsByLoadPoint: new Map(
       numberKeyedEntries(project.user_state.manual_cpt_selections),
     ),
@@ -279,20 +285,23 @@ function loadPilePlans(project: IfcppProject): {
 function pilePlanDataFromWire(plan: IfcppPilePlan): PilePlanData {
   const selectedEntries = numberKeyedEntries(plan.selected_piles)
     .flatMap(([loadPointId, choice]) => choice.pile
-      ? [[loadPointId, pileConfigurationKeyToOptionKey(choice.pile)] as const]
+      ? [[loadPointId, pileConfigurationKeyFromWire(choice.pile)] as const]
       : []);
 
   return {
     id: plan.id,
     name: plan.name,
-    selectedPileOptionKeysByLoadPoint: new Map(selectedEntries),
+    selectedPileConfigurationsByLoadPoint: new Map(selectedEntries),
     externalReferencesByLoadPoint: new Map(
       numberKeyedEntries(plan.selected_piles)
         .map(([loadPointId, choice]) => [loadPointId, choice.external_references ?? []]),
     ),
     lockedLoadPointIds: [...(plan.locked_load_point_ids ?? [])],
     optimizationUnassignedByLoadPoint: new Map(
-      numberKeyedEntries(plan.optimization_unassigned ?? {}),
+      numberKeyedEntries(plan.optimization_unassigned ?? {})
+        .filter((entry): entry is [number, OptimizationUnassignedReason] => (
+          entry[1] === "optimization_constraints" || entry[1] === "configuration_limits"
+        )),
     ),
   };
 }
@@ -318,6 +327,7 @@ export function createIfcppProject(input: {
   symbolScalePercent: number;
   foregroundLayer: "load-points" | "cpts";
   showGrid: boolean;
+  showTipLevelRegions: boolean;
   optimizationSettings: GreedyOptimizationSettings;
   viewerUtilizationSettings: ViewerUtilizationSettings;
   activePileSizes: number[];
@@ -325,7 +335,7 @@ export function createIfcppProject(input: {
   pileLegend: LegendItems;
   pilePlans?: PilePlanData[];
   activePilePlanId?: string;
-  selectedPileOptionKeysByLoadPoint: Map<number, string>;
+  selectedPileConfigurationsByLoadPoint: Map<number, PileConfigurationKey>;
   manualCptIdsByLoadPoint: Map<number, number[]>;
   importLog: IfcppImportLogEntry[];
 }): IfcppProject {
@@ -334,7 +344,7 @@ export function createIfcppProject(input: {
     : [{
         id: "pile-plan-1",
         name: "Pile plan 1",
-        selectedPileOptionKeysByLoadPoint: input.selectedPileOptionKeysByLoadPoint,
+        selectedPileConfigurationsByLoadPoint: input.selectedPileConfigurationsByLoadPoint,
         externalReferencesByLoadPoint: new Map<number, unknown[]>(),
         lockedLoadPointIds: [],
         optimizationUnassignedByLoadPoint: new Map(),
@@ -388,21 +398,25 @@ export function createIfcppProject(input: {
         symbol_scale_percent: input.symbolScalePercent,
         foreground_layer: input.foregroundLayer,
         show_grid: input.showGrid,
+        show_tip_level_regions: input.showTipLevelRegions,
       },
     },
     user_state: {
       pile_plans: sourcePlans.map((plan) => {
         const selectedPiles = plan.id === activePilePlanId
-          ? input.selectedPileOptionKeysByLoadPoint
-          : plan.selectedPileOptionKeysByLoadPoint;
+          ? input.selectedPileConfigurationsByLoadPoint
+          : plan.selectedPileConfigurationsByLoadPoint;
         return {
           id: plan.id,
           name: plan.name,
           selected_piles: Object.fromEntries(
-            [...selectedPiles.entries()].map(([loadPointId, optionKey]) => [String(loadPointId), {
-              pile: optionKeyToPileConfigurationKey(optionKey),
+            [...selectedPiles.entries()].map(([loadPointId, configuration]) => [String(loadPointId), {
+              pile: pileConfigurationKeyToWire(configuration),
               external_references: plan.id !== activePilePlanId ||
-                plan.selectedPileOptionKeysByLoadPoint.get(loadPointId) === optionKey
+                samePileConfiguration(
+                  plan.selectedPileConfigurationsByLoadPoint.get(loadPointId),
+                  configuration,
+                )
                 ? (plan.externalReferencesByLoadPoint.get(loadPointId) ?? [])
                 : [],
             }]),
@@ -508,7 +522,12 @@ function normalizeCurrencyCode(value: unknown): string {
 
 function normalizeProjectViewerSettings(
   settings: IfcppViewerSettings | undefined,
-): { symbolScalePercent: number; foregroundLayer: "load-points" | "cpts"; showGrid: boolean } {
+): {
+  symbolScalePercent: number;
+  foregroundLayer: "load-points" | "cpts";
+  showGrid: boolean;
+  showTipLevelRegions: boolean;
+} {
   const scale = typeof settings?.symbol_scale_percent === "number"
     ? settings.symbol_scale_percent
     : 100;
@@ -516,6 +535,7 @@ function normalizeProjectViewerSettings(
     symbolScalePercent: Math.round(Math.max(10, Math.min(200, scale))),
     foregroundLayer: settings?.foreground_layer === "cpts" ? "cpts" : "load-points",
     showGrid: settings?.show_grid !== false,
+    showTipLevelRegions: settings?.show_tip_level_regions !== false,
   };
 }
 
@@ -558,19 +578,22 @@ function toIfcppCptSelectionSettings(settings: CptSelectionSettings): IfcppCptSe
   };
 }
 
-function pileConfigurationKeyToOptionKey(key: PileConfigurationKey): string {
-  return `${key.pile_size_mm}|${key.pile_tip_level_m_key / 1000}`;
+function pileConfigurationKeyFromWire(key: IfcppPileConfigurationKey): PileConfigurationKey {
+  return {
+    pile_size_mm: key.pile_size_mm,
+    pile_tip_level_mm: key.pile_tip_level_m_key,
+  };
 }
 
-function optionKeyToPileConfigurationKey(optionKey: string): PileConfigurationKey | null {
-  const [pileSize, pileTipLevel] = optionKey.split("|").map(Number);
-
-  if (!Number.isFinite(pileSize) || !Number.isFinite(pileTipLevel)) {
-    return null;
-  }
-
+function pileConfigurationKeyToWire(key: PileConfigurationKey): IfcppPileConfigurationKey {
   return {
-    pile_size_mm: pileSize,
-    pile_tip_level_m_key: Math.round(pileTipLevel * 1000),
+    pile_size_mm: key.pile_size_mm,
+    pile_tip_level_m_key: key.pile_tip_level_mm,
   };
+}
+
+function clonePileConfigurationMap(
+  values: Map<number, PileConfigurationKey>,
+): Map<number, PileConfigurationKey> {
+  return new Map([...values].map(([loadPointId, key]) => [loadPointId, { ...key }]));
 }

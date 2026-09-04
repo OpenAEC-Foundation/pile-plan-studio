@@ -17,8 +17,7 @@ mod roles;
 mod table;
 
 pub use pipeline::{
-    import_project_from_profiled_sources,
-    import_project_from_profiled_sources_with_properties,
+    import_project_from_profiled_sources, import_project_from_profiled_sources_with_properties,
     preview_import_source,
 };
 pub use profile::{
@@ -942,6 +941,7 @@ mod tests {
         let project = import_project_from_generic_sources("Mixed Project", &sources).unwrap();
 
         assert_eq!(project.metadata.name, "Mixed Project");
+        assert!(project.settings.viewer.show_tip_level_regions);
         assert_eq!(project.import_log[0].source_file, "loads.csv");
         assert_eq!(
             project.import_log[0].source_role,

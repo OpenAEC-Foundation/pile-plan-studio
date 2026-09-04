@@ -91,8 +91,7 @@ pub fn build_pile_plan_export_rows(
                 y_mm: load_point.y_mm,
                 design_load_kn: load_point.design_load_kn,
                 pile_size_mm: selected_pile.map(|pile| pile.pile_size_mm),
-                pile_tip_level_m: selected_pile
-                    .map(|pile| pile.pile_tip_level_m_key as f64 / 1000.0),
+                pile_tip_level_m: selected_pile.map(PileConfigurationKey::pile_tip_level_m),
                 selected_cpts: selected_cpts
                     .iter()
                     .map(u32::to_string)
@@ -233,7 +232,7 @@ mod tests {
                 20,
                 PileConfigurationKey {
                     pile_size_mm: 320,
-                    pile_tip_level_m_key: -18_500,
+                    pile_tip_level_mm: -18_500,
                 },
             )]),
             selected_cpts: HashMap::from([(20, vec![11, 2])]),
