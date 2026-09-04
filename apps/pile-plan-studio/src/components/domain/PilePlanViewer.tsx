@@ -19,7 +19,8 @@ import {
   type LassoSelectionOperation,
   type LassoRectangle,
 } from "../../viewer/lassoSelection.ts";
-import { getConfigurationStyle } from "../../viewer/legend.ts";
+import { getConfigurationActivationPresentation } from "../../domain/legendActivationPresentation.ts";
+import { getPilePlanActivation } from "../../domain/pilePlanActivation.ts";
 import { getCptMarkerLayerClass, getForegroundLayerClass, getLoadPointMarkerLayerClass } from "../../viewer/mapMarkerLayer.ts";
 import { shouldStartMapPan } from "../../viewer/mapInteraction.ts";
 import { getHighlightedGoverningCptId } from "../../viewer/legendSelection.ts";
@@ -108,6 +109,7 @@ export default function PilePlanViewer({ state, loadPointGroups, technicalAssign
   const activePilePlan = state.pilePlans.find(
     (plan) => plan.id === state.activePilePlanId,
   ) ?? state.pilePlans[0];
+  const activePileConfigurations = getPilePlanActivation(activePilePlan);
   const isEditingLoadPointLocks = state.loadPointLockDraft !== null;
   const lockedLoadPointIds = new Set(
     state.loadPointLockDraft
@@ -400,7 +402,7 @@ export default function PilePlanViewer({ state, loadPointGroups, technicalAssign
             const isLocked = lockedLoadPointIds.has(loadPoint.id);
             const selectedOption = getSelectedPileOption(state, loadPoint.id, pileOptionsByLoadPointId);
             const style = selectedOption
-              ? getConfigurationStyle(selectedOption, legend)
+              ? getConfigurationActivationPresentation(selectedOption, legend, activePileConfigurations)
               : null;
             const unselectedState = selectedOption ? null : getUnselectedLoadPointMarkerState({
               analysisStatus: technicalAssignment.status,
@@ -447,7 +449,7 @@ export default function PilePlanViewer({ state, loadPointGroups, technicalAssign
               >
                 {style ? (
                   <span
-                    className="load-point-symbol"
+                    className={`load-point-symbol${style.smallDot ? " is-small-dot" : ""}`}
                     dangerouslySetInnerHTML={{ __html: renderPileSymbol(style.symbol, style.color) }}
                   />
                 ) : unselectedState && usesNeutralUnassignedMarker(unselectedState) ? (
@@ -876,7 +878,9 @@ export default function PilePlanViewer({ state, loadPointGroups, technicalAssign
     }
 
     const selectedOption = getSelectedPileOption(state, item.id, pileOptionsByLoadPointId);
-    const symbolStyle = selectedOption ? getConfigurationStyle(selectedOption, legend) : null;
+    const symbolStyle = selectedOption
+      ? getConfigurationActivationPresentation(selectedOption, legend, activePileConfigurations)
+      : null;
     const invalidVisual = getLoadPointMarkerInvalidVisual(
       selectedOption,
       state.viewerUtilizationSettings,
@@ -897,7 +901,10 @@ export default function PilePlanViewer({ state, loadPointGroups, technicalAssign
         style={getInvalidMarkerStyle(invalidVisual.style)}
       >
         {symbolStyle ? (
-          <span className="viewer-hover-pile-symbol" dangerouslySetInnerHTML={{ __html: renderPileSymbol(symbolStyle.symbol, symbolStyle.color) }} />
+          <span
+            className={`viewer-hover-pile-symbol${symbolStyle.smallDot ? " is-small-dot" : ""}`}
+            dangerouslySetInnerHTML={{ __html: renderPileSymbol(symbolStyle.symbol, symbolStyle.color) }}
+          />
         ) : unselectedState && usesNeutralUnassignedMarker(unselectedState) ? (
           <span className="load-point-unassigned" aria-hidden="true" />
         ) : unselectedState === "optimizer-unassigned" ? (

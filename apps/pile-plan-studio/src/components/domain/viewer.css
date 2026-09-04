@@ -135,6 +135,11 @@
   height: 14px;
 }
 
+.legend-symbol.is-small-dot .pile-symbol-svg {
+  width: 6px;
+  height: 6px;
+}
+
 .legend-color {
   border: 1px solid var(--theme-border-strong);
   border-radius: 3px;
@@ -424,6 +429,11 @@
   height: 100%;
 }
 
+.viewer-hover-marker.is-load-point .viewer-hover-pile-symbol.is-small-dot .pile-symbol-svg {
+  width: 6px;
+  height: 6px;
+}
+
 .viewer-hover-marker.is-load-point {
   border-radius: 50%;
 }
@@ -594,6 +604,11 @@
   line-height: 0;
   place-items: center;
   border-radius: 50%;
+}
+
+.load-point-symbol.is-small-dot .pile-symbol-svg {
+  width: 6px;
+  height: 6px;
 }
 
 .load-point-marker.is-pending {

@@ -18,6 +18,20 @@ describe("PilePlanViewer inputs", () => {
     assert.doesNotMatch(legend, /getLegendItems/);
   });
 
+  it("renders inactive assigned configurations with neutral channel fallbacks", () => {
+    const viewer = readFileSync(resolve(import.meta.dirname, "PilePlanViewer.tsx"), "utf8");
+    const legend = readFileSync(resolve(import.meta.dirname, "Legend.tsx"), "utf8");
+    const css = readFileSync(resolve(import.meta.dirname, "viewer.css"), "utf8");
+
+    assert.match(viewer, /getConfigurationActivationPresentation/);
+    assert.match(viewer, /style\.smallDot \? " is-small-dot"/);
+    assert.match(viewer, /symbolStyle\.smallDot \? " is-small-dot"/);
+    assert.match(css, /\.load-point-symbol\.is-small-dot \.pile-symbol-svg/);
+    assert.match(legend, /INACTIVE_LEGEND_COLOR/);
+    assert.match(legend, /SMALL_DOT_SYMBOL/);
+    assert.match(css, /\.legend-symbol\.is-small-dot \.pile-symbol-svg/);
+  });
+
   it("dims and excludes locked load points outside lock editing", () => {
     const source = readFileSync(resolve(import.meta.dirname, "PilePlanViewer.tsx"), "utf8");
     const css = readFileSync(resolve(import.meta.dirname, "viewer.css"), "utf8");

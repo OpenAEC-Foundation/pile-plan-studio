@@ -15,6 +15,7 @@ import {
   getPilePlanActivation,
   replacePilePlanActivation,
 } from "../../domain/pilePlanActivation.ts";
+import { INACTIVE_LEGEND_COLOR, SMALL_DOT_SYMBOL } from "../../domain/legendActivationPresentation.ts";
 
 type Props = {
   state: ProjectState;
@@ -75,10 +76,14 @@ export default function Legend({ state, onStateChange, onEdit }: Props) {
             >
               {presentation.encodingMode === "size-symbol" ? (
                 <span
-                  className="legend-symbol"
-                  dangerouslySetInnerHTML={{ __html: renderLegendSymbol(item.symbol) }}
+                  className={`legend-symbol${item.state === "disabled-used" ? " is-small-dot" : ""}`}
+                  dangerouslySetInnerHTML={{ __html: renderLegendSymbol(
+                    item.state === "disabled-used" ? SMALL_DOT_SYMBOL : item.symbol,
+                  ) }}
                 />
-              ) : <span className="legend-color" style={{ backgroundColor: item.color }} />}
+              ) : <span className="legend-color" style={{
+                backgroundColor: item.state === "disabled-used" ? INACTIVE_LEGEND_COLOR : item.color,
+              }} />}
               <span className="legend-item-label">{item.value} mm</span>
               {item.state === "disabled-used" ? <LegendWarning /> : null}
             </button>
@@ -100,10 +105,14 @@ export default function Legend({ state, onStateChange, onEdit }: Props) {
             >
               {presentation.encodingMode === "tip-symbol" ? (
                 <span
-                  className="legend-symbol"
-                  dangerouslySetInnerHTML={{ __html: renderLegendSymbol(item.symbol) }}
+                  className={`legend-symbol${item.state === "disabled-used" ? " is-small-dot" : ""}`}
+                  dangerouslySetInnerHTML={{ __html: renderLegendSymbol(
+                    item.state === "disabled-used" ? SMALL_DOT_SYMBOL : item.symbol,
+                  ) }}
                 />
-              ) : <span className="legend-color" style={{ backgroundColor: item.color }} />}
+              ) : <span className="legend-color" style={{
+                backgroundColor: item.state === "disabled-used" ? INACTIVE_LEGEND_COLOR : item.color,
+              }} />}
               <span className="legend-item-label">{formatTipLevel(item.value, i18n.language)}</span>
               {item.state === "disabled-used" ? <LegendWarning /> : null}
             </button>
