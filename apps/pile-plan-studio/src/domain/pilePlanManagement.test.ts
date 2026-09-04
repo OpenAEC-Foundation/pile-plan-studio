@@ -26,6 +26,8 @@ function plan(
   return {
     id,
     name,
+    activePileSizes: [290, 320],
+    activePileTipLevels: [-18, -19],
     selectedPileConfigurationsByLoadPoint: configurationMap(choices),
     externalReferencesByLoadPoint: new Map(),
     lockedLoadPointIds,

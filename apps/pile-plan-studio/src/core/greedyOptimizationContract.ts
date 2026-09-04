@@ -105,11 +105,7 @@ function toCoreRequest<TOptions, TAssignments>(
       ...input.costSettings,
       items: input.costSettings.items.map((item) => ({ ...item })),
     },
-    settings: {
-      ...input.settings,
-      enabled_pile_sizes: [...input.settings.enabled_pile_sizes],
-      enabled_pile_tip_levels: [...input.settings.enabled_pile_tip_levels],
-    },
+    settings: { ...input.settings },
   };
 }
 

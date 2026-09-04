@@ -103,6 +103,8 @@ export function duplicatePilePlan(
     selectedPileConfigurationsByLoadPoint: cloneConfigurationMap(
       source.selectedPileConfigurationsByLoadPoint,
     ),
+    activePileSizes: [...source.activePileSizes],
+    activePileTipLevels: [...source.activePileTipLevels],
     externalReferencesByLoadPoint: cloneReferenceMap(source.externalReferencesByLoadPoint),
     lockedLoadPointIds: [...source.lockedLoadPointIds],
     optimizationUnassignedByLoadPoint: new Map(source.optimizationUnassignedByLoadPoint),
@@ -123,9 +125,12 @@ export function createPilePlan(
     input.activePilePlanId,
     input.selectedPileConfigurationsByLoadPoint,
   );
+  const source = pilePlans.find((plan) => plan.id === input.activePilePlanId) ?? pilePlans[0];
   const created: PilePlanData = {
     id: nextPilePlanId(pilePlans),
     name: generatedPilePlanName(pilePlans, input.kind, input.language),
+    activePileSizes: [...source.activePileSizes],
+    activePileTipLevels: [...source.activePileTipLevels],
     selectedPileConfigurationsByLoadPoint: cloneConfigurationMap(input.choices),
     externalReferencesByLoadPoint: new Map(),
     lockedLoadPointIds: [],
@@ -159,6 +164,8 @@ export function createOptimizationPilePlan(
   const created: PilePlanData = {
     id: nextPilePlanId(pilePlans),
     name: generatedPilePlanName(pilePlans, "optimization", input.language),
+    activePileSizes: [...source.activePileSizes],
+    activePileTipLevels: [...source.activePileTipLevels],
     selectedPileConfigurationsByLoadPoint: cloneConfigurationMap(input.optimizedChoices),
     externalReferencesByLoadPoint,
     lockedLoadPointIds: [...source.lockedLoadPointIds],

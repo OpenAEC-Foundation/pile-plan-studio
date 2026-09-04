@@ -10,6 +10,11 @@ import {
 import { renderPileSymbol } from "../../viewer/pileSymbols.ts";
 import { filterCheckIcon, pencilIcon } from "../template/ribbon/icons.ts";
 import { getActiveLockedLoadPointIds } from "../../domain/loadPointLocking.ts";
+import {
+  getActivePilePlan,
+  getPilePlanActivation,
+  replacePilePlanActivation,
+} from "../../domain/pilePlanActivation.ts";
 
 type Props = {
   state: ProjectState;
@@ -20,13 +25,12 @@ type Props = {
 export default function Legend({ state, onStateChange, onEdit }: Props) {
   const { t, i18n } = useTranslation("common");
   const legend = state.pileLegend;
+  const activePlan = getActivePilePlan(state);
+  const active = getPilePlanActivation(activePlan);
   const used = deriveUsedPileConfigurations(state.selectedPileConfigurationsByLoadPoint.values());
   const presentation = buildLegendPresentation({
     legend,
-    enabled: {
-      pileSizes: state.activePileSizes,
-      pileTipLevels: state.activePileTipLevels,
-    },
+    enabled: active,
     used,
   });
 
@@ -50,8 +54,7 @@ export default function Legend({ state, onStateChange, onEdit }: Props) {
   function enableUsedOnly() {
     onStateChange({
       ...state,
-      activePileSizes: [...used.pileSizes],
-      activePileTipLevels: [...used.pileTipLevels],
+      pilePlans: replacePilePlanActivation(state.pilePlans, state.activePilePlanId, used),
     });
   }
 

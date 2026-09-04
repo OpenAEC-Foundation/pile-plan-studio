@@ -137,7 +137,6 @@ export function buildGreedyOptimizationSettings(input: {
     max_pile_tip_levels: uiSettings.maxDifferentTips,
     max_pile_configurations: uiSettings.maxDifferentConfigurations,
     max_utilization: Math.max(0, Math.min(1, input.maxUtilization)),
-    enabled_pile_sizes: input.activePileSizes,
-    enabled_pile_tip_levels: input.activePileTipLevels,
+    candidate_source: "all_available",
   };
 }

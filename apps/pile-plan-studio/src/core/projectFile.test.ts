@@ -129,12 +129,12 @@ describe("IFCPP project loading", () => {
     assert.equal(data.showTipLevelRegions, true);
   });
 
-  it("round-trips tip-level region visibility without changing the schema version", () => {
+  it("round-trips tip-level region visibility while upgrading to schema four", () => {
     const loaded = loadIfcppProjectData(projectFixture());
     const saved = createIfcppProject({ ...loaded, showTipLevelRegions: true });
     const restored = loadIfcppProjectData(saved);
 
-    assert.equal(saved.schema_version, 3);
+    assert.equal(saved.schema_version, 4);
     assert.equal(saved.settings.viewer?.show_tip_level_regions, true);
     assert.equal(restored.showTipLevelRegions, true);
   });
@@ -150,7 +150,7 @@ describe("IFCPP project loading", () => {
     assert.equal(saved.settings.viewer?.show_tip_level_regions, false);
   });
 
-  it("migrates schema two cost fields and writes schema three", () => {
+  it("migrates schema two cost fields and writes schema four", () => {
     const legacy = projectFixture() as unknown as Record<string, any>;
     legacy.schema_version = 2;
     legacy.units = { costs: "GBP" };
@@ -162,7 +162,7 @@ describe("IFCPP project loading", () => {
 
     assert.equal(loaded.pileCostSettings.items[0].cost_per_m3, 245);
     assert.equal(loaded.currencyCode, "GBP");
-    assert.equal(saved.schema_version, 3);
+    assert.equal(saved.schema_version, 4);
     assert.equal(saved.settings.pile_head_level_m, -3.5);
     assert.equal(saved.settings.pile_costs.items[0].cost_per_m3, 245);
     assert.equal("pile_head_level_m" in saved.settings.pile_costs, false);
@@ -208,6 +208,59 @@ describe("IFCPP project loading", () => {
       pile_size_mm: 290,
       pile_tip_level_mm: -18_000,
     });
+  });
+
+  it("migrates schema-three activation into every pile plan and writes schema four", () => {
+    const legacy = projectFixture();
+    const project = {
+      ...legacy,
+      schema_version: 3,
+      settings: {
+        ...legacy.settings,
+        active_pile_sizes: [290, 320],
+        active_pile_tip_levels: [-17.5, -18],
+      },
+      user_state: {
+        pile_plans: [
+          {
+            id: "basis",
+            name: "Basis",
+            selected_piles: legacy.user_state.selected_piles,
+            locked_load_point_ids: [],
+          },
+          {
+            id: "alternative",
+            name: "Alternative",
+            selected_piles: {},
+            locked_load_point_ids: [],
+          },
+        ],
+        active_pile_plan_id: "basis",
+        manual_cpt_selections: legacy.user_state.manual_cpt_selections,
+      },
+    } as unknown as IfcppProject;
+
+    const loaded = loadIfcppProjectData(project);
+    const saved = createIfcppProject(loaded);
+
+    assert.deepEqual(
+      loaded.pilePlans.map((plan) => ({
+        pileSizes: plan.activePileSizes,
+        pileTipLevels: plan.activePileTipLevels,
+      })),
+      [
+        { pileSizes: [290, 320], pileTipLevels: [-17.5, -18] },
+        { pileSizes: [290, 320], pileTipLevels: [-17.5, -18] },
+      ],
+    );
+    assert.equal(saved.schema_version, 4);
+    assert.equal("active_pile_sizes" in saved.settings, false);
+    assert.equal("active_pile_tip_levels" in saved.settings, false);
+    assert.equal("enabled_pile_sizes" in saved.settings.optimization, false);
+    assert.equal("enabled_pile_tip_levels" in saved.settings.optimization, false);
+    assert.equal(saved.settings.optimization.candidate_source, "all_available");
+    assert.deepEqual(saved.user_state.pile_plans?.[1].active_pile_sizes, [290, 320]);
+    assert.deepEqual(saved.user_state.pile_plans?.[1].active_pile_tip_levels, [-17.5, -18]);
   });
 
   it("round-trips optimizer outcomes per pile plan", () => {
@@ -342,7 +395,7 @@ describe("IFCPP project loading", () => {
     const project = createIfcppProject(data);
 
     assert.equal(project.schema, "IFCPP");
-    assert.equal(project.schema_version, 3);
+    assert.equal(project.schema_version, 4);
     assert.equal(project.metadata.name, "Fixture Project");
     assert.deepEqual(project.settings.global_cpt_selection, {
       algorithm: "maximum-angle",
@@ -366,8 +419,8 @@ describe("IFCPP project loading", () => {
 
   it("round-trips project legend activation independently from active pile choices", () => {
     const loaded = loadIfcppProjectData(projectFixture());
-    loaded.activePileSizes = [290];
-    loaded.activePileTipLevels = [-18];
+    loaded.pilePlans[0].activePileSizes = [290];
+    loaded.pilePlans[0].activePileTipLevels = [-18];
     loaded.selectedPileConfigurationsByLoadPoint.set(1, {
       pile_size_mm: 320,
       pile_tip_level_mm: -19_000,
@@ -376,10 +429,12 @@ describe("IFCPP project loading", () => {
     const saved = createIfcppProject(loaded);
     const reloaded = loadIfcppProjectData(saved);
 
-    assert.deepEqual(saved.settings.active_pile_sizes, [290]);
-    assert.deepEqual(saved.settings.active_pile_tip_levels, [-18]);
-    assert.deepEqual(reloaded.activePileSizes, [290]);
-    assert.deepEqual(reloaded.activePileTipLevels, [-18]);
+    assert.equal("active_pile_sizes" in saved.settings, false);
+    assert.equal("active_pile_tip_levels" in saved.settings, false);
+    assert.deepEqual(saved.user_state.pile_plans?.[0].active_pile_sizes, [290]);
+    assert.deepEqual(saved.user_state.pile_plans?.[0].active_pile_tip_levels, [-18]);
+    assert.deepEqual(reloaded.pilePlans[0].activePileSizes, [290]);
+    assert.deepEqual(reloaded.pilePlans[0].activePileTipLevels, [-18]);
     assert.deepEqual(reloaded.selectedPileConfigurationsByLoadPoint.get(1), {
       pile_size_mm: 320,
       pile_tip_level_mm: -19_000,

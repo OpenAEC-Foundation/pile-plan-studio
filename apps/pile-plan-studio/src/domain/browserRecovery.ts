@@ -1,5 +1,5 @@
 export const BROWSER_RECOVERY_FORMAT_VERSION = 1 as const;
-export const SUPPORTED_IFCPP_SCHEMA_VERSIONS = [1, 2, 3] as const;
+export const SUPPORTED_IFCPP_SCHEMA_VERSIONS = [1, 2, 3, 4] as const;
 
 export type BrowserRecoveryRecord = {
   formatVersion: typeof BROWSER_RECOVERY_FORMAT_VERSION;

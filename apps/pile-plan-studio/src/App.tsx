@@ -83,6 +83,7 @@ import {
   synchronizeActivePilePlan,
   type PilePlanLanguage,
 } from "./domain/pilePlanManagement.ts";
+import { getActivePilePlan, getPilePlanActivation } from "./domain/pilePlanActivation.ts";
 import {
   applyLoadPointLockDraft,
   getActiveLockedLoadPointIds,
@@ -1275,6 +1276,7 @@ function AppSession({
 
   const runGreedyOptimization = async () => {
     const snapshot = projectState;
+    const active = getPilePlanActivation(getActivePilePlan(snapshot));
     const lockedLoadPointIds = getActiveLockedLoadPointIds(
       snapshot.pilePlans,
       snapshot.activePilePlanId,
@@ -1288,8 +1290,8 @@ function AppSession({
     if (
       snapshot.optimizationRunning
       || targetLoadPointIds.length === 0
-      || snapshot.activePileSizes.length === 0
-      || snapshot.activePileTipLevels.length === 0
+      || active.pileSizes.length === 0
+      || active.pileTipLevels.length === 0
       || loadPointGroups.pending
       || loadPointGroups.error !== null
       || (snapshot.loadPoints.length > 0 && loadPointGroups.groups.length === 0)
@@ -1306,10 +1308,10 @@ function AppSession({
       sizes: snapshot.optimizationSettings.max_pile_sizes,
       tips: snapshot.optimizationSettings.max_pile_tip_levels,
       configurations: snapshot.optimizationSettings.max_pile_configurations,
-    }, snapshot.activePileSizes, snapshot.activePileTipLevels);
+    }, active.pileSizes, active.pileTipLevels);
     const settings = buildGreedyOptimizationSettings({
-      activePileSizes: snapshot.activePileSizes,
-      activePileTipLevels: snapshot.activePileTipLevels,
+      activePileSizes: active.pileSizes,
+      activePileTipLevels: active.pileTipLevels,
       uiSettings: {
         targetScope: snapshot.optimizationTargetScope,
         limitScope: snapshot.optimizationLimitScope,
@@ -1427,8 +1429,8 @@ function AppSession({
 
   const optimizationDisabled = isOptimizationDisabled({
     optimizationRunning: projectState.optimizationRunning,
-    hasActivePileSizes: projectState.activePileSizes.length > 0,
-    hasActivePileTipLevels: projectState.activePileTipLevels.length > 0,
+    hasActivePileSizes: getActivePilePlan(projectState).activePileSizes.length > 0,
+    hasActivePileTipLevels: getActivePilePlan(projectState).activePileTipLevels.length > 0,
     selectedTargetIsEmpty: projectState.optimizationTargetScope === "selected"
       && projectState.selectedLoadPointIds.length === 0,
     loadPointCount: projectState.loadPoints.length,

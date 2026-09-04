@@ -9,8 +9,9 @@ describe("pile plan workspace legend editing", () => {
 
     const applyBlock = source.match(/onApply=\{\(draft\) => \{(?<body>[\s\S]*?)setLegendEditorOpen\(false\);/)
       ?.groups?.body ?? "";
-    assert.match(applyBlock, /activePileSizes:\s*draft\.active\.pileSizes/);
-    assert.match(applyBlock, /activePileTipLevels:\s*draft\.active\.pileTipLevels/);
+    assert.match(applyBlock, /replacePilePlanActivation\(/);
+    assert.match(applyBlock, /state\.activePilePlanId/);
+    assert.match(applyBlock, /draft\.active/);
     assert.match(applyBlock, /pileLegend:\s*draft\.legend/);
     assert.equal((applyBlock.match(/onStateChange\(/g) ?? []).length, 1);
   });

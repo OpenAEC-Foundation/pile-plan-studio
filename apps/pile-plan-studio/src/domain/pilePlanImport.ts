@@ -27,6 +27,8 @@ export function applyPilePlanImportAsNewPlan(
   const created: PilePlanData = {
     id: nextPilePlanId(pilePlans),
     name: uniquePilePlanName(pilePlans, requestedName),
+    activePileSizes: [...source.activePileSizes],
+    activePileTipLevels: [...source.activePileTipLevels],
     selectedPileConfigurationsByLoadPoint: choices,
     externalReferencesByLoadPoint: source
       ? unchangedExternalReferences(source, choices)

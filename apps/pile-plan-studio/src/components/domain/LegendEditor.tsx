@@ -6,6 +6,7 @@ import type {
   PileSymbol,
 } from "../../core/projectTypes.ts";
 import type { ProjectState } from "../../domain/projectState.ts";
+import { getActivePilePlan, getPilePlanActivation } from "../../domain/pilePlanActivation.ts";
 import {
   applyAutomaticColors,
   applyAutomaticSymbols,
@@ -373,7 +374,7 @@ function AppearanceControl({ draft, item, label, symbolKind, onDraftChange }: Ap
 }
 
 function activeFromState(state: ProjectState) {
-  return { pileSizes: state.activePileSizes, pileTipLevels: state.activePileTipLevels };
+  return getPilePlanActivation(getActivePilePlan(state));
 }
 
 function formatTipLevel(value: number, language: string): string {

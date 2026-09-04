@@ -4,6 +4,7 @@ import type { ProjectState } from "../../domain/projectState.ts";
 import type { TechnicalAssignmentSnapshot } from "./technicalAssignmentController.ts";
 import ThemedNumberInput from "../template/ThemedNumberInput.tsx";
 import { selectLoadPoint } from "../../domain/selectionState.ts";
+import { getActivePilePlan, getPilePlanActivation } from "../../domain/pilePlanActivation.ts";
 import {
   clampOptimizationLimits,
   splitOptimizationErrorLoadPoints,
@@ -19,8 +20,9 @@ type Props = {
 
 export default function OptimizationPanel({ state, technicalAssessmentStatus, onStateChange, onRunOptimization, onClose }: Props) {
   const { t } = useTranslation("rightPanel");
-  const activeSizes = state.activePileSizes;
-  const activeTips = state.activePileTipLevels;
+  const active = getPilePlanActivation(getActivePilePlan(state));
+  const activeSizes = active.pileSizes;
+  const activeTips = active.pileTipLevels;
   const limits = clampOptimizationLimits({
     sizes: state.optimizationSettings.max_pile_sizes,
     tips: state.optimizationSettings.max_pile_tip_levels,

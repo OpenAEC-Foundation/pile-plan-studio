@@ -91,6 +91,8 @@ describe("pile plan file import", () => {
     const currentPlan: PilePlanData = {
       id: "pile-plan-1",
       name: "Basisplan",
+      activePileSizes: [290],
+      activePileTipLevels: [-18],
       selectedPileConfigurationsByLoadPoint: new Map([[
         1,
         { pile_size_mm: 290, pile_tip_level_mm: -18_000 },
@@ -139,6 +141,8 @@ describe("pile plan file import", () => {
     const plans = ["Variant", "Variant 2"].map((name, index): PilePlanData => ({
       id: `pile-plan-${index + 1}`,
       name,
+      activePileSizes: [290],
+      activePileTipLevels: [-18],
       selectedPileConfigurationsByLoadPoint: new Map(),
       externalReferencesByLoadPoint: new Map(),
       lockedLoadPointIds: [],

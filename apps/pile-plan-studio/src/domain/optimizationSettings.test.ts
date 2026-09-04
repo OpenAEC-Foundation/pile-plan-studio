@@ -53,7 +53,7 @@ describe("optimization settings", () => {
     assert.equal(snapSliderValueToInteger(Number.NaN, 1, 4), 1);
   });
 
-  it("uses active legend configurations as optimizer enabled values", () => {
+  it("builds optimizer limits without persisting resolved candidate values", () => {
     const settings = buildGreedyOptimizationSettings({
       activePileSizes: [290],
       activePileTipLevels: [-18],
@@ -67,8 +67,9 @@ describe("optimization settings", () => {
       maxUtilization: 0.85,
     });
 
-    assert.deepEqual(settings.enabled_pile_sizes, [290]);
-    assert.deepEqual(settings.enabled_pile_tip_levels, [-18]);
+    assert.equal(settings.candidate_source, "all_available");
+    assert.equal("enabled_pile_sizes" in settings, false);
+    assert.equal("enabled_pile_tip_levels" in settings, false);
     assert.equal(settings.max_utilization, 0.85);
   });
 

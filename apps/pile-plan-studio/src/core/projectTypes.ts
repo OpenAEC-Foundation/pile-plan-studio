@@ -84,13 +84,14 @@ export type ProjectAnalysisResult = {
   cptFrdRowsByCptId: Map<number, CptBearingCapacityRow[]> | null;
 };
 
+export type OptimizationCandidateSource = "all_available" | "active_legend";
+
 export type GreedyOptimizationSettings = {
   max_pile_sizes: number;
   max_pile_tip_levels: number;
   max_pile_configurations: number;
   max_utilization: number;
-  enabled_pile_sizes: number[];
-  enabled_pile_tip_levels: number[];
+  candidate_source: OptimizationCandidateSource;
 };
 
 export type OptimizationLimitScope = "target" | "whole-plan";

@@ -80,8 +80,7 @@ describe("legend editor", () => {
     const source = readFileSync(resolve(import.meta.dirname, "Legend.tsx"), "utf8");
 
     assert.match(source, /function enableUsedOnly/);
-    assert.match(source, /activePileSizes:\s*\[\.\.\.used\.pileSizes\]/);
-    assert.match(source, /activePileTipLevels:\s*\[\.\.\.used\.pileTipLevels\]/);
+    assert.match(source, /replacePilePlanActivation\(state\.pilePlans, state\.activePilePlanId, used\)/);
     assert.match(source, /legend\.enableUsed/);
     assert.match(source, /filterCheckIcon/);
   });

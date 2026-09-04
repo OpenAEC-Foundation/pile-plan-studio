@@ -61,9 +61,14 @@ export function inferHistoryAction(
   if (before.viewerUtilizationSettings !== after.viewerUtilizationSettings) {
     return { kind: "utilization-settings" };
   }
-  if (before.activePileSizes !== after.activePileSizes
-    || before.activePileTipLevels !== after.activePileTipLevels
-    || before.pileLegend !== after.pileLegend) {
+  if (before.pileLegend !== after.pileLegend
+    || after.pilePlans.some((afterPlan) => {
+      const beforePlan = beforePlans.get(afterPlan.id);
+      return beforePlan !== undefined && (
+        !sameNumberArray(beforePlan.activePileSizes, afterPlan.activePileSizes)
+        || !sameNumberArray(beforePlan.activePileTipLevels, afterPlan.activePileTipLevels)
+      );
+    })) {
     return { kind: "legend-settings" };
   }
 
@@ -98,6 +103,10 @@ export function inferHistoryAction(
   }
 
   return { kind: "project-change" };
+}
+
+function sameNumberArray(left: number[], right: number[]): boolean {
+  return left.length === right.length && left.every((value, index) => value === right[index]);
 }
 
 function changedPlan(

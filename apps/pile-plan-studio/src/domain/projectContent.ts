@@ -15,8 +15,6 @@ export type ProjectContent = Pick<ProjectState,
   | "currencyCode"
   | "optimizationSettings"
   | "viewerUtilizationSettings"
-  | "activePileSizes"
-  | "activePileTipLevels"
   | "pileLegend"
   | "symbolScalePercent"
   | "foregroundLayer"
@@ -46,8 +44,6 @@ const PROJECT_CONTENT_KEYS = [
   "currencyCode",
   "optimizationSettings",
   "viewerUtilizationSettings",
-  "activePileSizes",
-  "activePileTipLevels",
   "pileLegend",
   "symbolScalePercent",
   "foregroundLayer",

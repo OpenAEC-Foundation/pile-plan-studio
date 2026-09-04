@@ -24,6 +24,7 @@ import {
 import { formatNumber } from "../../domain/formatting.ts";
 import { openCpt, selectLoadPoint, switchRightPanelMode, type RightPanelMode } from "../.././domain/selectionState.ts";
 import { isPileConfigurationActive } from "../../domain/activePileConfigurations.ts";
+import { getActivePilePlan, getPilePlanActivation } from "../../domain/pilePlanActivation.ts";
 import {
   applyCptSelectionSettingsPatch,
   cancelManualCptSelection,
@@ -684,6 +685,7 @@ function LoadPointPanel({
   const selectedLoadPointKey = selectedLoadPoints.map(({ id }) => id).join(",");
   useEffect(() => setOpenMissingCptKey(null), [selectedLoadPointKey]);
   const pileOptionsByLoadPointId = getPileOptionsByLoadPointIdForPanel(state);
+  const active = getPilePlanActivation(getActivePilePlan(state));
   const aggregation = useAggregatedPileOptions({
     selectedLoadPointIds: selectedLoadPoints.map(({ id }) => id),
     pileOptionsByLoadPointId,
@@ -696,10 +698,7 @@ function LoadPointPanel({
           ? aggregation.result.filter((item) => isPileConfigurationActive({
               pile_size_mm: item.configuration.pile_size_mm,
               pile_tip_level_m: item.pile_tip_level_m,
-            }, {
-              pileSizes: state.activePileSizes,
-              pileTipLevels: state.activePileTipLevels,
-            }))
+            }, active))
           : [],
         costsByOptionKey: state.pileCostByOptionKey,
         currencyCode: state.currencyCode,
@@ -714,10 +713,7 @@ function LoadPointPanel({
         legend: state.pileLegend,
         options: selectedLoadPoints[0]
           ? (pileOptionsByLoadPointId.get(selectedLoadPoints[0].id) ?? []).filter((option) =>
-              isPileConfigurationActive(option, {
-                pileSizes: state.activePileSizes,
-                pileTipLevels: state.activePileTipLevels,
-              }))
+              isPileConfigurationActive(option, active))
           : [],
         selectedLoadPointCount: selectedCount,
       })).map((row) => ({

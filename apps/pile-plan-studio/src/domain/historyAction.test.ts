@@ -106,12 +106,9 @@ function content(): ProjectContent {
       max_pile_tip_levels: 1,
       max_pile_configurations: 1,
       max_utilization: 1,
-      enabled_pile_sizes: [],
-      enabled_pile_tip_levels: [],
+      candidate_source: "all_available",
     },
     viewerUtilizationSettings: { minimum: 0, maximum: 1 },
-    activePileSizes: [],
-    activePileTipLevels: [],
     pileLegend: {
       encodingMode: "size-symbol",
       pileSizes: [],
@@ -130,6 +127,8 @@ function plan(
   return {
     id,
     name,
+    activePileSizes: [],
+    activePileTipLevels: [],
     selectedPileConfigurationsByLoadPoint: new Map(
       choices.map(([loadPointId, value]) => [loadPointId, {
         pile_size_mm: value.length,

@@ -7,6 +7,7 @@ import { clearLegendSelection, shouldClearLegendSelectionFromPointerTarget } fro
 import "./viewer.css";
 import type { LoadPointGroup } from "../../core/loadPointGroupContract.ts";
 import type { TechnicalAssignmentSnapshot } from "./technicalAssignmentController.ts";
+import { replacePilePlanActivation } from "../../domain/pilePlanActivation.ts";
 
 type Props = {
   state: ProjectState;
@@ -40,8 +41,11 @@ export default function PilePlanWorkspace({ state, loadPointGroups, technicalAss
         onApply={(draft) => {
           onStateChange({
             ...state,
-            activePileSizes: draft.active.pileSizes,
-            activePileTipLevels: draft.active.pileTipLevels,
+            pilePlans: replacePilePlanActivation(
+              state.pilePlans,
+              state.activePilePlanId,
+              draft.active,
+            ),
             pileLegend: draft.legend,
           });
           setLegendEditorOpen(false);
