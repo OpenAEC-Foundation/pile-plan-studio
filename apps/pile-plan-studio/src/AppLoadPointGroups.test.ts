@@ -33,6 +33,20 @@ describe("App load point group integration", () => {
     assert.match(source, /synchronizeActivePilePlan\(/);
   });
 
+  it("removes group assignments returned as empty changes", () => {
+    assert.match(source, /requestedConfiguration: PileConfigurationKey \| null/);
+    assert.match(source, /if \(change\.configuration\) \{/);
+    assert.match(source, /nextAssignments\.delete\(change\.load_point_id\)/);
+  });
+
+  it("rejects a response when groups or locks changed during the request", () => {
+    assert.match(source, /capturedGroups = loadPointGroups\.groups/);
+    assert.match(source, /loadPointGroupsRef\.current !== capturedGroups/);
+    assert.match(source, /capturedLockedLoadPointSignature/);
+    assert.match(source, /getLoadPointLockSignature\(latest\.pilePlans, capturedActivePilePlanId\)/);
+    assert.match(source, /getLoadPointLockSignature\(current\.pilePlans, capturedActivePilePlanId\)/);
+  });
+
   it("invalidates assignment requests for replacement projects and plan switches", () => {
     assert.match(source, /invalidatePileAssignmentRequests/);
     assert.match(source, /replaceProjectState/);

@@ -37,6 +37,14 @@ describe("missing CPT popover", () => {
     assert.equal(english["status.insufficientCapacity"], "Not OK");
     assert.equal(dutch["status.insufficientCapacity"], "Not OK");
   });
+
+  it("describes Missing as a click action in both languages", () => {
+    const english = JSON.parse(readFileSync(resolve(import.meta.dirname, "../../i18n/locales/en/rightPanel.json"), "utf8"));
+    const dutch = JSON.parse(readFileSync(resolve(import.meta.dirname, "../../i18n/locales/nl/rightPanel.json"), "utf8"));
+
+    assert.equal(english["pileOptions.missingCptsTitle"], "Click to view CPTs with missing bearing-capacity data");
+    assert.equal(dutch["pileOptions.missingCptsTitle"], "Klik om sonderingen met ontbrekende draagvermogengegevens te bekijken");
+  });
 });
 
 describe("technical assignment availability", () => {
@@ -45,6 +53,18 @@ describe("technical assignment availability", () => {
 
     assert.match(panel, /technicalAssignment\.status === "unavailable"/);
     assert.match(panel, /isUnavailable[\s\S]*?technicalNotice\.unavailableExplanation/);
+  });
+
+  it("shows one compact analysis error instead of a second pile-options error section", () => {
+    const panel = readFileSync(resolve(import.meta.dirname, "RightPanel.tsx"), "utf8");
+    const notice = readFileSync(resolve(import.meta.dirname, "TechnicalAssignmentNotice.tsx"), "utf8");
+    const styles = readFileSync(resolve(import.meta.dirname, "rightPanel.css"), "utf8");
+
+    assert.match(panel, /technicalAssignment\.status !== "error"\s*\?\s*\(\s*<section className="pile-options-section">/s);
+    assert.match(notice, /getAnalysisFailureNotice/);
+    assert.match(notice, /technicalNotice\.analysisErrorExplanation/);
+    assert.match(styles, /\.load-point-panel\s*\{[^}]*display:\s*flex;[^}]*flex-direction:\s*column;/s);
+    assert.match(styles, /\.pile-options-section\s*\{[^}]*flex:\s*1;/s);
   });
 });
 
@@ -59,6 +79,21 @@ describe("React optimization panel", () => {
     assert.match(panel, /aria-disabled=\{pileAssignmentPending\}/);
     assert.match(panel, /if \(pileAssignmentPending\) return/);
     assert.doesNotMatch(panel, /new Map\(state\.selectedPileConfigurationsByLoadPoint\)/);
+  });
+
+  it("offers one group-aware action to clear the selected assignment", () => {
+    const panel = readFileSync(resolve(import.meta.dirname, "RightPanel.tsx"), "utf8");
+    const english = JSON.parse(readFileSync(resolve(import.meta.dirname, "../../i18n/locales/en/rightPanel.json"), "utf8"));
+    const dutch = JSON.parse(readFileSync(resolve(import.meta.dirname, "../../i18n/locales/nl/rightPanel.json"), "utf8"));
+
+    assert.match(panel, /hasAssignedSelection/);
+    assert.match(panel, /group\.load_point_ids\.some\(\(loadPointId\) => selectedLoadPointIds\.has\(loadPointId\)\)/);
+    assert.match(panel, /group\.load_point_ids\.forEach\(\(loadPointId\) => involvedLoadPointIds\.add\(loadPointId\)\)/);
+    assert.match(panel, /onApplyPileConfiguration\(selectedLoadPoints\.map\(\(\{ id \}\) => id\), null\)/);
+    assert.match(panel, /disabled=\{pileAssignmentPending\}/);
+    assert.match(panel, /configuration: PileConfigurationKey \| null/);
+    assert.equal(english["pileOptions.clearAssignment"], "Clear assignment");
+    assert.equal(dutch["pileOptions.clearAssignment"], "Toewijzing wissen");
   });
 
   it("defers numeric optimization limits until blur or Enter", () => {

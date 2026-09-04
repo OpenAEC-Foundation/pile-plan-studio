@@ -45,6 +45,12 @@ export function getUnselectedLoadPointMarkerState(
   return "unassigned";
 }
 
+export function usesNeutralUnassignedMarker(
+  state: UnselectedLoadPointMarkerState,
+): boolean {
+  return state !== "optimizer-unassigned";
+}
+
 export function getLoadPointMarkerInvalidVisual(
   chosenOption: PileConfigurationOption | null,
   preferredRange: ViewerUtilizationSettings = { minimum: 0, maximum: 1 },

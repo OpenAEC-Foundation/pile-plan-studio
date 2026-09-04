@@ -17,6 +17,12 @@ describe("optimizer unresolved marker", () => {
     assert.match(styles, /\.optimizer-unresolved-marker\s*\{[^}]*width:\s*16px;[^}]*height:\s*16px;/s);
   });
 
+  it("leaves the explanation to the side panel instead of exposing a native tooltip", () => {
+    const source = readFileSync(resolve(import.meta.dirname, "OptimizerUnresolvedMarker.tsx"), "utf8");
+
+    assert.doesNotMatch(source, /\btitle\s*[=:]/);
+  });
+
   it("provides the optimizer-limit tooltip in Dutch and English", () => {
     const dutch = JSON.parse(readFileSync(
       resolve(import.meta.dirname, "../../i18n/locales/nl/common.json"),

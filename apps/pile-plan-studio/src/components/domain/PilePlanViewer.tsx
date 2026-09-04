@@ -40,7 +40,7 @@ import { renderPileSymbol } from "../../viewer/pileSymbols.ts";
 import {
   getLoadPointMarkerInvalidVisual,
   getUnselectedLoadPointMarkerState,
-  type UnselectedLoadPointMarkerState,
+  usesNeutralUnassignedMarker,
 } from "../../viewer/loadPointMarker.ts";
 import { getCptConnectionSegments } from "../../viewer/cptConnectionLines.ts";
 import {
@@ -336,6 +336,25 @@ export default function PilePlanViewer({ state, loadPointGroups, technicalAssign
               ))}
             </svg>
           ) : null}
+          {state.loadPoints.map((loadPoint) => {
+            const isLocked = lockedLoadPointIds.has(loadPoint.id);
+            const selectedOption = getSelectedPileOption(state, loadPoint.id, pileOptionsByLoadPointId);
+            const invalidVisual = getLoadPointMarkerInvalidVisual(
+              selectedOption,
+              state.viewerUtilizationSettings,
+            );
+            if (!invalidVisual.className) return null;
+
+            const point = projectPointPixels(loadPoint, projectTransform);
+            return (
+              <span
+                aria-hidden="true"
+                className={`load-point-status-halo${invalidVisual.className}${isLocked ? " is-locked" : ""}`}
+                key={`load-point-status-${loadPoint.id}`}
+                style={getProjectMarkerStyle(point, invalidVisual.style)}
+              />
+            );
+          })}
           {state.cpts.map((cpt) => {
             const point = projectPointPixels(cpt, projectTransform);
             const cptName = getCptDisplayName(cpt);
@@ -380,10 +399,6 @@ export default function PilePlanViewer({ state, loadPointGroups, technicalAssign
             const isSelected = selectedLoadPointIds.has(loadPoint.id);
             const isLocked = lockedLoadPointIds.has(loadPoint.id);
             const selectedOption = getSelectedPileOption(state, loadPoint.id, pileOptionsByLoadPointId);
-            const invalidVisual = getLoadPointMarkerInvalidVisual(
-              selectedOption,
-              state.viewerUtilizationSettings,
-            );
             const style = selectedOption
               ? getConfigurationStyle(selectedOption, legend)
               : null;
@@ -396,24 +411,19 @@ export default function PilePlanViewer({ state, loadPointGroups, technicalAssign
             const unselectedTitle = unselectedState === "optimizer-unassigned"
               ? optimizerTitle
               : unselectedState ? t(`viewer.unselected.${unselectedState}`) : undefined;
-            const unselectedClass = isNeutralUnselectedState(unselectedState)
+            const unselectedClass = unselectedState && usesNeutralUnassignedMarker(unselectedState)
               ? " is-pending"
-              : unselectedState === "missing-capacity-data"
-                ? " has-missing-options"
-                : unselectedState === "insufficient-capacity"
-                  ? " has-invalid-options"
-                  : unselectedState === "optimizer-unassigned"
-                    ? " has-optimizer-unassigned"
+              : unselectedState === "optimizer-unassigned"
+                ? " has-optimizer-unassigned"
                   : "";
 
             return (
               <button
                 aria-label={`Load point ${loadPoint.name}${unselectedTitle ? `. ${unselectedTitle}` : ""}`}
-                title={unselectedTitle}
-                className={`load-point-marker${getLoadPointMarkerLayerClass(isSelected)}${isSelected ? " is-selected" : ""}${isLocked ? " is-locked" : ""}${invalidVisual.className}${unselectedClass}${activeHoverCandidateKey === `load-point:${loadPoint.id}` ? " is-hover-candidate" : ""}`}
+                className={`load-point-marker${getLoadPointMarkerLayerClass(isSelected)}${isSelected ? " is-selected" : ""}${isLocked ? " is-locked" : ""}${unselectedClass}${activeHoverCandidateKey === `load-point:${loadPoint.id}` ? " is-hover-candidate" : ""}`}
                 data-map-marker-key={`load-point:${loadPoint.id}`}
                 key={loadPoint.id}
-                style={getProjectMarkerStyle(point, invalidVisual.style)}
+                style={getProjectMarkerStyle(point)}
                 type="button"
                 onClick={(event) => {
                   event.stopPropagation();
@@ -440,11 +450,11 @@ export default function PilePlanViewer({ state, loadPointGroups, technicalAssign
                     className="load-point-symbol"
                     dangerouslySetInnerHTML={{ __html: renderPileSymbol(style.symbol, style.color) }}
                   />
-                ) : isNeutralUnselectedState(unselectedState) ? (
-                  <span className="load-point-pending" aria-hidden="true" />
+                ) : unselectedState && usesNeutralUnassignedMarker(unselectedState) ? (
+                  <span className="load-point-unassigned" aria-hidden="true" />
                 ) : unselectedState === "optimizer-unassigned" ? (
                   <OptimizerUnresolvedMarker
-                    title={optimizerTitle}
+                    label={optimizerTitle}
                   />
                 ) : (
                   <span className="load-point-empty" aria-hidden="true">
@@ -876,14 +886,10 @@ export default function PilePlanViewer({ state, loadPointGroups, technicalAssign
       technicalIssueStatus: technicalAssignment.issuesByLoadPointId.get(item.id)?.status,
       optimizationUnassignedReason: activePilePlan.optimizationUnassignedByLoadPoint.get(item.id),
     });
-    const statusClass = isNeutralUnselectedState(unselectedState)
+    const statusClass = unselectedState && usesNeutralUnassignedMarker(unselectedState)
       ? " is-pending"
-      : unselectedState === "missing-capacity-data"
-        ? " has-missing-options"
-        : unselectedState === "insufficient-capacity"
-          ? " has-invalid-options"
-          : unselectedState === "optimizer-unassigned"
-            ? " has-optimizer-unassigned"
+      : unselectedState === "optimizer-unassigned"
+        ? " has-optimizer-unassigned"
           : "";
     return (
       <span
@@ -891,13 +897,13 @@ export default function PilePlanViewer({ state, loadPointGroups, technicalAssign
         style={getInvalidMarkerStyle(invalidVisual.style)}
       >
         {symbolStyle ? (
-          <span dangerouslySetInnerHTML={{ __html: renderPileSymbol(symbolStyle.symbol, symbolStyle.color) }} />
-        ) : isNeutralUnselectedState(unselectedState) ? (
-          <span className="load-point-pending" title={t(`viewer.unselected.${unselectedState}`)} aria-hidden="true" />
+          <span className="viewer-hover-pile-symbol" dangerouslySetInnerHTML={{ __html: renderPileSymbol(symbolStyle.symbol, symbolStyle.color) }} />
+        ) : unselectedState && usesNeutralUnassignedMarker(unselectedState) ? (
+          <span className="load-point-unassigned" aria-hidden="true" />
         ) : unselectedState === "optimizer-unassigned" ? (
           <OptimizerUnresolvedMarker
             placement="inline"
-            title={getOptimizerUnresolvedTitle(item.id)}
+            label={getOptimizerUnresolvedTitle(item.id)}
           />
         ) : (
           <span className="load-point-empty" aria-hidden="true">
@@ -1110,13 +1116,4 @@ function getCoordinateGridStyle(pattern: ReturnType<typeof getCoordinateGridPatt
     backgroundSize: `${pattern.spacingPixels}px ${pattern.spacingPixels}px`,
     backgroundPosition: `${pattern.originX}px ${pattern.originY}px`,
   };
-}
-
-function isNeutralUnselectedState(
-  state: UnselectedLoadPointMarkerState | null,
-): state is "pending" | "analysis-error" | "unavailable" | "unassigned" {
-  return state === "pending"
-    || state === "analysis-error"
-    || state === "unavailable"
-    || state === "unassigned";
 }

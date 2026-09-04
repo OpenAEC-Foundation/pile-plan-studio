@@ -2,7 +2,13 @@ import { useTranslation } from "react-i18next";
 
 import type { ProjectState } from "../../domain/projectState.ts";
 import { selectLoadPoint } from "../../domain/selectionState.ts";
-import { getTechnicalAssignmentNotice } from "../../domain/technicalAssignmentNotice.ts";
+import {
+  getAnalysisFailureNotice,
+  getMultiSelectionAssignmentSummary,
+  getNeutralUnassignedNotice,
+  getOptimizerUnassignedNotices,
+  getTechnicalAssignmentNotice,
+} from "../../domain/technicalAssignmentNotice.ts";
 import type { TechnicalAssignmentSnapshot } from "./technicalAssignmentController.ts";
 
 type Props = {
@@ -13,6 +19,22 @@ type Props = {
 
 export default function TechnicalAssignmentNotice({ state, assessment, onStateChange }: Props) {
   const { t } = useTranslation("rightPanel");
+  const failureModel = getAnalysisFailureNotice({
+    assessmentStatus: assessment.status,
+    error: assessment.error,
+  });
+  if (failureModel) {
+    return (
+      <div className="panel-message technical-assignment-notice is-error" role="alert">
+        <strong>{t("technicalNotice.neutral.analysis-error.title")}</strong>
+        <span>
+          {failureModel.detail
+            ? t("technicalNotice.analysisErrorExplanation", { error: failureModel.detail })
+            : t("technicalNotice.neutral.analysis-error.explanation")}
+        </span>
+      </div>
+    );
+  }
   if (assessment.status === "unavailable") {
     return (
       <div className="panel-message technical-assignment-notice is-neutral" role="status">
@@ -22,12 +44,81 @@ export default function TechnicalAssignmentNotice({ state, assessment, onStateCh
     );
   }
 
+  const activePilePlan = state.pilePlans.find(({ id }) => id === state.activePilePlanId)
+    ?? state.pilePlans[0];
+  const assignedLoadPointIds = new Set(state.selectedPileConfigurationsByLoadPoint.keys());
+  const multiSelectionSummary = getMultiSelectionAssignmentSummary({
+    selectedLoadPointIds: state.selectedLoadPointIds,
+    assignedLoadPointIds,
+    assessmentStatus: assessment.status,
+    issuesByLoadPointId: assessment.issuesByLoadPointId,
+    optimizerReasonsByLoadPointId: activePilePlan?.optimizationUnassignedByLoadPoint ?? new Map(),
+  });
+  if (multiSelectionSummary) {
+    const categorySummary = multiSelectionSummary.categories
+      .map(({ kind, count }) => t(`technicalNotice.multi.${kind}`, { count }))
+      .join("; ");
+    return (
+      <div className="panel-message technical-assignment-notice is-neutral" role="status">
+        <strong>{t("technicalNotice.multi.title", {
+          count: multiSelectionSummary.unassignedCount,
+          selectedCount: multiSelectionSummary.selectedCount,
+        })}</strong>
+        <span>{categorySummary}.</span>
+      </div>
+    );
+  }
+
   const model = getTechnicalAssignmentNotice({
     selectedLoadPointIds: state.selectedLoadPointIds,
     assessmentStatus: assessment.status,
     issuesByLoadPointId: assessment.issuesByLoadPointId,
   });
-  if (!model) return null;
+  if (!model) {
+    const optimizerModels = getOptimizerUnassignedNotices({
+      selectedLoadPointIds: state.selectedLoadPointIds,
+      assignedLoadPointIds,
+      assessmentStatus: assessment.status,
+      reasonsByLoadPointId: activePilePlan?.optimizationUnassignedByLoadPoint ?? new Map(),
+    });
+    const neutralModel = getNeutralUnassignedNotice({
+      selectedLoadPointIds: state.selectedLoadPointIds,
+      assignedLoadPointIds,
+      assessmentStatus: assessment.status,
+      technicalIssueLoadPointIds: new Set(assessment.issuesByLoadPointId.keys()),
+      optimizerUnassignedLoadPointIds: new Set(
+        activePilePlan?.optimizationUnassignedByLoadPoint.keys() ?? [],
+      ),
+    });
+    if (optimizerModels.length === 0 && !neutralModel) return null;
+
+    return (
+      <>
+        {optimizerModels.map((optimizerModel) => (
+          <div
+            className="panel-message technical-assignment-notice is-neutral"
+            key={optimizerModel.reason}
+            role="status"
+          >
+            <strong>{t(`technicalNotice.optimizer.${optimizerModel.reason}.title`)}</strong>
+            <span>{t(`technicalNotice.optimizer.${optimizerModel.reason}.explanation`, {
+              count: optimizerModel.loadPointIds.length,
+            })}</span>
+          </div>
+        ))}
+        {neutralModel ? (
+          <div className="panel-message technical-assignment-notice is-neutral" role="status">
+            <strong>{t(`technicalNotice.neutral.${neutralModel.kind}.title`)}</strong>
+            <span>
+              {t(`technicalNotice.neutral.${neutralModel.kind}.explanation`, {
+                count: neutralModel.loadPointIds.length,
+              })}
+            </span>
+          </div>
+        ) : null}
+      </>
+    );
+  }
 
   return (
     <div className={`panel-message technical-assignment-notice ${model.status === "missing_capacity_data" ? "is-warning" : "is-error"}`}>
@@ -42,7 +133,7 @@ export default function TechnicalAssignmentNotice({ state, assessment, onStateCh
   function renderCause() {
     if (!model) return null;
     if (model.cause === "no_valid_option") {
-      return <>{t("technicalNotice.location")} {renderIds([model.loadPointId])} {t("technicalNotice.noValidOption", { count: 1 })}</>;
+      return <>{t("technicalNotice.thisLocation")} {t("technicalNotice.noValidOption", { count: 1 })}</>;
     }
     if (model.cause === "group_member_without_valid_option") {
       return <>

@@ -57,7 +57,7 @@ type Props = {
   pileAssignmentPending?: boolean;
   onApplyPileConfiguration?: (
     selectedLoadPointIds: number[],
-    configuration: PileConfigurationKey,
+    configuration: PileConfigurationKey | null,
   ) => void;
   onRunOptimization?: () => void;
   taskPanel?: RightTaskPanel | null;
@@ -672,7 +672,7 @@ function LoadPointPanel({
   pileAssignmentPending: boolean;
   onApplyPileConfiguration: (
     selectedLoadPointIds: number[],
-    configuration: PileConfigurationKey,
+    configuration: PileConfigurationKey | null,
   ) => void;
   selectedLabel: string;
   selectedLoadPoints: ReturnType<typeof getSelectedLoadPoints>;
@@ -734,6 +734,15 @@ function LoadPointPanel({
     : null;
   const tableRows = getPileOptionTableRows(rows, visibleFilters, visibleSort);
   const chosenKey = getChosenPileOptionKeyForSelection(state, selectedLoadPoints);
+  const selectedLoadPointIds = new Set(selectedLoadPoints.map(({ id }) => id));
+  const involvedLoadPointIds = new Set(selectedLoadPointIds);
+  for (const group of loadPointGroups) {
+    if (group.load_point_ids.some((loadPointId) => selectedLoadPointIds.has(loadPointId))) {
+      group.load_point_ids.forEach((loadPointId) => involvedLoadPointIds.add(loadPointId));
+    }
+  }
+  const hasAssignedSelection = [...involvedLoadPointIds].some((loadPointId) =>
+    state.selectedPileConfigurationsByLoadPoint.has(loadPointId));
   const isUnavailable = technicalAssignment.status === "unavailable";
   const isLoading = state.pileOptionsByLoadPointId.size === 0
     || (selectedCount > 1 && aggregation.status === "loading");
@@ -766,10 +775,23 @@ function LoadPointPanel({
         onStateChange={onStateChange}
       />
 
+      {technicalAssignment.status !== "error" ? (
       <section className="pile-options-section">
         <div className="section-heading">
           <h3>{t("pileOptions.title")}</h3>
-          <span>{isLoading ? t("pileOptions.loading") : t("pileOptions.shown", { count: tableRows.length })}</span>
+          <div className="section-heading-actions">
+            <span>{isLoading ? t("pileOptions.loading") : t("pileOptions.shown", { count: tableRows.length })}</span>
+            {hasAssignedSelection ? (
+              <button
+                className="clear-pile-assignment"
+                disabled={pileAssignmentPending}
+                type="button"
+                onClick={() => onApplyPileConfiguration(selectedLoadPoints.map(({ id }) => id), null)}
+              >
+                {t("pileOptions.clearAssignment")}
+              </button>
+            ) : null}
+          </div>
         </div>
         {!isLoading && tableError ? (
           <div className="right-panel-empty is-inline" role="alert">
@@ -891,6 +913,7 @@ function LoadPointPanel({
           </div>
         )}
       </section>
+      ) : null}
     </div>
   );
 }
@@ -983,7 +1006,7 @@ function applyPileOption(
   state: ProjectState,
   onApplyPileConfiguration: (
     selectedLoadPointIds: number[],
-    configuration: PileConfigurationKey,
+    configuration: PileConfigurationKey | null,
   ) => void,
   pileAssignmentPending: boolean,
   selectedLoadPoints: ReturnType<typeof getSelectedLoadPoints>,

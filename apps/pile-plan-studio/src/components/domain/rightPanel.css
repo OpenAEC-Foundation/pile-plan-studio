@@ -63,11 +63,11 @@
 }
 
 .load-point-panel {
-  display: grid;
+  display: flex;
+  flex-direction: column;
   flex: 1;
   min-height: 0;
   overflow: hidden;
-  grid-template-rows: auto auto 1fr;
 }
 
 .cpt-panel {
@@ -615,6 +615,7 @@
 
 .pile-options-section {
   display: grid;
+  flex: 1;
   min-height: 0;
   overflow: hidden;
   grid-template-rows: auto 1fr;
@@ -786,6 +787,33 @@
 .status-pill.is-not-ok {
   color: #9f1d20;
   background: #ffe0e0;
+}
+
+.section-heading-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.clear-pile-assignment {
+  padding: 2px 6px;
+  border: 1px solid var(--theme-border);
+  border-radius: 3px;
+  background: var(--theme-surface);
+  color: var(--theme-text-secondary);
+  cursor: pointer;
+  font: inherit;
+  font-size: 10px;
+}
+
+.clear-pile-assignment:hover:not(:disabled) {
+  border-color: var(--theme-accent);
+  color: var(--theme-text);
+}
+
+.clear-pile-assignment:disabled {
+  cursor: default;
+  opacity: 0.5;
 }
 
 .missing-cpt-popover {

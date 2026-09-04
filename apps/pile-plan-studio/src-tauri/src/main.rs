@@ -452,7 +452,7 @@ mod tests {
                 groups: vec![pile_plan_core::LoadPointGroup {
                     load_point_ids: vec![1, 2],
                 }],
-                requested_configuration,
+                requested_configuration: Some(requested_configuration),
                 current_assignments: HashMap::new(),
                 locked_load_point_ids: vec![],
             },

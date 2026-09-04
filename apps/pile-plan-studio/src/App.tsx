@@ -146,6 +146,15 @@ const BUILT_IN_PILE_COST_DEFAULTS = loadIfcppProjectData(sampleProjectText).pile
 
 const POINTER_FOCUS_CONTROL_SELECTOR = "button, [role='option'], [role='tab'], [role='row'][tabindex='0']";
 
+function getLoadPointLockSignature(
+  pilePlans: ProjectState["pilePlans"],
+  activePilePlanId: ProjectState["activePilePlanId"],
+): string {
+  return getActiveLockedLoadPointIds(pilePlans, activePilePlanId)
+    .sort((left, right) => left - right)
+    .join(",");
+}
+
 function releasePointerActivatedControlFocus(event: ReactPointerEvent<HTMLDivElement>) {
   const target = event.target;
   if (!(target instanceof Element)) return;
@@ -719,7 +728,7 @@ function AppSession({
 
   const applyGroupedPileConfiguration = async (
     selectedLoadPointIds: number[],
-    requestedConfiguration: PileConfigurationKey,
+    requestedConfiguration: PileConfigurationKey | null,
   ): Promise<void> => {
     const groupsReady = !loadPointGroups.pending
       && loadPointGroups.error === null
@@ -731,6 +740,11 @@ function AppSession({
     const capturedActivePilePlanId = projectState.activePilePlanId;
     const capturedAssignments = projectState.selectedPileConfigurationsByLoadPoint;
     const capturedLoadPoints = projectState.loadPoints;
+    const capturedGroups = loadPointGroups.groups;
+    const capturedLockedLoadPointSignature = getLoadPointLockSignature(
+      projectState.pilePlans,
+      capturedActivePilePlanId,
+    );
     const lockedLoadPointIds = getActiveLockedLoadPointIds(
       projectState.pilePlans,
       capturedActivePilePlanId,
@@ -740,7 +754,7 @@ function AppSession({
     try {
       const result = await applyLoadPointGroupAssignmentCore({
         selectedLoadPointIds,
-        groups: loadPointGroups.groups,
+        groups: capturedGroups,
         requestedConfiguration,
         currentAssignments: capturedAssignments,
         lockedLoadPointIds,
@@ -750,6 +764,9 @@ function AppSession({
         requestId !== pileAssignmentRequestIdRef.current
         || latest.activePilePlanId !== capturedActivePilePlanId
         || latest.selectedPileConfigurationsByLoadPoint !== capturedAssignments
+        || loadPointGroupsRef.current !== capturedGroups
+        || getLoadPointLockSignature(latest.pilePlans, capturedActivePilePlanId)
+          !== capturedLockedLoadPointSignature
       ) {
         return;
       }
@@ -770,12 +787,19 @@ function AppSession({
         if (
           current.activePilePlanId !== capturedActivePilePlanId
           || current.selectedPileConfigurationsByLoadPoint !== capturedAssignments
+          || loadPointGroupsRef.current !== capturedGroups
+          || getLoadPointLockSignature(current.pilePlans, capturedActivePilePlanId)
+            !== capturedLockedLoadPointSignature
         ) {
           return current;
         }
         const nextAssignments = new Map(capturedAssignments);
         for (const change of result.changes) {
-          nextAssignments.set(change.load_point_id, { ...change.configuration });
+          if (change.configuration) {
+            nextAssignments.set(change.load_point_id, { ...change.configuration });
+          } else {
+            nextAssignments.delete(change.load_point_id);
+          }
         }
         return {
           ...current,

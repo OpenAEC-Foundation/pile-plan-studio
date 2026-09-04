@@ -5,6 +5,7 @@ import {
   getLoadPointMarkerInvalidVisual,
   getOptimizerUnresolvedMarkerStyle,
   getUnselectedLoadPointMarkerState,
+  usesNeutralUnassignedMarker,
 } from "./loadPointMarker.ts";
 import type { PileConfigurationOption } from "../core/projectTypes.ts";
 import type { TechnicalAssignmentIssueStatus } from "../core/technicalAssignmentContract.ts";
@@ -95,6 +96,22 @@ describe("unselected load point marker state", () => {
       "insufficient-capacity",
     );
     assert.equal(getUnselectedLoadPointMarkerState({ analysisStatus: "ready" }), "unassigned");
+  });
+
+  it("uses a neutral dot for every unassigned state except an optimizer limit", () => {
+    const neutralStates = [
+      "pending",
+      "analysis-error",
+      "unavailable",
+      "missing-capacity-data",
+      "insufficient-capacity",
+      "unassigned",
+    ] as const;
+
+    for (const state of neutralStates) {
+      assert.equal(usesNeutralUnassignedMarker(state), true, state);
+    }
+    assert.equal(usesNeutralUnassignedMarker("optimizer-unassigned"), false);
   });
 });
 

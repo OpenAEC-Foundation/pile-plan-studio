@@ -60,6 +60,19 @@ describe("load point group transport contract", () => {
     });
   });
 
+  it("preserves an empty requested assignment for both runtimes", () => {
+    const input = {
+      selectedLoadPointIds: [2],
+      groups: [{ load_point_ids: [1, 2] }],
+      requestedConfiguration: null,
+      currentAssignments: new Map<number, { pile_size_mm: number; pile_tip_level_mm: number }>(),
+      lockedLoadPointIds: [],
+    };
+
+    assert.equal(toBrowserLoadPointGroupAssignmentRequest(input).requested_configuration, null);
+    assert.equal(toDesktopLoadPointGroupAssignmentRequest(input).requested_configuration, null);
+  });
+
   it("copies group and assignment results at the contract boundary", () => {
     assert.deepEqual(loadPointGroupsFromCore([{ load_point_ids: [1, 2] }]), [
       { load_point_ids: [1, 2] },
@@ -96,6 +109,16 @@ describe("load point group transport contract", () => {
           load_point_id: 2,
           configuration: { pile_size_mm: 290, pile_tip_level_mm: -17_500 },
         }],
+      },
+    );
+    assert.deepEqual(
+      loadPointGroupAssignmentResultFromCore({
+        status: "applied",
+        changes: [{ load_point_id: 2, configuration: null }],
+      }),
+      {
+        status: "applied",
+        changes: [{ load_point_id: 2, configuration: null }],
       },
     );
   });

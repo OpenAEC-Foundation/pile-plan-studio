@@ -7,7 +7,7 @@ export type LoadPointGroup = {
 
 export type LoadPointGroupAssignmentChange = {
   load_point_id: number;
-  configuration: PileConfigurationKey;
+  configuration: PileConfigurationKey | null;
 };
 
 export type BlockingLockedLoadPoint = {
@@ -29,7 +29,7 @@ export type ApplyLoadPointGroupAssignmentResult =
 export type LoadPointGroupAssignmentInput = {
   selectedLoadPointIds: number[];
   groups: LoadPointGroup[];
-  requestedConfiguration: PileConfigurationKey;
+  requestedConfiguration: PileConfigurationKey | null;
   currentAssignments: Map<number, PileConfigurationKey>;
   lockedLoadPointIds: number[];
 };
@@ -37,7 +37,7 @@ export type LoadPointGroupAssignmentInput = {
 type CoreLoadPointGroupAssignmentRequest<TAssignments> = {
   selected_load_point_ids: number[];
   groups: LoadPointGroup[];
-  requested_configuration: PileConfigurationKey;
+  requested_configuration: PileConfigurationKey | null;
   current_assignments: TAssignments;
   locked_load_point_ids: number[];
 };
@@ -84,7 +84,7 @@ export function loadPointGroupAssignmentResultFromCore(
       status: "applied",
       changes: result.changes.map((change) => ({
         load_point_id: change.load_point_id,
-        configuration: { ...change.configuration },
+        configuration: change.configuration ? { ...change.configuration } : null,
       })),
     };
   }
@@ -108,7 +108,9 @@ function toCoreAssignmentRequest<TAssignments>(
   return {
     selected_load_point_ids: [...input.selectedLoadPointIds],
     groups: loadPointGroupsFromCore(input.groups),
-    requested_configuration: { ...input.requestedConfiguration },
+    requested_configuration: input.requestedConfiguration
+      ? { ...input.requestedConfiguration }
+      : null,
     current_assignments: currentAssignments,
     locked_load_point_ids: [...input.lockedLoadPointIds],
   };

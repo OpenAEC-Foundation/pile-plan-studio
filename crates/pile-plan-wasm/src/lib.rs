@@ -636,7 +636,7 @@ mod tests {
                 groups: vec![LoadPointGroup {
                     load_point_ids: vec![1, 2],
                 }],
-                requested_configuration: requested_configuration.clone(),
+                requested_configuration: Some(requested_configuration.clone()),
                 current_assignments: HashMap::new(),
                 locked_load_point_ids: vec![],
             });
@@ -646,11 +646,11 @@ mod tests {
                 changes: vec![
                     pile_plan_core::LoadPointGroupAssignmentChange {
                         load_point_id: 1,
-                        configuration: requested_configuration.clone(),
+                        configuration: Some(requested_configuration.clone()),
                     },
                     pile_plan_core::LoadPointGroupAssignmentChange {
                         load_point_id: 2,
-                        configuration: requested_configuration,
+                        configuration: Some(requested_configuration),
                     },
                 ],
             }

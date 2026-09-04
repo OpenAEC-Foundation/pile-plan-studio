@@ -28,7 +28,7 @@ pub struct LoadPointGroup {
 pub struct ApplyLoadPointGroupAssignmentInput {
     pub selected_load_point_ids: Vec<u32>,
     pub groups: Vec<LoadPointGroup>,
-    pub requested_configuration: crate::PileConfigurationKey,
+    pub requested_configuration: Option<crate::PileConfigurationKey>,
     pub current_assignments: HashMap<u32, crate::PileConfigurationKey>,
     pub locked_load_point_ids: Vec<u32>,
 }
@@ -36,7 +36,7 @@ pub struct ApplyLoadPointGroupAssignmentInput {
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
 pub struct LoadPointGroupAssignmentChange {
     pub load_point_id: u32,
-    pub configuration: crate::PileConfigurationKey,
+    pub configuration: Option<crate::PileConfigurationKey>,
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
@@ -131,7 +131,7 @@ pub fn apply_load_point_group_assignment(
         .filter(|load_point_id| locked.contains(load_point_id))
         .filter_map(|load_point_id| {
             let assigned_configuration = input.current_assignments.get(load_point_id);
-            (assigned_configuration != Some(&input.requested_configuration)).then(|| {
+            (assigned_configuration != input.requested_configuration.as_ref()).then(|| {
                 BlockingLockedLoadPoint {
                     load_point_id: *load_point_id,
                     assigned_configuration: assigned_configuration.cloned(),
@@ -151,7 +151,7 @@ pub fn apply_load_point_group_assignment(
         .into_iter()
         .filter(|load_point_id| !locked.contains(load_point_id))
         .filter(|load_point_id| {
-            input.current_assignments.get(load_point_id) != Some(&input.requested_configuration)
+            input.current_assignments.get(load_point_id) != input.requested_configuration.as_ref()
         })
         .map(|load_point_id| LoadPointGroupAssignmentChange {
             load_point_id,
@@ -249,7 +249,22 @@ mod tests {
         ApplyLoadPointGroupAssignmentInput {
             selected_load_point_ids,
             groups,
-            requested_configuration,
+            requested_configuration: Some(requested_configuration),
+            current_assignments: current_assignments.iter().cloned().collect(),
+            locked_load_point_ids,
+        }
+    }
+
+    fn unassignment_input(
+        selected_load_point_ids: Vec<u32>,
+        groups: Vec<LoadPointGroup>,
+        current_assignments: &[(u32, PileConfigurationKey)],
+        locked_load_point_ids: Vec<u32>,
+    ) -> ApplyLoadPointGroupAssignmentInput {
+        ApplyLoadPointGroupAssignmentInput {
+            selected_load_point_ids,
+            groups,
+            requested_configuration: None,
             current_assignments: current_assignments.iter().cloned().collect(),
             locked_load_point_ids,
         }
@@ -376,15 +391,15 @@ mod tests {
                 changes: vec![
                     LoadPointGroupAssignmentChange {
                         load_point_id: 1,
-                        configuration: requested.clone(),
+                        configuration: Some(requested.clone()),
                     },
                     LoadPointGroupAssignmentChange {
                         load_point_id: 2,
-                        configuration: requested.clone(),
+                        configuration: Some(requested.clone()),
                     },
                     LoadPointGroupAssignmentChange {
                         load_point_id: 3,
-                        configuration: requested,
+                        configuration: Some(requested),
                     },
                 ],
             },
@@ -414,7 +429,7 @@ mod tests {
         );
         assert!(changes
             .iter()
-            .all(|change| change.configuration == requested));
+            .all(|change| change.configuration == Some(requested.clone())));
     }
 
     #[test]
@@ -433,7 +448,7 @@ mod tests {
             ApplyLoadPointGroupAssignmentResult::Applied {
                 changes: vec![LoadPointGroupAssignmentChange {
                     load_point_id: 2,
-                    configuration: requested,
+                    configuration: Some(requested),
                 }],
             },
         );
@@ -514,6 +529,77 @@ mod tests {
                     assigned_configuration: Some(configuration(290, -17_500)),
                 },
             ],
+        );
+    }
+
+    #[test]
+    fn group_unassignment_clears_every_assigned_member() {
+        let result = apply_load_point_group_assignment(&unassignment_input(
+            vec![2],
+            vec![group(&[1, 2, 3])],
+            &[
+                (1, configuration(290, -17_500)),
+                (2, configuration(320, -18_000)),
+            ],
+            vec![],
+        ));
+
+        assert_eq!(
+            result,
+            ApplyLoadPointGroupAssignmentResult::Applied {
+                changes: vec![
+                    LoadPointGroupAssignmentChange {
+                        load_point_id: 1,
+                        configuration: None,
+                    },
+                    LoadPointGroupAssignmentChange {
+                        load_point_id: 2,
+                        configuration: None,
+                    },
+                ],
+            },
+        );
+    }
+
+    #[test]
+    fn assigned_locked_member_blocks_group_unassignment() {
+        let assigned = configuration(320, -18_000);
+        let result = apply_load_point_group_assignment(&unassignment_input(
+            vec![1],
+            vec![group(&[1, 2])],
+            &[(1, assigned.clone()), (2, assigned.clone())],
+            vec![2],
+        ));
+
+        assert_eq!(
+            result,
+            ApplyLoadPointGroupAssignmentResult::Blocked {
+                involved_load_point_ids: vec![1, 2],
+                blocking_locked_load_points: vec![BlockingLockedLoadPoint {
+                    load_point_id: 2,
+                    assigned_configuration: Some(assigned),
+                }],
+            },
+        );
+    }
+
+    #[test]
+    fn already_unassigned_locked_member_does_not_block_group_unassignment() {
+        let result = apply_load_point_group_assignment(&unassignment_input(
+            vec![1],
+            vec![group(&[1, 2])],
+            &[(1, configuration(320, -18_000))],
+            vec![2],
+        ));
+
+        assert_eq!(
+            result,
+            ApplyLoadPointGroupAssignmentResult::Applied {
+                changes: vec![LoadPointGroupAssignmentChange {
+                    load_point_id: 1,
+                    configuration: None,
+                }],
+            },
         );
     }
 }
