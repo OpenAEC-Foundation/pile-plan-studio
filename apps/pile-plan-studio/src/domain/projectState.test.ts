@@ -21,6 +21,7 @@ describe("createInitialProjectState", () => {
     assert.equal(state.defaultPileSelectionPending, true);
     assert.equal(state.symbolScalePercent, 100);
     assert.equal(state.foregroundLayer, "load-points");
+    assert.equal(state.showTipLevelRegions, true);
     assert.equal(state.optimizationCreatesPilePlan, true);
   });
 
@@ -37,11 +38,11 @@ describe("createInitialProjectState", () => {
     assert.equal(state.symbolScalePercent, 145);
     assert.equal(state.foregroundLayer, "cpts");
     assert.equal(state.showGrid, false);
-    assert.equal(state.showTipLevelRegions, false);
+    assert.equal(state.showTipLevelRegions, true);
 
-    project.settings.viewer.show_tip_level_regions = true;
-    const visibleState = createInitialProjectState(project, { initializeDefaultPiles: false });
-    assert.equal(visibleState.showTipLevelRegions, true);
+    project.settings.viewer.show_tip_level_regions = false;
+    const hiddenState = createInitialProjectState(project, { initializeDefaultPiles: false });
+    assert.equal(hiddenState.showTipLevelRegions, false);
   });
 
   it("preserves stored IFCPP choices without scheduling default selection", () => {

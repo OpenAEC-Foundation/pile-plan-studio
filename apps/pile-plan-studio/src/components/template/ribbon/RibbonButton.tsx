@@ -2,6 +2,7 @@ interface RibbonButtonProps {
   icon: string;
   label: string;
   title?: string;
+  className?: string;
   size?: "large" | "small" | "medium";
   active?: boolean;
   disabled?: boolean;
@@ -13,6 +14,7 @@ export default function RibbonButton({
   icon,
   label,
   title,
+  className,
   size = "large",
   active,
   disabled,
@@ -22,7 +24,7 @@ export default function RibbonButton({
   return (
     <button
       aria-pressed={active}
-      className={`ribbon-btn${size === "small" ? " small" : ""}${size === "medium" ? " medium" : ""}${wide ? " wide" : ""}${active ? " active" : ""}`}
+      className={`ribbon-btn${size === "small" ? " small" : ""}${size === "medium" ? " medium" : ""}${wide ? " wide" : ""}${active ? " active" : ""}${className ? ` ${className}` : ""}`}
       title={title || label}
       disabled={disabled}
       onClick={onClick}

@@ -126,7 +126,7 @@ describe("IFCPP project loading", () => {
     assert.equal(data.symbolScalePercent, 100);
     assert.equal(data.foregroundLayer, "load-points");
     assert.equal(data.showGrid, true);
-    assert.equal(data.showTipLevelRegions, false);
+    assert.equal(data.showTipLevelRegions, true);
   });
 
   it("round-trips tip-level region visibility without changing the schema version", () => {
@@ -137,6 +137,17 @@ describe("IFCPP project loading", () => {
     assert.equal(saved.schema_version, 3);
     assert.equal(saved.settings.viewer?.show_tip_level_regions, true);
     assert.equal(restored.showTipLevelRegions, true);
+  });
+
+  it("preserves an explicitly hidden tip-level region setting", () => {
+    const project = projectFixture();
+    project.settings.viewer = { show_tip_level_regions: false };
+
+    const loaded = loadIfcppProjectData(project);
+    const saved = createIfcppProject(loaded);
+
+    assert.equal(loaded.showTipLevelRegions, false);
+    assert.equal(saved.settings.viewer?.show_tip_level_regions, false);
   });
 
   it("migrates schema two cost fields and writes schema three", () => {
@@ -159,7 +170,7 @@ describe("IFCPP project loading", () => {
       symbol_scale_percent: 100,
       foreground_layer: "load-points",
       show_grid: true,
-      show_tip_level_regions: false,
+      show_tip_level_regions: true,
     });
   });
 

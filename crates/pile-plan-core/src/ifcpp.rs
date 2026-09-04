@@ -110,7 +110,7 @@ fn migrate_legacy_project_value(value: &mut Value) {
             "symbol_scale_percent": 100,
             "foreground_layer": "load-points",
             "show_grid": true,
-            "show_tip_level_regions": false
+            "show_tip_level_regions": true
         })
     });
     value["schema_version"] = Value::from(3);
@@ -209,6 +209,18 @@ mod tests {
         assert_eq!(project.settings.viewer.symbol_scale_percent, 100);
         assert_eq!(project.settings.viewer.foreground_layer, "load-points");
         assert!(project.settings.viewer.show_grid);
+        assert!(project.settings.viewer.show_tip_level_regions);
+    }
+
+    #[test]
+    fn preserves_explicitly_hidden_tip_level_regions() {
+        let mut project = project_fixture();
+        project.settings.viewer.show_tip_level_regions = false;
+
+        let json = write_ifcpp_string(&project).expect("project writes");
+        let parsed = read_ifcpp_str(&json).expect("project reads");
+
+        assert!(!parsed.settings.viewer.show_tip_level_regions);
     }
 
     fn project_fixture() -> PilePlanProject {

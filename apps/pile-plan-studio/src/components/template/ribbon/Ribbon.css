@@ -383,6 +383,14 @@
   white-space: nowrap;
 }
 
+.ribbon-btn.tip-level-regions-toggle {
+  width: 104px;
+}
+
+.ribbon-btn.tip-level-regions-toggle .ribbon-btn-label {
+  max-width: 100px;
+}
+
 .ribbon-btn:hover .ribbon-btn-label {
   color: var(--theme-accent);
 }

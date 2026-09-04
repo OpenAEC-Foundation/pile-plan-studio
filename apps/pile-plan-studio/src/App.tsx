@@ -327,6 +327,22 @@ function AppSession({
   const amendProjectState = useCallback((update: SetStateAction<ProjectState>) => {
     dispatchProject({ type: "amend", update });
   }, []);
+  const symbolScaleHistoryRef = useRef<"idle" | "commit" | "amend">("idle");
+  const beginSymbolScaleChange = useCallback(() => {
+    if (symbolScaleHistoryRef.current === "idle") symbolScaleHistoryRef.current = "commit";
+  }, []);
+  const commitSymbolScaleChange = useCallback((symbolScalePercent: number) => {
+    const update = (current: ProjectState) => ({ ...current, symbolScalePercent });
+    if (symbolScaleHistoryRef.current === "amend") {
+      amendProjectState(update);
+      return;
+    }
+    commitProjectState(update);
+    if (symbolScaleHistoryRef.current === "commit") symbolScaleHistoryRef.current = "amend";
+  }, [amendProjectState, commitProjectState]);
+  const endSymbolScaleChange = useCallback(() => {
+    symbolScaleHistoryRef.current = "idle";
+  }, []);
   const replaceProjectState = useCallback((state: ProjectState) => {
     invalidatePileAssignmentRequests();
     dispatchProject({ type: "replace", state });
@@ -1528,10 +1544,9 @@ function AppSession({
           showTipLevelRegions={projectState.showTipLevelRegions}
           explorerVisible={workspaceLayout.explorerVisible}
           propertiesVisible={workspaceLayout.propertiesVisible}
-          onSymbolScaleChange={(symbolScalePercent) => handleProjectStateChange({
-            ...projectState,
-            symbolScalePercent,
-          })}
+          onSymbolScaleChangeStart={beginSymbolScaleChange}
+          onSymbolScaleChange={commitSymbolScaleChange}
+          onSymbolScaleChangeEnd={endSymbolScaleChange}
           onViewerUtilizationRangeChange={(minimum, maximum) => handleProjectStateChange({
             ...projectState,
             viewerUtilizationSettings: { minimum, maximum },
@@ -1866,7 +1881,7 @@ function projectFromState(state: ProjectState) {
 
 function isEditableTarget(target: EventTarget | null): boolean {
   return target instanceof HTMLElement && (
-    target.matches("input, textarea, select") || target.isContentEditable
+    target.matches("input:not([type='range']), textarea, select") || target.isContentEditable
   );
 }
 

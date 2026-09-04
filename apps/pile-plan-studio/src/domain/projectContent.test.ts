@@ -30,7 +30,7 @@ describe("project content", () => {
     assert.equal("selectedCptsByLoadPointId" in content, false);
     assert.equal("viewport" in content, false);
     assert.equal("activePilePlanId" in content, false);
-    assert.equal(content.showTipLevelRegions, false);
+    assert.equal(content.showTipLevelRegions, true);
   });
 
   it("treats tip-level region visibility as undoable project content", () => {
@@ -38,8 +38,8 @@ describe("project content", () => {
       sampleProjectText,
       { initializeDefaultPiles: false },
     ));
-    const hidden = captureProjectContent(state);
-    const visible = captureProjectContent({ ...state, showTipLevelRegions: true });
+    const visible = captureProjectContent(state);
+    const hidden = captureProjectContent({ ...state, showTipLevelRegions: false });
 
     assert.equal(projectContentEquals(hidden, visible), false);
   });

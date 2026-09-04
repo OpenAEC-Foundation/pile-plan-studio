@@ -53,6 +53,25 @@ describe("App Undo integration", () => {
     assert.match(source, /dispatchProject\(\{ type: "redo" \}\)/);
   });
 
+  it("keeps project history shortcuts active while a range slider has focus", () => {
+    const editableTarget = source.match(/function isEditableTarget[\s\S]*?\n}/)?.[0] ?? "";
+
+    assert.match(editableTarget, /input:not\(\[type=['"]range['"]\]\)/);
+    assert.match(editableTarget, /textarea, select/);
+    assert.match(editableTarget, /isContentEditable/);
+  });
+
+  it("coalesces one symbol-scale gesture into one project history entry", () => {
+    assert.match(source, /symbolScaleHistoryRef/);
+    assert.match(source, /beginSymbolScaleChange/);
+    assert.match(source, /commitSymbolScaleChange/);
+    assert.match(source, /endSymbolScaleChange/);
+    assert.match(source, /symbolScaleHistoryRef\.current === "amend"[\s\S]*?amendProjectState/);
+    assert.match(source, /commitProjectState/);
+    assert.match(source, /onSymbolScaleChangeStart=\{beginSymbolScaleChange\}/);
+    assert.match(source, /onSymbolScaleChangeEnd=\{endSymbolScaleChange\}/);
+  });
+
   it("shows history results in the viewer without replacing general status feedback", () => {
     assert.match(source, /import ActionNotice/);
     assert.match(source, /showActionNotice\(describeHistoryResult/);

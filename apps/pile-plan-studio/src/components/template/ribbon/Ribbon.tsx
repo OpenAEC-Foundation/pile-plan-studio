@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from "react";
 import { useTranslation } from "react-i18next";
 import RibbonButton from "./RibbonButton";
 import RibbonButtonStack from "./RibbonButtonStack";
@@ -53,7 +53,9 @@ interface RibbonProps {
   showTipLevelRegions: boolean;
   explorerVisible: boolean;
   propertiesVisible: boolean;
+  onSymbolScaleChangeStart: () => void;
   onSymbolScaleChange: (value: number) => void;
+  onSymbolScaleChangeEnd: () => void;
   onViewerUtilizationRangeChange: (minimum: number, maximum: number) => void;
   onForegroundLayerChange: (value: ForegroundLayer) => void;
   onGridVisibilityChange: (visible: boolean) => void;
@@ -85,7 +87,9 @@ export default function Ribbon({
   showTipLevelRegions,
   explorerVisible,
   propertiesVisible,
+  onSymbolScaleChangeStart,
   onSymbolScaleChange,
+  onSymbolScaleChangeEnd,
   onViewerUtilizationRangeChange,
   onForegroundLayerChange,
   onGridVisibilityChange,
@@ -102,6 +106,7 @@ export default function Ribbon({
   });
   const utilizationDraftRef = useRef(utilizationDraft);
   const committedUtilizationRef = useRef(utilizationDraft);
+  const symbolScaleKeyActiveRef = useRef(false);
   useEffect(() => {
     const range = {
       minimum: viewerUtilizationMinimum,
@@ -124,6 +129,23 @@ export default function Ribbon({
     if (range.minimum === committed.minimum && range.maximum === committed.maximum) return;
     committedUtilizationRef.current = range;
     onViewerUtilizationRangeChange(range.minimum, range.maximum);
+  };
+
+  const handleSymbolScaleKeyDown = (event: ReactKeyboardEvent<HTMLInputElement>) => {
+    if (symbolScaleKeyActiveRef.current || !isRangeAdjustmentKey(event.key)) return;
+    symbolScaleKeyActiveRef.current = true;
+    onSymbolScaleChangeStart();
+  };
+
+  const handleSymbolScaleKeyUp = (event: ReactKeyboardEvent<HTMLInputElement>) => {
+    if (!symbolScaleKeyActiveRef.current || !isRangeAdjustmentKey(event.key)) return;
+    symbolScaleKeyActiveRef.current = false;
+    onSymbolScaleChangeEnd();
+  };
+
+  const handleSymbolScaleBlur = () => {
+    symbolScaleKeyActiveRef.current = false;
+    onSymbolScaleChangeEnd();
   };
 
   const renderContent = () => {
@@ -192,6 +214,12 @@ export default function Ribbon({
                     type="range"
                     value={symbolScalePercent}
                     onChange={(event) => onSymbolScaleChange(Number(event.currentTarget.value))}
+                    onPointerDown={onSymbolScaleChangeStart}
+                    onPointerUp={onSymbolScaleChangeEnd}
+                    onPointerCancel={onSymbolScaleChangeEnd}
+                    onKeyDown={handleSymbolScaleKeyDown}
+                    onKeyUp={handleSymbolScaleKeyUp}
+                    onBlur={handleSymbolScaleBlur}
                   />
                 </label>
               </RibbonGroup>
@@ -264,6 +292,7 @@ export default function Ribbon({
               </RibbonGroup>
               <RibbonGroup label={t("view.regions")}>
                 <RibbonButton
+                  className="tip-level-regions-toggle"
                   icon={tipLevelRegionsIcon}
                   label={t(tipLevelRegionToggle.labelKey)}
                   onClick={() => onTipLevelRegionVisibilityChange(tipLevelRegionToggle.nextVisible)}
@@ -306,4 +335,8 @@ export default function Ribbon({
       </div>
     </div>
   );
+}
+
+function isRangeAdjustmentKey(key: string): boolean {
+  return ["ArrowDown", "ArrowLeft", "ArrowRight", "ArrowUp", "End", "Home", "PageDown", "PageUp"].includes(key);
 }

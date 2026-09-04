@@ -88,7 +88,7 @@ pub struct ProjectViewerSettings {
     pub foreground_layer: String,
     #[serde(default = "default_true")]
     pub show_grid: bool,
-    #[serde(default)]
+    #[serde(default = "default_true")]
     pub show_tip_level_regions: bool,
 }
 
@@ -98,7 +98,7 @@ impl Default for ProjectViewerSettings {
             symbol_scale_percent: default_symbol_scale_percent(),
             foreground_layer: default_foreground_layer(),
             show_grid: true,
-            show_tip_level_regions: false,
+            show_tip_level_regions: true,
         }
     }
 }
@@ -373,8 +373,8 @@ mod tests {
     use super::*;
 
     #[test]
-    fn tip_level_regions_default_to_hidden() {
-        assert!(!ProjectViewerSettings::default().show_tip_level_regions);
+    fn tip_level_regions_default_to_visible() {
+        assert!(ProjectViewerSettings::default().show_tip_level_regions);
     }
     use crate::{CptSelectionAlgorithm, PileCostSettingsItem, PileCostShape};
 

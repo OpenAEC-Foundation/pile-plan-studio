@@ -3,7 +3,7 @@
   "schema_version": 3,
   "application": {
     "name": "Pile Plan Studio",
-    "version": "0.2.2-alpha"
+    "version": "0.3.0-alpha"
   },
   "metadata": {
     "name": "Sample Project",
@@ -16950,7 +16950,8 @@
     "viewer": {
       "symbol_scale_percent": 100,
       "foreground_layer": "load-points",
-      "show_grid": true
+      "show_grid": true,
+      "show_tip_level_regions": true
     }
   },
   "user_state": {

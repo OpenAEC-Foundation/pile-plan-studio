@@ -535,7 +535,7 @@ function normalizeProjectViewerSettings(
     symbolScalePercent: Math.round(Math.max(10, Math.min(200, scale))),
     foregroundLayer: settings?.foreground_layer === "cpts" ? "cpts" : "load-points",
     showGrid: settings?.show_grid !== false,
-    showTipLevelRegions: settings?.show_tip_level_regions === true,
+    showTipLevelRegions: settings?.show_tip_level_regions !== false,
   };
 }
 
