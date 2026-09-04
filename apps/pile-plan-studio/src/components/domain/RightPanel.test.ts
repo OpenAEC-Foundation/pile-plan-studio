@@ -144,10 +144,10 @@ describe("React optimization panel", () => {
     assert.match(optimization, /updateCandidateSource\("all_available"\)/);
     assert.match(optimization, /updateCandidateSource\("active_legend"\)/);
     assert.match(optimization, /candidates\.length === 0/);
-    assert.equal(english["optimization.candidatesAll"], "All available");
-    assert.equal(english["optimization.candidatesActiveLegend"], "Active in legend");
-    assert.equal(dutch["optimization.candidatesAll"], "Alle beschikbare");
-    assert.equal(dutch["optimization.candidatesActiveLegend"], "Actief in legenda");
+    assert.equal(english["optimization.candidatesAll"], "All available configurations");
+    assert.equal(english["optimization.candidatesActiveLegend"], "Only active in legend");
+    assert.equal(dutch["optimization.candidatesAll"], "Alle beschikbare configuraties");
+    assert.equal(dutch["optimization.candidatesActiveLegend"], "Alleen actief in legenda");
   });
 
   it("does not refocus a numeric field when the empty part of its row is clicked", () => {
@@ -316,6 +316,14 @@ describe("React CPT settings panel", () => {
     const styles = readFileSync(resolve(import.meta.dirname, "rightPanel.css"), "utf8");
 
     assert.match(styles, /\.segmented-control button:last-child\.is-selected\s*\{[\s\S]*?border-left:\s*1px solid var\(--theme-accent\)/);
+  });
+
+  it("allows the optimizer candidate labels to wrap", () => {
+    const panel = readFileSync(resolve(import.meta.dirname, "OptimizationPanel.tsx"), "utf8");
+    const styles = readFileSync(resolve(import.meta.dirname, "rightPanel.css"), "utf8");
+
+    assert.match(panel, /className="segmented-control optimization-candidate-source"/);
+    assert.match(styles, /\.optimization-candidate-source button\s*\{[\s\S]*?white-space:\s*normal/);
   });
 
   it("highlights the permanent panel tabs on hover", () => {

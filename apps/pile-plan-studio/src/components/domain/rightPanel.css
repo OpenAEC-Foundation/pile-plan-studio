@@ -273,6 +273,12 @@
   opacity: 0.5;
 }
 
+.optimization-candidate-source button {
+  min-height: 34px;
+  line-height: 1.2;
+  white-space: normal;
+}
+
 .settings-checkbox {
   display: flex;
   align-items: center;

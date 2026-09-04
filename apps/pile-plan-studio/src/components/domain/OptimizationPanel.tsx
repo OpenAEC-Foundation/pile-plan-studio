@@ -126,7 +126,7 @@ export default function OptimizationPanel({ state, technicalAssessmentStatus, on
         ) : null}
         <section className="settings-group">
           <h3>{t("optimization.candidates")}</h3>
-          <div className="segmented-control">
+          <div className="segmented-control optimization-candidate-source">
             <button className={state.optimizationSettings.candidate_source === "all_available" ? "is-selected" : ""} type="button" onClick={() => updateCandidateSource("all_available")}>{t("optimization.candidatesAll")}</button>
             <button className={state.optimizationSettings.candidate_source === "active_legend" ? "is-selected" : ""} type="button" onClick={() => updateCandidateSource("active_legend")}>{t("optimization.candidatesActiveLegend")}</button>
           </div>
