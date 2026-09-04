@@ -10,8 +10,8 @@ describe("Workspace translations", () => {
 
     assert.equal(en.view.showTipLevelRegions, "Show tip-level regions");
     assert.equal(en.view.hideTipLevelRegions, "Hide tip-level regions");
-    assert.equal(nl.view.showTipLevelRegions, "PPN-gebieden tonen");
-    assert.equal(nl.view.hideTipLevelRegions, "PPN-gebieden verbergen");
+    assert.equal(nl.view.showTipLevelRegions, "Puntniveaugebieden tonen");
+    assert.equal(nl.view.hideTipLevelRegions, "Puntniveaugebieden verbergen");
   });
 
   it("translates the explorer and legend through the common language setting", () => {
