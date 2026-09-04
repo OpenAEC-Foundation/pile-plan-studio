@@ -83,7 +83,11 @@ import {
   synchronizeActivePilePlan,
   type PilePlanLanguage,
 } from "./domain/pilePlanManagement.ts";
-import { getActivePilePlan, getPilePlanActivation } from "./domain/pilePlanActivation.ts";
+import {
+  activationFromConfigurations,
+  getActivePilePlan,
+  getPilePlanActivation,
+} from "./domain/pilePlanActivation.ts";
 import {
   applyLoadPointLockDraft,
   getActiveLockedLoadPointIds,
@@ -1024,6 +1028,7 @@ function AppSession({
           ...createPilePlan({
             ...current,
             choices,
+            activation: activationFromConfigurations(availablePileConfigurations),
             kind: "variant",
             language: pilePlanLanguage(),
           }),
@@ -1389,6 +1394,7 @@ function AppSession({
           ? createOptimizationPilePlan({
               ...current,
               optimizedChoices: applied.choices,
+              resolvedCandidateConfigurations: availablePileConfigurations,
               optimizationUnassignedByLoadPoint,
               language: pilePlanLanguage(),
             })

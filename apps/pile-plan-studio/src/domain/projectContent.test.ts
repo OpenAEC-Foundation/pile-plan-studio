@@ -30,6 +30,8 @@ describe("project content", () => {
     assert.equal("selectedCptsByLoadPointId" in content, false);
     assert.equal("viewport" in content, false);
     assert.equal("activePilePlanId" in content, false);
+    assert.equal("activePileSizes" in content, false);
+    assert.equal("activePileTipLevels" in content, false);
     assert.equal(content.showTipLevelRegions, true);
   });
 
@@ -42,6 +44,22 @@ describe("project content", () => {
     const hidden = captureProjectContent({ ...state, showTipLevelRegions: false });
 
     assert.equal(projectContentEquals(hidden, visible), false);
+  });
+
+  it("treats per-plan activation as undoable project content", () => {
+    const state = normalizeProjectContentState(createInitialProjectState(
+      sampleProjectText,
+      { initializeDefaultPiles: false },
+    ));
+    const before = captureProjectContent(state);
+    const after = captureProjectContent({
+      ...state,
+      pilePlans: state.pilePlans.map((plan) => plan.id === state.activePilePlanId
+        ? { ...plan, activePileSizes: [290], activePileTipLevels: [-18] }
+        : plan),
+    });
+
+    assert.equal(projectContentEquals(before, after), false);
   });
 
   it("normalizes active pile choices into the active plan without copying project inputs", () => {

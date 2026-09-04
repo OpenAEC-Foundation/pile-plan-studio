@@ -1,4 +1,5 @@
 import type { PilePlanData } from "../core/projectFile.ts";
+import type { PileConfigurationKey } from "../core/projectTypes.ts";
 import type { ActivePileConfigurations } from "./activePileConfigurations.ts";
 
 export function getPilePlanActivation(plan: PilePlanData): ActivePileConfigurations {
@@ -30,4 +31,16 @@ export function replacePilePlanActivation(
     activePileSizes: [...activation.pileSizes],
     activePileTipLevels: [...activation.pileTipLevels],
   } : plan);
+}
+
+export function activationFromConfigurations(
+  configurations: Iterable<PileConfigurationKey>,
+): ActivePileConfigurations {
+  const values = [...configurations];
+  return {
+    pileSizes: [...new Set(values.map(({ pile_size_mm }) => pile_size_mm))]
+      .sort((left, right) => left - right),
+    pileTipLevels: [...new Set(values.map(({ pile_tip_level_mm }) => pile_tip_level_mm / 1000))]
+      .sort((left, right) => right - left),
+  };
 }

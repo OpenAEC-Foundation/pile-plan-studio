@@ -15,6 +15,7 @@ import {
   switchPilePlan,
   synchronizeActivePilePlan,
 } from "./pilePlanManagement.ts";
+import { activationFromConfigurations, getPilePlanActivation } from "./pilePlanActivation.ts";
 
 function plan(
   id: string,
@@ -60,6 +61,8 @@ describe("pile plan management", () => {
     assert.notEqual(result[0], original);
     assert.notEqual(result[0].selectedPileConfigurationsByLoadPoint, choices);
     assert.notEqual(result[0].selectedPileConfigurationsByLoadPoint.get(1), choices.get(1));
+    assert.equal(result[0].activePileSizes, original.activePileSizes);
+    assert.equal(result[0].activePileTipLevels, original.activePileTipLevels);
   });
 
   it("clears only optimizer outcomes that now have a manual assignment", () => {
@@ -117,6 +120,10 @@ describe("pile plan management", () => {
       result.selectedPileConfigurationsByLoadPoint,
       result.pilePlans[1].selectedPileConfigurationsByLoadPoint,
     );
+    assert.deepEqual(getPilePlanActivation(result.pilePlans[1]), {
+      pileSizes: plans[1].activePileSizes,
+      pileTipLevels: plans[1].activePileTipLevels,
+    });
   });
 
   it("generates the next unused stable numeric ID", () => {
@@ -170,6 +177,12 @@ describe("pile plan management", () => {
       result.pilePlans[1].optimizationUnassignedByLoadPoint,
       source.optimizationUnassignedByLoadPoint,
     );
+    assert.deepEqual(getPilePlanActivation(result.pilePlans[1]), {
+      pileSizes: [290, 320],
+      pileTipLevels: [-18, -19],
+    });
+    assert.notEqual(result.pilePlans[1].activePileSizes, source.activePileSizes);
+    assert.notEqual(result.pilePlans[1].activePileTipLevels, source.activePileTipLevels);
   });
 
   it("renames only to a trimmed non-empty value", () => {
@@ -217,6 +230,7 @@ describe("pile plan management", () => {
       activePilePlanId: "pile-plan-1",
       selectedPileConfigurationsByLoadPoint: configurationMap([[1, "edited"]]),
       choices: configurationMap([[2, "default"]]),
+      activation: { pileSizes: [290, 320, 350], pileTipLevels: [-17.5, -18, -19] },
       kind: "variant",
       language: "nl",
     });
@@ -225,6 +239,10 @@ describe("pile plan management", () => {
     assert.equal(result.pilePlans[1].name, "Variant 1");
     assert.deepEqual([...result.selectedPileConfigurationsByLoadPoint], [[2, configuration("default")]]);
     assert.deepEqual(result.pilePlans[1].lockedLoadPointIds, []);
+    assert.deepEqual(getPilePlanActivation(result.pilePlans[1]), {
+      pileSizes: [290, 320, 350],
+      pileTipLevels: [-17.5, -18, -19],
+    });
   });
 
   it("creates an optimization plan from the active plan and preserves its locks", () => {
@@ -240,6 +258,10 @@ describe("pile plan management", () => {
       activePilePlanId: "pile-plan-1",
       selectedPileConfigurationsByLoadPoint: configurationMap([[1, "current"]]),
       optimizedChoices: configurationMap([[1, "optimized"]]),
+      resolvedCandidateConfigurations: [
+        { pile_size_mm: 290, pile_tip_level_mm: -18_000 },
+        { pile_size_mm: 320, pile_tip_level_mm: -19_000 },
+      ],
       language: "nl",
     });
 
@@ -248,5 +270,20 @@ describe("pile plan management", () => {
     assert.deepEqual(result.selectedPileConfigurationsByLoadPoint.get(1), configuration("optimized"));
     assert.deepEqual(result.pilePlans[1].lockedLoadPointIds, [1]);
     assert.deepEqual(result.pilePlans[1].optimizationUnassignedByLoadPoint, new Map([[8, "configuration_limits"]]));
+    assert.deepEqual(getPilePlanActivation(result.pilePlans[1]), {
+      pileSizes: [290, 320],
+      pileTipLevels: [-18, -19],
+    });
+  });
+
+  it("derives sorted activation from an exact configuration set", () => {
+    assert.deepEqual(activationFromConfigurations([
+      { pile_size_mm: 320, pile_tip_level_mm: -19_000 },
+      { pile_size_mm: 290, pile_tip_level_mm: -18_000 },
+      { pile_size_mm: 320, pile_tip_level_mm: -18_000 },
+    ]), {
+      pileSizes: [290, 320],
+      pileTipLevels: [-18, -19],
+    });
   });
 });

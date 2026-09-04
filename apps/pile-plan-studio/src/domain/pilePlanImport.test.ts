@@ -130,6 +130,10 @@ describe("pile plan file import", () => {
     });
     assert.equal(next.activePilePlanId, "pile-plan-2");
     assert.equal(next.pilePlans[1].name, "Imported plan");
+    assert.deepEqual(next.pilePlans[1].activePileSizes, [290]);
+    assert.deepEqual(next.pilePlans[1].activePileTipLevels, [-18]);
+    assert.notEqual(next.pilePlans[1].activePileSizes, currentPlan.activePileSizes);
+    assert.notEqual(next.pilePlans[1].activePileTipLevels, currentPlan.activePileTipLevels);
     assert.deepEqual(next.selectedPileConfigurationsByLoadPoint.get(1), {
       pile_size_mm: 320,
       pile_tip_level_mm: -19_000,

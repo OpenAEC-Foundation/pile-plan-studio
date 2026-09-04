@@ -54,6 +54,20 @@ describe("history action inference", () => {
     assert.deepEqual(inferHistoryAction(before, after), { kind: "legend-settings" });
   });
 
+  it("recognizes a pile-plan activation change as one legend action", () => {
+    const before = content();
+    const after = {
+      ...before,
+      pilePlans: [{
+        ...before.pilePlans[0],
+        activePileSizes: [290, 320],
+        activePileTipLevels: [-18, -19],
+      }],
+    };
+
+    assert.deepEqual(inferHistoryAction(before, after), { kind: "legend-settings" });
+  });
+
   it("recognizes plan creation, deletion, renaming, and locking", () => {
     const before = content();
     const second = plan("plan-2", "Variant 2");

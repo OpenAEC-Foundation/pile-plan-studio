@@ -115,6 +115,7 @@ describe("project history reducer", () => {
     const withSecond = createPilePlan({
       ...initial,
       choices: new Map(),
+      activation: { pileSizes: [], pileTipLevels: [] },
       kind: "variant",
       language: "en",
     });
@@ -159,6 +160,7 @@ describe("project history reducer", () => {
         ...createPilePlan({
           ...current,
           choices: new Map([[1, "320|-18.5"]]),
+          activation: { pileSizes: [320], pileTipLevels: [-18.5] },
           kind: "variant",
           language: "en",
         }),
@@ -172,6 +174,33 @@ describe("project history reducer", () => {
 
     managed = projectHistoryReducer(managed, { type: "redo" });
     assert.equal(managed.present.activePilePlanId, createdId);
+  });
+
+  it("undoes and redoes activation for the active pile plan", () => {
+    const initial = state();
+    const activeId = initial.activePilePlanId;
+    let managed = createManagedProjectState(initial);
+    managed = projectHistoryReducer(managed, {
+      type: "commit",
+      update: (current) => ({
+        ...current,
+        pilePlans: current.pilePlans.map((plan) => plan.id === activeId
+          ? { ...plan, activePileSizes: [290], activePileTipLevels: [-18] }
+          : plan),
+      }),
+    });
+
+    managed = projectHistoryReducer(managed, { type: "undo" });
+    assert.notDeepEqual(
+      managed.present.pilePlans.find(({ id }) => id === activeId)?.activePileSizes,
+      [290],
+    );
+
+    managed = projectHistoryReducer(managed, { type: "redo" });
+    assert.deepEqual(
+      managed.present.pilePlans.find(({ id }) => id === activeId)?.activePileSizes,
+      [290],
+    );
   });
 
   it("invalidates analysis only for restored manual CPT selections", () => {

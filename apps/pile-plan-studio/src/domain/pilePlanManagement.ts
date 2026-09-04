@@ -1,6 +1,8 @@
 import type { PilePlanData } from "../core/projectFile.ts";
 import type { OptimizationUnassignedReason, PileConfigurationKey } from "../core/projectTypes.ts";
 import { samePileConfiguration } from "../core/pileConfigurationKey.ts";
+import type { ActivePileConfigurations } from "./activePileConfigurations.ts";
+import { activationFromConfigurations } from "./pilePlanActivation.ts";
 
 export type PilePlanLanguage = "nl" | "en";
 export type GeneratedPilePlanKind = "variant" | "duplicate" | "optimization";
@@ -116,6 +118,7 @@ export function duplicatePilePlan(
 export function createPilePlan(
   input: ActivePilePlanInput & {
     choices: Map<number, PileConfigurationKey>;
+    activation: ActivePileConfigurations;
     kind: "variant" | "optimization";
     language: PilePlanLanguage;
   },
@@ -125,12 +128,11 @@ export function createPilePlan(
     input.activePilePlanId,
     input.selectedPileConfigurationsByLoadPoint,
   );
-  const source = pilePlans.find((plan) => plan.id === input.activePilePlanId) ?? pilePlans[0];
   const created: PilePlanData = {
     id: nextPilePlanId(pilePlans),
     name: generatedPilePlanName(pilePlans, input.kind, input.language),
-    activePileSizes: [...source.activePileSizes],
-    activePileTipLevels: [...source.activePileTipLevels],
+    activePileSizes: [...input.activation.pileSizes],
+    activePileTipLevels: [...input.activation.pileTipLevels],
     selectedPileConfigurationsByLoadPoint: cloneConfigurationMap(input.choices),
     externalReferencesByLoadPoint: new Map(),
     lockedLoadPointIds: [],
@@ -143,6 +145,7 @@ export function createPilePlan(
 export function createOptimizationPilePlan(
   input: ActivePilePlanInput & {
     optimizedChoices: Map<number, PileConfigurationKey>;
+    resolvedCandidateConfigurations: PileConfigurationKey[];
     optimizationUnassignedByLoadPoint?: Map<number, OptimizationUnassignedReason>;
     language: PilePlanLanguage;
   },
@@ -164,8 +167,7 @@ export function createOptimizationPilePlan(
   const created: PilePlanData = {
     id: nextPilePlanId(pilePlans),
     name: generatedPilePlanName(pilePlans, "optimization", input.language),
-    activePileSizes: [...source.activePileSizes],
-    activePileTipLevels: [...source.activePileTipLevels],
+    ...planActivationFields(activationFromConfigurations(input.resolvedCandidateConfigurations)),
     selectedPileConfigurationsByLoadPoint: cloneConfigurationMap(input.optimizedChoices),
     externalReferencesByLoadPoint,
     lockedLoadPointIds: [...source.lockedLoadPointIds],
@@ -174,6 +176,13 @@ export function createOptimizationPilePlan(
     ),
   };
   return transitionToPlan([...pilePlans, created], created);
+}
+
+function planActivationFields(activation: ActivePileConfigurations) {
+  return {
+    activePileSizes: [...activation.pileSizes],
+    activePileTipLevels: [...activation.pileTipLevels],
+  };
 }
 
 export function renamePilePlan(
