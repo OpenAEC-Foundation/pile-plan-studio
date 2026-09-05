@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type {
   PileBaseShape,
@@ -10,10 +10,16 @@ import {
   getActivePilePlan,
   getPilePlanActivation,
   replacePilePlanActivation,
+  summarizePilePlanScope,
   unionActivationForPlans,
   unionUsedConfigurationsForPlans,
 } from "../../domain/pilePlanActivation.ts";
-import { findCoactiveLegendConflicts, otherActivePlanNames } from "../../domain/legendConflicts.ts";
+import {
+  findCoactiveLegendConflicts,
+  getLegendValuePlanUsage,
+  type LegendValuePlanUsage,
+  type LegendValuePlanUsageItem,
+} from "../../domain/legendConflicts.ts";
 import {
   applyAutomaticColors,
   applyAutomaticSymbols,
@@ -58,13 +64,14 @@ type EditorItem = {
   state: LegendPresentationState;
   symbol: PileSymbol;
   color: string;
-  otherPlanNames: string[];
+  planUsage: LegendValuePlanUsage;
 };
 
 export default function LegendEditor({ open, state, onApply, onClose }: Props) {
   const { t, i18n } = useTranslation("common");
   const [draft, setDraft] = useState(() => createLegendEditorDraft(activeFromState(state), state.pileLegend));
   const [scopePlanIds, setScopePlanIds] = useState(() => new Set([state.activePilePlanId]));
+  const [openInfoKey, setOpenInfoKey] = useState<string | null>(null);
   const [symbolLimitError, setSymbolLimitError] = useState(false);
   const openedPlanId = useRef(state.activePilePlanId);
   const used = deriveUsedPileConfigurations(state.selectedPileConfigurationsByLoadPoint.values());
@@ -75,15 +82,32 @@ export default function LegendEditor({ open, state, onApply, onClose }: Props) {
     pileSizes: presentation.pileSizes.map(({ value }) => value),
     pileTipLevels: presentation.pileTipLevels.map(({ value }) => value),
   };
+  const plansWithDraftActivation = replacePilePlanActivation(
+    state.pilePlans,
+    state.activePilePlanId,
+    draft.active,
+  );
   const sizeItems: EditorItem[] = presentation.pileSizes.map((item) => ({
     kind: "size",
     ...item,
-    otherPlanNames: otherActivePlanNames(state.pilePlans, state.activePilePlanId, "size", item.value),
+    planUsage: getLegendValuePlanUsage({
+      plans: plansWithDraftActivation,
+      currentPlanId: state.activePilePlanId,
+      scopePlanIds,
+      kind: "size",
+      value: item.value,
+    }),
   }));
   const tipItems: EditorItem[] = presentation.pileTipLevels.map((item) => ({
     kind: "tip",
     ...item,
-    otherPlanNames: otherActivePlanNames(state.pilePlans, state.activePilePlanId, "tip", item.value),
+    planUsage: getLegendValuePlanUsage({
+      plans: plansWithDraftActivation,
+      currentPlanId: state.activePilePlanId,
+      scopePlanIds,
+      kind: "tip",
+      value: item.value,
+    }),
   }));
   const symbolKind: LegendEditorItemKind = draft.legend.encodingMode === "size-symbol" ? "size" : "tip";
   const colorKind: LegendEditorItemKind = symbolKind === "size" ? "tip" : "size";
@@ -99,18 +123,15 @@ export default function LegendEditor({ open, state, onApply, onClose }: Props) {
     "color",
     scopeActivation[colorKind === "size" ? "pileSizes" : "pileTipLevels"],
   );
-  const plansForConflicts = replacePilePlanActivation(
-    state.pilePlans,
-    state.activePilePlanId,
-    draft.active,
-  );
-  const conflicts = findCoactiveLegendConflicts(draft.legend, plansForConflicts);
+  const conflicts = findCoactiveLegendConflicts(draft.legend, plansWithDraftActivation);
+  const scopeSummary = summarizePilePlanScope(state.pilePlans.length, scopePlanIds.size);
 
   useEffect(() => {
     if (!open) return;
     openedPlanId.current = state.activePilePlanId;
     setDraft(createLegendEditorDraft(activeFromState(state), state.pileLegend));
     setScopePlanIds(new Set([state.activePilePlanId]));
+    setOpenInfoKey(null);
     setSymbolLimitError(false);
   }, [open]);
 
@@ -143,8 +164,15 @@ export default function LegendEditor({ open, state, onApply, onClose }: Props) {
       <div className="legend-editor">
         <div className="legend-editor-configuration">
           <div className="legend-editor-control-row">
-            <div className="legend-editor-encoding">
-              <span className="legend-editor-control-label">{t("legend.encoding")}</span>
+            <details className="legend-editor-disclosure legend-editor-encoding">
+              <summary>
+                <span className="legend-editor-control-label">{t("legend.encoding")}</span>
+                <span className="legend-editor-disclosure-value">{t("legend.encodingSummary", {
+                  symbol: t(symbolKind === "size" ? "legend.size" : "legend.tip"),
+                  color: t(colorKind === "size" ? "legend.size" : "legend.tip"),
+                })}</span>
+                <span aria-hidden="true" className="legend-editor-disclosure-chevron" />
+              </summary>
               <div className="legend-editor-encoding-line">
                 <span className="legend-editor-channel-label">{t("legend.symbol")}</span>
                 <span className="legend-editor-channel-value">
@@ -170,9 +198,18 @@ export default function LegendEditor({ open, state, onApply, onClose }: Props) {
                   {t(colorKind === "size" ? "legend.size" : "legend.tip")}
                 </span>
               </div>
-            </div>
-            <div className="legend-editor-scope">
-              <span className="legend-editor-control-label">{t("legend.pilePlansInScope")}</span>
+            </details>
+            <details className="legend-editor-disclosure legend-editor-scope">
+              <summary>
+                <span className="legend-editor-control-label">{t("legend.pilePlansInScope")}</span>
+                <span className="legend-editor-disclosure-value">{scopeSummary.kind === "current-only"
+                  ? t("legend.scopeCurrentOnly")
+                  : t("legend.scopeSelection", {
+                      selected: scopeSummary.selectedCount,
+                      total: scopeSummary.totalCount,
+                    })}</span>
+                <span aria-hidden="true" className="legend-editor-disclosure-chevron" />
+              </summary>
               <div className="legend-editor-plan-scope" role="group" aria-label={t("legend.pilePlansInScope")}>
                 {state.pilePlans.map((plan) => (
                   <label key={plan.id}>
@@ -191,7 +228,7 @@ export default function LegendEditor({ open, state, onApply, onClose }: Props) {
                   </label>
                 ))}
               </div>
-            </div>
+            </details>
           </div>
           <div className="legend-editor-auto-actions">
             <button
@@ -278,17 +315,21 @@ export default function LegendEditor({ open, state, onApply, onClose }: Props) {
             draft={draft}
             items={sizeItems}
             language={i18n.language}
+            openInfoKey={openInfoKey}
             symbolKind={symbolKind}
             title={t("legend.size")}
             onDraftChange={setDraft}
+            onInfoOpenChange={setOpenInfoKey}
           />
           <EditorSection
             draft={draft}
             items={tipItems}
             language={i18n.language}
+            openInfoKey={openInfoKey}
             symbolKind={symbolKind}
             title={t("legend.tip")}
             onDraftChange={setDraft}
+            onInfoOpenChange={setOpenInfoKey}
           />
         </div>
       </div>
@@ -335,9 +376,11 @@ type EditorSectionProps = {
   draft: LegendEditorDraft;
   items: EditorItem[];
   language: string;
+  openInfoKey: string | null;
   symbolKind: LegendEditorItemKind;
   title: string;
   onDraftChange: (draft: LegendEditorDraft) => void;
+  onInfoOpenChange: (key: string | null) => void;
 };
 
 function EditorSection(props: EditorSectionProps) {
@@ -374,12 +417,21 @@ function EditorBlock({ className, items, title, ...itemProps }: EditorBlockProps
 
 type EditorItemRowProps = Omit<EditorSectionProps, "items" | "title"> & { item: EditorItem };
 
-function EditorItemRow({ draft, item, language, symbolKind, onDraftChange }: EditorItemRowProps) {
+function EditorItemRow({
+  draft,
+  item,
+  language,
+  openInfoKey,
+  symbolKind,
+  onDraftChange,
+  onInfoOpenChange,
+}: EditorItemRowProps) {
   const { t } = useTranslation("common");
   const isDisabled = item.state.startsWith("disabled");
   const isUnused = item.state === "enabled-unused" || item.state === "disabled-unused";
   const isDisabledUsed = item.state === "disabled-used";
   const label = item.kind === "size" ? `${item.value} mm` : formatTipLevel(item.value, language);
+  const infoKey = `${item.kind}:${item.value}`;
 
   return (
     <div className={`legend-editor-item${isUnused ? " is-unused" : ""}${isDisabledUsed ? " is-warning" : ""}`}>
@@ -390,12 +442,12 @@ function EditorItemRow({ draft, item, language, symbolKind, onDraftChange }: Edi
         symbolKind={symbolKind}
         onDraftChange={onDraftChange}
       />
-      <span className="legend-editor-item-label">{label}</span>
-      {item.otherPlanNames.length > 0 ? (
-        <span className="legend-editor-plan-count" title={item.otherPlanNames.join(", ")}>
-          +{item.otherPlanNames.length}
-        </span>
-      ) : null}
+      <LegendItemPlanInfo
+        label={label}
+        open={openInfoKey === infoKey}
+        usage={item.planUsage}
+        onOpenChange={(open) => onInfoOpenChange(open ? infoKey : null)}
+      />
       {isDisabledUsed ? (
         <span className="legend-editor-warning" title={t("legend.usedWarning")} aria-label={t("legend.usedWarning")}>!</span>
       ) : null}
@@ -409,6 +461,109 @@ function EditorItemRow({ draft, item, language, symbolKind, onDraftChange }: Edi
         <span aria-hidden="true">{isDisabled ? "+" : "−"}</span>
       </button>
     </div>
+  );
+}
+
+function LegendItemPlanInfo({
+  label,
+  open,
+  usage,
+  onOpenChange,
+}: {
+  label: string;
+  open: boolean;
+  usage: LegendValuePlanUsage;
+  onOpenChange: (open: boolean) => void;
+}) {
+  const { t } = useTranslation("common");
+  const rootRef = useRef<HTMLSpanElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const popoverId = useId();
+
+  useEffect(() => {
+    if (!open) return undefined;
+    const closeOutside = (event: PointerEvent) => {
+      if (!rootRef.current?.contains(event.target as Node)) onOpenChange(false);
+    };
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") return;
+      event.preventDefault();
+      onOpenChange(false);
+      triggerRef.current?.focus();
+    };
+    document.addEventListener("pointerdown", closeOutside);
+    document.addEventListener("keydown", closeOnEscape);
+    return () => {
+      document.removeEventListener("pointerdown", closeOutside);
+      document.removeEventListener("keydown", closeOnEscape);
+    };
+  }, [onOpenChange, open]);
+
+  return (
+    <span className="legend-editor-item-info" ref={rootRef}>
+      <button
+        aria-controls={popoverId}
+        aria-expanded={open}
+        aria-haspopup="dialog"
+        className="legend-editor-item-info-trigger"
+        ref={triggerRef}
+        type="button"
+        onClick={() => onOpenChange(!open)}
+      >
+        <span className="legend-editor-item-label">{label}</span>
+        {usage.activeOutsideScopeCount > 0 ? (
+          <span
+            className="legend-editor-outside-scope-chip"
+            title={t("legend.activeOutsideScopeTitle", { count: usage.activeOutsideScopeCount })}
+          >
+            <span aria-hidden="true">ⓘ</span>
+            {t("legend.activeOutsideScope", { count: usage.activeOutsideScopeCount })}
+          </span>
+        ) : null}
+      </button>
+      {open ? (
+        <span
+          aria-label={t("legend.planUsageTitle", { item: label })}
+          className="legend-editor-plan-info-popover"
+          id={popoverId}
+          role="dialog"
+        >
+          <strong>{label}</strong>
+          <LegendPlanUsageSection
+            items={[usage.current]}
+            title={t("legend.currentPilePlan")}
+          />
+          {usage.inScope.length > 0 ? (
+            <LegendPlanUsageSection items={usage.inScope} title={t("legend.inScope")} />
+          ) : null}
+          {usage.outsideScope.length > 0 ? (
+            <LegendPlanUsageSection items={usage.outsideScope} title={t("legend.outsideScope")} />
+          ) : null}
+        </span>
+      ) : null}
+    </span>
+  );
+}
+
+function LegendPlanUsageSection({
+  items,
+  title,
+}: {
+  items: LegendValuePlanUsageItem[];
+  title: string;
+}) {
+  const { t } = useTranslation("common");
+  return (
+    <span className="legend-editor-plan-info-section">
+      <b>{title}</b>
+      {items.map((item) => (
+        <span className="legend-editor-plan-info-row" key={item.planId}>
+          <span>{item.planName}</span>
+          <span>{item.active ? t("legend.active") : t("legend.inactive")}</span>
+          <span>{t("legend.assignedLocations", { count: item.assignmentCount })}</span>
+        </span>
+      ))}
+    </span>
   );
 }
 

@@ -204,6 +204,11 @@ only while the editor remains open. If the active pile plan changes while the
 editor is open, the existing safe-close behavior remains: close the editor
 rather than applying a draft to a different plan.
 
+Encoding and pile-plan scope are separate collapsed disclosures. Their closed
+summaries keep the current encoding visible and show either `Alleen huidig
+palenplan` or the selected and total plan counts. The expanded pile-plan list
+has a bounded height and its own scrolling.
+
 Applying the editor writes current-plan activation and project-wide appearance
 as one atomic history action. Canceling discards both drafts.
 
@@ -219,13 +224,21 @@ The scope selector affects only these bulk operations:
 Manual enable/disable controls always edit only the current plan. Selecting
 other plans in scope never changes those plans.
 
-### Cross-plan activity badge
+### Cross-plan activity and usage information
 
-Each value can show a `+n` badge, where `n` is the number of other pile plans
-in which the value is active. The current plan is excluded from the count. A
-tooltip lists those other plan names in stable project order.
+Each value shows an `Actief buiten bereik: n` information chip when the value
+is active in one or more pile plans outside the current UI-only scope. The
+count excludes all plans in scope, including the current plan. The chip is
+informational; it does not change scope or activation.
 
-The badge is informational; it does not change scope or activation.
+The value label and chip form an information trigger. Activating it opens a
+compact panel that keeps activity and actual assignment use separate. It shows
+the current plan and every other relevant plan in stable project order,
+grouped into in-scope and outside-scope plans. A plan is relevant when the
+value is active or assigned to at least one load point. Every listed plan shows
+its active/inactive state and the number of load points whose assigned pile
+uses the value. Only one value-information panel is open at a time; outside
+click and Escape close it.
 
 ### Appearance visibility
 

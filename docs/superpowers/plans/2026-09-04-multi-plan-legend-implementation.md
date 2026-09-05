@@ -428,6 +428,7 @@ git commit -m "feat: preserve activation across pile plan lifecycle"
 **Interfaces:**
 - Produces: `unionActivationForPlans(pilePlans, planIds)` and `unionUsedConfigurationsForPlans(pilePlans, planIds)`.
 - Produces: `findCoactiveLegendConflicts(legend, pilePlans): LegendConflict[]`.
+- Produces: `getLegendValuePlanUsage(...)`, including current, in-scope, and relevant outside-scope plan usage.
 - Changes: automatic-assignment functions receive explicit included values; the old persisted/draft `assignmentScope` is removed.
 
 - [ ] **Step 1: Write failing pure model tests for scope, badges, and conflicts**
@@ -463,11 +464,13 @@ export type LegendConflict = {
   pilePlanIds: string[];
 };
 
-export function otherActivePlanNames(plans: PilePlanData[], currentId: string, kind: "size" | "tip", value: number) {
-  return plans.filter(plan => plan.id !== currentId
-    && (kind === "size" ? plan.activePileSizes : plan.activePileTipLevels).includes(value))
-    .map(plan => plan.name);
-}
+export function getLegendValuePlanUsage(args: {
+  plans: PilePlanData[];
+  currentPlanId: string;
+  scopePlanIds: ReadonlySet<string>;
+  kind: "size" | "tip";
+  value: number;
+}): LegendValuePlanUsage;
 ```
 
 Conflict detection selects the property currently mapped to each channel. For
@@ -480,19 +483,31 @@ value with the same appearance is active only in another plan.
 - [ ] **Step 4: Add the temporary scope UI and update automatic actions**
 
 Keep `scopePlanIds` as component state initialized to
-`new Set([state.activePilePlanId])` whenever the dialog opens. Render a compact
-checkbox list headed `Palenplannen in scope` / `Pile plans in scope`. Remove the
-old enabled/all automatic-assignment segmented control; pass
+`new Set([state.activePilePlanId])` whenever the dialog opens. Render encoding
+and pile-plan scope as independent disclosures, both collapsed by default. The
+closed summaries show the selected encoding and either `Alleen huidig
+palenplan` / `Current pile plan only` or the selected/total plan count. Give the
+expanded plan checklist a bounded height and its own scrollbar. Remove the old
+enabled/all automatic-assignment segmented control; pass
 `unionActivationForPlans(state.pilePlans, scopePlanIds)` to automatic symbol and
 color functions. Pass `unionUsedConfigurationsForPlans` to `enable-used`.
 
-Render each nonzero cross-plan count as:
+Render a scope-aware chip only when the value is active outside the selected
+scope:
 
 ```tsx
-<span className="legend-editor-plan-count" title={otherNames.join(", ")}>
-  +{otherNames.length}
+<span className="legend-editor-outside-scope-chip">
+  {t("legendEditor.activeOutsideScope", { count: usage.activeOutsideScopeCount })}
 </span>
 ```
+
+Its count is the number of outside-scope pile plans in which the value is
+active, not the number of assigned load points. Clicking the value area on any
+row opens one compact information panel showing the current plan and relevant
+plans inside and outside the scope. Each entry reports activation separately
+from its actual assigned-load-point count. Only one panel is open; outside
+click and Escape close it, while the symbol/color and activation controls keep
+their own interactions.
 
 Render persistent localized conflict notices listing channel, values, and
 affected plan names. Keep the real stored symbol/color visible for inactive
@@ -514,7 +529,8 @@ dialog. Scope changes call local state only and never `onStateChange`.
 Run from `apps/pile-plan-studio`: `node --test src/domain/legendEditorModel.test.ts src/domain/legendConflicts.test.ts src/components/domain/LegendEditor.test.ts src/components/domain/PilePlanWorkspace.test.ts src/components/domain/WorkspaceTranslations.test.ts`
 
 Expected: PASS for scope initialization, bulk unions, current-plan-only edits,
-`+n`, conflict copy, cancel/apply, and atomic application.
+outside-scope activity, assignment details, collapsed summaries, conflict copy,
+cancel/apply, and atomic application.
 
 - [ ] **Step 7: Commit the editor slice**
 

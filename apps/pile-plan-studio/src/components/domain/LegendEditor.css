@@ -48,10 +48,56 @@
 
 .legend-editor-encoding,
 .legend-editor-scope {
-  display: grid;
   min-width: 0;
-  align-content: start;
-  gap: 4px;
+}
+
+.legend-editor-disclosure {
+  overflow: hidden;
+  border: 1px solid var(--theme-dialog-border);
+  border-radius: 4px;
+  background: var(--theme-dialog-content-bg);
+}
+
+.legend-editor-disclosure > summary {
+  display: grid;
+  min-height: 30px;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 7px;
+  cursor: pointer;
+  list-style: none;
+}
+
+.legend-editor-disclosure > summary::-webkit-details-marker {
+  display: none;
+}
+
+.legend-editor-disclosure[open] > summary {
+  border-bottom: 1px solid var(--theme-dialog-border);
+}
+
+.legend-editor-disclosure-value {
+  overflow: hidden;
+  color: var(--theme-dialog-content-secondary);
+  font-size: 10px;
+  text-align: right;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.legend-editor-disclosure-chevron {
+  width: 6px;
+  height: 6px;
+  border-right: 1px solid currentColor;
+  border-bottom: 1px solid currentColor;
+  color: var(--theme-dialog-content-secondary);
+  transform: rotate(45deg) translateY(-1px);
+  transition: transform 120ms ease;
+}
+
+.legend-editor-disclosure[open] .legend-editor-disclosure-chevron {
+  transform: rotate(225deg) translate(-1px, -1px);
 }
 
 .legend-editor-control-label {
@@ -102,9 +148,12 @@
 }
 
 .legend-editor-plan-scope {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  max-height: 116px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 4px 10px;
+  padding: 7px;
+  overflow: auto;
 }
 
 .legend-editor-plan-scope label {
@@ -134,6 +183,7 @@
   min-height: 24px;
   align-items: center;
   gap: 5px;
+  padding: 7px;
 }
 
 .legend-editor-channel-label {
@@ -290,7 +340,7 @@
 .legend-editor-item {
   display: grid;
   min-height: 32px;
-  grid-template-columns: auto minmax(0, 1fr) auto auto auto;
+  grid-template-columns: auto minmax(0, 1fr) auto auto;
   align-items: center;
   gap: 5px;
   padding: 2px 4px;
@@ -298,12 +348,6 @@
   border-radius: 3px;
   color: var(--theme-dialog-content-text);
   background: var(--theme-dialog-content-bg);
-}
-
-.legend-editor-plan-count {
-  color: var(--theme-dialog-content-secondary);
-  font-size: 10px;
-  white-space: nowrap;
 }
 
 .legend-editor-item:hover {
@@ -323,6 +367,97 @@
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.legend-editor-item-info {
+  position: relative;
+  min-width: 0;
+}
+
+.legend-editor-item-info-trigger {
+  display: flex;
+  width: 100%;
+  min-width: 0;
+  min-height: 26px;
+  align-items: center;
+  gap: 8px;
+  padding: 0;
+  border: 0;
+  color: inherit;
+  background: transparent;
+  cursor: pointer;
+  font: inherit;
+  text-align: left;
+}
+
+.legend-editor-item-info-trigger .legend-editor-item-label {
+  flex: 1 1 auto;
+}
+
+.legend-editor-outside-scope-chip {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 3px;
+  padding: 2px 6px;
+  border: 1px solid var(--theme-border-subtle);
+  border-radius: 9px;
+  color: var(--theme-dialog-content-secondary);
+  background: var(--theme-border-subtle);
+  font-size: 10px;
+  white-space: nowrap;
+}
+
+.legend-editor-plan-info-popover {
+  position: absolute;
+  z-index: 50;
+  top: calc(100% + 4px);
+  right: 0;
+  display: grid;
+  width: max-content;
+  min-width: 260px;
+  max-width: min(340px, 70vw);
+  max-height: 240px;
+  gap: 8px;
+  padding: 8px;
+  overflow: auto;
+  border: 1px solid var(--theme-dialog-border);
+  border-radius: 5px;
+  color: var(--theme-dialog-content-text);
+  background: var(--theme-dialog-content-bg);
+  box-shadow: 0 5px 16px rgb(0 0 0 / 18%);
+  cursor: default;
+}
+
+.legend-editor-plan-info-section {
+  display: grid;
+  gap: 3px;
+}
+
+.legend-editor-plan-info-section > b {
+  color: var(--theme-dialog-content-secondary);
+  font-size: 9px;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.legend-editor-plan-info-row {
+  display: grid;
+  grid-template-columns: minmax(90px, 1fr) auto auto;
+  gap: 8px;
+  align-items: baseline;
+}
+
+.legend-editor-plan-info-row > span:first-child {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.legend-editor-plan-info-row > span:not(:first-child) {
+  color: var(--theme-dialog-content-secondary);
+  font-size: 10px;
   white-space: nowrap;
 }
 

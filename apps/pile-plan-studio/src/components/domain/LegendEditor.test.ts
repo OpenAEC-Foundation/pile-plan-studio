@@ -69,14 +69,26 @@ describe("legend editor", () => {
     assert.doesNotMatch(source, /draft\.colorScheme/);
   });
 
-  it("shows cross-plan counts and co-active conflicts", () => {
+  it("shows scoped plan usage details and co-active conflicts", () => {
     const source = readFileSync(resolve(import.meta.dirname, "LegendEditor.tsx"), "utf8");
 
-    assert.match(source, /otherActivePlanNames/);
-    assert.match(source, /legend-editor-plan-count/);
-    assert.match(source, /\+\{item\.otherPlanNames\.length\}/);
+    assert.match(source, /getLegendValuePlanUsage/);
+    assert.match(source, /legend-editor-outside-scope-chip/);
+    assert.match(source, /activeOutsideScopeCount/);
+    assert.match(source, /legend-editor-plan-info-popover/);
+    assert.doesNotMatch(source, /legend-editor-plan-count/);
     assert.match(source, /findCoactiveLegendConflicts/);
     assert.match(source, /legend\.coactiveConflict/);
+  });
+
+  it("collapses encoding and pile-plan scope into informative summaries", () => {
+    const source = readFileSync(resolve(import.meta.dirname, "LegendEditor.tsx"), "utf8");
+    const css = readFileSync(resolve(import.meta.dirname, "LegendEditor.css"), "utf8");
+
+    assert.match(source, /<details className="legend-editor-disclosure legend-editor-encoding">/);
+    assert.match(source, /<details className="legend-editor-disclosure legend-editor-scope">/);
+    assert.match(source, /legend\.scopeCurrentOnly/);
+    assert.match(css, /\.legend-editor-plan-scope\s*\{[\s\S]*?max-height:\s*116px[\s\S]*?overflow:\s*auto/);
   });
 
   it("uses the normal legend only for selection and opens editing separately", () => {

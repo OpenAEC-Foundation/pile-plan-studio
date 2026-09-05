@@ -44,6 +44,12 @@ describe("Workspace translations", () => {
       assert.equal(typeof copy.colorRepresentsTip, "string");
       assert.equal(typeof copy.colorRepresentsSize, "string");
       assert.equal(typeof copy.pilePlansInScope, "string");
+      assert.equal(typeof copy.encodingSummary, "string");
+      assert.equal(typeof copy.scopeCurrentOnly, "string");
+      assert.equal(typeof copy.scopeSelection, "string");
+      assert.equal(typeof copy.activeOutsideScope, "string");
+      assert.equal(typeof copy.planUsageTitle, "string");
+      assert.equal(typeof copy.assignedLocations_other, "string");
       assert.equal(typeof copy.coactiveConflict, "string");
       assert.equal(typeof copy.assignSymbols, "string");
       assert.equal(typeof copy.assignColors, "string");
@@ -64,6 +70,9 @@ describe("Workspace translations", () => {
     assert.equal(nl.legend.symbolRepresents, "Symbool representeert");
     assert.equal(nl.legend.colorRepresentsTip, "Kleur representeert puntniveau");
     assert.equal(nl.legend.colorRepresentsSize, "Kleur representeert afmeting");
+    assert.equal(nl.legend.scopeCurrentOnly, "Alleen huidig palenplan");
+    assert.equal(nl.legend.activeOutsideScope, "Actief buiten bereik: {{count}}");
+    assert.equal(nl.legend.assignedLocations_other, "Toegewezen aan {{count}} locaties");
     assert.equal(nl.legend.colorSchemes.colorblindFriendly, "Kleurenblindvriendelijk");
     assert.equal(nl.legend.colorSchemes.tableauExtended, "Tableau uitgebreid");
     assert.equal(nl.legend.colorSchemes.evenHue, "Gelijkmatige tintspreiding");

@@ -7,6 +7,20 @@ export type LegendConflict = {
   pilePlanIds: string[];
 };
 
+export type LegendValuePlanUsageItem = {
+  planId: string;
+  planName: string;
+  active: boolean;
+  assignmentCount: number;
+};
+
+export type LegendValuePlanUsage = {
+  current: LegendValuePlanUsageItem;
+  inScope: LegendValuePlanUsageItem[];
+  outsideScope: LegendValuePlanUsageItem[];
+  activeOutsideScopeCount: number;
+};
+
 export function findCoactiveLegendConflicts(
   legend: LegendItems,
   pilePlans: PilePlanData[],
@@ -52,14 +66,34 @@ function symbolToken(symbol: PileSymbol): string {
   return `${symbol.baseShape}|${symbol.fillPattern}`;
 }
 
-export function otherActivePlanNames(
-  plans: PilePlanData[],
-  currentId: string,
-  kind: "size" | "tip",
-  value: number,
-): string[] {
-  return plans
-    .filter((plan) => plan.id !== currentId
-      && (kind === "size" ? plan.activePileSizes : plan.activePileTipLevels).includes(value))
-    .map(({ name }) => name);
+export function getLegendValuePlanUsage(input: {
+  plans: PilePlanData[];
+  currentPlanId: string;
+  scopePlanIds: ReadonlySet<string>;
+  kind: "size" | "tip";
+  value: number;
+}): LegendValuePlanUsage {
+  const usage = input.plans.map((plan): LegendValuePlanUsageItem => ({
+    planId: plan.id,
+    planName: plan.name,
+    active: (input.kind === "size" ? plan.activePileSizes : plan.activePileTipLevels)
+      .includes(input.value),
+    assignmentCount: [...plan.selectedPileConfigurationsByLoadPoint.values()]
+      .filter((configuration) => input.kind === "size"
+        ? configuration.pile_size_mm === input.value
+        : configuration.pile_tip_level_mm / 1_000 === input.value)
+      .length,
+  }));
+  const current = usage.find(({ planId }) => planId === input.currentPlanId);
+  if (!current) throw new Error(`Unknown current pile plan '${input.currentPlanId}'`);
+  const relevantOtherPlans = usage.filter((item) => item.planId !== input.currentPlanId
+    && (item.active || item.assignmentCount > 0));
+  const outsideScope = relevantOtherPlans.filter(({ planId }) => !input.scopePlanIds.has(planId));
+
+  return {
+    current,
+    inScope: relevantOtherPlans.filter(({ planId }) => input.scopePlanIds.has(planId)),
+    outsideScope,
+    activeOutsideScopeCount: outsideScope.filter(({ active }) => active).length,
+  };
 }

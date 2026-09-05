@@ -5,6 +5,7 @@ import type { PilePlanData } from "../core/projectFile.ts";
 import {
   getActivePilePlan,
   getPilePlanActivation,
+  summarizePilePlanScope,
   unionActivationForPlans,
   unionUsedConfigurationsForPlans,
 } from "./pilePlanActivation.ts";
@@ -59,6 +60,15 @@ describe("pile-plan activation", () => {
     assert.deepEqual(unionUsedConfigurationsForPlans([first, second], new Set(["first", "second"])), {
       pileSizes: [290, 350],
       pileTipLevels: [-18, -20],
+    });
+  });
+
+  it("uses a dedicated summary when only the current pile plan is selected", () => {
+    assert.deepEqual(summarizePilePlanScope(14, 1), { kind: "current-only" });
+    assert.deepEqual(summarizePilePlanScope(14, 3), {
+      kind: "selection",
+      selectedCount: 3,
+      totalCount: 14,
     });
   });
 });

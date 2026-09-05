@@ -71,3 +71,12 @@ export function unionUsedConfigurationsForPlans(
       )),
   );
 }
+
+export function summarizePilePlanScope(
+  totalCount: number,
+  selectedCount: number,
+): { kind: "current-only" } | { kind: "selection"; selectedCount: number; totalCount: number } {
+  return selectedCount === 1
+    ? { kind: "current-only" }
+    : { kind: "selection", selectedCount, totalCount };
+}
