@@ -3,17 +3,22 @@ import assert from "node:assert/strict";
 
 import type { PilePlanData } from "../core/projectFile.ts";
 import { createBuiltInLegend } from "../viewer/legend.ts";
-import { findCoactiveLegendConflicts, getLegendValuePlanUsage } from "./legendConflicts.ts";
+import {
+  findCoactiveLegendConflicts,
+  getLegendValuePlanUsage,
+  groupLegendConflictsByProperty,
+} from "./legendConflicts.ts";
 
 function plan(
   id: string,
   activeTips: number[],
   assignments: Array<[number, number]> = [],
+  activeSizes: number[] = [290],
 ): PilePlanData {
   return {
     id,
     name: id,
-    activePileSizes: [290],
+    activePileSizes: activeSizes,
     activePileTipLevels: activeTips,
     selectedPileConfigurationsByLoadPoint: new Map(assignments.map(([loadPointId, tipLevelMm]) => [
       loadPointId,
@@ -26,6 +31,16 @@ function plan(
 }
 
 describe("co-active legend conflicts", () => {
+  it("groups duplicate appearances by visual channel for a compact summary", () => {
+    const colorConflict = { property: "color" as const, kind: "tip" as const, values: [-18, -19], pilePlanIds: ["a"] };
+    const symbolConflict = { property: "symbol" as const, kind: "size" as const, values: [290, 320], pilePlanIds: ["b"] };
+
+    assert.deepEqual(groupLegendConflictsByProperty([colorConflict, symbolConflict]), {
+      symbol: [symbolConflict],
+      color: [colorConflict],
+    });
+  });
+
   it("warns only when duplicate colors are active together in a plan", () => {
     const legend = createBuiltInLegend([
       { cpt_id: 1, pile_tip_level_m: -18, pile_size_mm: 290, frd_kn: 700 },
@@ -40,7 +55,24 @@ describe("co-active legend conflicts", () => {
     assert.deepEqual(findCoactiveLegendConflicts(legend, [
       plan("a", [-18]),
       plan("b", [-18, -19]),
-    ]), [{ property: "color", values: [-18, -19], pilePlanIds: ["b"] }]);
+    ]), [{ property: "color", kind: "tip", values: [-18, -19], pilePlanIds: ["b"] }]);
+  });
+
+  it("reports size and tip color conflicts separately in dual-color mode", () => {
+    const legend = createBuiltInLegend([
+      { cpt_id: 1, pile_tip_level_m: -18, pile_size_mm: 290, frd_kn: 700 },
+      { cpt_id: 1, pile_tip_level_m: -19, pile_size_mm: 320, frd_kn: 700 },
+    ]);
+    legend.encodingMode = "size-color-tip-region";
+    legend.pileSizes[1].color = legend.pileSizes[0].color;
+    legend.pileTipLevels[1].color = legend.pileTipLevels[0].color;
+
+    assert.deepEqual(findCoactiveLegendConflicts(legend, [
+      plan("both", [-18, -19], [], [290, 320]),
+    ]), [
+      { property: "color", kind: "size", values: [290, 320], pilePlanIds: ["both"] },
+      { property: "color", kind: "tip", values: [-18, -19], pilePlanIds: ["both"] },
+    ]);
   });
 
   it("separates outside-scope activation from actual location assignments", () => {

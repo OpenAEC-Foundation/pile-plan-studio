@@ -20,6 +20,7 @@ import type {
   LoadPoint,
   PileConfigurationKey,
   PileConfigurationOption,
+  PileCostSettings,
   SelectedCpt,
 } from "../.././core/projectTypes.ts";
 import { getEffectivePileOptionsByLoadPointId } from "./cptSettingsModel.ts";
@@ -221,6 +222,7 @@ export function getRenderablePileOptionRows(input: {
   options: PileConfigurationOption[];
   selectedLoadPointCount: number;
   legend: LegendItems;
+  pileCostSettings?: PileCostSettings;
 }): RenderablePileOptionTableRow[] {
   return input.options.map((option) => {
     const status = getPileOptionStatus(option);
@@ -231,7 +233,9 @@ export function getRenderablePileOptionRows(input: {
     const governingLabel = governingCpt ? getCptDisplayName(governingCpt) : "-";
     const key = optionKey(option);
     const cost = input.costsByOptionKey.get(key) ?? null;
-    const style = getConfigurationActivationPresentation(option, input.legend, input.activeConfigurations);
+    const style = getConfigurationActivationPresentation(
+      option, input.legend, input.activeConfigurations, input.pileCostSettings,
+    );
     const sizeLabel = `${formatNumber(option.pile_size_mm)} mm`;
     const tipLabel = `${formatNumber(option.pile_tip_level_m)} m`;
 
@@ -275,6 +279,7 @@ export function getRenderableAggregatedPileOptionRows(input: {
   legend: LegendItems;
   loadPoints: LoadPoint[];
   selectedLoadPointCount: number;
+  pileCostSettings?: PileCostSettings;
 }): RenderablePileOptionTableRow[] {
   return input.aggregates.map((aggregate) => {
     const key = pileConfigurationToken(aggregate.configuration);
@@ -287,7 +292,7 @@ export function getRenderableAggregatedPileOptionRows(input: {
     const style = getConfigurationActivationPresentation({
       pile_size_mm: pileSizeMm,
       pile_tip_level_m: aggregate.pile_tip_level_m,
-    }, input.legend, input.activeConfigurations);
+    }, input.legend, input.activeConfigurations, input.pileCostSettings);
     const status = aggregate.status === "valid"
       ? { className: "is-ok", label: "OK" }
       : aggregate.status === "missing"

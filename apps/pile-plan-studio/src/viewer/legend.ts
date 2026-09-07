@@ -4,6 +4,7 @@ import type {
   LegendColorScheme,
   LegendItems,
   LegendValueStyle,
+  PileCostSettings,
   PileConfigurationOption,
   PileConfigurationStyle,
   PileSymbol,
@@ -65,11 +66,19 @@ export function reconcileProjectLegend(
 
   const warnings: LegendImportWarning[] = [];
   const encodingMode = normalizeEncodingMode(raw.encodingMode, warnings);
-  const colorScheme = normalizeColorScheme(raw.colorScheme, warnings);
+  const pileSizeColorScheme = normalizeColorScheme(
+    raw.pileSizeColorScheme ?? raw.colorScheme,
+    warnings,
+  );
+  const pileTipLevelColorScheme = normalizeColorScheme(
+    raw.pileTipLevelColorScheme ?? raw.colorScheme,
+    warnings,
+  );
   return {
     legend: {
       encodingMode,
-      colorScheme,
+      pileSizeColorScheme,
+      pileTipLevelColorScheme,
       pileSizes: normalizeStyles(rawSizes, defaults.pileSizes, "size", warnings),
       pileTipLevels: normalizeStyles(rawTips, defaults.pileTipLevels, "tipLevel", warnings),
     },
@@ -80,9 +89,20 @@ export function reconcileProjectLegend(
 export function getConfigurationStyle(
   configuration: Pick<PileConfigurationOption, "pile_size_mm" | "pile_tip_level_m">,
   legend: LegendItems,
+  pileCosts?: PileCostSettings,
 ): PileConfigurationStyle {
   const sizeStyle = legend.pileSizes.find(({ value }) => value === configuration.pile_size_mm);
   const tipStyle = legend.pileTipLevels.find(({ value }) => value === configuration.pile_tip_level_m);
+  if (legend.encodingMode === "size-color-tip-region") {
+    const shape = pileCosts?.items.find(({ pile_size_mm }) => pile_size_mm === configuration.pile_size_mm)?.shape;
+    return {
+      symbol: {
+        baseShape: shape === "round" ? "circle" : shape === "square" ? "square" : "diamond",
+        fillPattern: "full",
+      },
+      color: sizeStyle?.color ?? FALLBACK_COLOR,
+    };
+  }
   return legend.encodingMode === "tip-symbol"
     ? {
         symbol: tipStyle?.symbol ?? FALLBACK_SYMBOL,
@@ -153,7 +173,10 @@ export function refreshAutomaticLegendColors(
   includedValues: Iterable<number>,
 ): LegendItems {
   const values = uniqueSorted(includedValues, kind === "pileTipLevels");
-  const colors = generateLegendColors(legend.colorScheme, values.length);
+  const colors = generateLegendColors(
+    kind === "pileSizes" ? legend.pileSizeColorScheme : legend.pileTipLevelColorScheme,
+    values.length,
+  );
   const assignments = new Map(values.map((value, index) => [value, colors[index]]));
   return updateLegendStyles(legend, kind, (item) => {
     const color = assignments.get(item.value);
@@ -181,7 +204,8 @@ function createBuiltInLegendForValues(pileSizes: number[], pileTipLevels: number
   const tipColors = generateLegendColors("tableau-extended", pileTipLevels.length);
   return {
     encodingMode: "size-symbol",
-    colorScheme: "tableau-extended",
+    pileSizeColorScheme: "tableau-extended",
+    pileTipLevelColorScheme: "tableau-extended",
     pileSizes: pileSizes.map((value, index) => ({
       value,
       symbol: { ...PILE_SYMBOL_CATALOG[index % PILE_SYMBOL_CATALOG.length] },
@@ -214,7 +238,7 @@ function normalizeEncodingMode(
   value: unknown,
   warnings: LegendImportWarning[],
 ): LegendEncodingMode {
-  if (value === "size-symbol" || value === "tip-symbol") return value;
+  if (value === "size-symbol" || value === "tip-symbol" || value === "size-color-tip-region") return value;
   warnings.push({ itemType: "encodingMode", field: "encodingMode" });
   return "size-symbol";
 }

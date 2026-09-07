@@ -40,3 +40,31 @@ for (const encodingMode of ["size-symbol", "tip-symbol"] as const) {
     }
   });
 }
+
+describe("dual-color activation presentation", () => {
+  it("keeps the cost-table shape while only size activation controls its color", () => {
+    const costs = {
+      schema_version: 2,
+      items: [{ pile_size_mm: 290, shape: "square" as const, cost_per_m3: 220 }],
+    };
+    const inactiveTip = getConfigurationActivationPresentation(
+      configuration,
+      { ...baseLegend, encodingMode: "size-color-tip-region" },
+      { pileSizes: [290], pileTipLevels: [] },
+      costs,
+    );
+    const inactiveSize = getConfigurationActivationPresentation(
+      configuration,
+      { ...baseLegend, encodingMode: "size-color-tip-region" },
+      { pileSizes: [], pileTipLevels: [-18] },
+      costs,
+    );
+
+    assert.deepEqual(inactiveTip.symbol, { baseShape: "square", fillPattern: "full" });
+    assert.equal(inactiveTip.smallDot, false);
+    assert.equal(inactiveTip.color, baseLegend.pileSizes[0].color);
+    assert.deepEqual(inactiveSize.symbol, { baseShape: "square", fillPattern: "full" });
+    assert.equal(inactiveSize.smallDot, false);
+    assert.equal(inactiveSize.color, INACTIVE_LEGEND_COLOR);
+  });
+});

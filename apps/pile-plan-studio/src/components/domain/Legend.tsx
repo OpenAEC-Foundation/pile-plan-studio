@@ -16,14 +16,16 @@ import {
   replacePilePlanActivation,
 } from "../../domain/pilePlanActivation.ts";
 import { INACTIVE_LEGEND_COLOR, SMALL_DOT_SYMBOL } from "../../domain/legendActivationPresentation.ts";
+import type { TipLevelRegionTopologyStatus } from "./useTipLevelRegionTopology.ts";
 
 type Props = {
   state: ProjectState;
   onStateChange: (nextState: ProjectState) => void;
   onEdit: () => void;
+  tipLevelRegionStatus: TipLevelRegionTopologyStatus;
 };
 
-export default function Legend({ state, onStateChange, onEdit }: Props) {
+export default function Legend({ state, onStateChange, onEdit, tipLevelRegionStatus }: Props) {
   const { t, i18n } = useTranslation("common");
   const legend = state.pileLegend;
   const activePlan = getActivePilePlan(state);
@@ -81,6 +83,12 @@ export default function Legend({ state, onStateChange, onEdit }: Props) {
                     item.state === "disabled-used" ? SMALL_DOT_SYMBOL : item.symbol,
                   ) }}
                 />
+              ) : presentation.encodingMode === "size-color-tip-region" ? (
+                <span
+                  className="legend-symbol"
+                  style={{ color: item.state === "disabled-used" ? INACTIVE_LEGEND_COLOR : item.color }}
+                  dangerouslySetInnerHTML={{ __html: renderLegendSymbol(costTableSymbol(item.value, state)) }}
+                />
               ) : <span className="legend-color" style={{
                 backgroundColor: item.state === "disabled-used" ? INACTIVE_LEGEND_COLOR : item.color,
               }} />}
@@ -92,6 +100,11 @@ export default function Legend({ state, onStateChange, onEdit }: Props) {
       </div>
       <div className="legend-group is-tip">
         <span className="legend-title">{t("legend.tip")}</span>
+        {presentation.encodingMode === "size-color-tip-region" && !state.showTipLevelRegions ? (
+          <LegendRegionStatus kind="hidden" />
+        ) : presentation.encodingMode === "size-color-tip-region" && tipLevelRegionStatus === "error" ? (
+          <LegendRegionStatus kind="unavailable" />
+        ) : null}
         {presentation.pileTipLevels.map((item) => {
           if (item.state === "disabled-unused") return null;
           const isSelected = state.legendSelectionFilter.pileTipLevels.includes(item.value);
@@ -110,7 +123,7 @@ export default function Legend({ state, onStateChange, onEdit }: Props) {
                     item.state === "disabled-used" ? SMALL_DOT_SYMBOL : item.symbol,
                   ) }}
                 />
-              ) : <span className="legend-color" style={{
+              ) : <span className={`legend-color${presentation.encodingMode === "size-color-tip-region" ? " is-region" : ""}`} style={{
                 backgroundColor: item.state === "disabled-used" ? INACTIVE_LEGEND_COLOR : item.color,
               }} />}
               <span className="legend-item-label">{formatTipLevel(item.value, i18n.language)}</span>
@@ -149,6 +162,30 @@ export default function Legend({ state, onStateChange, onEdit }: Props) {
       </span>
     );
   }
+
+  function LegendRegionStatus({ kind }: { kind: "hidden" | "unavailable" }) {
+    const unavailable = kind === "unavailable";
+    const label = t(unavailable ? "legend.regionsUnavailable" : "legend.regionsHidden");
+    const title = t(unavailable ? "legend.regionsUnavailableTitle" : "legend.regionsHiddenTitle");
+    return (
+      <span aria-label={title} className={`legend-region-status is-${kind}`} title={title}>
+        {unavailable ? (
+          <svg aria-hidden="true" viewBox="0 0 16 16"><path d="M8 2 14 14H2L8 2Zm0 4v4m0 2h.01" /></svg>
+        ) : (
+          <svg aria-hidden="true" viewBox="0 0 16 16"><path d="M2 3l12 10M2 8s2.2-4 6-4c1.2 0 2.2.4 3.1.9M14 8s-2.2 4-6 4c-1.2 0-2.2-.4-3.1-.9" /></svg>
+        )}
+        {label}
+      </span>
+    );
+  }
+}
+
+function costTableSymbol(sizeMm: number, state: ProjectState) {
+  const shape = state.pileCostSettings.items.find(({ pile_size_mm }) => pile_size_mm === sizeMm)?.shape;
+  return {
+    baseShape: shape === "round" ? "circle" as const : shape === "square" ? "square" as const : "diamond" as const,
+    fillPattern: "full" as const,
+  };
 }
 
 function renderLegendSymbol(symbol: Parameters<typeof renderPileSymbol>[0]): string {

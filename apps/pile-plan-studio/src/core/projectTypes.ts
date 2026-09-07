@@ -212,7 +212,7 @@ export type PileSymbol = {
   fillPattern: PileFillPattern;
 };
 
-export type LegendEncodingMode = "size-symbol" | "tip-symbol";
+export type LegendEncodingMode = "size-symbol" | "tip-symbol" | "size-color-tip-region";
 
 export type LegendColorScheme =
   | "tableau-extended"
@@ -232,7 +232,8 @@ export type LegendValueStyle = {
 
 export type LegendItems = {
   encodingMode: LegendEncodingMode;
-  colorScheme: LegendColorScheme;
+  pileSizeColorScheme: LegendColorScheme;
+  pileTipLevelColorScheme: LegendColorScheme;
   pileSizes: LegendValueStyle[];
   pileTipLevels: LegendValueStyle[];
 };

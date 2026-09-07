@@ -452,7 +452,8 @@ describe("IFCPP project loading", () => {
       symbolAutomatic: true,
       colorAutomatic: true,
     });
-    assert.equal(loaded.pileLegend.colorScheme, "tableau-extended");
+    assert.equal(loaded.pileLegend.pileSizeColorScheme, "tableau-extended");
+    assert.equal(loaded.pileLegend.pileTipLevelColorScheme, "tableau-extended");
     assert.deepEqual(loaded.legendImportWarnings, []);
   });
 
@@ -461,7 +462,8 @@ describe("IFCPP project loading", () => {
     loaded.pileLegend = {
       ...loaded.pileLegend,
       encodingMode: "tip-symbol",
-      colorScheme: "colorblind-friendly",
+      pileSizeColorScheme: "colorblind-friendly",
+      pileTipLevelColorScheme: "cool-warm",
       pileSizes: loaded.pileLegend.pileSizes.map((item) => ({
         ...item,
         symbol: { baseShape: "rectangle-horizontal", fillPattern: "diagonal-half" },
@@ -476,9 +478,37 @@ describe("IFCPP project loading", () => {
 
     assert.equal(saved.settings.pile_legend?.encoding_mode, "tip-symbol");
     assert.equal(saved.settings.pile_legend?.color_scheme, "colorblind-friendly");
+    assert.equal(saved.settings.pile_legend?.pile_size_color_scheme, "colorblind-friendly");
+    assert.equal(saved.settings.pile_legend?.pile_tip_level_color_scheme, "cool-warm");
     assert.equal(saved.settings.pile_legend?.pile_sizes[0].symbol_automatic, false);
     assert.equal(saved.settings.pile_legend?.pile_sizes[0].color_automatic, false);
     assert.deepEqual(reloaded.pileLegend, loaded.pileLegend);
+  });
+
+  it("migrates one legacy color scheme and round-trips independent legend schemes", () => {
+    const project = projectFixture();
+    project.settings.pile_legend = {
+      encoding_mode: "size-symbol",
+      color_scheme: "rainbow",
+      pile_sizes: [],
+      pile_tip_levels: [],
+    };
+
+    const loaded = loadIfcppProjectData(project);
+    assert.equal(loaded.pileLegend.pileSizeColorScheme, "rainbow");
+    assert.equal(loaded.pileLegend.pileTipLevelColorScheme, "rainbow");
+
+    loaded.pileLegend.encodingMode = "size-color-tip-region";
+    loaded.pileLegend.pileSizeColorScheme = "colorblind-friendly";
+    loaded.pileLegend.pileTipLevelColorScheme = "cool-warm";
+    const saved = createIfcppProject(loaded);
+    const restored = loadIfcppProjectData(saved);
+
+    assert.equal(saved.settings.pile_legend?.pile_size_color_scheme, "colorblind-friendly");
+    assert.equal(saved.settings.pile_legend?.pile_tip_level_color_scheme, "cool-warm");
+    assert.equal(restored.pileLegend.encodingMode, "size-color-tip-region");
+    assert.equal(restored.pileLegend.pileSizeColorScheme, "colorblind-friendly");
+    assert.equal(restored.pileLegend.pileTipLevelColorScheme, "cool-warm");
   });
 
   it("defaults missing legend assignment metadata to automatic Tableau Extended", () => {
@@ -495,7 +525,8 @@ describe("IFCPP project loading", () => {
 
     const loaded = loadIfcppProjectData(project);
 
-    assert.equal(loaded.pileLegend.colorScheme, "tableau-extended");
+    assert.equal(loaded.pileLegend.pileSizeColorScheme, "tableau-extended");
+    assert.equal(loaded.pileLegend.pileTipLevelColorScheme, "tableau-extended");
     assert.equal(loaded.pileLegend.pileSizes[0].symbolAutomatic, true);
     assert.equal(loaded.pileLegend.pileSizes[0].colorAutomatic, true);
   });

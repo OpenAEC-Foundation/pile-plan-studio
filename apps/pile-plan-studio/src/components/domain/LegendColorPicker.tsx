@@ -1,14 +1,17 @@
 import { useEffect, useRef, useState, type KeyboardEvent } from "react";
 import { normalizeLegendHexColor } from "../../viewer/legendColors.ts";
+import type { PileSymbol } from "../../core/projectTypes.ts";
+import { renderPileSymbol } from "../../viewer/pileSymbols.ts";
 
 type Props = {
   value: string;
   label: string;
   hexLabel: string;
+  previewSymbol?: PileSymbol;
   onChange: (color: string) => void;
 };
 
-export default function LegendColorPicker({ value, label, hexLabel, onChange }: Props) {
+export default function LegendColorPicker({ value, label, hexLabel, previewSymbol, onChange }: Props) {
   const [open, setOpen] = useState(false);
   const [hexDraft, setHexDraft] = useState(value);
   const rootRef = useRef<HTMLDivElement>(null);
@@ -37,7 +40,12 @@ export default function LegendColorPicker({ value, label, hexLabel, onChange }: 
         type="button"
         onClick={() => setOpen((current) => !current)}
       >
-        <span className="legend-color-preview" style={{ backgroundColor: value }} />
+        {previewSymbol ? (
+          <span
+            className="legend-color-symbol-preview"
+            dangerouslySetInnerHTML={{ __html: renderPileSymbol(previewSymbol, value, { outlineColor: value }) }}
+          />
+        ) : <span className="legend-color-preview" style={{ backgroundColor: value }} />}
         <span aria-hidden="true" className="legend-picker-chevron" />
       </button>
       {open ? (

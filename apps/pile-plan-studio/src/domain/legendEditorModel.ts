@@ -97,14 +97,15 @@ export function setLegendEncodingMode(
 
 export function setLegendColorScheme(
   draft: LegendEditorDraft,
+  kind: LegendEditorItemKind,
   colorScheme: LegendColorScheme,
   includedValues: number[],
 ): LegendEditorDraft {
-  const legend = { ...draft.legend, colorScheme };
-  const colorKind = legend.encodingMode === "size-symbol" ? "tip" : "size";
+  const schemeKey = kind === "size" ? "pileSizeColorScheme" : "pileTipLevelColorScheme";
+  const legend = { ...draft.legend, [schemeKey]: colorScheme };
   return {
     ...draft,
-    legend: refreshAutomaticLegendColors(legend, legendKey(colorKind), includedValues),
+    legend: refreshAutomaticLegendColors(legend, legendKey(kind), includedValues),
   };
 }
 
@@ -143,7 +144,7 @@ export function applyAutomaticColors(
       draft.legend,
       legendKey(kind),
       includedValues,
-      draft.legend.colorScheme,
+      kind === "size" ? draft.legend.pileSizeColorScheme : draft.legend.pileTipLevelColorScheme,
     ),
   };
 }
@@ -186,6 +187,19 @@ function refreshAutomaticMappings(
   draft: LegendEditorDraft,
   included: ActivePileConfigurations,
 ): LegendEditorActionResult {
+  if (draft.legend.encodingMode === "size-color-tip-region") {
+    const sizes = refreshAutomaticLegendColors(
+      draft.legend,
+      "pileSizes",
+      included.pileSizes,
+    );
+    const tips = refreshAutomaticLegendColors(
+      sizes,
+      "pileTipLevels",
+      included.pileTipLevels,
+    );
+    return { ok: true, draft: { ...draft, legend: tips } };
+  }
   const symbolKind: LegendEditorItemKind = draft.legend.encodingMode === "size-symbol" ? "size" : "tip";
   const colorKind: LegendEditorItemKind = symbolKind === "size" ? "tip" : "size";
   const colors = refreshAutomaticLegendColors(
@@ -241,7 +255,8 @@ function copyConfigurations(configurations: ActivePileConfigurations): ActivePil
 function copyLegend(legend: LegendItems): LegendItems {
   return {
     encodingMode: legend.encodingMode,
-    colorScheme: legend.colorScheme,
+    pileSizeColorScheme: legend.pileSizeColorScheme,
+    pileTipLevelColorScheme: legend.pileTipLevelColorScheme,
     pileSizes: legend.pileSizes.map((item) => ({ ...item, symbol: { ...item.symbol } })),
     pileTipLevels: legend.pileTipLevels.map((item) => ({ ...item, symbol: { ...item.symbol } })),
   };

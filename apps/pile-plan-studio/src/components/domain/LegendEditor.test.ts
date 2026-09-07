@@ -55,7 +55,9 @@ describe("legend editor", () => {
 
     assert.match(source, /legend\.symbol/);
     assert.match(source, /legend\.color/);
-    assert.match(source, /legend\.swapEncoding/);
+    assert.match(source, /legend\.encodingModes/);
+    assert.match(source, /<ThemedSelect/);
+    assert.doesNotMatch(source, /legend\.swapEncoding/);
     assert.doesNotMatch(source, /legend\.colorRepresentsTip/);
     assert.doesNotMatch(source, /legend\.colorRepresentsSize/);
     assert.match(source, /legend\.pilePlansInScope/);
@@ -65,7 +67,8 @@ describe("legend editor", () => {
     assert.match(source, /legend\.symbolLimit/);
     assert.match(source, /legend\.resetAppearance/);
     assert.match(source, /applyEditorActionResult/);
-    assert.match(source, /draft\.legend\.colorScheme/);
+    assert.match(source, /draft\.legend\.pileSizeColorScheme/);
+    assert.match(source, /draft\.legend\.pileTipLevelColorScheme/);
     assert.doesNotMatch(source, /draft\.colorScheme/);
   });
 
@@ -78,7 +81,8 @@ describe("legend editor", () => {
     assert.match(source, /legend-editor-plan-info-popover/);
     assert.doesNotMatch(source, /legend-editor-plan-count/);
     assert.match(source, /findCoactiveLegendConflicts/);
-    assert.match(source, /legend\.coactiveConflict/);
+    assert.match(source, /legend-editor-conflict-notice/);
+    assert.match(source, /legend\.duplicateEncoding/);
   });
 
   it("collapses encoding and pile-plan scope into informative summaries", () => {
@@ -127,7 +131,10 @@ describe("legend editor", () => {
       /\.legend-editor-item\.is-unused\s+\.legend-editor-item-label\s*\{[^}]*color:\s*var\(--theme-text-muted\)/s,
     );
     assert.match(editorCss, /\.legend-editor-warning/);
-    assert.match(editorCss, /minmax\(0,\s*1\.85fr\)\s+minmax\(12rem,\s*1fr\)/);
+    assert.match(
+      editorCss,
+      /\.legend-editor-columns\s*\{[^}]*grid-template-columns:\s*repeat\(2,\s*minmax\(0,\s*1fr\)\)/s,
+    );
     assert.match(editorCss, /@media \(max-width:\s*760px\)/);
   });
 
@@ -151,10 +158,12 @@ describe("legend editor", () => {
 
     assert.match(source, /wouldReassignLegendAppearance/);
     assert.match(source, /disabled=\{!canReassignSymbols\}/);
-    assert.match(source, /disabled=\{!canReassignColors\}/);
+    assert.match(source, /disabled=\{!canReassignSizeColors\}/);
+    assert.match(source, /disabled=\{!canReassignTipColors\}/);
     assert.doesNotMatch(source, /is-pending/);
     assert.match(source, /legend-editor-auto-actions/);
     assert.match(source, /legend-editor-color-action/);
+    assert.match(source, /legend-editor-secondary-actions/);
     assert.match(css, /\.legend-editor-auto-actions\s*\{[^}]*grid-template-columns:/s);
     assert.match(css, /\.legend-editor-auto-actions \.legend-editor-toolbar-button\s*\{[^}]*white-space:\s*nowrap/s);
     assert.match(css, /\.legend-scheme-options\s*\{[^}]*right:\s*0[^}]*left:\s*auto[^}]*max-width:/s);
@@ -179,10 +188,10 @@ describe("legend editor", () => {
     assert.match(source, /className="settings-btn settings-btn-primary"/);
     assert.match(source, /legend-editor-control-row/);
     assert.match(source, /legend-editor-encoding-line/);
-    assert.match(source, /legend-editor-encoding-swap/);
+    assert.match(source, /legend-editor-encoding-select/);
     assert.match(css, /\.legend-editor-control-row\s*\{[\s\S]*?grid-template-columns:\s*repeat\(2, minmax\(0, 1fr\)\)/);
-    assert.match(css, /\.legend-editor-auto-actions\s*\{[\s\S]*?grid-template-columns:\s*minmax\(0, 1fr\) minmax\(0, 1fr\) minmax\(190px, 1\.25fr\) minmax\(0, 1\.1fr\)/);
-    assert.match(css, /\.legend-editor-color-action\s*\{[\s\S]*?display:\s*contents/);
+    assert.match(css, /\.legend-editor-auto-actions\s*\{[\s\S]*?grid-template-columns:/);
+    assert.match(css, /\.legend-editor-secondary-actions\s*\{/);
     assert.match(css, /\.legend-appearance-trigger,[\s\S]*?\.legend-scheme-trigger\s*\{[\s\S]*?min-height:\s*24px/);
     assert.match(css, /\.legend-scheme-trigger,[\s\S]*?\.legend-scheme-options\s*\{[\s\S]*?font:\s*inherit/);
     assert.match(css, /\.legend-editor-segmented button\s*\{[\s\S]*?min-height:\s*24px/);

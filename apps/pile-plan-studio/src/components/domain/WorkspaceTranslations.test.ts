@@ -47,10 +47,23 @@ describe("Workspace translations", () => {
       assert.equal(typeof copy.encodingSummary, "string");
       assert.equal(typeof copy.scopeCurrentOnly, "string");
       assert.equal(typeof copy.scopeSelection, "string");
+      assert.equal(typeof copy.selectAllPlans, "string");
+      assert.equal(typeof copy.selectCurrentPlanOnly, "string");
       assert.equal(typeof copy.activeOutsideScope, "string");
       assert.equal(typeof copy.planUsageTitle, "string");
       assert.equal(typeof copy.assignedLocations_other, "string");
-      assert.equal(typeof copy.coactiveConflict, "string");
+      assert.equal(typeof copy.duplicateEncoding, "string");
+      assert.equal(typeof copy.duplicateEncodingTitle, "string");
+      assert.equal(typeof copy.duplicateEncodingDetails, "string");
+      assert.equal(typeof copy.duplicateConflict, "string");
+      assert.equal(Object.keys(copy.encodingModes).length, 3);
+      assert.equal(typeof copy.recolorSizes, "string");
+      assert.equal(typeof copy.recolorTipLevels, "string");
+      assert.equal(typeof copy.shapeFromCostTable, "string");
+      assert.equal(typeof copy.missingCostShape, "string");
+      assert.equal(typeof copy.showTipLevelRegions, "string");
+      assert.equal(typeof copy.regionsHidden, "string");
+      assert.equal(typeof copy.regionsUnavailable, "string");
       assert.equal(typeof copy.assignSymbols, "string");
       assert.equal(typeof copy.assignColors, "string");
       assert.equal(typeof copy.resetAppearance, "string");
@@ -71,8 +84,24 @@ describe("Workspace translations", () => {
     assert.equal(nl.legend.colorRepresentsTip, "Kleur representeert puntniveau");
     assert.equal(nl.legend.colorRepresentsSize, "Kleur representeert afmeting");
     assert.equal(nl.legend.scopeCurrentOnly, "Alleen huidig palenplan");
+    assert.equal(nl.legend.selectAllPlans, "Alles selecteren");
+    assert.equal(nl.legend.selectCurrentPlanOnly, "Alleen huidig");
+    assert.equal(en.legend.selectAllPlans, "Select all");
+    assert.equal(en.legend.selectCurrentPlanOnly, "Current only");
     assert.equal(nl.legend.activeOutsideScope, "Actief buiten bereik: {{count}}");
     assert.equal(nl.legend.assignedLocations_other, "Toegewezen aan {{count}} locaties");
+    assert.equal(nl.legend.duplicateEncoding, "Dubbele codering: {{count}}");
+    assert.equal(en.legend.duplicateEncoding, "Duplicate encoding: {{count}}");
+    assert.equal(
+      nl.legend.encodingModes.sizeColorTipRegion,
+      "Afmeting als symboolkleur · Puntniveau als gebiedskleur",
+    );
+    assert.equal(
+      en.legend.encodingModes.sizeColorTipRegion,
+      "Size by symbol color · Tip level by region color",
+    );
+    assert.equal(nl.legend.regionsHidden, "Verborgen");
+    assert.equal(nl.legend.regionsUnavailable, "Niet beschikbaar");
     assert.equal(nl.legend.colorSchemes.colorblindFriendly, "Kleurenblindvriendelijk");
     assert.equal(nl.legend.colorSchemes.tableauExtended, "Tableau uitgebreid");
     assert.equal(nl.legend.colorSchemes.evenHue, "Gelijkmatige tintspreiding");

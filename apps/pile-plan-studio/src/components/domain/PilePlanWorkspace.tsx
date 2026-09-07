@@ -8,6 +8,7 @@ import "./viewer.css";
 import type { LoadPointGroup } from "../../core/loadPointGroupContract.ts";
 import type { TechnicalAssignmentSnapshot } from "./technicalAssignmentController.ts";
 import { replacePilePlanActivation } from "../../domain/pilePlanActivation.ts";
+import { useTipLevelRegionTopology } from "./useTipLevelRegionTopology.ts";
 
 type Props = {
   state: ProjectState;
@@ -19,11 +20,18 @@ type Props = {
 
 export default function PilePlanWorkspace({ state, loadPointGroups, technicalAssignment, lassoSelectionActive, onStateChange }: Props) {
   const [legendEditorOpen, setLegendEditorOpen] = useState(false);
+  const tipLevelRegions = useTipLevelRegionTopology({
+    enabled: state.showTipLevelRegions,
+    loadPoints: state.loadPoints,
+    selectedPileConfigurationsByLoadPoint: state.selectedPileConfigurationsByLoadPoint,
+    pileOptionsByLoadPointId: state.pileOptionsByLoadPointId,
+  });
 
   return (
     <section className="pile-plan-workspace" onMouseDownCapture={handleMouseDownCapture}>
       <Legend
         state={state}
+        tipLevelRegionStatus={tipLevelRegions.status}
         onEdit={() => setLegendEditorOpen(true)}
         onStateChange={onStateChange}
       />
@@ -32,13 +40,14 @@ export default function PilePlanWorkspace({ state, loadPointGroups, technicalAss
         loadPointGroups={loadPointGroups}
         technicalAssignment={technicalAssignment}
         lassoSelectionActive={lassoSelectionActive}
+        tipLevelRegionTopology={tipLevelRegions.topology}
         onStateChange={onStateChange}
       />
       <LegendEditor
         open={legendEditorOpen}
         state={state}
         onClose={() => setLegendEditorOpen(false)}
-        onApply={(draft) => {
+        onApply={(draft, enableTipLevelRegions) => {
           onStateChange({
             ...state,
             pilePlans: replacePilePlanActivation(
@@ -47,6 +56,7 @@ export default function PilePlanWorkspace({ state, loadPointGroups, technicalAss
               draft.active,
             ),
             pileLegend: draft.legend,
+            showTipLevelRegions: enableTipLevelRegions ? true : state.showTipLevelRegions,
           });
           setLegendEditorOpen(false);
         }}

@@ -131,6 +131,10 @@ pub struct ProjectLegendSettings {
     pub encoding_mode: String,
     #[serde(default = "default_legend_color_scheme")]
     pub color_scheme: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub pile_size_color_scheme: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub pile_tip_level_color_scheme: Option<String>,
     #[serde(default)]
     pub pile_sizes: Vec<ProjectLegendValueStyle>,
     #[serde(default)]
@@ -646,6 +650,8 @@ mod tests {
         let legend = ProjectLegendSettings {
             encoding_mode: "tip-symbol".to_string(),
             color_scheme: "colorblind-friendly".to_string(),
+            pile_size_color_scheme: Some("colorblind-friendly".to_string()),
+            pile_tip_level_color_scheme: Some("cool-warm".to_string()),
             pile_sizes: vec![ProjectLegendValueStyle {
                 value: 320.0,
                 symbol: ProjectPileSymbol {
@@ -688,6 +694,8 @@ mod tests {
             .expect("legend remains available");
 
         assert_eq!(legend.color_scheme, "tableau-extended");
+        assert_eq!(legend.pile_size_color_scheme, None);
+        assert_eq!(legend.pile_tip_level_color_scheme, None);
         assert!(legend.pile_sizes[0].symbol_automatic);
         assert!(legend.pile_sizes[0].color_automatic);
     }

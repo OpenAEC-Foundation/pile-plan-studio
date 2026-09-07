@@ -29,4 +29,13 @@ describe("ThemedSelect", () => {
     assert.match(styles, /\.themed-select-menu\s*\{[\s\S]*?position:\s*fixed/);
     assert.doesNotMatch(styles, /\.themed-select-menu\s*\{[\s\S]*?top:\s*100%/);
   });
+
+  it("closes its own open menu on Escape without closing a surrounding modal", () => {
+    const source = readFileSync(resolve(import.meta.dirname, "ThemedSelect.tsx"), "utf8");
+
+    assert.match(source, /event\.key !== "Escape" \|\| !open/);
+    assert.match(source, /event\.preventDefault\(\)/);
+    assert.match(source, /event\.stopPropagation\(\)/);
+    assert.match(source, /setOpen\(false\)/);
+  });
 });

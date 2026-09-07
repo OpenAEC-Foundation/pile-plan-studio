@@ -80,3 +80,15 @@ export function summarizePilePlanScope(
     ? { kind: "current-only" }
     : { kind: "selection", selectedCount, totalCount };
 }
+
+export function togglePilePlanScope(
+  pilePlanIds: Iterable<string>,
+  currentPilePlanId: string,
+  selectedPilePlanIds: ReadonlySet<string>,
+): Set<string> {
+  const allPilePlanIds = [...new Set(pilePlanIds)];
+  const allSelected = allPilePlanIds.every((id) => selectedPilePlanIds.has(id));
+  return allSelected
+    ? new Set([currentPilePlanId])
+    : new Set(allPilePlanIds);
+}

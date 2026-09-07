@@ -703,6 +703,7 @@ function LoadPointPanel({
         costsByOptionKey: state.pileCostByOptionKey,
         currencyCode: state.currencyCode,
         legend: state.pileLegend,
+        pileCostSettings: state.pileCostSettings,
         loadPoints: state.loadPoints,
         selectedLoadPointCount: selectedCount,
       })
@@ -712,6 +713,7 @@ function LoadPointPanel({
         costsByOptionKey: state.pileCostByOptionKey,
         currencyCode: state.currencyCode,
         legend: state.pileLegend,
+        pileCostSettings: state.pileCostSettings,
         options: selectedLoadPoints[0]
           ? filterActivePileOptions(
               pileOptionsByLoadPointId.get(selectedLoadPoints[0].id) ?? [],

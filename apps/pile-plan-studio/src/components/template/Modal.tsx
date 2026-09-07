@@ -74,7 +74,7 @@ export default function Modal({
     const handleKeyDown = (e: KeyboardEvent) => {
       if (!isTopmostModal(overlayRef.current)) return;
 
-      if (e.key === "Escape") {
+      if (e.key === "Escape" && !e.defaultPrevented) {
         e.preventDefault();
         onClose();
         return;

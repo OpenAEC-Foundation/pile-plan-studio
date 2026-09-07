@@ -61,22 +61,57 @@ describe("legend editor model", () => {
 
   it("applies a changed scheme immediately only to automatic colors", () => {
     const manual = updateLegendColor(draft(), "tip", -18, "#123456");
-    const changed = setLegendColorScheme(manual, "colorblind-friendly", [-18, -19]);
+    const changed = setLegendColorScheme(manual, "tip", "colorblind-friendly", [-18, -19]);
 
-    assert.equal(changed.legend.colorScheme, "colorblind-friendly");
+    assert.equal(changed.legend.pileTipLevelColorScheme, "colorblind-friendly");
     assert.equal(changed.legend.pileTipLevels[0].color, "#123456");
     assert.equal(changed.legend.pileTipLevels[1].color, "#E69F00");
   });
 
+  it("stores and applies independent schemes for size and tip-level colors", () => {
+    const original = draft();
+    const originalTipColors = original.legend.pileTipLevels.map(({ color }) => color);
+
+    const changed = setLegendColorScheme(
+      original,
+      "size",
+      "colorblind-friendly",
+      [290, 320],
+    );
+
+    assert.equal(changed.legend.pileSizeColorScheme, "colorblind-friendly");
+    assert.equal(changed.legend.pileTipLevelColorScheme, "tableau-extended");
+    assert.deepEqual(changed.legend.pileTipLevels.map(({ color }) => color), originalTipColors);
+    assert.deepEqual(changed.legend.pileSizes.map(({ color }) => color), ["#0072B2", "#E69F00"]);
+  });
+
   it("keeps manual size colors while refreshing automatic size colors after encoding reversal", () => {
     let current = updateLegendColor(draft(), "size", 290, "#123456");
-    current = setLegendColorScheme(current, "colorblind-friendly", [290, 320]);
+    current = setLegendColorScheme(current, "size", "colorblind-friendly", [290, 320]);
     const result = setLegendEncodingMode(current, "tip-symbol", current.active);
 
     assert.equal(result.ok, true);
     assert.equal(result.draft.legend.pileSizes[0].color, "#123456");
     assert.equal(result.draft.legend.pileSizes[1].color, "#E69F00");
     assert.equal(result.draft.legend.pileSizes[0].colorAutomatic, false);
+  });
+
+  it("switches to dual color without requiring a symbol for every active value", () => {
+    const legend = createBuiltInLegend(Array.from({ length: 55 }, (_, index) => ({
+      cpt_id: 1,
+      pile_tip_level_m: -18 - index / 10,
+      pile_size_mm: 200 + index,
+      frd_kn: 700,
+    })));
+    const current = createLegendEditorDraft({
+      pileSizes: legend.pileSizes.map(({ value }) => value),
+      pileTipLevels: legend.pileTipLevels.map(({ value }) => value),
+    }, legend);
+
+    const result = setLegendEncodingMode(current, "size-color-tip-region", current.active);
+
+    assert.equal(result.ok, true);
+    assert.equal(result.draft.legend.encodingMode, "size-color-tip-region");
   });
 
   it("explicit color assignment clears only scoped color overrides", () => {
@@ -127,11 +162,12 @@ describe("legend editor model", () => {
       baseShape: "diamond",
       fillPattern: "top-half",
     });
-    current = setLegendColorScheme(current, "rainbow", [-18, -19]);
+    current = setLegendColorScheme(current, "tip", "rainbow", [-18, -19]);
 
     const reset = resetLegendEditorAppearance(current, capacities);
 
-    assert.equal(reset.legend.colorScheme, "tableau-extended");
+    assert.equal(reset.legend.pileSizeColorScheme, "tableau-extended");
+    assert.equal(reset.legend.pileTipLevelColorScheme, "tableau-extended");
     assert.equal("assignmentScope" in reset, false);
     assert.ok(reset.legend.pileSizes.every((item) => item.symbolAutomatic && item.colorAutomatic));
     assert.ok(reset.legend.pileTipLevels.every((item) => item.symbolAutomatic && item.colorAutomatic));

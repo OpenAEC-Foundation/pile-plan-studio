@@ -11,7 +11,7 @@ import {
   refreshAutomaticLegendSymbols,
   resetLegendAppearance,
 } from "./legend.ts";
-import type { BearingCapacity, LegendItems } from "../core/projectTypes.ts";
+import type { BearingCapacity, LegendItems, PileCostSettings } from "../core/projectTypes.ts";
 
 const CAPACITIES: BearingCapacity[] = [
   { cpt_id: 1, pile_tip_level_m: -18, pile_size_mm: 290, frd_kn: 700 },
@@ -30,7 +30,8 @@ describe("project legend model", () => {
       symbolAutomatic: true,
       colorAutomatic: true,
     });
-    assert.equal(legend.colorScheme, "tableau-extended");
+    assert.equal(legend.pileSizeColorScheme, "tableau-extended");
+    assert.equal(legend.pileTipLevelColorScheme, "tableau-extended");
     assert.deepEqual(legend.pileTipLevels.map(({ value }) => value), [-18, -19]);
     assert.ok(legend.pileTipLevels.every((item) => item.symbol && item.color));
   });
@@ -47,6 +48,33 @@ describe("project legend model", () => {
       symbol: legend.pileTipLevels[0].symbol,
       color: legend.pileSizes[0].color,
     });
+  });
+
+  it("uses cost-table cross sections and size colors in dual-color mode", () => {
+    const legend: LegendItems = {
+      ...createBuiltInLegend(CAPACITIES),
+      encodingMode: "size-color-tip-region",
+    };
+    const costs: PileCostSettings = {
+      schema_version: 2,
+      items: [
+        { pile_size_mm: 290, shape: "round", cost_per_m3: 200 },
+        { pile_size_mm: 320, shape: "square", cost_per_m3: 220 },
+      ],
+    };
+
+    assert.deepEqual(
+      getConfigurationStyle({ pile_size_mm: 290, pile_tip_level_m: -18 }, legend, costs),
+      { symbol: { baseShape: "circle", fillPattern: "full" }, color: legend.pileSizes[0].color },
+    );
+    assert.deepEqual(
+      getConfigurationStyle({ pile_size_mm: 320, pile_tip_level_m: -19 }, legend, costs),
+      { symbol: { baseShape: "square", fillPattern: "full" }, color: legend.pileSizes[1].color },
+    );
+    assert.deepEqual(
+      getConfigurationStyle({ pile_size_mm: 350, pile_tip_level_m: -19 }, legend, costs),
+      { symbol: { baseShape: "diamond", fillPattern: "full" }, color: "#8C989F" },
+    );
   });
 
   it("retains absent mappings and appends only new source values", () => {
@@ -109,7 +137,7 @@ describe("project legend model", () => {
 
   it("refreshes automatic colors while preserving item-level manual overrides", () => {
     const legend = createBuiltInLegend(CAPACITIES);
-    legend.colorScheme = "colorblind-friendly";
+    legend.pileTipLevelColorScheme = "colorblind-friendly";
     legend.pileTipLevels[0] = {
       ...legend.pileTipLevels[0],
       color: "#123456",

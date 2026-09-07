@@ -22,4 +22,10 @@ describe("Modal", () => {
     assert.match(source, /closeLabel\?: string/);
     assert.match(source, /aria-label=\{closeLabel\}/);
   });
+
+  it("leaves Escape handling to an open nested control", () => {
+    const source = readFileSync(resolve(import.meta.dirname, "Modal.tsx"), "utf8");
+
+    assert.match(source, /e\.key === "Escape" && !e\.defaultPrevented/);
+  });
 });

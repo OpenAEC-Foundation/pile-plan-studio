@@ -6,6 +6,7 @@ import {
   getActivePilePlan,
   getPilePlanActivation,
   summarizePilePlanScope,
+  togglePilePlanScope,
   unionActivationForPlans,
   unionUsedConfigurationsForPlans,
 } from "./pilePlanActivation.ts";
@@ -70,5 +71,23 @@ describe("pile-plan activation", () => {
       selectedCount: 3,
       totalCount: 14,
     });
+  });
+
+  it("selects every pile plan when the scope is incomplete", () => {
+    assert.deepEqual(
+      togglePilePlanScope(["current", "second", "third"], "current", new Set(["current", "second"])),
+      new Set(["current", "second", "third"]),
+    );
+  });
+
+  it("returns to the current pile plan when every pile plan is selected", () => {
+    assert.deepEqual(
+      togglePilePlanScope(
+        ["current", "second", "third"],
+        "current",
+        new Set(["current", "second", "third"]),
+      ),
+      new Set(["current"]),
+    );
   });
 });

@@ -3,9 +3,19 @@ import type { LegendItems, PileSymbol } from "../core/projectTypes.ts";
 
 export type LegendConflict = {
   property: "symbol" | "color";
+  kind: "size" | "tip";
   values: number[];
   pilePlanIds: string[];
 };
+
+export function groupLegendConflictsByProperty(
+  conflicts: LegendConflict[],
+): Record<LegendConflict["property"], LegendConflict[]> {
+  return {
+    symbol: conflicts.filter(({ property }) => property === "symbol"),
+    color: conflicts.filter(({ property }) => property === "color"),
+  };
+}
 
 export type LegendValuePlanUsageItem = {
   planId: string;
@@ -25,11 +35,15 @@ export function findCoactiveLegendConflicts(
   legend: LegendItems,
   pilePlans: PilePlanData[],
 ): LegendConflict[] {
-  const symbolKind = legend.encodingMode === "size-symbol" ? "size" : "tip";
-  const channels = [
-    { property: "symbol" as const, kind: symbolKind },
-    { property: "color" as const, kind: symbolKind === "size" ? "tip" as const : "size" as const },
-  ];
+  const channels: Array<Pick<LegendConflict, "property" | "kind">> = legend.encodingMode === "size-color-tip-region"
+    ? [
+        { property: "color", kind: "size" },
+        { property: "color", kind: "tip" },
+      ]
+    : [
+        { property: "symbol", kind: legend.encodingMode === "size-symbol" ? "size" : "tip" },
+        { property: "color", kind: legend.encodingMode === "size-symbol" ? "tip" : "size" },
+      ];
   const merged = new Map<string, LegendConflict>();
 
   for (const { property, kind } of channels) {
@@ -48,12 +62,12 @@ export function findCoactiveLegendConflicts(
       }
       for (const [appearance, values] of valuesByAppearance) {
         if (values.length < 2) continue;
-        const key = `${property}|${appearance}|${values.join(",")}`;
+        const key = `${property}|${kind}|${appearance}|${values.join(",")}`;
         const conflict = merged.get(key);
         if (conflict) {
           conflict.pilePlanIds.push(plan.id);
         } else {
-          merged.set(key, { property, values: [...values], pilePlanIds: [plan.id] });
+          merged.set(key, { property, kind, values: [...values], pilePlanIds: [plan.id] });
         }
       }
     }

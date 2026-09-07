@@ -1,4 +1,9 @@
-import type { LegendItems, PileConfigurationOption, PileSymbol } from "../core/projectTypes.ts";
+import type {
+  LegendItems,
+  PileConfigurationOption,
+  PileCostSettings,
+  PileSymbol,
+} from "../core/projectTypes.ts";
 import { getConfigurationStyle } from "../viewer/legend.ts";
 import type { ActivePileConfigurations } from "./activePileConfigurations.ts";
 
@@ -17,11 +22,13 @@ export function getConfigurationActivationPresentation(
   configuration: Pick<PileConfigurationOption, "pile_size_mm" | "pile_tip_level_m">,
   legend: LegendItems,
   active: ActivePileConfigurations,
+  pileCosts?: PileCostSettings,
 ): ConfigurationActivationPresentation {
-  const base = getConfigurationStyle(configuration, legend);
+  const base = getConfigurationStyle(configuration, legend, pileCosts);
   const sizeActive = active.pileSizes.includes(configuration.pile_size_mm);
   const tipActive = active.pileTipLevels.includes(configuration.pile_tip_level_m);
-  const symbolActive = legend.encodingMode === "size-symbol" ? sizeActive : tipActive;
+  const dualColor = legend.encodingMode === "size-color-tip-region";
+  const symbolActive = dualColor || (legend.encodingMode === "size-symbol" ? sizeActive : tipActive);
   const colorActive = legend.encodingMode === "size-symbol" ? tipActive : sizeActive;
   return {
     symbol: symbolActive ? base.symbol : SMALL_DOT_SYMBOL,

@@ -89,20 +89,28 @@ import {
   projectTipLevelRegionPoints,
 } from "../../viewer/tipLevelRegionGeometry.ts";
 import { presentTipLevelRegionGeometry } from "../../viewer/tipLevelRegionPresentation.ts";
-import { useTipLevelRegionTopology } from "./useTipLevelRegionTopology.ts";
 import TipLevelRegionOverlay from "./TipLevelRegionOverlay.tsx";
 import type { LoadPointGroup } from "../../core/loadPointGroupContract.ts";
 import type { TechnicalAssignmentSnapshot } from "./technicalAssignmentController.ts";
+import type { TipLevelRegionTopology } from "../../core/spatialTopologyContract.ts";
 
 type Props = {
   state: ProjectState;
   loadPointGroups: LoadPointGroup[];
   technicalAssignment: TechnicalAssignmentSnapshot;
   lassoSelectionActive: boolean;
+  tipLevelRegionTopology: TipLevelRegionTopology | null;
   onStateChange: (nextState: ProjectState) => void;
 };
 
-export default function PilePlanViewer({ state, loadPointGroups, technicalAssignment, lassoSelectionActive, onStateChange }: Props) {
+export default function PilePlanViewer({
+  state,
+  loadPointGroups,
+  technicalAssignment,
+  lassoSelectionActive,
+  tipLevelRegionTopology,
+  onStateChange,
+}: Props) {
   const { t, i18n } = useTranslation("common");
   const legend = state.pileLegend;
   const selectedLoadPointIds = new Set(state.selectedLoadPointIds);
@@ -129,12 +137,6 @@ export default function PilePlanViewer({ state, loadPointGroups, technicalAssign
     () => createProjectViewTransform(state.bounds, { width: 1, height: 1 }),
   );
   const projectTransformRef = useRef(projectTransform);
-  const tipLevelRegionTopology = useTipLevelRegionTopology({
-    enabled: state.showTipLevelRegions,
-    loadPoints: state.loadPoints,
-    selectedPileConfigurationsByLoadPoint: state.selectedPileConfigurationsByLoadPoint,
-    pileOptionsByLoadPointId: state.pileOptionsByLoadPointId,
-  });
   const tipLevelRegionPoints = useMemo(
     () => projectTipLevelRegionPoints(state.loadPoints, projectTransform),
     [projectTransform, state.loadPoints],
@@ -149,8 +151,12 @@ export default function PilePlanViewer({ state, loadPointGroups, technicalAssign
       : []
   ), [tipLevelRegionPoints, tipLevelRegionTopology, state.symbolScalePercent]);
   const tipLevelRegionPresentation = useMemo(
-    () => presentTipLevelRegionGeometry(tipLevelRegionGeometry, legend),
-    [tipLevelRegionGeometry, legend],
+    () => presentTipLevelRegionGeometry(
+      tipLevelRegionGeometry,
+      legend,
+      activePileConfigurations.pileTipLevels,
+    ),
+    [tipLevelRegionGeometry, legend, activePileConfigurations.pileTipLevels],
   );
   const cptConnectionSegments = useMemo(() => getCptConnectionSegments({
     transform: projectTransform,
@@ -402,7 +408,9 @@ export default function PilePlanViewer({ state, loadPointGroups, technicalAssign
             const isLocked = lockedLoadPointIds.has(loadPoint.id);
             const selectedOption = getSelectedPileOption(state, loadPoint.id, pileOptionsByLoadPointId);
             const style = selectedOption
-              ? getConfigurationActivationPresentation(selectedOption, legend, activePileConfigurations)
+              ? getConfigurationActivationPresentation(
+                  selectedOption, legend, activePileConfigurations, state.pileCostSettings,
+                )
               : null;
             const unselectedState = selectedOption ? null : getUnselectedLoadPointMarkerState({
               analysisStatus: technicalAssignment.status,
@@ -879,7 +887,9 @@ export default function PilePlanViewer({ state, loadPointGroups, technicalAssign
 
     const selectedOption = getSelectedPileOption(state, item.id, pileOptionsByLoadPointId);
     const symbolStyle = selectedOption
-      ? getConfigurationActivationPresentation(selectedOption, legend, activePileConfigurations)
+      ? getConfigurationActivationPresentation(
+          selectedOption, legend, activePileConfigurations, state.pileCostSettings,
+        )
       : null;
     const invalidVisual = getLoadPointMarkerInvalidVisual(
       selectedOption,

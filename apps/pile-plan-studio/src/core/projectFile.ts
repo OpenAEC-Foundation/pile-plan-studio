@@ -63,6 +63,8 @@ type IfcppLegendValueStyle = {
 type IfcppProjectLegend = {
   encoding_mode: unknown;
   color_scheme?: unknown;
+  pile_size_color_scheme?: unknown;
+  pile_tip_level_color_scheme?: unknown;
   pile_sizes: IfcppLegendValueStyle[];
   pile_tip_levels: IfcppLegendValueStyle[];
 };
@@ -474,6 +476,8 @@ function fromIfcppProjectLegend(legend: IfcppProjectLegend | null | undefined): 
   return {
     encodingMode: legend.encoding_mode,
     colorScheme: legend.color_scheme,
+    pileSizeColorScheme: legend.pile_size_color_scheme,
+    pileTipLevelColorScheme: legend.pile_tip_level_color_scheme,
     pileSizes: fromIfcppLegendValues(legend.pile_sizes),
     pileTipLevels: fromIfcppLegendValues(legend.pile_tip_levels),
   };
@@ -497,9 +501,14 @@ function fromIfcppLegendValues(values: unknown): unknown[] {
 }
 
 function toIfcppProjectLegend(legend: LegendItems): IfcppProjectLegend {
+  const colorScheme = legend.encodingMode === "size-symbol"
+    ? legend.pileTipLevelColorScheme
+    : legend.pileSizeColorScheme;
   return {
     encoding_mode: legend.encodingMode,
-    color_scheme: legend.colorScheme,
+    color_scheme: colorScheme,
+    pile_size_color_scheme: legend.pileSizeColorScheme,
+    pile_tip_level_color_scheme: legend.pileTipLevelColorScheme,
     pile_sizes: legend.pileSizes.map(toIfcppLegendValue),
     pile_tip_levels: legend.pileTipLevels.map(toIfcppLegendValue),
   };

@@ -7,7 +7,8 @@ import { presentTipLevelRegionGeometry } from "./tipLevelRegionPresentation.ts";
 
 const legend: LegendItems = {
   encodingMode: "size-symbol",
-  colorScheme: "tableau-extended",
+  pileSizeColorScheme: "tableau-extended",
+  pileTipLevelColorScheme: "tableau-extended",
   pileSizes: [],
   pileTipLevels: [
     { value: -20, symbol: { baseShape: "circle", fillPattern: "full" }, color: "#202020", symbolAutomatic: true, colorAutomatic: true },
@@ -53,5 +54,18 @@ describe("tip-level region presentation", () => {
     ], legend);
 
     assert.deepEqual(presented.map(({ legendValueM }) => legendValueM), [-15]);
+  });
+
+  it("greys inactive tip-level regions only in dual-color mode", () => {
+    const presented = presentTipLevelRegionGeometry(
+      [layer(-10), layer(-15)],
+      { ...legend, encodingMode: "size-color-tip-region" },
+      [-10],
+    );
+
+    assert.deepEqual(presented.map(({ legendValueM, color }) => ({ legendValueM, color })), [
+      { legendValueM: -10, color: "#101010" },
+      { legendValueM: -15, color: "#8C989F" },
+    ]);
   });
 });

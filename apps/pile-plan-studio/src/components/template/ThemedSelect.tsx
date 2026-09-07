@@ -78,6 +78,12 @@ export default function ThemedSelect({ value, options, onChange, style, ariaLabe
         aria-haspopup="listbox"
         aria-label={ariaLabel}
         className="themed-select-trigger"
+        onKeyDown={(event) => {
+          if (event.key !== "Escape" || !open) return;
+          event.preventDefault();
+          event.stopPropagation();
+          setOpen(false);
+        }}
         onClick={() => setOpen(!open)}
         type="button"
       >

@@ -22,14 +22,22 @@ type UseTipLevelRegionTopologyInput = {
   pileOptionsByLoadPointId: Map<number, PileConfigurationOption[]>;
 };
 
+export type TipLevelRegionTopologyStatus = "idle" | "loading" | "ready" | "error";
+
+export type TipLevelRegionTopologyResult = {
+  topology: TipLevelRegionTopology | null;
+  status: TipLevelRegionTopologyStatus;
+};
+
 export function useTipLevelRegionTopology({
   enabled,
   loadPoints,
   selectedPileConfigurationsByLoadPoint,
   pileOptionsByLoadPointId,
-}: UseTipLevelRegionTopologyInput): TipLevelRegionTopology | null {
+}: UseTipLevelRegionTopologyInput): TipLevelRegionTopologyResult {
   const controllerRef = useRef<TipLevelRegionTopologyController | null>(null);
   const [topology, setTopology] = useState<TipLevelRegionTopology | null>(null);
+  const [status, setStatus] = useState<TipLevelRegionTopologyStatus>("idle");
 
   controllerRef.current ??= createTipLevelRegionTopologyController({
     buildNeighborhood: buildSpatialNeighborhoodCore,
@@ -48,16 +56,26 @@ export function useTipLevelRegionTopology({
   useEffect(() => {
     if (!enabled) {
       controller.disable();
+      setStatus("idle");
       return;
     }
 
+    let current = true;
+    setStatus("loading");
     void controller.update({
       loadPoints,
       selectedPileConfigurationsByLoadPoint,
       pileOptionsByLoadPointId,
+    }).then(() => {
+      if (current) setStatus("ready");
     }).catch((error: unknown) => {
       console.error("Failed to build tip-level region topology", error);
+      if (current) {
+        controller.disable();
+        setStatus("error");
+      }
     });
+    return () => { current = false; };
   }, [
     controller,
     enabled,
@@ -66,5 +84,5 @@ export function useTipLevelRegionTopology({
     pileOptionsByLoadPointId,
   ]);
 
-  return topology;
+  return { topology, status };
 }
