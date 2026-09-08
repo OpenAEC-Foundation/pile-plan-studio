@@ -1,33 +1,61 @@
-import { useEffect, useRef, useState, type KeyboardEvent } from "react";
-import { normalizeLegendHexColor } from "../../viewer/legendColors.ts";
-import type { PileSymbol } from "../../core/projectTypes.ts";
+import { useEffect, useLayoutEffect, useRef, useState, type KeyboardEvent } from "react";
+import type { LegendColorScheme, PileSymbol } from "../../core/projectTypes.ts";
 import { renderPileSymbol } from "../../viewer/pileSymbols.ts";
+import { createLegendColorPickerPalette } from "./legendColorPickerPalette.ts";
+import { shouldOpenLegendPickerAbove } from "./legendPickerPlacement.ts";
 
 type Props = {
   value: string;
   label: string;
-  hexLabel: string;
+  freeColorLabel: string;
+  openColorPickerLabel: string;
+  schemeLabel: string;
+  colorScheme: LegendColorScheme;
+  colorCount: number;
   previewSymbol?: PileSymbol;
   onChange: (color: string) => void;
 };
 
-export default function LegendColorPicker({ value, label, hexLabel, previewSymbol, onChange }: Props) {
+export default function LegendColorPicker({
+  value,
+  label,
+  freeColorLabel,
+  openColorPickerLabel,
+  schemeLabel,
+  colorScheme,
+  colorCount,
+  previewSymbol,
+  onChange,
+}: Props) {
   const [open, setOpen] = useState(false);
-  const [hexDraft, setHexDraft] = useState(value);
+  const [openAbove, setOpenAbove] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
+  const popoverRef = useRef<HTMLDivElement>(null);
+  const palette = createLegendColorPickerPalette(colorScheme, colorCount, value);
 
-  useEffect(() => setHexDraft(value), [value]);
+  useLayoutEffect(() => {
+    if (!open || !rootRef.current || !popoverRef.current) return;
+    const triggerRect = rootRef.current.getBoundingClientRect();
+    const popoverRect = popoverRef.current.getBoundingClientRect();
+    const boundaryRect = rootRef.current.closest(".legend-editor-sections")?.getBoundingClientRect();
+    setOpenAbove(shouldOpenLegendPickerAbove(
+      triggerRect.top,
+      triggerRect.bottom,
+      popoverRect.height,
+      boundaryRect?.top ?? 0,
+      boundaryRect?.bottom ?? window.innerHeight,
+    ));
+  }, [open, palette.length]);
 
   useEffect(() => {
     if (!open) return;
     const closeOutside = (event: PointerEvent) => {
       if (rootRef.current?.contains(event.target as Node)) return;
-      setHexDraft(value);
       setOpen(false);
     };
     document.addEventListener("pointerdown", closeOutside);
     return () => document.removeEventListener("pointerdown", closeOutside);
-  }, [open, value]);
+  }, [open]);
 
   return (
     <div className="legend-appearance-picker" onKeyDown={handleKeyDown} ref={rootRef}>
@@ -49,30 +77,43 @@ export default function LegendColorPicker({ value, label, hexLabel, previewSymbo
         <span aria-hidden="true" className="legend-picker-chevron" />
       </button>
       {open ? (
-        <div aria-label={label} className="legend-picker-popover legend-color-picker" role="dialog">
-          <label className="legend-native-color">
-            <span>{label}</span>
-            <input
-              aria-label={label}
-              type="color"
-              value={value}
-              onChange={(event) => onChange(event.currentTarget.value.toUpperCase())}
-            />
-          </label>
-          <label className="legend-hex-color">
-            <span>{hexLabel}</span>
-            <input
-              aria-invalid={normalizeLegendHexColor(hexDraft) === null}
-              value={hexDraft}
-              onBlur={() => setHexDraft(value)}
-              onChange={(event) => {
-                const next = event.currentTarget.value;
-                setHexDraft(next);
-                const normalized = normalizeLegendHexColor(next);
-                if (normalized !== null) onChange(normalized);
-              }}
-            />
-          </label>
+        <div
+          aria-label={label}
+          className={`legend-picker-popover legend-color-picker${openAbove ? " opens-upward" : ""}`}
+          ref={popoverRef}
+          role="dialog"
+        >
+          <div className="legend-native-color">
+            <span>{freeColorLabel}</span>
+            <label className="legend-native-color-control">
+              <input
+                aria-label={openColorPickerLabel}
+                title={openColorPickerLabel}
+                type="color"
+                value={value}
+                onChange={(event) => onChange(event.currentTarget.value.toUpperCase())}
+              />
+              <span>{openColorPickerLabel}</span>
+            </label>
+          </div>
+          <div aria-label={schemeLabel} className="legend-color-scheme-grid" role="listbox">
+            {palette.map(({ color, selected }) => (
+              <button
+                aria-label={color}
+                aria-selected={selected}
+                className="legend-color-scheme-choice"
+                key={color}
+                role="option"
+                style={{ backgroundColor: color }}
+                title={color}
+                type="button"
+                onClick={() => {
+                  onChange(color);
+                  setOpen(false);
+                }}
+              />
+            ))}
+          </div>
         </div>
       ) : null}
     </div>
@@ -82,7 +123,6 @@ export default function LegendColorPicker({ value, label, hexLabel, previewSymbo
     if (event.key === "Escape" && open) {
       event.preventDefault();
       event.stopPropagation();
-      setHexDraft(value);
       setOpen(false);
     }
   }

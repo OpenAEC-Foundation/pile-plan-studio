@@ -64,6 +64,23 @@ describe("pile-plan activation", () => {
     });
   });
 
+  it("uses the edited current-plan activation when unioning the selected editor scope", () => {
+    const current = plan("current", [290], [-18]);
+    const second = plan("second", [320], [-19]);
+
+    assert.deepEqual(unionActivationForPlans(
+      [current, second],
+      new Set(["current", "second"]),
+      {
+        pilePlanId: "current",
+        activation: { pileSizes: [350], pileTipLevels: [-20] },
+      },
+    ), {
+      pileSizes: [320, 350],
+      pileTipLevels: [-19, -20],
+    });
+  });
+
   it("uses a dedicated summary when only the current pile plan is selected", () => {
     assert.deepEqual(summarizePilePlanScope(14, 1), { kind: "current-only" });
     assert.deepEqual(summarizePilePlanScope(14, 3), {

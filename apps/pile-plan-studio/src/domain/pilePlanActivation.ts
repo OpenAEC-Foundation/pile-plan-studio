@@ -48,14 +48,18 @@ export function activationFromConfigurations(
 export function unionActivationForPlans(
   pilePlans: PilePlanData[],
   planIds: ReadonlySet<string>,
+  override?: { pilePlanId: string; activation: ActivePileConfigurations },
 ): ActivePileConfigurations {
+  const activationFor = (plan: PilePlanData) => plan.id === override?.pilePlanId
+    ? override.activation
+    : getPilePlanActivation(plan);
   return {
     pileSizes: [...new Set(pilePlans
       .filter(({ id }) => planIds.has(id))
-      .flatMap(({ activePileSizes }) => activePileSizes))].sort((left, right) => left - right),
+      .flatMap((plan) => activationFor(plan).pileSizes))].sort((left, right) => left - right),
     pileTipLevels: [...new Set(pilePlans
       .filter(({ id }) => planIds.has(id))
-      .flatMap(({ activePileTipLevels }) => activePileTipLevels))].sort((left, right) => right - left),
+      .flatMap((plan) => activationFor(plan).pileTipLevels))].sort((left, right) => right - left),
   };
 }
 

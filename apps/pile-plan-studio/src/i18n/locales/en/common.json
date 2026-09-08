@@ -171,7 +171,8 @@
     "changeSymbol": "Change the symbol for {{item}}",
     "changeColor": "Change the color for {{item}}",
     "fillPattern": "Fill pattern",
-    "hexColor": "Hex color",
+    "freeColor": "Choose custom color",
+    "openColorPicker": "Open color picker",
     "colorSchemes": {
       "tableauExtended": "Tableau Extended",
       "evenHue": "Even Hue Spread",

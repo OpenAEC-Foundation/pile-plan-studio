@@ -171,7 +171,8 @@
     "changeSymbol": "Symbool voor {{item}} wijzigen",
     "changeColor": "Kleur voor {{item}} wijzigen",
     "fillPattern": "Vulpatroon",
-    "hexColor": "Hexkleur",
+    "freeColor": "Vrije kleur kiezen",
+    "openColorPicker": "Kleurkiezer openen",
     "colorSchemes": {
       "tableauExtended": "Tableau uitgebreid",
       "evenHue": "Gelijkmatige tintspreiding",

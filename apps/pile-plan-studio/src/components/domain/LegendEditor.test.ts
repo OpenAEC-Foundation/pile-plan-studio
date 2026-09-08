@@ -56,7 +56,9 @@ describe("legend editor", () => {
     assert.match(source, /legend\.symbol/);
     assert.match(source, /legend\.color/);
     assert.match(source, /legend\.encodingModes/);
-    assert.match(source, /<ThemedSelect/);
+    assert.match(source, /role="radiogroup"/);
+    assert.match(source, /role="radio"/);
+    assert.match(source, /LEGEND_ENCODING_MODES\.map/);
     assert.doesNotMatch(source, /legend\.swapEncoding/);
     assert.doesNotMatch(source, /legend\.colorRepresentsTip/);
     assert.doesNotMatch(source, /legend\.colorRepresentsSize/);
@@ -89,7 +91,7 @@ describe("legend editor", () => {
     const source = readFileSync(resolve(import.meta.dirname, "LegendEditor.tsx"), "utf8");
     const css = readFileSync(resolve(import.meta.dirname, "LegendEditor.css"), "utf8");
 
-    assert.match(source, /<details className="legend-editor-disclosure legend-editor-encoding">/);
+    assert.match(source, /<details ref=\{encodingDisclosure\} className="legend-editor-disclosure legend-editor-encoding">/);
     assert.match(source, /<details className="legend-editor-disclosure legend-editor-scope">/);
     assert.match(source, /legend\.scopeCurrentOnly/);
     assert.match(css, /\.legend-editor-plan-scope\s*\{[\s\S]*?max-height:\s*116px[\s\S]*?overflow:\s*auto/);
@@ -188,7 +190,8 @@ describe("legend editor", () => {
     assert.match(source, /className="settings-btn settings-btn-primary"/);
     assert.match(source, /legend-editor-control-row/);
     assert.match(source, /legend-editor-encoding-line/);
-    assert.match(source, /legend-editor-encoding-select/);
+    assert.match(source, /legend-editor-encoding-choices/);
+    assert.match(source, /legend-editor-encoding-choice/);
     assert.match(css, /\.legend-editor-control-row\s*\{[\s\S]*?grid-template-columns:\s*repeat\(2, minmax\(0, 1fr\)\)/);
     assert.match(css, /\.legend-editor-auto-actions\s*\{[\s\S]*?grid-template-columns:/);
     assert.match(css, /\.legend-editor-secondary-actions\s*\{/);

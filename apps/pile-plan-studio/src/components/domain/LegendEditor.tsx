@@ -1,4 +1,4 @@
-import { useEffect, useId, useRef, useState } from "react";
+import { useEffect, useId, useLayoutEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type {
   PileBaseShape,
@@ -51,7 +51,11 @@ import Modal from "../template/Modal.tsx";
 import LegendColorPicker from "./LegendColorPicker.tsx";
 import LegendColorSchemeSelect from "./LegendColorSchemeSelect.tsx";
 import LegendSymbolPicker from "./LegendSymbolPicker.tsx";
-import ThemedSelect from "../template/ThemedSelect.tsx";
+import {
+  chooseLegendEncodingMode,
+  LEGEND_ENCODING_MODES,
+} from "./legendEncodingControls.ts";
+import { getRightAlignedLegendPopoverMaxWidth } from "./legendPickerPlacement.ts";
 import "./LegendEditor.css";
 
 const NEUTRAL_SYMBOL_PREVIEW_COLOR = "#6F7B82";
@@ -80,8 +84,12 @@ export default function LegendEditor({ open, state, onApply, onClose }: Props) {
   const [symbolLimitError, setSymbolLimitError] = useState(false);
   const [enableTipLevelRegions, setEnableTipLevelRegions] = useState(false);
   const openedPlanId = useRef(state.activePilePlanId);
+  const encodingDisclosure = useRef<HTMLDetailsElement>(null);
   const used = deriveUsedPileConfigurations(state.selectedPileConfigurationsByLoadPoint.values());
-  const scopeActivation = unionActivationForPlans(state.pilePlans, scopePlanIds);
+  const scopeActivation = unionActivationForPlans(state.pilePlans, scopePlanIds, {
+    pilePlanId: state.activePilePlanId,
+    activation: draft.active,
+  });
   const scopeUsed = unionUsedConfigurationsForPlans(state.pilePlans, scopePlanIds);
   const presentation = buildLegendPresentation({ legend: draft.legend, enabled: draft.active, used });
   const available = {
@@ -174,29 +182,38 @@ export default function LegendEditor({ open, state, onApply, onClose }: Props) {
       <div className="legend-editor">
         <div className="legend-editor-configuration">
           <div className="legend-editor-control-row">
-            <details className="legend-editor-disclosure legend-editor-encoding">
+            <details ref={encodingDisclosure} className="legend-editor-disclosure legend-editor-encoding">
               <summary>
                 <span className="legend-editor-control-label">{t("legend.encoding")}</span>
                 <span className="legend-editor-disclosure-value">{encodingModeLabel(draft.legend.encodingMode)}</span>
                 <span aria-hidden="true" className="legend-editor-disclosure-chevron" />
               </summary>
               <div className="legend-editor-encoding-line">
-                <ThemedSelect
-                  ariaLabel={t("legend.encoding")}
-                  className="legend-editor-encoding-select"
-                  value={draft.legend.encodingMode}
-                  options={(["size-symbol", "tip-symbol", "size-color-tip-region"] as LegendEncodingMode[])
-                    .map((value) => ({ value, label: encodingModeLabel(value) }))}
-                  onChange={(value) => {
-                    const nextMode = value as LegendEncodingMode;
-                    if (nextMode === "size-color-tip-region" && draft.legend.encodingMode !== nextMode) {
-                      setEnableTipLevelRegions(true);
-                    } else if (nextMode !== "size-color-tip-region") {
-                      setEnableTipLevelRegions(false);
-                    }
-                    applyEditorActionResult(setLegendEncodingMode(draft, nextMode, scopeActivation));
-                  }}
-                />
+                <div className="legend-editor-encoding-choices" role="radiogroup" aria-label={t("legend.encoding")}>
+                  {LEGEND_ENCODING_MODES.map((mode) => {
+                    const selected = draft.legend.encodingMode === mode;
+                    return (
+                      <button
+                        aria-checked={selected}
+                        className={`legend-editor-encoding-choice${selected ? " is-selected" : ""}`}
+                        key={mode}
+                        role="radio"
+                        type="button"
+                        onClick={() => {
+                          setEnableTipLevelRegions(chooseLegendEncodingMode({
+                            disclosure: encodingDisclosure.current,
+                            currentMode: draft.legend.encodingMode,
+                            nextMode: mode,
+                            enableTipLevelRegions,
+                          }));
+                          applyEditorActionResult(setLegendEncodingMode(draft, mode, scopeActivation));
+                        }}
+                      >
+                        {encodingModeLabel(mode)}
+                      </button>
+                    );
+                  })}
+                </div>
                 {dualColorMode && !state.showTipLevelRegions && !enableTipLevelRegions ? (
                   <button
                     className="legend-editor-toolbar-button legend-editor-show-regions"
@@ -624,10 +641,35 @@ function LegendConflictNotice({
 }) {
   const { t, i18n } = useTranslation("common");
   const [open, setOpen] = useState(false);
+  const [popoverMaxWidth, setPopoverMaxWidth] = useState<number>();
   const rootRef = useRef<HTMLSpanElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const popoverId = useId();
   const groups = groupLegendConflictsByProperty(conflicts);
+
+  useLayoutEffect(() => {
+    if (!open || !rootRef.current) return undefined;
+    const root = rootRef.current;
+    const boundary = root.closest(".legend-editor");
+    const updatePlacement = () => {
+      const triggerRect = root.getBoundingClientRect();
+      const boundaryRect = boundary?.getBoundingClientRect();
+      setPopoverMaxWidth(getRightAlignedLegendPopoverMaxWidth(
+        triggerRect.right,
+        boundaryRect?.left ?? 0,
+        8,
+      ));
+    };
+    updatePlacement();
+    const resizeObserver = new ResizeObserver(updatePlacement);
+    if (boundary) resizeObserver.observe(boundary);
+    resizeObserver.observe(root);
+    window.addEventListener("resize", updatePlacement);
+    return () => {
+      resizeObserver?.disconnect();
+      window.removeEventListener("resize", updatePlacement);
+    };
+  }, [open]);
 
   useEffect(() => {
     if (!open) return undefined;
@@ -672,6 +714,12 @@ function LegendConflictNotice({
           className="legend-editor-conflict-popover"
           id={popoverId}
           role="dialog"
+          style={{
+            maxWidth: popoverMaxWidth,
+            minWidth: popoverMaxWidth === undefined
+              ? undefined
+              : Math.min(280, popoverMaxWidth),
+          }}
         >
           <strong>{t("legend.duplicateEncodingDetails")}</strong>
           {(["symbol", "color"] as const).map((property) => groups[property].length > 0 ? (
@@ -755,7 +803,15 @@ function AppearanceControl({
     <LegendColorPicker
       value={item.color}
       label={t("legend.changeColor", { item: label })}
-      hexLabel={t("legend.hexColor")}
+      freeColorLabel={t("legend.freeColor")}
+      openColorPickerLabel={t("legend.openColorPicker")}
+      schemeLabel={t("legend.colorScheme")}
+      colorScheme={item.kind === "size"
+        ? draft.legend.pileSizeColorScheme
+        : draft.legend.pileTipLevelColorScheme}
+      colorCount={item.kind === "size"
+        ? draft.legend.pileSizes.length
+        : draft.legend.pileTipLevels.length}
       previewSymbol={encodingMode === "size-color-tip-region" && item.kind === "size"
         ? costTableSymbol(item.value, pileCostSettings)
         : undefined}
