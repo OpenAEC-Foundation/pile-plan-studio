@@ -1,5 +1,39 @@
 # Pile Plan Studio Release Notes
 
+## 0.3.1-alpha
+
+This alpha makes legend activation specific to each pile plan and extends the
+legend editor for comparing and coordinating multiple plan variants.
+
+### Added
+
+- Store active pile sizes and pile-tip levels separately for every pile plan,
+  so switching variants restores the intended legend configuration without
+  changing other plans.
+- Select one or more pile plans as the assignment scope in the legend editor.
+  The editor identifies configurations used outside that scope and explains
+  duplicate symbols and colours in the affected plans.
+- Encode pile size and pile-tip level with colour at the same time: pile-tip
+  level colours fill the connected regions, while pile-size colours and the
+  round or square shape from the cost table identify the load-point symbols.
+- Pick manual colours directly from the selected colour scheme in addition to
+  the native browser colour picker.
+
+### Improved
+
+- Reassign symbols and colours across the active legend items in the selected
+  plan scope while preserving inactive items.
+- Keep assigned configurations visible with a neutral marker when their legend
+  value is inactive, and keep optimizer candidates aligned with the active
+  configuration of the relevant pile plan.
+- Keep the legend editor compact with collapsible encoding and plan-scope
+  controls, equal active and inactive columns, and focused conflict details.
+
+### Compatibility
+
+- IFCPP schema version 4 stores legend activation per pile plan. Projects using
+  schema versions 1 through 3 remain supported and are normalized when opened.
+
 ## 0.3.0-alpha
 
 This alpha adds connected pile-tip-level regions, makes grouped pile
