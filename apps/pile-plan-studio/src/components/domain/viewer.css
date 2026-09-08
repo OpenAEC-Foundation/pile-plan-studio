@@ -607,6 +607,20 @@
   transform-origin: center;
 }
 
+.load-point-marker.is-related-group-member::after {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: var(--selection-ring-size);
+  height: var(--selection-ring-size);
+  border: var(--selection-ring-width) solid var(--theme-text-muted);
+  border-radius: 999px;
+  content: "";
+  pointer-events: none;
+  transform: translate(-50%, -50%) scale(var(--viewer-symbol-scale));
+  transform-origin: center;
+}
+
 .load-point-status-halo,
 .load-point-symbol,
 .load-point-empty,

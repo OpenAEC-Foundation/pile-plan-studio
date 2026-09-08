@@ -1,5 +1,9 @@
 import { toStringKeyedRecord, toWasmNumberKeyedMap } from "./coreSerialization.ts";
-import type { LoadPoint, PileConfigurationKey } from "./projectTypes.ts";
+import type {
+  LoadPoint,
+  LoadPointGroupingSettings,
+  PileConfigurationKey,
+} from "./projectTypes.ts";
 
 export type LoadPointGroup = {
   load_point_ids: number[];
@@ -48,10 +52,20 @@ export type BrowserLoadPointGroupAssignmentRequest =
 export type DesktopLoadPointGroupAssignmentRequest =
   CoreLoadPointGroupAssignmentRequest<Record<string, PileConfigurationKey>>;
 
-export function toDeriveLoadPointGroupsRequest(loadPoints: LoadPoint[]): {
+export function toDeriveLoadPointGroupsRequest(
+  loadPoints: LoadPoint[],
+  settings: LoadPointGroupingSettings,
+): {
   load_points: LoadPoint[];
+  settings: { automatic: boolean; max_edge_distance_mm: number };
 } {
-  return { load_points: loadPoints };
+  return {
+    load_points: loadPoints,
+    settings: {
+      automatic: settings.automatic,
+      max_edge_distance_mm: settings.maxEdgeDistanceM * 1_000,
+    },
+  };
 }
 
 export function toBrowserLoadPointGroupAssignmentRequest(

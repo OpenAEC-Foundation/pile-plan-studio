@@ -10,6 +10,7 @@ export type ProjectContent = Pick<ProjectState,
   | "bearingCapacities"
   | "globalCptSelectionSettings"
   | "cptSelectionSettingsByLoadPoint"
+  | "loadPointGroupingSettings"
   | "pileCostSettings"
   | "pileHeadLevelM"
   | "currencyCode"
@@ -39,6 +40,7 @@ const PROJECT_CONTENT_KEYS = [
   "bearingCapacities",
   "globalCptSelectionSettings",
   "cptSelectionSettingsByLoadPoint",
+  "loadPointGroupingSettings",
   "pileCostSettings",
   "pileHeadLevelM",
   "currencyCode",

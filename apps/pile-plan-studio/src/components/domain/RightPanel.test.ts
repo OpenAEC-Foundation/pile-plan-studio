@@ -236,6 +236,22 @@ describe("React optimization panel", () => {
   });
 });
 
+describe("React load point grouping settings panel", () => {
+  it("edits automatic grouping and preserves the disabled distance field", () => {
+    const panel = readFileSync(resolve(import.meta.dirname, "RightPanel.tsx"), "utf8");
+    const english = JSON.parse(readFileSync(resolve(import.meta.dirname, "../../i18n/locales/en/rightPanel.json"), "utf8"));
+    const dutch = JSON.parse(readFileSync(resolve(import.meta.dirname, "../../i18n/locales/nl/rightPanel.json"), "utf8"));
+
+    assert.match(panel, /taskPanel === "grouping-settings"[\s\S]*?<GroupingSettingsPanel/);
+    assert.match(panel, /checked=\{settings\.automatic\}/);
+    assert.match(panel, /loadPointGroupingSettings:\s*\{[\s\S]*automatic:\s*event\.currentTarget\.checked/);
+    assert.match(panel, /ariaLabel=\{t\("groupingSettings\.maxDistance"\)\}[\s\S]*disabled=\{!settings\.automatic\}/);
+    assert.match(panel, /maxEdgeDistanceM:\s*value/);
+    assert.equal(english["groupingSettings.automatic"], "Automatically group load points");
+    assert.equal(dutch["groupingSettings.automatic"], "Belastinglocaties automatisch groeperen");
+  });
+});
+
 describe("React cost settings panel", () => {
   it("keeps edited pile costs inside the current project", () => {
     const panel = readFileSync(resolve(import.meta.dirname, "RightPanel.tsx"), "utf8");

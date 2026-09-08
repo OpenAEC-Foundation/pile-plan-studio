@@ -35,6 +35,7 @@
       "cpt-selection_one": "Sonderingselectie van {{count}} belastinglocatie gewijzigd",
       "cpt-selection_other": "Sonderingselectie van {{count}} belastinglocaties gewijzigd",
       "cpt-settings": "Sonderingsinstellingen gewijzigd",
+      "grouping-settings": "Groeperingsinstellingen gewijzigd",
       "locks_one": "{{count}} vergrendeling gewijzigd in {{pilePlanName}}",
       "locks_other": "{{count}} vergrendelingen gewijzigd in {{pilePlanName}}",
       "cost-settings": "Kosteninstellingen gewijzigd",

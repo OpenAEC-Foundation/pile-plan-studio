@@ -44,6 +44,18 @@ describe("history action inference", () => {
     }), { kind: "cost-settings" });
   });
 
+  it("recognizes load point grouping settings", () => {
+    const before = content();
+
+    assert.deepEqual(inferHistoryAction(before, {
+      ...before,
+      loadPointGroupingSettings: {
+        ...before.loadPointGroupingSettings,
+        automatic: false,
+      },
+    }), { kind: "grouping-settings" });
+  });
+
   it("recognizes a project legend appearance change", () => {
     const before = content();
     const after = {

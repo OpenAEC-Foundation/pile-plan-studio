@@ -51,6 +51,10 @@ browser.
 - Adjust symbol size, preferred utilization range, and the foreground object
   type directly from the View ribbon.
 - Assign one pile configuration to one or multiple selected load points.
+- Automatically group nearby load points using a project-wide distance, or
+  disable grouping so every load point can be assigned independently. Selecting
+  a grouped load point highlights its other group members and reports the group
+  scope above the pile options.
 - Lock load points per pile plan so their assignments remain unchanged during
   selection and optimization workflows.
 - Keep multiple named pile-plan variants in one project and compare their

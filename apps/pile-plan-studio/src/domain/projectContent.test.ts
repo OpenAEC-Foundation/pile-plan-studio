@@ -33,6 +33,24 @@ describe("project content", () => {
     assert.equal("activePileSizes" in content, false);
     assert.equal("activePileTipLevels" in content, false);
     assert.equal(content.showTipLevelRegions, true);
+    assert.equal(content.loadPointGroupingSettings, state.loadPointGroupingSettings);
+  });
+
+  it("treats load point grouping settings as undoable project content", () => {
+    const state = normalizeProjectContentState(createInitialProjectState(
+      sampleProjectText,
+      { initializeDefaultPiles: false },
+    ));
+    const before = captureProjectContent(state);
+    const after = captureProjectContent({
+      ...state,
+      loadPointGroupingSettings: {
+        automatic: false,
+        maxEdgeDistanceM: 2.5,
+      },
+    });
+
+    assert.equal(projectContentEquals(before, after), false);
   });
 
   it("treats tip-level region visibility as undoable project content", () => {

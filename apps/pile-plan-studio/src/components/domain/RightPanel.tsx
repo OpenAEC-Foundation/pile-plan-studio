@@ -48,8 +48,12 @@ import type { LoadPointGroup } from "../../core/loadPointGroupContract.ts";
 import type { TechnicalAssignmentSnapshot } from "./technicalAssignmentController.ts";
 import TechnicalAssignmentNotice from "./TechnicalAssignmentNotice.tsx";
 import MissingCptPopover from "./MissingCptPopover.tsx";
+import {
+  getLoadPointGroupNotice,
+  getLoadPointGroupSelection,
+} from "../../viewer/loadPointGroupSelection.ts";
 
-export type RightTaskPanel = "cpt-settings" | "cost-settings" | "optimization";
+export type RightTaskPanel = "cpt-settings" | "cost-settings" | "grouping-settings" | "optimization";
 
 type Props = {
   state: ProjectState;
@@ -119,6 +123,8 @@ export default function RightPanel({
         />
       ) : taskPanel === "cpt-settings" ? (
         <CptSettingsPanel state={state} onStateChange={onStateChange} onClose={onCloseTaskPanel} />
+      ) : taskPanel === "grouping-settings" ? (
+        <GroupingSettingsPanel state={state} onStateChange={onStateChange} onClose={onCloseTaskPanel} />
       ) : state.rightPanelMode === "cpts" ? (
         <CptPanel state={state} onStateChange={onStateChange} selectedLoadPoints={selectedLoadPoints} />
       ) : selectedLoadPoints.length === 0 ? (
@@ -139,6 +145,64 @@ export default function RightPanel({
         />
       )}
     </aside>
+  );
+}
+
+function GroupingSettingsPanel({ state, onStateChange, onClose }: Props & { onClose: () => void }) {
+  const { t } = useTranslation("rightPanel");
+  const settings = state.loadPointGroupingSettings;
+
+  return (
+    <div className="grouping-settings-panel">
+      <header className="right-panel-header">
+        <div>
+          <h2>{t("groupingSettings.title")}</h2>
+          <span>{t("groupingSettings.subtitle")}</span>
+        </div>
+        <button className="right-panel-task-close" type="button" aria-label={t("actions.close")} onClick={onClose}>&times;</button>
+      </header>
+
+      <div className="settings-scroll">
+        <SettingsGroup title={t("groupingSettings.automaticGroup")}>
+          <label className="settings-checkbox">
+            <input
+              checked={settings.automatic}
+              type="checkbox"
+              onChange={(event) => onStateChange({
+                ...state,
+                loadPointGroupingSettings: {
+                  ...settings,
+                  automatic: event.currentTarget.checked,
+                },
+              })}
+            />
+            <span>{t("groupingSettings.automatic")}</span>
+          </label>
+          <p className="supporting-text">{t("groupingSettings.automaticHelp")}</p>
+        </SettingsGroup>
+
+        <SettingsGroup title={t("groupingSettings.distanceGroup")} muted={!settings.automatic}>
+          <DraftNumberField
+            ariaLabel={t("groupingSettings.maxDistance")}
+            disabled={!settings.automatic}
+            emptyValue={0}
+            helpText={t("groupingSettings.maxDistanceHelp")}
+            label={t("groupingSettings.maxDistance")}
+            min={0}
+            step={0.1}
+            suffix="m"
+            value={settings.maxEdgeDistanceM}
+            onCommit={(value) => onStateChange({
+              ...state,
+              loadPointGroupingSettings: {
+                ...settings,
+                maxEdgeDistanceM: value,
+              },
+            })}
+          />
+        </SettingsGroup>
+      </div>
+    </div>
   );
 }
 
@@ -692,6 +756,14 @@ function LoadPointPanel({
     pileOptionsByLoadPointId,
   });
   const selectedCount = selectedLoadPoints.length;
+  const groupSelection = getLoadPointGroupSelection({
+    selectedLoadPointIds: selectedLoadPoints.map(({ id }) => id),
+    groups: loadPointGroups,
+  });
+  const groupNotice = getLoadPointGroupNotice({
+    selection: groupSelection,
+    selectedLoadPointCount: selectedCount,
+  });
   const columns = getPileOptionColumns(selectedCount);
   const retainedConfiguration = getChosenPileOptionConfigurationForSelection(state, selectedLoadPoints);
   const rows = (selectedCount > 1
@@ -779,21 +851,28 @@ function LoadPointPanel({
 
       {technicalAssignment.status !== "error" ? (
       <section className="pile-options-section">
-        <div className="section-heading">
-          <h3>{t("pileOptions.title")}</h3>
-          <div className="section-heading-actions">
-            <span>{isLoading ? t("pileOptions.loading") : t("pileOptions.shown", { count: tableRows.length })}</span>
-            {hasAssignedSelection ? (
-              <button
-                className="clear-pile-assignment"
-                disabled={pileAssignmentPending}
-                type="button"
-                onClick={() => onApplyPileConfiguration(selectedLoadPoints.map(({ id }) => id), null)}
-              >
-                {t("pileOptions.clearAssignment")}
-              </button>
-            ) : null}
+        <div className="pile-options-heading-stack">
+          <div className="section-heading">
+            <h3>{t("pileOptions.title")}</h3>
+            <div className="section-heading-actions">
+              <span>{isLoading ? t("pileOptions.loading") : t("pileOptions.shown", { count: tableRows.length })}</span>
+              {hasAssignedSelection ? (
+                <button
+                  className="clear-pile-assignment"
+                  disabled={pileAssignmentPending}
+                  type="button"
+                  onClick={() => onApplyPileConfiguration(selectedLoadPoints.map(({ id }) => id), null)}
+                >
+                  {t("pileOptions.clearAssignment")}
+                </button>
+              ) : null}
+            </div>
           </div>
+          {groupNotice ? (
+            <div className="pile-options-group-notice" role="status">
+              {t(groupNotice.translationKey, groupNotice.values)}
+            </div>
+          ) : null}
         </div>
         {!isLoading && tableError ? (
           <div className="right-panel-empty is-inline" role="alert">

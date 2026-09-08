@@ -117,6 +117,7 @@ pub struct SpatialNeighborhoodRequest {
 #[derive(Debug, Deserialize)]
 pub struct DeriveLoadPointGroupsRequest {
     pub load_points: Vec<ProjectLoadPoint>,
+    pub settings: LoadPointGroupingSettings,
 }
 
 #[derive(Debug, Deserialize)]
@@ -326,7 +327,7 @@ pub fn build_tip_level_region_topology(request: JsValue) -> Result<JsValue, JsVa
 pub fn derive_load_point_groups(request: JsValue) -> Result<JsValue, JsValue> {
     let request: DeriveLoadPointGroupsRequest = from_js_value(request)?;
     let groups: Vec<LoadPointGroup> =
-        derive_load_point_groups_core(&request.load_points, &LoadPointGroupingSettings::default());
+        derive_load_point_groups_core(&request.load_points, &request.settings);
     to_js_value(&groups)
 }
 
@@ -618,6 +619,7 @@ mod tests {
     fn load_point_group_requests_expose_core_results_for_browser_runtime() {
         let request = DeriveLoadPointGroupsRequest {
             load_points: vec![],
+            settings: LoadPointGroupingSettings::default(),
         };
         let groups = derive_load_point_groups_core(
             &request.load_points,

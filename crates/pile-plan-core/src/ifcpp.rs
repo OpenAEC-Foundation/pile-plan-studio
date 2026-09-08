@@ -210,6 +210,38 @@ mod tests {
     }
 
     #[test]
+    fn round_trips_load_point_grouping_settings() {
+        let mut project = project_fixture();
+        project.settings.load_point_grouping.automatic = false;
+        project.settings.load_point_grouping.max_edge_distance_mm = 2_500.0;
+
+        let json = write_ifcpp_string(&project).expect("project writes");
+        let parsed = read_ifcpp_str(&json).expect("project reads");
+
+        assert_eq!(
+            parsed.settings.load_point_grouping,
+            project.settings.load_point_grouping
+        );
+    }
+
+    #[test]
+    fn missing_load_point_grouping_settings_use_the_current_default() {
+        let mut value = serde_json::to_value(project_fixture()).expect("fixture serializes");
+        value["settings"]
+            .as_object_mut()
+            .expect("settings are an object")
+            .remove("load_point_grouping");
+
+        let parsed = read_ifcpp_str(&serde_json::to_string(&value).expect("JSON writes"))
+            .expect("project reads");
+
+        assert_eq!(
+            parsed.settings.load_point_grouping,
+            crate::LoadPointGroupingSettings::default()
+        );
+    }
+
+    #[test]
     fn rejects_non_ifcpp_schema() {
         let mut project = project_fixture();
         project.schema = "IFC".to_string();
@@ -400,6 +432,7 @@ mod tests {
                     max_angle_degrees: 120.0,
                 },
                 cpt_selection_by_load_point: Default::default(),
+                load_point_grouping: Default::default(),
                 pile_costs: PileCostSettings {
                     schema_version: 1,
                     items: vec![PileCostSettingsItem {

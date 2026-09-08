@@ -6,6 +6,7 @@ use crate::import::{ImportProfile, ImportRole, SourceFormat};
 
 use crate::analysis::{BearingCapacity, Cpt, CptSelectionSettings, LoadPoint, PileCostSettings};
 use crate::greedy_optimizer::{GreedyOptimizationSettings, OptimizationUnassignedReason};
+use crate::load_point_groups::LoadPointGroupingSettings;
 use crate::pile_configuration::PileConfigurationKey;
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
@@ -66,6 +67,8 @@ pub struct ProjectInputs {
 pub struct ProjectSettings {
     pub global_cpt_selection: CptSelectionSettings,
     pub cpt_selection_by_load_point: HashMap<u32, CptSelectionSettings>,
+    #[serde(default)]
+    pub load_point_grouping: LoadPointGroupingSettings,
     pub pile_costs: PileCostSettings,
     #[serde(default)]
     pub pile_head_level_m: Option<f64>,
@@ -781,6 +784,7 @@ mod tests {
                         max_angle_degrees: 100.0,
                     },
                 )]),
+                load_point_grouping: LoadPointGroupingSettings::default(),
                 pile_costs: PileCostSettings {
                     schema_version: 1,
                     items: vec![PileCostSettingsItem {

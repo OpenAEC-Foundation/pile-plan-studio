@@ -316,6 +316,7 @@ fn build_imported_project(
                 max_angle_degrees: 120.0,
             },
             cpt_selection_by_load_point: HashMap::new(),
+            load_point_grouping: Default::default(),
             pile_costs: PileCostSettings {
                 schema_version: 2,
                 items: vec![],

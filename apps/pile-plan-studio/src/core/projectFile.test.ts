@@ -127,6 +127,32 @@ describe("IFCPP project loading", () => {
     assert.equal(data.foregroundLayer, "load-points");
     assert.equal(data.showGrid, true);
     assert.equal(data.showTipLevelRegions, true);
+    assert.deepEqual(data.loadPointGroupingSettings, {
+      automatic: true,
+      maxEdgeDistanceM: 1.2,
+    });
+  });
+
+  it("round-trips project-wide load point grouping settings", () => {
+    const project = projectFixture();
+    project.settings.load_point_grouping = {
+      automatic: false,
+      max_edge_distance_mm: 2_500,
+    };
+
+    const loaded = loadIfcppProjectData(project);
+    const saved = createIfcppProject(loaded);
+    const restored = loadIfcppProjectData(saved);
+
+    assert.deepEqual(loaded.loadPointGroupingSettings, {
+      automatic: false,
+      maxEdgeDistanceM: 2.5,
+    });
+    assert.deepEqual(saved.settings.load_point_grouping, {
+      automatic: false,
+      max_edge_distance_mm: 2_500,
+    });
+    assert.deepEqual(restored.loadPointGroupingSettings, loaded.loadPointGroupingSettings);
   });
 
   it("round-trips tip-level region visibility while upgrading to schema four", () => {

@@ -26,7 +26,7 @@ import { getTipLevelRegionToggle } from "./tipLevelRegionToggle.ts";
 import "./Ribbon.css";
 
 type TabId = "plan" | "view";
-type TaskPanel = "cpt-settings" | "cost-settings" | "optimization";
+type TaskPanel = "cpt-settings" | "cost-settings" | "grouping-settings" | "optimization";
 
 const TABS: TabId[] = ["plan", "view"];
 
@@ -176,6 +176,7 @@ export default function Ribbon({
                 <RibbonButtonStack>
                   <RibbonButton icon={settingsIcon} label={t("plan.cptSettings")} size="small" onClick={() => onOpenTaskPanel?.("cpt-settings")} />
                   <RibbonButton icon={settingsIcon} label={t("plan.costSettings")} size="small" onClick={() => onOpenTaskPanel?.("cost-settings")} />
+                  <RibbonButton icon={settingsIcon} label={t("plan.groupingSettings")} size="small" onClick={() => onOpenTaskPanel?.("grouping-settings")} />
                 </RibbonButtonStack>
               </RibbonGroup>
               <RibbonGroup label={t("plan.locking")}>

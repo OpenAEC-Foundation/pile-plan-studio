@@ -22,6 +22,8 @@ intentional and should be considered when evaluating its results.
 - The preferred utilization range controls viewer highlighting. Engineering
   option validity remains based on the calculated resistance check; the greedy
   optimizer has its own configurable maximum utilization.
+- Load-point grouping is automatic and distance-based. Manual grouping is not
+  available yet.
 
 ## Data and Projects
 

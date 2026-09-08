@@ -61,6 +61,11 @@ export type CptSelectionSettings = {
   maxAngleDegrees: number;
 };
 
+export type LoadPointGroupingSettings = {
+  automatic: boolean;
+  maxEdgeDistanceM: number;
+};
+
 export type PileOptionTechnicalStatus =
   | "valid"
   | "missing_capacity_data"

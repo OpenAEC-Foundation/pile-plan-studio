@@ -35,6 +35,7 @@
       "cpt-selection_one": "Changed the CPT selection for {{count}} load point",
       "cpt-selection_other": "Changed the CPT selection for {{count}} load points",
       "cpt-settings": "Changed CPT settings",
+      "grouping-settings": "Changed grouping settings",
       "locks_one": "Changed {{count}} lock in {{pilePlanName}}",
       "locks_other": "Changed {{count}} locks in {{pilePlanName}}",
       "cost-settings": "Changed cost settings",

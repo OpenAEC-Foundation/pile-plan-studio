@@ -78,7 +78,8 @@
   grid-template-rows: auto auto 1fr;
 }
 
-.cpt-settings-panel {
+.cpt-settings-panel,
+.grouping-settings-panel {
   display: grid;
   flex: 1;
   min-height: 0;
@@ -626,6 +627,22 @@
   overflow: hidden;
   grid-template-rows: auto 1fr;
   padding: 10px 0 0;
+}
+
+.pile-options-heading-stack {
+  display: grid;
+  gap: 7px;
+}
+
+.pile-options-group-notice {
+  margin: 0 10px;
+  padding: 7px 8px;
+  border: 1px solid var(--theme-border);
+  border-radius: 4px;
+  color: var(--theme-text-secondary);
+  background: var(--theme-surface);
+  font-size: 11px;
+  line-height: 1.35;
 }
 
 .section-heading {

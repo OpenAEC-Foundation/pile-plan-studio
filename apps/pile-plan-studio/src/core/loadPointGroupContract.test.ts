@@ -16,13 +16,20 @@ const loadPoints: LoadPoint[] = [
 ];
 
 describe("load point group transport contract", () => {
-  it("derives groups from load points without duplicating the distance rule", () => {
-    assert.deepEqual(toDeriveLoadPointGroupsRequest(loadPoints), {
+  it("derives groups with project settings converted to the core distance unit", () => {
+    assert.deepEqual(toDeriveLoadPointGroupsRequest(loadPoints, {
+      automatic: false,
+      maxEdgeDistanceM: 1.25,
+    }), {
       load_points: loadPoints,
+      settings: {
+        automatic: false,
+        max_edge_distance_mm: 1_250,
+      },
     });
 
     const source = readFileSync(new URL("./loadPointGroupContract.ts", import.meta.url), "utf8");
-    assert.doesNotMatch(source, /1200|1_200/);
+    assert.doesNotMatch(source, /1200|1_200|1\.2/);
   });
 
   it("keeps numeric assignment maps for the browser runtime", () => {

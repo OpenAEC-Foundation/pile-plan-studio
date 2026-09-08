@@ -115,6 +115,7 @@ describe("Plan and View ribbon", () => {
     assert.match(source, /onOpenRightPanel\?\.\("cpts"\)/);
     assert.match(source, /onOpenTaskPanel\?\.\("cpt-settings"\)/);
     assert.match(source, /onOpenTaskPanel\?\.\("cost-settings"\)/);
+    assert.match(source, /onOpenTaskPanel\?\.\("grouping-settings"\)/);
     assert.match(source, /onOpenTaskPanel\?\.\("optimization"\)/);
     assert.doesNotMatch(source, /label=\{t\("project\.validate"\)\}/);
     assert.doesNotMatch(source, /label=\{t\("view\.help"\)\}/);
@@ -162,5 +163,6 @@ describe("Plan and View ribbon", () => {
     assert.equal(translations.plan.cpts, "Sonderingen");
     assert.equal(translations.plan.cptSettings, "Sonderingsinstellingen");
     assert.equal(translations.plan.costSettings, "Kosteninstellingen");
+    assert.equal(translations.plan.groupingSettings, "Groeperingsinstellingen");
   });
 });

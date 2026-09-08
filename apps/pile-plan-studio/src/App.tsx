@@ -276,7 +276,10 @@ function AppSession({
   const projectState = managedProject.present;
   const projectStateRef = useRef(projectState);
   projectStateRef.current = projectState;
-  const loadPointGroups = useLoadPointGroups(projectState.loadPoints);
+  const loadPointGroups = useLoadPointGroups(
+    projectState.loadPoints,
+    projectState.loadPointGroupingSettings,
+  );
   const technicalPileOptionsByLoadPointId = useMemo(
     () => getEffectivePileOptionsByLoadPointId(projectState),
     [projectState.cptSelectionEditDraft, projectState.cptSelectionPreview, projectState.pileOptionsByLoadPointId],

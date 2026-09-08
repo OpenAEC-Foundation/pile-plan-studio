@@ -8,15 +8,22 @@ pub const DEFAULT_MAX_GROUP_EDGE_DISTANCE_MM: f64 = 1_200.0;
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
 pub struct LoadPointGroupingSettings {
+    #[serde(default = "default_automatic_grouping")]
+    pub automatic: bool,
     pub max_edge_distance_mm: f64,
 }
 
 impl Default for LoadPointGroupingSettings {
     fn default() -> Self {
         Self {
+            automatic: true,
             max_edge_distance_mm: DEFAULT_MAX_GROUP_EDGE_DISTANCE_MM,
         }
     }
+}
+
+fn default_automatic_grouping() -> bool {
+    true
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
@@ -62,7 +69,7 @@ pub fn derive_load_point_groups(
     settings: &LoadPointGroupingSettings,
 ) -> Vec<LoadPointGroup> {
     let mut components = UnionFind::new(load_points.len());
-    let max_distance_mm = if settings.max_edge_distance_mm.is_finite() {
+    let max_distance_mm = if settings.automatic && settings.max_edge_distance_mm.is_finite() {
         settings.max_edge_distance_mm.max(0.0)
     } else {
         0.0
@@ -276,6 +283,28 @@ mod tests {
     }
 
     #[test]
+    fn automatic_grouping_defaults_to_enabled() {
+        assert!(LoadPointGroupingSettings::default().automatic);
+    }
+
+    #[test]
+    fn disabled_automatic_grouping_keeps_every_load_point_independent() {
+        let groups = derive_load_point_groups(
+            &[
+                point(8, 0.0, 0.0),
+                point(2, 100.0, 0.0),
+                point(5, 200.0, 0.0),
+            ],
+            &LoadPointGroupingSettings {
+                automatic: false,
+                ..LoadPointGroupingSettings::default()
+            },
+        );
+
+        assert_eq!(groups, vec![group(&[2]), group(&[5]), group(&[8])]);
+    }
+
+    #[test]
     fn isolated_load_point_forms_a_singleton_group() {
         assert_eq!(derive(&[point(7, 10.0, 20.0)]), vec![group(&[7])]);
     }
@@ -336,6 +365,7 @@ mod tests {
                     &load_points,
                     &LoadPointGroupingSettings {
                         max_edge_distance_mm,
+                        ..LoadPointGroupingSettings::default()
                     },
                 ),
                 vec![group(&[1]), group(&[2])],

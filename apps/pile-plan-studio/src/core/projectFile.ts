@@ -8,6 +8,7 @@ import type {
   LegendColorScheme,
   LegendItems,
   LoadPoint,
+  LoadPointGroupingSettings,
   IfcppPileConfigurationKey,
   PileConfigurationKey,
   PileCostSettings,
@@ -81,6 +82,11 @@ type IfcppViewerSettings = {
   show_tip_level_regions?: boolean;
 };
 
+type IfcppLoadPointGroupingSettings = {
+  automatic?: unknown;
+  max_edge_distance_mm?: unknown;
+};
+
 export type IfcppPilePlan = {
   id: string;
   name: string;
@@ -128,6 +134,7 @@ export type IfcppProject = {
   settings: {
     global_cpt_selection: IfcppCptSelectionSettings;
     cpt_selection_by_load_point: Record<string, IfcppCptSelectionSettings>;
+    load_point_grouping?: IfcppLoadPointGroupingSettings;
     pile_costs: IfcppPileCostSettings;
     pile_head_level_m?: number | null;
     optimization: IfcppGreedyOptimizationSettings;
@@ -169,6 +176,7 @@ export type LoadedProjectData = {
   bearingCapacities: BearingCapacity[];
   globalCptSelectionSettings: CptSelectionSettings;
   cptSelectionSettingsByLoadPoint: Map<number, CptSelectionSettings>;
+  loadPointGroupingSettings: LoadPointGroupingSettings;
   pileCostSettings: PileCostSettings;
   pileHeadLevelM: number | null;
   currencyCode: string;
@@ -225,6 +233,9 @@ export function loadIfcppProjectData(input: string | IfcppProject): LoadedProjec
     cptSelectionSettingsByLoadPoint: new Map(
       numberKeyedEntries(project.settings.cpt_selection_by_load_point)
         .map(([loadPointId, settings]) => [loadPointId, fromIfcppCptSelectionSettings(settings)]),
+    ),
+    loadPointGroupingSettings: normalizeLoadPointGroupingSettings(
+      project.settings.load_point_grouping,
     ),
     pileCostSettings: normalizePileCostSettings(project.settings.pile_costs),
     pileHeadLevelM: normalizePileHeadLevel(project),
@@ -356,6 +367,7 @@ export function createIfcppProject(input: {
   bearingCapacities: BearingCapacity[];
   globalCptSelectionSettings: CptSelectionSettings;
   cptSelectionSettingsByLoadPoint: Map<number, CptSelectionSettings>;
+  loadPointGroupingSettings: LoadPointGroupingSettings;
   pileCostSettings: PileCostSettings;
   pileHeadLevelM: number | null;
   currencyCode: string;
@@ -422,6 +434,10 @@ export function createIfcppProject(input: {
         [...input.cptSelectionSettingsByLoadPoint.entries()]
           .map(([loadPointId, settings]) => [String(loadPointId), toIfcppCptSelectionSettings(settings)]),
       ),
+      load_point_grouping: {
+        automatic: input.loadPointGroupingSettings.automatic,
+        max_edge_distance_mm: input.loadPointGroupingSettings.maxEdgeDistanceM * 1_000,
+      },
       pile_costs: input.pileCostSettings,
       pile_head_level_m: input.pileHeadLevelM,
       optimization: input.optimizationSettings,
@@ -535,6 +551,20 @@ function normalizeViewerUtilizationSettings(
   return {
     minimum: Math.min(minimum, maximum),
     maximum: Math.max(minimum, maximum),
+  };
+}
+
+function normalizeLoadPointGroupingSettings(
+  settings: IfcppLoadPointGroupingSettings | undefined,
+): LoadPointGroupingSettings {
+  const maxEdgeDistanceMm = typeof settings?.max_edge_distance_mm === "number"
+    && Number.isFinite(settings.max_edge_distance_mm)
+    && settings.max_edge_distance_mm >= 0
+    ? settings.max_edge_distance_mm
+    : 1_200;
+  return {
+    automatic: typeof settings?.automatic === "boolean" ? settings.automatic : true,
+    maxEdgeDistanceM: maxEdgeDistanceMm / 1_000,
   };
 }
 

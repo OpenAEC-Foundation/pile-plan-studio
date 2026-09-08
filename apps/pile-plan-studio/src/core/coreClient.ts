@@ -42,6 +42,7 @@ import {
   type GreedyOptimizationOutcome,
   type OptimizationLimitScope,
   type LoadPoint,
+  type LoadPointGroupingSettings,
   type PileConfigurationOption,
   type PileConfigurationKey,
   type PilePlanExportInput,
@@ -337,8 +338,9 @@ export async function chooseDefaultPileOptionsCore(input: {
 
 export async function deriveLoadPointGroupsCore(
   loadPoints: LoadPoint[],
+  settings: LoadPointGroupingSettings,
 ): Promise<LoadPointGroup[]> {
-  const request = toDeriveLoadPointGroupsRequest(loadPoints);
+  const request = toDeriveLoadPointGroupsRequest(loadPoints, settings);
   let result: LoadPointGroup[];
   if (!isTauriRuntime()) {
     await initializeWasm();

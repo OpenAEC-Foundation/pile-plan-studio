@@ -6,6 +6,7 @@ export type HistoryActionKind =
   | "pile-change"
   | "cpt-selection"
   | "cpt-settings"
+  | "grouping-settings"
   | "locks"
   | "cost-settings"
   | "legend-settings"
@@ -53,6 +54,9 @@ export function inferHistoryAction(
       kind: "cpt-selection",
       count: changedMapEntryCount(before.manualCptIdsByLoadPoint, after.manualCptIdsByLoadPoint),
     };
+  }
+  if (before.loadPointGroupingSettings !== after.loadPointGroupingSettings) {
+    return { kind: "grouping-settings" };
   }
   if (before.pileCostSettings !== after.pileCostSettings) return { kind: "cost-settings" };
   if (before.optimizationSettings !== after.optimizationSettings) {

@@ -22,6 +22,7 @@
     "settings": "Settings",
     "cptSettings": "CPT settings",
     "costSettings": "Cost settings",
+    "groupingSettings": "Grouping settings",
     "locking": "Locking",
     "editLocks": "Lock\nload points",
     "applyLocks": "Apply",

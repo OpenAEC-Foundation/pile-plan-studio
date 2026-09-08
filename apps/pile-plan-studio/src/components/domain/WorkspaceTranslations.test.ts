@@ -148,6 +148,28 @@ describe("Workspace translations", () => {
     assert.match(nl, /"cptSettings\.manualCount":\s*"\{\{count\}\} sonderingen zijn handmatig geselecteerd voor de geselecteerde belastinglocaties\."/);
   });
 
+  it("provides bilingual group-selection notices for the pile options panel", () => {
+    const en = JSON.parse(readFileSync(resolve(import.meta.dirname, "../../i18n/locales/en/rightPanel.json"), "utf8"));
+    const nl = JSON.parse(readFileSync(resolve(import.meta.dirname, "../../i18n/locales/nl/rightPanel.json"), "utf8"));
+
+    assert.equal(
+      en["pileOptions.groupSelection.single"],
+      "This selection is a group of {{count}} marked load points.",
+    );
+    assert.equal(
+      en["pileOptions.groupSelection.multiple"],
+      "This selection includes {{groupCount}} groups with {{count}} marked load points in total.",
+    );
+    assert.equal(
+      nl["pileOptions.groupSelection.single"],
+      "Deze selectie betreft een groep van {{count}} gemarkeerde locaties.",
+    );
+    assert.equal(
+      nl["pileOptions.groupSelection.multiple"],
+      "Deze selectie betreft {{groupCount}} groepen met in totaal {{count}} gemarkeerde locaties.",
+    );
+  });
+
   it("translates CPT selection values and range labels at render time", () => {
     const panel = readFileSync(resolve(import.meta.dirname, "RightPanel.tsx"), "utf8");
 

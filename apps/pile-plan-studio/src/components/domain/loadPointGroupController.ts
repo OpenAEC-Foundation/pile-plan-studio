@@ -1,6 +1,6 @@
 import type { deriveLoadPointGroupsCore } from "../../core/coreClient.ts";
 import type { LoadPointGroup } from "../../core/loadPointGroupContract.ts";
-import type { LoadPoint } from "../../core/projectTypes.ts";
+import type { LoadPoint, LoadPointGroupingSettings } from "../../core/projectTypes.ts";
 
 export type LoadPointGroupSnapshot = {
   groups: LoadPointGroup[];
@@ -9,7 +9,7 @@ export type LoadPointGroupSnapshot = {
 };
 
 export type LoadPointGroupController = {
-  update(loadPoints: LoadPoint[]): Promise<void>;
+  update(loadPoints: LoadPoint[], settings: LoadPointGroupingSettings): Promise<void>;
   subscribe(listener: (snapshot: LoadPointGroupSnapshot) => void): () => void;
   dispose(): void;
 };
@@ -31,9 +31,9 @@ export function createLoadPointGroupController(
   const listeners = new Set<(snapshot: LoadPointGroupSnapshot) => void>();
 
   return {
-    update(loadPoints) {
+    update(loadPoints, settings) {
       if (disposed) return Promise.resolve();
-      const geometrySignature = buildLoadPointGeometrySignature(loadPoints);
+      const geometrySignature = buildLoadPointGroupSignature(loadPoints, settings);
       if (geometrySignature === completedGeometrySignature) {
         if (activeGeometrySignature && activeGeometrySignature !== geometrySignature) {
           generation += 1;
@@ -48,7 +48,7 @@ export function createLoadPointGroupController(
       const requestGeneration = ++generation;
       activeGeometrySignature = geometrySignature;
       setSnapshot({ groups: [], pending: true, error: null });
-      const update = deriveGroups(loadPoints)
+      const update = deriveGroups(loadPoints, settings)
         .then((groups) => {
           if (disposed || requestGeneration !== generation) return;
           completedGeometrySignature = geometrySignature;
@@ -98,12 +98,16 @@ export function createLoadPointGroupController(
   }
 }
 
-export function buildLoadPointGeometrySignature(loadPoints: LoadPoint[]): string {
-  return JSON.stringify(
-    loadPoints
+export function buildLoadPointGroupSignature(
+  loadPoints: LoadPoint[],
+  settings: LoadPointGroupingSettings,
+): string {
+  return JSON.stringify({
+    loadPoints: loadPoints
       .map(({ id, x_mm, y_mm }) => [id, x_mm, y_mm])
       .sort(([firstId], [secondId]) => firstId - secondId),
-  );
+    settings,
+  });
 }
 
 function cloneSnapshot(snapshot: LoadPointGroupSnapshot): LoadPointGroupSnapshot {

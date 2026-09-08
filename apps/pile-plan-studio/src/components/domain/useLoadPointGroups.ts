@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 
 import { deriveLoadPointGroupsCore } from "../../core/coreClient.ts";
-import type { LoadPoint } from "../../core/projectTypes.ts";
+import type { LoadPoint, LoadPointGroupingSettings } from "../../core/projectTypes.ts";
 import {
   createLoadPointGroupController,
   type LoadPointGroupController,
@@ -14,7 +14,10 @@ const INITIAL_SNAPSHOT: LoadPointGroupSnapshot = {
   error: null,
 };
 
-export function useLoadPointGroups(loadPoints: LoadPoint[]): LoadPointGroupSnapshot {
+export function useLoadPointGroups(
+  loadPoints: LoadPoint[],
+  settings: LoadPointGroupingSettings,
+): LoadPointGroupSnapshot {
   const controllerRef = useRef<LoadPointGroupController | null>(null);
   const [snapshot, setSnapshot] = useState<LoadPointGroupSnapshot>(INITIAL_SNAPSHOT);
 
@@ -22,7 +25,7 @@ export function useLoadPointGroups(loadPoints: LoadPoint[]): LoadPointGroupSnaps
     const controller = createLoadPointGroupController(deriveLoadPointGroupsCore);
     controllerRef.current = controller;
     const unsubscribe = controller.subscribe(setSnapshot);
-    void controller.update(loadPoints);
+    void controller.update(loadPoints, settings);
 
     return () => {
       unsubscribe();
@@ -32,8 +35,8 @@ export function useLoadPointGroups(loadPoints: LoadPoint[]): LoadPointGroupSnaps
   }, []);
 
   useEffect(() => {
-    void controllerRef.current?.update(loadPoints);
-  }, [loadPoints]);
+    void controllerRef.current?.update(loadPoints, settings);
+  }, [loadPoints, settings]);
 
   return snapshot;
 }

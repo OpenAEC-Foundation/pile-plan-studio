@@ -122,6 +122,7 @@ struct SpatialNeighborhoodRequest {
 #[derive(Debug, Deserialize)]
 struct DeriveLoadPointGroupsRequest {
     load_points: Vec<ProjectLoadPoint>,
+    settings: LoadPointGroupingSettings,
 }
 
 #[derive(Debug, Deserialize)]
@@ -313,7 +314,7 @@ fn build_tip_level_region_topology(
 fn derive_load_point_groups(request: DeriveLoadPointGroupsRequest) -> Vec<LoadPointGroup> {
     derive_load_point_groups_core(
         &request.load_points,
-        &LoadPointGroupingSettings::default(),
+        &request.settings,
     )
 }
 
@@ -441,6 +442,7 @@ mod tests {
     fn load_point_group_commands_return_core_results() {
         let groups = derive_load_point_groups(DeriveLoadPointGroupsRequest {
             load_points: vec![],
+            settings: LoadPointGroupingSettings::default(),
         });
         let requested_configuration = PileConfigurationKey {
             pile_size_mm: 320,

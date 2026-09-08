@@ -93,6 +93,7 @@ import TipLevelRegionOverlay from "./TipLevelRegionOverlay.tsx";
 import type { LoadPointGroup } from "../../core/loadPointGroupContract.ts";
 import type { TechnicalAssignmentSnapshot } from "./technicalAssignmentController.ts";
 import type { TipLevelRegionTopology } from "../../core/spatialTopologyContract.ts";
+import { getLoadPointGroupSelection } from "../../viewer/loadPointGroupSelection.ts";
 
 type Props = {
   state: ProjectState;
@@ -114,6 +115,11 @@ export default function PilePlanViewer({
   const { t, i18n } = useTranslation("common");
   const legend = state.pileLegend;
   const selectedLoadPointIds = new Set(state.selectedLoadPointIds);
+  const groupSelection = useMemo(() => getLoadPointGroupSelection({
+    selectedLoadPointIds: state.selectedLoadPointIds,
+    groups: loadPointGroups,
+  }), [loadPointGroups, state.selectedLoadPointIds]);
+  const relatedLoadPointIds = new Set(groupSelection.relatedLoadPointIds);
   const activePilePlan = state.pilePlans.find(
     (plan) => plan.id === state.activePilePlanId,
   ) ?? state.pilePlans[0];
@@ -405,6 +411,7 @@ export default function PilePlanViewer({
           {state.loadPoints.map((loadPoint) => {
             const point = projectPointPixels(loadPoint, projectTransform);
             const isSelected = selectedLoadPointIds.has(loadPoint.id);
+            const isRelatedGroupMember = relatedLoadPointIds.has(loadPoint.id);
             const isLocked = lockedLoadPointIds.has(loadPoint.id);
             const selectedOption = getSelectedPileOption(state, loadPoint.id, pileOptionsByLoadPointId);
             const style = selectedOption
@@ -430,7 +437,7 @@ export default function PilePlanViewer({
             return (
               <button
                 aria-label={`Load point ${loadPoint.name}${unselectedTitle ? `. ${unselectedTitle}` : ""}`}
-                className={`load-point-marker${getLoadPointMarkerLayerClass(isSelected)}${isSelected ? " is-selected" : ""}${isLocked ? " is-locked" : ""}${unselectedClass}${activeHoverCandidateKey === `load-point:${loadPoint.id}` ? " is-hover-candidate" : ""}`}
+                className={`load-point-marker${getLoadPointMarkerLayerClass(isSelected || isRelatedGroupMember)}${isSelected ? " is-selected" : ""}${isRelatedGroupMember ? " is-related-group-member" : ""}${isLocked ? " is-locked" : ""}${unselectedClass}${activeHoverCandidateKey === `load-point:${loadPoint.id}` ? " is-hover-candidate" : ""}`}
                 data-map-marker-key={`load-point:${loadPoint.id}`}
                 key={loadPoint.id}
                 style={getProjectMarkerStyle(point)}

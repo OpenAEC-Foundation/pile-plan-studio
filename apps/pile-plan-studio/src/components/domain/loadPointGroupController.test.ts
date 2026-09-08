@@ -2,7 +2,7 @@ import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 
 import type { LoadPointGroup } from "../../core/loadPointGroupContract.ts";
-import type { LoadPoint } from "../../core/projectTypes.ts";
+import type { LoadPoint, LoadPointGroupingSettings } from "../../core/projectTypes.ts";
 import { createLoadPointGroupController } from "./loadPointGroupController.ts";
 
 type Deferred<T> = {
@@ -28,6 +28,11 @@ function point(id: number, xMm: number, designLoadKn = 100): LoadPoint {
   };
 }
 
+const automaticGrouping: LoadPointGroupingSettings = {
+  automatic: true,
+  maxEdgeDistanceM: 1.2,
+};
+
 describe("load point group controller", () => {
   it("publishes pending and completed snapshots", async () => {
     const response = deferred<LoadPointGroup[]>();
@@ -35,7 +40,7 @@ describe("load point group controller", () => {
     const snapshots: Array<{ groups: LoadPointGroup[]; pending: boolean }> = [];
     controller.subscribe(({ groups, pending }) => snapshots.push({ groups, pending }));
 
-    const update = controller.update([point(1, 0), point(2, 500)]);
+    const update = controller.update([point(1, 0), point(2, 500)], automaticGrouping);
     response.resolve([{ load_point_ids: [1, 2] }]);
     await update;
 
@@ -53,13 +58,31 @@ describe("load point group controller", () => {
       return [{ load_point_ids: loadPoints.map(({ id }) => id).sort() }];
     });
 
-    await controller.update([point(2, 500), point(1, 0)]);
-    await controller.update([point(1, 0), point(2, 500)]);
-    await controller.update([point(1, 0, 900), point(2, 500, 800)]);
-    await controller.update([point(1, 0), point(2, 501)]);
+    await controller.update([point(2, 500), point(1, 0)], automaticGrouping);
+    await controller.update([point(1, 0), point(2, 500)], automaticGrouping);
+    await controller.update([point(1, 0, 900), point(2, 500, 800)], automaticGrouping);
+    await controller.update([point(1, 0), point(2, 501)], automaticGrouping);
 
     assert.equal(requests.length, 2);
     assert.deepEqual(requests[1].map(({ x_mm }) => x_mm), [0, 501]);
+  });
+
+  it("recomputes groups when automatic grouping settings change", async () => {
+    const settingsRequests: LoadPointGroupingSettings[] = [];
+    const controller = createLoadPointGroupController(async (_loadPoints, settings) => {
+      settingsRequests.push(settings);
+      return [{ load_point_ids: [1] }];
+    });
+
+    await controller.update([point(1, 0)], automaticGrouping);
+    await controller.update([point(1, 0)], { ...automaticGrouping, maxEdgeDistanceM: 2.5 });
+    await controller.update([point(1, 0)], { ...automaticGrouping, automatic: false });
+
+    assert.deepEqual(settingsRequests, [
+      automaticGrouping,
+      { automatic: true, maxEdgeDistanceM: 2.5 },
+      { automatic: false, maxEdgeDistanceM: 1.2 },
+    ]);
   });
 
   it("ignores an older response after geometry changes", async () => {
@@ -73,8 +96,8 @@ describe("load point group controller", () => {
       if (!snapshot.pending && snapshot.groups.length > 0) completed.push(snapshot.groups);
     });
 
-    const older = controller.update([point(1, 0)]);
-    const newer = controller.update([point(1, 25)]);
+    const older = controller.update([point(1, 0)], automaticGrouping);
+    const newer = controller.update([point(1, 25)], automaticGrouping);
     responses[1].resolve([{ load_point_ids: [20] }]);
     await newer;
     responses[0].resolve([{ load_point_ids: [10] }]);
@@ -97,9 +120,9 @@ describe("load point group controller", () => {
       if (!snapshot.pending && snapshot.groups.length > 0) completed.push(snapshot.groups);
     });
 
-    await controller.update([point(1, 0)]);
-    const changedUpdate = controller.update([point(1, 25)]);
-    await controller.update([point(1, 0)]);
+    await controller.update([point(1, 0)], automaticGrouping);
+    const changedUpdate = controller.update([point(1, 25)], automaticGrouping);
+    await controller.update([point(1, 0)], automaticGrouping);
     changedGeometry.resolve([{ load_point_ids: [25] }]);
     await changedUpdate;
 
@@ -118,7 +141,7 @@ describe("load point group controller", () => {
     const snapshots: unknown[] = [];
     controller.subscribe((snapshot) => snapshots.push(snapshot));
 
-    await controller.update([point(1, 0)]);
+    await controller.update([point(1, 0)], automaticGrouping);
 
     assert.deepEqual(snapshots.at(-1), {
       groups: [],
@@ -137,11 +160,11 @@ describe("load point group controller", () => {
     const snapshots: unknown[] = [];
     controller.subscribe((snapshot) => snapshots.push(snapshot));
 
-    const update = controller.update([point(1, 0)]);
+    const update = controller.update([point(1, 0)], automaticGrouping);
     controller.dispose();
     response.resolve([{ load_point_ids: [1] }]);
     await update;
-    await controller.update([point(1, 5)]);
+    await controller.update([point(1, 5)], automaticGrouping);
 
     assert.equal(callCount, 1);
     assert.equal(snapshots.length, 2);
