@@ -44,7 +44,7 @@ const option = (tip: number): PileConfigurationOption => ({
 });
 
 const neighborhood = (x = 0): SpatialNeighborhood => ({
-  sites: [{ site_id: 1, load_point_ids: [1], x_mm: x, y_mm: 0 }],
+  load_point_ids: [1],
   edges: [],
   faces: [],
 });
@@ -53,7 +53,7 @@ const topology = (tip: number): TipLevelRegionTopology => ({
   groups: [{
     pile_tip_level_mm: tip * 1000,
     legend_value_m: tip,
-    site_ids: [1],
+    load_point_ids: [1],
     edges: [],
     faces: [],
   }],

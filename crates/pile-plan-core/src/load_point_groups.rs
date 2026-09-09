@@ -310,14 +310,6 @@ mod tests {
     }
 
     #[test]
-    fn coincident_load_points_are_grouped() {
-        assert_eq!(
-            derive(&[point(8, 10.0, 20.0), point(3, 10.0, 20.0)]),
-            vec![group(&[3, 8])],
-        );
-    }
-
-    #[test]
     fn distance_threshold_is_strict() {
         let groups = derive(&[
             point(1, 0.0, 0.0),

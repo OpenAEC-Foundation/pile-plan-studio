@@ -11,20 +11,20 @@ const layers: PresentedTipLevelRegionLayer[] = [{
   color: "#4E79A7",
   opacity: 0.25,
   faces: [{
-    boundarySiteIds: [1, 2, 3],
+    boundaryLoadPointIds: [1, 2, 3],
     points: [{ x: 10, y: 20 }, { x: 30, y: 20 }, { x: 20, y: 40 }],
   }],
   segments: [{
-    fromSiteId: 1,
-    toSiteId: 2,
+    fromLoadPointId: 1,
+    toLoadPointId: 2,
     x1: 10,
     y1: 20,
     x2: 30,
     y2: 20,
   }],
   circles: [
-    { siteId: 1, x: 10, y: 20, radius: 8.25 },
-    { siteId: 2, x: 30, y: 20, radius: 8.25 },
+    { loadPointId: 1, x: 10, y: 20, radius: 8.25 },
+    { loadPointId: 2, x: 30, y: 20, radius: 8.25 },
   ],
 }];
 

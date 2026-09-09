@@ -76,8 +76,7 @@ pub use project::{
 };
 pub use spatial::{
     build_spatial_neighborhood, build_tip_level_region_topology, SpatialEdge, SpatialFace,
-    SpatialNeighborhood, SpatialPileAssignment, SpatialSite, TipLevelRegionGroup,
-    TipLevelRegionTopology,
+    SpatialNeighborhood, SpatialPileAssignment, TipLevelRegionGroup, TipLevelRegionTopology,
 };
 pub use technical_assignment::{
     assess_technical_assignment, TechnicalAssignmentAssessment, TechnicalAssignmentAssessmentError,

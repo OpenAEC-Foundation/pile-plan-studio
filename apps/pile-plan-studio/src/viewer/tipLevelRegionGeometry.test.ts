@@ -11,12 +11,12 @@ const topology: TipLevelRegionTopology = {
   groups: [{
     pile_tip_level_mm: -18000,
     legend_value_m: -18,
-    site_ids: [1, 2, 3],
+    load_point_ids: [1, 2, 3],
     edges: [
-      { from_site_id: 1, to_site_id: 2 },
-      { from_site_id: 2, to_site_id: 3 },
+      { from_load_point_id: 1, to_load_point_id: 2 },
+      { from_load_point_id: 2, to_load_point_id: 3 },
     ],
-    faces: [{ boundary_site_ids: [1, 2, 3] }],
+    faces: [{ boundary_load_point_ids: [1, 2, 3] }],
   }],
 };
 
@@ -38,10 +38,10 @@ describe("tip-level region geometry", () => {
     assert.deepEqual(projected, new Map([[9, { x: 172.5, y: 152.55 }]]));
   });
 
-  it("builds faces, stroke inputs, and site circles with six pixels total margin", () => {
+  it("builds faces, stroke inputs, and load-point circles with six pixels total margin", () => {
     const geometry = buildTipLevelRegionGeometry({
       topology,
-      pointsBySiteId: new Map([
+      pointsByLoadPointId: new Map([
         [1, { x: 10, y: 20 }],
         [2, { x: 30, y: 20 }],
         [3, { x: 20, y: 40 }],
@@ -51,35 +51,35 @@ describe("tip-level region geometry", () => {
 
     assert.equal(geometry[0].diameterPx, 16.5);
     assert.deepEqual(geometry[0].circles, [
-      { siteId: 1, x: 10, y: 20, radius: 8.25 },
-      { siteId: 2, x: 30, y: 20, radius: 8.25 },
-      { siteId: 3, x: 20, y: 40, radius: 8.25 },
+      { loadPointId: 1, x: 10, y: 20, radius: 8.25 },
+      { loadPointId: 2, x: 30, y: 20, radius: 8.25 },
+      { loadPointId: 3, x: 20, y: 40, radius: 8.25 },
     ]);
     assert.deepEqual(geometry[0].segments, [{
-      fromSiteId: 1,
-      toSiteId: 2,
+      fromLoadPointId: 1,
+      toLoadPointId: 2,
       x1: 10,
       y1: 20,
       x2: 30,
       y2: 20,
     }, {
-      fromSiteId: 2,
-      toSiteId: 3,
+      fromLoadPointId: 2,
+      toLoadPointId: 3,
       x1: 30,
       y1: 20,
       x2: 20,
       y2: 40,
     }]);
     assert.deepEqual(geometry[0].faces, [{
-      boundarySiteIds: [1, 2, 3],
+      boundaryLoadPointIds: [1, 2, 3],
       points: [{ x: 10, y: 20 }, { x: 30, y: 20 }, { x: 20, y: 40 }],
     }]);
   });
 
-  it("keeps projected sites and edges but drops a face with a missing boundary point", () => {
+  it("keeps projected load points and edges but drops a face with a missing boundary point", () => {
     const geometry = buildTipLevelRegionGeometry({
       topology,
-      pointsBySiteId: new Map([
+      pointsByLoadPointId: new Map([
         [1, { x: 10, y: 20 }],
         [2, { x: 30, y: 20 }],
       ]),
@@ -87,7 +87,7 @@ describe("tip-level region geometry", () => {
     });
 
     assert.equal(geometry[0].diameterPx, 27);
-    assert.deepEqual(geometry[0].circles.map(({ siteId }) => siteId), [1, 2]);
+    assert.deepEqual(geometry[0].circles.map(({ loadPointId }) => loadPointId), [1, 2]);
     assert.equal(geometry[0].segments.length, 1);
     assert.deepEqual(geometry[0].faces, []);
   });

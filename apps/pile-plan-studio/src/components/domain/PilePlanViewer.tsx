@@ -151,7 +151,7 @@ export default function PilePlanViewer({
     tipLevelRegionTopology
       ? buildTipLevelRegionGeometry({
           topology: tipLevelRegionTopology,
-          pointsBySiteId: tipLevelRegionPoints,
+          pointsByLoadPointId: tipLevelRegionPoints,
           symbolScalePercent: state.symbolScalePercent,
         })
       : []

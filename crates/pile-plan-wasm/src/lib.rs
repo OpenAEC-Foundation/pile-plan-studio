@@ -611,7 +611,7 @@ mod tests {
         };
         let topology_request = TipLevelRegionTopologyRequest {
             neighborhood: SpatialNeighborhood {
-                sites: vec![],
+                load_point_ids: vec![],
                 edges: vec![],
                 faces: vec![],
             },
@@ -623,7 +623,7 @@ mod tests {
             build_tip_level_region_topology;
 
         assert!(neighborhood_request.load_points.is_empty());
-        assert!(topology_request.neighborhood.sites.is_empty());
+        assert!(topology_request.neighborhood.load_point_ids.is_empty());
     }
 
     #[test]

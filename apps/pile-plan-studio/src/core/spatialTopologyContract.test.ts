@@ -10,9 +10,7 @@ import {
 import type { PileConfigurationOption } from "./projectTypes.ts";
 
 const neighborhood: SpatialNeighborhood = {
-  sites: [
-    { site_id: 7, load_point_ids: [7], x_mm: 10.25, y_mm: -4.5 },
-  ],
+  load_point_ids: [7],
   edges: [],
   faces: [],
 };

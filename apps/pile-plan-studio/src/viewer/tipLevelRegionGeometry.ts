@@ -7,15 +7,15 @@ import {
 } from "./viewerGeometry.ts";
 
 export type TipLevelRegionCircle = {
-  siteId: number;
+  loadPointId: number;
   x: number;
   y: number;
   radius: number;
 };
 
 export type TipLevelRegionSegment = {
-  fromSiteId: number;
-  toSiteId: number;
+  fromLoadPointId: number;
+  toLoadPointId: number;
   x1: number;
   y1: number;
   x2: number;
@@ -23,7 +23,7 @@ export type TipLevelRegionSegment = {
 };
 
 export type TipLevelRegionFace = {
-  boundarySiteIds: number[];
+  boundaryLoadPointIds: number[];
   points: ViewPoint[];
 };
 
@@ -38,7 +38,7 @@ export type TipLevelRegionGeometryLayer = {
 
 type TipLevelRegionGeometryInput = {
   topology: TipLevelRegionTopology;
-  pointsBySiteId: Map<number, ViewPoint>;
+  pointsByLoadPointId: Map<number, ViewPoint>;
   symbolScalePercent: number;
 };
 
@@ -56,7 +56,7 @@ export function projectTipLevelRegionPoints(
 
 export function buildTipLevelRegionGeometry({
   topology,
-  pointsBySiteId,
+  pointsByLoadPointId,
   symbolScalePercent,
 }: TipLevelRegionGeometryInput): TipLevelRegionGeometryLayer[] {
   const diameterPx = loadPointMarkerDiameter(symbolScalePercent) + REGION_MARGIN_PX;
@@ -67,21 +67,22 @@ export function buildTipLevelRegionGeometry({
     legendValueM: group.legend_value_m,
     diameterPx,
     faces: group.faces.flatMap((face) => {
-      const points = face.boundary_site_ids.map((siteId) => pointsBySiteId.get(siteId));
+      const points = face.boundary_load_point_ids
+        .map((loadPointId) => pointsByLoadPointId.get(loadPointId));
       return points.every((point): point is ViewPoint => point !== undefined)
-        ? [{ boundarySiteIds: face.boundary_site_ids, points }]
+        ? [{ boundaryLoadPointIds: face.boundary_load_point_ids, points }]
         : [];
     }),
-    circles: group.site_ids.flatMap((siteId) => {
-      const point = pointsBySiteId.get(siteId);
-      return point ? [{ siteId, x: point.x, y: point.y, radius }] : [];
+    circles: group.load_point_ids.flatMap((loadPointId) => {
+      const point = pointsByLoadPointId.get(loadPointId);
+      return point ? [{ loadPointId, x: point.x, y: point.y, radius }] : [];
     }),
     segments: group.edges.flatMap((edge) => {
-      const from = pointsBySiteId.get(edge.from_site_id);
-      const to = pointsBySiteId.get(edge.to_site_id);
+      const from = pointsByLoadPointId.get(edge.from_load_point_id);
+      const to = pointsByLoadPointId.get(edge.to_load_point_id);
       return from && to ? [{
-        fromSiteId: edge.from_site_id,
-        toSiteId: edge.to_site_id,
+        fromLoadPointId: edge.from_load_point_id,
+        toLoadPointId: edge.to_load_point_id,
         x1: from.x,
         y1: from.y,
         x2: to.x,

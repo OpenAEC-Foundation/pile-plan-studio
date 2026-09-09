@@ -2,55 +2,44 @@ use std::collections::BTreeSet;
 
 use crate::analysis::LoadPoint;
 
-use super::{GabrielGraph, GeometricSite, SiteEdge};
+use super::{GabrielGraph, GeometricNode, LoadPointEdge};
 
 pub(super) fn build_gabriel_graph(load_points: &[LoadPoint]) -> GabrielGraph {
-    let mut ordered_load_points = load_points.to_vec();
-    ordered_load_points.sort_by_key(|load_point| load_point.id);
-
-    let mut sites: Vec<GeometricSite> = Vec::new();
-    for load_point in ordered_load_points {
-        if let Some(site) = sites
-            .iter_mut()
-            .find(|site| site.x_mm == load_point.x_mm && site.y_mm == load_point.y_mm)
-        {
-            site.load_point_ids.push(load_point.id);
-        } else {
-            sites.push(GeometricSite {
-                site_id: load_point.id,
-                x_mm: load_point.x_mm,
-                y_mm: load_point.y_mm,
-                load_point_ids: vec![load_point.id],
-            });
-        }
-    }
-    sites.sort_by_key(|site| site.site_id);
+    let mut nodes = load_points
+        .iter()
+        .map(|load_point| GeometricNode {
+            load_point_id: load_point.id,
+            x_mm: load_point.x_mm,
+            y_mm: load_point.y_mm,
+        })
+        .collect::<Vec<_>>();
+    nodes.sort_by_key(|node| node.load_point_id);
 
     let mut edge_pairs = BTreeSet::new();
-    for first_index in 0..sites.len() {
-        for second_index in first_index + 1..sites.len() {
-            let first = &sites[first_index];
-            let second = &sites[second_index];
-            let blocked = sites.iter().enumerate().any(|(site_index, site)| {
-                site_index != first_index
-                    && site_index != second_index
-                    && (site.x_mm - first.x_mm) * (site.x_mm - second.x_mm)
-                        + (site.y_mm - first.y_mm) * (site.y_mm - second.y_mm)
+    for first_index in 0..nodes.len() {
+        for second_index in first_index + 1..nodes.len() {
+            let first = &nodes[first_index];
+            let second = &nodes[second_index];
+            let blocked = nodes.iter().enumerate().any(|(node_index, node)| {
+                node_index != first_index
+                    && node_index != second_index
+                    && (node.x_mm - first.x_mm) * (node.x_mm - second.x_mm)
+                        + (node.y_mm - first.y_mm) * (node.y_mm - second.y_mm)
                         <= 0.0
             });
             if !blocked {
-                edge_pairs.insert((first.site_id, second.site_id));
+                edge_pairs.insert((first.load_point_id, second.load_point_id));
             }
         }
     }
 
     GabrielGraph {
-        sites,
+        nodes,
         edges: edge_pairs
             .into_iter()
-            .map(|(from_site_id, to_site_id)| SiteEdge {
-                from_site_id,
-                to_site_id,
+            .map(|(from_load_point_id, to_load_point_id)| LoadPointEdge {
+                from_load_point_id,
+                to_load_point_id,
             })
             .collect(),
     }
@@ -75,7 +64,7 @@ mod tests {
         build_gabriel_graph(load_points)
             .edges
             .into_iter()
-            .map(|edge| (edge.from_site_id, edge.to_site_id))
+            .map(|edge| (edge.from_load_point_id, edge.to_load_point_id))
             .collect()
     }
 
@@ -109,22 +98,6 @@ mod tests {
     }
 
     #[test]
-    fn coincident_load_points_share_one_stable_site() {
-        let graph = build_gabriel_graph(&[node(8, 0.0, 0.0), node(3, 1.0, 0.0), node(2, 0.0, 0.0)]);
-
-        assert_eq!(graph.sites.len(), 2);
-        assert_eq!(graph.sites[0].site_id, 2);
-        assert_eq!(graph.sites[0].load_point_ids, vec![2, 8]);
-        assert_eq!(
-            graph.edges,
-            vec![super::super::SiteEdge {
-                from_site_id: 2,
-                to_site_id: 3,
-            }]
-        );
-    }
-
-    #[test]
     fn graph_is_stable_for_permuted_input() {
         let forward = build_gabriel_graph(&[
             node(1, -2.0, 1.0),
@@ -141,14 +114,14 @@ mod tests {
 
         assert_eq!(
             forward
-                .sites
+                .nodes
                 .iter()
-                .map(|site| (site.site_id, site.load_point_ids.clone()))
+                .map(|node| node.load_point_id)
                 .collect::<Vec<_>>(),
             reverse
-                .sites
+                .nodes
                 .iter()
-                .map(|site| (site.site_id, site.load_point_ids.clone()))
+                .map(|node| node.load_point_id)
                 .collect::<Vec<_>>()
         );
         assert_eq!(forward.edges, reverse.edges);

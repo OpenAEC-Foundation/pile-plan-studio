@@ -1,33 +1,33 @@
 use std::collections::{BTreeMap, BTreeSet};
 
-use super::{GabrielGraph, GeometricSite, SiteFace};
+use super::{GabrielGraph, GeometricNode, LoadPointFace};
 
-pub(super) fn extract_bounded_faces(graph: &GabrielGraph) -> Vec<SiteFace> {
-    let sites_by_id = graph
-        .sites
+pub(super) fn extract_bounded_faces(graph: &GabrielGraph) -> Vec<LoadPointFace> {
+    let nodes_by_id = graph
+        .nodes
         .iter()
-        .map(|site| (site.site_id, site))
+        .map(|node| (node.load_point_id, node))
         .collect::<BTreeMap<_, _>>();
     let mut neighbors = graph
-        .sites
+        .nodes
         .iter()
-        .map(|site| (site.site_id, Vec::new()))
+        .map(|node| (node.load_point_id, Vec::new()))
         .collect::<BTreeMap<_, Vec<u32>>>();
     for edge in &graph.edges {
         neighbors
-            .get_mut(&edge.from_site_id)
+            .get_mut(&edge.from_load_point_id)
             .expect("edge start belongs to graph")
-            .push(edge.to_site_id);
+            .push(edge.to_load_point_id);
         neighbors
-            .get_mut(&edge.to_site_id)
+            .get_mut(&edge.to_load_point_id)
             .expect("edge end belongs to graph")
-            .push(edge.from_site_id);
+            .push(edge.from_load_point_id);
     }
-    for (&site_id, site_neighbors) in &mut neighbors {
-        let origin = sites_by_id[&site_id];
-        site_neighbors.sort_by(|left_id, right_id| {
-            let left = sites_by_id[left_id];
-            let right = sites_by_id[right_id];
+    for (&load_point_id, node_neighbors) in &mut neighbors {
+        let origin = nodes_by_id[&load_point_id];
+        node_neighbors.sort_by(|left_id, right_id| {
+            let left = nodes_by_id[left_id];
+            let right = nodes_by_id[right_id];
             let left_angle = (left.y_mm - origin.y_mm).atan2(left.x_mm - origin.x_mm);
             let right_angle = (right.y_mm - origin.y_mm).atan2(right.x_mm - origin.x_mm);
             left_angle
@@ -38,9 +38,9 @@ pub(super) fn extract_bounded_faces(graph: &GabrielGraph) -> Vec<SiteFace> {
 
     let mut visited = BTreeSet::new();
     let mut faces = Vec::new();
-    for (&from_site_id, site_neighbors) in &neighbors {
-        for &to_site_id in site_neighbors {
-            let start = (from_site_id, to_site_id);
+    for (&from_load_point_id, node_neighbors) in &neighbors {
+        for &to_load_point_id in node_neighbors {
+            let start = (from_load_point_id, to_load_point_id);
             if visited.contains(&start) {
                 continue;
             }
@@ -70,28 +70,31 @@ pub(super) fn extract_bounded_faces(graph: &GabrielGraph) -> Vec<SiteFace> {
 
             if completed
                 && boundary.len() >= 3
-                && translated_signed_area(&boundary, &sites_by_id) > 0.0
+                && translated_signed_area(&boundary, &nodes_by_id) > 0.0
             {
                 canonicalize_boundary(&mut boundary);
-                faces.push(SiteFace {
-                    boundary_site_ids: boundary,
+                faces.push(LoadPointFace {
+                    boundary_load_point_ids: boundary,
                 });
             }
         }
     }
-    faces.sort_by(|left, right| left.boundary_site_ids.cmp(&right.boundary_site_ids));
+    faces.sort_by(|left, right| {
+        left.boundary_load_point_ids
+            .cmp(&right.boundary_load_point_ids)
+    });
     faces.dedup();
     faces
 }
 
-fn translated_signed_area(boundary: &[u32], sites_by_id: &BTreeMap<u32, &GeometricSite>) -> f64 {
-    let origin = sites_by_id[&boundary[0]];
+fn translated_signed_area(boundary: &[u32], nodes_by_id: &BTreeMap<u32, &GeometricNode>) -> f64 {
+    let origin = nodes_by_id[&boundary[0]];
     boundary
         .iter()
         .zip(boundary.iter().cycle().skip(1))
         .map(|(from_id, to_id)| {
-            let from = sites_by_id[from_id];
-            let to = sites_by_id[to_id];
+            let from = nodes_by_id[from_id];
+            let to = nodes_by_id[to_id];
             let from_x = from.x_mm - origin.x_mm;
             let from_y = from.y_mm - origin.y_mm;
             let to_x = to.x_mm - origin.x_mm;
@@ -106,7 +109,7 @@ fn canonicalize_boundary(boundary: &mut Vec<u32>) {
     let minimum_index = boundary
         .iter()
         .enumerate()
-        .min_by_key(|(_, site_id)| *site_id)
+        .min_by_key(|(_, load_point_id)| *load_point_id)
         .map(|(index, _)| index)
         .expect("face boundary is non-empty");
     boundary.rotate_left(minimum_index);
@@ -114,33 +117,32 @@ fn canonicalize_boundary(boundary: &mut Vec<u32>) {
 
 #[cfg(test)]
 mod tests {
-    use super::super::{GabrielGraph, GeometricSite, SiteEdge, SiteFace};
+    use super::super::{GabrielGraph, GeometricNode, LoadPointEdge, LoadPointFace};
     use super::extract_bounded_faces;
 
-    fn site(site_id: u32, x_mm: f64, y_mm: f64) -> GeometricSite {
-        GeometricSite {
-            site_id,
+    fn node(load_point_id: u32, x_mm: f64, y_mm: f64) -> GeometricNode {
+        GeometricNode {
+            load_point_id,
             x_mm,
             y_mm,
-            load_point_ids: vec![site_id],
         }
     }
 
-    fn edge(from_site_id: u32, to_site_id: u32) -> SiteEdge {
-        SiteEdge {
-            from_site_id,
-            to_site_id,
+    fn edge(from_load_point_id: u32, to_load_point_id: u32) -> LoadPointEdge {
+        LoadPointEdge {
+            from_load_point_id,
+            to_load_point_id,
         }
     }
 
     #[test]
     fn extracts_two_elementary_faces_without_the_outer_face() {
         let graph = GabrielGraph {
-            sites: vec![
-                site(1, 0.0, 0.0),
-                site(2, 2.0, 0.0),
-                site(3, 2.0, 2.0),
-                site(4, 0.0, 2.0),
+            nodes: vec![
+                node(1, 0.0, 0.0),
+                node(2, 2.0, 0.0),
+                node(3, 2.0, 2.0),
+                node(4, 0.0, 2.0),
             ],
             edges: vec![edge(1, 2), edge(1, 3), edge(1, 4), edge(2, 3), edge(3, 4)],
         };
@@ -148,11 +150,11 @@ mod tests {
         assert_eq!(
             extract_bounded_faces(&graph),
             vec![
-                SiteFace {
-                    boundary_site_ids: vec![1, 2, 3],
+                LoadPointFace {
+                    boundary_load_point_ids: vec![1, 2, 3],
                 },
-                SiteFace {
-                    boundary_site_ids: vec![1, 3, 4],
+                LoadPointFace {
+                    boundary_load_point_ids: vec![1, 3, 4],
                 },
             ]
         );
@@ -161,11 +163,11 @@ mod tests {
     #[test]
     fn ignores_tree_bridges_and_collinear_cycles() {
         let tree = GabrielGraph {
-            sites: vec![site(1, 0.0, 0.0), site(2, 1.0, 0.0), site(3, 2.0, 0.0)],
+            nodes: vec![node(1, 0.0, 0.0), node(2, 1.0, 0.0), node(3, 2.0, 0.0)],
             edges: vec![edge(1, 2), edge(2, 3)],
         };
         let collinear_cycle = GabrielGraph {
-            sites: vec![site(1, 0.0, 0.0), site(2, 1.0, 0.0), site(3, 2.0, 0.0)],
+            nodes: vec![node(1, 0.0, 0.0), node(2, 1.0, 0.0), node(3, 2.0, 0.0)],
             edges: vec![edge(1, 2), edge(1, 3), edge(2, 3)],
         };
 
@@ -176,18 +178,18 @@ mod tests {
     #[test]
     fn translated_signed_area_preserves_a_large_coordinate_face() {
         let graph = GabrielGraph {
-            sites: vec![
-                site(1, 1_000_000_000.0, 1_000_000_000.0),
-                site(2, 1_000_000_001.0, 1_000_000_000.0),
-                site(3, 1_000_000_000.0, 1_000_000_001.0),
+            nodes: vec![
+                node(1, 1_000_000_000.0, 1_000_000_000.0),
+                node(2, 1_000_000_001.0, 1_000_000_000.0),
+                node(3, 1_000_000_000.0, 1_000_000_001.0),
             ],
             edges: vec![edge(1, 2), edge(1, 3), edge(2, 3)],
         };
 
         assert_eq!(
             extract_bounded_faces(&graph),
-            vec![SiteFace {
-                boundary_site_ids: vec![1, 2, 3],
+            vec![LoadPointFace {
+                boundary_load_point_ids: vec![1, 2, 3],
             }]
         );
     }
