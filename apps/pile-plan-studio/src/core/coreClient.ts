@@ -20,6 +20,7 @@ import initWasm, {
   preview_import_file,
   preview_pile_plan_import_file,
   refresh_project_from_files,
+  validate_load_point_positions,
   write_ifcpp_project,
 } from "./wasm/pile-plan-wasm/pile_plan_wasm.js";
 import { toStringKeyedRecord, toWasmNumberKeyedMap, toWasmNumberKeyedRecord } from "./coreSerialization.ts";
@@ -105,6 +106,11 @@ import {
   type TechnicalAssignmentAssessment,
   type TechnicalAssignmentContractInput,
 } from "./technicalAssignmentContract.ts";
+import {
+  duplicateLoadPointPositionsFromCore,
+  type CoreDuplicateLoadPointPosition,
+  type DuplicateLoadPointPosition,
+} from "./loadPointPositionContract.ts";
 
 type CoreCptSelectionSettings = {
   algorithm: CptSelectionSettings["algorithm"];
@@ -121,6 +127,21 @@ let wasmReady: Promise<void> | null = null;
 
 export function isTauriRuntime(): boolean {
   return typeof window !== "undefined" && "__TAURI_INTERNALS__" in window;
+}
+
+export async function validateLoadPointPositionsCore(
+  loadPoints: LoadPoint[],
+): Promise<DuplicateLoadPointPosition[]> {
+  let positions: CoreDuplicateLoadPointPosition[];
+  if (!isTauriRuntime()) {
+    await initializeWasm();
+    positions = validate_load_point_positions({ load_points: loadPoints }) as CoreDuplicateLoadPointPosition[];
+  } else {
+    positions = await invoke<CoreDuplicateLoadPointPosition[]>("validate_load_point_positions", {
+      request: { load_points: loadPoints },
+    });
+  }
+  return duplicateLoadPointPositionsFromCore(positions);
 }
 
 export async function buildSpatialNeighborhoodCore(

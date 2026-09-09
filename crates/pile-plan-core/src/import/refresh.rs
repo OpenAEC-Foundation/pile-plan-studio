@@ -562,6 +562,28 @@ mod tests {
             .contains("Multiple import sources"));
     }
 
+    #[test]
+    fn rejects_duplicate_load_point_positions_without_mutating_current_project() {
+        let current = project();
+        let before = current.clone();
+
+        let error = refresh_project_from_profiled_sources(
+            &current,
+            &[csv_source(
+                ImportRole::LoadPoints,
+                "loads.csv",
+                "8,1000,2000,100\n2,1000,2000,200\n",
+            )],
+        )
+        .unwrap_err();
+
+        assert!(matches!(
+            error,
+            crate::ImportError::DuplicateLoadPointPositions(_)
+        ));
+        assert_eq!(current, before);
+    }
+
     fn project() -> crate::PilePlanProject {
         import_project_from_generic_sources(
             "Refresh project",

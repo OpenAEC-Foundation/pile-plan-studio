@@ -245,6 +245,18 @@ export function refresh_project_from_files(request) {
 }
 
 /**
+ * @param {any} request
+ * @returns {any}
+ */
+export function validate_load_point_positions(request) {
+    const ret = wasm.validate_load_point_positions(request);
+    if (ret[2]) {
+        throw takeFromExternrefTable0(ret[1]);
+    }
+    return takeFromExternrefTable0(ret[0]);
+}
+
+/**
  * @param {any} project
  * @returns {string}
  */

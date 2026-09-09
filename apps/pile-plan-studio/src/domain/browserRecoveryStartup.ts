@@ -15,7 +15,7 @@ export async function loadBrowserRecovery({
 }: {
   isDesktop: boolean;
   store: BrowserRecoveryStore;
-  validateProject?: (ifcppText: string) => void;
+  validateProject?: (ifcppText: string) => void | Promise<void>;
 }): Promise<BrowserRecoveryStartupResult> {
   if (isDesktop) return { kind: "disabled" };
 
@@ -25,7 +25,7 @@ export async function loadBrowserRecovery({
     const record = parseBrowserRecoveryRecord(stored);
     if (record) {
       try {
-        validateProject(record.ifcppText);
+        await validateProject(record.ifcppText);
         return { kind: "restored", record };
       } catch {
         // Invalid project contents use the same safe fallback and cleanup path.

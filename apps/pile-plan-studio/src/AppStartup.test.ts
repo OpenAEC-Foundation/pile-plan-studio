@@ -47,7 +47,7 @@ describe("React app startup", () => {
     assert.match(source, /createInitialProjectState\(sampleProjectText, \{[\s\S]*?initializeDefaultPiles: true/);
     assert.match(source, /createInitialProjectState\(withCosts, \{[\s\S]*?initializeDefaultPiles: true/);
     assert.match(source, /createInitialProjectState\(refreshedProject, \{[\s\S]*?initializeDefaultPiles: true/);
-    assert.match(source, /createInitialProjectState\(\s*await file\.text\(\),\s*\{ initializeDefaultPiles: false \},?\s*\)/);
+    assert.match(source, /prepareOpenedProject\(\s*await file\.text\(\),\s*\{ initializeDefaultPiles: false \},\s*validateLoadPointPositionsCore,?\s*\)/);
   });
 
   it("runs one guarded batched default selection after complete analysis", () => {

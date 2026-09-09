@@ -146,6 +146,8 @@ pub fn validate_imported_inputs(
     capacities: &[ProjectBearingCapacity],
 ) -> Result<(), ImportError> {
     reject_duplicate_ids(load_points.iter().map(|item| item.id), "load point")?;
+    crate::validate_unique_load_point_positions(load_points)
+        .map_err(ImportError::DuplicateLoadPointPositions)?;
     reject_duplicate_ids(cpts.iter().map(|item| item.id), "CPT")?;
     validate_capacity_values(capacities)?;
     Ok(())

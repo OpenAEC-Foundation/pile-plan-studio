@@ -108,6 +108,30 @@ describe("browser recovery startup", () => {
     assert.equal(test.clearCount(), 1);
   });
 
+  it("waits for asynchronous project validation before restoring", async () => {
+    const record = createBrowserRecoveryRecord({
+      appVersion: "0.1.7",
+      ifcppText,
+      projectName: "Recovered project",
+      savedProjectSignature: "",
+      isDirty: false,
+      updatedAt: "2026-08-05T10:00:00.000Z",
+    });
+    const test = store(record);
+
+    const result = await loadBrowserRecovery({
+      isDesktop: false,
+      store: test.recoveryStore,
+      validateProject: async () => {
+        await Promise.resolve();
+        throw new Error("Duplicate load point positions");
+      },
+    });
+
+    assert.deepEqual(result, { kind: "invalid" });
+    assert.equal(test.clearCount(), 1);
+  });
+
   it("reports unavailable storage without throwing", async () => {
     const test = store(null, { readError: new Error("private mode") });
     const result = await loadBrowserRecovery({ isDesktop: false, store: test.recoveryStore });

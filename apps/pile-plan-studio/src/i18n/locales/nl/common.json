@@ -315,7 +315,8 @@
       "reaction-nodes-without-coordinates": "{{count}} reactieknopen zonder bruikbare coördinaten worden overgeslagen.",
       "coordinate-nodes-without-reactions": "{{count}} coördinaatknopen zonder Min PZ'-reactie worden overgeslagen.",
       "exact-coordinate-duplicates": "{{count}} identieke coördinaatregels zijn gededupliceerd.",
-      "exact-reaction-duplicates": "{{count}} identieke reactieregels zijn gededupliceerd."
+      "exact-reaction-duplicates": "{{count}} identieke reactieregels zijn gededupliceerd.",
+      "duplicate-load-point-position": "De belastinglocaties {{locations}} hebben dezelfde positie (X {{x}} mm, Y {{y}} mm). Iedere belastinglocatie moet een unieke positie hebben."
     },
     "roles": {
       "loadPoints": "Belastinglocaties",
@@ -334,12 +335,16 @@
       "pileHeadLevel": "Paalhoofdniveau (m)",
       "currency": "Projectvaluta"
     },
-    "recovery": {
+  "recovery": {
     "loading": "Vorige sessie herstellen...",
     "restored": "Vorige sessie hersteld",
     "sampleOpened": "Voorbeeldproject geopend",
     "invalid": "De opgeslagen herstelgegevens waren ongeldig. Het voorbeeldproject is geopend.",
     "unavailable": "Automatisch browserherstel is niet beschikbaar. Download het project om je werk te bewaren."
+  },
+  "loadPointPositions": {
+    "projectOpenError_one": "Het project is niet geopend. De belastinglocaties {{locations}} hebben dezelfde positie (X {{x}} mm, Y {{y}} mm). Iedere belastinglocatie moet een unieke positie hebben.",
+    "projectOpenError_other": "Het project is niet geopend: {{count}} samenvallende posities gevonden. De eerste betreft {{locations}} op (X {{x}} mm, Y {{y}} mm). Iedere belastinglocatie moet een unieke positie hebben."
   },
   "unsaved": {
     "title": "Onopgeslagen wijzigingen",

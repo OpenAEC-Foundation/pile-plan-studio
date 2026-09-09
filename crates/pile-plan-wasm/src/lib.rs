@@ -8,10 +8,10 @@ use pile_plan_core::{
     build_spatial_neighborhood as build_spatial_neighborhood_core,
     build_tip_level_region_topology as build_tip_level_region_topology_core, calculate_pile_cost,
     choose_default_pile_option, choose_default_pile_options,
-    derive_load_point_groups as derive_load_point_groups_core, greedy_optimize_pile_choices,
-    import_project_from_generic_sources_with_properties, preview_import_source,
-    preview_pile_plan_import, refresh_project_from_profiled_sources, selected_cpts,
-    write_ifcpp_string, write_pile_plan_csv, write_pile_plan_xlsx,
+    derive_load_point_groups as derive_load_point_groups_core, duplicate_load_point_positions,
+    greedy_optimize_pile_choices, import_project_from_generic_sources_with_properties,
+    preview_import_source, preview_pile_plan_import, refresh_project_from_profiled_sources,
+    selected_cpts, write_ifcpp_string, write_pile_plan_csv, write_pile_plan_xlsx,
     ApplyLoadPointGroupAssignmentInput, ApplyLoadPointGroupAssignmentResult, CptSelectionSettings,
     GreedyOptimizationInput, ImportSource, LoadPointGroup, LoadPointGroupingSettings,
     PileConfigurationKey, PileConfigurationOption, PileCostSettings, PilePlanExportRequest,
@@ -111,6 +111,11 @@ pub struct PreviewImportRequest {
 
 #[derive(Debug, Deserialize)]
 pub struct SpatialNeighborhoodRequest {
+    pub load_points: Vec<ProjectLoadPoint>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct ValidateLoadPointPositionsRequest {
     pub load_points: Vec<ProjectLoadPoint>,
 }
 
@@ -310,6 +315,12 @@ pub fn write_ifcpp_project(project: JsValue) -> Result<String, JsValue> {
 pub fn build_spatial_neighborhood(request: JsValue) -> Result<JsValue, JsValue> {
     let request: SpatialNeighborhoodRequest = from_js_value(request)?;
     to_js_value(&build_spatial_neighborhood_core(&request.load_points))
+}
+
+#[wasm_bindgen]
+pub fn validate_load_point_positions(request: JsValue) -> Result<JsValue, JsValue> {
+    let request: ValidateLoadPointPositionsRequest = from_js_value(request)?;
+    to_js_value(&duplicate_load_point_positions(&request.load_points))
 }
 
 #[wasm_bindgen]
@@ -613,6 +624,41 @@ mod tests {
 
         assert!(neighborhood_request.load_points.is_empty());
         assert!(topology_request.neighborhood.sites.is_empty());
+    }
+
+    #[test]
+    fn load_point_position_validation_exposes_structured_duplicates() {
+        let request = ValidateLoadPointPositionsRequest {
+            load_points: vec![
+                ProjectLoadPoint {
+                    id: 8,
+                    name: "Load point 8".to_string(),
+                    x_mm: 10.0,
+                    y_mm: 20.0,
+                    design_load_kn: 100.0,
+                },
+                ProjectLoadPoint {
+                    id: 2,
+                    name: "Load point 2".to_string(),
+                    x_mm: 10.0,
+                    y_mm: 20.0,
+                    design_load_kn: 200.0,
+                },
+            ],
+        };
+
+        let duplicates = duplicate_load_point_positions(&request.load_points);
+
+        assert_eq!(duplicates[0].x_mm, 10.0);
+        assert_eq!(
+            duplicates[0]
+                .load_points
+                .iter()
+                .map(|member| member.id)
+                .collect::<Vec<_>>(),
+            vec![2, 8]
+        );
+        let _export: fn(JsValue) -> Result<JsValue, JsValue> = validate_load_point_positions;
     }
 
     #[test]

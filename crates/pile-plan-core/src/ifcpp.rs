@@ -2,13 +2,14 @@ use std::fmt;
 
 use serde_json::{Error as JsonError, Value};
 
-use crate::PilePlanProject;
+use crate::{validate_unique_load_point_positions, DuplicateLoadPointPositions, PilePlanProject};
 
 #[derive(Debug)]
 pub enum IfcppError {
     Json(JsonError),
     InvalidSchema(String),
     UnsupportedSchemaVersion(u32),
+    DuplicateLoadPointPositions(DuplicateLoadPointPositions),
 }
 
 impl fmt::Display for IfcppError {
@@ -19,6 +20,7 @@ impl fmt::Display for IfcppError {
             Self::UnsupportedSchemaVersion(version) => {
                 write!(formatter, "Unsupported IFCPP schema version {version}")
             }
+            Self::DuplicateLoadPointPositions(error) => error.fmt(formatter),
         }
     }
 }
@@ -64,6 +66,9 @@ pub fn validate_ifcpp_project(project: &PilePlanProject) -> Result<(), IfcppErro
     if !matches!(project.schema_version, 1 | 2 | 3 | 4) {
         return Err(IfcppError::UnsupportedSchemaVersion(project.schema_version));
     }
+
+    validate_unique_load_point_positions(&project.inputs.load_points)
+        .map_err(IfcppError::DuplicateLoadPointPositions)?;
 
     Ok(())
 }
@@ -257,6 +262,48 @@ mod tests {
         let error = write_ifcpp_string(&project).expect_err("version is rejected");
 
         assert_eq!(error.to_string(), "Unsupported IFCPP schema version 99");
+    }
+
+    #[test]
+    fn read_and_write_reject_duplicate_load_point_positions() {
+        let mut project = project_fixture();
+        project.inputs.load_points = vec![
+            crate::ProjectLoadPoint {
+                id: 1,
+                name: "Original position".to_string(),
+                x_mm: 10.0,
+                y_mm: 20.0,
+                design_load_kn: 100.0,
+            },
+            crate::ProjectLoadPoint {
+                id: 99,
+                name: "Duplicate position".to_string(),
+                x_mm: 10.0,
+                y_mm: 20.0,
+                design_load_kn: 200.0,
+            },
+        ];
+
+        let write_error = write_ifcpp_string(&project).expect_err("write must reject duplicates");
+        assert!(matches!(
+            write_error,
+            IfcppError::DuplicateLoadPointPositions(_)
+        ));
+
+        let json = serde_json::to_string(&project).expect("fixture JSON writes");
+        let read_error = read_ifcpp_str(&json).expect_err("read must reject duplicates");
+        let IfcppError::DuplicateLoadPointPositions(duplicates) = read_error else {
+            panic!("expected duplicate-position error");
+        };
+        assert_eq!(duplicates.positions.len(), 1);
+        assert_eq!(
+            duplicates.positions[0]
+                .load_points
+                .iter()
+                .map(|member| member.id)
+                .collect::<Vec<_>>(),
+            vec![1, 99]
+        );
     }
 
     #[test]

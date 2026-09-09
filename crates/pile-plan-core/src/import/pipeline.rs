@@ -99,12 +99,16 @@ pub(crate) fn parse_load_source(
         ImportProfile::StandardTable => {
             let table = read_source_table(&source.file_name, source.format, &source.bytes)?;
             let load_points = parse_load_points(&table)?;
+            crate::validate_unique_load_point_positions(&load_points)
+                .map_err(ImportError::DuplicateLoadPointPositions)?;
             let mut log = provenance_entry(source, table.sheet_name, super::load_point_columns());
             log.source_profile = Some(ImportProfile::StandardTable);
             Ok((load_points, log))
         }
         ImportProfile::RfemExport => {
             let analysis = analyze_rfem_load_points(source)?;
+            crate::validate_unique_load_point_positions(&analysis.load_points)
+                .map_err(ImportError::DuplicateLoadPointPositions)?;
             let warnings = rfem_warnings(&analysis);
             let mut mapped_columns = HashMap::new();
             mapped_columns.insert("RFEM node No.".to_string(), "id".to_string());
@@ -141,17 +145,26 @@ fn preview_standard_source(
 ) -> ImportSourcePreview {
     let result =
         read_source_table(&source.file_name, source.format, &source.bytes).and_then(|table| {
-            let item_count = match source.role {
-                ImportRole::LoadPoints => parse_load_points(&table)?.len(),
-                ImportRole::Cpts => parse_cpts(&table)?.len(),
-                ImportRole::BearingCapacities => parse_bearing_capacities_with_diagnostics(&table)?
-                    .bearing_capacities
-                    .len(),
+            let (item_count, diagnostics) = match source.role {
+                ImportRole::LoadPoints => {
+                    let load_points = parse_load_points(&table)?;
+                    (
+                        load_points.len(),
+                        duplicate_position_diagnostics(&load_points),
+                    )
+                }
+                ImportRole::Cpts => (parse_cpts(&table)?.len(), Vec::new()),
+                ImportRole::BearingCapacities => (
+                    parse_bearing_capacities_with_diagnostics(&table)?
+                        .bearing_capacities
+                        .len(),
+                    Vec::new(),
+                ),
             };
-            Ok((item_count, table.sheet_name))
+            Ok((item_count, table.sheet_name, diagnostics))
         });
     match result {
-        Ok((item_count, sheet_name)) => ImportSourcePreview {
+        Ok((item_count, sheet_name, diagnostics)) => ImportSourcePreview {
             role: source.role,
             requested_profile: source.profile,
             detected_profile: ImportProfile::StandardTable,
@@ -159,7 +172,7 @@ fn preview_standard_source(
             available_profiles,
             resolved_options: ImportProfileOptions::default(),
             item_count,
-            diagnostics: vec![],
+            diagnostics,
             details: Some(ImportPreviewDetails::StandardTable { sheet_name }),
         },
         Err(error) => invalid_preview(
@@ -351,7 +364,42 @@ fn rfem_diagnostics(analysis: &super::rfem::AnalyzedRfemLoadPoints) -> Vec<Impor
         &analysis.exact_reaction_duplicates,
         "Identical RFEM reaction rows were deduplicated.",
     );
+    diagnostics.extend(duplicate_position_diagnostics(&analysis.load_points));
     diagnostics
+}
+
+fn duplicate_position_diagnostics(load_points: &[ProjectLoadPoint]) -> Vec<ImportDiagnostic> {
+    crate::duplicate_load_point_positions(load_points)
+        .into_iter()
+        .map(|duplicate| {
+            let node_ids = duplicate
+                .load_points
+                .iter()
+                .map(|member| member.id)
+                .collect::<Vec<_>>();
+            let load_point_names = duplicate
+                .load_points
+                .iter()
+                .map(|member| member.name.clone())
+                .collect::<Vec<_>>();
+            ImportDiagnostic {
+                severity: ImportDiagnosticSeverity::Error,
+                code: ImportDiagnosticCode::DuplicateLoadPointPosition,
+                count: node_ids.len(),
+                fallback_message: format!(
+                    "Load points {} share position ({}, {}) mm. Every load point must have a unique position.",
+                    node_ids.iter().map(u32::to_string).collect::<Vec<_>>().join(", "),
+                    duplicate.x_mm,
+                    duplicate.y_mm,
+                ),
+                node_ids,
+                load_point_names,
+                x_mm: Some(duplicate.x_mm),
+                y_mm: Some(duplicate.y_mm),
+                location: None,
+            }
+        })
+        .collect()
 }
 
 fn rfem_warnings(analysis: &super::rfem::AnalyzedRfemLoadPoints) -> Vec<String> {
@@ -375,6 +423,9 @@ fn push_warning(
         code,
         count: ids.len(),
         node_ids: ids.iter().copied().take(10).collect(),
+        load_point_names: vec![],
+        x_mm: None,
+        y_mm: None,
         location: None,
         fallback_message: format!("{message} Count: {}.", ids.len()),
     });
@@ -426,6 +477,9 @@ fn error_diagnostic(code: ImportDiagnosticCode, message: String) -> ImportDiagno
         code,
         count: 1,
         node_ids: vec![],
+        load_point_names: vec![],
+        x_mm: None,
+        y_mm: None,
         location: None,
         fallback_message: message,
     }
@@ -459,6 +513,72 @@ mod tests {
         assert_eq!(preview.resolved_profile, Some(ImportProfile::StandardTable));
         assert_eq!(preview.item_count, 1);
         assert!(!preview.has_errors());
+    }
+
+    #[test]
+    fn standard_preview_reports_each_duplicate_load_point_position() {
+        let preview = preview_import_source(&csv_source(
+            ImportRole::LoadPoints,
+            "loads.csv",
+            "8,10000,20000,100\n2,10000.0,20000.000,200\n",
+        ));
+
+        assert_eq!(preview.resolved_profile, Some(ImportProfile::StandardTable));
+        assert_eq!(preview.item_count, 2);
+        assert!(preview.has_errors());
+        let diagnostic = &preview.diagnostics[0];
+        assert_eq!(
+            diagnostic.code,
+            ImportDiagnosticCode::DuplicateLoadPointPosition
+        );
+        assert_eq!(diagnostic.node_ids, vec![2, 8]);
+        assert_eq!(diagnostic.x_mm, Some(10_000.0));
+        assert_eq!(diagnostic.y_mm, Some(20_000.0));
+        assert_eq!(
+            diagnostic.load_point_names,
+            vec!["Load point 2", "Load point 8"]
+        );
+    }
+
+    #[test]
+    fn rfem_diagnostics_distinguish_position_conflicts_from_repeated_rows() {
+        let analysis = super::super::rfem::AnalyzedRfemLoadPoints {
+            load_points: vec![
+                ProjectLoadPoint {
+                    id: 8,
+                    name: "Load point 8".to_string(),
+                    x_mm: 10_000.0,
+                    y_mm: 20_000.0,
+                    design_load_kn: 100.0,
+                },
+                ProjectLoadPoint {
+                    id: 2,
+                    name: "Load point 2".to_string(),
+                    x_mm: 10_000.0,
+                    y_mm: 20_000.0,
+                    design_load_kn: 200.0,
+                },
+            ],
+            coordinate_sheet: "Coordinates".to_string(),
+            reaction_sheet: "Reactions".to_string(),
+            coordinate_nodes_without_reactions: vec![],
+            reaction_nodes_without_coordinates: vec![],
+            exact_coordinate_duplicates: vec![8],
+            exact_reaction_duplicates: vec![],
+        };
+
+        let diagnostics = rfem_diagnostics(&analysis);
+
+        assert!(diagnostics.iter().any(|diagnostic| {
+            diagnostic.code == ImportDiagnosticCode::ExactCoordinateDuplicates
+                && diagnostic.severity == ImportDiagnosticSeverity::Warning
+                && diagnostic.node_ids == vec![8]
+        }));
+        assert!(diagnostics.iter().any(|diagnostic| {
+            diagnostic.code == ImportDiagnosticCode::DuplicateLoadPointPosition
+                && diagnostic.severity == ImportDiagnosticSeverity::Error
+                && diagnostic.node_ids == vec![2, 8]
+        }));
     }
 
     #[test]

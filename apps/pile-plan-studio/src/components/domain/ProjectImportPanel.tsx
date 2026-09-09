@@ -477,8 +477,16 @@ function diagnosticText(
   diagnostic: ImportSourcePreview["diagnostics"][number],
   t: (key: string, options?: Record<string, unknown>) => string,
 ): string {
+  const locations = diagnostic.loadPointNames.length > 0
+    ? diagnostic.loadPointNames
+      .map((name, index) => `${name} (${diagnostic.nodeIds[index] ?? "?"})`)
+      .join(", ")
+    : diagnostic.nodeIds.join(", ");
   return t(`importProject.diagnostics.${diagnostic.code}`, {
     count: diagnostic.count,
+    locations,
+    x: diagnostic.xMm,
+    y: diagnostic.yMm,
     defaultValue: diagnostic.fallbackMessage,
   });
 }

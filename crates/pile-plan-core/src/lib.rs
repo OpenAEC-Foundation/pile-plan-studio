@@ -4,6 +4,7 @@ pub mod greedy_optimizer;
 pub mod ifcpp;
 pub mod import;
 pub mod load_point_groups;
+pub mod load_point_positions;
 pub mod model;
 pub mod optimization_units;
 pub mod pile_configuration;
@@ -50,6 +51,10 @@ pub use load_point_groups::{
     ApplyLoadPointGroupAssignmentInput, ApplyLoadPointGroupAssignmentResult,
     BlockingLockedLoadPoint, LoadPointGroup, LoadPointGroupAssignmentChange,
     LoadPointGroupingSettings, DEFAULT_MAX_GROUP_EDGE_DISTANCE_MM,
+};
+pub use load_point_positions::{
+    duplicate_load_point_positions, validate_unique_load_point_positions,
+    DuplicateLoadPointPosition, DuplicateLoadPointPositionMember, DuplicateLoadPointPositions,
 };
 pub use optimization_units::{
     prepare_optimization_units, OptimizationCandidateSettings, OptimizationPreparationDiagnostic,

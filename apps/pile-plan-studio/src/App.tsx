@@ -29,6 +29,7 @@ import {
   greedyOptimizeCore,
   importProjectFromFilesCore,
   refreshProjectFromFilesCore,
+  validateLoadPointPositionsCore,
 } from "./core/coreClient";
 import type { PileConfigurationKey } from "./core/projectTypes.ts";
 import type { ImportSourceInput } from "./core/coreImportContract";
@@ -38,6 +39,8 @@ import { getImportSummary, loadIfcppProjectData } from "./core/projectFile";
 import { pileConfigurationToken } from "./core/pileConfigurationKey.ts";
 import { writeIfcppProjectCore } from "./core/coreClient";
 import { createInitialProjectState, type ProjectState } from "./domain/projectState";
+import { prepareOpenedProject, validateOpenedProject } from "./domain/openedProject.ts";
+import { DuplicateLoadPointPositionError } from "./core/loadPointPositionContract.ts";
 import { getSetting } from "./store";
 import { optionKey } from "./components/domain/rightPanelModel";
 import { buildGreedyOptimizationSettings } from "./domain/optimizationSettings";
@@ -154,6 +157,25 @@ import {
 
 const BUILT_IN_PILE_COST_DEFAULTS = loadIfcppProjectData(sampleProjectText).pileCostSettings;
 
+function describeProjectOpenError(
+  error: unknown,
+  t: (key: string, options?: Record<string, unknown>) => string,
+): string {
+  if (!(error instanceof DuplicateLoadPointPositionError)) {
+    return error instanceof Error ? error.message : String(error);
+  }
+  const first = error.positions[0];
+  const locations = first.loadPoints
+    .map((loadPoint) => `${loadPoint.name} (${loadPoint.id})`)
+    .join(", ");
+  return t("loadPointPositions.projectOpenError", {
+    count: error.positions.length,
+    locations,
+    x: first.x_mm,
+    y: first.y_mm,
+  });
+}
+
 const POINTER_FOCUS_CONTROL_SELECTOR = "button, [role='option'], [role='tab'], [role='row'][tabindex='0']";
 
 function getLoadPointLockSignature(
@@ -214,7 +236,7 @@ export default function App() {
       const result = await loadBrowserRecovery({
         isDesktop: false,
         store: recoveryStore,
-        validateProject: (text) => { loadIfcppProjectData(text); },
+        validateProject: (text) => validateOpenedProject(text, validateLoadPointPositionsCore),
       });
       if (cancelled) return;
       if (result.kind === "restored") {
@@ -1517,11 +1539,18 @@ function AppSession({
 
   const openDesktopProjectPath = async (path: string) => {
     if (!await confirmProjectReplacement()) return;
-    const { invoke } = await import("@tauri-apps/api/core");
-    const text = await invoke<string>("read_project_file", { path });
-    installOpenedProject(createInitialProjectState(text, {
-      initializeDefaultPiles: false,
-    }), path);
+    try {
+      const { invoke } = await import("@tauri-apps/api/core");
+      const text = await invoke<string>("read_project_file", { path });
+      const project = await prepareOpenedProject(
+        text,
+        { initializeDefaultPiles: false },
+        validateLoadPointPositionsCore,
+      );
+      installOpenedProject(project, path);
+    } catch (error) {
+      showActionNotice(describeProjectOpenError(error, t), "error");
+    }
   };
 
   const chooseDesktopProject = async () => {
@@ -1814,11 +1843,16 @@ function AppSession({
         }}
         onOpenProjectFile={async (file: File) => {
           if (!await confirmProjectReplacement()) return;
-          const project = createInitialProjectState(
-            await file.text(),
-            { initializeDefaultPiles: false },
-          );
-          installOpenedProject(project, null);
+          try {
+            const project = await prepareOpenedProject(
+              await file.text(),
+              { initializeDefaultPiles: false },
+              validateLoadPointPositionsCore,
+            );
+            installOpenedProject(project, null);
+          } catch (error) {
+            showActionNotice(describeProjectOpenError(error, t), "error");
+          }
         }}
         onOpenSampleProject={openSampleProject}
         onOpenFile={(path) => void openDesktopProjectPath(path)}

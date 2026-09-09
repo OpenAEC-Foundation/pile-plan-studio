@@ -315,7 +315,8 @@
       "reaction-nodes-without-coordinates": "{{count}} reaction nodes without usable coordinates will be skipped.",
       "coordinate-nodes-without-reactions": "{{count}} coordinate nodes without Min PZ' reactions will be skipped.",
       "exact-coordinate-duplicates": "{{count}} identical coordinate rows were deduplicated.",
-      "exact-reaction-duplicates": "{{count}} identical reaction rows were deduplicated."
+      "exact-reaction-duplicates": "{{count}} identical reaction rows were deduplicated.",
+      "duplicate-load-point-position": "Load points {{locations}} share the same position (X {{x}} mm, Y {{y}} mm). Every load point must have a unique position."
     },
     "roles": {
       "loadPoints": "Load points",
@@ -334,12 +335,16 @@
       "pileHeadLevel": "Pile head level (m)",
       "currency": "Project currency"
     },
-    "recovery": {
+  "recovery": {
     "loading": "Restoring your previous session...",
     "restored": "Previous session restored",
     "sampleOpened": "Sample project opened",
     "invalid": "Stored recovery data was invalid. The sample project was opened.",
     "unavailable": "Automatic browser recovery is unavailable. Download the project to keep your work."
+  },
+  "loadPointPositions": {
+    "projectOpenError_one": "The project was not opened. Load points {{locations}} share the same position (X {{x}} mm, Y {{y}} mm). Every load point must have a unique position.",
+    "projectOpenError_other": "The project was not opened: {{count}} overlapping positions were found. The first concerns {{locations}} at (X {{x}} mm, Y {{y}} mm). Every load point must have a unique position."
   },
   "unsaved": {
     "title": "Unsaved changes",

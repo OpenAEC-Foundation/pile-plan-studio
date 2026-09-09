@@ -1,8 +1,8 @@
 use crate::{
-    CptSelectionAlgorithm, CptSelectionSettings, GreedyOptimizationSettings, PileCostSettings,
-    PilePlanProject, ProjectApplication, ProjectBearingCapacity, ProjectCpt, ProjectImportLogEntry,
-    ProjectInputs, ProjectLoadPoint, ProjectMetadata, ProjectSettings, ProjectUnits,
-    ProjectUserState,
+    CptSelectionAlgorithm, CptSelectionSettings, DuplicateLoadPointPositions,
+    GreedyOptimizationSettings, PileCostSettings, PilePlanProject, ProjectApplication,
+    ProjectBearingCapacity, ProjectCpt, ProjectImportLogEntry, ProjectInputs, ProjectLoadPoint,
+    ProjectMetadata, ProjectSettings, ProjectUnits, ProjectUserState,
 };
 use std::collections::HashMap;
 use std::fmt;
@@ -99,6 +99,7 @@ pub enum ImportError {
         label: &'static str,
         id: u32,
     },
+    DuplicateLoadPointPositions(DuplicateLoadPointPositions),
     Validation(String),
 }
 
@@ -161,6 +162,7 @@ impl fmt::Display for ImportError {
                 }
                 formatter.write_str(".")
             }
+            Self::DuplicateLoadPointPositions(error) => error.fmt(formatter),
             Self::Validation(message) => formatter.write_str(message),
         }
     }
@@ -483,7 +485,10 @@ fn join_ids(ids: &[u32]) -> String {
 
 pub fn import_load_points_csv(input: &str) -> Result<Vec<ProjectLoadPoint>, ImportError> {
     let table = read_source_table("Belastinglocaties.csv", SourceFormat::Csv, input.as_bytes())?;
-    parse_load_points(&table)
+    let load_points = parse_load_points(&table)?;
+    crate::validate_unique_load_point_positions(&load_points)
+        .map_err(ImportError::DuplicateLoadPointPositions)?;
+    Ok(load_points)
 }
 
 pub fn import_cpts_xlsx(input: &[u8]) -> Result<Vec<ProjectCpt>, ImportError> {
@@ -591,6 +596,9 @@ mod tests {
                 code: ImportDiagnosticCode::ReactionNodesWithoutCoordinates,
                 count: 1,
                 node_ids: vec![999],
+                load_point_names: vec![],
+                x_mm: None,
+                y_mm: None,
                 location: Some(ImportDiagnosticLocation {
                     file_name: "Export RFEM.xlsx".to_string(),
                     sheet_name: Some("RC1".to_string()),
@@ -1049,6 +1057,24 @@ mod tests {
         assert_eq!(load_points[0].x_mm, 9450.0);
         assert_eq!(load_points[0].y_mm, 4700.0);
         assert_eq!(load_points[0].design_load_kn, 79.0);
+    }
+
+    #[test]
+    fn rejects_different_load_point_ids_at_one_position() {
+        let error = import_load_points_csv("8,1000,2000,100\n2,1000,2000,200\n").unwrap_err();
+
+        let ImportError::DuplicateLoadPointPositions(duplicates) = error else {
+            panic!("expected duplicate-position error");
+        };
+        assert_eq!(duplicates.positions.len(), 1);
+        assert_eq!(
+            duplicates.positions[0]
+                .load_points
+                .iter()
+                .map(|member| member.id)
+                .collect::<Vec<_>>(),
+            vec![2, 8]
+        );
     }
 
     #[test]

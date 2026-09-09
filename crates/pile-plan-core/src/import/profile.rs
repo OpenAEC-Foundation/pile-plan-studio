@@ -39,6 +39,7 @@ pub enum ImportDiagnosticCode {
     ConflictingReactionDuplicate,
     ExactCoordinateDuplicates,
     ExactReactionDuplicates,
+    DuplicateLoadPointPosition,
     ReactionNodesWithoutCoordinates,
     CoordinateNodesWithoutReactions,
     NoImportedRows,
@@ -65,12 +66,18 @@ impl From<&SourceLocation> for ImportDiagnosticLocation {
     }
 }
 
-#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
 pub struct ImportDiagnostic {
     pub severity: ImportDiagnosticSeverity,
     pub code: ImportDiagnosticCode,
     pub count: usize,
     pub node_ids: Vec<u32>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub load_point_names: Vec<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub x_mm: Option<f64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub y_mm: Option<f64>,
     pub location: Option<ImportDiagnosticLocation>,
     pub fallback_message: String,
 }

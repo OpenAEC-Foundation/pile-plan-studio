@@ -37,6 +37,9 @@ export type ImportDiagnostic = {
   code: string;
   count: number;
   nodeIds: number[];
+  loadPointNames: string[];
+  xMm: number | null;
+  yMm: number | null;
   fallbackMessage: string;
 };
 
@@ -79,6 +82,9 @@ type CoreImportSourcePreview = {
     code: string;
     count: number;
     node_ids: number[];
+    load_point_names?: string[];
+    x_mm?: number | null;
+    y_mm?: number | null;
     fallback_message: string;
   }>;
   details:
@@ -111,6 +117,9 @@ export function fromCoreImportSourcePreview(preview: CoreImportSourcePreview): I
       code: diagnostic.code,
       count: diagnostic.count,
       nodeIds: diagnostic.node_ids,
+      loadPointNames: diagnostic.load_point_names ?? [],
+      xMm: diagnostic.x_mm ?? null,
+      yMm: diagnostic.y_mm ?? null,
       fallbackMessage: diagnostic.fallback_message,
     })),
     details: fromCorePreviewDetails(preview.details),

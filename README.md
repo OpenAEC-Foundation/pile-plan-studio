@@ -146,7 +146,11 @@ position rather than by header name:
   R<sub>c;net;d</sub>.
 
 One header row is optional, and additional columns after the required columns
-are allowed. The RFEM load-point profile is the exception: it detects the
+are allowed. Every load point must have an exact unique X/Y position. Source
+previews identify all conflicting locations and their shared coordinates; an
+import, refresh, or IFCPP project open is rejected until those conflicts are
+resolved. Nearby but non-identical positions remain valid. The RFEM load-point
+profile is the exception: it detects the
 required RFEM columns by their headers. When those headers cannot be detected,
 it falls back to the traditional RFEM layout with nodes on the first worksheet
 and nodal reactions on the second.
