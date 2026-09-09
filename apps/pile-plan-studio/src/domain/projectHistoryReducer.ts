@@ -20,7 +20,12 @@ export type HistoryDirection = "undo" | "redo";
 export type HistoryResult = {
   id: number;
   direction: HistoryDirection;
+  status: "applied";
   action: HistoryAction;
+} | {
+  id: number;
+  direction: HistoryDirection;
+  status: "unavailable";
 };
 
 export type ManagedProjectState = {
@@ -108,7 +113,18 @@ export function projectHistoryReducer(
   const step = action.type === "undo"
     ? undoProjectChange(managed.history)
     : redoProjectChange(managed.history);
-  if (!step) return managed;
+  if (!step) {
+    const resultSequence = managed.resultSequence + 1;
+    return {
+      ...managed,
+      lastResult: {
+        id: resultSequence,
+        direction: action.type,
+        status: "unavailable",
+      },
+      resultSequence,
+    };
+  }
   const activatesCreatedPlan = action.type === "redo"
     && step.entry.action.kind === "pile-plan-created";
   const restored = restoreProjectContent(managed.present, step.content, {
@@ -124,6 +140,7 @@ export function projectHistoryReducer(
     lastResult: {
       id: resultSequence,
       direction: action.type,
+      status: "applied",
       action: step.entry.action,
     },
     resultSequence,

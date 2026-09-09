@@ -27,7 +27,11 @@
     "redoLabel": "Opnieuw: {{action}} (Ctrl+Y)",
     "result": {
       "undo": "Ongedaan gemaakt: {{action}}",
-      "redo": "Opnieuw uitgevoerd: {{action}}"
+      "redo": "Opnieuw uitgevoerd: {{action}}",
+      "unavailable": {
+        "undo": "Er is geen bewerking om ongedaan te maken.",
+        "redo": "Er is geen bewerking om opnieuw uit te voeren."
+      }
     },
     "actions": {
       "pile-change_one": "{{count}} paal gewijzigd in {{pilePlanName}}",

@@ -4,6 +4,18 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
 describe("React app startup", () => {
+  it("drains desktop IFCPP launch requests after registering the warm-open listener", () => {
+    const source = readFileSync(resolve(import.meta.dirname, "App.tsx"), "utf8");
+    const effectStart = source.indexOf('void import("@tauri-apps/api/event")');
+    const effect = source.slice(effectStart, source.indexOf("return () =>", effectStart));
+    const listener = effect.indexOf('await listen("project-open-requested"');
+    const initialDrain = effect.indexOf("await drainPendingProjectPaths()", listener);
+
+    assert.ok(listener >= 0, "desktop project-open listener is missing");
+    assert.ok(initialDrain > listener, "listener must be registered before pending launch paths are drained");
+    assert.match(source, /openDesktopProjectPathRef\.current/);
+  });
+
   it("does not run the expensive WASM initialization twice in development", () => {
     const source = readFileSync(resolve(import.meta.dirname, "main.tsx"), "utf8");
 

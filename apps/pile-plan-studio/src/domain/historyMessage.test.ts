@@ -23,9 +23,32 @@ describe("history messages", () => {
       describeHistoryResult(translate, {
         id: 1,
         direction: "undo",
+        status: "applied",
         action: { kind: "cost-settings" },
       }),
       'history.result.undo:{"action":"history.actions.cost-settings:{}"}',
+    );
+  });
+
+  it("describes an unavailable Undo request without an action", () => {
+    assert.equal(
+      describeHistoryResult(translate, {
+        id: 2,
+        direction: "undo",
+        status: "unavailable",
+      }),
+      "history.result.unavailable.undo:{}",
+    );
+  });
+
+  it("describes an unavailable Redo request without an action", () => {
+    assert.equal(
+      describeHistoryResult(translate, {
+        id: 3,
+        direction: "redo",
+        status: "unavailable",
+      }),
+      "history.result.unavailable.redo:{}",
     );
   });
 });

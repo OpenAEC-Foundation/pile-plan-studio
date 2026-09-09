@@ -51,6 +51,9 @@ describe("App Undo integration", () => {
     assert.match(source, /key === "y"/);
     assert.match(source, /dispatchProject\(\{ type: "undo" \}\)/);
     assert.match(source, /dispatchProject\(\{ type: "redo" \}\)/);
+    assert.doesNotMatch(source, /undoRequested && canUndo/);
+    assert.doesNotMatch(source, /redoRequested && canRedo/);
+    assert.match(source, /key === "z" && event\.shiftKey/);
   });
 
   it("keeps project history shortcuts active while a range slider has focus", () => {

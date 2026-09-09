@@ -478,6 +478,7 @@ function AppSession({
   const preparedProjectRef = useRef<{ signature: string; blob: Blob } | null>(null);
   const projectActionRef = useRef<(() => Promise<boolean>) | null>(null);
   const openProjectActionRef = useRef<(() => Promise<void>) | null>(null);
+  const openDesktopProjectPathRef = useRef<((path: string) => Promise<void>) | null>(null);
   const saveShortcutInFlightRef = useRef(false);
   const isDesktop = isDesktopRuntime();
   const { workspaceLayout } = userSettings.preferences;
@@ -607,17 +608,17 @@ function AppSession({
       const key = event.key.toLowerCase();
       const undoRequested = key === "z" && !event.shiftKey;
       const redoRequested = key === "y" || (key === "z" && event.shiftKey);
-      if (undoRequested && canUndo) {
+      if (undoRequested) {
         event.preventDefault();
         dispatchProject({ type: "undo" });
-      } else if (redoRequested && canRedo) {
+      } else if (redoRequested) {
         event.preventDefault();
         dispatchProject({ type: "redo" });
       }
     };
     window.addEventListener("keydown", handleHistoryShortcut);
     return () => window.removeEventListener("keydown", handleHistoryShortcut);
-  }, [canRedo, canUndo]);
+  }, []);
   const pilePlanCostSummaries = useMemo(() => summarizePilePlanCosts(
     synchronizeActivePilePlan(
       projectState.pilePlans,
@@ -1552,6 +1553,7 @@ function AppSession({
       showActionNotice(describeProjectOpenError(error, t), "error");
     }
   };
+  openDesktopProjectPathRef.current = openDesktopProjectPath;
 
   const chooseDesktopProject = async () => {
     const { open } = await import("@tauri-apps/plugin-dialog");
@@ -1560,6 +1562,47 @@ function AppSession({
   };
 
   openProjectActionRef.current = chooseDesktopProject;
+
+  useEffect(() => {
+    if (!isDesktop || !userSettingsReady) return;
+    let disposed = false;
+    let stopListening: (() => void) | null = null;
+    let pendingDrain = Promise.resolve();
+
+    const reportOpenFailure = (error: unknown) => {
+      if (!disposed) showActionNotice(describeProjectOpenError(error, t), "error");
+    };
+    const drainPendingProjectPaths = () => {
+      pendingDrain = pendingDrain.then(async () => {
+        const { invoke } = await import("@tauri-apps/api/core");
+        const paths = await invoke<string[]>("take_pending_project_paths");
+        for (const path of paths) {
+          if (disposed) return;
+          await openDesktopProjectPathRef.current?.(path);
+        }
+      }).catch(reportOpenFailure);
+      return pendingDrain;
+    };
+
+    void import("@tauri-apps/api/event")
+      .then(async ({ listen }) => {
+        const unlisten = await listen("project-open-requested", () => {
+          void drainPendingProjectPaths();
+        });
+        if (disposed) {
+          unlisten();
+          return;
+        }
+        stopListening = unlisten;
+        await drainPendingProjectPaths();
+      })
+      .catch(reportOpenFailure);
+
+    return () => {
+      disposed = true;
+      stopListening?.();
+    };
+  }, [isDesktop, showActionNotice, t, userSettingsReady]);
 
   if (!userSettingsReady) {
     return <div className="app-startup-surface" role="status" />;

@@ -13,7 +13,7 @@ describe("title bar history controls", () => {
     assert.doesNotMatch(source, />\s*tmp\s*</i);
   });
 
-  it("exposes Undo and Redo buttons with next-action labels", () => {
+  it("disables unavailable Undo and Redo buttons", () => {
     assert.match(source, /canUndo: boolean/);
     assert.match(source, /canRedo: boolean/);
     assert.match(source, /undoLabel: string/);

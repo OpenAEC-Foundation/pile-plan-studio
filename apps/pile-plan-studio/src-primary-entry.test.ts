@@ -43,6 +43,28 @@ describe("primary frontend entry", () => {
     assert.equal(tauriConfig.bundle?.windows?.nsis?.uninstallerIcon, "icons/icon.ico");
   });
 
+  it("registers the desktop installer as an IFCPP project handler", () => {
+    const tauriConfig = JSON.parse(
+      readFileSync(resolve(import.meta.dirname, "src-tauri/tauri.conf.json"), "utf8"),
+    ) as {
+      bundle?: {
+        fileAssociations?: Array<{
+          ext?: string[];
+          name?: string;
+          description?: string;
+          role?: string;
+        }>;
+      };
+    };
+
+    assert.deepEqual(tauriConfig.bundle?.fileAssociations, [{
+      ext: ["ifcpp"],
+      name: "IFCPP project",
+      description: "Pile Plan Studio IFCPP project",
+      role: "Editor",
+    }]);
+  });
+
   it("allows the desktop app to open project file dialogs", () => {
     const capabilityPath = resolve(import.meta.dirname, "src-tauri/capabilities/default.json");
 

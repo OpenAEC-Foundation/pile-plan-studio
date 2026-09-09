@@ -27,7 +27,11 @@
     "redoLabel": "Redo: {{action}} (Ctrl+Y)",
     "result": {
       "undo": "Undone: {{action}}",
-      "redo": "Redone: {{action}}"
+      "redo": "Redone: {{action}}",
+      "unavailable": {
+        "undo": "There is no operation to undo.",
+        "redo": "There is no operation to redo."
+      }
     },
     "actions": {
       "pile-change_one": "Changed {{count}} pile in {{pilePlanName}}",

@@ -1,5 +1,42 @@
 # Pile Plan Studio Release Notes
 
+## 0.3.2-alpha
+
+This alpha makes automatic load-point grouping configurable and visible,
+rejects ambiguous coincident load-point positions at project boundaries, and
+simplifies the spatial topology used for pile-tip-level regions. It also
+improves desktop project opening and Undo/Redo feedback.
+
+### Added
+
+- Enable or disable automatic load-point grouping and set the maximum distance
+  between connected group members. These settings are stored in the IFCPP
+  project and participate in Undo and Redo.
+- Show the other members of a selected group with neutral selection rings and
+  explain the number of involved groups and marked locations for both single
+  and multiple selections.
+- Open associated `.ifcpp` files directly in the desktop app, including files
+  opened while Pile Plan Studio is already running.
+
+### Improved
+
+- Reject load-point sources and IFCPP projects containing different locations
+  at exactly the same coordinates. Import previews identify every conflicting
+  location, and source refreshes leave the current project unchanged when the
+  replacement data is invalid.
+- Use load-point identifiers directly throughout the Gabriel graph, bounded
+  faces, pile-tip-level topology, WebAssembly contract, and viewer geometry.
+  The removed geometric-site indirection is no longer needed because
+  coincident positions are invalid.
+- Keep unavailable Undo and Redo buttons inactive while providing clear
+  keyboard-shortcut feedback for Ctrl+Z, Ctrl+Y, and Ctrl+Shift+Z.
+
+### Compatibility
+
+- IFCPP schema version 4 remains current. Existing supported projects without
+  explicit grouping settings use the automatic grouping defaults when opened.
+- Manual load-point grouping remains planned for a future release.
+
 ## 0.3.1-alpha
 
 This alpha makes legend activation specific to each pile plan and extends the

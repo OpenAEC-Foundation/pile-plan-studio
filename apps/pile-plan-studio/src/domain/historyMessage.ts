@@ -20,6 +20,9 @@ export function describeHistoryResult(
   translate: HistoryTranslator,
   result: HistoryResult,
 ): string {
+  if (result.status === "unavailable") {
+    return translate(`history.result.unavailable.${result.direction}`);
+  }
   return translate(`history.result.${result.direction}`, {
     action: describeHistoryAction(translate, result.action),
   });

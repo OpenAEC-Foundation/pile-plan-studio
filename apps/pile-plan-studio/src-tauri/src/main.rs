@@ -23,6 +23,67 @@ use pile_plan_core::{
 };
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use std::ffi::OsStr;
+use std::path::{Path, PathBuf};
+use std::sync::Mutex;
+use tauri::{Emitter, Manager, State};
+
+const PROJECT_OPEN_REQUESTED_EVENT: &str = "project-open-requested";
+
+#[derive(Debug, Default)]
+struct PendingProjectPaths {
+    paths: Mutex<Vec<String>>,
+}
+
+impl PendingProjectPaths {
+    fn new(paths: Vec<String>) -> Self {
+        Self {
+            paths: Mutex::new(paths),
+        }
+    }
+
+    fn extend(&self, paths: Vec<String>) {
+        self.paths
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner())
+            .extend(paths);
+    }
+
+    fn take(&self) -> Vec<String> {
+        std::mem::take(
+            &mut *self
+                .paths
+                .lock()
+                .unwrap_or_else(|poisoned| poisoned.into_inner()),
+        )
+    }
+}
+
+fn project_paths_from_args<I, S>(args: I, cwd: &Path) -> Vec<String>
+where
+    I: IntoIterator<Item = S>,
+    S: AsRef<OsStr>,
+{
+    args.into_iter()
+        .skip(1)
+        .filter_map(|argument| {
+            let path = PathBuf::from(argument.as_ref());
+            let is_ifcpp = path
+                .extension()
+                .and_then(OsStr::to_str)
+                .is_some_and(|extension| extension.eq_ignore_ascii_case("ifcpp"));
+            if !is_ifcpp {
+                return None;
+            }
+            let path = if path.is_absolute() {
+                path
+            } else {
+                cwd.join(path)
+            };
+            Some(path.to_string_lossy().into_owned())
+        })
+        .collect()
+}
 
 #[derive(Debug, Deserialize)]
 struct SelectedCptsRequest {
@@ -287,6 +348,11 @@ fn read_project_file(path: String) -> Result<String, String> {
     std::fs::read_to_string(path).map_err(|error| error.to_string())
 }
 
+#[tauri::command]
+fn take_pending_project_paths(state: State<'_, PendingProjectPaths>) -> Vec<String> {
+    state.take()
+}
+
 #[tauri::command(rename_all = "snake_case")]
 fn write_project_file(path: String, contents: String) -> Result<(), String> {
     std::fs::write(path, contents).map_err(|error| error.to_string())
@@ -333,7 +399,22 @@ fn apply_load_point_group_assignment(
 }
 
 fn main() {
+    let launch_cwd = std::env::current_dir().unwrap_or_default();
+    let launch_paths = project_paths_from_args(std::env::args_os(), &launch_cwd);
     tauri::Builder::default()
+        .manage(PendingProjectPaths::new(launch_paths))
+        .plugin(tauri_plugin_single_instance::init(|app, args, cwd| {
+            let paths = project_paths_from_args(args, Path::new(&cwd));
+            if !paths.is_empty() {
+                app.state::<PendingProjectPaths>().extend(paths);
+                let _ = app.emit(PROJECT_OPEN_REQUESTED_EVENT, ());
+            }
+            if let Some(window) = app.get_webview_window("main") {
+                let _ = window.unminimize();
+                let _ = window.show();
+                let _ = window.set_focus();
+            }
+        }))
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_store::Builder::default().build())
         .invoke_handler(tauri::generate_handler![
@@ -361,6 +442,7 @@ fn main() {
             read_project_file,
             write_project_file,
             write_binary_file,
+            take_pending_project_paths,
         ])
         .run(tauri::generate_context!())
         .expect("failed to run Pile Plan Studio");
@@ -369,6 +451,32 @@ fn main() {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn launch_arguments_select_only_ifcpp_projects_and_resolve_relative_paths() {
+        let paths = project_paths_from_args(
+            ["pile-plan-studio.exe", "project.IFCPP", "notes.txt"],
+            std::path::Path::new("C:/projects"),
+        );
+
+        assert_eq!(
+            paths,
+            vec![
+                std::path::Path::new("C:/projects")
+                    .join("project.IFCPP")
+                    .to_string_lossy()
+                    .into_owned()
+            ]
+        );
+    }
+
+    #[test]
+    fn pending_project_paths_are_drained_exactly_once() {
+        let pending = PendingProjectPaths::new(vec!["C:/projects/first.ifcpp".to_string()]);
+
+        assert_eq!(pending.take(), vec!["C:/projects/first.ifcpp"]);
+        assert!(pending.take().is_empty());
+    }
 
     #[test]
     fn spatial_commands_return_core_results() {

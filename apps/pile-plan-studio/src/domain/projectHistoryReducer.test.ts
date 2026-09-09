@@ -11,6 +11,20 @@ import { createPilePlan, switchPilePlan } from "./pilePlanManagement.ts";
 const sampleProjectText = readFileSync("../../sample_project/sample_project.ifcpp", "utf8");
 
 describe("project history reducer", () => {
+  it("reports an unavailable Undo request without changing the project", () => {
+    const managed = createManagedProjectState(state());
+
+    const result = projectHistoryReducer(managed, { type: "undo" });
+
+    assert.equal(result.present, managed.present);
+    assert.equal(result.history, managed.history);
+    assert.deepEqual(result.lastResult, {
+      id: 1,
+      direction: "undo",
+      status: "unavailable",
+    });
+  });
+
   it("undoes one grouped pile assignment atomically without changing another plan", () => {
     const initial = state();
     const [firstLoadPoint, secondLoadPoint] = initial.loadPoints;
@@ -240,6 +254,21 @@ describe("project history reducer", () => {
     assert.equal(managed.history.past.length, 0);
     assert.equal(managed.history.future.length, 0);
     assert.equal(managed.lastResult, null);
+  });
+
+  it("reports an unavailable Redo request without changing the project", () => {
+    const initial = state();
+    const before = createManagedProjectState(initial);
+    const managed = projectHistoryReducer(before, { type: "redo" });
+
+    assert.equal(managed.present, before.present);
+    assert.equal(managed.history.past.length, 0);
+    assert.equal(managed.history.future.length, 0);
+    assert.deepEqual(managed.lastResult, {
+      id: 1,
+      direction: "redo",
+      status: "unavailable",
+    });
   });
 
   it("amends an asynchronous continuation into the latest history entry", () => {

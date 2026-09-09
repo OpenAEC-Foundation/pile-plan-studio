@@ -4,6 +4,16 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
 describe("Workspace translations", () => {
+  it("provides bilingual feedback for unavailable Undo and Redo requests", () => {
+    const en = JSON.parse(readFileSync(resolve(import.meta.dirname, "../../i18n/locales/en/common.json"), "utf8"));
+    const nl = JSON.parse(readFileSync(resolve(import.meta.dirname, "../../i18n/locales/nl/common.json"), "utf8"));
+
+    assert.equal(en.history.result.unavailable.undo, "There is no operation to undo.");
+    assert.equal(en.history.result.unavailable.redo, "There is no operation to redo.");
+    assert.equal(nl.history.result.unavailable.undo, "Er is geen bewerking om ongedaan te maken.");
+    assert.equal(nl.history.result.unavailable.redo, "Er is geen bewerking om opnieuw uit te voeren.");
+  });
+
   it("provides bilingual tip-level region toggle labels", () => {
     const en = JSON.parse(readFileSync(resolve(import.meta.dirname, "../../i18n/locales/en/ribbon.json"), "utf8"));
     const nl = JSON.parse(readFileSync(resolve(import.meta.dirname, "../../i18n/locales/nl/ribbon.json"), "utf8"));
