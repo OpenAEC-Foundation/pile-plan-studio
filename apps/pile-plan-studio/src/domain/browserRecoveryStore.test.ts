@@ -10,7 +10,6 @@ function record(projectName: string): BrowserRecoveryRecord {
   return {
     formatVersion: 1,
     appVersion: "0.1.7",
-    schemaVersion: 2,
     projectName,
     updatedAt: "2026-08-05T10:00:00.000Z",
     ifcppText: JSON.stringify({ schema: "IFCPP", schema_version: 2, metadata: { name: projectName } }),
@@ -94,5 +93,21 @@ describe("browser recovery writer", () => {
 
     assert.equal(test.errors.length, 1);
     assert.deepEqual(test.writes, []);
+  });
+
+  it("does not store a record when Rust serialization fails and remains usable", async () => {
+    const test = harness();
+    test.writer.markReady();
+    test.writer.schedule(() => Promise.reject(new Error("project serialization failed")));
+
+    await test.writer.flush();
+
+    assert.equal(test.errors.length, 1);
+    assert.deepEqual(test.writes, []);
+
+    test.writer.schedule(() => Promise.resolve(record("Recovered after failure")));
+    await test.writer.flush();
+
+    assert.deepEqual(test.writes.map((value) => value.projectName), ["Recovered after failure"]);
   });
 });

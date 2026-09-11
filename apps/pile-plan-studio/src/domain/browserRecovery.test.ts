@@ -5,11 +5,7 @@ import {
   parseBrowserRecoveryRecord,
 } from "./browserRecovery.ts";
 
-const ifcppText = JSON.stringify({
-  schema: "IFCPP",
-  schema_version: 3,
-  metadata: { name: "Recovered project" },
-});
+const ifcppText = "canonical IFCPP text supplied by Rust";
 
 describe("browser recovery record", () => {
   it("creates and parses a versioned recovery record", () => {
@@ -24,7 +20,6 @@ describe("browser recovery record", () => {
 
     assert.deepEqual(parseBrowserRecoveryRecord(record), record);
     assert.equal(record.formatVersion, 1);
-    assert.equal(record.schemaVersion, 3);
     assert.equal(record.savedProjectSignature, "saved-signature");
     assert.equal(record.isDirty, true);
   });
@@ -41,13 +36,12 @@ describe("browser recovery record", () => {
 
     assert.equal(parseBrowserRecoveryRecord(null), null);
     assert.equal(parseBrowserRecoveryRecord({ ...valid, formatVersion: 2 }), null);
-    assert.equal(parseBrowserRecoveryRecord({ ...valid, schemaVersion: 99 }), null);
-    assert.equal(parseBrowserRecoveryRecord({ ...valid, ifcppText: "{" }), null);
+    assert.equal(parseBrowserRecoveryRecord({ ...valid, ifcppText: "" }), null);
     assert.equal(parseBrowserRecoveryRecord({ ...valid, projectName: "" }), null);
     assert.equal(parseBrowserRecoveryRecord({ ...valid, isDirty: "yes" }), null);
   });
 
-  it("rejects metadata that disagrees with the serialized IFCPP project", () => {
+  it("treats serialized project text as opaque Rust-owned content", () => {
     const valid = createBrowserRecoveryRecord({
       appVersion: "0.1.7",
       ifcppText,
@@ -57,7 +51,23 @@ describe("browser recovery record", () => {
       updatedAt: "2026-08-05T10:00:00.000Z",
     });
 
-    assert.equal(parseBrowserRecoveryRecord({ ...valid, schemaVersion: 1 }), null);
-    assert.equal(parseBrowserRecoveryRecord({ ...valid, projectName: "Other project" }), null);
+    assert.deepEqual(parseBrowserRecoveryRecord(valid), valid);
+    assert.equal("schemaVersion" in valid, false);
+  });
+
+  it("continues to accept version-one records containing the former schema metadata", () => {
+    const legacy = {
+      ...createBrowserRecoveryRecord({
+        appVersion: "0.1.7",
+        ifcppText,
+        projectName: "Recovered project",
+        savedProjectSignature: "",
+        isDirty: false,
+        updatedAt: "2026-08-05T10:00:00.000Z",
+      }),
+      schemaVersion: 3,
+    };
+
+    assert.deepEqual(parseBrowserRecoveryRecord(legacy), legacy);
   });
 });

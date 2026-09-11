@@ -9,6 +9,8 @@ const ifcppText = JSON.stringify({
   schema_version: 2,
   metadata: { name: "Recovered project" },
 });
+const validatedProject = { canonical: true } as const;
+const acceptProject = async () => validatedProject;
 
 function store(value: unknown, options?: { readError?: Error }) {
   let clearCount = 0;
@@ -37,9 +39,13 @@ describe("browser recovery startup", () => {
     });
     const test = store(record);
 
-    const result = await loadBrowserRecovery({ isDesktop: false, store: test.recoveryStore });
+    const result = await loadBrowserRecovery({
+      isDesktop: false,
+      store: test.recoveryStore,
+      validateProject: acceptProject,
+    });
 
-    assert.deepEqual(result, { kind: "restored", record });
+    assert.deepEqual(result, { kind: "restored", record, project: validatedProject });
   });
 
   it("preserves tip-level region visibility in the recovered IFCPP text", async () => {
@@ -58,7 +64,11 @@ describe("browser recovery startup", () => {
       updatedAt: "2026-08-17T10:00:00.000Z",
     });
 
-    const result = await loadBrowserRecovery({ isDesktop: false, store: store(record).recoveryStore });
+    const result = await loadBrowserRecovery({
+      isDesktop: false,
+      store: store(record).recoveryStore,
+      validateProject: acceptProject,
+    });
 
     assert.equal(result.kind, "restored");
     assert.equal(
@@ -71,7 +81,11 @@ describe("browser recovery startup", () => {
   it("opens the sample when no recovery record exists", async () => {
     const test = store(null);
     assert.deepEqual(
-      await loadBrowserRecovery({ isDesktop: false, store: test.recoveryStore }),
+      await loadBrowserRecovery({
+        isDesktop: false,
+        store: test.recoveryStore,
+        validateProject: acceptProject,
+      }),
       { kind: "empty" },
     );
   });
@@ -79,7 +93,11 @@ describe("browser recovery startup", () => {
   it("clears invalid recovery data and falls back safely", async () => {
     const test = store({ formatVersion: 99 });
     assert.deepEqual(
-      await loadBrowserRecovery({ isDesktop: false, store: test.recoveryStore }),
+      await loadBrowserRecovery({
+        isDesktop: false,
+        store: test.recoveryStore,
+        validateProject: acceptProject,
+      }),
       { kind: "invalid" },
     );
     assert.equal(test.clearCount(), 1);
@@ -134,7 +152,11 @@ describe("browser recovery startup", () => {
 
   it("reports unavailable storage without throwing", async () => {
     const test = store(null, { readError: new Error("private mode") });
-    const result = await loadBrowserRecovery({ isDesktop: false, store: test.recoveryStore });
+    const result = await loadBrowserRecovery({
+      isDesktop: false,
+      store: test.recoveryStore,
+      validateProject: acceptProject,
+    });
     assert.equal(result.kind, "unavailable");
   });
 
@@ -150,7 +172,11 @@ describe("browser recovery startup", () => {
     };
 
     assert.deepEqual(
-      await loadBrowserRecovery({ isDesktop: true, store: recoveryStore }),
+      await loadBrowserRecovery({
+        isDesktop: true,
+        store: recoveryStore,
+        validateProject: acceptProject,
+      }),
       { kind: "disabled" },
     );
     assert.equal(reads, 0);

@@ -273,22 +273,18 @@ export default function App() {
         return;
       }
       const recoveryStore = createIndexedDbRecoveryStore(window.indexedDB);
-      let recoveredProject: Extract<ProjectDocumentOutcome, { status: "valid" }> | null = null;
       const result = await loadBrowserRecovery({
         isDesktop: false,
         store: recoveryStore,
-        validateProject: async (text) => {
-          recoveredProject = await validateOpenedProject(text, {
-            readProjectDocument: readProjectDocumentCore,
-          });
-        },
+        validateProject: (text) => validateOpenedProject(text, {
+          readProjectDocument: readProjectDocumentCore,
+        }),
       });
       if (cancelled) return;
       if (result.kind === "restored") {
-        if (!recoveredProject) throw new Error("Restored project was not validated");
         setBootstrap({
           kind: "ready",
-          initialProject: recoveredProject,
+          initialProject: result.project,
           initializeDefaultPiles: false,
           initialSavedProjectSignature: result.record.savedProjectSignature,
           initialWasDirty: result.record.isDirty,

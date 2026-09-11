@@ -1,22 +1,22 @@
 import { parseBrowserRecoveryRecord, type BrowserRecoveryRecord } from "./browserRecovery.ts";
 import type { BrowserRecoveryStore } from "./browserRecoveryStore.ts";
 
-export type BrowserRecoveryStartupResult =
+export type BrowserRecoveryStartupResult<TProject> =
   | { kind: "disabled" }
   | { kind: "empty" }
-  | { kind: "restored"; record: BrowserRecoveryRecord }
+  | { kind: "restored"; record: BrowserRecoveryRecord; project: TProject }
   | { kind: "invalid" }
   | { kind: "unavailable"; error: unknown };
 
-export async function loadBrowserRecovery({
+export async function loadBrowserRecovery<TProject>({
   isDesktop,
   store,
-  validateProject = () => undefined,
+  validateProject,
 }: {
   isDesktop: boolean;
   store: BrowserRecoveryStore;
-  validateProject?: (ifcppText: string) => void | Promise<void>;
-}): Promise<BrowserRecoveryStartupResult> {
+  validateProject: (ifcppText: string) => TProject | Promise<TProject>;
+}): Promise<BrowserRecoveryStartupResult<TProject>> {
   if (isDesktop) return { kind: "disabled" };
 
   try {
@@ -25,8 +25,8 @@ export async function loadBrowserRecovery({
     const record = parseBrowserRecoveryRecord(stored);
     if (record) {
       try {
-        await validateProject(record.ifcppText);
-        return { kind: "restored", record };
+        const project = await validateProject(record.ifcppText);
+        return { kind: "restored", record, project };
       } catch {
         // Invalid project contents use the same safe fallback and cleanup path.
       }

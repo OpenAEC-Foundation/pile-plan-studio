@@ -16,6 +16,14 @@ describe("React app startup", () => {
     assert.match(source, /openDesktopProjectPathRef\.current/);
   });
 
+  it("receives the validated recovered project atomically from recovery startup", () => {
+    const source = readFileSync(new URL("./App.tsx", import.meta.url), "utf8");
+
+    assert.match(source, /initialProject:\s*result\.project/);
+    assert.doesNotMatch(source, /let recoveredProject:/);
+    assert.doesNotMatch(source, /Restored project was not validated/);
+  });
+
   it("does not run the expensive WASM initialization twice in development", () => {
     const source = readFileSync(resolve(import.meta.dirname, "main.tsx"), "utf8");
 
@@ -55,7 +63,7 @@ describe("React app startup", () => {
     const source = readFileSync(resolve(import.meta.dirname, "App.tsx"), "utf8");
 
     assert.match(source, /createInitialProjectState\(\s*project\.project,\s*\{[\s\S]*?initializeDefaultPiles,[\s\S]*?defaultPilePlanName: i18n\.language\.startsWith\("nl"\) \? "Basisplan" : "Base plan",[\s\S]*?\},\s*project\.keys,?\s*\)/);
-    assert.match(source, /initialProject: recoveredProject,[\s\S]*?initializeDefaultPiles: false/);
+    assert.match(source, /initialProject: result\.project,[\s\S]*?initializeDefaultPiles: false/);
     assert.match(source, /createInitialProjectState\(sample\.project, \{[\s\S]*?initializeDefaultPiles: true[\s\S]*?\}, sample\.keys\)/);
     assert.match(source, /createInitialProjectState\(withCosts, \{[\s\S]*?initializeDefaultPiles: true[\s\S]*?\}, imported\.keys\)/);
     assert.match(source, /createInitialProjectState\(refreshedProject, \{[\s\S]*?initializeDefaultPiles: true[\s\S]*?\}, refreshed\.keys\)/);
