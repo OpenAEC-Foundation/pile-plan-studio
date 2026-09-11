@@ -151,6 +151,27 @@ body.is-resizing-panel {
   color: var(--theme-text-secondary);
 }
 
+.project-information-label-with-help {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+}
+
+.project-information-help {
+  display: inline-grid;
+  width: 14px;
+  height: 14px;
+  flex: 0 0 auto;
+  place-items: center;
+  color: var(--theme-text-muted);
+  cursor: default;
+}
+
+.project-information-help svg {
+  width: 12px;
+  height: 12px;
+}
+
 .project-information-form input {
   width: 100%;
   box-sizing: border-box;

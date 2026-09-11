@@ -40,7 +40,8 @@ export function getLoadPointIdsForLegendSelection(
       }
 
       const sizeMatches = filters.pileSizes.length === 0 || filters.pileSizes.includes(option.pile_size_mm);
-      const tipMatches = filters.pileTipLevels.length === 0 || filters.pileTipLevels.includes(option.pile_tip_level_m);
+      const tipMatches = filters.pileTipLevels.length === 0
+        || filters.pileTipLevels.includes(option.configuration.pile_tip_level_mm);
       return sizeMatches && tipMatches;
     })
     .map(([loadPointId]) => loadPointId);

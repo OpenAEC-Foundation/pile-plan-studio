@@ -31,8 +31,8 @@ export function buildMaxOptimizationUiSettings(active: ActivePileConfigurations)
     targetScope: "all",
     limitScope: "target",
     maxDifferentSizes: active.pileSizes.length,
-    maxDifferentTips: active.pileTipLevels.length,
-    maxDifferentConfigurations: active.pileSizes.length * active.pileTipLevels.length,
+    maxDifferentTips: active.pileTipLevelMms.length,
+    maxDifferentConfigurations: active.pileSizes.length * active.pileTipLevelMms.length,
   };
 }
 
@@ -73,8 +73,8 @@ export function clampOptimizationUiSettingsToActiveConfigurations(
   );
   const maxDifferentTips = snapSliderValueToInteger(
     uiSettings.maxDifferentTips,
-    active.pileTipLevels.length === 0 ? 0 : 1,
-    active.pileTipLevels.length,
+    active.pileTipLevelMms.length === 0 ? 0 : 1,
+    active.pileTipLevelMms.length,
   );
 
   return {

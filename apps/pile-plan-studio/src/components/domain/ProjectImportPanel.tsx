@@ -7,6 +7,7 @@ import {
   type ImportSourceInput,
   type ImportSourcePreview,
 } from "../../core/coreImportContract.ts";
+import { importDiagnosticText } from "../../core/importDiagnosticText.ts";
 import {
   getImportFileFormat,
   inferImportFileAssignments,
@@ -348,7 +349,6 @@ export default function ProjectImportPanel({
     </div>
   );
 }
-
 function ImportStatus({ previewState, t }: {
   previewState: ImportPreviewState;
   t: (key: string, options?: Record<string, unknown>) => string;
@@ -377,7 +377,7 @@ function ImportStatus({ previewState, t }: {
     return (
       <div className="project-import-status error">
         <span className="project-import-status-dot" />
-        {errors.map((item) => diagnosticText(item, t)).join(" ")}
+        {errors.map((item) => importDiagnosticText(item, t)).join(" ")}
       </div>
     );
   }
@@ -430,7 +430,7 @@ function RfemAnalysis({ preview, options, onChange, t }: {
         <ul className="project-import-diagnostics">
           {preview.diagnostics.map((diagnostic, index) => (
             <li className={diagnostic.severity} key={`${diagnostic.code}-${index}`}>
-              {diagnosticText(diagnostic, t)}
+              {importDiagnosticText(diagnostic, t)}
             </li>
           ))}
         </ul>
@@ -471,22 +471,4 @@ function FileActionIcon() {
       dangerouslySetInnerHTML={{ __html: ifcImportIcon }}
     />
   );
-}
-
-function diagnosticText(
-  diagnostic: ImportSourcePreview["diagnostics"][number],
-  t: (key: string, options?: Record<string, unknown>) => string,
-): string {
-  const locations = diagnostic.loadPointNames.length > 0
-    ? diagnostic.loadPointNames
-      .map((name, index) => `${name} (${diagnostic.nodeIds[index] ?? "?"})`)
-      .join(", ")
-    : diagnostic.nodeIds.join(", ");
-  return t(`importProject.diagnostics.${diagnostic.code}`, {
-    count: diagnostic.count,
-    locations,
-    x: diagnostic.xMm,
-    y: diagnostic.yMm,
-    defaultValue: diagnostic.fallbackMessage,
-  });
 }

@@ -19,6 +19,7 @@ import initWasm, {
   import_project_from_files,
   preview_import_file,
   preview_pile_plan_import_file,
+  read_validated_ifcpp_project,
   refresh_project_from_files,
   validate_load_point_positions,
   write_ifcpp_project,
@@ -111,6 +112,14 @@ import {
   type CoreDuplicateLoadPointPosition,
   type DuplicateLoadPointPosition,
 } from "./loadPointPositionContract.ts";
+import {
+  validatedIfcppProjectOutcomeFromCore,
+  validatedProjectFromCore,
+  type CoreValidatedIfcppProjectOutcome,
+  type CoreValidatedProject,
+  type ValidatedIfcppProjectOutcome,
+  type ValidatedProject,
+} from "./pileTipLevelContract.ts";
 
 type CoreCptSelectionSettings = {
   algorithm: CptSelectionSettings["algorithm"];
@@ -470,7 +479,7 @@ export async function importProjectFromFilesCore(input: {
   pileHeadLevelM: number;
   currencyCode: string;
   sources: ImportSourceInput[];
-}): Promise<IfcppProject> {
+}): Promise<ValidatedProject> {
   const request = {
     project_name: input.projectName,
     pile_head_level_m: input.pileHeadLevelM,
@@ -479,29 +488,52 @@ export async function importProjectFromFilesCore(input: {
   };
   if (!isTauriRuntime()) {
     await initializeWasm();
-    return import_project_from_files(request) as IfcppProject;
+    return validatedProjectFromCore(
+      import_project_from_files(request) as CoreValidatedProject,
+    );
   }
-  return invoke<IfcppProject>("import_project_from_files", { request });
+  return validatedProjectFromCore(
+    await invoke<CoreValidatedProject>("import_project_from_files", { request }),
+  );
 }
 
 export async function refreshProjectFromFilesCore(input: {
   currentProject: IfcppProject;
   sources: ImportSourceInput[];
-}): Promise<IfcppProject> {
+}): Promise<ValidatedProject> {
   const sources = input.sources.map(toCoreImportSource);
   if (!isTauriRuntime()) {
     await initializeWasm();
-    return refresh_project_from_files({
-      current_project: toWasmIfcppProject(input.currentProject),
-      sources,
-    }) as IfcppProject;
+    return validatedProjectFromCore(
+      refresh_project_from_files({
+        current_project: toWasmIfcppProject(input.currentProject),
+        sources,
+      }) as CoreValidatedProject,
+    );
   }
-  return invoke<IfcppProject>("refresh_project_from_files", {
-    request: {
-      current_project: input.currentProject,
-      sources,
-    },
-  });
+  return validatedProjectFromCore(
+    await invoke<CoreValidatedProject>("refresh_project_from_files", {
+      request: {
+        current_project: input.currentProject,
+        sources,
+      },
+    }),
+  );
+}
+
+export async function readValidatedIfcppProjectCore(
+  contents: string,
+): Promise<ValidatedIfcppProjectOutcome> {
+  let outcome: CoreValidatedIfcppProjectOutcome;
+  if (!isTauriRuntime()) {
+    await initializeWasm();
+    outcome = read_validated_ifcpp_project({ contents }) as CoreValidatedIfcppProjectOutcome;
+  } else {
+    outcome = await invoke<CoreValidatedIfcppProjectOutcome>("read_validated_ifcpp_project", {
+      request: { contents },
+    });
+  }
+  return validatedIfcppProjectOutcomeFromCore(outcome);
 }
 
 export async function previewImportSourceCore(

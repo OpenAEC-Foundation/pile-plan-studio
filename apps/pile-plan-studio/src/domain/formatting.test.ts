@@ -3,7 +3,12 @@ import assert from "node:assert/strict";
 
 import * as formatting from "./formatting.ts";
 
-const { formatNumber, formatOptionalNumber } = formatting;
+const {
+  formatNumber,
+  formatOptionalNumber,
+  formatPileTipLevelMetres,
+  formatPileTipLevelMillimetres,
+} = formatting;
 
 describe("formatting", () => {
   it("formats numbers with at most one decimal", () => {
@@ -21,6 +26,20 @@ describe("formatting", () => {
   it("formats finite optional numbers with a suffix", () => {
     assert.equal(formatOptionalNumber(693, " kN"), "693 kN");
     assert.equal(formatOptionalNumber(0.114, "%", 100), "11.4%");
+  });
+
+  it("shows pile tip levels with only the precision represented by whole millimetres", () => {
+    assert.equal(formatPileTipLevelMillimetres(-18_000, "en-US"), "-18 m");
+    assert.equal(formatPileTipLevelMillimetres(-18_500, "nl-NL"), "-18,5 m");
+    assert.equal(formatPileTipLevelMillimetres(-18_250, "en-US"), "-18.25 m");
+    assert.equal(formatPileTipLevelMillimetres(-18_525, "nl-NL"), "-18,525 m");
+  });
+
+  it("formats source tip levels with the same adaptive precision", () => {
+    assert.equal(formatPileTipLevelMetres(-18, "en-US"), "-18 m");
+    assert.equal(formatPileTipLevelMetres(-18.525, "nl-NL"), "-18,525 m");
+    assert.equal(formatPileTipLevelMetres(Number.NaN, "en-US"), "-");
+    assert.equal(formatPileTipLevelMillimetres(Number.POSITIVE_INFINITY, "en-US"), "-");
   });
 
   it("formats one selected object's coordinates using the active locale", () => {

@@ -54,12 +54,14 @@ describe("React app startup", () => {
   it("initializes default piles for the sample, new imports, and refreshed unmatched points", () => {
     const source = readFileSync(resolve(import.meta.dirname, "App.tsx"), "utf8");
 
-    assert.match(source, /createInitialProjectState\(\s*projectText,\s*\{[\s\S]*?initializeDefaultPiles,[\s\S]*?defaultPilePlanName: i18n\.language\.startsWith\("nl"\) \? "Basisplan" : "Base plan",[\s\S]*?\},?\s*\)/);
-    assert.match(source, /initialProjectText: result\.record\.ifcppText,[\s\S]*?initializeDefaultPiles: false/);
-    assert.match(source, /createInitialProjectState\(sampleProjectText, \{[\s\S]*?initializeDefaultPiles: true/);
-    assert.match(source, /createInitialProjectState\(withCosts, \{[\s\S]*?initializeDefaultPiles: true/);
-    assert.match(source, /createInitialProjectState\(refreshedProject, \{[\s\S]*?initializeDefaultPiles: true/);
-    assert.match(source, /prepareOpenedProject\(\s*await file\.text\(\),\s*\{ initializeDefaultPiles: false \},\s*validateLoadPointPositionsCore,?\s*\)/);
+    assert.match(source, /createInitialProjectState\(\s*project\.project,\s*\{[\s\S]*?initializeDefaultPiles,[\s\S]*?defaultPilePlanName: i18n\.language\.startsWith\("nl"\) \? "Basisplan" : "Base plan",[\s\S]*?\},\s*project\.keys,?\s*\)/);
+    assert.match(source, /initialProject: recoveredProject,[\s\S]*?initializeDefaultPiles: false/);
+    assert.match(source, /createInitialProjectState\(sample\.project, \{[\s\S]*?initializeDefaultPiles: true[\s\S]*?\}, sample\.keys\)/);
+    assert.match(source, /createInitialProjectState\(withCosts, \{[\s\S]*?initializeDefaultPiles: true[\s\S]*?\}, imported\.keys\)/);
+    assert.match(source, /createInitialProjectState\(refreshedProject, \{[\s\S]*?initializeDefaultPiles: true[\s\S]*?\}, refreshed\.keys\)/);
+    assert.match(source, /prepareOpenedProject\(\s*await file\.text\(\),\s*\{ initializeDefaultPiles: false \},\s*\{/);
+    assert.match(source, /readValidatedProject:\s*readValidatedIfcppProjectCore/);
+    assert.match(source, /validatePositions:\s*validateLoadPointPositionsCore/);
   });
 
   it("runs one guarded batched default selection after complete analysis", () => {
@@ -144,7 +146,7 @@ describe("React app startup", () => {
 
     assert.match(createHandler, /capturedTechnicalOptions = technicalPileOptionsByLoadPointId/);
     assert.match(createHandler, /optionsByLoadPointId:\s*capturedTechnicalOptions/);
-    assert.doesNotMatch(createHandler, /activePileSizes|activePileTipLevels|isPileConfigurationActive/);
+    assert.doesNotMatch(createHandler, /activePileSizes|activePileTipLevelMms|isPileConfigurationActive/);
   });
 
   it("discards a fresh-plan default choice when its technical input changes", () => {
@@ -211,7 +213,7 @@ describe("React app startup", () => {
   it("uses the sample project costs as the immutable built-in fallback", () => {
     const source = readFileSync(resolve(import.meta.dirname, "App.tsx"), "utf8");
 
-    assert.match(source, /BUILT_IN_PILE_COST_DEFAULTS\s*=\s*loadIfcppProjectData\(sampleProjectText\)\.pileCostSettings/);
+    assert.match(source, /BUILT_IN_PILE_COST_DEFAULTS\s*=\s*\([\s\S]*?JSON\.parse\(sampleProjectText\)[\s\S]*?\)\.settings\.pile_costs/);
     assert.match(source, /mergePileCostCatalog\([\s\S]*?BUILT_IN_PILE_COST_DEFAULTS/);
     assert.match(source, /applyPileCostCatalogDefault\([\s\S]*?BUILT_IN_PILE_COST_DEFAULTS/);
     assert.doesNotMatch(source, /PILE_COST_DEFAULTS_KEY/);

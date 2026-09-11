@@ -15,7 +15,7 @@ describe("legend state", () => {
       ]).values()),
       {
         pileSizes: [290, 320],
-        pileTipLevels: [-18, -19],
+        pileTipLevelMms: [-18_000, -19_000],
       },
     );
   });
@@ -30,18 +30,18 @@ describe("legend state", () => {
           { value: 350, symbol: { baseShape: "diamond", fillPattern: "full" }, color: "#CCCCCC" },
         ],
         pileTipLevels: [
-          { value: -18, symbol: { baseShape: "circle", fillPattern: "full" }, color: "#111111" },
-          { value: -19, symbol: { baseShape: "square", fillPattern: "full" }, color: "#222222" },
-          { value: -20, symbol: { baseShape: "diamond", fillPattern: "full" }, color: "#333333" },
+          { value: -18_000, symbol: { baseShape: "circle", fillPattern: "full" }, color: "#111111" },
+          { value: -19_000, symbol: { baseShape: "square", fillPattern: "full" }, color: "#222222" },
+          { value: -20_000, symbol: { baseShape: "diamond", fillPattern: "full" }, color: "#333333" },
         ],
       },
       enabled: {
         pileSizes: [290, 350],
-        pileTipLevels: [-18, -20],
+        pileTipLevelMms: [-18_000, -20_000],
       },
       used: {
         pileSizes: [290, 320],
-        pileTipLevels: [-18, -19],
+        pileTipLevelMms: [-18_000, -19_000],
       },
     });
 
@@ -56,9 +56,9 @@ describe("legend state", () => {
     assert.deepEqual(
       result.pileTipLevels.map(({ value, state }) => ({ value, state })),
       [
-        { value: -18, state: "enabled-used" },
-        { value: -19, state: "disabled-used" },
-        { value: -20, state: "enabled-unused" },
+        { value: -18_000, state: "enabled-used" },
+        { value: -19_000, state: "disabled-used" },
+        { value: -20_000, state: "enabled-unused" },
       ],
     );
   });
@@ -68,15 +68,15 @@ describe("legend state", () => {
       legend: {
         encodingMode: "size-symbol",
         pileSizes: [{ value: 290, symbol: { baseShape: "circle", fillPattern: "full" }, color: "#AAAAAA" }],
-        pileTipLevels: [{ value: -18, symbol: { baseShape: "circle", fillPattern: "full" }, color: "#111111" }],
+        pileTipLevels: [{ value: -18_000, symbol: { baseShape: "circle", fillPattern: "full" }, color: "#111111" }],
       },
       enabled: {
         pileSizes: [290],
-        pileTipLevels: [-18],
+        pileTipLevelMms: [-18_000],
       },
       used: {
         pileSizes: [400],
-        pileTipLevels: [-22],
+        pileTipLevelMms: [-22_000],
       },
     });
 
@@ -88,8 +88,8 @@ describe("legend state", () => {
       colorAutomatic: true,
       state: "disabled-used",
     });
-    assert.deepEqual(result.pileTipLevels.find(({ value }) => value === -22), {
-      value: -22,
+    assert.deepEqual(result.pileTipLevels.find(({ value }) => value === -22_000), {
+      value: -22_000,
       symbol: { baseShape: "circle", fillPattern: "full" },
       color: "#8C989F",
       symbolAutomatic: true,

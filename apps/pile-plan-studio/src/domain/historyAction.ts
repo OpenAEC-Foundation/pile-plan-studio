@@ -70,7 +70,7 @@ export function inferHistoryAction(
       const beforePlan = beforePlans.get(afterPlan.id);
       return beforePlan !== undefined && (
         !sameNumberArray(beforePlan.activePileSizes, afterPlan.activePileSizes)
-        || !sameNumberArray(beforePlan.activePileTipLevels, afterPlan.activePileTipLevels)
+        || !sameNumberArray(beforePlan.activePileTipLevelMms, afterPlan.activePileTipLevelMms)
       );
     })) {
     return { kind: "legend-settings" };

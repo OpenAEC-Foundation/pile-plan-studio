@@ -2,7 +2,12 @@ import type { ProjectState } from "../../domain/projectState";
 import type { AggregatedPileConfiguration } from "../../core/pileOptionAggregationContract.ts";
 import { getCptDisplayName } from "../../domain/cptDisplayName.ts";
 import { getSelectedCptTableModel } from "../../domain/cptSelectionTable.ts";
-import { formatNumber, formatOptionalNumber } from "../../domain/formatting.ts";
+import {
+  formatNumber,
+  formatOptionalNumber,
+  formatPileTipLevelMetres,
+  formatPileTipLevelMillimetres,
+} from "../../domain/formatting.ts";
 import {
   getConfigurationActivationPresentation,
 } from "../../domain/legendActivationPresentation.ts";
@@ -127,9 +132,10 @@ export function getSelectedCptOverviewModel(
           ?.governing_cpt_id === row.cpt.id;
       }).length;
       const chosenPileCapacity = chosenConfiguration
-        ? state.cptFrdRowsByCptId.get(row.cpt.id)?.find((capacity) => (
-            capacity.pile_size_mm === chosenConfiguration.pile_size_mm
-            && capacity.pile_tip_level_m === chosenConfiguration.pile_tip_level_mm / 1000
+        ? state.bearingCapacities.find((capacity) => (
+            capacity.cpt_id === row.cpt.id
+            && capacity.pile_size_mm === chosenConfiguration.pile_size_mm
+            && capacity.pile_tip_level_mm === chosenConfiguration.pile_tip_level_mm
           ))?.frd_kn ?? null
         : null;
       return {
@@ -198,7 +204,7 @@ function isManualSelectionLabel(label: string): boolean {
   return /^manual(?:\s*\d+)?$/i.test(label);
 }
 
-export function getCptFrdPanelModel(state: ProjectState): CptFrdPanelModel | null {
+export function getCptFrdPanelModel(state: ProjectState, locale = "en-US"): CptFrdPanelModel | null {
   const cpt = state.cpts.find((item) => item.id === state.selectedCptId) ?? null;
   if (!cpt) {
     return null;
@@ -208,7 +214,7 @@ export function getCptFrdPanelModel(state: ProjectState): CptFrdPanelModel | nul
     cpt,
     rows: (state.cptFrdRowsByCptId.get(cpt.id) ?? []).map((row) => ({
       sizeLabel: `${formatNumber(row.pile_size_mm)} mm`,
-      tipLabel: `${formatNumber(row.pile_tip_level_m)} m`,
+      tipLabel: formatPileTipLevelMetres(row.pile_tip_level_m, locale),
       frdLabel: `${formatNumber(row.frd_kn)} kN`,
     })),
   };
@@ -223,6 +229,7 @@ export function getRenderablePileOptionRows(input: {
   selectedLoadPointCount: number;
   legend: LegendItems;
   pileCostSettings?: PileCostSettings;
+  locale?: string;
 }): RenderablePileOptionTableRow[] {
   return input.options.map((option) => {
     const status = getPileOptionStatus(option);
@@ -237,7 +244,10 @@ export function getRenderablePileOptionRows(input: {
       option, input.legend, input.activeConfigurations, input.pileCostSettings,
     );
     const sizeLabel = `${formatNumber(option.pile_size_mm)} mm`;
-    const tipLabel = `${formatNumber(option.pile_tip_level_m)} m`;
+    const tipLabel = formatPileTipLevelMillimetres(
+      option.configuration.pile_tip_level_mm,
+      input.locale ?? "en-US",
+    );
 
     return {
       costLabel: cost === null ? "-" : formatCurrency(cost, input.currencyCode),
@@ -280,6 +290,7 @@ export function getRenderableAggregatedPileOptionRows(input: {
   loadPoints: LoadPoint[];
   selectedLoadPointCount: number;
   pileCostSettings?: PileCostSettings;
+  locale?: string;
 }): RenderablePileOptionTableRow[] {
   return input.aggregates.map((aggregate) => {
     const key = pileConfigurationToken(aggregate.configuration);
@@ -290,6 +301,7 @@ export function getRenderableAggregatedPileOptionRows(input: {
       : input.loadPoints.find(({ id }) => id === aggregate.critical_load_point_id) ?? null;
     const pileSizeMm = aggregate.configuration.pile_size_mm;
     const style = getConfigurationActivationPresentation({
+      configuration: aggregate.configuration,
       pile_size_mm: pileSizeMm,
       pile_tip_level_m: aggregate.pile_tip_level_m,
     }, input.legend, input.activeConfigurations, input.pileCostSettings);
@@ -300,7 +312,10 @@ export function getRenderableAggregatedPileOptionRows(input: {
         : { className: "is-not-ok", label: "Insufficient capacity" };
     const isMissing = aggregate.status === "missing";
     const sizeLabel = `${formatNumber(pileSizeMm)} mm`;
-    const tipLabel = `${formatNumber(aggregate.pile_tip_level_m)} m`;
+    const tipLabel = formatPileTipLevelMillimetres(
+      aggregate.configuration.pile_tip_level_mm,
+      input.locale ?? "en-US",
+    );
 
     return {
       costLabel: unitCost === null ? "-" : formatCurrency(unitCost, input.currencyCode),

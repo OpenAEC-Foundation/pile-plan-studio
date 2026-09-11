@@ -4,21 +4,33 @@ import {
   type DuplicateLoadPointPosition,
 } from "../core/loadPointPositionContract.ts";
 import type { LoadPoint } from "../core/projectTypes.ts";
+import {
+  assertValidIfcppProjectOutcome,
+  type ValidatedIfcppProjectOutcome,
+} from "../core/pileTipLevelContract.ts";
 import { createInitialProjectState, type ProjectState } from "./projectState.ts";
+
+export type OpenedProjectValidators = {
+  readValidatedProject(text: string): Promise<ValidatedIfcppProjectOutcome>;
+  validatePositions(loadPoints: LoadPoint[]): Promise<DuplicateLoadPointPosition[]>;
+};
 
 export async function prepareOpenedProject(
   text: string,
   options: Parameters<typeof createInitialProjectState>[1],
-  validatePositions: (loadPoints: LoadPoint[]) => Promise<DuplicateLoadPointPosition[]>,
+  validators: OpenedProjectValidators,
 ): Promise<ProjectState> {
-  await validateOpenedProject(text, validatePositions);
-  return createInitialProjectState(text, options);
+  const validated = await validateOpenedProject(text, validators);
+  return createInitialProjectState(validated.project, options, validated.keys);
 }
 
 export async function validateOpenedProject(
   text: string,
-  validatePositions: (loadPoints: LoadPoint[]) => Promise<DuplicateLoadPointPosition[]>,
-): Promise<void> {
-  const { loadPoints } = loadIfcppProjectData(text);
-  await assertUniqueLoadPointPositions(loadPoints, validatePositions);
+  validators: OpenedProjectValidators,
+): Promise<Extract<ValidatedIfcppProjectOutcome, { status: "valid" }>> {
+  const outcome = await validators.readValidatedProject(text);
+  assertValidIfcppProjectOutcome(outcome);
+  const { loadPoints } = loadIfcppProjectData(outcome.project, outcome.keys);
+  await assertUniqueLoadPointPositions(loadPoints, validators.validatePositions);
+  return outcome;
 }

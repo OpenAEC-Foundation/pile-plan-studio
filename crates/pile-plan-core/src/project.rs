@@ -8,6 +8,7 @@ use crate::analysis::{BearingCapacity, Cpt, CptSelectionSettings, LoadPoint, Pil
 use crate::greedy_optimizer::{GreedyOptimizationSettings, OptimizationUnassignedReason};
 use crate::load_point_groups::LoadPointGroupingSettings;
 use crate::pile_configuration::PileConfigurationKey;
+use crate::{try_pile_tip_level_mm, PileTipLevelPrecisionErrorReason};
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
 pub struct PilePlanProject {
@@ -20,6 +21,163 @@ pub struct PilePlanProject {
     pub settings: ProjectSettings,
     pub user_state: ProjectUserState,
     pub import_log: Vec<ProjectImportLogEntry>,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+pub struct ProjectTipLevelKeys {
+    pub bearing_capacities: Vec<i64>,
+    pub pile_plans: Vec<PilePlanTipLevelKeys>,
+    pub legend: Vec<i64>,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+pub struct PilePlanTipLevelKeys {
+    pub id: String,
+    pub active: Vec<i64>,
+}
+
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+pub struct ValidatedPilePlanProject {
+    pub project: PilePlanProject,
+    #[serde(rename = "keys")]
+    pub tip_level_keys: ProjectTipLevelKeys,
+}
+
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+#[serde(tag = "status", rename_all = "kebab-case")]
+pub enum ValidatedIfcppProjectOutcome {
+    Valid {
+        project: PilePlanProject,
+        keys: ProjectTipLevelKeys,
+    },
+    Invalid {
+        errors: Vec<InvalidProjectPileTipLevel>,
+    },
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+pub struct InvalidProjectPileTipLevels {
+    pub values: Vec<InvalidProjectPileTipLevel>,
+}
+
+impl std::fmt::Display for InvalidProjectPileTipLevels {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(formatter, "{} invalid pile tip level(s)", self.values.len())
+    }
+}
+
+impl std::error::Error for InvalidProjectPileTipLevels {}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+pub struct InvalidProjectPileTipLevel {
+    pub value: String,
+    pub reason: PileTipLevelPrecisionErrorReason,
+    pub context: ProjectPileTipLevelContext,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(tag = "kind", rename_all = "kebab-case")]
+pub enum ProjectPileTipLevelContext {
+    BearingCapacity {
+        index: usize,
+        cpt_id: u32,
+        pile_size_mm: u32,
+    },
+    PilePlanActive {
+        plan_id: String,
+        index: usize,
+    },
+    Legend {
+        index: usize,
+    },
+}
+
+pub fn validate_project_tip_levels(
+    project: &PilePlanProject,
+) -> Result<ProjectTipLevelKeys, InvalidProjectPileTipLevels> {
+    let mut invalid = Vec::new();
+    let bearing_capacities = project
+        .inputs
+        .bearing_capacities
+        .iter()
+        .enumerate()
+        .filter_map(|(index, capacity)| {
+            project_tip_level_key(
+                capacity.pile_tip_level_m,
+                ProjectPileTipLevelContext::BearingCapacity {
+                    index,
+                    cpt_id: capacity.cpt_id,
+                    pile_size_mm: capacity.pile_size_mm,
+                },
+                &mut invalid,
+            )
+        })
+        .collect();
+    let pile_plans = project
+        .user_state
+        .pile_plans
+        .iter()
+        .map(|plan| PilePlanTipLevelKeys {
+            id: plan.id.clone(),
+            active: plan
+                .active_pile_tip_levels
+                .iter()
+                .enumerate()
+                .filter_map(|(index, value)| {
+                    project_tip_level_key(
+                        *value,
+                        ProjectPileTipLevelContext::PilePlanActive {
+                            plan_id: plan.id.clone(),
+                            index,
+                        },
+                        &mut invalid,
+                    )
+                })
+                .collect(),
+        })
+        .collect();
+    let legend = project
+        .settings
+        .pile_legend
+        .iter()
+        .flat_map(|legend| legend.pile_tip_levels.iter())
+        .enumerate()
+        .filter_map(|(index, item)| {
+            project_tip_level_key(
+                item.value,
+                ProjectPileTipLevelContext::Legend { index },
+                &mut invalid,
+            )
+        })
+        .collect();
+
+    if invalid.is_empty() {
+        Ok(ProjectTipLevelKeys {
+            bearing_capacities,
+            pile_plans,
+            legend,
+        })
+    } else {
+        Err(InvalidProjectPileTipLevels { values: invalid })
+    }
+}
+
+fn project_tip_level_key(
+    value: f64,
+    context: ProjectPileTipLevelContext,
+    invalid: &mut Vec<InvalidProjectPileTipLevel>,
+) -> Option<i64> {
+    match try_pile_tip_level_mm(value) {
+        Ok(key) => Some(key),
+        Err(error) => {
+            invalid.push(InvalidProjectPileTipLevel {
+                value: error.value,
+                reason: error.reason,
+                context,
+            });
+            None
+        }
+    }
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]

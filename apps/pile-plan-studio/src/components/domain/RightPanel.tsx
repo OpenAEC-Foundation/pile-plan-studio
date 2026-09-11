@@ -526,7 +526,7 @@ function CptPanel({ state, onStateChange, selectedLoadPoints }: {
   selectedLoadPoints: ReturnType<typeof getSelectedLoadPoints>;
 }) {
   const { t, i18n } = useTranslation("rightPanel");
-  const selectedCpt = getCptFrdPanelModel(state);
+  const selectedCpt = getCptFrdPanelModel(state, i18n.language);
   const draft = state.cptSelectionEditDraft;
   const isEditing = draft !== null;
   const cptPanelLoadPoints = draft
@@ -777,6 +777,7 @@ function LoadPointPanel({
         legend: state.pileLegend,
         pileCostSettings: state.pileCostSettings,
         loadPoints: state.loadPoints,
+        locale: i18n.language,
         selectedLoadPointCount: selectedCount,
       })
     : getRenderablePileOptionRows({
@@ -793,6 +794,7 @@ function LoadPointPanel({
               retainedConfiguration,
             )
           : [],
+        locale: i18n.language,
         selectedLoadPointCount: selectedCount,
       })).map((row) => ({
     ...row,

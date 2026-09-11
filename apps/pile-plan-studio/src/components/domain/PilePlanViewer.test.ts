@@ -3,6 +3,14 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { createInitialProjectState } from "../../domain/projectState.ts";
+import { projectTipLevelKeysForTest } from "../../core/projectTestSupport.ts";
+
+function createTestProjectState(
+  input: Parameters<typeof createInitialProjectState>[0],
+  options: Parameters<typeof createInitialProjectState>[1],
+) {
+  return createInitialProjectState(input, options, projectTipLevelKeysForTest(input));
+}
 
 describe("PilePlanViewer inputs", () => {
   it("renders viewer, hover, and normal legend styles from the project legend", () => {
@@ -55,7 +63,7 @@ describe("PilePlanViewer inputs", () => {
       resolve(import.meta.dirname, "../../../../../sample_project/sample_project.ifcpp"),
       "utf8",
     );
-    const state = createInitialProjectState(sampleProjectText, { initializeDefaultPiles: true });
+    const state = createTestProjectState(sampleProjectText, { initializeDefaultPiles: true });
 
     assert.ok(state.loadPoints.length > 0);
     assert.ok(state.cpts.length > 0);

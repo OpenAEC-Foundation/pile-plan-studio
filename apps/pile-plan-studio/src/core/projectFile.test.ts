@@ -9,6 +9,11 @@ import {
   getImportSummary,
   type IfcppProject,
 } from "./projectFile.ts";
+import { projectTipLevelKeysForTest } from "./projectTestSupport.ts";
+
+function loadProject(input: string | IfcppProject, keys = projectTipLevelKeysForTest(input)) {
+  return loadIfcppProjectData(input, keys);
+}
 
 function projectFixture(): IfcppProject {
   return {
@@ -70,6 +75,26 @@ function projectFixture(): IfcppProject {
 }
 
 describe("IFCPP project loading", () => {
+  it("uses core-produced millimetre keys in runtime state and keeps them out of IFCPP", () => {
+    const project = createIfcppProject(loadProject(projectFixture()));
+    project.inputs.bearing_capacities[0].pile_tip_level_m = -18.25;
+    project.user_state.pile_plans![0].active_pile_tip_levels = [-18, -18.25];
+    const keys = {
+      bearingCapacities: [-18_250],
+      pilePlans: [{ id: project.user_state.pile_plans![0].id, active: [-18_000, -18_250] }],
+      legend: project.settings.pile_legend!.pile_tip_levels.map(({ value }) => value * 1_000),
+    };
+
+    const loaded = loadProject(project, keys);
+    assert.equal(loaded.bearingCapacities[0].pile_tip_level_mm, -18_250);
+    assert.deepEqual(loaded.pilePlans[0].activePileTipLevelMms, [-18_000, -18_250]);
+
+    const saved = createIfcppProject(loaded);
+    assert.equal(saved.inputs.bearing_capacities[0].pile_tip_level_m, -18.25);
+    assert.equal("pile_tip_level_mm" in saved.inputs.bearing_capacities[0], false);
+    assert.deepEqual(saved.user_state.pile_plans![0].active_pile_tip_levels, [-18, -18.25]);
+  });
+
   it("preserves source provenance for the interpreted source viewer", () => {
     const project = projectFixture();
     project.import_log = [{
@@ -79,7 +104,7 @@ describe("IFCPP project loading", () => {
       warnings: ["Example warning"],
     }];
 
-    const saved = createIfcppProject(loadIfcppProjectData(project));
+    const saved = createIfcppProject(loadProject(project));
 
     assert.deepEqual(saved.import_log, project.import_log);
   });
@@ -98,7 +123,7 @@ describe("IFCPP project loading", () => {
     });
   });
   it("loads legacy IFCPP settings with a one-meter monopoly distance", () => {
-    const data = loadIfcppProjectData(projectFixture());
+    const data = loadProject(projectFixture());
 
     assert.equal(data.name, "Fixture Project");
     assert.equal(data.loadPoints[0].design_load_kn, 300);
@@ -140,9 +165,9 @@ describe("IFCPP project loading", () => {
       max_edge_distance_mm: 2_500,
     };
 
-    const loaded = loadIfcppProjectData(project);
+    const loaded = loadProject(project);
     const saved = createIfcppProject(loaded);
-    const restored = loadIfcppProjectData(saved);
+    const restored = loadProject(saved);
 
     assert.deepEqual(loaded.loadPointGroupingSettings, {
       automatic: false,
@@ -156,9 +181,9 @@ describe("IFCPP project loading", () => {
   });
 
   it("round-trips tip-level region visibility while upgrading to schema four", () => {
-    const loaded = loadIfcppProjectData(projectFixture());
+    const loaded = loadProject(projectFixture());
     const saved = createIfcppProject({ ...loaded, showTipLevelRegions: true });
-    const restored = loadIfcppProjectData(saved);
+    const restored = loadProject(saved);
 
     assert.equal(saved.schema_version, 4);
     assert.equal(saved.settings.viewer?.show_tip_level_regions, true);
@@ -169,7 +194,7 @@ describe("IFCPP project loading", () => {
     const project = projectFixture();
     project.settings.viewer = { show_tip_level_regions: false };
 
-    const loaded = loadIfcppProjectData(project);
+    const loaded = loadProject(project);
     const saved = createIfcppProject(loaded);
 
     assert.equal(loaded.showTipLevelRegions, false);
@@ -183,7 +208,7 @@ describe("IFCPP project loading", () => {
     legacy.settings.pile_costs.items[0].cost_per_m3_eur = 245;
     delete legacy.settings.pile_costs.items[0].cost_per_m3;
 
-    const loaded = loadIfcppProjectData(legacy as unknown as IfcppProject);
+    const loaded = loadProject(legacy as unknown as IfcppProject);
     const saved = createIfcppProject(loaded);
 
     assert.equal(loaded.pileCostSettings.items[0].cost_per_m3, 245);
@@ -225,7 +250,7 @@ describe("IFCPP project loading", () => {
       },
     } as unknown as IfcppProject;
 
-    const data = loadIfcppProjectData(project);
+    const data = loadProject(project);
 
     assert.equal(data.activePilePlanId, "basis");
     assert.equal(data.pilePlans.length, 2);
@@ -266,17 +291,17 @@ describe("IFCPP project loading", () => {
       },
     } as unknown as IfcppProject;
 
-    const loaded = loadIfcppProjectData(project);
+    const loaded = loadProject(project);
     const saved = createIfcppProject(loaded);
 
     assert.deepEqual(
       loaded.pilePlans.map((plan) => ({
         pileSizes: plan.activePileSizes,
-        pileTipLevels: plan.activePileTipLevels,
+        pileTipLevels: plan.activePileTipLevelMms,
       })),
       [
-        { pileSizes: [290, 320], pileTipLevels: [-17.5, -18] },
-        { pileSizes: [290, 320], pileTipLevels: [-17.5, -18] },
+        { pileSizes: [290, 320], pileTipLevels: [-17_500, -18_000] },
+        { pileSizes: [290, 320], pileTipLevels: [-17_500, -18_000] },
       ],
     );
     assert.equal(saved.schema_version, 4);
@@ -314,9 +339,9 @@ describe("IFCPP project loading", () => {
       },
     } as unknown as IfcppProject;
 
-    const loaded = loadIfcppProjectData(project);
+    const loaded = loadProject(project);
     const saved = createIfcppProject(loaded);
-    const reloaded = loadIfcppProjectData(saved);
+    const reloaded = loadProject(saved);
 
     assert.deepEqual(
       reloaded.pilePlans[0].optimizationUnassignedByLoadPoint,
@@ -336,7 +361,7 @@ describe("IFCPP project loading", () => {
       },
     } as unknown as IfcppProject;
 
-    const data = loadIfcppProjectData(project);
+    const data = loadProject(project);
 
     assert.equal(data.pilePlans.length, 1);
     assert.equal(data.activePilePlanId, "pile-plan-1");
@@ -360,7 +385,7 @@ describe("IFCPP project loading", () => {
       },
     } as unknown as IfcppProject;
 
-    assert.throws(() => loadIfcppProjectData(project), /Duplicate pile plan id 'duplicate'/);
+    assert.throws(() => loadProject(project), /Duplicate pile plan id 'duplicate'/);
   });
 
   it("normalizes persisted utilization settings", () => {
@@ -368,7 +393,7 @@ describe("IFCPP project loading", () => {
     project.settings.viewer_utilization = { minimum: 1.2, maximum: -0.1 };
     project.settings.optimization.max_utilization = 0.82;
 
-    const data = loadIfcppProjectData(project);
+    const data = loadProject(project);
 
     assert.deepEqual(data.viewerUtilizationSettings, { minimum: 0, maximum: 1 });
     assert.equal(data.optimizationSettings.max_utilization, 0.82);
@@ -386,7 +411,7 @@ describe("IFCPP project loading", () => {
       [1, [10, 11]],
     ]) as unknown as IfcppProject["user_state"]["manual_cpt_selections"];
 
-    const data = loadIfcppProjectData(project);
+    const data = loadProject(project);
 
     assert.equal(data.cptSelectionSettingsByLoadPoint.get(1)?.maxDistanceM, 25);
     assert.deepEqual(data.selectedPileConfigurationsByLoadPoint.get(1), {
@@ -398,7 +423,7 @@ describe("IFCPP project loading", () => {
 
   it("rejects non-IFCPP project data", () => {
     assert.throws(
-      () => loadIfcppProjectData({ ...projectFixture(), schema: "IFC" as "IFCPP" }),
+      () => loadProject({ ...projectFixture(), schema: "IFC" as "IFCPP" }),
       /Expected IFCPP project, got IFC/,
     );
   });
@@ -408,7 +433,7 @@ describe("IFCPP project loading", () => {
       new URL("../../../../sample_project/sample_project.ifcpp", import.meta.url),
       "utf8",
     );
-    const data = loadIfcppProjectData(sampleProjectText);
+    const data = loadProject(sampleProjectText);
 
     assert.equal(data.name, "Sample Project");
     assert.equal(data.loadPoints.length, 328);
@@ -417,7 +442,7 @@ describe("IFCPP project loading", () => {
   });
 
   it("emits monopoly distance when creating IFCPP project data", () => {
-    const data = loadIfcppProjectData(projectFixture());
+    const data = loadProject(projectFixture());
     const project = createIfcppProject(data);
 
     assert.equal(project.schema, "IFCPP");
@@ -444,23 +469,23 @@ describe("IFCPP project loading", () => {
   });
 
   it("round-trips project legend activation independently from active pile choices", () => {
-    const loaded = loadIfcppProjectData(projectFixture());
+    const loaded = loadProject(projectFixture());
     loaded.pilePlans[0].activePileSizes = [290];
-    loaded.pilePlans[0].activePileTipLevels = [-18];
+    loaded.pilePlans[0].activePileTipLevelMms = [-18_000];
     loaded.selectedPileConfigurationsByLoadPoint.set(1, {
       pile_size_mm: 320,
       pile_tip_level_mm: -19_000,
     });
 
     const saved = createIfcppProject(loaded);
-    const reloaded = loadIfcppProjectData(saved);
+    const reloaded = loadProject(saved);
 
     assert.equal("active_pile_sizes" in saved.settings, false);
     assert.equal("active_pile_tip_levels" in saved.settings, false);
     assert.deepEqual(saved.user_state.pile_plans?.[0].active_pile_sizes, [290]);
     assert.deepEqual(saved.user_state.pile_plans?.[0].active_pile_tip_levels, [-18]);
     assert.deepEqual(reloaded.pilePlans[0].activePileSizes, [290]);
-    assert.deepEqual(reloaded.pilePlans[0].activePileTipLevels, [-18]);
+    assert.deepEqual(reloaded.pilePlans[0].activePileTipLevelMms, [-18_000]);
     assert.deepEqual(reloaded.selectedPileConfigurationsByLoadPoint.get(1), {
       pile_size_mm: 320,
       pile_tip_level_mm: -19_000,
@@ -468,7 +493,7 @@ describe("IFCPP project loading", () => {
   });
 
   it("creates a built-in legend when an older IFCPP file has no mapping", () => {
-    const loaded = loadIfcppProjectData(projectFixture());
+    const loaded = loadProject(projectFixture());
 
     assert.equal(loaded.pileLegend.encodingMode, "size-symbol");
     assert.deepEqual(loaded.pileLegend.pileSizes[0], {
@@ -484,7 +509,7 @@ describe("IFCPP project loading", () => {
   });
 
   it("round-trips project legend appearance and encoding", () => {
-    const loaded = loadIfcppProjectData(projectFixture());
+    const loaded = loadProject(projectFixture());
     loaded.pileLegend = {
       ...loaded.pileLegend,
       encodingMode: "tip-symbol",
@@ -500,7 +525,7 @@ describe("IFCPP project loading", () => {
     };
 
     const saved = createIfcppProject(loaded);
-    const reloaded = loadIfcppProjectData(saved);
+    const reloaded = loadProject(saved);
 
     assert.equal(saved.settings.pile_legend?.encoding_mode, "tip-symbol");
     assert.equal(saved.settings.pile_legend?.color_scheme, "colorblind-friendly");
@@ -520,7 +545,7 @@ describe("IFCPP project loading", () => {
       pile_tip_levels: [],
     };
 
-    const loaded = loadIfcppProjectData(project);
+    const loaded = loadProject(project);
     assert.equal(loaded.pileLegend.pileSizeColorScheme, "rainbow");
     assert.equal(loaded.pileLegend.pileTipLevelColorScheme, "rainbow");
 
@@ -528,7 +553,7 @@ describe("IFCPP project loading", () => {
     loaded.pileLegend.pileSizeColorScheme = "colorblind-friendly";
     loaded.pileLegend.pileTipLevelColorScheme = "cool-warm";
     const saved = createIfcppProject(loaded);
-    const restored = loadIfcppProjectData(saved);
+    const restored = loadProject(saved);
 
     assert.equal(saved.settings.pile_legend?.pile_size_color_scheme, "colorblind-friendly");
     assert.equal(saved.settings.pile_legend?.pile_tip_level_color_scheme, "cool-warm");
@@ -549,7 +574,7 @@ describe("IFCPP project loading", () => {
       pile_tip_levels: [],
     };
 
-    const loaded = loadIfcppProjectData(project);
+    const loaded = loadProject(project);
 
     assert.equal(loaded.pileLegend.pileSizeColorScheme, "tableau-extended");
     assert.equal(loaded.pileLegend.pileTipLevelColorScheme, "tableau-extended");
@@ -573,7 +598,7 @@ describe("IFCPP project loading", () => {
       }],
     };
 
-    const loaded = loadIfcppProjectData(project);
+    const loaded = loadProject(project);
 
     assert.deepEqual(loaded.legendImportWarnings, [
       { itemType: "size", value: 290, field: "symbol" },
@@ -586,7 +611,7 @@ describe("IFCPP project loading", () => {
       colorAutomatic: true,
     });
     assert.deepEqual(loaded.pileLegend.pileTipLevels[0], {
-      value: -18,
+      value: -18_000,
       symbol: { baseShape: "square", fillPattern: "top-half" },
       color: "#654321",
       symbolAutomatic: true,
@@ -596,7 +621,7 @@ describe("IFCPP project loading", () => {
 
   it("preserves inactive plans while saving edits to the active plan", () => {
     const legacy = projectFixture();
-    const loaded = loadIfcppProjectData({
+    const loaded = loadProject({
       ...legacy,
       schema_version: 2,
       user_state: {
@@ -638,7 +663,7 @@ describe("IFCPP project loading", () => {
   it("preserves references for an unchanged pile and clears them after replacement", () => {
     const project = projectFixture();
     project.user_state.selected_piles!["1"].external_references = [{ entity: "IfcPile" }];
-    const loaded = loadIfcppProjectData(project);
+    const loaded = loadProject(project);
 
     const unchanged = createIfcppProject(loaded);
     assert.deepEqual(

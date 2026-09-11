@@ -78,7 +78,7 @@ describe("React optimization panel model", () => {
     ]));
     assert.deepEqual(result.optimizationUnassignedByLoadPoint, new Map([[2, "configuration_limits"]]));
     assert.equal("activePileSizes" in result, false);
-    assert.equal("activePileTipLevels" in result, false);
+    assert.equal("activePileTipLevelMms" in result, false);
     assert.deepEqual(result.summary, {
       assignedCount: 1,
       changedCount: 3,

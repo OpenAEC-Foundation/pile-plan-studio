@@ -21,6 +21,7 @@ export type Cpt = {
 export type BearingCapacity = {
   cpt_id: number;
   pile_tip_level_m: number;
+  pile_tip_level_mm: number;
   pile_size_mm: number;
   frd_kn: number;
 };

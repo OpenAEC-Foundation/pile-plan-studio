@@ -1,6 +1,6 @@
 # Canonical pile-tip-level precision — Design
 
-**Status:** Approved in design discussion; awaiting written review
+**Status:** Approved for implementation
 
 **Created:** 2026-09-11
 
@@ -36,7 +36,8 @@ Pile-tip levels have whole-millimetre precision:
 - metre input is valid when it can be represented as a whole millimetre;
 - insignificant decimal-to-binary floating-point noise is tolerated;
 - a physical submillimetre fraction is invalid and is never silently rounded;
-- non-finite values and values outside the signed integer range are invalid;
+- non-finite values and values outside the exact cross-runtime integer range
+  are invalid;
 - metres are retained for engineering calculations, exchange fields, and
   presentation, but not for equality, hashing, grouping, or filtering.
 
@@ -231,7 +232,7 @@ frontend converts only field naming and error presentation.
 - insignificant binary floating-point noise is accepted;
 - genuine positive and negative submillimetre values are rejected;
 - `NaN`, positive infinity, and negative infinity are rejected;
-- values outside the signed millimetre range are rejected;
+- values outside the exact Rust/JavaScript millimetre range are rejected;
 - canonical ordering and deduplication remain deterministic.
 
 ### Import and IFCPP tests

@@ -16,7 +16,7 @@ function plan(id: string, sizes: number[], tips: number[]): PilePlanData {
     id,
     name: id,
     activePileSizes: sizes,
-    activePileTipLevels: tips,
+    activePileTipLevelMms: tips.map((tip) => tip * 1_000),
     selectedPileConfigurationsByLoadPoint: new Map(),
     externalReferencesByLoadPoint: new Map(),
     lockedLoadPointIds: [],
@@ -32,9 +32,9 @@ describe("pile-plan activation", () => {
     const active = getActivePilePlan({ pilePlans: [first, second], activePilePlanId: "second" });
     const activation = getPilePlanActivation(active);
 
-    assert.deepEqual(activation, { pileSizes: [320], pileTipLevels: [-19] });
+    assert.deepEqual(activation, { pileSizes: [320], pileTipLevelMms: [-19_000] });
     assert.notEqual(activation.pileSizes, second.activePileSizes);
-    assert.notEqual(activation.pileTipLevels, second.activePileTipLevels);
+    assert.notEqual(activation.pileTipLevelMms, second.activePileTipLevelMms);
   });
 
   it("falls back to the first plan for an unknown active id", () => {
@@ -56,11 +56,11 @@ describe("pile-plan activation", () => {
 
     assert.deepEqual(unionActivationForPlans([first, second], new Set(["first", "second"])), {
       pileSizes: [290, 320],
-      pileTipLevels: [-18, -19],
+      pileTipLevelMms: [-18_000, -19_000],
     });
     assert.deepEqual(unionUsedConfigurationsForPlans([first, second], new Set(["first", "second"])), {
       pileSizes: [290, 350],
-      pileTipLevels: [-18, -20],
+      pileTipLevelMms: [-18_000, -20_000],
     });
   });
 
@@ -73,11 +73,11 @@ describe("pile-plan activation", () => {
       new Set(["current", "second"]),
       {
         pilePlanId: "current",
-        activation: { pileSizes: [350], pileTipLevels: [-20] },
+        activation: { pileSizes: [350], pileTipLevelMms: [-20_000] },
       },
     ), {
       pileSizes: [320, 350],
-      pileTipLevels: [-19, -20],
+      pileTipLevelMms: [-19_000, -20_000],
     });
   });
 

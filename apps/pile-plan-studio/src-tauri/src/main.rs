@@ -10,16 +10,18 @@ use pile_plan_core::{
     choose_default_pile_option, choose_default_pile_options,
     derive_load_point_groups as derive_load_point_groups_core, duplicate_load_point_positions,
     greedy_optimize_pile_choices, import_project_from_generic_sources_with_properties,
-    preview_import_source, preview_pile_plan_import, refresh_project_from_profiled_sources,
-    selected_cpts, write_pile_plan_csv as write_pile_plan_csv_bytes,
+    preview_import_source, preview_pile_plan_import, read_validated_ifcpp_project_outcome,
+    refresh_project_from_profiled_sources, selected_cpts, validate_project_tip_levels,
+    write_pile_plan_csv as write_pile_plan_csv_bytes,
     write_pile_plan_xlsx as write_pile_plan_xlsx_bytes, AggregatedPileConfiguration,
     ApplyLoadPointGroupAssignmentInput, ApplyLoadPointGroupAssignmentResult, CptSelectionSettings,
     DuplicateLoadPointPosition, GreedyOptimizationInput, GreedyOptimizationOutcome, ImportSource,
-    ImportSourcePreview, LoadPointGroup, LoadPointGroupingSettings, PileConfigurationKey,
-    PileConfigurationOption, PileCostSettings, PilePlanExportRequest, PilePlanImportPreview,
-    PilePlanImportRequest, PilePlanProject, ProjectAnalysisResult, ProjectBearingCapacity,
-    ProjectCpt, ProjectLoadPoint, SelectedCpt, SpatialNeighborhood, SpatialPileAssignment,
-    TechnicalAssignmentAssessment, TechnicalAssignmentAssessmentError, TipLevelRegionTopology,
+    ImportSourcePreview, InvalidPileTipLevels, LoadPointGroup, LoadPointGroupingSettings,
+    PileConfigurationKey, PileConfigurationOption, PileCostSettings, PilePlanExportRequest,
+    PilePlanImportPreview, PilePlanImportRequest, PilePlanProject, ProjectAnalysisResult,
+    ProjectBearingCapacity, ProjectCpt, ProjectLoadPoint, SelectedCpt, SpatialNeighborhood,
+    SpatialPileAssignment, TechnicalAssignmentAssessment, TechnicalAssignmentAssessmentError,
+    TipLevelRegionTopology, ValidatedIfcppProjectOutcome, ValidatedPilePlanProject,
 };
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -184,6 +186,11 @@ struct ValidateLoadPointPositionsRequest {
 }
 
 #[derive(Debug, Deserialize)]
+struct ReadValidatedIfcppProjectRequest {
+    contents: String,
+}
+
+#[derive(Debug, Deserialize)]
 struct DeriveLoadPointGroupsRequest {
     load_points: Vec<ProjectLoadPoint>,
     settings: LoadPointGroupingSettings,
@@ -214,7 +221,7 @@ fn calculate_selected_cpts(request: SelectedCptsRequest) -> Vec<SelectedCpt> {
 #[tauri::command(rename_all = "snake_case")]
 fn calculate_pile_options(
     request: PileOptionsRequest,
-) -> HashMap<u32, Vec<PileConfigurationOption>> {
+) -> Result<HashMap<u32, Vec<PileConfigurationOption>>, InvalidPileTipLevels> {
     build_pile_options_by_load_point(
         &request.load_points,
         &request.cpts,
@@ -231,7 +238,9 @@ fn calculate_pile_options(
 }
 
 #[tauri::command(rename_all = "snake_case")]
-fn calculate_project_analysis(request: ProjectAnalysisRequest) -> ProjectAnalysisResult {
+fn calculate_project_analysis(
+    request: ProjectAnalysisRequest,
+) -> Result<ProjectAnalysisResult, InvalidPileTipLevels> {
     build_project_analysis(
         &request.load_points,
         &request.cpts,
@@ -307,20 +316,34 @@ fn greedy_optimize(request: GreedyOptimizationInput) -> GreedyOptimizationOutcom
 }
 
 #[tauri::command(rename_all = "snake_case")]
-fn import_project_from_files(request: ImportProjectRequest) -> Result<PilePlanProject, String> {
-    import_project_from_generic_sources_with_properties(
+fn import_project_from_files(
+    request: ImportProjectRequest,
+) -> Result<ValidatedPilePlanProject, String> {
+    let project = import_project_from_generic_sources_with_properties(
         &request.project_name,
         &request.sources,
         request.pile_head_level_m,
         &request.currency_code,
     )
-    .map_err(|error| error.to_string())
+    .map_err(|error| error.to_string())?;
+    let tip_level_keys = validate_project_tip_levels(&project).map_err(|error| error.to_string())?;
+    Ok(ValidatedPilePlanProject {
+        project,
+        tip_level_keys,
+    })
 }
 
 #[tauri::command(rename_all = "snake_case")]
-fn refresh_project_from_files(request: RefreshProjectRequest) -> Result<PilePlanProject, String> {
-    refresh_project_from_profiled_sources(&request.current_project, &request.sources)
-        .map_err(|error| error.to_string())
+fn refresh_project_from_files(
+    request: RefreshProjectRequest,
+) -> Result<ValidatedPilePlanProject, String> {
+    let project = refresh_project_from_profiled_sources(&request.current_project, &request.sources)
+        .map_err(|error| error.to_string())?;
+    let tip_level_keys = validate_project_tip_levels(&project).map_err(|error| error.to_string())?;
+    Ok(ValidatedPilePlanProject {
+        project,
+        tip_level_keys,
+    })
 }
 
 #[tauri::command(rename_all = "snake_case")]
@@ -373,6 +396,19 @@ fn validate_load_point_positions(
     request: ValidateLoadPointPositionsRequest,
 ) -> Vec<DuplicateLoadPointPosition> {
     duplicate_load_point_positions(&request.load_points)
+}
+
+#[tauri::command(rename_all = "snake_case")]
+fn read_validated_ifcpp_project(
+    request: ReadValidatedIfcppProjectRequest,
+) -> Result<ValidatedIfcppProjectOutcome, String> {
+    read_validated_project_contents(&request.contents).map_err(|error| error.to_string())
+}
+
+fn read_validated_project_contents(
+    contents: &str,
+) -> Result<ValidatedIfcppProjectOutcome, pile_plan_core::IfcppError> {
+    read_validated_ifcpp_project_outcome(contents)
 }
 
 #[tauri::command(rename_all = "snake_case")]
@@ -433,6 +469,7 @@ fn main() {
             derive_load_point_groups,
             greedy_optimize,
             validate_load_point_positions,
+            read_validated_ifcpp_project,
             import_project_from_files,
             refresh_project_from_files,
             preview_import_file,
@@ -521,6 +558,38 @@ mod tests {
                 .map(|member| member.id)
                 .collect::<Vec<_>>(),
             vec![2, 8]
+        );
+    }
+
+    #[test]
+    fn pile_tip_level_validation_returns_valid_project_and_canonical_keys() {
+        let outcome = read_validated_project_contents(include_str!(
+            "../../../../sample_project/sample_project.ifcpp"
+        ))
+        .unwrap();
+
+        let ValidatedIfcppProjectOutcome::Valid { project, keys } = outcome else {
+            panic!("expected valid project")
+        };
+        assert_eq!(project.schema_version, 4);
+        assert_eq!(keys.bearing_capacities[0], -17_500);
+    }
+
+    #[test]
+    fn pile_tip_level_validation_returns_structured_invalid_outcome() {
+        let contents = include_str!("../../../../sample_project/sample_project.ifcpp").replacen(
+            "\"pile_tip_level_m\": -17.5",
+            "\"pile_tip_level_m\": -18.5004",
+            1,
+        );
+        let outcome = read_validated_project_contents(&contents).unwrap();
+        let ValidatedIfcppProjectOutcome::Invalid { errors } = outcome else {
+            panic!("expected invalid project")
+        };
+        assert_eq!(errors[0].value, "-18.5004");
+        assert_eq!(
+            errors[0].reason,
+            pile_plan_core::PileTipLevelPrecisionErrorReason::Submillimetre
         );
     }
 

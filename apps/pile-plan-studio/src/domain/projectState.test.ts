@@ -2,12 +2,20 @@ import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { createInitialProjectState, transitionCptSettingsScope } from "./projectState.ts";
+import { projectTipLevelKeysForTest } from "../core/projectTestSupport.ts";
 
 const sampleProjectText = readFileSync("../../sample_project/sample_project.ifcpp", "utf8");
 
+function createTestProjectState(
+  input: Parameters<typeof createInitialProjectState>[0],
+  options: Parameters<typeof createInitialProjectState>[1],
+) {
+  return createInitialProjectState(input, options, projectTipLevelKeysForTest(input));
+}
+
 describe("createInitialProjectState", () => {
   it("loads the sample project and selects the first load point", () => {
-    const state = createInitialProjectState(sampleProjectText, { initializeDefaultPiles: true });
+    const state = createTestProjectState(sampleProjectText, { initializeDefaultPiles: true });
 
     assert.ok(state.loadPoints.length > 0);
     assert.ok(state.cpts.length > 0);
@@ -33,7 +41,7 @@ describe("createInitialProjectState", () => {
       foreground_layer: "cpts",
       show_grid: false,
     };
-    const state = createInitialProjectState(project, { initializeDefaultPiles: false });
+    const state = createTestProjectState(project, { initializeDefaultPiles: false });
 
     assert.equal(state.symbolScalePercent, 145);
     assert.equal(state.foregroundLayer, "cpts");
@@ -41,7 +49,7 @@ describe("createInitialProjectState", () => {
     assert.equal(state.showTipLevelRegions, true);
 
     project.settings.viewer.show_tip_level_regions = false;
-    const hiddenState = createInitialProjectState(project, { initializeDefaultPiles: false });
+    const hiddenState = createTestProjectState(project, { initializeDefaultPiles: false });
     assert.equal(hiddenState.showTipLevelRegions, false);
   });
 
@@ -51,7 +59,7 @@ describe("createInitialProjectState", () => {
       "1": { pile: { pile_size_mm: 290, pile_tip_level_m_key: -18000 } },
     };
 
-    const state = createInitialProjectState(project, { initializeDefaultPiles: false });
+    const state = createTestProjectState(project, { initializeDefaultPiles: false });
 
     assert.equal(state.defaultPileSelectionPending, false);
     assert.deepEqual(state.selectedPileConfigurationsByLoadPoint.get(1), {
@@ -61,7 +69,7 @@ describe("createInitialProjectState", () => {
   });
 
   it("uses a localized base-plan name for a newly imported project", () => {
-    const state = createInitialProjectState(sampleProjectText, {
+    const state = createTestProjectState(sampleProjectText, {
       initializeDefaultPiles: true,
       defaultPilePlanName: "Basisplan",
     });
@@ -94,7 +102,7 @@ describe("createInitialProjectState", () => {
       manual_cpt_selections: project.user_state.manual_cpt_selections,
     };
 
-    const state = createInitialProjectState(project, { initializeDefaultPiles: false });
+    const state = createTestProjectState(project, { initializeDefaultPiles: false });
 
     assert.equal(state.activePilePlanId, "active");
     assert.equal(state.pilePlans.length, 2);
@@ -105,7 +113,7 @@ describe("createInitialProjectState", () => {
   });
 
   it("summarizes imported project sources for the project explorer", () => {
-    const state = createInitialProjectState(sampleProjectText, { initializeDefaultPiles: true });
+    const state = createTestProjectState(sampleProjectText, { initializeDefaultPiles: true });
 
     assert.deepEqual(
       state.inputSources.map((source) => source.kind),

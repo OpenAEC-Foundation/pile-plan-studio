@@ -2,7 +2,13 @@ use std::fmt;
 
 use serde_json::{Error as JsonError, Value};
 
-use crate::{validate_unique_load_point_positions, DuplicateLoadPointPositions, PilePlanProject};
+#[cfg(test)]
+use crate::ProjectPileTipLevelContext;
+use crate::{
+    validate_project_tip_levels, validate_unique_load_point_positions, DuplicateLoadPointPositions,
+    InvalidProjectPileTipLevels, PilePlanProject, ValidatedIfcppProjectOutcome,
+    ValidatedPilePlanProject,
+};
 
 #[derive(Debug)]
 pub enum IfcppError {
@@ -10,6 +16,7 @@ pub enum IfcppError {
     InvalidSchema(String),
     UnsupportedSchemaVersion(u32),
     DuplicateLoadPointPositions(DuplicateLoadPointPositions),
+    InvalidPileTipLevels(InvalidProjectPileTipLevels),
 }
 
 impl fmt::Display for IfcppError {
@@ -21,6 +28,7 @@ impl fmt::Display for IfcppError {
                 write!(formatter, "Unsupported IFCPP schema version {version}")
             }
             Self::DuplicateLoadPointPositions(error) => error.fmt(formatter),
+            Self::InvalidPileTipLevels(error) => error.fmt(formatter),
         }
     }
 }
@@ -34,6 +42,10 @@ impl From<JsonError> for IfcppError {
 }
 
 pub fn read_ifcpp_str(input: &str) -> Result<PilePlanProject, IfcppError> {
+    Ok(read_validated_ifcpp_str(input)?.project)
+}
+
+pub fn read_validated_ifcpp_str(input: &str) -> Result<ValidatedPilePlanProject, IfcppError> {
     let mut value: Value = serde_json::from_str(input)?;
     migrate_legacy_project_value(&mut value);
     let mut project: PilePlanProject = serde_json::from_value(value)?;
@@ -43,9 +55,27 @@ pub fn read_ifcpp_str(input: &str) -> Result<PilePlanProject, IfcppError> {
         .optimization
         .max_utilization
         .clamp(0.0, 1.0);
-    validate_ifcpp_project(&project)?;
+    let tip_level_keys = validate_ifcpp_project_with_keys(&project)?;
 
-    Ok(project)
+    Ok(ValidatedPilePlanProject {
+        project,
+        tip_level_keys,
+    })
+}
+
+pub fn read_validated_ifcpp_project_outcome(
+    input: &str,
+) -> Result<ValidatedIfcppProjectOutcome, IfcppError> {
+    match read_validated_ifcpp_str(input) {
+        Ok(validated) => Ok(ValidatedIfcppProjectOutcome::Valid {
+            project: validated.project,
+            keys: validated.tip_level_keys,
+        }),
+        Err(IfcppError::InvalidPileTipLevels(error)) => Ok(ValidatedIfcppProjectOutcome::Invalid {
+            errors: error.values,
+        }),
+        Err(error) => Err(error),
+    }
 }
 
 pub fn write_ifcpp_string(project: &PilePlanProject) -> Result<String, IfcppError> {
@@ -59,6 +89,12 @@ pub fn write_ifcpp_string(project: &PilePlanProject) -> Result<String, IfcppErro
 }
 
 pub fn validate_ifcpp_project(project: &PilePlanProject) -> Result<(), IfcppError> {
+    validate_ifcpp_project_with_keys(project).map(|_| ())
+}
+
+fn validate_ifcpp_project_with_keys(
+    project: &PilePlanProject,
+) -> Result<crate::ProjectTipLevelKeys, IfcppError> {
     if project.schema != "IFCPP" {
         return Err(IfcppError::InvalidSchema(project.schema.clone()));
     }
@@ -69,8 +105,7 @@ pub fn validate_ifcpp_project(project: &PilePlanProject) -> Result<(), IfcppErro
 
     validate_unique_load_point_positions(&project.inputs.load_points)
         .map_err(IfcppError::DuplicateLoadPointPositions)?;
-
-    Ok(())
+    validate_project_tip_levels(project).map_err(IfcppError::InvalidPileTipLevels)
 }
 
 fn migrate_legacy_project_value(value: &mut Value) {
@@ -304,6 +339,96 @@ mod tests {
                 .collect::<Vec<_>>(),
             vec![1, 99]
         );
+    }
+
+    #[test]
+    fn read_and_write_reject_imprecise_persisted_tip_levels_with_context() {
+        let mut bearing_capacity_project = project_fixture();
+        bearing_capacity_project
+            .inputs
+            .bearing_capacities
+            .push(crate::ProjectBearingCapacity {
+                cpt_id: 61,
+                pile_tip_level_m: -18.5004,
+                pile_size_mm: 290,
+                frd_kn: 700.0,
+            });
+        assert_invalid_tip_context(
+            &bearing_capacity_project,
+            ProjectPileTipLevelContext::BearingCapacity {
+                index: 0,
+                cpt_id: 61,
+                pile_size_mm: 290,
+            },
+        );
+
+        let mut activation_project = project_fixture();
+        activation_project.user_state.pile_plans[0].active_pile_tip_levels = vec![-18.5004];
+        assert_invalid_tip_context(
+            &activation_project,
+            ProjectPileTipLevelContext::PilePlanActive {
+                plan_id: "pile-plan-1".to_string(),
+                index: 0,
+            },
+        );
+
+        let mut legend_project = project_fixture();
+        legend_project.settings.pile_legend = Some(
+            serde_json::from_value(serde_json::json!({
+                "encoding_mode": "size-symbol-tip-color",
+                "pile_sizes": [],
+                "pile_tip_levels": [{
+                    "value": -18.5004,
+                    "symbol": { "base_shape": "circle", "fill_pattern": "full" },
+                    "color": "#000000"
+                }]
+            }))
+            .unwrap(),
+        );
+        assert_invalid_tip_context(
+            &legend_project,
+            ProjectPileTipLevelContext::Legend { index: 0 },
+        );
+    }
+
+    #[test]
+    fn supported_schema_versions_keep_quarter_metre_tip_levels() {
+        for schema_version in 1..=4 {
+            let mut project = project_fixture();
+            project.schema_version = schema_version;
+            project.user_state.pile_plans[0].active_pile_tip_levels = vec![-18.25];
+            let mut value = serde_json::to_value(&project).unwrap();
+            if schema_version < 4 {
+                value["settings"]["active_pile_sizes"] = serde_json::json!([]);
+                value["settings"]["active_pile_tip_levels"] = serde_json::json!([-18.25]);
+            }
+            let json = serde_json::to_string(&value).unwrap();
+            let restored = read_ifcpp_str(&json).unwrap();
+
+            assert_eq!(restored.schema_version, 4);
+            assert_eq!(
+                restored.user_state.pile_plans[0].active_pile_tip_levels,
+                vec![-18.25]
+            );
+        }
+    }
+
+    fn assert_invalid_tip_context(
+        project: &PilePlanProject,
+        expected_context: ProjectPileTipLevelContext,
+    ) {
+        let write_error = write_ifcpp_string(project).unwrap_err();
+        let IfcppError::InvalidPileTipLevels(write_values) = write_error else {
+            panic!("expected invalid pile tip levels on write")
+        };
+        assert_eq!(write_values.values[0].context, expected_context);
+
+        let json = serde_json::to_string(project).unwrap();
+        let read_error = read_ifcpp_str(&json).unwrap_err();
+        let IfcppError::InvalidPileTipLevels(read_values) = read_error else {
+            panic!("expected invalid pile tip levels on read")
+        };
+        assert_eq!(read_values.values[0].context, expected_context);
     }
 
     #[test]

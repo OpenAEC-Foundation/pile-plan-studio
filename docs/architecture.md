@@ -18,6 +18,12 @@ The guiding rule is that engineering decisions must be implemented and tested in
 `crates/pile-plan-core` first. Frontend code may present results, but should not
 be the source of truth for calculations.
 
+Pile tip levels remain metre values in IFCPP exchange data and physical
+calculations. The Rust core validates those values and produces exact integer
+millimetre keys for identity, equality, ordering, and deduplication. WASM and
+Tauri pass those keys through unchanged; TypeScript consumes them for discrete
+state and applies locale-aware metre formatting only for presentation.
+
 ## Runtime Matrix
 
 | Runtime | Core route | Best use |

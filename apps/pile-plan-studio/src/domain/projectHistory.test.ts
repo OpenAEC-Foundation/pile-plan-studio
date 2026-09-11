@@ -89,7 +89,7 @@ function content(name: string): ProjectContent {
     },
     viewerUtilizationSettings: { minimum: 0, maximum: 1 },
     activePileSizes: [],
-    activePileTipLevels: [],
+    activePileTipLevelMms: [],
     pilePlans: [{
       id: "plan-1",
       name: "Plan 1",

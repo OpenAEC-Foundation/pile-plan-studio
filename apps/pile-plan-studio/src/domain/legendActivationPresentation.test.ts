@@ -7,9 +7,13 @@ import {
   INACTIVE_LEGEND_COLOR,
 } from "./legendActivationPresentation.ts";
 
-const configuration = { pile_size_mm: 290, pile_tip_level_m: -18 };
+const configuration = {
+  configuration: { pile_size_mm: 290, pile_tip_level_mm: -18_000 },
+  pile_size_mm: 290,
+  pile_tip_level_m: -18,
+};
 const baseLegend = createBuiltInLegend([
-  { cpt_id: 1, ...configuration, frd_kn: 700 },
+  { cpt_id: 1, pile_size_mm: 290, pile_tip_level_m: -18, pile_tip_level_mm: -18_000, frd_kn: 700 },
 ]);
 
 for (const encodingMode of ["size-symbol", "tip-symbol"] as const) {
@@ -28,7 +32,7 @@ for (const encodingMode of ["size-symbol", "tip-symbol"] as const) {
           { ...baseLegend, encodingMode },
           {
             pileSizes: sizeActive ? [290] : [],
-            pileTipLevels: tipActive ? [-18] : [],
+            pileTipLevelMms: tipActive ? [-18_000] : [],
           },
         );
 
@@ -50,13 +54,13 @@ describe("dual-color activation presentation", () => {
     const inactiveTip = getConfigurationActivationPresentation(
       configuration,
       { ...baseLegend, encodingMode: "size-color-tip-region" },
-      { pileSizes: [290], pileTipLevels: [] },
+      { pileSizes: [290], pileTipLevelMms: [] },
       costs,
     );
     const inactiveSize = getConfigurationActivationPresentation(
       configuration,
       { ...baseLegend, encodingMode: "size-color-tip-region" },
-      { pileSizes: [], pileTipLevels: [-18] },
+      { pileSizes: [], pileTipLevelMms: [-18_000] },
       costs,
     );
 

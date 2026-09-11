@@ -57,6 +57,7 @@ import {
 } from "./legendEncodingControls.ts";
 import { getRightAlignedLegendPopoverMaxWidth } from "./legendPickerPlacement.ts";
 import "./LegendEditor.css";
+import { formatPileTipLevelMillimetres } from "../../domain/formatting.ts";
 
 const NEUTRAL_SYMBOL_PREVIEW_COLOR = "#6F7B82";
 
@@ -94,7 +95,7 @@ export default function LegendEditor({ open, state, onApply, onClose }: Props) {
   const presentation = buildLegendPresentation({ legend: draft.legend, enabled: draft.active, used });
   const available = {
     pileSizes: presentation.pileSizes.map(({ value }) => value),
-    pileTipLevels: presentation.pileTipLevels.map(({ value }) => value),
+    pileTipLevelMms: presentation.pileTipLevels.map(({ value }) => value),
   };
   const plansWithDraftActivation = replacePilePlanActivation(
     state.pilePlans,
@@ -127,13 +128,13 @@ export default function LegendEditor({ open, state, onApply, onClose }: Props) {
   const symbolKind: LegendEditorItemKind = draft.legend.encodingMode === "tip-symbol" ? "tip" : "size";
   const colorKind: LegendEditorItemKind = draft.legend.encodingMode === "size-symbol" ? "tip" : "size";
   const canReassignSymbols = !dualColorMode && wouldReassignLegendAppearance(
-    draft, symbolKind, "symbol", scopeActivation[symbolKind === "size" ? "pileSizes" : "pileTipLevels"],
+    draft, symbolKind, "symbol", scopeActivation[symbolKind === "size" ? "pileSizes" : "pileTipLevelMms"],
   );
   const canReassignSizeColors = wouldReassignLegendAppearance(
     draft, "size", "color", scopeActivation.pileSizes,
   );
   const canReassignTipColors = wouldReassignLegendAppearance(
-    draft, "tip", "color", scopeActivation.pileTipLevels,
+    draft, "tip", "color", scopeActivation.pileTipLevelMms,
   );
   const canReassignColors = colorKind === "size" ? canReassignSizeColors : canReassignTipColors;
   const missingShapeSizes = dualColorMode
@@ -380,7 +381,7 @@ export default function LegendEditor({ open, state, onApply, onClose }: Props) {
     const result = applyAutomaticSymbols(
       draft,
       symbolKind,
-      scopeActivation[symbolKind === "size" ? "pileSizes" : "pileTipLevels"],
+      scopeActivation[symbolKind === "size" ? "pileSizes" : "pileTipLevelMms"],
     );
     applyEditorActionResult(result);
   }
@@ -411,7 +412,7 @@ export default function LegendEditor({ open, state, onApply, onClose }: Props) {
           title={disabled ? t("legend.noColorsToReassign") : undefined}
           type="button"
           onClick={() => setDraft(applyAutomaticColors(
-            draft, kind, scopeActivation[kind === "size" ? "pileSizes" : "pileTipLevels"],
+            draft, kind, scopeActivation[kind === "size" ? "pileSizes" : "pileTipLevelMms"],
           ))}
         >
           {label}
@@ -423,7 +424,7 @@ export default function LegendEditor({ open, state, onApply, onClose }: Props) {
           label={t("legend.colorScheme")}
           getSchemeLabel={schemeLabel}
           onChange={(scheme) => setDraft(setLegendColorScheme(
-            draft, kind, scheme, scopeActivation[kind === "size" ? "pileSizes" : "pileTipLevels"],
+            draft, kind, scheme, scopeActivation[kind === "size" ? "pileSizes" : "pileTipLevelMms"],
           ))}
         />
       </div>
@@ -512,7 +513,9 @@ function EditorItemRow({
   const isDisabled = item.state.startsWith("disabled");
   const isUnused = item.state === "enabled-unused" || item.state === "disabled-unused";
   const isDisabledUsed = item.state === "disabled-used";
-  const label = item.kind === "size" ? `${item.value} mm` : formatTipLevel(item.value, language);
+  const label = item.kind === "size"
+    ? `${item.value} mm`
+    : formatPileTipLevelMillimetres(item.value, language);
   const infoKey = `${item.kind}:${item.value}`;
 
   return (
@@ -832,12 +835,8 @@ function costTableSymbol(sizeMm: number, settings: ProjectState["pileCostSetting
   };
 }
 
-function formatTipLevel(value: number, language: string): string {
-  return `${value.toLocaleString(language, { maximumFractionDigits: 1 })} m`;
-}
-
 function formatLegendValue(value: number, kind: LegendEditorItemKind, language: string): string {
-  return kind === "size" ? `${value} mm` : formatTipLevel(value, language);
+  return kind === "size" ? `${value} mm` : formatPileTipLevelMillimetres(value, language);
 }
 
 function shapeKey(shape: PileBaseShape): string {

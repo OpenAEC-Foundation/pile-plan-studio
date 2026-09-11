@@ -39,6 +39,8 @@ export function preview_import_file(request: any): any;
 
 export function preview_pile_plan_import_file(request: any): any;
 
+export function read_validated_ifcpp_project(request: any): any;
+
 export function refresh_project_from_files(request: any): any;
 
 export function validate_load_point_positions(request: any): any;
@@ -68,6 +70,7 @@ export interface InitOutput {
     readonly import_project_from_files: (a: any) => [number, number, number];
     readonly preview_import_file: (a: any) => [number, number, number];
     readonly preview_pile_plan_import_file: (a: any) => [number, number, number];
+    readonly read_validated_ifcpp_project: (a: any) => [number, number, number];
     readonly refresh_project_from_files: (a: any) => [number, number, number];
     readonly validate_load_point_positions: (a: any) => [number, number, number];
     readonly write_ifcpp_project: (a: any) => [number, number, number, number];

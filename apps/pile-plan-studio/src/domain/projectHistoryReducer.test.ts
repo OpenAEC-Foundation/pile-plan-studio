@@ -2,6 +2,7 @@ import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { createInitialProjectState } from "./projectState.ts";
+import { projectTipLevelKeysForTest } from "../core/projectTestSupport.ts";
 import {
   createManagedProjectState,
   projectHistoryReducer,
@@ -9,6 +10,13 @@ import {
 import { createPilePlan, switchPilePlan } from "./pilePlanManagement.ts";
 
 const sampleProjectText = readFileSync("../../sample_project/sample_project.ifcpp", "utf8");
+
+function createTestProjectState(
+  input: Parameters<typeof createInitialProjectState>[0],
+  options: Parameters<typeof createInitialProjectState>[1],
+) {
+  return createInitialProjectState(input, options, projectTipLevelKeysForTest(input));
+}
 
 describe("project history reducer", () => {
   it("reports an unavailable Undo request without changing the project", () => {
@@ -129,7 +137,7 @@ describe("project history reducer", () => {
     const withSecond = createPilePlan({
       ...initial,
       choices: new Map(),
-      activation: { pileSizes: [], pileTipLevels: [] },
+      activation: { pileSizes: [], pileTipLevelMms: [] },
       kind: "variant",
       language: "en",
     });
@@ -174,7 +182,7 @@ describe("project history reducer", () => {
         ...createPilePlan({
           ...current,
           choices: new Map([[1, "320|-18.5"]]),
-          activation: { pileSizes: [320], pileTipLevels: [-18.5] },
+          activation: { pileSizes: [320], pileTipLevelMms: [-18_500] },
           kind: "variant",
           language: "en",
         }),
@@ -199,7 +207,7 @@ describe("project history reducer", () => {
       update: (current) => ({
         ...current,
         pilePlans: current.pilePlans.map((plan) => plan.id === activeId
-          ? { ...plan, activePileSizes: [290], activePileTipLevels: [-18] }
+          ? { ...plan, activePileSizes: [290], activePileTipLevelMms: [-18] }
           : plan),
       }),
     });
@@ -301,5 +309,5 @@ describe("project history reducer", () => {
 });
 
 function state() {
-  return createInitialProjectState(sampleProjectText, { initializeDefaultPiles: false });
+  return createTestProjectState(sampleProjectText, { initializeDefaultPiles: false });
 }

@@ -17,6 +17,7 @@ import {
 } from "../../domain/pilePlanActivation.ts";
 import { INACTIVE_LEGEND_COLOR, SMALL_DOT_SYMBOL } from "../../domain/legendActivationPresentation.ts";
 import type { TipLevelRegionTopologyStatus } from "./useTipLevelRegionTopology.ts";
+import { formatPileTipLevelMillimetres } from "../../domain/formatting.ts";
 
 type Props = {
   state: ProjectState;
@@ -126,7 +127,7 @@ export default function Legend({ state, onStateChange, onEdit, tipLevelRegionSta
               ) : <span className={`legend-color${presentation.encodingMode === "size-color-tip-region" ? " is-region" : ""}`} style={{
                 backgroundColor: item.state === "disabled-used" ? INACTIVE_LEGEND_COLOR : item.color,
               }} />}
-              <span className="legend-item-label">{formatTipLevel(item.value, i18n.language)}</span>
+              <span className="legend-item-label">{formatPileTipLevelMillimetres(item.value, i18n.language)}</span>
               {item.state === "disabled-used" ? <LegendWarning /> : null}
             </button>
           );
@@ -179,7 +180,6 @@ export default function Legend({ state, onStateChange, onEdit, tipLevelRegionSta
     );
   }
 }
-
 function costTableSymbol(sizeMm: number, state: ProjectState) {
   const shape = state.pileCostSettings.items.find(({ pile_size_mm }) => pile_size_mm === sizeMm)?.shape;
   return {
@@ -225,8 +225,4 @@ function optionFromConfiguration(configuration: PileConfigurationKey) {
     missing_cpt_ids: [],
     technicalStatus: "valid" as const,
   };
-}
-
-function formatTipLevel(value: number, language: string): string {
-  return `${value.toLocaleString(language, { maximumFractionDigits: 1 })} m`;
 }

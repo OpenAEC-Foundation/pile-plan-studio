@@ -2,6 +2,7 @@ import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { createInitialProjectState } from "./projectState.ts";
+import { projectTipLevelKeysForTest } from "../core/projectTestSupport.ts";
 import {
   captureProjectContent,
   normalizeProjectContentState,
@@ -11,9 +12,16 @@ import {
 
 const sampleProjectText = readFileSync("../../sample_project/sample_project.ifcpp", "utf8");
 
+function createTestProjectState(
+  input: Parameters<typeof createInitialProjectState>[0],
+  options: Parameters<typeof createInitialProjectState>[1],
+) {
+  return createInitialProjectState(input, options, projectTipLevelKeysForTest(input));
+}
+
 describe("project content", () => {
   it("captures source references without derived or transient viewer state", () => {
-    const state = normalizeProjectContentState(createInitialProjectState(
+    const state = normalizeProjectContentState(createTestProjectState(
       sampleProjectText,
       { initializeDefaultPiles: false },
     ));
@@ -31,13 +39,13 @@ describe("project content", () => {
     assert.equal("viewport" in content, false);
     assert.equal("activePilePlanId" in content, false);
     assert.equal("activePileSizes" in content, false);
-    assert.equal("activePileTipLevels" in content, false);
+    assert.equal("activePileTipLevelMms" in content, false);
     assert.equal(content.showTipLevelRegions, true);
     assert.equal(content.loadPointGroupingSettings, state.loadPointGroupingSettings);
   });
 
   it("treats load point grouping settings as undoable project content", () => {
-    const state = normalizeProjectContentState(createInitialProjectState(
+    const state = normalizeProjectContentState(createTestProjectState(
       sampleProjectText,
       { initializeDefaultPiles: false },
     ));
@@ -54,7 +62,7 @@ describe("project content", () => {
   });
 
   it("treats tip-level region visibility as undoable project content", () => {
-    const state = normalizeProjectContentState(createInitialProjectState(
+    const state = normalizeProjectContentState(createTestProjectState(
       sampleProjectText,
       { initializeDefaultPiles: false },
     ));
@@ -65,7 +73,7 @@ describe("project content", () => {
   });
 
   it("treats per-plan activation as undoable project content", () => {
-    const state = normalizeProjectContentState(createInitialProjectState(
+    const state = normalizeProjectContentState(createTestProjectState(
       sampleProjectText,
       { initializeDefaultPiles: false },
     ));
@@ -73,7 +81,7 @@ describe("project content", () => {
     const after = captureProjectContent({
       ...state,
       pilePlans: state.pilePlans.map((plan) => plan.id === state.activePilePlanId
-        ? { ...plan, activePileSizes: [290], activePileTipLevels: [-18] }
+        ? { ...plan, activePileSizes: [290], activePileTipLevelMms: [-18] }
         : plan),
     });
 
@@ -81,7 +89,7 @@ describe("project content", () => {
   });
 
   it("normalizes active pile choices into the active plan without copying project inputs", () => {
-    const state = createInitialProjectState(sampleProjectText, { initializeDefaultPiles: false });
+    const state = createTestProjectState(sampleProjectText, { initializeDefaultPiles: false });
     const selectedPileConfigurationsByLoadPoint = new Map([[1, {
       pile_size_mm: 320,
       pile_tip_level_mm: -18_500,
@@ -104,7 +112,7 @@ describe("project content", () => {
   });
 
   it("restores content while preserving valid navigation and transient state", () => {
-    const original = normalizeProjectContentState(createInitialProjectState(
+    const original = normalizeProjectContentState(createTestProjectState(
       sampleProjectText,
       { initializeDefaultPiles: false },
     ));
@@ -127,7 +135,7 @@ describe("project content", () => {
   });
 
   it("falls back to an existing plan when restored content removes the active plan", () => {
-    const state = normalizeProjectContentState(createInitialProjectState(
+    const state = normalizeProjectContentState(createTestProjectState(
       sampleProjectText,
       { initializeDefaultPiles: false },
     ));
@@ -162,7 +170,7 @@ describe("project content", () => {
   });
 
   it("requests analysis only for load points whose CPT source selection changed", () => {
-    const state = normalizeProjectContentState(createInitialProjectState(
+    const state = normalizeProjectContentState(createTestProjectState(
       sampleProjectText,
       { initializeDefaultPiles: false },
     ));
@@ -179,7 +187,7 @@ describe("project content", () => {
   });
 
   it("requests full analysis when imported foundation advice changes", () => {
-    const state = normalizeProjectContentState(createInitialProjectState(
+    const state = normalizeProjectContentState(createTestProjectState(
       sampleProjectText,
       { initializeDefaultPiles: false },
     ));

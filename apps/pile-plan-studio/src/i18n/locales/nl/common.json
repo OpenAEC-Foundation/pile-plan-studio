@@ -262,9 +262,9 @@
     "title": "Projectgegevens importeren",
       "defaultName": "Geïmporteerd project",
       "projectName": "Projectnaam",
-        "pileHeadLevel": "Paalhoofdniveau (m)",
-        "pileHeadLevelHelp": "Verplicht voor de berekening van paalkosten.",
-        "pileHeadLevelRequired": "Vul een geldig paalhoofdniveau in om het project te importeren.",
+        "pileHeadLevel": "Peil t.o.v. NAP (m)",
+        "pileHeadLevelHelp": "Het referentieniveau van het gebouw ten opzichte van NAP. Pile Plan Studio gebruikt dit peil als afhakniveau: het niveau van de afgewerkte paalkop. Samen met het paalpuntniveau bepaalt dit de berekende paallengte en paalkosten. Eventuele productie- of uitvoeringsmarge is niet inbegrepen.",
+        "pileHeadLevelRequired": "Vul een geldig peil t.o.v. NAP in om het project te importeren.",
         "currency": "Projectvaluta",
         "projectProperties": "Projecteigenschappen",
     "chooseFiles": "Kies maximaal drie bestanden",
@@ -320,7 +320,11 @@
       "coordinate-nodes-without-reactions": "{{count}} coördinaatknopen zonder Min PZ'-reactie worden overgeslagen.",
       "exact-coordinate-duplicates": "{{count}} identieke coördinaatregels zijn gededupliceerd.",
       "exact-reaction-duplicates": "{{count}} identieke reactieregels zijn gededupliceerd.",
-      "duplicate-load-point-position": "De belastinglocaties {{locations}} hebben dezelfde positie (X {{x}} mm, Y {{y}} mm). Iedere belastinglocatie moet een unieke positie hebben."
+      "duplicate-load-point-position": "De belastinglocaties {{locations}} hebben dezelfde positie (X {{x}} mm, Y {{y}} mm). Iedere belastinglocatie moet een unieke positie hebben.",
+      "invalid-pile-tip-level-precision": "{{count}} paalpuntniveau(s) kunnen niet exact op hele millimeters worden opgeslagen: {{values}}.",
+      "sourceSheet": "werkblad {{sheet}}",
+      "sourceRow": "rij {{row}}",
+      "sourceColumn": "kolom {{column}}"
     },
     "roles": {
       "loadPoints": "Belastinglocaties",
@@ -336,7 +340,8 @@
     "projectInformation": {
       "title": "Projectinformatie",
       "projectName": "Projectnaam",
-      "pileHeadLevel": "Paalhoofdniveau (m)",
+      "pileHeadLevel": "Peil t.o.v. NAP (m)",
+      "pileHeadLevelHelp": "Het referentieniveau van het gebouw ten opzichte van NAP. Pile Plan Studio gebruikt dit peil als afhakniveau: het niveau van de afgewerkte paalkop. Samen met het paalpuntniveau bepaalt dit de berekende paallengte en paalkosten. Eventuele productie- of uitvoeringsmarge is niet inbegrepen.",
       "currency": "Projectvaluta"
     },
   "recovery": {
@@ -349,6 +354,10 @@
   "loadPointPositions": {
     "projectOpenError_one": "Het project is niet geopend. De belastinglocaties {{locations}} hebben dezelfde positie (X {{x}} mm, Y {{y}} mm). Iedere belastinglocatie moet een unieke positie hebben.",
     "projectOpenError_other": "Het project is niet geopend: {{count}} samenvallende posities gevonden. De eerste betreft {{locations}} op (X {{x}} mm, Y {{y}} mm). Iedere belastinglocatie moet een unieke positie hebben."
+  },
+  "pileTipLevels": {
+    "projectOpenError_one": "Het project is niet geopend. Paalpuntniveau {{value}} m kan niet exact op hele millimeters worden opgeslagen.",
+    "projectOpenError_other": "Het project is niet geopend: {{count}} paalpuntniveaus kunnen niet exact op hele millimeters worden opgeslagen. De eerste waarde is {{value}} m."
   },
   "unsaved": {
     "title": "Onopgeslagen wijzigingen",

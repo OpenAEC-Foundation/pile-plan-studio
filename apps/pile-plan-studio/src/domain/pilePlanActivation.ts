@@ -5,7 +5,7 @@ import type { ActivePileConfigurations } from "./activePileConfigurations.ts";
 export function getPilePlanActivation(plan: PilePlanData): ActivePileConfigurations {
   return {
     pileSizes: [...plan.activePileSizes],
-    pileTipLevels: [...plan.activePileTipLevels],
+    pileTipLevelMms: [...plan.activePileTipLevelMms],
   };
 }
 
@@ -29,7 +29,7 @@ export function replacePilePlanActivation(
   return pilePlans.map((plan) => plan.id === pilePlanId ? {
     ...plan,
     activePileSizes: [...activation.pileSizes],
-    activePileTipLevels: [...activation.pileTipLevels],
+    activePileTipLevelMms: [...activation.pileTipLevelMms],
   } : plan);
 }
 
@@ -40,7 +40,7 @@ export function activationFromConfigurations(
   return {
     pileSizes: [...new Set(values.map(({ pile_size_mm }) => pile_size_mm))]
       .sort((left, right) => left - right),
-    pileTipLevels: [...new Set(values.map(({ pile_tip_level_mm }) => pile_tip_level_mm / 1000))]
+    pileTipLevelMms: [...new Set(values.map(({ pile_tip_level_mm }) => pile_tip_level_mm))]
       .sort((left, right) => right - left),
   };
 }
@@ -57,9 +57,9 @@ export function unionActivationForPlans(
     pileSizes: [...new Set(pilePlans
       .filter(({ id }) => planIds.has(id))
       .flatMap((plan) => activationFor(plan).pileSizes))].sort((left, right) => left - right),
-    pileTipLevels: [...new Set(pilePlans
+    pileTipLevelMms: [...new Set(pilePlans
       .filter(({ id }) => planIds.has(id))
-      .flatMap((plan) => activationFor(plan).pileTipLevels))].sort((left, right) => right - left),
+      .flatMap((plan) => activationFor(plan).pileTipLevelMms))].sort((left, right) => right - left),
   };
 }
 

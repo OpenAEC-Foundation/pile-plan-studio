@@ -49,7 +49,7 @@ export function findCoactiveLegendConflicts(
   for (const { property, kind } of channels) {
     const items = kind === "size" ? legend.pileSizes : legend.pileTipLevels;
     for (const plan of pilePlans) {
-      const activeValues = new Set(kind === "size" ? plan.activePileSizes : plan.activePileTipLevels);
+      const activeValues = new Set(kind === "size" ? plan.activePileSizes : plan.activePileTipLevelMms);
       const valuesByAppearance = new Map<string, number[]>();
       for (const item of items) {
         if (!activeValues.has(item.value)) continue;
@@ -90,12 +90,12 @@ export function getLegendValuePlanUsage(input: {
   const usage = input.plans.map((plan): LegendValuePlanUsageItem => ({
     planId: plan.id,
     planName: plan.name,
-    active: (input.kind === "size" ? plan.activePileSizes : plan.activePileTipLevels)
+    active: (input.kind === "size" ? plan.activePileSizes : plan.activePileTipLevelMms)
       .includes(input.value),
     assignmentCount: [...plan.selectedPileConfigurationsByLoadPoint.values()]
       .filter((configuration) => input.kind === "size"
         ? configuration.pile_size_mm === input.value
-        : configuration.pile_tip_level_mm / 1_000 === input.value)
+        : configuration.pile_tip_level_mm === input.value)
       .length,
   }));
   const current = usage.find(({ planId }) => planId === input.currentPlanId);

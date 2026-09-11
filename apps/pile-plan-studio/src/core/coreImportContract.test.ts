@@ -95,7 +95,59 @@ describe("core import contract", () => {
       loadPointNames: ["L1", "L2"],
       xMm: 100,
       yMm: 200,
+      location: null,
+      tipLevelValues: [],
       fallbackMessage: "Duplicate position.",
     });
+  });
+
+  it("preserves every invalid tip value and its source location", () => {
+    const preview = fromCoreImportSourcePreview({
+      role: "bearing-capacities",
+      requested_profile: "standard-table",
+      detected_profile: "standard-table",
+      resolved_profile: "standard-table",
+      available_profiles: ["standard-table"],
+      resolved_options: { coordinate_sheet: null, reaction_sheet: null },
+      item_count: 0,
+      diagnostics: [{
+        severity: "error",
+        code: "invalid-pile-tip-level-precision",
+        count: 1,
+        node_ids: [],
+        location: {
+          file_name: "advies.xlsx",
+          sheet_name: "Blad1",
+          row: 7,
+          column: 3,
+          column_name: "Puntniveau",
+        },
+        pile_tip_levels: [{
+          value: "-18.5004",
+          reason: "submillimetre",
+          location: {
+            file_name: "advies.xlsx",
+            sheet_name: "Blad1",
+            row: 7,
+            column: 3,
+            column_name: "Puntniveau",
+          },
+        }],
+        fallback_message: "Invalid tip level.",
+      }],
+      details: { kind: "standard-table", sheet_name: "Blad1" },
+    });
+
+    assert.deepEqual(preview.diagnostics[0].tipLevelValues, [{
+      value: "-18.5004",
+      reason: "submillimetre",
+      location: {
+        fileName: "advies.xlsx",
+        sheetName: "Blad1",
+        row: 7,
+        column: 3,
+        columnName: "Puntniveau",
+      },
+    }]);
   });
 });

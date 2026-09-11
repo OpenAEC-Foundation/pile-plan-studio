@@ -11,9 +11,9 @@ const legend: LegendItems = {
   pileTipLevelColorScheme: "tableau-extended",
   pileSizes: [],
   pileTipLevels: [
-    { value: -20, symbol: { baseShape: "circle", fillPattern: "full" }, color: "#202020", symbolAutomatic: true, colorAutomatic: true },
-    { value: -10, symbol: { baseShape: "circle", fillPattern: "full" }, color: "#101010", symbolAutomatic: true, colorAutomatic: true },
-    { value: -15, symbol: { baseShape: "circle", fillPattern: "full" }, color: "#151515", symbolAutomatic: true, colorAutomatic: true },
+    { value: -20_000, symbol: { baseShape: "circle", fillPattern: "full" }, color: "#202020", symbolAutomatic: true, colorAutomatic: true },
+    { value: -10_000, symbol: { baseShape: "circle", fillPattern: "full" }, color: "#101010", symbolAutomatic: true, colorAutomatic: true },
+    { value: -15_000, symbol: { baseShape: "circle", fillPattern: "full" }, color: "#151515", symbolAutomatic: true, colorAutomatic: true },
   ],
 };
 
@@ -60,7 +60,7 @@ describe("tip-level region presentation", () => {
     const presented = presentTipLevelRegionGeometry(
       [layer(-10), layer(-15)],
       { ...legend, encodingMode: "size-color-tip-region" },
-      [-10],
+      [-10_000],
     );
 
     assert.deepEqual(presented.map(({ legendValueM, color }) => ({ legendValueM, color })), [

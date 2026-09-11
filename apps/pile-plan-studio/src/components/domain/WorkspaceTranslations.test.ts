@@ -4,6 +4,18 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
 describe("Workspace translations", () => {
+  it("provides bilingual project-open feedback for invalid pile tip levels", () => {
+    const en = JSON.parse(readFileSync(resolve(import.meta.dirname, "../../i18n/locales/en/common.json"), "utf8"));
+    const nl = JSON.parse(readFileSync(resolve(import.meta.dirname, "../../i18n/locales/nl/common.json"), "utf8"));
+
+    assert.match(en.pileTipLevels.projectOpenError_one, /not opened/i);
+    assert.match(en.pileTipLevels.projectOpenError_one, /millimetre/i);
+    assert.match(nl.pileTipLevels.projectOpenError_one, /niet geopend/i);
+    assert.match(nl.pileTipLevels.projectOpenError_one, /millimeter/i);
+    assert.match(en.importProject.diagnostics["invalid-pile-tip-level-precision"], /millimetre/i);
+    assert.match(nl.importProject.diagnostics["invalid-pile-tip-level-precision"], /millimeter/i);
+  });
+
   it("provides bilingual feedback for unavailable Undo and Redo requests", () => {
     const en = JSON.parse(readFileSync(resolve(import.meta.dirname, "../../i18n/locales/en/common.json"), "utf8"));
     const nl = JSON.parse(readFileSync(resolve(import.meta.dirname, "../../i18n/locales/nl/common.json"), "utf8"));
@@ -214,6 +226,20 @@ describe("Workspace translations", () => {
     assert.match(nlCommon, /"automatic":\s*"Automatisch herkennen"/);
     assert.match(enCommon, /Select the RFEM worksheet that contains the node reactions/);
     assert.match(nlCommon, /Kies het RFEM-werkblad met de knoopreacties/);
+  });
+
+  it("describes the project reference level and its pile cut-off assumption in both languages", () => {
+    const en = JSON.parse(readFileSync(resolve(import.meta.dirname, "../../i18n/locales/en/common.json"), "utf8"));
+    const nl = JSON.parse(readFileSync(resolve(import.meta.dirname, "../../i18n/locales/nl/common.json"), "utf8"));
+
+    assert.equal(nl.importProject.pileHeadLevel, "Peil t.o.v. NAP (m)");
+    assert.match(nl.importProject.pileHeadLevelHelp, /afhakniveau/);
+    assert.equal(nl.projectInformation.pileHeadLevel, "Peil t.o.v. NAP (m)");
+    assert.match(nl.projectInformation.pileHeadLevelHelp, /afhakniveau/);
+    assert.equal(en.importProject.pileHeadLevel, "Reference level (m)");
+    assert.match(en.importProject.pileHeadLevelHelp, /pile cut-off level/);
+    assert.equal(en.projectInformation.pileHeadLevel, "Reference level (m)");
+    assert.match(en.projectInformation.pileHeadLevelHelp, /pile cut-off level/);
   });
 
   it("translates the pile plan import workflow consistently", () => {

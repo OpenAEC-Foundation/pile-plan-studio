@@ -14,6 +14,18 @@ export function formatOptionalNumber(
   return `${formatNumber(value * multiplier)}${suffix}`;
 }
 
+export function formatPileTipLevelMillimetres(value: number, locale: string): string {
+  if (!Number.isFinite(value)) return "-";
+  return formatPileTipLevelMetres(value / 1_000, locale);
+}
+
+export function formatPileTipLevelMetres(value: number, locale: string): string {
+  if (!Number.isFinite(value)) return "-";
+  const roundedToMillimetres = Math.round(value * 1_000) / 1_000;
+  const displayValue = Object.is(roundedToMillimetres, -0) ? 0 : roundedToMillimetres;
+  return `${new Intl.NumberFormat(locale, { maximumFractionDigits: 3 }).format(displayValue)} m`;
+}
+
 export function formatCoordinateReadout(
   points: ReadonlyArray<{ x_mm: number; y_mm: number }>,
   locale: string,

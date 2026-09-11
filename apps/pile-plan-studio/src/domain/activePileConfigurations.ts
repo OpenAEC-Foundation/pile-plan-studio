@@ -3,14 +3,15 @@ import { samePileConfiguration } from "../core/pileConfigurationKey.ts";
 
 export type ActivePileConfigurations = {
   pileSizes: number[];
-  pileTipLevels: number[];
+  pileTipLevelMms: number[];
 };
 
 export function isPileConfigurationActive(
-  option: Pick<PileConfigurationOption, "pile_size_mm" | "pile_tip_level_m">,
+  option: Pick<PileConfigurationOption, "pile_size_mm" | "configuration">,
   active: ActivePileConfigurations,
 ): boolean {
-  return active.pileSizes.includes(option.pile_size_mm) && active.pileTipLevels.includes(option.pile_tip_level_m);
+  return active.pileSizes.includes(option.pile_size_mm)
+    && active.pileTipLevelMms.includes(option.configuration.pile_tip_level_mm);
 }
 
 export function filterActivePileOptions<T extends {
@@ -24,19 +25,21 @@ export function filterActivePileOptions<T extends {
 ): T[] {
   return options.filter((option) => {
     const isActive = active.pileSizes.includes(option.pile_size_mm ?? option.configuration.pile_size_mm)
-      && active.pileTipLevels.includes(option.pile_tip_level_m);
+      && active.pileTipLevelMms.includes(option.configuration.pile_tip_level_mm);
     return isActive || (retainedConfiguration !== undefined
       && samePileConfiguration(option.configuration, retainedConfiguration));
   });
 }
 
 export function getUsedPileConfigurations(
-  options: Array<Pick<PileConfigurationOption, "pile_size_mm" | "pile_tip_level_m"> | null>,
+  options: Array<Pick<PileConfigurationOption, "pile_size_mm" | "configuration"> | null>,
 ): ActivePileConfigurations {
   return {
     pileSizes: [...new Set(options.flatMap((option) => option ? [option.pile_size_mm] : []))]
       .sort((left, right) => left - right),
-    pileTipLevels: [...new Set(options.flatMap((option) => option ? [option.pile_tip_level_m] : []))]
+    pileTipLevelMms: [...new Set(options.flatMap((option) => (
+      option ? [option.configuration.pile_tip_level_mm] : []
+    )))]
       .sort((left, right) => right - left),
   };
 }
@@ -67,7 +70,12 @@ export function toggleActivePileConfiguration(
 
   return {
     ...active,
-    pileTipLevels: toggleActiveNumber(active.pileTipLevels, value, !active.pileTipLevels.includes(value), true),
+    pileTipLevelMms: toggleActiveNumber(
+      active.pileTipLevelMms,
+      value,
+      !active.pileTipLevelMms.includes(value),
+      true,
+    ),
   };
 }
 

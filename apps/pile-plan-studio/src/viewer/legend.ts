@@ -38,7 +38,7 @@ const HEX_COLOR = /^#[0-9A-Fa-f]{6}$/;
 export function createBuiltInLegend(bearingCapacities: BearingCapacity[]): LegendItems {
   return createBuiltInLegendForValues(
     uniqueSorted(bearingCapacities.map(({ pile_size_mm }) => pile_size_mm), false),
-    uniqueSorted(bearingCapacities.map(({ pile_tip_level_m }) => pile_tip_level_m), true),
+    uniqueSorted(bearingCapacities.map(({ pile_tip_level_mm }) => pile_tip_level_mm), true),
   );
 }
 
@@ -57,7 +57,7 @@ export function reconcileProjectLegend(
     ...rawSizes.map(({ value }) => value),
   ], false);
   const tipValues = uniqueSorted([
-    ...bearingCapacities.map(({ pile_tip_level_m }) => pile_tip_level_m),
+    ...bearingCapacities.map(({ pile_tip_level_mm }) => pile_tip_level_mm),
     ...rawTips.map(({ value }) => value),
   ], true);
   const defaults = createBuiltInLegendForValues(sizeValues, tipValues);
@@ -87,12 +87,14 @@ export function reconcileProjectLegend(
 }
 
 export function getConfigurationStyle(
-  configuration: Pick<PileConfigurationOption, "pile_size_mm" | "pile_tip_level_m">,
+  configuration: Pick<PileConfigurationOption, "pile_size_mm" | "configuration">,
   legend: LegendItems,
   pileCosts?: PileCostSettings,
 ): PileConfigurationStyle {
   const sizeStyle = legend.pileSizes.find(({ value }) => value === configuration.pile_size_mm);
-  const tipStyle = legend.pileTipLevels.find(({ value }) => value === configuration.pile_tip_level_m);
+  const tipStyle = legend.pileTipLevels.find(
+    ({ value }) => value === configuration.configuration.pile_tip_level_mm,
+  );
   if (legend.encodingMode === "size-color-tip-region") {
     const shape = pileCosts?.items.find(({ pile_size_mm }) => pile_size_mm === configuration.pile_size_mm)?.shape;
     return {
@@ -194,7 +196,7 @@ export function resetLegendAppearance(
   ], false);
   const tipValues = uniqueSorted([
     ...legend.pileTipLevels.map(({ value }) => value),
-    ...bearingCapacities.map(({ pile_tip_level_m }) => pile_tip_level_m),
+    ...bearingCapacities.map(({ pile_tip_level_mm }) => pile_tip_level_mm),
   ], true);
   return createBuiltInLegendForValues(sizeValues, tipValues);
 }

@@ -28,7 +28,7 @@ describe("optimization settings", () => {
   it("builds default limits at the maximum active legend counts", () => {
     const settings = buildMaxOptimizationUiSettings({
       pileSizes: [290, 320, 350],
-      pileTipLevels: [-17.5, -18, -18.5, -19],
+      pileTipLevelMms: [-17.5, -18, -18.5, -19],
     });
 
     assert.deepEqual(settings, {
@@ -81,7 +81,7 @@ describe("optimization settings", () => {
         maxDifferentTips: 4,
         maxDifferentConfigurations: 8,
       },
-      { pileSizes: [290], pileTipLevels: [-18, -19] },
+      { pileSizes: [290], pileTipLevelMms: [-18, -19] },
     );
 
     assert.equal(settings.maxDifferentSizes, 1);
@@ -98,7 +98,7 @@ describe("optimization settings", () => {
         maxDifferentTips: 3,
         maxDifferentConfigurations: 5,
       },
-      { pileSizes: [290, 320, 350], pileTipLevels: [-18, -19, -20] },
+      { pileSizes: [290, 320, 350], pileTipLevelMms: [-18, -19, -20] },
     );
 
     assert.equal(settings.maxDifferentSizes, 2);
@@ -115,7 +115,7 @@ describe("optimization settings", () => {
         maxDifferentTips: 3,
         maxDifferentConfigurations: 5,
       },
-      active: { pileSizes: [], pileTipLevels: [] },
+      active: { pileSizes: [], pileTipLevelMms: [] },
       autoState: createOptimizationLimitAutoState(false),
     });
 
@@ -136,7 +136,7 @@ describe("optimization settings", () => {
       uiSettings: clamped.uiSettings,
       active: {
         pileSizes: [290, 320, 350],
-        pileTipLevels: [-17.5, -18, -18.5, -19, -19.5, -20],
+        pileTipLevelMms: [-17.5, -18, -18.5, -19, -19.5, -20],
       },
       autoState: clamped.autoState,
     });
@@ -161,7 +161,7 @@ describe("optimization settings", () => {
       },
       active: {
         pileSizes: [290, 320],
-        pileTipLevels: [-17.5, -18, -18.5],
+        pileTipLevelMms: [-17.5, -18, -18.5],
       },
       autoState: createOptimizationLimitAutoState(false),
     });
@@ -189,7 +189,7 @@ describe("optimization settings", () => {
         maxDifferentTips: 1,
         maxDifferentConfigurations: 6,
       },
-      { pileSizes: [290, 320], pileTipLevels: [-18, -19, -20] },
+      { pileSizes: [290, 320], pileTipLevelMms: [-18, -19, -20] },
     );
 
     assert.equal(settings.maxDifferentConfigurations, 1);

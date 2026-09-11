@@ -116,7 +116,7 @@ export function applyLegendEditorBulkAction(
   used: ActivePileConfigurations,
 ): LegendEditorDraft {
   const active = action === "disable-all"
-    ? { pileSizes: [], pileTipLevels: [] }
+    ? { pileSizes: [], pileTipLevelMms: [] }
     : copyConfigurations(action === "enable-used" ? used : available);
   return { ...draft, active };
 }
@@ -196,7 +196,7 @@ function refreshAutomaticMappings(
     const tips = refreshAutomaticLegendColors(
       sizes,
       "pileTipLevels",
-      included.pileTipLevels,
+      included.pileTipLevelMms,
     );
     return { ok: true, draft: { ...draft, legend: tips } };
   }
@@ -234,7 +234,7 @@ function updateStyle(
 }
 
 function activeKey(kind: LegendEditorItemKind): keyof ActivePileConfigurations {
-  return kind === "size" ? "pileSizes" : "pileTipLevels";
+  return kind === "size" ? "pileSizes" : "pileTipLevelMms";
 }
 
 function legendKey(kind: LegendEditorItemKind): LegendValueKind {
@@ -248,7 +248,7 @@ function sortValues(values: number[], kind: LegendEditorItemKind): number[] {
 function copyConfigurations(configurations: ActivePileConfigurations): ActivePileConfigurations {
   return {
     pileSizes: [...configurations.pileSizes],
-    pileTipLevels: [...configurations.pileTipLevels],
+    pileTipLevelMms: [...configurations.pileTipLevelMms],
   };
 }
 

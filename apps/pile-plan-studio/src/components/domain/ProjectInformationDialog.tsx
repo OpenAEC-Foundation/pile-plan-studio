@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import Modal from "../template/Modal.tsx";
 import ThemedSelect from "../template/ThemedSelect.tsx";
 import "../template/ThemedSelect.css";
+import { infoIcon } from "../template/ribbon/icons.ts";
 import { normalizePileHeadLevel, normalizeProjectName } from "./projectInformationModel.ts";
 
 const CURRENCY_OPTIONS = ["EUR", "GBP", "USD"].map((currency) => ({ value: currency, label: currency }));
@@ -68,7 +69,16 @@ export default function ProjectInformationDialog({ open, projectName, pileHeadLe
           />
         </label>
         <label>
-          <span>{t("projectInformation.pileHeadLevel")}</span>
+          <span className="project-information-label-with-help">
+            {t("projectInformation.pileHeadLevel")}
+            <span
+              aria-label={t("projectInformation.pileHeadLevelHelp")}
+              className="project-information-help"
+              role="img"
+              title={t("projectInformation.pileHeadLevelHelp")}
+              dangerouslySetInnerHTML={{ __html: infoIcon }}
+            />
+          </span>
           <input
             inputMode="decimal"
             value={pileHeadLevelDraft}

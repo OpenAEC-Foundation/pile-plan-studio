@@ -25,7 +25,7 @@ describe("optimization candidate resolution", () => {
   it("resolves active legend to exact catalog keys without creating combinations", () => {
     assert.deepEqual(resolveOptimizationCandidates(catalog, "active_legend", {
       pileSizes: [290, 320],
-      pileTipLevels: [-18, -19],
+      pileTipLevelMms: [-18_000, -19_000],
     }), [
       { pile_size_mm: 290, pile_tip_level_mm: -18_000 },
       { pile_size_mm: 320, pile_tip_level_mm: -18_000 },
@@ -34,7 +34,7 @@ describe("optimization candidate resolution", () => {
 
     assert.deepEqual(resolveOptimizationCandidates(catalog, "active_legend", {
       pileSizes: [290],
-      pileTipLevels: [-19],
+      pileTipLevelMms: [-19_000],
     }), []);
   });
 });

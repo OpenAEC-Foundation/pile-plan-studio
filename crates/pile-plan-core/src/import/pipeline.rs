@@ -10,8 +10,8 @@ use super::{
     source_for_role,
     table::read_xlsx_tables,
     ImportDiagnostic, ImportDiagnosticCode, ImportDiagnosticSeverity, ImportError,
-    ImportPreviewDetails, ImportProfile, ImportProfileOptions, ImportRole, ImportSource,
-    ImportSourcePreview, RfemPreviewDetails, SourceFormat,
+    ImportPileTipLevelDiagnostic, ImportPreviewDetails, ImportProfile, ImportProfileOptions,
+    ImportRole, ImportSource, ImportSourcePreview, RfemPreviewDetails, SourceFormat,
 };
 
 pub fn preview_import_source(source: &ImportSource) -> ImportSourcePreview {
@@ -81,7 +81,7 @@ pub fn import_project_from_profiled_sources_with_properties(
         &reconciliation,
     );
 
-    Ok(build_imported_project(
+    build_imported_project(
         project_name.to_string(),
         load_points,
         cpts,
@@ -89,7 +89,7 @@ pub fn import_project_from_profiled_sources_with_properties(
         vec![load_log, cpt_log, capacity_log],
         pile_head_level_m,
         currency_code,
-    ))
+    )
 }
 
 pub(crate) fn parse_load_source(
@@ -397,6 +397,7 @@ fn duplicate_position_diagnostics(load_points: &[ProjectLoadPoint]) -> Vec<Impor
                 x_mm: Some(duplicate.x_mm),
                 y_mm: Some(duplicate.y_mm),
                 location: None,
+                pile_tip_levels: vec![],
             }
         })
         .collect()
@@ -427,6 +428,7 @@ fn push_warning(
         x_mm: None,
         y_mm: None,
         location: None,
+        pile_tip_levels: vec![],
         fallback_message: format!("{message} Count: {}.", ids.len()),
     });
 }
@@ -463,11 +465,34 @@ fn invalid_preview_with_details(
         available_profiles,
         resolved_options,
         item_count: 0,
-        diagnostics: vec![error_diagnostic(
-            ImportDiagnosticCode::InvalidRequiredValue,
-            error.to_string(),
-        )],
+        diagnostics: vec![import_error_diagnostic(error)],
         details,
+    }
+}
+
+fn import_error_diagnostic(error: ImportError) -> ImportDiagnostic {
+    let fallback_message = error.to_string();
+    match error {
+        ImportError::InvalidPileTipLevels(values) => ImportDiagnostic {
+            severity: ImportDiagnosticSeverity::Error,
+            code: ImportDiagnosticCode::InvalidPileTipLevelPrecision,
+            count: values.len(),
+            node_ids: vec![],
+            load_point_names: vec![],
+            x_mm: None,
+            y_mm: None,
+            location: values.first().map(|item| (&item.location).into()),
+            pile_tip_levels: values
+                .iter()
+                .map(|item| ImportPileTipLevelDiagnostic {
+                    location: (&item.location).into(),
+                    value: item.value.clone(),
+                    reason: item.reason,
+                })
+                .collect(),
+            fallback_message,
+        },
+        _ => error_diagnostic(ImportDiagnosticCode::InvalidRequiredValue, fallback_message),
     }
 }
 
@@ -481,6 +506,7 @@ fn error_diagnostic(code: ImportDiagnosticCode, message: String) -> ImportDiagno
         x_mm: None,
         y_mm: None,
         location: None,
+        pile_tip_levels: vec![],
         fallback_message: message,
     }
 }
@@ -538,6 +564,29 @@ mod tests {
             diagnostic.load_point_names,
             vec!["Load point 2", "Load point 8"]
         );
+    }
+
+    #[test]
+    fn standard_preview_reports_every_submillimetre_tip_level() {
+        let preview = preview_import_source(&csv_source(
+            ImportRole::BearingCapacities,
+            "capacities.csv",
+            "CPT ID,Tip,Size,FRD\n61,-18.5004,290,700\n61,-18.25,290,710\n61,-19.0006,290,720\n",
+        ));
+
+        assert!(preview.has_errors());
+        let diagnostic = &preview.diagnostics[0];
+        assert_eq!(
+            diagnostic.code,
+            ImportDiagnosticCode::InvalidPileTipLevelPrecision
+        );
+        assert_eq!(diagnostic.severity, ImportDiagnosticSeverity::Error);
+        assert_eq!(diagnostic.count, 2);
+        assert_eq!(diagnostic.pile_tip_levels.len(), 2);
+        assert_eq!(diagnostic.pile_tip_levels[0].value, "-18.5004");
+        assert_eq!(diagnostic.pile_tip_levels[0].location.row, Some(2));
+        assert_eq!(diagnostic.pile_tip_levels[1].value, "-19.0006");
+        assert_eq!(diagnostic.pile_tip_levels[1].location.row, Some(4));
     }
 
     #[test]

@@ -1,8 +1,9 @@
 use crate::{
     CptSelectionAlgorithm, CptSelectionSettings, DuplicateLoadPointPositions,
-    GreedyOptimizationSettings, PileCostSettings, PilePlanProject, ProjectApplication,
-    ProjectBearingCapacity, ProjectCpt, ProjectImportLogEntry, ProjectInputs, ProjectLoadPoint,
-    ProjectMetadata, ProjectSettings, ProjectUnits, ProjectUserState,
+    GreedyOptimizationSettings, PileCostSettings, PilePlanProject,
+    PileTipLevelPrecisionErrorReason, ProjectApplication, ProjectBearingCapacity, ProjectCpt,
+    ProjectImportLogEntry, ProjectInputs, ProjectLoadPoint, ProjectMetadata, ProjectSettings,
+    ProjectUnits, ProjectUserState,
 };
 use std::collections::HashMap;
 use std::fmt;
@@ -22,8 +23,8 @@ pub use pipeline::{
 };
 pub use profile::{
     available_profiles, ImportDiagnostic, ImportDiagnosticCode, ImportDiagnosticLocation,
-    ImportDiagnosticSeverity, ImportPreviewDetails, ImportProfile, ImportProfileOptions,
-    ImportSourcePreview, RfemPreviewDetails,
+    ImportDiagnosticSeverity, ImportPileTipLevelDiagnostic, ImportPreviewDetails, ImportProfile,
+    ImportProfileOptions, ImportSourcePreview, RfemPreviewDetails,
 };
 pub use refresh::refresh_project_from_profiled_sources;
 pub use roles::{
@@ -100,7 +101,15 @@ pub enum ImportError {
         id: u32,
     },
     DuplicateLoadPointPositions(DuplicateLoadPointPositions),
+    InvalidPileTipLevels(Vec<InvalidSourcePileTipLevel>),
     Validation(String),
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct InvalidSourcePileTipLevel {
+    pub location: SourceLocation,
+    pub value: String,
+    pub reason: PileTipLevelPrecisionErrorReason,
 }
 
 impl fmt::Display for ImportError {
@@ -163,6 +172,22 @@ impl fmt::Display for ImportError {
                 formatter.write_str(".")
             }
             Self::DuplicateLoadPointPositions(error) => error.fmt(formatter),
+            Self::InvalidPileTipLevels(values) => {
+                if let Some(first) = values.first() {
+                    write_location(formatter, &first.location)?;
+                    write!(
+                        formatter,
+                        ": invalid pile tip level '{}' ({:?})",
+                        first.value, first.reason
+                    )?;
+                    if values.len() > 1 {
+                        write!(formatter, "; {} invalid values in total", values.len())?;
+                    }
+                    formatter.write_str(".")
+                } else {
+                    formatter.write_str("Invalid pile tip levels.")
+                }
+            }
             Self::Validation(message) => formatter.write_str(message),
         }
     }
@@ -237,7 +262,7 @@ pub fn import_project_from_sources(
         &capacity_parse.empty_frd_rows,
         &reconciliation,
     );
-    Ok(build_imported_project(
+    build_imported_project(
         sources.project_name,
         load_points,
         cpts,
@@ -245,7 +270,7 @@ pub fn import_project_from_sources(
         import_log,
         None,
         "EUR",
-    ))
+    )
 }
 
 pub fn import_project_from_generic_sources(
@@ -277,10 +302,10 @@ fn build_imported_project(
     import_log: Vec<ProjectImportLogEntry>,
     pile_head_level_m: Option<f64>,
     currency_code: &str,
-) -> PilePlanProject {
+) -> Result<PilePlanProject, ImportError> {
     let active_pile_sizes = unique_sorted_pile_sizes(&bearing_capacities);
-    let active_pile_tip_levels = unique_sorted_tip_levels(&bearing_capacities);
-    PilePlanProject {
+    let active_pile_tip_levels = unique_sorted_tip_levels(&bearing_capacities)?;
+    Ok(PilePlanProject {
         schema: "IFCPP".to_string(),
         schema_version: 4,
         application: ProjectApplication {
@@ -342,7 +367,7 @@ fn build_imported_project(
             active_pile_tip_levels,
         ),
         import_log,
-    }
+    })
 }
 
 fn source_for_role(
@@ -513,14 +538,30 @@ fn unique_sorted_pile_sizes(bearing_capacities: &[ProjectBearingCapacity]) -> Ve
     values
 }
 
-fn unique_sorted_tip_levels(bearing_capacities: &[ProjectBearingCapacity]) -> Vec<f64> {
-    let mut keys: Vec<i64> = bearing_capacities
-        .iter()
-        .map(|capacity| (capacity.pile_tip_level_m * 1000.0).round() as i64)
-        .collect();
+fn unique_sorted_tip_levels(
+    bearing_capacities: &[ProjectBearingCapacity],
+) -> Result<Vec<f64>, ImportError> {
+    let mut keys = Vec::with_capacity(bearing_capacities.len());
+    for (index, capacity) in bearing_capacities.iter().enumerate() {
+        keys.push(
+            crate::try_pile_tip_level_mm(capacity.pile_tip_level_m).map_err(|error| {
+                ImportError::InvalidPileTipLevels(vec![InvalidSourcePileTipLevel {
+                    location: SourceLocation {
+                        file_name: format!("project inputs (CPT {})", capacity.cpt_id),
+                        sheet_name: None,
+                        row: Some(index + 1),
+                        column: None,
+                        column_name: Some("Tip"),
+                    },
+                    value: error.value,
+                    reason: error.reason,
+                }])
+            })?,
+        );
+    }
     keys.sort_unstable_by(|left, right| right.cmp(left));
     keys.dedup();
-    keys.into_iter().map(|key| key as f64 / 1000.0).collect()
+    Ok(keys.into_iter().map(crate::pile_tip_level_m).collect())
 }
 
 fn import_log_entry(
@@ -606,6 +647,7 @@ mod tests {
                     column: None,
                     column_name: None,
                 }),
+                pile_tip_levels: vec![],
                 fallback_message: "One node was skipped".to_string(),
             }],
             details: Some(ImportPreviewDetails::RfemExport(RfemPreviewDetails {
@@ -703,6 +745,77 @@ mod tests {
             error.to_string(),
             "capacities.xlsx > Sheet1, row 84, FRD (column 4): invalid value 'abc'; expected a number."
         );
+    }
+
+    #[test]
+    fn reports_every_submillimetre_capacity_row_and_keeps_quarter_metres_valid() {
+        let table = read_source_table(
+            "capacities.csv",
+            SourceFormat::Csv,
+            b"CPT ID,Tip,Size,FRD\n61,-18.5004,290,700\n61,-18.25,290,710\n61,-19.0006,290,720\n",
+        )
+        .unwrap();
+
+        let ImportError::InvalidPileTipLevels(values) =
+            parse_bearing_capacities(&table).unwrap_err()
+        else {
+            panic!("expected invalid pile tip levels")
+        };
+
+        assert_eq!(
+            values
+                .iter()
+                .map(|item| item.location.row)
+                .collect::<Vec<_>>(),
+            vec![Some(2), Some(4)]
+        );
+        assert_eq!(
+            values
+                .iter()
+                .map(|item| item.value.as_str())
+                .collect::<Vec<_>>(),
+            vec!["-18.5004", "-19.0006"]
+        );
+    }
+
+    #[test]
+    fn reports_submillimetre_capacity_with_workbook_sheet_and_column() {
+        let table = SourceTable {
+            file_name: "capacities.xlsx".to_string(),
+            sheet_name: Some("Advice".to_string()),
+            rows: vec![SourceRow {
+                number: 84,
+                cells: vec![text("61"), text("-18.5004"), text("290"), text("700")],
+            }],
+        };
+
+        let ImportError::InvalidPileTipLevels(values) =
+            parse_bearing_capacities(&table).unwrap_err()
+        else {
+            panic!("expected invalid pile tip levels")
+        };
+        let invalid = &values[0];
+        assert_eq!(invalid.location.file_name, "capacities.xlsx");
+        assert_eq!(invalid.location.sheet_name.as_deref(), Some("Advice"));
+        assert_eq!(invalid.location.row, Some(84));
+        assert_eq!(invalid.location.column, Some(2));
+        assert_eq!(invalid.location.column_name, Some("Tip"));
+        assert_eq!(invalid.value, "-18.5004");
+    }
+
+    #[test]
+    fn old_import_diagnostics_default_tip_level_occurrences_to_empty() {
+        let diagnostic: ImportDiagnostic = serde_json::from_value(serde_json::json!({
+            "severity": "error",
+            "code": "invalid-required-value",
+            "count": 1,
+            "node_ids": [],
+            "location": null,
+            "fallback_message": "Invalid value"
+        }))
+        .unwrap();
+
+        assert!(diagnostic.pile_tip_levels.is_empty());
     }
 
     #[test]

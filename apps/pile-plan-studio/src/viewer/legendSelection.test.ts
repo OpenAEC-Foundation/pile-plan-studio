@@ -33,7 +33,7 @@ describe("legend selection", () => {
     ]);
     const filters = {
       pileSizes: [290, 320],
-      pileTipLevels: [-18],
+      pileTipLevels: [-18_000],
     };
 
     assert.deepEqual(getLoadPointIdsForLegendSelection(chosenOptions, filters), [1, 2]);
@@ -41,13 +41,13 @@ describe("legend selection", () => {
 
   it("toggles selected legend values and clears the selection when both groups are empty", () => {
     const withSize = toggleLegendSelectionFilter({ pileSizes: [], pileTipLevels: [] }, "size", 290);
-    const withTip = toggleLegendSelectionFilter(withSize, "tip", -18);
+    const withTip = toggleLegendSelectionFilter(withSize, "tip", -18_000);
     const withoutSize = toggleLegendSelectionFilter(withTip, "size", 290);
-    const withoutTip = toggleLegendSelectionFilter(withoutSize, "tip", -18);
+    const withoutTip = toggleLegendSelectionFilter(withoutSize, "tip", -18_000);
 
     assert.deepEqual(withSize, { pileSizes: [290], pileTipLevels: [] });
-    assert.deepEqual(withTip, { pileSizes: [290], pileTipLevels: [-18] });
-    assert.deepEqual(withoutSize, { pileSizes: [], pileTipLevels: [-18] });
+    assert.deepEqual(withTip, { pileSizes: [290], pileTipLevels: [-18_000] });
+    assert.deepEqual(withoutSize, { pileSizes: [], pileTipLevels: [-18_000] });
     assert.deepEqual(withoutTip, { pileSizes: [], pileTipLevels: [] });
     assert.deepEqual(
       getLoadPointIdsForLegendSelection(new Map([[1, option(290, -18)]]), withoutTip),
@@ -60,9 +60,9 @@ describe("legend selection", () => {
       pileSizes: [320],
       pileTipLevels: [],
     });
-    assert.deepEqual(replaceLegendSelectionFilter("tip", -19), {
+    assert.deepEqual(replaceLegendSelectionFilter("tip", -19_000), {
       pileSizes: [],
-      pileTipLevels: [-19],
+      pileTipLevels: [-19_000],
     });
   });
 
@@ -72,7 +72,7 @@ describe("legend selection", () => {
       "size",
       320,
     );
-    const withTip = toggleLegendSelectionFilter(withTwoSizes, "tip", -18);
+    const withTip = toggleLegendSelectionFilter(withTwoSizes, "tip", -18_000);
     const choices = new Map<number, PileConfigurationOption | null>([
       [1, option(290, -18)],
       [2, option(320, -18)],
@@ -81,7 +81,7 @@ describe("legend selection", () => {
 
     assert.deepEqual(withTip, {
       pileSizes: [290, 320],
-      pileTipLevels: [-18],
+      pileTipLevels: [-18_000],
     });
     assert.deepEqual(getLoadPointIdsForLegendSelection(choices, withTip), [1, 2]);
   });

@@ -5,6 +5,8 @@ use serde::{Deserialize, Serialize};
 use crate::{
     pile_configuration::PileConfigurationKey,
     pile_option_status::{pile_option_technical_status, PileOptionTechnicalStatus},
+    pile_tip_levels::validate_pile_tip_level_values,
+    InvalidPileTipLevels,
 };
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
@@ -417,32 +419,44 @@ pub fn pile_configuration_options(
     design_load_kn: f64,
     selected_cpts: &[SelectedCpt],
     bearing_capacities: &[BearingCapacity],
-) -> Vec<PileConfigurationOption> {
-    let configurations = unique_pile_configurations(bearing_capacities);
-    let index = bearing_capacity_index(bearing_capacities);
+) -> Result<Vec<PileConfigurationOption>, InvalidPileTipLevels> {
+    let tip_level_keys = validate_pile_tip_level_values(
+        bearing_capacities
+            .iter()
+            .map(|capacity| capacity.pile_tip_level_m),
+    )?;
+    let configurations = unique_pile_configurations(bearing_capacities, &tip_level_keys);
+    let index = bearing_capacity_index(bearing_capacities, &tip_level_keys);
 
-    pile_configuration_options_with_index(design_load_kn, selected_cpts, &configurations, &index)
+    Ok(pile_configuration_options_with_index(
+        design_load_kn,
+        selected_cpts,
+        &configurations,
+        &index,
+    ))
 }
 
 fn pile_configuration_options_with_index(
     design_load_kn: f64,
     selected_cpts: &[SelectedCpt],
-    configurations: &[(u32, f64)],
+    configurations: &[(PileConfigurationKey, f64)],
     index: &HashMap<CapacityKey, &BearingCapacity>,
 ) -> Vec<PileConfigurationOption> {
     configurations
         .iter()
-        .map(|&(pile_size_mm, pile_tip_level_m)| {
+        .map(|(configuration, pile_tip_level_m)| {
+            let pile_tip_level_m = *pile_tip_level_m;
+            let pile_size_mm = configuration.pile_size_mm;
             let matching_capacities: Vec<_> = selected_cpts
                 .iter()
                 .map(|selection| {
                     (
                         selection.cpt.id,
-                        index.get(&capacity_key(
-                            selection.cpt.id,
+                        index.get(&CapacityKey {
+                            cpt_id: selection.cpt.id,
                             pile_size_mm,
-                            pile_tip_level_m,
-                        )),
+                            pile_tip_level_mm: configuration.pile_tip_level_mm,
+                        }),
                     )
                 })
                 .collect();
@@ -462,7 +476,7 @@ fn pile_configuration_options_with_index(
                 pile_option_technical_status(is_option, utilization, &missing_cpt_ids);
 
             PileConfigurationOption {
-                configuration: PileConfigurationKey::from_metres(pile_size_mm, pile_tip_level_m),
+                configuration: configuration.clone(),
                 pile_size_mm,
                 pile_tip_level_m,
                 is_option,
@@ -482,16 +496,16 @@ pub fn build_pile_options_by_load_point(
     bearing_capacities: &[BearingCapacity],
     settings_by_load_point: impl Fn(&LoadPoint) -> CptSelectionSettings,
     manual_cpt_ids_by_load_point: &HashMap<u32, Vec<u32>>,
-) -> HashMap<u32, Vec<PileConfigurationOption>> {
-    build_project_analysis(
+) -> Result<HashMap<u32, Vec<PileConfigurationOption>>, InvalidPileTipLevels> {
+    Ok(build_project_analysis(
         load_points,
         cpts,
         bearing_capacities,
         settings_by_load_point,
         manual_cpt_ids_by_load_point,
         false,
-    )
-    .pile_options_by_load_point
+    )?
+    .pile_options_by_load_point)
 }
 
 pub fn build_project_analysis(
@@ -501,9 +515,14 @@ pub fn build_project_analysis(
     settings_by_load_point: impl Fn(&LoadPoint) -> CptSelectionSettings,
     manual_cpt_ids_by_load_point: &HashMap<u32, Vec<u32>>,
     include_cpt_frd_rows: bool,
-) -> ProjectAnalysisResult {
-    let configurations = unique_pile_configurations(bearing_capacities);
-    let capacity_index = bearing_capacity_index(bearing_capacities);
+) -> Result<ProjectAnalysisResult, InvalidPileTipLevels> {
+    let tip_level_keys = validate_pile_tip_level_values(
+        bearing_capacities
+            .iter()
+            .map(|capacity| capacity.pile_tip_level_m),
+    )?;
+    let configurations = unique_pile_configurations(bearing_capacities, &tip_level_keys);
+    let capacity_index = bearing_capacity_index(bearing_capacities, &tip_level_keys);
     let mut pile_options_by_load_point = HashMap::new();
     let mut selected_cpts_by_load_point = HashMap::new();
 
@@ -527,12 +546,12 @@ pub fn build_project_analysis(
         pile_options_by_load_point.insert(load_point.id, options);
     }
 
-    ProjectAnalysisResult {
+    Ok(ProjectAnalysisResult {
         pile_options_by_load_point,
         selected_cpts_by_load_point,
         cpt_frd_rows_by_cpt_id: include_cpt_frd_rows
             .then(|| grouped_bearing_capacity_rows(bearing_capacities)),
-    }
+    })
 }
 
 fn grouped_bearing_capacity_rows(
@@ -684,18 +703,21 @@ pub fn choose_default_pile_options(
     choices
 }
 
-fn unique_pile_configurations(bearing_capacities: &[BearingCapacity]) -> Vec<(u32, f64)> {
+fn unique_pile_configurations(
+    bearing_capacities: &[BearingCapacity],
+    tip_level_keys: &[i64],
+) -> Vec<(PileConfigurationKey, f64)> {
     let mut seen = HashSet::new();
     let mut configurations: Vec<_> = bearing_capacities
         .iter()
-        .filter_map(|capacity| {
-            let key = capacity_key(
-                capacity.cpt_id,
-                capacity.pile_size_mm,
-                capacity.pile_tip_level_m,
-            );
-            if seen.insert((key.pile_size_mm, key.pile_tip_level_mm)) {
-                Some((capacity.pile_size_mm, capacity.pile_tip_level_m))
+        .zip(tip_level_keys)
+        .filter_map(|(capacity, &pile_tip_level_mm)| {
+            let key = PileConfigurationKey {
+                pile_size_mm: capacity.pile_size_mm,
+                pile_tip_level_mm,
+            };
+            if seen.insert(key.clone()) {
+                Some((key, capacity.pile_tip_level_m))
             } else {
                 None
             }
@@ -704,37 +726,32 @@ fn unique_pile_configurations(bearing_capacities: &[BearingCapacity]) -> Vec<(u3
 
     configurations.sort_by(|left, right| {
         left.0
-            .cmp(&right.0)
+            .pile_size_mm
+            .cmp(&right.0.pile_size_mm)
+            .then_with(|| right.0.pile_tip_level_mm.cmp(&left.0.pile_tip_level_mm))
             .then_with(|| right.1.total_cmp(&left.1))
     });
     configurations
 }
 
-fn bearing_capacity_index(
-    bearing_capacities: &[BearingCapacity],
-) -> HashMap<CapacityKey, &BearingCapacity> {
+fn bearing_capacity_index<'a>(
+    bearing_capacities: &'a [BearingCapacity],
+    tip_level_keys: &[i64],
+) -> HashMap<CapacityKey, &'a BearingCapacity> {
     bearing_capacities
         .iter()
-        .map(|capacity| {
+        .zip(tip_level_keys)
+        .map(|(capacity, &pile_tip_level_mm)| {
             (
-                capacity_key(
-                    capacity.cpt_id,
-                    capacity.pile_size_mm,
-                    capacity.pile_tip_level_m,
-                ),
+                CapacityKey {
+                    cpt_id: capacity.cpt_id,
+                    pile_size_mm: capacity.pile_size_mm,
+                    pile_tip_level_mm,
+                },
                 capacity,
             )
         })
         .collect()
-}
-
-fn capacity_key(cpt_id: u32, pile_size_mm: u32, pile_tip_level_m: f64) -> CapacityKey {
-    CapacityKey {
-        cpt_id,
-        pile_size_mm,
-        pile_tip_level_mm: PileConfigurationKey::from_metres(pile_size_mm, pile_tip_level_m)
-            .pile_tip_level_mm,
-    }
 }
 
 fn cpt_quadrant(load_point: &LoadPoint, cpt: &Cpt) -> &'static str {
@@ -1150,7 +1167,8 @@ mod tests {
                 capacity(11, -19.0, 320, 740.0),
                 capacity(12, -18.0, 320, 650.0),
             ],
-        );
+        )
+        .unwrap();
 
         assert_eq!(
             options,
@@ -1186,6 +1204,59 @@ mod tests {
     }
 
     #[test]
+    fn pile_configuration_options_reject_submillimetre_capacities() {
+        let error = pile_configuration_options(600.0, &[], &[capacity(11, -18.5004, 320, 700.0)])
+            .unwrap_err();
+
+        assert_eq!(error.values.len(), 1);
+        assert_eq!(
+            error.values[0].reason,
+            crate::PileTipLevelPrecisionErrorReason::Submillimetre
+        );
+    }
+
+    #[test]
+    fn project_analysis_entry_points_reject_submillimetre_capacities() {
+        let capacities = [capacity(11, -18.5004, 320, 700.0)];
+
+        assert!(build_pile_options_by_load_point(
+            &[],
+            &[],
+            &capacities,
+            |_| CptSelectionSettings {
+                algorithm: CptSelectionAlgorithm::Quadrants,
+                max_distance_m: 25.0,
+                monopoly_distance_m: 1.0,
+                max_angle_degrees: 120.0,
+            },
+            &HashMap::new(),
+        )
+        .is_err());
+        assert!(build_project_analysis(
+            &[],
+            &[],
+            &capacities,
+            |_| CptSelectionSettings {
+                algorithm: CptSelectionAlgorithm::Quadrants,
+                max_distance_m: 25.0,
+                monopoly_distance_m: 1.0,
+                max_angle_degrees: 120.0,
+            },
+            &HashMap::new(),
+            false,
+        )
+        .is_err());
+    }
+
+    #[test]
+    fn pile_configuration_options_preserve_valid_millimetre_keys() {
+        let options =
+            pile_configuration_options(600.0, &[], &[capacity(11, -18.525, 320, 700.0)]).unwrap();
+
+        assert_eq!(options[0].configuration.pile_tip_level_mm, -18_525);
+    }
+
+    #[test]
     fn project_analysis_batches_options_selections_and_cpt_rows() {
         let load = load_point();
         let cpts = vec![cpt(11, 10.0, 10.0), cpt(12, -10.0, 10.0)];
@@ -1207,7 +1278,8 @@ mod tests {
             |_| settings.clone(),
             &HashMap::new(),
             true,
-        );
+        )
+        .unwrap();
 
         assert_eq!(
             result.selected_cpts_by_load_point[&load.id],
@@ -1220,6 +1292,7 @@ mod tests {
                 &result.selected_cpts_by_load_point[&load.id],
                 &capacities,
             )
+            .unwrap()
         );
         assert_eq!(
             result.cpt_frd_rows_by_cpt_id.as_ref().unwrap()[&11].len(),
@@ -1247,7 +1320,8 @@ mod tests {
             },
             &HashMap::new(),
             false,
-        );
+        )
+        .unwrap();
 
         assert_eq!(
             result

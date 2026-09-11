@@ -3,9 +3,8 @@ use std::collections::{BTreeMap, HashMap};
 use serde::{Deserialize, Serialize};
 
 use crate::analysis::{LoadPoint, PileConfigurationOption};
-use crate::pile_configuration::pile_tip_level_mm;
 #[cfg(test)]
-use crate::pile_configuration::PileConfigurationKey;
+use crate::pile_configuration::{pile_tip_level_mm, PileConfigurationKey};
 
 mod faces;
 mod gabriel;
@@ -130,7 +129,7 @@ pub fn build_tip_level_region_topology(
                 .find(|option| {
                     option.is_option
                         && option.pile_size_mm == assignment.pile_size_mm
-                        && pile_tip_level_mm(option.pile_tip_level_m) == assignment_key
+                        && option.configuration.pile_tip_level_mm == assignment_key
                 })
             else {
                 return None;
@@ -406,6 +405,16 @@ mod tests {
             }
         }
 
+        fn option_with_canonical_tip(
+            pile_size_mm: u32,
+            pile_tip_level_mm: i64,
+            presentation_m: f64,
+        ) -> PileConfigurationOption {
+            let mut option = option(pile_size_mm, pile_tip_level_mm as f64 / 1_000.0, true);
+            option.pile_tip_level_m = presentation_m;
+            option
+        }
+
         #[test]
         fn colors_a_face_only_when_every_boundary_load_point_has_one_ppn_key() {
             let neighborhood = build_spatial_neighborhood(&[
@@ -481,8 +490,8 @@ mod tests {
                 ),
             ]);
             let options = HashMap::from([
-                (1, vec![option(320, -18.00049, true)]),
-                (2, vec![option(400, -18.0001, true)]),
+                (1, vec![option_with_canonical_tip(320, -18_000, -18.00049)]),
+                (2, vec![option_with_canonical_tip(400, -18_000, -18.0001)]),
                 (3, vec![option(320, -19.0, true)]),
             ]);
 

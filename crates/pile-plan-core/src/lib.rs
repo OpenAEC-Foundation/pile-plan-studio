@@ -12,6 +12,7 @@ pub mod pile_option_aggregation;
 pub mod pile_option_status;
 pub mod pile_options;
 pub mod pile_plan_import;
+pub mod pile_tip_levels;
 pub mod project;
 pub mod spatial;
 pub mod technical_assignment;
@@ -36,7 +37,10 @@ pub use greedy_optimizer::{
     OptimizationCandidateSource, OptimizationLimitScope, OptimizationUnassignedLoadPoint,
     OptimizationUnassignedReason,
 };
-pub use ifcpp::{read_ifcpp_str, validate_ifcpp_project, write_ifcpp_string, IfcppError};
+pub use ifcpp::{
+    read_ifcpp_str, read_validated_ifcpp_project_outcome, read_validated_ifcpp_str,
+    validate_ifcpp_project, write_ifcpp_string, IfcppError,
+};
 pub use import::{
     import_bearing_capacities_xlsx, import_cpts_xlsx, import_load_points_csv,
     import_project_from_generic_sources, import_project_from_generic_sources_with_properties,
@@ -69,10 +73,17 @@ pub use pile_option_aggregation::{
 pub use pile_option_status::{pile_option_technical_status, PileOptionTechnicalStatus};
 pub use pile_options::{calculate_pile_option, find_pile_options};
 pub use pile_plan_import::*;
+pub use pile_tip_levels::{
+    pile_tip_level_m, try_pile_tip_level_mm, InvalidPileTipLevels, PileTipLevelPrecisionError,
+    PileTipLevelPrecisionErrorReason,
+};
 pub use project::{
-    ExternalReference, PilePlan, PilePlanProject, ProjectApplication, ProjectImportLogEntry,
-    ProjectInputs, ProjectMetadata, ProjectSettings, ProjectUnits, ProjectUserState,
-    SelectedPileChoice, ViewerUtilizationSettings,
+    validate_project_tip_levels, ExternalReference, InvalidProjectPileTipLevel,
+    InvalidProjectPileTipLevels, PilePlan, PilePlanProject, PilePlanTipLevelKeys,
+    ProjectApplication, ProjectImportLogEntry, ProjectInputs, ProjectMetadata,
+    ProjectPileTipLevelContext, ProjectSettings, ProjectTipLevelKeys, ProjectUnits,
+    ProjectUserState, SelectedPileChoice, ValidatedIfcppProjectOutcome, ValidatedPilePlanProject,
+    ViewerUtilizationSettings,
 };
 pub use spatial::{
     build_spatial_neighborhood, build_tip_level_region_topology, SpatialEdge, SpatialFace,

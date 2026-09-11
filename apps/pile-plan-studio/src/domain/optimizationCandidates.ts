@@ -31,7 +31,7 @@ export function resolveOptimizationCandidates(
   const selected = source === "all_available"
     ? catalog
     : [...catalog].filter((key) => active.pileSizes.includes(key.pile_size_mm)
-      && active.pileTipLevels.includes(key.pile_tip_level_mm / 1_000));
+      && active.pileTipLevelMms.includes(key.pile_tip_level_mm));
   return deduplicateAndSortPileConfigurationKeys(selected);
 }
 

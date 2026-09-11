@@ -28,19 +28,25 @@ import {
   exportPilePlanXlsxCore,
   greedyOptimizeCore,
   importProjectFromFilesCore,
+  readValidatedIfcppProjectCore,
   refreshProjectFromFilesCore,
   validateLoadPointPositionsCore,
 } from "./core/coreClient";
-import type { PileConfigurationKey } from "./core/projectTypes.ts";
+import type { PileConfigurationKey, PileCostSettings } from "./core/projectTypes.ts";
 import type { ImportSourceInput } from "./core/coreImportContract";
 import type { ProjectImportProperties } from "./components/domain/ProjectImportPanel.tsx";
 import type { ImportFileRole } from "./core/importFiles.ts";
-import { getImportSummary, loadIfcppProjectData } from "./core/projectFile";
+import { getImportSummary } from "./core/projectFile";
 import { pileConfigurationToken } from "./core/pileConfigurationKey.ts";
 import { writeIfcppProjectCore } from "./core/coreClient";
 import { createInitialProjectState, type ProjectState } from "./domain/projectState";
 import { prepareOpenedProject, validateOpenedProject } from "./domain/openedProject.ts";
 import { DuplicateLoadPointPositionError } from "./core/loadPointPositionContract.ts";
+import {
+  InvalidPileTipLevelError,
+  assertValidIfcppProjectOutcome,
+  type ValidatedProject,
+} from "./core/pileTipLevelContract.ts";
 import { getSetting } from "./store";
 import { optionKey } from "./components/domain/rightPanelModel";
 import { buildGreedyOptimizationSettings } from "./domain/optimizationSettings";
@@ -155,12 +161,21 @@ import {
   toggleReactViewerLoadPoint,
 } from "./components/domain/viewerInteractions.ts";
 
-const BUILT_IN_PILE_COST_DEFAULTS = loadIfcppProjectData(sampleProjectText).pileCostSettings;
+const BUILT_IN_PILE_COST_DEFAULTS = (
+  JSON.parse(sampleProjectText) as { settings: { pile_costs: PileCostSettings } }
+).settings.pile_costs;
 
 function describeProjectOpenError(
   error: unknown,
   t: (key: string, options?: Record<string, unknown>) => string,
 ): string {
+  if (error instanceof InvalidPileTipLevelError) {
+    const first = error.errors[0];
+    return t("pileTipLevels.projectOpenError", {
+      count: error.errors.length,
+      value: first?.value ?? "",
+    });
+  }
   if (!(error instanceof DuplicateLoadPointPositionError)) {
     return error instanceof Error ? error.message : String(error);
   }
@@ -198,7 +213,7 @@ type AppBootstrap =
   | { kind: "loading" }
   | {
       kind: "ready";
-      initialProjectText: string;
+      initialProject: ValidatedProject;
       initializeDefaultPiles: boolean;
       initialSavedProjectSignature?: string;
       initialWasDirty?: boolean;
@@ -215,34 +230,53 @@ type ActionNoticeValue = {
 export default function App() {
   const { t } = useTranslation();
   const isDesktop = isDesktopRuntime();
-  const [bootstrap, setBootstrap] = useState<AppBootstrap>(() => isDesktop
-    ? { kind: "ready", initialProjectText: sampleProjectText, initializeDefaultPiles: true }
-    : { kind: "loading" });
+  const [bootstrap, setBootstrap] = useState<AppBootstrap>({ kind: "loading" });
 
   useEffect(() => {
-    if (isDesktop) return;
     let cancelled = false;
     const start = async () => {
-      if (!window.indexedDB) {
+      const loadSampleProject = async (): Promise<ValidatedProject> => {
+        const outcome = await readValidatedIfcppProjectCore(sampleProjectText);
+        assertValidIfcppProjectOutcome(outcome);
+        return outcome;
+      };
+      if (isDesktop) {
+        const initialProject = await loadSampleProject();
         if (!cancelled) setBootstrap({
           kind: "ready",
-          initialProjectText: sampleProjectText,
+          initialProject,
+          initializeDefaultPiles: true,
+        });
+        return;
+      }
+      if (!window.indexedDB) {
+        const initialProject = await loadSampleProject();
+        if (!cancelled) setBootstrap({
+          kind: "ready",
+          initialProject,
           initializeDefaultPiles: true,
           initialStatusKey: "recovery.unavailable",
         });
         return;
       }
       const recoveryStore = createIndexedDbRecoveryStore(window.indexedDB);
+      let recoveredProject: ValidatedProject | null = null;
       const result = await loadBrowserRecovery({
         isDesktop: false,
         store: recoveryStore,
-        validateProject: (text) => validateOpenedProject(text, validateLoadPointPositionsCore),
+        validateProject: async (text) => {
+          recoveredProject = await validateOpenedProject(text, {
+            readValidatedProject: readValidatedIfcppProjectCore,
+            validatePositions: validateLoadPointPositionsCore,
+          });
+        },
       });
       if (cancelled) return;
       if (result.kind === "restored") {
+        if (!recoveredProject) throw new Error("Restored project was not validated");
         setBootstrap({
           kind: "ready",
-          initialProjectText: result.record.ifcppText,
+          initialProject: recoveredProject,
           initializeDefaultPiles: false,
           initialSavedProjectSignature: result.record.savedProjectSignature,
           initialWasDirty: result.record.isDirty,
@@ -250,9 +284,10 @@ export default function App() {
           recoveryStore,
         });
       } else {
+        const initialProject = await loadSampleProject();
         setBootstrap({
           kind: "ready",
-          initialProjectText: sampleProjectText,
+          initialProject,
           initializeDefaultPiles: true,
           initialStatusKey: result.kind === "invalid"
             ? "recovery.invalid"
@@ -276,7 +311,7 @@ export default function App() {
 }
 
 function AppSession({
-  initialProjectText,
+  initialProject,
   initializeDefaultPiles,
   initialSavedProjectSignature,
   initialWasDirty = false,
@@ -286,13 +321,14 @@ function AppSession({
   const { t, i18n } = useTranslation();
   const [managedProject, dispatchProject] = useReducer(
     projectHistoryReducer,
-    initialProjectText,
-    (projectText) => createManagedProjectState(createInitialProjectState(
-      projectText,
+    initialProject,
+    (project) => createManagedProjectState(createInitialProjectState(
+      project.project,
       {
         initializeDefaultPiles,
         defaultPilePlanName: i18n.language.startsWith("nl") ? "Basisplan" : "Base plan",
       },
+      project.keys,
     )),
   );
   const projectState = managedProject.present;
@@ -1531,10 +1567,12 @@ function AppSession({
 
   const openSampleProject = async () => {
     if (!await confirmProjectReplacement()) return;
-    installOpenedProject(createInitialProjectState(sampleProjectText, {
+    const sample = await readValidatedIfcppProjectCore(sampleProjectText);
+    assertValidIfcppProjectOutcome(sample);
+    installOpenedProject(createInitialProjectState(sample.project, {
       initializeDefaultPiles: true,
       defaultPilePlanName: pilePlanLanguage() === "nl" ? "Basisplan" : "Base plan",
-    }), null);
+    }, sample.keys), null);
     showStatusMessage(t("recovery.sampleOpened"));
   };
 
@@ -1546,7 +1584,10 @@ function AppSession({
       const project = await prepareOpenedProject(
         text,
         { initializeDefaultPiles: false },
-        validateLoadPointPositionsCore,
+        {
+          readValidatedProject: readValidatedIfcppProjectCore,
+          validatePositions: validateLoadPointPositionsCore,
+        },
       );
       installOpenedProject(project, path);
     } catch (error) {
@@ -1844,25 +1885,27 @@ function AppSession({
         onImportPilePlan={importPilePlan}
         onImportProject={async (mode, projectName: string | null, sources: ImportSourceInput[], properties: ProjectImportProperties | null) => {
           if (mode === "refresh") {
-            const refreshedProject = await refreshProjectFromFilesCore({
+            const refreshed = await refreshProjectFromFilesCore({
               currentProject: projectFromState(projectState),
               sources,
             });
+            const refreshedProject = refreshed.project;
             defaultSelectionKeepsDirtyRef.current = true;
             commitProjectState(createInitialProjectState(refreshedProject, {
               initializeDefaultPiles: true,
-            }));
+            }, refreshed.keys));
             setIsDirty(true);
             return getImportSummary(refreshedProject);
           }
 
           if (!await confirmProjectReplacement()) return null;
-            const project = await importProjectFromFilesCore({
+            const imported = await importProjectFromFilesCore({
               projectName: projectName ?? projectState.name,
               pileHeadLevelM: properties?.pileHeadLevelM ?? 0,
               currencyCode: properties?.currencyCode ?? userSettings.preferences.defaultCurrencyCode,
               sources,
             });
+            const project = imported.project;
             const usedPileSizes = new Set(project.inputs.bearing_capacities.map((capacity) => capacity.pile_size_mm));
             const mergedCosts = mergePileCostCatalog(
               project.settings.pile_costs,
@@ -1878,7 +1921,7 @@ function AppSession({
           replaceProjectState(createInitialProjectState(withCosts, {
             initializeDefaultPiles: true,
             defaultPilePlanName: pilePlanLanguage() === "nl" ? "Basisplan" : "Base plan",
-          }));
+          }, imported.keys));
           setProjectPath(null);
           updateSavedProjectSignature("");
           setIsDirty(true);
@@ -1890,7 +1933,10 @@ function AppSession({
             const project = await prepareOpenedProject(
               await file.text(),
               { initializeDefaultPiles: false },
-              validateLoadPointPositionsCore,
+              {
+                readValidatedProject: readValidatedIfcppProjectCore,
+                validatePositions: validateLoadPointPositionsCore,
+              },
             );
             installOpenedProject(project, null);
           } catch (error) {

@@ -1,5 +1,7 @@
 use serde::{Deserialize, Serialize};
 
+use crate::PileTipLevelPrecisionErrorReason;
+
 use super::{ImportRole, SourceFormat, SourceLocation};
 
 #[derive(Clone, Copy, Debug, Default, Deserialize, Eq, PartialEq, Serialize)]
@@ -35,6 +37,7 @@ pub enum ImportDiagnosticCode {
     AmbiguousReactionSheet,
     MissingRequiredColumn,
     InvalidRequiredValue,
+    InvalidPileTipLevelPrecision,
     ConflictingCoordinateDuplicate,
     ConflictingReactionDuplicate,
     ExactCoordinateDuplicates,
@@ -79,7 +82,16 @@ pub struct ImportDiagnostic {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub y_mm: Option<f64>,
     pub location: Option<ImportDiagnosticLocation>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub pile_tip_levels: Vec<ImportPileTipLevelDiagnostic>,
     pub fallback_message: String,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+pub struct ImportPileTipLevelDiagnostic {
+    pub location: ImportDiagnosticLocation,
+    pub value: String,
+    pub reason: PileTipLevelPrecisionErrorReason,
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]

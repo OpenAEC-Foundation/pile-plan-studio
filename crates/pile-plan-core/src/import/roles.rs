@@ -1,8 +1,10 @@
 use std::collections::{BTreeSet, HashMap, HashSet};
 
-use crate::{ProjectBearingCapacity, ProjectCpt, ProjectLoadPoint};
+use crate::{try_pile_tip_level_mm, ProjectBearingCapacity, ProjectCpt, ProjectLoadPoint};
 
-use super::{ImportError, SourceLocation, SourceRow, SourceTable, TableCell};
+use super::{
+    ImportError, InvalidSourcePileTipLevel, SourceLocation, SourceRow, SourceTable, TableCell,
+};
 
 #[derive(Clone, Copy)]
 struct Column {
@@ -93,7 +95,9 @@ pub fn parse_bearing_capacities_with_diagnostics(
 ) -> Result<BearingCapacityParseResult, ImportError> {
     let mut result = Vec::new();
     let mut empty_frd_rows = Vec::new();
+    let mut invalid_pile_tip_levels = Vec::new();
     for row in data_rows(table, 4, "bearing capacities")? {
+        let cpt_id = cell_u32(table, row, CPT_ID)?;
         let pile_size_mm = cell_u32(table, row, SIZE)?;
         if pile_size_mm == 0 {
             return Err(ImportError::InvalidConstraint {
@@ -101,17 +105,31 @@ pub fn parse_bearing_capacities_with_diagnostics(
                 message: "value must be greater than zero",
             });
         }
+        let tip_location = cell_location(table, row, TIP);
+        let tip_cell = cell(row, TIP, &tip_location)?;
+        let pile_tip_level_m = cell_f64(table, row, TIP)?;
+        if let Err(error) = try_pile_tip_level_mm(pile_tip_level_m) {
+            invalid_pile_tip_levels.push(InvalidSourcePileTipLevel {
+                location: tip_location,
+                value: tip_cell.as_text(),
+                reason: error.reason,
+            });
+            continue;
+        }
         let frd_cell = cell(row, FRD, &cell_location(table, row, FRD))?;
         if frd_cell.is_empty() {
             empty_frd_rows.push(row.number);
             continue;
         }
         result.push(ProjectBearingCapacity {
-            cpt_id: cell_u32(table, row, CPT_ID)?,
-            pile_tip_level_m: cell_f64(table, row, TIP)?,
+            cpt_id,
+            pile_tip_level_m,
             pile_size_mm,
             frd_kn: cell_f64(table, row, FRD)?,
         });
+    }
+    if !invalid_pile_tip_levels.is_empty() {
+        return Err(ImportError::InvalidPileTipLevels(invalid_pile_tip_levels));
     }
     Ok(BearingCapacityParseResult {
         bearing_capacities: result,
@@ -177,7 +195,7 @@ pub fn reconcile_imported_inputs(
     let mut key_indexes: HashMap<(u32, u32, i64), usize> = HashMap::new();
     let mut bearing_capacities: Vec<ProjectBearingCapacity> = Vec::new();
 
-    for capacity in capacities {
+    for (source_index, capacity) in capacities.into_iter().enumerate() {
         if !cpt_ids.contains(&capacity.cpt_id) {
             ignored_orphan_rows += 1;
             orphan_ids.insert(capacity.cpt_id);
@@ -186,7 +204,13 @@ pub fn reconcile_imported_inputs(
         let key = (
             capacity.cpt_id,
             capacity.pile_size_mm,
-            (capacity.pile_tip_level_m * 1000.0).round() as i64,
+            try_pile_tip_level_mm(capacity.pile_tip_level_m).map_err(|error| {
+                ImportError::InvalidPileTipLevels(vec![invalid_project_capacity(
+                    &capacity,
+                    source_index,
+                    error,
+                )])
+            })?,
         );
         if let Some(&index) = key_indexes.get(&key) {
             let existing = &bearing_capacities[index];
@@ -221,7 +245,8 @@ pub fn reconcile_imported_inputs(
 }
 
 fn validate_capacity_values(capacities: &[ProjectBearingCapacity]) -> Result<(), ImportError> {
-    for capacity in capacities {
+    let mut invalid_pile_tip_levels = Vec::new();
+    for (index, capacity) in capacities.iter().enumerate() {
         if capacity.pile_size_mm == 0 {
             return Err(ImportError::Validation(
                 "Pile size must be greater than zero".to_string(),
@@ -233,8 +258,32 @@ fn validate_capacity_values(capacities: &[ProjectBearingCapacity]) -> Result<(),
                 capacity.cpt_id
             )));
         }
+        if let Err(error) = try_pile_tip_level_mm(capacity.pile_tip_level_m) {
+            invalid_pile_tip_levels.push(invalid_project_capacity(capacity, index, error));
+        }
+    }
+    if !invalid_pile_tip_levels.is_empty() {
+        return Err(ImportError::InvalidPileTipLevels(invalid_pile_tip_levels));
     }
     Ok(())
+}
+
+fn invalid_project_capacity(
+    capacity: &ProjectBearingCapacity,
+    index: usize,
+    error: crate::PileTipLevelPrecisionError,
+) -> InvalidSourcePileTipLevel {
+    InvalidSourcePileTipLevel {
+        location: SourceLocation {
+            file_name: format!("project inputs (CPT {})", capacity.cpt_id),
+            sheet_name: None,
+            row: Some(index + 1),
+            column: None,
+            column_name: Some("Tip"),
+        },
+        value: error.value,
+        reason: error.reason,
+    }
 }
 
 fn data_rows<'a>(

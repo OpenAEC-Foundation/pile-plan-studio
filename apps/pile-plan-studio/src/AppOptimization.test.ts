@@ -35,7 +35,7 @@ describe("App optimization integration", () => {
     assert.match(optimizationBlock, /selectedPileConfigurationsByLoadPoint !== currentAssignmentsIdentity/);
     assert.doesNotMatch(optimizationBlock, /baselineOptions/);
     assert.doesNotMatch(optimizationBlock, /activePileSizes:\s*applied/);
-    assert.doesNotMatch(optimizationBlock, /activePileTipLevels:\s*applied/);
+    assert.doesNotMatch(optimizationBlock, /activePileTipLevelMms:\s*applied/);
   });
 
   it("waits for the project-wide group partition before optimization", () => {

@@ -28,7 +28,7 @@ export function applyPilePlanImportAsNewPlan(
     id: nextPilePlanId(pilePlans),
     name: uniquePilePlanName(pilePlans, requestedName),
     activePileSizes: [...source.activePileSizes],
-    activePileTipLevels: [...source.activePileTipLevels],
+    activePileTipLevelMms: [...source.activePileTipLevelMms],
     selectedPileConfigurationsByLoadPoint: choices,
     externalReferencesByLoadPoint: source
       ? unchangedExternalReferences(source, choices)

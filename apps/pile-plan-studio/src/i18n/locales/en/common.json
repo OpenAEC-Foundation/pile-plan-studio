@@ -262,9 +262,9 @@
     "title": "Import project data",
       "defaultName": "Imported Project",
       "projectName": "Project name",
-        "pileHeadLevel": "Pile head level (m)",
-        "pileHeadLevelHelp": "Required to calculate pile costs.",
-        "pileHeadLevelRequired": "Enter a valid pile head level to import the project.",
+        "pileHeadLevel": "Reference level (m)",
+        "pileHeadLevelHelp": "The building reference level, expressed in the same vertical reference system as the pile tip levels. Pile Plan Studio uses this reference as the pile cut-off level: the level of the finished pile head. Together with the pile tip level, it determines the calculated pile length and pile costs. Any production or installation allowance is not included.",
+        "pileHeadLevelRequired": "Enter a valid reference level to import the project.",
         "currency": "Project currency",
         "projectProperties": "Project properties",
     "chooseFiles": "Choose up to three files",
@@ -320,7 +320,11 @@
       "coordinate-nodes-without-reactions": "{{count}} coordinate nodes without Min PZ' reactions will be skipped.",
       "exact-coordinate-duplicates": "{{count}} identical coordinate rows were deduplicated.",
       "exact-reaction-duplicates": "{{count}} identical reaction rows were deduplicated.",
-      "duplicate-load-point-position": "Load points {{locations}} share the same position (X {{x}} mm, Y {{y}} mm). Every load point must have a unique position."
+      "duplicate-load-point-position": "Load points {{locations}} share the same position (X {{x}} mm, Y {{y}} mm). Every load point must have a unique position.",
+      "invalid-pile-tip-level-precision": "{{count}} pile tip level(s) cannot be stored exactly in whole millimetres: {{values}}.",
+      "sourceSheet": "sheet {{sheet}}",
+      "sourceRow": "row {{row}}",
+      "sourceColumn": "column {{column}}"
     },
     "roles": {
       "loadPoints": "Load points",
@@ -336,7 +340,8 @@
     "projectInformation": {
       "title": "Project information",
       "projectName": "Project name",
-      "pileHeadLevel": "Pile head level (m)",
+      "pileHeadLevel": "Reference level (m)",
+      "pileHeadLevelHelp": "The building reference level, expressed in the same vertical reference system as the pile tip levels. Pile Plan Studio uses this reference as the pile cut-off level: the level of the finished pile head. Together with the pile tip level, it determines the calculated pile length and pile costs. Any production or installation allowance is not included.",
       "currency": "Project currency"
     },
   "recovery": {
@@ -349,6 +354,10 @@
   "loadPointPositions": {
     "projectOpenError_one": "The project was not opened. Load points {{locations}} share the same position (X {{x}} mm, Y {{y}} mm). Every load point must have a unique position.",
     "projectOpenError_other": "The project was not opened: {{count}} overlapping positions were found. The first concerns {{locations}} at (X {{x}} mm, Y {{y}} mm). Every load point must have a unique position."
+  },
+  "pileTipLevels": {
+    "projectOpenError_one": "The project was not opened. Pile tip level {{value}} m cannot be stored exactly in whole millimetres.",
+    "projectOpenError_other": "The project was not opened: {{count}} pile tip levels cannot be stored exactly in whole millimetres. The first value is {{value}} m."
   },
   "unsaved": {
     "title": "Unsaved changes",

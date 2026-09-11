@@ -1,4 +1,5 @@
 import type { ImportFileRole } from "./importFiles.ts";
+import type { PileTipLevelPrecisionReason } from "./pileTipLevelContract.ts";
 
 export type ImportProfile = "auto" | "standard-table" | "rfem-export";
 
@@ -40,7 +41,23 @@ export type ImportDiagnostic = {
   loadPointNames: string[];
   xMm: number | null;
   yMm: number | null;
+  location: ImportDiagnosticLocation | null;
+  tipLevelValues: ImportPileTipLevelDiagnostic[];
   fallbackMessage: string;
+};
+
+export type ImportDiagnosticLocation = {
+  fileName: string;
+  sheetName: string | null;
+  row: number | null;
+  column: number | null;
+  columnName: string | null;
+};
+
+export type ImportPileTipLevelDiagnostic = {
+  location: ImportDiagnosticLocation;
+  value: string;
+  reason: PileTipLevelPrecisionReason;
 };
 
 export type ImportPreviewDetails =
@@ -85,6 +102,12 @@ type CoreImportSourcePreview = {
     load_point_names?: string[];
     x_mm?: number | null;
     y_mm?: number | null;
+    location?: CoreImportDiagnosticLocation | null;
+    pile_tip_levels?: Array<{
+      location: CoreImportDiagnosticLocation;
+      value: string;
+      reason: PileTipLevelPrecisionReason;
+    }>;
     fallback_message: string;
   }>;
   details:
@@ -120,9 +143,35 @@ export function fromCoreImportSourcePreview(preview: CoreImportSourcePreview): I
       loadPointNames: diagnostic.load_point_names ?? [],
       xMm: diagnostic.x_mm ?? null,
       yMm: diagnostic.y_mm ?? null,
+      location: diagnostic.location ? fromCoreDiagnosticLocation(diagnostic.location) : null,
+      tipLevelValues: (diagnostic.pile_tip_levels ?? []).map((item) => ({
+        value: item.value,
+        reason: item.reason,
+        location: fromCoreDiagnosticLocation(item.location),
+      })),
       fallbackMessage: diagnostic.fallback_message,
     })),
     details: fromCorePreviewDetails(preview.details),
+  };
+}
+
+type CoreImportDiagnosticLocation = {
+  file_name: string;
+  sheet_name: string | null;
+  row: number | null;
+  column: number | null;
+  column_name: string | null;
+};
+
+function fromCoreDiagnosticLocation(
+  location: CoreImportDiagnosticLocation,
+): ImportDiagnosticLocation {
+  return {
+    fileName: location.file_name,
+    sheetName: location.sheet_name,
+    row: location.row,
+    column: location.column,
+    columnName: location.column_name,
   };
 }
 

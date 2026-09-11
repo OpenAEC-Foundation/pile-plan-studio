@@ -73,7 +73,7 @@ describe("history action inference", () => {
       pilePlans: [{
         ...before.pilePlans[0],
         activePileSizes: [290, 320],
-        activePileTipLevels: [-18, -19],
+        activePileTipLevelMms: [-18, -19],
       }],
     };
 
@@ -154,7 +154,7 @@ function plan(
     id,
     name,
     activePileSizes: [],
-    activePileTipLevels: [],
+    activePileTipLevelMms: [],
     selectedPileConfigurationsByLoadPoint: new Map(
       choices.map(([loadPointId, value]) => [loadPointId, {
         pile_size_mm: value.length,

@@ -363,7 +363,7 @@ describe("React CPT settings model", () => {
 function minimalState(overrides: Partial<ProjectState> = {}): ProjectState {
   return {
     activePileSizes: [],
-    activePileTipLevels: [],
+    activePileTipLevelMms: [],
     analysisError: null,
     analysisRequest: { revision: 0, loadPointIds: null },
     defaultPileSelectionPending: false,

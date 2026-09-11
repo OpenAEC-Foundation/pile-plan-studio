@@ -1,11 +1,15 @@
 use std::collections::{HashMap, HashSet};
 
-use crate::{PilePlanProject, ProjectBearingCapacity, ProjectCpt, ProjectLoadPoint};
+use crate::{
+    pile_tip_level_m, try_pile_tip_level_mm, PilePlanProject, ProjectBearingCapacity, ProjectCpt,
+    ProjectLoadPoint,
+};
 
 use super::{
     capacity_columns, cpt_columns, import_warnings, parse_bearing_capacities_with_diagnostics,
     parse_cpts, pipeline::parse_load_source, provenance_entry, read_source_table,
     reconcile_imported_inputs, ImportError, ImportProfile, ImportRole, ImportSource,
+    InvalidSourcePileTipLevel, SourceLocation,
 };
 
 const MATCH_TOLERANCE_MM: f64 = 1.0;
@@ -219,7 +223,7 @@ pub fn refresh_project_from_profiled_sources(
                 &current.inputs.bearing_capacities,
                 &current_plan.active_pile_tip_levels,
                 &refreshed.inputs.bearing_capacities,
-            );
+            )?;
         }
     }
 
@@ -317,27 +321,58 @@ fn reconcile_active_tip_levels(
     old_capacities: &[ProjectBearingCapacity],
     old_active: &[f64],
     new_capacities: &[ProjectBearingCapacity],
-) -> Vec<f64> {
-    let old_available: HashSet<i64> = old_capacities
-        .iter()
-        .map(|capacity| tip_key(capacity.pile_tip_level_m))
-        .collect();
-    let old_active: HashSet<i64> = old_active.iter().map(|value| tip_key(*value)).collect();
-    let mut new_available: Vec<i64> = new_capacities
-        .iter()
-        .map(|capacity| tip_key(capacity.pile_tip_level_m))
-        .collect();
+) -> Result<Vec<f64>, ImportError> {
+    let old_available: HashSet<i64> = checked_tip_keys(
+        old_capacities
+            .iter()
+            .map(|capacity| capacity.pile_tip_level_m),
+        "existing bearing capacities",
+    )?
+    .into_iter()
+    .collect();
+    let old_active: HashSet<i64> =
+        checked_tip_keys(old_active.iter().copied(), "existing pile-plan activation")?
+            .into_iter()
+            .collect();
+    let mut new_available = checked_tip_keys(
+        new_capacities
+            .iter()
+            .map(|capacity| capacity.pile_tip_level_m),
+        "refreshed bearing capacities",
+    )?;
     new_available.sort_unstable_by(|left, right| right.cmp(left));
     new_available.dedup();
     new_available.retain(|value| !old_available.contains(value) || old_active.contains(value));
-    new_available
-        .into_iter()
-        .map(|value| value as f64 / 1000.0)
-        .collect()
+    Ok(new_available.into_iter().map(pile_tip_level_m).collect())
 }
 
-fn tip_key(value: f64) -> i64 {
-    (value * 1000.0).round() as i64
+fn checked_tip_keys(
+    values: impl Iterator<Item = f64>,
+    context: &str,
+) -> Result<Vec<i64>, ImportError> {
+    let mut keys = Vec::new();
+    let mut invalid = Vec::new();
+    for (index, value) in values.enumerate() {
+        match try_pile_tip_level_mm(value) {
+            Ok(key) => keys.push(key),
+            Err(error) => invalid.push(InvalidSourcePileTipLevel {
+                location: SourceLocation {
+                    file_name: context.to_string(),
+                    sheet_name: None,
+                    row: Some(index + 1),
+                    column: None,
+                    column_name: Some("Tip"),
+                },
+                value: error.value,
+                reason: error.reason,
+            }),
+        }
+    }
+    if invalid.is_empty() {
+        Ok(keys)
+    } else {
+        Err(ImportError::InvalidPileTipLevels(invalid))
+    }
 }
 
 #[cfg(test)]
@@ -560,6 +595,30 @@ mod tests {
             .unwrap_err()
             .to_string()
             .contains("Multiple import sources"));
+    }
+
+    #[test]
+    fn rejects_imprecise_existing_activation_before_refresh_mutation() {
+        let mut current = project();
+        current
+            .user_state
+            .active_pile_plan_mut()
+            .expect("active plan")
+            .active_pile_tip_levels = vec![-18.5004];
+        let before = current.clone();
+
+        let error = refresh_project_from_profiled_sources(
+            &current,
+            &[csv_source(
+                ImportRole::BearingCapacities,
+                "capacities.csv",
+                "61,-18.25,290,700\n",
+            )],
+        )
+        .unwrap_err();
+
+        assert!(matches!(error, crate::ImportError::InvalidPileTipLevels(_)));
+        assert_eq!(current, before);
     }
 
     #[test]

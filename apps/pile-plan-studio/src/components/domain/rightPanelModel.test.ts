@@ -45,7 +45,7 @@ describe("React right panel model", () => {
         },
       ],
       selectedLoadPointCount: 1,
-      activeConfigurations: { pileSizes: [290], pileTipLevels: [-17.5] },
+      activeConfigurations: { pileSizes: [290], pileTipLevelMms: [-17_500] },
       legend: {
         encodingMode: "tip-symbol",
         pileSizes: [{
@@ -54,7 +54,7 @@ describe("React right panel model", () => {
           color: "#123456",
         }],
         pileTipLevels: [{
-          value: -17.5,
+          value: -17_500,
           symbol: { baseShape: "rectangle-horizontal", fillPattern: "top-half" },
           color: "#4E79A7",
         }],
@@ -89,11 +89,11 @@ describe("React right panel model", () => {
         technicalStatus: "valid",
       }],
       selectedLoadPointCount: 1,
-      activeConfigurations: { pileSizes: [290], pileTipLevels: [-17.5] },
+      activeConfigurations: { pileSizes: [290], pileTipLevelMms: [-17_500] },
       legend: {
         encodingMode: "size-symbol",
         pileSizes: [{ value: 320, symbol: { baseShape: "square", fillPattern: "full" }, color: "#123456" }],
-        pileTipLevels: [{ value: -18.5, symbol: { baseShape: "triangle", fillPattern: "full" }, color: "#ABCDEF" }],
+        pileTipLevels: [{ value: -18_500, symbol: { baseShape: "triangle", fillPattern: "full" }, color: "#ABCDEF" }],
       },
     });
 
@@ -105,7 +105,7 @@ describe("React right panel model", () => {
 
   it("shows the governing CPT id when an imported CPT has no name", () => {
     const rows = getRenderablePileOptionRows({
-      activeConfigurations: { pileSizes: [290], pileTipLevels: [-17.5] },
+      activeConfigurations: { pileSizes: [290], pileTipLevelMms: [-17_500] },
       cpts: [{ id: 64, name: "", x_mm: 0, y_mm: 0 }],
       costsByOptionKey: new Map(),
       options: [{
@@ -128,7 +128,7 @@ describe("React right panel model", () => {
           color: "#123456",
         }],
         pileTipLevels: [{
-          value: -17.5,
+          value: -17_500,
           symbol: { baseShape: "square", fillPattern: "full" },
           color: "#4E79A7",
         }],
@@ -144,7 +144,7 @@ describe("React right panel model", () => {
       pileCostByOptionKey: new Map([["320|-18500", 1200]]),
     });
     const rows = getRenderableAggregatedPileOptionRows({
-      activeConfigurations: { pileSizes: [320], pileTipLevels: [-18.5] },
+      activeConfigurations: { pileSizes: [320], pileTipLevelMms: [-18_500] },
       aggregates: [{
         configuration: { pile_size_mm: 320, pile_tip_level_mm: -18_500 },
         pile_tip_level_m: -18.5,
@@ -172,7 +172,7 @@ describe("React right panel model", () => {
 
   it("keeps total cost but suppresses inconclusive metrics for a missing aggregate", () => {
     const rows = getRenderableAggregatedPileOptionRows({
-      activeConfigurations: { pileSizes: [320], pileTipLevels: [-18.5] },
+      activeConfigurations: { pileSizes: [320], pileTipLevelMms: [-18_500] },
       aggregates: [{
         configuration: { pile_size_mm: 320, pile_tip_level_mm: -18_500 },
         pile_tip_level_m: -18.5,
@@ -200,7 +200,7 @@ describe("React right panel model", () => {
 
   it("suppresses inconclusive single-location metrics for missing capacity data", () => {
     const rows = getRenderablePileOptionRows({
-      activeConfigurations: { pileSizes: [290], pileTipLevels: [-17.5] },
+      activeConfigurations: { pileSizes: [290], pileTipLevelMms: [-17_500] },
       cpts: [{ id: 64, name: "CPT 64", x_mm: 0, y_mm: 0 }],
       costsByOptionKey: new Map([["290|-17500", 500]]),
       options: [{
@@ -263,6 +263,13 @@ describe("React right panel model", () => {
 
   it("shows the CPT capacity for the pile assigned to one load point", () => {
     const state = minimalState({
+      bearingCapacities: [{
+        cpt_id: 64,
+        pile_size_mm: 290,
+        pile_tip_level_m: -17.5,
+        pile_tip_level_mm: -17_500,
+        frd_kn: 693,
+      }],
       cptFrdRowsByCptId: new Map([
         [64, [
           { pile_size_mm: 290, pile_tip_level_m: -17.5, frd_kn: 693 },
@@ -484,7 +491,7 @@ describe("React right panel model", () => {
 function minimalState(overrides: Partial<ProjectState> = {}): ProjectState {
   return {
     activePileSizes: [290, 320],
-    activePileTipLevels: [-17.5, -18],
+    activePileTipLevelMms: [-17_500, -18_000],
     pileLegend: {
       encodingMode: "size-symbol",
       pileSizes: [],

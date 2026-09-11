@@ -9,6 +9,7 @@ import {
   type UIEvent,
 } from "react";
 import { useTranslation } from "react-i18next";
+import { formatPileTipLevelMetres } from "../../domain/formatting.ts";
 import type { BearingCapacity, Cpt, LoadPoint } from "../../core/projectTypes.ts";
 import type { InputSource } from "../../domain/projectState.ts";
 import {
@@ -167,9 +168,13 @@ export default function SourceDataViewer({
         : null);
   };
 
-  const formatValue = (value: string | number) => typeof value === "number"
-    ? new Intl.NumberFormat(i18n.language, { maximumFractionDigits: 3 }).format(value)
-    : value;
+  const formatValue = (value: string | number, columnKey: string) => {
+    if (typeof value !== "number") return value;
+    if (source.kind === "bearing_capacities" && columnKey === "tip") {
+      return formatPileTipLevelMetres(value, i18n.language).replace(/ m$/, "");
+    }
+    return new Intl.NumberFormat(i18n.language, { maximumFractionDigits: 3 }).format(value);
+  };
 
   const handleHeaderPointerDown = (event: ReactPointerEvent<HTMLElement>) => {
     if (event.target instanceof Element && event.target.closest("button, input")) return;
@@ -330,7 +335,7 @@ export default function SourceDataViewer({
                 tabIndex={isSelectable && !isDisabled ? 0 : undefined}
               >
                 {table.columns.map((column) => (
-                  <span key={column.key}>{formatValue(row[column.key])}</span>
+                  <span key={column.key}>{formatValue(row[column.key], column.key)}</span>
                 ))}
               </div>
             );

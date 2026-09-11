@@ -15,6 +15,7 @@ import type { OptimizationRunSummary } from "./optimizationSummary.ts";
 import type { OptimizationLimitScope, OptimizationTargetScope } from "../components/domain/optimizationPanelModel.ts";
 import type { ForegroundLayer } from "./viewerPreferences.ts";
 import type { LoadPointLockDraft } from "./loadPointLocking.ts";
+import type { ProjectTipLevelKeys } from "../core/pileTipLevelContract.ts";
 
 export type InputSourceKind = "load_points" | "cpts" | "bearing_capacities";
 export type InputSourceStatus = "snapshot-only" | "linked" | "missing" | "changed";
@@ -100,8 +101,9 @@ type InitialProjectStateOptions = {
 export function createInitialProjectState(
   input: string | IfcppProject,
   options: InitialProjectStateOptions,
+  tipLevelKeys: ProjectTipLevelKeys,
 ): ProjectState {
-  const projectData = loadIfcppProjectData(input);
+  const projectData = loadIfcppProjectData(input, tipLevelKeys);
   const pilePlans = options.defaultPilePlanName && projectData.pilePlans.length === 1
     ? [{ ...projectData.pilePlans[0], name: options.defaultPilePlanName }]
     : projectData.pilePlans;

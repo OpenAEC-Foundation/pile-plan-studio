@@ -19,7 +19,7 @@ function plan(
     id,
     name: id,
     activePileSizes: activeSizes,
-    activePileTipLevels: activeTips,
+    activePileTipLevelMms: activeTips.map((value) => value * 1_000),
     selectedPileConfigurationsByLoadPoint: new Map(assignments.map(([loadPointId, tipLevelMm]) => [
       loadPointId,
       { pile_size_mm: 290, pile_tip_level_mm: tipLevelMm },
@@ -43,8 +43,8 @@ describe("co-active legend conflicts", () => {
 
   it("warns only when duplicate colors are active together in a plan", () => {
     const legend = createBuiltInLegend([
-      { cpt_id: 1, pile_tip_level_m: -18, pile_size_mm: 290, frd_kn: 700 },
-      { cpt_id: 1, pile_tip_level_m: -19, pile_size_mm: 290, frd_kn: 700 },
+      { cpt_id: 1, pile_tip_level_m: -18, pile_tip_level_mm: -18_000, pile_size_mm: 290, frd_kn: 700 },
+      { cpt_id: 1, pile_tip_level_m: -19, pile_tip_level_mm: -19_000, pile_size_mm: 290, frd_kn: 700 },
     ]);
     legend.pileTipLevels[1].color = legend.pileTipLevels[0].color.toLowerCase();
 
@@ -55,13 +55,13 @@ describe("co-active legend conflicts", () => {
     assert.deepEqual(findCoactiveLegendConflicts(legend, [
       plan("a", [-18]),
       plan("b", [-18, -19]),
-    ]), [{ property: "color", kind: "tip", values: [-18, -19], pilePlanIds: ["b"] }]);
+    ]), [{ property: "color", kind: "tip", values: [-18_000, -19_000], pilePlanIds: ["b"] }]);
   });
 
   it("reports size and tip color conflicts separately in dual-color mode", () => {
     const legend = createBuiltInLegend([
-      { cpt_id: 1, pile_tip_level_m: -18, pile_size_mm: 290, frd_kn: 700 },
-      { cpt_id: 1, pile_tip_level_m: -19, pile_size_mm: 320, frd_kn: 700 },
+      { cpt_id: 1, pile_tip_level_m: -18, pile_tip_level_mm: -18_000, pile_size_mm: 290, frd_kn: 700 },
+      { cpt_id: 1, pile_tip_level_m: -19, pile_tip_level_mm: -19_000, pile_size_mm: 320, frd_kn: 700 },
     ]);
     legend.encodingMode = "size-color-tip-region";
     legend.pileSizes[1].color = legend.pileSizes[0].color;
@@ -71,7 +71,7 @@ describe("co-active legend conflicts", () => {
       plan("both", [-18, -19], [], [290, 320]),
     ]), [
       { property: "color", kind: "size", values: [290, 320], pilePlanIds: ["both"] },
-      { property: "color", kind: "tip", values: [-18, -19], pilePlanIds: ["both"] },
+      { property: "color", kind: "tip", values: [-18_000, -19_000], pilePlanIds: ["both"] },
     ]);
   });
 
@@ -87,7 +87,7 @@ describe("co-active legend conflicts", () => {
       currentPlanId: "current",
       scopePlanIds: new Set(["current", "in-scope"]),
       kind: "tip",
-      value: -18,
+      value: -18_000,
     });
 
     assert.deepEqual(usage, {

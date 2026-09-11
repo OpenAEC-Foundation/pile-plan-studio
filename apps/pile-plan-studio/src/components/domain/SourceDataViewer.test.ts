@@ -18,6 +18,11 @@ describe("source data viewer", () => {
     assert.match(source, /mode \?\? "exact"/);
   });
 
+  it("uses the shared adaptive formatter for foundation-advice tip levels", () => {
+    assert.match(source, /formatPileTipLevelMetres/);
+    assert.match(source, /source\.kind === "bearing_capacities" && columnKey === "tip"/);
+  });
+
   it("captures filter input before React releases the change event", () => {
     assert.match(source, /const value = event\.currentTarget\.value;/);
     assert.match(source, /setFilters/);

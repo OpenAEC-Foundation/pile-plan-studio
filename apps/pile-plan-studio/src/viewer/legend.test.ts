@@ -14,8 +14,8 @@ import {
 import type { BearingCapacity, LegendItems, PileCostSettings } from "../core/projectTypes.ts";
 
 const CAPACITIES: BearingCapacity[] = [
-  { cpt_id: 1, pile_tip_level_m: -18, pile_size_mm: 290, frd_kn: 700 },
-  { cpt_id: 1, pile_tip_level_m: -19, pile_size_mm: 320, frd_kn: 800 },
+  { cpt_id: 1, pile_tip_level_m: -18, pile_tip_level_mm: -18_000, pile_size_mm: 290, frd_kn: 700 },
+  { cpt_id: 1, pile_tip_level_m: -19, pile_tip_level_mm: -19_000, pile_size_mm: 320, frd_kn: 800 },
 ];
 
 describe("project legend model", () => {
@@ -32,19 +32,19 @@ describe("project legend model", () => {
     });
     assert.equal(legend.pileSizeColorScheme, "tableau-extended");
     assert.equal(legend.pileTipLevelColorScheme, "tableau-extended");
-    assert.deepEqual(legend.pileTipLevels.map(({ value }) => value), [-18, -19]);
+    assert.deepEqual(legend.pileTipLevels.map(({ value }) => value), [-18_000, -19_000]);
     assert.ok(legend.pileTipLevels.every((item) => item.symbol && item.color));
   });
 
   it("reverses both visual channels without losing mappings", () => {
     const legend = createBuiltInLegend(CAPACITIES);
-    assert.deepEqual(getConfigurationStyle({ pile_size_mm: 290, pile_tip_level_m: -18 }, legend), {
+    assert.deepEqual(getConfigurationStyle({ pile_size_mm: 290, configuration: { pile_size_mm: 290, pile_tip_level_mm: -18_000 } }, legend), {
       symbol: legend.pileSizes[0].symbol,
       color: legend.pileTipLevels[0].color,
     });
 
     const reversed: LegendItems = { ...legend, encodingMode: "tip-symbol" };
-    assert.deepEqual(getConfigurationStyle({ pile_size_mm: 290, pile_tip_level_m: -18 }, reversed), {
+    assert.deepEqual(getConfigurationStyle({ pile_size_mm: 290, configuration: { pile_size_mm: 290, pile_tip_level_mm: -18_000 } }, reversed), {
       symbol: legend.pileTipLevels[0].symbol,
       color: legend.pileSizes[0].color,
     });
@@ -64,15 +64,15 @@ describe("project legend model", () => {
     };
 
     assert.deepEqual(
-      getConfigurationStyle({ pile_size_mm: 290, pile_tip_level_m: -18 }, legend, costs),
+      getConfigurationStyle({ pile_size_mm: 290, configuration: { pile_size_mm: 290, pile_tip_level_mm: -18_000 } }, legend, costs),
       { symbol: { baseShape: "circle", fillPattern: "full" }, color: legend.pileSizes[0].color },
     );
     assert.deepEqual(
-      getConfigurationStyle({ pile_size_mm: 320, pile_tip_level_m: -19 }, legend, costs),
+      getConfigurationStyle({ pile_size_mm: 320, configuration: { pile_size_mm: 320, pile_tip_level_mm: -19_000 } }, legend, costs),
       { symbol: { baseShape: "square", fillPattern: "full" }, color: legend.pileSizes[1].color },
     );
     assert.deepEqual(
-      getConfigurationStyle({ pile_size_mm: 350, pile_tip_level_m: -19 }, legend, costs),
+      getConfigurationStyle({ pile_size_mm: 350, configuration: { pile_size_mm: 350, pile_tip_level_mm: -19_000 } }, legend, costs),
       { symbol: { baseShape: "diamond", fillPattern: "full" }, color: "#8C989F" },
     );
   });
@@ -81,8 +81,8 @@ describe("project legend model", () => {
     const stored = createBuiltInLegend(CAPACITIES);
     stored.pileSizes[1] = { ...stored.pileSizes[1], color: "#123456" };
     const current = [
-      { cpt_id: 1, pile_tip_level_m: -18, pile_size_mm: 320, frd_kn: 700 },
-      { cpt_id: 1, pile_tip_level_m: -20, pile_size_mm: 350, frd_kn: 700 },
+      { cpt_id: 1, pile_tip_level_m: -18, pile_tip_level_mm: -18_000, pile_size_mm: 320, frd_kn: 700 },
+      { cpt_id: 1, pile_tip_level_m: -20, pile_tip_level_mm: -20_000, pile_size_mm: 350, frd_kn: 700 },
     ];
 
     const result = reconcileProjectLegend(stored, current);
@@ -127,9 +127,9 @@ describe("project legend model", () => {
 
   it("assigns colors independently and resets appearance without activation state", () => {
     const legend = createBuiltInLegend(CAPACITIES);
-    const recolored = assignLegendColors(legend, "pileTipLevels", [-19], "colorblind-friendly");
-    assert.equal(recolored.pileTipLevels.find(({ value }) => value === -19)?.color, "#0072B2");
-    assert.equal(recolored.pileTipLevels.find(({ value }) => value === -18)?.color, legend.pileTipLevels[0].color);
+    const recolored = assignLegendColors(legend, "pileTipLevels", [-19_000], "colorblind-friendly");
+    assert.equal(recolored.pileTipLevels.find(({ value }) => value === -19_000)?.color, "#0072B2");
+    assert.equal(recolored.pileTipLevels.find(({ value }) => value === -18_000)?.color, legend.pileTipLevels[0].color);
 
     const reset = resetLegendAppearance({ ...recolored, encodingMode: "tip-symbol" }, CAPACITIES);
     assert.deepEqual(reset, createBuiltInLegend(CAPACITIES));
@@ -144,7 +144,7 @@ describe("project legend model", () => {
       colorAutomatic: false,
     };
 
-    const refreshed = refreshAutomaticLegendColors(legend, "pileTipLevels", [-18, -19]);
+    const refreshed = refreshAutomaticLegendColors(legend, "pileTipLevels", [-18_000, -19_000]);
 
     assert.equal(refreshed.pileTipLevels[0].color, "#123456");
     assert.equal(refreshed.pileTipLevels[1].color, "#E69F00");

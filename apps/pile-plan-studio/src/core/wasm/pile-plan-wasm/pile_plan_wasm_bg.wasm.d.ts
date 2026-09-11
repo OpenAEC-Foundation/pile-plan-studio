@@ -20,6 +20,7 @@ export const greedy_optimize: (a: any) => [number, number, number];
 export const import_project_from_files: (a: any) => [number, number, number];
 export const preview_import_file: (a: any) => [number, number, number];
 export const preview_pile_plan_import_file: (a: any) => [number, number, number];
+export const read_validated_ifcpp_project: (a: any) => [number, number, number];
 export const refresh_project_from_files: (a: any) => [number, number, number];
 export const validate_load_point_positions: (a: any) => [number, number, number];
 export const write_ifcpp_project: (a: any) => [number, number, number, number];

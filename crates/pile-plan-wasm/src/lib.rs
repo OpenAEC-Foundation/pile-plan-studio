@@ -10,13 +10,15 @@ use pile_plan_core::{
     choose_default_pile_option, choose_default_pile_options,
     derive_load_point_groups as derive_load_point_groups_core, duplicate_load_point_positions,
     greedy_optimize_pile_choices, import_project_from_generic_sources_with_properties,
-    preview_import_source, preview_pile_plan_import, refresh_project_from_profiled_sources,
-    selected_cpts, write_ifcpp_string, write_pile_plan_csv, write_pile_plan_xlsx,
+    preview_import_source, preview_pile_plan_import, read_validated_ifcpp_project_outcome,
+    refresh_project_from_profiled_sources, selected_cpts, validate_project_tip_levels,
+    write_ifcpp_string, write_pile_plan_csv, write_pile_plan_xlsx,
     ApplyLoadPointGroupAssignmentInput, ApplyLoadPointGroupAssignmentResult, CptSelectionSettings,
-    GreedyOptimizationInput, ImportSource, LoadPointGroup, LoadPointGroupingSettings,
+    GreedyOptimizationInput, IfcppError, ImportSource, LoadPointGroup, LoadPointGroupingSettings,
     PileConfigurationKey, PileConfigurationOption, PileCostSettings, PilePlanExportRequest,
     PilePlanImportRequest, PilePlanProject, ProjectBearingCapacity, ProjectCpt, ProjectLoadPoint,
     SpatialNeighborhood, SpatialPileAssignment, TipLevelRegionTopology,
+    ValidatedIfcppProjectOutcome, ValidatedPilePlanProject,
 };
 use serde::{Deserialize, Serialize};
 use wasm_bindgen::prelude::*;
@@ -120,6 +122,11 @@ pub struct ValidateLoadPointPositionsRequest {
 }
 
 #[derive(Debug, Deserialize)]
+pub struct ReadValidatedIfcppProjectRequest {
+    pub contents: String,
+}
+
+#[derive(Debug, Deserialize)]
 pub struct DeriveLoadPointGroupsRequest {
     pub load_points: Vec<ProjectLoadPoint>,
     pub settings: LoadPointGroupingSettings,
@@ -165,7 +172,10 @@ pub fn calculate_pile_options(request: JsValue) -> Result<JsValue, JsValue> {
         &request.manual_cpt_ids_by_load_point,
     );
 
-    to_js_value(&result)
+    match result {
+        Ok(result) => to_js_value(&result),
+        Err(error) => Err(to_js_value(&error)?),
+    }
 }
 
 #[wasm_bindgen]
@@ -185,7 +195,10 @@ pub fn calculate_project_analysis(request: JsValue) -> Result<JsValue, JsValue> 
         &request.manual_cpt_ids_by_load_point,
         request.include_cpt_frd_rows,
     );
-    to_js_value(&result)
+    match result {
+        Ok(result) => to_js_value(&result),
+        Err(error) => Err(to_js_value(&error)?),
+    }
 }
 
 #[wasm_bindgen]
@@ -269,7 +282,12 @@ pub fn import_project_from_files(request: JsValue) -> Result<JsValue, JsValue> {
     )
     .map_err(to_error_value)?;
 
-    to_js_value(&project)
+    let tip_level_keys = validate_project_tip_levels(&project)
+        .map_err(|error| to_js_value(&error).unwrap_or_else(|_| to_error_value(error)))?;
+    to_js_value(&ValidatedPilePlanProject {
+        project,
+        tip_level_keys,
+    })
 }
 
 #[wasm_bindgen]
@@ -278,7 +296,12 @@ pub fn refresh_project_from_files(request: JsValue) -> Result<JsValue, JsValue> 
     let project = refresh_project_from_profiled_sources(&request.current_project, &request.sources)
         .map_err(to_error_value)?;
 
-    to_js_value(&project)
+    let tip_level_keys = validate_project_tip_levels(&project)
+        .map_err(|error| to_js_value(&error).unwrap_or_else(|_| to_error_value(error)))?;
+    to_js_value(&ValidatedPilePlanProject {
+        project,
+        tip_level_keys,
+    })
 }
 
 #[wasm_bindgen]
@@ -324,6 +347,13 @@ pub fn validate_load_point_positions(request: JsValue) -> Result<JsValue, JsValu
 }
 
 #[wasm_bindgen]
+pub fn read_validated_ifcpp_project(request: JsValue) -> Result<JsValue, JsValue> {
+    let request: ReadValidatedIfcppProjectRequest = from_js_value(request)?;
+    let outcome = read_validated_project_contents(&request.contents).map_err(to_error_value)?;
+    to_js_value(&outcome)
+}
+
+#[wasm_bindgen]
 pub fn build_tip_level_region_topology(request: JsValue) -> Result<JsValue, JsValue> {
     let request: TipLevelRegionTopologyRequest = from_js_value(request)?;
     let topology: TipLevelRegionTopology = build_tip_level_region_topology_core(
@@ -366,6 +396,12 @@ where
 
 fn to_error_value(error: impl std::fmt::Display) -> JsValue {
     js_sys::Error::new(&error.to_string()).into()
+}
+
+fn read_validated_project_contents(
+    contents: &str,
+) -> Result<ValidatedIfcppProjectOutcome, IfcppError> {
+    read_validated_ifcpp_project_outcome(contents)
 }
 
 #[cfg(test)]
@@ -659,6 +695,38 @@ mod tests {
             vec![2, 8]
         );
         let _export: fn(JsValue) -> Result<JsValue, JsValue> = validate_load_point_positions;
+    }
+
+    #[test]
+    fn pile_tip_level_validation_returns_valid_project_and_canonical_keys() {
+        let outcome = read_validated_project_contents(include_str!(
+            "../../../sample_project/sample_project.ifcpp"
+        ))
+        .unwrap();
+
+        let ValidatedIfcppProjectOutcome::Valid { project, keys } = outcome else {
+            panic!("expected valid project")
+        };
+        assert_eq!(project.schema_version, 4);
+        assert_eq!(keys.bearing_capacities[0], -17_500);
+    }
+
+    #[test]
+    fn pile_tip_level_validation_returns_structured_invalid_outcome() {
+        let contents = include_str!("../../../sample_project/sample_project.ifcpp").replacen(
+            "\"pile_tip_level_m\": -17.5",
+            "\"pile_tip_level_m\": -18.5004",
+            1,
+        );
+        let outcome = read_validated_project_contents(&contents).unwrap();
+        let ValidatedIfcppProjectOutcome::Invalid { errors } = outcome else {
+            panic!("expected invalid project")
+        };
+        assert_eq!(errors[0].value, "-18.5004");
+        assert_eq!(
+            errors[0].reason,
+            pile_plan_core::PileTipLevelPrecisionErrorReason::Submillimetre
+        );
     }
 
     #[test]

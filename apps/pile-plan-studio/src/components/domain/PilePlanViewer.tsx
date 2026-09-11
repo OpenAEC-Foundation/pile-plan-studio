@@ -160,9 +160,9 @@ export default function PilePlanViewer({
     () => presentTipLevelRegionGeometry(
       tipLevelRegionGeometry,
       legend,
-      activePileConfigurations.pileTipLevels,
+      activePileConfigurations.pileTipLevelMms,
     ),
-    [tipLevelRegionGeometry, legend, activePileConfigurations.pileTipLevels],
+    [tipLevelRegionGeometry, legend, activePileConfigurations.pileTipLevelMms],
   );
   const cptConnectionSegments = useMemo(() => getCptConnectionSegments({
     transform: projectTransform,

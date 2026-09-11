@@ -24,12 +24,12 @@ export function deriveUsedPileConfigurations(
 ): ActivePileConfigurations {
   const values = [...configurations].map((configuration) => ({
     size: configuration.pile_size_mm,
-    tip: configuration.pile_tip_level_mm / 1000,
+    tip: configuration.pile_tip_level_mm,
   }));
 
   return {
     pileSizes: uniqueSorted(values.map(({ size }) => size), false),
-    pileTipLevels: uniqueSorted(values.map(({ tip }) => tip), true),
+    pileTipLevelMms: uniqueSorted(values.map(({ tip }) => tip), true),
   };
 }
 
@@ -37,9 +37,9 @@ export function buildLegendPresentation(input: LegendPresentationInput): LegendP
   const sizeStyles = new Map(input.legend.pileSizes.map((item) => [item.value, item]));
   const tipStyles = new Map(input.legend.pileTipLevels.map((item) => [item.value, item]));
   const enabledSizes = new Set(input.enabled.pileSizes);
-  const enabledTips = new Set(input.enabled.pileTipLevels);
+  const enabledTips = new Set(input.enabled.pileTipLevelMms);
   const usedSizes = new Set(input.used.pileSizes);
-  const usedTips = new Set(input.used.pileTipLevels);
+  const usedTips = new Set(input.used.pileTipLevelMms);
 
   const pileSizes = uniqueSorted([
     ...sizeStyles.keys(),

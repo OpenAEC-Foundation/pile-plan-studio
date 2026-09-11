@@ -15,13 +15,13 @@ import {
 import { createBuiltInLegend } from "../viewer/legend.ts";
 
 const capacities = [
-  { cpt_id: 1, pile_tip_level_m: -18, pile_size_mm: 290, frd_kn: 700 },
-  { cpt_id: 1, pile_tip_level_m: -19, pile_size_mm: 320, frd_kn: 800 },
+  { cpt_id: 1, pile_tip_level_m: -18, pile_tip_level_mm: -18_000, pile_size_mm: 290, frd_kn: 700 },
+  { cpt_id: 1, pile_tip_level_m: -19, pile_tip_level_mm: -19_000, pile_size_mm: 320, frd_kn: 800 },
 ];
 
 function draft() {
   return createLegendEditorDraft(
-    { pileSizes: [290, 320], pileTipLevels: [-18, -19] },
+    { pileSizes: [290, 320], pileTipLevelMms: [-18_000, -19_000] },
     createBuiltInLegend(capacities),
   );
 }
@@ -36,7 +36,7 @@ describe("legend editor model", () => {
     };
 
     const created = createLegendEditorDraft(
-      { pileSizes: [290], pileTipLevels: [-18] },
+      { pileSizes: [290], pileTipLevelMms: [-18_000] },
       legend,
     );
 
@@ -46,7 +46,7 @@ describe("legend editor model", () => {
   });
 
   it("marks only the manually edited item property as manual", () => {
-    const recolored = updateLegendColor(draft(), "tip", -18, "#123456");
+    const recolored = updateLegendColor(draft(), "tip", -18_000, "#123456");
     const reshaped = updateLegendSymbol(recolored, "size", 290, {
       baseShape: "diamond",
       fillPattern: "top-half",
@@ -60,8 +60,8 @@ describe("legend editor model", () => {
   });
 
   it("applies a changed scheme immediately only to automatic colors", () => {
-    const manual = updateLegendColor(draft(), "tip", -18, "#123456");
-    const changed = setLegendColorScheme(manual, "tip", "colorblind-friendly", [-18, -19]);
+    const manual = updateLegendColor(draft(), "tip", -18_000, "#123456");
+    const changed = setLegendColorScheme(manual, "tip", "colorblind-friendly", [-18_000, -19_000]);
 
     assert.equal(changed.legend.pileTipLevelColorScheme, "colorblind-friendly");
     assert.equal(changed.legend.pileTipLevels[0].color, "#123456");
@@ -100,12 +100,13 @@ describe("legend editor model", () => {
     const legend = createBuiltInLegend(Array.from({ length: 55 }, (_, index) => ({
       cpt_id: 1,
       pile_tip_level_m: -18 - index / 10,
+      pile_tip_level_mm: (-18 - index / 10) * 1_000,
       pile_size_mm: 200 + index,
       frd_kn: 700,
     })));
     const current = createLegendEditorDraft({
       pileSizes: legend.pileSizes.map(({ value }) => value),
-      pileTipLevels: legend.pileTipLevels.map(({ value }) => value),
+      pileTipLevelMms: legend.pileTipLevels.map(({ value }) => value),
     }, legend);
 
     const result = setLegendEncodingMode(current, "size-color-tip-region", current.active);
@@ -141,12 +142,13 @@ describe("legend editor model", () => {
     const legend = createBuiltInLegend(Array.from({ length: 55 }, (_, index) => ({
       cpt_id: 1,
       pile_tip_level_m: -18,
+      pile_tip_level_mm: -18_000,
       pile_size_mm: 200 + index,
       frd_kn: 700,
     })));
     const current = updateLegendSymbol(createLegendEditorDraft({
       pileSizes: legend.pileSizes.map(({ value }) => value),
-      pileTipLevels: [-18],
+      pileTipLevelMms: [-18_000],
     }, legend), "size", 200, { baseShape: "diamond", fillPattern: "full" });
 
     const result = applyAutomaticSymbols(current, "size", [200]);
@@ -157,12 +159,12 @@ describe("legend editor model", () => {
   });
 
   it("resets the scheme and all item properties to automatic", () => {
-    let current = updateLegendColor(draft(), "tip", -18, "#123456");
+    let current = updateLegendColor(draft(), "tip", -18_000, "#123456");
     current = updateLegendSymbol(current, "size", 290, {
       baseShape: "diamond",
       fillPattern: "top-half",
     });
-    current = setLegendColorScheme(current, "tip", "rainbow", [-18, -19]);
+    current = setLegendColorScheme(current, "tip", "rainbow", [-18_000, -19_000]);
 
     const reset = resetLegendEditorAppearance(current, capacities);
 
@@ -177,25 +179,25 @@ describe("legend editor model", () => {
     const current = draft();
 
     assert.equal(wouldReassignLegendAppearance(current, "size", "symbol", [290, 320]), false);
-    assert.equal(wouldReassignLegendAppearance(current, "tip", "color", [-18, -19]), false);
+    assert.equal(wouldReassignLegendAppearance(current, "tip", "color", [-18_000, -19_000]), false);
 
     current.active.pileSizes = [320];
-    current.active.pileTipLevels = [-19];
+    current.active.pileTipLevelMms = [-19_000];
 
     assert.equal(wouldReassignLegendAppearance(current, "size", "symbol", [320]), true);
-    assert.equal(wouldReassignLegendAppearance(current, "tip", "color", [-19]), true);
+    assert.equal(wouldReassignLegendAppearance(current, "tip", "color", [-19_000]), true);
   });
 
   it("offers reassignment for manual overrides and dims it after applying", () => {
-    const manual = updateLegendColor(draft(), "tip", -18, "#123456");
+    const manual = updateLegendColor(draft(), "tip", -18_000, "#123456");
 
-    assert.equal(wouldReassignLegendAppearance(manual, "tip", "color", [-18, -19]), true);
+    assert.equal(wouldReassignLegendAppearance(manual, "tip", "color", [-18_000, -19_000]), true);
     assert.equal(
       wouldReassignLegendAppearance(
-        applyAutomaticColors(manual, "tip", [-18, -19]),
+        applyAutomaticColors(manual, "tip", [-18_000, -19_000]),
         "tip",
         "color",
-        [-18, -19],
+        [-18_000, -19_000],
       ),
       false,
     );

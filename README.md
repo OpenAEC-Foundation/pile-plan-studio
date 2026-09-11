@@ -158,6 +158,11 @@ required RFEM columns by their headers. When those headers cannot be detected,
 it falls back to the traditional RFEM layout with nodes on the first worksheet
 and nodal reactions on the second.
 
+Pile tip levels are expressed in metres and may resolve to whole millimetres
+(up to three decimal places). Finer values are rejected with their source
+locations instead of being rounded. The interface omits unnecessary trailing
+decimals while retaining enough digits to distinguish every valid level.
+
 The source files may be selected together and assigned to their roles before
 import. Load points can use either the standard tabular profile or the
 automatically detected RFEM Excel export profile. The RFEM profile joins node
@@ -167,7 +172,9 @@ load from the minimum PZ envelope (`Min PZ'`, `Min PZ`, or `Min`).
 Imported data, source profiles, project settings, selected piles, and manual
 CPT choices are stored in an `.ifcpp` project file.
 
-When creating a project from source files, the pile head level is required.
+When creating a project from source files, the building reference level is
+required. Pile Plan Studio uses this reference as the pile cut-off level when
+calculating pile lengths and costs.
 The project currency defaults to the user's application preference. Changing a
 currency code relabels costs; Pile Plan Studio does not perform currency
 conversion.

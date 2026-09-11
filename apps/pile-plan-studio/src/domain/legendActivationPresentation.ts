@@ -19,14 +19,14 @@ export type ConfigurationActivationPresentation = {
 };
 
 export function getConfigurationActivationPresentation(
-  configuration: Pick<PileConfigurationOption, "pile_size_mm" | "pile_tip_level_m">,
+  configuration: Pick<PileConfigurationOption, "pile_size_mm" | "pile_tip_level_m" | "configuration">,
   legend: LegendItems,
   active: ActivePileConfigurations,
   pileCosts?: PileCostSettings,
 ): ConfigurationActivationPresentation {
   const base = getConfigurationStyle(configuration, legend, pileCosts);
   const sizeActive = active.pileSizes.includes(configuration.pile_size_mm);
-  const tipActive = active.pileTipLevels.includes(configuration.pile_tip_level_m);
+  const tipActive = active.pileTipLevelMms.includes(configuration.configuration.pile_tip_level_mm);
   const dualColor = legend.encodingMode === "size-color-tip-region";
   const symbolActive = dualColor || (legend.encodingMode === "size-symbol" ? sizeActive : tipActive);
   const colorActive = legend.encodingMode === "size-symbol" ? tipActive : sizeActive;

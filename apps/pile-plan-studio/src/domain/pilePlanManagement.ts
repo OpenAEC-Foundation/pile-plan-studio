@@ -106,7 +106,7 @@ export function duplicatePilePlan(
       source.selectedPileConfigurationsByLoadPoint,
     ),
     activePileSizes: [...source.activePileSizes],
-    activePileTipLevels: [...source.activePileTipLevels],
+    activePileTipLevelMms: [...source.activePileTipLevelMms],
     externalReferencesByLoadPoint: cloneReferenceMap(source.externalReferencesByLoadPoint),
     lockedLoadPointIds: [...source.lockedLoadPointIds],
     optimizationUnassignedByLoadPoint: new Map(source.optimizationUnassignedByLoadPoint),
@@ -132,7 +132,7 @@ export function createPilePlan(
     id: nextPilePlanId(pilePlans),
     name: generatedPilePlanName(pilePlans, input.kind, input.language),
     activePileSizes: [...input.activation.pileSizes],
-    activePileTipLevels: [...input.activation.pileTipLevels],
+    activePileTipLevelMms: [...input.activation.pileTipLevelMms],
     selectedPileConfigurationsByLoadPoint: cloneConfigurationMap(input.choices),
     externalReferencesByLoadPoint: new Map(),
     lockedLoadPointIds: [],
@@ -181,7 +181,7 @@ export function createOptimizationPilePlan(
 function planActivationFields(activation: ActivePileConfigurations) {
   return {
     activePileSizes: [...activation.pileSizes],
-    activePileTipLevels: [...activation.pileTipLevels],
+    activePileTipLevelMms: [...activation.pileTipLevelMms],
   };
 }
 

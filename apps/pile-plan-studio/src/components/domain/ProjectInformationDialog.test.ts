@@ -33,6 +33,14 @@ describe("Project information", () => {
     assert.doesNotMatch(source, /<select/);
   });
 
+  it("explains that the project reference level is used as the pile cut-off level", () => {
+    const source = readFileSync(new URL("./ProjectInformationDialog.tsx", import.meta.url), "utf8");
+
+    assert.match(source, /projectInformation\.pileHeadLevelHelp/);
+    assert.match(source, /aria-label=\{t\("projectInformation\.pileHeadLevelHelp"\)\}/);
+    assert.match(source, /title=\{t\("projectInformation\.pileHeadLevelHelp"\)\}/);
+  });
+
   it("uses a stable two-column form layout", () => {
     const styles = readFileSync(new URL("../../App.css", import.meta.url), "utf8");
 
