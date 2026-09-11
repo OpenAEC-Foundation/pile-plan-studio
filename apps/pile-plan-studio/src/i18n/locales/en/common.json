@@ -356,7 +356,8 @@
       "invalid-json": "The project was not opened because the file does not contain valid JSON.",
       "invalid-schema": "The project was not opened because its contents do not match a valid IFCPP project.",
       "unsupported-schema-version": "The project was not opened because its IFCPP schema version is not supported.",
-      "duplicate-pile-plan-id": "The project was not opened because it contains duplicate pile-plan identifiers."
+      "duplicate-pile-plan-id": "The project was not opened because it contains duplicate pile-plan identifiers.",
+      "invalid-pile-costs": "The project was not opened because its pile cost table contains invalid rows."
     }
   },
   "loadPointPositions": {

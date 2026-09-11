@@ -87,6 +87,23 @@ describe("pile cost catalog", () => {
     assert.equal(result.skippedRows.length, 2);
   });
 
+  it("does not silently reinterpret the Rust-validated project catalog", () => {
+    const canonicalProjectCatalog = {
+      schema_version: 2,
+      items: [{ pile_size_mm: 290, shape: "round", cost_per_m3: -1 }],
+    } as PileCostSettings;
+
+    const result = mergePileCostCatalog(
+      canonicalProjectCatalog,
+      null,
+      null,
+      new Set([290]),
+    );
+
+    assert.deepEqual(result.catalog, canonicalProjectCatalog);
+    assert.deepEqual(result.skippedRows, []);
+  });
+
   it("replaces unused project rows when explicitly loading a default", () => {
     const preferred: PileCostSettings = {
       schema_version: 2,

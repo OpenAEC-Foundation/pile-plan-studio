@@ -24,8 +24,9 @@ pub use analysis::{
     selected_cpts_by_maximum_angle, selected_cpts_by_quadrant,
     BearingCapacity as ProjectBearingCapacity, BearingCapacitySummary, Cpt as ProjectCpt,
     CptBearingCapacityRow, CptSelectionAlgorithm, CptSelectionSettings,
+    validate_pile_cost_settings, InvalidPileCostSettings, InvalidPileCostSettingsItem,
     LoadPoint as ProjectLoadPoint, PileConfigurationOption, PileCostSettings, PileCostSettingsItem,
-    PileCostShape, ProjectAnalysisResult, SelectedCpt,
+    PileCostShape, PileCostValidationReason, ProjectAnalysisResult, SelectedCpt,
 };
 pub use export::{
     build_pile_plan_export_rows, write_pile_plan_csv, write_pile_plan_xlsx, ExportError,

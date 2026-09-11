@@ -90,6 +90,62 @@ pub struct PileCostSettingsItem {
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum PileCostValidationReason {
+    NonPositivePileSize,
+    NonFiniteCost,
+    NegativeCost,
+    DuplicatePileSize,
+}
+
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+pub struct InvalidPileCostSettingsItem {
+    pub index: usize,
+    pub pile_size_mm: u32,
+    pub reason: PileCostValidationReason,
+}
+
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+pub struct InvalidPileCostSettings {
+    pub errors: Vec<InvalidPileCostSettingsItem>,
+}
+
+pub fn validate_pile_cost_settings(
+    settings: &PileCostSettings,
+) -> Result<(), InvalidPileCostSettings> {
+    let mut seen_sizes = std::collections::HashSet::new();
+    let errors = settings
+        .items
+        .iter()
+        .enumerate()
+        .filter_map(|(index, item)| {
+            let reason = if item.pile_size_mm == 0 {
+                Some(PileCostValidationReason::NonPositivePileSize)
+            } else if !item.cost_per_m3.is_finite() {
+                Some(PileCostValidationReason::NonFiniteCost)
+            } else if item.cost_per_m3 < 0.0 {
+                Some(PileCostValidationReason::NegativeCost)
+            } else if !seen_sizes.insert(item.pile_size_mm) {
+                Some(PileCostValidationReason::DuplicatePileSize)
+            } else {
+                None
+            };
+            reason.map(|reason| InvalidPileCostSettingsItem {
+                index,
+                pile_size_mm: item.pile_size_mm,
+                reason,
+            })
+        })
+        .collect::<Vec<_>>();
+
+    if errors.is_empty() {
+        Ok(())
+    } else {
+        Err(InvalidPileCostSettings { errors })
+    }
+}
+
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
 #[serde(rename_all = "lowercase")]
 pub enum PileCostShape {
     Round,

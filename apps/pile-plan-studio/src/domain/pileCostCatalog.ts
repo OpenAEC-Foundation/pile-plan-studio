@@ -90,8 +90,7 @@ export function mergePileCostCatalog(
   usedPileSizes: ReadonlySet<number>,
 ): CostCatalogMergeResult {
   const skippedRows: CostCatalogMergeResult["skippedRows"] = [];
-  const bySize = new Map<number, PileCostSettingsItem>();
-  addValidRows(bySize, current.items, "project", skippedRows, false);
+  const bySize = new Map(current.items.map((item) => [item.pile_size_mm, item]));
   addValidRows(bySize, builtIn?.items ?? [], "built-in", skippedRows, false);
   addValidRows(bySize, preferred?.items ?? [], "personal", skippedRows, true);
   const items = [...bySize.values()].sort(comparePileSize);
@@ -116,7 +115,7 @@ export function applyPileCostCatalogDefault(
 
   for (const item of current.items) {
     if (!usedPileSizes.has(item.pile_size_mm) || bySize.has(item.pile_size_mm)) continue;
-    addValidRows(bySize, [item], "project", skippedRows, false);
+    bySize.set(item.pile_size_mm, item);
   }
 
   const items = [...bySize.values()].sort(comparePileSize);

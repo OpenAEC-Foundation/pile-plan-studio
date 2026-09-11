@@ -69,6 +69,16 @@ describe("project document result mapping", () => {
       ],
       [
         {
+          code: "invalid-pile-costs",
+          errors: [{ index: 1, pile_size_mm: 290, reason: "duplicate-pile-size" }],
+        },
+        {
+          code: "invalid-pile-costs",
+          errors: [{ index: 1, pileSizeMm: 290, reason: "duplicate-pile-size" }],
+        },
+      ],
+      [
+        {
           code: "duplicate-load-point-positions",
           positions: [{
             x_mm: 10,

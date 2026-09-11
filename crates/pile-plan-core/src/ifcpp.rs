@@ -6,9 +6,10 @@ use serde_json::{Error as JsonError, Value};
 #[cfg(test)]
 use crate::ProjectPileTipLevelContext;
 use crate::{
-    validate_project_tip_levels, validate_unique_load_point_positions, DuplicateLoadPointPositions,
-    InvalidProjectPileTipLevels, PilePlanProject, ProjectApplication, ProjectDocumentDraft,
-    ProjectUserState, SelectedPileChoice, ValidatedIfcppProjectOutcome, ValidatedPilePlanProject,
+    validate_pile_cost_settings, validate_project_tip_levels, validate_unique_load_point_positions,
+    DuplicateLoadPointPositions, InvalidPileCostSettings, InvalidProjectPileTipLevels,
+    PilePlanProject, ProjectApplication, ProjectDocumentDraft, ProjectUserState,
+    SelectedPileChoice, ValidatedIfcppProjectOutcome, ValidatedPilePlanProject,
 };
 
 #[derive(Debug)]
@@ -17,6 +18,7 @@ pub enum IfcppError {
     InvalidSchema(String),
     UnsupportedSchemaVersion(u32),
     DuplicatePilePlanId(String),
+    InvalidPileCosts(InvalidPileCostSettings),
     DuplicateLoadPointPositions(DuplicateLoadPointPositions),
     InvalidPileTipLevels(InvalidProjectPileTipLevels),
 }
@@ -30,6 +32,9 @@ impl fmt::Display for IfcppError {
                 write!(formatter, "Unsupported IFCPP schema version {version}")
             }
             Self::DuplicatePilePlanId(id) => write!(formatter, "Duplicate pile plan id '{id}'"),
+            Self::InvalidPileCosts(error) => {
+                write!(formatter, "{} invalid pile cost row(s)", error.errors.len())
+            }
             Self::DuplicateLoadPointPositions(error) => error.fmt(formatter),
             Self::InvalidPileTipLevels(error) => error.fmt(formatter),
         }
@@ -59,6 +64,9 @@ pub enum ProjectDocumentError {
     DuplicatePilePlanId {
         pile_plan_id: String,
     },
+    InvalidPileCosts {
+        errors: Vec<crate::InvalidPileCostSettingsItem>,
+    },
     DuplicateLoadPointPositions {
         positions: Vec<crate::DuplicateLoadPointPosition>,
     },
@@ -82,6 +90,9 @@ impl fmt::Display for ProjectDocumentError {
             }
             Self::DuplicatePilePlanId { pile_plan_id } => {
                 write!(formatter, "Duplicate pile plan id '{pile_plan_id}'")
+            }
+            Self::InvalidPileCosts { errors } => {
+                write!(formatter, "{} invalid pile cost row(s)", errors.len())
             }
             Self::DuplicateLoadPointPositions { positions } => crate::DuplicateLoadPointPositions {
                 positions: positions.clone(),
@@ -109,6 +120,9 @@ impl From<IfcppError> for ProjectDocumentError {
             IfcppError::DuplicatePilePlanId(pile_plan_id) => {
                 Self::DuplicatePilePlanId { pile_plan_id }
             }
+            IfcppError::InvalidPileCosts(error) => Self::InvalidPileCosts {
+                errors: error.errors,
+            },
             IfcppError::DuplicateLoadPointPositions(error) => Self::DuplicateLoadPointPositions {
                 positions: error.positions,
             },
@@ -361,6 +375,8 @@ fn validate_ifcpp_project_with_keys(
 
     validate_unique_load_point_positions(&project.inputs.load_points)
         .map_err(IfcppError::DuplicateLoadPointPositions)?;
+    validate_pile_cost_settings(&project.settings.pile_costs)
+        .map_err(IfcppError::InvalidPileCosts)?;
     validate_project_tip_levels(project).map_err(IfcppError::InvalidPileTipLevels)
 }
 
@@ -645,6 +661,61 @@ mod tests {
             &legend_project,
             ProjectPileTipLevelContext::Legend { index: 0 },
         );
+    }
+
+    #[test]
+    fn read_and_write_reject_invalid_pile_costs_with_row_context() {
+        let cases = [
+            (0, 100.0, "non-positive-pile-size"),
+            (290, -1.0, "negative-cost"),
+            (290, f64::NAN, "non-finite-cost"),
+        ];
+
+        for (pile_size_mm, cost_per_m3, expected_reason) in cases {
+            let mut project = project_fixture();
+            project.settings.pile_costs.items = vec![PileCostSettingsItem {
+                pile_size_mm,
+                shape: PileCostShape::Round,
+                cost_per_m3,
+            }];
+
+            let write_error = write_project_document(ProjectDocumentDraft::from_project(&project))
+                .expect_err("invalid pile costs are rejected on write");
+            let serialized = serde_json::to_value(write_error).expect("error serializes");
+            assert_eq!(serialized["code"], "invalid-pile-costs");
+            assert_eq!(serialized["errors"][0]["index"], 0);
+            assert_eq!(serialized["errors"][0]["pile_size_mm"], pile_size_mm);
+            assert_eq!(serialized["errors"][0]["reason"], expected_reason);
+
+            if cost_per_m3.is_finite() {
+                let json = serde_json::to_string(&project).expect("fixture JSON writes");
+                let read_error = read_project_document(&json)
+                    .expect_err("invalid persisted pile costs are rejected on read");
+                assert_eq!(
+                    serde_json::to_value(read_error).expect("error serializes")["code"],
+                    "invalid-pile-costs"
+                );
+            }
+        }
+
+        let mut duplicate = project_fixture();
+        duplicate.settings.pile_costs.items = vec![
+            PileCostSettingsItem {
+                pile_size_mm: 290,
+                shape: PileCostShape::Round,
+                cost_per_m3: 100.0,
+            },
+            PileCostSettingsItem {
+                pile_size_mm: 290,
+                shape: PileCostShape::Square,
+                cost_per_m3: 110.0,
+            },
+        ];
+        let duplicate_error = write_project_document(ProjectDocumentDraft::from_project(&duplicate))
+            .expect_err("duplicate pile costs are rejected");
+        let serialized = serde_json::to_value(duplicate_error).expect("error serializes");
+        assert_eq!(serialized["errors"][0]["index"], 1);
+        assert_eq!(serialized["errors"][0]["reason"], "duplicate-pile-size");
     }
 
     #[test]

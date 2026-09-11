@@ -25,6 +25,7 @@ describe("Workspace translations", () => {
       "invalid-schema",
       "unsupported-schema-version",
       "duplicate-pile-plan-id",
+      "invalid-pile-costs",
     ]) {
       assert.equal(typeof en.projectDocument.errors[code], "string");
       assert.equal(typeof nl.projectDocument.errors[code], "string");
@@ -34,6 +35,8 @@ describe("Workspace translations", () => {
     assert.match(nl.projectDocument.errors["invalid-json"], /niet geopend/i);
     assert.match(en.projectDocument.errors["unsupported-schema-version"], /version/i);
     assert.match(nl.projectDocument.errors["unsupported-schema-version"], /versie/i);
+    assert.match(en.projectDocument.errors["invalid-pile-costs"], /pile cost/i);
+    assert.match(nl.projectDocument.errors["invalid-pile-costs"], /paalkost/i);
   });
 
   it("provides bilingual feedback for unavailable Undo and Redo requests", () => {

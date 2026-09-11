@@ -48,6 +48,14 @@ export type CoreProjectDocumentError =
   | { code: "unsupported-schema-version"; schema_version: number }
   | { code: "duplicate-pile-plan-id"; pile_plan_id: string }
   | {
+      code: "invalid-pile-costs";
+      errors: Array<{
+        index: number;
+        pile_size_mm: number;
+        reason: "non-positive-pile-size" | "non-finite-cost" | "negative-cost" | "duplicate-pile-size";
+      }>;
+    }
+  | {
       code: "duplicate-load-point-positions";
       positions: Array<{
         x_mm: number;
@@ -73,6 +81,14 @@ export type ProjectDocumentError =
   | Extract<CoreProjectDocumentError, { code: "invalid-json" | "invalid-schema" }>
   | { code: "unsupported-schema-version"; schemaVersion: number }
   | { code: "duplicate-pile-plan-id"; pilePlanId: string }
+  | {
+      code: "invalid-pile-costs";
+      errors: Array<{
+        index: number;
+        pileSizeMm: number;
+        reason: "non-positive-pile-size" | "non-finite-cost" | "negative-cost" | "duplicate-pile-size";
+      }>;
+    }
   | {
       code: "duplicate-load-point-positions";
       positions: Array<{
@@ -195,6 +211,15 @@ export function projectDocumentErrorFromCore(
       return { code: error.code, schemaVersion: error.schema_version };
     case "duplicate-pile-plan-id":
       return { code: error.code, pilePlanId: error.pile_plan_id };
+    case "invalid-pile-costs":
+      return {
+        code: error.code,
+        errors: error.errors.map((item) => ({
+          index: item.index,
+          pileSizeMm: item.pile_size_mm,
+          reason: item.reason,
+        })),
+      };
     case "duplicate-load-point-positions":
       return {
         code: error.code,
@@ -365,6 +390,8 @@ function isCoreProjectDocumentError(value: unknown): value is CoreProjectDocumen
       return typeof value.schema_version === "number";
     case "duplicate-pile-plan-id":
       return typeof value.pile_plan_id === "string";
+    case "invalid-pile-costs":
+      return Array.isArray(value.errors) && value.errors.every(isInvalidPileCost);
     case "duplicate-load-point-positions":
       return Array.isArray(value.positions) && value.positions.every(isDuplicatePosition);
     case "invalid-pile-tip-levels":
@@ -372,6 +399,18 @@ function isCoreProjectDocumentError(value: unknown): value is CoreProjectDocumen
     default:
       return false;
   }
+}
+
+function isInvalidPileCost(value: unknown): boolean {
+  return isRecord(value)
+    && typeof value.index === "number"
+    && typeof value.pile_size_mm === "number"
+    && [
+      "non-positive-pile-size",
+      "non-finite-cost",
+      "negative-cost",
+      "duplicate-pile-size",
+    ].includes(String(value.reason));
 }
 
 function isDuplicatePosition(value: unknown): boolean {
