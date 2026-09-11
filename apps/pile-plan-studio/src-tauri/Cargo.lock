@@ -2475,7 +2475,7 @@ dependencies = [
 
 [[package]]
 name = "pile-plan-core"
-version = "0.3.2"
+version = "0.3.3"
 dependencies = [
  "calamine",
  "csv",
@@ -2486,7 +2486,7 @@ dependencies = [
 
 [[package]]
 name = "pile-plan-studio"
-version = "0.3.2"
+version = "0.3.3"
 dependencies = [
  "pile-plan-core",
  "serde",

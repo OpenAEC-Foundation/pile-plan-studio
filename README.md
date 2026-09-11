@@ -5,7 +5,7 @@
 </p>
 
 <p align="center">
-  <a href="RELEASE_NOTES.md"><img src="https://img.shields.io/badge/release-v0.3.2--alpha-D97706?style=flat-square" alt="Release v0.3.2-alpha"></a>
+  <a href="RELEASE_NOTES.md"><img src="https://img.shields.io/badge/release-v0.3.3--alpha-D97706?style=flat-square" alt="Release v0.3.3-alpha"></a>
   <a href="https://github.com/OpenAEC-Foundation/pile-plan-studio/releases"><img src="https://img.shields.io/github/downloads/OpenAEC-Foundation/pile-plan-studio/total?style=flat-square" alt="Total downloads"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-LGPL--3.0-blue?style=flat-square" alt="LGPL-3.0 license"></a>
   <a href="https://pile-plan-studio.open-aec.com/"><img src="https://img.shields.io/badge/platform-Web%20%7C%20Windows-lightgrey?style=flat-square" alt="Web and Windows"></a>
@@ -178,6 +178,9 @@ calculating pile lengths and costs.
 The project currency defaults to the user's application preference. Changing a
 currency code relabels costs; Pile Plan Studio does not perform currency
 conversion.
+
+The built-in pile-cost defaults and their assumptions are documented in
+[`docs/pile-cost-defaults.md`](docs/pile-cost-defaults.md).
 
 ### Import an existing pile plan
 

@@ -1,5 +1,43 @@
 # Pile Plan Studio Release Notes
 
+## 0.3.3-alpha
+
+This alpha supports millimetre-precise pile-tip levels, consolidates project
+interpretation and validation in the Rust core, and updates the built-in pile
+cost estimates with a documented CROW basis indexed to the latest definitive
+CBS GWW price level available during preparation of this release.
+
+### Added
+
+- Enter, import, store, compare, and optimize pile-tip levels at millimetre
+  precision, including projects whose available levels are less than 100 mm
+  apart.
+- Explain the source, price level, and scope of the built-in pile cost table in
+  the Cost Settings panel, with a detailed derivation in the documentation.
+- Validate persisted pile cost tables at the project boundary in the Rust core.
+
+### Improved
+
+- Use `Peil t.o.v. NAP` in Dutch and `Reference level` in English for the
+  project level from which pile length and cost are calculated. The tooltip
+  clarifies its relationship to the foundation and pile cut-off level.
+- Centralize IFCPP project normalization, validation, serialization, runtime
+  interpretation, and engineering decisions in the Rust core. Browser recovery
+  now keeps project content opaque until the core accepts it.
+- Remove superseded TypeScript, WebAssembly, and Tauri project-contract logic,
+  leaving TypeScript responsible for React state and interface choices.
+- Refresh built-in round and square concrete pile cost rates using CROW
+  foundation cost ranges and the CBS GWW input price index. Existing projects
+  and personal defaults remain unchanged unless the built-in defaults are
+  explicitly selected.
+
+### Compatibility
+
+- IFCPP schema version 4 remains current. Existing supported projects continue
+  to open and retain their stored pile cost table.
+- Pile-tip levels stored by older releases remain valid; new projects may now
+  preserve finer increments without rounding them to decimetres.
+
 ## 0.3.2-alpha
 
 This alpha makes automatic load-point grouping configurable and visible,
