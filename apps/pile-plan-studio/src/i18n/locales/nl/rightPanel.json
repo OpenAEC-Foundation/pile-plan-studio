@@ -37,6 +37,8 @@
   "cost.loadPersonalDefault": "Gebruikersstandaard laden",
   "cost.removePersonalDefault": "Gebruikersstandaard verwijderen",
   "cost.loadBuiltInDefault": "Ingebouwde standaard laden",
+  "cost.builtInSourceTitle": "Bron ingebouwde standaardwaarden",
+  "cost.builtInSourceDescription": "Gebaseerd op CROW-kostenkengetallen uit maart 2008, geïndexeerd tot december 2025 met de CBS-inputprijsindex GWW. Omvat materiaal en variabele uitvoeringskosten; vaste projectkosten zijn niet inbegrepen. Projectwaarden blijven bewerkbaar en kunnen afwijken.",
   "groupingSettings.title": "Groeperingsinstellingen",
   "groupingSettings.subtitle": "Projectbrede groepering van belastinglocaties",
   "groupingSettings.automaticGroup": "Automatische groepering",

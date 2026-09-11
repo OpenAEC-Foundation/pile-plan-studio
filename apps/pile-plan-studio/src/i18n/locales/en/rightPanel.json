@@ -37,6 +37,8 @@
   "cost.loadPersonalDefault": "Load user default",
   "cost.removePersonalDefault": "Remove user default",
   "cost.loadBuiltInDefault": "Load built-in default",
+  "cost.builtInSourceTitle": "Built-in default source",
+  "cost.builtInSourceDescription": "Based on CROW cost data from March 2008, indexed to December 2025 using the CBS civil-engineering input price index. Includes materials and variable installation costs; fixed project costs are excluded. Project values remain editable and may differ.",
   "groupingSettings.title": "Grouping settings",
   "groupingSettings.subtitle": "Project-wide load point grouping",
   "groupingSettings.automaticGroup": "Automatic grouping",

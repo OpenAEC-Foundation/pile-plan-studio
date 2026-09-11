@@ -16841,52 +16841,52 @@
         {
           "pile_size_mm": 273,
           "shape": "round",
-          "cost_per_m3": 235
+          "cost_per_m3": 535
         },
         {
           "pile_size_mm": 356,
           "shape": "round",
-          "cost_per_m3": 190
+          "cost_per_m3": 505
         },
         {
           "pile_size_mm": 380,
           "shape": "round",
-          "cost_per_m3": 180
+          "cost_per_m3": 490
         },
         {
           "pile_size_mm": 250,
           "shape": "square",
-          "cost_per_m3": 250
+          "cost_per_m3": 590
         },
         {
           "pile_size_mm": 290,
           "shape": "square",
-          "cost_per_m3": 220
+          "cost_per_m3": 545
         },
         {
           "pile_size_mm": 320,
           "shape": "square",
-          "cost_per_m3": 205
+          "cost_per_m3": 515
         },
         {
           "pile_size_mm": 350,
           "shape": "square",
-          "cost_per_m3": 192
+          "cost_per_m3": 485
         },
         {
           "pile_size_mm": 400,
           "shape": "square",
-          "cost_per_m3": 180
+          "cost_per_m3": 450
         },
         {
           "pile_size_mm": 420,
           "shape": "square",
-          "cost_per_m3": 175
+          "cost_per_m3": 440
         },
         {
           "pile_size_mm": 450,
           "shape": "square",
-          "cost_per_m3": 170
+          "cost_per_m3": 425
         }
       ]
     },

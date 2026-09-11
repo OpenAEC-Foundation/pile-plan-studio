@@ -232,6 +232,31 @@ describe("React app startup", () => {
     );
   });
 
+  it("loads the indexed CROW material and variable installation rates as built-in defaults", () => {
+    const sampleProject = JSON.parse(
+      readFileSync(resolve(import.meta.dirname, "../../../sample_project/sample_project.ifcpp"), "utf8"),
+    ) as {
+      settings: {
+        pile_costs: {
+          items: Array<{ pile_size_mm: number; shape: string; cost_per_m3: number }>;
+        };
+      };
+    };
+
+    assert.deepEqual(sampleProject.settings.pile_costs.items, [
+      { pile_size_mm: 273, shape: "round", cost_per_m3: 535 },
+      { pile_size_mm: 356, shape: "round", cost_per_m3: 505 },
+      { pile_size_mm: 380, shape: "round", cost_per_m3: 490 },
+      { pile_size_mm: 250, shape: "square", cost_per_m3: 590 },
+      { pile_size_mm: 290, shape: "square", cost_per_m3: 545 },
+      { pile_size_mm: 320, shape: "square", cost_per_m3: 515 },
+      { pile_size_mm: 350, shape: "square", cost_per_m3: 485 },
+      { pile_size_mm: 400, shape: "square", cost_per_m3: 450 },
+      { pile_size_mm: 420, shape: "square", cost_per_m3: 440 },
+      { pile_size_mm: 450, shape: "square", cost_per_m3: 425 },
+    ]);
+  });
+
   it("keeps task panels open while viewer selections change", () => {
     const source = readFileSync(resolve(import.meta.dirname, "App.tsx"), "utf8");
 

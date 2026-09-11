@@ -132,6 +132,10 @@ export default function CostSettingsPanel({
           <button type="button" disabled={!hasPersonalDefault} onClick={onLoadPersonalDefault}>{t("cost.loadPersonalDefault")}</button>
           <button type="button" disabled={!hasPersonalDefault} onClick={onRemovePersonalDefault}>{t("cost.removePersonalDefault")}</button>
           <button type="button" onClick={onLoadBuiltInDefault}>{t("cost.loadBuiltInDefault")}</button>
+          <div className="cost-built-in-source">
+            <strong>{t("cost.builtInSourceTitle")}</strong>
+            <p>{t("cost.builtInSourceDescription")}</p>
+          </div>
         </section>
       </div>
     </div>

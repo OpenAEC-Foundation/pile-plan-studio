@@ -86,6 +86,28 @@
   grid-column: 1 / -1;
 }
 
+.cost-built-in-source {
+  grid-column: 1 / -1;
+  display: grid;
+  gap: 3px;
+  margin-top: 2px;
+  padding: 8px;
+  border: 1px solid var(--theme-border);
+  border-radius: 3px;
+  color: var(--theme-text-muted);
+  background: var(--theme-bg);
+  font-size: 11px;
+  line-height: 1.4;
+}
+
+.cost-built-in-source strong {
+  color: var(--theme-text);
+}
+
+.cost-built-in-source p {
+  margin: 0;
+}
+
 .cost-remove-button {
   width: 26px;
   height: 26px;
