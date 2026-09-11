@@ -1,6 +1,6 @@
 import { createEmptyPileOptionFilters, type PileOptionFilterState } from "./pileOptionTable.ts";
 import type { PileOptionSortState } from "./pileOptionTable.ts";
-import { loadIfcppProjectData, type IfcppProject, type LoadedProjectData } from ".././core/projectFile.ts";
+import { hydrateProjectState, type IfcppProject, type LoadedProjectData } from ".././core/projectFile.ts";
 import type { RightPanelMode } from ".././domain/selectionState.ts";
 import { getProjectBounds } from "../viewer/viewerGeometry.ts";
 import type {
@@ -99,11 +99,11 @@ type InitialProjectStateOptions = {
 };
 
 export function createInitialProjectState(
-  input: string | IfcppProject,
+  input: IfcppProject,
   options: InitialProjectStateOptions,
   tipLevelKeys: ProjectTipLevelKeys,
 ): ProjectState {
-  const projectData = loadIfcppProjectData(input, tipLevelKeys);
+  const projectData = hydrateProjectState(input, tipLevelKeys);
   const pilePlans = options.defaultPilePlanName && projectData.pilePlans.length === 1
     ? [{ ...projectData.pilePlans[0], name: options.defaultPilePlanName }]
     : projectData.pilePlans;

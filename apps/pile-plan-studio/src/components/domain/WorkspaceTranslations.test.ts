@@ -16,6 +16,26 @@ describe("Workspace translations", () => {
     assert.match(nl.importProject.diagnostics["invalid-pile-tip-level-precision"], /millimeter/i);
   });
 
+  it("provides bilingual feedback for every structured project-document error", () => {
+    const en = JSON.parse(readFileSync(resolve(import.meta.dirname, "../../i18n/locales/en/common.json"), "utf8"));
+    const nl = JSON.parse(readFileSync(resolve(import.meta.dirname, "../../i18n/locales/nl/common.json"), "utf8"));
+
+    for (const code of [
+      "invalid-json",
+      "invalid-schema",
+      "unsupported-schema-version",
+      "duplicate-pile-plan-id",
+    ]) {
+      assert.equal(typeof en.projectDocument.errors[code], "string");
+      assert.equal(typeof nl.projectDocument.errors[code], "string");
+    }
+
+    assert.match(en.projectDocument.errors["invalid-json"], /not opened/i);
+    assert.match(nl.projectDocument.errors["invalid-json"], /niet geopend/i);
+    assert.match(en.projectDocument.errors["unsupported-schema-version"], /version/i);
+    assert.match(nl.projectDocument.errors["unsupported-schema-version"], /versie/i);
+  });
+
   it("provides bilingual feedback for unavailable Undo and Redo requests", () => {
     const en = JSON.parse(readFileSync(resolve(import.meta.dirname, "../../i18n/locales/en/common.json"), "utf8"));
     const nl = JSON.parse(readFileSync(resolve(import.meta.dirname, "../../i18n/locales/nl/common.json"), "utf8"));

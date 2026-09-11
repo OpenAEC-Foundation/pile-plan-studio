@@ -2,8 +2,12 @@ import { readFileSync } from "node:fs";
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 
-import { DuplicateLoadPointPositionError } from "../core/loadPointPositionContract.ts";
-import { InvalidPileTipLevelError } from "../core/pileTipLevelContract.ts";
+import { ProjectDocumentReadError } from "../core/projectDocumentContract.ts";
+import type { IfcppProject } from "../core/projectFile.ts";
+import {
+  canonicalProjectForTest,
+  projectTipLevelKeysForTest,
+} from "../core/projectTestSupport.ts";
 import { prepareOpenedProject } from "./openedProject.ts";
 
 const sampleProjectText = readFileSync(
@@ -11,96 +15,65 @@ const sampleProjectText = readFileSync(
   "utf8",
 );
 
+function canonicalProject(): IfcppProject {
+  const project = canonicalProjectForTest(sampleProjectText);
+  project.settings.load_point_grouping ??= {
+    automatic: true,
+    max_edge_distance_mm: 1_200,
+  };
+  return project;
+}
+
 function validProjectOutcome() {
-  const project = JSON.parse(sampleProjectText);
+  const project = canonicalProject();
   return {
     status: "valid" as const,
     project,
-    keys: {
-      bearingCapacities: project.inputs.bearing_capacities.map(
-        (capacity: { pile_tip_level_m: number }) => capacity.pile_tip_level_m * 1_000,
-      ),
-      pilePlans: project.user_state.pile_plans.map(
-        (plan: { id: string; active_pile_tip_levels?: number[] }) => ({
-          id: plan.id,
-          active: (plan.active_pile_tip_levels ?? project.settings.active_pile_tip_levels ?? [])
-            .map((value: number) => value * 1_000),
-        }),
-      ),
-      legend: (project.settings.pile_legend?.pile_tip_levels ?? []).map(
-        (item: { value: number }) => item.value * 1_000,
-      ),
-    },
+    keys: projectTipLevelKeysForTest(project),
   };
 }
 
 describe("opened project preparation", () => {
-  it("validates positions before constructing replacement state", async () => {
-    let validatedCount = 0;
-
-    await assert.rejects(
-      prepareOpenedProject(
-        sampleProjectText,
-        { initializeDefaultPiles: false },
-        {
-          readValidatedProject: async () => validProjectOutcome(),
-          validatePositions: async (loadPoints) => {
-            validatedCount = loadPoints.length;
-            return [{
-              x_mm: loadPoints[0].x_mm,
-              y_mm: loadPoints[0].y_mm,
-              loadPoints: [
-                { id: loadPoints[0].id, name: loadPoints[0].name },
-                { id: loadPoints[1].id, name: loadPoints[1].name },
-              ],
-            }];
-          },
-        },
-      ),
-      DuplicateLoadPointPositionError,
-    );
-
-    assert.ok(validatedCount > 1);
-  });
-
-  it("returns project state after successful validation", async () => {
+  it("constructs replacement state from one canonical read result", async () => {
+    let readCount = 0;
     const project = await prepareOpenedProject(
       sampleProjectText,
       { initializeDefaultPiles: false },
       {
-        readValidatedProject: async () => validProjectOutcome(),
-        validatePositions: async () => [],
+        readProjectDocument: async () => {
+          readCount += 1;
+          return validProjectOutcome();
+        },
       },
     );
 
     assert.equal(project.name, "Sample Project");
+    assert.equal(readCount, 1);
   });
 
-  it("rejects invalid tip levels before position validation or replacement state", async () => {
-    let positionValidationCalled = false;
-
+  it("rejects a structured core error before replacing project state", async () => {
     await assert.rejects(
       prepareOpenedProject(
         sampleProjectText,
         { initializeDefaultPiles: false },
         {
-          readValidatedProject: async () => ({
+          readProjectDocument: async () => ({
             status: "invalid",
-            errors: [{
-              value: "-18.5004",
-              reason: "submillimetre",
-              context: { kind: "legend", index: 0 },
-            }],
+            error: {
+              code: "duplicate-load-point-positions",
+              positions: [{
+                xMm: 10,
+                yMm: 20,
+                loadPoints: [{ id: 1, name: "A" }, { id: 2, name: "B" }],
+              }],
+            },
           }),
-          validatePositions: async () => {
-            positionValidationCalled = true;
-            return [];
-          },
         },
       ),
-      InvalidPileTipLevelError,
+      (error: unknown) => (
+        error instanceof ProjectDocumentReadError
+        && error.details.code === "duplicate-load-point-positions"
+      ),
     );
-
-    assert.equal(positionValidationCalled, false);
   });
 });

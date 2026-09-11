@@ -2,7 +2,10 @@ import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { createInitialProjectState } from "./projectState.ts";
-import { projectTipLevelKeysForTest } from "../core/projectTestSupport.ts";
+import {
+  canonicalProjectForTest,
+  projectTipLevelKeysForTest,
+} from "../core/projectTestSupport.ts";
 import {
   createManagedProjectState,
   projectHistoryReducer,
@@ -15,7 +18,8 @@ function createTestProjectState(
   input: Parameters<typeof createInitialProjectState>[0],
   options: Parameters<typeof createInitialProjectState>[1],
 ) {
-  return createInitialProjectState(input, options, projectTipLevelKeysForTest(input));
+  const project = canonicalProjectForTest(input);
+  return createInitialProjectState(project, options, projectTipLevelKeysForTest(project));
 }
 
 describe("project history reducer", () => {

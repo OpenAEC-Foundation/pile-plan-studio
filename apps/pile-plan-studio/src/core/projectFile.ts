@@ -19,7 +19,6 @@ import {
   reconcileProjectLegend,
   type LegendImportWarning,
 } from "../viewer/legend.ts";
-import { samePileConfiguration } from "./pileConfigurationKey.ts";
 import type { ProjectTipLevelKeys } from "./pileTipLevelContract.ts";
 
 type IfcppBearingCapacity = Omit<BearingCapacity, "pile_tip_level_mm">;
@@ -39,24 +38,24 @@ type IfcppApplication = {
   version: string;
 };
 
-type IfcppCptSelectionSettings = {
+export type IfcppCptSelectionSettings = {
   algorithm: CptSelectionAlgorithm;
   max_distance_m: number;
   monopoly_distance_m?: number;
   max_angle_degrees: number;
 };
 
-type IfcppSelectedPileChoice = {
+export type IfcppSelectedPileChoice = {
   pile: IfcppPileConfigurationKey | null;
   external_references?: unknown[];
 };
 
-type IfcppPileSymbol = {
+export type IfcppPileSymbol = {
   base_shape: unknown;
   fill_pattern: unknown;
 };
 
-type IfcppLegendValueStyle = {
+export type IfcppLegendValueStyle = {
   value: number;
   symbol: IfcppPileSymbol;
   color: unknown;
@@ -64,7 +63,7 @@ type IfcppLegendValueStyle = {
   color_automatic?: unknown;
 };
 
-type IfcppProjectLegend = {
+export type IfcppProjectLegend = {
   encoding_mode: unknown;
   color_scheme?: unknown;
   pile_size_color_scheme?: unknown;
@@ -173,6 +172,8 @@ export function getImportSummary(project: IfcppProject): ImportSummary {
 }
 
 export type LoadedProjectData = {
+  metadata: IfcppProject["metadata"];
+  units: NonNullable<IfcppProject["units"]>;
   name: string;
   loadPoints: LoadPoint[];
   cpts: Cpt[];
@@ -216,9 +217,7 @@ function assertTipLevelKeyContract(
   if (keys.bearingCapacities.length !== project.inputs.bearing_capacities.length) {
     throw new Error("Pile-tip-level key contract does not match bearing capacities");
   }
-  const wirePlans = project.schema_version >= 2
-    ? (project.user_state.pile_plans ?? [])
-    : [{ id: "pile-plan-1", active_pile_tip_levels: project.settings.active_pile_tip_levels ?? [] }];
+  const wirePlans = project.user_state.pile_plans ?? [];
   if (wirePlans.length > 0 && (
     keys.pilePlans.length !== wirePlans.length
     || wirePlans.some((plan, index) => (
@@ -235,19 +234,10 @@ function assertTipLevelKeyContract(
   }
 }
 
-export function loadIfcppProjectData(
-  input: string | IfcppProject,
+export function hydrateProjectState(
+  project: IfcppProject,
   keys: ProjectTipLevelKeys,
 ): LoadedProjectData {
-  const project = typeof input === "string" ? JSON.parse(input) as IfcppProject : input;
-
-  if (project.schema !== "IFCPP") {
-    throw new Error(`Expected IFCPP project, got ${project.schema}`);
-  }
-
-  if (![1, 2, 3, 4].includes(project.schema_version)) {
-    throw new Error(`Unsupported IFCPP schema version ${project.schema_version}`);
-  }
 
   assertTipLevelKeyContract(project, keys);
   const bearingCapacities = project.inputs.bearing_capacities.map((capacity, index) => ({
@@ -262,36 +252,42 @@ export function loadIfcppProjectData(
   );
 
   return {
+    metadata: structuredClone(project.metadata),
+    units: structuredClone(project.units!),
     name: project.metadata.name,
-    loadPoints: project.inputs.load_points,
-    cpts: project.inputs.cpts,
+    loadPoints: project.inputs.load_points.map((loadPoint) => ({ ...loadPoint })),
+    cpts: project.inputs.cpts.map((cpt) => ({ ...cpt })),
     bearingCapacities,
     globalCptSelectionSettings: fromIfcppCptSelectionSettings(project.settings.global_cpt_selection),
     cptSelectionSettingsByLoadPoint: new Map(
       numberKeyedEntries(project.settings.cpt_selection_by_load_point)
         .map(([loadPointId, settings]) => [loadPointId, fromIfcppCptSelectionSettings(settings)]),
     ),
-    loadPointGroupingSettings: normalizeLoadPointGroupingSettings(
-      project.settings.load_point_grouping,
-    ),
-    pileCostSettings: normalizePileCostSettings(project.settings.pile_costs),
-    pileHeadLevelM: normalizePileHeadLevel(project),
-    currencyCode: normalizeCurrencyCode(project.units?.costs),
-    ...normalizeProjectViewerSettings(project.settings.viewer),
+    loadPointGroupingSettings: {
+      automatic: Boolean(project.settings.load_point_grouping!.automatic),
+      maxEdgeDistanceM: Number(project.settings.load_point_grouping!.max_edge_distance_mm) / 1_000,
+    },
+    pileCostSettings: structuredClone(project.settings.pile_costs),
+    pileHeadLevelM: project.settings.pile_head_level_m ?? null,
+    currencyCode: project.units!.costs,
+    symbolScalePercent: project.settings.viewer!.symbol_scale_percent!,
+    foregroundLayer: project.settings.viewer!.foreground_layer === "cpts"
+      ? "cpts"
+      : "load-points",
+    showGrid: project.settings.viewer!.show_grid!,
+    showTipLevelRegions: project.settings.viewer!.show_tip_level_regions!,
     pileLegend,
     legendImportWarnings,
     optimizationSettings: {
       max_pile_sizes: project.settings.optimization.max_pile_sizes,
       max_pile_tip_levels: project.settings.optimization.max_pile_tip_levels,
       max_pile_configurations: project.settings.optimization.max_pile_configurations,
-      max_utilization: clampUnitInterval(project.settings.optimization.max_utilization ?? 1),
-      candidate_source: project.settings.optimization.candidate_source === "active_legend"
-        ? "active_legend"
-        : "all_available",
+      max_utilization: project.settings.optimization.max_utilization!,
+      candidate_source: project.settings.optimization.candidate_source as
+        | "active_legend"
+        | "all_available",
     },
-    viewerUtilizationSettings: normalizeViewerUtilizationSettings(
-      project.settings.viewer_utilization,
-    ),
+    viewerUtilizationSettings: { ...project.settings.viewer_utilization! },
     pilePlans,
     activePilePlanId,
     selectedPileConfigurationsByLoadPoint: clonePileConfigurationMap(
@@ -300,7 +296,7 @@ export function loadIfcppProjectData(
     manualCptIdsByLoadPoint: new Map(
       numberKeyedEntries(project.user_state.manual_cpt_selections),
     ),
-    importLog: project.import_log ?? [],
+    importLog: project.import_log!.map((entry) => structuredClone(entry)),
   };
 }
 
@@ -308,45 +304,12 @@ function loadPilePlans(project: IfcppProject, keys: ProjectTipLevelKeys): {
   pilePlans: PilePlanData[];
   activePilePlanId: string;
 } {
-  const wirePlans = project.schema_version >= 2
-    ? (project.user_state.pile_plans ?? [])
-    : [{
-        id: "pile-plan-1",
-        name: "Pile plan 1",
-        selected_piles: project.user_state.selected_piles ?? {},
-        locked_load_point_ids: [],
-      }];
-  const normalizedWirePlans = wirePlans.length > 0
-    ? wirePlans
-    : [{
-        id: "pile-plan-1",
-        name: "Pile plan 1",
-        selected_piles: {},
-        locked_load_point_ids: [],
-      }];
-  const seenIds = new Set<string>();
-  for (const plan of normalizedWirePlans) {
-    if (seenIds.has(plan.id)) {
-      throw new Error(`Duplicate pile plan id '${plan.id}'`);
-    }
-    seenIds.add(plan.id);
-  }
-
-  const legacyActivation = {
-    pileSizes: normalizeActiveValues(project.settings.active_pile_sizes, false),
-  };
-  const pilePlans = normalizedWirePlans.map((plan) => pilePlanDataFromWire(
+  const wirePlans = project.user_state.pile_plans ?? [];
+  const pilePlans = wirePlans.map((plan) => pilePlanDataFromWire(
     plan,
     keys.pilePlans.find(({ id }) => id === plan.id)?.active ?? [],
-    legacyActivation,
-    project.schema_version >= 4,
   ));
-  const requestedActiveId = project.schema_version >= 2
-    ? project.user_state.active_pile_plan_id
-    : "pile-plan-1";
-  const activePilePlanId = pilePlans.some((plan) => plan.id === requestedActiveId)
-    ? requestedActiveId!
-    : pilePlans[0].id;
+  const activePilePlanId = project.user_state.active_pile_plan_id!;
 
   return { pilePlans, activePilePlanId };
 }
@@ -354,13 +317,7 @@ function loadPilePlans(project: IfcppProject, keys: ProjectTipLevelKeys): {
 function pilePlanDataFromWire(
   plan: IfcppPilePlan,
   activePileTipLevelMms: number[],
-  legacyActivation: { pileSizes: number[] },
-  requirePlanActivation: boolean,
 ): PilePlanData {
-  if (requirePlanActivation
-    && (!Array.isArray(plan.active_pile_sizes) || !Array.isArray(plan.active_pile_tip_levels))) {
-    throw new Error(`Pile plan '${plan.id}' is missing schema 4 legend activation`);
-  }
   const selectedEntries = numberKeyedEntries(plan.selected_piles)
     .flatMap(([loadPointId, choice]) => choice.pile
       ? [[loadPointId, pileConfigurationKeyFromWire(choice.pile)] as const]
@@ -369,9 +326,7 @@ function pilePlanDataFromWire(
   return {
     id: plan.id,
     name: plan.name,
-    activePileSizes: plan.active_pile_sizes === undefined
-      ? [...legacyActivation.pileSizes]
-      : normalizeActiveValues(plan.active_pile_sizes, false),
+    activePileSizes: [...plan.active_pile_sizes!],
     activePileTipLevelMms: [...activePileTipLevelMms],
     selectedPileConfigurationsByLoadPoint: new Map(selectedEntries),
     externalReferencesByLoadPoint: new Map(
@@ -394,133 +349,6 @@ function numberKeyedEntries<T>(values: Record<string, T> | Map<number, T>): Arra
   }
 
   return Object.entries(values).map(([key, value]) => [Number(key), value]);
-}
-
-export function createIfcppProject(input: {
-  name: string;
-  loadPoints: LoadPoint[];
-  cpts: Cpt[];
-  bearingCapacities: BearingCapacity[];
-  globalCptSelectionSettings: CptSelectionSettings;
-  cptSelectionSettingsByLoadPoint: Map<number, CptSelectionSettings>;
-  loadPointGroupingSettings: LoadPointGroupingSettings;
-  pileCostSettings: PileCostSettings;
-  pileHeadLevelM: number | null;
-  currencyCode: string;
-  symbolScalePercent: number;
-  foregroundLayer: "load-points" | "cpts";
-  showGrid: boolean;
-  showTipLevelRegions: boolean;
-  optimizationSettings: GreedyOptimizationSettings;
-  viewerUtilizationSettings: ViewerUtilizationSettings;
-  pileLegend: LegendItems;
-  pilePlans?: PilePlanData[];
-  activePilePlanId?: string;
-  selectedPileConfigurationsByLoadPoint: Map<number, PileConfigurationKey>;
-  manualCptIdsByLoadPoint: Map<number, number[]>;
-  importLog: IfcppImportLogEntry[];
-}): IfcppProject {
-  const sourcePlans = input.pilePlans?.length
-    ? input.pilePlans
-    : [{
-        id: "pile-plan-1",
-        name: "Pile plan 1",
-        activePileSizes: availablePileSizes(input.bearingCapacities),
-        activePileTipLevelMms: availablePileTipLevels(input.bearingCapacities),
-        selectedPileConfigurationsByLoadPoint: input.selectedPileConfigurationsByLoadPoint,
-        externalReferencesByLoadPoint: new Map<number, unknown[]>(),
-        lockedLoadPointIds: [],
-        optimizationUnassignedByLoadPoint: new Map(),
-      }];
-  const activePilePlanId = sourcePlans.some((plan) => plan.id === input.activePilePlanId)
-    ? input.activePilePlanId!
-    : sourcePlans[0].id;
-
-  return {
-    schema: "IFCPP",
-    schema_version: 4,
-    application: {
-      name: "Pile Plan Studio",
-      version: "0.1.0-alpha",
-    },
-    metadata: {
-      name: input.name,
-      author: null,
-      organization: null,
-      created_at: null,
-      modified_at: null,
-      description: null,
-      external_references: [],
-    },
-    units: {
-      coordinates: "mm",
-      design_loads: "kN",
-      pile_tip_levels: "m",
-      bearing_capacities: "kN",
-      costs: normalizeCurrencyCode(input.currencyCode),
-    },
-    inputs: {
-      load_points: input.loadPoints,
-      cpts: input.cpts,
-      bearing_capacities: input.bearingCapacities.map(({ pile_tip_level_mm: _, ...capacity }) => capacity),
-    },
-    settings: {
-      global_cpt_selection: toIfcppCptSelectionSettings(input.globalCptSelectionSettings),
-      cpt_selection_by_load_point: Object.fromEntries(
-        [...input.cptSelectionSettingsByLoadPoint.entries()]
-          .map(([loadPointId, settings]) => [String(loadPointId), toIfcppCptSelectionSettings(settings)]),
-      ),
-      load_point_grouping: {
-        automatic: input.loadPointGroupingSettings.automatic,
-        max_edge_distance_mm: input.loadPointGroupingSettings.maxEdgeDistanceM * 1_000,
-      },
-      pile_costs: input.pileCostSettings,
-      pile_head_level_m: input.pileHeadLevelM,
-      optimization: input.optimizationSettings,
-      viewer_utilization: normalizeViewerUtilizationSettings(input.viewerUtilizationSettings),
-      pile_legend: toIfcppProjectLegend(input.pileLegend),
-      viewer: {
-        symbol_scale_percent: input.symbolScalePercent,
-        foreground_layer: input.foregroundLayer,
-        show_grid: input.showGrid,
-        show_tip_level_regions: input.showTipLevelRegions,
-      },
-    },
-    user_state: {
-      pile_plans: sourcePlans.map((plan) => {
-        const selectedPiles = plan.id === activePilePlanId
-          ? input.selectedPileConfigurationsByLoadPoint
-          : plan.selectedPileConfigurationsByLoadPoint;
-        return {
-          id: plan.id,
-          name: plan.name,
-          active_pile_sizes: normalizeActiveValues(plan.activePileSizes, false),
-          active_pile_tip_levels: plan.activePileTipLevelMms.map((value) => value / 1_000),
-          selected_piles: Object.fromEntries(
-            [...selectedPiles.entries()].map(([loadPointId, configuration]) => [String(loadPointId), {
-              pile: pileConfigurationKeyToWire(configuration),
-              external_references: plan.id !== activePilePlanId ||
-                samePileConfiguration(
-                  plan.selectedPileConfigurationsByLoadPoint.get(loadPointId),
-                  configuration,
-                )
-                ? (plan.externalReferencesByLoadPoint.get(loadPointId) ?? [])
-                : [],
-            }]),
-          ),
-          locked_load_point_ids: [...plan.lockedLoadPointIds],
-          optimization_unassigned: Object.fromEntries(
-            plan.optimizationUnassignedByLoadPoint,
-          ),
-        };
-      }),
-      active_pile_plan_id: activePilePlanId,
-      manual_cpt_selections: Object.fromEntries(
-        [...input.manualCptIdsByLoadPoint.entries()].map(([loadPointId, cptIds]) => [String(loadPointId), cptIds]),
-      ),
-    },
-    import_log: input.importLog,
-  };
 }
 
 function fromIfcppProjectLegend(
@@ -555,123 +383,6 @@ function fromIfcppLegendValues(values: unknown, replacementValues?: number[]): u
   });
 }
 
-function toIfcppProjectLegend(legend: LegendItems): IfcppProjectLegend {
-  const colorScheme = legend.encodingMode === "size-symbol"
-    ? legend.pileTipLevelColorScheme
-    : legend.pileSizeColorScheme;
-  return {
-    encoding_mode: legend.encodingMode,
-    color_scheme: colorScheme,
-    pile_size_color_scheme: legend.pileSizeColorScheme,
-    pile_tip_level_color_scheme: legend.pileTipLevelColorScheme,
-    pile_sizes: legend.pileSizes.map(toIfcppLegendValue),
-    pile_tip_levels: legend.pileTipLevels.map((item) => toIfcppLegendValue({
-      ...item,
-      value: item.value / 1_000,
-    })),
-  };
-}
-
-function toIfcppLegendValue(item: LegendItems["pileSizes"][number]): IfcppLegendValueStyle {
-  return {
-    value: item.value,
-    symbol: {
-      base_shape: item.symbol.baseShape,
-      fill_pattern: item.symbol.fillPattern,
-    },
-    color: item.color,
-    symbol_automatic: item.symbolAutomatic,
-    color_automatic: item.colorAutomatic,
-  };
-}
-
-function normalizeViewerUtilizationSettings(
-  settings: ViewerUtilizationSettings | undefined,
-): ViewerUtilizationSettings {
-  const minimum = clampUnitInterval(settings?.minimum ?? 0);
-  const maximum = clampUnitInterval(settings?.maximum ?? 1);
-  return {
-    minimum: Math.min(minimum, maximum),
-    maximum: Math.max(minimum, maximum),
-  };
-}
-
-function normalizeLoadPointGroupingSettings(
-  settings: IfcppLoadPointGroupingSettings | undefined,
-): LoadPointGroupingSettings {
-  const maxEdgeDistanceMm = typeof settings?.max_edge_distance_mm === "number"
-    && Number.isFinite(settings.max_edge_distance_mm)
-    && settings.max_edge_distance_mm >= 0
-    ? settings.max_edge_distance_mm
-    : 1_200;
-  return {
-    automatic: typeof settings?.automatic === "boolean" ? settings.automatic : true,
-    maxEdgeDistanceM: maxEdgeDistanceMm / 1_000,
-  };
-}
-
-function normalizePileCostSettings(settings: IfcppPileCostSettings): PileCostSettings {
-  return {
-    schema_version: settings.schema_version,
-    items: settings.items.map((item) => ({
-      pile_size_mm: item.pile_size_mm,
-      shape: item.shape,
-      cost_per_m3: Number.isFinite(item.cost_per_m3)
-        ? item.cost_per_m3
-        : (item.cost_per_m3_eur ?? 0),
-    })),
-  };
-}
-
-function normalizePileHeadLevel(project: IfcppProject): number | null {
-  const value = project.settings.pile_head_level_m ?? project.settings.pile_costs.pile_head_level_m;
-  return typeof value === "number" && Number.isFinite(value) ? value : null;
-}
-
-function normalizeCurrencyCode(value: unknown): string {
-  return typeof value === "string" && /^[A-Z]{3}$/.test(value.trim().toUpperCase())
-    ? value.trim().toUpperCase()
-    : "EUR";
-}
-
-function normalizeActiveValues(values: unknown, descending: boolean): number[] {
-  const normalized = Array.isArray(values)
-    ? values.filter((value): value is number => typeof value === "number" && Number.isFinite(value))
-    : [];
-  return [...new Set(normalized)].sort((left, right) => descending ? right - left : left - right);
-}
-
-function availablePileSizes(capacities: BearingCapacity[]): number[] {
-  return normalizeActiveValues(capacities.map(({ pile_size_mm }) => pile_size_mm), false);
-}
-
-function availablePileTipLevels(capacities: BearingCapacity[]): number[] {
-  return normalizeActiveValues(capacities.map(({ pile_tip_level_mm }) => pile_tip_level_mm), true);
-}
-
-function normalizeProjectViewerSettings(
-  settings: IfcppViewerSettings | undefined,
-): {
-  symbolScalePercent: number;
-  foregroundLayer: "load-points" | "cpts";
-  showGrid: boolean;
-  showTipLevelRegions: boolean;
-} {
-  const scale = typeof settings?.symbol_scale_percent === "number"
-    ? settings.symbol_scale_percent
-    : 100;
-  return {
-    symbolScalePercent: Math.round(Math.max(10, Math.min(200, scale))),
-    foregroundLayer: settings?.foreground_layer === "cpts" ? "cpts" : "load-points",
-    showGrid: settings?.show_grid !== false,
-    showTipLevelRegions: settings?.show_tip_level_regions !== false,
-  };
-}
-
-function clampUnitInterval(value: number): number {
-  return Number.isFinite(value) ? Math.max(0, Math.min(1, value)) : 1;
-}
-
 export function applyDefaultPileCostSettings(
   project: IfcppProject,
   defaultPileCostSettings: PileCostSettings,
@@ -693,17 +404,8 @@ function fromIfcppCptSelectionSettings(settings: IfcppCptSelectionSettings): Cpt
   return {
     algorithm: settings.algorithm,
     maxDistanceM: settings.max_distance_m,
-    monopolyDistanceM: settings.monopoly_distance_m ?? 1,
+    monopolyDistanceM: settings.monopoly_distance_m!,
     maxAngleDegrees: settings.max_angle_degrees,
-  };
-}
-
-function toIfcppCptSelectionSettings(settings: CptSelectionSettings): IfcppCptSelectionSettings {
-  return {
-    algorithm: settings.algorithm,
-    max_distance_m: settings.maxDistanceM,
-    monopoly_distance_m: settings.monopolyDistanceM,
-    max_angle_degrees: settings.maxAngleDegrees,
   };
 }
 
@@ -711,13 +413,6 @@ function pileConfigurationKeyFromWire(key: IfcppPileConfigurationKey): PileConfi
   return {
     pile_size_mm: key.pile_size_mm,
     pile_tip_level_mm: key.pile_tip_level_m_key,
-  };
-}
-
-function pileConfigurationKeyToWire(key: PileConfigurationKey): IfcppPileConfigurationKey {
-  return {
-    pile_size_mm: key.pile_size_mm,
-    pile_tip_level_m_key: key.pile_tip_level_mm,
   };
 }
 

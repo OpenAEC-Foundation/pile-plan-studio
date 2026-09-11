@@ -114,6 +114,16 @@ export type ProjectDocumentOutcome =
   | { status: "valid"; project: IfcppProject; keys: ProjectTipLevelKeys }
   | { status: "invalid"; error: ProjectDocumentError };
 
+export class ProjectDocumentReadError extends Error {
+  readonly details: ProjectDocumentError;
+
+  constructor(details: ProjectDocumentError) {
+    super(`Project document could not be read: ${details.code}`);
+    this.name = "ProjectDocumentReadError";
+    this.details = details;
+  }
+}
+
 export type ProjectDocumentDraft = {
   metadata: IfcppProject["metadata"];
   units: NonNullable<IfcppProject["units"]>;

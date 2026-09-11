@@ -27,12 +27,20 @@ describe("binary core result", () => {
 });
 
 describe("project source refresh core contract", () => {
-  it("uses the validated project envelope for open, import, and refresh", () => {
+  it("normalizes open, import, and refresh through the project-document contract", () => {
     const source = readFileSync(new URL("./coreClient.ts", import.meta.url), "utf8");
 
-    assert.match(source, /read_validated_ifcpp_project/);
-    assert.match(source, /validatedIfcppProjectOutcomeFromCore/);
-    assert.match(source, /validatedProjectFromCore/);
+    const importStart = source.indexOf("export async function importProjectFromFilesCore");
+    const refreshStart = source.indexOf("export async function refreshProjectFromFilesCore");
+    const readStart = source.indexOf("export async function readValidatedIfcppProjectCore");
+    const importHandler = source.slice(importStart, refreshStart);
+    const refreshHandler = source.slice(refreshStart, readStart);
+
+    assert.match(source, /projectDocumentOutcomeFromCore/);
+    assert.match(importHandler, /validProjectDocumentFromCore/);
+    assert.match(refreshHandler, /validProjectDocumentFromCore/);
+    assert.doesNotMatch(importHandler, /validatedProjectFromCore/);
+    assert.doesNotMatch(refreshHandler, /validatedProjectFromCore/);
   });
 
   it("passes required project properties through new-project imports", () => {
@@ -51,7 +59,7 @@ describe("project source refresh core contract", () => {
     assert.match(source, /refresh_project_from_files/);
     assert.match(source, /current_project:\s*toWasmIfcppProject\(input\.currentProject\)/);
     assert.match(source, /sources:\s*input\.sources\.map\(toCoreImportSource\)/);
-    assert.match(source, /invoke<CoreValidatedProject>\("refresh_project_from_files"/);
+    assert.match(source, /invoke<CoreValidatedProjectDocument>\("refresh_project_from_files"/);
   });
 
   it("converts persisted optimizer outcome keys before writing in WASM", () => {

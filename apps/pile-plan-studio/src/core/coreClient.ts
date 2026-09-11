@@ -116,11 +116,8 @@ import {
 } from "./loadPointPositionContract.ts";
 import {
   validatedIfcppProjectOutcomeFromCore,
-  validatedProjectFromCore,
   type CoreValidatedIfcppProjectOutcome,
-  type CoreValidatedProject,
   type ValidatedIfcppProjectOutcome,
-  type ValidatedProject,
 } from "./pileTipLevelContract.ts";
 import {
   projectDocumentErrorFromUnknown,
@@ -490,7 +487,7 @@ export async function importProjectFromFilesCore(input: {
   pileHeadLevelM: number;
   currencyCode: string;
   sources: ImportSourceInput[];
-}): Promise<ValidatedProject> {
+}): Promise<Extract<ProjectDocumentOutcome, { status: "valid" }>> {
   const request = {
     project_name: input.projectName,
     pile_head_level_m: input.pileHeadLevelM,
@@ -499,37 +496,47 @@ export async function importProjectFromFilesCore(input: {
   };
   if (!isTauriRuntime()) {
     await initializeWasm();
-    return validatedProjectFromCore(
-      import_project_from_files(request) as CoreValidatedProject,
+    return validProjectDocumentFromCore(
+      import_project_from_files(request) as CoreValidatedProjectDocument,
     );
   }
-  return validatedProjectFromCore(
-    await invoke<CoreValidatedProject>("import_project_from_files", { request }),
+  return validProjectDocumentFromCore(
+    await invoke<CoreValidatedProjectDocument>("import_project_from_files", { request }),
   );
 }
 
 export async function refreshProjectFromFilesCore(input: {
   currentProject: IfcppProject;
   sources: ImportSourceInput[];
-}): Promise<ValidatedProject> {
+}): Promise<Extract<ProjectDocumentOutcome, { status: "valid" }>> {
   const sources = input.sources.map(toCoreImportSource);
   if (!isTauriRuntime()) {
     await initializeWasm();
-    return validatedProjectFromCore(
+    return validProjectDocumentFromCore(
       refresh_project_from_files({
         current_project: toWasmIfcppProject(input.currentProject),
         sources,
-      }) as CoreValidatedProject,
+      }) as CoreValidatedProjectDocument,
     );
   }
-  return validatedProjectFromCore(
-    await invoke<CoreValidatedProject>("refresh_project_from_files", {
+  return validProjectDocumentFromCore(
+    await invoke<CoreValidatedProjectDocument>("refresh_project_from_files", {
       request: {
         current_project: input.currentProject,
         sources,
       },
     }),
   );
+}
+
+function validProjectDocumentFromCore(
+  result: CoreValidatedProjectDocument,
+): Extract<ProjectDocumentOutcome, { status: "valid" }> {
+  const outcome = projectDocumentOutcomeFromCore({ status: "valid", ...result });
+  if (outcome.status !== "valid") {
+    throw new Error("A validated project unexpectedly produced an invalid document outcome.");
+  }
+  return outcome;
 }
 
 export async function readValidatedIfcppProjectCore(

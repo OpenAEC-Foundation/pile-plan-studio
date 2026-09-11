@@ -28,9 +28,9 @@ import {
   exportPilePlanXlsxCore,
   greedyOptimizeCore,
   importProjectFromFilesCore,
-  readValidatedIfcppProjectCore,
+  readProjectDocumentCore,
   refreshProjectFromFilesCore,
-  validateLoadPointPositionsCore,
+  writeProjectDocumentCore,
 } from "./core/coreClient";
 import type { PileConfigurationKey, PileCostSettings } from "./core/projectTypes.ts";
 import type { ImportSourceInput } from "./core/coreImportContract";
@@ -38,15 +38,12 @@ import type { ProjectImportProperties } from "./components/domain/ProjectImportP
 import type { ImportFileRole } from "./core/importFiles.ts";
 import { getImportSummary } from "./core/projectFile";
 import { pileConfigurationToken } from "./core/pileConfigurationKey.ts";
-import { writeIfcppProjectCore } from "./core/coreClient";
 import { createInitialProjectState, type ProjectState } from "./domain/projectState";
 import { prepareOpenedProject, validateOpenedProject } from "./domain/openedProject.ts";
-import { DuplicateLoadPointPositionError } from "./core/loadPointPositionContract.ts";
 import {
-  InvalidPileTipLevelError,
-  assertValidIfcppProjectOutcome,
-  type ValidatedProject,
-} from "./core/pileTipLevelContract.ts";
+  ProjectDocumentReadError,
+  type ProjectDocumentOutcome,
+} from "./core/projectDocumentContract.ts";
 import { getSetting } from "./store";
 import { optionKey } from "./components/domain/rightPanelModel";
 import { buildGreedyOptimizationSettings } from "./domain/optimizationSettings";
@@ -114,7 +111,7 @@ import {
 import {
   captureProjectContent,
   normalizeProjectContentState,
-  projectFromContent,
+  projectDocumentDraftFromContent,
 } from "./domain/projectContent.ts";
 import { describeHistoryAction, describeHistoryResult } from "./domain/historyMessage.ts";
 import { createBrowserRecoveryRecord } from "./domain/browserRecovery.ts";
@@ -169,26 +166,44 @@ function describeProjectOpenError(
   error: unknown,
   t: (key: string, options?: Record<string, unknown>) => string,
 ): string {
-  if (error instanceof InvalidPileTipLevelError) {
-    const first = error.errors[0];
+  if (!(error instanceof ProjectDocumentReadError)) {
+    return error instanceof Error ? error.message : String(error);
+  }
+  if (error.details.code === "invalid-pile-tip-levels") {
+    const first = error.details.errors[0];
     return t("pileTipLevels.projectOpenError", {
-      count: error.errors.length,
+      count: error.details.errors.length,
       value: first?.value ?? "",
     });
   }
-  if (!(error instanceof DuplicateLoadPointPositionError)) {
-    return error instanceof Error ? error.message : String(error);
+  if (error.details.code !== "duplicate-load-point-positions") {
+    return t(`projectDocument.errors.${error.details.code}`, {
+      schema: error.details.code === "invalid-schema" ? error.details.schema : "",
+      schemaVersion: error.details.code === "unsupported-schema-version"
+        ? error.details.schemaVersion
+        : "",
+      pilePlanId: error.details.code === "duplicate-pile-plan-id"
+        ? error.details.pilePlanId
+        : "",
+    });
   }
-  const first = error.positions[0];
+  const first = error.details.positions[0];
   const locations = first.loadPoints
     .map((loadPoint) => `${loadPoint.name} (${loadPoint.id})`)
     .join(", ");
   return t("loadPointPositions.projectOpenError", {
-    count: error.positions.length,
+    count: error.details.positions.length,
     locations,
-    x: first.x_mm,
-    y: first.y_mm,
+    x: first.xMm,
+    y: first.yMm,
   });
+}
+
+function requireValidProjectDocument(
+  outcome: ProjectDocumentOutcome,
+): Extract<ProjectDocumentOutcome, { status: "valid" }> {
+  if (outcome.status === "invalid") throw new ProjectDocumentReadError(outcome.error);
+  return outcome;
 }
 
 const POINTER_FOCUS_CONTROL_SELECTOR = "button, [role='option'], [role='tab'], [role='row'][tabindex='0']";
@@ -213,7 +228,7 @@ type AppBootstrap =
   | { kind: "loading" }
   | {
       kind: "ready";
-      initialProject: ValidatedProject;
+      initialProject: Extract<ProjectDocumentOutcome, { status: "valid" }>;
       initializeDefaultPiles: boolean;
       initialSavedProjectSignature?: string;
       initialWasDirty?: boolean;
@@ -235,10 +250,8 @@ export default function App() {
   useEffect(() => {
     let cancelled = false;
     const start = async () => {
-      const loadSampleProject = async (): Promise<ValidatedProject> => {
-        const outcome = await readValidatedIfcppProjectCore(sampleProjectText);
-        assertValidIfcppProjectOutcome(outcome);
-        return outcome;
+      const loadSampleProject = async () => {
+        return requireValidProjectDocument(await readProjectDocumentCore(sampleProjectText));
       };
       if (isDesktop) {
         const initialProject = await loadSampleProject();
@@ -260,14 +273,13 @@ export default function App() {
         return;
       }
       const recoveryStore = createIndexedDbRecoveryStore(window.indexedDB);
-      let recoveredProject: ValidatedProject | null = null;
+      let recoveredProject: Extract<ProjectDocumentOutcome, { status: "valid" }> | null = null;
       const result = await loadBrowserRecovery({
         isDesktop: false,
         store: recoveryStore,
         validateProject: async (text) => {
           recoveredProject = await validateOpenedProject(text, {
-            readValidatedProject: readValidatedIfcppProjectCore,
-            validatePositions: validateLoadPointPositionsCore,
+            readProjectDocument: readProjectDocumentCore,
           });
         },
       });
@@ -498,7 +510,7 @@ function AppSession({
   const defaultSelectionRequestRef = useRef<typeof projectState.analysisRequest | null>(null);
   const defaultSelectionKeepsDirtyRef = useRef(false);
   const replacementResolverRef = useRef<((proceed: boolean) => void) | null>(null);
-  const initialProjectSignature = JSON.stringify(projectFromState(projectState));
+  const initialProjectSignature = JSON.stringify(projectDraftFromState(projectState));
   const [savedProjectSignature, setSavedProjectSignature] = useState(
     initialWasDirty
       ? (initialSavedProjectSignature ?? "")
@@ -574,8 +586,8 @@ function AppSession({
     projectState.optimizationSettings.candidate_source,
     getPilePlanActivation(getActivePilePlan(projectState)),
   ), [availablePileConfigurations, projectState.activePilePlanId, projectState.optimizationSettings.candidate_source, projectState.pilePlans]);
-  const persistedProject = projectFromState(projectState);
-  const persistedProjectSignature = JSON.stringify(persistedProject);
+  const persistedProjectDraft = projectDraftFromState(projectState);
+  const persistedProjectSignature = JSON.stringify(persistedProjectDraft);
   useEffect(() => {
     if (recoveredDirtySignatureRef.current === persistedProjectSignature) {
       setIsDirty(true);
@@ -624,8 +636,8 @@ function AppSession({
     if (!recoveryWriter || projectState.defaultPileSelectionPending) return;
     recoveryWriter.schedule(async () => createBrowserRecoveryRecord({
       appVersion: __APP_VERSION__,
-      ifcppText: await writeIfcppProjectCore(persistedProject),
-      projectName: persistedProject.metadata.name,
+      ifcppText: await writeProjectDocumentCore(persistedProjectDraft),
+      projectName: persistedProjectDraft.metadata.name,
       savedProjectSignature,
       isDirty,
       updatedAt: new Date().toISOString(),
@@ -670,7 +682,7 @@ function AppSession({
   ]);
 
   const serializeProject = async () => {
-    return writeIfcppProjectCore(projectFromState(projectState));
+    return writeProjectDocumentCore(projectDraftFromState(projectState));
   };
 
   const downloadProject = async (): Promise<boolean> => {
@@ -684,7 +696,7 @@ function AppSession({
       ? await savePreparedFile(options, prepared.blob)
       : await saveGeneratedFile(options, async () => new Blob([await serializeProject()], { type: "application/json" }));
     if (!saved) return false;
-    updateSavedProjectSignature(JSON.stringify(projectFromState(projectState)));
+    updateSavedProjectSignature(JSON.stringify(projectDraftFromState(projectState)));
     setIsDirty(false);
     return true;
   };
@@ -700,7 +712,7 @@ function AppSession({
     const { invoke } = await import("@tauri-apps/api/core");
     await invoke("write_project_file", { path, contents: await serializeProject() });
     setProjectPath(path);
-    updateSavedProjectSignature(JSON.stringify(projectFromState(projectState)));
+    updateSavedProjectSignature(JSON.stringify(projectDraftFromState(projectState)));
     setIsDirty(false);
     return true;
   };
@@ -710,7 +722,7 @@ function AppSession({
     if (!projectPath) return saveProjectAs();
     const { invoke } = await import("@tauri-apps/api/core");
     await invoke("write_project_file", { path: projectPath, contents: await serializeProject() });
-    updateSavedProjectSignature(JSON.stringify(projectFromState(projectState)));
+    updateSavedProjectSignature(JSON.stringify(projectDraftFromState(projectState)));
     setIsDirty(false);
     return true;
   };
@@ -1153,7 +1165,7 @@ function AppSession({
 
   useEffect(() => {
     let cancelled = false;
-    writeIfcppProjectCore(persistedProject).then((text) => {
+    writeProjectDocumentCore(persistedProjectDraft).then((text) => {
       if (!cancelled) {
         preparedProjectRef.current = {
           signature: persistedProjectSignature,
@@ -1283,7 +1295,7 @@ function AppSession({
           analysisError: null,
         };
         if (savedProjectSignatureRef.current !== "" && !defaultSelectionKeepsDirtyRef.current) {
-          updateSavedProjectSignature(JSON.stringify(projectFromState(next)));
+          updateSavedProjectSignature(JSON.stringify(projectDraftFromState(next)));
           setIsDirty(false);
         }
         return next;
@@ -1558,7 +1570,7 @@ function AppSession({
     setLassoSelectionActive((active) => transitionLassoSelectionMode(active, { type: "dismiss" }));
     replaceProjectState(project);
     setProjectPath(path);
-    updateSavedProjectSignature(JSON.stringify(projectFromState(project)));
+    updateSavedProjectSignature(JSON.stringify(projectDraftFromState(project)));
     setIsDirty(false);
     if (project.legendImportWarnings.length > 0) {
       showStatusMessage(t("legend.importWarnings", { count: project.legendImportWarnings.length }));
@@ -1567,8 +1579,9 @@ function AppSession({
 
   const openSampleProject = async () => {
     if (!await confirmProjectReplacement()) return;
-    const sample = await readValidatedIfcppProjectCore(sampleProjectText);
-    assertValidIfcppProjectOutcome(sample);
+    const sample = requireValidProjectDocument(
+      await readProjectDocumentCore(sampleProjectText),
+    );
     installOpenedProject(createInitialProjectState(sample.project, {
       initializeDefaultPiles: true,
       defaultPilePlanName: pilePlanLanguage() === "nl" ? "Basisplan" : "Base plan",
@@ -1585,8 +1598,7 @@ function AppSession({
         text,
         { initializeDefaultPiles: false },
         {
-          readValidatedProject: readValidatedIfcppProjectCore,
-          validatePositions: validateLoadPointPositionsCore,
+          readProjectDocument: readProjectDocumentCore,
         },
       );
       installOpenedProject(project, path);
@@ -1886,7 +1898,11 @@ function AppSession({
         onImportProject={async (mode, projectName: string | null, sources: ImportSourceInput[], properties: ProjectImportProperties | null) => {
           if (mode === "refresh") {
             const refreshed = await refreshProjectFromFilesCore({
-              currentProject: projectFromState(projectState),
+              currentProject: requireValidProjectDocument(
+                await readProjectDocumentCore(
+                  await writeProjectDocumentCore(projectDraftFromState(projectState)),
+                ),
+              ).project,
               sources,
             });
             const refreshedProject = refreshed.project;
@@ -1934,8 +1950,7 @@ function AppSession({
               await file.text(),
               { initializeDefaultPiles: false },
               {
-                readValidatedProject: readValidatedIfcppProjectCore,
-                validatePositions: validateLoadPointPositionsCore,
+                readProjectDocument: readProjectDocumentCore,
               },
             );
             installOpenedProject(project, null);
@@ -2054,9 +2069,12 @@ function dispatchViewerLayoutChange() {
   window.dispatchEvent(new Event(VIEWER_LAYOUT_CHANGE_EVENT));
 }
 
-function projectFromState(state: ProjectState) {
+function projectDraftFromState(state: ProjectState) {
   const normalized = normalizeProjectContentState(state);
-  return projectFromContent(captureProjectContent(normalized), normalized.activePilePlanId);
+  return projectDocumentDraftFromContent(
+    captureProjectContent(normalized),
+    normalized.activePilePlanId,
+  );
 }
 
 function isEditableTarget(target: EventTarget | null): boolean {

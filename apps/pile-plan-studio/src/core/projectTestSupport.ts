@@ -1,6 +1,38 @@
 import type { IfcppProject } from "./projectFile.ts";
 import type { ProjectTipLevelKeys } from "./pileTipLevelContract.ts";
 
+export function canonicalProjectForTest(input: string | IfcppProject): IfcppProject {
+  const project = structuredClone(
+    typeof input === "string" ? JSON.parse(input) as IfcppProject : input,
+  );
+  project.settings.global_cpt_selection.monopoly_distance_m ??= 1;
+  for (const settings of Object.values(project.settings.cpt_selection_by_load_point)) {
+    settings.monopoly_distance_m ??= 1;
+  }
+  project.settings.load_point_grouping ??= {
+    automatic: true,
+    max_edge_distance_mm: 1_200,
+  };
+  project.settings.viewer_utilization ??= { minimum: 0, maximum: 1 };
+  project.settings.viewer ??= {
+    symbol_scale_percent: 100,
+    foreground_layer: "load-points",
+    show_grid: true,
+    show_tip_level_regions: true,
+  };
+  project.settings.viewer.show_tip_level_regions ??= true;
+  project.import_log ??= [];
+  project.user_state.pile_plans ??= [];
+  for (const plan of project.user_state.pile_plans) {
+    plan.active_pile_sizes ??= [...(project.settings.active_pile_sizes ?? [])];
+    plan.active_pile_tip_levels ??= [...(project.settings.active_pile_tip_levels ?? [])];
+    plan.optimization_unassigned ??= {};
+  }
+  project.user_state.active_pile_plan_id ??= project.user_state.pile_plans[0]?.id ?? "pile-plan-1";
+  project.schema_version = 4;
+  return project;
+}
+
 export function projectTipLevelKeysForTest(
   input: string | IfcppProject,
 ): ProjectTipLevelKeys {

@@ -1,740 +1,121 @@
+import { readFileSync } from "node:fs";
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
 
 import {
   applyDefaultPileCostSettings,
-  createIfcppProject,
-  loadIfcppProjectData,
   getImportSummary,
+  hydrateProjectState,
   type IfcppProject,
 } from "./projectFile.ts";
-import { projectTipLevelKeysForTest } from "./projectTestSupport.ts";
+import {
+  canonicalProjectForTest,
+  projectTipLevelKeysForTest,
+} from "./projectTestSupport.ts";
 
-function loadProject(input: string | IfcppProject, keys = projectTipLevelKeysForTest(input)) {
-  return loadIfcppProjectData(input, keys);
-}
-
-function projectFixture(): IfcppProject {
-  return {
-    schema: "IFCPP",
-    schema_version: 1,
-    metadata: {
-      name: "Fixture Project",
-    },
-    inputs: {
-      load_points: [
-        { id: 1, name: "Load point 1", x_mm: 100, y_mm: 200, design_load_kn: 300 },
-      ],
-      cpts: [
-        { id: 10, name: "CPT 10", x_mm: 0, y_mm: 0 },
-      ],
-      bearing_capacities: [
-        { cpt_id: 10, pile_size_mm: 290, pile_tip_level_m: -18, frd_kn: 700 },
-      ],
-    },
-    settings: {
-      global_cpt_selection: {
-        algorithm: "maximum-angle",
-        max_distance_m: 18,
-        max_angle_degrees: 110,
-      },
-      cpt_selection_by_load_point: {
-        "1": {
-          algorithm: "quadrants",
-          max_distance_m: 25,
-          max_angle_degrees: 120,
-        },
-      },
-      pile_costs: {
-        schema_version: 1,
-        pile_head_level_m: -3.5,
-        items: [{ pile_size_mm: 290, shape: "square", cost_per_m3: 220 }],
-      },
-      optimization: {
-        max_pile_sizes: 1,
-        max_pile_tip_levels: 1,
-        max_pile_configurations: 1,
-        enabled_pile_sizes: [290],
-        enabled_pile_tip_levels: [-18],
-      },
-      active_pile_sizes: [290],
-      active_pile_tip_levels: [-18],
-    },
-    user_state: {
-      selected_piles: {
-        "1": {
-          pile: { pile_size_mm: 290, pile_tip_level_m_key: -18000 },
-        },
-      },
-      manual_cpt_selections: {
-        "1": [10, 11],
-      },
-    },
+function canonicalProjectFixture(): IfcppProject {
+  const project = canonicalProjectForTest(
+    readFileSync("../../sample_project/sample_project.ifcpp", "utf8"),
+  );
+  project.settings.global_cpt_selection.monopoly_distance_m ??= 1;
+  for (const settings of Object.values(project.settings.cpt_selection_by_load_point)) {
+    settings.monopoly_distance_m ??= 1;
+  }
+  project.settings.load_point_grouping = {
+    automatic: false,
+    max_edge_distance_mm: 2_750,
   };
+  project.settings.viewer_utilization = { minimum: 0.15, maximum: 0.9 };
+  project.settings.viewer = {
+    symbol_scale_percent: 135,
+    foreground_layer: "cpts",
+    show_grid: false,
+    show_tip_level_regions: true,
+  };
+  project.import_log ??= [];
+  return project;
 }
 
-describe("IFCPP project loading", () => {
-  it("uses core-produced millimetre keys in runtime state and keeps them out of IFCPP", () => {
-    const project = createIfcppProject(loadProject(projectFixture()));
-    project.inputs.bearing_capacities[0].pile_tip_level_m = -18.25;
-    project.user_state.pile_plans![0].active_pile_tip_levels = [-18, -18.25];
-    const keys = {
-      bearingCapacities: [-18_250],
-      pilePlans: [{ id: project.user_state.pile_plans![0].id, active: [-18_000, -18_250] }],
-      legend: project.settings.pile_legend!.pile_tip_levels.map(({ value }) => value * 1_000),
-    };
+describe("canonical project hydration", () => {
+  it("maps canonical fields and exact millimetre identities into runtime containers", () => {
+    const project = canonicalProjectFixture();
+    const keys = projectTipLevelKeysForTest(project);
 
-    const loaded = loadProject(project, keys);
-    assert.equal(loaded.bearingCapacities[0].pile_tip_level_mm, -18_250);
-    assert.deepEqual(loaded.pilePlans[0].activePileTipLevelMms, [-18_000, -18_250]);
+    const loaded = hydrateProjectState(project, keys);
 
-    const saved = createIfcppProject(loaded);
-    assert.equal(saved.inputs.bearing_capacities[0].pile_tip_level_m, -18.25);
-    assert.equal("pile_tip_level_mm" in saved.inputs.bearing_capacities[0], false);
-    assert.deepEqual(saved.user_state.pile_plans![0].active_pile_tip_levels, [-18, -18.25]);
+    assert.equal(loaded.name, project.metadata.name);
+    assert.equal(loaded.bearingCapacities[0].pile_tip_level_mm, keys.bearingCapacities[0]);
+    assert.deepEqual(loaded.pilePlans[0].activePileTipLevelMms, keys.pilePlans[0].active);
+    assert.deepEqual(loaded.loadPointGroupingSettings, {
+      automatic: false,
+      maxEdgeDistanceM: 2.75,
+    });
+    assert.deepEqual(loaded.viewerUtilizationSettings, { minimum: 0.15, maximum: 0.9 });
+    assert.equal(loaded.symbolScalePercent, 135);
+    assert.equal(loaded.foregroundLayer, "cpts");
+    assert.equal(loaded.showGrid, false);
+    assert.equal(loaded.showTipLevelRegions, true);
+    assert.ok(loaded.cptSelectionSettingsByLoadPoint instanceof Map);
+    assert.ok(loaded.manualCptIdsByLoadPoint instanceof Map);
   });
 
-  it("preserves source provenance for the interpreted source viewer", () => {
-    const project = projectFixture();
-    project.import_log = [{
-      source_file: "loads.xlsx",
-      source_role: "load_points",
-      source_profile: "rfem-export",
-      warnings: ["Example warning"],
-    }];
+  it("clones project content before exposing it to mutable React state", () => {
+    const project = canonicalProjectFixture();
+    const loaded = hydrateProjectState(project, projectTipLevelKeysForTest(project));
 
-    const saved = createIfcppProject(loadProject(project));
-
-    assert.deepEqual(saved.import_log, project.import_log);
+    assert.notEqual(loaded.metadata, project.metadata);
+    assert.notEqual(loaded.units, project.units);
+    assert.notEqual(loaded.loadPoints, project.inputs.load_points);
+    assert.notEqual(loaded.cpts, project.inputs.cpts);
+    assert.notEqual(loaded.bearingCapacities, project.inputs.bearing_capacities);
+    assert.notEqual(loaded.pilePlans, project.user_state.pile_plans);
+    loaded.loadPoints[0].name = "Runtime edit";
+    assert.notEqual(project.inputs.load_points[0].name, "Runtime edit");
   });
-  it("summarizes imported counts and persisted warnings", () => {
-    const project = projectFixture();
+
+  it("rejects a mismatched canonical identity sidecar", () => {
+    const project = canonicalProjectFixture();
+    const keys = projectTipLevelKeysForTest(project);
+
+    assert.throws(
+      () => hydrateProjectState(project, { ...keys, bearingCapacities: [] }),
+      /key contract does not match bearing capacities/,
+    );
+  });
+
+  it("retains source counts and warnings for interface summaries", () => {
+    const project = canonicalProjectFixture();
     project.import_log = [{
       source_file: "capacities.csv",
-      warnings: ["Ignored 2 bearing-capacity rows", "CPTs without bearing capacities: 63"],
+      warnings: ["Ignored two rows"],
     }];
 
     assert.deepEqual(getImportSummary(project), {
-      loadPointCount: 1,
-      cptCount: 1,
-      bearingCapacityCount: 1,
-      warnings: ["Ignored 2 bearing-capacity rows", "CPTs without bearing capacities: 63"],
-    });
-  });
-  it("loads legacy IFCPP settings with a one-meter monopoly distance", () => {
-    const data = loadProject(projectFixture());
-
-    assert.equal(data.name, "Fixture Project");
-    assert.equal(data.loadPoints[0].design_load_kn, 300);
-    assert.deepEqual(data.globalCptSelectionSettings, {
-      algorithm: "maximum-angle",
-      maxDistanceM: 18,
-      monopolyDistanceM: 1,
-      maxAngleDegrees: 110,
-    });
-    assert.equal(data.cptSelectionSettingsByLoadPoint.get(1)?.monopolyDistanceM, 1);
-    assert.equal(data.cptSelectionSettingsByLoadPoint.get(1)?.maxDistanceM, 25);
-    assert.deepEqual(data.selectedPileConfigurationsByLoadPoint.get(1), {
-      pile_size_mm: 290,
-      pile_tip_level_mm: -18_000,
-    });
-    assert.deepEqual(data.manualCptIdsByLoadPoint.get(1), [10, 11]);
-    assert.deepEqual(data.viewerUtilizationSettings, { minimum: 0, maximum: 1 });
-    assert.equal(data.optimizationSettings.max_utilization, 1);
-    assert.equal(data.activePilePlanId, "pile-plan-1");
-    assert.equal(data.pilePlans.length, 1);
-    assert.equal(data.pilePlans[0].name, "Pile plan 1");
-    assert.deepEqual(data.pilePlans[0].lockedLoadPointIds, []);
-    assert.equal(data.pileHeadLevelM, -3.5);
-    assert.equal(data.currencyCode, "EUR");
-    assert.equal(data.symbolScalePercent, 100);
-    assert.equal(data.foregroundLayer, "load-points");
-    assert.equal(data.showGrid, true);
-    assert.equal(data.showTipLevelRegions, true);
-    assert.deepEqual(data.loadPointGroupingSettings, {
-      automatic: true,
-      maxEdgeDistanceM: 1.2,
+      loadPointCount: project.inputs.load_points.length,
+      cptCount: project.inputs.cpts.length,
+      bearingCapacityCount: project.inputs.bearing_capacities.length,
+      warnings: ["Ignored two rows"],
     });
   });
 
-  it("round-trips project-wide load point grouping settings", () => {
-    const project = projectFixture();
-    project.settings.load_point_grouping = {
-      automatic: false,
-      max_edge_distance_mm: 2_500,
-    };
-
-    const loaded = loadProject(project);
-    const saved = createIfcppProject(loaded);
-    const restored = loadProject(saved);
-
-    assert.deepEqual(loaded.loadPointGroupingSettings, {
-      automatic: false,
-      maxEdgeDistanceM: 2.5,
-    });
-    assert.deepEqual(saved.settings.load_point_grouping, {
-      automatic: false,
-      max_edge_distance_mm: 2_500,
-    });
-    assert.deepEqual(restored.loadPointGroupingSettings, loaded.loadPointGroupingSettings);
-  });
-
-  it("round-trips tip-level region visibility while upgrading to schema four", () => {
-    const loaded = loadProject(projectFixture());
-    const saved = createIfcppProject({ ...loaded, showTipLevelRegions: true });
-    const restored = loadProject(saved);
-
-    assert.equal(saved.schema_version, 4);
-    assert.equal(saved.settings.viewer?.show_tip_level_regions, true);
-    assert.equal(restored.showTipLevelRegions, true);
-  });
-
-  it("preserves an explicitly hidden tip-level region setting", () => {
-    const project = projectFixture();
-    project.settings.viewer = { show_tip_level_regions: false };
-
-    const loaded = loadProject(project);
-    const saved = createIfcppProject(loaded);
-
-    assert.equal(loaded.showTipLevelRegions, false);
-    assert.equal(saved.settings.viewer?.show_tip_level_regions, false);
-  });
-
-  it("migrates schema two cost fields and writes schema four", () => {
-    const legacy = projectFixture() as unknown as Record<string, any>;
-    legacy.schema_version = 2;
-    legacy.units = { costs: "GBP" };
-    legacy.settings.pile_costs.items[0].cost_per_m3_eur = 245;
-    delete legacy.settings.pile_costs.items[0].cost_per_m3;
-
-    const loaded = loadProject(legacy as unknown as IfcppProject);
-    const saved = createIfcppProject(loaded);
-
-    assert.equal(loaded.pileCostSettings.items[0].cost_per_m3, 245);
-    assert.equal(loaded.currencyCode, "GBP");
-    assert.equal(saved.schema_version, 4);
-    assert.equal(saved.settings.pile_head_level_m, -3.5);
-    assert.equal(saved.settings.pile_costs.items[0].cost_per_m3, 245);
-    assert.equal("pile_head_level_m" in saved.settings.pile_costs, false);
-    assert.deepEqual(saved.settings.viewer, {
-      symbol_scale_percent: 100,
-      foreground_layer: "load-points",
-      show_grid: true,
-      show_tip_level_regions: true,
-    });
-  });
-
-  it("loads the active plan from an IFCPP version two project", () => {
-    const legacy = projectFixture();
-    const project = {
-      ...legacy,
-      schema_version: 2,
-      user_state: {
-        pile_plans: [
-          {
-            id: "basis",
-            name: "Basis",
-            selected_piles: legacy.user_state.selected_piles,
-            locked_load_point_ids: [1],
-          },
-          {
-            id: "alternative",
-            name: "Alternative",
-            selected_piles: {},
-            locked_load_point_ids: [],
-          },
-        ],
-        active_pile_plan_id: "basis",
-        manual_cpt_selections: legacy.user_state.manual_cpt_selections,
-      },
-    } as unknown as IfcppProject;
-
-    const data = loadProject(project);
-
-    assert.equal(data.activePilePlanId, "basis");
-    assert.equal(data.pilePlans.length, 2);
-    assert.deepEqual(data.pilePlans[0].lockedLoadPointIds, [1]);
-    assert.deepEqual(data.selectedPileConfigurationsByLoadPoint.get(1), {
-      pile_size_mm: 290,
-      pile_tip_level_mm: -18_000,
-    });
-  });
-
-  it("migrates schema-three activation into every pile plan and writes schema four", () => {
-    const legacy = projectFixture();
-    const project = {
-      ...legacy,
-      schema_version: 3,
-      settings: {
-        ...legacy.settings,
-        active_pile_sizes: [290, 320],
-        active_pile_tip_levels: [-17.5, -18],
-      },
-      user_state: {
-        pile_plans: [
-          {
-            id: "basis",
-            name: "Basis",
-            selected_piles: legacy.user_state.selected_piles,
-            locked_load_point_ids: [],
-          },
-          {
-            id: "alternative",
-            name: "Alternative",
-            selected_piles: {},
-            locked_load_point_ids: [],
-          },
-        ],
-        active_pile_plan_id: "basis",
-        manual_cpt_selections: legacy.user_state.manual_cpt_selections,
-      },
-    } as unknown as IfcppProject;
-
-    const loaded = loadProject(project);
-    const saved = createIfcppProject(loaded);
-
-    assert.deepEqual(
-      loaded.pilePlans.map((plan) => ({
-        pileSizes: plan.activePileSizes,
-        pileTipLevels: plan.activePileTipLevelMms,
-      })),
-      [
-        { pileSizes: [290, 320], pileTipLevels: [-17_500, -18_000] },
-        { pileSizes: [290, 320], pileTipLevels: [-17_500, -18_000] },
-      ],
-    );
-    assert.equal(saved.schema_version, 4);
-    assert.equal("active_pile_sizes" in saved.settings, false);
-    assert.equal("active_pile_tip_levels" in saved.settings, false);
-    assert.equal("enabled_pile_sizes" in saved.settings.optimization, false);
-    assert.equal("enabled_pile_tip_levels" in saved.settings.optimization, false);
-    assert.equal(saved.settings.optimization.candidate_source, "all_available");
-    assert.deepEqual(saved.user_state.pile_plans?.[1].active_pile_sizes, [290, 320]);
-    assert.deepEqual(saved.user_state.pile_plans?.[1].active_pile_tip_levels, [-17.5, -18]);
-  });
-
-  it("round-trips optimizer outcomes per pile plan", () => {
-    const legacy = projectFixture();
-    const project = {
-      ...legacy,
-      schema_version: 3,
-      user_state: {
-        pile_plans: [{
-          id: "basis",
-          name: "Basis",
-          selected_piles: legacy.user_state.selected_piles,
-          locked_load_point_ids: [],
-          optimization_unassigned: {
-            "7": "configuration_limits",
-            "8": "optimization_constraints",
-            "9": "no_valid_option",
-            "10": "group_member_without_valid_option",
-            "11": "no_common_group_configuration",
-            "12": "future_reason",
-          },
-        }],
-        active_pile_plan_id: "basis",
-        manual_cpt_selections: legacy.user_state.manual_cpt_selections,
-      },
-    } as unknown as IfcppProject;
-
-    const loaded = loadProject(project);
-    const saved = createIfcppProject(loaded);
-    const reloaded = loadProject(saved);
-
-    assert.deepEqual(
-      reloaded.pilePlans[0].optimizationUnassignedByLoadPoint,
-      new Map([[7, "configuration_limits"], [8, "optimization_constraints"]]),
-    );
-  });
-
-  it("normalizes an empty plan list and an unknown active plan", () => {
-    const legacy = projectFixture();
-    const project = {
-      ...legacy,
-      schema_version: 2,
-      user_state: {
-        pile_plans: [],
-        active_pile_plan_id: "missing",
-        manual_cpt_selections: {},
-      },
-    } as unknown as IfcppProject;
-
-    const data = loadProject(project);
-
-    assert.equal(data.pilePlans.length, 1);
-    assert.equal(data.activePilePlanId, "pile-plan-1");
-  });
-
-  it("rejects duplicate pile plan IDs", () => {
-    const legacy = projectFixture();
-    const duplicatePlan = {
-      id: "duplicate",
-      name: "Duplicate",
-      selected_piles: {},
-      locked_load_point_ids: [],
-    };
-    const project = {
-      ...legacy,
-      schema_version: 2,
-      user_state: {
-        pile_plans: [duplicatePlan, duplicatePlan],
-        active_pile_plan_id: "duplicate",
-        manual_cpt_selections: {},
-      },
-    } as unknown as IfcppProject;
-
-    assert.throws(() => loadProject(project), /Duplicate pile plan id 'duplicate'/);
-  });
-
-  it("normalizes persisted utilization settings", () => {
-    const project = projectFixture();
-    project.settings.viewer_utilization = { minimum: 1.2, maximum: -0.1 };
-    project.settings.optimization.max_utilization = 0.82;
-
-    const data = loadProject(project);
-
-    assert.deepEqual(data.viewerUtilizationSettings, { minimum: 0, maximum: 1 });
-    assert.equal(data.optimizationSettings.max_utilization, 0.82);
-  });
-
-  it("loads persisted choices and settings returned as WASM maps", () => {
-    const project = projectFixture();
-    project.settings.cpt_selection_by_load_point = new Map([
-      [1, project.settings.cpt_selection_by_load_point["1"]],
-    ]) as unknown as IfcppProject["settings"]["cpt_selection_by_load_point"];
-    project.user_state.selected_piles = new Map([
-      [1, project.user_state.selected_piles["1"]],
-    ]) as unknown as IfcppProject["user_state"]["selected_piles"];
-    project.user_state.manual_cpt_selections = new Map([
-      [1, [10, 11]],
-    ]) as unknown as IfcppProject["user_state"]["manual_cpt_selections"];
-
-    const data = loadProject(project);
-
-    assert.equal(data.cptSelectionSettingsByLoadPoint.get(1)?.maxDistanceM, 25);
-    assert.deepEqual(data.selectedPileConfigurationsByLoadPoint.get(1), {
-      pile_size_mm: 290,
-      pile_tip_level_mm: -18_000,
-    });
-    assert.deepEqual(data.manualCptIdsByLoadPoint.get(1), [10, 11]);
-  });
-
-  it("rejects non-IFCPP project data", () => {
-    assert.throws(
-      () => loadProject({ ...projectFixture(), schema: "IFC" as "IFCPP" }),
-      /Expected IFCPP project, got IFC/,
-    );
-  });
-
-  it("loads the sample IFCPP fixture", () => {
-    const sampleProjectText = readFileSync(
-      new URL("../../../../sample_project/sample_project.ifcpp", import.meta.url),
-      "utf8",
-    );
-    const data = loadProject(sampleProjectText);
-
-    assert.equal(data.name, "Sample Project");
-    assert.equal(data.loadPoints.length, 328);
-    assert.equal(data.cpts.length, 77);
-    assert.equal(data.bearingCapacities.length, 2340);
-  });
-
-  it("emits monopoly distance when creating IFCPP project data", () => {
-    const data = loadProject(projectFixture());
-    const project = createIfcppProject(data);
-
-    assert.equal(project.schema, "IFCPP");
-    assert.equal(project.schema_version, 4);
-    assert.equal(project.metadata.name, "Fixture Project");
-    assert.deepEqual(project.settings.global_cpt_selection, {
-      algorithm: "maximum-angle",
-      max_distance_m: 18,
-      monopoly_distance_m: 1,
-      max_angle_degrees: 110,
-    });
-    assert.deepEqual(project.user_state.pile_plans[0].selected_piles["1"].pile, {
-      pile_size_mm: 290,
-      pile_tip_level_m_key: -18000,
-    });
-    assert.deepEqual(
-      project.user_state.pile_plans[0].selected_piles["1"].external_references,
-      [],
-    );
-    assert.equal(project.user_state.active_pile_plan_id, "pile-plan-1");
-    assert.equal("selected_piles" in project.user_state, false);
-    assert.deepEqual(project.settings.viewer_utilization, { minimum: 0, maximum: 1 });
-    assert.equal(project.settings.optimization.max_utilization, 1);
-  });
-
-  it("round-trips project legend activation independently from active pile choices", () => {
-    const loaded = loadProject(projectFixture());
-    loaded.pilePlans[0].activePileSizes = [290];
-    loaded.pilePlans[0].activePileTipLevelMms = [-18_000];
-    loaded.selectedPileConfigurationsByLoadPoint.set(1, {
-      pile_size_mm: 320,
-      pile_tip_level_mm: -19_000,
-    });
-
-    const saved = createIfcppProject(loaded);
-    const reloaded = loadProject(saved);
-
-    assert.equal("active_pile_sizes" in saved.settings, false);
-    assert.equal("active_pile_tip_levels" in saved.settings, false);
-    assert.deepEqual(saved.user_state.pile_plans?.[0].active_pile_sizes, [290]);
-    assert.deepEqual(saved.user_state.pile_plans?.[0].active_pile_tip_levels, [-18]);
-    assert.deepEqual(reloaded.pilePlans[0].activePileSizes, [290]);
-    assert.deepEqual(reloaded.pilePlans[0].activePileTipLevelMms, [-18_000]);
-    assert.deepEqual(reloaded.selectedPileConfigurationsByLoadPoint.get(1), {
-      pile_size_mm: 320,
-      pile_tip_level_mm: -19_000,
-    });
-  });
-
-  it("creates a built-in legend when an older IFCPP file has no mapping", () => {
-    const loaded = loadProject(projectFixture());
-
-    assert.equal(loaded.pileLegend.encodingMode, "size-symbol");
-    assert.deepEqual(loaded.pileLegend.pileSizes[0], {
-      value: 290,
-      symbol: { baseShape: "circle", fillPattern: "full" },
-      color: "#4E79A7",
-      symbolAutomatic: true,
-      colorAutomatic: true,
-    });
-    assert.equal(loaded.pileLegend.pileSizeColorScheme, "tableau-extended");
-    assert.equal(loaded.pileLegend.pileTipLevelColorScheme, "tableau-extended");
-    assert.deepEqual(loaded.legendImportWarnings, []);
-  });
-
-  it("round-trips project legend appearance and encoding", () => {
-    const loaded = loadProject(projectFixture());
-    loaded.pileLegend = {
-      ...loaded.pileLegend,
-      encodingMode: "tip-symbol",
-      pileSizeColorScheme: "colorblind-friendly",
-      pileTipLevelColorScheme: "cool-warm",
-      pileSizes: loaded.pileLegend.pileSizes.map((item) => ({
-        ...item,
-        symbol: { baseShape: "rectangle-horizontal", fillPattern: "diagonal-half" },
-        color: "#123456",
-        symbolAutomatic: false,
-        colorAutomatic: false,
-      })),
-    };
-
-    const saved = createIfcppProject(loaded);
-    const reloaded = loadProject(saved);
-
-    assert.equal(saved.settings.pile_legend?.encoding_mode, "tip-symbol");
-    assert.equal(saved.settings.pile_legend?.color_scheme, "colorblind-friendly");
-    assert.equal(saved.settings.pile_legend?.pile_size_color_scheme, "colorblind-friendly");
-    assert.equal(saved.settings.pile_legend?.pile_tip_level_color_scheme, "cool-warm");
-    assert.equal(saved.settings.pile_legend?.pile_sizes[0].symbol_automatic, false);
-    assert.equal(saved.settings.pile_legend?.pile_sizes[0].color_automatic, false);
-    assert.deepEqual(reloaded.pileLegend, loaded.pileLegend);
-  });
-
-  it("migrates one legacy color scheme and round-trips independent legend schemes", () => {
-    const project = projectFixture();
-    project.settings.pile_legend = {
-      encoding_mode: "size-symbol",
-      color_scheme: "rainbow",
-      pile_sizes: [],
-      pile_tip_levels: [],
-    };
-
-    const loaded = loadProject(project);
-    assert.equal(loaded.pileLegend.pileSizeColorScheme, "rainbow");
-    assert.equal(loaded.pileLegend.pileTipLevelColorScheme, "rainbow");
-
-    loaded.pileLegend.encodingMode = "size-color-tip-region";
-    loaded.pileLegend.pileSizeColorScheme = "colorblind-friendly";
-    loaded.pileLegend.pileTipLevelColorScheme = "cool-warm";
-    const saved = createIfcppProject(loaded);
-    const restored = loadProject(saved);
-
-    assert.equal(saved.settings.pile_legend?.pile_size_color_scheme, "colorblind-friendly");
-    assert.equal(saved.settings.pile_legend?.pile_tip_level_color_scheme, "cool-warm");
-    assert.equal(restored.pileLegend.encodingMode, "size-color-tip-region");
-    assert.equal(restored.pileLegend.pileSizeColorScheme, "colorblind-friendly");
-    assert.equal(restored.pileLegend.pileTipLevelColorScheme, "cool-warm");
-  });
-
-  it("defaults missing legend assignment metadata to automatic Tableau Extended", () => {
-    const project = projectFixture();
-    project.settings.pile_legend = {
-      encoding_mode: "size-symbol",
-      pile_sizes: [{
-        value: 290,
-        symbol: { base_shape: "circle", fill_pattern: "full" },
-        color: "#123456",
-      }],
-      pile_tip_levels: [],
-    };
-
-    const loaded = loadProject(project);
-
-    assert.equal(loaded.pileLegend.pileSizeColorScheme, "tableau-extended");
-    assert.equal(loaded.pileLegend.pileTipLevelColorScheme, "tableau-extended");
-    assert.equal(loaded.pileLegend.pileSizes[0].symbolAutomatic, true);
-    assert.equal(loaded.pileLegend.pileSizes[0].colorAutomatic, true);
-  });
-
-  it("falls back only the malformed stored legend channel", () => {
-    const project = projectFixture();
-    project.settings.pile_legend = {
-      encoding_mode: "size-symbol",
-      pile_sizes: [{
-        value: 290,
-        symbol: { base_shape: "future-star", fill_pattern: "full" },
-        color: "#123456",
-      }],
-      pile_tip_levels: [{
-        value: -18,
-        symbol: { base_shape: "square", fill_pattern: "top-half" },
-        color: "#654321",
-      }],
-    };
-
-    const loaded = loadProject(project);
-
-    assert.deepEqual(loaded.legendImportWarnings, [
-      { itemType: "size", value: 290, field: "symbol" },
-    ]);
-    assert.deepEqual(loaded.pileLegend.pileSizes[0], {
-      value: 290,
-      symbol: { baseShape: "circle", fillPattern: "full" },
-      color: "#123456",
-      symbolAutomatic: true,
-      colorAutomatic: true,
-    });
-    assert.deepEqual(loaded.pileLegend.pileTipLevels[0], {
-      value: -18_000,
-      symbol: { baseShape: "square", fillPattern: "top-half" },
-      color: "#654321",
-      symbolAutomatic: true,
-      colorAutomatic: true,
-    });
-  });
-
-  it("preserves inactive plans while saving edits to the active plan", () => {
-    const legacy = projectFixture();
-    const loaded = loadProject({
-      ...legacy,
-      schema_version: 2,
-      user_state: {
-        pile_plans: [
-          {
-            id: "basis",
-            name: "Basis",
-            selected_piles: legacy.user_state.selected_piles,
-            locked_load_point_ids: [1],
-          },
-          {
-            id: "checkpoint",
-            name: "Checkpoint",
-            selected_piles: {
-              "1": {
-                pile: { pile_size_mm: 320, pile_tip_level_m_key: -18500 },
-                external_references: [],
-              },
-            },
-            locked_load_point_ids: [],
-          },
-        ],
-        active_pile_plan_id: "basis",
-        manual_cpt_selections: legacy.user_state.manual_cpt_selections,
-      },
-    } as unknown as IfcppProject);
-    loaded.selectedPileConfigurationsByLoadPoint.set(1, {
-      pile_size_mm: 350,
-      pile_tip_level_mm: -20_000,
-    });
-
-    const saved = createIfcppProject(loaded);
-
-    assert.equal(saved.user_state.pile_plans[0].selected_piles["1"].pile?.pile_size_mm, 350);
-    assert.equal(saved.user_state.pile_plans[1].selected_piles["1"].pile?.pile_size_mm, 320);
-    assert.deepEqual(saved.user_state.pile_plans[0].locked_load_point_ids, [1]);
-  });
-
-  it("preserves references for an unchanged pile and clears them after replacement", () => {
-    const project = projectFixture();
-    project.user_state.selected_piles!["1"].external_references = [{ entity: "IfcPile" }];
-    const loaded = loadProject(project);
-
-    const unchanged = createIfcppProject(loaded);
-    assert.deepEqual(
-      unchanged.user_state.pile_plans![0].selected_piles["1"].external_references,
-      [{ entity: "IfcPile" }],
-    );
-
-    loaded.selectedPileConfigurationsByLoadPoint.set(1, {
-      pile_size_mm: 320,
-      pile_tip_level_mm: -18_500,
-    });
-    const changed = createIfcppProject(loaded);
-    assert.deepEqual(
-      changed.user_state.pile_plans![0].selected_piles["1"].external_references,
-      [],
-    );
-  });
-
-  it("preserves canonical project-owned content through hydration and save construction", () => {
-    const loaded = loadProject(createIfcppProject(loadProject(projectFixture())));
-    loaded.loadPointGroupingSettings = { automatic: false, maxEdgeDistanceM: 2.75 };
-    loaded.pileCostSettings = {
+  it("applies personal cost defaults only when the project catalog is empty", () => {
+    const project = canonicalProjectFixture();
+    const defaults = {
       schema_version: 1,
-      items: [{ pile_size_mm: 290, shape: "round", cost_per_m3: 345 }],
+      items: [{ pile_size_mm: 320, shape: "square" as const, cost_per_m3: 245 }],
     };
-    loaded.pileHeadLevelM = -1.25;
-    loaded.currencyCode = "GBP";
-    loaded.symbolScalePercent = 135;
-    loaded.foregroundLayer = "cpts";
-    loaded.showGrid = false;
-    loaded.showTipLevelRegions = false;
-    loaded.manualCptIdsByLoadPoint = new Map([[1, [10]]]);
-    loaded.pilePlans[0].lockedLoadPointIds = [1];
-    loaded.pilePlans[0].externalReferencesByLoadPoint = new Map([[1, [{ entity: "IfcPile" }]]]);
+    const existing = applyDefaultPileCostSettings(project, defaults);
+    assert.equal(existing, project);
 
-    const saved = createIfcppProject(loaded);
-    const restored = loadProject(saved);
-
-    assert.equal(saved.schema_version, 4);
-    assert.deepEqual(restored.loadPointGroupingSettings, loaded.loadPointGroupingSettings);
-    assert.deepEqual(restored.pileCostSettings, loaded.pileCostSettings);
-    assert.equal(restored.pileHeadLevelM, -1.25);
-    assert.equal(restored.currencyCode, "GBP");
-    assert.equal(restored.symbolScalePercent, 135);
-    assert.equal(restored.foregroundLayer, "cpts");
-    assert.equal(restored.showGrid, false);
-    assert.equal(restored.showTipLevelRegions, false);
-    assert.deepEqual(restored.manualCptIdsByLoadPoint, new Map([[1, [10]]]));
-    assert.deepEqual(restored.pilePlans[0].lockedLoadPointIds, [1]);
-    assert.deepEqual(
-      restored.pilePlans[0].externalReferencesByLoadPoint,
-      new Map([[1, [{ entity: "IfcPile" }]]]),
-    );
-  });
-
-  it("uses default pile cost settings when imported project has no pile costs", () => {
-    const importedProject = {
-      ...projectFixture(),
+    const withoutCosts = {
+      ...project,
       settings: {
-        ...projectFixture().settings,
-        pile_costs: {
-          schema_version: 1,
-          pile_head_level_m: 0,
-          items: [],
-        },
+        ...project.settings,
+        pile_costs: { ...project.settings.pile_costs, items: [] },
       },
     };
-    const defaults = projectFixture().settings.pile_costs;
-
-    const project = applyDefaultPileCostSettings(importedProject, defaults);
-
-    assert.deepEqual(project.settings.pile_costs, defaults);
+    const applied = applyDefaultPileCostSettings(withoutCosts, defaults);
+    assert.deepEqual(applied.settings.pile_costs, defaults);
+    assert.notEqual(applied.settings.pile_costs, defaults);
   });
 });

@@ -351,6 +351,14 @@
     "invalid": "De opgeslagen herstelgegevens waren ongeldig. Het voorbeeldproject is geopend.",
     "unavailable": "Automatisch browserherstel is niet beschikbaar. Download het project om je werk te bewaren."
   },
+  "projectDocument": {
+    "errors": {
+      "invalid-json": "Het project is niet geopend omdat het bestand geen geldige JSON bevat.",
+      "invalid-schema": "Het project is niet geopend omdat de inhoud niet overeenkomt met een geldig IFCPP-project.",
+      "unsupported-schema-version": "Het project is niet geopend omdat de IFCPP-schemaversie niet wordt ondersteund.",
+      "duplicate-pile-plan-id": "Het project is niet geopend omdat het dubbele palenplan-ID's bevat."
+    }
+  },
   "loadPointPositions": {
     "projectOpenError_one": "Het project is niet geopend. De belastinglocaties {{locations}} hebben dezelfde positie (X {{x}} mm, Y {{y}} mm). Iedere belastinglocatie moet een unieke positie hebben.",
     "projectOpenError_other": "Het project is niet geopend: {{count}} samenvallende posities gevonden. De eerste betreft {{locations}} op (X {{x}} mm, Y {{y}} mm). Iedere belastinglocatie moet een unieke positie hebben."

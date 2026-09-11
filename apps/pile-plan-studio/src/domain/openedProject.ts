@@ -1,18 +1,11 @@
-import { loadIfcppProjectData } from "../core/projectFile.ts";
 import {
-  assertUniqueLoadPointPositions,
-  type DuplicateLoadPointPosition,
-} from "../core/loadPointPositionContract.ts";
-import type { LoadPoint } from "../core/projectTypes.ts";
-import {
-  assertValidIfcppProjectOutcome,
-  type ValidatedIfcppProjectOutcome,
-} from "../core/pileTipLevelContract.ts";
+  ProjectDocumentReadError,
+  type ProjectDocumentOutcome,
+} from "../core/projectDocumentContract.ts";
 import { createInitialProjectState, type ProjectState } from "./projectState.ts";
 
 export type OpenedProjectValidators = {
-  readValidatedProject(text: string): Promise<ValidatedIfcppProjectOutcome>;
-  validatePositions(loadPoints: LoadPoint[]): Promise<DuplicateLoadPointPosition[]>;
+  readProjectDocument(text: string): Promise<ProjectDocumentOutcome>;
 };
 
 export async function prepareOpenedProject(
@@ -27,10 +20,10 @@ export async function prepareOpenedProject(
 export async function validateOpenedProject(
   text: string,
   validators: OpenedProjectValidators,
-): Promise<Extract<ValidatedIfcppProjectOutcome, { status: "valid" }>> {
-  const outcome = await validators.readValidatedProject(text);
-  assertValidIfcppProjectOutcome(outcome);
-  const { loadPoints } = loadIfcppProjectData(outcome.project, outcome.keys);
-  await assertUniqueLoadPointPositions(loadPoints, validators.validatePositions);
+): Promise<Extract<ProjectDocumentOutcome, { status: "valid" }>> {
+  const outcome = await validators.readProjectDocument(text);
+  if (outcome.status === "invalid") {
+    throw new ProjectDocumentReadError(outcome.error);
+  }
   return outcome;
 }

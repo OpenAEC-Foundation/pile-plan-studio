@@ -2,12 +2,16 @@ import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { createInitialProjectState } from "./projectState.ts";
-import { projectTipLevelKeysForTest } from "../core/projectTestSupport.ts";
+import {
+  canonicalProjectForTest,
+  projectTipLevelKeysForTest,
+} from "../core/projectTestSupport.ts";
 import {
   captureProjectContent,
   normalizeProjectContentState,
   restoreProjectContent,
   projectContentEquals,
+  projectDocumentDraftFromContent,
 } from "./projectContent.ts";
 
 const sampleProjectText = readFileSync("../../sample_project/sample_project.ifcpp", "utf8");
@@ -16,10 +20,45 @@ function createTestProjectState(
   input: Parameters<typeof createInitialProjectState>[0],
   options: Parameters<typeof createInitialProjectState>[1],
 ) {
-  return createInitialProjectState(input, options, projectTipLevelKeysForTest(input));
+  const project = canonicalProjectForTest(input);
+  return createInitialProjectState(project, options, projectTipLevelKeysForTest(project));
 }
 
 describe("project content", () => {
+  it("extracts project-owned content and exact identities without transient interface state", () => {
+    const state = createTestProjectState(sampleProjectText, { initializeDefaultPiles: false });
+    const inactive = {
+      ...state.pilePlans[0],
+      id: "inactive",
+      name: "Inactive",
+      selectedPileConfigurationsByLoadPoint: new Map([[state.loadPoints[0].id, {
+        pile_size_mm: 320,
+        pile_tip_level_mm: -18_500,
+      }]]),
+    };
+    const content = captureProjectContent({ ...state, pilePlans: [...state.pilePlans, inactive] });
+
+    const draft = projectDocumentDraftFromContent(content, state.activePilePlanId);
+
+    assert.equal("schema" in draft, false);
+    assert.equal("application" in draft, false);
+    assert.equal("viewport" in draft, false);
+    assert.equal(draft.metadata.name, state.name);
+    assert.equal(draft.user_state.pile_plans.length, 2);
+    assert.equal(
+      draft.user_state.pile_plans[1].selected_piles[String(state.loadPoints[0].id)]
+        .pile?.pile_tip_level_m_key,
+      -18_500,
+    );
+    const activeChoice = state.selectedPileConfigurationsByLoadPoint.get(state.loadPoints[0].id);
+    if (activeChoice) {
+      assert.deepEqual(
+        draft.active_selected_piles[String(state.loadPoints[0].id)],
+        activeChoice,
+      );
+    }
+  });
+
   it("captures source references without derived or transient viewer state", () => {
     const state = normalizeProjectContentState(createTestProjectState(
       sampleProjectText,

@@ -60,8 +60,8 @@ describe("React app startup", () => {
     assert.match(source, /createInitialProjectState\(withCosts, \{[\s\S]*?initializeDefaultPiles: true[\s\S]*?\}, imported\.keys\)/);
     assert.match(source, /createInitialProjectState\(refreshedProject, \{[\s\S]*?initializeDefaultPiles: true[\s\S]*?\}, refreshed\.keys\)/);
     assert.match(source, /prepareOpenedProject\(\s*await file\.text\(\),\s*\{ initializeDefaultPiles: false \},\s*\{/);
-    assert.match(source, /readValidatedProject:\s*readValidatedIfcppProjectCore/);
-    assert.match(source, /validatePositions:\s*validateLoadPointPositionsCore/);
+    assert.match(source, /readProjectDocument:\s*readProjectDocumentCore/);
+    assert.doesNotMatch(source, /validatePositions:\s*validateLoadPointPositionsCore/);
   });
 
   it("runs one guarded batched default selection after complete analysis", () => {
@@ -80,7 +80,7 @@ describe("React app startup", () => {
 
     assert.doesNotMatch(defaultSelectionEffect, /setIsDirty\(true\)/);
     assert.match(defaultSelectionEffect, /savedProjectSignatureRef\.current !== ""/);
-    assert.match(defaultSelectionEffect, /updateSavedProjectSignature\(JSON\.stringify\(projectFromState\(next\)\)\)/);
+    assert.match(defaultSelectionEffect, /updateSavedProjectSignature\(JSON\.stringify\(projectDraftFromState\(next\)\)\)/);
   });
 
   it("keeps default selection pending until the guarded request finishes", () => {
@@ -107,7 +107,7 @@ describe("React app startup", () => {
 
     assert.match(source, /refreshProjectFromFilesCore/);
     assert.match(source, /mode === "refresh"/);
-    assert.match(source, /currentProject:\s*projectFromState\(projectState\)/);
+    assert.match(source, /currentProject:\s*requireValidProjectDocument\([\s\S]*?writeProjectDocumentCore\(projectDraftFromState\(projectState\)\)/);
     assert.match(source, /createInitialProjectState\(refreshedProject, \{[\s\S]*?initializeDefaultPiles: true,[\s\S]*?\}\)/);
     assert.match(source, /defaultSelectionKeepsDirtyRef\.current = true/);
     assert.ok(

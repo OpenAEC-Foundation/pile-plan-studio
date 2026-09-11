@@ -351,6 +351,14 @@
     "invalid": "Stored recovery data was invalid. The sample project was opened.",
     "unavailable": "Automatic browser recovery is unavailable. Download the project to keep your work."
   },
+  "projectDocument": {
+    "errors": {
+      "invalid-json": "The project was not opened because the file does not contain valid JSON.",
+      "invalid-schema": "The project was not opened because its contents do not match a valid IFCPP project.",
+      "unsupported-schema-version": "The project was not opened because its IFCPP schema version is not supported.",
+      "duplicate-pile-plan-id": "The project was not opened because it contains duplicate pile-plan identifiers."
+    }
+  },
   "loadPointPositions": {
     "projectOpenError_one": "The project was not opened. Load points {{locations}} share the same position (X {{x}} mm, Y {{y}} mm). Every load point must have a unique position.",
     "projectOpenError_other": "The project was not opened: {{count}} overlapping positions were found. The first concerns {{locations}} at (X {{x}} mm, Y {{y}} mm). Every load point must have a unique position."
