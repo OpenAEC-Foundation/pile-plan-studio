@@ -10,15 +10,17 @@ use pile_plan_core::{
     choose_default_pile_option, choose_default_pile_options,
     derive_load_point_groups as derive_load_point_groups_core, duplicate_load_point_positions,
     greedy_optimize_pile_choices, import_project_from_generic_sources_with_properties,
-    preview_import_source, preview_pile_plan_import, read_validated_ifcpp_project_outcome,
+    preview_import_source, preview_pile_plan_import,
+    read_project_document as read_project_document_core, read_validated_ifcpp_project_outcome,
     refresh_project_from_profiled_sources, selected_cpts, validate_project_tip_levels,
     write_ifcpp_string, write_pile_plan_csv, write_pile_plan_xlsx,
-    ApplyLoadPointGroupAssignmentInput, ApplyLoadPointGroupAssignmentResult, CptSelectionSettings,
-    GreedyOptimizationInput, IfcppError, ImportSource, LoadPointGroup, LoadPointGroupingSettings,
-    PileConfigurationKey, PileConfigurationOption, PileCostSettings, PilePlanExportRequest,
-    PilePlanImportRequest, PilePlanProject, ProjectBearingCapacity, ProjectCpt, ProjectLoadPoint,
-    SpatialNeighborhood, SpatialPileAssignment, TipLevelRegionTopology,
-    ValidatedIfcppProjectOutcome, ValidatedPilePlanProject,
+    write_project_document as write_project_document_core, ApplyLoadPointGroupAssignmentInput,
+    ApplyLoadPointGroupAssignmentResult, CptSelectionSettings, GreedyOptimizationInput, IfcppError,
+    ImportSource, LoadPointGroup, LoadPointGroupingSettings, PileConfigurationKey,
+    PileConfigurationOption, PileCostSettings, PilePlanExportRequest, PilePlanImportRequest,
+    PilePlanProject, ProjectBearingCapacity, ProjectCpt, ProjectDocumentDraft,
+    ProjectDocumentError, ProjectLoadPoint, SpatialNeighborhood, SpatialPileAssignment,
+    TipLevelRegionTopology, ValidatedIfcppProjectOutcome, ValidatedPilePlanProject,
 };
 use serde::{Deserialize, Serialize};
 use wasm_bindgen::prelude::*;
@@ -124,6 +126,16 @@ pub struct ValidateLoadPointPositionsRequest {
 #[derive(Debug, Deserialize)]
 pub struct ReadValidatedIfcppProjectRequest {
     pub contents: String,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct ReadProjectDocumentRequest {
+    pub contents: String,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct WriteProjectDocumentRequest {
+    pub draft: ProjectDocumentDraft,
 }
 
 #[derive(Debug, Deserialize)]
@@ -354,6 +366,22 @@ pub fn read_validated_ifcpp_project(request: JsValue) -> Result<JsValue, JsValue
 }
 
 #[wasm_bindgen]
+pub fn read_project_document(request: JsValue) -> Result<JsValue, JsValue> {
+    let request: ReadProjectDocumentRequest = from_js_value(request)?;
+    match read_project_document_contents(&request.contents) {
+        Ok(document) => to_js_value(&document),
+        Err(error) => Err(to_js_value(&error)?),
+    }
+}
+
+#[wasm_bindgen]
+pub fn write_project_document(request: JsValue) -> Result<String, JsValue> {
+    let request: WriteProjectDocumentRequest = from_js_value(request)?;
+    write_project_document_draft(request.draft)
+        .map_err(|error| to_js_value(&error).unwrap_or_else(|_| to_error_value(error)))
+}
+
+#[wasm_bindgen]
 pub fn build_tip_level_region_topology(request: JsValue) -> Result<JsValue, JsValue> {
     let request: TipLevelRegionTopologyRequest = from_js_value(request)?;
     let topology: TipLevelRegionTopology = build_tip_level_region_topology_core(
@@ -402,6 +430,18 @@ fn read_validated_project_contents(
     contents: &str,
 ) -> Result<ValidatedIfcppProjectOutcome, IfcppError> {
     read_validated_ifcpp_project_outcome(contents)
+}
+
+fn read_project_document_contents(
+    contents: &str,
+) -> Result<ValidatedPilePlanProject, ProjectDocumentError> {
+    read_project_document_core(contents)
+}
+
+fn write_project_document_draft(
+    draft: ProjectDocumentDraft,
+) -> Result<String, ProjectDocumentError> {
+    write_project_document_core(draft)
 }
 
 #[cfg(test)]
@@ -589,6 +629,29 @@ mod tests {
                 if diagnostics.len() == 1
                     && diagnostics[0].kind
                         == pile_plan_core::OptimizationPreparationDiagnosticKind::NoPileConfigurations
+        ));
+    }
+
+    #[test]
+    fn project_document_adapters_delegate_read_write_and_structured_errors() {
+        let validated = read_project_document_contents(include_str!(
+            "../../../sample_project/sample_project.ifcpp"
+        ))
+        .expect("sample project reads");
+        let written =
+            write_project_document_draft(ProjectDocumentDraft::from_project(&validated.project))
+                .expect("sample project writes");
+
+        assert_eq!(
+            read_project_document_contents(&written)
+                .expect("written project reads")
+                .project
+                .schema_version,
+            4
+        );
+        assert!(matches!(
+            read_project_document_contents("{").unwrap_err(),
+            ProjectDocumentError::InvalidJson { .. }
         ));
     }
 

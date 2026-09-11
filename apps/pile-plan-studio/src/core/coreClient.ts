@@ -19,10 +19,12 @@ import initWasm, {
   import_project_from_files,
   preview_import_file,
   preview_pile_plan_import_file,
+  read_project_document,
   read_validated_ifcpp_project,
   refresh_project_from_files,
   validate_load_point_positions,
   write_ifcpp_project,
+  write_project_document,
 } from "./wasm/pile-plan-wasm/pile_plan_wasm.js";
 import { toStringKeyedRecord, toWasmNumberKeyedMap, toWasmNumberKeyedRecord } from "./coreSerialization.ts";
 import { binaryResultToUint8Array } from "./binaryCoreResult.ts";
@@ -120,6 +122,15 @@ import {
   type ValidatedIfcppProjectOutcome,
   type ValidatedProject,
 } from "./pileTipLevelContract.ts";
+import {
+  projectDocumentErrorFromUnknown,
+  projectDocumentOutcomeFromCore,
+  toBrowserProjectDocumentDraft,
+  toDesktopProjectDocumentDraft,
+  type CoreValidatedProjectDocument,
+  type ProjectDocumentDraft,
+  type ProjectDocumentOutcome,
+} from "./projectDocumentContract.ts";
 
 type CoreCptSelectionSettings = {
   algorithm: CptSelectionSettings["algorithm"];
@@ -534,6 +545,47 @@ export async function readValidatedIfcppProjectCore(
     });
   }
   return validatedIfcppProjectOutcomeFromCore(outcome);
+}
+
+export async function readProjectDocumentCore(
+  contents: string,
+): Promise<ProjectDocumentOutcome> {
+  try {
+    let result: CoreValidatedProjectDocument;
+    if (!isTauriRuntime()) {
+      await initializeWasm();
+      result = read_project_document({ contents }) as CoreValidatedProjectDocument;
+    } else {
+      result = await invoke<CoreValidatedProjectDocument>("read_project_document", {
+        request: { contents },
+      });
+    }
+    return projectDocumentOutcomeFromCore({ status: "valid", ...result });
+  } catch (error) {
+    const projectError = projectDocumentErrorFromUnknown(error);
+    if (!projectError) throw error;
+    return { status: "invalid", error: projectError };
+  }
+}
+
+export async function writeProjectDocumentCore(
+  draft: ProjectDocumentDraft,
+): Promise<string> {
+  try {
+    if (!isTauriRuntime()) {
+      await initializeWasm();
+      return write_project_document({
+        draft: toBrowserProjectDocumentDraft(draft),
+      });
+    }
+    return await invoke<string>("write_project_document", {
+      request: { draft: toDesktopProjectDocumentDraft(draft) },
+    });
+  } catch (error) {
+    const projectError = projectDocumentErrorFromUnknown(error);
+    if (!projectError) throw error;
+    throw projectError;
+  }
 }
 
 export async function previewImportSourceCore(

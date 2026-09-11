@@ -11,7 +11,8 @@ use pile_plan_core::{
     derive_load_point_groups as derive_load_point_groups_core, duplicate_load_point_positions,
     greedy_optimize_pile_choices, import_project_from_generic_sources_with_properties,
     preview_import_source, preview_pile_plan_import, read_validated_ifcpp_project_outcome,
-    refresh_project_from_profiled_sources, selected_cpts, validate_project_tip_levels,
+    read_project_document as read_project_document_core, refresh_project_from_profiled_sources,
+    selected_cpts, validate_project_tip_levels,
     write_pile_plan_csv as write_pile_plan_csv_bytes,
     write_pile_plan_xlsx as write_pile_plan_xlsx_bytes, AggregatedPileConfiguration,
     ApplyLoadPointGroupAssignmentInput, ApplyLoadPointGroupAssignmentResult, CptSelectionSettings,
@@ -19,9 +20,11 @@ use pile_plan_core::{
     ImportSourcePreview, InvalidPileTipLevels, LoadPointGroup, LoadPointGroupingSettings,
     PileConfigurationKey, PileConfigurationOption, PileCostSettings, PilePlanExportRequest,
     PilePlanImportPreview, PilePlanImportRequest, PilePlanProject, ProjectAnalysisResult,
-    ProjectBearingCapacity, ProjectCpt, ProjectLoadPoint, SelectedCpt, SpatialNeighborhood,
+    ProjectBearingCapacity, ProjectCpt, ProjectDocumentDraft, ProjectDocumentError,
+    ProjectLoadPoint, SelectedCpt, SpatialNeighborhood,
     SpatialPileAssignment, TechnicalAssignmentAssessment, TechnicalAssignmentAssessmentError,
     TipLevelRegionTopology, ValidatedIfcppProjectOutcome, ValidatedPilePlanProject,
+    write_project_document as write_project_document_core,
 };
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -188,6 +191,16 @@ struct ValidateLoadPointPositionsRequest {
 #[derive(Debug, Deserialize)]
 struct ReadValidatedIfcppProjectRequest {
     contents: String,
+}
+
+#[derive(Debug, Deserialize)]
+struct ReadProjectDocumentRequest {
+    contents: String,
+}
+
+#[derive(Debug, Deserialize)]
+struct WriteProjectDocumentRequest {
+    draft: ProjectDocumentDraft,
 }
 
 #[derive(Debug, Deserialize)]
@@ -405,6 +418,20 @@ fn read_validated_ifcpp_project(
     read_validated_project_contents(&request.contents).map_err(|error| error.to_string())
 }
 
+#[tauri::command(rename_all = "snake_case")]
+fn read_project_document(
+    request: ReadProjectDocumentRequest,
+) -> Result<ValidatedPilePlanProject, ProjectDocumentError> {
+    read_project_document_core(&request.contents)
+}
+
+#[tauri::command(rename_all = "snake_case")]
+fn write_project_document(
+    request: WriteProjectDocumentRequest,
+) -> Result<String, ProjectDocumentError> {
+    write_project_document_core(request.draft)
+}
+
 fn read_validated_project_contents(
     contents: &str,
 ) -> Result<ValidatedIfcppProjectOutcome, pile_plan_core::IfcppError> {
@@ -470,6 +497,8 @@ fn main() {
             greedy_optimize,
             validate_load_point_positions,
             read_validated_ifcpp_project,
+            read_project_document,
+            write_project_document,
             import_project_from_files,
             refresh_project_from_files,
             preview_import_file,
@@ -591,6 +620,33 @@ mod tests {
             errors[0].reason,
             pile_plan_core::PileTipLevelPrecisionErrorReason::Submillimetre
         );
+    }
+
+    #[test]
+    fn project_document_commands_delegate_read_write_and_structured_errors() {
+        let validated = read_project_document(ReadProjectDocumentRequest {
+            contents: include_str!("../../../../sample_project/sample_project.ifcpp").to_string(),
+        })
+        .expect("sample project reads");
+        let written = write_project_document(WriteProjectDocumentRequest {
+            draft: ProjectDocumentDraft::from_project(&validated.project),
+        })
+        .expect("sample project writes");
+
+        assert_eq!(
+            read_project_document(ReadProjectDocumentRequest { contents: written })
+                .expect("written project reads")
+                .project
+                .schema_version,
+            4
+        );
+        assert!(matches!(
+            read_project_document(ReadProjectDocumentRequest {
+                contents: "{".to_string(),
+            })
+            .unwrap_err(),
+            ProjectDocumentError::InvalidJson { .. }
+        ));
     }
 
     #[test]
