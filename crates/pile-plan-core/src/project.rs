@@ -23,6 +23,48 @@ pub struct PilePlanProject {
     pub import_log: Vec<ProjectImportLogEntry>,
 }
 
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+pub struct ProjectDocumentDraft {
+    pub metadata: ProjectMetadata,
+    pub units: ProjectUnits,
+    pub inputs: ProjectInputs,
+    pub settings: ProjectSettings,
+    pub user_state: ProjectUserState,
+    /// Current editor assignments for the active plan. The copy in
+    /// `user_state` retains the previously persisted external references so
+    /// the writer can keep them only when an assignment is unchanged.
+    pub active_selected_piles: HashMap<u32, PileConfigurationKey>,
+    pub import_log: Vec<ProjectImportLogEntry>,
+}
+
+impl ProjectDocumentDraft {
+    pub fn from_project(project: &PilePlanProject) -> Self {
+        let active_selected_piles = project
+            .user_state
+            .active_pile_plan()
+            .or_else(|| project.user_state.pile_plans.first())
+            .into_iter()
+            .flat_map(|plan| plan.selected_piles.iter())
+            .filter_map(|(load_point_id, choice)| {
+                choice
+                    .pile
+                    .as_ref()
+                    .map(|pile| (*load_point_id, pile.clone()))
+            })
+            .collect();
+
+        Self {
+            metadata: project.metadata.clone(),
+            units: project.units.clone(),
+            inputs: project.inputs.clone(),
+            settings: project.settings.clone(),
+            user_state: project.user_state.clone(),
+            active_selected_piles,
+            import_log: project.import_log.clone(),
+        }
+    }
+}
+
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub struct ProjectTipLevelKeys {
     pub bearing_capacities: Vec<i64>,

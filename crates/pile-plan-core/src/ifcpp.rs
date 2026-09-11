@@ -1,13 +1,14 @@
 use std::fmt;
 
+use serde::{Deserialize, Serialize};
 use serde_json::{Error as JsonError, Value};
 
 #[cfg(test)]
 use crate::ProjectPileTipLevelContext;
 use crate::{
     validate_project_tip_levels, validate_unique_load_point_positions, DuplicateLoadPointPositions,
-    InvalidProjectPileTipLevels, PilePlanProject, ValidatedIfcppProjectOutcome,
-    ValidatedPilePlanProject,
+    InvalidProjectPileTipLevels, PilePlanProject, ProjectApplication, ProjectDocumentDraft,
+    ProjectUserState, SelectedPileChoice, ValidatedIfcppProjectOutcome, ValidatedPilePlanProject,
 };
 
 #[derive(Debug)]
@@ -15,6 +16,7 @@ pub enum IfcppError {
     Json(JsonError),
     InvalidSchema(String),
     UnsupportedSchemaVersion(u32),
+    DuplicatePilePlanId(String),
     DuplicateLoadPointPositions(DuplicateLoadPointPositions),
     InvalidPileTipLevels(InvalidProjectPileTipLevels),
 }
@@ -27,6 +29,7 @@ impl fmt::Display for IfcppError {
             Self::UnsupportedSchemaVersion(version) => {
                 write!(formatter, "Unsupported IFCPP schema version {version}")
             }
+            Self::DuplicatePilePlanId(id) => write!(formatter, "Duplicate pile plan id '{id}'"),
             Self::DuplicateLoadPointPositions(error) => error.fmt(formatter),
             Self::InvalidPileTipLevels(error) => error.fmt(formatter),
         }
@@ -41,6 +44,214 @@ impl From<JsonError> for IfcppError {
     }
 }
 
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+#[serde(tag = "code", rename_all = "kebab-case")]
+pub enum ProjectDocumentError {
+    InvalidJson {
+        message: String,
+    },
+    InvalidSchema {
+        schema: String,
+    },
+    UnsupportedSchemaVersion {
+        schema_version: u32,
+    },
+    DuplicatePilePlanId {
+        pile_plan_id: String,
+    },
+    DuplicateLoadPointPositions {
+        positions: Vec<crate::DuplicateLoadPointPosition>,
+    },
+    InvalidPileTipLevels {
+        errors: Vec<crate::InvalidProjectPileTipLevel>,
+    },
+}
+
+impl fmt::Display for ProjectDocumentError {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::InvalidJson { message } => write!(formatter, "Invalid IFCPP JSON: {message}"),
+            Self::InvalidSchema { schema } => {
+                write!(formatter, "Expected IFCPP schema, got {schema}")
+            }
+            Self::UnsupportedSchemaVersion { schema_version } => {
+                write!(
+                    formatter,
+                    "Unsupported IFCPP schema version {schema_version}"
+                )
+            }
+            Self::DuplicatePilePlanId { pile_plan_id } => {
+                write!(formatter, "Duplicate pile plan id '{pile_plan_id}'")
+            }
+            Self::DuplicateLoadPointPositions { positions } => crate::DuplicateLoadPointPositions {
+                positions: positions.clone(),
+            }
+            .fmt(formatter),
+            Self::InvalidPileTipLevels { errors } => {
+                write!(formatter, "{} invalid pile tip level(s)", errors.len())
+            }
+        }
+    }
+}
+
+impl std::error::Error for ProjectDocumentError {}
+
+impl From<IfcppError> for ProjectDocumentError {
+    fn from(error: IfcppError) -> Self {
+        match error {
+            IfcppError::Json(error) => Self::InvalidJson {
+                message: error.to_string(),
+            },
+            IfcppError::InvalidSchema(schema) => Self::InvalidSchema { schema },
+            IfcppError::UnsupportedSchemaVersion(schema_version) => {
+                Self::UnsupportedSchemaVersion { schema_version }
+            }
+            IfcppError::DuplicatePilePlanId(pile_plan_id) => {
+                Self::DuplicatePilePlanId { pile_plan_id }
+            }
+            IfcppError::DuplicateLoadPointPositions(error) => Self::DuplicateLoadPointPositions {
+                positions: error.positions,
+            },
+            IfcppError::InvalidPileTipLevels(error) => Self::InvalidPileTipLevels {
+                errors: error.values,
+            },
+        }
+    }
+}
+
+pub fn read_project_document(
+    input: &str,
+) -> Result<ValidatedPilePlanProject, ProjectDocumentError> {
+    read_validated_ifcpp_str(input).map_err(ProjectDocumentError::from)
+}
+
+pub fn write_project_document(
+    mut draft: ProjectDocumentDraft,
+) -> Result<String, ProjectDocumentError> {
+    normalize_draft_user_state(&mut draft);
+    let mut project = PilePlanProject {
+        schema: "IFCPP".to_string(),
+        schema_version: 4,
+        application: ProjectApplication {
+            name: "Pile Plan Studio".to_string(),
+            version: env!("CARGO_PKG_VERSION").to_string(),
+        },
+        metadata: draft.metadata,
+        units: draft.units,
+        inputs: draft.inputs,
+        settings: draft.settings,
+        user_state: draft.user_state,
+        import_log: draft.import_log,
+    };
+    normalize_project(&mut project);
+
+    write_ifcpp_string(&project).map_err(ProjectDocumentError::from)
+}
+
+fn normalize_project(project: &mut PilePlanProject) {
+    project.units.costs = normalize_currency_code(&project.units.costs);
+    project.settings.viewer_utilization = project.settings.viewer_utilization.normalized();
+    project.settings.optimization.max_utilization =
+        normalize_unit_interval(project.settings.optimization.max_utilization, 1.0);
+    if !project
+        .settings
+        .load_point_grouping
+        .max_edge_distance_mm
+        .is_finite()
+        || project.settings.load_point_grouping.max_edge_distance_mm < 0.0
+    {
+        project.settings.load_point_grouping.max_edge_distance_mm =
+            crate::DEFAULT_MAX_GROUP_EDGE_DISTANCE_MM;
+    }
+    project.settings.viewer.symbol_scale_percent =
+        project.settings.viewer.symbol_scale_percent.clamp(10, 200);
+    if project.settings.viewer.foreground_layer != "cpts" {
+        project.settings.viewer.foreground_layer = "load-points".to_string();
+    }
+
+    for plan in &mut project.user_state.pile_plans {
+        plan.active_pile_sizes.sort_unstable();
+        plan.active_pile_sizes.dedup();
+        plan.active_pile_tip_levels
+            .sort_by(|left, right| right.total_cmp(left));
+        plan.active_pile_tip_levels.dedup();
+        plan.locked_load_point_ids.sort_unstable();
+        plan.locked_load_point_ids.dedup();
+    }
+    for cpt_ids in project.user_state.manual_cpt_selections.values_mut() {
+        cpt_ids.sort_unstable();
+        cpt_ids.dedup();
+    }
+}
+
+fn normalize_currency_code(value: &str) -> String {
+    let normalized = value.trim().to_ascii_uppercase();
+    if normalized.len() == 3 && normalized.bytes().all(|byte| byte.is_ascii_uppercase()) {
+        normalized
+    } else {
+        "EUR".to_string()
+    }
+}
+
+fn normalize_unit_interval(value: f64, fallback: f64) -> f64 {
+    if value.is_finite() {
+        value.clamp(0.0, 1.0)
+    } else {
+        fallback
+    }
+}
+
+fn normalize_draft_user_state(draft: &mut ProjectDocumentDraft) {
+    if draft.user_state.pile_plans.is_empty() {
+        draft.user_state = ProjectUserState::with_default_pile_plan(
+            selected_choices(&draft.active_selected_piles, None),
+            std::mem::take(&mut draft.user_state.manual_cpt_selections),
+            Vec::new(),
+            Vec::new(),
+        );
+        return;
+    }
+
+    if !draft
+        .user_state
+        .pile_plans
+        .iter()
+        .any(|plan| plan.id == draft.user_state.active_pile_plan_id)
+    {
+        draft.user_state.active_pile_plan_id = draft.user_state.pile_plans[0].id.clone();
+    }
+
+    let active_plan = draft
+        .user_state
+        .active_pile_plan_mut()
+        .expect("a non-empty normalized project has an active pile plan");
+    let previous = std::mem::take(&mut active_plan.selected_piles);
+    active_plan.selected_piles = selected_choices(&draft.active_selected_piles, Some(&previous));
+}
+
+fn selected_choices(
+    selected_piles: &std::collections::HashMap<u32, crate::PileConfigurationKey>,
+    previous: Option<&std::collections::HashMap<u32, SelectedPileChoice>>,
+) -> std::collections::HashMap<u32, SelectedPileChoice> {
+    selected_piles
+        .iter()
+        .map(|(load_point_id, pile)| {
+            let external_references = previous
+                .and_then(|choices| choices.get(load_point_id))
+                .filter(|choice| choice.pile.as_ref() == Some(pile))
+                .map(|choice| choice.external_references.clone())
+                .unwrap_or_default();
+            (
+                *load_point_id,
+                SelectedPileChoice {
+                    pile: Some(pile.clone()),
+                    external_references,
+                },
+            )
+        })
+        .collect()
+}
+
 pub fn read_ifcpp_str(input: &str) -> Result<PilePlanProject, IfcppError> {
     Ok(read_validated_ifcpp_str(input)?.project)
 }
@@ -48,19 +259,34 @@ pub fn read_ifcpp_str(input: &str) -> Result<PilePlanProject, IfcppError> {
 pub fn read_validated_ifcpp_str(input: &str) -> Result<ValidatedPilePlanProject, IfcppError> {
     let mut value: Value = serde_json::from_str(input)?;
     migrate_legacy_project_value(&mut value);
+    validate_project_value_pile_plan_ids(&value)?;
     let mut project: PilePlanProject = serde_json::from_value(value)?;
-    project.settings.viewer_utilization = project.settings.viewer_utilization.normalized();
-    project.settings.optimization.max_utilization = project
-        .settings
-        .optimization
-        .max_utilization
-        .clamp(0.0, 1.0);
+    normalize_project(&mut project);
     let tip_level_keys = validate_ifcpp_project_with_keys(&project)?;
 
     Ok(ValidatedPilePlanProject {
         project,
         tip_level_keys,
     })
+}
+
+fn validate_project_value_pile_plan_ids(value: &Value) -> Result<(), IfcppError> {
+    let Some(pile_plans) = value
+        .get("user_state")
+        .and_then(|user_state| user_state.get("pile_plans"))
+        .and_then(Value::as_array)
+    else {
+        return Ok(());
+    };
+    let mut ids = std::collections::HashSet::new();
+    if let Some(duplicate_id) = pile_plans
+        .iter()
+        .filter_map(|plan| plan.get("id").and_then(Value::as_str))
+        .find(|id| !ids.insert(*id))
+    {
+        return Err(IfcppError::DuplicatePilePlanId(duplicate_id.to_string()));
+    }
+    Ok(())
 }
 
 pub fn read_validated_ifcpp_project_outcome(
@@ -85,7 +311,26 @@ pub fn write_ifcpp_string(project: &PilePlanProject) -> Result<String, IfcppErro
     }
     validate_ifcpp_project(&canonical)?;
 
-    Ok(serde_json::to_string_pretty(&canonical)?)
+    Ok(serde_json::to_string_pretty(&sort_json_value(
+        serde_json::to_value(canonical)?,
+    ))?)
+}
+
+fn sort_json_value(value: Value) -> Value {
+    match value {
+        Value::Object(values) => {
+            let mut entries = values.into_iter().collect::<Vec<_>>();
+            entries.sort_by(|left, right| left.0.cmp(&right.0));
+            Value::Object(
+                entries
+                    .into_iter()
+                    .map(|(key, value)| (key, sort_json_value(value)))
+                    .collect(),
+            )
+        }
+        Value::Array(values) => Value::Array(values.into_iter().map(sort_json_value).collect()),
+        value => value,
+    }
 }
 
 pub fn validate_ifcpp_project(project: &PilePlanProject) -> Result<(), IfcppError> {
@@ -101,6 +346,17 @@ fn validate_ifcpp_project_with_keys(
 
     if !matches!(project.schema_version, 1 | 2 | 3 | 4) {
         return Err(IfcppError::UnsupportedSchemaVersion(project.schema_version));
+    }
+
+    let mut pile_plan_ids = std::collections::HashSet::new();
+    if let Some(duplicate_id) = project
+        .user_state
+        .pile_plans
+        .iter()
+        .map(|plan| plan.id.as_str())
+        .find(|id| !pile_plan_ids.insert(*id))
+    {
+        return Err(IfcppError::DuplicatePilePlanId(duplicate_id.to_string()));
     }
 
     validate_unique_load_point_positions(&project.inputs.load_points)
@@ -514,6 +770,353 @@ mod tests {
                 if schema_version == 1 { vec![] } else { vec![1] },
             );
         }
+    }
+
+    #[test]
+    fn project_document_read_returns_structured_errors() {
+        let invalid_json = read_project_document("{").expect_err("invalid JSON is rejected");
+        assert_eq!(project_error_code(&invalid_json), "invalid-json");
+
+        let mut invalid_schema = project_fixture();
+        invalid_schema.schema = "IFC".to_string();
+        let invalid_schema = read_project_document(
+            &serde_json::to_string(&invalid_schema).expect("fixture JSON writes"),
+        )
+        .expect_err("invalid schema is rejected");
+        assert_eq!(project_error_code(&invalid_schema), "invalid-schema");
+
+        let mut unsupported = project_fixture();
+        unsupported.schema_version = 99;
+        let unsupported = read_project_document(
+            &serde_json::to_string(&unsupported).expect("fixture JSON writes"),
+        )
+        .expect_err("unsupported schema is rejected");
+        assert_eq!(
+            project_error_code(&unsupported),
+            "unsupported-schema-version"
+        );
+
+        let mut duplicate_positions = project_fixture();
+        duplicate_positions.inputs.load_points = vec![
+            crate::ProjectLoadPoint {
+                id: 1,
+                name: "First".to_string(),
+                x_mm: 10.0,
+                y_mm: 20.0,
+                design_load_kn: 100.0,
+            },
+            crate::ProjectLoadPoint {
+                id: 2,
+                name: "Second".to_string(),
+                x_mm: 10.0,
+                y_mm: 20.0,
+                design_load_kn: 200.0,
+            },
+        ];
+        let duplicate_positions = read_project_document(
+            &serde_json::to_string(&duplicate_positions).expect("fixture JSON writes"),
+        )
+        .expect_err("duplicate positions are rejected");
+        let serialized = serde_json::to_value(&duplicate_positions).expect("error serializes");
+        assert_eq!(serialized["code"], "duplicate-load-point-positions");
+        assert_eq!(serialized["positions"][0]["load_points"][1]["id"], 2);
+
+        let mut invalid_tip_level = project_fixture();
+        invalid_tip_level.user_state.pile_plans[0].active_pile_tip_levels = vec![-18.5004];
+        let invalid_tip_level = read_project_document(
+            &serde_json::to_string(&invalid_tip_level).expect("fixture JSON writes"),
+        )
+        .expect_err("invalid tip level is rejected");
+        let serialized = serde_json::to_value(&invalid_tip_level).expect("error serializes");
+        assert_eq!(serialized["code"], "invalid-pile-tip-levels");
+        assert_eq!(
+            serialized["errors"][0]["context"]["kind"],
+            "pile-plan-active"
+        );
+
+        let mut duplicate_plans =
+            serde_json::to_value(project_fixture()).expect("fixture serializes");
+        let duplicate = duplicate_plans["user_state"]["pile_plans"][0].clone();
+        duplicate_plans["user_state"]["pile_plans"] =
+            serde_json::json!([duplicate.clone(), duplicate]);
+        let duplicate_plans = read_project_document(
+            &serde_json::to_string(&duplicate_plans).expect("fixture JSON writes"),
+        )
+        .expect_err("duplicate plan IDs are rejected");
+        let serialized = serde_json::to_value(&duplicate_plans).expect("error serializes");
+        assert_eq!(serialized["code"], "duplicate-pile-plan-id");
+        assert_eq!(serialized["pile_plan_id"], "pile-plan-1");
+    }
+
+    #[test]
+    fn project_document_read_returns_normalized_canonical_settings() {
+        let mut project = project_fixture();
+        project.units.costs = " usd ".to_string();
+        project.settings.viewer.symbol_scale_percent = 250;
+        project.settings.viewer.foreground_layer = "future-layer".to_string();
+        project.settings.load_point_grouping.max_edge_distance_mm = -5.0;
+        project.user_state.pile_plans[0].active_pile_sizes = vec![320, 290, 320];
+        project.user_state.pile_plans[0].active_pile_tip_levels = vec![-18.0, -17.5, -18.0];
+        project.user_state.pile_plans[0].locked_load_point_ids = vec![2, 1, 2];
+        project.user_state.manual_cpt_selections = HashMap::from([(1, vec![10, 9, 10])]);
+
+        let restored =
+            read_project_document(&serde_json::to_string(&project).expect("fixture JSON writes"))
+                .expect("project reads")
+                .project;
+
+        assert_eq!(restored.units.costs, "USD");
+        assert_eq!(restored.settings.viewer.symbol_scale_percent, 200);
+        assert_eq!(restored.settings.viewer.foreground_layer, "load-points");
+        assert_eq!(
+            restored.settings.load_point_grouping.max_edge_distance_mm,
+            1_200.0
+        );
+        assert_eq!(
+            restored.user_state.pile_plans[0].active_pile_sizes,
+            vec![290, 320]
+        );
+        assert_eq!(
+            restored.user_state.pile_plans[0].active_pile_tip_levels,
+            vec![-17.5, -18.0]
+        );
+        assert_eq!(
+            restored.user_state.pile_plans[0].locked_load_point_ids,
+            vec![1, 2]
+        );
+        assert_eq!(restored.user_state.manual_cpt_selections[&1], vec![9, 10]);
+    }
+
+    #[test]
+    fn project_document_write_owns_header_normalization_and_active_plan_fallback() {
+        let mut project = project_fixture();
+        project.schema = "legacy-value-ignored-by-draft".to_string();
+        project.schema_version = 1;
+        project.application.name = "Old writer".to_string();
+        project.application.version = "0.0.1".to_string();
+        project.settings.viewer_utilization.minimum = 1.2;
+        project.settings.viewer_utilization.maximum = -0.1;
+        project.settings.optimization.max_utilization = 1.4;
+        project.units.costs = " gbp ".to_string();
+        project.settings.viewer.symbol_scale_percent = 250;
+        project.settings.viewer.foreground_layer = "future-layer".to_string();
+        project.settings.load_point_grouping.max_edge_distance_mm = -1.0;
+        project.user_state.pile_plans[0].active_pile_sizes = vec![320, 290, 320];
+        project.user_state.pile_plans[0].active_pile_tip_levels = vec![-18.0, -17.5, -18.0];
+        project.user_state.pile_plans[0].locked_load_point_ids = vec![2, 1, 2];
+        project.user_state.manual_cpt_selections = HashMap::from([(1, vec![10, 9, 10])]);
+        project.user_state.pile_plans[0].selected_piles.insert(
+            1,
+            crate::SelectedPileChoice {
+                pile: Some(crate::PileConfigurationKey {
+                    pile_size_mm: 290,
+                    pile_tip_level_mm: -18_000,
+                }),
+                external_references: Vec::new(),
+            },
+        );
+        project.user_state.active_pile_plan_id = "missing".to_string();
+
+        let text = write_project_document(ProjectDocumentDraft::from_project(&project))
+            .expect("document writes");
+        let value: Value = serde_json::from_str(&text).expect("written document parses");
+
+        assert_eq!(value["schema"], "IFCPP");
+        assert_eq!(value["schema_version"], 4);
+        assert_eq!(value["application"]["name"], "Pile Plan Studio");
+        assert_eq!(value["application"]["version"], env!("CARGO_PKG_VERSION"));
+        assert_eq!(value["user_state"]["active_pile_plan_id"], "pile-plan-1");
+        assert_eq!(value["settings"]["viewer_utilization"]["minimum"], 0.0);
+        assert_eq!(value["settings"]["viewer_utilization"]["maximum"], 1.0);
+        assert_eq!(value["settings"]["optimization"]["max_utilization"], 1.0);
+        assert_eq!(value["units"]["costs"], "GBP");
+        assert_eq!(value["settings"]["viewer"]["symbol_scale_percent"], 200);
+        assert_eq!(
+            value["settings"]["viewer"]["foreground_layer"],
+            "load-points"
+        );
+        assert_eq!(
+            value["settings"]["load_point_grouping"]["max_edge_distance_mm"],
+            1_200.0
+        );
+        assert_eq!(
+            value["user_state"]["pile_plans"][0]["active_pile_sizes"],
+            serde_json::json!([290, 320])
+        );
+        assert_eq!(
+            value["user_state"]["pile_plans"][0]["active_pile_tip_levels"],
+            serde_json::json!([-17.5, -18.0])
+        );
+        assert_eq!(
+            value["user_state"]["pile_plans"][0]["locked_load_point_ids"],
+            serde_json::json!([1, 2])
+        );
+        assert_eq!(
+            value["user_state"]["manual_cpt_selections"]["1"],
+            serde_json::json!([9, 10])
+        );
+        assert_eq!(
+            value["user_state"]["pile_plans"][0]["selected_piles"]["1"]["pile"]["pile_size_mm"],
+            290,
+        );
+    }
+
+    #[test]
+    fn project_document_write_preserves_only_matching_assignment_references() {
+        let mut project = project_fixture();
+        project.user_state.pile_plans[0].selected_piles = HashMap::from([
+            (
+                1,
+                crate::SelectedPileChoice {
+                    pile: Some(crate::PileConfigurationKey {
+                        pile_size_mm: 290,
+                        pile_tip_level_mm: -18_000,
+                    }),
+                    external_references: vec![crate::ExternalReference {
+                        source_file: Some("model.ifc".to_string()),
+                        global_id: Some("unchanged".to_string()),
+                        entity: Some("IfcPile".to_string()),
+                        description: None,
+                    }],
+                },
+            ),
+            (
+                2,
+                crate::SelectedPileChoice {
+                    pile: Some(crate::PileConfigurationKey {
+                        pile_size_mm: 290,
+                        pile_tip_level_mm: -18_000,
+                    }),
+                    external_references: vec![crate::ExternalReference {
+                        source_file: Some("model.ifc".to_string()),
+                        global_id: Some("changed".to_string()),
+                        entity: Some("IfcPile".to_string()),
+                        description: None,
+                    }],
+                },
+            ),
+        ]);
+        let mut draft = ProjectDocumentDraft::from_project(&project);
+        draft.active_selected_piles.insert(
+            2,
+            crate::PileConfigurationKey {
+                pile_size_mm: 320,
+                pile_tip_level_mm: -18_000,
+            },
+        );
+
+        let restored =
+            read_project_document(&write_project_document(draft).expect("document writes"))
+                .expect("written document reads")
+                .project;
+        let plan = restored
+            .user_state
+            .active_pile_plan()
+            .expect("active plan exists");
+
+        assert_eq!(plan.selected_piles[&1].external_references.len(), 1);
+        assert!(plan.selected_piles[&2].external_references.is_empty());
+        assert_eq!(
+            plan.selected_piles[&2]
+                .pile
+                .as_ref()
+                .expect("changed pile remains assigned")
+                .pile_size_mm,
+            320,
+        );
+    }
+
+    #[test]
+    fn project_document_write_creates_one_default_plan_for_an_empty_draft() {
+        let project = project_fixture();
+        let mut draft = ProjectDocumentDraft::from_project(&project);
+        draft.user_state.pile_plans.clear();
+        draft.user_state.active_pile_plan_id = "missing".to_string();
+
+        let restored =
+            read_project_document(&write_project_document(draft).expect("document writes"))
+                .expect("written document reads")
+                .project;
+
+        assert_eq!(restored.user_state.pile_plans.len(), 1);
+        assert_eq!(restored.user_state.active_pile_plan_id, "pile-plan-1");
+    }
+
+    #[test]
+    fn project_document_write_is_stable_for_map_insertion_order() {
+        let project = project_fixture();
+        let mut left = ProjectDocumentDraft::from_project(&project);
+        left.user_state.manual_cpt_selections = HashMap::new();
+        left.user_state.manual_cpt_selections.insert(2, vec![20]);
+        left.user_state.manual_cpt_selections.insert(1, vec![10]);
+
+        let mut right = ProjectDocumentDraft::from_project(&project);
+        right.user_state.manual_cpt_selections = HashMap::new();
+        right.user_state.manual_cpt_selections.insert(1, vec![10]);
+        right.user_state.manual_cpt_selections.insert(2, vec![20]);
+
+        assert_eq!(
+            write_project_document(left).expect("left document writes"),
+            write_project_document(right).expect("right document writes"),
+        );
+    }
+
+    #[test]
+    fn project_document_write_returns_the_same_structured_validation_errors() {
+        let mut duplicate_positions = project_fixture();
+        duplicate_positions.inputs.load_points = vec![
+            crate::ProjectLoadPoint {
+                id: 1,
+                name: "First".to_string(),
+                x_mm: 10.0,
+                y_mm: 20.0,
+                design_load_kn: 100.0,
+            },
+            crate::ProjectLoadPoint {
+                id: 2,
+                name: "Second".to_string(),
+                x_mm: 10.0,
+                y_mm: 20.0,
+                design_load_kn: 200.0,
+            },
+        ];
+        let duplicate_positions =
+            write_project_document(ProjectDocumentDraft::from_project(&duplicate_positions))
+                .expect_err("duplicate positions are rejected");
+        assert_eq!(
+            project_error_code(&duplicate_positions),
+            "duplicate-load-point-positions"
+        );
+
+        let mut invalid_tip_level = project_fixture();
+        invalid_tip_level.user_state.pile_plans[0].active_pile_tip_levels = vec![-18.5004];
+        let invalid_tip_level =
+            write_project_document(ProjectDocumentDraft::from_project(&invalid_tip_level))
+                .expect_err("invalid tip level is rejected");
+        assert_eq!(
+            project_error_code(&invalid_tip_level),
+            "invalid-pile-tip-levels"
+        );
+
+        let project = project_fixture();
+        let mut duplicate_plans = ProjectDocumentDraft::from_project(&project);
+        duplicate_plans
+            .user_state
+            .pile_plans
+            .push(duplicate_plans.user_state.pile_plans[0].clone());
+        let duplicate_plans =
+            write_project_document(duplicate_plans).expect_err("duplicate plan IDs are rejected");
+        assert_eq!(
+            project_error_code(&duplicate_plans),
+            "duplicate-pile-plan-id"
+        );
+    }
+
+    fn project_error_code(error: &ProjectDocumentError) -> String {
+        serde_json::to_value(error).expect("error serializes")["code"]
+            .as_str()
+            .expect("error has a string code")
+            .to_string()
     }
 
     fn assert_invalid_tip_context(

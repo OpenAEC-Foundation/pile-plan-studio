@@ -38,8 +38,9 @@ pub use greedy_optimizer::{
     OptimizationUnassignedReason,
 };
 pub use ifcpp::{
-    read_ifcpp_str, read_validated_ifcpp_project_outcome, read_validated_ifcpp_str,
-    validate_ifcpp_project, write_ifcpp_string, IfcppError,
+    read_ifcpp_str, read_project_document, read_validated_ifcpp_project_outcome,
+    read_validated_ifcpp_str, validate_ifcpp_project, write_ifcpp_string, write_project_document,
+    IfcppError, ProjectDocumentError,
 };
 pub use import::{
     import_bearing_capacities_xlsx, import_cpts_xlsx, import_load_points_csv,
@@ -80,10 +81,10 @@ pub use pile_tip_levels::{
 pub use project::{
     validate_project_tip_levels, ExternalReference, InvalidProjectPileTipLevel,
     InvalidProjectPileTipLevels, PilePlan, PilePlanProject, PilePlanTipLevelKeys,
-    ProjectApplication, ProjectImportLogEntry, ProjectInputs, ProjectMetadata,
-    ProjectPileTipLevelContext, ProjectSettings, ProjectTipLevelKeys, ProjectUnits,
-    ProjectUserState, SelectedPileChoice, ValidatedIfcppProjectOutcome, ValidatedPilePlanProject,
-    ViewerUtilizationSettings,
+    ProjectApplication, ProjectDocumentDraft, ProjectImportLogEntry, ProjectInputs,
+    ProjectMetadata, ProjectPileTipLevelContext, ProjectSettings, ProjectTipLevelKeys,
+    ProjectUnits, ProjectUserState, SelectedPileChoice, ValidatedIfcppProjectOutcome,
+    ValidatedPilePlanProject, ViewerUtilizationSettings,
 };
 pub use spatial::{
     build_spatial_neighborhood, build_tip_level_region_topology, SpatialEdge, SpatialFace,
