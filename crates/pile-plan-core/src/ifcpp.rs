@@ -413,6 +413,109 @@ mod tests {
         }
     }
 
+    #[test]
+    fn supported_versions_produce_canonical_schema_four_semantics() {
+        for schema_version in 1..=4 {
+            let mut value = serde_json::to_value(project_fixture()).expect("fixture serializes");
+            value["schema_version"] = serde_json::json!(schema_version);
+            value["settings"]
+                .as_object_mut()
+                .expect("settings are an object")
+                .remove("load_point_grouping");
+            value["settings"]["active_pile_sizes"] = serde_json::json!([290]);
+            value["settings"]["active_pile_tip_levels"] = serde_json::json!([-18.25]);
+            value["user_state"]["manual_cpt_selections"] = serde_json::json!({ "1": [61] });
+
+            let selected_piles = serde_json::json!({
+                "1": {
+                    "pile": {
+                        "pile_size_mm": 290,
+                        "pile_tip_level_m_key": -18_250
+                    },
+                    "external_references": []
+                }
+            });
+            if schema_version == 1 {
+                let user_state = value["user_state"]
+                    .as_object_mut()
+                    .expect("user state is an object");
+                user_state.remove("pile_plans");
+                user_state.remove("active_pile_plan_id");
+                user_state.insert("selected_piles".to_string(), selected_piles);
+            } else {
+                value["user_state"]["pile_plans"] = serde_json::json!([{
+                    "id": "basis",
+                    "name": "Basis",
+                    "active_pile_sizes": [290],
+                    "active_pile_tip_levels": [-18.25],
+                    "selected_piles": selected_piles,
+                    "locked_load_point_ids": [1]
+                }]);
+                value["user_state"]["active_pile_plan_id"] = serde_json::json!("basis");
+            }
+
+            if schema_version <= 2 {
+                let settings = value["settings"]
+                    .as_object_mut()
+                    .expect("settings are an object");
+                settings.remove("pile_head_level_m");
+                settings.remove("viewer");
+                settings["pile_costs"]["pile_head_level_m"] = serde_json::json!(-1.25);
+                settings["pile_costs"]["items"][0]["cost_per_m3_eur"] = serde_json::json!(225.0);
+                settings["pile_costs"]["items"][0]
+                    .as_object_mut()
+                    .expect("cost row is an object")
+                    .remove("cost_per_m3");
+            } else {
+                value["settings"]["pile_head_level_m"] = serde_json::json!(-1.25);
+                value["settings"]["pile_costs"]["items"][0]["cost_per_m3"] =
+                    serde_json::json!(225.0);
+            }
+
+            let restored = read_validated_ifcpp_str(
+                &serde_json::to_string(&value).expect("legacy JSON writes"),
+            )
+            .expect("supported project reads")
+            .project;
+
+            assert_eq!(restored.schema_version, 4, "schema {schema_version}");
+            assert_eq!(
+                restored.settings.load_point_grouping,
+                crate::LoadPointGroupingSettings::default(),
+                "schema {schema_version}",
+            );
+            assert_eq!(restored.settings.pile_head_level_m, Some(-1.25));
+            assert_eq!(restored.settings.pile_costs.items[0].cost_per_m3, 225.0);
+            assert_eq!(restored.settings.viewer_utilization.minimum, 0.0);
+            assert_eq!(restored.settings.viewer_utilization.maximum, 1.0);
+            assert_eq!(restored.user_state.pile_plans.len(), 1);
+            assert_eq!(
+                restored.user_state.pile_plans[0].active_pile_sizes,
+                vec![290]
+            );
+            assert_eq!(
+                restored.user_state.pile_plans[0].active_pile_tip_levels,
+                vec![-18.25]
+            );
+            assert_eq!(
+                restored.user_state.pile_plans[0]
+                    .selected_piles
+                    .get(&1)
+                    .and_then(|choice| choice.pile.as_ref())
+                    .map(|pile| pile.pile_tip_level_mm),
+                Some(-18_250),
+            );
+            assert_eq!(
+                restored.user_state.manual_cpt_selections.get(&1),
+                Some(&vec![61]),
+            );
+            assert_eq!(
+                restored.user_state.pile_plans[0].locked_load_point_ids,
+                if schema_version == 1 { vec![] } else { vec![1] },
+            );
+        }
+    }
+
     fn assert_invalid_tip_context(
         project: &PilePlanProject,
         expected_context: ProjectPileTipLevelContext,

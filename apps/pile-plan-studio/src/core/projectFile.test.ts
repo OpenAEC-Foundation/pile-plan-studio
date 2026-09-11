@@ -682,6 +682,43 @@ describe("IFCPP project loading", () => {
     );
   });
 
+  it("preserves canonical project-owned content through hydration and save construction", () => {
+    const loaded = loadProject(createIfcppProject(loadProject(projectFixture())));
+    loaded.loadPointGroupingSettings = { automatic: false, maxEdgeDistanceM: 2.75 };
+    loaded.pileCostSettings = {
+      schema_version: 1,
+      items: [{ pile_size_mm: 290, shape: "round", cost_per_m3: 345 }],
+    };
+    loaded.pileHeadLevelM = -1.25;
+    loaded.currencyCode = "GBP";
+    loaded.symbolScalePercent = 135;
+    loaded.foregroundLayer = "cpts";
+    loaded.showGrid = false;
+    loaded.showTipLevelRegions = false;
+    loaded.manualCptIdsByLoadPoint = new Map([[1, [10]]]);
+    loaded.pilePlans[0].lockedLoadPointIds = [1];
+    loaded.pilePlans[0].externalReferencesByLoadPoint = new Map([[1, [{ entity: "IfcPile" }]]]);
+
+    const saved = createIfcppProject(loaded);
+    const restored = loadProject(saved);
+
+    assert.equal(saved.schema_version, 4);
+    assert.deepEqual(restored.loadPointGroupingSettings, loaded.loadPointGroupingSettings);
+    assert.deepEqual(restored.pileCostSettings, loaded.pileCostSettings);
+    assert.equal(restored.pileHeadLevelM, -1.25);
+    assert.equal(restored.currencyCode, "GBP");
+    assert.equal(restored.symbolScalePercent, 135);
+    assert.equal(restored.foregroundLayer, "cpts");
+    assert.equal(restored.showGrid, false);
+    assert.equal(restored.showTipLevelRegions, false);
+    assert.deepEqual(restored.manualCptIdsByLoadPoint, new Map([[1, [10]]]));
+    assert.deepEqual(restored.pilePlans[0].lockedLoadPointIds, [1]);
+    assert.deepEqual(
+      restored.pilePlans[0].externalReferencesByLoadPoint,
+      new Map([[1, [{ entity: "IfcPile" }]]]),
+    );
+  });
+
   it("uses default pile cost settings when imported project has no pile costs", () => {
     const importedProject = {
       ...projectFixture(),

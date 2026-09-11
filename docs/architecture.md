@@ -18,6 +18,25 @@ The guiding rule is that engineering decisions must be implemented and tested in
 `crates/pile-plan-core` first. Frontend code may present results, but should not
 be the source of truth for calculations.
 
+The detailed ownership audit, including explicit reasons for behavior that
+remains in TypeScript, is maintained in
+[`docs/domain-ownership.md`](domain-ownership.md).
+
+Canonical project persistence follows one boundary in both runtimes:
+
+```text
+Open: IFCPP text -> Rust migration and validation -> canonical project
+                 -> TypeScript hydration -> React state
+
+Save: React project content -> TypeScript project draft -> Rust validation and
+                              serialization -> IFCPP text
+```
+
+IndexedDB, undo/redo, and dirty-state tracking remain TypeScript application
+infrastructure. IndexedDB stores Rust-serialized IFCPP text, restored text uses
+the same Rust read path as an opened file, and undo/redo restores project-owned
+content before Rust-derived analysis is recalculated.
+
 Pile tip levels remain metre values in IFCPP exchange data and physical
 calculations. The Rust core validates those values and produces exact integer
 millimetre keys for identity, equality, ordering, and deduplication. WASM and
