@@ -4,7 +4,14 @@ import type {
   IfcppProject,
 } from "./projectFile.ts";
 import type { PileConfigurationKey } from "./projectTypes.ts";
-import type { ProjectTipLevelKeys } from "./pileTipLevelContract.ts";
+
+export type PileTipLevelPrecisionReason = "non-finite" | "out-of-range" | "submillimetre";
+
+export type ProjectTipLevelKeys = {
+  bearingCapacities: number[];
+  pilePlans: Array<{ id: string; active: number[] }>;
+  legend: number[];
+};
 
 type NumericCollection<T> = Map<number, T> | Record<string, T>;
 type StringCollection<T> = Map<string, T> | Record<string, T>;
@@ -70,7 +77,7 @@ export type CoreProjectDocumentError =
 
 type CoreInvalidProjectPileTipLevel = {
   value: string;
-  reason: "non-finite" | "out-of-range" | "submillimetre";
+  reason: PileTipLevelPrecisionReason;
   context:
     | { kind: "bearing-capacity"; index: number; cpt_id: number; pile_size_mm: number }
     | { kind: "pile-plan-active"; plan_id: string; index: number }

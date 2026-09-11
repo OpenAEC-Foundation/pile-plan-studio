@@ -15,7 +15,7 @@ import type { OptimizationRunSummary } from "./optimizationSummary.ts";
 import type { OptimizationLimitScope, OptimizationTargetScope } from "../components/domain/optimizationPanelModel.ts";
 import type { ForegroundLayer } from "./viewerPreferences.ts";
 import type { LoadPointLockDraft } from "./loadPointLocking.ts";
-import type { ProjectTipLevelKeys } from "../core/pileTipLevelContract.ts";
+import type { ProjectTipLevelKeys } from "../core/projectDocumentContract.ts";
 
 export type InputSourceKind = "load_points" | "cpts" | "bearing_capacities";
 export type InputSourceStatus = "snapshot-only" | "linked" | "missing" | "changed";

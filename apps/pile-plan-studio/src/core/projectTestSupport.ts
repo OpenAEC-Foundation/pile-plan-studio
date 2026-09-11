@@ -1,5 +1,5 @@
 import type { IfcppProject } from "./projectFile.ts";
-import type { ProjectTipLevelKeys } from "./pileTipLevelContract.ts";
+import type { ProjectTipLevelKeys } from "./projectDocumentContract.ts";
 
 export function canonicalProjectForTest(input: string | IfcppProject): IfcppProject {
   const project = structuredClone(

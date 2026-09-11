@@ -8,22 +8,22 @@ use pile_plan_core::{
     build_spatial_neighborhood as build_spatial_neighborhood_core,
     build_tip_level_region_topology as build_tip_level_region_topology_core, calculate_pile_cost,
     choose_default_pile_option, choose_default_pile_options,
-    derive_load_point_groups as derive_load_point_groups_core, duplicate_load_point_positions,
+    derive_load_point_groups as derive_load_point_groups_core,
     greedy_optimize_pile_choices, import_project_from_generic_sources_with_properties,
-    preview_import_source, preview_pile_plan_import, read_validated_ifcpp_project_outcome,
+    preview_import_source, preview_pile_plan_import,
     read_project_document as read_project_document_core, refresh_project_from_profiled_sources,
     selected_cpts, validate_project_tip_levels,
     write_pile_plan_csv as write_pile_plan_csv_bytes,
     write_pile_plan_xlsx as write_pile_plan_xlsx_bytes, AggregatedPileConfiguration,
     ApplyLoadPointGroupAssignmentInput, ApplyLoadPointGroupAssignmentResult, CptSelectionSettings,
-    DuplicateLoadPointPosition, GreedyOptimizationInput, GreedyOptimizationOutcome, ImportSource,
+    GreedyOptimizationInput, GreedyOptimizationOutcome, ImportSource,
     ImportSourcePreview, InvalidPileTipLevels, LoadPointGroup, LoadPointGroupingSettings,
     PileConfigurationKey, PileConfigurationOption, PileCostSettings, PilePlanExportRequest,
     PilePlanImportPreview, PilePlanImportRequest, PilePlanProject, ProjectAnalysisResult,
     ProjectBearingCapacity, ProjectCpt, ProjectDocumentDraft, ProjectDocumentError,
     ProjectLoadPoint, SelectedCpt, SpatialNeighborhood,
     SpatialPileAssignment, TechnicalAssignmentAssessment, TechnicalAssignmentAssessmentError,
-    TipLevelRegionTopology, ValidatedIfcppProjectOutcome, ValidatedPilePlanProject,
+    TipLevelRegionTopology, ValidatedPilePlanProject,
     write_project_document as write_project_document_core,
 };
 use serde::{Deserialize, Serialize};
@@ -181,16 +181,6 @@ struct PreviewImportRequest {
 #[derive(Debug, Deserialize)]
 struct SpatialNeighborhoodRequest {
     load_points: Vec<ProjectLoadPoint>,
-}
-
-#[derive(Debug, Deserialize)]
-struct ValidateLoadPointPositionsRequest {
-    load_points: Vec<ProjectLoadPoint>,
-}
-
-#[derive(Debug, Deserialize)]
-struct ReadValidatedIfcppProjectRequest {
-    contents: String,
 }
 
 #[derive(Debug, Deserialize)]
@@ -405,20 +395,6 @@ fn build_spatial_neighborhood(request: SpatialNeighborhoodRequest) -> SpatialNei
 }
 
 #[tauri::command(rename_all = "snake_case")]
-fn validate_load_point_positions(
-    request: ValidateLoadPointPositionsRequest,
-) -> Vec<DuplicateLoadPointPosition> {
-    duplicate_load_point_positions(&request.load_points)
-}
-
-#[tauri::command(rename_all = "snake_case")]
-fn read_validated_ifcpp_project(
-    request: ReadValidatedIfcppProjectRequest,
-) -> Result<ValidatedIfcppProjectOutcome, String> {
-    read_validated_project_contents(&request.contents).map_err(|error| error.to_string())
-}
-
-#[tauri::command(rename_all = "snake_case")]
 fn read_project_document(
     request: ReadProjectDocumentRequest,
 ) -> Result<ValidatedPilePlanProject, ProjectDocumentError> {
@@ -430,12 +406,6 @@ fn write_project_document(
     request: WriteProjectDocumentRequest,
 ) -> Result<String, ProjectDocumentError> {
     write_project_document_core(request.draft)
-}
-
-fn read_validated_project_contents(
-    contents: &str,
-) -> Result<ValidatedIfcppProjectOutcome, pile_plan_core::IfcppError> {
-    read_validated_ifcpp_project_outcome(contents)
 }
 
 #[tauri::command(rename_all = "snake_case")]
@@ -495,8 +465,6 @@ fn main() {
             cpt_frd_rows,
             derive_load_point_groups,
             greedy_optimize,
-            validate_load_point_positions,
-            read_validated_ifcpp_project,
             read_project_document,
             write_project_document,
             import_project_from_files,
@@ -556,70 +524,6 @@ mod tests {
         });
 
         assert!(topology.groups.is_empty());
-    }
-
-    #[test]
-    fn load_point_position_validation_returns_structured_duplicates() {
-        let duplicates = validate_load_point_positions(ValidateLoadPointPositionsRequest {
-            load_points: vec![
-                ProjectLoadPoint {
-                    id: 8,
-                    name: "Load point 8".to_string(),
-                    x_mm: 10.0,
-                    y_mm: 20.0,
-                    design_load_kn: 100.0,
-                },
-                ProjectLoadPoint {
-                    id: 2,
-                    name: "Load point 2".to_string(),
-                    x_mm: 10.0,
-                    y_mm: 20.0,
-                    design_load_kn: 200.0,
-                },
-            ],
-        });
-
-        assert_eq!(duplicates.len(), 1);
-        assert_eq!(
-            duplicates[0]
-                .load_points
-                .iter()
-                .map(|member| member.id)
-                .collect::<Vec<_>>(),
-            vec![2, 8]
-        );
-    }
-
-    #[test]
-    fn pile_tip_level_validation_returns_valid_project_and_canonical_keys() {
-        let outcome = read_validated_project_contents(include_str!(
-            "../../../../sample_project/sample_project.ifcpp"
-        ))
-        .unwrap();
-
-        let ValidatedIfcppProjectOutcome::Valid { project, keys } = outcome else {
-            panic!("expected valid project")
-        };
-        assert_eq!(project.schema_version, 4);
-        assert_eq!(keys.bearing_capacities[0], -17_500);
-    }
-
-    #[test]
-    fn pile_tip_level_validation_returns_structured_invalid_outcome() {
-        let contents = include_str!("../../../../sample_project/sample_project.ifcpp").replacen(
-            "\"pile_tip_level_m\": -17.5",
-            "\"pile_tip_level_m\": -18.5004",
-            1,
-        );
-        let outcome = read_validated_project_contents(&contents).unwrap();
-        let ValidatedIfcppProjectOutcome::Invalid { errors } = outcome else {
-            panic!("expected invalid project")
-        };
-        assert_eq!(errors[0].value, "-18.5004");
-        assert_eq!(
-            errors[0].reason,
-            pile_plan_core::PileTipLevelPrecisionErrorReason::Submillimetre
-        );
     }
 
     #[test]

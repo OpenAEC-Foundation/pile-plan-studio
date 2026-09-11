@@ -20,10 +20,7 @@ import initWasm, {
   preview_import_file,
   preview_pile_plan_import_file,
   read_project_document,
-  read_validated_ifcpp_project,
   refresh_project_from_files,
-  validate_load_point_positions,
-  write_ifcpp_project,
   write_project_document,
 } from "./wasm/pile-plan-wasm/pile_plan_wasm.js";
 import { toStringKeyedRecord, toWasmNumberKeyedMap, toWasmNumberKeyedRecord } from "./coreSerialization.ts";
@@ -110,16 +107,6 @@ import {
   type TechnicalAssignmentContractInput,
 } from "./technicalAssignmentContract.ts";
 import {
-  duplicateLoadPointPositionsFromCore,
-  type CoreDuplicateLoadPointPosition,
-  type DuplicateLoadPointPosition,
-} from "./loadPointPositionContract.ts";
-import {
-  validatedIfcppProjectOutcomeFromCore,
-  type CoreValidatedIfcppProjectOutcome,
-  type ValidatedIfcppProjectOutcome,
-} from "./pileTipLevelContract.ts";
-import {
   projectDocumentErrorFromUnknown,
   projectDocumentOutcomeFromCore,
   toBrowserProjectDocumentDraft,
@@ -144,21 +131,6 @@ let wasmReady: Promise<void> | null = null;
 
 export function isTauriRuntime(): boolean {
   return typeof window !== "undefined" && "__TAURI_INTERNALS__" in window;
-}
-
-export async function validateLoadPointPositionsCore(
-  loadPoints: LoadPoint[],
-): Promise<DuplicateLoadPointPosition[]> {
-  let positions: CoreDuplicateLoadPointPosition[];
-  if (!isTauriRuntime()) {
-    await initializeWasm();
-    positions = validate_load_point_positions({ load_points: loadPoints }) as CoreDuplicateLoadPointPosition[];
-  } else {
-    positions = await invoke<CoreDuplicateLoadPointPosition[]>("validate_load_point_positions", {
-      request: { load_points: loadPoints },
-    });
-  }
-  return duplicateLoadPointPositionsFromCore(positions);
 }
 
 export async function buildSpatialNeighborhoodCore(
@@ -539,21 +511,6 @@ function validProjectDocumentFromCore(
   return outcome;
 }
 
-export async function readValidatedIfcppProjectCore(
-  contents: string,
-): Promise<ValidatedIfcppProjectOutcome> {
-  let outcome: CoreValidatedIfcppProjectOutcome;
-  if (!isTauriRuntime()) {
-    await initializeWasm();
-    outcome = read_validated_ifcpp_project({ contents }) as CoreValidatedIfcppProjectOutcome;
-  } else {
-    outcome = await invoke<CoreValidatedIfcppProjectOutcome>("read_validated_ifcpp_project", {
-      request: { contents },
-    });
-  }
-  return validatedIfcppProjectOutcomeFromCore(outcome);
-}
-
 export async function readProjectDocumentCore(
   contents: string,
 ): Promise<ProjectDocumentOutcome> {
@@ -627,11 +584,6 @@ export async function exportPilePlanCsvCore(input: PilePlanExportInput): Promise
 
 export async function exportPilePlanXlsxCore(input: PilePlanExportInput): Promise<Uint8Array> {
   return exportPilePlanCore("xlsx", input);
-}
-
-export async function writeIfcppProjectCore(project: IfcppProject): Promise<string> {
-  await initializeWasm();
-  return write_ifcpp_project(toWasmIfcppProject(project));
 }
 
 function toWasmIfcppProject(project: IfcppProject) {

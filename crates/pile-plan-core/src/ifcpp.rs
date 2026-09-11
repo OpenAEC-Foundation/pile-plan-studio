@@ -9,7 +9,7 @@ use crate::{
     validate_pile_cost_settings, validate_project_tip_levels, validate_unique_load_point_positions,
     DuplicateLoadPointPositions, InvalidPileCostSettings, InvalidProjectPileTipLevels,
     PilePlanProject, ProjectApplication, ProjectDocumentDraft, ProjectUserState,
-    SelectedPileChoice, ValidatedIfcppProjectOutcome, ValidatedPilePlanProject,
+    SelectedPileChoice, ValidatedPilePlanProject,
 };
 
 #[derive(Debug)]
@@ -301,21 +301,6 @@ fn validate_project_value_pile_plan_ids(value: &Value) -> Result<(), IfcppError>
         return Err(IfcppError::DuplicatePilePlanId(duplicate_id.to_string()));
     }
     Ok(())
-}
-
-pub fn read_validated_ifcpp_project_outcome(
-    input: &str,
-) -> Result<ValidatedIfcppProjectOutcome, IfcppError> {
-    match read_validated_ifcpp_str(input) {
-        Ok(validated) => Ok(ValidatedIfcppProjectOutcome::Valid {
-            project: validated.project,
-            keys: validated.tip_level_keys,
-        }),
-        Err(IfcppError::InvalidPileTipLevels(error)) => Ok(ValidatedIfcppProjectOutcome::Invalid {
-            errors: error.values,
-        }),
-        Err(error) => Err(error),
-    }
 }
 
 pub fn write_ifcpp_string(project: &PilePlanProject) -> Result<String, IfcppError> {
@@ -711,8 +696,9 @@ mod tests {
                 cost_per_m3: 110.0,
             },
         ];
-        let duplicate_error = write_project_document(ProjectDocumentDraft::from_project(&duplicate))
-            .expect_err("duplicate pile costs are rejected");
+        let duplicate_error =
+            write_project_document(ProjectDocumentDraft::from_project(&duplicate))
+                .expect_err("duplicate pile costs are rejected");
         let serialized = serde_json::to_value(duplicate_error).expect("error serializes");
         assert_eq!(serialized["errors"][0]["index"], 1);
         assert_eq!(serialized["errors"][0]["reason"], "duplicate-pile-size");

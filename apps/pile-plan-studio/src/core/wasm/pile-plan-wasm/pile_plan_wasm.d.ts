@@ -41,13 +41,7 @@ export function preview_pile_plan_import_file(request: any): any;
 
 export function read_project_document(request: any): any;
 
-export function read_validated_ifcpp_project(request: any): any;
-
 export function refresh_project_from_files(request: any): any;
-
-export function validate_load_point_positions(request: any): any;
-
-export function write_ifcpp_project(project: any): string;
 
 export function write_project_document(request: any): string;
 
@@ -75,10 +69,7 @@ export interface InitOutput {
     readonly preview_import_file: (a: any) => [number, number, number];
     readonly preview_pile_plan_import_file: (a: any) => [number, number, number];
     readonly read_project_document: (a: any) => [number, number, number];
-    readonly read_validated_ifcpp_project: (a: any) => [number, number, number];
     readonly refresh_project_from_files: (a: any) => [number, number, number];
-    readonly validate_load_point_positions: (a: any) => [number, number, number];
-    readonly write_ifcpp_project: (a: any) => [number, number, number, number];
     readonly write_project_document: (a: any) => [number, number, number, number];
     readonly __wbindgen_malloc: (a: number, b: number) => number;
     readonly __wbindgen_realloc: (a: number, b: number, c: number, d: number) => number;

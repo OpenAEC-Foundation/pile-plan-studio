@@ -85,18 +85,6 @@ pub struct ValidatedPilePlanProject {
     pub tip_level_keys: ProjectTipLevelKeys,
 }
 
-#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
-#[serde(tag = "status", rename_all = "kebab-case")]
-pub enum ValidatedIfcppProjectOutcome {
-    Valid {
-        project: PilePlanProject,
-        keys: ProjectTipLevelKeys,
-    },
-    Invalid {
-        errors: Vec<InvalidProjectPileTipLevel>,
-    },
-}
-
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub struct InvalidProjectPileTipLevels {
     pub values: Vec<InvalidProjectPileTipLevel>,

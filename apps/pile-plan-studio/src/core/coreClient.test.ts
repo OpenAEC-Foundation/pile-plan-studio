@@ -32,7 +32,7 @@ describe("project source refresh core contract", () => {
 
     const importStart = source.indexOf("export async function importProjectFromFilesCore");
     const refreshStart = source.indexOf("export async function refreshProjectFromFilesCore");
-    const readStart = source.indexOf("export async function readValidatedIfcppProjectCore");
+    const readStart = source.indexOf("export async function readProjectDocumentCore");
     const importHandler = source.slice(importStart, refreshStart);
     const refreshHandler = source.slice(refreshStart, readStart);
 
@@ -41,6 +41,15 @@ describe("project source refresh core contract", () => {
     assert.match(refreshHandler, /validProjectDocumentFromCore/);
     assert.doesNotMatch(importHandler, /validatedProjectFromCore/);
     assert.doesNotMatch(refreshHandler, /validatedProjectFromCore/);
+  });
+
+  it("does not expose superseded project-validation endpoints", () => {
+    const source = readFileSync(new URL("./coreClient.ts", import.meta.url), "utf8");
+
+    assert.doesNotMatch(
+      source,
+      /readValidatedIfcppProjectCore|writeIfcppProjectCore|validateLoadPointPositionsCore/,
+    );
   });
 
   it("passes required project properties through new-project imports", () => {

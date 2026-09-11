@@ -1,5 +1,5 @@
 import type { ImportFileRole } from "./importFiles.ts";
-import type { PileTipLevelPrecisionReason } from "./pileTipLevelContract.ts";
+import type { PileTipLevelPrecisionReason } from "./projectDocumentContract.ts";
 
 export type ImportProfile = "auto" | "standard-table" | "rfem-export";
 

@@ -12,9 +12,6 @@ Status meanings:
   scheduling, or other runtime workflow.
 - **Presentation-owned:** TypeScript derives display-only state from canonical
   domain facts.
-- **Migration target:** the current TypeScript implementation still
-  interprets project data or duplicates a rule that must become exclusively
-  core-owned.
 
 ## Project documents and persistence
 
@@ -25,7 +22,7 @@ Status meanings:
 | `crates/pile-plan-wasm/src/lib.rs` | Browser exports for project read/write and imports | Adapter only | **Core-owned through delegation.** Keep serialization mechanical. |
 | `apps/pile-plan-studio/src-tauri/src/main.rs` | Desktop commands and native file access | Adapter and application infrastructure | **Core-owned through delegation** for project interpretation; native file access remains application infrastructure. |
 | `apps/pile-plan-studio/src/core/projectFile.ts` | Mechanical hydration of canonical project data, immutable copies, import summaries, and legend presentation mapping | TypeScript adapter and presentation | **Application/presentation-owned.** Schema branching, project defaults, validation, canonical construction, and float-derived identity are Rust-owned. |
-| `apps/pile-plan-studio/src/core/pileTipLevelContract.ts` | Tip-level-specific project validation outcome and error mapping | General Rust project contract with TypeScript localization | **Migration target.** Fold into a complete project-document contract so project validity is not modeled as only a tip-level concern. |
+| `apps/pile-plan-studio/src/core/projectDocumentContract.ts` | Maps the canonical document, exact tip-level keys, and structured project errors into interface-friendly names | TypeScript adapter | **Application-owned adapter.** It translates transport shapes and error fields without independently validating or repairing project content. |
 | `apps/pile-plan-studio/src/core/coreClient.ts` | Chooses WASM or Tauri and maps requests/results | TypeScript adapter | **Application-owned adapter.** It must not add defaults, validation, or repair. |
 | `apps/pile-plan-studio/src/domain/openedProject.ts` | Coordinates one canonical core read and creates state only after that read succeeds | TypeScript workflow | **Application-owned.** Open is atomic and performs no independent project interpretation or duplicate position validation. |
 | `apps/pile-plan-studio/src/domain/projectState.ts` | Creates React project state and transient selection/request state | TypeScript | **Application-owned.** Consume only canonical project data; localized initial plan naming remains UI workflow. |
