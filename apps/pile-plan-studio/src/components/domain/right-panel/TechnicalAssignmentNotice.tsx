@@ -1,15 +1,15 @@
 import { useTranslation } from "react-i18next";
 
-import type { ProjectState } from "../../domain/projectState.ts";
-import { selectLoadPoint } from "../../domain/selectionState.ts";
+import type { ProjectState } from "../../../domain/projectState.ts";
+import { selectLoadPoint } from "../../../domain/selectionState.ts";
 import {
   getAnalysisFailureNotice,
   getMultiSelectionAssignmentSummary,
   getNeutralUnassignedNotice,
   getOptimizerUnassignedNotices,
   getTechnicalAssignmentNotice,
-} from "../../domain/technicalAssignmentNotice.ts";
-import type { TechnicalAssignmentSnapshot } from "./technicalAssignmentController.ts";
+} from "../../../domain/technicalAssignmentNotice.ts";
+import type { TechnicalAssignmentSnapshot } from "../technicalAssignmentController.ts";
 
 type Props = {
   state: ProjectState;

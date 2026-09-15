@@ -1,4 +1,4 @@
-import type { PresentedTipLevelRegionLayer } from "../../viewer/tipLevelRegionPresentation.ts";
+import type { PresentedTipLevelRegionLayer } from "../../../../viewer/tipLevelRegionPresentation.ts";
 
 export type TipLevelRegionSvgEdgePath = {
   d: string;

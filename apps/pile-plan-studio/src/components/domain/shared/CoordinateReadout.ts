@@ -1,6 +1,6 @@
 import { createElement } from "react";
 
-import { formatCoordinateReadout } from "../../domain/formatting.ts";
+import { formatCoordinateReadout } from "../../../domain/formatting.ts";
 
 type CoordinatePoint = {
   x_mm: number;

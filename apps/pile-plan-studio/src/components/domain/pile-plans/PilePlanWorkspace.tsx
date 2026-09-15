@@ -4,11 +4,11 @@ import Legend from "./Legend";
 import LegendEditor from "./legend-editor/LegendEditor";
 import PilePlanViewer from "../pile-plan-viewer/PilePlanViewer";
 import { clearLegendSelection, shouldClearLegendSelectionFromPointerTarget } from "../viewerInteractions";
-import "../viewer.css";
+import "../pile-plan-viewer/viewer.css";
 import type { LoadPointGroup } from "../../../core/loadPointGroupContract.ts";
 import type { TechnicalAssignmentSnapshot } from "../technicalAssignmentController.ts";
 import { replacePilePlanActivation } from "../../../domain/pilePlanActivation.ts";
-import { useTipLevelRegionTopology } from "../useTipLevelRegionTopology.ts";
+import { useTipLevelRegionTopology } from "../pile-plan-viewer/tip-level-regions/useTipLevelRegionTopology.ts";
 
 type Props = {
   state: ProjectState;

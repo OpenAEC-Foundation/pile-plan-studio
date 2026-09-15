@@ -1,8 +1,8 @@
 import type {
   AggregatedPileConfiguration,
-} from "../../core/pileOptionAggregationContract.ts";
-import type { PileConfigurationOption } from "../../core/projectTypes.ts";
-import { pileConfigurationToken } from "../../core/pileConfigurationKey.ts";
+} from "../../../core/pileOptionAggregationContract.ts";
+import type { PileConfigurationOption } from "../../../core/projectTypes.ts";
+import { pileConfigurationToken } from "../../../core/pileConfigurationKey.ts";
 
 export type PileOptionAggregationControllerInput = {
   selectedLoadPointIds: number[];

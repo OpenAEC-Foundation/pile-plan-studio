@@ -1,6 +1,6 @@
 import type { ProjectState } from "../../../domain/projectState.ts";
 import type { PileCostSettings } from "../../../core/projectTypes.ts";
-import CostCatalogPanel from "../CostSettingsPanel.tsx";
+import CostCatalogEditor from "./CostCatalogEditor.tsx";
 
 export type CostSettingsPanelProps = {
   state: ProjectState; onStateChange: (state: ProjectState) => void; onClose: () => void;
@@ -19,7 +19,7 @@ export default function CostSettingsPanel({
   onLoadBuiltInCosts = () => undefined,
 }: CostSettingsPanelProps) {
   return (
-    <CostCatalogPanel
+    <CostCatalogEditor
       settings={state.pileCostSettings}
       bearingCapacities={state.bearingCapacities}
       currencyCode={state.currencyCode}

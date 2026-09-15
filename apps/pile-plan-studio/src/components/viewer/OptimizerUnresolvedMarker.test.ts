@@ -6,7 +6,7 @@ import { resolve } from "node:path";
 describe("optimizer unresolved marker", () => {
   it("uses one compact question mark without zoom-dependent detail", () => {
     const source = readFileSync(resolve(import.meta.dirname, "OptimizerUnresolvedMarker.tsx"), "utf8");
-    const styles = readFileSync(resolve(import.meta.dirname, "../domain/viewer.css"), "utf8");
+    const styles = readFileSync(resolve(import.meta.dirname, "../domain/pile-plan-viewer/viewer.css"), "utf8");
 
     assert.match(source, /viewBox="-12 -12 24 24"/);
     assert.match(source, /optimizer-marker-question/);

@@ -4,7 +4,7 @@ import type { ProjectState } from "../../../domain/projectState.ts";
 import { switchRightPanelMode, type RightPanelMode } from "../../../domain/selectionState.ts";
 import { infoIcon } from "../../template/ribbon/icons.ts";
 import ThemedNumberInput from "../../template/ThemedNumberInput.tsx";
-import { commitNumberDraft } from "../numberInputModel.ts";
+import { commitNumberDraft } from "./numberInputModel.ts";
 
 export function SettingsGroup({ title, muted = false, children }: {
   title: string;

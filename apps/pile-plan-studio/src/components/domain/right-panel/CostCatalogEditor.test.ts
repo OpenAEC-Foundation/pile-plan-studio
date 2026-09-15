@@ -4,7 +4,7 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
 describe("Cost settings panel", () => {
-  const source = readFileSync(resolve(import.meta.dirname, "CostSettingsPanel.tsx"), "utf8");
+  const source = readFileSync(resolve(import.meta.dirname, "CostCatalogEditor.tsx"), "utf8");
 
   it("groups project sizes separately from collapsed other sizes", () => {
     assert.match(source, /partitionPileCostItems/);
@@ -34,8 +34,8 @@ describe("Cost settings panel", () => {
   });
 
   it("shows bilingual provenance and scope for the built-in cost default", () => {
-    const en = JSON.parse(readFileSync(resolve(import.meta.dirname, "../../i18n/locales/en/rightPanel.json"), "utf8"));
-    const nl = JSON.parse(readFileSync(resolve(import.meta.dirname, "../../i18n/locales/nl/rightPanel.json"), "utf8"));
+    const en = JSON.parse(readFileSync(resolve(import.meta.dirname, "../../../i18n/locales/en/rightPanel.json"), "utf8"));
+    const nl = JSON.parse(readFileSync(resolve(import.meta.dirname, "../../../i18n/locales/nl/rightPanel.json"), "utf8"));
 
     assert.match(source, /cost\.builtInSourceTitle/);
     assert.match(source, /cost\.builtInSourceDescription/);

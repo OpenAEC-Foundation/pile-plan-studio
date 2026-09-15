@@ -5,7 +5,7 @@ import { openCpt } from "../../../domain/selectionState.ts";
 import { getCptFrdPanelModel, getSelectedCptOverviewModel, getSelectedLoadPoints } from "./rightPanelModel.ts";
 import { cancelManualCptSelection, clearManualCptSelection, removeManualCpt, saveManualCptSelection, selectOnlyNearestCpts, startManualCptSelectionEdit } from "../cptSettingsModel.ts";
 import { removeIcon } from "../../template/ribbon/icons.ts";
-import { CoordinateReadout } from "../CoordinateReadout.ts";
+import { CoordinateReadout } from "../shared/CoordinateReadout.ts";
 import { ResistanceLabel, localizeCptName, localizeCptTableValue, localizeLoadPointName } from "./PanelControls.tsx";
 
 export default function CptPanel({ state, onStateChange, selectedLoadPoints }: {

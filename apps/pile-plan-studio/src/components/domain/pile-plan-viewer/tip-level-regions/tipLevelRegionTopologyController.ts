@@ -1,18 +1,18 @@
 import type {
   buildLoadPointTopologyCore,
   buildTipLevelRegionTopologyCore,
-} from "../../core/coreClient.ts";
+} from "../../../../core/coreClient.ts";
 import type {
   LoadPoint,
   PileConfigurationKey,
   PileConfigurationOption,
-} from "../../core/projectTypes.ts";
-import { pileConfigurationToken } from "../../core/pileConfigurationKey.ts";
+} from "../../../../core/projectTypes.ts";
+import { pileConfigurationToken } from "../../../../core/pileConfigurationKey.ts";
 import {
   toTipLevelRegionAssignments,
   type LoadPointTopology,
   type TipLevelRegionTopology,
-} from "../../core/tipLevelRegionContract.ts";
+} from "../../../../core/tipLevelRegionContract.ts";
 
 export type TipLevelRegionTopologyDependencies = {
   buildLoadPointTopology: typeof buildLoadPointTopologyCore;

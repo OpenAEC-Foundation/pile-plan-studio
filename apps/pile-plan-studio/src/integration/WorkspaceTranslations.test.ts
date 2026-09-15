@@ -5,8 +5,8 @@ import { resolve } from "node:path";
 
 describe("Workspace translations", () => {
   it("provides bilingual project-open feedback for invalid pile tip levels", () => {
-    const en = JSON.parse(readFileSync(resolve(import.meta.dirname, "../../i18n/locales/en/common.json"), "utf8"));
-    const nl = JSON.parse(readFileSync(resolve(import.meta.dirname, "../../i18n/locales/nl/common.json"), "utf8"));
+    const en = JSON.parse(readFileSync(resolve(import.meta.dirname, "../i18n/locales/en/common.json"), "utf8"));
+    const nl = JSON.parse(readFileSync(resolve(import.meta.dirname, "../i18n/locales/nl/common.json"), "utf8"));
 
     assert.match(en.pileTipLevels.projectOpenError_one, /not opened/i);
     assert.match(en.pileTipLevels.projectOpenError_one, /millimetre/i);
@@ -17,8 +17,8 @@ describe("Workspace translations", () => {
   });
 
   it("provides bilingual feedback for every structured project-document error", () => {
-    const en = JSON.parse(readFileSync(resolve(import.meta.dirname, "../../i18n/locales/en/common.json"), "utf8"));
-    const nl = JSON.parse(readFileSync(resolve(import.meta.dirname, "../../i18n/locales/nl/common.json"), "utf8"));
+    const en = JSON.parse(readFileSync(resolve(import.meta.dirname, "../i18n/locales/en/common.json"), "utf8"));
+    const nl = JSON.parse(readFileSync(resolve(import.meta.dirname, "../i18n/locales/nl/common.json"), "utf8"));
 
     for (const code of [
       "invalid-json",
@@ -40,8 +40,8 @@ describe("Workspace translations", () => {
   });
 
   it("provides bilingual feedback for unavailable Undo and Redo requests", () => {
-    const en = JSON.parse(readFileSync(resolve(import.meta.dirname, "../../i18n/locales/en/common.json"), "utf8"));
-    const nl = JSON.parse(readFileSync(resolve(import.meta.dirname, "../../i18n/locales/nl/common.json"), "utf8"));
+    const en = JSON.parse(readFileSync(resolve(import.meta.dirname, "../i18n/locales/en/common.json"), "utf8"));
+    const nl = JSON.parse(readFileSync(resolve(import.meta.dirname, "../i18n/locales/nl/common.json"), "utf8"));
 
     assert.equal(en.history.result.unavailable.undo, "There is no operation to undo.");
     assert.equal(en.history.result.unavailable.redo, "There is no operation to redo.");
@@ -50,8 +50,8 @@ describe("Workspace translations", () => {
   });
 
   it("provides bilingual tip-level region toggle labels", () => {
-    const en = JSON.parse(readFileSync(resolve(import.meta.dirname, "../../i18n/locales/en/ribbon.json"), "utf8"));
-    const nl = JSON.parse(readFileSync(resolve(import.meta.dirname, "../../i18n/locales/nl/ribbon.json"), "utf8"));
+    const en = JSON.parse(readFileSync(resolve(import.meta.dirname, "../i18n/locales/en/ribbon.json"), "utf8"));
+    const nl = JSON.parse(readFileSync(resolve(import.meta.dirname, "../i18n/locales/nl/ribbon.json"), "utf8"));
 
     assert.equal(en.view.showTipLevelRegions, "Show tip-level regions");
     assert.equal(en.view.hideTipLevelRegions, "Hide tip-level regions");
@@ -60,8 +60,8 @@ describe("Workspace translations", () => {
   });
 
   it("translates the explorer and legend through the common language setting", () => {
-    const explorer = readFileSync(resolve(import.meta.dirname, "pile-plans/PilePlanExplorer.tsx"), "utf8");
-    const legend = readFileSync(resolve(import.meta.dirname, "pile-plans/Legend.tsx"), "utf8");
+    const explorer = readFileSync(resolve(import.meta.dirname, "../components/domain/pile-plans/PilePlanExplorer.tsx"), "utf8");
+    const legend = readFileSync(resolve(import.meta.dirname, "../components/domain/pile-plans/Legend.tsx"), "utf8");
 
     assert.match(explorer, /t\("projectExplorer\.pilePlans"\)/);
     assert.match(explorer, /t\("projectExplorer\.newPilePlan"\)/);
@@ -72,8 +72,8 @@ describe("Workspace translations", () => {
   });
 
   it("provides complete English and Dutch legend editor copy", () => {
-    const en = JSON.parse(readFileSync(resolve(import.meta.dirname, "../../i18n/locales/en/common.json"), "utf8"));
-    const nl = JSON.parse(readFileSync(resolve(import.meta.dirname, "../../i18n/locales/nl/common.json"), "utf8"));
+    const en = JSON.parse(readFileSync(resolve(import.meta.dirname, "../i18n/locales/en/common.json"), "utf8"));
+    const nl = JSON.parse(readFileSync(resolve(import.meta.dirname, "../i18n/locales/nl/common.json"), "utf8"));
 
     for (const copy of [en.legend, nl.legend]) {
       assert.equal(typeof copy.edit, "string");
@@ -153,8 +153,8 @@ describe("Workspace translations", () => {
   });
 
   it("describes hover candidates as objects near the pointer", () => {
-    const en = JSON.parse(readFileSync(resolve(import.meta.dirname, "../../i18n/locales/en/common.json"), "utf8"));
-    const nl = JSON.parse(readFileSync(resolve(import.meta.dirname, "../../i18n/locales/nl/common.json"), "utf8"));
+    const en = JSON.parse(readFileSync(resolve(import.meta.dirname, "../i18n/locales/en/common.json"), "utf8"));
+    const nl = JSON.parse(readFileSync(resolve(import.meta.dirname, "../i18n/locales/nl/common.json"), "utf8"));
 
     assert.equal(en.viewer.hover.candidateCount_other, "{{count}} objects near pointer");
     assert.equal(en.viewer.hover.nextCandidate, "Next object");
@@ -163,16 +163,16 @@ describe("Workspace translations", () => {
   });
 
   it("uses load-location terminology in the Dutch panel and ribbon", () => {
-    const panel = readFileSync(resolve(import.meta.dirname, "../../i18n/locales/nl/rightPanel.json"), "utf8");
-    const ribbon = readFileSync(resolve(import.meta.dirname, "../../i18n/locales/nl/ribbon.json"), "utf8");
+    const panel = readFileSync(resolve(import.meta.dirname, "../i18n/locales/nl/rightPanel.json"), "utf8");
+    const ribbon = readFileSync(resolve(import.meta.dirname, "../i18n/locales/nl/ribbon.json"), "utf8");
 
     assert.match(panel, /"tabs\.loadPoint":\s*"Belastinglocaties"/);
     assert.match(ribbon, /"loadPoints":\s*"Belastinglocaties"/);
   });
 
   it("provides complete English and Dutch copy for multi-load-point CPT settings", () => {
-    const en = readFileSync(resolve(import.meta.dirname, "../../i18n/locales/en/rightPanel.json"), "utf8");
-    const nl = readFileSync(resolve(import.meta.dirname, "../../i18n/locales/nl/rightPanel.json"), "utf8");
+    const en = readFileSync(resolve(import.meta.dirname, "../i18n/locales/en/rightPanel.json"), "utf8");
+    const nl = readFileSync(resolve(import.meta.dirname, "../i18n/locales/nl/rightPanel.json"), "utf8");
 
     for (const copy of [en, nl]) {
       assert.match(copy, /"cptSettings\.selectedLoadPoints":/);
@@ -194,8 +194,8 @@ describe("Workspace translations", () => {
   });
 
   it("provides bilingual group-selection notices for the pile options panel", () => {
-    const en = JSON.parse(readFileSync(resolve(import.meta.dirname, "../../i18n/locales/en/rightPanel.json"), "utf8"));
-    const nl = JSON.parse(readFileSync(resolve(import.meta.dirname, "../../i18n/locales/nl/rightPanel.json"), "utf8"));
+    const en = JSON.parse(readFileSync(resolve(import.meta.dirname, "../i18n/locales/en/rightPanel.json"), "utf8"));
+    const nl = JSON.parse(readFileSync(resolve(import.meta.dirname, "../i18n/locales/nl/rightPanel.json"), "utf8"));
 
     assert.equal(
       en["pileOptions.groupSelection.single"],
@@ -216,7 +216,8 @@ describe("Workspace translations", () => {
   });
 
   it("translates CPT selection values and range labels at render time", () => {
-    const panel = ["right-panel/CptPanel.tsx", "right-panel/LoadPointPanel.tsx", "right-panel/PanelControls.tsx"]
+    const panel = ["CptPanel.tsx", "LoadPointPanel.tsx", "PanelControls.tsx"]
+      .map((file) => `../components/domain/right-panel/${file}`)
       .map((file) => readFileSync(resolve(import.meta.dirname, file), "utf8"))
       .join("\n");
 
@@ -227,7 +228,7 @@ describe("Workspace translations", () => {
   });
 
   it("keeps clickable CPT names readable on the light table background", () => {
-    const styles = readFileSync(resolve(import.meta.dirname, "right-panel/rightPanel.css"), "utf8");
+    const styles = readFileSync(resolve(import.meta.dirname, "../components/domain/right-panel/rightPanel.css"), "utf8");
     const cptLinkRule = styles.match(/\.cpt-link\s*\{(?<body>[^}]*)\}/s)?.groups?.body ?? "";
 
     assert.match(cptLinkRule, /color:\s*var\(--theme-text\)/);
@@ -236,9 +237,9 @@ describe("Workspace translations", () => {
   });
 
   it("translates project import copy and uses foundation advice terminology", () => {
-    const importPanel = readFileSync(resolve(import.meta.dirname, "imports/ProjectImportPanel.tsx"), "utf8");
-    const nlCommon = readFileSync(resolve(import.meta.dirname, "../../i18n/locales/nl/common.json"), "utf8");
-    const enCommon = readFileSync(resolve(import.meta.dirname, "../../i18n/locales/en/common.json"), "utf8");
+    const importPanel = readFileSync(resolve(import.meta.dirname, "../components/domain/imports/ProjectImportPanel.tsx"), "utf8");
+    const nlCommon = readFileSync(resolve(import.meta.dirname, "../i18n/locales/nl/common.json"), "utf8");
+    const enCommon = readFileSync(resolve(import.meta.dirname, "../i18n/locales/en/common.json"), "utf8");
 
     assert.match(importPanel, /useTranslation\("common"\)/);
     assert.match(importPanel, /t\("importProject\.title"\)/);
@@ -254,8 +255,8 @@ describe("Workspace translations", () => {
   });
 
   it("describes the project reference level and its pile cut-off assumption in both languages", () => {
-    const en = JSON.parse(readFileSync(resolve(import.meta.dirname, "../../i18n/locales/en/common.json"), "utf8"));
-    const nl = JSON.parse(readFileSync(resolve(import.meta.dirname, "../../i18n/locales/nl/common.json"), "utf8"));
+    const en = JSON.parse(readFileSync(resolve(import.meta.dirname, "../i18n/locales/en/common.json"), "utf8"));
+    const nl = JSON.parse(readFileSync(resolve(import.meta.dirname, "../i18n/locales/nl/common.json"), "utf8"));
 
     assert.equal(nl.importProject.pileHeadLevel, "Peil t.o.v. NAP (m)");
     assert.match(nl.importProject.pileHeadLevelHelp, /afhakniveau/);
@@ -268,8 +269,8 @@ describe("Workspace translations", () => {
   });
 
   it("translates the pile plan import workflow consistently", () => {
-    const enBackstage = readFileSync(resolve(import.meta.dirname, "../../i18n/locales/en/backstage.json"), "utf8");
-    const nlBackstage = readFileSync(resolve(import.meta.dirname, "../../i18n/locales/nl/backstage.json"), "utf8");
+    const enBackstage = readFileSync(resolve(import.meta.dirname, "../i18n/locales/en/backstage.json"), "utf8");
+    const nlBackstage = readFileSync(resolve(import.meta.dirname, "../i18n/locales/nl/backstage.json"), "utf8");
 
     assert.match(enBackstage, /"importPilePlan":\s*"Import pile plan"/);
     assert.match(enBackstage, /"pileAssignments":\s*"Pile assignments"/);
@@ -280,7 +281,8 @@ describe("Workspace translations", () => {
   });
 
   it("renders the updated design resistance notation in visible tables", () => {
-    const panel = ["right-panel/CptPanel.tsx", "right-panel/LoadPointPanel.tsx", "right-panel/PanelControls.tsx"]
+    const panel = ["CptPanel.tsx", "LoadPointPanel.tsx", "PanelControls.tsx"]
+      .map((file) => `../components/domain/right-panel/${file}`)
       .map((file) => readFileSync(resolve(import.meta.dirname, file), "utf8"))
       .join("\n");
 

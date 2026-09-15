@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 
-import { aggregatePileOptionsCore } from "../../core/coreClient.ts";
-import type { PileConfigurationOption } from "../../core/projectTypes.ts";
+import { aggregatePileOptionsCore } from "../../../core/coreClient.ts";
+import type { PileConfigurationOption } from "../../../core/projectTypes.ts";
 import {
   createPileOptionAggregationController,
   type PileOptionAggregationController,

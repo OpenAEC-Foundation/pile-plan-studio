@@ -1,7 +1,7 @@
 import type {
   PileCostSettings,
   PileCostSettingsItem,
-} from "../.././core/projectTypes.ts";
+} from "../../../core/projectTypes.ts";
 
 export function parseCostInput(value: string): number | null {
   if (value.trim() === "") {

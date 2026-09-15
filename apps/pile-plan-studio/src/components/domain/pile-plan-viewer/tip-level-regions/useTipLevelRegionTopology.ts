@@ -3,13 +3,13 @@ import { useEffect, useRef, useState } from "react";
 import {
   buildLoadPointTopologyCore,
   buildTipLevelRegionTopologyCore,
-} from "../../core/coreClient.ts";
+} from "../../../../core/coreClient.ts";
 import type {
   LoadPoint,
   PileConfigurationKey,
   PileConfigurationOption,
-} from "../../core/projectTypes.ts";
-import type { TipLevelRegionTopology } from "../../core/tipLevelRegionContract.ts";
+} from "../../../../core/projectTypes.ts";
+import type { TipLevelRegionTopology } from "../../../../core/tipLevelRegionContract.ts";
 import {
   createTipLevelRegionTopologyController,
   type TipLevelRegionTopologyController,

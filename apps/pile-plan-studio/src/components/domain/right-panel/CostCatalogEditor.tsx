@@ -1,18 +1,18 @@
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import type { BearingCapacity, PileCostSettings, PileCostSettingsItem } from "../../core/projectTypes.ts";
+import type { BearingCapacity, PileCostSettings, PileCostSettingsItem } from "../../../core/projectTypes.ts";
 import {
   addPileCostItem,
   partitionPileCostItems,
   removePileCostItem,
   updatePileCostItem,
-} from "../../domain/pileCostCatalog.ts";
-import { formatNumber } from "../../domain/formatting.ts";
+} from "../../../domain/pileCostCatalog.ts";
+import { formatNumber } from "../../../domain/formatting.ts";
 import { commitCostInput } from "./costSettingsModel.ts";
-import ThemedNumberInput from "../template/ThemedNumberInput.tsx";
-import ThemedSelect from "../template/ThemedSelect.tsx";
-import "../template/ThemedSelect.css";
-import { removeIcon } from "../template/ribbon/icons.ts";
+import ThemedNumberInput from "../../template/ThemedNumberInput.tsx";
+import ThemedSelect from "../../template/ThemedSelect.tsx";
+import "../../template/ThemedSelect.css";
+import { removeIcon } from "../../template/ribbon/icons.ts";
 import "./costSettings.css";
 
 type Props = {
@@ -28,7 +28,7 @@ type Props = {
   onClose: () => void;
 };
 
-export default function CostSettingsPanel({
+export default function CostCatalogEditor({
   settings,
   bearingCapacities,
   currencyCode,

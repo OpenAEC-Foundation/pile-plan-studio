@@ -1,7 +1,7 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 
-import type { PresentedTipLevelRegionLayer } from "../../viewer/tipLevelRegionPresentation.ts";
+import type { PresentedTipLevelRegionLayer } from "../../../../viewer/tipLevelRegionPresentation.ts";
 import { buildTipLevelRegionSvgModel } from "./tipLevelRegionSvgModel.ts";
 
 const layers: PresentedTipLevelRegionLayer[] = [{

@@ -28,7 +28,7 @@ it("keeps the public right-panel props contract", () => {
 describe("missing CPT popover", () => {
   it("opens from Missing without assigning the row and links identifier-only CPT buttons", () => {
     const panel = readRightPanelSource();
-    const popover = readFileSync(resolve(import.meta.dirname, "../MissingCptPopover.tsx"), "utf8");
+    const popover = readFileSync(resolve(import.meta.dirname, "MissingCptPopover.tsx"), "utf8");
 
     assert.match(panel, /row\.missingCptIds\.length > 0/);
     assert.match(panel, /<MissingCptPopover/);
@@ -41,7 +41,7 @@ describe("missing CPT popover", () => {
 
   it("controls all Missing popovers with one active row key", () => {
     const panel = readRightPanelSource();
-    const popover = readFileSync(resolve(import.meta.dirname, "../MissingCptPopover.tsx"), "utf8");
+    const popover = readFileSync(resolve(import.meta.dirname, "MissingCptPopover.tsx"), "utf8");
 
     assert.match(panel, /const \[openMissingCptKey, setOpenMissingCptKey\] = useState<string \| null>\(null\)/);
     assert.match(panel, /open=\{openMissingCptKey === row\.key\}/);
@@ -79,7 +79,7 @@ describe("technical assignment availability", () => {
 
   it("shows one compact analysis error instead of a second pile-options error section", () => {
     const panel = readRightPanelSource();
-    const notice = readFileSync(resolve(import.meta.dirname, "../TechnicalAssignmentNotice.tsx"), "utf8");
+    const notice = readFileSync(resolve(import.meta.dirname, "TechnicalAssignmentNotice.tsx"), "utf8");
     const styles = readFileSync(resolve(import.meta.dirname, "rightPanel.css"), "utf8");
 
     assert.match(panel, /technicalAssignment\.status !== "error"\s*\?\s*\(\s*<section className="pile-options-section">/s);
@@ -277,7 +277,7 @@ describe("React load point grouping settings panel", () => {
 describe("React cost settings panel", () => {
   it("keeps edited pile costs inside the current project", () => {
     const panel = readRightPanelSource();
-    const costPanel = readFileSync(resolve(import.meta.dirname, "../CostSettingsPanel.tsx"), "utf8");
+    const costPanel = readFileSync(resolve(import.meta.dirname, "CostCatalogEditor.tsx"), "utf8");
 
     assert.doesNotMatch(panel, /PILE_COST_DEFAULTS_KEY/);
     assert.doesNotMatch(panel, /setSetting\(/);
@@ -489,7 +489,7 @@ describe("React coordinate inspection", () => {
     const panel = readRightPanelSource();
     const styles = readFileSync(resolve(import.meta.dirname, "rightPanel.css"), "utf8");
 
-    assert.match(panel, /import \{ CoordinateReadout \} from "\.\.\/CoordinateReadout\.ts"/);
+    assert.match(panel, /import \{ CoordinateReadout \} from "\.\.\/shared\/CoordinateReadout\.ts"/);
     assert.match(panel, /<CoordinateReadout points=\{\[selectedCpt\.cpt\]\} locale=\{i18n\.language\} \/>/);
     assert.match(panel, /<CoordinateReadout points=\{selectedLoadPoints\} locale=\{i18n\.language\} \/>/);
     assert.doesNotMatch(panel, /cpt-detail-grid/);

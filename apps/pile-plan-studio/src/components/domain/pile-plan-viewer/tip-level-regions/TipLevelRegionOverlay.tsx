@@ -1,4 +1,4 @@
-import type { PresentedTipLevelRegionLayer } from "../../viewer/tipLevelRegionPresentation.ts";
+import type { PresentedTipLevelRegionLayer } from "../../../../viewer/tipLevelRegionPresentation.ts";
 import { buildTipLevelRegionSvgModel } from "./tipLevelRegionSvgModel.ts";
 
 type Props = {

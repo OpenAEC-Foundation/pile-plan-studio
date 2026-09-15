@@ -22,7 +22,7 @@ import type { presentTipLevelRegionGeometry } from "../../../viewer/tipLevelRegi
 import { projectPointPixels, type createProjectViewTransform } from "../../../viewer/viewerGeometry.ts";
 import { getViewportTransform } from "../../../viewer/viewport.ts";
 import OptimizerUnresolvedMarker from "../../viewer/OptimizerUnresolvedMarker.tsx";
-import TipLevelRegionOverlay from "../TipLevelRegionOverlay.tsx";
+import TipLevelRegionOverlay from "./tip-level-regions/TipLevelRegionOverlay.tsx";
 import type { TechnicalAssignmentSnapshot } from "../technicalAssignmentController.ts";
 import type { getEffectivePileOptionsByLoadPointId } from "../cptSettingsModel.ts";
 import { shouldRaiseCptMarker } from "../viewerInteractions.ts";

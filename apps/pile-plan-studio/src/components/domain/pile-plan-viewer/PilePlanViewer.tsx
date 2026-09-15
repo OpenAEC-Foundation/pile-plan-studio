@@ -34,7 +34,7 @@ import {
   getActiveLockedLoadPointIds,
 } from "../../../domain/loadPointLocking.ts";
 import OptimizerUnresolvedMarker from "../../viewer/OptimizerUnresolvedMarker.tsx";
-import { CoordinateReadout } from "../CoordinateReadout.ts";
+import { CoordinateReadout } from "../shared/CoordinateReadout.ts";
 import {
   buildTipLevelRegionGeometry,
   projectTipLevelRegionPoints,

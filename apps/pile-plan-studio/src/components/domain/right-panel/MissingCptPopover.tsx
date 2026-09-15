@@ -1,8 +1,8 @@
 import { useEffect, useId, useRef } from "react";
 import { useTranslation } from "react-i18next";
 
-import type { ProjectState } from "../../domain/projectState.ts";
-import { openCpt } from "../../domain/selectionState.ts";
+import type { ProjectState } from "../../../domain/projectState.ts";
+import { openCpt } from "../../../domain/selectionState.ts";
 
 type Props = {
   cptIds: number[];

@@ -7,7 +7,7 @@ import { stepNumericDraft } from "./themedNumberInputModel.ts";
 describe("ThemedNumberInput integration", () => {
   it("is used by every numeric editor", () => {
     const files = [
-      "../domain/CostSettingsPanel.tsx",
+      "../domain/right-panel/CostCatalogEditor.tsx",
       "../domain/pile-plans/OptimizationPanel.tsx",
       "../domain/imports/PilePlanImportPanel.tsx",
       "../domain/right-panel/PanelControls.tsx",

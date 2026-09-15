@@ -16,7 +16,7 @@ import {
   replacePilePlanActivation,
 } from "../../../domain/pilePlanActivation.ts";
 import { INACTIVE_LEGEND_COLOR, SMALL_DOT_SYMBOL } from "../../../domain/legendActivationPresentation.ts";
-import type { TipLevelRegionTopologyStatus } from "../useTipLevelRegionTopology.ts";
+import type { TipLevelRegionTopologyStatus } from "../pile-plan-viewer/tip-level-regions/useTipLevelRegionTopology.ts";
 import { formatPileTipLevelMillimetres } from "../../../domain/formatting.ts";
 
 type Props = {
