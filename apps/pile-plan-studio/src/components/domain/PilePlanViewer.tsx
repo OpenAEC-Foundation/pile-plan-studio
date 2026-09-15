@@ -55,7 +55,6 @@ import {
   clampScale,
   getViewportTransform,
   panViewport,
-  projectViewPointToScreen,
   zoomViewportAtPoint,
 } from "../../viewer/viewport.ts";
 import {

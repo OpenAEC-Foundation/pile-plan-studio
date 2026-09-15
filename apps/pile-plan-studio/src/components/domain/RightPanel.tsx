@@ -22,7 +22,6 @@ import {
   getSelectedLoadPoints,
   optionKey,
 } from "./rightPanelModel.ts";
-import { formatNumber } from "../../domain/formatting.ts";
 import { openCpt, selectLoadPoint, switchRightPanelMode, type RightPanelMode } from "../.././domain/selectionState.ts";
 import { filterActivePileOptions } from "../../domain/activePileConfigurations.ts";
 import { getActivePilePlan, getPilePlanActivation } from "../../domain/pilePlanActivation.ts";

@@ -37,7 +37,6 @@ import type { ImportSourceInput } from "./core/coreImportContract";
 import type { ProjectImportProperties } from "./components/domain/ProjectImportPanel.tsx";
 import type { ImportFileRole } from "./core/importFiles.ts";
 import { getImportSummary } from "./core/projectFile";
-import { pileConfigurationToken } from "./core/pileConfigurationKey.ts";
 import { createInitialProjectState, type ProjectState } from "./domain/projectState";
 import { prepareOpenedProject, validateOpenedProject } from "./domain/openedProject.ts";
 import {

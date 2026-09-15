@@ -5,7 +5,6 @@ import type {
   CptSelectionSettings,
   GreedyOptimizationSettings,
   OptimizationUnassignedReason,
-  LegendColorScheme,
   LegendItems,
   LoadPoint,
   LoadPointGroupingSettings,

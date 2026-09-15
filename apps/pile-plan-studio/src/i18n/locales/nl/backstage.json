@@ -88,13 +88,6 @@
     "noRecent": "Geen recente projecten",
     "remove": "Verwijderen"
   },
-  "extensions": "Extensies",
-  "extInstalled": "Geïnstalleerd",
-  "extBrowse": "Bladeren",
-  "extSearchPlaceholder": "Zoek extensies...",
-  "extInstallFile": "Installeren uit bestand",
-  "extInstalledBadge": "Geïnstalleerd",
-  "extInstallBtn": "Installeren",
   "exportPanel": {
     "title": "Projectgegevens exporteren",
     "intro": "Download het volledige project of exporteer alleen het actieve palenplan.",

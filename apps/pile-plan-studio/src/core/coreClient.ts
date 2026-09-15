@@ -24,7 +24,6 @@ import { binaryResultToUint8Array } from "./binaryCoreResult.ts";
 import {
   numericMap,
   pileOptionAnalysisResultFromCore,
-  type CorePileConfigurationOption,
   type CorePileOptionAnalysisResult,
 } from "./pileOptionAnalysisResult.ts";
 
@@ -32,9 +31,7 @@ import {
   type BearingCapacity,
   type Cpt,
   type CptSelectionSettings,
-  type GreedyOptimizationSettings,
   type GreedyOptimizationOutcome,
-  type OptimizationLimitScope,
   type LoadPoint,
   type LoadPointGroupingSettings,
   type PileConfigurationOption,
@@ -526,17 +523,6 @@ function initializeWasm(): Promise<void> {
   return wasmReady;
 }
 
-function toCorePileOptionsByLoadPoint(
-  optionsByLoadPoint: Map<number, PileConfigurationOption[]>,
-): Map<number, CorePileConfigurationOption[]> {
-  return new Map(
-    [...optionsByLoadPoint.entries()].map(([loadPointId, options]) => [
-      loadPointId,
-      options.map(toCorePileOption),
-    ]),
-  );
-}
-
 function toCoreSettings(settings: CptSelectionSettings): CoreCptSelectionSettings {
   return {
     algorithm: settings.algorithm,
@@ -570,18 +556,4 @@ function toCoreSettingsMapByLoadPoint(
       ]),
     ),
   );
-}
-
-function toCorePileOption(option: PileConfigurationOption): CorePileConfigurationOption {
-  return {
-    configuration: { ...option.configuration },
-    pile_size_mm: option.pile_size_mm,
-    pile_tip_level_m: option.pile_tip_level_m,
-    is_option: option.isOption,
-    governing_cpt_id: option.governing_cpt_id,
-    governing_frd_kn: option.governing_frd_kn,
-    utilization: option.utilization,
-    missing_cpt_ids: [...option.missing_cpt_ids],
-    technical_status: option.technicalStatus,
-  };
 }

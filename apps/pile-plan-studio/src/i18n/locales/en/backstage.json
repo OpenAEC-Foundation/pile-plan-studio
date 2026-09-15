@@ -88,13 +88,6 @@
     "noRecent": "No recent projects",
     "remove": "Remove"
   },
-  "extensions": "Extensions",
-  "extInstalled": "Installed",
-  "extBrowse": "Browse Catalog",
-  "extSearchPlaceholder": "Search extensions...",
-  "extInstallFile": "Install from file",
-  "extInstalledBadge": "Installed",
-  "extInstallBtn": "Install",
   "exportPanel": {
     "title": "Export project data",
     "intro": "Download the complete project or export only the active pile plan.",
