@@ -1,11 +1,11 @@
 import type {
   ImportProfile,
   ImportSourcePreview,
-} from "../../core/coreImportContract.ts";
+} from "../../../core/coreImportContract.ts";
 import {
   getImportFileFormat,
   type ImportFileRole,
-} from "../../core/importFiles.ts";
+} from "../../../core/importFiles.ts";
 
 export function importProfileChoices(
   fileName: string | null,

@@ -1,24 +1,24 @@
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { previewImportSourceCore } from "../../core/coreClient.ts";
+import { previewImportSourceCore } from "../../../core/coreClient.ts";
 import {
   type ImportProfile,
   type ImportProfileOptions,
   type ImportSourceInput,
   type ImportSourcePreview,
-} from "../../core/coreImportContract.ts";
-import { importDiagnosticText } from "../../core/importDiagnosticText.ts";
+} from "../../../core/coreImportContract.ts";
+import { importDiagnosticText } from "../../../core/importDiagnosticText.ts";
 import {
   getImportFileFormat,
   inferImportFileAssignments,
   type ImportFileRole,
-} from "../../core/importFiles.ts";
-import type { ImportSummary } from "../../core/projectFile.ts";
-import ThemedSelect from "../template/ThemedSelect.tsx";
-import "../template/ThemedSelect.css";
-import { ifcImportIcon, infoIcon } from "../template/ribbon/icons.ts";
+} from "../../../core/importFiles.ts";
+import type { ImportSummary } from "../../../core/projectFile.ts";
+import ThemedSelect from "../../template/ThemedSelect.tsx";
+import "../../template/ThemedSelect.css";
+import { ifcImportIcon, infoIcon } from "../../template/ribbon/icons.ts";
 import { importProfileChoices } from "./importProfileChoices.ts";
-import { normalizePileHeadLevel } from "./projectInformationModel.ts";
+import { normalizePileHeadLevel } from "../projectInformationModel.ts";
 import {
   applyImportPreview,
   beginImportPreview,

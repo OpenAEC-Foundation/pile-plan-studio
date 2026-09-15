@@ -236,7 +236,7 @@ describe("Workspace translations", () => {
   });
 
   it("translates project import copy and uses foundation advice terminology", () => {
-    const importPanel = readFileSync(resolve(import.meta.dirname, "ProjectImportPanel.tsx"), "utf8");
+    const importPanel = readFileSync(resolve(import.meta.dirname, "imports/ProjectImportPanel.tsx"), "utf8");
     const nlCommon = readFileSync(resolve(import.meta.dirname, "../../i18n/locales/nl/common.json"), "utf8");
     const enCommon = readFileSync(resolve(import.meta.dirname, "../../i18n/locales/en/common.json"), "utf8");
 

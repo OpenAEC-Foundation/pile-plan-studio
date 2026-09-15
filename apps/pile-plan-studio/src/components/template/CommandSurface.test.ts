@@ -39,7 +39,7 @@ describe("Alpha command surfaces", () => {
 
   it("uses one shared visual language for backstage content panels", () => {
     const backstage = readFileSync(resolve(import.meta.dirname, "backstage/Backstage.tsx"), "utf8");
-    const importPanel = readFileSync(resolve(import.meta.dirname, "../domain/ProjectImportPanel.tsx"), "utf8");
+    const importPanel = readFileSync(resolve(import.meta.dirname, "../domain/imports/ProjectImportPanel.tsx"), "utf8");
     const styles = readFileSync(resolve(import.meta.dirname, "backstage/Backstage.css"), "utf8");
 
     assert.match(backstage, /backstage-panel-title/);

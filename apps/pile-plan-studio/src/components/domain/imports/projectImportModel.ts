@@ -2,8 +2,8 @@ import type {
   ImportProfile,
   ImportProfileOptions,
   ImportSourcePreview,
-} from "../../core/coreImportContract.ts";
-import type { ImportFileRole, NamedImportFile } from "../../core/importFiles.ts";
+} from "../../../core/coreImportContract.ts";
+import type { ImportFileRole, NamedImportFile } from "../../../core/importFiles.ts";
 
 export type ImportPreviewState =
   | { status: "empty" }

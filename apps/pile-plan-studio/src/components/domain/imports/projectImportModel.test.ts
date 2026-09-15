@@ -11,7 +11,7 @@ import {
   setImportProfile,
   shouldWarnAboutMissingFoundationAdvice,
 } from "./projectImportModel.ts";
-import type { ImportSourcePreview } from "../../core/coreImportContract.ts";
+import type { ImportSourcePreview } from "../../../core/coreImportContract.ts";
 
 describe("project import model", () => {
   it("warns only when refreshing CPTs without foundation advice", () => {

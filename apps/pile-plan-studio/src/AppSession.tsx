@@ -35,7 +35,7 @@ import {
 import { invokeDesktop, listenDesktop } from "./core/coreTransport.ts";
 import type { PileConfigurationKey, PileCostSettings } from "./core/projectTypes.ts";
 import type { ImportSourceInput } from "./core/coreImportContract";
-import type { ProjectImportProperties } from "./components/domain/ProjectImportPanel.tsx";
+import type { ProjectImportProperties } from "./components/domain/imports/ProjectImportPanel.tsx";
 import type { ImportFileRole } from "./core/importFiles.ts";
 import { getImportSummary } from "./core/projectFile";
 import { createInitialProjectState, type ProjectState } from "./domain/projectState";

@@ -1,7 +1,7 @@
 import type {
   PilePlanImportPreview,
   PilePlanImportProfile,
-} from "../../core/pilePlanImportContract.ts";
+} from "../../../core/pilePlanImportContract.ts";
 
 export type PilePlanImportPreviewState =
   | { status: "empty" }

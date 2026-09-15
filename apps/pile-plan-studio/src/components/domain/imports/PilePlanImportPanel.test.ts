@@ -25,7 +25,7 @@ describe("PilePlanImportPanel", () => {
   });
 
   it("uses the same aligned import icon as the project source cards", () => {
-    assert.match(source, /import \{ ifcImportIcon \} from "\.\.\/template\/ribbon\/icons\.ts"/);
+    assert.match(source, /import \{ ifcImportIcon \} from "\.\.\/\.\.\/template\/ribbon\/icons\.ts"/);
     assert.match(source, /dangerouslySetInnerHTML=\{\{ __html: ifcImportIcon \}\}/);
     assert.doesNotMatch(source, /function FileIcon/);
   });

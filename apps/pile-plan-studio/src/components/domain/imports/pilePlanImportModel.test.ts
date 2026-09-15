@@ -1,6 +1,6 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import type { PilePlanImportPreview } from "../../core/pilePlanImportContract.ts";
+import type { PilePlanImportPreview } from "../../../core/pilePlanImportContract.ts";
 import {
   applyPilePlanImportPreview,
   beginPilePlanImportPreview,

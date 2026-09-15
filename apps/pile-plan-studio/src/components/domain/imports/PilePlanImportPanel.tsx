@@ -1,16 +1,16 @@
 import { useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { previewPilePlanImportCore } from "../../core/coreClient.ts";
-import { getImportFileFormat } from "../../core/importFiles.ts";
+import { previewPilePlanImportCore } from "../../../core/coreClient.ts";
+import { getImportFileFormat } from "../../../core/importFiles.ts";
 import type {
   PilePlanImportPatch,
   PilePlanImportProfile,
-} from "../../core/pilePlanImportContract.ts";
-import type { Cpt, LoadPoint, PileConfigurationKey } from "../../core/projectTypes.ts";
-import ThemedNumberInput from "../template/ThemedNumberInput.tsx";
-import ThemedSelect from "../template/ThemedSelect.tsx";
-import "../template/ThemedSelect.css";
-import { ifcImportIcon } from "../template/ribbon/icons.ts";
+} from "../../../core/pilePlanImportContract.ts";
+import type { Cpt, LoadPoint, PileConfigurationKey } from "../../../core/projectTypes.ts";
+import ThemedNumberInput from "../../template/ThemedNumberInput.tsx";
+import ThemedSelect from "../../template/ThemedSelect.tsx";
+import "../../template/ThemedSelect.css";
+import { ifcImportIcon } from "../../template/ribbon/icons.ts";
 import {
   applyPilePlanImportPreview,
   beginPilePlanImportPreview,
