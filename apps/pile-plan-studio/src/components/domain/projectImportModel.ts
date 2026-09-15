@@ -135,10 +135,6 @@ export function shouldWarnAboutMissingFoundationAdvice(
     && drafts["bearing-capacities"].file === null;
 }
 
-export function canImportProject(drafts: ImportDrafts<NamedImportFile>): boolean {
-  return canSubmitProjectImport(drafts, "new-project");
-}
-
 function isReady<TFile extends NamedImportFile>(draft: ImportRoleDraft<TFile>): boolean {
   if (!draft.file || draft.previewState.status !== "ready") return false;
   const preview = draft.previewState.preview;

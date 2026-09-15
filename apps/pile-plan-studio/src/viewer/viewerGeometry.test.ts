@@ -6,8 +6,6 @@ import {
   getCanvasLayoutCompensation,
   getProjectBounds,
   projectPoint,
-  projectPointPixels,
-  resizeProjectViewTransform,
 } from "./viewerGeometry.ts";
 import type { Cpt, LoadPoint } from "../core/projectTypes.ts";
 
@@ -63,55 +61,6 @@ describe("viewer geometry", () => {
 
     assert.deepEqual(projectPoint({ x_mm: 0, y_mm: 0 }, transform), { x: 10, y: 60 });
     assert.deepEqual(projectPoint({ x_mm: 2_000, y_mm: 1_000 }, transform), { x: 90, y: 40 });
-  });
-
-  it("preserves the absolute project position when a panel changes the canvas", () => {
-    const initial = createProjectViewTransform(
-      { minX: 0, maxX: 2_000, minY: 0, maxY: 1_000 },
-      { width: 1_000, height: 500 },
-    );
-    const resized = resizeProjectViewTransform(initial, {
-      canvasSize: { width: 1_200, height: 500 },
-      canvasOriginDelta: { x: 200, y: 0 },
-      viewportScale: 1,
-    });
-    const before = projectPoint({ x_mm: 1_000, y_mm: 500 }, initial);
-    const after = projectPoint({ x_mm: 1_000, y_mm: 500 }, resized);
-
-    assert.equal(initial.pixelsPerMillimeter, resized.pixelsPerMillimeter);
-    assert.equal(before.x / 100 * 1_000 + 200, after.x / 100 * 1_200);
-    assert.equal(before.y / 100 * 500, after.y / 100 * 500);
-  });
-
-  it("reveals space at a resized edge without recentering the project", () => {
-    const initial = createProjectViewTransform(
-      { minX: 0, maxX: 2_000, minY: 0, maxY: 1_000 },
-      { width: 1_000, height: 500 },
-    );
-    const resized = resizeProjectViewTransform(initial, {
-      canvasSize: { width: 1_200, height: 500 },
-      canvasOriginDelta: { x: 0, y: 0 },
-      viewportScale: 1,
-    });
-    const before = projectPoint({ x_mm: 1_000, y_mm: 500 }, initial);
-    const after = projectPoint({ x_mm: 1_000, y_mm: 500 }, resized);
-
-    assert.ok(Math.abs(before.x / 100 * 1_000 - after.x / 100 * 1_200) < 1e-9);
-  });
-
-  it("preserves exact marker pixels instead of resolving resized percentages", () => {
-    const initial = createProjectViewTransform(
-      { minX: 0, maxX: 2_000, minY: 0, maxY: 1_000 },
-      { width: 1_003.375, height: 501.625 },
-    );
-    const before = projectPointPixels({ x_mm: 713.25, y_mm: 618.75 }, initial);
-    const resized = resizeProjectViewTransform(initial, {
-      canvasSize: { width: 1_487.875, height: 501.625 },
-      canvasOriginDelta: { x: 0, y: 0 },
-      viewportScale: 3.64,
-    });
-
-    assert.deepEqual(projectPointPixels({ x_mm: 713.25, y_mm: 618.75 }, resized), before);
   });
 
   it("keeps a fixed world point at one screen position through every layout resize step", () => {

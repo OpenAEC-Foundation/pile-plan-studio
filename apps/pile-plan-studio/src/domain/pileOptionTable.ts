@@ -75,7 +75,6 @@ export const SORTABLE_PILE_OPTION_COLUMNS: Array<{ key: SortablePileOptionTableC
   ALL_PILE_OPTION_COLUMNS.filter(
     (column): column is { key: SortablePileOptionTableColumn; label: string } => column.key !== "symbol",
   );
-export const FILTERABLE_PILE_OPTION_COLUMNS = SORTABLE_PILE_OPTION_COLUMNS;
 
 export function createEmptyPileOptionFilters(): PileOptionFilterState {
   return {

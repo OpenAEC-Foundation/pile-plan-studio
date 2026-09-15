@@ -4,8 +4,6 @@ import assert from "node:assert/strict";
 import {
   applicationScaleFactor,
   applyDesktopInterfaceScale,
-  loadInterfaceScale,
-  saveInterfaceScale,
 } from "./interfaceScaleRuntime.ts";
 
 describe("interface scale runtime", () => {
@@ -14,17 +12,6 @@ describe("interface scale runtime", () => {
     assert.equal(applicationScaleFactor(100), 1);
     assert.equal(applicationScaleFactor(114), 1.1);
     assert.equal(applicationScaleFactor(150), 1.5);
-  });
-
-  it("normalizes a stored preference and persists normalized values", async () => {
-    const saved: Array<[string, number]> = [];
-    assert.equal(await loadInterfaceScale({
-      getSetting: async () => 147,
-    }), 150);
-    await saveInterfaceScale(73, {
-      setSetting: async (key, value) => { saved.push([key, value]); },
-    });
-    assert.deepEqual(saved, [["interface-scale-percent", 70]]);
   });
 
   it("applies normalized native zoom only in the desktop runtime", async () => {

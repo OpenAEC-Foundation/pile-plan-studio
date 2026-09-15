@@ -382,23 +382,6 @@ function fromIfcppLegendValues(values: unknown, replacementValues?: number[]): u
   });
 }
 
-export function applyDefaultPileCostSettings(
-  project: IfcppProject,
-  defaultPileCostSettings: PileCostSettings,
-): IfcppProject {
-  if (project.settings.pile_costs.items.length > 0) {
-    return project;
-  }
-
-  return {
-    ...project,
-    settings: {
-      ...project.settings,
-      pile_costs: structuredClone(defaultPileCostSettings),
-    },
-  };
-}
-
 function fromIfcppCptSelectionSettings(settings: IfcppCptSelectionSettings): CptSelectionSettings {
   return {
     algorithm: settings.algorithm,

@@ -1,8 +1,3 @@
-export type JsonList<T> = {
-  schema_version: number;
-  items: T[];
-};
-
 export type LoadPoint = {
   id: number;
   name: string;
@@ -105,13 +100,6 @@ export type OptimizationLimitScope = "target" | "whole-plan";
 export type ViewerUtilizationSettings = {
   minimum: number;
   maximum: number;
-};
-
-export type ProjectViewerSettings = {
-  symbolScalePercent: number;
-  foregroundLayer: "load-points" | "cpts";
-  showGrid: boolean;
-  showTipLevelRegions: boolean;
 };
 
 export type PileConfigurationKey = {

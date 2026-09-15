@@ -1,5 +1,3 @@
-import { getSetting, setSetting } from "../store.ts";
-
 export type ForegroundLayer = "load-points" | "cpts";
 
 export type ViewerPreferences = {
@@ -8,7 +6,6 @@ export type ViewerPreferences = {
   showGrid: boolean;
 };
 
-const VIEWER_PREFERENCES_KEY = "viewer-preferences";
 const DEFAULT_VIEWER_PREFERENCES: ViewerPreferences = {
   symbolScalePercent: 100,
   foregroundLayer: "load-points",
@@ -28,14 +25,4 @@ export function normalizeViewerPreferences(input: unknown): ViewerPreferences {
     foregroundLayer: candidate.foregroundLayer === "cpts" ? "cpts" : "load-points",
     showGrid: candidate.showGrid !== false,
   };
-}
-
-export async function loadViewerPreferences(): Promise<ViewerPreferences> {
-  return normalizeViewerPreferences(
-    await getSetting<unknown>(VIEWER_PREFERENCES_KEY, DEFAULT_VIEWER_PREFERENCES),
-  );
-}
-
-export async function saveViewerPreferences(preferences: ViewerPreferences): Promise<void> {
-  await setSetting(VIEWER_PREFERENCES_KEY, normalizeViewerPreferences(preferences));
 }

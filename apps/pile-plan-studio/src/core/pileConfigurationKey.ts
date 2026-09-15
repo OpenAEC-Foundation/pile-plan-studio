@@ -14,9 +14,3 @@ export function samePileConfiguration(
     && left.pile_tip_level_mm === right.pile_tip_level_mm
   );
 }
-
-export function clonePileConfiguration(
-  key: PileConfigurationKey,
-): PileConfigurationKey {
-  return { ...key };
-}

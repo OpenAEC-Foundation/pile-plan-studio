@@ -7,14 +7,6 @@ export type CptSelectionSettingsAggregate = {
   [K in keyof CptSelectionSettings]: CptSelectionSettings[K] | null;
 };
 
-export function getActiveCptSelectionSettings(state: ProjectState): CptSelectionSettings {
-  const loadPointId = state.selectedLoadPointId;
-  if (state.cptSettingsScope === "selected" && loadPointId !== null) {
-    return state.cptSelectionSettingsByLoadPoint.get(loadPointId) ?? state.globalCptSelectionSettings;
-  }
-  return state.globalCptSelectionSettings;
-}
-
 export function getCptSelectionSettingsAggregate(state: ProjectState): CptSelectionSettingsAggregate {
   const targetIds = getTargetLoadPointIds(state, resolveCptSettingsScope(state));
   const settings = targetIds.map((loadPointId) => getSettingsForLoadPoint(state, loadPointId));
@@ -24,13 +16,6 @@ export function getCptSelectionSettingsAggregate(state: ProjectState): CptSelect
     monopolyDistanceM: getCommonValue(settings, "monopolyDistanceM"),
     maxAngleDegrees: getCommonValue(settings, "maxAngleDegrees"),
   };
-}
-
-export function applyCptSelectionSettings(
-  state: ProjectState,
-  settings: CptSelectionSettings,
-): ProjectState {
-  return applyCptSelectionSettingsPatch(state, settings);
 }
 
 export function applyCptSelectionSettingsPatch(

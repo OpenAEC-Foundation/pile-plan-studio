@@ -47,10 +47,6 @@ export function isDesktopRuntime(): boolean {
   return typeof window !== "undefined" && "__TAURI_INTERNALS__" in window;
 }
 
-export function downloadTextFile(text: string, fileName: string): void {
-  downloadBlob(new Blob([text], { type: "application/json" }), fileName);
-}
-
 export async function saveGeneratedFile(
   options: GeneratedFileOptions,
   createBlob: () => Promise<Blob>,

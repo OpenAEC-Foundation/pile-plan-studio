@@ -42,9 +42,6 @@ export function createBuiltInLegend(bearingCapacities: BearingCapacity[]): Legen
   );
 }
 
-// Kept as a temporary compatibility export while visual consumers migrate.
-export const getLegendItems = createBuiltInLegend;
-
 export function reconcileProjectLegend(
   stored: unknown,
   bearingCapacities: BearingCapacity[],

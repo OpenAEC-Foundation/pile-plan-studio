@@ -25,10 +25,6 @@ export const PILE_SYMBOL_CATALOG: readonly PileSymbol[] = PILE_FILL_PATTERNS.fla
   (fillPattern) => PILE_BASE_SHAPES.map((baseShape) => ({ baseShape, fillPattern })),
 );
 
-export function pileSymbolKey(symbol: PileSymbol): string {
-  return `${symbol.baseShape}:${symbol.fillPattern}`;
-}
-
 export function isPileBaseShape(value: unknown): value is PileBaseShape {
   return typeof value === "string" && (PILE_BASE_SHAPES as readonly string[]).includes(value);
 }

@@ -2,24 +2,12 @@ import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 
 import {
-  getUsedPileConfigurations,
   filterActivePileOptions,
-  isPileConfigurationActive,
   pileConfigurationKey,
-  shouldDisableActivePileConfigurationToggle,
-  toggleActivePileConfiguration,
   toggleActiveNumber,
 } from "./activePileConfigurations.ts";
 
 describe("active pile configurations", () => {
-  it("accepts only options whose size and tip are both active", () => {
-    const active = { pileSizes: [290], pileTipLevelMms: [-18_000] };
-
-    assert.equal(isPileConfigurationActive({ pile_size_mm: 290, configuration: { pile_size_mm: 290, pile_tip_level_mm: -18_000 } }, active), true);
-    assert.equal(isPileConfigurationActive({ pile_size_mm: 320, configuration: { pile_size_mm: 320, pile_tip_level_mm: -18_000 } }, active), false);
-    assert.equal(isPileConfigurationActive({ pile_size_mm: 290, configuration: { pile_size_mm: 290, pile_tip_level_mm: -19_000 } }, active), false);
-  });
-
   it("filters pile options by the shared active configuration set", () => {
     const options = [
       { configuration: { pile_size_mm: 290, pile_tip_level_mm: -18_000 }, pile_size_mm: 290, pile_tip_level_m: -18 },
@@ -64,22 +52,6 @@ describe("active pile configurations", () => {
     assert.deepEqual(toggleActiveNumber([290, 320], 290, false), [320]);
   });
 
-  it("allows toggling the final active size or tip off", () => {
-    assert.deepEqual(toggleActivePileConfiguration({ pileSizes: [290], pileTipLevelMms: [-18_000] }, "size", 290), {
-      pileSizes: [],
-      pileTipLevelMms: [-18_000],
-    });
-    assert.deepEqual(toggleActivePileConfiguration({ pileSizes: [290], pileTipLevelMms: [-18_000] }, "tip", -18_000), {
-      pileSizes: [290],
-      pileTipLevelMms: [],
-    });
-  });
-
-  it("does not disable the final active legend toggle", () => {
-    assert.equal(shouldDisableActivePileConfigurationToggle({ pileSizes: [290], pileTipLevelMms: [-18_000] }, "size", 290), false);
-    assert.equal(shouldDisableActivePileConfigurationToggle({ pileSizes: [290], pileTipLevelMms: [-18_000] }, "tip", -18_000), false);
-  });
-
   it("copies the canonical Rust configuration key", () => {
     assert.deepEqual(pileConfigurationKey({
       configuration: { pile_size_mm: 320, pile_tip_level_mm: -18_500 },
@@ -89,17 +61,4 @@ describe("active pile configurations", () => {
     });
   });
 
-  it("derives active sizes and tips from chosen pile options", () => {
-    assert.deepEqual(
-      getUsedPileConfigurations([
-        { pile_size_mm: 320, configuration: { pile_size_mm: 320, pile_tip_level_mm: -18_000 } },
-        { pile_size_mm: 290, configuration: { pile_size_mm: 290, pile_tip_level_mm: -19_000 } },
-        null,
-      ]),
-      {
-        pileSizes: [290, 320],
-        pileTipLevelMms: [-18_000, -19_000],
-      },
-    );
-  });
 });

@@ -1,28 +1,10 @@
-import { getSetting, setSetting } from "../store.ts";
 import { isDesktopRuntime } from "./projectPersistence.ts";
-import { DEFAULT_INTERFACE_SCALE, normalizeInterfaceScale } from "./interfaceScale.ts";
-
-const INTERFACE_SCALE_KEY = "interface-scale-percent";
+import { normalizeInterfaceScale } from "./interfaceScale.ts";
 
 type InterfaceScaleEnvironment = {
   isDesktop?: boolean;
-  getSetting?: (key: string, fallback: number) => Promise<number>;
-  setSetting?: (key: string, value: number) => Promise<void>;
   setZoom?: (factor: number) => Promise<void>;
 };
-
-export async function loadInterfaceScale(environment: InterfaceScaleEnvironment = {}): Promise<number> {
-  const read = environment.getSetting ?? getSetting<number>;
-  return normalizeInterfaceScale(await read(INTERFACE_SCALE_KEY, DEFAULT_INTERFACE_SCALE));
-}
-
-export async function saveInterfaceScale(
-  scalePercent: number,
-  environment: InterfaceScaleEnvironment = {},
-): Promise<void> {
-  const write = environment.setSetting ?? setSetting<number>;
-  await write(INTERFACE_SCALE_KEY, normalizeInterfaceScale(scalePercent));
-}
 
 export function applicationScaleFactor(scalePercent: number): number {
   return normalizeInterfaceScale(scalePercent) / 100;

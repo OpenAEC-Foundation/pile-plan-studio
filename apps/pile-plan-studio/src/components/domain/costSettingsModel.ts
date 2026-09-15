@@ -16,17 +16,6 @@ export function commitCostInput(value: string): number | null {
   return value.trim() === "" ? 0 : parseCostInput(value);
 }
 
-export function updatePileHeadLevel(
-  currentValue: number | null,
-  pileHeadLevelM: number,
-): number | null {
-  if (!Number.isFinite(pileHeadLevelM)) {
-    return currentValue;
-  }
-
-  return pileHeadLevelM;
-}
-
 export function updatePileCostItem(
   settings: PileCostSettings,
   pileSizeMm: number,

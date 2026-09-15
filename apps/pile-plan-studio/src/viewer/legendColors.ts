@@ -71,10 +71,6 @@ export function getLegendColorSchemePreview(
   return generateLegendColors(scheme, count);
 }
 
-export function normalizeLegendHexColor(value: string): string | null {
-  return /^#[0-9A-Fa-f]{6}$/.test(value) ? value.toUpperCase() : null;
-}
-
 function generateTableauExtendedColors(count: number): string[] {
   if (count <= TABLEAU_10.length) return TABLEAU_10.slice(0, count);
 

@@ -7,10 +7,6 @@ export type SelectionState = {
   rightPanelMode: RightPanelMode;
 };
 
-export function returnToLoadPoint(state: SelectionState): SelectionState {
-  return switchRightPanelMode(state, "load-point");
-}
-
 export function switchRightPanelMode(state: SelectionState, rightPanelMode: RightPanelMode): SelectionState {
   return {
     ...state,

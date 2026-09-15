@@ -2,15 +2,13 @@ import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 
 import {
-  BROWSER_BASELINE_ZOOM,
   applyRuntimeBaseline,
   layoutScaleFromWidths,
   screenToLocal,
 } from "./uiBaseline.ts";
 
 describe("UI baseline geometry", () => {
-  it("uses browser 80 percent as the compact application baseline", () => {
-    assert.equal(BROWSER_BASELINE_ZOOM, 0.8);
+  it("maps compact layout coordinates to local coordinates", () => {
     assert.equal(layoutScaleFromWidths(800, 1000), 0.8);
     assert.equal(screenToLocal(80, 0.8), 100);
   });

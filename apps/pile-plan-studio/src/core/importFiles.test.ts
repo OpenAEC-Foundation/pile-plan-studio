@@ -2,7 +2,6 @@ import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 
 import {
-  areImportFileAssignmentsComplete,
   emptyImportFileAssignments,
   inferImportFileAssignments,
   inferImportFileRole,
@@ -38,7 +37,6 @@ describe("import file assignments", () => {
     assert.equal(assignments["load-points"]?.name, "Belastinglocaties.csv");
     assert.equal(assignments.cpts?.name, "Sonderingen.xlsx");
     assert.equal(assignments["bearing-capacities"]?.name, "Draagvermogens.xlsx");
-    assert.equal(areImportFileAssignmentsComplete(assignments), true);
   });
 
   it("keeps manually assigned files when bulk assignment cannot improve them", () => {

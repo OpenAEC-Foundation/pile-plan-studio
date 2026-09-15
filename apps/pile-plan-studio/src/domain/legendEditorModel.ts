@@ -52,15 +52,6 @@ export function setLegendEditorItemEnabled(
   return { ...draft, active: { ...draft.active, [key]: values } };
 }
 
-export function toggleLegendEditorItem(
-  draft: LegendEditorDraft,
-  kind: LegendEditorItemKind,
-  value: number,
-): LegendEditorDraft {
-  const enabled = draft.active[activeKey(kind)].includes(value);
-  return setLegendEditorItemEnabled(draft, kind, value, !enabled);
-}
-
 export function updateLegendSymbol(
   draft: LegendEditorDraft,
   kind: LegendEditorItemKind,

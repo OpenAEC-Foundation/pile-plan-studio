@@ -63,7 +63,3 @@ export function getImportFileFormat(fileName: string): "csv" | "xlsx" | null {
   if (normalized.endsWith(".xlsx")) return "xlsx";
   return null;
 }
-
-export function areImportFileAssignmentsComplete(assignments: ImportFileAssignments<NamedImportFile>): boolean {
-  return Boolean(assignments["load-points"] && assignments.cpts && assignments["bearing-capacities"]);
-}

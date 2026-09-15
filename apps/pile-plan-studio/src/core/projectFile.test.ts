@@ -3,7 +3,6 @@ import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 
 import {
-  applyDefaultPileCostSettings,
   getImportSummary,
   hydrateProjectState,
   type IfcppProject,
@@ -96,26 +95,5 @@ describe("canonical project hydration", () => {
       bearingCapacityCount: project.inputs.bearing_capacities.length,
       warnings: ["Ignored two rows"],
     });
-  });
-
-  it("applies personal cost defaults only when the project catalog is empty", () => {
-    const project = canonicalProjectFixture();
-    const defaults = {
-      schema_version: 1,
-      items: [{ pile_size_mm: 320, shape: "square" as const, cost_per_m3: 245 }],
-    };
-    const existing = applyDefaultPileCostSettings(project, defaults);
-    assert.equal(existing, project);
-
-    const withoutCosts = {
-      ...project,
-      settings: {
-        ...project.settings,
-        pile_costs: { ...project.settings.pile_costs, items: [] },
-      },
-    };
-    const applied = applyDefaultPileCostSettings(withoutCosts, defaults);
-    assert.deepEqual(applied.settings.pile_costs, defaults);
-    assert.notEqual(applied.settings.pile_costs, defaults);
   });
 });

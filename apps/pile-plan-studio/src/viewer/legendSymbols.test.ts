@@ -7,7 +7,6 @@ import {
   PILE_SYMBOL_CATALOG,
   isPileBaseShape,
   isPileFillPattern,
-  pileSymbolKey,
 } from "./legendSymbols.ts";
 
 describe("legend symbol catalog", () => {
@@ -39,7 +38,10 @@ describe("legend symbol catalog", () => {
       PILE_SYMBOL_CATALOG.slice(0, PILE_BASE_SHAPES.length),
       PILE_BASE_SHAPES.map((baseShape) => ({ baseShape, fillPattern: "full" })),
     );
-    assert.equal(new Set(PILE_SYMBOL_CATALOG.map(pileSymbolKey)).size, 54);
+    assert.equal(
+      new Set(PILE_SYMBOL_CATALOG.map(({ baseShape, fillPattern }) => `${baseShape}:${fillPattern}`)).size,
+      54,
+    );
   });
 
   it("validates base shapes and fill patterns independently", () => {

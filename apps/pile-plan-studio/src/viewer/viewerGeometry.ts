@@ -86,29 +86,6 @@ export function createProjectViewTransform(
   };
 }
 
-export function resizeProjectViewTransform(
-  transform: ProjectViewTransform,
-  input: {
-    canvasSize: { width: number; height: number };
-    canvasOriginDelta: { x: number; y: number };
-    viewportScale: number;
-  },
-): ProjectViewTransform {
-  const safeScale = Math.max(input.viewportScale, Number.EPSILON);
-
-  return {
-    ...transform,
-    canvasSize: {
-      width: Math.max(input.canvasSize.width, 1),
-      height: Math.max(input.canvasSize.height, 1),
-    },
-    projectCenterPx: {
-      x: transform.projectCenterPx.x + input.canvasOriginDelta.x / safeScale,
-      y: transform.projectCenterPx.y + input.canvasOriginDelta.y / safeScale,
-    },
-  };
-}
-
 export function getVisibleProjectBounds(transform: ProjectViewTransform): ProjectBounds {
   const centerX = (transform.bounds.minX + transform.bounds.maxX) / 2;
   const centerY = (transform.bounds.minY + transform.bounds.maxY) / 2;

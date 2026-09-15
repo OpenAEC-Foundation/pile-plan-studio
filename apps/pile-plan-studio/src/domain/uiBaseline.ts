@@ -1,5 +1,3 @@
-export const BROWSER_BASELINE_ZOOM = 0.8;
-
 type ClassListTarget = {
   classList: Pick<DOMTokenList, "add">;
 };
