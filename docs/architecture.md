@@ -22,19 +22,23 @@ be the source of truth for calculations.
 
 The React application is divided by responsibility rather than by runtime:
 
-- `App.tsx` owns startup and installs `AppSession` only after the core and user
-  settings are ready;
-- `AppSession.tsx` composes the active application session, while `app/`
-  contains small orchestration controllers for request lifetimes and project
+- `App.tsx` owns startup and installs `app/session/AppSession.tsx` only after
+  the core and user settings are ready;
+- `app/session/` composes the active application session and keeps its
+  workflow-specific support code together, while the other `app/` modules
+  contain small orchestration controllers for request lifetimes and project
   lifecycle transitions;
 - `core/*Client.ts` contains the platform adapters. `coreClient.ts` is the
   stable facade, and the project, analysis, and pile-plan clients choose the
   browser/WASM or desktop/Tauri transport without making engineering choices;
 - `domain/` contains immutable application and presentation state, history,
   persistence workflow, formatting, and user-intent helpers; and
-- `components/domain/` owns feature views. Larger views are grouped under
-  `right-panel/`, `legend-editor/`, and `pile-plan-viewer/` so their rendering,
-  interaction, and local presentation helpers stay together.
+- `components/domain/` owns feature views. Imports, pile-plan editing, project
+  dialogs, source-data tables, the right panel, and the plan viewer are grouped
+  under `imports/`, `pile-plans/`, `project/`, `source-data/`, `right-panel/`,
+  and `pile-plan-viewer/`. Feature-specific models, tests, and styles live with
+  their view; cross-feature hooks and controls remain at the shared domain
+  component level.
 
 These boundaries do not move engineering authority into React. CPT selection,
 pile-option evaluation, capacity, cost, grouping, assignment, optimization, and
