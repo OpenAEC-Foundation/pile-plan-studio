@@ -9,7 +9,7 @@ import {
   getOptimizerUnassignedNotices,
   getTechnicalAssignmentNotice,
 } from "../../../domain/technicalAssignmentNotice.ts";
-import type { TechnicalAssignmentSnapshot } from "../technicalAssignmentController.ts";
+import type { TechnicalAssignmentSnapshot } from "../../../app/derived-state/technicalAssignmentController.ts";
 
 type Props = {
   state: ProjectState;

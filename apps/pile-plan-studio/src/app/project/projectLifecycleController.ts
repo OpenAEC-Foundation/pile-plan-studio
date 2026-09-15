@@ -2,8 +2,8 @@ import {
   captureProjectContent,
   normalizeProjectContentState,
   projectDocumentDraftFromContent,
-} from "../domain/projectContent.ts";
-import type { ProjectState } from "../domain/projectState.ts";
+} from "../../domain/projectContent.ts";
+import type { ProjectState } from "../../domain/projectState.ts";
 
 export type OpenedProjectLifecycleState = {
   projectPath: string | null;

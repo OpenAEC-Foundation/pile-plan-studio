@@ -9,7 +9,7 @@ import { getActivePilePlan, getPilePlanActivation } from "../../../domain/pilePl
 import { getNextPileOptionSortState, getPileOptionColumns, getPileOptionFilterValues, getPileOptionTableRows, type PileOptionTableColumn, type SortablePileOptionTableColumn } from "../../../domain/pileOptionTable.ts";
 import { getChosenPileOptionConfigurationForSelection, getChosenPileOptionKeyForSelection, getPileOptionsByLoadPointIdForPanel, getRenderableAggregatedPileOptionRows, getRenderablePileOptionRows, getSelectedLoadPoints, optionKey } from "./rightPanelModel.ts";
 import { useAggregatedPileOptions } from "./useAggregatedPileOptions.ts";
-import type { TechnicalAssignmentSnapshot } from "../technicalAssignmentController.ts";
+import type { TechnicalAssignmentSnapshot } from "../../../app/derived-state/technicalAssignmentController.ts";
 import TechnicalAssignmentNotice from "./TechnicalAssignmentNotice.tsx";
 import MissingCptPopover from "./MissingCptPopover.tsx";
 import { CoordinateReadout } from "../shared/CoordinateReadout.ts";

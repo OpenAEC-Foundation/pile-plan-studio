@@ -1,7 +1,7 @@
 import { useEffect, useId, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { ProjectState } from "../../../domain/projectState.ts";
-import type { TechnicalAssignmentSnapshot } from "../technicalAssignmentController.ts";
+import type { TechnicalAssignmentSnapshot } from "../../../app/derived-state/technicalAssignmentController.ts";
 import ThemedNumberInput from "../../template/ThemedNumberInput.tsx";
 import { selectLoadPoint } from "../../../domain/selectionState.ts";
 import { getActivePilePlan, getPilePlanActivation } from "../../../domain/pilePlanActivation.ts";

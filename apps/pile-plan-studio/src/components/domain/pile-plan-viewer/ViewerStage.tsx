@@ -23,7 +23,7 @@ import { projectPointPixels, type createProjectViewTransform } from "../../../vi
 import { getViewportTransform } from "../../../viewer/viewport.ts";
 import OptimizerUnresolvedMarker from "../../viewer/OptimizerUnresolvedMarker.tsx";
 import TipLevelRegionOverlay from "./tip-level-regions/TipLevelRegionOverlay.tsx";
-import type { TechnicalAssignmentSnapshot } from "../technicalAssignmentController.ts";
+import type { TechnicalAssignmentSnapshot } from "../../../app/derived-state/technicalAssignmentController.ts";
 import type { getEffectivePileOptionsByLoadPointId } from "../cptSettingsModel.ts";
 import { shouldRaiseCptMarker } from "../viewerInteractions.ts";
 import { getSelectedPileOption } from "./viewerPresentation.ts";

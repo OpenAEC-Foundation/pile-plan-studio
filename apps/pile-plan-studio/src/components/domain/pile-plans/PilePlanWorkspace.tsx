@@ -6,7 +6,7 @@ import PilePlanViewer from "../pile-plan-viewer/PilePlanViewer";
 import { clearLegendSelection, shouldClearLegendSelectionFromPointerTarget } from "../viewerInteractions";
 import "../pile-plan-viewer/viewer.css";
 import type { LoadPointGroup } from "../../../core/loadPointGroupContract.ts";
-import type { TechnicalAssignmentSnapshot } from "../technicalAssignmentController.ts";
+import type { TechnicalAssignmentSnapshot } from "../../../app/derived-state/technicalAssignmentController.ts";
 import { replacePilePlanActivation } from "../../../domain/pilePlanActivation.ts";
 import { useTipLevelRegionTopology } from "../pile-plan-viewer/tip-level-regions/useTipLevelRegionTopology.ts";
 

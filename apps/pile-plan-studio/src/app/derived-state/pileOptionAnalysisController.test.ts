@@ -1,12 +1,12 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 
-import { createAnalysisPipelineController } from "./analysisPipelineController.ts";
+import { createPileOptionAnalysisController } from "./pileOptionAnalysisController.ts";
 
 describe("analysis pipeline controller", () => {
   it("rejects superseded and explicitly invalidated results", async () => {
     const pending = new Map<number, (value: string) => void>();
-    const controller = createAnalysisPipelineController<number, string>((request) => (
+    const controller = createPileOptionAnalysisController<number, string>((request) => (
       new Promise((resolve) => pending.set(request, resolve))
     ));
 
@@ -26,7 +26,7 @@ describe("analysis pipeline controller", () => {
 
   it("returns only the current failure", async () => {
     const failure = new Error("analysis failed");
-    const controller = createAnalysisPipelineController(async () => {
+    const controller = createPileOptionAnalysisController(async () => {
       throw failure;
     });
 

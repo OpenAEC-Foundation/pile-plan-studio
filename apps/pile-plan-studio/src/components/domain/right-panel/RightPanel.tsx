@@ -4,7 +4,7 @@ import type { PileConfigurationKey, PileCostSettings } from "../../../core/proje
 import { getSelectedLoadPoints, formatLoadPointPanelTitle } from "./rightPanelModel.ts";
 import OptimizationPanel from "../pile-plans/OptimizationPanel.tsx";
 import type { LoadPointGroup } from "../../../core/loadPointGroupContract.ts";
-import type { TechnicalAssignmentSnapshot } from "../technicalAssignmentController.ts";
+import type { TechnicalAssignmentSnapshot } from "../../../app/derived-state/technicalAssignmentController.ts";
 import "./rightPanel.css";
 import CptPanel from "./CptPanel.tsx";
 import LoadPointPanel from "./LoadPointPanel.tsx";

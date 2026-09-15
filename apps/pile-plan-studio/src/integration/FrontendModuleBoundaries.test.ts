@@ -28,4 +28,24 @@ describe("frontend module boundaries", () => {
       assert.equal(existsSync(resolve(sourceRoot, path)), false, `${path} should be removed`);
     }
   });
+
+  it("groups asynchronous derived state and project lifecycle orchestration", () => {
+    for (const path of [
+      "app/derived-state/pileOptionAnalysisController.ts",
+      "app/derived-state/loadPointGroupController.ts",
+      "app/derived-state/technicalAssignmentController.ts",
+      "app/project/projectLifecycleController.ts",
+    ]) {
+      assert.equal(existsSync(resolve(sourceRoot, path)), true, `${path} should exist`);
+    }
+
+    for (const path of [
+      "app/analysisPipelineController.ts",
+      "app/projectLifecycleController.ts",
+      "components/domain/loadPointGroupController.ts",
+      "components/domain/technicalAssignmentController.ts",
+    ]) {
+      assert.equal(existsSync(resolve(sourceRoot, path)), false, `${path} should be removed`);
+    }
+  });
 });

@@ -11,8 +11,8 @@ import InterfaceScaleNotice, { type InterfaceScaleNoticeValue } from "../../comp
 import ActionNotice, { type ActionNoticeTone } from "../../components/viewer/ActionNotice";
 import PilePlanWorkspace from "../../components/domain/pile-plans/PilePlanWorkspace";
 import RightPanel, { type RightTaskPanel } from "../../components/domain/right-panel/RightPanel";
-import { useLoadPointGroups } from "../../components/domain/useLoadPointGroups.ts";
-import { useTechnicalAssignment } from "../../components/domain/useTechnicalAssignment.ts";
+import { useLoadPointGroups } from "../derived-state/useLoadPointGroups.ts";
+import { useTechnicalAssignment } from "../derived-state/useTechnicalAssignment.ts";
 import ProjectInformationDialog from "../../components/domain/project/ProjectInformationDialog";
 import UnsavedChangesDialog from "../../components/domain/project/UnsavedChangesDialog.tsx";
 import PilePlanExplorer from "../../components/domain/pile-plans/PilePlanExplorer.tsx";
@@ -112,8 +112,8 @@ import {
   openedProjectLifecycleState,
   projectDraftFromState,
   projectStateSignature,
-} from "../projectLifecycleController.ts";
-import { createAnalysisPipelineController } from "../analysisPipelineController.ts";
+} from "../project/projectLifecycleController.ts";
+import { createPileOptionAnalysisController } from "../derived-state/pileOptionAnalysisController.ts";
 import { describeHistoryAction, describeHistoryResult } from "../../domain/historyMessage.ts";
 import { createBrowserRecoveryRecord } from "../../domain/browserRecovery.ts";
 import {
@@ -220,7 +220,7 @@ export default function AppSession({
   );
   const projectState = managedProject.present;
   const [analysisPipeline] = useState(() => (
-    createAnalysisPipelineController(calculatePileOptionAnalysisCore)
+    createPileOptionAnalysisController(calculatePileOptionAnalysisCore)
   ));
   const projectStateRef = useRef(projectState);
   projectStateRef.current = projectState;

@@ -41,7 +41,7 @@ import {
 } from "../../../viewer/tipLevelRegionGeometry.ts";
 import { presentTipLevelRegionGeometry } from "../../../viewer/tipLevelRegionPresentation.ts";
 import type { LoadPointGroup } from "../../../core/loadPointGroupContract.ts";
-import type { TechnicalAssignmentSnapshot } from "../technicalAssignmentController.ts";
+import type { TechnicalAssignmentSnapshot } from "../../../app/derived-state/technicalAssignmentController.ts";
 import type { TipLevelRegionTopology } from "../../../core/tipLevelRegionContract.ts";
 import { getLoadPointGroupSelection } from "../../../viewer/loadPointGroupSelection.ts";
 import { useViewerViewport } from "./useViewerViewport.ts";

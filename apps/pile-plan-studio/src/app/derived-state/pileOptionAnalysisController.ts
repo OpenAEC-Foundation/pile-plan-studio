@@ -1,16 +1,16 @@
-export type AnalysisPipelineOutcome<Result> =
+export type PileOptionAnalysisOutcome<Result> =
   | { status: "applied"; result: Result }
   | { status: "failed"; error: unknown }
   | { status: "stale" };
 
-export type AnalysisPipelineController<Request, Result> = {
-  run: (request: Request) => Promise<AnalysisPipelineOutcome<Result>>;
+export type PileOptionAnalysisController<Request, Result> = {
+  run: (request: Request) => Promise<PileOptionAnalysisOutcome<Result>>;
   invalidate: () => void;
 };
 
-export function createAnalysisPipelineController<Request, Result>(
+export function createPileOptionAnalysisController<Request, Result>(
   execute: (request: Request) => Promise<Result>,
-): AnalysisPipelineController<Request, Result> {
+): PileOptionAnalysisController<Request, Result> {
   let generation = 0;
 
   return {
