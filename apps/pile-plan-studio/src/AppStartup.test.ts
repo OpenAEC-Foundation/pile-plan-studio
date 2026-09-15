@@ -58,7 +58,7 @@ describe("React app startup", () => {
   it("stores analysis failures instead of leaving a permanent loading state", () => {
     const appSource = readFileSync(resolve(import.meta.dirname, "AppSession.tsx"), "utf8");
     const panelSource = readFileSync(
-      resolve(import.meta.dirname, "components/domain/RightPanel.tsx"),
+      resolve(import.meta.dirname, "components/domain/right-panel/LoadPointPanel.tsx"),
       "utf8",
     );
 

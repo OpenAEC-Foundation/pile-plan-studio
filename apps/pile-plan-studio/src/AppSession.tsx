@@ -10,7 +10,7 @@ import StatusBar from "./components/template/StatusBar";
 import InterfaceScaleNotice, { type InterfaceScaleNoticeValue } from "./components/template/InterfaceScaleNotice";
 import ActionNotice, { type ActionNoticeTone } from "./components/viewer/ActionNotice";
 import PilePlanWorkspace from "./components/domain/PilePlanWorkspace";
-import RightPanel, { type RightTaskPanel } from "./components/domain/RightPanel";
+import RightPanel, { type RightTaskPanel } from "./components/domain/right-panel/RightPanel";
 import { useLoadPointGroups } from "./components/domain/useLoadPointGroups.ts";
 import { useTechnicalAssignment } from "./components/domain/useTechnicalAssignment.ts";
 import ProjectInformationDialog from "./components/domain/ProjectInformationDialog";

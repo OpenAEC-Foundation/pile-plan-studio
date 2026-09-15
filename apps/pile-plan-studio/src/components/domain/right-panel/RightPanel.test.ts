@@ -2,11 +2,33 @@ import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
+import type { ComponentProps } from "react";
+import type RightPanel from "./RightPanel.tsx";
+import type { RightPanelProps } from "./RightPanel.tsx";
+
+const rightPanelFiles = ["RightPanel.tsx", "PanelControls.tsx", "CptPanel.tsx", "LoadPointPanel.tsx", "GroupingSettingsPanel.tsx", "CostSettingsPanel.tsx", "CptSettingsPanel.tsx"];
+function readRightPanelSource(): string {
+  return rightPanelFiles.map((file) => readFileSync(resolve(import.meta.dirname, file), "utf8")).join("\n");
+}
+
+type Assert<T extends true> = T;
+type SameProps = Assert<
+  [RightPanelProps] extends [ComponentProps<typeof RightPanel>]
+    ? [ComponentProps<typeof RightPanel>] extends [RightPanelProps]
+      ? true
+      : false
+    : false
+>;
+const publicPropsContract: SameProps = true;
+
+it("keeps the public right-panel props contract", () => {
+  assert.equal(publicPropsContract, true);
+});
 
 describe("missing CPT popover", () => {
   it("opens from Missing without assigning the row and links identifier-only CPT buttons", () => {
-    const panel = readFileSync(resolve(import.meta.dirname, "RightPanel.tsx"), "utf8");
-    const popover = readFileSync(resolve(import.meta.dirname, "MissingCptPopover.tsx"), "utf8");
+    const panel = readRightPanelSource();
+    const popover = readFileSync(resolve(import.meta.dirname, "../MissingCptPopover.tsx"), "utf8");
 
     assert.match(panel, /row\.missingCptIds\.length > 0/);
     assert.match(panel, /<MissingCptPopover/);
@@ -18,8 +40,8 @@ describe("missing CPT popover", () => {
   });
 
   it("controls all Missing popovers with one active row key", () => {
-    const panel = readFileSync(resolve(import.meta.dirname, "RightPanel.tsx"), "utf8");
-    const popover = readFileSync(resolve(import.meta.dirname, "MissingCptPopover.tsx"), "utf8");
+    const panel = readRightPanelSource();
+    const popover = readFileSync(resolve(import.meta.dirname, "../MissingCptPopover.tsx"), "utf8");
 
     assert.match(panel, /const \[openMissingCptKey, setOpenMissingCptKey\] = useState<string \| null>\(null\)/);
     assert.match(panel, /open=\{openMissingCptKey === row\.key\}/);
@@ -31,16 +53,16 @@ describe("missing CPT popover", () => {
   });
 
   it("uses the compact Not OK label in both languages", () => {
-    const english = JSON.parse(readFileSync(resolve(import.meta.dirname, "../../i18n/locales/en/rightPanel.json"), "utf8"));
-    const dutch = JSON.parse(readFileSync(resolve(import.meta.dirname, "../../i18n/locales/nl/rightPanel.json"), "utf8"));
+    const english = JSON.parse(readFileSync(resolve(import.meta.dirname, "../../../i18n/locales/en/rightPanel.json"), "utf8"));
+    const dutch = JSON.parse(readFileSync(resolve(import.meta.dirname, "../../../i18n/locales/nl/rightPanel.json"), "utf8"));
 
     assert.equal(english["status.insufficientCapacity"], "Not OK");
     assert.equal(dutch["status.insufficientCapacity"], "Not OK");
   });
 
   it("describes Missing as a click action in both languages", () => {
-    const english = JSON.parse(readFileSync(resolve(import.meta.dirname, "../../i18n/locales/en/rightPanel.json"), "utf8"));
-    const dutch = JSON.parse(readFileSync(resolve(import.meta.dirname, "../../i18n/locales/nl/rightPanel.json"), "utf8"));
+    const english = JSON.parse(readFileSync(resolve(import.meta.dirname, "../../../i18n/locales/en/rightPanel.json"), "utf8"));
+    const dutch = JSON.parse(readFileSync(resolve(import.meta.dirname, "../../../i18n/locales/nl/rightPanel.json"), "utf8"));
 
     assert.equal(english["pileOptions.missingCptsTitle"], "Click to view CPTs with missing bearing-capacity data");
     assert.equal(dutch["pileOptions.missingCptsTitle"], "Klik om sonderingen met ontbrekende draagvermogengegevens te bekijken");
@@ -49,16 +71,16 @@ describe("missing CPT popover", () => {
 
 describe("technical assignment availability", () => {
   it("uses the unavailable explanation instead of a filter no-match message", () => {
-    const panel = readFileSync(resolve(import.meta.dirname, "RightPanel.tsx"), "utf8");
+    const panel = readRightPanelSource();
 
     assert.match(panel, /technicalAssignment\.status === "unavailable"/);
     assert.match(panel, /isUnavailable[\s\S]*?technicalNotice\.unavailableExplanation/);
   });
 
   it("shows one compact analysis error instead of a second pile-options error section", () => {
-    const panel = readFileSync(resolve(import.meta.dirname, "RightPanel.tsx"), "utf8");
-    const notice = readFileSync(resolve(import.meta.dirname, "TechnicalAssignmentNotice.tsx"), "utf8");
-    const styles = readFileSync(resolve(import.meta.dirname, "rightPanel.css"), "utf8");
+    const panel = readRightPanelSource();
+    const notice = readFileSync(resolve(import.meta.dirname, "../TechnicalAssignmentNotice.tsx"), "utf8");
+    const styles = readFileSync(resolve(import.meta.dirname, "../rightPanel.css"), "utf8");
 
     assert.match(panel, /technicalAssignment\.status !== "error"\s*\?\s*\(\s*<section className="pile-options-section">/s);
     assert.match(notice, /getAnalysisFailureNotice/);
@@ -70,7 +92,7 @@ describe("technical assignment availability", () => {
 
 describe("React optimization panel", () => {
   it("delegates canonical pile choices and disables rows while assignment is pending", () => {
-    const panel = readFileSync(resolve(import.meta.dirname, "RightPanel.tsx"), "utf8");
+    const panel = readRightPanelSource();
 
     assert.match(panel, /pileAssignmentPending\?: boolean/);
     assert.match(panel, /onApplyPileConfiguration\?: \(/);
@@ -82,9 +104,9 @@ describe("React optimization panel", () => {
   });
 
   it("offers one group-aware action to clear the selected assignment", () => {
-    const panel = readFileSync(resolve(import.meta.dirname, "RightPanel.tsx"), "utf8");
-    const english = JSON.parse(readFileSync(resolve(import.meta.dirname, "../../i18n/locales/en/rightPanel.json"), "utf8"));
-    const dutch = JSON.parse(readFileSync(resolve(import.meta.dirname, "../../i18n/locales/nl/rightPanel.json"), "utf8"));
+    const panel = readRightPanelSource();
+    const english = JSON.parse(readFileSync(resolve(import.meta.dirname, "../../../i18n/locales/en/rightPanel.json"), "utf8"));
+    const dutch = JSON.parse(readFileSync(resolve(import.meta.dirname, "../../../i18n/locales/nl/rightPanel.json"), "utf8"));
 
     assert.match(panel, /hasAssignedSelection/);
     assert.match(panel, /group\.load_point_ids\.some\(\(loadPointId\) => selectedLoadPointIds\.has\(loadPointId\)\)/);
@@ -97,10 +119,10 @@ describe("React optimization panel", () => {
   });
 
   it("retains and labels an assigned option with inactive legend properties", () => {
-    const panel = readFileSync(resolve(import.meta.dirname, "RightPanel.tsx"), "utf8");
-    const styles = readFileSync(resolve(import.meta.dirname, "rightPanel.css"), "utf8");
-    const english = JSON.parse(readFileSync(resolve(import.meta.dirname, "../../i18n/locales/en/rightPanel.json"), "utf8"));
-    const dutch = JSON.parse(readFileSync(resolve(import.meta.dirname, "../../i18n/locales/nl/rightPanel.json"), "utf8"));
+    const panel = readRightPanelSource();
+    const styles = readFileSync(resolve(import.meta.dirname, "../rightPanel.css"), "utf8");
+    const english = JSON.parse(readFileSync(resolve(import.meta.dirname, "../../../i18n/locales/en/rightPanel.json"), "utf8"));
+    const dutch = JSON.parse(readFileSync(resolve(import.meta.dirname, "../../../i18n/locales/nl/rightPanel.json"), "utf8"));
 
     assert.match(panel, /filterActivePileOptions\(aggregation\.result, active, retainedConfiguration\)/);
     assert.match(panel, /!row\.sizeActive \? <InactiveLabel \/>/);
@@ -112,7 +134,7 @@ describe("React optimization panel", () => {
   });
 
   it("defers numeric optimization limits until blur or Enter", () => {
-    const optimization = readFileSync(resolve(import.meta.dirname, "OptimizationPanel.tsx"), "utf8");
+    const optimization = readFileSync(resolve(import.meta.dirname, "../OptimizationPanel.tsx"), "utf8");
 
     assert.match(optimization, /useState\(String\(value\)\)/);
     assert.match(optimization, /onValueChange=\{setDraft\}/);
@@ -124,7 +146,7 @@ describe("React optimization panel", () => {
   });
 
   it("clears the last run feedback when optimization scopes change", () => {
-    const optimization = readFileSync(resolve(import.meta.dirname, "OptimizationPanel.tsx"), "utf8");
+    const optimization = readFileSync(resolve(import.meta.dirname, "../OptimizationPanel.tsx"), "utf8");
 
     assert.match(optimization, /function updateScope/);
     assert.match(optimization, /optimizationSummary:\s*null/);
@@ -136,9 +158,9 @@ describe("React optimization panel", () => {
   });
 
   it("selects an exact optimizer candidate source and blocks an empty domain", () => {
-    const optimization = readFileSync(resolve(import.meta.dirname, "OptimizationPanel.tsx"), "utf8");
-    const english = JSON.parse(readFileSync(resolve(import.meta.dirname, "../../i18n/locales/en/rightPanel.json"), "utf8"));
-    const dutch = JSON.parse(readFileSync(resolve(import.meta.dirname, "../../i18n/locales/nl/rightPanel.json"), "utf8"));
+    const optimization = readFileSync(resolve(import.meta.dirname, "../OptimizationPanel.tsx"), "utf8");
+    const english = JSON.parse(readFileSync(resolve(import.meta.dirname, "../../../i18n/locales/en/rightPanel.json"), "utf8"));
+    const dutch = JSON.parse(readFileSync(resolve(import.meta.dirname, "../../../i18n/locales/nl/rightPanel.json"), "utf8"));
 
     assert.match(optimization, /resolveOptimizationCandidates/);
     assert.match(optimization, /updateCandidateSource\("all_available"\)/);
@@ -151,8 +173,8 @@ describe("React optimization panel", () => {
   });
 
   it("does not refocus a numeric field when the empty part of its row is clicked", () => {
-    const optimization = readFileSync(resolve(import.meta.dirname, "OptimizationPanel.tsx"), "utf8");
-    const styles = readFileSync(resolve(import.meta.dirname, "rightPanel.css"), "utf8");
+    const optimization = readFileSync(resolve(import.meta.dirname, "../OptimizationPanel.tsx"), "utf8");
+    const styles = readFileSync(resolve(import.meta.dirname, "../rightPanel.css"), "utf8");
 
     assert.match(optimization, /<div\s+className="optimization-number"/);
     assert.match(optimization, /<label htmlFor=\{inputId\}>\{label\}<\/label>/);
@@ -163,8 +185,8 @@ describe("React optimization panel", () => {
   });
 
   it("provides a closable task panel outside the permanent context tabs", () => {
-    const panel = readFileSync(resolve(import.meta.dirname, "RightPanel.tsx"), "utf8");
-    const optimization = readFileSync(resolve(import.meta.dirname, "OptimizationPanel.tsx"), "utf8");
+    const panel = readRightPanelSource();
+    const optimization = readFileSync(resolve(import.meta.dirname, "../OptimizationPanel.tsx"), "utf8");
 
     assert.doesNotMatch(panel, /PanelTab label="Optimization"/);
     assert.match(panel, /taskPanel === "optimization"/);
@@ -197,35 +219,35 @@ describe("React optimization panel", () => {
   });
 
   it("does not mark a permanent panel tab active while the optimization task is open", () => {
-    const panel = readFileSync(resolve(import.meta.dirname, "RightPanel.tsx"), "utf8");
+    const panel = readRightPanelSource();
 
     assert.match(panel, /active=\{taskPanel === null\}/);
     assert.match(panel, /active && state\.rightPanelMode === mode/);
   });
 
   it("closes a task panel when a permanent inspection tab is activated", () => {
-    const panel = readFileSync(resolve(import.meta.dirname, "RightPanel.tsx"), "utf8");
+    const panel = readRightPanelSource();
 
     assert.match(panel, /<PanelTab[\s\S]*?onActivate=\{onCloseTaskPanel\}/);
     assert.match(panel, /onActivate\(\);[\s\S]*?switchRightPanelMode\(state, mode\)/);
   });
 
   it("uses the shared right-panel translations", () => {
-    const panel = readFileSync(resolve(import.meta.dirname, "RightPanel.tsx"), "utf8");
-    const optimization = readFileSync(resolve(import.meta.dirname, "OptimizationPanel.tsx"), "utf8");
-    const config = readFileSync(resolve(import.meta.dirname, "../../i18n/config.ts"), "utf8");
+    const panel = readRightPanelSource();
+    const optimization = readFileSync(resolve(import.meta.dirname, "../OptimizationPanel.tsx"), "utf8");
+    const config = readFileSync(resolve(import.meta.dirname, "../../../i18n/config.ts"), "utf8");
 
     assert.match(panel, /useTranslation\("rightPanel"\)/);
     assert.match(optimization, /useTranslation\("rightPanel"\)/);
     assert.match(config, /enRightPanel/);
     assert.match(config, /nlRightPanel/);
     assert.match(config, /"rightPanel"/);
-    const english = readFileSync(resolve(import.meta.dirname, "../../i18n/locales/en/rightPanel.json"), "utf8");
+    const english = readFileSync(resolve(import.meta.dirname, "../../../i18n/locales/en/rightPanel.json"), "utf8");
     assert.match(english, /"optimization\.performanceLimit": "Utilization limit"/);
   });
 
   it("keeps only inspection views as permanent tabs", () => {
-    const panel = readFileSync(resolve(import.meta.dirname, "RightPanel.tsx"), "utf8");
+    const panel = readRightPanelSource();
 
     assert.match(panel, /mode="load-point"/);
     assert.match(panel, /mode="cpts"/);
@@ -238,9 +260,9 @@ describe("React optimization panel", () => {
 
 describe("React load point grouping settings panel", () => {
   it("edits automatic grouping and preserves the disabled distance field", () => {
-    const panel = readFileSync(resolve(import.meta.dirname, "RightPanel.tsx"), "utf8");
-    const english = JSON.parse(readFileSync(resolve(import.meta.dirname, "../../i18n/locales/en/rightPanel.json"), "utf8"));
-    const dutch = JSON.parse(readFileSync(resolve(import.meta.dirname, "../../i18n/locales/nl/rightPanel.json"), "utf8"));
+    const panel = readRightPanelSource();
+    const english = JSON.parse(readFileSync(resolve(import.meta.dirname, "../../../i18n/locales/en/rightPanel.json"), "utf8"));
+    const dutch = JSON.parse(readFileSync(resolve(import.meta.dirname, "../../../i18n/locales/nl/rightPanel.json"), "utf8"));
 
     assert.match(panel, /taskPanel === "grouping-settings"[\s\S]*?<GroupingSettingsPanel/);
     assert.match(panel, /checked=\{settings\.automatic\}/);
@@ -254,8 +276,8 @@ describe("React load point grouping settings panel", () => {
 
 describe("React cost settings panel", () => {
   it("keeps edited pile costs inside the current project", () => {
-    const panel = readFileSync(resolve(import.meta.dirname, "RightPanel.tsx"), "utf8");
-    const costPanel = readFileSync(resolve(import.meta.dirname, "CostSettingsPanel.tsx"), "utf8");
+    const panel = readRightPanelSource();
+    const costPanel = readFileSync(resolve(import.meta.dirname, "../CostSettingsPanel.tsx"), "utf8");
 
     assert.doesNotMatch(panel, /PILE_COST_DEFAULTS_KEY/);
     assert.doesNotMatch(panel, /setSetting\(/);
@@ -265,7 +287,7 @@ describe("React cost settings panel", () => {
 
 describe("React CPT settings panel", () => {
   it("keeps settings available without a selection and exposes all or selected scope", () => {
-    const panel = readFileSync(resolve(import.meta.dirname, "RightPanel.tsx"), "utf8");
+    const panel = readRightPanelSource();
 
     assert.doesNotMatch(panel, /cptSettingsScope\s*(?:===|:)\s*"current"/);
     assert.doesNotMatch(panel, /const loadPoint = state\.loadPoints\.find\(.*selectedLoadPointId/s);
@@ -281,7 +303,7 @@ describe("React CPT settings panel", () => {
   });
 
   it("uses aggregate values, mixed placeholders, and field-level settings patches", () => {
-    const panel = readFileSync(resolve(import.meta.dirname, "RightPanel.tsx"), "utf8");
+    const panel = readRightPanelSource();
 
     assert.match(panel, /getCptSelectionSettingsAggregate\(state\)/);
     assert.match(panel, /value=\{settings\.maxDistanceM\}/);
@@ -299,7 +321,7 @@ describe("React CPT settings panel", () => {
   });
 
   it("places monopoly distance and overwrite control in the settings flow", () => {
-    const panel = readFileSync(resolve(import.meta.dirname, "RightPanel.tsx"), "utf8");
+    const panel = readRightPanelSource();
 
     assert.match(panel, /const \[overwriteManualSelections, setOverwriteManualSelections\] = useState\(false\)/);
     assert.match(panel, /checked=\{overwriteManualSelections\}[\s\S]*type="checkbox"[\s\S]*setOverwriteManualSelections/);
@@ -309,7 +331,7 @@ describe("React CPT settings panel", () => {
   });
 
   it("defers CPT number changes until blur or Enter", () => {
-    const panel = readFileSync(resolve(import.meta.dirname, "RightPanel.tsx"), "utf8");
+    const panel = readRightPanelSource();
 
     assert.match(panel, /function DraftNumberField/);
     assert.match(panel, /const \[draft, setDraft\] = useState/);
@@ -319,8 +341,8 @@ describe("React CPT settings panel", () => {
   });
 
   it("groups CPT values into compact label-and-field rows", () => {
-    const panel = readFileSync(resolve(import.meta.dirname, "RightPanel.tsx"), "utf8");
-    const styles = readFileSync(resolve(import.meta.dirname, "rightPanel.css"), "utf8");
+    const panel = readRightPanelSource();
+    const styles = readFileSync(resolve(import.meta.dirname, "../rightPanel.css"), "utf8");
 
     assert.match(panel, /SettingsGroup title=\{t\("cptSettings\.distances"\)\}[\s\S]*ariaLabel=\{t\("cptSettings\.maxDistance"\)\}[\s\S]*ariaLabel=\{t\("cptSettings\.monopolyDistance"\)\}/);
     assert.match(panel, /label=\{t\("cptSettings\.maxDistance"\)\}/);
@@ -329,27 +351,27 @@ describe("React CPT settings panel", () => {
   });
 
   it("draws the shared edge when the right settings segment is selected", () => {
-    const styles = readFileSync(resolve(import.meta.dirname, "rightPanel.css"), "utf8");
+    const styles = readFileSync(resolve(import.meta.dirname, "../rightPanel.css"), "utf8");
 
     assert.match(styles, /\.segmented-control button:last-child\.is-selected\s*\{[\s\S]*?border-left:\s*1px solid var\(--theme-accent\)/);
   });
 
   it("allows the optimizer candidate labels to wrap", () => {
-    const panel = readFileSync(resolve(import.meta.dirname, "OptimizationPanel.tsx"), "utf8");
-    const styles = readFileSync(resolve(import.meta.dirname, "rightPanel.css"), "utf8");
+    const panel = readFileSync(resolve(import.meta.dirname, "../OptimizationPanel.tsx"), "utf8");
+    const styles = readFileSync(resolve(import.meta.dirname, "../rightPanel.css"), "utf8");
 
     assert.match(panel, /className="segmented-control optimization-candidate-source"/);
     assert.match(styles, /\.optimization-candidate-source button\s*\{[\s\S]*?white-space:\s*normal/);
   });
 
   it("highlights the permanent panel tabs on hover", () => {
-    const styles = readFileSync(resolve(import.meta.dirname, "rightPanel.css"), "utf8");
+    const styles = readFileSync(resolve(import.meta.dirname, "../rightPanel.css"), "utf8");
 
     assert.match(styles, /\.right-panel-tab:hover:not\(:disabled\)\s*\{[\s\S]*?background:\s*var\(--theme-ribbon-btn-hover\)/);
   });
 
   it("keeps mixed algorithms unselected and maximum angle editable until a concrete alternative is common", () => {
-    const panel = readFileSync(resolve(import.meta.dirname, "RightPanel.tsx"), "utf8");
+    const panel = readRightPanelSource();
 
     assert.match(panel, /active=\{settings\.algorithm === "quadrants"\}/);
     assert.match(panel, /active=\{settings\.algorithm === "maximum-angle"\}/);
@@ -357,14 +379,14 @@ describe("React CPT settings panel", () => {
   });
 
   it("uses the themed focus treatment for algorithm options", () => {
-    const styles = readFileSync(resolve(import.meta.dirname, "rightPanel.css"), "utf8");
+    const styles = readFileSync(resolve(import.meta.dirname, "../rightPanel.css"), "utf8");
 
     assert.match(styles, /\.algorithm-option:focus\s*\{[\s\S]*?outline:\s*none/);
     assert.match(styles, /\.algorithm-option:focus-visible\s*\{[\s\S]*?box-shadow:\s*0 0 0 2px var\(--theme-focus-color\)/);
   });
 
   it("routes Modify selection into the shared CPT panel edit mode", () => {
-    const panel = readFileSync(resolve(import.meta.dirname, "RightPanel.tsx"), "utf8");
+    const panel = readRightPanelSource();
 
     assert.match(panel, /startManualCptSelectionEdit\(state\)/);
     assert.match(panel, /t\("actions\.modifySelection"\)/);
@@ -375,7 +397,7 @@ describe("React CPT settings panel", () => {
 
 describe("React CPT panel edit mode", () => {
   it("keeps Modify available, disables it without a selection, and presents draft controls", () => {
-    const panel = readFileSync(resolve(import.meta.dirname, "RightPanel.tsx"), "utf8");
+    const panel = readRightPanelSource();
 
     assert.match(panel, /t\("actions\.modify"\)/);
     assert.match(panel, /disabled=\{selectedLoadPoints\.length === 0\}/);
@@ -386,7 +408,7 @@ describe("React CPT panel edit mode", () => {
   });
 
   it("can restore algorithmic CPT selection directly from edit mode", () => {
-    const panel = readFileSync(resolve(import.meta.dirname, "RightPanel.tsx"), "utf8");
+    const panel = readRightPanelSource();
     const editActions = panel.match(/\{editing \? \([\s\S]*?<div className="cpt-table-wrap">/)?.[0] ?? "";
 
     assert.match(editActions, /clearManualCptSelection\(state\)/);
@@ -394,18 +416,18 @@ describe("React CPT panel edit mode", () => {
   });
 
   it("saves the nearest-only selection immediately and closes edit mode", () => {
-    const panel = readFileSync(resolve(import.meta.dirname, "RightPanel.tsx"), "utf8");
+    const panel = readRightPanelSource();
     const editActions = panel.match(/\{editing \? \([\s\S]*?<div className="cpt-table-wrap">/)?.[0] ?? "";
 
     assert.match(editActions, /saveManualCptSelection\(selectOnlyNearestCpts\(state\)\)/);
   });
 
   it("uses icon-only remove controls in edit mode and preserves normal CPT inspection links", () => {
-    const panel = readFileSync(resolve(import.meta.dirname, "RightPanel.tsx"), "utf8");
-    const icons = readFileSync(resolve(import.meta.dirname, "../template/ribbon/icons.ts"), "utf8");
+    const panel = readRightPanelSource();
+    const icons = readFileSync(resolve(import.meta.dirname, "../../template/ribbon/icons.ts"), "utf8");
 
     assert.match(icons, /export const removeIcon = `<svg fill="none" stroke="currentColor" viewBox="0 0 24 24">/);
-    assert.match(panel, /import \{[^}]*removeIcon[^}]*\} from "\.\.\/template\/ribbon\/icons\.ts"/);
+    assert.match(panel, /import \{[^}]*removeIcon[^}]*\} from "\.\.\/\.\.\/template\/ribbon\/icons\.ts"/);
     assert.match(panel, /className="cpt-remove-button"/);
     assert.match(panel, /aria-label=\{t\("actions\.removeCpt"/);
     assert.match(panel, /dangerouslySetInnerHTML=\{\{ __html: removeIcon \}\}/);
@@ -415,7 +437,7 @@ describe("React CPT panel edit mode", () => {
   });
 
   it("explains both CPT distance settings with information tooltips", () => {
-    const panel = readFileSync(resolve(import.meta.dirname, "RightPanel.tsx"), "utf8");
+    const panel = readRightPanelSource();
 
     assert.match(panel, /helpText=\{t\("cptSettings\.maxDistanceHelp"\)\}/);
     assert.match(panel, /helpText=\{t\("cptSettings\.monopolyDistanceHelp"\)\}/);
@@ -423,7 +445,7 @@ describe("React CPT panel edit mode", () => {
   });
 
   it("keeps CPT names localized while edit mode disables their inspection links", () => {
-    const panel = readFileSync(resolve(import.meta.dirname, "RightPanel.tsx"), "utf8");
+    const panel = readRightPanelSource();
 
     assert.match(
       panel,
@@ -432,8 +454,8 @@ describe("React CPT panel edit mode", () => {
   });
 
   it("localizes nearest and numbered manual selection labels", () => {
-    const panel = readFileSync(resolve(import.meta.dirname, "RightPanel.tsx"), "utf8");
-    const nl = readFileSync(resolve(import.meta.dirname, "../../i18n/locales/nl/rightPanel.json"), "utf8");
+    const panel = readRightPanelSource();
+    const nl = readFileSync(resolve(import.meta.dirname, "../../../i18n/locales/nl/rightPanel.json"), "utf8");
 
     assert.match(panel, /value\.toLowerCase\(\) === "nearest"[\s\S]*?t\("selection\.nearest"\)/);
     assert.match(panel, /value\.match\(\/\^manual[\s\S]*?t\("selection\.manual"/);
@@ -442,10 +464,10 @@ describe("React CPT panel edit mode", () => {
   });
 
   it("shows live preview progress, failures, and governing CPT rows", () => {
-    const panel = readFileSync(resolve(import.meta.dirname, "RightPanel.tsx"), "utf8");
-    const styles = readFileSync(resolve(import.meta.dirname, "rightPanel.css"), "utf8");
-    const en = readFileSync(resolve(import.meta.dirname, "../../i18n/locales/en/rightPanel.json"), "utf8");
-    const nl = readFileSync(resolve(import.meta.dirname, "../../i18n/locales/nl/rightPanel.json"), "utf8");
+    const panel = readRightPanelSource();
+    const styles = readFileSync(resolve(import.meta.dirname, "../rightPanel.css"), "utf8");
+    const en = readFileSync(resolve(import.meta.dirname, "../../../i18n/locales/en/rightPanel.json"), "utf8");
+    const nl = readFileSync(resolve(import.meta.dirname, "../../../i18n/locales/nl/rightPanel.json"), "utf8");
 
     assert.match(panel, /state\.cptSelectionPreview/);
     assert.match(panel, /cpts\.previewCalculating/);
@@ -464,10 +486,10 @@ describe("React CPT panel edit mode", () => {
 
 describe("React coordinate inspection", () => {
   it("uses the shared two-column coordinate readout for CPTs and load points", () => {
-    const panel = readFileSync(resolve(import.meta.dirname, "RightPanel.tsx"), "utf8");
-    const styles = readFileSync(resolve(import.meta.dirname, "rightPanel.css"), "utf8");
+    const panel = readRightPanelSource();
+    const styles = readFileSync(resolve(import.meta.dirname, "../rightPanel.css"), "utf8");
 
-    assert.match(panel, /import \{ CoordinateReadout \} from "\.\/CoordinateReadout\.ts"/);
+    assert.match(panel, /import \{ CoordinateReadout \} from "\.\.\/CoordinateReadout\.ts"/);
     assert.match(panel, /<CoordinateReadout points=\{\[selectedCpt\.cpt\]\} locale=\{i18n\.language\} \/>/);
     assert.match(panel, /<CoordinateReadout points=\{selectedLoadPoints\} locale=\{i18n\.language\} \/>/);
     assert.doesNotMatch(panel, /cpt-detail-grid/);

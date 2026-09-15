@@ -2,10 +2,32 @@ import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
+import type { ComponentProps } from "react";
+import type LegendEditor from "./LegendEditor.tsx";
+import type { LegendEditorProps } from "./LegendEditor.tsx";
+
+const legendEditorFiles = ["LegendEditor.tsx", "LegendEditorItemRow.tsx", "LegendPlanUsageSection.tsx", "LegendConflictNotice.tsx"];
+function readLegendEditorSource(): string {
+  return legendEditorFiles.map((file) => readFileSync(resolve(import.meta.dirname, file), "utf8")).join("\n");
+}
+
+type Assert<T extends true> = T;
+type SameProps = Assert<
+  [LegendEditorProps] extends [ComponentProps<typeof LegendEditor>]
+    ? [ComponentProps<typeof LegendEditor>] extends [LegendEditorProps]
+      ? true
+      : false
+    : false
+>;
+const publicPropsContract: SameProps = true;
+
+it("keeps the public legend-editor props contract", () => {
+  assert.equal(publicPropsContract, true);
+});
 
 describe("legend editor", () => {
   it("renders a complete draft-based project legend editor", () => {
-    const source = readFileSync(resolve(import.meta.dirname, "LegendEditor.tsx"), "utf8");
+    const source = readLegendEditorSource();
 
     assert.match(source, /<Modal/);
     assert.match(source, /createLegendEditorDraft/);
@@ -26,7 +48,7 @@ describe("legend editor", () => {
   });
 
   it("keeps appearance and activation as separate controls", () => {
-    const source = readFileSync(resolve(import.meta.dirname, "LegendEditor.tsx"), "utf8");
+    const source = readLegendEditorSource();
 
     assert.match(source, /setLegendEditorItemEnabled/);
     assert.doesNotMatch(source, /toggleLegendEditorItem/);
@@ -38,7 +60,7 @@ describe("legend editor", () => {
   });
 
   it("keeps picker-owning rows stable while the draft changes", () => {
-    const source = readFileSync(resolve(import.meta.dirname, "LegendEditor.tsx"), "utf8");
+    const source = readLegendEditorSource();
     const componentBody = source.slice(
       source.indexOf("export default function LegendEditor"),
       source.indexOf("type EditorSectionProps"),
@@ -47,11 +69,11 @@ describe("legend editor", () => {
     assert.doesNotMatch(componentBody, /function EditorSection/);
     assert.doesNotMatch(componentBody, /function EditorBlock/);
     assert.doesNotMatch(componentBody, /function EditorItemRow/);
-    assert.match(source, /^function EditorItemRow/m);
+    assert.match(source, /^export function LegendEditorItemRow/m);
   });
 
   it("shows encoding, assignment, validation, and reset copy", () => {
-    const source = readFileSync(resolve(import.meta.dirname, "LegendEditor.tsx"), "utf8");
+    const source = readLegendEditorSource();
 
     assert.match(source, /legend\.symbol/);
     assert.match(source, /legend\.color/);
@@ -75,7 +97,7 @@ describe("legend editor", () => {
   });
 
   it("shows scoped plan usage details and co-active conflicts", () => {
-    const source = readFileSync(resolve(import.meta.dirname, "LegendEditor.tsx"), "utf8");
+    const source = readLegendEditorSource();
 
     assert.match(source, /getLegendValuePlanUsage/);
     assert.match(source, /legend-editor-outside-scope-chip/);
@@ -88,8 +110,8 @@ describe("legend editor", () => {
   });
 
   it("collapses encoding and pile-plan scope into informative summaries", () => {
-    const source = readFileSync(resolve(import.meta.dirname, "LegendEditor.tsx"), "utf8");
-    const css = readFileSync(resolve(import.meta.dirname, "LegendEditor.css"), "utf8");
+    const source = readLegendEditorSource();
+    const css = readFileSync(resolve(import.meta.dirname, "../LegendEditor.css"), "utf8");
 
     assert.match(source, /<details ref=\{encodingDisclosure\} className="legend-editor-disclosure legend-editor-encoding">/);
     assert.match(source, /<details className="legend-editor-disclosure legend-editor-scope">/);
@@ -98,7 +120,7 @@ describe("legend editor", () => {
   });
 
   it("uses the normal legend only for selection and opens editing separately", () => {
-    const source = readFileSync(resolve(import.meta.dirname, "Legend.tsx"), "utf8");
+    const source = readFileSync(resolve(import.meta.dirname, "../Legend.tsx"), "utf8");
 
     assert.doesNotMatch(source, /toggleActivePileConfiguration/);
     assert.match(source, /replaceLegendSelectionFilter/);
@@ -109,7 +131,7 @@ describe("legend editor", () => {
   });
 
   it("offers a quick action that enables only configurations used by the active plan", () => {
-    const source = readFileSync(resolve(import.meta.dirname, "Legend.tsx"), "utf8");
+    const source = readFileSync(resolve(import.meta.dirname, "../Legend.tsx"), "utf8");
 
     assert.match(source, /function enableUsedOnly/);
     assert.match(source, /replacePilePlanActivation\(state\.pilePlans, state\.activePilePlanId, used\)/);
@@ -118,8 +140,8 @@ describe("legend editor", () => {
   });
 
   it("styles normal and editor states without relying on color alone", () => {
-    const viewerCss = readFileSync(resolve(import.meta.dirname, "viewer.css"), "utf8");
-    const editorCss = readFileSync(resolve(import.meta.dirname, "LegendEditor.css"), "utf8");
+    const viewerCss = readFileSync(resolve(import.meta.dirname, "../viewer.css"), "utf8");
+    const editorCss = readFileSync(resolve(import.meta.dirname, "../LegendEditor.css"), "utf8");
 
     const normalUnusedRule = viewerCss.match(/\.legend-item\.is-unused\s*\{([^}]*)\}/);
 
@@ -141,9 +163,9 @@ describe("legend editor", () => {
   });
 
   it("uses neutral shape previews and theme-aware partial fills", () => {
-    const editor = readFileSync(resolve(import.meta.dirname, "LegendEditor.tsx"), "utf8");
-    const legend = readFileSync(resolve(import.meta.dirname, "Legend.tsx"), "utf8");
-    const viewerCss = readFileSync(resolve(import.meta.dirname, "viewer.css"), "utf8");
+    const editor = readLegendEditorSource();
+    const legend = readFileSync(resolve(import.meta.dirname, "../Legend.tsx"), "utf8");
+    const viewerCss = readFileSync(resolve(import.meta.dirname, "../viewer.css"), "utf8");
 
     assert.match(editor, /NEUTRAL_SYMBOL_PREVIEW_COLOR\s*=\s*"#6F7B82"/);
     assert.match(editor, /color=\{NEUTRAL_SYMBOL_PREVIEW_COLOR\}/);
@@ -153,10 +175,10 @@ describe("legend editor", () => {
   });
 
   it("uses stable reassignment controls and disables actions that would have no effect", () => {
-    const source = readFileSync(resolve(import.meta.dirname, "LegendEditor.tsx"), "utf8");
-    const css = readFileSync(resolve(import.meta.dirname, "LegendEditor.css"), "utf8");
-    const nl = JSON.parse(readFileSync(resolve(import.meta.dirname, "../../i18n/locales/nl/common.json"), "utf8"));
-    const en = JSON.parse(readFileSync(resolve(import.meta.dirname, "../../i18n/locales/en/common.json"), "utf8"));
+    const source = readLegendEditorSource();
+    const css = readFileSync(resolve(import.meta.dirname, "../LegendEditor.css"), "utf8");
+    const nl = JSON.parse(readFileSync(resolve(import.meta.dirname, "../../../i18n/locales/nl/common.json"), "utf8"));
+    const en = JSON.parse(readFileSync(resolve(import.meta.dirname, "../../../i18n/locales/en/common.json"), "utf8"));
 
     assert.match(source, /wouldReassignLegendAppearance/);
     assert.match(source, /disabled=\{!canReassignSymbols\}/);
@@ -180,8 +202,8 @@ describe("legend editor", () => {
   });
 
   it("uses compact dialog geometry consistent with the application controls", () => {
-    const source = readFileSync(resolve(import.meta.dirname, "LegendEditor.tsx"), "utf8");
-    const css = readFileSync(resolve(import.meta.dirname, "LegendEditor.css"), "utf8");
+    const source = readLegendEditorSource();
+    const css = readFileSync(resolve(import.meta.dirname, "../LegendEditor.css"), "utf8");
 
     assert.match(source, /height="min\(680px, 84vh\)"/);
     assert.match(source, /width=\{760\}/);

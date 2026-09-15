@@ -1,12 +1,7 @@
-import { useEffect, useId, useLayoutEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import type {
-  PileBaseShape,
-  PileFillPattern,
-  PileSymbol,
-  LegendEncodingMode,
-} from "../../core/projectTypes.ts";
-import type { ProjectState } from "../../domain/projectState.ts";
+import type { PileSymbol, LegendEncodingMode } from "../../../core/projectTypes.ts";
+import type { ProjectState } from "../../../domain/projectState.ts";
 import {
   getActivePilePlan,
   getPilePlanActivation,
@@ -15,15 +10,12 @@ import {
   togglePilePlanScope,
   unionActivationForPlans,
   unionUsedConfigurationsForPlans,
-} from "../../domain/pilePlanActivation.ts";
+} from "../../../domain/pilePlanActivation.ts";
 import {
   findCoactiveLegendConflicts,
   getLegendValuePlanUsage,
-  groupLegendConflictsByProperty,
-  type LegendConflict,
   type LegendValuePlanUsage,
-  type LegendValuePlanUsageItem,
-} from "../../domain/legendConflicts.ts";
+} from "../../../domain/legendConflicts.ts";
 import {
   applyAutomaticColors,
   applyAutomaticSymbols,
@@ -31,44 +23,37 @@ import {
   createLegendEditorDraft,
   resetLegendEditorAppearance,
   setLegendColorScheme,
-  setLegendEditorItemEnabled,
   setLegendEncodingMode,
-  updateLegendColor,
-  updateLegendSymbol,
   wouldReassignLegendAppearance,
   type LegendEditorBulkAction,
   type LegendEditorActionResult,
   type LegendEditorDraft,
   type LegendEditorItemKind,
-} from "../../domain/legendEditorModel.ts";
+} from "../../../domain/legendEditorModel.ts";
 import {
   buildLegendPresentation,
   deriveUsedPileConfigurations,
   type LegendPresentationState,
-} from "../../domain/legendState.ts";
-import type { LegendColorScheme } from "../../viewer/legendColors.ts";
-import Modal from "../template/Modal.tsx";
-import LegendColorPicker from "./LegendColorPicker.tsx";
-import LegendColorSchemeSelect from "./LegendColorSchemeSelect.tsx";
-import LegendSymbolPicker from "./LegendSymbolPicker.tsx";
+} from "../../../domain/legendState.ts";
+import type { LegendColorScheme } from "../../../viewer/legendColors.ts";
+import Modal from "../../template/Modal.tsx";
+import LegendColorSchemeSelect from "../LegendColorSchemeSelect.tsx";
 import {
   chooseLegendEncodingMode,
   LEGEND_ENCODING_MODES,
-} from "./legendEncodingControls.ts";
-import { getRightAlignedLegendPopoverMaxWidth } from "./legendPickerPlacement.ts";
-import "./LegendEditor.css";
-import { formatPileTipLevelMillimetres } from "../../domain/formatting.ts";
+} from "../legendEncodingControls.ts";
+import "../LegendEditor.css";
+import EditorSection from "./LegendEditorItemRow.tsx";
+import LegendConflictNotice from "./LegendConflictNotice.tsx";
 
-const NEUTRAL_SYMBOL_PREVIEW_COLOR = "#6F7B82";
-
-type Props = {
+export type LegendEditorProps = {
   open: boolean;
   state: ProjectState;
   onApply: (draft: LegendEditorDraft, enableTipLevelRegions?: boolean) => void;
   onClose: () => void;
 };
 
-type EditorItem = {
+export type LegendEditorItem = {
   kind: LegendEditorItemKind;
   value: number;
   state: LegendPresentationState;
@@ -77,7 +62,7 @@ type EditorItem = {
   planUsage: LegendValuePlanUsage;
 };
 
-export default function LegendEditor({ open, state, onApply, onClose }: Props) {
+export default function LegendEditor({ open, state, onApply, onClose }: LegendEditorProps) {
   const { t, i18n } = useTranslation("common");
   const [draft, setDraft] = useState(() => createLegendEditorDraft(activeFromState(state), state.pileLegend));
   const [scopePlanIds, setScopePlanIds] = useState(() => new Set([state.activePilePlanId]));
@@ -102,7 +87,7 @@ export default function LegendEditor({ open, state, onApply, onClose }: Props) {
     state.activePilePlanId,
     draft.active,
   );
-  const sizeItems: EditorItem[] = presentation.pileSizes.map((item) => ({
+  const sizeItems: LegendEditorItem[] = presentation.pileSizes.map((item) => ({
     kind: "size",
     ...item,
     planUsage: getLegendValuePlanUsage({
@@ -113,7 +98,7 @@ export default function LegendEditor({ open, state, onApply, onClose }: Props) {
       value: item.value,
     }),
   }));
-  const tipItems: EditorItem[] = presentation.pileTipLevels.map((item) => ({
+  const tipItems: LegendEditorItem[] = presentation.pileTipLevels.map((item) => ({
     kind: "tip",
     ...item,
     planUsage: getLegendValuePlanUsage({
@@ -446,406 +431,11 @@ export default function LegendEditor({ open, state, onApply, onClose }: Props) {
   }
 }
 
-type EditorSectionProps = {
-  draft: LegendEditorDraft;
-  items: EditorItem[];
-  language: string;
-  openInfoKey: string | null;
-  symbolKind: LegendEditorItemKind;
-  encodingMode: LegendEncodingMode;
-  pileCostSettings: ProjectState["pileCostSettings"];
-  title: string;
-  onDraftChange: (draft: LegendEditorDraft) => void;
-  onInfoOpenChange: (key: string | null) => void;
-};
-
-function EditorSection(props: EditorSectionProps) {
-  const { t } = useTranslation("common");
-  const enabledItems = props.items.filter((item) => !item.state.startsWith("disabled"));
-  const disabledItems = props.items.filter((item) => item.state.startsWith("disabled"));
-
-  return (
-    <section className="legend-editor-section">
-      <div className="legend-editor-section-heading">
-        <h3>{props.title}</h3>
-        {props.encodingMode === "size-color-tip-region" && props.items[0]?.kind === "size" ? (
-          <span>{t("legend.shapeFromCostTable")}</span>
-        ) : null}
-      </div>
-      <div className="legend-editor-columns">
-        <EditorBlock {...props} className="legend-editor-enabled" items={enabledItems} title={t("legend.enabled")} />
-        <EditorBlock {...props} className="legend-editor-disabled" items={disabledItems} title={t("legend.disabled")} />
-      </div>
-    </section>
-  );
-}
-
-type EditorBlockProps = EditorSectionProps & { className: string };
-
-function EditorBlock({ className, items, title, ...itemProps }: EditorBlockProps) {
-  const { t } = useTranslation("common");
-  return (
-    <div className={`legend-editor-block ${className}`}>
-      <h4>{title}</h4>
-      <div className="legend-editor-items">
-        {items.length > 0 ? items.map((item) => (
-          <EditorItemRow {...itemProps} item={item} key={item.value} />
-        )) : <span className="legend-editor-empty">{t("legend.none")}</span>}
-      </div>
-    </div>
-  );
-}
-
-type EditorItemRowProps = Omit<EditorSectionProps, "items" | "title"> & { item: EditorItem };
-
-function EditorItemRow({
-  draft,
-  item,
-  language,
-  openInfoKey,
-  symbolKind,
-  encodingMode,
-  pileCostSettings,
-  onDraftChange,
-  onInfoOpenChange,
-}: EditorItemRowProps) {
-  const { t } = useTranslation("common");
-  const isDisabled = item.state.startsWith("disabled");
-  const isUnused = item.state === "enabled-unused" || item.state === "disabled-unused";
-  const isDisabledUsed = item.state === "disabled-used";
-  const label = item.kind === "size"
-    ? `${item.value} mm`
-    : formatPileTipLevelMillimetres(item.value, language);
-  const infoKey = `${item.kind}:${item.value}`;
-
-  return (
-    <div className={`legend-editor-item${isUnused ? " is-unused" : ""}${isDisabledUsed ? " is-warning" : ""}`}>
-      <AppearanceControl
-        draft={draft}
-        item={item}
-        label={label}
-        symbolKind={symbolKind}
-        encodingMode={encodingMode}
-        pileCostSettings={pileCostSettings}
-        onDraftChange={onDraftChange}
-      />
-      <LegendItemPlanInfo
-        label={label}
-        open={openInfoKey === infoKey}
-        usage={item.planUsage}
-        onOpenChange={(open) => onInfoOpenChange(open ? infoKey : null)}
-      />
-      {isDisabledUsed ? (
-        <span className="legend-editor-warning" title={t("legend.usedWarning")} aria-label={t("legend.usedWarning")}>!</span>
-      ) : null}
-      <button
-        aria-label={isDisabled ? t("legend.enableItem", { item: label }) : t("legend.disableItem", { item: label })}
-        className="legend-editor-activation-button"
-        title={isDisabled ? t("legend.enableItem", { item: label }) : t("legend.disableItem", { item: label })}
-        type="button"
-        onClick={() => onDraftChange(setLegendEditorItemEnabled(draft, item.kind, item.value, isDisabled))}
-      >
-        <span aria-hidden="true">{isDisabled ? "+" : "−"}</span>
-      </button>
-    </div>
-  );
-}
-
-function LegendItemPlanInfo({
-  label,
-  open,
-  usage,
-  onOpenChange,
-}: {
-  label: string;
-  open: boolean;
-  usage: LegendValuePlanUsage;
-  onOpenChange: (open: boolean) => void;
-}) {
-  const { t } = useTranslation("common");
-  const rootRef = useRef<HTMLSpanElement>(null);
-  const triggerRef = useRef<HTMLButtonElement>(null);
-  const popoverId = useId();
-
-  useEffect(() => {
-    if (!open) return undefined;
-    const closeOutside = (event: PointerEvent) => {
-      if (!rootRef.current?.contains(event.target as Node)) onOpenChange(false);
-    };
-    const closeOnEscape = (event: KeyboardEvent) => {
-      if (event.key !== "Escape") return;
-      event.preventDefault();
-      onOpenChange(false);
-      triggerRef.current?.focus();
-    };
-    document.addEventListener("pointerdown", closeOutside);
-    document.addEventListener("keydown", closeOnEscape);
-    return () => {
-      document.removeEventListener("pointerdown", closeOutside);
-      document.removeEventListener("keydown", closeOnEscape);
-    };
-  }, [onOpenChange, open]);
-
-  return (
-    <span className="legend-editor-item-info" ref={rootRef}>
-      <button
-        aria-controls={popoverId}
-        aria-expanded={open}
-        aria-haspopup="dialog"
-        className="legend-editor-item-info-trigger"
-        ref={triggerRef}
-        type="button"
-        onClick={() => onOpenChange(!open)}
-      >
-        <span className="legend-editor-item-label">{label}</span>
-        {usage.activeOutsideScopeCount > 0 ? (
-          <span
-            className="legend-editor-outside-scope-chip"
-            title={t("legend.activeOutsideScopeTitle", { count: usage.activeOutsideScopeCount })}
-          >
-            <svg aria-hidden="true" className="legend-editor-info-icon" viewBox="0 0 16 16">
-              <circle cx="8" cy="8" r="6.25" />
-              <path d="M8 7.25v4M8 4.75h.01" />
-            </svg>
-            {t("legend.activeOutsideScope", { count: usage.activeOutsideScopeCount })}
-          </span>
-        ) : null}
-      </button>
-      {open ? (
-        <span
-          aria-label={t("legend.planUsageTitle", { item: label })}
-          className="legend-editor-plan-info-popover"
-          id={popoverId}
-          role="dialog"
-        >
-          <strong>{label}</strong>
-          <LegendPlanUsageSection
-            items={[usage.current]}
-            title={t("legend.currentPilePlan")}
-          />
-          {usage.inScope.length > 0 ? (
-            <LegendPlanUsageSection items={usage.inScope} title={t("legend.inScope")} />
-          ) : null}
-          {usage.outsideScope.length > 0 ? (
-            <LegendPlanUsageSection items={usage.outsideScope} title={t("legend.outsideScope")} />
-          ) : null}
-        </span>
-      ) : null}
-    </span>
-  );
-}
-
-function LegendConflictNotice({
-  conflicts,
-  pilePlans,
-}: {
-  conflicts: LegendConflict[];
-  pilePlans: Array<{ id: string; name: string }>;
-}) {
-  const { t, i18n } = useTranslation("common");
-  const [open, setOpen] = useState(false);
-  const [popoverMaxWidth, setPopoverMaxWidth] = useState<number>();
-  const rootRef = useRef<HTMLSpanElement>(null);
-  const triggerRef = useRef<HTMLButtonElement>(null);
-  const popoverId = useId();
-  const groups = groupLegendConflictsByProperty(conflicts);
-
-  useLayoutEffect(() => {
-    if (!open || !rootRef.current) return undefined;
-    const root = rootRef.current;
-    const boundary = root.closest(".legend-editor");
-    const updatePlacement = () => {
-      const triggerRect = root.getBoundingClientRect();
-      const boundaryRect = boundary?.getBoundingClientRect();
-      setPopoverMaxWidth(getRightAlignedLegendPopoverMaxWidth(
-        triggerRect.right,
-        boundaryRect?.left ?? 0,
-        8,
-      ));
-    };
-    updatePlacement();
-    const resizeObserver = new ResizeObserver(updatePlacement);
-    if (boundary) resizeObserver.observe(boundary);
-    resizeObserver.observe(root);
-    window.addEventListener("resize", updatePlacement);
-    return () => {
-      resizeObserver?.disconnect();
-      window.removeEventListener("resize", updatePlacement);
-    };
-  }, [open]);
-
-  useEffect(() => {
-    if (!open) return undefined;
-    const closeOutside = (event: PointerEvent) => {
-      if (!rootRef.current?.contains(event.target as Node)) setOpen(false);
-    };
-    const closeOnEscape = (event: KeyboardEvent) => {
-      if (event.key !== "Escape") return;
-      event.preventDefault();
-      setOpen(false);
-      triggerRef.current?.focus();
-    };
-    document.addEventListener("pointerdown", closeOutside);
-    document.addEventListener("keydown", closeOnEscape);
-    return () => {
-      document.removeEventListener("pointerdown", closeOutside);
-      document.removeEventListener("keydown", closeOnEscape);
-    };
-  }, [open]);
-
-  return (
-    <span className="legend-editor-conflict-notice" ref={rootRef}>
-      <button
-        aria-controls={popoverId}
-        aria-expanded={open}
-        aria-haspopup="dialog"
-        className="legend-editor-outside-scope-chip legend-editor-conflict-trigger"
-        ref={triggerRef}
-        title={t("legend.duplicateEncodingTitle")}
-        type="button"
-        onClick={() => setOpen((current) => !current)}
-      >
-        <svg aria-hidden="true" className="legend-editor-info-icon" viewBox="0 0 16 16">
-          <circle cx="8" cy="8" r="6.25" />
-          <path d="M8 7.25v4M8 4.75h.01" />
-        </svg>
-        {t("legend.duplicateEncoding", { count: conflicts.length })}
-      </button>
-      {open ? (
-        <span
-          aria-label={t("legend.duplicateEncodingDetails")}
-          className="legend-editor-conflict-popover"
-          id={popoverId}
-          role="dialog"
-          style={{
-            maxWidth: popoverMaxWidth,
-            minWidth: popoverMaxWidth === undefined
-              ? undefined
-              : Math.min(280, popoverMaxWidth),
-          }}
-        >
-          <strong>{t("legend.duplicateEncodingDetails")}</strong>
-          {(["symbol", "color"] as const).map((property) => groups[property].length > 0 ? (
-            <span className="legend-editor-conflict-section" key={property}>
-              <b>{t(`legend.${property}`)}</b>
-              {groups[property].map((conflict) => (
-                <span className="legend-editor-conflict-row" key={`${property}-${conflict.kind}-${conflict.values.join("-")}`}>
-                  <b>{t(conflict.kind === "size" ? "legend.size" : "legend.tip")}: </b>
-                  {t("legend.duplicateConflict", {
-                    values: conflict.values.map((value) => formatLegendValue(
-                      value,
-                      conflict.kind,
-                      i18n.language,
-                    )).join(", "),
-                    plans: conflict.pilePlanIds
-                      .map((id) => pilePlans.find((plan) => plan.id === id)?.name ?? id)
-                      .join(", "),
-                  })}
-                </span>
-              ))}
-            </span>
-          ) : null)}
-        </span>
-      ) : null}
-    </span>
-  );
-}
-
-function LegendPlanUsageSection({
-  items,
-  title,
-}: {
-  items: LegendValuePlanUsageItem[];
-  title: string;
-}) {
-  const { t } = useTranslation("common");
-  return (
-    <span className="legend-editor-plan-info-section">
-      <b>{title}</b>
-      {items.map((item) => (
-        <span className="legend-editor-plan-info-row" key={item.planId}>
-          <span>{item.planName}</span>
-          <span>{item.active ? t("legend.active") : t("legend.inactive")}</span>
-          <span>{t("legend.assignedLocations", { count: item.assignmentCount })}</span>
-        </span>
-      ))}
-    </span>
-  );
-}
-
-type AppearanceControlProps = Pick<EditorItemRowProps,
-  "draft" | "item" | "symbolKind" | "encodingMode" | "pileCostSettings" | "onDraftChange"> & {
-  label: string;
-};
-
-function AppearanceControl({
-  draft,
-  item,
-  label,
-  symbolKind,
-  encodingMode,
-  pileCostSettings,
-  onDraftChange,
-}: AppearanceControlProps) {
-  const { t } = useTranslation("common");
-  if (encodingMode !== "size-color-tip-region" && item.kind === symbolKind) {
-    return (
-      <LegendSymbolPicker
-        value={item.symbol}
-        color={NEUTRAL_SYMBOL_PREVIEW_COLOR}
-        label={t("legend.changeSymbol", { item: label })}
-        fillLabel={t("legend.fillPattern")}
-        getShapeLabel={(shape) => t(`legend.baseShapes.${shapeKey(shape)}`)}
-        getFillLabel={(fill) => t(`legend.fillPatterns.${fillKey(fill)}`)}
-        onChange={(symbol) => onDraftChange(updateLegendSymbol(draft, item.kind, item.value, symbol))}
-      />
-    );
-  }
-
-  return (
-    <LegendColorPicker
-      value={item.color}
-      label={t("legend.changeColor", { item: label })}
-      freeColorLabel={t("legend.freeColor")}
-      openColorPickerLabel={t("legend.openColorPicker")}
-      schemeLabel={t("legend.colorScheme")}
-      colorScheme={item.kind === "size"
-        ? draft.legend.pileSizeColorScheme
-        : draft.legend.pileTipLevelColorScheme}
-      colorCount={item.kind === "size"
-        ? draft.legend.pileSizes.length
-        : draft.legend.pileTipLevels.length}
-      previewSymbol={encodingMode === "size-color-tip-region" && item.kind === "size"
-        ? costTableSymbol(item.value, pileCostSettings)
-        : undefined}
-      onChange={(color) => onDraftChange(updateLegendColor(draft, item.kind, item.value, color))}
-    />
-  );
-}
 
 function activeFromState(state: ProjectState) {
   return getPilePlanActivation(getActivePilePlan(state));
 }
 
-function costTableSymbol(sizeMm: number, settings: ProjectState["pileCostSettings"]): PileSymbol {
-  const shape = settings.items.find(({ pile_size_mm }) => pile_size_mm === sizeMm)?.shape;
-  return {
-    baseShape: shape === "round" ? "circle" : shape === "square" ? "square" : "diamond",
-    fillPattern: "full",
-  };
-}
-
-function formatLegendValue(value: number, kind: LegendEditorItemKind, language: string): string {
-  return kind === "size" ? `${value} mm` : formatPileTipLevelMillimetres(value, language);
-}
-
-function shapeKey(shape: PileBaseShape): string {
-  return shape.replace(/-([a-z])/g, (_, letter: string) => letter.toUpperCase());
-}
-
-function fillKey(fill: PileFillPattern): string {
-  return fill.replace(/-([a-z])/g, (_, letter: string) => letter.toUpperCase());
-}
 
 function schemeKey(scheme: LegendColorScheme): string {
   return scheme.replace(/-([a-z])/g, (_, letter: string) => letter.toUpperCase());

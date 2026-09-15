@@ -216,7 +216,9 @@ describe("Workspace translations", () => {
   });
 
   it("translates CPT selection values and range labels at render time", () => {
-    const panel = readFileSync(resolve(import.meta.dirname, "RightPanel.tsx"), "utf8");
+    const panel = ["right-panel/CptPanel.tsx", "right-panel/LoadPointPanel.tsx", "right-panel/PanelControls.tsx"]
+      .map((file) => readFileSync(resolve(import.meta.dirname, file), "utf8"))
+      .join("\n");
 
     assert.match(panel, /localizeCptTableValue/);
     assert.match(panel, /cpts\.frdRange/);
@@ -278,7 +280,9 @@ describe("Workspace translations", () => {
   });
 
   it("renders the updated design resistance notation in visible tables", () => {
-    const panel = readFileSync(resolve(import.meta.dirname, "RightPanel.tsx"), "utf8");
+    const panel = ["right-panel/CptPanel.tsx", "right-panel/LoadPointPanel.tsx", "right-panel/PanelControls.tsx"]
+      .map((file) => readFileSync(resolve(import.meta.dirname, file), "utf8"))
+      .join("\n");
 
     assert.match(panel, /ResistanceLabel/);
     assert.match(panel, /<sub>c;net;d<\/sub>/);

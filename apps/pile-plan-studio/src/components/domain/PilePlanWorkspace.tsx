@@ -1,7 +1,7 @@
 import { useState, type MouseEvent } from "react";
 import type { ProjectState } from "../../domain/projectState";
 import Legend from "./Legend";
-import LegendEditor from "./LegendEditor";
+import LegendEditor from "./legend-editor/LegendEditor";
 import PilePlanViewer from "./PilePlanViewer";
 import { clearLegendSelection, shouldClearLegendSelectionFromPointerTarget } from "./viewerInteractions";
 import "./viewer.css";

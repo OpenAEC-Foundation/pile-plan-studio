@@ -10,7 +10,7 @@ describe("ThemedNumberInput integration", () => {
       "../domain/CostSettingsPanel.tsx",
       "../domain/OptimizationPanel.tsx",
       "../domain/PilePlanImportPanel.tsx",
-      "../domain/RightPanel.tsx",
+      "../domain/right-panel/PanelControls.tsx",
     ];
 
     files.forEach((file) => {
