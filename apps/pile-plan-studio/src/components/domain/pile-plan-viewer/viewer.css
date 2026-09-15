@@ -613,7 +613,7 @@
   left: 0;
   width: var(--selection-ring-size);
   height: var(--selection-ring-size);
-  border: var(--selection-ring-width) solid var(--theme-text-muted);
+  border: var(--selection-ring-width) solid rgba(54, 54, 62, 0.5);
   border-radius: 999px;
   content: "";
   pointer-events: none;

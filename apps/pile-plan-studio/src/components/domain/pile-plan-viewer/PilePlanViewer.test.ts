@@ -210,6 +210,19 @@ describe("PilePlanViewer inputs", () => {
     assert.doesNotMatch(css, /\.is-hover-candidate::after\s*{[\s\S]*?box-shadow:\s*0 0 0 2px #fff/);
   });
 
+  it("keeps related group rings dark and independent from the application theme", () => {
+    const css = readFileSync(resolve(import.meta.dirname, "viewer.css"), "utf8");
+    const relatedGroupRule = css.match(
+      /\.load-point-marker\.is-related-group-member::after\s*\{(?<body>[^}]*)\}/s,
+    )?.groups?.body ?? "";
+
+    assert.match(
+      relatedGroupRule,
+      /border:\s*var\(--selection-ring-width\) solid rgba\(54,\s*54,\s*62,\s*0\.5\)/,
+    );
+    assert.doesNotMatch(relatedGroupRule, /var\(--theme-/);
+  });
+
   it("preserves load-point CPT styling during inspection and marks the governing CPT", () => {
     const source = readViewerSource();
     const css = readFileSync(resolve(import.meta.dirname, "viewer.css"), "utf8");

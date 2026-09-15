@@ -65,6 +65,19 @@ the path position and stroke width during rasterization, which caused line
 thickness to alternate between physical pixels after layout changes. Preserve
 subpixel world geometry until the final global device-pixel alignment step.
 
+## Theme boundary
+
+The plan viewer distinguishes application chrome from the engineering drawing.
+Panels, controls, and text outside the canvas follow the selected application
+theme. The drawing canvas remains white in every theme.
+
+Use theme variables for viewer controls and surfaces that belong to the
+application chrome. Use explicit viewer-owned colors for project annotations
+that must retain the same meaning and appearance on the drawing canvas. The
+ring around related members of a selected load-point group is one such
+annotation: its stroke must remain the same neutral dark color in light and
+dark themes and must not use a themed text-color variable.
+
 ### Known residual rasterization issue
 
 Stable computed CSS positions do not guarantee identical painted pixels. With
@@ -105,6 +118,8 @@ physical-pixel screenshot tests.
 - Derive auxiliary geometry from the same transform and compensation.
 - Account for root CSS zoom in every pointer-coordinate conversion.
 - Let the coordinate grid fill the viewer using real project coordinates.
+- Keep theme-independent project annotations visually identical across light
+  and dark application themes.
 - Apply stored desktop application scale before mounting the workspace.
 - Never multiply Tauri WebView scale by the compact CSS baseline.
 
