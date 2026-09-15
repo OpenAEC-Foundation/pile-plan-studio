@@ -18,6 +18,28 @@ The guiding rule is that engineering decisions must be implemented and tested in
 `crates/pile-plan-core` first. Frontend code may present results, but should not
 be the source of truth for calculations.
 
+## Frontend module boundaries
+
+The React application is divided by responsibility rather than by runtime:
+
+- `App.tsx` owns startup and installs `AppSession` only after the core and user
+  settings are ready;
+- `AppSession.tsx` composes the active application session, while `app/`
+  contains small orchestration controllers for request lifetimes and project
+  lifecycle transitions;
+- `core/*Client.ts` contains the platform adapters. `coreClient.ts` is the
+  stable facade, and the project, analysis, and pile-plan clients choose the
+  browser/WASM or desktop/Tauri transport without making engineering choices;
+- `domain/` contains immutable application and presentation state, history,
+  persistence workflow, formatting, and user-intent helpers; and
+- `components/domain/` owns feature views. Larger views are grouped under
+  `right-panel/`, `legend-editor/`, and `pile-plan-viewer/` so their rendering,
+  interaction, and local presentation helpers stay together.
+
+These boundaries do not move engineering authority into React. CPT selection,
+pile-option evaluation, capacity, cost, grouping, assignment, optimization, and
+project validation remain authoritative in `crates/pile-plan-core`.
+
 The pile-option calculation is grouped under `pile_options/`:
 
 - `source_data.rs` owns load points, CPTs, and flat foundation-advice rows;
@@ -79,6 +101,13 @@ The plan viewer uses a fixed, uniform project transform and keeps application
 scale, layout compensation, and interactive plan zoom as separate layers. This
 prevents markers and pointer interactions from drifting when panels resize or
 when browser and desktop presentation scales differ.
+
+Within `components/domain/pile-plan-viewer/`, `PilePlanViewer.tsx` composes the
+feature, `ViewerStage.tsx` owns the ordered map layers,
+`useViewerPointerInteractions.ts` owns selection, hover, lasso, and pan input,
+and `useViewerViewport.ts` owns the project transform, layout compensation,
+grid alignment, and zoom commits. `viewerDomCoordinates.ts` is the single
+browser-coordinate conversion boundary.
 
 The implementation invariants, coordinate pipeline, regression symptoms, and
 manual test procedure live beside the viewer code in

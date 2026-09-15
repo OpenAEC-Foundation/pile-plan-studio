@@ -23,7 +23,7 @@ Status meanings:
 | `apps/pile-plan-studio/src-tauri/src/main.rs` | Desktop commands and native file access | Adapter and application infrastructure | **Core-owned through delegation** for project interpretation; native file access remains application infrastructure. |
 | `apps/pile-plan-studio/src/core/projectFile.ts` | Mechanical hydration of canonical project data, immutable copies, import summaries, and legend presentation mapping | TypeScript adapter and presentation | **Application/presentation-owned.** Schema branching, project defaults, validation, canonical construction, and float-derived identity are Rust-owned. |
 | `apps/pile-plan-studio/src/core/projectDocumentContract.ts` | Maps the canonical document, exact tip-level keys, and structured project errors into interface-friendly names | TypeScript adapter | **Application-owned adapter.** It translates transport shapes and error fields without independently validating or repairing project content. |
-| `apps/pile-plan-studio/src/core/coreClient.ts` | Chooses WASM or Tauri and maps requests/results | TypeScript adapter | **Application-owned adapter.** It must not add defaults, validation, or repair. |
+| `apps/pile-plan-studio/src/core/coreClient.ts` and `core/*Client.ts` | Provide one stable facade and route project, analysis, and pile-plan operations through WASM or Tauri | TypeScript adapter | **Application-owned adapters.** They map transport requests and results, and must not add defaults, validation, repair, or engineering decisions. |
 | `apps/pile-plan-studio/src/domain/openedProject.ts` | Coordinates one canonical core read and creates state only after that read succeeds | TypeScript workflow | **Application-owned.** Open is atomic and performs no independent project interpretation or duplicate position validation. |
 | `apps/pile-plan-studio/src/domain/projectState.ts` | Creates React project state and transient selection/request state | TypeScript | **Application-owned.** Consume only canonical project data; localized initial plan naming remains UI workflow. |
 | `apps/pile-plan-studio/src/domain/projectContent.ts` | Captures/restores undoable content, calculates analysis invalidation, and extracts a mechanical project-document draft | TypeScript for history and draft extraction; Rust for project construction | **Application-owned.** The draft contains React-owned project content; Rust constructs, validates, normalizes, and serializes the IFCPP document. |
@@ -31,7 +31,7 @@ Status meanings:
 | `apps/pile-plan-studio/src/domain/browserRecovery.ts` | Versioned recovery-envelope validation and metadata around opaque Rust-serialized IFCPP text | TypeScript envelope; Rust project validation | **Application-owned.** The envelope does not parse IFCPP or maintain an independent supported-schema list; restored text must pass the canonical Rust read contract. |
 | `apps/pile-plan-studio/src/domain/browserRecoveryStartup.ts` | Safe startup restore/fallback orchestration | TypeScript | **Application-owned.** Continue sending restored IFCPP text through the same Rust read contract as file open. |
 | `apps/pile-plan-studio/src/domain/browserRecoveryStore.ts` | IndexedDB access, debounce, ordered writes, flush, and disposal | TypeScript | **Application-owned.** Store only successfully Rust-serialized canonical IFCPP text. |
-| `apps/pile-plan-studio/src/App.tsx` | Connects project state, canonical core read/write calls, save baseline, dirty state, and recovery scheduling | TypeScript workflow | **Application-owned.** File open, sample open, import, refresh, save, and recovery use the shared project-document contract; gesture grouping, request lifetimes, dirty-state baseline, and persistence timing remain interface workflow. |
+| `apps/pile-plan-studio/src/App.tsx`, `AppSession.tsx`, and `app/*Controller.ts` | Bootstrap the core and settings, compose the active session, and coordinate request and project lifecycles | TypeScript workflow | **Application-owned.** File open, sample open, import, refresh, save, and recovery use the shared project-document contract; gesture grouping, request lifetimes, dirty-state baseline, and persistence timing remain interface workflow. Controllers reject stale outcomes but do not reinterpret core results. |
 
 ## History and interface state
 
@@ -43,6 +43,17 @@ Status meanings:
 | `apps/pile-plan-studio/src/domain/historyMessage.ts` | Localized undo/redo message selection | TypeScript | **Presentation-owned.** |
 | `apps/pile-plan-studio/src/domain/userSettings.ts` and `userSettingsStore.ts` | Application-wide preferences and personal cost defaults | TypeScript | **Application-owned.** Personal defaults are not IFCPP content; applying one creates a project edit that Rust validates at the boundary. |
 | `apps/pile-plan-studio/src/domain/viewerPreferences.ts` | Application-wide viewer preferences | TypeScript | **Application-owned.** Project-owned viewer settings remain part of the canonical project document. |
+
+## Feature view ownership
+
+| Module | Current responsibility | Target owner | Status and action |
+| --- | --- | --- | --- |
+| `apps/pile-plan-studio/src/components/domain/right-panel/` | Composes selection details and CPT, grouping, and cost settings panels | TypeScript view | **Presentation/application-owned.** It edits user intent and presents core-produced technical results. |
+| `apps/pile-plan-studio/src/components/domain/legend-editor/` | Edits legend encoding, appearance, activation, conflicts, and plan usage | TypeScript view | **Presentation/application-owned.** Legend choices are project content; technical availability remains core-owned. |
+| `apps/pile-plan-studio/src/components/domain/pile-plan-viewer/PilePlanViewer.tsx` | Composes viewer state, derived presentation, viewport, interactions, and ordered map layers | TypeScript view | **Presentation-owned composition.** It consumes core results and delegates focused responsibilities to sibling modules. |
+| `apps/pile-plan-studio/src/components/domain/pile-plan-viewer/ViewerStage.tsx` | Renders regions, connections, status halos, CPTs, and load points in a stable layer order | TypeScript view | **Presentation-owned.** Layering and symbols communicate canonical technical states without recalculating them. |
+| `apps/pile-plan-studio/src/components/domain/pile-plan-viewer/useViewerPointerInteractions.ts` | Coordinates hover, marker selection, lasso selection, lock editing, and panning | TypeScript interaction | **Application-owned.** It translates pointer and keyboard intent into immutable project-state changes. |
+| `apps/pile-plan-studio/src/components/domain/pile-plan-viewer/useViewerViewport.ts` and `viewerDomCoordinates.ts` | Own project transforms, zoom commits, layout compensation, grid alignment, and screen-to-local conversion | TypeScript browser presentation | **Presentation/application-owned.** These modules preserve visual alignment and do not alter engineering coordinates or decisions. |
 
 ## Configuration availability, costs, and plans
 
