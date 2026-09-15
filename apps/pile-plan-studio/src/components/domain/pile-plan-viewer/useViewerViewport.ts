@@ -6,8 +6,8 @@ import {
   type RefObject,
   type WheelEvent,
 } from "react";
-import type { ProjectState } from "../../../domain/projectState.ts";
-import { elementLayoutScale } from "../../../domain/uiBaseline.ts";
+import type { ProjectState } from "../../../domain/project/projectState.ts";
+import { elementLayoutScale } from "../../../domain/settings/uiBaseline.ts";
 import {
   alignCoordinateGridPatternToDevicePixels,
   getCoordinateGridPattern,

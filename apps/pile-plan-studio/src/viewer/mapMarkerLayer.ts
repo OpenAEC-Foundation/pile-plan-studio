@@ -1,4 +1,4 @@
-import type { ForegroundLayer } from "../domain/viewerPreferences.ts";
+import type { ForegroundLayer } from "../domain/settings/viewerPreferences.ts";
 
 export function getForegroundLayerClass(layer: ForegroundLayer): string {
   return layer === "cpts" ? " foreground-cpts" : " foreground-load-points";

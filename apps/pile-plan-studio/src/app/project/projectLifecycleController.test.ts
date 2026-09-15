@@ -3,8 +3,8 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
 import { canonicalProjectForTest, projectTipLevelKeysForTest } from "../../core/projectTestSupport.ts";
-import { createInitialProjectState } from "../../domain/projectState.ts";
-import { captureProjectContent, normalizeProjectContentState, projectDocumentDraftFromContent } from "../../domain/projectContent.ts";
+import { createInitialProjectState } from "../../domain/project/projectState.ts";
+import { captureProjectContent, normalizeProjectContentState, projectDocumentDraftFromContent } from "../../domain/project/projectContent.ts";
 import { openedProjectLifecycleState, projectStateSignature } from "./projectLifecycleController.ts";
 
 const sampleProjectText = readFileSync("../../sample_project/sample_project.ifcpp", "utf8");

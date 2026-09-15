@@ -1,4 +1,4 @@
-import type { ProjectState } from "../../../domain/projectState.ts";
+import type { ProjectState } from "../../../domain/project/projectState.ts";
 export function getSelectedPileOption(
   state: ProjectState,
   loadPointId: number,

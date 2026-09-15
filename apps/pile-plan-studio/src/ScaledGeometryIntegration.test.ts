@@ -16,8 +16,8 @@ const app = read("app/session/AppSession.tsx");
 const appStyles = read("App.css");
 const titleBarStyles = read("components/template/TitleBar.css");
 const ribbonStyles = read("components/template/ribbon/Ribbon.css");
-const baseline = read("domain/uiBaseline.ts");
-const scaleRuntime = read("domain/interfaceScaleRuntime.ts");
+const baseline = read("domain/settings/uiBaseline.ts");
+const scaleRuntime = read("domain/settings/interfaceScaleRuntime.ts");
 
 describe("compact browser geometry integration", () => {
   it("normalizes viewer pointer positions and rendered lasso coordinates", () => {

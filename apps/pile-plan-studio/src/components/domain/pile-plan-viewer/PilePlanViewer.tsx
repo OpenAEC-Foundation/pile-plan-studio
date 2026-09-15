@@ -4,13 +4,13 @@ import {
   type CSSProperties,
 } from "react";
 import { useTranslation } from "react-i18next";
-import type { ProjectState } from "../../../domain/projectState";
-import { getCptDisplayName } from "../../../domain/cptDisplayName.ts";
+import type { ProjectState } from "../../../domain/project/projectState";
+import { getCptDisplayName } from "../../../domain/source-data/cptDisplayName.ts";
 import {
   type LassoRectangle,
 } from "../../../viewer/lassoSelection.ts";
-import { getConfigurationActivationPresentation } from "../../../domain/legendActivationPresentation.ts";
-import { getPilePlanActivation } from "../../../domain/pilePlanActivation.ts";
+import { getConfigurationActivationPresentation } from "../../../domain/legend/legendActivationPresentation.ts";
+import { getPilePlanActivation } from "../../../domain/pile-plans/pilePlanActivation.ts";
 import { getHighlightedGoverningCptId } from "../../../viewer/legendSelection.ts";
 import { getCptLabelStyle } from "../../../viewer/cptLabel.ts";
 import {
@@ -28,11 +28,11 @@ import {
   getReactViewerContextCptIds,
   getReactViewerSelectedCptIds,
   isReactViewerCptSelectionEditing,
-} from "../viewerInteractions.ts";
-import { getEffectivePileOptionsByLoadPointId } from "../cptSettingsModel.ts";
+} from "../../../domain/workspace/viewerInteractions.ts";
+import { getEffectivePileOptionsByLoadPointId } from "../../../domain/cpt-selection/cptSettingsModel.ts";
 import {
   getActiveLockedLoadPointIds,
-} from "../../../domain/loadPointLocking.ts";
+} from "../../../domain/pile-plans/loadPointLocking.ts";
 import OptimizerUnresolvedMarker from "../../viewer/OptimizerUnresolvedMarker.tsx";
 import { CoordinateReadout } from "../shared/CoordinateReadout.ts";
 import {

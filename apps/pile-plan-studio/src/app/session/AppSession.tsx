@@ -17,8 +17,8 @@ import ProjectInformationDialog from "../../components/domain/project/ProjectInf
 import UnsavedChangesDialog from "../../components/domain/project/UnsavedChangesDialog.tsx";
 import PilePlanExplorer from "../../components/domain/pile-plans/PilePlanExplorer.tsx";
 import SourceDataViewer from "../../components/domain/source-data/SourceDataViewer.tsx";
-import type { InputSourceKind } from "../../domain/projectState.ts";
-import type { SourceLoadPointSelection } from "../../domain/sourceTableModel.ts";
+import type { InputSourceKind } from "../../domain/project/projectState.ts";
+import type { SourceLoadPointSelection } from "../../domain/source-data/sourceTableModel.ts";
 import {
   applyLoadPointGroupAssignmentCore,
   calculatePileCostCore,
@@ -38,15 +38,15 @@ import type { ImportSourceInput } from "../../core/coreImportContract";
 import type { ProjectImportProperties } from "../../components/domain/imports/ProjectImportPanel.tsx";
 import type { ImportFileRole } from "../../core/importFiles.ts";
 import { getImportSummary } from "../../core/projectFile";
-import { createInitialProjectState, type ProjectState } from "../../domain/projectState";
-import { prepareOpenedProject } from "../../domain/openedProject.ts";
+import { createInitialProjectState, type ProjectState } from "../../domain/project/projectState";
+import { prepareOpenedProject } from "../../domain/project/openedProject.ts";
 import {
   ProjectDocumentReadError,
   type ProjectDocumentOutcome,
 } from "../../core/projectDocumentContract.ts";
 import { getSetting } from "../../store";
 import { optionKey } from "../../components/domain/right-panel/rightPanelModel";
-import { buildGreedyOptimizationSettings } from "../../domain/optimizationSettings";
+import { buildGreedyOptimizationSettings } from "../../domain/pile-plans/optimization/optimizationSettings";
 import {
   applyOptimizationResult,
   clampOptimizationLimits,
@@ -54,7 +54,7 @@ import {
   getOptimizationTargetIds,
   isOptimizationDisabled,
 } from "../../components/domain/pile-plans/optimizationPanelModel";
-import { switchRightPanelMode } from "../../domain/selectionState";
+import { switchRightPanelMode } from "../../domain/workspace/selectionState";
 import {
   getProjectFileCommands,
   isDesktopRuntime,
@@ -63,21 +63,21 @@ import {
   saveBinaryExport,
   saveGeneratedFile,
   savePreparedFile,
-} from "../../domain/projectPersistence.ts";
+} from "../../domain/project/projectPersistence.ts";
 import {
   DEFAULT_EXPLORER_WIDTH,
   DEFAULT_RIGHT_PANEL_WIDTH,
   snapExplorerWidth,
   snapRightPanelWidth,
 } from "../../viewer/panelLayout.ts";
-import { buildPilePlanExportInput } from "../../domain/pilePlanExport.ts";
+import { buildPilePlanExportInput } from "../../domain/pile-plans/pilePlanExport.ts";
 import {
   applyPilePlanImportAsNewPlan,
   pilePlanNameFromFileName,
-} from "../../domain/pilePlanImport.ts";
+} from "../../domain/pile-plans/pilePlanImport.ts";
 import type { PilePlanImportPatch } from "../../core/pilePlanImportContract.ts";
-import { mergeDefaultPileChoices } from "../../domain/defaultPileChoices.ts";
-import { summarizePilePlanCosts } from "../../domain/projectCostSummary.ts";
+import { mergeDefaultPileChoices } from "../../domain/pile-plans/defaultPileChoices.ts";
+import { summarizePilePlanCosts } from "../../domain/pile-plans/projectCostSummary.ts";
 import {
   createPilePlan,
   createOptimizationPilePlan,
@@ -88,41 +88,41 @@ import {
   switchPilePlan,
   synchronizeActivePilePlan,
   type PilePlanLanguage,
-} from "../../domain/pilePlanManagement.ts";
+} from "../../domain/pile-plans/pilePlanManagement.ts";
 import {
   activationFromConfigurations,
   getActivePilePlan,
   getPilePlanActivation,
-} from "../../domain/pilePlanActivation.ts";
+} from "../../domain/pile-plans/pilePlanActivation.ts";
 import {
   getAvailablePileConfigurationCatalog,
   optimizationCandidateToken,
   resolveOptimizationCandidates,
-} from "../../domain/optimizationCandidates.ts";
+} from "../../domain/pile-plans/optimization/optimizationCandidates.ts";
 import {
   applyLoadPointLockDraft,
   getActiveLockedLoadPointIds,
   startLoadPointLockDraft,
-} from "../../domain/loadPointLocking.ts";
+} from "../../domain/pile-plans/loadPointLocking.ts";
 import {
   createManagedProjectState,
   projectHistoryReducer,
-} from "../../domain/projectHistoryReducer.ts";
+} from "../../domain/project/history/projectHistoryReducer.ts";
 import {
   openedProjectLifecycleState,
   projectDraftFromState,
   projectStateSignature,
 } from "../project/projectLifecycleController.ts";
 import { createPileOptionAnalysisController } from "../derived-state/pileOptionAnalysisController.ts";
-import { describeHistoryAction, describeHistoryResult } from "../../domain/historyMessage.ts";
-import { createBrowserRecoveryRecord } from "../../domain/browserRecovery.ts";
+import { describeHistoryAction, describeHistoryResult } from "../../domain/project/history/historyMessage.ts";
+import { createBrowserRecoveryRecord } from "../../domain/project/recovery/browserRecovery.ts";
 import {
   createBrowserRecoveryWriter,
   type BrowserRecoveryStore,
-} from "../../domain/browserRecoveryStore.ts";
-import { classifyAppShortcut } from "../../domain/appShortcuts.ts";
-import { DEFAULT_INTERFACE_SCALE, normalizeInterfaceScale, stepInterfaceScale } from "../../domain/interfaceScale.ts";
-import { applyDesktopInterfaceScale } from "../../domain/interfaceScaleRuntime.ts";
+} from "../../domain/project/recovery/browserRecoveryStore.ts";
+import { classifyAppShortcut } from "../../domain/workspace/appShortcuts.ts";
+import { DEFAULT_INTERFACE_SCALE, normalizeInterfaceScale, stepInterfaceScale } from "../../domain/settings/interfaceScale.ts";
+import { applyDesktopInterfaceScale } from "../../domain/settings/interfaceScaleRuntime.ts";
 import {
   DEFAULT_USER_SETTINGS,
   patchPileCostDefaults,
@@ -130,16 +130,16 @@ import {
   patchWorkspaceLayout,
   type UserSettings,
   type WorkspaceLayoutSettings,
-} from "../../domain/userSettings.ts";
+} from "../../domain/settings/userSettings.ts";
 import {
   createPlatformUserSettingsStore,
   loadUserSettings,
   saveUserSettings,
   type UserSettingsStore,
-} from "../../domain/userSettingsStore.ts";
+} from "../../domain/settings/userSettingsStore.ts";
 import { changeLanguage } from "../../i18n/config.ts";
-import { elementLayoutScale, screenToLocal } from "../../domain/uiBaseline.ts";
-import { applyPileCostCatalogDefault, mergePileCostCatalog } from "../../domain/pileCostCatalog.ts";
+import { elementLayoutScale, screenToLocal } from "../../domain/settings/uiBaseline.ts";
+import { applyPileCostCatalogDefault, mergePileCostCatalog } from "../../domain/pile-plans/pileCostCatalog.ts";
 import { VIEWER_LAYOUT_CHANGE_EVENT } from "../../viewer/viewerGeometry.ts";
 import { transitionLassoSelectionMode } from "../../viewer/lassoSelection.ts";
 import {
@@ -148,14 +148,14 @@ import {
   failCptSelectionPreview,
   getEffectivePileOptionsByLoadPointId,
   getCptSelectionPreviewInput,
-} from "../../components/domain/cptSettingsModel.ts";
+} from "../../domain/cpt-selection/cptSettingsModel.ts";
 import {
   addReactViewerLoadPoints,
   clearReactViewerSelection,
   openReactViewerCpt,
   setReactViewerLoadPoints,
   toggleReactViewerLoadPoint,
-} from "../../components/domain/viewerInteractions.ts";
+} from "../../domain/workspace/viewerInteractions.ts";
 import {
   describeProjectOpenError,
   getLoadPointLockSignature,

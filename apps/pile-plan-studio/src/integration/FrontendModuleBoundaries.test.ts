@@ -48,4 +48,36 @@ describe("frontend module boundaries", () => {
       assert.equal(existsSync(resolve(sourceRoot, path)), false, `${path} should be removed`);
     }
   });
+
+  it("groups pure domain modules by feature", () => {
+    for (const path of [
+      "domain/project/projectState.ts",
+      "domain/project/history/projectHistoryReducer.ts",
+      "domain/project/recovery/browserRecovery.ts",
+      "domain/pile-plans/optimization/optimizationSettings.ts",
+      "domain/legend/legendState.ts",
+      "domain/pile-options/pileOptionStatus.ts",
+      "domain/cpt-selection/cptSettingsModel.ts",
+      "domain/source-data/sourceTableModel.ts",
+      "domain/settings/userSettings.ts",
+      "domain/workspace/selectionState.ts",
+    ]) {
+      assert.equal(existsSync(resolve(sourceRoot, path)), true, `${path} should exist`);
+    }
+
+    for (const path of [
+      "domain/projectState.ts",
+      "domain/projectHistoryReducer.ts",
+      "domain/browserRecovery.ts",
+      "domain/optimizationSettings.ts",
+      "domain/legendState.ts",
+      "domain/pileOptionStatus.ts",
+      "components/domain/cptSettingsModel.ts",
+      "domain/sourceTableModel.ts",
+      "domain/userSettings.ts",
+      "domain/selectionState.ts",
+    ]) {
+      assert.equal(existsSync(resolve(sourceRoot, path)), false, `${path} should be removed`);
+    }
+  });
 });

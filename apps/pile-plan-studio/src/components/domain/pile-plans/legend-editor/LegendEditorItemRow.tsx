@@ -1,9 +1,9 @@
 import { useEffect, useId, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import type { LegendEncodingMode, PileBaseShape, PileFillPattern, PileSymbol } from "../../../../core/projectTypes.ts";
-import type { ProjectState } from "../../../../domain/projectState.ts";
-import type { LegendValuePlanUsage } from "../../../../domain/legendConflicts.ts";
-import { setLegendEditorItemEnabled, updateLegendColor, updateLegendSymbol, type LegendEditorDraft, type LegendEditorItemKind } from "../../../../domain/legendEditorModel.ts";
+import type { ProjectState } from "../../../../domain/project/projectState.ts";
+import type { LegendValuePlanUsage } from "../../../../domain/legend/legendConflicts.ts";
+import { setLegendEditorItemEnabled, updateLegendColor, updateLegendSymbol, type LegendEditorDraft, type LegendEditorItemKind } from "../../../../domain/legend/legendEditorModel.ts";
 import { formatPileTipLevelMillimetres } from "../../../../domain/formatting.ts";
 import LegendColorPicker from "../LegendColorPicker.tsx";
 import LegendSymbolPicker from "../LegendSymbolPicker.tsx";

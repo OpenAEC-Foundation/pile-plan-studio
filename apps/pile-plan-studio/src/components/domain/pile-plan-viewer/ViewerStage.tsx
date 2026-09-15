@@ -1,9 +1,9 @@
 import type { CSSProperties, MouseEvent, RefObject } from "react";
 import { useTranslation } from "react-i18next";
-import type { ProjectState } from "../../../domain/projectState.ts";
-import { getCptDisplayName } from "../../../domain/cptDisplayName.ts";
-import { getConfigurationActivationPresentation } from "../../../domain/legendActivationPresentation.ts";
-import { getPilePlanActivation } from "../../../domain/pilePlanActivation.ts";
+import type { ProjectState } from "../../../domain/project/projectState.ts";
+import { getCptDisplayName } from "../../../domain/source-data/cptDisplayName.ts";
+import { getConfigurationActivationPresentation } from "../../../domain/legend/legendActivationPresentation.ts";
+import { getPilePlanActivation } from "../../../domain/pile-plans/pilePlanActivation.ts";
 import { getCptLabelStyle } from "../../../viewer/cptLabel.ts";
 import type { getCptConnectionSegments } from "../../../viewer/cptConnectionLines.ts";
 import { effectiveSymbolScale } from "../../../viewer/hoverCandidates.ts";
@@ -24,8 +24,8 @@ import { getViewportTransform } from "../../../viewer/viewport.ts";
 import OptimizerUnresolvedMarker from "../../viewer/OptimizerUnresolvedMarker.tsx";
 import TipLevelRegionOverlay from "./tip-level-regions/TipLevelRegionOverlay.tsx";
 import type { TechnicalAssignmentSnapshot } from "../../../app/derived-state/technicalAssignmentController.ts";
-import type { getEffectivePileOptionsByLoadPointId } from "../cptSettingsModel.ts";
-import { shouldRaiseCptMarker } from "../viewerInteractions.ts";
+import type { getEffectivePileOptionsByLoadPointId } from "../../../domain/cpt-selection/cptSettingsModel.ts";
+import { shouldRaiseCptMarker } from "../../../domain/workspace/viewerInteractions.ts";
 import { getSelectedPileOption } from "./viewerPresentation.ts";
 
 type ViewerStageProps = {

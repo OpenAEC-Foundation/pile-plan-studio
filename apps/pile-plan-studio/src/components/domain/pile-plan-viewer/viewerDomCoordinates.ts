@@ -1,4 +1,4 @@
-import { elementLayoutScale, screenToLocal } from "../../../domain/uiBaseline.ts";
+import { elementLayoutScale, screenToLocal } from "../../../domain/settings/uiBaseline.ts";
 
 export type LocalCanvasRect = {
   left: number;

@@ -1,8 +1,8 @@
 import type { ImportFileRole } from "../../core/importFiles.ts";
 import type { PilePlanData } from "../../core/projectFile.ts";
 import { ProjectDocumentReadError } from "../../core/projectDocumentContract.ts";
-import type { InputSourceKind } from "../../domain/projectState.ts";
-import { getActiveLockedLoadPointIds } from "../../domain/loadPointLocking.ts";
+import type { InputSourceKind } from "../../domain/project/projectState.ts";
+import { getActiveLockedLoadPointIds } from "../../domain/pile-plans/loadPointLocking.ts";
 
 type Translate = (key: string, options?: Record<string, unknown>) => string;
 

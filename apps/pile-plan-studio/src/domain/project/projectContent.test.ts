@@ -1,0 +1,241 @@
+import { describe, it } from "node:test";
+import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import { createInitialProjectState } from "./projectState.ts";
+import {
+  canonicalProjectForTest,
+  projectTipLevelKeysForTest,
+} from "../../core/projectTestSupport.ts";
+import {
+  captureProjectContent,
+  normalizeProjectContentState,
+  restoreProjectContent,
+  projectContentEquals,
+  projectDocumentDraftFromContent,
+} from "./projectContent.ts";
+
+const sampleProjectText = readFileSync("../../sample_project/sample_project.ifcpp", "utf8");
+
+function createTestProjectState(
+  input: Parameters<typeof createInitialProjectState>[0],
+  options: Parameters<typeof createInitialProjectState>[1],
+) {
+  const project = canonicalProjectForTest(input);
+  return createInitialProjectState(project, options, projectTipLevelKeysForTest(project));
+}
+
+describe("project content", () => {
+  it("extracts project-owned content and exact identities without transient interface state", () => {
+    const state = createTestProjectState(sampleProjectText, { initializeDefaultPiles: false });
+    const inactive = {
+      ...state.pilePlans[0],
+      id: "inactive",
+      name: "Inactive",
+      selectedPileConfigurationsByLoadPoint: new Map([[state.loadPoints[0].id, {
+        pile_size_mm: 320,
+        pile_tip_level_mm: -18_500,
+      }]]),
+    };
+    const content = captureProjectContent({ ...state, pilePlans: [...state.pilePlans, inactive] });
+
+    const draft = projectDocumentDraftFromContent(content, state.activePilePlanId);
+
+    assert.equal("schema" in draft, false);
+    assert.equal("application" in draft, false);
+    assert.equal("viewport" in draft, false);
+    assert.equal(draft.metadata.name, state.name);
+    assert.equal(draft.user_state.pile_plans.length, 2);
+    assert.equal(
+      draft.user_state.pile_plans[1].selected_piles[String(state.loadPoints[0].id)]
+        .pile?.pile_tip_level_m_key,
+      -18_500,
+    );
+    const activeChoice = state.selectedPileConfigurationsByLoadPoint.get(state.loadPoints[0].id);
+    if (activeChoice) {
+      assert.deepEqual(
+        draft.active_selected_piles[String(state.loadPoints[0].id)],
+        activeChoice,
+      );
+    }
+  });
+
+  it("captures source references without derived or transient viewer state", () => {
+    const state = normalizeProjectContentState(createTestProjectState(
+      sampleProjectText,
+      { initializeDefaultPiles: false },
+    ));
+
+    const content = captureProjectContent(state);
+
+    assert.equal(content.loadPoints, state.loadPoints);
+    assert.equal(content.cpts, state.cpts);
+    assert.equal(content.bearingCapacities, state.bearingCapacities);
+    assert.equal(content.pileLegend, state.pileLegend);
+    assert.equal(content.pileLegend.encodingMode, "size-symbol");
+    assert.equal(content.pilePlans, state.pilePlans);
+    assert.equal("pileOptionsByLoadPointId" in content, false);
+    assert.equal("selectedCptsByLoadPointId" in content, false);
+    assert.equal("viewport" in content, false);
+    assert.equal("activePilePlanId" in content, false);
+    assert.equal("activePileSizes" in content, false);
+    assert.equal("activePileTipLevelMms" in content, false);
+    assert.equal(content.showTipLevelRegions, true);
+    assert.equal(content.loadPointGroupingSettings, state.loadPointGroupingSettings);
+  });
+
+  it("treats load point grouping settings as undoable project content", () => {
+    const state = normalizeProjectContentState(createTestProjectState(
+      sampleProjectText,
+      { initializeDefaultPiles: false },
+    ));
+    const before = captureProjectContent(state);
+    const after = captureProjectContent({
+      ...state,
+      loadPointGroupingSettings: {
+        automatic: false,
+        maxEdgeDistanceM: 2.5,
+      },
+    });
+
+    assert.equal(projectContentEquals(before, after), false);
+  });
+
+  it("treats tip-level region visibility as undoable project content", () => {
+    const state = normalizeProjectContentState(createTestProjectState(
+      sampleProjectText,
+      { initializeDefaultPiles: false },
+    ));
+    const visible = captureProjectContent(state);
+    const hidden = captureProjectContent({ ...state, showTipLevelRegions: false });
+
+    assert.equal(projectContentEquals(hidden, visible), false);
+  });
+
+  it("treats per-plan activation as undoable project content", () => {
+    const state = normalizeProjectContentState(createTestProjectState(
+      sampleProjectText,
+      { initializeDefaultPiles: false },
+    ));
+    const before = captureProjectContent(state);
+    const after = captureProjectContent({
+      ...state,
+      pilePlans: state.pilePlans.map((plan) => plan.id === state.activePilePlanId
+        ? { ...plan, activePileSizes: [290], activePileTipLevelMms: [-18] }
+        : plan),
+    });
+
+    assert.equal(projectContentEquals(before, after), false);
+  });
+
+  it("normalizes active pile choices into the active plan without copying project inputs", () => {
+    const state = createTestProjectState(sampleProjectText, { initializeDefaultPiles: false });
+    const selectedPileConfigurationsByLoadPoint = new Map([[1, {
+      pile_size_mm: 320,
+      pile_tip_level_mm: -18_500,
+    }]]);
+
+    const normalized = normalizeProjectContentState({
+      ...state,
+      selectedPileConfigurationsByLoadPoint,
+    });
+
+    assert.notEqual(normalized.pilePlans, state.pilePlans);
+    assert.equal(
+      normalized.pilePlans.find((plan) => plan.id === normalized.activePilePlanId)
+        ?.selectedPileConfigurationsByLoadPoint,
+      selectedPileConfigurationsByLoadPoint,
+    );
+    assert.equal(normalized.loadPoints, state.loadPoints);
+    assert.equal(normalized.cpts, state.cpts);
+    assert.equal(normalized.bearingCapacities, state.bearingCapacities);
+  });
+
+  it("restores content while preserving valid navigation and transient state", () => {
+    const original = normalizeProjectContentState(createTestProjectState(
+      sampleProjectText,
+      { initializeDefaultPiles: false },
+    ));
+    const content = captureProjectContent(original);
+    const changed = {
+      ...original,
+      name: "Changed",
+      viewport: { scale: 3, offsetX: 80, offsetY: -20 },
+      selectedLoadPointIds: [original.loadPoints[2].id],
+      selectedLoadPointId: original.loadPoints[2].id,
+    };
+
+    const restored = restoreProjectContent(changed, content);
+
+    assert.equal(restored.state.name, original.name);
+    assert.equal(restored.state.viewport, changed.viewport);
+    assert.equal(restored.state.selectedLoadPointIds, changed.selectedLoadPointIds);
+    assert.equal(restored.state.activePilePlanId, changed.activePilePlanId);
+    assert.equal(restored.analysisScope, "none");
+  });
+
+  it("falls back to an existing plan when restored content removes the active plan", () => {
+    const state = normalizeProjectContentState(createTestProjectState(
+      sampleProjectText,
+      { initializeDefaultPiles: false },
+    ));
+    const first = state.pilePlans[0];
+    const second = {
+      ...first,
+      id: "second",
+      name: "Second",
+      selectedPileConfigurationsByLoadPoint: new Map([[1, {
+        pile_size_mm: 320,
+        pile_tip_level_mm: -18_500,
+      }]]),
+    };
+    const current = {
+      ...state,
+      pilePlans: [first, second],
+      activePilePlanId: second.id,
+      selectedPileConfigurationsByLoadPoint: second.selectedPileConfigurationsByLoadPoint,
+    };
+    const content = {
+      ...captureProjectContent(current),
+      pilePlans: [first],
+    };
+
+    const restored = restoreProjectContent(current, content, { fallbackPilePlanId: first.id });
+
+    assert.equal(restored.state.activePilePlanId, first.id);
+    assert.equal(
+      restored.state.selectedPileConfigurationsByLoadPoint,
+      first.selectedPileConfigurationsByLoadPoint,
+    );
+  });
+
+  it("requests analysis only for load points whose CPT source selection changed", () => {
+    const state = normalizeProjectContentState(createTestProjectState(
+      sampleProjectText,
+      { initializeDefaultPiles: false },
+    ));
+    const loadPointId = state.loadPoints[0].id;
+    const before = captureProjectContent(state);
+    const after = {
+      ...before,
+      manualCptIdsByLoadPoint: new Map(before.manualCptIdsByLoadPoint).set(loadPointId, [1]),
+    };
+
+    const restored = restoreProjectContent(state, after);
+
+    assert.deepEqual(restored.analysisScope, [loadPointId]);
+  });
+
+  it("requests full analysis when imported foundation advice changes", () => {
+    const state = normalizeProjectContentState(createTestProjectState(
+      sampleProjectText,
+      { initializeDefaultPiles: false },
+    ));
+    const before = captureProjectContent(state);
+    const after = {
+      ...before,
+      bearingCapacities: before.bearingCapacities.slice(1),
+    };
+
+    assert.equal(restoreProjectContent(state, after).analysisScope, "all");
+  });
+});

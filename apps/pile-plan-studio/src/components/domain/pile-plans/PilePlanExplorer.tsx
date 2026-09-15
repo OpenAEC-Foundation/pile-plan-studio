@@ -2,8 +2,8 @@ import { useState, type KeyboardEvent } from "react";
 import { useTranslation } from "react-i18next";
 
 import type { PilePlanData } from "../../../core/projectFile.ts";
-import type { ProjectCostSummary } from "../../../domain/projectCostSummary.ts";
-import type { InputSource, InputSourceKind } from "../../../domain/projectState.ts";
+import type { ProjectCostSummary } from "../../../domain/pile-plans/projectCostSummary.ts";
+import type { InputSource, InputSourceKind } from "../../../domain/project/projectState.ts";
 
 type Props = {
   projectName: string;

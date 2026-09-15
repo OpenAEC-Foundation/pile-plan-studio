@@ -1,14 +1,14 @@
 import { useTranslation } from "react-i18next";
 
-import type { ProjectState } from "../../../domain/projectState.ts";
-import { selectLoadPoint } from "../../../domain/selectionState.ts";
+import type { ProjectState } from "../../../domain/project/projectState.ts";
+import { selectLoadPoint } from "../../../domain/workspace/selectionState.ts";
 import {
   getAnalysisFailureNotice,
   getMultiSelectionAssignmentSummary,
   getNeutralUnassignedNotice,
   getOptimizerUnassignedNotices,
   getTechnicalAssignmentNotice,
-} from "../../../domain/technicalAssignmentNotice.ts";
+} from "../../../domain/pile-options/technicalAssignmentNotice.ts";
 import type { TechnicalAssignmentSnapshot } from "../../../app/derived-state/technicalAssignmentController.ts";
 
 type Props = {

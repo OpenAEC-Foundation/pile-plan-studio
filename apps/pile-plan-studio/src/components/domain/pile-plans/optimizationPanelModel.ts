@@ -4,7 +4,7 @@ import type {
   OptimizationPreparationDiagnostic,
   PileConfigurationKey,
 } from "../../../core/projectTypes.ts";
-import { summarizeOptimizationRun } from "../../../domain/optimizationSummary.ts";
+import { summarizeOptimizationRun } from "../../../domain/pile-plans/optimization/optimizationSummary.ts";
 
 export type OptimizationTargetScope = "all" | "selected";
 export type OptimizationLimitScope = "target" | "whole-plan";

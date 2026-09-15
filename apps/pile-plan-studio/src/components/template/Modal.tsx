@@ -1,5 +1,5 @@
 import { useEffect, useRef, useCallback, useId, type ReactNode } from "react";
-import { elementLayoutScale, screenToLocal } from "../../domain/uiBaseline.ts";
+import { elementLayoutScale, screenToLocal } from "../../domain/settings/uiBaseline.ts";
 import "./Modal.css";
 
 interface ModalProps {

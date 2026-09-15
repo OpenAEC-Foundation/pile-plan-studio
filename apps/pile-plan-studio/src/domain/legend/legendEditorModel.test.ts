@@ -1,0 +1,205 @@
+import { describe, it } from "node:test";
+import assert from "node:assert/strict";
+
+import {
+  applyAutomaticColors,
+  applyAutomaticSymbols,
+  createLegendEditorDraft,
+  resetLegendEditorAppearance,
+  setLegendColorScheme,
+  setLegendEncodingMode,
+  updateLegendColor,
+  updateLegendSymbol,
+  wouldReassignLegendAppearance,
+} from "./legendEditorModel.ts";
+import { createBuiltInLegend } from "../../viewer/legend.ts";
+
+const capacities = [
+  { cpt_id: 1, pile_tip_level_m: -18, pile_tip_level_mm: -18_000, pile_size_mm: 290, frd_kn: 700 },
+  { cpt_id: 1, pile_tip_level_m: -19, pile_tip_level_mm: -19_000, pile_size_mm: 320, frd_kn: 800 },
+];
+
+function draft() {
+  return createLegendEditorDraft(
+    { pileSizes: [290, 320], pileTipLevelMms: [-18_000, -19_000] },
+    createBuiltInLegend(capacities),
+  );
+}
+
+describe("legend editor model", () => {
+  it("starts each editor draft on all items without recalculating stored mappings", () => {
+    const legend = createBuiltInLegend(capacities);
+    legend.pileTipLevels[0] = {
+      ...legend.pileTipLevels[0],
+      color: "#123456",
+      colorAutomatic: false,
+    };
+
+    const created = createLegendEditorDraft(
+      { pileSizes: [290], pileTipLevelMms: [-18_000] },
+      legend,
+    );
+
+    assert.equal("assignmentScope" in created, false);
+    assert.equal(created.legend.pileTipLevels[0].color, "#123456");
+    assert.equal(created.legend.pileTipLevels[0].colorAutomatic, false);
+  });
+
+  it("marks only the manually edited item property as manual", () => {
+    const recolored = updateLegendColor(draft(), "tip", -18_000, "#123456");
+    const reshaped = updateLegendSymbol(recolored, "size", 290, {
+      baseShape: "diamond",
+      fillPattern: "top-half",
+    });
+
+    assert.equal(reshaped.legend.pileTipLevels[0].colorAutomatic, false);
+    assert.equal(reshaped.legend.pileTipLevels[0].symbolAutomatic, true);
+    assert.equal(reshaped.legend.pileTipLevels[1].colorAutomatic, true);
+    assert.equal(reshaped.legend.pileSizes[0].symbolAutomatic, false);
+    assert.equal(reshaped.legend.pileSizes[0].colorAutomatic, true);
+  });
+
+  it("applies a changed scheme immediately only to automatic colors", () => {
+    const manual = updateLegendColor(draft(), "tip", -18_000, "#123456");
+    const changed = setLegendColorScheme(manual, "tip", "colorblind-friendly", [-18_000, -19_000]);
+
+    assert.equal(changed.legend.pileTipLevelColorScheme, "colorblind-friendly");
+    assert.equal(changed.legend.pileTipLevels[0].color, "#123456");
+    assert.equal(changed.legend.pileTipLevels[1].color, "#E69F00");
+  });
+
+  it("stores and applies independent schemes for size and tip-level colors", () => {
+    const original = draft();
+    const originalTipColors = original.legend.pileTipLevels.map(({ color }) => color);
+
+    const changed = setLegendColorScheme(
+      original,
+      "size",
+      "colorblind-friendly",
+      [290, 320],
+    );
+
+    assert.equal(changed.legend.pileSizeColorScheme, "colorblind-friendly");
+    assert.equal(changed.legend.pileTipLevelColorScheme, "tableau-extended");
+    assert.deepEqual(changed.legend.pileTipLevels.map(({ color }) => color), originalTipColors);
+    assert.deepEqual(changed.legend.pileSizes.map(({ color }) => color), ["#0072B2", "#E69F00"]);
+  });
+
+  it("keeps manual size colors while refreshing automatic size colors after encoding reversal", () => {
+    let current = updateLegendColor(draft(), "size", 290, "#123456");
+    current = setLegendColorScheme(current, "size", "colorblind-friendly", [290, 320]);
+    const result = setLegendEncodingMode(current, "tip-symbol", current.active);
+
+    assert.equal(result.ok, true);
+    assert.equal(result.draft.legend.pileSizes[0].color, "#123456");
+    assert.equal(result.draft.legend.pileSizes[1].color, "#E69F00");
+    assert.equal(result.draft.legend.pileSizes[0].colorAutomatic, false);
+  });
+
+  it("switches to dual color without requiring a symbol for every active value", () => {
+    const legend = createBuiltInLegend(Array.from({ length: 55 }, (_, index) => ({
+      cpt_id: 1,
+      pile_tip_level_m: -18 - index / 10,
+      pile_tip_level_mm: (-18 - index / 10) * 1_000,
+      pile_size_mm: 200 + index,
+      frd_kn: 700,
+    })));
+    const current = createLegendEditorDraft({
+      pileSizes: legend.pileSizes.map(({ value }) => value),
+      pileTipLevelMms: legend.pileTipLevels.map(({ value }) => value),
+    }, legend);
+
+    const result = setLegendEncodingMode(current, "size-color-tip-region", current.active);
+
+    assert.equal(result.ok, true);
+    assert.equal(result.draft.legend.encodingMode, "size-color-tip-region");
+  });
+
+  it("explicit color assignment clears only scoped color overrides", () => {
+    let current = updateLegendColor(draft(), "size", 290, "#123456");
+    current = updateLegendColor(current, "size", 320, "#654321");
+
+    const assigned = applyAutomaticColors(current, "size", [290]);
+
+    assert.equal(assigned.legend.pileSizes[0].colorAutomatic, true);
+    assert.equal(assigned.legend.pileSizes[1].colorAutomatic, false);
+  });
+
+  it("explicit symbol assignment clears only symbol overrides", () => {
+    const manual = updateLegendSymbol(draft(), "size", 290, {
+      baseShape: "diamond",
+      fillPattern: "top-half",
+    });
+    const result = applyAutomaticSymbols(manual, "size", [290, 320]);
+
+    assert.equal(result.ok, true);
+    if (!result.ok) return;
+    assert.equal(result.draft.legend.pileSizes[0].symbolAutomatic, true);
+    assert.equal(result.draft.legend.pileSizes[0].colorAutomatic, true);
+  });
+
+  it("uses explicitly included values without storing assignment scope", () => {
+    const legend = createBuiltInLegend(Array.from({ length: 55 }, (_, index) => ({
+      cpt_id: 1,
+      pile_tip_level_m: -18,
+      pile_tip_level_mm: -18_000,
+      pile_size_mm: 200 + index,
+      frd_kn: 700,
+    })));
+    const current = updateLegendSymbol(createLegendEditorDraft({
+      pileSizes: legend.pileSizes.map(({ value }) => value),
+      pileTipLevelMms: [-18_000],
+    }, legend), "size", 200, { baseShape: "diamond", fillPattern: "full" });
+
+    const result = applyAutomaticSymbols(current, "size", [200]);
+
+    assert.equal(result.ok, true);
+    assert.equal("assignmentScope" in result.draft, false);
+    assert.equal(result.draft.legend.pileSizes[0].symbolAutomatic, true);
+  });
+
+  it("resets the scheme and all item properties to automatic", () => {
+    let current = updateLegendColor(draft(), "tip", -18_000, "#123456");
+    current = updateLegendSymbol(current, "size", 290, {
+      baseShape: "diamond",
+      fillPattern: "top-half",
+    });
+    current = setLegendColorScheme(current, "tip", "rainbow", [-18_000, -19_000]);
+
+    const reset = resetLegendEditorAppearance(current, capacities);
+
+    assert.equal(reset.legend.pileSizeColorScheme, "tableau-extended");
+    assert.equal(reset.legend.pileTipLevelColorScheme, "tableau-extended");
+    assert.equal("assignmentScope" in reset, false);
+    assert.ok(reset.legend.pileSizes.every((item) => item.symbolAutomatic && item.colorAutomatic));
+    assert.ok(reset.legend.pileTipLevels.every((item) => item.symbolAutomatic && item.colorAutomatic));
+  });
+
+  it("offers reassignment when filtering active items changes automatic mappings", () => {
+    const current = draft();
+
+    assert.equal(wouldReassignLegendAppearance(current, "size", "symbol", [290, 320]), false);
+    assert.equal(wouldReassignLegendAppearance(current, "tip", "color", [-18_000, -19_000]), false);
+
+    current.active.pileSizes = [320];
+    current.active.pileTipLevelMms = [-19_000];
+
+    assert.equal(wouldReassignLegendAppearance(current, "size", "symbol", [320]), true);
+    assert.equal(wouldReassignLegendAppearance(current, "tip", "color", [-19_000]), true);
+  });
+
+  it("offers reassignment for manual overrides and dims it after applying", () => {
+    const manual = updateLegendColor(draft(), "tip", -18_000, "#123456");
+
+    assert.equal(wouldReassignLegendAppearance(manual, "tip", "color", [-18_000, -19_000]), true);
+    assert.equal(
+      wouldReassignLegendAppearance(
+        applyAutomaticColors(manual, "tip", [-18_000, -19_000]),
+        "tip",
+        "color",
+        [-18_000, -19_000],
+      ),
+      false,
+    );
+  });
+});

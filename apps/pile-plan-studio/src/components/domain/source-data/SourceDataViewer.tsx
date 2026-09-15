@@ -11,7 +11,7 @@ import {
 import { useTranslation } from "react-i18next";
 import { formatPileTipLevelMetres } from "../../../domain/formatting.ts";
 import type { BearingCapacity, Cpt, LoadPoint } from "../../../core/projectTypes.ts";
-import type { InputSource } from "../../../domain/projectState.ts";
+import type { InputSource } from "../../../domain/project/projectState.ts";
 import {
   buildSourceTable,
   filterAndSortSourceRows,
@@ -20,7 +20,7 @@ import {
   type SourceLoadPointSelection,
   type SourceTableFilter,
   type SourceTableSort,
-} from "../../../domain/sourceTableModel.ts";
+} from "../../../domain/source-data/sourceTableModel.ts";
 import { getAdditiveSelectionModifier } from "../../../viewer/lassoSelection.ts";
 import { searchIcon } from "../../template/ribbon/icons.ts";
 

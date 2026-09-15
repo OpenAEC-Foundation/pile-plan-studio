@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from "react";
 import { createPortal } from "react-dom";
-import { elementLayoutScale, screenToLocal } from "../../domain/uiBaseline.ts";
+import { elementLayoutScale, screenToLocal } from "../../domain/settings/uiBaseline.ts";
 
 interface Option {
   value: string;

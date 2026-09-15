@@ -5,13 +5,13 @@ import sampleProjectText from "../../../sample_project/sample_project.ifcpp?raw"
 import AppSession, { type AppSessionProps } from "./app/session/AppSession.tsx";
 import { readProjectDocumentCore } from "./core/coreClient.ts";
 import { ProjectDocumentReadError, type ProjectDocumentOutcome } from "./core/projectDocumentContract.ts";
-import { isDesktopRuntime } from "./domain/projectPersistence.ts";
-import { validateOpenedProject } from "./domain/openedProject.ts";
+import { isDesktopRuntime } from "./domain/project/projectPersistence.ts";
+import { validateOpenedProject } from "./domain/project/openedProject.ts";
 import {
   createIndexedDbRecoveryStore,
   type BrowserRecoveryStore,
-} from "./domain/browserRecoveryStore.ts";
-import { loadBrowserRecovery } from "./domain/browserRecoveryStartup.ts";
+} from "./domain/project/recovery/browserRecoveryStore.ts";
+import { loadBrowserRecovery } from "./domain/project/recovery/browserRecoveryStartup.ts";
 
 type AppBootstrap =
   | { kind: "loading" }

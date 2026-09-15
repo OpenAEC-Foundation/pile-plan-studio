@@ -6,7 +6,7 @@ import {
   partitionPileCostItems,
   removePileCostItem,
   updatePileCostItem,
-} from "../../../domain/pileCostCatalog.ts";
+} from "../../../domain/pile-plans/pileCostCatalog.ts";
 import { formatNumber } from "../../../domain/formatting.ts";
 import { commitCostInput } from "./costSettingsModel.ts";
 import ThemedNumberInput from "../../template/ThemedNumberInput.tsx";

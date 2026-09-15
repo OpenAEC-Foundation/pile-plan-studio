@@ -4,8 +4,8 @@ import RibbonButton from "./RibbonButton";
 import RibbonButtonStack from "./RibbonButtonStack";
 import RibbonGroup from "./RibbonGroup";
 import RibbonTab from "./RibbonTab";
-import type { RightPanelMode } from "../../../domain/selectionState.ts";
-import type { ForegroundLayer } from "../../../domain/viewerPreferences.ts";
+import type { RightPanelMode } from "../../../domain/workspace/selectionState.ts";
+import type { ForegroundLayer } from "../../../domain/settings/viewerPreferences.ts";
 import {
   cptIcon,
   applyIcon,

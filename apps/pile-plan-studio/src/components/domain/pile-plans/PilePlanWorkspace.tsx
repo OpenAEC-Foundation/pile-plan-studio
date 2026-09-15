@@ -1,13 +1,13 @@
 import { useState, type MouseEvent } from "react";
-import type { ProjectState } from "../../../domain/projectState";
+import type { ProjectState } from "../../../domain/project/projectState";
 import Legend from "./Legend";
 import LegendEditor from "./legend-editor/LegendEditor";
 import PilePlanViewer from "../pile-plan-viewer/PilePlanViewer";
-import { clearLegendSelection, shouldClearLegendSelectionFromPointerTarget } from "../viewerInteractions";
+import { clearLegendSelection, shouldClearLegendSelectionFromPointerTarget } from "../../../domain/workspace/viewerInteractions";
 import "../pile-plan-viewer/viewer.css";
 import type { LoadPointGroup } from "../../../core/loadPointGroupContract.ts";
 import type { TechnicalAssignmentSnapshot } from "../../../app/derived-state/technicalAssignmentController.ts";
-import { replacePilePlanActivation } from "../../../domain/pilePlanActivation.ts";
+import { replacePilePlanActivation } from "../../../domain/pile-plans/pilePlanActivation.ts";
 import { useTipLevelRegionTopology } from "../pile-plan-viewer/tip-level-regions/useTipLevelRegionTopology.ts";
 
 type Props = {

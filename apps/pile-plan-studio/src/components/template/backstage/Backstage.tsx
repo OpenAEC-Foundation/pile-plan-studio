@@ -11,7 +11,7 @@ import type { ImportSourceInput } from "../../.././core/coreImportContract";
 import type { ImportSummary } from "../../.././core/projectFile";
 import type { PilePlanImportPatch } from "../../../core/pilePlanImportContract.ts";
 import type { Cpt, LoadPoint, PileConfigurationKey } from "../../../core/projectTypes.ts";
-import type { ProjectFileCommands } from "../../../domain/projectPersistence.ts";
+import type { ProjectFileCommands } from "../../../domain/project/projectPersistence.ts";
 import { PRODUCT_INFO } from "../../../productInfo.ts";
 import "./Backstage.css";
 

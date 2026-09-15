@@ -6,9 +6,9 @@ import {
   type MouseEvent,
   type RefObject,
 } from "react";
-import type { ProjectState } from "../../../domain/projectState.ts";
-import { setLassoLoadPointLocks, toggleLoadPointLock } from "../../../domain/loadPointLocking.ts";
-import { elementLayoutScale } from "../../../domain/uiBaseline.ts";
+import type { ProjectState } from "../../../domain/project/projectState.ts";
+import { setLassoLoadPointLocks, toggleLoadPointLock } from "../../../domain/pile-plans/loadPointLocking.ts";
+import { elementLayoutScale } from "../../../domain/settings/uiBaseline.ts";
 import {
   createHoverMarkerIndex,
   cycleHoverCandidate,
@@ -32,7 +32,7 @@ import {
 import { shouldStartMapPan } from "../../../viewer/mapInteraction.ts";
 import { projectPoint, type createProjectViewTransform } from "../../../viewer/viewerGeometry.ts";
 import { panViewport } from "../../../viewer/viewport.ts";
-import { toggleManualCpt } from "../cptSettingsModel.ts";
+import { toggleManualCpt } from "../../../domain/cpt-selection/cptSettingsModel.ts";
 import {
   addReactViewerLoadPoints,
   clearReactViewerSelection,
@@ -41,7 +41,7 @@ import {
   selectReactViewerLoadPoint,
   setReactViewerLoadPoints,
   toggleReactViewerLoadPoint,
-} from "../viewerInteractions.ts";
+} from "../../../domain/workspace/viewerInteractions.ts";
 import { getLocalViewportPointer, type LocalCanvasRect } from "./viewerDomCoordinates.ts";
 
 export type ViewerInteraction =

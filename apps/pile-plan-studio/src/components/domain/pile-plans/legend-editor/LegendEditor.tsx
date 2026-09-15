@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { PileSymbol, LegendEncodingMode } from "../../../../core/projectTypes.ts";
-import type { ProjectState } from "../../../../domain/projectState.ts";
+import type { ProjectState } from "../../../../domain/project/projectState.ts";
 import {
   getActivePilePlan,
   getPilePlanActivation,
@@ -10,12 +10,12 @@ import {
   togglePilePlanScope,
   unionActivationForPlans,
   unionUsedConfigurationsForPlans,
-} from "../../../../domain/pilePlanActivation.ts";
+} from "../../../../domain/pile-plans/pilePlanActivation.ts";
 import {
   findCoactiveLegendConflicts,
   getLegendValuePlanUsage,
   type LegendValuePlanUsage,
-} from "../../../../domain/legendConflicts.ts";
+} from "../../../../domain/legend/legendConflicts.ts";
 import {
   applyAutomaticColors,
   applyAutomaticSymbols,
@@ -29,12 +29,12 @@ import {
   type LegendEditorActionResult,
   type LegendEditorDraft,
   type LegendEditorItemKind,
-} from "../../../../domain/legendEditorModel.ts";
+} from "../../../../domain/legend/legendEditorModel.ts";
 import {
   buildLegendPresentation,
   deriveUsedPileConfigurations,
   type LegendPresentationState,
-} from "../../../../domain/legendState.ts";
+} from "../../../../domain/legend/legendState.ts";
 import type { LegendColorScheme } from "../../../../viewer/legendColors.ts";
 import Modal from "../../../template/Modal.tsx";
 import LegendColorSchemeSelect from "../LegendColorSchemeSelect.tsx";

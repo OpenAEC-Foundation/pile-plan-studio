@@ -1,9 +1,9 @@
 import type { ReactNode } from "react";
 import { useTranslation } from "react-i18next";
-import type { ProjectState } from "../../../domain/projectState.ts";
-import { openCpt } from "../../../domain/selectionState.ts";
+import type { ProjectState } from "../../../domain/project/projectState.ts";
+import { openCpt } from "../../../domain/workspace/selectionState.ts";
 import { getCptFrdPanelModel, getSelectedCptOverviewModel, getSelectedLoadPoints } from "./rightPanelModel.ts";
-import { cancelManualCptSelection, clearManualCptSelection, removeManualCpt, saveManualCptSelection, selectOnlyNearestCpts, startManualCptSelectionEdit } from "../cptSettingsModel.ts";
+import { cancelManualCptSelection, clearManualCptSelection, removeManualCpt, saveManualCptSelection, selectOnlyNearestCpts, startManualCptSelectionEdit } from "../../../domain/cpt-selection/cptSettingsModel.ts";
 import { removeIcon } from "../../template/ribbon/icons.ts";
 import { CoordinateReadout } from "../shared/CoordinateReadout.ts";
 import { ResistanceLabel, localizeCptName, localizeCptTableValue, localizeLoadPointName } from "./PanelControls.tsx";

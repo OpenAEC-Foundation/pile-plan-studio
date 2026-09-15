@@ -1,5 +1,5 @@
 import { useTranslation } from "react-i18next";
-import type { ProjectState } from "../../../domain/projectState.ts";
+import type { ProjectState } from "../../../domain/project/projectState.ts";
 import { DraftNumberField, SettingsGroup } from "./PanelControls.tsx";
 
 export type GroupingSettingsPanelProps = { state: ProjectState; onStateChange: (state: ProjectState) => void; onClose: () => void };

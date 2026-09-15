@@ -1,5 +1,5 @@
 import { useTranslation } from "react-i18next";
-import type { ProjectState } from "../../../domain/projectState.ts";
+import type { ProjectState } from "../../../domain/project/projectState.ts";
 import type { PileConfigurationKey, PileCostSettings } from "../../../core/projectTypes.ts";
 import { getSelectedLoadPoints, formatLoadPointPanelTitle } from "./rightPanelModel.ts";
 import OptimizationPanel from "../pile-plans/OptimizationPanel.tsx";

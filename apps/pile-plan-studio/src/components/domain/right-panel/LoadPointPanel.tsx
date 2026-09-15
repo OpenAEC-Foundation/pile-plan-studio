@@ -1,12 +1,12 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
-import type { ProjectState } from "../../../domain/projectState.ts";
+import type { ProjectState } from "../../../domain/project/projectState.ts";
 import type { PileConfigurationKey } from "../../../core/projectTypes.ts";
 import type { LoadPointGroup } from "../../../core/loadPointGroupContract.ts";
-import { openCpt, selectLoadPoint } from "../../../domain/selectionState.ts";
-import { filterActivePileOptions } from "../../../domain/activePileConfigurations.ts";
-import { getActivePilePlan, getPilePlanActivation } from "../../../domain/pilePlanActivation.ts";
-import { getNextPileOptionSortState, getPileOptionColumns, getPileOptionFilterValues, getPileOptionTableRows, type PileOptionTableColumn, type SortablePileOptionTableColumn } from "../../../domain/pileOptionTable.ts";
+import { openCpt, selectLoadPoint } from "../../../domain/workspace/selectionState.ts";
+import { filterActivePileOptions } from "../../../domain/pile-options/activePileConfigurations.ts";
+import { getActivePilePlan, getPilePlanActivation } from "../../../domain/pile-plans/pilePlanActivation.ts";
+import { getNextPileOptionSortState, getPileOptionColumns, getPileOptionFilterValues, getPileOptionTableRows, type PileOptionTableColumn, type SortablePileOptionTableColumn } from "../../../domain/pile-options/pileOptionTable.ts";
 import { getChosenPileOptionConfigurationForSelection, getChosenPileOptionKeyForSelection, getPileOptionsByLoadPointIdForPanel, getRenderableAggregatedPileOptionRows, getRenderablePileOptionRows, getSelectedLoadPoints, optionKey } from "./rightPanelModel.ts";
 import { useAggregatedPileOptions } from "./useAggregatedPileOptions.ts";
 import type { TechnicalAssignmentSnapshot } from "../../../app/derived-state/technicalAssignmentController.ts";

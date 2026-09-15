@@ -1,7 +1,7 @@
-import type { ProjectState } from "../../../domain/projectState";
+import type { ProjectState } from "../../../domain/project/projectState";
 import type { AggregatedPileConfiguration } from "../../../core/pileOptionAggregationContract.ts";
-import { getCptDisplayName } from "../../../domain/cptDisplayName.ts";
-import { getSelectedCptTableModel } from "../../../domain/cptSelectionTable.ts";
+import { getCptDisplayName } from "../../../domain/source-data/cptDisplayName.ts";
+import { getSelectedCptTableModel } from "../../../domain/cpt-selection/cptSelectionTable.ts";
 import {
   formatNumber,
   formatOptionalNumber,
@@ -10,10 +10,10 @@ import {
 } from "../../../domain/formatting.ts";
 import {
   getConfigurationActivationPresentation,
-} from "../../../domain/legendActivationPresentation.ts";
-import type { ActivePileConfigurations } from "../../../domain/activePileConfigurations.ts";
-import { getPileOptionStatus } from "../../../domain/pileOptionStatus.ts";
-import type { PileOptionTableRow } from "../../../domain/pileOptionTable.ts";
+} from "../../../domain/legend/legendActivationPresentation.ts";
+import type { ActivePileConfigurations } from "../../../domain/pile-options/activePileConfigurations.ts";
+import { getPileOptionStatus } from "../../../domain/pile-options/pileOptionStatus.ts";
+import type { PileOptionTableRow } from "../../../domain/pile-options/pileOptionTable.ts";
 import { renderPileSymbol } from "../../../viewer/pileSymbols.ts";
 import {
   pileConfigurationToken,
@@ -28,7 +28,7 @@ import type {
   PileCostSettings,
   SelectedCpt,
 } from "../../../core/projectTypes.ts";
-import { getEffectivePileOptionsByLoadPointId } from "../cptSettingsModel.ts";
+import { getEffectivePileOptionsByLoadPointId } from "../../../domain/cpt-selection/cptSettingsModel.ts";
 
 export type RenderablePileOptionTableRow = PileOptionTableRow & {
   criticalLoadPointId: number | null;

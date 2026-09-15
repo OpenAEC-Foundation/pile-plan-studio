@@ -1,7 +1,7 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
-import type { ProjectState } from "../../../domain/projectState.ts";
-import { switchRightPanelMode, type RightPanelMode } from "../../../domain/selectionState.ts";
+import type { ProjectState } from "../../../domain/project/projectState.ts";
+import { switchRightPanelMode, type RightPanelMode } from "../../../domain/workspace/selectionState.ts";
 import { infoIcon } from "../../template/ribbon/icons.ts";
 import ThemedNumberInput from "../../template/ThemedNumberInput.tsx";
 import { commitNumberDraft } from "./numberInputModel.ts";

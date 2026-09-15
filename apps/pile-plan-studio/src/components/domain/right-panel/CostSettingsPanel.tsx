@@ -1,4 +1,4 @@
-import type { ProjectState } from "../../../domain/projectState.ts";
+import type { ProjectState } from "../../../domain/project/projectState.ts";
 import type { PileCostSettings } from "../../../core/projectTypes.ts";
 import CostCatalogEditor from "./CostCatalogEditor.tsx";
 

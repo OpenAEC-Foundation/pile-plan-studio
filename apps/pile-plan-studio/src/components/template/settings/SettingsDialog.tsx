@@ -2,14 +2,14 @@ import { useState, useEffect, useRef, type CSSProperties } from "react";
 import { useTranslation } from "react-i18next";
 import { LANGUAGES, changeLanguage } from "../../../i18n/config";
 import { PRODUCT_INFO } from "../../../productInfo.ts";
-import type { UserLanguage } from "../../../domain/userSettings.ts";
+import type { UserLanguage } from "../../../domain/settings/userSettings.ts";
 import {
   DEFAULT_INTERFACE_SCALE,
   INTERFACE_SCALE_STEP,
   MAX_INTERFACE_SCALE,
   MIN_INTERFACE_SCALE,
   normalizeInterfaceScale,
-} from "../../../domain/interfaceScale.ts";
+} from "../../../domain/settings/interfaceScale.ts";
 import Modal from "../Modal";
 import ThemedSelect from "../ThemedSelect";
 import "../ThemedSelect.css";
