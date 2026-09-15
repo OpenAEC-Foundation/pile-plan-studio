@@ -7,7 +7,7 @@ const read = (path: string) => readFileSync(resolve(import.meta.dirname, path), 
 const viewer = read("components/domain/PilePlanViewer.tsx");
 const ribbon = read("components/template/ribbon/Ribbon.tsx");
 const modal = read("components/template/Modal.tsx");
-const app = read("App.tsx");
+const app = read("AppSession.tsx");
 const appStyles = read("App.css");
 const titleBarStyles = read("components/template/TitleBar.css");
 const ribbonStyles = read("components/template/ribbon/Ribbon.css");

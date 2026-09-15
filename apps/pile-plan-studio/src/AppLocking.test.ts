@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
-const source = readFileSync(resolve(import.meta.dirname, "App.tsx"), "utf8");
+const source = readFileSync(resolve(import.meta.dirname, "AppSession.tsx"), "utf8");
 
 function functionBlock(startMarker: string, endMarker: string): string {
   const start = source.indexOf(startMarker);

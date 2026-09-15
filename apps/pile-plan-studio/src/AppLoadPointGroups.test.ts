@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 
-const source = readFileSync(new URL("./App.tsx", import.meta.url), "utf8");
+const source = readFileSync(new URL("./AppSession.tsx", import.meta.url), "utf8");
 
 describe("App load point group integration", () => {
   it("uses the derived runtime partition and delegates assignment decisions to Rust", () => {

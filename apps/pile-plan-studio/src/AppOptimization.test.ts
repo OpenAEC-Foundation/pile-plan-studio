@@ -6,7 +6,7 @@ import { applyOptimizationResult } from "./components/domain/optimizationPanelMo
 
 describe("App optimization integration", () => {
   it("applies optimized pile choices without replacing project legend settings", () => {
-    const source = readFileSync(resolve(import.meta.dirname, "App.tsx"), "utf8");
+    const source = readFileSync(resolve(import.meta.dirname, "AppSession.tsx"), "utf8");
     const start = source.indexOf("const runGreedyOptimization");
     const end = source.indexOf("const optimizationDisabled", start);
     const optimizationBlock = source.slice(start, end);
@@ -39,7 +39,7 @@ describe("App optimization integration", () => {
   });
 
   it("waits for the project-wide group partition before optimization", () => {
-    const source = readFileSync(resolve(import.meta.dirname, "App.tsx"), "utf8");
+    const source = readFileSync(resolve(import.meta.dirname, "AppSession.tsx"), "utf8");
     const start = source.indexOf("const optimizationDisabled");
     const end = source.indexOf("const installOpenedProject", start);
     const disabledBlock = source.slice(start, end);
@@ -51,7 +51,7 @@ describe("App optimization integration", () => {
   });
 
   it("clears transient run feedback after plan switches and manual pile changes", () => {
-    const source = readFileSync(resolve(import.meta.dirname, "App.tsx"), "utf8");
+    const source = readFileSync(resolve(import.meta.dirname, "AppSession.tsx"), "utf8");
     const changeStart = source.indexOf("const handleProjectStateChange");
     const changeEnd = source.indexOf("const importPilePlan", changeStart);
     const changeBlock = source.slice(changeStart, changeEnd);
