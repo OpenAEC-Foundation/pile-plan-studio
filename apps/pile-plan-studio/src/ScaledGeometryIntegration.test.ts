@@ -4,7 +4,12 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
 const read = (path: string) => readFileSync(resolve(import.meta.dirname, path), "utf8");
-const viewer = read("components/domain/PilePlanViewer.tsx");
+const viewer = [
+  "PilePlanViewer.tsx",
+  "useViewerPointerInteractions.ts",
+  "useViewerViewport.ts",
+  "viewerDomCoordinates.ts",
+].map((file) => read(`components/domain/pile-plan-viewer/${file}`)).join("\n");
 const ribbon = read("components/template/ribbon/Ribbon.tsx");
 const modal = read("components/template/Modal.tsx");
 const app = read("AppSession.tsx");

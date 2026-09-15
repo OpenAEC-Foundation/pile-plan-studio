@@ -2,11 +2,26 @@ import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
-import { createInitialProjectState } from "../../domain/projectState.ts";
+import { createInitialProjectState } from "../../../domain/projectState.ts";
 import {
   canonicalProjectForTest,
   projectTipLevelKeysForTest,
-} from "../../core/projectTestSupport.ts";
+} from "../../../core/projectTestSupport.ts";
+
+const viewerModuleFiles = [
+  "PilePlanViewer.tsx",
+  "ViewerStage.tsx",
+  "useViewerPointerInteractions.ts",
+  "useViewerViewport.ts",
+  "viewerDomCoordinates.ts",
+  "viewerPresentation.ts",
+];
+
+function readViewerSource(): string {
+  return viewerModuleFiles
+    .map((file) => readFileSync(resolve(import.meta.dirname, file), "utf8"))
+    .join("\n");
+}
 
 function createTestProjectState(
   input: Parameters<typeof createInitialProjectState>[0],
@@ -18,8 +33,8 @@ function createTestProjectState(
 
 describe("PilePlanViewer inputs", () => {
   it("renders viewer, hover, and normal legend styles from the project legend", () => {
-    const viewer = readFileSync(resolve(import.meta.dirname, "PilePlanViewer.tsx"), "utf8");
-    const legend = readFileSync(resolve(import.meta.dirname, "Legend.tsx"), "utf8");
+    const viewer = readViewerSource();
+    const legend = readFileSync(resolve(import.meta.dirname, "../Legend.tsx"), "utf8");
 
     assert.match(viewer, /const legend = state\.pileLegend/);
     assert.match(viewer, /renderPileSymbol\(style\.symbol, style\.color\)/);
@@ -31,9 +46,9 @@ describe("PilePlanViewer inputs", () => {
   });
 
   it("renders inactive assigned configurations with neutral channel fallbacks", () => {
-    const viewer = readFileSync(resolve(import.meta.dirname, "PilePlanViewer.tsx"), "utf8");
-    const legend = readFileSync(resolve(import.meta.dirname, "Legend.tsx"), "utf8");
-    const css = readFileSync(resolve(import.meta.dirname, "viewer.css"), "utf8");
+    const viewer = readViewerSource();
+    const legend = readFileSync(resolve(import.meta.dirname, "../Legend.tsx"), "utf8");
+    const css = readFileSync(resolve(import.meta.dirname, "../viewer.css"), "utf8");
 
     assert.match(viewer, /getConfigurationActivationPresentation/);
     assert.match(viewer, /style\.smallDot \? " is-small-dot"/);
@@ -45,8 +60,8 @@ describe("PilePlanViewer inputs", () => {
   });
 
   it("dims and excludes locked load points outside lock editing", () => {
-    const source = readFileSync(resolve(import.meta.dirname, "PilePlanViewer.tsx"), "utf8");
-    const css = readFileSync(resolve(import.meta.dirname, "viewer.css"), "utf8");
+    const source = readViewerSource();
+    const css = readFileSync(resolve(import.meta.dirname, "../viewer.css"), "utf8");
 
     assert.match(source, /getActiveLockedLoadPointIds/);
     assert.match(source, /is-lock-editing/);
@@ -56,7 +71,7 @@ describe("PilePlanViewer inputs", () => {
   });
 
   it("routes clicks and lasso to the lock draft while lock editing", () => {
-    const source = readFileSync(resolve(import.meta.dirname, "PilePlanViewer.tsx"), "utf8");
+    const source = readViewerSource();
 
     assert.match(source, /toggleLoadPointLock/);
     assert.match(source, /setLassoLoadPointLocks/);
@@ -64,7 +79,7 @@ describe("PilePlanViewer inputs", () => {
   });
   it("has load points, CPTs, and bounds available for rendering", () => {
     const sampleProjectText = readFileSync(
-      resolve(import.meta.dirname, "../../../../../sample_project/sample_project.ifcpp"),
+      resolve(import.meta.dirname, "../../../../../../sample_project/sample_project.ifcpp"),
       "utf8",
     );
     const state = createTestProjectState(sampleProjectText, { initializeDefaultPiles: true });
@@ -76,7 +91,7 @@ describe("PilePlanViewer inputs", () => {
   });
 
   it("shows Ctrl-click as an explicit shortcut when a selection already exists", () => {
-    const source = readFileSync(resolve(import.meta.dirname, "PilePlanViewer.tsx"), "utf8");
+    const source = readViewerSource();
 
     assert.doesNotMatch(source, /title=\{t\("viewer\.selectionHelp"\)\}/);
     assert.match(source, /loadPoint && selectedLoadPointIds\.size > 0/);
@@ -89,7 +104,7 @@ describe("PilePlanViewer inputs", () => {
   });
 
   it("keeps full-resolution marker boxes before applying the user scale", () => {
-    const css = readFileSync(resolve(import.meta.dirname, "viewer.css"), "utf8");
+    const css = readFileSync(resolve(import.meta.dirname, "../viewer.css"), "utf8");
 
     assert.match(css, /--load-point-symbol-base:\s*12px;/);
     assert.match(css, /--cpt-marker-width-base:\s*15px;/);
@@ -101,7 +116,7 @@ describe("PilePlanViewer inputs", () => {
   });
 
   it("keeps scaled pile symbols and status halos centered on their project coordinates", () => {
-    const css = readFileSync(resolve(import.meta.dirname, "viewer.css"), "utf8");
+    const css = readFileSync(resolve(import.meta.dirname, "../viewer.css"), "utf8");
 
     assert.match(
       css,
@@ -121,8 +136,8 @@ describe("PilePlanViewer inputs", () => {
   });
 
   it("replaces the marker fan with a compact hover inspector", () => {
-    const source = readFileSync(resolve(import.meta.dirname, "PilePlanViewer.tsx"), "utf8");
-    const css = readFileSync(resolve(import.meta.dirname, "viewer.css"), "utf8");
+    const source = readViewerSource();
+    const css = readFileSync(resolve(import.meta.dirname, "../viewer.css"), "utf8");
 
     assert.doesNotMatch(source, /markerFan|MarkerFan|marker-fan/);
     assert.doesNotMatch(css, /marker-fan/);
@@ -132,8 +147,8 @@ describe("PilePlanViewer inputs", () => {
   });
 
   it("places red, green, and yellow status halos in one non-interactive layer below all markers", () => {
-    const source = readFileSync(resolve(import.meta.dirname, "PilePlanViewer.tsx"), "utf8");
-    const css = readFileSync(resolve(import.meta.dirname, "viewer.css"), "utf8");
+    const source = readViewerSource();
+    const css = readFileSync(resolve(import.meta.dirname, "../viewer.css"), "utf8");
 
     assert.match(source, /className=\{`load-point-status-halo/);
     assert.match(source, /style=\{getProjectMarkerStyle\(point, invalidVisual\.style\)\}/);
@@ -149,8 +164,8 @@ describe("PilePlanViewer inputs", () => {
   });
 
   it("raises the current hover candidate and selects it on click", () => {
-    const source = readFileSync(resolve(import.meta.dirname, "PilePlanViewer.tsx"), "utf8");
-    const css = readFileSync(resolve(import.meta.dirname, "viewer.css"), "utf8");
+    const source = readViewerSource();
+    const css = readFileSync(resolve(import.meta.dirname, "../viewer.css"), "utf8");
 
     assert.match(source, /is-hover-candidate/);
     assert.match(source, /getActiveHoverCandidateKey/);
@@ -159,15 +174,15 @@ describe("PilePlanViewer inputs", () => {
   });
 
   it("does not use viewer marker selection to close surrounding task panels", () => {
-    const viewer = readFileSync(resolve(import.meta.dirname, "PilePlanViewer.tsx"), "utf8");
-    const workspace = readFileSync(resolve(import.meta.dirname, "PilePlanWorkspace.tsx"), "utf8");
+    const viewer = readViewerSource();
+    const workspace = readFileSync(resolve(import.meta.dirname, "../PilePlanWorkspace.tsx"), "utf8");
 
     assert.doesNotMatch(viewer, /onMapMarkerSelect/);
     assert.doesNotMatch(workspace, /onMapMarkerSelect/);
   });
 
   it("cycles overlapping candidates with Space and hides hover while navigating", () => {
-    const source = readFileSync(resolve(import.meta.dirname, "PilePlanViewer.tsx"), "utf8");
+    const source = readViewerSource();
     assert.match(source, /event\.code === "Space" && isNonTextEntryTarget\(event\.target\)[\s\S]*?event\.preventDefault\(\);\s*return;/);
     assert.match(source, /event\.code === "Space" && !isTextEntryTarget\(event\.target\)/);
     assert.match(source, /event\.preventDefault\(\);\s*blurActiveNonTextControl\(\);\s*if \(hoverCandidates && hoverCandidates\.keys\.length > 1\)/);
@@ -183,8 +198,8 @@ describe("PilePlanViewer inputs", () => {
   });
 
   it("shares one orange selection ring style between previews, load points, and inspected CPTs", () => {
-    const source = readFileSync(resolve(import.meta.dirname, "PilePlanViewer.tsx"), "utf8");
-    const css = readFileSync(resolve(import.meta.dirname, "viewer.css"), "utf8");
+    const source = readViewerSource();
+    const css = readFileSync(resolve(import.meta.dirname, "../viewer.css"), "utf8");
 
     assert.match(source, /state\.selectedCptId === cpt\.id/);
     assert.match(source, /is-inspected-cpt/);
@@ -196,8 +211,8 @@ describe("PilePlanViewer inputs", () => {
   });
 
   it("preserves load-point CPT styling during inspection and marks the governing CPT", () => {
-    const source = readFileSync(resolve(import.meta.dirname, "PilePlanViewer.tsx"), "utf8");
-    const css = readFileSync(resolve(import.meta.dirname, "viewer.css"), "utf8");
+    const source = readViewerSource();
+    const css = readFileSync(resolve(import.meta.dirname, "../viewer.css"), "utf8");
     const selectedRule = css.match(
       /\.is-layer-selected-cpt,\s*\.viewer-hover-marker\.is-cpt\.is-selected-cpt,\s*\.cpt-marker\.is-governing-cpt\s*\{(?<body>[^}]*)\}/s,
     )?.groups?.body ?? "";
@@ -220,10 +235,10 @@ describe("PilePlanViewer inputs", () => {
   });
 
   it("aligns full-width hover facts and paired coordinates on shared guides", () => {
-    const source = readFileSync(resolve(import.meta.dirname, "PilePlanViewer.tsx"), "utf8");
-    const css = readFileSync(resolve(import.meta.dirname, "viewer.css"), "utf8");
+    const source = readViewerSource();
+    const css = readFileSync(resolve(import.meta.dirname, "../viewer.css"), "utf8");
 
-    assert.match(source, /import \{ CoordinateReadout \} from "\.\/CoordinateReadout\.ts"/);
+    assert.match(source, /import \{ CoordinateReadout \} from "\.\.\/CoordinateReadout\.ts"/);
     assert.match(source, /<CoordinateReadout points=\{\[loadPoint \?\? cpt!\]\} locale=\{i18n\.language\} \/>/);
     assert.doesNotMatch(source, /formatHoverNumber\(cpt!\.x_mm/);
     assert.doesNotMatch(source, /formatHoverNumber\(cpt!\.y_mm/);
@@ -244,7 +259,7 @@ describe("PilePlanViewer inputs", () => {
   });
 
   it("renders feasibility and governing CPTs from the active draft preview", () => {
-    const source = readFileSync(resolve(import.meta.dirname, "PilePlanViewer.tsx"), "utf8");
+    const source = readViewerSource();
 
     assert.match(source, /getEffectivePileOptionsByLoadPointId/);
     assert.match(source, /const pileOptionsByLoadPointId = getEffectivePileOptionsByLoadPointId\(state\)/);
@@ -253,8 +268,8 @@ describe("PilePlanViewer inputs", () => {
   });
 
   it("lets pile-size legend symbols inherit the active theme text color", () => {
-    const source = readFileSync(resolve(import.meta.dirname, "Legend.tsx"), "utf8");
-    const css = readFileSync(resolve(import.meta.dirname, "viewer.css"), "utf8");
+    const source = readFileSync(resolve(import.meta.dirname, "../Legend.tsx"), "utf8");
+    const css = readFileSync(resolve(import.meta.dirname, "../viewer.css"), "utf8");
 
     assert.match(source, /outlineColor:\s*"currentColor"/);
     assert.match(source, /neutralFill:\s*"var\(--theme-bg\)"/);
@@ -262,7 +277,7 @@ describe("PilePlanViewer inputs", () => {
   });
 
   it("does not scan all markers while the pointer moves over empty map space", () => {
-    const source = readFileSync(resolve(import.meta.dirname, "PilePlanViewer.tsx"), "utf8");
+    const source = readViewerSource();
 
     assert.match(source, /event\.target as HTMLElement/);
     assert.match(source, /closest\("\[data-map-marker-key\]"\)/);
@@ -272,15 +287,15 @@ describe("PilePlanViewer inputs", () => {
   });
 
   it("resolves the current pointer candidate synchronously before clicking", () => {
-    const source = readFileSync(resolve(import.meta.dirname, "PilePlanViewer.tsx"), "utf8");
+    const source = readViewerSource();
 
     assert.match(source, /resolveHoverClickCandidateKey/);
     assert.match(source, /getClickCandidateKey\(event,/);
   });
 
   it("uses unrounded centering for CPT labels and selection rings", () => {
-    const source = readFileSync(resolve(import.meta.dirname, "PilePlanViewer.tsx"), "utf8");
-    const css = readFileSync(resolve(import.meta.dirname, "viewer.css"), "utf8");
+    const source = readViewerSource();
+    const css = readFileSync(resolve(import.meta.dirname, "../viewer.css"), "utf8");
 
     assert.match(source, /left:\s*`\$\{point\.x\}px`/);
     assert.match(source, /top:\s*`\$\{point\.y\}px`/);
@@ -292,15 +307,15 @@ describe("PilePlanViewer inputs", () => {
   });
 
   it("uses responsive font scaling for CPT numbers", () => {
-    const source = readFileSync(resolve(import.meta.dirname, "PilePlanViewer.tsx"), "utf8");
-    const css = readFileSync(resolve(import.meta.dirname, "viewer.css"), "utf8");
+    const source = readViewerSource();
+    const css = readFileSync(resolve(import.meta.dirname, "../viewer.css"), "utf8");
 
     assert.match(source, /getCptLabelStyle\(cptLabel\)/);
     assert.match(css, /\.cpt-label\s*{[\s\S]*?var\(--cpt-label-scale\)/);
   });
 
   it("does not show focus rectangles on map markers or legend items", () => {
-    const css = readFileSync(resolve(import.meta.dirname, "viewer.css"), "utf8");
+    const css = readFileSync(resolve(import.meta.dirname, "../viewer.css"), "utf8");
 
     assert.match(css, /\.load-point-marker:focus,\s*\.cpt-marker:focus\s*{\s*outline:\s*none;/);
     assert.match(css, /\.load-point-marker:focus-visible,\s*\.cpt-marker:focus-visible\s*{\s*outline:\s*none;/);
@@ -308,8 +323,8 @@ describe("PilePlanViewer inputs", () => {
   });
 
   it("uses a single transformed stage instead of recalculating marker pixels while panning", () => {
-    const source = readFileSync(resolve(import.meta.dirname, "PilePlanViewer.tsx"), "utf8");
-    const css = readFileSync(resolve(import.meta.dirname, "viewer.css"), "utf8");
+    const source = readViewerSource();
+    const css = readFileSync(resolve(import.meta.dirname, "../viewer.css"), "utf8");
 
     assert.match(source, /ref=\{stageRef\}/);
     assert.match(source, /style=\{getStageStyle\([\s\S]*?projectTransform\.canvasSize,[\s\S]*?\)\}/);
@@ -320,7 +335,7 @@ describe("PilePlanViewer inputs", () => {
   });
 
   it("keeps load-point selection locked while manually editing CPTs", () => {
-    const source = readFileSync(resolve(import.meta.dirname, "PilePlanViewer.tsx"), "utf8");
+    const source = readViewerSource();
 
     assert.match(source, /isViewerSelectionActionAllowed\(isEditingCptSelection, "background"\)/);
     assert.match(source, /isViewerSelectionActionAllowed\(isEditingCptSelection, "load-point"\)/);
@@ -329,8 +344,8 @@ describe("PilePlanViewer inputs", () => {
   });
 
   it("renders pointer-inert CPT connection lines inside the transformed stage before map markers", () => {
-    const source = readFileSync(resolve(import.meta.dirname, "PilePlanViewer.tsx"), "utf8");
-    const css = readFileSync(resolve(import.meta.dirname, "viewer.css"), "utf8");
+    const source = readViewerSource();
+    const css = readFileSync(resolve(import.meta.dirname, "../viewer.css"), "utf8");
     const stageIndex = source.indexOf('className={`viewer-content');
     const cptIndex = source.indexOf("{state.cpts.map", stageIndex);
     const stageContent = source.slice(stageIndex, cptIndex);
@@ -344,7 +359,7 @@ describe("PilePlanViewer inputs", () => {
   });
 
   it("does not restore a stale React viewport while a wheel zoom is waiting to commit", () => {
-    const source = readFileSync(resolve(import.meta.dirname, "PilePlanViewer.tsx"), "utf8");
+    const source = readViewerSource();
 
     assert.match(
       source,
@@ -353,7 +368,7 @@ describe("PilePlanViewer inputs", () => {
   });
 
   it("applies the calculated selected option status to each load point marker", () => {
-    const source = readFileSync(resolve(import.meta.dirname, "PilePlanViewer.tsx"), "utf8");
+    const source = readViewerSource();
 
     assert.match(source, /getLoadPointMarkerInvalidVisual/);
     assert.match(source, /pileOptionsByLoadPointId\.get\(loadPointId\)/);
@@ -362,8 +377,8 @@ describe("PilePlanViewer inputs", () => {
   });
 
   it("renders every technical and pending no-pile state as a small neutral dot", () => {
-    const source = readFileSync(resolve(import.meta.dirname, "PilePlanViewer.tsx"), "utf8");
-    const css = readFileSync(resolve(import.meta.dirname, "viewer.css"), "utf8");
+    const source = readViewerSource();
+    const css = readFileSync(resolve(import.meta.dirname, "../viewer.css"), "utf8");
 
     assert.match(source, /getUnselectedLoadPointMarkerState/);
     assert.match(source, /usesNeutralUnassignedMarker/);
@@ -374,8 +389,8 @@ describe("PilePlanViewer inputs", () => {
   });
 
   it("keeps load-point hover status backgrounds circular without stretching a neutral dot", () => {
-    const source = readFileSync(resolve(import.meta.dirname, "PilePlanViewer.tsx"), "utf8");
-    const css = readFileSync(resolve(import.meta.dirname, "viewer.css"), "utf8");
+    const source = readViewerSource();
+    const css = readFileSync(resolve(import.meta.dirname, "../viewer.css"), "utf8");
 
     assert.match(source, /viewer-hover-pile-symbol/);
     assert.match(css, /\.viewer-hover-marker\.is-load-point\s*\{[\s\S]*?border-radius:\s*50%;/);
@@ -383,7 +398,7 @@ describe("PilePlanViewer inputs", () => {
   });
 
   it("renders compact optimizer outcomes at the load-point anchor at every zoom level", () => {
-    const source = readFileSync(resolve(import.meta.dirname, "PilePlanViewer.tsx"), "utf8");
+    const source = readViewerSource();
 
     assert.match(source, /OptimizerUnresolvedMarker/);
     assert.doesNotMatch(source, /state\.viewport\.scale >= 1\.8/);
@@ -393,13 +408,13 @@ describe("PilePlanViewer inputs", () => {
   });
 
   it("anchors the stage at the same top-left origin used by lasso projection", () => {
-    const css = readFileSync(resolve(import.meta.dirname, "viewer.css"), "utf8");
+    const css = readFileSync(resolve(import.meta.dirname, "../viewer.css"), "utf8");
 
     assert.match(css, /\.viewer-content\s*{[\s\S]*?transform-origin:\s*0 0;/);
   });
 
   it("shares one responsive equal-axis transform across all viewer geometry", () => {
-    const source = readFileSync(resolve(import.meta.dirname, "PilePlanViewer.tsx"), "utf8");
+    const source = readViewerSource();
 
     assert.match(source, /createProjectViewTransform/);
     assert.match(source, /const \[projectTransform, setProjectTransform\]/);
@@ -412,8 +427,8 @@ describe("PilePlanViewer inputs", () => {
   });
 
   it("keeps one project transform and compensates layout movement without rerendering markers", () => {
-    const source = readFileSync(resolve(import.meta.dirname, "PilePlanViewer.tsx"), "utf8");
-    const css = readFileSync(resolve(import.meta.dirname, "viewer.css"), "utf8");
+    const source = readViewerSource();
+    const css = readFileSync(resolve(import.meta.dirname, "../viewer.css"), "utf8");
 
     assert.doesNotMatch(source, /import \{ flushSync \} from "react-dom"/);
     assert.doesNotMatch(source, /resizeProjectViewTransform/);
@@ -440,7 +455,7 @@ describe("PilePlanViewer inputs", () => {
   });
 
   it("renders a viewport-filling coordinate grid outside the finite project stage", () => {
-    const source = readFileSync(resolve(import.meta.dirname, "PilePlanViewer.tsx"), "utf8");
+    const source = readViewerSource();
     const gridIndex = source.indexOf('className="viewer-coordinate-grid"');
     const stageIndex = source.indexOf('className={`viewer-content');
 
@@ -452,9 +467,9 @@ describe("PilePlanViewer inputs", () => {
   });
 
   it("keeps coordinate-grid geometry under one imperative owner during layout changes", () => {
-    const source = readFileSync(resolve(import.meta.dirname, "PilePlanViewer.tsx"), "utf8");
+    const source = readViewerSource();
     const gridMarkup = source.match(/className="viewer-coordinate-grid"[\s\S]*?\/>/)?.[0] ?? "";
-    const css = readFileSync(resolve(import.meta.dirname, "viewer.css"), "utf8");
+    const css = readFileSync(resolve(import.meta.dirname, "../viewer.css"), "utf8");
 
     assert.doesNotMatch(gridMarkup, /style=/);
     assert.match(source, /<div[\s\S]*?className="viewer-coordinate-grid"/);
@@ -464,14 +479,14 @@ describe("PilePlanViewer inputs", () => {
   });
 
   it("uses an opaque surface behind sticky table headers", () => {
-    const css = readFileSync(resolve(import.meta.dirname, "rightPanel.css"), "utf8");
+    const css = readFileSync(resolve(import.meta.dirname, "../rightPanel.css"), "utf8");
 
     assert.match(css, /\.pile-options-table th\s*{[\s\S]*?background:\s*var\(--theme-surface\);/);
     assert.match(css, /\.cpt-table th\s*{[\s\S]*?background:\s*var\(--theme-surface\);/);
   });
 
   it("shares one subtle accent highlight between the chosen pile and governing CPT", () => {
-    const css = readFileSync(resolve(import.meta.dirname, "rightPanel.css"), "utf8");
+    const css = readFileSync(resolve(import.meta.dirname, "../rightPanel.css"), "utf8");
     const hoverRule = css.match(/\.pile-option-row:hover\s*\{(?<body>[^}]*)\}/s)?.groups?.body ?? "";
     const accentRule = css.match(
       /\.pile-option-row\.is-chosen,\s*\.cpt-table tr\.is-governing\s*\{(?<body>[^}]*)\}/s,
@@ -487,7 +502,7 @@ describe("PilePlanViewer inputs", () => {
   });
 
   it("keeps the hover candidate section on the themed inspector surface", () => {
-    const css = readFileSync(resolve(import.meta.dirname, "viewer.css"), "utf8");
+    const css = readFileSync(resolve(import.meta.dirname, "../viewer.css"), "utf8");
     const candidateRule = css.match(/\.viewer-hover-candidates\s*\{(?<body>[^}]*)\}/s)?.groups?.body ?? "";
 
     assert.match(candidateRule, /background:\s*var\(--theme-surface\)/);

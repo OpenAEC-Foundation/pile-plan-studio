@@ -66,7 +66,7 @@ describe("Alpha command surfaces", () => {
     const backstage = readFileSync(resolve(import.meta.dirname, "backstage/Backstage.tsx"), "utf8");
     const app = readFileSync(resolve(import.meta.dirname, "../../AppSession.tsx"), "utf8");
     const workspace = readFileSync(resolve(import.meta.dirname, "../domain/PilePlanWorkspace.tsx"), "utf8");
-    const viewer = readFileSync(resolve(import.meta.dirname, "../domain/PilePlanViewer.tsx"), "utf8");
+    const viewer = readFileSync(resolve(import.meta.dirname, "../domain/pile-plan-viewer/PilePlanViewer.tsx"), "utf8");
 
     assert.doesNotMatch(backstage, /onExportViewImage/);
     assert.doesNotMatch(backstage, /exportPanel\.asImage/);
