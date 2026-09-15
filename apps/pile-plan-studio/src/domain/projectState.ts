@@ -12,7 +12,7 @@ import type {
 import type { Viewport } from "../viewer/viewport.ts";
 import type { LegendSelectionFilter } from "../viewer/legendSelection.ts";
 import type { OptimizationRunSummary } from "./optimizationSummary.ts";
-import type { OptimizationLimitScope, OptimizationTargetScope } from "../components/domain/optimizationPanelModel.ts";
+import type { OptimizationLimitScope, OptimizationTargetScope } from "../components/domain/pile-plans/optimizationPanelModel.ts";
 import type { ForegroundLayer } from "./viewerPreferences.ts";
 import type { LoadPointLockDraft } from "./loadPointLocking.ts";
 import type { ProjectTipLevelKeys } from "../core/projectDocumentTypes.ts";

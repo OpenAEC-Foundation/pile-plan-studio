@@ -54,7 +54,7 @@ describe("Alpha command surfaces", () => {
 
   it("marks dirty projects in the explorer and guards replacement actions", () => {
     const source = readFileSync(resolve(import.meta.dirname, "../../AppSession.tsx"), "utf8");
-    const explorer = readFileSync(resolve(import.meta.dirname, "../domain/PilePlanExplorer.tsx"), "utf8");
+    const explorer = readFileSync(resolve(import.meta.dirname, "../domain/pile-plans/PilePlanExplorer.tsx"), "utf8");
 
     assert.match(source, /isDirty/);
     assert.match(explorer, /\{isDirty \? " \*" : ""\}/);
@@ -65,7 +65,7 @@ describe("Alpha command surfaces", () => {
   it("offers IFCPP and standard pile plan table exports", () => {
     const backstage = readFileSync(resolve(import.meta.dirname, "backstage/Backstage.tsx"), "utf8");
     const app = readFileSync(resolve(import.meta.dirname, "../../AppSession.tsx"), "utf8");
-    const workspace = readFileSync(resolve(import.meta.dirname, "../domain/PilePlanWorkspace.tsx"), "utf8");
+    const workspace = readFileSync(resolve(import.meta.dirname, "../domain/pile-plans/PilePlanWorkspace.tsx"), "utf8");
     const viewer = readFileSync(resolve(import.meta.dirname, "../domain/pile-plan-viewer/PilePlanViewer.tsx"), "utf8");
 
     assert.doesNotMatch(backstage, /onExportViewImage/);

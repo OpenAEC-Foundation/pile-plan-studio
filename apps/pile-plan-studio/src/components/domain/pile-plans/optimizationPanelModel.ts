@@ -3,8 +3,8 @@ import type {
   OptimizationUnassignedReason,
   OptimizationPreparationDiagnostic,
   PileConfigurationKey,
-} from "../.././core/projectTypes.ts";
-import { summarizeOptimizationRun } from "../../domain/optimizationSummary.ts";
+} from "../../../core/projectTypes.ts";
+import { summarizeOptimizationRun } from "../../../domain/optimizationSummary.ts";
 
 export type OptimizationTargetScope = "all" | "selected";
 export type OptimizationLimitScope = "target" | "whole-plan";

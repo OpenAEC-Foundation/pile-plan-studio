@@ -1,23 +1,23 @@
-import type { ProjectState } from "../../domain/projectState";
-import type { PileConfigurationKey } from "../../core/projectTypes.ts";
+import type { ProjectState } from "../../../domain/projectState";
+import type { PileConfigurationKey } from "../../../core/projectTypes.ts";
 import { useTranslation } from "react-i18next";
-import { buildLegendPresentation, deriveUsedPileConfigurations } from "../../domain/legendState.ts";
+import { buildLegendPresentation, deriveUsedPileConfigurations } from "../../../domain/legendState.ts";
 import {
   getLoadPointIdsForLegendSelection,
   replaceLegendSelectionFilter,
   toggleLegendSelectionFilter,
-} from "../../viewer/legendSelection.ts";
-import { renderPileSymbol } from "../../viewer/pileSymbols.ts";
-import { filterCheckIcon, pencilIcon } from "../template/ribbon/icons.ts";
-import { getActiveLockedLoadPointIds } from "../../domain/loadPointLocking.ts";
+} from "../../../viewer/legendSelection.ts";
+import { renderPileSymbol } from "../../../viewer/pileSymbols.ts";
+import { filterCheckIcon, pencilIcon } from "../../template/ribbon/icons.ts";
+import { getActiveLockedLoadPointIds } from "../../../domain/loadPointLocking.ts";
 import {
   getActivePilePlan,
   getPilePlanActivation,
   replacePilePlanActivation,
-} from "../../domain/pilePlanActivation.ts";
-import { INACTIVE_LEGEND_COLOR, SMALL_DOT_SYMBOL } from "../../domain/legendActivationPresentation.ts";
-import type { TipLevelRegionTopologyStatus } from "./useTipLevelRegionTopology.ts";
-import { formatPileTipLevelMillimetres } from "../../domain/formatting.ts";
+} from "../../../domain/pilePlanActivation.ts";
+import { INACTIVE_LEGEND_COLOR, SMALL_DOT_SYMBOL } from "../../../domain/legendActivationPresentation.ts";
+import type { TipLevelRegionTopologyStatus } from "../useTipLevelRegionTopology.ts";
+import { formatPileTipLevelMillimetres } from "../../../domain/formatting.ts";
 
 type Props = {
   state: ProjectState;

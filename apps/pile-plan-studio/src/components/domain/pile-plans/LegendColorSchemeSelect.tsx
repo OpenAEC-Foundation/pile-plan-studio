@@ -3,7 +3,7 @@ import {
   getLegendColorSchemePreview,
   LEGEND_COLOR_SCHEMES,
   type LegendColorScheme,
-} from "../../viewer/legendColors.ts";
+} from "../../../viewer/legendColors.ts";
 
 type Props = {
   value: LegendColorScheme;

@@ -1,4 +1,4 @@
-import type { LegendEncodingMode } from "../../core/projectTypes.ts";
+import type { LegendEncodingMode } from "../../../core/projectTypes.ts";
 
 export const LEGEND_ENCODING_MODES: readonly LegendEncodingMode[] = [
   "size-symbol",

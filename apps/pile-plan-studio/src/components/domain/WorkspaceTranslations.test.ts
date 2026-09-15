@@ -60,8 +60,8 @@ describe("Workspace translations", () => {
   });
 
   it("translates the explorer and legend through the common language setting", () => {
-    const explorer = readFileSync(resolve(import.meta.dirname, "PilePlanExplorer.tsx"), "utf8");
-    const legend = readFileSync(resolve(import.meta.dirname, "Legend.tsx"), "utf8");
+    const explorer = readFileSync(resolve(import.meta.dirname, "pile-plans/PilePlanExplorer.tsx"), "utf8");
+    const legend = readFileSync(resolve(import.meta.dirname, "pile-plans/Legend.tsx"), "utf8");
 
     assert.match(explorer, /t\("projectExplorer\.pilePlans"\)/);
     assert.match(explorer, /t\("projectExplorer\.newPilePlan"\)/);

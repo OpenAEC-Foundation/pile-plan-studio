@@ -1,5 +1,5 @@
 import { useTranslation } from "react-i18next";
-import type { LegendValuePlanUsageItem } from "../../../domain/legendConflicts.ts";
+import type { LegendValuePlanUsageItem } from "../../../../domain/legendConflicts.ts";
 
 export default function LegendPlanUsageSection({
   items,

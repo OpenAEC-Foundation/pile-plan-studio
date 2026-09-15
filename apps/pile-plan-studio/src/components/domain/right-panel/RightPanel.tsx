@@ -2,7 +2,7 @@ import { useTranslation } from "react-i18next";
 import type { ProjectState } from "../../../domain/projectState.ts";
 import type { PileConfigurationKey, PileCostSettings } from "../../../core/projectTypes.ts";
 import { getSelectedLoadPoints, formatLoadPointPanelTitle } from "../rightPanelModel.ts";
-import OptimizationPanel from "../OptimizationPanel.tsx";
+import OptimizationPanel from "../pile-plans/OptimizationPanel.tsx";
 import type { LoadPointGroup } from "../../../core/loadPointGroupContract.ts";
 import type { TechnicalAssignmentSnapshot } from "../technicalAssignmentController.ts";
 import "../rightPanel.css";

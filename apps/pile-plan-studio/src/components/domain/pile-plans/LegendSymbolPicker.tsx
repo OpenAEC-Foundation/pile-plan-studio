@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type KeyboardEvent } from "react";
-import type { PileBaseShape, PileFillPattern, PileSymbol } from "../../core/projectTypes.ts";
-import { PILE_BASE_SHAPES, PILE_FILL_PATTERNS } from "../../viewer/legendSymbols.ts";
-import { renderPileSymbol } from "../../viewer/pileSymbols.ts";
+import type { PileBaseShape, PileFillPattern, PileSymbol } from "../../../core/projectTypes.ts";
+import { PILE_BASE_SHAPES, PILE_FILL_PATTERNS } from "../../../viewer/legendSymbols.ts";
+import { renderPileSymbol } from "../../../viewer/pileSymbols.ts";
 
 type Props = {
   value: PileSymbol;

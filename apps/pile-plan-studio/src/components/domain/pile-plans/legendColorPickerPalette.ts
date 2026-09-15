@@ -1,5 +1,5 @@
-import type { LegendColorScheme } from "../../core/projectTypes.ts";
-import { generateLegendColors } from "../../viewer/legendColors.ts";
+import type { LegendColorScheme } from "../../../core/projectTypes.ts";
+import { generateLegendColors } from "../../../viewer/legendColors.ts";
 
 export type LegendColorPickerPaletteItem = {
   color: string;

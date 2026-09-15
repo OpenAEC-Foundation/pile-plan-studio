@@ -9,13 +9,13 @@ import FeedbackDialog from "./components/template/feedback/FeedbackDialog";
 import StatusBar from "./components/template/StatusBar";
 import InterfaceScaleNotice, { type InterfaceScaleNoticeValue } from "./components/template/InterfaceScaleNotice";
 import ActionNotice, { type ActionNoticeTone } from "./components/viewer/ActionNotice";
-import PilePlanWorkspace from "./components/domain/PilePlanWorkspace";
+import PilePlanWorkspace from "./components/domain/pile-plans/PilePlanWorkspace";
 import RightPanel, { type RightTaskPanel } from "./components/domain/right-panel/RightPanel";
 import { useLoadPointGroups } from "./components/domain/useLoadPointGroups.ts";
 import { useTechnicalAssignment } from "./components/domain/useTechnicalAssignment.ts";
 import ProjectInformationDialog from "./components/domain/ProjectInformationDialog";
 import UnsavedChangesDialog from "./components/domain/UnsavedChangesDialog.tsx";
-import PilePlanExplorer from "./components/domain/PilePlanExplorer.tsx";
+import PilePlanExplorer from "./components/domain/pile-plans/PilePlanExplorer.tsx";
 import SourceDataViewer from "./components/domain/SourceDataViewer.tsx";
 import type { InputSourceKind } from "./domain/projectState.ts";
 import type { SourceLoadPointSelection } from "./domain/sourceTableModel.ts";
@@ -53,7 +53,7 @@ import {
   formatOptimizationDiagnostics,
   getOptimizationTargetIds,
   isOptimizationDisabled,
-} from "./components/domain/optimizationPanelModel";
+} from "./components/domain/pile-plans/optimizationPanelModel";
 import { switchRightPanelMode } from "./domain/selectionState";
 import {
   getProjectFileCommands,

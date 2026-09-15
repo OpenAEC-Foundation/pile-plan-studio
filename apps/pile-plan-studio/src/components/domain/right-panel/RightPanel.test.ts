@@ -134,7 +134,7 @@ describe("React optimization panel", () => {
   });
 
   it("defers numeric optimization limits until blur or Enter", () => {
-    const optimization = readFileSync(resolve(import.meta.dirname, "../OptimizationPanel.tsx"), "utf8");
+    const optimization = readFileSync(resolve(import.meta.dirname, "../pile-plans/OptimizationPanel.tsx"), "utf8");
 
     assert.match(optimization, /useState\(String\(value\)\)/);
     assert.match(optimization, /onValueChange=\{setDraft\}/);
@@ -146,7 +146,7 @@ describe("React optimization panel", () => {
   });
 
   it("clears the last run feedback when optimization scopes change", () => {
-    const optimization = readFileSync(resolve(import.meta.dirname, "../OptimizationPanel.tsx"), "utf8");
+    const optimization = readFileSync(resolve(import.meta.dirname, "../pile-plans/OptimizationPanel.tsx"), "utf8");
 
     assert.match(optimization, /function updateScope/);
     assert.match(optimization, /optimizationSummary:\s*null/);
@@ -158,7 +158,7 @@ describe("React optimization panel", () => {
   });
 
   it("selects an exact optimizer candidate source and blocks an empty domain", () => {
-    const optimization = readFileSync(resolve(import.meta.dirname, "../OptimizationPanel.tsx"), "utf8");
+    const optimization = readFileSync(resolve(import.meta.dirname, "../pile-plans/OptimizationPanel.tsx"), "utf8");
     const english = JSON.parse(readFileSync(resolve(import.meta.dirname, "../../../i18n/locales/en/rightPanel.json"), "utf8"));
     const dutch = JSON.parse(readFileSync(resolve(import.meta.dirname, "../../../i18n/locales/nl/rightPanel.json"), "utf8"));
 
@@ -173,7 +173,7 @@ describe("React optimization panel", () => {
   });
 
   it("does not refocus a numeric field when the empty part of its row is clicked", () => {
-    const optimization = readFileSync(resolve(import.meta.dirname, "../OptimizationPanel.tsx"), "utf8");
+    const optimization = readFileSync(resolve(import.meta.dirname, "../pile-plans/OptimizationPanel.tsx"), "utf8");
     const styles = readFileSync(resolve(import.meta.dirname, "../rightPanel.css"), "utf8");
 
     assert.match(optimization, /<div\s+className="optimization-number"/);
@@ -186,7 +186,7 @@ describe("React optimization panel", () => {
 
   it("provides a closable task panel outside the permanent context tabs", () => {
     const panel = readRightPanelSource();
-    const optimization = readFileSync(resolve(import.meta.dirname, "../OptimizationPanel.tsx"), "utf8");
+    const optimization = readFileSync(resolve(import.meta.dirname, "../pile-plans/OptimizationPanel.tsx"), "utf8");
 
     assert.doesNotMatch(panel, /PanelTab label="Optimization"/);
     assert.match(panel, /taskPanel === "optimization"/);
@@ -234,7 +234,7 @@ describe("React optimization panel", () => {
 
   it("uses the shared right-panel translations", () => {
     const panel = readRightPanelSource();
-    const optimization = readFileSync(resolve(import.meta.dirname, "../OptimizationPanel.tsx"), "utf8");
+    const optimization = readFileSync(resolve(import.meta.dirname, "../pile-plans/OptimizationPanel.tsx"), "utf8");
     const config = readFileSync(resolve(import.meta.dirname, "../../../i18n/config.ts"), "utf8");
 
     assert.match(panel, /useTranslation\("rightPanel"\)/);
@@ -357,7 +357,7 @@ describe("React CPT settings panel", () => {
   });
 
   it("allows the optimizer candidate labels to wrap", () => {
-    const panel = readFileSync(resolve(import.meta.dirname, "../OptimizationPanel.tsx"), "utf8");
+    const panel = readFileSync(resolve(import.meta.dirname, "../pile-plans/OptimizationPanel.tsx"), "utf8");
     const styles = readFileSync(resolve(import.meta.dirname, "../rightPanel.css"), "utf8");
 
     assert.match(panel, /className="segmented-control optimization-candidate-source"/);

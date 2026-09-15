@@ -1,6 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState, type KeyboardEvent } from "react";
-import type { LegendColorScheme, PileSymbol } from "../../core/projectTypes.ts";
-import { renderPileSymbol } from "../../viewer/pileSymbols.ts";
+import type { LegendColorScheme, PileSymbol } from "../../../core/projectTypes.ts";
+import { renderPileSymbol } from "../../../viewer/pileSymbols.ts";
 import { createLegendColorPickerPalette } from "./legendColorPickerPalette.ts";
 import { shouldOpenLegendPickerAbove } from "./legendPickerPlacement.ts";
 

@@ -1,8 +1,8 @@
 import { useEffect, useId, useLayoutEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { groupLegendConflictsByProperty, type LegendConflict } from "../../../domain/legendConflicts.ts";
-import type { LegendEditorItemKind } from "../../../domain/legendEditorModel.ts";
-import { formatPileTipLevelMillimetres } from "../../../domain/formatting.ts";
+import { groupLegendConflictsByProperty, type LegendConflict } from "../../../../domain/legendConflicts.ts";
+import type { LegendEditorItemKind } from "../../../../domain/legendEditorModel.ts";
+import { formatPileTipLevelMillimetres } from "../../../../domain/formatting.ts";
 import { getRightAlignedLegendPopoverMaxWidth } from "../legendPickerPlacement.ts";
 
 export default function LegendConflictNotice({

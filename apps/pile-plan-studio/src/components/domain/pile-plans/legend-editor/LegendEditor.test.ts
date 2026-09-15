@@ -140,7 +140,7 @@ describe("legend editor", () => {
   });
 
   it("styles normal and editor states without relying on color alone", () => {
-    const viewerCss = readFileSync(resolve(import.meta.dirname, "../viewer.css"), "utf8");
+    const viewerCss = readFileSync(resolve(import.meta.dirname, "../../viewer.css"), "utf8");
     const editorCss = readFileSync(resolve(import.meta.dirname, "../LegendEditor.css"), "utf8");
 
     const normalUnusedRule = viewerCss.match(/\.legend-item\.is-unused\s*\{([^}]*)\}/);
@@ -165,7 +165,7 @@ describe("legend editor", () => {
   it("uses neutral shape previews and theme-aware partial fills", () => {
     const editor = readLegendEditorSource();
     const legend = readFileSync(resolve(import.meta.dirname, "../Legend.tsx"), "utf8");
-    const viewerCss = readFileSync(resolve(import.meta.dirname, "../viewer.css"), "utf8");
+    const viewerCss = readFileSync(resolve(import.meta.dirname, "../../viewer.css"), "utf8");
 
     assert.match(editor, /NEUTRAL_SYMBOL_PREVIEW_COLOR\s*=\s*"#6F7B82"/);
     assert.match(editor, /color=\{NEUTRAL_SYMBOL_PREVIEW_COLOR\}/);
@@ -177,8 +177,8 @@ describe("legend editor", () => {
   it("uses stable reassignment controls and disables actions that would have no effect", () => {
     const source = readLegendEditorSource();
     const css = readFileSync(resolve(import.meta.dirname, "../LegendEditor.css"), "utf8");
-    const nl = JSON.parse(readFileSync(resolve(import.meta.dirname, "../../../i18n/locales/nl/common.json"), "utf8"));
-    const en = JSON.parse(readFileSync(resolve(import.meta.dirname, "../../../i18n/locales/en/common.json"), "utf8"));
+    const nl = JSON.parse(readFileSync(resolve(import.meta.dirname, "../../../../i18n/locales/nl/common.json"), "utf8"));
+    const en = JSON.parse(readFileSync(resolve(import.meta.dirname, "../../../../i18n/locales/en/common.json"), "utf8"));
 
     assert.match(source, /wouldReassignLegendAppearance/);
     assert.match(source, /disabled=\{!canReassignSymbols\}/);

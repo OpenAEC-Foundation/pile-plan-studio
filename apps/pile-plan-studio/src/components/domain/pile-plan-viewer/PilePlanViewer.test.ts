@@ -34,7 +34,7 @@ function createTestProjectState(
 describe("PilePlanViewer inputs", () => {
   it("renders viewer, hover, and normal legend styles from the project legend", () => {
     const viewer = readViewerSource();
-    const legend = readFileSync(resolve(import.meta.dirname, "../Legend.tsx"), "utf8");
+    const legend = readFileSync(resolve(import.meta.dirname, "../pile-plans/Legend.tsx"), "utf8");
 
     assert.match(viewer, /const legend = state\.pileLegend/);
     assert.match(viewer, /renderPileSymbol\(style\.symbol, style\.color\)/);
@@ -47,7 +47,7 @@ describe("PilePlanViewer inputs", () => {
 
   it("renders inactive assigned configurations with neutral channel fallbacks", () => {
     const viewer = readViewerSource();
-    const legend = readFileSync(resolve(import.meta.dirname, "../Legend.tsx"), "utf8");
+    const legend = readFileSync(resolve(import.meta.dirname, "../pile-plans/Legend.tsx"), "utf8");
     const css = readFileSync(resolve(import.meta.dirname, "../viewer.css"), "utf8");
 
     assert.match(viewer, /getConfigurationActivationPresentation/);
@@ -175,7 +175,7 @@ describe("PilePlanViewer inputs", () => {
 
   it("does not use viewer marker selection to close surrounding task panels", () => {
     const viewer = readViewerSource();
-    const workspace = readFileSync(resolve(import.meta.dirname, "../PilePlanWorkspace.tsx"), "utf8");
+    const workspace = readFileSync(resolve(import.meta.dirname, "../pile-plans/PilePlanWorkspace.tsx"), "utf8");
 
     assert.doesNotMatch(viewer, /onMapMarkerSelect/);
     assert.doesNotMatch(workspace, /onMapMarkerSelect/);
@@ -268,7 +268,7 @@ describe("PilePlanViewer inputs", () => {
   });
 
   it("lets pile-size legend symbols inherit the active theme text color", () => {
-    const source = readFileSync(resolve(import.meta.dirname, "../Legend.tsx"), "utf8");
+    const source = readFileSync(resolve(import.meta.dirname, "../pile-plans/Legend.tsx"), "utf8");
     const css = readFileSync(resolve(import.meta.dirname, "../viewer.css"), "utf8");
 
     assert.match(source, /outlineColor:\s*"currentColor"/);
