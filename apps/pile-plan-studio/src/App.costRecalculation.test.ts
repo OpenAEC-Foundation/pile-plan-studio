@@ -4,7 +4,7 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
 describe("pile cost recalculation", () => {
-  const source = readFileSync(resolve(import.meta.dirname, "AppSession.tsx"), "utf8");
+  const source = readFileSync(resolve(import.meta.dirname, "app/session/AppSession.tsx"), "utf8");
 
   it("recalculates costs when the project pile head level changes", () => {
     assert.match(

@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import sampleProjectText from "../../../sample_project/sample_project.ifcpp?raw";
 
-import AppSession, { type AppSessionProps } from "./AppSession.tsx";
+import AppSession, { type AppSessionProps } from "./app/session/AppSession.tsx";
 import { readProjectDocumentCore } from "./core/coreClient.ts";
 import { ProjectDocumentReadError, type ProjectDocumentOutcome } from "./core/projectDocumentContract.ts";
 import { isDesktopRuntime } from "./domain/projectPersistence.ts";

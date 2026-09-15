@@ -12,7 +12,7 @@ describe("React app startup", () => {
   });
 
   it("drains desktop IFCPP launch requests after registering the warm-open listener", () => {
-    const source = readFileSync(resolve(import.meta.dirname, "AppSession.tsx"), "utf8");
+    const source = readFileSync(resolve(import.meta.dirname, "app/session/AppSession.tsx"), "utf8");
     const effectStart = source.indexOf('void listenDesktop("project-open-requested"');
     const effect = source.slice(effectStart, source.indexOf("return () =>", effectStart));
     const listener = effect.indexOf('listenDesktop("project-open-requested"');
@@ -38,7 +38,7 @@ describe("React app startup", () => {
   });
 
   it("runs one batched analysis whenever the analysis request object changes", () => {
-    const source = readFileSync(resolve(import.meta.dirname, "AppSession.tsx"), "utf8");
+    const source = readFileSync(resolve(import.meta.dirname, "app/session/AppSession.tsx"), "utf8");
 
     assert.match(source, /analysisPipeline\.run/);
     assert.match(source, /\[analysisPipeline, projectState\.analysisRequest\]/);
@@ -47,7 +47,7 @@ describe("React app startup", () => {
   });
 
   it("runs transient CPT draft previews through the shared pile-option analysis core", () => {
-    const source = readFileSync(resolve(import.meta.dirname, "AppSession.tsx"), "utf8");
+    const source = readFileSync(resolve(import.meta.dirname, "app/session/AppSession.tsx"), "utf8");
 
     assert.match(source, /getCptSelectionPreviewInput/);
     assert.match(source, /projectState\.cptSelectionEditDraft/);
@@ -56,7 +56,7 @@ describe("React app startup", () => {
   });
 
   it("stores analysis failures instead of leaving a permanent loading state", () => {
-    const appSource = readFileSync(resolve(import.meta.dirname, "AppSession.tsx"), "utf8");
+    const appSource = readFileSync(resolve(import.meta.dirname, "app/session/AppSession.tsx"), "utf8");
     const panelSource = readFileSync(
       resolve(import.meta.dirname, "components/domain/right-panel/LoadPointPanel.tsx"),
       "utf8",
@@ -67,7 +67,7 @@ describe("React app startup", () => {
   });
 
   it("initializes default piles for the sample, new imports, and refreshed unmatched points", () => {
-    const source = ["App.tsx", "AppSession.tsx"]
+    const source = ["App.tsx", "app/session/AppSession.tsx"]
       .map((fileName) => readFileSync(resolve(import.meta.dirname, fileName), "utf8"))
       .join("\n");
 
@@ -82,7 +82,7 @@ describe("React app startup", () => {
   });
 
   it("runs one guarded batched default selection after complete analysis", () => {
-    const source = readFileSync(resolve(import.meta.dirname, "AppSession.tsx"), "utf8");
+    const source = readFileSync(resolve(import.meta.dirname, "app/session/AppSession.tsx"), "utf8");
 
     assert.match(source, /chooseDefaultPileOptionsCore/);
     assert.match(source, /defaultPileSelectionPending/);
@@ -90,7 +90,7 @@ describe("React app startup", () => {
   });
 
   it("keeps the initialized sample project clean after choosing default piles", () => {
-    const source = readFileSync(resolve(import.meta.dirname, "AppSession.tsx"), "utf8");
+    const source = readFileSync(resolve(import.meta.dirname, "app/session/AppSession.tsx"), "utf8");
     const guardedRequestIndex = source.indexOf("defaultSelectionRequestRef.current = analysisRequest;");
     const chooserIndex = source.indexOf("chooseDefaultPileOptionsCore({", guardedRequestIndex);
     const defaultSelectionEffect = source.slice(chooserIndex, source.indexOf("  }, [", chooserIndex));
@@ -101,7 +101,7 @@ describe("React app startup", () => {
   });
 
   it("keeps default selection pending until the guarded request finishes", () => {
-    const source = readFileSync(resolve(import.meta.dirname, "AppSession.tsx"), "utf8");
+    const source = readFileSync(resolve(import.meta.dirname, "app/session/AppSession.tsx"), "utf8");
     const guardedRequestIndex = source.indexOf("defaultSelectionRequestRef.current = analysisRequest;");
     const chooserIndex = source.indexOf("chooseDefaultPileOptionsCore({", guardedRequestIndex);
     const effectStart = source.lastIndexOf("useEffect(() =>", chooserIndex);
@@ -116,7 +116,7 @@ describe("React app startup", () => {
   });
 
   it("refreshes selected sources through Rust while retaining the open project path", () => {
-    const source = readFileSync(resolve(import.meta.dirname, "AppSession.tsx"), "utf8");
+    const source = readFileSync(resolve(import.meta.dirname, "app/session/AppSession.tsx"), "utf8");
     const handler = source.slice(
       source.indexOf("onImportProject={async"),
       source.indexOf("onOpenProjectFile=", source.indexOf("onImportProject={async")),
@@ -134,7 +134,7 @@ describe("React app startup", () => {
   });
 
   it("runs greedy optimization through the shared Rust and WASM core", () => {
-    const source = readFileSync(resolve(import.meta.dirname, "AppSession.tsx"), "utf8");
+    const source = readFileSync(resolve(import.meta.dirname, "app/session/AppSession.tsx"), "utf8");
 
     assert.match(source, /greedyOptimizeCore/);
     assert.match(source, /buildGreedyOptimizationSettings/);
@@ -147,7 +147,7 @@ describe("React app startup", () => {
   });
 
   it("waits for complete analysis before creating a fresh pile plan", () => {
-    const source = readFileSync(resolve(import.meta.dirname, "AppSession.tsx"), "utf8");
+    const source = readFileSync(resolve(import.meta.dirname, "app/session/AppSession.tsx"), "utf8");
     const createStart = source.indexOf("const createFreshPilePlan");
     const createEnd = source.indexOf("useEffect(() =>", createStart);
     const createHandler = source.slice(createStart, createEnd);
@@ -156,7 +156,7 @@ describe("React app startup", () => {
   });
 
   it("chooses defaults from the full technical option set, independent of optimizer filters", () => {
-    const source = readFileSync(resolve(import.meta.dirname, "AppSession.tsx"), "utf8");
+    const source = readFileSync(resolve(import.meta.dirname, "app/session/AppSession.tsx"), "utf8");
     const createStart = source.indexOf("const createFreshPilePlan");
     const createEnd = source.indexOf("useEffect(() =>", createStart);
     const createHandler = source.slice(createStart, createEnd);
@@ -167,7 +167,7 @@ describe("React app startup", () => {
   });
 
   it("discards a fresh-plan default choice when its technical input changes", () => {
-    const source = readFileSync(resolve(import.meta.dirname, "AppSession.tsx"), "utf8");
+    const source = readFileSync(resolve(import.meta.dirname, "app/session/AppSession.tsx"), "utf8");
     const createStart = source.indexOf("const createFreshPilePlan");
     const createEnd = source.indexOf("useEffect(() =>", createStart);
     const createHandler = source.slice(createStart, createEnd);
@@ -181,7 +181,7 @@ describe("React app startup", () => {
   });
 
   it("uses the working pile plan explorer instead of passive source rows", () => {
-    const source = readFileSync(resolve(import.meta.dirname, "AppSession.tsx"), "utf8");
+    const source = readFileSync(resolve(import.meta.dirname, "app/session/AppSession.tsx"), "utf8");
 
     assert.match(source, /<PilePlanExplorer/);
     assert.match(source, /summarizePilePlanCosts/);
@@ -189,7 +189,7 @@ describe("React app startup", () => {
   });
 
   it("keeps viewer preferences inside project persistence", () => {
-    const source = readFileSync(resolve(import.meta.dirname, "AppSession.tsx"), "utf8");
+    const source = readFileSync(resolve(import.meta.dirname, "app/session/AppSession.tsx"), "utf8");
 
     assert.doesNotMatch(source, /viewerPreferencesLoaded|loadViewerPreferences|saveViewerPreferences/);
     assert.match(source, /onSymbolScaleChange=.*handleProjectStateChange/s);
@@ -198,7 +198,7 @@ describe("React app startup", () => {
   });
 
   it("loads and persists one unified user settings record", () => {
-    const source = readFileSync(resolve(import.meta.dirname, "AppSession.tsx"), "utf8");
+    const source = readFileSync(resolve(import.meta.dirname, "app/session/AppSession.tsx"), "utf8");
 
     assert.match(source, /createPlatformUserSettingsStore/);
     assert.match(source, /loadUserSettings/);
@@ -207,7 +207,7 @@ describe("React app startup", () => {
   });
 
   it("applies loaded desktop scale before rendering the normal workspace", () => {
-    const source = readFileSync(resolve(import.meta.dirname, "AppSession.tsx"), "utf8");
+    const source = readFileSync(resolve(import.meta.dirname, "app/session/AppSession.tsx"), "utf8");
     assert.match(source, /const \[userSettingsReady, setUserSettingsReady\] = useState\(false\)/);
     assert.match(
       source,
@@ -221,14 +221,14 @@ describe("React app startup", () => {
   });
 
   it("does not leave the application behind the startup surface when settings fail", () => {
-    const source = readFileSync(resolve(import.meta.dirname, "AppSession.tsx"), "utf8");
+    const source = readFileSync(resolve(import.meta.dirname, "app/session/AppSession.tsx"), "utf8");
 
     assert.match(source, /catch \(error\) \{[\s\S]*?Failed to initialize user settings/);
     assert.match(source, /finally \{[\s\S]*?setUserSettingsReady\(true\)/);
   });
 
   it("uses the sample project costs as the immutable built-in fallback", () => {
-    const source = readFileSync(resolve(import.meta.dirname, "AppSession.tsx"), "utf8");
+    const source = readFileSync(resolve(import.meta.dirname, "app/session/AppSession.tsx"), "utf8");
 
     assert.match(source, /BUILT_IN_PILE_COST_DEFAULTS\s*=\s*\([\s\S]*?JSON\.parse\(sampleProjectText\)[\s\S]*?\)\.settings\.pile_costs/);
     assert.match(source, /mergePileCostCatalog\([\s\S]*?BUILT_IN_PILE_COST_DEFAULTS/);
@@ -267,13 +267,13 @@ describe("React app startup", () => {
   });
 
   it("keeps task panels open while viewer selections change", () => {
-    const source = readFileSync(resolve(import.meta.dirname, "AppSession.tsx"), "utf8");
+    const source = readFileSync(resolve(import.meta.dirname, "app/session/AppSession.tsx"), "utf8");
 
     assert.doesNotMatch(source, /<PilePlanWorkspace[\s\S]*?onMapMarkerSelect=/);
   });
 
   it("reports restored legend mappings when an opened project contains invalid values", () => {
-    const source = readFileSync(resolve(import.meta.dirname, "AppSession.tsx"), "utf8");
+    const source = readFileSync(resolve(import.meta.dirname, "app/session/AppSession.tsx"), "utf8");
     const installStart = source.indexOf("const installOpenedProject");
     const installEnd = source.indexOf("const openSampleProject", installStart);
     const installHandler = source.slice(installStart, installEnd);

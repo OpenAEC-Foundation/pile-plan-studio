@@ -6,7 +6,7 @@ import { resolve } from "node:path";
 describe("browser recovery integration", () => {
   it("offers an explicit sample project command through the replacement guard", () => {
     const root = resolve(import.meta.dirname, "..");
-    const appSource = readFileSync(resolve(root, "AppSession.tsx"), "utf8");
+    const appSource = readFileSync(resolve(root, "app/session/AppSession.tsx"), "utf8");
     const backstageSource = readFileSync(
       resolve(root, "components/template/backstage/Backstage.tsx"),
       "utf8",
