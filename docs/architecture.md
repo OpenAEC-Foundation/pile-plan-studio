@@ -24,21 +24,23 @@ The React application is divided by responsibility rather than by runtime:
 
 - `App.tsx` owns startup and installs `app/session/AppSession.tsx` only after
   the core and user settings are ready;
-- `app/session/` composes the active application session and keeps its
-  workflow-specific support code together, while the other `app/` modules
-  contain small orchestration controllers for request lifetimes and project
-  lifecycle transitions;
+- `app/session/` composes the active application session, `app/derived-state/`
+  owns asynchronous Rust-result snapshots and stale-request protection, and
+  `app/project/` coordinates project lifecycle transitions;
 - `core/*Client.ts` contains the platform adapters. `coreClient.ts` is the
   stable facade, and the project, analysis, and pile-plan clients choose the
   browser/WASM or desktop/Tauri transport without making engineering choices;
-- `domain/` contains immutable application and presentation state, history,
-  persistence workflow, formatting, and user-intent helpers; and
+- `domain/` contains pure immutable application and presentation logic grouped
+  by feature: `project/` (including `history/` and `recovery/`), `pile-plans/`
+  (including `optimization/`), `pile-options/`, `legend/`, `cpt-selection/`,
+  `source-data/`, `settings/`, and `workspace/`. Only the genuinely shared
+  `formatting.ts` remains directly in `domain/`; and
 - `components/domain/` owns feature views. Imports, pile-plan editing, project
   dialogs, source-data tables, the right panel, and the plan viewer are grouped
   under `imports/`, `pile-plans/`, `project/`, `source-data/`, `right-panel/`,
-  and `pile-plan-viewer/`. Feature-specific models, tests, and styles live with
-  their view; cross-feature hooks and controls remain at the shared domain
-  component level.
+  and `pile-plan-viewer/`. Feature-specific models, tests, styles, and controls
+  live with their owning view; only reusable view primitives live under
+  `components/domain/shared/`.
 
 These boundaries do not move engineering authority into React. CPT selection,
 pile-option evaluation, capacity, cost, grouping, assignment, optimization, and
