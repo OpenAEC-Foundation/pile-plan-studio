@@ -1,5 +1,33 @@
 # Pile Plan Studio Release Notes
 
+## 0.3.4-alpha
+
+This maintenance alpha simplifies the Rust core and application structure while
+preserving the engineering model and project format. It also keeps grouped load
+points visually consistent across interface themes.
+
+### Improved
+
+- Split the Rust analysis and optimization implementation into focused feature
+  modules, including pile options, CPT selection, source data, optimization,
+  and pile-tip-level regions.
+- Build and reuse one foundation-advice index per analysis request, and use the
+  more precise `PileOptionAnalysisResult` name for the request-scoped result.
+- Remove unused legacy and test-only APIs from the core and application,
+  including obsolete pile-count handling.
+- Organize application state, core clients, domain helpers, viewer layers, and
+  side panels into clearer feature folders.
+- Keep the related-group selection ring at the same neutral contrast in light
+  and dark themes.
+- Document the current module boundaries, domain ownership, and viewer colour
+  invariants for future maintenance.
+
+### Compatibility
+
+- IFCPP schema version 4 remains current; no project migration is required.
+- Browser/WASM and desktop/Tauri continue to use the same Rust engineering
+  rules, with unchanged intended calculation outcomes.
+
 ## 0.3.3-alpha
 
 This alpha supports millimetre-precise pile-tip levels, consolidates project
