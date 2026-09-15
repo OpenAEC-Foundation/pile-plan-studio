@@ -18,7 +18,7 @@ import {
   reconcileProjectLegend,
   type LegendImportWarning,
 } from "../viewer/legend.ts";
-import type { ProjectTipLevelKeys } from "./projectDocumentContract.ts";
+import type { ProjectTipLevelKeys } from "./projectDocumentTypes.ts";
 
 type IfcppBearingCapacity = Omit<BearingCapacity, "pile_tip_level_mm">;
 

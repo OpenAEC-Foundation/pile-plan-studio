@@ -1,5 +1,6 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 
 import {
   projectDocumentErrorFromCore,
@@ -12,6 +13,12 @@ import {
 } from "./projectDocumentContract.ts";
 
 describe("project document result mapping", () => {
+  it("keeps shared tip-level key types outside the document contract", () => {
+    const projectFile = readFileSync(new URL("./projectFile.ts", import.meta.url), "utf8");
+
+    assert.doesNotMatch(projectFile, /from "\.\/projectDocumentContract\.ts"/);
+  });
+
   it("maps a canonical document, exact millimetre keys, and browser maps", () => {
     const outcome = projectDocumentOutcomeFromCore({
       status: "valid",

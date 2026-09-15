@@ -3,15 +3,10 @@ import type {
   IfcppPilePlan,
   IfcppProject,
 } from "./projectFile.ts";
+import type { ProjectTipLevelKeys } from "./projectDocumentTypes.ts";
 import type { PileConfigurationKey } from "./projectTypes.ts";
 
 export type PileTipLevelPrecisionReason = "non-finite" | "out-of-range" | "submillimetre";
-
-export type ProjectTipLevelKeys = {
-  bearingCapacities: number[];
-  pilePlans: Array<{ id: string; active: number[] }>;
-  legend: number[];
-};
 
 type NumericCollection<T> = Map<number, T> | Record<string, T>;
 type StringCollection<T> = Map<string, T> | Record<string, T>;
