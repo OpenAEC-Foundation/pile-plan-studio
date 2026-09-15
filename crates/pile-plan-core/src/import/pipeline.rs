@@ -38,14 +38,7 @@ pub fn preview_import_source(source: &ImportSource) -> ImportSourcePreview {
     }
 }
 
-pub fn import_project_from_profiled_sources(
-    project_name: &str,
-    sources: &[ImportSource],
-) -> Result<PilePlanProject, ImportError> {
-    import_project_from_profiled_sources_with_properties(project_name, sources, None, "EUR")
-}
-
-pub fn import_project_from_profiled_sources_with_properties(
+pub fn import_project_from_sources(
     project_name: &str,
     sources: &[ImportSource],
     pile_head_level_m: Option<f64>,
@@ -634,7 +627,7 @@ mod tests {
     fn preview_count_matches_final_rfem_import() {
         let load_source = rfem_auto_source();
         let preview = preview_import_source(&load_source);
-        let project = import_project_from_profiled_sources(
+        let project = import_project_from_sources(
             "RFEM Project",
             &[
                 load_source,
@@ -649,6 +642,8 @@ mod tests {
                     include_bytes!("../../../../sample_project/Draagvermogens.xlsx"),
                 ),
             ],
+            None,
+            "EUR",
         )
         .unwrap();
 
@@ -657,7 +652,7 @@ mod tests {
 
     #[test]
     fn rfem_import_records_profile_and_mapping_provenance() {
-        let project = import_project_from_profiled_sources(
+        let project = import_project_from_sources(
             "RFEM Project",
             &[
                 rfem_auto_source(),
@@ -672,6 +667,8 @@ mod tests {
                     include_bytes!("../../../../sample_project/Draagvermogens.xlsx"),
                 ),
             ],
+            None,
+            "EUR",
         )
         .unwrap();
         let log = project
@@ -691,7 +688,7 @@ mod tests {
 
     #[test]
     fn rfem_provenance_survives_ifcpp_round_trip() {
-        let project = import_project_from_profiled_sources(
+        let project = import_project_from_sources(
             "RFEM Project",
             &[
                 rfem_auto_source(),
@@ -706,6 +703,8 @@ mod tests {
                     include_bytes!("../../../../sample_project/Draagvermogens.xlsx"),
                 ),
             ],
+            None,
+            "EUR",
         )
         .unwrap();
 

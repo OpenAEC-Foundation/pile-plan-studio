@@ -18,6 +18,25 @@ The guiding rule is that engineering decisions must be implemented and tested in
 `crates/pile-plan-core` first. Frontend code may present results, but should not
 be the source of truth for calculations.
 
+The pile-option calculation is grouped under `pile_options/`:
+
+- `source_data.rs` owns load points, CPTs, and flat foundation-advice rows;
+- `cpt_selection.rs` owns automatic and manual CPT selection;
+- `pile_options/foundation_advice.rs` builds the runtime advice index;
+- `pile_options/costs.rs` owns cost settings, validation, and physical cost calculation;
+- `pile_options/mod.rs` evaluates and ranks pile configurations; and
+- `pile_options/analysis.rs` coordinates one batched calculation for the requested load points.
+
+Optimization is grouped under `optimization/`, while `tip_level_regions/`
+owns the load-point topology, Gabriel graph, bounded faces, and grouping used
+to render pile-tip-level regions. The generic `spatial` name is deliberately
+avoided because this geometry exists for that specific domain purpose.
+
+Foundation advice remains stored as flat rows keyed by CPT ID. The batch
+orchestrator builds one internal index and reuses it for all requested load
+points, so CPTs without advice remain representable without repeated full-row
+searches during option calculation.
+
 The detailed ownership audit, including explicit reasons for behavior that
 remains in TypeScript, is maintained in
 [`docs/domain-ownership.md`](domain-ownership.md).

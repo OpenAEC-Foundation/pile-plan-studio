@@ -378,9 +378,9 @@ fn checked_tip_keys(
 #[cfg(test)]
 mod tests {
     use crate::{
-        import_project_from_generic_sources, CptSelectionAlgorithm, CptSelectionSettings,
-        ImportProfile, ImportProfileOptions, ImportRole, ImportSource, PileConfigurationKey,
-        ProjectCpt, ProjectLoadPoint, SelectedPileChoice, SourceFormat,
+        import_project_from_sources, CptSelectionAlgorithm, CptSelectionSettings, ImportProfile,
+        ImportProfileOptions, ImportRole, ImportSource, PileConfigurationKey, ProjectCpt,
+        ProjectLoadPoint, SelectedPileChoice, SourceFormat,
     };
 
     use super::{match_cpts, match_load_points, refresh_project_from_profiled_sources};
@@ -644,7 +644,7 @@ mod tests {
     }
 
     fn project() -> crate::PilePlanProject {
-        import_project_from_generic_sources(
+        import_project_from_sources(
             "Refresh project",
             &[
                 csv_source(ImportRole::LoadPoints, "loads.csv", "1,0,0,100\n"),
@@ -655,6 +655,8 @@ mod tests {
                     "61,-17.5,290,700\n",
                 ),
             ],
+            None,
+            "EUR",
         )
         .unwrap()
     }

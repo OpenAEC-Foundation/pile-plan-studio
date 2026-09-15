@@ -1,55 +1,33 @@
-pub mod analysis;
-pub mod export;
-pub mod greedy_optimizer;
-pub mod ifcpp;
-pub mod import;
-pub mod load_point_groups;
-pub mod load_point_positions;
-pub mod model;
-pub mod optimization_units;
-pub mod pile_configuration;
-pub mod pile_option_aggregation;
-pub mod pile_option_status;
-pub mod pile_options;
-pub mod pile_plan_import;
-pub mod pile_tip_levels;
-pub mod project;
-pub mod spatial;
-pub mod technical_assignment;
+mod cpt_selection;
+mod export;
+mod ifcpp;
+mod import;
+mod load_point_groups;
+mod load_point_positions;
+mod optimization;
+mod pile_configuration;
+mod pile_options;
+mod pile_plan_import;
+mod pile_tip_levels;
+mod project;
+mod source_data;
+mod technical_assignment;
+mod tip_level_regions;
 
-pub use analysis::{
-    bearing_capacity_rows_for_cpt, bearing_capacity_summary, build_pile_options_by_load_point,
-    build_project_analysis, calculate_pile_cost, choose_default_pile_option,
-    choose_default_pile_options, manually_selected_cpts, pile_configuration_options, selected_cpts,
-    selected_cpts_by_maximum_angle, selected_cpts_by_quadrant, validate_pile_cost_settings,
-    BearingCapacity as ProjectBearingCapacity, BearingCapacitySummary, Cpt as ProjectCpt,
-    CptBearingCapacityRow, CptSelectionAlgorithm, CptSelectionSettings, InvalidPileCostSettings,
-    InvalidPileCostSettingsItem, LoadPoint as ProjectLoadPoint, PileConfigurationOption,
-    PileCostSettings, PileCostSettingsItem, PileCostShape, PileCostValidationReason,
-    ProjectAnalysisResult, SelectedCpt,
-};
+pub use cpt_selection::{CptSelectionAlgorithm, CptSelectionSettings, SelectedCpt};
 pub use export::{
     build_pile_plan_export_rows, write_pile_plan_csv, write_pile_plan_xlsx, ExportError,
     PilePlanExportRequest, PilePlanExportRow, PILE_PLAN_EXPORT_HEADERS,
-};
-pub use greedy_optimizer::{
-    greedy_optimize_pile_choices, GreedyOptimizationInput, GreedyOptimizationOutcome,
-    GreedyOptimizationResult, GreedyOptimizationSettings, GreedyOptimizedPileChoice,
-    OptimizationCandidateSource, OptimizationLimitScope, OptimizationUnassignedLoadPoint,
-    OptimizationUnassignedReason,
 };
 pub use ifcpp::{
     read_ifcpp_str, read_project_document, read_validated_ifcpp_str, validate_ifcpp_project,
     write_ifcpp_string, write_project_document, IfcppError, ProjectDocumentError,
 };
 pub use import::{
-    import_bearing_capacities_xlsx, import_cpts_xlsx, import_load_points_csv,
-    import_project_from_generic_sources, import_project_from_generic_sources_with_properties,
-    import_project_from_profiled_sources, import_project_from_profiled_sources_with_properties,
     import_project_from_sources, preview_import_source, refresh_project_from_profiled_sources,
     ImportDiagnostic, ImportDiagnosticCode, ImportDiagnosticLocation, ImportDiagnosticSeverity,
     ImportError, ImportPreviewDetails, ImportProfile, ImportProfileOptions, ImportRole,
-    ImportSource, ImportSourcePreview, ProjectImportSources, RfemPreviewDetails, SourceFormat,
+    ImportSource, ImportSourcePreview, RfemPreviewDetails, SourceFormat,
 };
 pub use load_point_groups::{
     apply_load_point_group_assignment, derive_load_point_groups,
@@ -61,19 +39,31 @@ pub use load_point_positions::{
     duplicate_load_point_positions, validate_unique_load_point_positions,
     DuplicateLoadPointPosition, DuplicateLoadPointPositionMember, DuplicateLoadPointPositions,
 };
-pub use optimization_units::{
-    prepare_optimization_units, OptimizationCandidateSettings, OptimizationPreparationDiagnostic,
-    OptimizationPreparationDiagnosticKind, OptimizationPreparationResult, OptimizationUnit,
+pub use optimization::{
+    greedy_optimize_pile_choices, prepare_optimization_units, GreedyOptimizationInput,
+    GreedyOptimizationOutcome, GreedyOptimizationResult, GreedyOptimizationSettings,
+    GreedyOptimizedPileChoice, OptimizationCandidateSettings, OptimizationCandidateSource,
+    OptimizationLimitScope, OptimizationPreparationDiagnostic,
+    OptimizationPreparationDiagnosticKind, OptimizationPreparationResult,
+    OptimizationUnassignedLoadPoint, OptimizationUnassignedReason, OptimizationUnit,
     OptimizationUnitOption, PrepareOptimizationUnitsInput,
 };
 pub use pile_configuration::PileConfigurationKey;
-pub use pile_option_aggregation::{
-    aggregate_pile_options_for_load_points, AggregatedPileConfiguration,
-    AggregatedPileConfigurationStatus,
+pub use pile_options::{
+    aggregate_pile_options_for_load_points, build_pile_option_analysis, calculate_pile_cost,
+    choose_default_pile_options, pile_option_technical_status, validate_pile_cost_settings,
+    AggregatedPileConfiguration, AggregatedPileConfigurationStatus, CptBearingCapacityRow,
+    InvalidPileCostSettings, InvalidPileCostSettingsItem, PileConfigurationOption,
+    PileCostSettings, PileCostSettingsItem, PileCostShape, PileCostValidationReason,
+    PileOptionAnalysisResult, PileOptionTechnicalStatus,
 };
-pub use pile_option_status::{pile_option_technical_status, PileOptionTechnicalStatus};
-pub use pile_options::{calculate_pile_option, find_pile_options};
-pub use pile_plan_import::*;
+pub use pile_plan_import::{
+    preview_pile_plan_import, PilePlanImportChange, PilePlanImportDiagnostic,
+    PilePlanImportDiagnosticCode, PilePlanImportDiagnosticLocation,
+    PilePlanImportDiagnosticSeverity, PilePlanImportOptions, PilePlanImportPatch,
+    PilePlanImportPreview, PilePlanImportProfile, PilePlanImportRequest, PilePlanImportSummary,
+    PilePlanImportedValue,
+};
 pub use pile_tip_levels::{
     pile_tip_level_m, try_pile_tip_level_mm, InvalidPileTipLevels, PileTipLevelPrecisionError,
     PileTipLevelPrecisionErrorReason,
@@ -86,12 +76,15 @@ pub use project::{
     ProjectUnits, ProjectUserState, SelectedPileChoice, ValidatedPilePlanProject,
     ViewerUtilizationSettings,
 };
-pub use spatial::{
-    build_spatial_neighborhood, build_tip_level_region_topology, SpatialEdge, SpatialFace,
-    SpatialNeighborhood, SpatialPileAssignment, TipLevelRegionGroup, TipLevelRegionTopology,
+pub use source_data::{
+    BearingCapacity as ProjectBearingCapacity, Cpt as ProjectCpt, LoadPoint as ProjectLoadPoint,
 };
 pub use technical_assignment::{
     assess_technical_assignment, TechnicalAssignmentAssessment, TechnicalAssignmentAssessmentError,
     TechnicalAssignmentAvailability, TechnicalAssignmentIssue, TechnicalAssignmentIssueCause,
     TechnicalAssignmentIssueStatus,
+};
+pub use tip_level_regions::{
+    build_load_point_topology, build_tip_level_region_topology, LoadPointEdge, LoadPointFace,
+    LoadPointTopology, TipLevelRegionAssignment, TipLevelRegionGroup, TipLevelRegionTopology,
 };

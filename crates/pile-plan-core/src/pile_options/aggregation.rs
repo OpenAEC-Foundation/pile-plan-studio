@@ -2,7 +2,8 @@ use std::collections::{BTreeSet, HashMap};
 
 use serde::{Deserialize, Serialize};
 
-use crate::{PileConfigurationKey, PileConfigurationOption, PileOptionTechnicalStatus};
+use super::{PileConfigurationOption, PileOptionTechnicalStatus};
+use crate::PileConfigurationKey;
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
 pub struct AggregatedPileConfiguration {

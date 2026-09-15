@@ -1,7 +1,7 @@
 import type {
   CptBearingCapacityRow,
   PileConfigurationOption,
-  ProjectAnalysisResult,
+  PileOptionAnalysisResult,
   SelectedCpt,
 } from "./projectTypes.ts";
 
@@ -13,7 +13,7 @@ export type CorePileConfigurationOption = Omit<
   technical_status: PileConfigurationOption["technicalStatus"];
 };
 
-export type CoreProjectAnalysisResult = {
+export type CorePileOptionAnalysisResult = {
   pile_options_by_load_point:
     | Map<number, CorePileConfigurationOption[]>
     | Record<string, CorePileConfigurationOption[]>;
@@ -25,9 +25,9 @@ export type CoreProjectAnalysisResult = {
     | undefined;
 };
 
-export function projectAnalysisResultFromCore(
-  result: CoreProjectAnalysisResult,
-): ProjectAnalysisResult {
+export function pileOptionAnalysisResultFromCore(
+  result: CorePileOptionAnalysisResult,
+): PileOptionAnalysisResult {
   return {
     pileOptionsByLoadPointId: corePileOptionsMapToFrontend(result.pile_options_by_load_point),
     selectedCptsByLoadPointId: numericMap(result.selected_cpts_by_load_point),

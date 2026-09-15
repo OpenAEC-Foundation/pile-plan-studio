@@ -1,8 +1,8 @@
 use std::collections::{BTreeMap, BTreeSet};
 
-use super::{GabrielGraph, GeometricNode, LoadPointFace};
+use super::{GabrielFace, GabrielGraph, GeometricNode};
 
-pub(super) fn extract_bounded_faces(graph: &GabrielGraph) -> Vec<LoadPointFace> {
+pub(super) fn extract_bounded_faces(graph: &GabrielGraph) -> Vec<GabrielFace> {
     let nodes_by_id = graph
         .nodes
         .iter()
@@ -73,7 +73,7 @@ pub(super) fn extract_bounded_faces(graph: &GabrielGraph) -> Vec<LoadPointFace> 
                 && translated_signed_area(&boundary, &nodes_by_id) > 0.0
             {
                 canonicalize_boundary(&mut boundary);
-                faces.push(LoadPointFace {
+                faces.push(GabrielFace {
                     boundary_load_point_ids: boundary,
                 });
             }
@@ -117,7 +117,7 @@ fn canonicalize_boundary(boundary: &mut Vec<u32>) {
 
 #[cfg(test)]
 mod tests {
-    use super::super::{GabrielGraph, GeometricNode, LoadPointEdge, LoadPointFace};
+    use super::super::{GabrielEdge, GabrielFace, GabrielGraph, GeometricNode};
     use super::extract_bounded_faces;
 
     fn node(load_point_id: u32, x_mm: f64, y_mm: f64) -> GeometricNode {
@@ -128,8 +128,8 @@ mod tests {
         }
     }
 
-    fn edge(from_load_point_id: u32, to_load_point_id: u32) -> LoadPointEdge {
-        LoadPointEdge {
+    fn edge(from_load_point_id: u32, to_load_point_id: u32) -> GabrielEdge {
+        GabrielEdge {
             from_load_point_id,
             to_load_point_id,
         }
@@ -150,10 +150,10 @@ mod tests {
         assert_eq!(
             extract_bounded_faces(&graph),
             vec![
-                LoadPointFace {
+                GabrielFace {
                     boundary_load_point_ids: vec![1, 2, 3],
                 },
-                LoadPointFace {
+                GabrielFace {
                     boundary_load_point_ids: vec![1, 3, 4],
                 },
             ]
@@ -188,7 +188,7 @@ mod tests {
 
         assert_eq!(
             extract_bounded_faces(&graph),
-            vec![LoadPointFace {
+            vec![GabrielFace {
                 boundary_load_point_ids: vec![1, 2, 3],
             }]
         );

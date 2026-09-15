@@ -4,10 +4,12 @@ use serde::{de::Error as _, Deserialize, Deserializer, Serialize, Serializer};
 
 use crate::import::{ImportProfile, ImportRole, SourceFormat};
 
-use crate::analysis::{BearingCapacity, Cpt, CptSelectionSettings, LoadPoint, PileCostSettings};
-use crate::greedy_optimizer::{GreedyOptimizationSettings, OptimizationUnassignedReason};
+use crate::cpt_selection::CptSelectionSettings;
 use crate::load_point_groups::LoadPointGroupingSettings;
+use crate::optimization::{GreedyOptimizationSettings, OptimizationUnassignedReason};
 use crate::pile_configuration::PileConfigurationKey;
+use crate::pile_options::PileCostSettings;
+use crate::source_data::{BearingCapacity, Cpt, LoadPoint};
 use crate::{try_pile_tip_level_mm, PileTipLevelPrecisionErrorReason};
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]

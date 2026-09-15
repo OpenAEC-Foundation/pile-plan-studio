@@ -14,7 +14,7 @@ import {
 } from "./cptSettingsModel.ts";
 import * as cptSettingsModel from "./cptSettingsModel.ts";
 import type { ProjectState } from "../../domain/projectState.ts";
-import type { ProjectAnalysisResult } from "../../core/projectTypes.ts";
+import type { PileOptionAnalysisResult } from "../../core/projectTypes.ts";
 
 describe("React CPT settings model", () => {
   it("keeps the manual draft when switching into CPT edit mode", () => {
@@ -320,7 +320,7 @@ describe("React CPT settings model", () => {
     const currentDraft = { loadPointIds: [1], cptIdsByLoadPoint: new Map([[1, new Set([62])]]) };
     const staleDraft = { loadPointIds: [1], cptIdsByLoadPoint: new Map([[1, new Set([61])]]) };
     const state = minimalState({ cptSelectionEditDraft: currentDraft });
-    const analysis: ProjectAnalysisResult = {
+    const analysis: PileOptionAnalysisResult = {
       pileOptionsByLoadPointId: new Map([[1, [{
         pile_size_mm: 290,
         pile_tip_level_m: -17.5,
@@ -336,7 +336,7 @@ describe("React CPT settings model", () => {
     const applyResult = api.applyCptSelectionPreviewResult as (
       state: ProjectState,
       draft: ProjectState["cptSelectionEditDraft"],
-      analysis: ProjectAnalysisResult,
+      analysis: PileOptionAnalysisResult,
     ) => ProjectState;
 
     assert.equal(applyResult(state, staleDraft, analysis), state);

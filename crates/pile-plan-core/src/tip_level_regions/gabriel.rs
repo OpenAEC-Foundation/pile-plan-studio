@@ -1,8 +1,8 @@
 use std::collections::BTreeSet;
 
-use crate::analysis::LoadPoint;
+use crate::source_data::LoadPoint;
 
-use super::{GabrielGraph, GeometricNode, LoadPointEdge};
+use super::{GabrielEdge, GabrielGraph, GeometricNode};
 
 pub(super) fn build_gabriel_graph(load_points: &[LoadPoint]) -> GabrielGraph {
     let mut nodes = load_points
@@ -37,7 +37,7 @@ pub(super) fn build_gabriel_graph(load_points: &[LoadPoint]) -> GabrielGraph {
         nodes,
         edges: edge_pairs
             .into_iter()
-            .map(|(from_load_point_id, to_load_point_id)| LoadPointEdge {
+            .map(|(from_load_point_id, to_load_point_id)| GabrielEdge {
                 from_load_point_id,
                 to_load_point_id,
             })
@@ -48,7 +48,7 @@ pub(super) fn build_gabriel_graph(load_points: &[LoadPoint]) -> GabrielGraph {
 #[cfg(test)]
 mod tests {
     use super::build_gabriel_graph;
-    use crate::analysis::LoadPoint;
+    use crate::source_data::LoadPoint;
 
     fn node(load_point_id: u32, x_mm: f64, y_mm: f64) -> LoadPoint {
         LoadPoint {

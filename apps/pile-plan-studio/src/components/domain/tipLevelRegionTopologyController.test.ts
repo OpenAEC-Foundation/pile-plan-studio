@@ -2,9 +2,9 @@ import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 
 import type {
-  SpatialNeighborhood,
+  LoadPointTopology,
   TipLevelRegionTopology,
-} from "../../core/spatialTopologyContract.ts";
+} from "../../core/tipLevelRegionContract.ts";
 import type { LoadPoint, PileConfigurationOption } from "../../core/projectTypes.ts";
 import {
   createTipLevelRegionTopologyController,
@@ -43,7 +43,7 @@ const option = (tip: number): PileConfigurationOption => ({
   missing_cpt_ids: [],
 });
 
-const neighborhood = (x = 0): SpatialNeighborhood => ({
+const loadPointTopology = (x = 0): LoadPointTopology => ({
   load_point_ids: [1],
   edges: [],
   faces: [],
@@ -79,7 +79,7 @@ describe("tip-level region topology controller", () => {
   it("keeps completed topology visible and rejects older out-of-order results", async () => {
     const topologyRequests: Deferred<TipLevelRegionTopology>[] = [];
     const controller = createTipLevelRegionTopologyController({
-      buildNeighborhood: async () => neighborhood(),
+      buildLoadPointTopology: async () => loadPointTopology(),
       buildTopology: async () => {
         const request = deferred<TipLevelRegionTopology>();
         topologyRequests.push(request);
@@ -108,13 +108,13 @@ describe("tip-level region topology controller", () => {
     assert.deepEqual(emitted, [topology(-18), topology(-20)]);
   });
 
-  it("reuses a completed neighborhood until load-point coordinates change", async () => {
-    const neighborhoodInputs: LoadPoint[][] = [];
+  it("reuses a completed load-point topology until coordinates change", async () => {
+    const loadPointInputs: LoadPoint[][] = [];
     const topologyInputs: number[] = [];
     const controller = createTipLevelRegionTopologyController({
-      buildNeighborhood: async (loadPoints) => {
-        neighborhoodInputs.push(loadPoints);
-        return neighborhood(loadPoints[0].x_mm);
+      buildLoadPointTopology: async (loadPoints) => {
+        loadPointInputs.push(loadPoints);
+        return loadPointTopology(loadPoints[0].x_mm);
       },
       buildTopology: async ({ selectedAssignments }) => {
         const tip = (selectedAssignments.get(1)?.pile_tip_level_mm ?? 0) / 1000;
@@ -127,15 +127,15 @@ describe("tip-level region topology controller", () => {
     await controller.update(input(-19));
     await controller.update(input(-19, 25));
 
-    assert.deepEqual(neighborhoodInputs.map(([point]) => point.x_mm), [0, 25]);
+    assert.deepEqual(loadPointInputs.map(([point]) => point.x_mm), [0, 25]);
     assert.deepEqual(topologyInputs, [-18, -19, -19]);
   });
 
   it("disables output and prevents an in-flight graph from reaching grouping", async () => {
-    const graph = deferred<SpatialNeighborhood>();
+    const graph = deferred<LoadPointTopology>();
     let topologyCallCount = 0;
     const controller = createTipLevelRegionTopologyController({
-      buildNeighborhood: async () => graph.promise,
+      buildLoadPointTopology: async () => graph.promise,
       buildTopology: async () => {
         topologyCallCount += 1;
         return topology(-18);
@@ -146,7 +146,7 @@ describe("tip-level region topology controller", () => {
 
     const update = controller.update(input(-18));
     controller.disable();
-    graph.resolve(neighborhood());
+    graph.resolve(loadPointTopology());
     await update;
 
     assert.deepEqual(emitted, [null]);

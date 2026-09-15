@@ -3,47 +3,26 @@ use std::collections::HashMap;
 use pile_plan_core::{
     aggregate_pile_options_for_load_points,
     apply_load_point_group_assignment as apply_load_point_group_assignment_core,
-    assess_technical_assignment as assess_technical_assignment_core, bearing_capacity_rows_for_cpt,
-    build_pile_options_by_load_point, build_project_analysis,
-    build_spatial_neighborhood as build_spatial_neighborhood_core,
+    assess_technical_assignment as assess_technical_assignment_core,
+    build_load_point_topology as build_load_point_topology_core, build_pile_option_analysis,
     build_tip_level_region_topology as build_tip_level_region_topology_core, calculate_pile_cost,
-    choose_default_pile_option, choose_default_pile_options,
-    derive_load_point_groups as derive_load_point_groups_core, greedy_optimize_pile_choices,
-    import_project_from_generic_sources_with_properties, preview_import_source,
+    choose_default_pile_options, derive_load_point_groups as derive_load_point_groups_core,
+    greedy_optimize_pile_choices, import_project_from_sources, preview_import_source,
     preview_pile_plan_import, read_project_document as read_project_document_core,
-    refresh_project_from_profiled_sources, selected_cpts, validate_project_tip_levels,
-    write_pile_plan_csv, write_pile_plan_xlsx,
-    write_project_document as write_project_document_core, ApplyLoadPointGroupAssignmentInput,
-    ApplyLoadPointGroupAssignmentResult, CptSelectionSettings, GreedyOptimizationInput,
-    ImportSource, LoadPointGroup, LoadPointGroupingSettings, PileConfigurationKey,
-    PileConfigurationOption, PileCostSettings, PilePlanExportRequest, PilePlanImportRequest,
-    PilePlanProject, ProjectBearingCapacity, ProjectCpt, ProjectDocumentDraft,
-    ProjectDocumentError, ProjectLoadPoint, SpatialNeighborhood, SpatialPileAssignment,
-    TipLevelRegionTopology, ValidatedPilePlanProject,
+    refresh_project_from_profiled_sources, validate_project_tip_levels, write_pile_plan_csv,
+    write_pile_plan_xlsx, write_project_document as write_project_document_core,
+    ApplyLoadPointGroupAssignmentInput, ApplyLoadPointGroupAssignmentResult, CptSelectionSettings,
+    GreedyOptimizationInput, ImportSource, LoadPointGroup, LoadPointGroupingSettings,
+    LoadPointTopology, PileConfigurationKey, PileConfigurationOption, PileCostSettings,
+    PilePlanExportRequest, PilePlanImportRequest, PilePlanProject, ProjectBearingCapacity,
+    ProjectCpt, ProjectDocumentDraft, ProjectDocumentError, ProjectLoadPoint,
+    TipLevelRegionAssignment, TipLevelRegionTopology, ValidatedPilePlanProject,
 };
 use serde::{Deserialize, Serialize};
 use wasm_bindgen::prelude::*;
 
 #[derive(Debug, Deserialize)]
-pub struct SelectedCptsRequest {
-    pub load_point: ProjectLoadPoint,
-    pub cpts: Vec<ProjectCpt>,
-    pub settings: CptSelectionSettings,
-    pub manual_cpt_ids: Option<Vec<u32>>,
-}
-
-#[derive(Debug, Deserialize)]
-pub struct PileOptionsRequest {
-    pub load_points: Vec<ProjectLoadPoint>,
-    pub cpts: Vec<ProjectCpt>,
-    pub bearing_capacities: Vec<ProjectBearingCapacity>,
-    pub global_settings: CptSelectionSettings,
-    pub settings_by_load_point: HashMap<u32, CptSelectionSettings>,
-    pub manual_cpt_ids_by_load_point: HashMap<u32, Vec<u32>>,
-}
-
-#[derive(Debug, Deserialize)]
-pub struct ProjectAnalysisRequest {
+pub struct PileOptionAnalysisRequest {
     pub load_points: Vec<ProjectLoadPoint>,
     pub cpts: Vec<ProjectCpt>,
     pub bearing_capacities: Vec<ProjectBearingCapacity>,
@@ -57,13 +36,6 @@ pub struct ProjectAnalysisRequest {
 pub struct PileCostRequest {
     pub pile_size_mm: u32,
     pub pile_tip_level_m: f64,
-    pub pile_head_level_m: f64,
-    pub settings: PileCostSettings,
-}
-
-#[derive(Debug, Deserialize)]
-pub struct DefaultPileOptionRequest {
-    pub options: Vec<PileConfigurationOption>,
     pub pile_head_level_m: f64,
     pub settings: PileCostSettings,
 }
@@ -88,12 +60,6 @@ pub struct TechnicalAssignmentRequest {
 }
 
 #[derive(Debug, Deserialize)]
-pub struct CptFrdRowsRequest {
-    pub bearing_capacities: Vec<ProjectBearingCapacity>,
-    pub cpt_id: u32,
-}
-
-#[derive(Debug, Deserialize)]
 pub struct ImportProjectRequest {
     pub project_name: String,
     pub pile_head_level_m: Option<f64>,
@@ -113,7 +79,7 @@ pub struct PreviewImportRequest {
 }
 
 #[derive(Debug, Deserialize)]
-pub struct SpatialNeighborhoodRequest {
+pub struct LoadPointTopologyRequest {
     pub load_points: Vec<ProjectLoadPoint>,
 }
 
@@ -135,8 +101,8 @@ pub struct DeriveLoadPointGroupsRequest {
 
 #[derive(Debug, Deserialize)]
 pub struct TipLevelRegionTopologyRequest {
-    pub neighborhood: SpatialNeighborhood,
-    pub selected_assignments: HashMap<u32, SpatialPileAssignment>,
+    pub load_point_topology: LoadPointTopology,
+    pub selected_assignments: HashMap<u32, TipLevelRegionAssignment>,
     pub options_by_load_point: HashMap<u32, Vec<PileConfigurationOption>>,
 }
 
@@ -146,43 +112,9 @@ pub struct PileCostResponse {
 }
 
 #[wasm_bindgen]
-pub fn calculate_selected_cpts(request: JsValue) -> Result<JsValue, JsValue> {
-    let request: SelectedCptsRequest = from_js_value(request)?;
-    to_js_value(&selected_cpts(
-        &request.load_point,
-        &request.cpts,
-        &request.settings,
-        request.manual_cpt_ids.as_deref(),
-    ))
-}
-
-#[wasm_bindgen]
-pub fn calculate_pile_options(request: JsValue) -> Result<JsValue, JsValue> {
-    let request: PileOptionsRequest = from_js_value(request)?;
-    let result = build_pile_options_by_load_point(
-        &request.load_points,
-        &request.cpts,
-        &request.bearing_capacities,
-        |load_point| {
-            request
-                .settings_by_load_point
-                .get(&load_point.id)
-                .cloned()
-                .unwrap_or_else(|| request.global_settings.clone())
-        },
-        &request.manual_cpt_ids_by_load_point,
-    );
-
-    match result {
-        Ok(result) => to_js_value(&result),
-        Err(error) => Err(to_js_value(&error)?),
-    }
-}
-
-#[wasm_bindgen]
-pub fn calculate_project_analysis(request: JsValue) -> Result<JsValue, JsValue> {
-    let request: ProjectAnalysisRequest = from_js_value(request)?;
-    let result = build_project_analysis(
+pub fn calculate_pile_option_analysis(request: JsValue) -> Result<JsValue, JsValue> {
+    let request: PileOptionAnalysisRequest = from_js_value(request)?;
+    let result = build_pile_option_analysis(
         &request.load_points,
         &request.cpts,
         &request.bearing_capacities,
@@ -216,19 +148,6 @@ pub fn calculate_pile_option_cost(request: JsValue) -> Result<JsValue, JsValue> 
 }
 
 #[wasm_bindgen]
-pub fn choose_default_option(request: JsValue) -> Result<JsValue, JsValue> {
-    let request: DefaultPileOptionRequest = from_js_value(request)?;
-    to_js_value(
-        &choose_default_pile_option(
-            &request.options,
-            request.pile_head_level_m,
-            &request.settings,
-        )
-        .cloned(),
-    )
-}
-
-#[wasm_bindgen]
 pub fn choose_default_options(request: JsValue) -> Result<JsValue, JsValue> {
     let request: DefaultPileOptionsRequest = from_js_value(request)?;
     let choices: HashMap<u32, PileConfigurationKey> = choose_default_pile_options(
@@ -258,15 +177,6 @@ pub fn assess_technical_assignment(request: JsValue) -> Result<JsValue, JsValue>
 }
 
 #[wasm_bindgen]
-pub fn cpt_frd_rows(request: JsValue) -> Result<JsValue, JsValue> {
-    let request: CptFrdRowsRequest = from_js_value(request)?;
-    to_js_value(&bearing_capacity_rows_for_cpt(
-        &request.bearing_capacities,
-        request.cpt_id,
-    ))
-}
-
-#[wasm_bindgen]
 pub fn greedy_optimize(request: JsValue) -> Result<JsValue, JsValue> {
     let request: GreedyOptimizationInput = from_js_value(request)?;
     to_js_value(&greedy_optimize_pile_choices(&request))
@@ -275,7 +185,7 @@ pub fn greedy_optimize(request: JsValue) -> Result<JsValue, JsValue> {
 #[wasm_bindgen]
 pub fn import_project_from_files(request: JsValue) -> Result<JsValue, JsValue> {
     let request: ImportProjectRequest = from_js_value(request)?;
-    let project = import_project_from_generic_sources_with_properties(
+    let project = import_project_from_sources(
         &request.project_name,
         &request.sources,
         request.pile_head_level_m,
@@ -330,9 +240,9 @@ pub fn export_pile_plan_xlsx(request: JsValue) -> Result<Vec<u8>, JsValue> {
 }
 
 #[wasm_bindgen]
-pub fn build_spatial_neighborhood(request: JsValue) -> Result<JsValue, JsValue> {
-    let request: SpatialNeighborhoodRequest = from_js_value(request)?;
-    to_js_value(&build_spatial_neighborhood_core(&request.load_points))
+pub fn build_load_point_topology(request: JsValue) -> Result<JsValue, JsValue> {
+    let request: LoadPointTopologyRequest = from_js_value(request)?;
+    to_js_value(&build_load_point_topology_core(&request.load_points))
 }
 
 #[wasm_bindgen]
@@ -355,7 +265,7 @@ pub fn write_project_document(request: JsValue) -> Result<String, JsValue> {
 pub fn build_tip_level_region_topology(request: JsValue) -> Result<JsValue, JsValue> {
     let request: TipLevelRegionTopologyRequest = from_js_value(request)?;
     let topology: TipLevelRegionTopology = build_tip_level_region_topology_core(
-        &request.neighborhood,
+        &request.load_point_topology,
         &request.selected_assignments,
         &request.options_by_load_point,
     );
@@ -412,47 +322,12 @@ fn write_project_document_draft(
 mod tests {
     use super::*;
     use pile_plan_core::{
-        CptSelectionAlgorithm, GreedyOptimizationSettings, OptimizationLimitScope, SelectedCpt,
+        CptSelectionAlgorithm, GreedyOptimizationSettings, OptimizationLimitScope,
     };
 
     #[test]
-    fn wasm_request_types_match_core_contract() {
-        let request = SelectedCptsRequest {
-            load_point: ProjectLoadPoint {
-                id: 1,
-                name: "Load point 1".to_string(),
-                x_mm: 0.0,
-                y_mm: 0.0,
-                design_load_kn: 100.0,
-            },
-            cpts: vec![ProjectCpt {
-                id: 11,
-                name: "CPT 11".to_string(),
-                x_mm: 10.0,
-                y_mm: 10.0,
-            }],
-            settings: CptSelectionSettings {
-                algorithm: CptSelectionAlgorithm::Quadrants,
-                max_distance_m: 25.0,
-                monopoly_distance_m: 1.0,
-                max_angle_degrees: 120.0,
-            },
-            manual_cpt_ids: None,
-        };
-
-        let selected: Vec<SelectedCpt> = selected_cpts(
-            &request.load_point,
-            &request.cpts,
-            &request.settings,
-            request.manual_cpt_ids.as_deref(),
-        );
-
-        assert_eq!(selected[0].cpt.id, 11);
-    }
-
-    #[test]
-    fn project_analysis_request_supports_optional_cpt_rows() {
-        let request = ProjectAnalysisRequest {
+    fn pile_option_analysis_request_supports_optional_cpt_rows() {
+        let request = PileOptionAnalysisRequest {
             load_points: vec![],
             cpts: vec![],
             bearing_capacities: vec![],
@@ -668,12 +543,12 @@ mod tests {
     }
 
     #[test]
-    fn spatial_requests_expose_the_core_contract_for_browser_runtime() {
-        let neighborhood_request = SpatialNeighborhoodRequest {
+    fn tip_level_region_requests_expose_the_core_contract_for_browser_runtime() {
+        let topology_request = LoadPointTopologyRequest {
             load_points: vec![],
         };
-        let topology_request = TipLevelRegionTopologyRequest {
-            neighborhood: SpatialNeighborhood {
+        let region_request = TipLevelRegionTopologyRequest {
+            load_point_topology: LoadPointTopology {
                 load_point_ids: vec![],
                 edges: vec![],
                 faces: vec![],
@@ -681,12 +556,12 @@ mod tests {
             selected_assignments: HashMap::new(),
             options_by_load_point: HashMap::new(),
         };
-        let _graph_export: fn(JsValue) -> Result<JsValue, JsValue> = build_spatial_neighborhood;
+        let _graph_export: fn(JsValue) -> Result<JsValue, JsValue> = build_load_point_topology;
         let _topology_export: fn(JsValue) -> Result<JsValue, JsValue> =
             build_tip_level_region_topology;
 
-        assert!(neighborhood_request.load_points.is_empty());
-        assert!(topology_request.neighborhood.load_point_ids.is_empty());
+        assert!(topology_request.load_points.is_empty());
+        assert!(region_request.load_point_topology.load_point_ids.is_empty());
     }
 
     #[test]

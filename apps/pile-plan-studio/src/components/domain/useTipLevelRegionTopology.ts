@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 
 import {
-  buildSpatialNeighborhoodCore,
+  buildLoadPointTopologyCore,
   buildTipLevelRegionTopologyCore,
 } from "../../core/coreClient.ts";
 import type {
@@ -9,7 +9,7 @@ import type {
   PileConfigurationKey,
   PileConfigurationOption,
 } from "../../core/projectTypes.ts";
-import type { TipLevelRegionTopology } from "../../core/spatialTopologyContract.ts";
+import type { TipLevelRegionTopology } from "../../core/tipLevelRegionContract.ts";
 import {
   createTipLevelRegionTopologyController,
   type TipLevelRegionTopologyController,
@@ -40,7 +40,7 @@ export function useTipLevelRegionTopology({
   const [status, setStatus] = useState<TipLevelRegionTopologyStatus>("idle");
 
   controllerRef.current ??= createTipLevelRegionTopologyController({
-    buildNeighborhood: buildSpatialNeighborhoodCore,
+    buildLoadPointTopology: buildLoadPointTopologyCore,
     buildTopology: buildTipLevelRegionTopologyCore,
   });
   const controller = controllerRef.current;

@@ -2,7 +2,7 @@ use std::collections::{BTreeMap, BTreeSet, HashMap};
 
 use serde::{Deserialize, Serialize};
 
-use crate::analysis::LoadPoint;
+use crate::source_data::LoadPoint;
 
 pub const DEFAULT_MAX_GROUP_EDGE_DISTANCE_MM: f64 = 1_200.0;
 
@@ -209,7 +209,7 @@ impl UnionFind {
 
 #[cfg(test)]
 mod tests {
-    use crate::analysis::LoadPoint;
+    use crate::source_data::LoadPoint;
     use crate::PileConfigurationKey;
 
     use super::{

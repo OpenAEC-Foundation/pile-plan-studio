@@ -22,7 +22,7 @@ import type { SourceLoadPointSelection } from "./domain/sourceTableModel.ts";
 import {
   applyLoadPointGroupAssignmentCore,
   calculatePileCostCore,
-  calculateProjectAnalysisCore,
+  calculatePileOptionAnalysisCore,
   chooseDefaultPileOptionsCore,
   exportPilePlanCsvCore,
   exportPilePlanXlsxCore,
@@ -1179,7 +1179,7 @@ function AppSession({
     let cancelled = false;
     setProjectState((current) => beginCptSelectionPreview(current, draft));
 
-    calculateProjectAnalysisCore({
+    calculatePileOptionAnalysisCore({
       bearingCapacities: projectState.bearingCapacities,
       cpts: projectState.cpts,
       globalSettings: projectState.globalCptSelectionSettings,
@@ -1216,7 +1216,7 @@ function AppSession({
       const analysisLoadPoints = requestedIds === null
         ? projectState.loadPoints
         : projectState.loadPoints.filter((loadPoint) => requestedIds.includes(loadPoint.id));
-      const analysis = await calculateProjectAnalysisCore({
+      const analysis = await calculatePileOptionAnalysisCore({
         bearingCapacities: projectState.bearingCapacities,
         cpts: projectState.cpts,
         globalSettings: projectState.globalCptSelectionSettings,

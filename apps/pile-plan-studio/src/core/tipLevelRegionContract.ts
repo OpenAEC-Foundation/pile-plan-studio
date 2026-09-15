@@ -1,30 +1,30 @@
 import { toStringKeyedRecord, toWasmNumberKeyedMap } from "./coreSerialization.ts";
 import type { PileConfigurationKey, PileConfigurationOption } from "./projectTypes.ts";
 
-export type SpatialEdge = {
+export type LoadPointEdge = {
   from_load_point_id: number;
   to_load_point_id: number;
 };
 
-export type SpatialFace = {
+export type LoadPointFace = {
   boundary_load_point_ids: number[];
 };
 
-export type SpatialNeighborhood = {
+export type LoadPointTopology = {
   load_point_ids: number[];
-  edges: SpatialEdge[];
-  faces: SpatialFace[];
+  edges: LoadPointEdge[];
+  faces: LoadPointFace[];
 };
 
-export type SpatialPileAssignment = PileConfigurationKey;
+export type TipLevelRegionAssignment = PileConfigurationKey;
 
 export type TipLevelRegionTopology = {
   groups: Array<{
     pile_tip_level_mm: number;
     legend_value_m: number;
     load_point_ids: number[];
-    edges: SpatialEdge[];
-    faces: SpatialFace[];
+    edges: LoadPointEdge[];
+    faces: LoadPointFace[];
   }>;
 };
 
@@ -34,26 +34,26 @@ type CorePileConfigurationOption = Omit<PileConfigurationOption, "isOption" | "t
 };
 
 type TipLevelRegionTopologyInput = {
-  neighborhood: SpatialNeighborhood;
-  selectedAssignments: Map<number, SpatialPileAssignment>;
+  loadPointTopology: LoadPointTopology;
+  selectedAssignments: Map<number, TipLevelRegionAssignment>;
   optionsByLoadPoint: Map<number, PileConfigurationOption[]>;
 };
 
 export type BrowserTipLevelRegionTopologyRequest = {
-  neighborhood: SpatialNeighborhood;
-  selected_assignments: Map<number, SpatialPileAssignment>;
+  load_point_topology: LoadPointTopology;
+  selected_assignments: Map<number, TipLevelRegionAssignment>;
   options_by_load_point: Map<number, CorePileConfigurationOption[]>;
 };
 
 export type DesktopTipLevelRegionTopologyRequest = {
-  neighborhood: SpatialNeighborhood;
-  selected_assignments: Record<string, SpatialPileAssignment>;
+  load_point_topology: LoadPointTopology;
+  selected_assignments: Record<string, TipLevelRegionAssignment>;
   options_by_load_point: Record<string, CorePileConfigurationOption[]>;
 };
 
-export function parseSpatialPileAssignments(
+export function toTipLevelRegionAssignments(
   selectedConfigurationsByLoadPoint: Map<number, PileConfigurationKey>,
-): Map<number, SpatialPileAssignment> {
+): Map<number, TipLevelRegionAssignment> {
   return new Map(
     [...selectedConfigurationsByLoadPoint].map(([loadPointId, configuration]) => [
       loadPointId,
@@ -66,7 +66,7 @@ export function toBrowserTipLevelRegionTopologyRequest(
   input: TipLevelRegionTopologyInput,
 ): BrowserTipLevelRegionTopologyRequest {
   return {
-    neighborhood: input.neighborhood,
+    load_point_topology: input.loadPointTopology,
     selected_assignments: toWasmNumberKeyedMap(input.selectedAssignments),
     options_by_load_point: toWasmNumberKeyedMap(toCoreOptionsByLoadPoint(input.optionsByLoadPoint)),
   };
@@ -76,7 +76,7 @@ export function toDesktopTipLevelRegionTopologyRequest(
   input: TipLevelRegionTopologyInput,
 ): DesktopTipLevelRegionTopologyRequest {
   return {
-    neighborhood: input.neighborhood,
+    load_point_topology: input.loadPointTopology,
     selected_assignments: toStringKeyedRecord(input.selectedAssignments),
     options_by_load_point: toStringKeyedRecord(toCoreOptionsByLoadPoint(input.optionsByLoadPoint)),
   };

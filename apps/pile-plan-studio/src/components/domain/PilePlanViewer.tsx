@@ -92,7 +92,7 @@ import { presentTipLevelRegionGeometry } from "../../viewer/tipLevelRegionPresen
 import TipLevelRegionOverlay from "./TipLevelRegionOverlay.tsx";
 import type { LoadPointGroup } from "../../core/loadPointGroupContract.ts";
 import type { TechnicalAssignmentSnapshot } from "./technicalAssignmentController.ts";
-import type { TipLevelRegionTopology } from "../../core/spatialTopologyContract.ts";
+import type { TipLevelRegionTopology } from "../../core/tipLevelRegionContract.ts";
 import { getLoadPointGroupSelection } from "../../viewer/loadPointGroupSelection.ts";
 
 type Props = {

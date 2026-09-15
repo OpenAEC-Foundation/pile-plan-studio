@@ -3,26 +3,25 @@
 use pile_plan_core::{
     aggregate_pile_options_for_load_points,
     apply_load_point_group_assignment as apply_load_point_group_assignment_core,
-    assess_technical_assignment as assess_technical_assignment_core, bearing_capacity_rows_for_cpt,
-    build_pile_options_by_load_point, build_project_analysis,
-    build_spatial_neighborhood as build_spatial_neighborhood_core,
+    assess_technical_assignment as assess_technical_assignment_core, build_pile_option_analysis,
+    build_load_point_topology as build_load_point_topology_core,
     build_tip_level_region_topology as build_tip_level_region_topology_core, calculate_pile_cost,
-    choose_default_pile_option, choose_default_pile_options,
+    choose_default_pile_options,
     derive_load_point_groups as derive_load_point_groups_core,
-    greedy_optimize_pile_choices, import_project_from_generic_sources_with_properties,
+    greedy_optimize_pile_choices, import_project_from_sources,
     preview_import_source, preview_pile_plan_import,
     read_project_document as read_project_document_core, refresh_project_from_profiled_sources,
-    selected_cpts, validate_project_tip_levels,
+    validate_project_tip_levels,
     write_pile_plan_csv as write_pile_plan_csv_bytes,
     write_pile_plan_xlsx as write_pile_plan_xlsx_bytes, AggregatedPileConfiguration,
     ApplyLoadPointGroupAssignmentInput, ApplyLoadPointGroupAssignmentResult, CptSelectionSettings,
     GreedyOptimizationInput, GreedyOptimizationOutcome, ImportSource,
     ImportSourcePreview, InvalidPileTipLevels, LoadPointGroup, LoadPointGroupingSettings,
     PileConfigurationKey, PileConfigurationOption, PileCostSettings, PilePlanExportRequest,
-    PilePlanImportPreview, PilePlanImportRequest, PilePlanProject, ProjectAnalysisResult,
+    PileOptionAnalysisResult, PilePlanImportPreview, PilePlanImportRequest, PilePlanProject,
     ProjectBearingCapacity, ProjectCpt, ProjectDocumentDraft, ProjectDocumentError,
-    ProjectLoadPoint, SelectedCpt, SpatialNeighborhood,
-    SpatialPileAssignment, TechnicalAssignmentAssessment, TechnicalAssignmentAssessmentError,
+    ProjectLoadPoint, LoadPointTopology,
+    TipLevelRegionAssignment, TechnicalAssignmentAssessment, TechnicalAssignmentAssessmentError,
     TipLevelRegionTopology, ValidatedPilePlanProject,
     write_project_document as write_project_document_core,
 };
@@ -91,25 +90,7 @@ where
 }
 
 #[derive(Debug, Deserialize)]
-struct SelectedCptsRequest {
-    load_point: ProjectLoadPoint,
-    cpts: Vec<ProjectCpt>,
-    settings: CptSelectionSettings,
-    manual_cpt_ids: Option<Vec<u32>>,
-}
-
-#[derive(Debug, Deserialize)]
-struct PileOptionsRequest {
-    load_points: Vec<ProjectLoadPoint>,
-    cpts: Vec<ProjectCpt>,
-    bearing_capacities: Vec<ProjectBearingCapacity>,
-    global_settings: CptSelectionSettings,
-    settings_by_load_point: HashMap<u32, CptSelectionSettings>,
-    manual_cpt_ids_by_load_point: HashMap<u32, Vec<u32>>,
-}
-
-#[derive(Debug, Deserialize)]
-struct ProjectAnalysisRequest {
+struct PileOptionAnalysisRequest {
     load_points: Vec<ProjectLoadPoint>,
     cpts: Vec<ProjectCpt>,
     bearing_capacities: Vec<ProjectBearingCapacity>,
@@ -123,13 +104,6 @@ struct ProjectAnalysisRequest {
 struct PileCostRequest {
     pile_size_mm: u32,
     pile_tip_level_m: f64,
-    pile_head_level_m: f64,
-    settings: PileCostSettings,
-}
-
-#[derive(Debug, Deserialize)]
-struct DefaultPileOptionRequest {
-    options: Vec<PileConfigurationOption>,
     pile_head_level_m: f64,
     settings: PileCostSettings,
 }
@@ -154,12 +128,6 @@ struct TechnicalAssignmentRequest {
 }
 
 #[derive(Debug, Deserialize)]
-struct CptFrdRowsRequest {
-    bearing_capacities: Vec<ProjectBearingCapacity>,
-    cpt_id: u32,
-}
-
-#[derive(Debug, Deserialize)]
 struct ImportProjectRequest {
     project_name: String,
     pile_head_level_m: Option<f64>,
@@ -179,7 +147,7 @@ struct PreviewImportRequest {
 }
 
 #[derive(Debug, Deserialize)]
-struct SpatialNeighborhoodRequest {
+struct LoadPointTopologyRequest {
     load_points: Vec<ProjectLoadPoint>,
 }
 
@@ -201,8 +169,8 @@ struct DeriveLoadPointGroupsRequest {
 
 #[derive(Debug, Deserialize)]
 struct TipLevelRegionTopologyRequest {
-    neighborhood: SpatialNeighborhood,
-    selected_assignments: HashMap<u32, SpatialPileAssignment>,
+    load_point_topology: LoadPointTopology,
+    selected_assignments: HashMap<u32, TipLevelRegionAssignment>,
     options_by_load_point: HashMap<u32, Vec<PileConfigurationOption>>,
 }
 
@@ -212,39 +180,10 @@ struct PileCostResponse {
 }
 
 #[tauri::command(rename_all = "snake_case")]
-fn calculate_selected_cpts(request: SelectedCptsRequest) -> Vec<SelectedCpt> {
-    selected_cpts(
-        &request.load_point,
-        &request.cpts,
-        &request.settings,
-        request.manual_cpt_ids.as_deref(),
-    )
-}
-
-#[tauri::command(rename_all = "snake_case")]
-fn calculate_pile_options(
-    request: PileOptionsRequest,
-) -> Result<HashMap<u32, Vec<PileConfigurationOption>>, InvalidPileTipLevels> {
-    build_pile_options_by_load_point(
-        &request.load_points,
-        &request.cpts,
-        &request.bearing_capacities,
-        |load_point| {
-            request
-                .settings_by_load_point
-                .get(&load_point.id)
-                .cloned()
-                .unwrap_or_else(|| request.global_settings.clone())
-        },
-        &request.manual_cpt_ids_by_load_point,
-    )
-}
-
-#[tauri::command(rename_all = "snake_case")]
-fn calculate_project_analysis(
-    request: ProjectAnalysisRequest,
-) -> Result<ProjectAnalysisResult, InvalidPileTipLevels> {
-    build_project_analysis(
+fn calculate_pile_option_analysis(
+    request: PileOptionAnalysisRequest,
+) -> Result<PileOptionAnalysisResult, InvalidPileTipLevels> {
+    build_pile_option_analysis(
         &request.load_points,
         &request.cpts,
         &request.bearing_capacities,
@@ -270,16 +209,6 @@ fn calculate_pile_option_cost(request: PileCostRequest) -> PileCostResponse {
             &request.settings,
         ),
     }
-}
-
-#[tauri::command(rename_all = "snake_case")]
-fn choose_default_option(request: DefaultPileOptionRequest) -> Option<PileConfigurationOption> {
-    choose_default_pile_option(
-        &request.options,
-        request.pile_head_level_m,
-        &request.settings,
-    )
-    .cloned()
 }
 
 #[tauri::command(rename_all = "snake_case")]
@@ -309,11 +238,6 @@ fn assess_technical_assignment(
 }
 
 #[tauri::command(rename_all = "snake_case")]
-fn cpt_frd_rows(request: CptFrdRowsRequest) -> Vec<pile_plan_core::CptBearingCapacityRow> {
-    bearing_capacity_rows_for_cpt(&request.bearing_capacities, request.cpt_id)
-}
-
-#[tauri::command(rename_all = "snake_case")]
 fn greedy_optimize(request: GreedyOptimizationInput) -> GreedyOptimizationOutcome {
     greedy_optimize_pile_choices(&request)
 }
@@ -322,7 +246,7 @@ fn greedy_optimize(request: GreedyOptimizationInput) -> GreedyOptimizationOutcom
 fn import_project_from_files(
     request: ImportProjectRequest,
 ) -> Result<ValidatedPilePlanProject, String> {
-    let project = import_project_from_generic_sources_with_properties(
+    let project = import_project_from_sources(
         &request.project_name,
         &request.sources,
         request.pile_head_level_m,
@@ -390,8 +314,8 @@ fn write_binary_file(path: String, contents: Vec<u8>) -> Result<(), String> {
 }
 
 #[tauri::command(rename_all = "snake_case")]
-fn build_spatial_neighborhood(request: SpatialNeighborhoodRequest) -> SpatialNeighborhood {
-    build_spatial_neighborhood_core(&request.load_points)
+fn build_load_point_topology(request: LoadPointTopologyRequest) -> LoadPointTopology {
+    build_load_point_topology_core(&request.load_points)
 }
 
 #[tauri::command(rename_all = "snake_case")]
@@ -413,7 +337,7 @@ fn build_tip_level_region_topology(
     request: TipLevelRegionTopologyRequest,
 ) -> TipLevelRegionTopology {
     build_tip_level_region_topology_core(
-        &request.neighborhood,
+        &request.load_point_topology,
         &request.selected_assignments,
         &request.options_by_load_point,
     )
@@ -454,15 +378,11 @@ fn main() {
             aggregate_pile_options,
             assess_technical_assignment,
             apply_load_point_group_assignment,
-            build_spatial_neighborhood,
+            build_load_point_topology,
             build_tip_level_region_topology,
-            calculate_selected_cpts,
-            calculate_pile_options,
-            calculate_project_analysis,
+            calculate_pile_option_analysis,
             calculate_pile_option_cost,
-            choose_default_option,
             choose_default_options,
-            cpt_frd_rows,
             derive_load_point_groups,
             greedy_optimize,
             read_project_document,
@@ -513,12 +433,12 @@ mod tests {
     }
 
     #[test]
-    fn spatial_commands_return_core_results() {
-        let neighborhood = build_spatial_neighborhood(SpatialNeighborhoodRequest {
+    fn tip_level_region_commands_return_core_results() {
+        let load_point_topology = build_load_point_topology(LoadPointTopologyRequest {
             load_points: vec![],
         });
         let topology = build_tip_level_region_topology(TipLevelRegionTopologyRequest {
-            neighborhood,
+            load_point_topology,
             selected_assignments: HashMap::new(),
             options_by_load_point: HashMap::new(),
         });

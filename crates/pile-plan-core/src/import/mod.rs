@@ -17,32 +17,23 @@ mod rfem;
 mod roles;
 mod table;
 
-pub use pipeline::{
-    import_project_from_profiled_sources, import_project_from_profiled_sources_with_properties,
-    preview_import_source,
-};
+pub use pipeline::{import_project_from_sources, preview_import_source};
 pub use profile::{
     available_profiles, ImportDiagnostic, ImportDiagnosticCode, ImportDiagnosticLocation,
     ImportDiagnosticSeverity, ImportPileTipLevelDiagnostic, ImportPreviewDetails, ImportProfile,
     ImportProfileOptions, ImportSourcePreview, RfemPreviewDetails,
 };
 pub use refresh::refresh_project_from_profiled_sources;
-pub use roles::{
-    parse_bearing_capacities, parse_bearing_capacities_with_diagnostics, parse_cpts,
-    parse_load_points, reconcile_imported_inputs, validate_imported_inputs,
-    BearingCapacityParseResult, ImportReconciliation,
+#[cfg(test)]
+use roles::parse_bearing_capacities;
+use roles::{
+    parse_bearing_capacities_with_diagnostics, parse_cpts, parse_load_points,
+    reconcile_imported_inputs, ImportReconciliation,
 };
 pub(crate) use table::read_xlsx_tables;
 pub use table::{
     read_source_table, SourceFormat, SourceLocation, SourceRow, SourceTable, TableCell,
 };
-
-pub struct ProjectImportSources<'a> {
-    pub project_name: String,
-    pub load_points_csv: &'a str,
-    pub cpts_xlsx: &'a [u8],
-    pub bearing_capacities_xlsx: &'a [u8],
-}
 
 #[derive(Clone, Copy, Debug, Deserialize, Eq, Hash, PartialEq, Serialize)]
 #[serde(rename_all = "kebab-case")]
@@ -220,78 +211,6 @@ impl ImportRole {
             Self::BearingCapacities => "bearing capacities",
         }
     }
-}
-
-pub fn import_project_from_sources(
-    sources: ProjectImportSources<'_>,
-) -> Result<PilePlanProject, ImportError> {
-    let load_points = import_load_points_csv(sources.load_points_csv)?;
-    let cpts = import_cpts_xlsx(sources.cpts_xlsx)?;
-    let capacity_table = read_source_table(
-        "Draagvermogens.xlsx",
-        SourceFormat::Xlsx,
-        sources.bearing_capacities_xlsx,
-    )?;
-    let capacity_parse = parse_bearing_capacities_with_diagnostics(&capacity_table)?;
-    let reconciliation =
-        reconcile_imported_inputs(&load_points, &cpts, capacity_parse.bearing_capacities)?;
-    let mut import_log = vec![
-        import_log_entry(
-            "Belastinglocaties.csv",
-            None,
-            &[
-                ("id", "id"),
-                ("x", "x_mm"),
-                ("y", "y_mm"),
-                ("FED", "design_load_kn"),
-            ],
-        ),
-        import_log_entry(
-            "Sonderingen.xlsx",
-            Some("first worksheet"),
-            &[("id", "id"), ("x", "x_mm"), ("y", "y_mm")],
-        ),
-        import_log_entry(
-            "Draagvermogens.xlsx",
-            Some("first worksheet"),
-            capacity_columns(),
-        ),
-    ];
-    import_log[2].warnings = import_warnings(
-        &capacity_table,
-        &capacity_parse.empty_frd_rows,
-        &reconciliation,
-    );
-    build_imported_project(
-        sources.project_name,
-        load_points,
-        cpts,
-        reconciliation.bearing_capacities,
-        import_log,
-        None,
-        "EUR",
-    )
-}
-
-pub fn import_project_from_generic_sources(
-    project_name: &str,
-    sources: &[ImportSource],
-) -> Result<PilePlanProject, ImportError> {
-    import_project_from_generic_sources_with_properties(project_name, sources, None, "EUR")
-}
-
-pub fn import_project_from_generic_sources_with_properties(
-    project_name: &str,
-    sources: &[ImportSource],
-    pile_head_level_m: Option<f64>,
-    currency_code: &str,
-) -> Result<PilePlanProject, ImportError> {
-    import_project_from_profiled_sources_with_properties(
-        project_name,
-        sources,
-        pile_head_level_m,
-        currency_code,
-    )
 }
 
 fn build_imported_project(
@@ -508,26 +427,6 @@ fn join_ids(ids: &[u32]) -> String {
         .join(", ")
 }
 
-pub fn import_load_points_csv(input: &str) -> Result<Vec<ProjectLoadPoint>, ImportError> {
-    let table = read_source_table("Belastinglocaties.csv", SourceFormat::Csv, input.as_bytes())?;
-    let load_points = parse_load_points(&table)?;
-    crate::validate_unique_load_point_positions(&load_points)
-        .map_err(ImportError::DuplicateLoadPointPositions)?;
-    Ok(load_points)
-}
-
-pub fn import_cpts_xlsx(input: &[u8]) -> Result<Vec<ProjectCpt>, ImportError> {
-    let table = read_source_table("Sonderingen.xlsx", SourceFormat::Xlsx, input)?;
-    parse_cpts(&table)
-}
-
-pub fn import_bearing_capacities_xlsx(
-    input: &[u8],
-) -> Result<Vec<ProjectBearingCapacity>, ImportError> {
-    let table = read_source_table("Draagvermogens.xlsx", SourceFormat::Xlsx, input)?;
-    parse_bearing_capacities(&table)
-}
-
 fn unique_sorted_pile_sizes(bearing_capacities: &[ProjectBearingCapacity]) -> Vec<u32> {
     let mut values: Vec<u32> = bearing_capacities
         .iter()
@@ -562,28 +461,6 @@ fn unique_sorted_tip_levels(
     keys.sort_unstable_by(|left, right| right.cmp(left));
     keys.dedup();
     Ok(keys.into_iter().map(crate::pile_tip_level_m).collect())
-}
-
-fn import_log_entry(
-    source_file: &str,
-    sheet_name: Option<&str>,
-    mapped_columns: &[(&str, &str)],
-) -> ProjectImportLogEntry {
-    ProjectImportLogEntry {
-        source_file: source_file.to_string(),
-        imported_at: None,
-        sheet_name: sheet_name.map(str::to_string),
-        mapped_columns: mapped_columns
-            .iter()
-            .map(|(source, target)| (source.to_string(), target.to_string()))
-            .collect(),
-        warnings: vec![],
-        source_role: None,
-        source_format: None,
-        schema_version: None,
-        source_profile: None,
-        profile_details: HashMap::new(),
-    }
 }
 
 #[cfg(test)]
@@ -870,7 +747,7 @@ mod tests {
             "1,0,0,100\n",
         )];
 
-        let error = import_project_from_generic_sources("Missing", &sources).unwrap_err();
+        let error = import_project_from_sources("Missing", &sources, None, "EUR").unwrap_err();
         assert_eq!(error.to_string(), "Missing import source for CPTs.");
     }
 
@@ -1042,7 +919,7 @@ mod tests {
                 profile_options: ImportProfileOptions::default(),
                 file_name: "loads.csv".to_string(),
                 format: SourceFormat::Csv,
-                bytes: include_bytes!("../../../sample_project/Belastinglocaties.csv").to_vec(),
+                bytes: include_bytes!("../../../../sample_project/Belastinglocaties.csv").to_vec(),
             },
             ImportSource {
                 role: ImportRole::Cpts,
@@ -1050,7 +927,7 @@ mod tests {
                 profile_options: ImportProfileOptions::default(),
                 file_name: "cpts.xlsx".to_string(),
                 format: SourceFormat::Xlsx,
-                bytes: include_bytes!("../../../sample_project/Sonderingen.xlsx").to_vec(),
+                bytes: include_bytes!("../../../../sample_project/Sonderingen.xlsx").to_vec(),
             },
             ImportSource {
                 role: ImportRole::BearingCapacities,
@@ -1058,11 +935,11 @@ mod tests {
                 profile_options: ImportProfileOptions::default(),
                 file_name: "capacities.xlsx".to_string(),
                 format: SourceFormat::Xlsx,
-                bytes: include_bytes!("../../../sample_project/Draagvermogens.xlsx").to_vec(),
+                bytes: include_bytes!("../../../../sample_project/Draagvermogens.xlsx").to_vec(),
             },
         ];
 
-        let project = import_project_from_generic_sources("Mixed Project", &sources).unwrap();
+        let project = import_project_from_sources("Mixed Project", &sources, None, "EUR").unwrap();
 
         assert_eq!(project.metadata.name, "Mixed Project");
         assert!(project.settings.viewer.show_tip_level_regions);
@@ -1090,7 +967,7 @@ mod tests {
             ),
         ];
 
-        let project = import_project_from_generic_sources("Warnings", &sources).unwrap();
+        let project = import_project_from_sources("Warnings", &sources, None, "EUR").unwrap();
         assert_eq!(project.inputs.bearing_capacities.len(), 1);
         let warnings = &project.import_log[2].warnings;
         assert!(warnings
@@ -1119,7 +996,7 @@ mod tests {
             ),
         ];
 
-        let project = import_project_from_generic_sources("Empty FRD", &sources).unwrap();
+        let project = import_project_from_sources("Empty FRD", &sources, None, "EUR").unwrap();
         assert!(project.inputs.bearing_capacities.is_empty());
         assert!(project.import_log[2].warnings.iter().any(|warning| warning ==
             "Ignored 11 bearing-capacity rows with an empty FRD in capacities.csv (rows 1, 2, 3, 4, 5, 6, 7, 8, 9, 10; and 1 more). These configurations are treated as Missing."
@@ -1158,61 +1035,5 @@ mod tests {
 
     fn number(value: f64) -> TableCell {
         TableCell::Number(value)
-    }
-
-    #[test]
-    fn imports_load_points_from_simple_csv_without_header() {
-        let load_points = import_load_points_csv("15,9450,4700,79\n16,9450,10350,157\n").unwrap();
-
-        assert_eq!(load_points.len(), 2);
-        assert_eq!(load_points[0].id, 15);
-        assert_eq!(load_points[0].name, "Load point 15");
-        assert_eq!(load_points[0].x_mm, 9450.0);
-        assert_eq!(load_points[0].y_mm, 4700.0);
-        assert_eq!(load_points[0].design_load_kn, 79.0);
-    }
-
-    #[test]
-    fn rejects_different_load_point_ids_at_one_position() {
-        let error = import_load_points_csv("8,1000,2000,100\n2,1000,2000,200\n").unwrap_err();
-
-        let ImportError::DuplicateLoadPointPositions(duplicates) = error else {
-            panic!("expected duplicate-position error");
-        };
-        assert_eq!(duplicates.positions.len(), 1);
-        assert_eq!(
-            duplicates.positions[0]
-                .load_points
-                .iter()
-                .map(|member| member.id)
-                .collect::<Vec<_>>(),
-            vec![2, 8]
-        );
-    }
-
-    #[test]
-    fn imports_sample_sources_into_ifcpp_project() {
-        let project = import_project_from_sources(ProjectImportSources {
-            project_name: "Sample Project".to_string(),
-            load_points_csv: include_str!("../../../sample_project/Belastinglocaties.csv"),
-            cpts_xlsx: include_bytes!("../../../sample_project/Sonderingen.xlsx"),
-            bearing_capacities_xlsx: include_bytes!("../../../sample_project/Draagvermogens.xlsx"),
-        })
-        .unwrap();
-
-        assert_eq!(project.schema, "IFCPP");
-        assert_eq!(project.inputs.load_points.len(), 328);
-        assert_eq!(project.inputs.cpts.len(), 77);
-        assert_eq!(project.inputs.bearing_capacities.len(), 2208);
-        assert_eq!(project.inputs.cpts[0].name, "CPT 1");
-        assert_eq!(project.inputs.bearing_capacities[0].cpt_id, 1);
-        assert_eq!(project.inputs.bearing_capacities[0].pile_size_mm, 290);
-        assert_eq!(project.inputs.bearing_capacities[0].pile_tip_level_m, -17.5);
-        assert_eq!(project.inputs.bearing_capacities[0].frd_kn, 672.0);
-        assert_eq!(project.import_log.len(), 3);
-        assert!(project.import_log[2]
-            .warnings
-            .iter()
-            .any(|warning| warning.contains("132 conflicting duplicate")));
     }
 }

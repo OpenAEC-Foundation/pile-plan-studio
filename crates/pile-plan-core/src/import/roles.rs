@@ -45,7 +45,7 @@ const FRD: Column = Column {
     name: "FRD",
 };
 
-pub fn parse_load_points(table: &SourceTable) -> Result<Vec<ProjectLoadPoint>, ImportError> {
+pub(super) fn parse_load_points(table: &SourceTable) -> Result<Vec<ProjectLoadPoint>, ImportError> {
     let mut result = Vec::new();
     let mut seen = HashMap::new();
     for row in data_rows(table, 4, "load points")? {
@@ -62,7 +62,7 @@ pub fn parse_load_points(table: &SourceTable) -> Result<Vec<ProjectLoadPoint>, I
     Ok(result)
 }
 
-pub fn parse_cpts(table: &SourceTable) -> Result<Vec<ProjectCpt>, ImportError> {
+pub(super) fn parse_cpts(table: &SourceTable) -> Result<Vec<ProjectCpt>, ImportError> {
     let mut result = Vec::new();
     let mut seen = HashMap::new();
     for row in data_rows(table, 3, "CPTs")? {
@@ -78,7 +78,8 @@ pub fn parse_cpts(table: &SourceTable) -> Result<Vec<ProjectCpt>, ImportError> {
     Ok(result)
 }
 
-pub fn parse_bearing_capacities(
+#[cfg(test)]
+pub(super) fn parse_bearing_capacities(
     table: &SourceTable,
 ) -> Result<Vec<ProjectBearingCapacity>, ImportError> {
     Ok(parse_bearing_capacities_with_diagnostics(table)?.bearing_capacities)
@@ -90,7 +91,7 @@ pub struct BearingCapacityParseResult {
     pub empty_frd_rows: Vec<usize>,
 }
 
-pub fn parse_bearing_capacities_with_diagnostics(
+pub(super) fn parse_bearing_capacities_with_diagnostics(
     table: &SourceTable,
 ) -> Result<BearingCapacityParseResult, ImportError> {
     let mut result = Vec::new();
@@ -158,7 +159,7 @@ fn reject_duplicate_source_id(
     Ok(())
 }
 
-pub fn validate_imported_inputs(
+fn validate_imported_inputs(
     load_points: &[ProjectLoadPoint],
     cpts: &[ProjectCpt],
     capacities: &[ProjectBearingCapacity],
@@ -181,7 +182,7 @@ pub struct ImportReconciliation {
     pub cpt_ids_without_capacities: Vec<u32>,
 }
 
-pub fn reconcile_imported_inputs(
+pub(super) fn reconcile_imported_inputs(
     load_points: &[ProjectLoadPoint],
     cpts: &[ProjectCpt],
     capacities: Vec<ProjectBearingCapacity>,

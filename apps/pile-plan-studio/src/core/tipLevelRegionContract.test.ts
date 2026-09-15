@@ -2,14 +2,14 @@ import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 
 import {
-  parseSpatialPileAssignments,
+  toTipLevelRegionAssignments,
   toBrowserTipLevelRegionTopologyRequest,
   toDesktopTipLevelRegionTopologyRequest,
-  type SpatialNeighborhood,
-} from "./spatialTopologyContract.ts";
+  type LoadPointTopology,
+} from "./tipLevelRegionContract.ts";
 import type { PileConfigurationOption } from "./projectTypes.ts";
 
-const neighborhood: SpatialNeighborhood = {
+const loadPointTopology: LoadPointTopology = {
   load_point_ids: [7],
   edges: [],
   faces: [],
@@ -27,10 +27,10 @@ const option: PileConfigurationOption = {
   technicalStatus: "valid",
 };
 
-describe("spatial topology transport contract", () => {
+describe("tip-level region transport contract", () => {
   it("copies canonical assignments without normalizing PPN identity", () => {
     assert.deepEqual(
-      parseSpatialPileAssignments(new Map([[
+      toTipLevelRegionAssignments(new Map([[
         7,
         { pile_size_mm: 320, pile_tip_level_mm: -18_000 },
       ]])),
@@ -40,7 +40,7 @@ describe("spatial topology transport contract", () => {
 
   it("builds numeric-keyed WASM maps with core option fields", () => {
     const result = toBrowserTipLevelRegionTopologyRequest({
-      neighborhood,
+      loadPointTopology,
       selectedAssignments: new Map([[7, { pile_size_mm: 320, pile_tip_level_mm: -18_000 }]]),
       optionsByLoadPoint: new Map([[7, [option]]]),
     });
@@ -65,7 +65,7 @@ describe("spatial topology transport contract", () => {
 
   it("builds string-keyed Tauri records without changing raw PPN values", () => {
     const result = toDesktopTipLevelRegionTopologyRequest({
-      neighborhood,
+      loadPointTopology,
       selectedAssignments: new Map([[7, { pile_size_mm: 320, pile_tip_level_mm: -18_000 }]]),
       optionsByLoadPoint: new Map([[7, [option]]]),
     });

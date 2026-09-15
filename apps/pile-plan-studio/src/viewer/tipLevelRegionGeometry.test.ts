@@ -1,7 +1,7 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 
-import type { TipLevelRegionTopology } from "../core/spatialTopologyContract.ts";
+import type { TipLevelRegionTopology } from "../core/tipLevelRegionContract.ts";
 import {
   buildTipLevelRegionGeometry,
   projectTipLevelRegionPoints,

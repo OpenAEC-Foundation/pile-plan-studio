@@ -1,4 +1,4 @@
-import type { TipLevelRegionTopology } from "../core/spatialTopologyContract.ts";
+import type { TipLevelRegionTopology } from "../core/tipLevelRegionContract.ts";
 import type { LoadPoint, ViewPoint } from "../core/projectTypes.ts";
 import { loadPointMarkerDiameter } from "./hoverCandidates.ts";
 import {

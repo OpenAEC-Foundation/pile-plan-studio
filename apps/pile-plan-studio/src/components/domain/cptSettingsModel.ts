@@ -1,5 +1,5 @@
 import type { CptSelectionEditDraft, CptSettingsScope, ProjectState } from "../../domain/projectState.ts";
-import type { CptSelectionSettings, PileConfigurationOption, ProjectAnalysisResult } from "../.././core/projectTypes.ts";
+import type { CptSelectionSettings, PileConfigurationOption, PileOptionAnalysisResult } from "../.././core/projectTypes.ts";
 
 export type CptSelectionSettingsPatch = Partial<CptSelectionSettings>;
 
@@ -226,7 +226,7 @@ export function beginCptSelectionPreview(
 export function applyCptSelectionPreviewResult(
   state: ProjectState,
   draft: CptSelectionEditDraft | null,
-  analysis: ProjectAnalysisResult,
+  analysis: PileOptionAnalysisResult,
 ): ProjectState {
   if (!draft || state.cptSelectionEditDraft !== draft) return state;
   return {

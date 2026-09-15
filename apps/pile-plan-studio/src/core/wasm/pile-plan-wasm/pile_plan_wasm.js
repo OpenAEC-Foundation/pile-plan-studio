@@ -40,8 +40,8 @@ export function assess_technical_assignment(request) {
  * @param {any} request
  * @returns {any}
  */
-export function build_spatial_neighborhood(request) {
-    const ret = wasm.build_spatial_neighborhood(request);
+export function build_load_point_topology(request) {
+    const ret = wasm.build_load_point_topology(request);
     if (ret[2]) {
         throw takeFromExternrefTable0(ret[1]);
     }
@@ -64,6 +64,18 @@ export function build_tip_level_region_topology(request) {
  * @param {any} request
  * @returns {any}
  */
+export function calculate_pile_option_analysis(request) {
+    const ret = wasm.calculate_pile_option_analysis(request);
+    if (ret[2]) {
+        throw takeFromExternrefTable0(ret[1]);
+    }
+    return takeFromExternrefTable0(ret[0]);
+}
+
+/**
+ * @param {any} request
+ * @returns {any}
+ */
 export function calculate_pile_option_cost(request) {
     const ret = wasm.calculate_pile_option_cost(request);
     if (ret[2]) {
@@ -76,68 +88,8 @@ export function calculate_pile_option_cost(request) {
  * @param {any} request
  * @returns {any}
  */
-export function calculate_pile_options(request) {
-    const ret = wasm.calculate_pile_options(request);
-    if (ret[2]) {
-        throw takeFromExternrefTable0(ret[1]);
-    }
-    return takeFromExternrefTable0(ret[0]);
-}
-
-/**
- * @param {any} request
- * @returns {any}
- */
-export function calculate_project_analysis(request) {
-    const ret = wasm.calculate_project_analysis(request);
-    if (ret[2]) {
-        throw takeFromExternrefTable0(ret[1]);
-    }
-    return takeFromExternrefTable0(ret[0]);
-}
-
-/**
- * @param {any} request
- * @returns {any}
- */
-export function calculate_selected_cpts(request) {
-    const ret = wasm.calculate_selected_cpts(request);
-    if (ret[2]) {
-        throw takeFromExternrefTable0(ret[1]);
-    }
-    return takeFromExternrefTable0(ret[0]);
-}
-
-/**
- * @param {any} request
- * @returns {any}
- */
-export function choose_default_option(request) {
-    const ret = wasm.choose_default_option(request);
-    if (ret[2]) {
-        throw takeFromExternrefTable0(ret[1]);
-    }
-    return takeFromExternrefTable0(ret[0]);
-}
-
-/**
- * @param {any} request
- * @returns {any}
- */
 export function choose_default_options(request) {
     const ret = wasm.choose_default_options(request);
-    if (ret[2]) {
-        throw takeFromExternrefTable0(ret[1]);
-    }
-    return takeFromExternrefTable0(ret[0]);
-}
-
-/**
- * @param {any} request
- * @returns {any}
- */
-export function cpt_frd_rows(request) {
-    const ret = wasm.cpt_frd_rows(request);
     if (ret[2]) {
         throw takeFromExternrefTable0(ret[1]);
     }

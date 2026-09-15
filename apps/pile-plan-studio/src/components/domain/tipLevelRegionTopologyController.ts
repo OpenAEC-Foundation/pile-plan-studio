@@ -1,5 +1,5 @@
 import type {
-  buildSpatialNeighborhoodCore,
+  buildLoadPointTopologyCore,
   buildTipLevelRegionTopologyCore,
 } from "../../core/coreClient.ts";
 import type {
@@ -9,13 +9,13 @@ import type {
 } from "../../core/projectTypes.ts";
 import { pileConfigurationToken } from "../../core/pileConfigurationKey.ts";
 import {
-  parseSpatialPileAssignments,
-  type SpatialNeighborhood,
+  toTipLevelRegionAssignments,
+  type LoadPointTopology,
   type TipLevelRegionTopology,
-} from "../../core/spatialTopologyContract.ts";
+} from "../../core/tipLevelRegionContract.ts";
 
-export type SpatialTopologyDependencies = {
-  buildNeighborhood: typeof buildSpatialNeighborhoodCore;
+export type TipLevelRegionTopologyDependencies = {
+  buildLoadPointTopology: typeof buildLoadPointTopologyCore;
   buildTopology: typeof buildTipLevelRegionTopologyCore;
 };
 
@@ -32,11 +32,11 @@ export type TipLevelRegionTopologyController = {
 };
 
 export function createTipLevelRegionTopologyController(
-  dependencies: SpatialTopologyDependencies,
+  dependencies: TipLevelRegionTopologyDependencies,
 ): TipLevelRegionTopologyController {
   let generation = 0;
-  let completedNeighborhoodKey: string | null = null;
-  let completedNeighborhood: SpatialNeighborhood | null = null;
+  let completedLoadPointTopologyKey: string | null = null;
+  let completedLoadPointTopology: LoadPointTopology | null = null;
   let completedTopologyKey: string | null = null;
   let currentTopology: TipLevelRegionTopology | null = null;
   const listeners = new Set<(topology: TipLevelRegionTopology | null) => void>();
@@ -44,30 +44,30 @@ export function createTipLevelRegionTopologyController(
   return {
     async update(input) {
       const requestGeneration = ++generation;
-      const neighborhoodKey = buildNeighborhoodKey(input.loadPoints);
-      let neighborhood = completedNeighborhoodKey === neighborhoodKey
-        ? completedNeighborhood
+      const loadPointTopologyKey = buildLoadPointTopologyKey(input.loadPoints);
+      let loadPointTopology = completedLoadPointTopologyKey === loadPointTopologyKey
+        ? completedLoadPointTopology
         : null;
 
-      if (!neighborhood) {
-        neighborhood = await dependencies.buildNeighborhood(input.loadPoints);
+      if (!loadPointTopology) {
+        loadPointTopology = await dependencies.buildLoadPointTopology(input.loadPoints);
         if (requestGeneration !== generation) return;
-        completedNeighborhoodKey = neighborhoodKey;
-        completedNeighborhood = neighborhood;
+        completedLoadPointTopologyKey = loadPointTopologyKey;
+        completedLoadPointTopology = loadPointTopology;
       }
 
-      const selectedAssignments = parseSpatialPileAssignments(
+      const selectedAssignments = toTipLevelRegionAssignments(
         input.selectedPileConfigurationsByLoadPoint,
       );
       const topologyKey = buildTopologyKey(
-        neighborhoodKey,
+        loadPointTopologyKey,
         input.selectedPileConfigurationsByLoadPoint,
         input.pileOptionsByLoadPointId,
       );
       if (completedTopologyKey === topologyKey && currentTopology) return;
 
       const topology = await dependencies.buildTopology({
-        neighborhood,
+        loadPointTopology,
         selectedAssignments,
         optionsByLoadPoint: input.pileOptionsByLoadPointId,
       });
@@ -97,7 +97,7 @@ export function createTipLevelRegionTopologyController(
   }
 }
 
-function buildNeighborhoodKey(loadPoints: LoadPoint[]): string {
+function buildLoadPointTopologyKey(loadPoints: LoadPoint[]): string {
   return JSON.stringify(
     loadPoints
       .map(({ id, x_mm, y_mm }) => [id, x_mm, y_mm])
@@ -106,7 +106,7 @@ function buildNeighborhoodKey(loadPoints: LoadPoint[]): string {
 }
 
 function buildTopologyKey(
-  neighborhoodKey: string,
+  loadPointTopologyKey: string,
   selectedPileConfigurationsByLoadPoint: Map<number, PileConfigurationKey>,
   pileOptionsByLoadPointId: Map<number, PileConfigurationOption[]>,
 ): string {
@@ -125,5 +125,5 @@ function buildTopologyKey(
         isOption,
       ]),
     ]);
-  return JSON.stringify([neighborhoodKey, selected, options]);
+  return JSON.stringify([loadPointTopologyKey, selected, options]);
 }

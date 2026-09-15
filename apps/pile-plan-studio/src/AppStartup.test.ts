@@ -33,19 +33,19 @@ describe("React app startup", () => {
   it("runs one batched analysis whenever the analysis request object changes", () => {
     const source = readFileSync(resolve(import.meta.dirname, "App.tsx"), "utf8");
 
-    assert.match(source, /calculateProjectAnalysisCore/);
+    assert.match(source, /calculatePileOptionAnalysisCore/);
     assert.match(source, /\[projectState\.analysisRequest\]/);
     assert.doesNotMatch(source, /Promise\.all\(analysisLoadPoints\.map/);
     assert.doesNotMatch(source, /Promise\.all\(projectState\.cpts\.map/);
   });
 
-  it("runs transient CPT draft previews through the shared project analysis core", () => {
+  it("runs transient CPT draft previews through the shared pile-option analysis core", () => {
     const source = readFileSync(resolve(import.meta.dirname, "App.tsx"), "utf8");
 
     assert.match(source, /getCptSelectionPreviewInput/);
     assert.match(source, /projectState\.cptSelectionEditDraft/);
     assert.match(source, /applyCptSelectionPreviewResult/);
-    assert.match(source, /calculateProjectAnalysisCore\(\{/);
+    assert.match(source, /calculatePileOptionAnalysisCore\(\{/);
   });
 
   it("stores analysis failures instead of leaving a permanent loading state", () => {

@@ -51,7 +51,13 @@ Status meanings:
 | `apps/pile-plan-studio/src/domain/activePileConfigurations.ts` | Legend activation toggles, UI filtering, retained assigned rows, and used-value summaries | TypeScript | **Presentation-owned.** It consumes canonical integer keys. Technical validity and optimizer eligibility remain Rust-owned. |
 | `apps/pile-plan-studio/src/domain/pilePlanActivation.ts` | Per-plan activation editing and multi-plan display unions | TypeScript | **Application/presentation-owned.** These operations edit or summarize canonical user choices; they do not determine technical availability. |
 | `apps/pile-plan-studio/src/domain/optimizationCandidates.ts` | Builds and fingerprints the current UI candidate snapshot | TypeScript snapshot workflow plus Rust invariant | **Application-owned with a core invariant.** TypeScript may preview and detect stale requests; Rust remains authoritative for candidate-source eligibility and limits. |
-| `crates/pile-plan-core/src/analysis.rs` | Physical pile-cost calculation | Rust | **Core-owned.** |
+| `crates/pile-plan-core/src/source_data.rs` | Serializable load points, CPTs, and flat foundation-advice rows | Rust | **Core-owned.** Source records remain independent so CPTs without advice are valid. |
+| `crates/pile-plan-core/src/cpt_selection.rs` | Automatic and manual CPT selection and selection geometry | Rust | **Core-owned.** |
+| `crates/pile-plan-core/src/pile_options/foundation_advice.rs` | Validated pile configurations, grouped display rows, and the per-batch capacity index | Rust | **Core-owned.** Persisted advice remains flat; runtime lookup is indexed once per batch. |
+| `crates/pile-plan-core/src/pile_options/costs.rs` | Pile-cost settings, validation, and physical cost calculation | Rust | **Core-owned.** |
+| `crates/pile-plan-core/src/pile_options/mod.rs` | Technical pile-option evaluation and default option selection | Rust | **Core-owned.** |
+| `crates/pile-plan-core/src/pile_options/analysis.rs` | Batched CPT selection, pile-option evaluation, and optional advice display rows | Rust | **Core-owned orchestrator.** It contains no geometry or cost formula. |
+| `crates/pile-plan-core/src/tip_level_regions/*` | Load-point topology, Gabriel graph, bounded faces, and pile-tip-level region grouping | Rust | **Core-owned.** Geometry is scoped to the tip-level-region feature rather than exposed as a generic spatial subsystem. |
 | `apps/pile-plan-studio/src/domain/pileCostCatalog.ts` | Immediate row feedback, immutable catalog edits, display partitioning, and merging personal/built-in defaults | TypeScript UI and preference workflow | **Application-owned.** Rust validates persisted project cost rows, including positive unique pile sizes and finite non-negative costs. TypeScript validates only user-entered or preference rows and does not silently reinterpret the canonical project catalog. |
 | `apps/pile-plan-studio/src/domain/projectCostSummary.ts` | Sums core-produced costs and counts missing values for display | TypeScript | **Presentation-owned.** It does not calculate physical pile costs. |
 | `apps/pile-plan-studio/src/domain/pilePlanManagement.ts` | Plan naming, duplication, active-plan transitions, and installing core optimizer outcomes | TypeScript | **Application-owned.** The optimizer and technical constraints are core-owned; plan lifecycle and history grouping are UI workflow. |
@@ -62,7 +68,7 @@ Status meanings:
 
 | Module | Current responsibility | Target owner | Status and action |
 | --- | --- | --- | --- |
-| `crates/pile-plan-core/src/import.rs` and `src/import/*` | Source parsing, profiles, units, diagnostics, project creation, and project refresh reconciliation | Rust | **Core-owned.** |
+| `crates/pile-plan-core/src/import/mod.rs` and sibling import modules | Source parsing, profiles, units, diagnostics, project creation, and project refresh reconciliation | Rust | **Core-owned.** |
 | `crates/pile-plan-core/src/pile_plan_import.rs` | Pile-plan file parsing, validation, and patch decisions | Rust | **Core-owned.** |
 | `apps/pile-plan-studio/src/core/coreImportContract.ts` | File/profile request mapping and structured diagnostic mapping | TypeScript adapter | **Application-owned adapter.** No source-row interpretation belongs here. |
 | `apps/pile-plan-studio/src/core/pilePlanImportContract.ts` | Pile-plan import request/result mapping | TypeScript adapter | **Application-owned adapter.** |

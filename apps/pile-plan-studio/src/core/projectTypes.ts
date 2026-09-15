@@ -84,7 +84,7 @@ export type PileConfigurationOption = {
   technicalStatus: PileOptionTechnicalStatus;
 };
 
-export type ProjectAnalysisResult = {
+export type PileOptionAnalysisResult = {
   pileOptionsByLoadPointId: Map<number, PileConfigurationOption[]>;
   selectedCptsByLoadPointId: Map<number, SelectedCpt[]>;
   cptFrdRowsByCptId: Map<number, CptBearingCapacityRow[]> | null;

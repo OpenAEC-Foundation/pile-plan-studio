@@ -3,15 +3,11 @@ import initWasm, {
   aggregate_pile_options,
   assess_technical_assignment,
   apply_load_point_group_assignment,
-  build_spatial_neighborhood,
+  build_load_point_topology,
   build_tip_level_region_topology,
   calculate_pile_option_cost,
-  calculate_pile_options,
-  calculate_project_analysis,
-  calculate_selected_cpts,
-  choose_default_option,
+  calculate_pile_option_analysis,
   choose_default_options,
-  cpt_frd_rows,
   derive_load_point_groups,
   export_pile_plan_csv,
   export_pile_plan_xlsx,
@@ -26,17 +22,14 @@ import initWasm, {
 import { toStringKeyedRecord, toWasmNumberKeyedMap, toWasmNumberKeyedRecord } from "./coreSerialization.ts";
 import { binaryResultToUint8Array } from "./binaryCoreResult.ts";
 import {
-  corePileOptionsMapToFrontend,
-  fromCorePileOption,
   numericMap,
-  projectAnalysisResultFromCore,
+  pileOptionAnalysisResultFromCore,
   type CorePileConfigurationOption,
-  type CoreProjectAnalysisResult,
-} from "./projectAnalysisResult.ts";
+  type CorePileOptionAnalysisResult,
+} from "./pileOptionAnalysisResult.ts";
 
 import {
   type BearingCapacity,
-  type CptBearingCapacityRow,
   type Cpt,
   type CptSelectionSettings,
   type GreedyOptimizationSettings,
@@ -48,8 +41,7 @@ import {
   type PileConfigurationKey,
   type PilePlanExportInput,
   type PileCostSettings,
-  type ProjectAnalysisResult,
-  type SelectedCpt,
+  type PileOptionAnalysisResult,
 } from "./projectTypes";
 import type { IfcppProject } from "./projectFile.ts";
 import {
@@ -74,10 +66,10 @@ import {
 import {
   toBrowserTipLevelRegionTopologyRequest,
   toDesktopTipLevelRegionTopologyRequest,
-  type SpatialNeighborhood,
-  type SpatialPileAssignment,
+  type LoadPointTopology,
+  type TipLevelRegionAssignment,
   type TipLevelRegionTopology,
-} from "./spatialTopologyContract.ts";
+} from "./tipLevelRegionContract.ts";
 import {
   loadPointGroupAssignmentResultFromCore,
   loadPointGroupsFromCore,
@@ -133,22 +125,22 @@ export function isTauriRuntime(): boolean {
   return typeof window !== "undefined" && "__TAURI_INTERNALS__" in window;
 }
 
-export async function buildSpatialNeighborhoodCore(
+export async function buildLoadPointTopologyCore(
   loadPoints: LoadPoint[],
-): Promise<SpatialNeighborhood> {
+): Promise<LoadPointTopology> {
   if (!isTauriRuntime()) {
     await initializeWasm();
-    return build_spatial_neighborhood({ load_points: loadPoints }) as SpatialNeighborhood;
+    return build_load_point_topology({ load_points: loadPoints }) as LoadPointTopology;
   }
 
-  return invoke<SpatialNeighborhood>("build_spatial_neighborhood", {
+  return invoke<LoadPointTopology>("build_load_point_topology", {
     request: { load_points: loadPoints },
   });
 }
 
 export async function buildTipLevelRegionTopologyCore(input: {
-  neighborhood: SpatialNeighborhood;
-  selectedAssignments: Map<number, SpatialPileAssignment>;
+  loadPointTopology: LoadPointTopology;
+  selectedAssignments: Map<number, TipLevelRegionAssignment>;
   optionsByLoadPoint: Map<number, PileConfigurationOption[]>;
 }): Promise<TipLevelRegionTopology> {
   if (!isTauriRuntime()) {
@@ -163,74 +155,7 @@ export async function buildTipLevelRegionTopologyCore(input: {
   });
 }
 
-export async function calculateSelectedCptsCore(input: {
-  loadPoint: LoadPoint;
-  cpts: Cpt[];
-  settings: CptSelectionSettings;
-  manualCptIds?: number[];
-}): Promise<SelectedCpt[]> {
-  if (!isTauriRuntime()) {
-    await initializeWasm();
-    return calculate_selected_cpts({
-      load_point: input.loadPoint,
-      cpts: input.cpts,
-      settings: toCoreSettings(input.settings),
-      manual_cpt_ids: input.manualCptIds ?? null,
-    }) as SelectedCpt[];
-  }
-
-  return invoke<SelectedCpt[]>("calculate_selected_cpts", {
-    request: {
-      load_point: input.loadPoint,
-      cpts: input.cpts,
-      settings: toCoreSettings(input.settings),
-      manual_cpt_ids: input.manualCptIds ?? null,
-    },
-  });
-}
-
-export async function calculatePileOptionsCore(input: {
-  loadPoints: LoadPoint[];
-  cpts: Cpt[];
-  bearingCapacities: BearingCapacity[];
-  globalSettings: CptSelectionSettings;
-  settingsByLoadPoint: Map<number, CptSelectionSettings>;
-  manualCptIdsByLoadPoint: ManualCptIdsByLoadPoint;
-}): Promise<Map<number, PileConfigurationOption[]>> {
-  if (!isTauriRuntime()) {
-    await initializeWasm();
-    const result = calculate_pile_options({
-      load_points: input.loadPoints,
-      cpts: input.cpts,
-      bearing_capacities: input.bearingCapacities,
-      global_settings: toCoreSettings(input.globalSettings),
-      settings_by_load_point: toCoreSettingsMapByLoadPoint(input.settingsByLoadPoint),
-      manual_cpt_ids_by_load_point: toWasmNumberKeyedMap(input.manualCptIdsByLoadPoint),
-    });
-
-    return corePileOptionsMapToFrontend(result);
-  }
-
-  const result = await invoke<Record<string, CorePileConfigurationOption[]>>("calculate_pile_options", {
-    request: {
-      load_points: input.loadPoints,
-      cpts: input.cpts,
-      bearing_capacities: input.bearingCapacities,
-      global_settings: toCoreSettings(input.globalSettings),
-      settings_by_load_point: toCoreSettingsByLoadPoint(input.settingsByLoadPoint),
-      manual_cpt_ids_by_load_point: toStringKeyedRecord(input.manualCptIdsByLoadPoint),
-    },
-  });
-
-  return new Map(
-    Object.entries(result).map(([loadPointId, options]) => [
-      Number(loadPointId),
-      options.map(fromCorePileOption),
-    ]),
-  );
-}
-
-export async function calculateProjectAnalysisCore(input: {
+export async function calculatePileOptionAnalysisCore(input: {
   loadPoints: LoadPoint[];
   cpts: Cpt[];
   bearingCapacities: BearingCapacity[];
@@ -238,7 +163,7 @@ export async function calculateProjectAnalysisCore(input: {
   settingsByLoadPoint: Map<number, CptSelectionSettings>;
   manualCptIdsByLoadPoint: ManualCptIdsByLoadPoint;
   includeCptFrdRows: boolean;
-}): Promise<ProjectAnalysisResult> {
+}): Promise<PileOptionAnalysisResult> {
   const wasmRequest = {
     load_points: input.loadPoints,
     cpts: input.cpts,
@@ -248,12 +173,12 @@ export async function calculateProjectAnalysisCore(input: {
     manual_cpt_ids_by_load_point: toWasmNumberKeyedMap(input.manualCptIdsByLoadPoint),
     include_cpt_frd_rows: input.includeCptFrdRows,
   };
-  let result: CoreProjectAnalysisResult;
+  let result: CorePileOptionAnalysisResult;
   if (!isTauriRuntime()) {
     await initializeWasm();
-    result = calculate_project_analysis(wasmRequest) as CoreProjectAnalysisResult;
+    result = calculate_pile_option_analysis(wasmRequest) as CorePileOptionAnalysisResult;
   } else {
-    result = await invoke<CoreProjectAnalysisResult>("calculate_project_analysis", {
+    result = await invoke<CorePileOptionAnalysisResult>("calculate_pile_option_analysis", {
       request: {
         ...wasmRequest,
         settings_by_load_point: toCoreSettingsByLoadPoint(input.settingsByLoadPoint),
@@ -262,7 +187,7 @@ export async function calculateProjectAnalysisCore(input: {
     });
   }
 
-  return projectAnalysisResultFromCore(result);
+  return pileOptionAnalysisResultFromCore(result);
 }
 
 export async function calculatePileCostCore(input: {
@@ -293,33 +218,6 @@ export async function calculatePileCostCore(input: {
   });
 
   return response.cost;
-}
-
-export async function chooseDefaultPileOptionCore(input: {
-  options: PileConfigurationOption[];
-  pileHeadLevelM: number;
-  settings: PileCostSettings;
-}): Promise<PileConfigurationOption | null> {
-  if (!isTauriRuntime()) {
-    await initializeWasm();
-    const option = choose_default_option({
-      options: input.options.map(toCorePileOption),
-      pile_head_level_m: input.pileHeadLevelM,
-      settings: input.settings,
-    }) as CorePileConfigurationOption | null;
-
-    return option ? fromCorePileOption(option) : null;
-  }
-
-  const option = await invoke<CorePileConfigurationOption | null>("choose_default_option", {
-    request: {
-      options: input.options.map(toCorePileOption),
-      pile_head_level_m: input.pileHeadLevelM,
-      settings: input.settings,
-    },
-  });
-
-  return option ? fromCorePileOption(option) : null;
 }
 
 export async function chooseDefaultPileOptionsCore(input: {
@@ -415,26 +313,6 @@ export async function assessTechnicalAssignmentCore(
   }
 
   return technicalAssignmentAssessmentFromCore(result);
-}
-
-export async function getBearingCapacityRowsForCptCore(input: {
-  bearingCapacities: BearingCapacity[];
-  cptId: number;
-}): Promise<CptBearingCapacityRow[]> {
-  if (!isTauriRuntime()) {
-    await initializeWasm();
-    return cpt_frd_rows({
-      bearing_capacities: input.bearingCapacities,
-      cpt_id: input.cptId,
-    }) as CptBearingCapacityRow[];
-  }
-
-  return invoke<CptBearingCapacityRow[]>("cpt_frd_rows", {
-    request: {
-      bearing_capacities: input.bearingCapacities,
-      cpt_id: input.cptId,
-    },
-  });
 }
 
 export async function greedyOptimizeCore(

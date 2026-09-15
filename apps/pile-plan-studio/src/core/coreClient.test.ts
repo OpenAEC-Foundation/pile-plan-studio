@@ -2,12 +2,12 @@ import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
-import { projectAnalysisResultFromCore } from "./projectAnalysisResult.ts";
+import { pileOptionAnalysisResultFromCore } from "./pileOptionAnalysisResult.ts";
 import { binaryResultToUint8Array } from "./binaryCoreResult.ts";
 
-describe("project analysis core result", () => {
+describe("pile-option analysis core result", () => {
   it("accepts omitted CPT FRD rows from WASM recalculation", () => {
-    const result = projectAnalysisResultFromCore({
+    const result = pileOptionAnalysisResultFromCore({
       pile_options_by_load_point: new Map(),
       selected_cpts_by_load_point: new Map(),
       cpt_frd_rows_by_cpt_id: undefined,
