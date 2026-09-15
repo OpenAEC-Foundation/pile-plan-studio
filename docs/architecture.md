@@ -46,19 +46,31 @@ These boundaries do not move engineering authority into React. CPT selection,
 pile-option evaluation, capacity, cost, grouping, assignment, optimization, and
 project validation remain authoritative in `crates/pile-plan-core`.
 
-The pile-option calculation is grouped under `pile_options/`:
+The Rust core is divided into feature modules rather than broad utility or
+orchestration catch-alls. Its main grouped subsystems are:
 
-- `source_data.rs` owns load points, CPTs, and flat foundation-advice rows;
-- `cpt_selection.rs` owns automatic and manual CPT selection;
-- `pile_options/foundation_advice.rs` builds the runtime advice index;
-- `pile_options/costs.rs` owns cost settings, validation, and physical cost calculation;
-- `pile_options/mod.rs` evaluates and ranks pile configurations; and
-- `pile_options/analysis.rs` coordinates one batched calculation for the requested load points.
+- `import/` owns source profiles, table and RFEM parsing, project construction,
+  and refresh reconciliation;
+- `pile_options/` owns the advice index, option evaluation and aggregation,
+  technical status, cost calculation, and batched option analysis;
+- `optimization/` owns optimization-unit preparation and the greedy optimizer;
+  and
+- `tip_level_regions/` owns load-point topology, Gabriel-graph construction,
+  bounded faces, and pile-tip-level region grouping.
 
-Optimization is grouped under `optimization/`, while `tip_level_regions/`
-owns the load-point topology, Gabriel graph, bounded faces, and grouping used
-to render pile-tip-level regions. The generic `spatial` name is deliberately
-avoided because this geometry exists for that specific domain purpose.
+Focused top-level modules retain concepts that do not benefit from another
+directory layer, such as `cpt_selection.rs`, `load_point_groups.rs`,
+`project.rs`, and `technical_assignment.rs`. A generic `analysis` or `spatial`
+module is deliberately avoided because it would hide which feature owns the
+behavior.
+
+`PileOptionAnalysisResult` is the request-scoped result of
+`build_pile_option_analysis`. It is not a persisted project entity and does not
+represent every possible project analysis. It combines, for the requested load
+points, the selected CPTs and the pile options calculated from those selections.
+Callers may additionally request foundation-advice display rows grouped by CPT;
+the optional field avoids preparing that presentation data when it is not
+needed.
 
 Foundation advice remains stored as flat rows keyed by CPT ID. The batch
 orchestrator builds one internal index and reuses it for all requested load
@@ -114,6 +126,13 @@ feature, `ViewerStage.tsx` owns the ordered map layers,
 and `useViewerViewport.ts` owns the project transform, layout compensation,
 grid alignment, and zoom commits. `viewerDomCoordinates.ts` is the single
 browser-coordinate conversion boundary.
+
+The viewer also separates application theming from project drawing semantics.
+Panels, controls, and other application chrome use the active `--theme-*`
+palette. The plan itself remains a white engineering canvas, so annotations
+whose meaning must not change with the application theme use viewer-owned
+colors. Related load-point group rings therefore keep the same neutral dark
+stroke in light and dark themes instead of inheriting a themed text color.
 
 The implementation invariants, coordinate pipeline, regression symptoms, and
 manual test procedure live beside the viewer code in

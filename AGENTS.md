@@ -42,9 +42,18 @@ configurations, optimizer restrictions, and unresolved optimizer outcomes.
 
 - `crates/pile-plan-core` is the source of truth for engineering rules,
   calculations, imports, project operations, and optimization.
+- Keep focused core subsystems in their existing feature modules:
+  `pile_options/` for pile-option analysis, `optimization/` for optimizer
+  preparation and execution, `tip_level_regions/` for the region topology,
+  and `import/` for source-import workflows. Do not recreate a generic
+  `analysis` or `spatial` catch-all module.
 - `crates/pile-plan-wasm` is a thin browser wrapper around the Rust core.
 - `apps/pile-plan-studio` contains the React/TypeScript interface and Tauri
   desktop shell.
+- In the frontend, keep runtime orchestration in `app/`, pure immutable logic
+  in feature folders below `domain/`, and feature views below
+  `components/domain/`. Colocate feature-specific models, styles, and tests;
+  reserve `components/domain/shared/` for genuinely reusable view primitives.
 - TypeScript may derive presentation state, but must not duplicate engineering
   decisions that belong in the Rust core.
 - Keep browser/WASM and desktop/native behavior aligned.
@@ -77,9 +86,15 @@ depends on structural comparison.
 - Do not use color alone to communicate state.
 - Keep controls usable at the compact application baseline and with longer
   translated labels.
+- Treat application chrome and the plan drawing as separate color systems.
+  Application chrome may use `--theme-*` variables. Project annotations that
+  must look identical on the white drawing canvas across themes must use an
+  explicit viewer-owned color; in particular, related load-point group rings
+  must not derive their stroke from themed text colors.
 - Before changing viewer geometry, scaling, or marker layers, read
   `apps/pile-plan-studio/src/viewer/README.md` and preserve its invariants.
-- Inspect visible interface changes in the browser preview.
+- Inspect visible interface changes in the browser preview. For viewer color
+  changes, compare at least the light theme and one dark theme.
 - Use Tauri as well when testing native files, windows, or desktop integration.
 
 ## Repository workflow
