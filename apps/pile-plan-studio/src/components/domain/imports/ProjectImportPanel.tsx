@@ -18,7 +18,7 @@ import ThemedSelect from "../../template/ThemedSelect.tsx";
 import "../../template/ThemedSelect.css";
 import { ifcImportIcon, infoIcon } from "../../template/ribbon/icons.ts";
 import { importProfileChoices } from "./importProfileChoices.ts";
-import { normalizePileHeadLevel } from "../projectInformationModel.ts";
+import { normalizePileHeadLevel } from "../project/projectInformationModel.ts";
 import {
   applyImportPreview,
   beginImportPreview,

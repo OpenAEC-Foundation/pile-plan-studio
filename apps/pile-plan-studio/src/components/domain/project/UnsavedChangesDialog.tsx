@@ -1,5 +1,5 @@
 import { useTranslation } from "react-i18next";
-import Modal from "../template/Modal.tsx";
+import Modal from "../../template/Modal.tsx";
 
 type Props = {
   open: boolean;

@@ -5,7 +5,7 @@ import { resolve } from "node:path";
 
 describe("source data viewer", () => {
   const source = readFileSync(resolve(import.meta.dirname, "SourceDataViewer.tsx"), "utf8");
-  const styles = readFileSync(resolve(import.meta.dirname, "../../App.css"), "utf8");
+  const styles = readFileSync(resolve(import.meta.dirname, "../../../App.css"), "utf8");
 
   it("shows source provenance, popup column filters, and sorting", () => {
     assert.match(source, /source\.fileName/);

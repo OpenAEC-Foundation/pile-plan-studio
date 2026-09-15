@@ -13,10 +13,10 @@ import PilePlanWorkspace from "./components/domain/pile-plans/PilePlanWorkspace"
 import RightPanel, { type RightTaskPanel } from "./components/domain/right-panel/RightPanel";
 import { useLoadPointGroups } from "./components/domain/useLoadPointGroups.ts";
 import { useTechnicalAssignment } from "./components/domain/useTechnicalAssignment.ts";
-import ProjectInformationDialog from "./components/domain/ProjectInformationDialog";
-import UnsavedChangesDialog from "./components/domain/UnsavedChangesDialog.tsx";
+import ProjectInformationDialog from "./components/domain/project/ProjectInformationDialog";
+import UnsavedChangesDialog from "./components/domain/project/UnsavedChangesDialog.tsx";
 import PilePlanExplorer from "./components/domain/pile-plans/PilePlanExplorer.tsx";
-import SourceDataViewer from "./components/domain/SourceDataViewer.tsx";
+import SourceDataViewer from "./components/domain/source-data/SourceDataViewer.tsx";
 import type { InputSourceKind } from "./domain/projectState.ts";
 import type { SourceLoadPointSelection } from "./domain/sourceTableModel.ts";
 import {

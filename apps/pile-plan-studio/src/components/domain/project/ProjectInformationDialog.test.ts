@@ -42,7 +42,7 @@ describe("Project information", () => {
   });
 
   it("uses a stable two-column form layout", () => {
-    const styles = readFileSync(new URL("../../App.css", import.meta.url), "utf8");
+    const styles = readFileSync(new URL("../../../App.css", import.meta.url), "utf8");
 
     assert.match(styles, /\.project-information-form label\s*{[\s\S]*?grid-template-columns:/);
     assert.match(styles, /\.project-information-form input[\s\S]*?width:\s*100%/);

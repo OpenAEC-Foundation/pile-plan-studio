@@ -9,9 +9,9 @@ import {
   type UIEvent,
 } from "react";
 import { useTranslation } from "react-i18next";
-import { formatPileTipLevelMetres } from "../../domain/formatting.ts";
-import type { BearingCapacity, Cpt, LoadPoint } from "../../core/projectTypes.ts";
-import type { InputSource } from "../../domain/projectState.ts";
+import { formatPileTipLevelMetres } from "../../../domain/formatting.ts";
+import type { BearingCapacity, Cpt, LoadPoint } from "../../../core/projectTypes.ts";
+import type { InputSource } from "../../../domain/projectState.ts";
 import {
   buildSourceTable,
   filterAndSortSourceRows,
@@ -20,9 +20,9 @@ import {
   type SourceLoadPointSelection,
   type SourceTableFilter,
   type SourceTableSort,
-} from "../../domain/sourceTableModel.ts";
-import { getAdditiveSelectionModifier } from "../../viewer/lassoSelection.ts";
-import { searchIcon } from "../template/ribbon/icons.ts";
+} from "../../../domain/sourceTableModel.ts";
+import { getAdditiveSelectionModifier } from "../../../viewer/lassoSelection.ts";
+import { searchIcon } from "../../template/ribbon/icons.ts";
 
 const ROW_HEIGHT = 30;
 const OVERSCAN_ROWS = 8;

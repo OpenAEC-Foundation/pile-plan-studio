@@ -1,9 +1,9 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import Modal from "../template/Modal.tsx";
-import ThemedSelect from "../template/ThemedSelect.tsx";
-import "../template/ThemedSelect.css";
-import { infoIcon } from "../template/ribbon/icons.ts";
+import Modal from "../../template/Modal.tsx";
+import ThemedSelect from "../../template/ThemedSelect.tsx";
+import "../../template/ThemedSelect.css";
+import { infoIcon } from "../../template/ribbon/icons.ts";
 import { normalizePileHeadLevel, normalizeProjectName } from "./projectInformationModel.ts";
 
 const CURRENCY_OPTIONS = ["EUR", "GBP", "USD"].map((currency) => ({ value: currency, label: currency }));
