@@ -1,3 +1,5 @@
+import { invokeDesktop } from "../core/coreTransport.ts";
+
 export type ProjectFileCommands = {
   save: boolean;
   saveAs: boolean;
@@ -128,8 +130,7 @@ export async function saveBinaryExport(
   });
   if (!path) return false;
 
-  const { invoke } = await import("@tauri-apps/api/core");
-  await invoke("write_binary_file", { path, contents: [...bytes] });
+  await invokeDesktop("write_binary_file", { path, contents: [...bytes] });
   return true;
 }
 

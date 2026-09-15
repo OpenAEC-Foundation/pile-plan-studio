@@ -32,6 +32,7 @@ import {
   refreshProjectFromFilesCore,
   writeProjectDocumentCore,
 } from "./core/coreClient";
+import { invokeDesktop, listenDesktop } from "./core/coreTransport.ts";
 import type { PileConfigurationKey, PileCostSettings } from "./core/projectTypes.ts";
 import type { ImportSourceInput } from "./core/coreImportContract";
 import type { ProjectImportProperties } from "./components/domain/ProjectImportPanel.tsx";
@@ -704,8 +705,7 @@ function AppSession({
       filters: [{ name: "IFCPP project", extensions: ["ifcpp"] }],
     });
     if (!path) return false;
-    const { invoke } = await import("@tauri-apps/api/core");
-    await invoke("write_project_file", { path, contents: await serializeProject() });
+    await invokeDesktop("write_project_file", { path, contents: await serializeProject() });
     setProjectPath(path);
     updateSavedProjectSignature(JSON.stringify(projectDraftFromState(projectState)));
     setIsDirty(false);
@@ -715,8 +715,7 @@ function AppSession({
   const saveProject = async (): Promise<boolean> => {
     if (!isDesktop) return downloadProject();
     if (!projectPath) return saveProjectAs();
-    const { invoke } = await import("@tauri-apps/api/core");
-    await invoke("write_project_file", { path: projectPath, contents: await serializeProject() });
+    await invokeDesktop("write_project_file", { path: projectPath, contents: await serializeProject() });
     updateSavedProjectSignature(JSON.stringify(projectDraftFromState(projectState)));
     setIsDirty(false);
     return true;
@@ -1587,8 +1586,7 @@ function AppSession({
   const openDesktopProjectPath = async (path: string) => {
     if (!await confirmProjectReplacement()) return;
     try {
-      const { invoke } = await import("@tauri-apps/api/core");
-      const text = await invoke<string>("read_project_file", { path });
+      const text = await invokeDesktop<string>("read_project_file", { path });
       const project = await prepareOpenedProject(
         text,
         { initializeDefaultPiles: false },
@@ -1622,8 +1620,7 @@ function AppSession({
     };
     const drainPendingProjectPaths = () => {
       pendingDrain = pendingDrain.then(async () => {
-        const { invoke } = await import("@tauri-apps/api/core");
-        const paths = await invoke<string[]>("take_pending_project_paths");
+        const paths = await invokeDesktop<string[]>("take_pending_project_paths", {});
         for (const path of paths) {
           if (disposed) return;
           await openDesktopProjectPathRef.current?.(path);
@@ -1632,11 +1629,10 @@ function AppSession({
       return pendingDrain;
     };
 
-    void import("@tauri-apps/api/event")
-      .then(async ({ listen }) => {
-        const unlisten = await listen("project-open-requested", () => {
-          void drainPendingProjectPaths();
-        });
+    void listenDesktop("project-open-requested", () => {
+      void drainPendingProjectPaths();
+    })
+      .then(async (unlisten) => {
         if (disposed) {
           unlisten();
           return;

@@ -6,9 +6,9 @@ import { resolve } from "node:path";
 describe("React app startup", () => {
   it("drains desktop IFCPP launch requests after registering the warm-open listener", () => {
     const source = readFileSync(resolve(import.meta.dirname, "App.tsx"), "utf8");
-    const effectStart = source.indexOf('void import("@tauri-apps/api/event")');
+    const effectStart = source.indexOf('void listenDesktop("project-open-requested"');
     const effect = source.slice(effectStart, source.indexOf("return () =>", effectStart));
-    const listener = effect.indexOf('await listen("project-open-requested"');
+    const listener = effect.indexOf('listenDesktop("project-open-requested"');
     const initialDrain = effect.indexOf("await drainPendingProjectPaths()", listener);
 
     assert.ok(listener >= 0, "desktop project-open listener is missing");

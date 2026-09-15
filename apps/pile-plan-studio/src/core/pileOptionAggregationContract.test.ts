@@ -80,11 +80,11 @@ describe("pile option aggregation transport contract", () => {
   });
 
   it("routes browser and desktop aggregation through their transport adapters", () => {
-    const source = readFileSync(new URL("./coreClient.ts", import.meta.url), "utf8");
+    const source = readFileSync(new URL("./analysisCoreClient.ts", import.meta.url), "utf8");
 
     assert.match(source, /export async function aggregatePileOptionsCore/);
     assert.match(source, /aggregate_pile_options\(\s*toBrowserAggregatePileOptionsRequest/);
-    assert.match(source, /invoke<CoreAggregatedPileConfiguration\[]>\("aggregate_pile_options"/);
+    assert.match(source, /invokeDesktop<CoreAggregatedPileConfiguration\[]>\("aggregate_pile_options"/);
     assert.match(source, /toDesktopAggregatePileOptionsRequest/);
   });
 });

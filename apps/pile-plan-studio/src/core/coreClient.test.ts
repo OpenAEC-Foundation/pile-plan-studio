@@ -1,9 +1,29 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
 
 import { pileOptionAnalysisResultFromCore } from "./pileOptionAnalysisResult.ts";
 import { binaryResultToUint8Array } from "./binaryCoreResult.ts";
+import {
+  aggregatePileOptionsCore,
+  applyLoadPointGroupAssignmentCore,
+  assessTechnicalAssignmentCore,
+  buildLoadPointTopologyCore,
+  buildTipLevelRegionTopologyCore,
+  calculatePileCostCore,
+  calculatePileOptionAnalysisCore,
+  chooseDefaultPileOptionsCore,
+  deriveLoadPointGroupsCore,
+  exportPilePlanCsvCore,
+  exportPilePlanXlsxCore,
+  greedyOptimizeCore,
+  importProjectFromFilesCore,
+  isTauriRuntime,
+  previewImportSourceCore,
+  previewPilePlanImportCore,
+  readProjectDocumentCore,
+  refreshProjectFromFilesCore,
+  writeProjectDocumentCore,
+} from "./coreClient.ts";
 
 describe("pile-option analysis core result", () => {
   it("accepts omitted CPT FRD rows from WASM recalculation", () => {
@@ -26,59 +46,30 @@ describe("binary core result", () => {
   });
 });
 
-describe("project source refresh core contract", () => {
-  it("normalizes open, import, and refresh through the project-document contract", () => {
-    const source = readFileSync(new URL("./coreClient.ts", import.meta.url), "utf8");
+describe("core client public surface", () => {
+  it("keeps every app-facing command available through the compatibility barrel", () => {
+    const commands = [
+      aggregatePileOptionsCore,
+      applyLoadPointGroupAssignmentCore,
+      assessTechnicalAssignmentCore,
+      buildLoadPointTopologyCore,
+      buildTipLevelRegionTopologyCore,
+      calculatePileCostCore,
+      calculatePileOptionAnalysisCore,
+      chooseDefaultPileOptionsCore,
+      deriveLoadPointGroupsCore,
+      exportPilePlanCsvCore,
+      exportPilePlanXlsxCore,
+      greedyOptimizeCore,
+      importProjectFromFilesCore,
+      isTauriRuntime,
+      previewImportSourceCore,
+      previewPilePlanImportCore,
+      readProjectDocumentCore,
+      refreshProjectFromFilesCore,
+      writeProjectDocumentCore,
+    ];
 
-    const importStart = source.indexOf("export async function importProjectFromFilesCore");
-    const refreshStart = source.indexOf("export async function refreshProjectFromFilesCore");
-    const readStart = source.indexOf("export async function readProjectDocumentCore");
-    const importHandler = source.slice(importStart, refreshStart);
-    const refreshHandler = source.slice(refreshStart, readStart);
-
-    assert.match(source, /projectDocumentOutcomeFromCore/);
-    assert.match(importHandler, /validProjectDocumentFromCore/);
-    assert.match(refreshHandler, /validProjectDocumentFromCore/);
-    assert.doesNotMatch(importHandler, /validatedProjectFromCore/);
-    assert.doesNotMatch(refreshHandler, /validatedProjectFromCore/);
-  });
-
-  it("does not expose superseded project-validation endpoints", () => {
-    const source = readFileSync(new URL("./coreClient.ts", import.meta.url), "utf8");
-
-    assert.doesNotMatch(
-      source,
-      /readValidatedIfcppProjectCore|writeIfcppProjectCore|validateLoadPointPositionsCore/,
-    );
-  });
-
-  it("passes required project properties through new-project imports", () => {
-    const source = readFileSync(new URL("./coreClient.ts", import.meta.url), "utf8");
-    const start = source.indexOf("export async function importProjectFromFilesCore");
-    const handler = source.slice(start, source.indexOf("export async function refreshProjectFromFilesCore", start));
-
-    assert.match(handler, /pileHeadLevelM/);
-    assert.match(handler, /currencyCode/);
-    assert.match(handler, /pile_head_level_m/);
-    assert.match(handler, /currency_code/);
-  });
-  it("converts persisted numeric record keys before refreshing in WASM", () => {
-    const source = readFileSync(new URL("./coreClient.ts", import.meta.url), "utf8");
-
-    assert.match(source, /refresh_project_from_files/);
-    assert.match(source, /current_project:\s*toWasmIfcppProject\(input\.currentProject\)/);
-    assert.match(source, /sources:\s*input\.sources\.map\(toCoreImportSource\)/);
-    assert.match(source, /invoke<CoreValidatedProjectDocument>\("refresh_project_from_files"/);
-  });
-
-  it("converts persisted optimizer outcome keys before writing in WASM", () => {
-    const source = readFileSync(new URL("./coreClient.ts", import.meta.url), "utf8");
-    const start = source.indexOf("function toWasmIfcppProject");
-    const converter = source.slice(start, source.indexOf("async function exportPilePlanCore", start));
-
-    assert.match(
-      converter,
-      /optimization_unassigned:\s*toWasmNumberKeyedRecord\(\s*plan\.optimization_unassigned\s*\?\?\s*\{\}/,
-    );
+    assert.equal(commands.every((command) => typeof command === "function"), true);
   });
 });

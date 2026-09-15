@@ -64,11 +64,11 @@ describe("technical assignment transport contract", () => {
   });
 
   it("routes browser and desktop assessment through their adapters", () => {
-    const source = readFileSync(new URL("./coreClient.ts", import.meta.url), "utf8");
+    const source = readFileSync(new URL("./analysisCoreClient.ts", import.meta.url), "utf8");
 
     assert.match(source, /export async function assessTechnicalAssignmentCore/);
     assert.match(source, /assess_technical_assignment\(\s*toBrowserTechnicalAssignmentRequest/);
-    assert.match(source, /invoke<.*>\("assess_technical_assignment"/s);
+    assert.match(source, /invokeDesktop<.*>\("assess_technical_assignment"/s);
     assert.match(source, /toDesktopTechnicalAssignmentRequest/);
   });
 });

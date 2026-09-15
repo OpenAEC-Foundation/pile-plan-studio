@@ -131,7 +131,7 @@ describe("load point group transport contract", () => {
   });
 
   it("routes both operations to matching WASM and Tauri commands", () => {
-    const source = readFileSync(new URL("./coreClient.ts", import.meta.url), "utf8");
+    const source = readFileSync(new URL("./pilePlanCoreClient.ts", import.meta.url), "utf8");
 
     assert.match(source, /derive_load_point_groups\(/);
     assert.match(source, /"derive_load_point_groups"/);
