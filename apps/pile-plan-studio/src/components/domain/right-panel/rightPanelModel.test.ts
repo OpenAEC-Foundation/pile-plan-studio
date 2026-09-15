@@ -11,7 +11,7 @@ import {
   getSelectedLoadPoints,
   optionKey,
 } from "./rightPanelModel.ts";
-import type { ProjectState } from "../../domain/projectState.ts";
+import type { ProjectState } from "../../../domain/projectState.ts";
 
 describe("React right panel model", () => {
   it("returns selected load points in project order", () => {

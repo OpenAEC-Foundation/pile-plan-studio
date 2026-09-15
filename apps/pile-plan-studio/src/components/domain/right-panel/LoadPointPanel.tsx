@@ -7,7 +7,7 @@ import { openCpt, selectLoadPoint } from "../../../domain/selectionState.ts";
 import { filterActivePileOptions } from "../../../domain/activePileConfigurations.ts";
 import { getActivePilePlan, getPilePlanActivation } from "../../../domain/pilePlanActivation.ts";
 import { getNextPileOptionSortState, getPileOptionColumns, getPileOptionFilterValues, getPileOptionTableRows, type PileOptionTableColumn, type SortablePileOptionTableColumn } from "../../../domain/pileOptionTable.ts";
-import { getChosenPileOptionConfigurationForSelection, getChosenPileOptionKeyForSelection, getPileOptionsByLoadPointIdForPanel, getRenderableAggregatedPileOptionRows, getRenderablePileOptionRows, getSelectedLoadPoints, optionKey } from "../rightPanelModel.ts";
+import { getChosenPileOptionConfigurationForSelection, getChosenPileOptionKeyForSelection, getPileOptionsByLoadPointIdForPanel, getRenderableAggregatedPileOptionRows, getRenderablePileOptionRows, getSelectedLoadPoints, optionKey } from "./rightPanelModel.ts";
 import { useAggregatedPileOptions } from "../useAggregatedPileOptions.ts";
 import type { TechnicalAssignmentSnapshot } from "../technicalAssignmentController.ts";
 import TechnicalAssignmentNotice from "../TechnicalAssignmentNotice.tsx";

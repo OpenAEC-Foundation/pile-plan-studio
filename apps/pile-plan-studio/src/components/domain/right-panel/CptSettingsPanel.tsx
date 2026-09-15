@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { ProjectState } from "../../../domain/projectState.ts";
-import { getSelectedLoadPoints } from "../rightPanelModel.ts";
+import { getSelectedLoadPoints } from "./rightPanelModel.ts";
 import { applyCptSelectionSettingsPatch, clearManualCptSelection, getCptSelectionSettingsAggregate } from "../cptSettingsModel.ts";
 import { AlgorithmOption, DraftNumberField, SettingsGroup } from "./PanelControls.tsx";
 import { startCptSelectionEdit } from "./CptPanel.tsx";

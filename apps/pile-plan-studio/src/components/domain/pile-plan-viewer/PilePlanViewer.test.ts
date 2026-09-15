@@ -479,14 +479,14 @@ describe("PilePlanViewer inputs", () => {
   });
 
   it("uses an opaque surface behind sticky table headers", () => {
-    const css = readFileSync(resolve(import.meta.dirname, "../rightPanel.css"), "utf8");
+    const css = readFileSync(resolve(import.meta.dirname, "../right-panel/rightPanel.css"), "utf8");
 
     assert.match(css, /\.pile-options-table th\s*{[\s\S]*?background:\s*var\(--theme-surface\);/);
     assert.match(css, /\.cpt-table th\s*{[\s\S]*?background:\s*var\(--theme-surface\);/);
   });
 
   it("shares one subtle accent highlight between the chosen pile and governing CPT", () => {
-    const css = readFileSync(resolve(import.meta.dirname, "../rightPanel.css"), "utf8");
+    const css = readFileSync(resolve(import.meta.dirname, "../right-panel/rightPanel.css"), "utf8");
     const hoverRule = css.match(/\.pile-option-row:hover\s*\{(?<body>[^}]*)\}/s)?.groups?.body ?? "";
     const accentRule = css.match(
       /\.pile-option-row\.is-chosen,\s*\.cpt-table tr\.is-governing\s*\{(?<body>[^}]*)\}/s,

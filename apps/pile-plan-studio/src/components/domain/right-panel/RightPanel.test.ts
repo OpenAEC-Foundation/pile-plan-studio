@@ -80,7 +80,7 @@ describe("technical assignment availability", () => {
   it("shows one compact analysis error instead of a second pile-options error section", () => {
     const panel = readRightPanelSource();
     const notice = readFileSync(resolve(import.meta.dirname, "../TechnicalAssignmentNotice.tsx"), "utf8");
-    const styles = readFileSync(resolve(import.meta.dirname, "../rightPanel.css"), "utf8");
+    const styles = readFileSync(resolve(import.meta.dirname, "rightPanel.css"), "utf8");
 
     assert.match(panel, /technicalAssignment\.status !== "error"\s*\?\s*\(\s*<section className="pile-options-section">/s);
     assert.match(notice, /getAnalysisFailureNotice/);
@@ -120,7 +120,7 @@ describe("React optimization panel", () => {
 
   it("retains and labels an assigned option with inactive legend properties", () => {
     const panel = readRightPanelSource();
-    const styles = readFileSync(resolve(import.meta.dirname, "../rightPanel.css"), "utf8");
+    const styles = readFileSync(resolve(import.meta.dirname, "rightPanel.css"), "utf8");
     const english = JSON.parse(readFileSync(resolve(import.meta.dirname, "../../../i18n/locales/en/rightPanel.json"), "utf8"));
     const dutch = JSON.parse(readFileSync(resolve(import.meta.dirname, "../../../i18n/locales/nl/rightPanel.json"), "utf8"));
 
@@ -174,7 +174,7 @@ describe("React optimization panel", () => {
 
   it("does not refocus a numeric field when the empty part of its row is clicked", () => {
     const optimization = readFileSync(resolve(import.meta.dirname, "../pile-plans/OptimizationPanel.tsx"), "utf8");
-    const styles = readFileSync(resolve(import.meta.dirname, "../rightPanel.css"), "utf8");
+    const styles = readFileSync(resolve(import.meta.dirname, "rightPanel.css"), "utf8");
 
     assert.match(optimization, /<div\s+className="optimization-number"/);
     assert.match(optimization, /<label htmlFor=\{inputId\}>\{label\}<\/label>/);
@@ -342,7 +342,7 @@ describe("React CPT settings panel", () => {
 
   it("groups CPT values into compact label-and-field rows", () => {
     const panel = readRightPanelSource();
-    const styles = readFileSync(resolve(import.meta.dirname, "../rightPanel.css"), "utf8");
+    const styles = readFileSync(resolve(import.meta.dirname, "rightPanel.css"), "utf8");
 
     assert.match(panel, /SettingsGroup title=\{t\("cptSettings\.distances"\)\}[\s\S]*ariaLabel=\{t\("cptSettings\.maxDistance"\)\}[\s\S]*ariaLabel=\{t\("cptSettings\.monopolyDistance"\)\}/);
     assert.match(panel, /label=\{t\("cptSettings\.maxDistance"\)\}/);
@@ -351,21 +351,21 @@ describe("React CPT settings panel", () => {
   });
 
   it("draws the shared edge when the right settings segment is selected", () => {
-    const styles = readFileSync(resolve(import.meta.dirname, "../rightPanel.css"), "utf8");
+    const styles = readFileSync(resolve(import.meta.dirname, "rightPanel.css"), "utf8");
 
     assert.match(styles, /\.segmented-control button:last-child\.is-selected\s*\{[\s\S]*?border-left:\s*1px solid var\(--theme-accent\)/);
   });
 
   it("allows the optimizer candidate labels to wrap", () => {
     const panel = readFileSync(resolve(import.meta.dirname, "../pile-plans/OptimizationPanel.tsx"), "utf8");
-    const styles = readFileSync(resolve(import.meta.dirname, "../rightPanel.css"), "utf8");
+    const styles = readFileSync(resolve(import.meta.dirname, "rightPanel.css"), "utf8");
 
     assert.match(panel, /className="segmented-control optimization-candidate-source"/);
     assert.match(styles, /\.optimization-candidate-source button\s*\{[\s\S]*?white-space:\s*normal/);
   });
 
   it("highlights the permanent panel tabs on hover", () => {
-    const styles = readFileSync(resolve(import.meta.dirname, "../rightPanel.css"), "utf8");
+    const styles = readFileSync(resolve(import.meta.dirname, "rightPanel.css"), "utf8");
 
     assert.match(styles, /\.right-panel-tab:hover:not\(:disabled\)\s*\{[\s\S]*?background:\s*var\(--theme-ribbon-btn-hover\)/);
   });
@@ -379,7 +379,7 @@ describe("React CPT settings panel", () => {
   });
 
   it("uses the themed focus treatment for algorithm options", () => {
-    const styles = readFileSync(resolve(import.meta.dirname, "../rightPanel.css"), "utf8");
+    const styles = readFileSync(resolve(import.meta.dirname, "rightPanel.css"), "utf8");
 
     assert.match(styles, /\.algorithm-option:focus\s*\{[\s\S]*?outline:\s*none/);
     assert.match(styles, /\.algorithm-option:focus-visible\s*\{[\s\S]*?box-shadow:\s*0 0 0 2px var\(--theme-focus-color\)/);
@@ -465,7 +465,7 @@ describe("React CPT panel edit mode", () => {
 
   it("shows live preview progress, failures, and governing CPT rows", () => {
     const panel = readRightPanelSource();
-    const styles = readFileSync(resolve(import.meta.dirname, "../rightPanel.css"), "utf8");
+    const styles = readFileSync(resolve(import.meta.dirname, "rightPanel.css"), "utf8");
     const en = readFileSync(resolve(import.meta.dirname, "../../../i18n/locales/en/rightPanel.json"), "utf8");
     const nl = readFileSync(resolve(import.meta.dirname, "../../../i18n/locales/nl/rightPanel.json"), "utf8");
 
@@ -487,7 +487,7 @@ describe("React CPT panel edit mode", () => {
 describe("React coordinate inspection", () => {
   it("uses the shared two-column coordinate readout for CPTs and load points", () => {
     const panel = readRightPanelSource();
-    const styles = readFileSync(resolve(import.meta.dirname, "../rightPanel.css"), "utf8");
+    const styles = readFileSync(resolve(import.meta.dirname, "rightPanel.css"), "utf8");
 
     assert.match(panel, /import \{ CoordinateReadout \} from "\.\.\/CoordinateReadout\.ts"/);
     assert.match(panel, /<CoordinateReadout points=\{\[selectedCpt\.cpt\]\} locale=\{i18n\.language\} \/>/);

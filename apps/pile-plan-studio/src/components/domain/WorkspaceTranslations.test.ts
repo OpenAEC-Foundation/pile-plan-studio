@@ -227,7 +227,7 @@ describe("Workspace translations", () => {
   });
 
   it("keeps clickable CPT names readable on the light table background", () => {
-    const styles = readFileSync(resolve(import.meta.dirname, "rightPanel.css"), "utf8");
+    const styles = readFileSync(resolve(import.meta.dirname, "right-panel/rightPanel.css"), "utf8");
     const cptLinkRule = styles.match(/\.cpt-link\s*\{(?<body>[^}]*)\}/s)?.groups?.body ?? "";
 
     assert.match(cptLinkRule, /color:\s*var\(--theme-text\)/);

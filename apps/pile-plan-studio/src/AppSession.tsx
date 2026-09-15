@@ -45,7 +45,7 @@ import {
   type ProjectDocumentOutcome,
 } from "./core/projectDocumentContract.ts";
 import { getSetting } from "./store";
-import { optionKey } from "./components/domain/rightPanelModel";
+import { optionKey } from "./components/domain/right-panel/rightPanelModel";
 import { buildGreedyOptimizationSettings } from "./domain/optimizationSettings";
 import {
   applyOptimizationResult,

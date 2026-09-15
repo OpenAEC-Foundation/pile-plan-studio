@@ -2,7 +2,7 @@ import type { ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import type { ProjectState } from "../../../domain/projectState.ts";
 import { openCpt } from "../../../domain/selectionState.ts";
-import { getCptFrdPanelModel, getSelectedCptOverviewModel, getSelectedLoadPoints } from "../rightPanelModel.ts";
+import { getCptFrdPanelModel, getSelectedCptOverviewModel, getSelectedLoadPoints } from "./rightPanelModel.ts";
 import { cancelManualCptSelection, clearManualCptSelection, removeManualCpt, saveManualCptSelection, selectOnlyNearestCpts, startManualCptSelectionEdit } from "../cptSettingsModel.ts";
 import { removeIcon } from "../../template/ribbon/icons.ts";
 import { CoordinateReadout } from "../CoordinateReadout.ts";
