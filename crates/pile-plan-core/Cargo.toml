@@ -9,8 +9,8 @@ name = "pile_plan_core"
 path = "src/lib.rs"
 
 [dependencies]
-calamine = "0.31"
+calamine = "0.36"
 csv = "1"
-rust_xlsxwriter = { version = "0.96", features = ["wasm"] }
+rust_xlsxwriter = { version = "0.99", features = ["wasm"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
