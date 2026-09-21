@@ -44,14 +44,14 @@
       "locks_other": "{{count}} vergrendelingen gewijzigd in {{pilePlanName}}",
       "cost-settings": "Kosteninstellingen gewijzigd",
       "legend-settings": "Legenda-instellingen gewijzigd",
-      "optimization-settings": "Optimalisatie-instellingen gewijzigd",
       "utilization-settings": "Gewenst benuttingsbereik gewijzigd",
       "pile-plan-created": "Palenplan {{pilePlanName}} aangemaakt",
       "pile-plan-deleted": "Palenplan {{pilePlanName}} verwijderd",
       "pile-plan-renamed": "Palenplan hernoemd naar {{pilePlanName}}",
       "project-name": "Projectnaam gewijzigd",
       "project-import": "Projectgegevens ververst",
-      "project-change": "Project gewijzigd"
+      "project-change": "Project gewijzigd",
+      "ilp-optimization-settings": "Optimalisatie-instellingen gewijzigd"
     }
   },
   "loadPointGroups": {
@@ -234,19 +234,20 @@
       "linked": "gekoppeld",
       "missing": "ontbreekt",
       "changed": "gewijzigd"
-    }
+    },
+    "optimizing": "Optimalisatie bezig"
   },
   "sourceViewer": {
     "snapshot": "Projectmomentopname",
     "replace": "Bron vervangen",
     "warnings_one": "{{count}} importwaarschuwing",
     "warnings_other": "{{count}} importwaarschuwingen",
-      "filter": "Filter {{column}}",
-      "searchValue": "Zoekwaarde",
-      "matchMode": "Vergelijkingsmethode",
-      "exact": "Exact",
-      "contains": "Bevat",
-      "clear": "Wissen",
+    "filter": "Filter {{column}}",
+    "searchValue": "Zoekwaarde",
+    "matchMode": "Vergelijkingsmethode",
+    "exact": "Exact",
+    "contains": "Bevat",
+    "clear": "Wissen",
     "columns": {
       "id": "ID",
       "cpt": "Sondering",
@@ -260,13 +261,13 @@
   },
   "importProject": {
     "title": "Projectgegevens importeren",
-      "defaultName": "Geïmporteerd project",
-      "projectName": "Projectnaam",
-        "pileHeadLevel": "Peil t.o.v. NAP (m)",
-        "pileHeadLevelHelp": "Het referentieniveau van het gebouw ten opzichte van NAP. Pile Plan Studio gebruikt dit peil als afhakniveau: het niveau van de afgewerkte paalkop. Samen met het paalpuntniveau bepaalt dit de berekende paallengte en paalkosten. Eventuele productie- of uitvoeringsmarge is niet inbegrepen.",
-        "pileHeadLevelRequired": "Vul een geldig peil t.o.v. NAP in om het project te importeren.",
-        "currency": "Projectvaluta",
-        "projectProperties": "Projecteigenschappen",
+    "defaultName": "Geïmporteerd project",
+    "projectName": "Projectnaam",
+    "pileHeadLevel": "Peil t.o.v. NAP (m)",
+    "pileHeadLevelHelp": "Het referentieniveau van het gebouw ten opzichte van NAP. Pile Plan Studio gebruikt dit peil als afhakniveau: het niveau van de afgewerkte paalkop. Samen met het paalpuntniveau bepaalt dit de berekende paallengte en paalkosten. Eventuele productie- of uitvoeringsmarge is niet inbegrepen.",
+    "pileHeadLevelRequired": "Vul een geldig peil t.o.v. NAP in om het project te importeren.",
+    "currency": "Projectvaluta",
+    "projectProperties": "Projecteigenschappen",
     "chooseFiles": "Kies maximaal drie bestanden",
     "noFile": "Geen bestand geselecteerd",
     "choose": "Kiezen",
@@ -275,21 +276,21 @@
     "summaryAria": "Importsamenvatting",
     "completed": "Import voltooid",
     "summary": "{{loadPoints}} belastinglocaties · {{cpts}} sonderingen · {{advice}} funderingsadviesregels",
-      "importing": "Importeren...",
-      "submit": "Project importeren",
-      "refreshing": "Verversen...",
-      "refreshSubmit": "Gegevens verversen",
-      "modes": {
-        "label": "Importbewerking",
-        "newProject": "Nieuw project importeren",
-        "refresh": "Gegevens verversen",
-        "newProjectDescription": "Maak een nieuw project vanuit alle drie de bronbestanden.",
-        "refreshDescription": "Vervang één of meer datasets en behoud gekoppelde projectkeuzes en instellingen."
-      },
-      "warnings": {
-        "cptsWithoutFoundationAdvice": "Je ververst de sonderingen zonder het funderingsadvies. Draagvermogens van niet-gekoppelde sonderingen kunnen tijdelijk verdwijnen. Importeer het bijbehorende funderingsadvies mee om alle paalconfiguraties beschikbaar te houden."
-      },
-      "profile": {
+    "importing": "Importeren...",
+    "submit": "Project importeren",
+    "refreshing": "Verversen...",
+    "refreshSubmit": "Gegevens verversen",
+    "modes": {
+      "label": "Importbewerking",
+      "newProject": "Nieuw project importeren",
+      "refresh": "Gegevens verversen",
+      "newProjectDescription": "Maak een nieuw project vanuit alle drie de bronbestanden.",
+      "refreshDescription": "Vervang één of meer datasets en behoud gekoppelde projectkeuzes en instellingen."
+    },
+    "warnings": {
+      "cptsWithoutFoundationAdvice": "Je ververst de sonderingen zonder het funderingsadvies. Draagvermogens van niet-gekoppelde sonderingen kunnen tijdelijk verdwijnen. Importeer het bijbehorende funderingsadvies mee om alle paalconfiguraties beschikbaar te houden."
+    },
+    "profile": {
       "label": "Importprofiel",
       "automatic": "Automatisch herkennen",
       "standardTable": "Standaardtabel",
@@ -336,14 +337,14 @@
       "cpts": "ID, X, Y",
       "foundationAdvice": "Sondering-ID, puntniveau, afmeting, R_c;net;d"
     }
-    },
-    "projectInformation": {
-      "title": "Projectinformatie",
-      "projectName": "Projectnaam",
-      "pileHeadLevel": "Peil t.o.v. NAP (m)",
-      "pileHeadLevelHelp": "Het referentieniveau van het gebouw ten opzichte van NAP. Pile Plan Studio gebruikt dit peil als afhakniveau: het niveau van de afgewerkte paalkop. Samen met het paalpuntniveau bepaalt dit de berekende paallengte en paalkosten. Eventuele productie- of uitvoeringsmarge is niet inbegrepen.",
-      "currency": "Projectvaluta"
-    },
+  },
+  "projectInformation": {
+    "title": "Projectinformatie",
+    "projectName": "Projectnaam",
+    "pileHeadLevel": "Peil t.o.v. NAP (m)",
+    "pileHeadLevelHelp": "Het referentieniveau van het gebouw ten opzichte van NAP. Pile Plan Studio gebruikt dit peil als afhakniveau: het niveau van de afgewerkte paalkop. Samen met het paalpuntniveau bepaalt dit de berekende paallengte en paalkosten. Eventuele productie- of uitvoeringsmarge is niet inbegrepen.",
+    "currency": "Projectvaluta"
+  },
   "recovery": {
     "loading": "Vorige sessie herstellen...",
     "restored": "Vorige sessie hersteld",
@@ -357,7 +358,8 @@
       "invalid-schema": "Het project is niet geopend omdat de inhoud niet overeenkomt met een geldig IFCPP-project.",
       "unsupported-schema-version": "Het project is niet geopend omdat de IFCPP-schemaversie niet wordt ondersteund.",
       "duplicate-pile-plan-id": "Het project is niet geopend omdat het dubbele palenplan-ID's bevat.",
-      "invalid-pile-costs": "Het project is niet geopend omdat de paalkostentabel ongeldige regels bevat."
+      "invalid-pile-costs": "Het project is niet geopend omdat de paalkostentabel ongeldige regels bevat.",
+      "invalid-ilp-settings": "Het project bevat ongeldige optimalisatie-instellingen."
     }
   },
   "loadPointPositions": {

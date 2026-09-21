@@ -20,13 +20,14 @@ import type { TipLevelRegionTopologyStatus } from "../pile-plan-viewer/tip-level
 import { formatPileTipLevelMillimetres } from "../../../domain/formatting.ts";
 
 type Props = {
+  readOnly?: boolean;
   state: ProjectState;
   onStateChange: (nextState: ProjectState) => void;
   onEdit: () => void;
   tipLevelRegionStatus: TipLevelRegionTopologyStatus;
 };
 
-export default function Legend({ state, onStateChange, onEdit, tipLevelRegionStatus }: Props) {
+export default function Legend({ readOnly = false, state, onStateChange, onEdit, tipLevelRegionStatus }: Props) {
   const { t, i18n } = useTranslation("common");
   const legend = state.pileLegend;
   const activePlan = getActivePilePlan(state);
@@ -139,6 +140,7 @@ export default function Legend({ state, onStateChange, onEdit, tipLevelRegionSta
           className="legend-control-button legend-control"
           title={t("legend.enableUsed")}
           type="button"
+          disabled={readOnly}
           onClick={enableUsedOnly}
         >
           <span aria-hidden="true" dangerouslySetInnerHTML={{ __html: filterCheckIcon }} />
@@ -148,6 +150,7 @@ export default function Legend({ state, onStateChange, onEdit, tipLevelRegionSta
           className="legend-control-button legend-control"
           title={t("legend.edit")}
           type="button"
+          disabled={readOnly}
           onClick={onEdit}
         >
           <span aria-hidden="true" dangerouslySetInnerHTML={{ __html: pencilIcon }} />

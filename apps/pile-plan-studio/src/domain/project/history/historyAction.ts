@@ -10,7 +10,7 @@ export type HistoryActionKind =
   | "locks"
   | "cost-settings"
   | "legend-settings"
-  | "optimization-settings"
+  | "ilp-optimization-settings"
   | "utilization-settings"
   | "pile-plan-created"
   | "pile-plan-deleted"
@@ -59,8 +59,8 @@ export function inferHistoryAction(
     return { kind: "grouping-settings" };
   }
   if (before.pileCostSettings !== after.pileCostSettings) return { kind: "cost-settings" };
-  if (before.optimizationSettings !== after.optimizationSettings) {
-    return { kind: "optimization-settings" };
+  if (before.ilpOptimizationSettings !== after.ilpOptimizationSettings) {
+    return { kind: "ilp-optimization-settings" };
   }
   if (before.viewerUtilizationSettings !== after.viewerUtilizationSettings) {
     return { kind: "utilization-settings" };

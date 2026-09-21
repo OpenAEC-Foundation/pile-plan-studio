@@ -1,6 +1,6 @@
 use crate::{
     CptSelectionAlgorithm, CptSelectionSettings, DuplicateLoadPointPositions,
-    GreedyOptimizationSettings, PileCostSettings, PilePlanProject,
+    PileCostSettings, PilePlanProject,
     PileTipLevelPrecisionErrorReason, ProjectApplication, ProjectBearingCapacity, ProjectCpt,
     ProjectImportLogEntry, ProjectInputs, ProjectLoadPoint, ProjectMetadata, ProjectSettings,
     ProjectUnits, ProjectUserState,
@@ -224,6 +224,7 @@ fn build_imported_project(
 ) -> Result<PilePlanProject, ImportError> {
     let active_pile_sizes = unique_sorted_pile_sizes(&bearing_capacities);
     let active_pile_tip_levels = unique_sorted_tip_levels(&bearing_capacities)?;
+    let optimization = crate::IlpOptimizationSettings::default();
     Ok(PilePlanProject {
         schema: "IFCPP".to_string(),
         schema_version: 4,
@@ -255,6 +256,7 @@ fn build_imported_project(
             bearing_capacities,
         },
         settings: ProjectSettings {
+            ilp_optimization: Some(optimization),
             global_cpt_selection: CptSelectionSettings {
                 algorithm: CptSelectionAlgorithm::Quadrants,
                 max_distance_m: 25.0,
@@ -268,13 +270,7 @@ fn build_imported_project(
                 items: vec![],
             },
             pile_head_level_m,
-            optimization: GreedyOptimizationSettings {
-                max_pile_sizes: active_pile_sizes.len(),
-                max_pile_tip_levels: active_pile_tip_levels.len(),
-                max_pile_configurations: active_pile_sizes.len() * active_pile_tip_levels.len(),
-                max_utilization: 1.0,
-                candidate_source: Default::default(),
-            },
+            legacy_optimization: Default::default(),
             viewer_utilization: Default::default(),
             pile_legend: None,
             viewer: Default::default(),
@@ -942,6 +938,10 @@ mod tests {
         let project = import_project_from_sources("Mixed Project", &sources, None, "EUR").unwrap();
 
         assert_eq!(project.metadata.name, "Mixed Project");
+        let optimization = project.settings.ilp_optimization.as_ref().unwrap();
+        assert_eq!(optimization.max_pile_tip_levels, None);
+        assert_eq!(optimization.max_pile_sizes, None);
+        assert_eq!(optimization.max_pile_configurations, None);
         assert!(project.settings.viewer.show_tip_level_regions);
         assert_eq!(project.import_log[0].source_file, "loads.csv");
         assert_eq!(

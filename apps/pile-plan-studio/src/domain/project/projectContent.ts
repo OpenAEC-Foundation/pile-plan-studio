@@ -21,7 +21,7 @@ export type ProjectContent = Pick<ProjectState,
   | "pileCostSettings"
   | "pileHeadLevelM"
   | "currencyCode"
-  | "optimizationSettings"
+  | "ilpOptimizationSettings"
   | "viewerUtilizationSettings"
   | "pileLegend"
   | "symbolScalePercent"
@@ -53,7 +53,7 @@ const PROJECT_CONTENT_KEYS = [
   "pileCostSettings",
   "pileHeadLevelM",
   "currencyCode",
-  "optimizationSettings",
+  "ilpOptimizationSettings",
   "viewerUtilizationSettings",
   "pileLegend",
   "symbolScalePercent",
@@ -171,7 +171,7 @@ export function projectDocumentDraftFromContent(
       },
       pile_costs: structuredClone(content.pileCostSettings),
       pile_head_level_m: content.pileHeadLevelM,
-      optimization: structuredClone(content.optimizationSettings),
+      ilp_optimization: structuredClone(content.ilpOptimizationSettings),
       viewer_utilization: { ...content.viewerUtilizationSettings },
       pile_legend: projectLegendToDocument(content.pileLegend),
       viewer: {
@@ -229,6 +229,7 @@ function pilePlanToDocument(plan: ProjectContent["pilePlans"][number]): IfcppPil
     ),
     locked_load_point_ids: [...plan.lockedLoadPointIds],
     optimization_unassigned: Object.fromEntries(plan.optimizationUnassignedByLoadPoint),
+    ...(plan.ilpResult ? {ilp_result: structuredClone(plan.ilpResult)} : {}),
   };
 }
 

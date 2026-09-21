@@ -44,14 +44,14 @@
       "locks_other": "Changed {{count}} locks in {{pilePlanName}}",
       "cost-settings": "Changed cost settings",
       "legend-settings": "Changed legend settings",
-      "optimization-settings": "Changed optimization settings",
       "utilization-settings": "Changed the preferred utilization range",
       "pile-plan-created": "Created pile plan {{pilePlanName}}",
       "pile-plan-deleted": "Deleted pile plan {{pilePlanName}}",
       "pile-plan-renamed": "Renamed pile plan to {{pilePlanName}}",
       "project-name": "Changed the project name",
       "project-import": "Refreshed project data",
-      "project-change": "Changed the project"
+      "project-change": "Changed the project",
+      "ilp-optimization-settings": "Optimization settings changed"
     }
   },
   "loadPointGroups": {
@@ -234,19 +234,20 @@
       "linked": "linked",
       "missing": "missing",
       "changed": "changed"
-    }
+    },
+    "optimizing": "Optimization in progress"
   },
   "sourceViewer": {
     "snapshot": "Project snapshot",
     "replace": "Replace source",
     "warnings_one": "{{count}} import warning",
     "warnings_other": "{{count}} import warnings",
-      "filter": "Filter {{column}}",
-      "searchValue": "Search value",
-      "matchMode": "Match mode",
-      "exact": "Exact",
-      "contains": "Contains",
-      "clear": "Clear",
+    "filter": "Filter {{column}}",
+    "searchValue": "Search value",
+    "matchMode": "Match mode",
+    "exact": "Exact",
+    "contains": "Contains",
+    "clear": "Clear",
     "columns": {
       "id": "ID",
       "cpt": "CPT",
@@ -260,13 +261,13 @@
   },
   "importProject": {
     "title": "Import project data",
-      "defaultName": "Imported Project",
-      "projectName": "Project name",
-        "pileHeadLevel": "Reference level (m)",
-        "pileHeadLevelHelp": "The building reference level, expressed in the same vertical reference system as the pile tip levels. Pile Plan Studio uses this reference as the pile cut-off level: the level of the finished pile head. Together with the pile tip level, it determines the calculated pile length and pile costs. Any production or installation allowance is not included.",
-        "pileHeadLevelRequired": "Enter a valid reference level to import the project.",
-        "currency": "Project currency",
-        "projectProperties": "Project properties",
+    "defaultName": "Imported Project",
+    "projectName": "Project name",
+    "pileHeadLevel": "Reference level (m)",
+    "pileHeadLevelHelp": "The building reference level, expressed in the same vertical reference system as the pile tip levels. Pile Plan Studio uses this reference as the pile cut-off level: the level of the finished pile head. Together with the pile tip level, it determines the calculated pile length and pile costs. Any production or installation allowance is not included.",
+    "pileHeadLevelRequired": "Enter a valid reference level to import the project.",
+    "currency": "Project currency",
+    "projectProperties": "Project properties",
     "chooseFiles": "Choose up to three files",
     "noFile": "No file selected",
     "choose": "Choose",
@@ -275,21 +276,21 @@
     "summaryAria": "Import summary",
     "completed": "Import completed",
     "summary": "{{loadPoints}} load points · {{cpts}} CPTs · {{advice}} foundation advice rows",
-      "importing": "Importing...",
-      "submit": "Import project",
-      "refreshing": "Refreshing...",
-      "refreshSubmit": "Refresh data",
-      "modes": {
-        "label": "Import operation",
-        "newProject": "Import new project",
-        "refresh": "Refresh data",
-        "newProjectDescription": "Create a new project from all three source files.",
-        "refreshDescription": "Replace one or more datasets while retaining matched project choices and settings."
-      },
-      "warnings": {
-        "cptsWithoutFoundationAdvice": "You are refreshing the CPTs without the foundation advice. Bearing capacities for unmatched CPTs may temporarily disappear. Import the corresponding foundation advice as well to keep all pile configurations available."
-      },
-      "profile": {
+    "importing": "Importing...",
+    "submit": "Import project",
+    "refreshing": "Refreshing...",
+    "refreshSubmit": "Refresh data",
+    "modes": {
+      "label": "Import operation",
+      "newProject": "Import new project",
+      "refresh": "Refresh data",
+      "newProjectDescription": "Create a new project from all three source files.",
+      "refreshDescription": "Replace one or more datasets while retaining matched project choices and settings."
+    },
+    "warnings": {
+      "cptsWithoutFoundationAdvice": "You are refreshing the CPTs without the foundation advice. Bearing capacities for unmatched CPTs may temporarily disappear. Import the corresponding foundation advice as well to keep all pile configurations available."
+    },
+    "profile": {
       "label": "Import profile",
       "automatic": "Automatically detect",
       "standardTable": "Standard table",
@@ -336,14 +337,14 @@
       "cpts": "ID, X, Y",
       "foundationAdvice": "CPT ID, tip, size, R_c;net;d"
     }
-    },
-    "projectInformation": {
-      "title": "Project information",
-      "projectName": "Project name",
-      "pileHeadLevel": "Reference level (m)",
-      "pileHeadLevelHelp": "The building reference level, expressed in the same vertical reference system as the pile tip levels. Pile Plan Studio uses this reference as the pile cut-off level: the level of the finished pile head. Together with the pile tip level, it determines the calculated pile length and pile costs. Any production or installation allowance is not included.",
-      "currency": "Project currency"
-    },
+  },
+  "projectInformation": {
+    "title": "Project information",
+    "projectName": "Project name",
+    "pileHeadLevel": "Reference level (m)",
+    "pileHeadLevelHelp": "The building reference level, expressed in the same vertical reference system as the pile tip levels. Pile Plan Studio uses this reference as the pile cut-off level: the level of the finished pile head. Together with the pile tip level, it determines the calculated pile length and pile costs. Any production or installation allowance is not included.",
+    "currency": "Project currency"
+  },
   "recovery": {
     "loading": "Restoring your previous session...",
     "restored": "Previous session restored",
@@ -357,7 +358,8 @@
       "invalid-schema": "The project was not opened because its contents do not match a valid IFCPP project.",
       "unsupported-schema-version": "The project was not opened because its IFCPP schema version is not supported.",
       "duplicate-pile-plan-id": "The project was not opened because it contains duplicate pile-plan identifiers.",
-      "invalid-pile-costs": "The project was not opened because its pile cost table contains invalid rows."
+      "invalid-pile-costs": "The project was not opened because its pile cost table contains invalid rows.",
+      "invalid-ilp-settings": "The project contains invalid optimization settings."
     }
   },
   "loadPointPositions": {

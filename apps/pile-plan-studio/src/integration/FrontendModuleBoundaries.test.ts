@@ -54,7 +54,6 @@ describe("frontend module boundaries", () => {
       "domain/project/projectState.ts",
       "domain/project/history/projectHistoryReducer.ts",
       "domain/project/recovery/browserRecovery.ts",
-      "domain/pile-plans/optimization/optimizationSettings.ts",
       "domain/legend/legendState.ts",
       "domain/pile-options/pileOptionStatus.ts",
       "domain/cpt-selection/cptSettingsModel.ts",

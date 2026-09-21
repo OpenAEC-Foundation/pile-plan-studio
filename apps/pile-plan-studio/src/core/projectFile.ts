@@ -3,7 +3,6 @@ import type {
   Cpt,
   CptSelectionAlgorithm,
   CptSelectionSettings,
-  GreedyOptimizationSettings,
   OptimizationUnassignedReason,
   LegendItems,
   LoadPoint,
@@ -22,10 +21,10 @@ import type { ProjectTipLevelKeys } from "./projectDocumentTypes.ts";
 
 type IfcppBearingCapacity = Omit<BearingCapacity, "pile_tip_level_mm">;
 
-type IfcppGreedyOptimizationSettings = Omit<
-  GreedyOptimizationSettings,
-  "max_utilization" | "candidate_source"
-> & {
+type LegacyOptimizationSettings = {
+  max_pile_sizes: number;
+  max_pile_tip_levels: number;
+  max_pile_configurations: number;
   max_utilization?: number;
   candidate_source?: unknown;
   enabled_pile_sizes?: number[];
@@ -96,6 +95,7 @@ export type IfcppPilePlan = {
   selected_piles: Record<string, IfcppSelectedPileChoice>;
   locked_load_point_ids: number[];
   optimization_unassigned?: Record<string, unknown>;
+  ilp_result?: import("./ilpOptimizationTypes.ts").IlpPlanResult | null;
 };
 
 export type IfcppImportLogEntry = {
@@ -106,6 +106,8 @@ export type IfcppImportLogEntry = {
   source_profile?: string;
   profile_details?: Record<string, string>;
 };
+
+import type { IlpOptimizationSettings } from "./ilpOptimizationTypes.ts";
 
 export type IfcppProject = {
   schema: "IFCPP";
@@ -138,7 +140,8 @@ export type IfcppProject = {
     load_point_grouping?: IfcppLoadPointGroupingSettings;
     pile_costs: IfcppPileCostSettings;
     pile_head_level_m?: number | null;
-    optimization: IfcppGreedyOptimizationSettings;
+    optimization?: LegacyOptimizationSettings;
+    ilp_optimization?: IlpOptimizationSettings;
     viewer_utilization?: ViewerUtilizationSettings;
     active_pile_sizes?: number[];
     active_pile_tip_levels?: number[];
@@ -189,7 +192,7 @@ export type LoadedProjectData = {
   showTipLevelRegions: boolean;
   pileLegend: LegendItems;
   legendImportWarnings: LegendImportWarning[];
-  optimizationSettings: GreedyOptimizationSettings;
+  ilpOptimizationSettings: IlpOptimizationSettings;
   viewerUtilizationSettings: ViewerUtilizationSettings;
   pilePlans: PilePlanData[];
   activePilePlanId: string;
@@ -207,6 +210,7 @@ export type PilePlanData = {
   externalReferencesByLoadPoint: Map<number, unknown[]>;
   lockedLoadPointIds: number[];
   optimizationUnassignedByLoadPoint: Map<number, OptimizationUnassignedReason>;
+  ilpResult?: import("./ilpOptimizationTypes.ts").IlpPlanResult;
 };
 
 function assertTipLevelKeyContract(
@@ -277,15 +281,7 @@ export function hydrateProjectState(
     showTipLevelRegions: project.settings.viewer!.show_tip_level_regions!,
     pileLegend,
     legendImportWarnings,
-    optimizationSettings: {
-      max_pile_sizes: project.settings.optimization.max_pile_sizes,
-      max_pile_tip_levels: project.settings.optimization.max_pile_tip_levels,
-      max_pile_configurations: project.settings.optimization.max_pile_configurations,
-      max_utilization: project.settings.optimization.max_utilization!,
-      candidate_source: project.settings.optimization.candidate_source as
-        | "active_legend"
-        | "all_available",
-    },
+    ilpOptimizationSettings: structuredClone(project.settings.ilp_optimization!),
     viewerUtilizationSettings: { ...project.settings.viewer_utilization! },
     pilePlans,
     activePilePlanId,
@@ -333,6 +329,7 @@ function pilePlanDataFromWire(
         .map(([loadPointId, choice]) => [loadPointId, choice.external_references ?? []]),
     ),
     lockedLoadPointIds: [...(plan.locked_load_point_ids ?? [])],
+    ilpResult: plan.ilp_result ? structuredClone(plan.ilp_result) : undefined,
     optimizationUnassignedByLoadPoint: new Map(
       numberKeyedEntries(plan.optimization_unassigned ?? {})
         .filter((entry): entry is [number, OptimizationUnassignedReason] => (

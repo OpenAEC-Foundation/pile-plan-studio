@@ -380,10 +380,6 @@ function minimalState(overrides: Partial<ProjectState> = {}): ProjectState {
     loadPoints: [{ id: 1, name: "Load point 1", x_mm: 0, y_mm: 0, design_load_kn: 100 }],
     manualCptIdsByLoadPoint: new Map(),
     name: "Test",
-    optimizationSettings: {
-      enabled_pile_sizes: [], enabled_pile_tip_levels: [], max_pile_configurations: 0,
-      max_pile_sizes: 0, max_pile_tip_levels: 0,
-    },
     pileCostByOptionKey: new Map(),
     pileCostSettings: { schema_version: 1, pile_head_level_m: 0, items: [] },
     pileOptionFilters: { cost: [], frd: [], governing: [], size: [], status: [], symbol: [], tip: [], use: [] },

@@ -19,6 +19,6 @@ export function stepNumericDraft(value: string, direction: 1 | -1, options: Nume
 
 function finiteNumber(value: number | string | undefined): number | null {
   if (value === undefined || value === "") return null;
-  const parsed = Number(value);
+  const parsed = Number(typeof value === "string" ? value.replace(",", ".") : value);
   return Number.isFinite(parsed) ? parsed : null;
 }

@@ -133,19 +133,6 @@ describe("React app startup", () => {
     );
   });
 
-  it("runs greedy optimization through the shared Rust and WASM core", () => {
-    const source = readFileSync(resolve(import.meta.dirname, "app/session/AppSession.tsx"), "utf8");
-
-    assert.match(source, /greedyOptimizeCore/);
-    assert.match(source, /buildGreedyOptimizationSettings/);
-    assert.match(source, /applyOptimizationResult/);
-    assert.match(source, /replaceOptimizationOutcomesForTargets/);
-    assert.match(source, /optimizationRunning:\s*true/);
-    assert.match(source, /onRunOptimization=\{runGreedyOptimization\}/);
-    assert.match(source, /snapshot\.optimizationCreatesPilePlan/);
-    assert.match(source, /createOptimizationPilePlan/);
-  });
-
   it("waits for complete analysis before creating a fresh pile plan", () => {
     const source = readFileSync(resolve(import.meta.dirname, "app/session/AppSession.tsx"), "utf8");
     const createStart = source.indexOf("const createFreshPilePlan");

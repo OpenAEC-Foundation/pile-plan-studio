@@ -89,12 +89,22 @@ describe("Plan and View ribbon", () => {
     assert.match(source, /onBlur=\{handleSymbolScaleBlur\}/);
   });
 
-  it("connects settings and run commands", () => {
+  it("opens the optimization panel from a single ribbon button", () => {
     const source = readFileSync(resolve(import.meta.dirname, "Ribbon.tsx"), "utf8");
-    assert.match(source, /onOpenTaskPanel/);
-    assert.match(source, /onRunOptimization/);
-    assert.match(source, /optimizationDisabled/);
-    assert.match(source, /label=\{t\("optimize\.run"\)\} disabled=\{optimizationDisabled\} onClick=\{onRunOptimization\}/);
+    const group = source.slice(source.indexOf('<RibbonGroup label={t("optimize.ilp")}>'));
+    const buttons = group.slice(0, group.indexOf('</RibbonGroup>'));
+    assert.equal((buttons.match(/<RibbonButton /g) ?? []).length, 1);
+    assert.match(buttons, /onOpenTaskPanel\?\.\("ilp-optimization"\)/);
+    assert.doesNotMatch(source, /onRunIlpOptimization|onRunLocalOptimization/);
+    for (const [language, title, action] of [["nl", "Optimalisatie", "Optimaliseren"], ["en", "Optimization", "Optimize"]]) {
+      const translations = JSON.parse(readFileSync(resolve(import.meta.dirname, `../../../i18n/locales/${language}/ribbon.json`), "utf8"));
+      assert.equal(translations.optimize.ilp, title);
+      assert.equal(translations.ilp.run, action);
+      assert.equal(translations.ilp.runSolver, action);
+      assert.match(translations.ilp.solverHelp, /ILP/);
+      const panel = JSON.parse(readFileSync(resolve(import.meta.dirname, `../../../i18n/locales/${language}/rightPanel.json`), "utf8"));
+      assert.doesNotMatch(panel.ilp.title + panel.ilp.planResult, /ILP/);
+    }
   });
 
   it("offers draft-based load-point lock controls", () => {
@@ -116,7 +126,7 @@ describe("Plan and View ribbon", () => {
     assert.match(source, /onOpenTaskPanel\?\.\("cpt-settings"\)/);
     assert.match(source, /onOpenTaskPanel\?\.\("cost-settings"\)/);
     assert.match(source, /onOpenTaskPanel\?\.\("grouping-settings"\)/);
-    assert.match(source, /onOpenTaskPanel\?\.\("optimization"\)/);
+    assert.match(source, /onOpenTaskPanel\?\.\("ilp-optimization"\)/);
     assert.doesNotMatch(source, /label=\{t\("project\.validate"\)\}/);
     assert.doesNotMatch(source, /label=\{t\("view\.help"\)\}/);
   });
@@ -130,12 +140,12 @@ describe("Plan and View ribbon", () => {
     assert.match(source, /icon=\{cptIcon\} label=\{t\("plan\.cpts"\)\}/);
   });
 
-  it("uses a domain optimization icon for the run command", () => {
+  it("uses a domain optimization icon for the panel button", () => {
     const source = readFileSync(resolve(import.meta.dirname, "Ribbon.tsx"), "utf8");
     const icons = readFileSync(resolve(import.meta.dirname, "icons.ts"), "utf8");
 
     assert.match(source, /optimizeIcon/);
-    assert.match(source, /icon=\{optimizeIcon\} label=\{t\("optimize\.run"\)\}/);
+    assert.match(source, /icon=\{optimizeIcon\} label=\{t\("ilp\.run"\)\}/);
     const optimizeIcon = icons.slice(
       icons.indexOf("export const optimizeIcon"),
       icons.indexOf("export const lockIcon"),

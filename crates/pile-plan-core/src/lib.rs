@@ -2,6 +2,7 @@ mod cpt_selection;
 mod export;
 mod ifcpp;
 mod import;
+mod legacy_optimization;
 mod load_point_groups;
 mod load_point_positions;
 mod optimization;
@@ -29,6 +30,7 @@ pub use import::{
     ImportError, ImportPreviewDetails, ImportProfile, ImportProfileOptions, ImportRole,
     ImportSource, ImportSourcePreview, RfemPreviewDetails, SourceFormat,
 };
+pub use legacy_optimization::LegacyOptimizationSettings;
 pub use load_point_groups::{
     apply_load_point_group_assignment, derive_load_point_groups,
     ApplyLoadPointGroupAssignmentInput, ApplyLoadPointGroupAssignmentResult,
@@ -40,12 +42,13 @@ pub use load_point_positions::{
     DuplicateLoadPointPosition, DuplicateLoadPointPositionMember, DuplicateLoadPointPositions,
 };
 pub use optimization::{
-    greedy_optimize_pile_choices, prepare_optimization_units, GreedyOptimizationInput,
-    GreedyOptimizationOutcome, GreedyOptimizationResult, GreedyOptimizationSettings,
-    GreedyOptimizedPileChoice, OptimizationCandidateSettings, OptimizationCandidateSource,
+    prepare_optimization_units, IlpCandidateSource, IlpAssignment, IlpCostReference, IlpCounts, IlpDiagnostic, IlpEvent,
+    IlpLimitProposal, IlpOptimizationInput, IlpOptimizationOutcome, IlpOptimizationSession,
+    IlpSolverBackend, IlpSolverModel, IlpSolverUpdate, IlpSolverOutcome, IlpOptimizationSettings, IlpPhase, IlpProgress, IlpProof, IlpRunRequest, IlpSolution,
+    IlpTermination, IlpTransitionCounts, IlpTransitionWeights, OptimizationCandidateSettings,
     OptimizationLimitScope, OptimizationPreparationDiagnostic,
     OptimizationPreparationDiagnosticKind, OptimizationPreparationResult,
-    OptimizationUnassignedLoadPoint, OptimizationUnassignedReason, OptimizationUnit,
+    OptimizationUnassignedReason, OptimizationUnit,
     OptimizationUnitOption, PrepareOptimizationUnitsInput,
 };
 pub use pile_configuration::PileConfigurationKey;

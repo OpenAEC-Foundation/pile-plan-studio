@@ -24,8 +24,8 @@ describe("native themed controls", () => {
     assert.match(numberStyles, /\.themed-number-stepper\s*\{[\s\S]*?visibility:\s*hidden[\s\S]*?background:\s*color-mix\(in srgb, var\(--theme-text\) 7%, var\(--theme-dialog-input-bg\)\)/);
     assert.match(numberStyles, /\.themed-number-input:hover \.themed-number-stepper\s*\{[\s\S]*?visibility:\s*visible/);
     assert.doesNotMatch(numberStyles, /focus-within[^{]*\.themed-number-stepper/);
-    assert.match(appStyles, /input\[type="number"\]:focus-visible\s*\{[\s\S]*?outline:\s*none/);
-    assert.match(appStyles, /input\[type="number"\]:focus-visible\s*\{[\s\S]*?box-shadow:\s*inset 0 0 0 1px var\(--theme-focus-color\)/);
+    assert.match(appStyles, /input\[type="number"\]:focus-visible,\s*\.ilp-panel input\[inputmode="decimal"\]:focus-visible\s*\{[\s\S]*?outline:\s*none/);
+    assert.match(appStyles, /input\[type="number"\]:focus-visible,\s*\.ilp-panel input\[inputmode="decimal"\]:focus-visible\s*\{[\s\S]*?box-shadow:\s*inset 0 0 0 1px var\(--theme-focus-color\)/);
   });
 
   it("does not apply input chrome to the project currency wrapper", () => {

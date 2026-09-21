@@ -1,0 +1,19 @@
+{
+  "run_id":"contract", "time_limit_ms":1000,
+  "input":{
+    "load_points":[{"id":1,"name":"1","x_mm":0,"y_mm":0,"design_load_kn":50},{"id":2,"name":"2","x_mm":2000,"y_mm":0,"design_load_kn":50}],
+    "groups":[{"load_point_ids":[1]},{"load_point_ids":[2]}],
+    "target_load_point_ids":[1,2],"locked_load_point_ids":[],"current_assignments":{},
+    "options_by_load_point":{
+      "1":[
+        {"configuration":{"pile_size_mm":1000,"pile_tip_level_mm":-10000},"pile_size_mm":1000,"pile_tip_level_m":-10,"is_option":true,"governing_cpt_id":1,"governing_frd_kn":100,"utilization":0.5,"missing_cpt_ids":[],"technical_status":"valid"},
+        {"configuration":{"pile_size_mm":1000,"pile_tip_level_mm":-11000},"pile_size_mm":1000,"pile_tip_level_m":-11,"is_option":true,"governing_cpt_id":1,"governing_frd_kn":100,"utilization":0.5,"missing_cpt_ids":[],"technical_status":"valid"}
+      ],
+      "2":[{"configuration":{"pile_size_mm":1000,"pile_tip_level_mm":-11000},"pile_size_mm":1000,"pile_tip_level_m":-11,"is_option":true,"governing_cpt_id":1,"governing_frd_kn":100,"utilization":0.5,"missing_cpt_ids":[],"technical_status":"valid"}]
+    },
+    "candidate_configurations":[{"pile_size_mm":1000,"pile_tip_level_mm":-10000},{"pile_size_mm":1000,"pile_tip_level_mm":-11000}],
+    "pile_head_level_m":0,"cost_settings":{"schema_version":1,"items":[{"pile_size_mm":1000,"shape":"square","cost_per_m3":1}]},
+    "settings":{"skip_unsolvable_units":false,"optimize_coherence":true,"max_pile_tip_levels":null,"max_pile_sizes":null,"max_pile_configurations":null,"max_utilization":1,"candidate_source":"all_available","budget_basis_points":500,"transition_weights":{"tip_only_milli":1000,"size_only_milli":1000}},
+    "limit_scope":"target","include_boundary_transitions":false
+  }
+}

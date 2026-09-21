@@ -4,12 +4,13 @@ import { stepNumericDraft } from "./themedNumberInputModel.ts";
 import "./ThemedNumberInput.css";
 
 type Props = Omit<InputHTMLAttributes<HTMLInputElement>, "onChange" | "type" | "value"> & {
+  type?: "number" | "text";
   inputRef?: RefObject<HTMLInputElement | null>;
   onValueChange: (value: string) => void;
   value: string;
 };
 
-export default function ThemedNumberInput({ inputRef, onValueChange, value, ...inputProps }: Props) {
+export default function ThemedNumberInput({ inputRef, onValueChange, value, type = "number", ...inputProps }: Props) {
   const { t } = useTranslation("common");
   const internalRef = useRef<HTMLInputElement | null>(null);
   const repeatDelayRef = useRef<number | null>(null);
@@ -55,9 +56,16 @@ export default function ThemedNumberInput({ inputRef, onValueChange, value, ...i
       <input
         {...inputProps}
         ref={setInputRef}
-        type="number"
+        type={type}
         value={value}
         onChange={(event) => onValueChange(event.currentTarget.value)}
+        onKeyDown={(event) => {
+          inputProps.onKeyDown?.(event);
+          if (type === "text" && !event.defaultPrevented && (event.key === "ArrowUp" || event.key === "ArrowDown")) {
+            event.preventDefault();
+            stepValue(event.key === "ArrowUp" ? 1 : -1);
+          }
+        }}
       />
       <span className="themed-number-stepper">
         <button

@@ -11,6 +11,9 @@ describe("user settings", () => {
         theme: "light",
         interfaceScalePercent: 100,
         defaultCurrencyCode: "EUR",
+        ilpSections: {
+          optimize: true, limits: true, neighbors: false, result: false, saveAs: false, candidates: false, costLimits: false,
+        },
         workspaceLayout: {
           explorerVisible: true,
           explorerWidth: 240,
@@ -66,5 +69,16 @@ describe("user settings", () => {
     assert.deepEqual(withCatalog.defaults.pileCostCatalog?.items, catalog.items);
     assert.deepEqual(withCatalog.preferences, DEFAULT_USER_SETTINGS.preferences);
     assert.equal(patchPileCostDefaults(withCatalog, null).defaults.pileCostCatalog, null);
+  });
+
+  it("restores disclosure choices and defaults missing or invalid sections independently", () => {
+    const restored = normalizeUserSettings({ preferences: {
+      ilpSections: { optimize: false, result: true, neighbors: "yes", budget: false, unknown: true },
+    } });
+    assert.deepEqual(restored.preferences.ilpSections, {
+      optimize: false, limits: true, neighbors: false, result: true, saveAs: false, candidates: false, costLimits: false,
+    });
+    assert.deepEqual(normalizeUserSettings(JSON.parse(JSON.stringify(restored))), restored);
+    assert.equal(DEFAULT_USER_SETTINGS.preferences.ilpSections.optimize, true);
   });
 });

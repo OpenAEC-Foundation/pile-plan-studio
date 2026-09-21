@@ -11,6 +11,8 @@ use crate::source_data::LoadPoint;
 mod faces;
 mod gabriel;
 mod load_point_topology;
+mod optimization_unit_graph;
+pub(crate) use optimization_unit_graph::contract_optimization_unit_graph;
 
 pub use load_point_topology::build_load_point_topology;
 

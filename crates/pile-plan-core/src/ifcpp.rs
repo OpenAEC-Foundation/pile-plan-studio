@@ -14,6 +14,7 @@ use crate::{
 
 #[derive(Debug)]
 pub enum IfcppError {
+    InvalidIlpSettings,
     Json(JsonError),
     InvalidSchema(String),
     UnsupportedSchemaVersion(u32),
@@ -26,6 +27,7 @@ pub enum IfcppError {
 impl fmt::Display for IfcppError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            Self::InvalidIlpSettings => write!(formatter, "Invalid ILP optimization settings"),
             Self::Json(error) => write!(formatter, "Invalid IFCPP JSON: {error}"),
             Self::InvalidSchema(schema) => write!(formatter, "Expected IFCPP schema, got {schema}"),
             Self::UnsupportedSchemaVersion(version) => {
@@ -52,6 +54,7 @@ impl From<JsonError> for IfcppError {
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
 #[serde(tag = "code", rename_all = "kebab-case")]
 pub enum ProjectDocumentError {
+    InvalidIlpSettings,
     InvalidJson {
         message: String,
     },
@@ -78,6 +81,7 @@ pub enum ProjectDocumentError {
 impl fmt::Display for ProjectDocumentError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            Self::InvalidIlpSettings => write!(formatter, "Invalid ILP optimization settings"),
             Self::InvalidJson { message } => write!(formatter, "Invalid IFCPP JSON: {message}"),
             Self::InvalidSchema { schema } => {
                 write!(formatter, "Expected IFCPP schema, got {schema}")
@@ -110,6 +114,7 @@ impl std::error::Error for ProjectDocumentError {}
 impl From<IfcppError> for ProjectDocumentError {
     fn from(error: IfcppError) -> Self {
         match error {
+            IfcppError::InvalidIlpSettings => Self::InvalidIlpSettings,
             IfcppError::Json(error) => Self::InvalidJson {
                 message: error.to_string(),
             },
@@ -162,11 +167,22 @@ pub fn write_project_document(
     write_ifcpp_string(&project).map_err(ProjectDocumentError::from)
 }
 
+fn migrate_optimizer_settings(project: &mut PilePlanProject) {
+    project.settings.legacy_optimization.max_utilization =
+        normalize_unit_interval(project.settings.legacy_optimization.max_utilization, 1.0);
+    if project.settings.ilp_optimization.is_none() {
+        project.settings.ilp_optimization = Some(project.settings.legacy_optimization.to_ilp_settings());
+    }
+    if let Some(settings) = &mut project.settings.ilp_optimization {
+        settings.transition_weights.legacy_both_milli = None;
+    }
+    project.settings.legacy_optimization = Default::default();
+}
+
 fn normalize_project(project: &mut PilePlanProject) {
     project.units.costs = normalize_currency_code(&project.units.costs);
     project.settings.viewer_utilization = project.settings.viewer_utilization.normalized();
-    project.settings.optimization.max_utilization =
-        normalize_unit_interval(project.settings.optimization.max_utilization, 1.0);
+    migrate_optimizer_settings(project);
     if !project
         .settings
         .load_point_grouping
@@ -305,6 +321,7 @@ fn validate_project_value_pile_plan_ids(value: &Value) -> Result<(), IfcppError>
 
 pub fn write_ifcpp_string(project: &PilePlanProject) -> Result<String, IfcppError> {
     let mut canonical = project.clone();
+    migrate_optimizer_settings(&mut canonical);
     if canonical.schema_version < 4 {
         canonical.schema_version = 4;
     }
@@ -339,6 +356,14 @@ pub fn validate_ifcpp_project(project: &PilePlanProject) -> Result<(), IfcppErro
 fn validate_ifcpp_project_with_keys(
     project: &PilePlanProject,
 ) -> Result<crate::ProjectTipLevelKeys, IfcppError> {
+    if project
+        .settings
+        .ilp_optimization
+        .as_ref()
+        .is_some_and(|s| !s.is_valid())
+    {
+        return Err(IfcppError::InvalidIlpSettings);
+    }
     if project.schema != "IFCPP" {
         return Err(IfcppError::InvalidSchema(project.schema.clone()));
     }
@@ -491,7 +516,7 @@ mod tests {
     use std::collections::HashMap;
 
     use crate::{
-        CptSelectionAlgorithm, CptSelectionSettings, GreedyOptimizationSettings, PileCostSettings,
+        CptSelectionAlgorithm, CptSelectionSettings, LegacyOptimizationSettings, PileCostSettings,
         PileCostSettingsItem, PileCostShape, ProjectApplication, ProjectImportLogEntry,
         ProjectInputs, ProjectMetadata, ProjectSettings, ProjectUnits, ProjectUserState,
     };
@@ -953,7 +978,7 @@ mod tests {
         project.application.version = "0.0.1".to_string();
         project.settings.viewer_utilization.minimum = 1.2;
         project.settings.viewer_utilization.maximum = -0.1;
-        project.settings.optimization.max_utilization = 1.4;
+        project.settings.legacy_optimization.max_utilization = 1.4;
         project.units.costs = " gbp ".to_string();
         project.settings.viewer.symbol_scale_percent = 250;
         project.settings.viewer.foreground_layer = "future-layer".to_string();
@@ -985,7 +1010,7 @@ mod tests {
         assert_eq!(value["user_state"]["active_pile_plan_id"], "pile-plan-1");
         assert_eq!(value["settings"]["viewer_utilization"]["minimum"], 0.0);
         assert_eq!(value["settings"]["viewer_utilization"]["maximum"], 1.0);
-        assert_eq!(value["settings"]["optimization"]["max_utilization"], 1.0);
+        assert!(value["settings"].get("optimization").is_none());
         assert_eq!(value["units"]["costs"], "GBP");
         assert_eq!(value["settings"]["viewer"]["symbol_scale_percent"], 200);
         assert_eq!(
@@ -1280,7 +1305,7 @@ mod tests {
             );
         }
         assert_eq!(
-            migrated["settings"]["optimization"]["candidate_source"],
+            migrated["settings"]["ilp_optimization"]["candidate_source"],
             "all_available",
         );
         assert!(migrated["settings"].get("active_pile_sizes").is_none());
@@ -1360,6 +1385,7 @@ mod tests {
                 bearing_capacities: vec![],
             },
             settings: ProjectSettings {
+                ilp_optimization: Some(crate::IlpOptimizationSettings::default()),
                 global_cpt_selection: CptSelectionSettings {
                     algorithm: CptSelectionAlgorithm::Quadrants,
                     max_distance_m: 25.0,
@@ -1377,10 +1403,9 @@ mod tests {
                     }],
                 },
                 pile_head_level_m: Some(0.0),
-                optimization: GreedyOptimizationSettings {
+                legacy_optimization: LegacyOptimizationSettings {
                     max_pile_sizes: 0,
                     max_pile_tip_levels: 0,
-                    max_pile_configurations: 0,
                     max_utilization: 1.0,
                     candidate_source: Default::default(),
                 },

@@ -8,14 +8,14 @@ use pile_plan_core::{
     build_tip_level_region_topology as build_tip_level_region_topology_core, calculate_pile_cost,
     choose_default_pile_options,
     derive_load_point_groups as derive_load_point_groups_core,
-    greedy_optimize_pile_choices, import_project_from_sources,
+    import_project_from_sources,
     preview_import_source, preview_pile_plan_import,
     read_project_document as read_project_document_core, refresh_project_from_profiled_sources,
     validate_project_tip_levels,
     write_pile_plan_csv as write_pile_plan_csv_bytes,
     write_pile_plan_xlsx as write_pile_plan_xlsx_bytes, AggregatedPileConfiguration,
     ApplyLoadPointGroupAssignmentInput, ApplyLoadPointGroupAssignmentResult, CptSelectionSettings,
-    GreedyOptimizationInput, GreedyOptimizationOutcome, ImportSource,
+    ImportSource,
     ImportSourcePreview, InvalidPileTipLevels, LoadPointGroup, LoadPointGroupingSettings,
     PileConfigurationKey, PileConfigurationOption, PileCostSettings, PilePlanExportRequest,
     PileOptionAnalysisResult, PilePlanImportPreview, PilePlanImportRequest, PilePlanProject,
@@ -31,6 +31,8 @@ use std::ffi::OsStr;
 use std::path::{Path, PathBuf};
 use std::sync::Mutex;
 use tauri::{Emitter, Manager, State};
+mod ilp_optimization;
+use ilp_optimization::{ilp_optimize, cancel_ilp_optimization, IlpJobs};
 
 const PROJECT_OPEN_REQUESTED_EVENT: &str = "project-open-requested";
 
@@ -238,11 +240,6 @@ fn assess_technical_assignment(
 }
 
 #[tauri::command(rename_all = "snake_case")]
-fn greedy_optimize(request: GreedyOptimizationInput) -> GreedyOptimizationOutcome {
-    greedy_optimize_pile_choices(&request)
-}
-
-#[tauri::command(rename_all = "snake_case")]
 fn import_project_from_files(
     request: ImportProjectRequest,
 ) -> Result<ValidatedPilePlanProject, String> {
@@ -373,6 +370,10 @@ fn main() {
             }
         }))
         .plugin(tauri_plugin_dialog::init())
+        .manage(IlpJobs::default())
+        .on_window_event(|window, event| {
+            if matches!(event, tauri::WindowEvent::Destroyed) { window.state::<IlpJobs>().cancel(); }
+        })
         .plugin(tauri_plugin_store::Builder::default().build())
         .invoke_handler(tauri::generate_handler![
             aggregate_pile_options,
@@ -384,7 +385,9 @@ fn main() {
             calculate_pile_option_cost,
             choose_default_options,
             derive_load_point_groups,
-            greedy_optimize,
+
+            ilp_optimize,
+            cancel_ilp_optimization,
             read_project_document,
             write_project_document,
             import_project_from_files,
@@ -564,38 +567,5 @@ mod tests {
         ));
     }
 
-    #[test]
-    fn greedy_optimize_command_returns_the_tagged_core_outcome() {
-        let outcome = greedy_optimize(GreedyOptimizationInput {
-            groups: vec![LoadPointGroup {
-                load_point_ids: vec![1],
-            }],
-            options_by_load_point: HashMap::from([(1, vec![])]),
-            target_load_point_ids: vec![1],
-            locked_load_point_ids: vec![],
-            current_assignments: HashMap::new(),
-            limit_scope: pile_plan_core::OptimizationLimitScope::Target,
-            pile_head_level_m: None,
-            cost_settings: PileCostSettings {
-                schema_version: 1,
-                items: vec![],
-            },
-            candidate_configurations: vec![PileConfigurationKey {
-                pile_size_mm: 320,
-                pile_tip_level_mm: -18_000,
-            }],
-            settings: pile_plan_core::GreedyOptimizationSettings {
-                max_pile_sizes: 1,
-                max_pile_tip_levels: 1,
-                max_pile_configurations: 1,
-                max_utilization: 1.0,
-                candidate_source: Default::default(),
-            },
-        });
 
-        assert!(matches!(
-            outcome,
-            pile_plan_core::GreedyOptimizationOutcome::Blocked { .. }
-        ));
-    }
 }

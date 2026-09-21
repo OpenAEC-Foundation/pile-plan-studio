@@ -45,6 +45,7 @@ type CoreCanonicalProject = Omit<IfcppProject, "settings" | "user_state" | "impo
 };
 
 export type CoreProjectDocumentError =
+  | { code: "invalid-ilp-settings" }
   | { code: "invalid-json"; message: string }
   | { code: "invalid-schema"; schema: string }
   | { code: "unsupported-schema-version"; schema_version: number }
@@ -80,6 +81,7 @@ type CoreInvalidProjectPileTipLevel = {
 };
 
 export type ProjectDocumentError =
+  | { code: "invalid-ilp-settings" }
   | Extract<CoreProjectDocumentError, { code: "invalid-json" | "invalid-schema" }>
   | { code: "unsupported-schema-version"; schemaVersion: number }
   | { code: "duplicate-pile-plan-id"; pilePlanId: string }
@@ -206,6 +208,7 @@ export function projectDocumentErrorFromCore(
   error: CoreProjectDocumentError,
 ): ProjectDocumentError {
   switch (error.code) {
+    case "invalid-ilp-settings":
     case "invalid-json":
     case "invalid-schema":
       return { ...error };
@@ -384,6 +387,8 @@ function numericKey(value: string | number): number {
 function isCoreProjectDocumentError(value: unknown): value is CoreProjectDocumentError {
   if (!isRecord(value) || typeof value.code !== "string") return false;
   switch (value.code) {
+    case "invalid-ilp-settings":
+      return true;
     case "invalid-json":
       return typeof value.message === "string";
     case "invalid-schema":

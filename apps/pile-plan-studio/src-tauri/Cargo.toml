@@ -12,7 +12,7 @@ tauri = { version = "2", features = [] }
 tauri-plugin-dialog = "2"
 tauri-plugin-single-instance = "2"
 tauri-plugin-store = "2"
-pile-plan-core = { path = "../../../crates/pile-plan-core" }
+pile-plan-core = { path = "../../../crates/pile-plan-core", features = ["native-highs"] }
 serde = { version = "1", features = ["derive"] }
 
 [features]

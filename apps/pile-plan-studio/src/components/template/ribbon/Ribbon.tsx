@@ -26,7 +26,7 @@ import { getTipLevelRegionToggle } from "./tipLevelRegionToggle.ts";
 import "./Ribbon.css";
 
 type TabId = "plan" | "view";
-type TaskPanel = "cpt-settings" | "cost-settings" | "grouping-settings" | "optimization";
+type TaskPanel = "cpt-settings" | "cost-settings" | "grouping-settings" | "ilp-optimization";
 
 const TABS: TabId[] = ["plan", "view"];
 
@@ -35,8 +35,6 @@ interface RibbonProps {
   onOpenProjectInformation?: () => void;
   onOpenRightPanel?: (mode: RightPanelMode) => void;
   onOpenTaskPanel?: (panel: TaskPanel) => void;
-  onRunOptimization?: () => void;
-  optimizationDisabled?: boolean;
   isLassoSelectionActive: boolean;
   lassoSelectionDisabled: boolean;
   onToggleLassoSelection: () => void;
@@ -69,8 +67,6 @@ export default function Ribbon({
   onOpenProjectInformation,
   onOpenRightPanel,
   onOpenTaskPanel,
-  onRunOptimization,
-  optimizationDisabled = false,
   isLassoSelectionActive,
   lassoSelectionDisabled,
   onToggleLassoSelection,
@@ -192,9 +188,8 @@ export default function Ribbon({
                   <RibbonButton icon={lockIcon} label={t("plan.editLocks")} onClick={onStartLockEditing} />
                 )}
               </RibbonGroup>
-              <RibbonGroup label={t("optimize.greedy")}>
-                <RibbonButton icon={optimizeIcon} label={t("optimize.run")} disabled={optimizationDisabled} onClick={onRunOptimization} />
-                <RibbonButton icon={settingsIcon} label={t("optimize.settings")} onClick={() => onOpenTaskPanel?.("optimization")} />
+              <RibbonGroup label={t("optimize.ilp")}>
+                <RibbonButton icon={optimizeIcon} label={t("ilp.run")} onClick={() => onOpenTaskPanel?.("ilp-optimization")} />
               </RibbonGroup>
             </div>
           </div>

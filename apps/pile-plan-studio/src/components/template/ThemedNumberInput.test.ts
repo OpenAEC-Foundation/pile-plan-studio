@@ -8,7 +8,7 @@ describe("ThemedNumberInput integration", () => {
   it("is used by every numeric editor", () => {
     const files = [
       "../domain/right-panel/CostCatalogEditor.tsx",
-      "../domain/pile-plans/OptimizationPanel.tsx",
+      "../domain/pile-plans/ilp-optimization/IlpOptimizationSettingsPanel.tsx",
       "../domain/imports/PilePlanImportPanel.tsx",
       "../domain/right-panel/PanelControls.tsx",
     ];
@@ -26,6 +26,19 @@ describe("ThemedNumberInput integration", () => {
     assert.equal(stepNumericDraft("0.2", 1, { min: 0, step: 0.1 }), "0.3");
     assert.equal(stepNumericDraft("0", -1, { min: 0, step: 1 }), "0");
     assert.equal(stepNumericDraft("100", 1, { max: 100, min: 0, step: 1 }), "100");
+  });
+
+  it("steps decimal drafts by one, preserving the fraction and respecting bounds", () => {
+    assert.equal(stepNumericDraft("1.5", 1, { step: 1 }), "2.5");
+    assert.equal(stepNumericDraft("1,5", -1, { step: 1 }), "0.5");
+    assert.equal(stepNumericDraft("99,5", 1, { min: 0, max: 100, step: 1 }), "100");
+    assert.equal(stepNumericDraft("0,25", -1, { min: 0, step: 1 }), "0");
+  });
+
+  it("starts empty limit drafts at the catalog maximum when stepping down", () => {
+    assert.equal(stepNumericDraft("", -1, { min: 1, max: 64, step: 1 }), "64");
+    assert.equal(stepNumericDraft("64", -1, { min: 1, max: 64, step: 1 }), "63");
+    assert.equal(stepNumericDraft("", 1, { min: 1, max: 64, step: 1 }), "1");
   });
 
   it("starts a delayed repeat and stops it on pointer completion", () => {

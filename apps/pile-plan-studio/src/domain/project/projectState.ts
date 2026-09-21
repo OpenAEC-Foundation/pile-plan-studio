@@ -11,8 +11,8 @@ import type {
 } from "../../core/projectTypes.ts";
 import type { Viewport } from "../../viewer/viewport.ts";
 import type { LegendSelectionFilter } from "../../viewer/legendSelection.ts";
-import type { OptimizationRunSummary } from "../pile-plans/optimization/optimizationSummary.ts";
-import type { OptimizationLimitScope, OptimizationTargetScope } from "../../components/domain/pile-plans/optimizationPanelModel.ts";
+import type { OptimizationLimitScope } from "../../core/projectTypes.ts";
+import type { OptimizationTargetScope } from "../../core/ilpOptimizationTypes.ts";
 import type { ForegroundLayer } from "../settings/viewerPreferences.ts";
 import type { LoadPointLockDraft } from "../pile-plans/loadPointLocking.ts";
 import type { ProjectTipLevelKeys } from "../../core/projectDocumentTypes.ts";
@@ -80,13 +80,10 @@ export type ProjectState = LoadedProjectData & {
   analysisError: string | null;
   defaultPileSelectionPending: boolean;
   legendSelectionFilter: LegendSelectionFilter;
-  optimizationTargetScope: OptimizationTargetScope;
-  optimizationLimitScope: OptimizationLimitScope;
-  optimizationCreatesPilePlan: boolean;
-  optimizationRunning: boolean;
-  optimizationError: string | null;
-  optimizationErrorLoadPointIds: number[];
-  optimizationSummary: OptimizationRunSummary | null;
+  ilpOptimizationTargetScope: OptimizationTargetScope;
+  ilpOptimizationLimitScope: OptimizationLimitScope;
+  ilpOptimizationCreatesPilePlan: boolean;
+  ilpIncludeBoundaryTransitions: boolean;
   symbolScalePercent: number;
   foregroundLayer: ForegroundLayer;
   showGrid: boolean;
@@ -152,13 +149,10 @@ export function createInitialProjectState(
     analysisError: null,
     defaultPileSelectionPending: options.initializeDefaultPiles,
     legendSelectionFilter: { pileSizes: [], pileTipLevels: [] },
-    optimizationTargetScope: "all",
-    optimizationLimitScope: "target",
-    optimizationCreatesPilePlan: true,
-    optimizationRunning: false,
-    optimizationError: null,
-    optimizationErrorLoadPointIds: [],
-    optimizationSummary: null,
+    ilpOptimizationTargetScope: "all",
+    ilpOptimizationLimitScope: "target",
+    ilpOptimizationCreatesPilePlan: true,
+    ilpIncludeBoundaryTransitions: false,
   };
 }
 

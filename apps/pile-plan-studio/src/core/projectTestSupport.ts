@@ -14,6 +14,21 @@ export function canonicalProjectForTest(input: string | IfcppProject): IfcppProj
     max_edge_distance_mm: 1_200,
   };
   project.settings.viewer_utilization ??= { minimum: 0, maximum: 1 };
+  project.settings.ilp_optimization ??= {
+    skip_unsolvable_units: false,
+    optimize_coherence: true,
+    ...project.settings.optimization,
+    max_pile_tip_levels: project.settings.optimization?.max_pile_tip_levels || null,
+    max_pile_sizes: project.settings.optimization?.max_pile_sizes || null,
+    max_pile_configurations: null,
+    max_utilization: project.settings.optimization?.max_utilization ?? 1,
+    candidate_source: project.settings.optimization?.candidate_source === "active_legend" ? "active_legend" : "all_available",
+    budget_basis_points: 500, transition_weights: { tip_only_milli: 1000, size_only_milli: 1000 },
+  };
+  delete project.settings.optimization;
+  project.settings.ilp_optimization.custom_configurations ??= [];
+  project.settings.ilp_optimization.optimize_coherence ??= true;
+  project.settings.ilp_optimization.skip_unsolvable_units ??= false;
   project.settings.viewer ??= {
     symbol_scale_percent: 100,
     foreground_layer: "load-points",

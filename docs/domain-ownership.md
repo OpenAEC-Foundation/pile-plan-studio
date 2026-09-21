@@ -89,7 +89,7 @@ Status meanings:
 | `apps/pile-plan-studio/src/core/loadPointGroupContract.ts` | Maps grouping and group-assignment requests/results | TypeScript adapter | **Core-owned through delegation.** |
 | `apps/pile-plan-studio/src/core/technicalAssignmentContract.ts` | Maps technical assignment requests/results | TypeScript adapter | **Core-owned through delegation.** |
 | `apps/pile-plan-studio/src/domain/pile-options/technicalAssignmentNotice.ts` | Turns core assessment facts into selection-aware notice models | TypeScript | **Presentation-owned.** |
-| `apps/pile-plan-studio/src/domain/pile-plans/optimization/optimizationSettings.ts` | Parses and edits optimization form values | TypeScript UI; Rust constraints | **Application-owned.** Rust validates and enforces optimizer settings during execution and project read/write. |
+| `apps/pile-plan-studio/src/domain/pile-plans/ilp-optimization/ilpSettingsModel.ts` | Parses and edits optimization form values | TypeScript UI; Rust constraints | **Application-owned.** Rust validates and enforces optimizer settings during execution and project read/write. |
 
 ## Canonical lifecycle
 
@@ -110,3 +110,17 @@ UI intent -> Rust operation -> atomic result -> one TypeScript history entry
 
 No recovery record, undo snapshot, or frontend adapter becomes an alternative
 source of engineering truth.
+
+## ILP optimization ownership
+
+- `optimization/ilp/` is the Rust owner of hard constraints, exact weighted
+  transitions, reference/budget calculation, diagnosis and solver proof status.
+- The WASM session and Tauri background job only transport progress and outcomes.
+- `core/ilpOptimizationContract.ts` maps/validates transport shapes. It performs
+  no engineering calculation; UI percentages are parsed into exact fixed-point
+  values by the settings model.
+- `app/optimization/` owns run lifetime and snapshot invalidation; immutable
+  result application and project history belong to TypeScript.
+- New ILP settings are project content. Run scope, boundary preference, save-as-new
+  choice and feedback are separate transient state. The retired optimizer has no
+  runtime or UI; old settings are handled solely by Rust project migration.

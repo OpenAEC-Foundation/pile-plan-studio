@@ -11,6 +11,7 @@ import { replacePilePlanActivation } from "../../../domain/pile-plans/pilePlanAc
 import { useTipLevelRegionTopology } from "../pile-plan-viewer/tip-level-regions/useTipLevelRegionTopology.ts";
 
 type Props = {
+  readOnly?: boolean;
   state: ProjectState;
   loadPointGroups: LoadPointGroup[];
   technicalAssignment: TechnicalAssignmentSnapshot;
@@ -18,7 +19,7 @@ type Props = {
   onStateChange: (nextState: ProjectState) => void;
 };
 
-export default function PilePlanWorkspace({ state, loadPointGroups, technicalAssignment, lassoSelectionActive, onStateChange }: Props) {
+export default function PilePlanWorkspace({ readOnly = false, state, loadPointGroups, technicalAssignment, lassoSelectionActive, onStateChange }: Props) {
   const [legendEditorOpen, setLegendEditorOpen] = useState(false);
   const tipLevelRegions = useTipLevelRegionTopology({
     enabled: state.showTipLevelRegions,
@@ -30,6 +31,7 @@ export default function PilePlanWorkspace({ state, loadPointGroups, technicalAss
   return (
     <section className="pile-plan-workspace" onMouseDownCapture={handleMouseDownCapture}>
       <Legend
+        readOnly={readOnly}
         state={state}
         tipLevelRegionStatus={tipLevelRegions.status}
         onEdit={() => setLegendEditorOpen(true)}
@@ -44,7 +46,7 @@ export default function PilePlanWorkspace({ state, loadPointGroups, technicalAss
         onStateChange={onStateChange}
       />
       <LegendEditor
-        open={legendEditorOpen}
+        open={legendEditorOpen && !readOnly}
         state={state}
         onClose={() => setLegendEditorOpen(false)}
         onApply={(draft, enableTipLevelRegions) => {

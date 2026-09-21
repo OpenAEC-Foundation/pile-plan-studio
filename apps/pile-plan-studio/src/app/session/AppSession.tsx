@@ -1,8 +1,12 @@
+import {applyIlpPreviewInteraction} from "../../domain/pile-plans/ilp-optimization/ilpLivePreview.ts";
 import { useCallback, useEffect, useMemo, useReducer, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent, type SetStateAction } from "react";
 import { useTranslation } from "react-i18next";
 import sampleProjectText from "../../../../../sample_project/sample_project.ifcpp?raw";
 import TitleBar from "../../components/template/TitleBar";
 import Ribbon from "../../components/template/ribbon/Ribbon";
+import {useIlpOptimization} from "../optimization/useIlpOptimization.ts";
+import IlpOptimizationSettingsPanel from "../../components/domain/pile-plans/ilp-optimization/IlpOptimizationSettingsPanel.tsx";
+import IlpOptimizationResultPanel from "../../components/domain/pile-plans/ilp-optimization/IlpOptimizationResultPanel.tsx";
 import Backstage from "../../components/template/backstage/Backstage";
 import SettingsDialog, { applyTheme } from "../../components/template/settings/SettingsDialog";
 import FeedbackDialog from "../../components/template/feedback/FeedbackDialog";
@@ -26,7 +30,6 @@ import {
   chooseDefaultPileOptionsCore,
   exportPilePlanCsvCore,
   exportPilePlanXlsxCore,
-  greedyOptimizeCore,
   importProjectFromFilesCore,
   readProjectDocumentCore,
   refreshProjectFromFilesCore,
@@ -46,14 +49,6 @@ import {
 } from "../../core/projectDocumentContract.ts";
 import { getSetting } from "../../store";
 import { optionKey } from "../../components/domain/right-panel/rightPanelModel";
-import { buildGreedyOptimizationSettings } from "../../domain/pile-plans/optimization/optimizationSettings";
-import {
-  applyOptimizationResult,
-  clampOptimizationLimits,
-  formatOptimizationDiagnostics,
-  getOptimizationTargetIds,
-  isOptimizationDisabled,
-} from "../../components/domain/pile-plans/optimizationPanelModel";
 import { switchRightPanelMode } from "../../domain/workspace/selectionState";
 import {
   getProjectFileCommands,
@@ -80,24 +75,18 @@ import { mergeDefaultPileChoices } from "../../domain/pile-plans/defaultPileChoi
 import { summarizePilePlanCosts } from "../../domain/pile-plans/projectCostSummary.ts";
 import {
   createPilePlan,
-  createOptimizationPilePlan,
   deletePilePlan,
   duplicatePilePlan,
   renamePilePlan,
-  replaceOptimizationOutcomesForTargets,
   switchPilePlan,
   synchronizeActivePilePlan,
   type PilePlanLanguage,
 } from "../../domain/pile-plans/pilePlanManagement.ts";
 import {
   activationFromConfigurations,
-  getActivePilePlan,
-  getPilePlanActivation,
 } from "../../domain/pile-plans/pilePlanActivation.ts";
 import {
   getAvailablePileConfigurationCatalog,
-  optimizationCandidateToken,
-  resolveOptimizationCandidates,
 } from "../../domain/pile-plans/optimization/optimizationCandidates.ts";
 import {
   applyLoadPointLockDraft,
@@ -459,11 +448,6 @@ export default function AppSession({
     () => getAvailablePileConfigurationCatalog(projectState.pileOptionsByLoadPointId),
     [projectState.pileOptionsByLoadPointId],
   );
-  const optimizationCandidates = useMemo(() => resolveOptimizationCandidates(
-    availablePileConfigurations,
-    projectState.optimizationSettings.candidate_source,
-    getPilePlanActivation(getActivePilePlan(projectState)),
-  ), [availablePileConfigurations, projectState.activePilePlanId, projectState.optimizationSettings.candidate_source, projectState.pilePlans]);
   const persistedProjectDraft = projectDraftFromState(projectState);
   const persistedProjectSignature = JSON.stringify(persistedProjectDraft);
   useEffect(() => {
@@ -545,19 +529,7 @@ export default function AppSession({
     window.addEventListener("keydown", handleHistoryShortcut);
     return () => window.removeEventListener("keydown", handleHistoryShortcut);
   }, []);
-  const pilePlanCostSummaries = useMemo(() => summarizePilePlanCosts(
-    synchronizeActivePilePlan(
-      projectState.pilePlans,
-      projectState.activePilePlanId,
-      projectState.selectedPileConfigurationsByLoadPoint,
-    ),
-    projectState.pileCostByOptionKey,
-  ), [
-    projectState.activePilePlanId,
-    projectState.pilePlans,
-    projectState.selectedPileConfigurationsByLoadPoint,
-    projectState.pileCostByOptionKey,
-  ]);
+
 
   const serializeProject = async () => {
     return writeProjectDocumentCore(projectDraftFromState(projectState));
@@ -673,13 +645,7 @@ export default function AppSession({
   };
 
   const handleProjectStateChange = (nextState: typeof projectState) => {
-    const pileChoicesChanged = nextState.selectedPileConfigurationsByLoadPoint
-      !== projectState.selectedPileConfigurationsByLoadPoint;
-    commitProjectState(pileChoicesChanged ? {
-      ...nextState,
-      optimizationSummary: null,
-      optimizationError: null,
-    } : nextState);
+    commitProjectState(nextState);
   };
 
   const handleSourceLoadPointSelection = (intent: SourceLoadPointSelection) => {
@@ -787,8 +753,6 @@ export default function AppSession({
             capturedActivePilePlanId,
             nextAssignments,
           ),
-          optimizationSummary: null,
-          optimizationError: null,
         };
       });
     } catch (error) {
@@ -830,8 +794,6 @@ export default function AppSession({
           ? current.selectedLoadPointId
           : selectedLoadPointIds[0] ?? null,
         selectedCptId: null,
-        optimizationSummary: null,
-        optimizationError: null,
       };
     });
   };
@@ -1235,211 +1197,30 @@ export default function AppSession({
     };
   }, [projectState.pileCostSettings, projectState.pileHeadLevelM, projectState.pileOptionsByLoadPointId]);
 
-  const runGreedyOptimization = async () => {
-    const snapshot = projectState;
-    const active = getPilePlanActivation(getActivePilePlan(snapshot));
-    const candidateSource = snapshot.optimizationSettings.candidate_source;
-    const candidateCatalog = getAvailablePileConfigurationCatalog(snapshot.pileOptionsByLoadPointId);
-    const candidateConfigurations = resolveOptimizationCandidates(candidateCatalog, candidateSource, active);
-    const candidateSnapshotToken = optimizationCandidateToken(candidateConfigurations);
-    const candidateCatalogToken = optimizationCandidateToken(candidateCatalog);
-    const activationSnapshotToken = JSON.stringify(active);
-    const lockedLoadPointIds = getActiveLockedLoadPointIds(
-      snapshot.pilePlans,
-      snapshot.activePilePlanId,
-    );
-    const targetLoadPointIds = getOptimizationTargetIds(
-      snapshot.optimizationTargetScope,
-      snapshot.loadPoints.map((loadPoint) => loadPoint.id),
-      snapshot.selectedLoadPointIds,
-      lockedLoadPointIds,
-    );
-    if (
-      snapshot.optimizationRunning
-      || targetLoadPointIds.length === 0
-      || candidateConfigurations.length === 0
-      || loadPointGroups.pending
-      || loadPointGroups.error !== null
-      || (snapshot.loadPoints.length > 0 && loadPointGroups.groups.length === 0)
-    ) {
-      return;
-    }
-
-    const activePilePlanId = snapshot.activePilePlanId;
-    const analysisRequest = snapshot.analysisRequest;
-    const currentAssignmentsIdentity = snapshot.selectedPileConfigurationsByLoadPoint;
-    const currentAssignments = new Map(currentAssignmentsIdentity);
-    const optimizationGroups = loadPointGroups.groups;
-    const limits = clampOptimizationLimits({
-      sizes: snapshot.optimizationSettings.max_pile_sizes,
-      tips: snapshot.optimizationSettings.max_pile_tip_levels,
-      configurations: snapshot.optimizationSettings.max_pile_configurations,
-    }, candidateConfigurations);
-    const settings = buildGreedyOptimizationSettings({
-      candidateSource,
-      uiSettings: {
-        targetScope: snapshot.optimizationTargetScope,
-        limitScope: snapshot.optimizationLimitScope,
-        maxDifferentSizes: limits.sizes,
-        maxDifferentTips: limits.tips,
-        maxDifferentConfigurations: limits.configurations,
-      },
-      maxUtilization: snapshot.optimizationSettings.max_utilization,
-    });
-    const optionsByLoadPoint = snapshot.pileOptionsByLoadPointId;
-
-    setProjectState((current) => ({
-      ...current,
-      optimizationSettings: settings,
-      optimizationRunning: true,
-      optimizationError: null,
-      optimizationErrorLoadPointIds: [],
-      optimizationSummary: null,
-    }));
-
-    try {
-      const outcome = await greedyOptimizeCore({
-        groups: loadPointGroups.groups,
-        optionsByLoadPoint,
-        targetLoadPointIds,
-        lockedLoadPointIds,
-        currentAssignments,
-        limitScope: snapshot.optimizationLimitScope,
-        pileHeadLevelM: snapshot.pileHeadLevelM,
-        costSettings: snapshot.pileCostSettings,
-        settings,
-        candidateConfigurations,
-      });
-      const currentSnapshot = projectStateRef.current;
-      const currentActive = getPilePlanActivation(getActivePilePlan(currentSnapshot));
-      const currentCatalog = getAvailablePileConfigurationCatalog(currentSnapshot.pileOptionsByLoadPointId);
-      const currentCandidates = resolveOptimizationCandidates(
-        currentCatalog,
-        currentSnapshot.optimizationSettings.candidate_source,
-        currentActive,
-      );
-      if (
-        currentSnapshot.analysisRequest !== analysisRequest
-        || currentSnapshot.activePilePlanId !== activePilePlanId
-        || currentSnapshot.selectedPileConfigurationsByLoadPoint !== currentAssignmentsIdentity
-        || loadPointGroupsRef.current !== optimizationGroups
-        || currentSnapshot.optimizationSettings.candidate_source !== candidateSource
-        || optimizationCandidateToken(currentCandidates) !== candidateSnapshotToken
-        || optimizationCandidateToken(currentCatalog) !== candidateCatalogToken
-        || JSON.stringify(currentActive) !== activationSnapshotToken
-      ) {
-        setProjectState((current) => ({ ...current, optimizationRunning: false }));
-        return;
-      }
-      if (outcome.status === "blocked") {
-        setProjectState((current) => ({
-          ...current,
-          optimizationRunning: false,
-          optimizationError: formatOptimizationDiagnostics(
-            outcome.diagnostics,
-            (key, options) => t(key, options),
-          ),
-          optimizationErrorLoadPointIds: outcome.diagnostics[0]?.load_point_ids ?? [],
-          optimizationSummary: null,
-        }));
-        return;
-      }
-      const applied = applyOptimizationResult({
-        previousChoices: snapshot.selectedPileConfigurationsByLoadPoint,
-        result: outcome.result,
-      });
-      commitProjectState((current) => {
-        const currentActive = getPilePlanActivation(getActivePilePlan(current));
-        const currentCatalog = getAvailablePileConfigurationCatalog(current.pileOptionsByLoadPointId);
-        const currentCandidates = resolveOptimizationCandidates(
-          currentCatalog,
-          current.optimizationSettings.candidate_source,
-          currentActive,
-        );
-        if (
-          current.analysisRequest !== analysisRequest
-          || current.activePilePlanId !== activePilePlanId
-          || current.selectedPileConfigurationsByLoadPoint !== currentAssignmentsIdentity
-          || current.optimizationSettings.candidate_source !== candidateSource
-          || optimizationCandidateToken(currentCandidates) !== candidateSnapshotToken
-          || optimizationCandidateToken(currentCatalog) !== candidateCatalogToken
-          || JSON.stringify(currentActive) !== activationSnapshotToken
-        ) return { ...current, optimizationRunning: false };
-        const activePlan = current.pilePlans.find(
-          (plan) => plan.id === current.activePilePlanId,
-        ) ?? current.pilePlans[0];
-        const optimizationUnassignedByLoadPoint = replaceOptimizationOutcomesForTargets(
-          activePlan.optimizationUnassignedByLoadPoint,
-          applied.affectedLoadPointIds,
-          applied.optimizationUnassignedByLoadPoint,
-        );
-        const pilePlanTransition = snapshot.optimizationCreatesPilePlan
-          ? createOptimizationPilePlan({
-              ...current,
-              optimizedChoices: applied.choices,
-              resolvedCandidateConfigurations: candidateConfigurations,
-              optimizationUnassignedByLoadPoint,
-              language: pilePlanLanguage(),
-            })
-          : {
-              selectedPileConfigurationsByLoadPoint: applied.choices,
-              pilePlans: current.pilePlans.map((plan) => plan.id === current.activePilePlanId
-                ? {
-                    ...plan,
-                    selectedPileConfigurationsByLoadPoint: new Map(applied.choices),
-                    optimizationUnassignedByLoadPoint,
-                  }
-                : plan),
-            };
-        return {
-          ...current,
-          ...pilePlanTransition,
-          optimizationSettings: settings,
-          optimizationRunning: false,
-          optimizationError: null,
-          optimizationErrorLoadPointIds: [],
-          optimizationSummary: applied.summary,
-        };
-      });
-    } catch (error) {
-      setProjectState((current) => {
-        const currentActive = getPilePlanActivation(getActivePilePlan(current));
-        const currentCatalog = getAvailablePileConfigurationCatalog(current.pileOptionsByLoadPointId);
-        const currentCandidates = resolveOptimizationCandidates(
-          currentCatalog,
-          current.optimizationSettings.candidate_source,
-          currentActive,
-        );
-        return (
-          current.analysisRequest !== analysisRequest
-          || current.activePilePlanId !== activePilePlanId
-          || current.selectedPileConfigurationsByLoadPoint !== currentAssignmentsIdentity
-          || loadPointGroupsRef.current !== optimizationGroups
-          || current.optimizationSettings.candidate_source !== candidateSource
-          || optimizationCandidateToken(currentCandidates) !== candidateSnapshotToken
-          || optimizationCandidateToken(currentCatalog) !== candidateCatalogToken
-          || JSON.stringify(currentActive) !== activationSnapshotToken
-        ) ? { ...current, optimizationRunning: false } : ({
-          ...current,
-          optimizationRunning: false,
-          optimizationError: error instanceof Error ? error.message : String(error),
-          optimizationErrorLoadPointIds: [],
-        });
-      });
-    }
+  const ilp = useIlpOptimization(projectState, loadPointGroups.groups,
+    !loadPointGroups.pending && loadPointGroups.error === null && projectState.analysisError === null
+      && !projectState.defaultPileSelectionPending && projectState.cptSelectionEditDraft === null
+      && projectState.loadPointLockDraft === null && projectState.loadPoints.length > 0
+      && projectState.pileOptionsByLoadPointId.size === projectState.loadPoints.length,
+    commitProjectState, pilePlanLanguage());
+  const pilePlanCostSummaries = useMemo(() => summarizePilePlanCosts(
+    synchronizeActivePilePlan(
+      ilp.displayState.pilePlans,
+      ilp.displayState.activePilePlanId,
+      ilp.displayState.selectedPileConfigurationsByLoadPoint,
+    ),
+    ilp.displayState.pileCostByOptionKey,
+  ), [
+    ilp.displayState.activePilePlanId,
+    ilp.displayState.pilePlans,
+    ilp.displayState.selectedPileConfigurationsByLoadPoint,
+    ilp.displayState.pileCostByOptionKey,
+  ]);
+  const handleDisplayedStateChange = (next: ProjectState) => {
+    const actual = ilp.previewPlanId
+      ? applyIlpPreviewInteraction(projectState, ilp.displayState, next) : next;
+    if (actual) handleProjectStateChange(actual);
   };
-
-  const optimizationDisabled = isOptimizationDisabled({
-    optimizationRunning: projectState.optimizationRunning,
-    candidateCount: optimizationCandidates.length,
-    selectedTargetIsEmpty: projectState.optimizationTargetScope === "selected"
-      && projectState.selectedLoadPointIds.length === 0,
-    loadPointCount: projectState.loadPoints.length,
-    groupsPending: loadPointGroups.pending,
-    groupsError: loadPointGroups.error,
-    groupCount: loadPointGroups.groups.length,
-    technicalAssessmentStatus: technicalAssignment.status,
-  });
 
   const installOpenedProject = (project: ProjectState, path: string | null) => {
     const lifecycle = openedProjectLifecycleState(project, path);
@@ -1579,8 +1360,6 @@ export default function AppSession({
             updateWorkspaceLayout({ propertiesVisible: true });
             setRightTaskPanel(panel);
           }}
-          onRunOptimization={runGreedyOptimization}
-          optimizationDisabled={optimizationDisabled}
           isLassoSelectionActive={lassoSelectionActive}
           lassoSelectionDisabled={!lassoSelectionAvailable}
           onToggleLassoSelection={() => setLassoSelectionActive((active) => (
@@ -1632,11 +1411,13 @@ export default function AppSession({
           } as CSSProperties}
         >
           {workspaceLayout.explorerVisible && <PilePlanExplorer
-            activePilePlanId={projectState.activePilePlanId}
+            activePilePlanId={ilp.displayState.activePilePlanId}
             activeSourceKind={activeSourceKind}
             costSummaries={pilePlanCostSummaries}
             currencyCode={projectState.currencyCode}
-            createDisabled={
+            optimizingPlanId={ilp.previewPlanId}
+            managementDisabled={ilp.running}
+            createDisabled={ilp.running ||
               projectState.pileOptionsByLoadPointId.size !== projectState.loadPoints.length
               || projectState.analysisError !== null
             }
@@ -1644,10 +1425,10 @@ export default function AppSession({
             isDirty={isDirty}
             inputSources={projectState.inputSources}
             inputSourcesExpanded={workspaceLayout.inputSourcesExpanded}
-            pilePlans={projectState.pilePlans}
+            pilePlans={ilp.displayState.pilePlans}
             pilePlansExpanded={workspaceLayout.pilePlansExpanded}
             projectName={projectState.name}
-            onActivate={activatePilePlan}
+            onActivate={id => { if (ilp.viewPlan(id)) setActiveSourceKind(null); else activatePilePlan(id); }}
             onCreate={() => void createFreshPilePlan()}
             onDelete={deleteProjectPilePlan}
             onDuplicate={duplicateProjectPilePlan}
@@ -1668,11 +1449,12 @@ export default function AppSession({
           <main className="workspace" aria-label="Pile plan workspace">
             {activeSourceKind === null ? (
               <PilePlanWorkspace
-                state={projectState}
+                state={ilp.displayState}
+                readOnly={ilp.running}
                 loadPointGroups={loadPointGroups.groups}
                 technicalAssignment={technicalAssignment}
                 lassoSelectionActive={lassoSelectionActive}
-                onStateChange={handleProjectStateChange}
+                onStateChange={handleDisplayedStateChange}
               />
             ) : (
               <SourceDataViewer
@@ -1707,16 +1489,46 @@ export default function AppSession({
             onPointerDown={beginRightPanelResize}
           />}
           {workspaceLayout.propertiesVisible && <RightPanel
-            state={projectState}
+            ilpResult={<IlpOptimizationSettingsPanel
+              newPlanName={ilp.newPlanName} onNewPlanNameChange={ilp.setNewPlanName}
+              sections={userSettings.preferences.ilpSections}
+              onToggleSection={section => commitUserSettings(patchUserSettings(userSettingsRef.current, {
+                ilpSections: { ...userSettingsRef.current.preferences.ilpSections, [section]: !userSettingsRef.current.preferences.ilpSections[section] },
+              }))}
+              state={projectState} onChange={handleProjectStateChange}
+              onRun={ilp.start} onRunLocal={ilp.startLocal} onStop={ilp.stop} onCancel={ilp.cancel}
+              hasBestSolution={!!ilp.progress?.best_solution} onClose={() => setRightTaskPanel(null)}
+              running={ilp.running} stopping={ilp.stopping} cancelling={ilp.cancelling} disabled={ilp.disabled}
+              runningPlanName={ilp.runningPlanName} onViewRunningPlan={() => {
+                if (!ilp.runningPlanId) return;
+                if (ilp.viewPlan(ilp.runningPlanId)) setActiveSourceKind(null);
+                else activatePilePlan(ilp.runningPlanId);
+              }}>
+              {(ilp.running || ilp.notificationRun) && <IlpOptimizationResultPanel run={ilp.running?ilp:ilp.notificationRun!} currency={projectState.currencyCode}
+                detailsOpen={false} onToggleDetails={() => {}} actionsEnabled={ilp.actionsAvailable}
+                skipUnsolvableEnabled={projectState.ilpOptimizationSettings.skip_unsolvable_units}
+                onEnableSkipUnsolvable={ilp.enableSkipUnsolvable} onApplyProposal={ilp.applyProposal} />}
+              {(!ilp.running || !ilp.viewingRunPlan) && (!ilp.notificationRun || ilp.resultRun.outcome) &&
+              <IlpOptimizationResultPanel
+              detailsOpen={userSettings.preferences.ilpSections.result}
+              onToggleDetails={() => commitUserSettings(patchUserSettings(userSettingsRef.current, {
+                ilpSections: { ...userSettingsRef.current.preferences.ilpSections, result: !userSettingsRef.current.preferences.ilpSections.result },
+              }))}
+              run={ilp.resultRun} currency={ilp.resultCurrency} stale={ilp.resultStale} settings={ilp.resultSettings}
+              planName={ilp.displayState.pilePlans.find(p=>p.id===ilp.displayState.activePilePlanId)?.name}
+              actionsEnabled={ilp.actionsAvailable}
+              skipUnsolvableEnabled={projectState.ilpOptimizationSettings.skip_unsolvable_units}
+              onEnableSkipUnsolvable={ilp.enableSkipUnsolvable} onApplyProposal={ilp.applyProposal}
+              />}</IlpOptimizationSettingsPanel>}
+            state={ilp.displayState}
             loadPointGroups={loadPointGroups.groups}
             technicalAssignment={technicalAssignment}
-            onStateChange={handleProjectStateChange}
-            pileAssignmentPending={pileAssignmentPending
+            onStateChange={handleDisplayedStateChange}
+            pileAssignmentPending={ilp.running || pileAssignmentPending
               || loadPointGroups.pending
               || loadPointGroups.error !== null
               || (projectState.loadPoints.length > 0 && loadPointGroups.groups.length === 0)}
             onApplyPileConfiguration={applyGroupedPileConfiguration}
-            onRunOptimization={runGreedyOptimization}
             taskPanel={rightTaskPanel}
             onCloseTaskPanel={() => setRightTaskPanel(null)}
             hasPersonalCostDefault={userSettings.defaults.pileCostCatalog !== null}

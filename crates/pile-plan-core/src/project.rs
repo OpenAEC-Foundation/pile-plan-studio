@@ -6,7 +6,7 @@ use crate::import::{ImportProfile, ImportRole, SourceFormat};
 
 use crate::cpt_selection::CptSelectionSettings;
 use crate::load_point_groups::LoadPointGroupingSettings;
-use crate::optimization::{GreedyOptimizationSettings, OptimizationUnassignedReason};
+use crate::{LegacyOptimizationSettings, OptimizationUnassignedReason};
 use crate::pile_configuration::PileConfigurationKey;
 use crate::pile_options::PileCostSettings;
 use crate::source_data::{BearingCapacity, Cpt, LoadPoint};
@@ -262,7 +262,10 @@ pub struct ProjectSettings {
     pub pile_costs: PileCostSettings,
     #[serde(default)]
     pub pile_head_level_m: Option<f64>,
-    pub optimization: GreedyOptimizationSettings,
+    #[serde(default, rename = "optimization", skip_serializing)]
+    pub legacy_optimization: LegacyOptimizationSettings,
+    #[serde(default)]
+    pub ilp_optimization: Option<crate::IlpOptimizationSettings>,
     #[serde(default)]
     pub viewer_utilization: ViewerUtilizationSettings,
     #[serde(default)]
@@ -387,6 +390,8 @@ pub struct PilePlan {
     pub locked_load_point_ids: Vec<u32>,
     #[serde(default, deserialize_with = "deserialize_optimization_unassigned")]
     pub optimization_unassigned: HashMap<u32, OptimizationUnassignedReason>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub ilp_result: Option<crate::optimization::IlpPlanResult>,
 }
 
 fn deserialize_optimization_unassigned<'de, D>(
@@ -423,6 +428,7 @@ impl PilePlan {
             selected_piles,
             locked_load_point_ids: Vec::new(),
             optimization_unassigned: HashMap::new(),
+            ilp_result: None,
         }
     }
 }
@@ -625,7 +631,9 @@ mod tests {
 
     #[test]
     fn pile_plan_project_serializes_without_losing_state() {
-        let project = sample_project();
+        let mut project = sample_project();
+        project.settings.ilp_optimization = Some(project.settings.legacy_optimization.to_ilp_settings());
+        project.settings.legacy_optimization = Default::default();
         let json = serde_json::to_string(&project).expect("project serializes");
         let parsed: PilePlanProject = serde_json::from_str(&json).expect("project deserializes");
 
@@ -808,18 +816,16 @@ mod tests {
             .and_then(serde_json::Value::as_object_mut)
             .expect("settings are an object");
         settings.remove("viewer_utilization");
-        settings
-            .get_mut("optimization")
-            .and_then(serde_json::Value::as_object_mut)
-            .expect("optimization settings are an object")
-            .remove("max_utilization");
+        settings.insert("optimization".into(), serde_json::json!({
+            "max_pile_sizes": 1, "max_pile_tip_levels": 1,
+        }));
 
         let parsed: PilePlanProject =
             serde_json::from_value(value).expect("legacy project deserializes");
 
         assert_eq!(parsed.settings.viewer_utilization.minimum, 0.0);
         assert_eq!(parsed.settings.viewer_utilization.maximum, 1.0);
-        assert_eq!(parsed.settings.optimization.max_utilization, 1.0);
+        assert_eq!(parsed.settings.legacy_optimization.max_utilization, 1.0);
     }
 
     #[test]
@@ -959,6 +965,7 @@ mod tests {
                 }],
             },
             settings: ProjectSettings {
+                ilp_optimization: None,
                 global_cpt_selection: CptSelectionSettings {
                     algorithm: CptSelectionAlgorithm::Quadrants,
                     max_distance_m: 25.0,
@@ -984,10 +991,9 @@ mod tests {
                     }],
                 },
                 pile_head_level_m: Some(0.0),
-                optimization: GreedyOptimizationSettings {
+                legacy_optimization: LegacyOptimizationSettings {
                     max_pile_sizes: 1,
                     max_pile_tip_levels: 1,
-                    max_pile_configurations: 1,
                     max_utilization: 1.0,
                     candidate_source: Default::default(),
                 },
@@ -1018,6 +1024,7 @@ mod tests {
                     )]),
                     locked_load_point_ids: Vec::new(),
                     optimization_unassigned: HashMap::new(),
+                    ilp_result: None,
                 }],
                 active_pile_plan_id: "pile-plan-1".to_string(),
                 manual_cpt_selections: HashMap::from([(1, vec![10, 11])]),

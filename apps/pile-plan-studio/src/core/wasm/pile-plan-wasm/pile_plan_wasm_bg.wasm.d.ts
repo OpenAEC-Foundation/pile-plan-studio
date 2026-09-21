@@ -1,6 +1,7 @@
 /* tslint:disable */
 /* eslint-disable */
 export const memory: WebAssembly.Memory;
+export const __wbg_wasmilpsession_free: (a: number, b: number) => void;
 export const aggregate_pile_options: (a: any) => [number, number, number];
 export const apply_load_point_group_assignment: (a: any) => [number, number, number];
 export const assess_technical_assignment: (a: any) => [number, number, number];
@@ -12,13 +13,15 @@ export const choose_default_options: (a: any) => [number, number, number];
 export const derive_load_point_groups: (a: any) => [number, number, number];
 export const export_pile_plan_csv: (a: any) => [number, number, number, number];
 export const export_pile_plan_xlsx: (a: any) => [number, number, number, number];
-export const greedy_optimize: (a: any) => [number, number, number];
 export const import_project_from_files: (a: any) => [number, number, number];
 export const preview_import_file: (a: any) => [number, number, number];
 export const preview_pile_plan_import_file: (a: any) => [number, number, number];
 export const read_project_document: (a: any) => [number, number, number];
 export const refresh_project_from_files: (a: any) => [number, number, number];
+export const wasmilpsession_new: () => number;
+export const wasmilpsession_run: (a: number, b: any, c: any, d: any) => [number, number, number];
 export const write_project_document: (a: any) => [number, number, number, number];
+export const wasm_bindgen_df0aded92f0742a8___convert__closures_____invoke___wasm_bindgen_df0aded92f0742a8___JsValue______true_: (a: number, b: number, c: any) => void;
 export const __wbindgen_malloc: (a: number, b: number) => number;
 export const __wbindgen_realloc: (a: number, b: number, c: number, d: number) => number;
 export const __wbindgen_exn_store: (a: number) => void;

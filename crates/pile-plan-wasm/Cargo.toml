@@ -9,7 +9,7 @@ crate-type = ["cdylib", "rlib"]
 
 [dependencies]
 js-sys = "0.3"
-pile-plan-core = { path = "../pile-plan-core" }
+pile-plan-core = { path = "../pile-plan-core", default-features = false }
 serde = { version = "1", features = ["derive"] }
 serde-wasm-bindgen = "0.6"
 wasm-bindgen = "0.2"

@@ -1,8 +1,8 @@
 import { useTranslation } from "react-i18next";
+import type {ReactNode} from "react";
 import type { ProjectState } from "../../../domain/project/projectState.ts";
 import type { PileConfigurationKey, PileCostSettings } from "../../../core/projectTypes.ts";
 import { getSelectedLoadPoints, formatLoadPointPanelTitle } from "./rightPanelModel.ts";
-import OptimizationPanel from "../pile-plans/OptimizationPanel.tsx";
 import type { LoadPointGroup } from "../../../core/loadPointGroupContract.ts";
 import type { TechnicalAssignmentSnapshot } from "../../../app/derived-state/technicalAssignmentController.ts";
 import "./rightPanel.css";
@@ -13,9 +13,10 @@ import CostSettingsPanel from "./CostSettingsPanel.tsx";
 import CptSettingsPanel from "./CptSettingsPanel.tsx";
 import { PanelTab, localizeLoadPointName } from "./PanelControls.tsx";
 
-export type RightTaskPanel = "cpt-settings" | "cost-settings" | "grouping-settings" | "optimization";
+export type RightTaskPanel = "cpt-settings" | "cost-settings" | "grouping-settings" | "ilp-optimization";
 
 export type RightPanelProps = {
+  ilpResult?: ReactNode;
   state: ProjectState;
   loadPointGroups?: LoadPointGroup[];
   technicalAssignment?: TechnicalAssignmentSnapshot;
@@ -25,7 +26,6 @@ export type RightPanelProps = {
     selectedLoadPointIds: number[],
     configuration: PileConfigurationKey | null,
   ) => void;
-  onRunOptimization?: () => void;
   taskPanel?: RightTaskPanel | null;
   onCloseTaskPanel?: () => void;
   hasPersonalCostDefault?: boolean;
@@ -36,6 +36,7 @@ export type RightPanelProps = {
 };
 
 export default function RightPanel({
+  ilpResult,
   state,
   loadPointGroups = [],
   technicalAssignment = {
@@ -47,7 +48,6 @@ export default function RightPanel({
   onStateChange,
   pileAssignmentPending = false,
   onApplyPileConfiguration = () => undefined,
-  onRunOptimization = () => undefined,
   taskPanel = null,
   onCloseTaskPanel = () => undefined,
   hasPersonalCostDefault = false,
@@ -68,9 +68,7 @@ export default function RightPanel({
         <PanelTab active={taskPanel === null} label={t("tabs.loadPoint")} mode="load-point" state={state} onActivate={onCloseTaskPanel} onStateChange={onStateChange} />
         <PanelTab active={taskPanel === null} label={t("tabs.cpts")} mode="cpts" state={state} onActivate={onCloseTaskPanel} onStateChange={onStateChange} />
       </div>
-      {taskPanel === "optimization" ? (
-        <OptimizationPanel state={state} technicalAssessmentStatus={technicalAssignment.status} onStateChange={onStateChange} onRunOptimization={onRunOptimization} onClose={onCloseTaskPanel} />
-      ) : taskPanel === "cost-settings" ? (
+      {taskPanel === "ilp-optimization" ? ilpResult : taskPanel === "cost-settings" ? (
         <CostSettingsPanel
           state={state}
           onStateChange={onStateChange}

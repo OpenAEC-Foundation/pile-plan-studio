@@ -6,7 +6,6 @@ import {
   deriveLoadPointGroupsCore,
   exportPilePlanCsvCore,
   exportPilePlanXlsxCore,
-  greedyOptimizeCore,
   previewPilePlanImportCore,
 } from "./pilePlanCoreClient.ts";
 
@@ -17,7 +16,6 @@ describe("pile-plan core client", () => {
       deriveLoadPointGroupsCore,
       exportPilePlanCsvCore,
       exportPilePlanXlsxCore,
-      greedyOptimizeCore,
       previewPilePlanImportCore,
     ].every((command) => typeof command === "function"), true);
   });

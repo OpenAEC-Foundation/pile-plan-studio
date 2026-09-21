@@ -133,91 +133,6 @@ describe("React optimization panel", () => {
     assert.equal(dutch["pileOptions.inactive"], "Uit");
   });
 
-  it("defers numeric optimization limits until blur or Enter", () => {
-    const optimization = readFileSync(resolve(import.meta.dirname, "../pile-plans/OptimizationPanel.tsx"), "utf8");
-
-    assert.match(optimization, /useState\(String\(value\)\)/);
-    assert.match(optimization, /onValueChange=\{setDraft\}/);
-    assert.match(optimization, /onBlur=\{commit\}/);
-    assert.match(optimization, /event\.key === "Enter"/);
-    assert.match(optimization, /min=\{1\}[\s\S]*updateLimit\("sizes"/);
-    assert.match(optimization, /min=\{0\}[\s\S]*updateMaxUtilization/);
-    assert.doesNotMatch(optimization, /onChange=\{\(event\) => onChange\(Number\(event\.currentTarget\.value\)\)\}/);
-  });
-
-  it("clears the last run feedback when optimization scopes change", () => {
-    const optimization = readFileSync(resolve(import.meta.dirname, "../pile-plans/OptimizationPanel.tsx"), "utf8");
-
-    assert.match(optimization, /function updateScope/);
-    assert.match(optimization, /optimizationSummary:\s*null/);
-    assert.match(optimization, /optimizationError:\s*null/);
-    assert.match(optimization, /updateScope\(\{ optimizationTargetScope: "all" \}\)/);
-    assert.match(optimization, /updateScope\(\{ optimizationTargetScope: "selected" \}\)/);
-    assert.match(optimization, /updateScope\(\{ optimizationLimitScope: "target" \}\)/);
-    assert.match(optimization, /updateScope\(\{ optimizationLimitScope: "whole-plan" \}\)/);
-  });
-
-  it("selects an exact optimizer candidate source and blocks an empty domain", () => {
-    const optimization = readFileSync(resolve(import.meta.dirname, "../pile-plans/OptimizationPanel.tsx"), "utf8");
-    const english = JSON.parse(readFileSync(resolve(import.meta.dirname, "../../../i18n/locales/en/rightPanel.json"), "utf8"));
-    const dutch = JSON.parse(readFileSync(resolve(import.meta.dirname, "../../../i18n/locales/nl/rightPanel.json"), "utf8"));
-
-    assert.match(optimization, /resolveOptimizationCandidates/);
-    assert.match(optimization, /updateCandidateSource\("all_available"\)/);
-    assert.match(optimization, /updateCandidateSource\("active_legend"\)/);
-    assert.match(optimization, /candidates\.length === 0/);
-    assert.equal(english["optimization.candidatesAll"], "All available configurations");
-    assert.equal(english["optimization.candidatesActiveLegend"], "Only active in legend");
-    assert.equal(dutch["optimization.candidatesAll"], "Alle beschikbare configuraties");
-    assert.equal(dutch["optimization.candidatesActiveLegend"], "Alleen actief in legenda");
-  });
-
-  it("does not refocus a numeric field when the empty part of its row is clicked", () => {
-    const optimization = readFileSync(resolve(import.meta.dirname, "../pile-plans/OptimizationPanel.tsx"), "utf8");
-    const styles = readFileSync(resolve(import.meta.dirname, "rightPanel.css"), "utf8");
-
-    assert.match(optimization, /<div\s+className="optimization-number"/);
-    assert.match(optimization, /<label htmlFor=\{inputId\}>\{label\}<\/label>/);
-    assert.match(optimization, /id=\{inputId\}/);
-    assert.doesNotMatch(optimization, /<label className="optimization-number">/);
-    assert.match(optimization, /if \(event\.target === event\.currentTarget\) inputRef\.current\?\.blur\(\);/);
-    assert.match(styles, /\.optimization-number > label\s*\{[^}]*justify-self:\s*start;/s);
-  });
-
-  it("provides a closable task panel outside the permanent context tabs", () => {
-    const panel = readRightPanelSource();
-    const optimization = readFileSync(resolve(import.meta.dirname, "../pile-plans/OptimizationPanel.tsx"), "utf8");
-
-    assert.doesNotMatch(panel, /PanelTab label="Optimization"/);
-    assert.match(panel, /taskPanel === "optimization"/);
-    assert.match(panel, /onCloseTaskPanel/);
-    assert.match(optimization, /t\("optimization\.close"\)/);
-    assert.match(optimization, /t\("optimization\.description"\)/);
-    assert.match(optimization, /t\("optimization\.maxSizes"\)/);
-    assert.match(optimization, /t\("optimization\.maxTips"\)/);
-    assert.match(optimization, /t\("optimization\.maxConfigurations"\)/);
-    assert.match(optimization, /t\("optimization\.run"\)/);
-    assert.match(optimization, /optimizationCreatesPilePlan/);
-    assert.match(optimization, /t\("optimization\.saveAsNewPilePlan"\)/);
-    assert.match(optimization, /<ThemedNumberInput/);
-    assert.match(optimization, /max_utilization: value \/ 100/);
-    assert.doesNotMatch(optimization, /type="range"/);
-    assert.ok(
-      optimization.indexOf('t("optimization.performanceLimit")')
-        < optimization.indexOf("optimizationCreatesPilePlan"),
-      "utilization limit should appear before the save-as-new-plan option",
-    );
-    assert.match(optimization, /optimizationSummary/);
-    assert.match(optimization, /optimization\.assigned/);
-    assert.match(optimization, /optimization\.noValidOption/);
-    assert.match(optimization, /optimization\.unassigned/);
-    assert.doesNotMatch(optimization, /optimization\.unresolvedGroups/);
-    assert.match(optimization, /optimizationError/);
-    assert.match(optimization, /optimizationErrorLoadPointIds/);
-    assert.match(optimization, /className="optimization-load-point-link"/);
-    assert.match(optimization, /selectLoadPoint\(state, loadPointId\)/);
-  });
-
   it("does not mark a permanent panel tab active while the optimization task is open", () => {
     const panel = readRightPanelSource();
 
@@ -230,20 +145,6 @@ describe("React optimization panel", () => {
 
     assert.match(panel, /<PanelTab[\s\S]*?onActivate=\{onCloseTaskPanel\}/);
     assert.match(panel, /onActivate\(\);[\s\S]*?switchRightPanelMode\(state, mode\)/);
-  });
-
-  it("uses the shared right-panel translations", () => {
-    const panel = readRightPanelSource();
-    const optimization = readFileSync(resolve(import.meta.dirname, "../pile-plans/OptimizationPanel.tsx"), "utf8");
-    const config = readFileSync(resolve(import.meta.dirname, "../../../i18n/config.ts"), "utf8");
-
-    assert.match(panel, /useTranslation\("rightPanel"\)/);
-    assert.match(optimization, /useTranslation\("rightPanel"\)/);
-    assert.match(config, /enRightPanel/);
-    assert.match(config, /nlRightPanel/);
-    assert.match(config, /"rightPanel"/);
-    const english = readFileSync(resolve(import.meta.dirname, "../../../i18n/locales/en/rightPanel.json"), "utf8");
-    assert.match(english, /"optimization\.performanceLimit": "Utilization limit"/);
   });
 
   it("keeps only inspection views as permanent tabs", () => {
@@ -354,14 +255,6 @@ describe("React CPT settings panel", () => {
     const styles = readFileSync(resolve(import.meta.dirname, "rightPanel.css"), "utf8");
 
     assert.match(styles, /\.segmented-control button:last-child\.is-selected\s*\{[\s\S]*?border-left:\s*1px solid var\(--theme-accent\)/);
-  });
-
-  it("allows the optimizer candidate labels to wrap", () => {
-    const panel = readFileSync(resolve(import.meta.dirname, "../pile-plans/OptimizationPanel.tsx"), "utf8");
-    const styles = readFileSync(resolve(import.meta.dirname, "rightPanel.css"), "utf8");
-
-    assert.match(panel, /className="segmented-control optimization-candidate-source"/);
-    assert.match(styles, /\.optimization-candidate-source button\s*\{[\s\S]*?white-space:\s*normal/);
   });
 
   it("highlights the permanent panel tabs on hover", () => {

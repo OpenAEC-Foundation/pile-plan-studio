@@ -53,7 +53,7 @@ orchestration catch-alls. Its main grouped subsystems are:
   and refresh reconciliation;
 - `pile_options/` owns the advice index, option evaluation and aggregation,
   technical status, cost calculation, and batched option analysis;
-- `optimization/` owns optimization-unit preparation and the greedy optimizer;
+- `optimization/` owns optimization-unit preparation, ILP solving and quick local improvement;
   and
 - `tip_level_regions/` owns load-point topology, Gabriel-graph construction,
   bounded faces, and pile-tip-level region grouping.
@@ -71,6 +71,12 @@ points, the selected CPTs and the pile options calculated from those selections.
 Callers may additionally request foundation-advice display rows grouped by CPT;
 the optional field avoids preparing that presentation data when it is not
 needed.
+
+Pile options with a governing resistance of zero or less are insufficient,
+not usable configurations. They retain the source resistance and governing CPT,
+but have no utilization ratio. Missing selected-CPT data still takes precedence
+as `missing_capacity_data`; a present nonpositive resistance is not missing data.
+Default assignment and both optimizers consume this same core assessment.
 
 Foundation advice remains stored as flat rows keyed by CPT ID. The batch
 orchestrator builds one internal index and reuses it for all requested load
@@ -137,3 +143,139 @@ stroke in light and dark themes instead of inheriting a themed text color.
 The implementation invariants, coordinate pipeline, regression symptoms, and
 manual test procedure live beside the viewer code in
 [`apps/pile-plan-studio/src/viewer/README.md`](../apps/pile-plan-studio/src/viewer/README.md).
+
+## ILP optimization
+
+The Plan ribbon exposes one Optimize button that opens the Optimization panel.
+Run and Quick improve remain in the panel; ILP terminology is confined to method
+explanations rather than user-facing titles. The side panel contains
+the optimizer settings and plan-specific results. The retired greedy optimizer,
+its ribbon group and its native/WASM commands have been removed.
+Rust `optimization/ilp/` owns preparation, the shared sparse linear model, typed solver
+execution, cost reference caching, cap relaxation and independent
+assignment validation. `tip_level_regions/optimization_unit_graph.rs` contracts
+the original Gabriel graph without multiplying edges or rebuilding across gaps.
+
+A browser Worker owns its WASM session. Tauri owns one background job with atomic
+cancellation and retains the session between runs. `app/optimization/` rejects
+stale results; `domain/pile-plans/ilp-optimization/` installs a validated result
+immutably as one history change. Stop never installs a partial result.
+
+New projects start with unlimited tip-level, size and configuration counts
+(empty limit fields); importing source data does not turn catalog counts into limits.
+Saved project limits remain unchanged when reopening a project.
+IFCPP settings contain optional `ilp_optimization`; Rust normalizes absent data
+from the legacy optimizer with a 5% budget, tip/size weights 1/1 and an unlimited total
+configuration count. Target/save/boundary
+choices and in-flight results remain transient. Completed plan results are stored
+in optional `pile_plans[].ilp_result` (solution, diagnostics, settings, currency and
+a versioned content fingerprint). Older plans omit this field. The schema stays version 4.
+The persisted coherence switch defaults to enabled for older projects. Disabling
+it runs only the cost phase; a zero transition objective also skips the spatial
+solve. A bounded local improvement of the reference supplies a validated fallback
+before the spatial ILP. Only the exact solve (or a zero-score lower-bound proof)
+can establish spatial optimality. Applying a result preserves the workspace selection.
+See the [model specification](designs/2026-09-18-spatial-optimization-ilp.md) and
+[measured performance](designs/2026-09-18-ilp-performance.md).
+
+### Native ILP solver
+
+The `pile-plan-core/native-highs` feature is enabled by default for native builds
+and by the Tauri shell. Browser WASM disables native default features.
+`model.rs` and its small internal `linear_model.rs` builder produce one integer
+CSR matrix, exposed through `IlpSolverModel`. There is no secondary Rust solver
+or modeling-library dependency. Native HiGHS and browser highs-js consume the
+same formulation, with complete initial values for assignment and auxiliary columns.
+
+`highs_backend.rs` encapsulates native callbacks and cooperative interruption;
+HiGHS uses one thread with parallel solving off. The browser Worker loads the
+pinned `highs` package and its locally bundled WASM asset only on its first run.
+`highsBrowserSolver.ts` handles numeric solver transport, warm starts, finite-bound
+filtering, status classification and disposal. The WASM session calls this adapter
+synchronously through a scoped callback; phase orchestration, deadlines, reference
+caching, cap diagnosis and all engineering validation remain in Rust. A candidate
+from JavaScript is checked against the matrix, integral domains and independent
+assignment validation before it can become a live plan. Solver progress is throttled
+to 400 ms, while improved solutions are forwarded immediately. An expired deadline
+or missing primal solution never establishes optimality. Temporary HiGHS instances
+are disposed even when a callback fails; the Worker retains its Rust cache between
+completed runs. Browser stop/cancel terminates the Worker, retaining or discarding
+the last validated snapshot respectively.
+
+The UI retains validated snapshots for stop-and-use-best; normal cancellation and
+stale-context rejection remain separate. Local-only is a transient run parameter,
+not an IFCPP schema change. Live previews project the best validated spatial
+assignment into the workspace and explorer, at most once per second. Each snapshot
+is derived from the original run state, so a new-plan preview keeps one stable ID.
+The preview is runtime-only: save/recovery and history continue to use the real
+project. Completion or stop-and-use-best commits once; cancel, stale input, worker
+failure and disposal discard the preview. Viewer interactions strip preview plan
+fields before updating selection or viewport. Selection changes do not change the
+captured optimization targets. The run owns a fixed source and destination plan;
+viewing a different plan does not cancel it or redirect subsequent snapshots.
+Completing a background run preserves the viewed plan. The sidebar separates the
+named ongoing run from the viewed plan's saved result. A stale historical result
+remains visible with an explicit warning after assignment or engineering-input
+changes; changing future optimizer settings alone does not invalidate it.
+Cancellation stays in the running/stopping state until the transport acknowledges
+completion, preventing a new run while native HiGHS is still stopping.
+Plan editing is disabled during the run; relevant
+engineering-input changes still cancel it. The solver runs independently of drawing
+and tip-level-region updates.
+
+Native development requires a C++ toolchain, CMake and libclang (for bindgen).
+Windows builds should use a short `CARGO_TARGET_DIR` to avoid MSBuild path limits.
+For this checkout, the repository-level `target` directory works. Set
+`CMAKE_GENERATOR="Visual Studio 17 2022"` if CMake selects an unavailable VS version,
+and `LIBCLANG_PATH` to the directory containing libclang.dll. CMake must be on PATH.
+These are build-time dependencies; HiGHS is linked statically into the desktop app.
+
+To exercise the production backend with an exported request:
+`cargo run -p pile-plan-core --features native-highs --example ilp_run_request -- request.json output.json 600000`.
+The feature is also enabled by default. The example emits progress snapshots as JSONL;
+an optional fourth argument requests cancellation after that many milliseconds.
+
+Neighbor differences use two nonnegative weights: tip level and pile size. An edge
+that differs in both receives the sum, so there is no joint-difference variable
+or interaction constraint in the model. The local improvement heuristic and result
+validation use the same additive score. Current project settings omit the retired
+`both_milli` field; historical plan results preserve it only as read-only metadata
+alongside their original score. Older requests cannot override the additive rule.
+
+Numeric optimization fields use the shared themed stepper, including decimal
+percentages and weights. Decimal drafts accept a point or comma; arrow buttons
+and up/down keys change the displayed value by one within its allowed bounds.
+
+The ILP sidebar keeps run controls and the compact result together above its
+settings. Independent disclosure sections remember their expanded state in the
+application-wide user settings, outside project history and IFCPP content. Optimize and
+configuration limits start expanded; result details and neighbor weights start
+collapsed. Single-choice settings remain directly visible without disclosure headers. Solution proof, blocking status and corrective actions remain visible. Detailed
+diagnostic messages have their own disclosure, closed initially for each outcome,
+with message and affected-location counts. Single-choice rows use prominent labels
+without disclosure headers.
+
+Blocked ILP results summarize the affected locations above the messages. When
+the core reports solvable targets, a shortcut enables skipping unsolvable units
+for the next run, preserving the current selection and target scope.
+
+The ILP save-as-new-plan choice and editable name share a Save as disclosure.
+Its expansion state is an application preference (initially collapsed); the draft
+name is transient. An untouched or empty name uses the next localized
+Optimization/Optimalisatie number. The run captures the name once, using it for
+both live previews and the committed plan; updating an existing plan preserves
+that plan's name.
+
+Candidate configurations and utilization/cost settings have separate disclosures,
+initially collapsed. ILP candidate sources are all available, active legend and
+custom selection. The optional `custom_configurations` setting stores exact
+size/tip-level pairs in the IFCPP project and defaults to an empty list for older
+projects. Rust selects the candidate domain from this list in custom mode; the
+frontend matrix only edits the list. Empty custom lists never mean unrestricted.
+Existing lock behavior still fixes locked groups independently of candidate filters.
+Legacy optimizer settings are consumed only during project migration, then
+discarded; saved projects contain only the current ILP settings.
+
+The candidate matrix row/column headers toggle all available pairs for one tip
+level or size, with an indeterminate checkbox for partial selections. Each group
+toggle is one settings change and does not create unavailable size/level pairs.

@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+mod ilp_optimization;
 
 use pile_plan_core::{
     aggregate_pile_options_for_load_points,
@@ -7,12 +8,12 @@ use pile_plan_core::{
     build_load_point_topology as build_load_point_topology_core, build_pile_option_analysis,
     build_tip_level_region_topology as build_tip_level_region_topology_core, calculate_pile_cost,
     choose_default_pile_options, derive_load_point_groups as derive_load_point_groups_core,
-    greedy_optimize_pile_choices, import_project_from_sources, preview_import_source,
+    import_project_from_sources, preview_import_source,
     preview_pile_plan_import, read_project_document as read_project_document_core,
     refresh_project_from_profiled_sources, validate_project_tip_levels, write_pile_plan_csv,
     write_pile_plan_xlsx, write_project_document as write_project_document_core,
     ApplyLoadPointGroupAssignmentInput, ApplyLoadPointGroupAssignmentResult, CptSelectionSettings,
-    GreedyOptimizationInput, ImportSource, LoadPointGroup, LoadPointGroupingSettings,
+    ImportSource, LoadPointGroup, LoadPointGroupingSettings,
     LoadPointTopology, PileConfigurationKey, PileConfigurationOption, PileCostSettings,
     PilePlanExportRequest, PilePlanImportRequest, PilePlanProject, ProjectBearingCapacity,
     ProjectCpt, ProjectDocumentDraft, ProjectDocumentError, ProjectLoadPoint,
@@ -176,11 +177,7 @@ pub fn assess_technical_assignment(request: JsValue) -> Result<JsValue, JsValue>
     }
 }
 
-#[wasm_bindgen]
-pub fn greedy_optimize(request: JsValue) -> Result<JsValue, JsValue> {
-    let request: GreedyOptimizationInput = from_js_value(request)?;
-    to_js_value(&greedy_optimize_pile_choices(&request))
-}
+
 
 #[wasm_bindgen]
 pub fn import_project_from_files(request: JsValue) -> Result<JsValue, JsValue> {
@@ -322,7 +319,7 @@ fn write_project_document_draft(
 mod tests {
     use super::*;
     use pile_plan_core::{
-        CptSelectionAlgorithm, GreedyOptimizationSettings, OptimizationLimitScope,
+        CptSelectionAlgorithm, OptimizationLimitScope,
     };
 
     #[test]
@@ -425,51 +422,7 @@ mod tests {
         }
     }
 
-    #[test]
-    fn greedy_optimizer_uses_the_shared_core_request_and_result() {
-        let request = GreedyOptimizationInput {
-            groups: vec![LoadPointGroup {
-                load_point_ids: vec![1],
-            }],
-            options_by_load_point: HashMap::from([(1, vec![])]),
-            target_load_point_ids: vec![1],
-            locked_load_point_ids: vec![],
-            current_assignments: HashMap::from([(
-                2,
-                PileConfigurationKey {
-                    pile_size_mm: 320,
-                    pile_tip_level_mm: -18_000,
-                },
-            )]),
-            limit_scope: OptimizationLimitScope::WholePlan,
-            pile_head_level_m: Some(-3.5),
-            cost_settings: PileCostSettings {
-                schema_version: 1,
-                items: vec![],
-            },
-            candidate_configurations: vec![PileConfigurationKey {
-                pile_size_mm: 320,
-                pile_tip_level_mm: -18_000,
-            }],
-            settings: GreedyOptimizationSettings {
-                max_pile_sizes: 1,
-                max_pile_tip_levels: 1,
-                max_pile_configurations: 1,
-                max_utilization: 1.0,
-                candidate_source: Default::default(),
-            },
-        };
 
-        let result = greedy_optimize_pile_choices(&request);
-
-        assert!(matches!(
-            result,
-            pile_plan_core::GreedyOptimizationOutcome::Blocked { diagnostics }
-                if diagnostics.len() == 1
-                    && diagnostics[0].kind
-                        == pile_plan_core::OptimizationPreparationDiagnosticKind::NoPileConfigurations
-        ));
-    }
 
     #[test]
     fn project_document_adapters_delegate_read_write_and_structured_errors() {

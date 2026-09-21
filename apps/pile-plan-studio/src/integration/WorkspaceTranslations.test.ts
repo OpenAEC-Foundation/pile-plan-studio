@@ -4,6 +4,68 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
 describe("Workspace translations", () => {
+  it("distinguishes local improvement, stop with best plan, and cancellation in both languages",()=>{
+    for(const language of ["nl","en"]) {
+      const ribbon=JSON.parse(readFileSync(resolve(import.meta.dirname,`../i18n/locales/${language}/ribbon.json`),"utf8")).ilp;
+      const panel=JSON.parse(readFileSync(resolve(import.meta.dirname,`../i18n/locales/${language}/rightPanel.json`),"utf8")).ilp;
+      for(const key of ["runSolver","runLocal","localShort","localHelp","stopBest","cancel"]) assert.ok(ribbon[key]?.length);
+      assert.ok(ribbon.skipUnsolvable?.length);
+      assert.ok(ribbon.targetLocations?.length);
+      for(const key of ["saveAs","planName","currentPlan","customCandidates","customHelp","chooseCandidates","utilizationAndCost","allowedConfigurations","selectSizeCandidates","selectTipCandidates","selectAllCandidates","clearCandidates"])assert.ok(ribbon[key]?.length);
+      assert.ok(ribbon.skipUnsolvableHelp?.length);
+      for (const key of ["tips", "sizes", "configurations", "unlimited", "weights", "currentPlan"]) assert.ok(ribbon.sectionSummary[key]?.length);
+      assert.ok(panel.details?.length);
+      assert.ok(panel.enableSkipUnsolvable?.length);
+      assert.ok(panel.skipUnsolvableEnabled?.length);
+      for (const form of ["one", "other"]) assert.ok(panel[`unsolvableSummary_${form}`]?.includes("{{count}}"));
+      assert.ok(panel.messages?.includes("{{count}}"));
+      assert.ok(panel.messageLocations?.includes("{{count}}"));
+      assert.ok(panel.livePreview?.includes("{{score}}"));
+      const common=JSON.parse(readFileSync(resolve(import.meta.dirname,`../i18n/locales/${language}/common.json`),"utf8"));
+      assert.ok(common.projectExplorer.optimizing?.length);
+      assert.ok(panel.skipped?.length);
+      assert.ok(panel.diagnostics.skipped_unsolvable_units?.length);
+      assert.ok(panel.diagnostics.no_solvable_targets?.length);
+      assert.notEqual(ribbon.stopBest,ribbon.cancel);
+      for(const key of ["score","scoreHelp","bestScore","lowerBound","remainingGap","timeLimitBest","localHelp"]) assert.ok(panel[key]?.length);
+      assert.ok(panel.diagnostics.stopped_with_best);
+      assert.ok(panel.diagnostics.local_optimization);
+      assert.ok(panel.reusedPlan?.length);
+      assert.ok(panel.diagnostics.spatial_current_plan_fallback?.length);
+    }
+  });
+  it("provides matching nonempty ILP copy and placeholders in both languages", () => {
+    function leaves(value: unknown, prefix = ""): Record<string, string> {
+      if (typeof value === "string") return { [prefix]: value };
+      assert.ok(value && typeof value === "object", prefix);
+      return Object.fromEntries(Object.entries(value).flatMap(([key, child]) =>
+        Object.entries(leaves(child, `${prefix}.${key}`))));
+    }
+    for (const namespace of ["ribbon", "rightPanel"]) {
+      const copies = ["en", "nl"].map(language => leaves(JSON.parse(readFileSync(
+        resolve(import.meta.dirname, `../i18n/locales/${language}/${namespace}.json`), "utf8",
+      )).ilp));
+      assert.deepEqual(Object.keys(copies[0]).sort(), Object.keys(copies[1]).sort());
+      if (namespace === "rightPanel") {
+        assert.match(copies[0][".diagnostics.spatial_reference_fallback"], /time limit.*cost-reference.*not proven/i);
+        assert.match(copies[1][".diagnostics.spatial_reference_fallback"], /rekentijd.*kostenreferentie.*niet bewezen/i);
+        assert.match(copies[0][".proof.feasible"], /not proven optimal/i);
+        assert.match(copies[1][".proof.feasible"], /niet bewezen optimaal/i);
+        assert.ok(copies[0][".solutionProof"] && copies[1][".solutionProof"]);
+        assert.equal(copies[0][".locallyImprovedPlan"], "Locally improved pile plan");
+        assert.equal(copies[1][".locallyImprovedPlan"], "Lokaal verbeterd palenplan");
+        assert.doesNotMatch(copies[0][".diagnostics.spatial_improved_start_fallback"], /starting plan/i);
+        assert.doesNotMatch(copies[1][".diagnostics.spatial_improved_start_fallback"], /startplan/i);
+      }
+      for (const [key, english] of Object.entries(copies[0])) {
+        const dutch = copies[1][key];
+        assert.ok(english.trim() && dutch.trim(), key);
+        assert.deepEqual(english.match(/\{\{[^}]+\}\}/g)?.sort() ?? [],
+          dutch.match(/\{\{[^}]+\}\}/g)?.sort() ?? [], key);
+      }
+    }
+  });
+
   it("provides bilingual project-open feedback for invalid pile tip levels", () => {
     const en = JSON.parse(readFileSync(resolve(import.meta.dirname, "../i18n/locales/en/common.json"), "utf8"));
     const nl = JSON.parse(readFileSync(resolve(import.meta.dirname, "../i18n/locales/nl/common.json"), "utf8"));
@@ -26,6 +88,7 @@ describe("Workspace translations", () => {
       "unsupported-schema-version",
       "duplicate-pile-plan-id",
       "invalid-pile-costs",
+      "invalid-ilp-settings",
     ]) {
       assert.equal(typeof en.projectDocument.errors[code], "string");
       assert.equal(typeof nl.projectDocument.errors[code], "string");
@@ -290,4 +353,24 @@ describe("Workspace translations", () => {
     assert.match(panel, /<sub>c;net;d<\/sub>/);
     assert.doesNotMatch(panel, />FRD</);
   });
+});
+
+it("explains the running plan, cooperative stopping and historical results in both languages",()=>{
+  for(const language of ["nl","en"]) {
+    const copy=JSON.parse(readFileSync(resolve(import.meta.dirname,`../i18n/locales/${language}/rightPanel.json`),"utf8")).ilp;
+    assert.match(copy.runningPlan,/{{name}}/);
+    assert.match(copy.planResult,/{{name}}/);
+    for(const key of ["viewPlan","stoppingHelp","resultStale","usedWeights"])assert.ok(copy[key].trim().length>0);
+    assert.match(copy.stoppingHelp,language==="nl"?/Wacht.*solver/:/wait.*solver/);
+  }
+});
+
+it("describes two additive neighbor weights in both languages",()=>{
+  for(const language of ["nl","en"]) {
+    const copy=JSON.parse(readFileSync(resolve(import.meta.dirname,`../i18n/locales/${language}/ribbon.json`),"utf8")).ilp;
+    assert.ok(copy.tip_only_milli && copy.size_only_milli);
+    assert.equal(copy.both_milli,undefined);
+    assert.match(copy.bothHelp,language==="nl"?/opgeteld/:/added together/);
+    assert.doesNotMatch(copy.sectionSummary.weights,/both/);
+  }
 });

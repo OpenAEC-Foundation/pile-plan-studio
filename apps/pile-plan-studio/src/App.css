@@ -198,7 +198,8 @@ body.is-resizing-panel {
   font-size: inherit;
 }
 
-input[type="number"]:focus-visible {
+input[type="number"]:focus-visible,
+.ilp-panel input[inputmode="decimal"]:focus-visible {
   border-color: var(--theme-focus-color);
   outline: none;
   box-shadow: inset 0 0 0 1px var(--theme-focus-color);

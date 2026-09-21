@@ -85,16 +85,6 @@ export type PileOptionAnalysisResult = {
   cptFrdRowsByCptId: Map<number, CptBearingCapacityRow[]> | null;
 };
 
-export type OptimizationCandidateSource = "all_available" | "active_legend";
-
-export type GreedyOptimizationSettings = {
-  max_pile_sizes: number;
-  max_pile_tip_levels: number;
-  max_pile_configurations: number;
-  max_utilization: number;
-  candidate_source: OptimizationCandidateSource;
-};
-
 export type OptimizationLimitScope = "target" | "whole-plan";
 
 export type ViewerUtilizationSettings = {
@@ -118,56 +108,9 @@ export type PilePlanExportInput = {
   selectedCpts: Map<number, number[]>;
 };
 
-export type GreedyOptimizedPileChoice = {
-  load_point_id: number;
-  configuration: PileConfigurationKey;
-  pile_size_mm: number;
-  pile_tip_level_m: number;
-  is_option: boolean;
-  cost: number | null;
-};
-
 export type OptimizationUnassignedReason =
   | "optimization_constraints"
   | "configuration_limits";
-
-export type OptimizationUnassignedLoadPoint = {
-  load_point_id: number;
-  reason: OptimizationUnassignedReason;
-};
-
-export type GreedyOptimizationResult = {
-  assignments: GreedyOptimizedPileChoice[];
-  unassigned: OptimizationUnassignedLoadPoint[];
-  technical_unassigned_load_point_ids: number[];
-  unassigned_group_count: number;
-  selected_configurations: PileConfigurationKey[];
-  pile_size_count: number;
-  pile_tip_level_count: number;
-  configuration_count: number;
-};
-
-export type OptimizationPreparationDiagnosticKind =
-  | "invalid_group_partition"
-  | "missing_pile_head_level"
-  | "missing_analysis_data"
-  | "conflicting_locked_configurations"
-  | "locked_member_unassigned"
-  | "locked_configuration_unavailable"
-  | "locked_configuration_exceeds_utilization_limit"
-  | "missing_relevant_cost"
-  | "no_eligible_configuration"
-  | "no_pile_configurations";
-
-export type OptimizationPreparationDiagnostic = {
-  kind: OptimizationPreparationDiagnosticKind;
-  load_point_ids: number[];
-  configuration: PileConfigurationKey | null;
-};
-
-export type GreedyOptimizationOutcome =
-  | { status: "completed"; result: GreedyOptimizationResult }
-  | { status: "blocked"; diagnostics: OptimizationPreparationDiagnostic[] };
 
 export type PileCostShape = "round" | "square";
 

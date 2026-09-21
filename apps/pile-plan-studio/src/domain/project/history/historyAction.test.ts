@@ -127,13 +127,6 @@ function content(): ProjectContent {
     },
     cptSelectionSettingsByLoadPoint: new Map(),
     pileCostSettings: { schema_version: 1, pile_head_level_m: 0, items: [] },
-    optimizationSettings: {
-      max_pile_sizes: 1,
-      max_pile_tip_levels: 1,
-      max_pile_configurations: 1,
-      max_utilization: 1,
-      candidate_source: "all_available",
-    },
     viewerUtilizationSettings: { minimum: 0, maximum: 1 },
     pileLegend: {
       encodingMode: "size-symbol",

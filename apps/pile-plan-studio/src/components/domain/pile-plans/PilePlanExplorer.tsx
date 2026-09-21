@@ -16,6 +16,8 @@ type Props = {
   activeSourceKind: InputSourceKind | null;
   inputSourcesExpanded: boolean;
   pilePlansExpanded: boolean;
+  optimizingPlanId?: string;
+  managementDisabled?: boolean;
   creating?: boolean;
   createDisabled?: boolean;
   onActivate: (pilePlanId: string) => void;
@@ -38,6 +40,8 @@ export default function PilePlanExplorer({
   activeSourceKind,
   inputSourcesExpanded,
   pilePlansExpanded,
+  optimizingPlanId,
+  managementDisabled = false,
   creating = false,
   createDisabled = false,
   onActivate,
@@ -59,12 +63,13 @@ export default function PilePlanExplorer({
   }).format(value);
 
   const startRename = (plan: PilePlanData) => {
+    if (managementDisabled) return;
     setRenamingId(plan.id);
     setRenameValue(plan.name);
   };
 
   const finishRename = (plan: PilePlanData) => {
-    onRename(plan.id, renameValue);
+    if (!managementDisabled) onRename(plan.id, renameValue);
     setRenamingId(null);
   };
 
@@ -123,7 +128,7 @@ export default function PilePlanExplorer({
               const summary = costSummaries.get(plan.id) ?? { missingCount: 0, totalCost: 0 };
               return (
                 <div className={`pile-plan-row${active ? " active" : ""}`} key={plan.id}>
-                  {renamingId === plan.id ? (
+                  {renamingId === plan.id && !managementDisabled ? (
                     <div className="pile-plan-select">
                       <input
                         aria-label={t("projectExplorer.rename")}
@@ -143,6 +148,7 @@ export default function PilePlanExplorer({
                       type="button"
                     >
                       <strong>{plan.name}</strong>
+                      {plan.id === optimizingPlanId && <small>{t("projectExplorer.optimizing")}</small>}
                       <span className="pile-plan-meta">
                         {formatCurrency(summary.totalCost)}
                         {summary.missingCount > 0 ? (
@@ -157,10 +163,10 @@ export default function PilePlanExplorer({
                     </button>
                   )}
                   <div className="pile-plan-actions">
-                    <ActionButton label={t("projectExplorer.rename")} kind="edit" onClick={() => startRename(plan)} />
-                    <ActionButton label={t("projectExplorer.duplicate")} kind="copy" onClick={() => onDuplicate(plan.id)} />
+                    <ActionButton disabled={managementDisabled} label={t("projectExplorer.rename")} kind="edit" onClick={() => startRename(plan)} />
+                    <ActionButton disabled={managementDisabled} label={t("projectExplorer.duplicate")} kind="copy" onClick={() => onDuplicate(plan.id)} />
                     <ActionButton
-                      disabled={pilePlans.length === 1}
+                      disabled={managementDisabled || pilePlans.length === 1}
                       label={t("projectExplorer.delete")}
                       kind="delete"
                       onClick={() => confirmDelete(plan)}

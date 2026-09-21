@@ -9,6 +9,12 @@ import {
 
 export type UserLanguage = "auto" | "en" | "nl";
 
+export const DEFAULT_ILP_SECTIONS = {
+  optimize: true, limits: true, neighbors: false, result: false, saveAs: false, candidates: false, costLimits: false,
+};
+export type IlpSection = keyof typeof DEFAULT_ILP_SECTIONS;
+export type IlpSections = Record<IlpSection, boolean>;
+
 export type WorkspaceLayoutSettings = {
   explorerVisible: boolean;
   explorerWidth: number;
@@ -26,6 +32,7 @@ export type UserSettings = {
     interfaceScalePercent: number;
     defaultCurrencyCode: string;
     workspaceLayout: WorkspaceLayoutSettings;
+    ilpSections: IlpSections;
   };
   defaults: {
     pileCostCatalog: PileCostSettings | null;
@@ -39,6 +46,7 @@ export const DEFAULT_USER_SETTINGS: UserSettings = {
     theme: "light",
     interfaceScalePercent: 100,
     defaultCurrencyCode: "EUR",
+    ilpSections: { ...DEFAULT_ILP_SECTIONS },
     workspaceLayout: {
       explorerVisible: true,
       explorerWidth: DEFAULT_EXPLORER_WIDTH,
@@ -71,6 +79,7 @@ export function normalizeUserSettings(value: unknown): UserSettings {
           : DEFAULT_USER_SETTINGS.preferences.interfaceScalePercent,
       ),
       defaultCurrencyCode: normalizeCurrencyCode(preferences.defaultCurrencyCode),
+      ilpSections: normalizeIlpSections(preferences.ilpSections),
       workspaceLayout: {
         explorerVisible: booleanOr(workspace.explorerVisible, true),
         explorerWidth: clampExplorerWidth(numberOr(workspace.explorerWidth, DEFAULT_EXPLORER_WIDTH)),
@@ -119,6 +128,13 @@ function normalizeCurrencyCode(value: unknown): string {
   return /^[A-Z]{3}$/.test(normalized)
     ? normalized
     : DEFAULT_USER_SETTINGS.preferences.defaultCurrencyCode;
+}
+
+function normalizeIlpSections(value: unknown): IlpSections {
+  const stored = isRecord(value) ? value : {};
+  return Object.fromEntries(Object.entries(DEFAULT_ILP_SECTIONS).map(([key, fallback]) =>
+    [key, booleanOr(stored[key], fallback)],
+  )) as IlpSections;
 }
 
 function normalizePileCostDefaults(value: unknown): PileCostSettings | null {

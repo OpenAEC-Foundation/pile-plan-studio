@@ -64,9 +64,21 @@ pub(crate) fn pile_configuration_options(
                 .filter_map(|(_, capacity)| *capacity)
                 .min_by(|left, right| left.frd_kn.total_cmp(&right.frd_kn));
             let governing_frd_kn = governing.map(|capacity| capacity.frd_kn);
-            let utilization = governing_frd_kn.map(|frd_kn| design_load_kn / frd_kn);
+            // A nonpositive resistance is present data, but cannot carry the load.
+            // Do not turn it into a negative (or infinite) utilization ratio.
+            let utilization = governing_frd_kn
+                .filter(|frd_kn| frd_kn.is_finite() && *frd_kn > 0.0)
+                .map(|frd_kn| design_load_kn / frd_kn)
+                .filter(|value| value.is_finite());
             let is_option =
                 missing_cpt_ids.is_empty() && utilization.is_some_and(|value| value <= 1.0);
+            let technical_status = if !missing_cpt_ids.is_empty() || governing_frd_kn.is_none() {
+                PileOptionTechnicalStatus::MissingCapacityData
+            } else if is_option {
+                PileOptionTechnicalStatus::Valid
+            } else {
+                PileOptionTechnicalStatus::InsufficientCapacity
+            };
 
             PileConfigurationOption {
                 configuration: available.key.clone(),
@@ -76,11 +88,7 @@ pub(crate) fn pile_configuration_options(
                 governing_cpt_id: governing.map(|capacity| capacity.cpt_id),
                 governing_frd_kn,
                 utilization,
-                technical_status: pile_option_technical_status(
-                    is_option,
-                    utilization,
-                    &missing_cpt_ids,
-                ),
+                technical_status,
                 missing_cpt_ids,
             }
         })
@@ -254,6 +262,72 @@ mod tests {
             options[1].technical_status,
             PileOptionTechnicalStatus::MissingCapacityData
         );
+    }
+
+    #[test]
+    fn nonpositive_capacity_is_insufficient_without_a_utilization_ratio() {
+        for capacity in [-100.0, 0.0] {
+            for load in [0.0, 600.0] {
+                let rows = vec![row(11, -18.0, 320, 700.0), row(12, -18.0, 320, capacity)];
+                let advice = FoundationAdviceIndex::new(&rows).unwrap();
+                let options =
+                    pile_configuration_options(load, &[selected(11), selected(12)], &advice);
+                let option = &options[0];
+                assert!(!option.is_option, "capacity {capacity}, load {load}");
+                assert_eq!(option.utilization, None);
+                assert_eq!(option.governing_cpt_id, Some(12));
+                assert_eq!(option.governing_frd_kn, Some(capacity));
+                assert!(option.missing_cpt_ids.is_empty());
+                assert_eq!(
+                    option.technical_status,
+                    PileOptionTechnicalStatus::InsufficientCapacity
+                );
+
+                let incomplete =
+                    pile_configuration_options(load, &[selected(12), selected(13)], &advice);
+                assert_eq!(
+                    incomplete[0].technical_status,
+                    PileOptionTechnicalStatus::MissingCapacityData
+                );
+                assert_eq!(incomplete[0].missing_cpt_ids, vec![13]);
+            }
+        }
+    }
+
+    #[test]
+    fn optimizer_candidates_exclude_cheaper_nonpositive_capacity() {
+        for capacity in [-100.0, 0.0] {
+            let rows = vec![row(11, -18.0, 290, capacity), row(11, -18.0, 320, 700.0)];
+            let advice = FoundationAdviceIndex::new(&rows).unwrap();
+            let options = pile_configuration_options(600.0, &[selected(11)], &advice);
+            let result = crate::prepare_optimization_units(&crate::PrepareOptimizationUnitsInput {
+                groups: vec![LoadPointGroup {
+                    load_point_ids: vec![1, 2],
+                }],
+                options_by_load_point: HashMap::from([(1, options.clone()), (2, options.clone())]),
+                current_assignments: HashMap::new(),
+                locked_load_point_ids: vec![],
+                pile_head_level_m: Some(-3.5),
+                cost_settings: costs(),
+                candidate_settings: crate::OptimizationCandidateSettings {
+                    max_utilization: 1.0,
+                    enabled_configurations: options
+                        .iter()
+                        .map(|o| o.configuration.clone())
+                        .collect(),
+                },
+            });
+            assert!(result.diagnostics.is_empty());
+            assert_eq!(result.units.len(), 1);
+            assert_eq!(result.units[0].options.len(), 1);
+            assert_eq!(result.units[0].options[0].configuration.pile_size_mm, 320);
+            assert_eq!(
+                choose_default_pile_option(&options, -3.5, &costs())
+                    .unwrap()
+                    .pile_size_mm,
+                320
+            );
+        }
     }
 
     #[test]
