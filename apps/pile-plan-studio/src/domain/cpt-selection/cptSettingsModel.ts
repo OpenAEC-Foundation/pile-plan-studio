@@ -86,7 +86,7 @@ export function startManualCptSelectionEdit(state: ProjectState): ProjectState {
   const editingState = beginManualCptSelection(state);
   return {
     ...editingState,
-    rightPanelMode: "cpts",
+    rightPanelMode: state.rightPanelMode === "combined" ? "combined" : "cpts",
     selectedCptId: null,
   };
 }

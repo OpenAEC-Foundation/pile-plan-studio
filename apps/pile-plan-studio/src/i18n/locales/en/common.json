@@ -238,6 +238,7 @@
     "optimizing": "Optimization in progress"
   },
   "sourceViewer": {
+    "backToPlan": "Back to pile plan",
     "snapshot": "Project snapshot",
     "replace": "Replace source",
     "warnings_one": "{{count}} import warning",

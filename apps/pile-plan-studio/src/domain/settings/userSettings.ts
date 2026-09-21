@@ -1,4 +1,6 @@
+import { clampRightPanelSplit, DEFAULT_RIGHT_PANEL_SPLIT } from "../workspace/rightPanelLayout.ts";
 import type { PileCostSettings } from "../../core/projectTypes.ts";
+import { normalizePileOptionColumnLayouts, type PileOptionColumnLayouts } from "../pile-options/pileOptionColumnLayout.ts";
 import { normalizeInterfaceScale } from "./interfaceScale.ts";
 import {
   clampExplorerWidth,
@@ -20,6 +22,7 @@ export type WorkspaceLayoutSettings = {
   explorerWidth: number;
   propertiesVisible: boolean;
   propertiesWidth: number;
+  propertiesSplitRatio: number;
   inputSourcesExpanded: boolean;
   pilePlansExpanded: boolean;
 };
@@ -33,6 +36,7 @@ export type UserSettings = {
     defaultCurrencyCode: string;
     workspaceLayout: WorkspaceLayoutSettings;
     ilpSections: IlpSections;
+    pileOptionColumns: PileOptionColumnLayouts;
   };
   defaults: {
     pileCostCatalog: PileCostSettings | null;
@@ -47,11 +51,13 @@ export const DEFAULT_USER_SETTINGS: UserSettings = {
     interfaceScalePercent: 100,
     defaultCurrencyCode: "EUR",
     ilpSections: { ...DEFAULT_ILP_SECTIONS },
+    pileOptionColumns: normalizePileOptionColumnLayouts(undefined),
     workspaceLayout: {
       explorerVisible: true,
       explorerWidth: DEFAULT_EXPLORER_WIDTH,
       propertiesVisible: true,
       propertiesWidth: DEFAULT_RIGHT_PANEL_WIDTH,
+      propertiesSplitRatio: DEFAULT_RIGHT_PANEL_SPLIT,
       inputSourcesExpanded: true,
       pilePlansExpanded: true,
     },
@@ -80,11 +86,13 @@ export function normalizeUserSettings(value: unknown): UserSettings {
       ),
       defaultCurrencyCode: normalizeCurrencyCode(preferences.defaultCurrencyCode),
       ilpSections: normalizeIlpSections(preferences.ilpSections),
+      pileOptionColumns: normalizePileOptionColumnLayouts(preferences.pileOptionColumns),
       workspaceLayout: {
         explorerVisible: booleanOr(workspace.explorerVisible, true),
         explorerWidth: clampExplorerWidth(numberOr(workspace.explorerWidth, DEFAULT_EXPLORER_WIDTH)),
         propertiesVisible: booleanOr(workspace.propertiesVisible, true),
         propertiesWidth: clampRightPanelWidth(numberOr(workspace.propertiesWidth, DEFAULT_RIGHT_PANEL_WIDTH)),
+        propertiesSplitRatio: clampRightPanelSplit(numberOr(workspace.propertiesSplitRatio, DEFAULT_RIGHT_PANEL_SPLIT)),
         inputSourcesExpanded: booleanOr(workspace.inputSourcesExpanded, true),
         pilePlansExpanded: booleanOr(workspace.pilePlansExpanded, true),
       },

@@ -46,6 +46,18 @@ These boundaries do not move engineering authority into React. CPT selection,
 pile-option evaluation, capacity, cost, grouping, assignment, optimization, and
 project validation remain authoritative in `crates/pile-plan-core`.
 
+The right panel defaults to a single view. Its optional split view keeps load
+points above a compact CPT pane, with independent scrolling and a draggable,
+keyboard-accessible divider. The divider ratio is an application preference;
+the chosen view and selections remain transient workspace state. Opening a CPT
+or editing its selection keeps the split view active. Source tables have a close
+button that returns to the active pile plan without changing selection or viewport.
+
+Pile-option column visibility and order are application preferences, stored
+separately for single-location and multiple-location selections. Defaults preserve
+the existing columns; hidden columns do not participate in filtering or sorting.
+Changing this layout does not change project content, undo history, or dirty state.
+
 The Rust core is divided into feature modules rather than broad utility or
 orchestration catch-alls. Its main grouped subsystems are:
 

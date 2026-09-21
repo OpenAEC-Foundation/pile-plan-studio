@@ -1,4 +1,4 @@
-export type RightPanelMode = "load-point" | "cpts" | "cpt-settings" | "cost-settings";
+export type RightPanelMode = "load-point" | "cpts" | "combined" | "cpt-settings" | "cost-settings";
 
 export type SelectionState = {
   selectedLoadPointId: number | null;
@@ -10,7 +10,7 @@ export type SelectionState = {
 export function switchRightPanelMode(state: SelectionState, rightPanelMode: RightPanelMode): SelectionState {
   return {
     ...state,
-    selectedCptId: rightPanelMode === "cpts" ? state.selectedCptId : null,
+    selectedCptId: rightPanelMode === "cpts" || rightPanelMode === "combined" ? state.selectedCptId : null,
     rightPanelMode,
   };
 }
@@ -79,6 +79,6 @@ export function openCpt(state: SelectionState, cptId: number): SelectionState {
   return {
     ...state,
     selectedCptId: cptId,
-    rightPanelMode: "cpts",
+    rightPanelMode: state.rightPanelMode === "combined" ? "combined" : "cpts",
   };
 }

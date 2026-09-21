@@ -93,4 +93,14 @@ describe("selection state transitions", () => {
       rightPanelMode: "cpts",
     });
   });
+
+  it("keeps both panels visible when opening a CPT in the combined view", () => {
+    const combined = switchRightPanelMode(cptOpenState, "combined");
+    assert.equal(combined.selectedCptId, 64);
+    const opened = openCpt(combined, 61);
+    assert.equal(opened.rightPanelMode, "combined");
+    assert.deepEqual(opened.selectedLoadPointIds, [15]);
+    assert.equal(opened.selectedCptId, 61);
+    assert.equal(selectLoadPoint(opened, 18).rightPanelMode, "combined");
+  });
 });

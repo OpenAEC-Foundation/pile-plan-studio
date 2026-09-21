@@ -335,6 +335,25 @@ input[type="number"]:focus-visible,
   margin: 0;
 }
 
+.source-data-header > div:first-child { flex: 1; min-width: 0; }
+
+.source-close-button {
+  display: grid;
+  place-items: center;
+  flex: 0 0 28px;
+  height: 28px;
+  padding: 5px;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  color: var(--theme-text);
+  background: transparent;
+  cursor: pointer;
+}
+
+.source-close-button svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 1.5; }
+.source-close-button:hover { background: var(--theme-ribbon-btn-hover); border-color: var(--theme-ribbon-btn-hover-border); }
+.source-close-button:focus-visible { outline: 1px solid var(--theme-accent); }
+
 .source-data-header h2 {
   font-size: 15px;
 }

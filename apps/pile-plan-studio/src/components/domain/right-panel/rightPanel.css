@@ -1,6 +1,6 @@
 .right-panel-tabs {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr)) 32px;
   gap: 6px;
   padding: 8px;
   border-bottom: 1px solid var(--theme-border);
@@ -31,6 +31,63 @@
 .right-panel-tab:disabled {
   opacity: 0.55;
 }
+
+.right-panel-combined-toggle {
+  display: grid;
+  place-items: center;
+  padding: 4px;
+}
+
+.right-panel-combined-toggle svg { width: 18px; height: 18px; }
+
+.right-panel-combined {
+  display: grid;
+  flex: 1;
+  min-height: 0;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.right-panel-combined-top,
+.right-panel-combined-bottom {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.right-panel-horizontal-splitter {
+  position: relative;
+  cursor: row-resize;
+  touch-action: none;
+  background: var(--theme-bg);
+  border-block: 1px solid var(--theme-border);
+  user-select: none;
+}
+
+.right-panel-horizontal-splitter::after {
+  content: "";
+  position: absolute;
+  inset: 2px calc(50% - 18px);
+  background: var(--theme-text-secondary);
+  border-radius: 2px;
+}
+
+.right-panel-horizontal-splitter:hover,
+.right-panel-horizontal-splitter:focus-visible {
+  background: var(--theme-ribbon-btn-hover);
+  outline: 1px solid var(--theme-accent);
+  outline-offset: -1px;
+}
+
+.right-panel-combined-bottom .right-panel-header { padding: 6px 8px; }
+.right-panel-combined-bottom .cpt-panel { display: flex; flex-direction: column; }
+.right-panel-combined-bottom .cpt-panel > :not(.cpt-table-wrap) { flex-shrink: 0; }
+.right-panel-combined-bottom .cpt-table-wrap { flex: 1; }
+.right-panel-combined-bottom .right-panel-header h2 { font-size: 12px; }
+.right-panel-combined-bottom .cpt-table th,
+.right-panel-combined-bottom .cpt-table td { padding: 3px 6px; }
 
 .right-panel-task-close {
   width: 28px;
@@ -629,7 +686,6 @@
 
 .pile-options-table {
   width: 100%;
-  min-width: 540px;
   border-collapse: collapse;
   font-size: 11px;
 }
@@ -792,6 +848,8 @@
 }
 
 .section-heading-actions {
+  flex-wrap: wrap;
+  justify-content: flex-end;
   display: flex;
   align-items: center;
   gap: 8px;

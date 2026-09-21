@@ -1,8 +1,20 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { DEFAULT_USER_SETTINGS, normalizeUserSettings, patchPileCostDefaults } from "./userSettings.ts";
+import { DEFAULT_USER_SETTINGS, normalizeUserSettings, patchPileCostDefaults, patchUserSettings } from "./userSettings.ts";
 
 describe("user settings", () => {
+  it("round-trips column order and visibility without changing other preferences", () => {
+    const initial = normalizeUserSettings(undefined);
+    const columns = initial.preferences.pileOptionColumns;
+    const single = [...columns.single].reverse().map(column => ({ ...column, visible: column.key !== "cost" }));
+    const next = patchUserSettings(initial, { pileOptionColumns: { ...columns, single } });
+    const restored = normalizeUserSettings(JSON.parse(JSON.stringify(next)));
+    assert.deepEqual(restored.preferences.pileOptionColumns.single, single);
+    assert.deepEqual(restored.preferences.pileOptionColumns.multiple, columns.multiple);
+    assert.deepEqual(restored.preferences.workspaceLayout, initial.preferences.workspaceLayout);
+    assert.notDeepEqual(initial.preferences.pileOptionColumns.single, single);
+  });
+
   it("provides stable application defaults", () => {
     assert.deepEqual(DEFAULT_USER_SETTINGS, {
       schemaVersion: 1,
@@ -11,6 +23,10 @@ describe("user settings", () => {
         theme: "light",
         interfaceScalePercent: 100,
         defaultCurrencyCode: "EUR",
+        pileOptionColumns: {
+          single: ["symbol", "size", "tip", "status", "cost", "use", "governing", "frd"].map(key => ({ key, visible: true })),
+          multiple: ["symbol", "size", "tip", "status", "totalCost", "maxUse", "criticalLoadPoint"].map(key => ({ key, visible: true })),
+        },
         ilpSections: {
           optimize: true, limits: true, neighbors: false, result: false, saveAs: false, candidates: false, costLimits: false,
         },
@@ -19,6 +35,7 @@ describe("user settings", () => {
           explorerWidth: 240,
           propertiesVisible: true,
           propertiesWidth: 620,
+          propertiesSplitRatio: 0.7,
           inputSourcesExpanded: true,
           pilePlansExpanded: true,
         },
@@ -40,6 +57,7 @@ describe("user settings", () => {
           explorerWidth: -20,
           propertiesVisible: "yes",
           propertiesWidth: 4000,
+          propertiesSplitRatio: 4,
         },
       },
     }), {
@@ -54,6 +72,7 @@ describe("user settings", () => {
           explorerVisible: false,
           explorerWidth: 180,
           propertiesWidth: 980,
+          propertiesSplitRatio: 0.85,
         },
       },
     });

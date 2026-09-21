@@ -1458,6 +1458,7 @@ export default function AppSession({
               />
             ) : (
               <SourceDataViewer
+                onClose={() => setActiveSourceKind(null)}
                 source={projectState.inputSources.find(({ kind }) => kind === activeSourceKind)!}
                 loadPoints={projectState.loadPoints}
                 cpts={projectState.cpts}
@@ -1489,6 +1490,16 @@ export default function AppSession({
             onPointerDown={beginRightPanelResize}
           />}
           {workspaceLayout.propertiesVisible && <RightPanel
+            columnLayouts={userSettings.preferences.pileOptionColumns}
+            onColumnLayoutChange={(mode, layout) => {
+              const next = patchUserSettings(userSettingsRef.current, {
+                pileOptionColumns: { ...userSettingsRef.current.preferences.pileOptionColumns, [mode]: layout },
+              });
+              userSettingsRef.current = next;
+              commitUserSettings(next);
+            }}
+            splitRatio={workspaceLayout.propertiesSplitRatio}
+            onSplitRatioChange={propertiesSplitRatio => updateWorkspaceLayout({ propertiesSplitRatio })}
             ilpResult={<IlpOptimizationSettingsPanel
               newPlanName={ilp.newPlanName} onNewPlanNameChange={ilp.setNewPlanName}
               sections={userSettings.preferences.ilpSections}

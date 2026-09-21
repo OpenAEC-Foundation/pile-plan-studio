@@ -17,6 +17,14 @@ import type { ProjectState } from "../../domain/project/projectState.ts";
 import type { PileOptionAnalysisResult } from "../../../core/projectTypes.ts";
 
 describe("React CPT settings model", () => {
+  it("keeps both panes visible during manual CPT editing", () => {
+    const state = minimalState({ rightPanelMode: "combined", selectedLoadPointIds: [1] });
+    const editing = startManualCptSelectionEdit(state);
+    assert.equal(editing.rightPanelMode, "combined");
+    assert.deepEqual(editing.cptSelectionEditDraft?.loadPointIds, [1]);
+    assert.equal(cancelManualCptSelection(editing).rightPanelMode, "combined");
+  });
+
   it("keeps the manual draft when switching into CPT edit mode", () => {
     const editing = startManualCptSelectionEdit(minimalState({
       rightPanelMode: "cpt-settings",

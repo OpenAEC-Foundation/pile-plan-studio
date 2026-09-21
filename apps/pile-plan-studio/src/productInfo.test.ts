@@ -32,9 +32,9 @@ describe("product information", () => {
     assert.match(productInfo, /license:\s*"LGPL-3\.0-or-later"/);
   });
 
-  it("identifies the 0.3.4 alpha consistently in web and desktop packages", () => {
-    assert.equal(packageJson.version, "0.3.4");
-    assert.equal(tauriConfig.version, "0.3.4");
+  it("identifies the 0.4.0 alpha consistently in web and desktop packages", () => {
+    assert.equal(packageJson.version, "0.4.0");
+    assert.equal(tauriConfig.version, "0.4.0");
   });
 
   it("uses the shared identity in both About views", () => {

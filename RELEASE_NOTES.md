@@ -1,5 +1,52 @@
 # Pile Plan Studio Release Notes
 
+## 0.4.0-alpha
+
+This alpha introduces HiGHS optimization in both the browser and Windows app,
+with live results and more control over practical pile-plan coherence. It also
+makes the inspection panels and pile-option tables easier to customize.
+
+### Added
+
+- Minimize pile-plan costs within configurable tip-level, size and configuration
+  limits, or minimize differences between neighboring units within a cost budget.
+  The default additional-cost budget is 5%; configuration limits default to unlimited.
+- Use Quick improve for a local improvement without waiting for a full spatial
+  solve. Feasible current plans and improved starting solutions help warm-start
+  the solver.
+- Follow the best validated solution live, with its score, lower bound and gap.
+  View another pile plan while optimization continues, stop and use the best
+  result, or cancel and discard the preview. Completed results belong to the plan.
+- Choose specific candidate configurations using a matrix with row and column
+  selection, and optionally skip locations that have no valid configuration.
+- Inspect load points and CPTs together using the optional split view, with
+  compact CPT details and a resizable divider whose position is remembered.
+- Show, hide and drag-reorder pile-option columns. Preferences are remembered
+  separately for single-location and multiple-location selections.
+- Return from input sources to the active pile plan with a close button, keeping
+  the current selection and viewport.
+
+### Improved and fixed
+
+- Replace the former greedy optimizer with one optimization panel. Use collapsible
+  settings, clearer result quality, named output plans and preserved selections.
+- Reject non-positive net design resistance as an unavailable pile option rather
+  than accepting negative utilization.
+- Improve warning text and link contrast, themed controls, numeric field stepping,
+  validation styling and compact panel spacing.
+- Refresh application dependencies.
+
+### Compatibility and limitations
+
+- Supported older IFCPP projects continue to open; legacy optimizer settings are
+  normalized. New projects and saved optimizer outcomes use the current project format.
+- Browser and desktop use the same Rust optimization model, solved by HiGHS.
+  Search progress and run time can differ between platforms.
+- Quick improvement does not prove global optimality. A solver stopped early or
+  at its time limit returns the best validated result available, with its quality
+  reported separately from the cost reference.
+- This remains an alpha release; engineering results require professional review.
+
 ## 0.3.4-alpha
 
 This maintenance alpha simplifies the Rust core and application structure while

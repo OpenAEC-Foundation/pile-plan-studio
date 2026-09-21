@@ -28,6 +28,7 @@ const ROW_HEIGHT = 30;
 const OVERSCAN_ROWS = 8;
 
 type Props = {
+  onClose: () => void;
   source: InputSource;
   loadPoints: LoadPoint[];
   cpts: Cpt[];
@@ -44,6 +45,7 @@ type Props = {
 };
 
 export default function SourceDataViewer({
+  onClose,
   source,
   loadPoints,
   cpts,
@@ -238,6 +240,10 @@ export default function SourceDataViewer({
             />
           </>
         )}
+        <button className="source-close-button" type="button" onClick={onClose}
+          aria-label={t("sourceViewer.backToPlan")} title={t("sourceViewer.backToPlan")}>
+          <svg viewBox="0 0 16 16" aria-hidden="true"><path d="m4 4 8 8m0-8-8 8" /></svg>
+        </button>
       </header>
 
       <div className="source-table-scroll" onScroll={handleScroll} ref={tableScrollRef}>

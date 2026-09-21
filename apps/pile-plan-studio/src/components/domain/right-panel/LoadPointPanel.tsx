@@ -6,7 +6,9 @@ import type { LoadPointGroup } from "../../../core/loadPointGroupContract.ts";
 import { openCpt, selectLoadPoint } from "../../../domain/workspace/selectionState.ts";
 import { filterActivePileOptions } from "../../../domain/pile-options/activePileConfigurations.ts";
 import { getActivePilePlan, getPilePlanActivation } from "../../../domain/pile-plans/pilePlanActivation.ts";
-import { getNextPileOptionSortState, getPileOptionColumns, getPileOptionFilterValues, getPileOptionTableRows, type PileOptionTableColumn, type SortablePileOptionTableColumn } from "../../../domain/pile-options/pileOptionTable.ts";
+import { getNextPileOptionSortState, getPileOptionFilterValues, getPileOptionTableRows, type PileOptionTableColumn, type SortablePileOptionTableColumn } from "../../../domain/pile-options/pileOptionTable.ts";
+import { getVisiblePileOptionColumns, type PileOptionColumnLayouts, type PileOptionColumnLayout } from "../../../domain/pile-options/pileOptionColumnLayout.ts";
+import PileOptionColumns from "./PileOptionColumns.tsx";
 import { getChosenPileOptionConfigurationForSelection, getChosenPileOptionKeyForSelection, getPileOptionsByLoadPointIdForPanel, getRenderableAggregatedPileOptionRows, getRenderablePileOptionRows, getSelectedLoadPoints, optionKey } from "./rightPanelModel.ts";
 import { useAggregatedPileOptions } from "./useAggregatedPileOptions.ts";
 import type { TechnicalAssignmentSnapshot } from "../../../app/derived-state/technicalAssignmentController.ts";
@@ -25,6 +27,8 @@ export default function LoadPointPanel({
   selectedLoadPoints,
   loadPointGroups,
   technicalAssignment,
+  columnLayouts,
+  onColumnLayoutChange,
 }: {
   state: ProjectState;
   onStateChange: (nextState: ProjectState) => void;
@@ -37,6 +41,8 @@ export default function LoadPointPanel({
   selectedLoadPoints: ReturnType<typeof getSelectedLoadPoints>;
   loadPointGroups: LoadPointGroup[];
   technicalAssignment: TechnicalAssignmentSnapshot;
+  columnLayouts: PileOptionColumnLayouts;
+  onColumnLayoutChange: (mode: keyof PileOptionColumnLayouts, layout: PileOptionColumnLayout) => void;
 }) {
   const { t, i18n } = useTranslation("rightPanel");
   const [openMissingCptKey, setOpenMissingCptKey] = useState<string | null>(null);
@@ -57,7 +63,9 @@ export default function LoadPointPanel({
     selection: groupSelection,
     selectedLoadPointCount: selectedCount,
   });
-  const columns = getPileOptionColumns(selectedCount);
+  const columnMode = selectedCount > 1 ? "multiple" : "single";
+  const columnLayout = columnLayouts[columnMode];
+  const columns = getVisiblePileOptionColumns(selectedCount, columnLayout);
   const retainedConfiguration = getChosenPileOptionConfigurationForSelection(state, selectedLoadPoints);
   const rows = (selectedCount > 1
     ? getRenderableAggregatedPileOptionRows({
@@ -151,6 +159,8 @@ export default function LoadPointPanel({
             <h3>{t("pileOptions.title")}</h3>
             <div className="section-heading-actions">
               <span>{isLoading ? t("pileOptions.loading") : t("pileOptions.shown", { count: tableRows.length })}</span>
+              <PileOptionColumns layout={columnLayout} selectedCount={selectedCount}
+                onChange={layout => onColumnLayoutChange(columnMode, layout)} />
               {hasAssignedSelection ? (
                 <button
                   className="clear-pile-assignment"

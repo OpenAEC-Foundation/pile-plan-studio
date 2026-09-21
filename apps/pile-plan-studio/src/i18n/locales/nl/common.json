@@ -238,6 +238,7 @@
     "optimizing": "Optimalisatie bezig"
   },
   "sourceViewer": {
+    "backToPlan": "Terug naar palenplan",
     "snapshot": "Projectmomentopname",
     "replace": "Bron vervangen",
     "warnings_one": "{{count}} importwaarschuwing",

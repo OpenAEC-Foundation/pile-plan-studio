@@ -4,6 +4,29 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
 describe("Workspace translations", () => {
+  it("translates pile option column preferences in both languages", () => {
+    for (const language of ["en", "nl"]) {
+      const panel = JSON.parse(readFileSync(resolve(import.meta.dirname, `../i18n/locales/${language}/rightPanel.json`), "utf8"));
+      for (const key of ["button", "title", "single", "multiple", "help", "drag", "dragHelp", "moved", "reset", "close"]) {
+        assert.ok(panel[`columnSettings.${key}`]?.trim(), `${language}: ${key}`);
+      }
+      for (const key of ["drag", "moved"]) assert.ok(panel[`columnSettings.${key}`].includes("{{column}}"));
+      for (const key of ["symbol", "size", "tip", "status", "cost", "use", "governing", "frd", "totalCost", "maxUse", "criticalLoadPoint"]) {
+        assert.ok(panel[`columns.${key}`]?.trim(), `${language}: columns.${key}`);
+      }
+    }
+  });
+  it("labels split-view controls and the return-to-plan action in both languages", () => {
+    for (const language of ["en", "nl"]) {
+      const panel = JSON.parse(readFileSync(resolve(import.meta.dirname, `../i18n/locales/${language}/rightPanel.json`), "utf8"));
+      const common = JSON.parse(readFileSync(resolve(import.meta.dirname, `../i18n/locales/${language}/common.json`), "utf8"));
+      for (const key of ["tabs.combined", "split.resize", "split.help"]) {
+        assert.ok(panel[key]?.trim(), `${language}: ${key}`);
+      }
+      assert.ok(common.sourceViewer.backToPlan?.trim(), `${language}: sourceViewer.backToPlan`);
+    }
+  });
+
   it("distinguishes local improvement, stop with best plan, and cancellation in both languages",()=>{
     for(const language of ["nl","en"]) {
       const ribbon=JSON.parse(readFileSync(resolve(import.meta.dirname,`../i18n/locales/${language}/ribbon.json`),"utf8")).ilp;
