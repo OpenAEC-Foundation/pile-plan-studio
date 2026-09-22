@@ -15,6 +15,8 @@
 
 <p align="center">
   <a href="https://pile-plan-studio.open-aec.com/"><strong>Try Pile Plan Studio in your browser</strong></a>
+  &nbsp;&middot;&nbsp;
+  <a href="https://github.com/OpenAEC-Foundation/pile-plan-studio/releases/latest"><strong>Download the Windows installer</strong></a>
 </p>
 
 ---
@@ -39,51 +41,22 @@ browser.
 
 ## Highlights
 
-- Inspect valid, insufficient, and missing pile configurations for every load
-  point.
-- Select CPTs automatically using quadrant or maximum-angle rules.
-- Override the CPT selection manually for one or multiple load points.
-- Refresh individual imported sources while retaining matched pile assignments
-  and CPT selections.
-- Inspect normalized imported load points, CPTs, and foundation advice in
-  sortable, filterable source tables from the project explorer.
-- Compare utilization, foundation resistance, and estimated cost.
-- Adjust symbol size, preferred utilization range, and the foreground object
-  type directly from the View ribbon.
-- Assign one pile configuration to one or multiple selected load points.
-- Automatically group nearby load points using a project-wide distance, or
-  disable grouping so every load point can be assigned independently. Selecting
-  a grouped load point highlights its other group members and reports the group
-  scope above the pile options.
-- Lock load points per pile plan so their assignments remain unchanged during
-  selection and optimization workflows.
-- Keep multiple named pile-plan variants in one project and compare their
-  estimated costs.
-- Undo and redo project changes, with a concise description of the restored
-  assignments, settings, or pile-plan variant.
-- Recover the latest browser project automatically after an accidental refresh
-  or interrupted session.
-- Select load points by pile size or tip level from the plan legend, and edit
-  which configurations are available through the legend editor.
-- Personalize the project legend with manual colors, 54 technical symbol and
-  fill combinations, six automatic color schemes, and reversible mappings
-  between pile size, tip level, shape, and color.
-- Run a greedy optimization with limits on sizes, tip levels, and complete
-  configurations.
-- Save project data, settings, pile assignments, and CPT choices in IFCPP.
-- Export the active pile plan and selected CPT identifiers to Excel or CSV,
-  using the pile-plan name as the file name.
-- Import pile assignments from the standard Pile Plan Studio table or legacy
-  `Vergrendeld.xlsx` files as a new named pile plan, with validated ID and
-  coordinate matching.
-- Resize both the project explorer and properties panel to suit the current
-  workflow.
-- Save application-wide language, theme, interface scale, workspace layout,
-  default currency, and an optional reusable pile-cost catalog separately from
-  project-owned settings.
-- Maintain project-specific pile-size cost rows, including custom sizes, and
-  explicitly save or load a personal default catalog.
-- Use the same Rust calculation core in the browser and Windows desktop app.
+- Review valid, insufficient, and missing pile options, compare utilization,
+  resistance, and cost, and assign configurations to one or many load points.
+- Select CPTs automatically using quadrant or maximum-angle rules, override the
+  selection manually, and inspect load points and CPTs side by side.
+- Import, inspect, and refresh load points, CPTs, and foundation advice while
+  retaining matched assignments and CPT selections.
+- Organize load points into shared-configuration groups, lock assignments per
+  plan, and maintain multiple named pile-plan variants in one project.
+- Minimize cost with HiGHS, limit configuration diversity, and optionally
+  reduce differences between neighboring load points within a cost budget.
+- Customize the plan legend, visible configurations, marker presentation,
+  panels, and pile-option columns for compact inspection workflows.
+- Save projects as IFCPP with undo, redo, and browser recovery; import existing
+  pile plans and export assignments and CPT identifiers to Excel or CSV.
+- Keep project costs separate from application preferences while using the same
+  Rust calculation core in the browser and Windows desktop application.
 
 ## Screenshots
 
@@ -96,23 +69,17 @@ XLSX sources and assign each file to its project role.
   <img src="docs/screenshots/import_data.png" alt="Import project data interface with separate source roles" width="100%">
 </p>
 
-### Configure CPT selection
-
-Set the maximum CPT distance, choose the selection algorithm, apply settings
-globally or locally, and override the resulting selection when engineering
-judgement requires it.
-
-<p align="center">
-  <img src="docs/screenshots/CPT_selection.png" alt="CPT selection settings for a selected load point" width="100%">
-</p>
-
 ### Optimize the pile plan
 
-The current greedy optimizer searches for a lower-cost plan while respecting
-limits on the number of sizes, tip levels, and complete configurations.
+The Optimization panel first finds a constrained cost reference. Optional
+coherence optimization reduces weighted tip-level and size differences between
+neighbors within a cost budget (5% extra by default). Quick improve provides a
+local alternative to the spatial solver. Results distinguish the best solution
+found from a proven optimum. See [Architecture](docs/architecture.md#ilp-optimization)
+for the model and solver details.
 
 <p align="center">
-  <img src="docs/screenshots/optimization.png" alt="Greedy pile-plan optimization settings and result" width="100%">
+  <img src="docs/screenshots/optimization.png" alt="Pile-plan optimization result and configuration settings" width="100%">
 </p>
 
 ## Try or Install
@@ -214,11 +181,19 @@ multiple load points selected, the table shows their common options and applies
 the chosen configuration to all of them. Column headers support sorting and
 filtering.
 
+Use **Columns** to show or hide columns and drag them into order. Single-point
+and multiple-point layouts are remembered separately as application preferences.
+Filters and sorting on hidden columns are inactive until those columns return.
+The third button beside **Load points** and **CPTs** opens the combined view;
+drag its divider to adjust the space for each section. Close an input-source
+table with its top-right close button to return to the pile plan.
+
 ## Alpha Scope
 
 The CPT-selection rules are configurable approximations rather than an
-objective engineering truth. The greedy optimizer supports decision-making but
-does not guarantee a globally optimal pile plan.
+objective engineering truth. Optimization proves optimality only when reported
+by the solver for the configured model. Quick improve and interrupted runs can
+return feasible plans without proving that no better plan exists.
 
 See [Known Alpha Limitations](docs/known-limitations.md) for the complete scope.
 
@@ -245,11 +220,15 @@ See [Architecture](docs/architecture.md) for more detail.
 
 Requirements:
 
-- Node.js 20 or newer;
+- a current Node.js 22 or 24 release (CI uses 22);
 - current stable Rust;
 - `wasm-pack`;
 - the [Tauri prerequisites](https://v2.tauri.app/start/prerequisites/) for
   desktop builds.
+
+Native Rust tests and desktop builds also need the C++ toolchain, CMake, and
+libclang used by HiGHS. See [Build and deployment](docs/deployment.md) for setup
+and the separate Tauri test command.
 
 Run the browser development server:
 
