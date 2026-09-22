@@ -78,6 +78,16 @@ through normalization or migration and add corresponding tests.
 Avoid mutating stored maps, arrays, or pile plans in place when project history
 depends on structural comparison.
 
+Optimization previews are transient: save, recovery, and undo history must not
+capture intermediate solutions. Commit a validated outcome and its per-plan
+summary as one project change. Keep the run's destination independent of the
+currently viewed plan, and show stopping until cancellation is acknowledged.
+Distinguish cost-reference optimality from the returned plan's optimality.
+
+Panel proportions and pile-option column visibility/order are application
+preferences, not project edits. Preserve separate column layouts for single
+and multiple load-point selection.
+
 ## Interface
 
 - Maintain both Dutch and English translations for every user-facing string.
@@ -141,9 +151,17 @@ npm run dev
 
 For Tauri-specific or release work, also perform the relevant desktop build or
 manual desktop verification described in `docs/deployment.md`.
+The root workspace excludes the Tauri crate; test it separately from the
+repository root with `cargo test --manifest-path apps/pile-plan-studio/src-tauri/Cargo.toml`.
+Native HiGHS build prerequisites are documented in that deployment guide.
 
 ## Documentation and releases
 
 Update documentation when behavior, architecture, supported data, or known
 limitations change. Do not update versions, release notes, screenshots, or
 deployment configuration unless they are part of the requested work.
+
+Keep implementation plans local in the ignored `docs/plans/` directory; do not
+add them to Git or link to them from public documentation. Current behavior
+belongs in the maintained architecture and user documentation. Dated design
+records describe historical decisions and may have been superseded.

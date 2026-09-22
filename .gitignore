@@ -7,5 +7,6 @@ apps/*/src-tauri/target/
 *.log
 OpenAEC-style-book-main/
 docs/superpowers/
+docs/plans/
 .superpowers/
 .worktrees/

@@ -187,8 +187,8 @@ it runs only the cost phase; a zero transition objective also skips the spatial
 solve. A bounded local improvement of the reference supplies a validated fallback
 before the spatial ILP. Only the exact solve (or a zero-score lower-bound proof)
 can establish spatial optimality. Applying a result preserves the workspace selection.
-See the [model specification](designs/2026-09-18-spatial-optimization-ilp.md) and
-[measured performance](designs/2026-09-18-ilp-performance.md).
+The [early performance measurements](designs/2026-09-18-ilp-performance.md) are
+a historical record. The current solver and additive weights are described below.
 
 ### Native ILP solver
 
@@ -260,7 +260,7 @@ and up/down keys change the displayed value by one within its allowed bounds.
 
 The ILP sidebar keeps run controls and the compact result together above its
 settings. Independent disclosure sections remember their expanded state in the
-application-wide user settings, outside project history and IFCPP content. Optimize and
+application-wide user settings, outside project history and IFCPP content. Target locations and
 configuration limits start expanded; result details and neighbor weights start
 collapsed. Single-choice settings remain directly visible without disclosure headers. Solution proof, blocking status and corrective actions remain visible. Detailed
 diagnostic messages have their own disclosure, closed initially for each outcome,

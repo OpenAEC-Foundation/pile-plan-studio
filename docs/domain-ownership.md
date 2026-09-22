@@ -122,5 +122,7 @@ source of engineering truth.
 - `app/optimization/` owns run lifetime and snapshot invalidation; immutable
   result application and project history belong to TypeScript.
 - New ILP settings are project content. Run scope, boundary preference, save-as-new
-  choice and feedback are separate transient state. The retired optimizer has no
+  choice and in-flight feedback are separate transient state. Validated completed
+  outcomes are stored per pile plan and committed with its assignments as one
+  history entry; live previews never enter save/recovery content. The retired optimizer has no
   runtime or UI; old settings are handled solely by Rust project migration.

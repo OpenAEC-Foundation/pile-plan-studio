@@ -19,7 +19,11 @@ export van palenplannen, handmatige en regelgestuurde sonderingselectie,
 gezamenlijke bewerking van sonderingselecties, het verversen van afzonderlijke
 projectbronnen, meerdere palenplanvarianten per project, gezamenlijke opties
 voor meerdere locaties, kostenvergelijking, een bewerkbare legenda, aanpasbare
-viewerweergave en een eerste greedy optimalisatie.
+viewerweergave en optimalisatie met HiGHS in browser en desktop. De optimizer
+minimaliseert kosten binnen configuratielimieten en kan vervolgens buurverschillen
+verminderen binnen een kostenbudget. Live voorbeelden tonen de beste gevonden
+oplossing; Snel verbeteren biedt een lokaal alternatief. Het rechterpaneel kan
+belastinglocaties en sonderingen samen tonen, met instelbare tabelkolommen.
 
 **Status: Alpha. Technische resultaten moeten altijd door een deskundige worden
 gecontroleerd.**
@@ -45,8 +49,12 @@ The alpha supports CSV/XLSX and RFEM import, IFCPP projects, pile-plan import
 and export, manual and rule-based CPT selection, common options for multiple
 load points, editing CPT selections for multiple load points, refreshing
 individual project sources, cost comparison, adjustable viewer display, and an
-editable legend, multiple pile-plan variants per project, and an initial greedy
-optimizer.
+editable legend, multiple pile-plan variants per project, and HiGHS optimization
+in browser and desktop. The optimizer minimizes costs within configuration
+limits, then optionally reduces neighbor differences within a cost budget.
+Live previews show the best solution found; Quick improve provides a local
+alternative. The right panel can show load points and CPTs together, with
+customizable table columns.
 
 **Status: Alpha. Engineering results must always be verified by a qualified
 professional.**
