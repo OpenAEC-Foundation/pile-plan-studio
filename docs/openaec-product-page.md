@@ -2,9 +2,9 @@
 
 ## Nederlands
 
-### Pile Plan Studio
+### Open Pile Plan Studio
 
-Pile Plan Studio is een open-source rekentool voor het verkennen en toewijzen
+Open Pile Plan Studio is een open-source rekentool voor het verkennen en toewijzen
 van paalconfiguraties aan belastinglocaties. Belastinglocaties, sonderingen,
 funderingsadvies, paalopties, benutting en geraamde kosten komen samen in één
 interactief palenplan.
@@ -33,9 +33,9 @@ gecontroleerd.**
 
 ## English
 
-### Pile Plan Studio
+### Open Pile Plan Studio
 
-Pile Plan Studio is an open-source engineering tool for exploring and assigning
+Open Pile Plan Studio is an open-source engineering tool for exploring and assigning
 pile configurations to structural load points. It combines load points, CPTs,
 foundation advice, pile options, utilization, and estimated costs in one
 interactive pile plan.

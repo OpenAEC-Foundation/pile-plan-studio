@@ -3,7 +3,7 @@ use crate::{
     PileCostSettings, PilePlanProject,
     PileTipLevelPrecisionErrorReason, ProjectApplication, ProjectBearingCapacity, ProjectCpt,
     ProjectImportLogEntry, ProjectInputs, ProjectLoadPoint, ProjectMetadata, ProjectSettings,
-    ProjectUnits, ProjectUserState,
+    ProjectUnits, ProjectUserState, APPLICATION_NAME,
 };
 use std::collections::HashMap;
 use std::fmt;
@@ -229,7 +229,7 @@ fn build_imported_project(
         schema: "IFCPP".to_string(),
         schema_version: 4,
         application: ProjectApplication {
-            name: "Pile Plan Studio".to_string(),
+            name: APPLICATION_NAME.to_string(),
             version: "0.1.0-alpha".to_string(),
         },
         metadata: ProjectMetadata {

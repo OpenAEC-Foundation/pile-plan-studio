@@ -1,6 +1,6 @@
 # Build and Deployment
 
-Pile Plan Studio's browser application is a static Vite build. It needs no
+Open Pile Plan Studio's browser application is a static Vite build. It needs no
 application server, database, or native file-system access.
 
 ## Development prerequisites
@@ -102,7 +102,7 @@ release; never move an already published release tag:
 ```powershell
 $releaseVersion = 'X.Y.Z' # Replace with the prepared application version.
 $releaseTag = "v$releaseVersion-alpha"
-git tag -a $releaseTag -m "Pile Plan Studio $releaseTag"
+git tag -a $releaseTag -m "Open Pile Plan Studio $releaseTag"
 git push origin $releaseTag
 ```
 

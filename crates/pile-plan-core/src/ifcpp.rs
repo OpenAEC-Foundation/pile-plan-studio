@@ -9,7 +9,7 @@ use crate::{
     validate_pile_cost_settings, validate_project_tip_levels, validate_unique_load_point_positions,
     DuplicateLoadPointPositions, InvalidPileCostSettings, InvalidProjectPileTipLevels,
     PilePlanProject, ProjectApplication, ProjectDocumentDraft, ProjectUserState,
-    SelectedPileChoice, ValidatedPilePlanProject,
+    SelectedPileChoice, ValidatedPilePlanProject, APPLICATION_NAME,
 };
 
 #[derive(Debug)]
@@ -152,7 +152,7 @@ pub fn write_project_document(
         schema: "IFCPP".to_string(),
         schema_version: 4,
         application: ProjectApplication {
-            name: "Pile Plan Studio".to_string(),
+            name: APPLICATION_NAME.to_string(),
             version: env!("CARGO_PKG_VERSION").to_string(),
         },
         metadata: draft.metadata,
@@ -1005,7 +1005,7 @@ mod tests {
 
         assert_eq!(value["schema"], "IFCPP");
         assert_eq!(value["schema_version"], 4);
-        assert_eq!(value["application"]["name"], "Pile Plan Studio");
+        assert_eq!(value["application"]["name"], "Open Pile Plan Studio");
         assert_eq!(value["application"]["version"], env!("CARGO_PKG_VERSION"));
         assert_eq!(value["user_state"]["active_pile_plan_id"], "pile-plan-1");
         assert_eq!(value["settings"]["viewer_utilization"]["minimum"], 0.0);
@@ -1041,6 +1041,17 @@ mod tests {
             value["user_state"]["pile_plans"][0]["selected_piles"]["1"]["pile"]["pile_size_mm"],
             290,
         );
+    }
+
+    #[test]
+    fn reads_projects_written_with_the_previous_application_name() {
+        let mut project = project_fixture();
+        project.application.name = "Pile Plan Studio".to_string();
+
+        let text = serde_json::to_string(&project).expect("legacy project fixture writes");
+        let restored = read_project_document(&text).expect("legacy application name is supported");
+
+        assert_eq!(restored.application.name, "Pile Plan Studio");
     }
 
     #[test]
@@ -1360,7 +1371,7 @@ mod tests {
             schema: "IFCPP".to_string(),
             schema_version: 4,
             application: ProjectApplication {
-                name: "Pile Plan Studio".to_string(),
+                name: APPLICATION_NAME.to_string(),
                 version: "0.1.0-alpha".to_string(),
             },
             metadata: ProjectMetadata {

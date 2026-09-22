@@ -33,7 +33,7 @@ describe("project document result mapping", () => {
     assert.equal(outcome.status, "valid");
     if (outcome.status !== "valid") return;
     assert.equal(outcome.project.schema_version, 4);
-    assert.equal(outcome.project.application?.name, "Pile Plan Studio");
+    assert.equal(outcome.project.application?.name, "Open Pile Plan Studio");
     assert.deepEqual(outcome.project.settings.cpt_selection_by_load_point, {
       "7": {
         algorithm: "quadrants",
@@ -212,7 +212,7 @@ function canonicalCoreProject() {
   return {
     schema: "IFCPP" as const,
     schema_version: 4,
-    application: { name: "Pile Plan Studio", version: "0.3.2" },
+    application: { name: "Open Pile Plan Studio", version: "0.3.2" },
     metadata: { name: "Contract", external_references: [] },
     units: {
       coordinates: "mm",

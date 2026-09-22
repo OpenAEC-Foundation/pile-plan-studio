@@ -1,6 +1,6 @@
 # Built-in pile-cost defaults
 
-Pile Plan Studio provides an editable built-in cost catalog for initial cost
+Open Pile Plan Studio provides an editable built-in cost catalog for initial cost
 comparisons. These values are indicative defaults, not project quotations.
 
 ## Scope and sources
@@ -8,7 +8,7 @@ comparisons. These values are indicative defaults, not project quotations.
 The defaults are derived from CROW's *Handboek Funderingen – Deel A*, section
 A 6100. That source uses a price level of 1 March 2008 and separates fixed
 project costs, per-pile costs, material costs, and variable installation costs.
-Pile Plan Studio includes only material and variable installation costs in its
+Open Pile Plan Studio includes only material and variable installation costs in its
 volume-based rates:
 
 - square sections are treated as prefabricated concrete piles;

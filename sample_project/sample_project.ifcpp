@@ -2,7 +2,7 @@
   "schema": "IFCPP",
   "schema_version": 3,
   "application": {
-    "name": "Pile Plan Studio",
+    "name": "Open Pile Plan Studio",
     "version": "0.3.1-alpha"
   },
   "metadata": {

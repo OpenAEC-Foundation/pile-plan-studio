@@ -60,7 +60,7 @@ describe("primary frontend entry", () => {
     assert.deepEqual(tauriConfig.bundle?.fileAssociations, [{
       ext: ["ifcpp"],
       name: "IFCPP project",
-      description: "Pile Plan Studio IFCPP project",
+      description: "Open Pile Plan Studio IFCPP project",
       role: "Editor",
     }]);
   });

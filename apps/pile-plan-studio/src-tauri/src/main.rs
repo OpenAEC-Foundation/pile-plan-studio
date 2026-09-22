@@ -402,7 +402,7 @@ fn main() {
             take_pending_project_paths,
         ])
         .run(tauri::generate_context!())
-        .expect("failed to run Pile Plan Studio");
+        .expect("failed to run Open Pile Plan Studio");
 }
 
 #[cfg(test)]

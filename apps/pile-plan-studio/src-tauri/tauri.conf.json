@@ -1,6 +1,6 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "Pile Plan Studio",
+  "productName": "Open Pile Plan Studio",
   "version": "0.4.0",
   "identifier": "com.openaec.pile-plan-studio",
   "build": {
@@ -12,7 +12,7 @@
   "app": {
     "windows": [
       {
-        "title": "Pile Plan Studio",
+        "title": "Open Pile Plan Studio",
         "width": 1200,
         "height": 800,
         "minWidth": 900,
@@ -27,7 +27,7 @@
       {
         "ext": ["ifcpp"],
         "name": "IFCPP project",
-        "description": "Pile Plan Studio IFCPP project",
+        "description": "Open Pile Plan Studio IFCPP project",
         "role": "Editor"
       }
     ],

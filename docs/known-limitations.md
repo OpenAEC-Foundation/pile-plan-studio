@@ -1,6 +1,6 @@
 # Known Alpha Limitations
 
-Pile Plan Studio is an early testing release. The following limitations are
+Open Pile Plan Studio is an early testing release. The following limitations are
 intentional and should be considered when evaluating its results.
 
 ## Engineering Status

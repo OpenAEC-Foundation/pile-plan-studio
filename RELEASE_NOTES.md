@@ -1,4 +1,4 @@
-# Pile Plan Studio Release Notes
+# Open Pile Plan Studio Release Notes
 
 ## 0.4.0-alpha
 

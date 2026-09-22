@@ -78,7 +78,7 @@
     "title": "Open project",
     "intro": "Open an IFCPP project from this device or continue with a recent project.",
     "chooseProject": "Choose IFCPP project",
-    "chooseProjectDesc": "Open a complete Pile Plan Studio project file.",
+    "chooseProjectDesc": "Open a complete Open Pile Plan Studio project file.",
     "choose": "Choose file",
     "sampleProject": "Open sample project",
     "sampleProjectDesc": "Replace the current session with the bundled example project.",

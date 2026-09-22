@@ -472,7 +472,7 @@ fn parse_pile_plan_source(
         }
         PilePlanImportProfile::StandardTable => {
             return Err(profile_error(
-                "The Standard table profile requires the Pile Plan Studio export headers.",
+                "The Standard table profile requires the Open Pile Plan Studio export headers.",
             ))
         }
     };
@@ -527,7 +527,7 @@ fn parse_standard_table(
     table: &SourceTable,
 ) -> Result<ParsedPilePlanSource, PilePlanImportDiagnostic> {
     let columns = standard_columns(table).ok_or_else(|| {
-        profile_error("The Standard table profile requires the Pile Plan Studio export headers.")
+        profile_error("The Standard table profile requires the Open Pile Plan Studio export headers.")
     })?;
     let mut rows = Vec::new();
     let mut diagnostics = Vec::new();

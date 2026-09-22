@@ -15,6 +15,8 @@ mod source_data;
 mod technical_assignment;
 mod tip_level_regions;
 
+pub(crate) use project::APPLICATION_NAME;
+
 pub use cpt_selection::{CptSelectionAlgorithm, CptSelectionSettings, SelectedCpt};
 pub use export::{
     build_pile_plan_export_rows, write_pile_plan_csv, write_pile_plan_xlsx, ExportError,

@@ -12,6 +12,8 @@ use crate::pile_options::PileCostSettings;
 use crate::source_data::{BearingCapacity, Cpt, LoadPoint};
 use crate::{try_pile_tip_level_mm, PileTipLevelPrecisionErrorReason};
 
+pub(crate) const APPLICATION_NAME: &str = "Open Pile Plan Studio";
+
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
 pub struct PilePlanProject {
     pub schema: String,
@@ -919,7 +921,7 @@ mod tests {
             schema: "IFCPP".to_string(),
             schema_version: 2,
             application: ProjectApplication {
-                name: "Pile Plan Studio".to_string(),
+                name: APPLICATION_NAME.to_string(),
                 version: "0.1.0-alpha".to_string(),
             },
             metadata: ProjectMetadata {

@@ -1,6 +1,6 @@
 # Architecture
 
-Pile Plan Studio follows the OpenAEC application model:
+Open Pile Plan Studio follows the OpenAEC application model:
 
 - Rust contains the domain core: CPT selection, bearing-capacity checks, pile
   option calculation, cost calculation, and project data operations.

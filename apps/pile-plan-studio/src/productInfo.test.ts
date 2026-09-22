@@ -22,14 +22,33 @@ const dutchSettings = readFileSync(
 );
 const packageJson = JSON.parse(readFileSync(resolve(import.meta.dirname, "../package.json"), "utf8"));
 const tauriConfig = JSON.parse(readFileSync(resolve(import.meta.dirname, "../src-tauri/tauri.conf.json"), "utf8"));
+const browserStore = readFileSync(resolve(import.meta.dirname, "store.ts"), "utf8");
+const settingsStore = readFileSync(
+  resolve(import.meta.dirname, "domain/settings/userSettingsStore.ts"),
+  "utf8",
+);
+const recoveryStore = readFileSync(
+  resolve(import.meta.dirname, "domain/project/recovery/browserRecoveryStore.ts"),
+  "utf8",
+);
 
 describe("product information", () => {
   it("defines one build-versioned product identity", () => {
-    assert.match(productInfo, /name:\s*"Pile Plan Studio"/);
+    assert.match(productInfo, /name:\s*"Open Pile Plan Studio"/);
     assert.match(productInfo, /version:\s*__APP_VERSION__/);
     assert.match(productInfo, /status:\s*"Alpha"/);
     assert.match(productInfo, /organization:\s*"OpenAEC Foundation"/);
     assert.match(productInfo, /license:\s*"LGPL-3\.0-or-later"/);
+  });
+
+  it("changes the display name without changing persistent technical identity", () => {
+    assert.equal(packageJson.name, "pile-plan-studio");
+    assert.equal(tauriConfig.productName, "Open Pile Plan Studio");
+    assert.equal(tauriConfig.identifier, "com.openaec.pile-plan-studio");
+    assert.equal(tauriConfig.app?.windows?.[0]?.title, "Open Pile Plan Studio");
+    assert.match(settingsStore, /pile-plan-studio-settings/);
+    assert.match(recoveryStore, /pile-plan-studio-recovery/);
+    assert.match(browserStore, /pile-plan-studio:/);
   });
 
   it("identifies the 0.4.0 alpha consistently in web and desktop packages", () => {

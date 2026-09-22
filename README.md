@@ -1,4 +1,4 @@
-<h1 align="center">Pile Plan Studio</h1>
+<h1 align="center">Open Pile Plan Studio</h1>
 
 <p align="center">
   <strong>Explore, compare, and assign pile configurations for structural load points.</strong>
@@ -14,14 +14,14 @@
 </p>
 
 <p align="center">
-  <a href="https://pile-plan-studio.open-aec.com/"><strong>Try Pile Plan Studio in your browser</strong></a>
+  <a href="https://pile-plan-studio.open-aec.com/"><strong>Try Open Pile Plan Studio in your browser</strong></a>
   &nbsp;&middot;&nbsp;
   <a href="https://github.com/OpenAEC-Foundation/pile-plan-studio/releases/latest"><strong>Download the Windows installer</strong></a>
 </p>
 
 ---
 
-Pile Plan Studio is an open-source engineering application for reviewing pile
+Open Pile Plan Studio is an open-source engineering application for reviewing pile
 options and assembling a practical pile plan. It brings structural load points,
 CPTs, foundation advice, utilization, pile costs, and configuration choices
 together in one interactive plan.
@@ -31,11 +31,11 @@ natively in the Tauri desktop application and through WebAssembly in the
 browser.
 
 <p align="center">
-  <img src="docs/screenshots/pile_options.png" alt="Pile Plan Studio showing the pile plan and pile options for a selected load point" width="100%">
+  <img src="docs/screenshots/pile_options.png" alt="Open Pile Plan Studio showing the pile plan and pile options for a selected load point" width="100%">
 </p>
 
 > [!WARNING]
-> Pile Plan Studio is currently a public alpha. Engineering results must be
+> Open Pile Plan Studio is currently a public alpha. Engineering results must be
 > verified by a qualified professional. The application supports engineering
 > decisions but does not replace responsibility for the foundation design.
 
@@ -90,7 +90,7 @@ with the sample project and is the quickest way to explore the application.
 The latest signed Windows x64 installer is available on the
 [GitHub Releases page](https://github.com/OpenAEC-Foundation/pile-plan-studio/releases).
 After installation, `.ifcpp` project files can be opened directly from Windows
-Explorer. If Pile Plan Studio is already running, the project opens in the
+Explorer. If Open Pile Plan Studio is already running, the project opens in the
 existing application window.
 The browser and desktop editions use the same Rust calculation core.
 
@@ -98,7 +98,7 @@ See the [release notes](RELEASE_NOTES.md) for the changes in each alpha.
 
 ## Supported Project Data
 
-Pile Plan Studio imports three source roles:
+Open Pile Plan Studio imports three source roles:
 
 | Role | Required content | Formats |
 | --- | --- | --- |
@@ -140,10 +140,10 @@ Imported data, source profiles, project settings, selected piles, and manual
 CPT choices are stored in an `.ifcpp` project file.
 
 When creating a project from source files, the building reference level is
-required. Pile Plan Studio uses this reference as the pile cut-off level when
+required. Open Pile Plan Studio uses this reference as the pile cut-off level when
 calculating pile lengths and costs.
 The project currency defaults to the user's application preference. Changing a
-currency code relabels costs; Pile Plan Studio does not perform currency
+currency code relabels costs; Open Pile Plan Studio does not perform currency
 conversion.
 
 The built-in pile-cost defaults and their assumptions are documented in
@@ -159,7 +159,7 @@ supports existing `Vergrendeld.xlsx` files and imports pile assignments only;
 rows that describe more than one pile are skipped with a warning.
 
 Load points are first matched by ID when the imported coordinates agree. If
-that check fails, Pile Plan Studio falls back to one unique coordinate match.
+that check fails, Open Pile Plan Studio falls back to one unique coordinate match.
 The coordinate tolerance is configurable for this workflow and defaults to
 1 mm. Ambiguous, unmatched, or conflicting rows are skipped and reported in
 the import preview before the project is changed.
@@ -268,11 +268,11 @@ Report bugs and ideas through the
 
 ### AI-assisted Development
 
-Development of Pile Plan Studio has been assisted by AI coding tools. Design
+Development of Open Pile Plan Studio has been assisted by AI coding tools. Design
 decisions, engineering requirements, review, and validation remain under human
 responsibility.
 
 ## License
 
-Pile Plan Studio is licensed under the
+Open Pile Plan Studio is licensed under the
 [GNU Lesser General Public License v3.0 or later](LICENSE).
