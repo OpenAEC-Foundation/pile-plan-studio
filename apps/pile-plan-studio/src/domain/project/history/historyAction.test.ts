@@ -56,6 +56,35 @@ describe("history action inference", () => {
     }), { kind: "grouping-settings" });
   });
 
+  it("distinguishes creating, removing, resetting, and showing groups", () => {
+    const before = content();
+    const withManual = {
+      ...before,
+      loadPointGroupingSettings: {
+        ...before.loadPointGroupingSettings,
+        manualGroups: [{ loadPointIds: [1, 2] }],
+      },
+    };
+    assert.deepEqual(inferHistoryAction(before, withManual), { kind: "group-created" });
+    assert.deepEqual(inferHistoryAction(withManual, before), { kind: "group-removed" });
+
+    const withBothOverrideKinds = {
+      ...before,
+      loadPointGroupingSettings: {
+        ...before.loadPointGroupingSettings,
+        manualGroups: [{ loadPointIds: [1, 2] }],
+        ungroupedGroups: [{ loadPointIds: [3, 4] }],
+      },
+    };
+    assert.deepEqual(inferHistoryAction(withBothOverrideKinds, before), {
+      kind: "group-overrides-reset",
+    });
+    assert.deepEqual(inferHistoryAction(before, {
+      ...before,
+      showLoadPointGroups: true,
+    }), { kind: "group-visibility" });
+  });
+
   it("recognizes a project legend appearance change", () => {
     const before = content();
     const after = {
@@ -126,6 +155,12 @@ function content(): ProjectContent {
       maxAngleDegrees: 120,
     },
     cptSelectionSettingsByLoadPoint: new Map(),
+    loadPointGroupingSettings: {
+      automatic: true,
+      maxEdgeDistanceM: 1.2,
+      manualGroups: [],
+      ungroupedGroups: [],
+    },
     pileCostSettings: { schema_version: 1, pile_head_level_m: 0, items: [] },
     viewerUtilizationSettings: { minimum: 0, maximum: 1 },
     pileLegend: {
@@ -135,6 +170,7 @@ function content(): ProjectContent {
     },
     pilePlans: [plan("plan-1", "Plan 1")],
     manualCptIdsByLoadPoint: new Map(),
+    showLoadPointGroups: false,
   };
 }
 

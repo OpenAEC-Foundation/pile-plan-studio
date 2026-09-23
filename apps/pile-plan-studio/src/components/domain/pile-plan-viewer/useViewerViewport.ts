@@ -8,13 +8,10 @@ import {
 } from "react";
 import type { ProjectState } from "../../../domain/project/projectState.ts";
 import { elementLayoutScale } from "../../../domain/settings/uiBaseline.ts";
-import {
-  alignCoordinateGridPatternToDevicePixels,
-  getCoordinateGridPattern,
-} from "../../../viewer/coordinateGrid.ts";
+import { getCoordinateGridPattern } from "../../../viewer/coordinateGrid.ts";
+import { getCoordinateGridCanvasFrame } from "../../../viewer/coordinateGridCanvas.ts";
 import {
   createProjectViewTransform,
-  getCanvasLayoutCompensation,
   projectPointPixels,
   VIEWER_LAYOUT_CHANGE_EVENT,
 } from "../../../viewer/viewerGeometry.ts";
@@ -28,6 +25,14 @@ import {
   getLocalPointer,
   type LocalCanvasRect,
 } from "./viewerDomCoordinates.ts";
+import { getViewerContentScreenRect } from "./viewerCanvasScreenRect.ts";
+import {
+  getViewerWindowMetrics,
+  hasViewerWindowMetricsChanged,
+  nextViewerLayoutSnapshot,
+  type ViewerLayoutSnapshot,
+  type ViewerWindowMetrics,
+} from "./viewerResizePolicy.ts";
 
 type UseViewerViewportOptions = {
   state: ProjectState;
@@ -47,12 +52,15 @@ export function useViewerViewport({
   const canvasRef = useRef<HTMLDivElement | null>(null);
   const layoutAnchorRef = useRef<HTMLDivElement | null>(null);
   const stageRef = useRef<HTMLDivElement | null>(null);
-  const gridRef = useRef<HTMLDivElement | null>(null);
+  const gridRef = useRef<HTMLCanvasElement | null>(null);
   const viewportRef = useRef(state.viewport);
   const zoomCommitTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const canvasRectRef = useRef<LocalCanvasRect | null>(null);
-  const canvasAnchorRef = useRef<LocalCanvasRect | null>(null);
+  const layoutSnapshotRef = useRef<ViewerLayoutSnapshot | null>(null);
   const layoutCompensationRef = useRef({ x: 0, y: 0 });
+  const globalResizeFrameRef = useRef<number | null>(null);
+  const pendingGlobalResizeRef = useRef(false);
+  const gridDrawFrameRef = useRef<number | null>(null);
 
   useEffect(() => {
     if (!interactionRef.current && !zoomCommitTimerRef.current) {
@@ -61,17 +69,46 @@ export function useViewerViewport({
     }
   }, [state.viewport]);
 
-  function updateCanvasRect() {
+  function applyMeasuredCanvasRect(kind: "global" | "local", metrics: ViewerWindowMetrics) {
     const canvas = canvasRef.current;
-    if (!canvas) return;
+    const previous = layoutSnapshotRef.current;
+    if (!canvas || !previous) return;
 
-    const rect = getLocalCanvasRect(canvas);
-    const anchor = canvasAnchorRef.current ?? rect;
-    const compensation = getCanvasLayoutCompensation(anchor, rect);
-    canvasRectRef.current = rect;
-    layoutCompensationRef.current = compensation;
-    applyLayoutCompensation(compensation);
-    applyCoordinateGridDisplay(projectTransformRef.current, viewportRef.current);
+    const next = nextViewerLayoutSnapshot(previous, getLocalCanvasRect(canvas), metrics, kind);
+    layoutSnapshotRef.current = next;
+    canvasRectRef.current = next.rect;
+    layoutCompensationRef.current = next.compensation;
+    applyLayoutCompensation(next.compensation);
+    if (kind === "global") {
+      // The global measurement already runs inside an animation frame: draw
+      // with its final compensation before that frame is painted.
+      if (gridDrawFrameRef.current !== null) {
+        cancelAnimationFrame(gridDrawFrameRef.current);
+        gridDrawFrameRef.current = null;
+      }
+      drawCoordinateGrid(projectTransformRef.current, viewportRef.current);
+    } else {
+      scheduleCoordinateGridDraw();
+    }
+  }
+
+  function updateCanvasRect() {
+    if (!canvasRef.current || !layoutSnapshotRef.current) return;
+    const metrics = getViewerWindowMetrics();
+    if (hasViewerWindowMetricsChanged(layoutSnapshotRef.current.metrics, metrics)) {
+      pendingGlobalResizeRef.current = true;
+    }
+    if (pendingGlobalResizeRef.current) {
+      if (globalResizeFrameRef.current === null) {
+        globalResizeFrameRef.current = requestAnimationFrame(() => {
+          globalResizeFrameRef.current = null;
+          pendingGlobalResizeRef.current = false;
+          applyMeasuredCanvasRect("global", getViewerWindowMetrics());
+        });
+      }
+      return;
+    }
+    applyMeasuredCanvasRect("local", metrics);
   }
 
   useLayoutEffect(() => {
@@ -86,21 +123,47 @@ export function useViewerViewport({
       height: initialRect.height,
     });
     canvasRectRef.current = initialRect;
-    canvasAnchorRef.current = initialRect;
+    layoutSnapshotRef.current = {
+      rect: initialRect,
+      metrics: getViewerWindowMetrics(),
+      compensation: { x: 0, y: 0 },
+      anchor: { left: initialRect.left, top: initialRect.top },
+    };
     layoutCompensationRef.current = { x: 0, y: 0 };
     projectTransformRef.current = initialTransform;
     applyLayoutCompensation({ x: 0, y: 0 });
-    applyCoordinateGridDisplay(initialTransform, viewportRef.current);
+    scheduleCoordinateGridDraw();
     setProjectTransform(initialTransform);
 
     const resizeObserver = new ResizeObserver(updateCanvasRect);
     resizeObserver.observe(canvas);
     window.addEventListener("resize", updateCanvasRect);
     window.addEventListener(VIEWER_LAYOUT_CHANGE_EVENT, updateCanvasRect);
+    let resolutionQuery: MediaQueryList | null = null;
+    function handleResolutionChange() {
+      bindResolutionQuery();
+      updateCanvasRect();
+    }
+    function bindResolutionQuery() {
+      resolutionQuery?.removeEventListener("change", handleResolutionChange);
+      resolutionQuery = window.matchMedia(`(resolution: ${window.devicePixelRatio}dppx)`);
+      resolutionQuery.addEventListener("change", handleResolutionChange);
+    }
+    bindResolutionQuery();
     return () => {
       resizeObserver.disconnect();
       window.removeEventListener("resize", updateCanvasRect);
       window.removeEventListener(VIEWER_LAYOUT_CHANGE_EVENT, updateCanvasRect);
+      resolutionQuery?.removeEventListener("change", handleResolutionChange);
+      if (globalResizeFrameRef.current !== null) {
+        cancelAnimationFrame(globalResizeFrameRef.current);
+        globalResizeFrameRef.current = null;
+      }
+      if (gridDrawFrameRef.current !== null) {
+        cancelAnimationFrame(gridDrawFrameRef.current);
+        gridDrawFrameRef.current = null;
+      }
+      pendingGlobalResizeRef.current = false;
     };
   }, [state.bounds.minX, state.bounds.maxX, state.bounds.minY, state.bounds.maxY]);
 
@@ -116,7 +179,7 @@ export function useViewerViewport({
     if (stageRef.current) {
       stageRef.current.style.transform = getViewportTransform(nextViewport);
     }
-    applyCoordinateGridDisplay(projectTransformRef.current, nextViewport);
+    scheduleCoordinateGridDraw();
   }
 
   function applyLayoutCompensation(compensation: { x: number; y: number }) {
@@ -126,7 +189,16 @@ export function useViewerViewport({
     anchor.style.top = `${compensation.y}px`;
   }
 
-  function applyCoordinateGridDisplay(
+  function scheduleCoordinateGridDraw() {
+    if (!gridRef.current) return;
+    if (gridDrawFrameRef.current !== null) return;
+    gridDrawFrameRef.current = requestAnimationFrame(() => {
+      gridDrawFrameRef.current = null;
+      drawCoordinateGrid(projectTransformRef.current, viewportRef.current);
+    });
+  }
+
+  function drawCoordinateGrid(
     transform: typeof projectTransform,
     viewport: ProjectState["viewport"],
   ) {
@@ -136,24 +208,41 @@ export function useViewerViewport({
     const currentRect = canvasRectRef.current;
     const rootScale = elementLayoutScale(document.documentElement);
     const canvasScreenRect = canvas.getBoundingClientRect();
-    const gridScreenRect = grid.getBoundingClientRect();
-    const pattern = alignCoordinateGridPatternToDevicePixels(
-      getCoordinateGridPattern(transform, viewport, {
-        canvasSize: currentRect
-          ? { width: currentRect.width, height: currentRect.height }
-          : transform.canvasSize,
-        compensation: layoutCompensationRef.current,
-      }),
-      {
-        canvasScreen: { x: canvasScreenRect.left, y: canvasScreenRect.top },
-        gridScreen: { x: gridScreenRect.left, y: gridScreenRect.top },
-        rootScale,
-        devicePixelRatio: window.devicePixelRatio,
-      },
-    );
-    const style = getCoordinateGridStyle(pattern);
-    grid.style.backgroundSize = style.backgroundSize;
-    grid.style.backgroundPosition = style.backgroundPosition;
+    const canvasStyle = getComputedStyle(canvas);
+    const pattern = getCoordinateGridPattern(transform, viewport, {
+      canvasSize: currentRect
+        ? { width: currentRect.width, height: currentRect.height }
+        : transform.canvasSize,
+      compensation: layoutCompensationRef.current,
+    });
+    const frame = getCoordinateGridCanvasFrame(pattern, {
+      // Absolute children start inside the border; clientWidth/clientLeft round
+      // away subpixels under the compact application scale.
+      screen: getViewerContentScreenRect(canvasScreenRect, {
+        left: parseFloat(canvasStyle.borderLeftWidth),
+        top: parseFloat(canvasStyle.borderTopWidth),
+        right: parseFloat(canvasStyle.borderRightWidth),
+        bottom: parseFloat(canvasStyle.borderBottomWidth),
+      }, rootScale),
+      rootScale,
+      devicePixelRatio: window.devicePixelRatio,
+    });
+    if (grid.width !== frame.bitmapWidth) grid.width = frame.bitmapWidth;
+    if (grid.height !== frame.bitmapHeight) grid.height = frame.bitmapHeight;
+    grid.style.left = `${frame.cssLeft}px`;
+    grid.style.top = `${frame.cssTop}px`;
+    grid.style.width = `${frame.cssWidth}px`;
+    grid.style.height = `${frame.cssHeight}px`;
+    const context = grid.getContext("2d");
+    if (!context) return;
+    context.clearRect(0, 0, frame.bitmapWidth, frame.bitmapHeight);
+    context.fillStyle = "rgba(163, 174, 181, 0.28)";
+    for (const x of frame.verticalX) {
+      context.fillRect(x, 0, frame.strokePx, frame.bitmapHeight);
+    }
+    for (const y of frame.horizontalY) {
+      context.fillRect(0, y, frame.bitmapWidth, frame.strokePx);
+    }
   }
 
   function scheduleViewportCommit(nextViewport: ProjectState["viewport"]) {
@@ -226,15 +315,5 @@ export function useViewerViewport({
     getProjectViewportPointer,
     getVisibleLoadPointScreenPoints,
     handleWheel,
-  };
-}
-
-function getCoordinateGridStyle(pattern: ReturnType<typeof getCoordinateGridPattern>): {
-  backgroundPosition: string;
-  backgroundSize: string;
-} {
-  return {
-    backgroundSize: `${pattern.spacingPixels}px ${pattern.spacingPixels}px`,
-    backgroundPosition: `${pattern.originX}px ${pattern.originY}px`,
   };
 }

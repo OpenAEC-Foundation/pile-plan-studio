@@ -3,21 +3,14 @@ import { buildTipLevelRegionSvgModel } from "./tipLevelRegionSvgModel.ts";
 
 type Props = {
   layers: PresentedTipLevelRegionLayer[];
-  width: number;
-  height: number;
 };
 
-export default function TipLevelRegionOverlay({ layers, width, height }: Props) {
+export default function TipLevelRegionOverlay({ layers }: Props) {
   const model = buildTipLevelRegionSvgModel(layers);
   if (model.groups.length === 0) return null;
 
   return (
-    <svg
-      aria-hidden={model.ariaHidden}
-      className={model.className}
-      focusable="false"
-      viewBox={`0 0 ${width} ${height}`}
-    >
+    <g className={model.className}>
       {model.groups.map((group) => (
         <g
           key={group.key}
@@ -40,6 +33,6 @@ export default function TipLevelRegionOverlay({ layers, width, height }: Props) 
           )}
         </g>
       ))}
-    </svg>
+    </g>
   );
 }

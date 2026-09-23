@@ -1,0 +1,1 @@
+export const OPTIMIZER_QUESTION_PATH = "M-3-3C-3-6 3-6 3-2C3 1 0 1 0 3";

@@ -40,6 +40,10 @@
       "cpt-selection_other": "Changed the CPT selection for {{count}} load points",
       "cpt-settings": "Changed CPT settings",
       "grouping-settings": "Changed grouping settings",
+      "group-created": "Created a load-point group",
+      "group-removed": "Removed a load-point group",
+      "group-overrides-reset": "Reset manual group changes",
+      "group-visibility": "Changed group visibility",
       "locks_one": "Changed {{count}} lock in {{pilePlanName}}",
       "locks_other": "Changed {{count}} locks in {{pilePlanName}}",
       "cost-settings": "Changed cost settings",
@@ -55,7 +59,15 @@
     }
   },
   "loadPointGroups": {
-    "assignmentBlocked": "Not changed: locked load point(s) {{names}} use another or no pile configuration."
+    "assignmentBlocked": "Not changed: locked load point(s) {{names}} use another or no pile configuration.",
+    "editBlocked": {
+      "not_enough_locations": "Select at least two locations to create a group.",
+      "disconnected_selection": "The selected locations are not connected in the Gabriel graph.",
+      "already_grouped": "The selected locations already form this group.",
+      "selection_must_be_one_group": "Select locations from one complete group to remove it.",
+      "singleton_group": "A group with one location cannot be removed.",
+      "no_overrides": "There are no manual group changes to reset."
+    }
   },
   "search": "Search",
   "find": "Find",
@@ -83,6 +95,9 @@
   "explorer": "Explorer",
   "properties": "Properties",
   "viewer": {
+    "loadPointGroups": {
+      "assignmentConflict": "A group contains differing or incomplete pile assignments."
+    },
     "optimizerUnassigned": "The last optimization did not find an assignment within the configured limits.",
     "unselected": {
       "pending": "Pile options are being assessed.",
@@ -215,7 +230,6 @@
     "rename": "Rename pile plan",
     "duplicate": "Duplicate pile plan",
     "delete": "Delete pile plan",
-    "confirmDelete": "Delete pile plan ‘{{name}}’?",
     "missingCosts_one": "{{count}} selected pile without costs",
     "missingCosts_other": "{{count}} selected piles without costs",
     "locked_one": "{{count}} locked",
@@ -360,6 +374,7 @@
       "unsupported-schema-version": "The project was not opened because its IFCPP schema version is not supported.",
       "duplicate-pile-plan-id": "The project was not opened because it contains duplicate pile-plan identifiers.",
       "invalid-pile-costs": "The project was not opened because its pile cost table contains invalid rows.",
+      "invalid-load-point-group-overrides": "The project was not opened because its manual load-point groups are invalid.",
       "invalid-ilp-settings": "The project contains invalid optimization settings."
     }
   },

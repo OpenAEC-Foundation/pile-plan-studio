@@ -3,12 +3,14 @@ import assert from "node:assert/strict";
 import {
   addReactViewerLoadPoints,
   clearReactViewerSelection,
+  expandInitialReactViewerLoadPointGroup,
   getReactViewerContextCptIds,
   getReactViewerSelectedCptIds,
   isReactViewerCptSelectionEditing,
   isViewerSelectionActionAllowed,
   openReactViewerCpt,
   selectReactViewerLoadPoint,
+  selectSingleLoadPointForInspection,
   setReactViewerLoadPoints,
   shouldClearLegendSelectionFromPointerTarget,
   shouldRaiseCptMarker,
@@ -106,6 +108,63 @@ describe("React viewer interactions", () => {
     assert.equal(next.selectedCptId, null);
     assert.equal(next.rightPanelMode, "cpts");
     assert.deepEqual(next.legendSelectionFilter, { pileSizes: [], pileTipLevels: [] });
+  });
+
+  it("expands clicks, additive clicks, and lasso selections to complete groups", () => {
+    const state = {
+      selectedLoadPointId: null,
+      selectedLoadPointIds: [],
+      selectedCptId: null,
+      rightPanelMode: "load-point" as const,
+      cptSettingsScope: "all" as const,
+      legendSelectionFilter: { pileSizes: [], pileTipLevels: [] },
+    };
+    const groups = [{ load_point_ids: [1, 2, 3] }, { load_point_ids: [4, 5] }];
+
+    const clicked = selectReactViewerLoadPoint(state, 2, groups);
+    assert.deepEqual(clicked.selectedLoadPointIds, [1, 2, 3]);
+    const additive = addReactViewerLoadPoints(clicked, [5], groups);
+    assert.deepEqual(additive.selectedLoadPointIds, [1, 2, 3, 4, 5]);
+    const lasso = setReactViewerLoadPoints(state, [2, 4], groups);
+    assert.deepEqual(lasso.selectedLoadPointIds, [1, 2, 3, 4, 5]);
+  });
+
+  it("expands only the untouched initial project selection when groups arrive", () => {
+    const initial = {
+      selectedLoadPointId: 2,
+      selectedLoadPointIds: [2],
+      selectedCptId: null,
+      rightPanelMode: "load-point" as const,
+      cptSettingsScope: "selected" as const,
+      legendSelectionFilter: { pileSizes: [], pileTipLevels: [] },
+    };
+    const groups = [{ load_point_ids: [1, 2, 3] }, { load_point_ids: [4] }];
+
+    assert.deepEqual(
+      expandInitialReactViewerLoadPointGroup(initial, 2, groups).selectedLoadPointIds,
+      [1, 2, 3],
+    );
+    const userSelection = { ...initial, selectedLoadPointId: 4, selectedLoadPointIds: [4] };
+    assert.strictEqual(
+      expandInitialReactViewerLoadPointGroup(userSelection, 2, groups),
+      userSelection,
+    );
+  });
+
+  it("selects exactly one member for disclosure-list inspection", () => {
+    const state = {
+      selectedLoadPointId: 1,
+      selectedLoadPointIds: [1, 2, 3],
+      selectedCptId: 64,
+      rightPanelMode: "load-point" as const,
+      cptSettingsScope: "selected" as const,
+      legendSelectionFilter: { pileSizes: [], pileTipLevels: [] },
+    };
+
+    const next = selectSingleLoadPointForInspection(state, 2);
+    assert.deepEqual(next.selectedLoadPointIds, [2]);
+    assert.equal(next.selectedLoadPointId, 2);
+    assert.equal(next.selectedCptId, null);
   });
 
   it("toggles a load point for additive modifier-click selection", () => {

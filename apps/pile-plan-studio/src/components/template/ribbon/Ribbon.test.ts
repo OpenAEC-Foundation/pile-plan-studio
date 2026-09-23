@@ -32,6 +32,17 @@ describe("Plan and View ribbon", () => {
     assert.match(source, /view\.windows/);
   });
 
+  it("offers a project-backed group visibility toggle under View", () => {
+    const source = readFileSync(resolve(import.meta.dirname, "Ribbon.tsx"), "utf8");
+    const app = readFileSync(resolve(import.meta.dirname, "../../../app/session/AppSession.tsx"), "utf8");
+
+    assert.match(source, /showLoadPointGroups/);
+    assert.match(source, /onLoadPointGroupVisibilityChange/);
+    assert.match(source, /view\.showGroups/);
+    assert.match(app, /showLoadPointGroups=\{projectState\.showLoadPointGroups\}/);
+    assert.match(app, /showLoadPointGroups,\s*\}\)/);
+  });
+
   it("keeps the tip-level region subject intact above its toggle action", () => {
     const source = readFileSync(resolve(import.meta.dirname, "Ribbon.tsx"), "utf8");
     const styles = readFileSync(resolve(import.meta.dirname, "Ribbon.css"), "utf8");

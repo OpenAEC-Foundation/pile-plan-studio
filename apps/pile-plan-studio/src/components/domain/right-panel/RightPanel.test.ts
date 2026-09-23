@@ -6,7 +6,7 @@ import type { ComponentProps } from "react";
 import type RightPanel from "./RightPanel.tsx";
 import type { RightPanelProps } from "./RightPanel.tsx";
 
-const rightPanelFiles = ["RightPanel.tsx", "PanelControls.tsx", "CptPanel.tsx", "LoadPointPanel.tsx", "GroupingSettingsPanel.tsx", "CostSettingsPanel.tsx", "CptSettingsPanel.tsx"];
+const rightPanelFiles = ["RightPanel.tsx", "PanelControls.tsx", "CptPanel.tsx", "LoadPointPanel.tsx", "LoadPointGroupEditButton.tsx", "GroupingSettingsPanel.tsx", "CostSettingsPanel.tsx", "CptSettingsPanel.tsx"];
 function readRightPanelSource(): string {
   return rightPanelFiles.map((file) => readFileSync(resolve(import.meta.dirname, file), "utf8")).join("\n");
 }
@@ -390,5 +390,42 @@ describe("React coordinate inspection", () => {
     assert.match(styles, /\.load-point-panel > \.coordinate-readout div,[\s\S]*?display:\s*flex;[\s\S]*?align-items:\s*baseline/);
     assert.match(panel, /className="load-point-force-label">F<sub>Ed<\/sub><\/span>/);
     assert.match(panel, /selectedLoadPoints\.length > 1 \? <span>\{t\("loadPoints\.selection"\)\}<\/span> : null/);
+  });
+});
+
+describe("load-point group controls", () => {
+  it("discloses every selected member with its identity and FEd for single-member inspection", () => {
+    const panel = readRightPanelSource();
+    const styles = readFileSync(resolve(import.meta.dirname, "rightPanel.css"), "utf8");
+
+    assert.match(panel, /className="load-point-selection-disclosure"/);
+    assert.match(panel, /t\("loadPoints\.selectedCount"/);
+    assert.match(panel, /loadPoint\.design_load_kn\.toLocaleString/);
+    assert.match(panel, /selectLoadPoint\(state, loadPoint\.id\)/);
+    assert.match(styles, /\.load-point-selection-list/);
+  });
+
+  it("previews and applies group edits without changing assignments or locks", () => {
+    const panel = readRightPanelSource();
+
+    assert.match(panel, /<LoadPointGroupEditButton/);
+    assert.match(panel, /onPreview\(action, selectedIds\)/);
+    assert.match(panel, /onApply\(action, selectedIds\)/);
+    assert.match(panel, /getSelectedGroupConflict\(groupAssignmentAssessment/);
+    assert.match(panel, /assessment\.conflictsByLoadPointId/);
+    assert.match(panel, /groupEditPending/);
+    assert.doesNotMatch(panel, /selectedPileConfigurationsByLoadPoint\.set/);
+  });
+
+  it("summarizes and resets stored overrides and mirrors group visibility", () => {
+    const panel = readRightPanelSource();
+
+    assert.match(panel, /settings\.manualGroups\.length/);
+    assert.match(panel, /settings\.ungroupedGroups\.length/);
+    assert.match(panel, /onApplyLoadPointGroupEdit\("reset_overrides"/);
+    assert.doesNotMatch(panel, /groupingSettings\.resetConfirm/);
+    assert.doesNotMatch(panel, /window\.confirm/);
+    assert.match(panel, /showLoadPointGroups/);
+    assert.match(panel, /groupingSettings\.viewHelp/);
   });
 });

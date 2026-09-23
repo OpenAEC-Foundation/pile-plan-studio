@@ -40,6 +40,10 @@
       "cpt-selection_other": "Sonderingselectie van {{count}} belastinglocaties gewijzigd",
       "cpt-settings": "Sonderingsinstellingen gewijzigd",
       "grouping-settings": "Groeperingsinstellingen gewijzigd",
+      "group-created": "Groep van belastinglocaties aangemaakt",
+      "group-removed": "Groep van belastinglocaties opgeheven",
+      "group-overrides-reset": "Handmatige groepswijzigingen hersteld",
+      "group-visibility": "Zichtbaarheid van groepen gewijzigd",
       "locks_one": "{{count}} vergrendeling gewijzigd in {{pilePlanName}}",
       "locks_other": "{{count}} vergrendelingen gewijzigd in {{pilePlanName}}",
       "cost-settings": "Kosteninstellingen gewijzigd",
@@ -55,7 +59,15 @@
     }
   },
   "loadPointGroups": {
-    "assignmentBlocked": "Niet gewijzigd: vergrendelde belastinglocatie(s) {{names}} gebruiken een andere of geen paalconfiguratie."
+    "assignmentBlocked": "Niet gewijzigd: vergrendelde belastinglocatie(s) {{names}} gebruiken een andere of geen paalconfiguratie.",
+    "editBlocked": {
+      "not_enough_locations": "Selecteer minstens twee locaties om een groep te maken.",
+      "disconnected_selection": "De geselecteerde locaties zijn niet verbonden in de Gabriel-graaf.",
+      "already_grouped": "De geselecteerde locaties vormen deze groep al.",
+      "selection_must_be_one_group": "Selecteer locaties uit één volledige groep om deze op te heffen.",
+      "singleton_group": "Een groep met één locatie kan niet worden opgeheven.",
+      "no_overrides": "Er zijn geen handmatige groepswijzigingen om te herstellen."
+    }
   },
   "search": "Zoeken",
   "find": "Zoeken",
@@ -83,6 +95,9 @@
   "explorer": "Verkenner",
   "properties": "Eigenschappen",
   "viewer": {
+    "loadPointGroups": {
+      "assignmentConflict": "Een groep bevat verschillende of onvolledige paaltoewijzingen."
+    },
     "optimizerUnassigned": "De laatste optimalisatie vond binnen de ingestelde limieten geen toewijzing.",
     "unselected": {
       "pending": "De paalopties worden beoordeeld.",
@@ -215,7 +230,6 @@
     "rename": "Palenplan hernoemen",
     "duplicate": "Palenplan dupliceren",
     "delete": "Palenplan verwijderen",
-    "confirmDelete": "Palenplan ‘{{name}}’ verwijderen?",
     "missingCosts_one": "{{count}} gekozen paal zonder kosten",
     "missingCosts_other": "{{count}} gekozen palen zonder kosten",
     "locked_one": "{{count}} vergrendeld",
@@ -360,6 +374,7 @@
       "unsupported-schema-version": "Het project is niet geopend omdat de IFCPP-schemaversie niet wordt ondersteund.",
       "duplicate-pile-plan-id": "Het project is niet geopend omdat het dubbele palenplan-ID's bevat.",
       "invalid-pile-costs": "Het project is niet geopend omdat de paalkostentabel ongeldige regels bevat.",
+      "invalid-load-point-group-overrides": "Het project is niet geopend omdat de handmatige groepen van belastinglocaties ongeldig zijn.",
       "invalid-ilp-settings": "Het project bevat ongeldige optimalisatie-instellingen."
     }
   },

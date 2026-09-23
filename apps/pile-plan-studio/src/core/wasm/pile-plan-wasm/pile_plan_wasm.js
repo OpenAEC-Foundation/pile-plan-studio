@@ -61,6 +61,30 @@ export function apply_load_point_group_assignment(request) {
  * @param {any} request
  * @returns {any}
  */
+export function apply_load_point_group_edit(request) {
+    const ret = wasm.apply_load_point_group_edit(request);
+    if (ret[2]) {
+        throw takeFromExternrefTable0(ret[1]);
+    }
+    return takeFromExternrefTable0(ret[0]);
+}
+
+/**
+ * @param {any} request
+ * @returns {any}
+ */
+export function assess_load_point_group_assignments(request) {
+    const ret = wasm.assess_load_point_group_assignments(request);
+    if (ret[2]) {
+        throw takeFromExternrefTable0(ret[1]);
+    }
+    return takeFromExternrefTable0(ret[0]);
+}
+
+/**
+ * @param {any} request
+ * @returns {any}
+ */
 export function assess_technical_assignment(request) {
     const ret = wasm.assess_technical_assignment(request);
     if (ret[2]) {
@@ -187,6 +211,18 @@ export function import_project_from_files(request) {
  */
 export function preview_import_file(request) {
     const ret = wasm.preview_import_file(request);
+    if (ret[2]) {
+        throw takeFromExternrefTable0(ret[1]);
+    }
+    return takeFromExternrefTable0(ret[0]);
+}
+
+/**
+ * @param {any} request
+ * @returns {any}
+ */
+export function preview_load_point_group_edit(request) {
+    const ret = wasm.preview_load_point_group_edit(request);
     if (ret[2]) {
         throw takeFromExternrefTable0(ret[1]);
     }
@@ -511,7 +547,7 @@ function __wbg_get_imports() {
                 }
             };
             cb0._wbg_cb_unref = () => state0.a = 0;
-            // Cast intrinsic for `Closure(Closure { owned: false, function: Function { arguments: [Externref], shim_idx: 119, ret: Unit, inner_ret: Some(Unit) }, mutable: true }) -> Externref`.
+            // Cast intrinsic for `Closure(Closure { owned: false, function: Function { arguments: [Externref], shim_idx: 133, ret: Unit, inner_ret: Some(Unit) }, mutable: true }) -> Externref`.
             const ret = cb0;
             return ret;
         },

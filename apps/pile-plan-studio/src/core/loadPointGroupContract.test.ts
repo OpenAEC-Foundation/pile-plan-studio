@@ -3,11 +3,17 @@ import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 
 import {
+  derivedLoadPointGroupsFromCore,
+  groupAssignmentConflictsFromCore,
+  loadPointGroupEditResultFromCore,
   loadPointGroupAssignmentResultFromCore,
-  loadPointGroupsFromCore,
+  toApplyLoadPointGroupEditRequest,
+  toBrowserGroupAssignmentAssessmentRequest,
   toBrowserLoadPointGroupAssignmentRequest,
   toDeriveLoadPointGroupsRequest,
+  toDesktopGroupAssignmentAssessmentRequest,
   toDesktopLoadPointGroupAssignmentRequest,
+  toPreviewLoadPointGroupEditRequest,
 } from "./loadPointGroupContract.ts";
 import type { LoadPoint } from "./projectTypes.ts";
 
@@ -20,11 +26,18 @@ describe("load point group transport contract", () => {
     assert.deepEqual(toDeriveLoadPointGroupsRequest(loadPoints, {
       automatic: false,
       maxEdgeDistanceM: 1.25,
+      manualGroups: [{ loadPointIds: [3, 1] }, { loadPointIds: [2, 1] }],
+      ungroupedGroups: [{ loadPointIds: [4, 2] }],
     }), {
       load_points: loadPoints,
       settings: {
         automatic: false,
         max_edge_distance_mm: 1_250,
+        manual_groups: [
+          { load_point_ids: [1, 2] },
+          { load_point_ids: [1, 3] },
+        ],
+        ungrouped_groups: [{ load_point_ids: [2, 4] }],
       },
     });
 
@@ -80,10 +93,88 @@ describe("load point group transport contract", () => {
     assert.equal(toDesktopLoadPointGroupAssignmentRequest(input).requested_configuration, null);
   });
 
-  it("copies group and assignment results at the contract boundary", () => {
-    assert.deepEqual(loadPointGroupsFromCore([{ load_point_ids: [1, 2] }]), [
-      { load_point_ids: [1, 2] },
-    ]);
+  it("copies group provenance and shared topology at the contract boundary", () => {
+    assert.deepEqual(derivedLoadPointGroupsFromCore({
+      groups: [{ load_point_ids: [1, 2], origin: "manual" }],
+      topology: {
+        load_point_ids: [1, 2],
+        edges: [{ from_load_point_id: 1, to_load_point_id: 2 }],
+        faces: [],
+      },
+    }), {
+      groups: [{ load_point_ids: [1, 2], origin: "manual" }],
+      topology: {
+        load_point_ids: [1, 2],
+        edges: [{ from_load_point_id: 1, to_load_point_id: 2 }],
+        faces: [],
+      },
+    });
+  });
+
+  it("serializes preview and apply edits with the same canonical payload", () => {
+    const input = {
+      loadPoints,
+      settings: {
+        automatic: true,
+        maxEdgeDistanceM: 1.2,
+        manualGroups: [{ loadPointIds: [2, 1] }],
+        ungroupedGroups: [],
+      },
+      selectedLoadPointIds: [2, 1],
+      action: "group" as const,
+    };
+    const expected = {
+      load_points: loadPoints,
+      settings: {
+        automatic: true,
+        max_edge_distance_mm: 1_200,
+        manual_groups: [{ load_point_ids: [1, 2] }],
+        ungrouped_groups: [],
+      },
+      selected_load_point_ids: [2, 1],
+      action: "group",
+    };
+
+    assert.deepEqual(toPreviewLoadPointGroupEditRequest(input), expected);
+    assert.deepEqual(toApplyLoadPointGroupEditRequest(input), expected);
+    assert.deepEqual(loadPointGroupEditResultFromCore({
+      status: "blocked",
+      reason: "disconnected_selection",
+      load_point_ids: [1, 3],
+    }), {
+      status: "blocked",
+      reason: "disconnected_selection",
+      load_point_ids: [1, 3],
+    });
+  });
+
+  it("uses runtime-specific maps for group conflict assessment", () => {
+    const input = {
+      groups: [{ load_point_ids: [1, 2], origin: "automatic" as const }],
+      assignments: new Map([[2, { pile_size_mm: 320, pile_tip_level_mm: -18_000 }]]),
+      lockedLoadPointIds: [2],
+    };
+
+    assert.equal(toBrowserGroupAssignmentAssessmentRequest(input).assignments instanceof Map, true);
+    assert.deepEqual(toDesktopGroupAssignmentAssessmentRequest(input).assignments, {
+      "2": { pile_size_mm: 320, pile_tip_level_mm: -18_000 },
+    });
+    assert.deepEqual(groupAssignmentConflictsFromCore([{
+      load_point_ids: [1, 2],
+      kind: "partial_assignment",
+      assignment_repair_blocked: false,
+      unassignment_repair_blocked: true,
+      blocking_locked_load_point_ids: [2],
+    }]), [{
+      load_point_ids: [1, 2],
+      kind: "partial_assignment",
+      assignment_repair_blocked: false,
+      unassignment_repair_blocked: true,
+      blocking_locked_load_point_ids: [2],
+    }]);
+  });
+
+  it("copies assignment results at the contract boundary", () => {
     assert.deepEqual(
       loadPointGroupAssignmentResultFromCore({
         status: "blocked",
@@ -130,12 +221,18 @@ describe("load point group transport contract", () => {
     );
   });
 
-  it("routes both operations to matching WASM and Tauri commands", () => {
+  it("routes all grouping operations to matching WASM and Tauri commands", () => {
     const source = readFileSync(new URL("./pilePlanCoreClient.ts", import.meta.url), "utf8");
 
     assert.match(source, /derive_load_point_groups\(/);
     assert.match(source, /"derive_load_point_groups"/);
     assert.match(source, /apply_load_point_group_assignment\(/);
     assert.match(source, /"apply_load_point_group_assignment"/);
+    assert.match(source, /preview_load_point_group_edit\(/);
+    assert.match(source, /"preview_load_point_group_edit"/);
+    assert.match(source, /apply_load_point_group_edit\(/);
+    assert.match(source, /"apply_load_point_group_edit"/);
+    assert.match(source, /assess_load_point_group_assignments\(/);
+    assert.match(source, /"assess_load_point_group_assignments"/);
   });
 });

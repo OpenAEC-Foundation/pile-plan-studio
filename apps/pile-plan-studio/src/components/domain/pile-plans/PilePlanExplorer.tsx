@@ -78,12 +78,6 @@ export default function PilePlanExplorer({
     if (event.key === "Escape") setRenamingId(null);
   };
 
-  const confirmDelete = (plan: PilePlanData) => {
-    if (window.confirm(t("projectExplorer.confirmDelete", { name: plan.name }))) {
-      onDelete(plan.id);
-    }
-  };
-
   return (
     <aside className="project-explorer" aria-label={t("projectExplorer.aria")}>
       <div className="panel-heading">{t("explorer")}</div>
@@ -169,7 +163,7 @@ export default function PilePlanExplorer({
                       disabled={managementDisabled || pilePlans.length === 1}
                       label={t("projectExplorer.delete")}
                       kind="delete"
-                      onClick={() => confirmDelete(plan)}
+                      onClick={() => onDelete(plan.id)}
                     />
                   </div>
                 </div>

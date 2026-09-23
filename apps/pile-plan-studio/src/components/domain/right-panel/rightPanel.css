@@ -645,6 +645,131 @@
   font-weight: 400;
 }
 
+.load-point-selection-disclosure {
+  position: relative;
+  flex: 0 0 auto;
+}
+
+.load-point-selection-controls {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
+.load-point-selection-disclosure summary,
+.load-point-group-edit-button {
+  box-sizing: border-box;
+  min-height: 25px;
+  padding: 4px 7px;
+  border: 1px solid var(--theme-border);
+  border-radius: 4px;
+  color: var(--theme-text);
+  background: var(--theme-bg-lighter);
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1.35;
+}
+
+.load-point-selection-disclosure summary {
+  cursor: pointer;
+}
+
+.load-point-group-edit-button {
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.load-point-group-edit-control {
+  display: inline-flex;
+  width: max-content;
+}
+
+.load-point-group-edit-button:hover:not(:disabled),
+.load-point-group-edit-button:focus-visible,
+.load-point-selection-disclosure summary:hover,
+.load-point-selection-disclosure summary:focus-visible {
+  border-color: var(--theme-accent);
+  background: var(--theme-ribbon-btn-hover);
+}
+
+.load-point-group-edit-button:disabled {
+  cursor: default;
+  opacity: 0.5;
+}
+
+.load-point-selection-list {
+  position: absolute;
+  z-index: 80;
+  top: calc(100% + 4px);
+  right: 0;
+  display: grid;
+  width: max-content;
+  min-width: 230px;
+  max-height: 240px;
+  overflow: auto;
+  padding: 4px;
+  border: 1px solid var(--theme-border);
+  border-radius: 5px;
+  background: var(--theme-surface);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.18);
+}
+
+.load-point-selection-list button {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 6px 7px;
+  border: 0;
+  border-radius: 3px;
+  color: var(--theme-text);
+  background: transparent;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  width: 100%;
+}
+
+.load-point-selection-list button:hover,
+.load-point-selection-list button:focus-visible {
+  background: var(--theme-ribbon-btn-hover);
+  outline: 1px solid var(--theme-accent);
+}
+
+.load-point-selection-list button strong {
+  font-size: 11px;
+}
+
+.settings-secondary-button {
+  justify-self: start;
+  min-height: 25px;
+  padding: 4px 7px;
+  border: 1px solid var(--theme-border);
+  border-radius: 4px;
+  color: var(--theme-text);
+  background: var(--theme-bg-lighter);
+  font-family: inherit;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.35;
+}
+
+.settings-secondary-button:disabled {
+  opacity: 0.5;
+}
+
+.grouping-settings-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.load-point-group-conflict {
+  flex: 0 0 auto;
+}
+
 .pile-options-section {
   display: grid;
   flex: 1;

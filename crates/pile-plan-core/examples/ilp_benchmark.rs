@@ -37,7 +37,8 @@ fn main() {
     )
     .unwrap();
     let plan = p.user_state.active_pile_plan().unwrap();
-    let groups = derive_load_point_groups(&p.inputs.load_points, &p.settings.load_point_grouping);
+    let groups =
+        derive_load_point_groups(&p.inputs.load_points, &p.settings.load_point_grouping).groups;
     let candidates = analysis
         .pile_options_by_load_point
         .values()

@@ -303,6 +303,7 @@ mod tests {
             let result = crate::prepare_optimization_units(&crate::PrepareOptimizationUnitsInput {
                 groups: vec![LoadPointGroup {
                     load_point_ids: vec![1, 2],
+                    origin: crate::LoadPointGroupOrigin::Automatic,
                 }],
                 options_by_load_point: HashMap::from([(1, options.clone()), (2, options.clone())]),
                 current_assignments: HashMap::new(),
@@ -358,6 +359,7 @@ mod tests {
             &options_by_load_point,
             &[LoadPointGroup {
                 load_point_ids: vec![1, 2],
+                origin: crate::LoadPointGroupOrigin::Automatic,
             }],
             -3.5,
             &costs(),

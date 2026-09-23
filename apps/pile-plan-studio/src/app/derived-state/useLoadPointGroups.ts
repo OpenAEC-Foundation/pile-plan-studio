@@ -10,6 +10,7 @@ import {
 
 const INITIAL_SNAPSHOT: LoadPointGroupSnapshot = {
   groups: [],
+  topology: null,
   pending: false,
   error: null,
 };

@@ -23,6 +23,18 @@ export type CptConnectionSegment = {
   to: CptConnectionPoint;
 };
 
+export function projectCptConnectionSegmentsToPixels(
+  segments: CptConnectionSegment[],
+  canvasSize: { width: number; height: number },
+): CptConnectionSegment[] {
+  const toPixels = ({ id, x, y }: CptConnectionPoint): CptConnectionPoint => ({
+    id,
+    x: x * canvasSize.width / 100,
+    y: y * canvasSize.height / 100,
+  });
+  return segments.map(({ from, to }) => ({ from: toPixels(from), to: toPixels(to) }));
+}
+
 export function getCptConnectionSegments(input: CptConnectionLinesInput): CptConnectionSegment[] {
   const sharedCptIds = getSharedCptIds(input);
   if (!sharedCptIds || sharedCptIds.length < 2) {

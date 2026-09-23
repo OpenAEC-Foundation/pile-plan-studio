@@ -23,6 +23,12 @@ describe("pile plan explorer", () => {
     assert.match(source, /onBlur/);
   });
 
+  it("deletes an undoable pile plan without an extra confirmation", () => {
+    assert.match(source, /onClick=\{\(\) => onDelete\(plan\.id\)\}/);
+    assert.doesNotMatch(source, /window\.confirm/);
+    assert.doesNotMatch(source, /confirmDelete/);
+  });
+
   it("disables fresh plan creation until project analysis is complete", () => {
     assert.match(source, /createDisabled/);
     assert.match(source, /disabled=\{creating \|\| createDisabled\}/);

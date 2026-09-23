@@ -7,6 +7,10 @@ export type HistoryActionKind =
   | "cpt-selection"
   | "cpt-settings"
   | "grouping-settings"
+  | "group-created"
+  | "group-removed"
+  | "group-overrides-reset"
+  | "group-visibility"
   | "locks"
   | "cost-settings"
   | "legend-settings"
@@ -56,7 +60,15 @@ export function inferHistoryAction(
     };
   }
   if (before.loadPointGroupingSettings !== after.loadPointGroupingSettings) {
+    const overrideAction = inferGroupOverrideAction(
+      before.loadPointGroupingSettings,
+      after.loadPointGroupingSettings,
+    );
+    if (overrideAction) return { kind: overrideAction };
     return { kind: "grouping-settings" };
+  }
+  if (before.showLoadPointGroups !== after.showLoadPointGroups) {
+    return { kind: "group-visibility" };
   }
   if (before.pileCostSettings !== after.pileCostSettings) return { kind: "cost-settings" };
   if (before.ilpOptimizationSettings !== after.ilpOptimizationSettings) {
@@ -107,6 +119,43 @@ export function inferHistoryAction(
   }
 
   return { kind: "project-change" };
+}
+
+function inferGroupOverrideAction(
+  before: ProjectContent["loadPointGroupingSettings"],
+  after: ProjectContent["loadPointGroupingSettings"],
+): Extract<HistoryActionKind,
+  "group-created" | "group-removed" | "group-overrides-reset"> | null {
+  const beforeManual = overrideSet(before.manualGroups);
+  const afterManual = overrideSet(after.manualGroups);
+  const beforeUngrouped = overrideSet(before.ungroupedGroups);
+  const afterUngrouped = overrideSet(after.ungroupedGroups);
+  const manualChanged = !sameStringSet(beforeManual, afterManual);
+  const ungroupedChanged = !sameStringSet(beforeUngrouped, afterUngrouped);
+  if (!manualChanged && !ungroupedChanged) return null;
+  if (
+    manualChanged
+    && ungroupedChanged
+    && afterManual.size === 0
+    && afterUngrouped.size === 0
+  ) {
+    return "group-overrides-reset";
+  }
+  const manualAdded = [...afterManual].some((record) => !beforeManual.has(record));
+  const ungroupedRemoved = [...beforeUngrouped].some((record) => !afterUngrouped.has(record));
+  return manualAdded || ungroupedRemoved ? "group-created" : "group-removed";
+}
+
+function overrideSet(
+  records: ProjectContent["loadPointGroupingSettings"]["manualGroups"],
+): Set<string> {
+  return new Set(records.map(({ loadPointIds }) => (
+    [...new Set(loadPointIds)].sort((left, right) => left - right).join(",")
+  )));
+}
+
+function sameStringSet(left: Set<string>, right: Set<string>): boolean {
+  return left.size === right.size && [...left].every((value) => right.has(value));
 }
 
 function sameNumberArray(left: number[], right: number[]): boolean {

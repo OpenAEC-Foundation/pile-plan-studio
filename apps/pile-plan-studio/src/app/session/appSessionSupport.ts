@@ -1,6 +1,8 @@
 import type { ImportFileRole } from "../../core/importFiles.ts";
+import type { LoadPointGroupEditAction } from "../../core/loadPointGroupContract.ts";
 import type { PilePlanData } from "../../core/projectFile.ts";
 import { ProjectDocumentReadError } from "../../core/projectDocumentContract.ts";
+import type { HistoryAction } from "../../domain/project/history/historyAction.ts";
 import type { InputSourceKind } from "../../domain/project/projectState.ts";
 import { getActiveLockedLoadPointIds } from "../../domain/pile-plans/loadPointLocking.ts";
 
@@ -47,6 +49,14 @@ export function getLoadPointLockSignature(
   return getActiveLockedLoadPointIds(pilePlans, activePilePlanId)
     .sort((left, right) => left - right)
     .join(",");
+}
+
+export function getLoadPointGroupEditHistoryAction(
+  action: LoadPointGroupEditAction,
+): HistoryAction {
+  if (action === "group") return { kind: "group-created" };
+  if (action === "ungroup") return { kind: "group-removed" };
+  return { kind: "group-overrides-reset" };
 }
 
 export function importRoleForSource(kind: InputSourceKind): ImportFileRole {

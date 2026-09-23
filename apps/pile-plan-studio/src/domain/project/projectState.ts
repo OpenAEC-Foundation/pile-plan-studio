@@ -88,6 +88,7 @@ export type ProjectState = LoadedProjectData & {
   foregroundLayer: ForegroundLayer;
   showGrid: boolean;
   showTipLevelRegions: boolean;
+  showLoadPointGroups: boolean;
 };
 
 type InitialProjectStateOptions = {

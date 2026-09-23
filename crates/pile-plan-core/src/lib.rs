@@ -34,24 +34,31 @@ pub use import::{
 };
 pub use legacy_optimization::LegacyOptimizationSettings;
 pub use load_point_groups::{
-    apply_load_point_group_assignment, derive_load_point_groups,
-    ApplyLoadPointGroupAssignmentInput, ApplyLoadPointGroupAssignmentResult,
-    BlockingLockedLoadPoint, LoadPointGroup, LoadPointGroupAssignmentChange,
-    LoadPointGroupingSettings, DEFAULT_MAX_GROUP_EDGE_DISTANCE_MM,
+    apply_load_point_group_assignment, apply_load_point_group_edit,
+    assess_load_point_group_assignments, derive_load_point_groups, preview_load_point_group_edit,
+    validate_load_point_group_overrides, ApplyLoadPointGroupAssignmentInput,
+    ApplyLoadPointGroupAssignmentResult, BlockingLockedLoadPoint, DerivedLoadPointGroups,
+    GroupAssignmentConflict, GroupAssignmentConflictKind, InvalidLoadPointGroupOverride,
+    InvalidLoadPointGroupOverrideReason, InvalidLoadPointGroupOverrides, LoadPointGroup,
+    LoadPointGroupAssignmentChange, LoadPointGroupEditAction, LoadPointGroupEditBlockReason,
+    LoadPointGroupEditInput, LoadPointGroupEditPreview, LoadPointGroupEditResult,
+    LoadPointGroupOrigin, LoadPointGroupOverride, LoadPointGroupingSettings,
+    DEFAULT_MAX_GROUP_EDGE_DISTANCE_MM,
 };
 pub use load_point_positions::{
     duplicate_load_point_positions, validate_unique_load_point_positions,
     DuplicateLoadPointPosition, DuplicateLoadPointPositionMember, DuplicateLoadPointPositions,
 };
 pub use optimization::{
-    prepare_optimization_units, IlpCandidateSource, IlpAssignment, IlpCostReference, IlpCounts, IlpDiagnostic, IlpEvent,
-    IlpLimitProposal, IlpOptimizationInput, IlpOptimizationOutcome, IlpOptimizationSession,
-    IlpSolverBackend, IlpSolverModel, IlpSolverUpdate, IlpSolverOutcome, IlpOptimizationSettings, IlpPhase, IlpProgress, IlpProof, IlpRunRequest, IlpSolution,
-    IlpTermination, IlpTransitionCounts, IlpTransitionWeights, OptimizationCandidateSettings,
-    OptimizationLimitScope, OptimizationPreparationDiagnostic,
+    prepare_optimization_units, IlpAssignment, IlpCandidateSource, IlpCostReference, IlpCounts,
+    IlpDiagnostic, IlpEvent, IlpLimitProposal, IlpOptimizationInput, IlpOptimizationOutcome,
+    IlpOptimizationSession, IlpOptimizationSettings, IlpPhase, IlpProgress, IlpProof,
+    IlpRunRequest, IlpSolution, IlpSolverBackend, IlpSolverModel, IlpSolverOutcome,
+    IlpSolverUpdate, IlpTermination, IlpTransitionCounts, IlpTransitionWeights,
+    OptimizationCandidateSettings, OptimizationLimitScope, OptimizationPreparationDiagnostic,
     OptimizationPreparationDiagnosticKind, OptimizationPreparationResult,
-    OptimizationUnassignedReason, OptimizationUnit,
-    OptimizationUnitOption, PrepareOptimizationUnitsInput,
+    OptimizationUnassignedReason, OptimizationUnit, OptimizationUnitOption,
+    PrepareOptimizationUnitsInput,
 };
 pub use pile_configuration::PileConfigurationKey;
 pub use pile_options::{

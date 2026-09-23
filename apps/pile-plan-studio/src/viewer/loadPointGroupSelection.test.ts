@@ -1,11 +1,45 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import {
+  expandSelectionToGroups,
   getLoadPointGroupNotice,
   getLoadPointGroupSelection,
 } from "./loadPointGroupSelection.ts";
+import * as loadPointGroupSelection from "./loadPointGroupSelection.ts";
 
 describe("load point group selection", () => {
+  it("uses the shared contour instead of member rings only for completely selected groups", () => {
+    const getCompleteSelectedGroupLoadPointIds = (
+      loadPointGroupSelection as typeof loadPointGroupSelection & {
+        getCompleteSelectedGroupLoadPointIds?: (
+          selectedIds: number[],
+          groups: Array<{ load_point_ids: number[] }>,
+        ) => number[];
+      }
+    ).getCompleteSelectedGroupLoadPointIds;
+    const groups = [
+      { load_point_ids: [1, 2, 3] },
+      { load_point_ids: [4, 5] },
+      { load_point_ids: [9] },
+    ];
+
+    assert.deepEqual(getCompleteSelectedGroupLoadPointIds?.([1], groups), []);
+    assert.deepEqual(getCompleteSelectedGroupLoadPointIds?.([1, 2, 3, 9], groups), [1, 2, 3]);
+    assert.deepEqual(getCompleteSelectedGroupLoadPointIds?.([5, 4, 2, 1, 3], groups), [1, 2, 3, 4, 5]);
+  });
+
+  it("expands single, additive, and lasso IDs to complete groups with stable deduplication", () => {
+    const groups = [
+      { load_point_ids: [1, 2, 3] },
+      { load_point_ids: [4, 5] },
+      { load_point_ids: [9] },
+    ];
+
+    assert.deepEqual(expandSelectionToGroups([2], groups), [1, 2, 3]);
+    assert.deepEqual(expandSelectionToGroups([5, 2, 3, 9], groups), [1, 2, 3, 4, 5, 9]);
+    assert.deepEqual(expandSelectionToGroups([8], groups), [8]);
+  });
+
   it("marks the remaining members of the selected load point group", () => {
     const presentation = getLoadPointGroupSelection({
       selectedLoadPointIds: [2],
@@ -76,7 +110,7 @@ describe("load point group selection", () => {
       selectedLoadPointCount: 4,
     }), {
       translationKey: "pileOptions.groupSelection.multiple",
-      values: { groupCount: 2, count: 6 },
+      values: { count: 2, markedCount: 6 },
     });
   });
 });

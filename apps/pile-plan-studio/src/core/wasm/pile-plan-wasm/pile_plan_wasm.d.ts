@@ -12,6 +12,10 @@ export function aggregate_pile_options(request: any): any;
 
 export function apply_load_point_group_assignment(request: any): any;
 
+export function apply_load_point_group_edit(request: any): any;
+
+export function assess_load_point_group_assignments(request: any): any;
+
 export function assess_technical_assignment(request: any): any;
 
 export function build_load_point_topology(request: any): any;
@@ -34,6 +38,8 @@ export function import_project_from_files(request: any): any;
 
 export function preview_import_file(request: any): any;
 
+export function preview_load_point_group_edit(request: any): any;
+
 export function preview_pile_plan_import_file(request: any): any;
 
 export function read_project_document(request: any): any;
@@ -49,6 +55,8 @@ export interface InitOutput {
     readonly __wbg_wasmilpsession_free: (a: number, b: number) => void;
     readonly aggregate_pile_options: (a: any) => [number, number, number];
     readonly apply_load_point_group_assignment: (a: any) => [number, number, number];
+    readonly apply_load_point_group_edit: (a: any) => [number, number, number];
+    readonly assess_load_point_group_assignments: (a: any) => [number, number, number];
     readonly assess_technical_assignment: (a: any) => [number, number, number];
     readonly build_load_point_topology: (a: any) => [number, number, number];
     readonly build_tip_level_region_topology: (a: any) => [number, number, number];
@@ -60,6 +68,7 @@ export interface InitOutput {
     readonly export_pile_plan_xlsx: (a: any) => [number, number, number, number];
     readonly import_project_from_files: (a: any) => [number, number, number];
     readonly preview_import_file: (a: any) => [number, number, number];
+    readonly preview_load_point_group_edit: (a: any) => [number, number, number];
     readonly preview_pile_plan_import_file: (a: any) => [number, number, number];
     readonly read_project_document: (a: any) => [number, number, number];
     readonly refresh_project_from_files: (a: any) => [number, number, number];

@@ -50,6 +50,8 @@
     "regions": "Regions",
     "showTipLevelRegions": "Show tip-level regions",
     "hideTipLevelRegions": "Hide tip-level regions",
+    "showGroups": "Show groups",
+    "hideGroups": "Hide groups",
     "windows": "Windows",
     "showExplorer": "Show explorer",
     "hideExplorer": "Hide explorer",

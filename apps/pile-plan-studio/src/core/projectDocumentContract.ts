@@ -69,6 +69,10 @@ export type CoreProjectDocumentError =
   | {
       code: "invalid-pile-tip-levels";
       errors: CoreInvalidProjectPileTipLevel[];
+    }
+  | {
+      code: "invalid-load-point-group-overrides";
+      errors: CoreInvalidLoadPointGroupOverride[];
     };
 
 type CoreInvalidProjectPileTipLevel = {
@@ -78,6 +82,19 @@ type CoreInvalidProjectPileTipLevel = {
     | { kind: "bearing-capacity"; index: number; cpt_id: number; pile_size_mm: number }
     | { kind: "pile-plan-active"; plan_id: string; index: number }
     | { kind: "legend"; index: number };
+};
+
+type CoreInvalidLoadPointGroupOverride = {
+  collection: string;
+  index: number;
+  load_point_ids: number[];
+  reason:
+    | "unknown_load_point"
+    | "duplicate_member"
+    | "duplicate_record"
+    | "manual_group_too_small"
+    | "overlapping_manual_groups"
+    | "disconnected_manual_group";
 };
 
 export type ProjectDocumentError =
@@ -110,6 +127,15 @@ export type ProjectDocumentError =
           | { kind: "bearing-capacity"; index: number; cptId: number; pileSizeMm: number }
           | { kind: "pile-plan-active"; planId: string; index: number }
           | { kind: "legend"; index: number };
+      }>;
+    }
+  | {
+      code: "invalid-load-point-group-overrides";
+      errors: Array<{
+        collection: string;
+        index: number;
+        loadPointIds: number[];
+        reason: CoreInvalidLoadPointGroupOverride["reason"];
       }>;
     };
 
@@ -241,6 +267,16 @@ export function projectDocumentErrorFromCore(
           value: item.value,
           reason: item.reason,
           context: projectPileTipLevelContextFromCore(item.context),
+        })),
+      };
+    case "invalid-load-point-group-overrides":
+      return {
+        code: error.code,
+        errors: error.errors.map((item) => ({
+          collection: item.collection,
+          index: item.index,
+          loadPointIds: [...item.load_point_ids],
+          reason: item.reason,
         })),
       };
   }
@@ -403,9 +439,27 @@ function isCoreProjectDocumentError(value: unknown): value is CoreProjectDocumen
       return Array.isArray(value.positions) && value.positions.every(isDuplicatePosition);
     case "invalid-pile-tip-levels":
       return Array.isArray(value.errors) && value.errors.every(isInvalidPileTipLevel);
+    case "invalid-load-point-group-overrides":
+      return Array.isArray(value.errors) && value.errors.every(isInvalidLoadPointGroupOverride);
     default:
       return false;
   }
+}
+
+function isInvalidLoadPointGroupOverride(value: unknown): boolean {
+  return isRecord(value)
+    && typeof value.collection === "string"
+    && typeof value.index === "number"
+    && Array.isArray(value.load_point_ids)
+    && value.load_point_ids.every((id) => typeof id === "number")
+    && [
+      "unknown_load_point",
+      "duplicate_member",
+      "duplicate_record",
+      "manual_group_too_small",
+      "overlapping_manual_groups",
+      "disconnected_manual_group",
+    ].includes(String(value.reason));
 }
 
 function isInvalidPileCost(value: unknown): boolean {

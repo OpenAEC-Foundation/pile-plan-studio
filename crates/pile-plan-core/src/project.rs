@@ -6,11 +6,11 @@ use crate::import::{ImportProfile, ImportRole, SourceFormat};
 
 use crate::cpt_selection::CptSelectionSettings;
 use crate::load_point_groups::LoadPointGroupingSettings;
-use crate::{LegacyOptimizationSettings, OptimizationUnassignedReason};
 use crate::pile_configuration::PileConfigurationKey;
 use crate::pile_options::PileCostSettings;
 use crate::source_data::{BearingCapacity, Cpt, LoadPoint};
 use crate::{try_pile_tip_level_mm, PileTipLevelPrecisionErrorReason};
+use crate::{LegacyOptimizationSettings, OptimizationUnassignedReason};
 
 pub(crate) const APPLICATION_NAME: &str = "Open Pile Plan Studio";
 
@@ -286,6 +286,8 @@ pub struct ProjectViewerSettings {
     pub show_grid: bool,
     #[serde(default = "default_true")]
     pub show_tip_level_regions: bool,
+    #[serde(default)]
+    pub show_load_point_groups: bool,
 }
 
 impl Default for ProjectViewerSettings {
@@ -295,6 +297,7 @@ impl Default for ProjectViewerSettings {
             foreground_layer: default_foreground_layer(),
             show_grid: true,
             show_tip_level_regions: true,
+            show_load_point_groups: false,
         }
     }
 }
@@ -634,7 +637,8 @@ mod tests {
     #[test]
     fn pile_plan_project_serializes_without_losing_state() {
         let mut project = sample_project();
-        project.settings.ilp_optimization = Some(project.settings.legacy_optimization.to_ilp_settings());
+        project.settings.ilp_optimization =
+            Some(project.settings.legacy_optimization.to_ilp_settings());
         project.settings.legacy_optimization = Default::default();
         let json = serde_json::to_string(&project).expect("project serializes");
         let parsed: PilePlanProject = serde_json::from_str(&json).expect("project deserializes");
@@ -818,9 +822,12 @@ mod tests {
             .and_then(serde_json::Value::as_object_mut)
             .expect("settings are an object");
         settings.remove("viewer_utilization");
-        settings.insert("optimization".into(), serde_json::json!({
-            "max_pile_sizes": 1, "max_pile_tip_levels": 1,
-        }));
+        settings.insert(
+            "optimization".into(),
+            serde_json::json!({
+                "max_pile_sizes": 1, "max_pile_tip_levels": 1,
+            }),
+        );
 
         let parsed: PilePlanProject =
             serde_json::from_value(value).expect("legacy project deserializes");

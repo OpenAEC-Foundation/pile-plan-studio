@@ -3,14 +3,18 @@ use std::fmt;
 use serde::{Deserialize, Serialize};
 use serde_json::{Error as JsonError, Value};
 
+use crate::load_point_groups::canonicalize_load_point_grouping_settings;
 #[cfg(test)]
 use crate::ProjectPileTipLevelContext;
 use crate::{
-    validate_pile_cost_settings, validate_project_tip_levels, validate_unique_load_point_positions,
-    DuplicateLoadPointPositions, InvalidPileCostSettings, InvalidProjectPileTipLevels,
+    validate_load_point_group_overrides, validate_pile_cost_settings, validate_project_tip_levels,
+    validate_unique_load_point_positions, DuplicateLoadPointPositions,
+    InvalidLoadPointGroupOverrides, InvalidPileCostSettings, InvalidProjectPileTipLevels,
     PilePlanProject, ProjectApplication, ProjectDocumentDraft, ProjectUserState,
     SelectedPileChoice, ValidatedPilePlanProject, APPLICATION_NAME,
 };
+
+const CURRENT_SCHEMA_VERSION: u32 = 5;
 
 #[derive(Debug)]
 pub enum IfcppError {
@@ -22,6 +26,7 @@ pub enum IfcppError {
     InvalidPileCosts(InvalidPileCostSettings),
     DuplicateLoadPointPositions(DuplicateLoadPointPositions),
     InvalidPileTipLevels(InvalidProjectPileTipLevels),
+    InvalidLoadPointGroupOverrides(InvalidLoadPointGroupOverrides),
 }
 
 impl fmt::Display for IfcppError {
@@ -39,6 +44,11 @@ impl fmt::Display for IfcppError {
             }
             Self::DuplicateLoadPointPositions(error) => error.fmt(formatter),
             Self::InvalidPileTipLevels(error) => error.fmt(formatter),
+            Self::InvalidLoadPointGroupOverrides(error) => write!(
+                formatter,
+                "{} invalid load-point group override(s)",
+                error.errors.len()
+            ),
         }
     }
 }
@@ -76,6 +86,9 @@ pub enum ProjectDocumentError {
     InvalidPileTipLevels {
         errors: Vec<crate::InvalidProjectPileTipLevel>,
     },
+    InvalidLoadPointGroupOverrides {
+        errors: Vec<crate::InvalidLoadPointGroupOverride>,
+    },
 }
 
 impl fmt::Display for ProjectDocumentError {
@@ -105,6 +118,11 @@ impl fmt::Display for ProjectDocumentError {
             Self::InvalidPileTipLevels { errors } => {
                 write!(formatter, "{} invalid pile tip level(s)", errors.len())
             }
+            Self::InvalidLoadPointGroupOverrides { errors } => write!(
+                formatter,
+                "{} invalid load-point group override(s)",
+                errors.len()
+            ),
         }
     }
 }
@@ -134,6 +152,11 @@ impl From<IfcppError> for ProjectDocumentError {
             IfcppError::InvalidPileTipLevels(error) => Self::InvalidPileTipLevels {
                 errors: error.values,
             },
+            IfcppError::InvalidLoadPointGroupOverrides(error) => {
+                Self::InvalidLoadPointGroupOverrides {
+                    errors: error.errors,
+                }
+            }
         }
     }
 }
@@ -150,7 +173,7 @@ pub fn write_project_document(
     normalize_draft_user_state(&mut draft);
     let mut project = PilePlanProject {
         schema: "IFCPP".to_string(),
-        schema_version: 4,
+        schema_version: CURRENT_SCHEMA_VERSION,
         application: ProjectApplication {
             name: APPLICATION_NAME.to_string(),
             version: env!("CARGO_PKG_VERSION").to_string(),
@@ -171,7 +194,8 @@ fn migrate_optimizer_settings(project: &mut PilePlanProject) {
     project.settings.legacy_optimization.max_utilization =
         normalize_unit_interval(project.settings.legacy_optimization.max_utilization, 1.0);
     if project.settings.ilp_optimization.is_none() {
-        project.settings.ilp_optimization = Some(project.settings.legacy_optimization.to_ilp_settings());
+        project.settings.ilp_optimization =
+            Some(project.settings.legacy_optimization.to_ilp_settings());
     }
     if let Some(settings) = &mut project.settings.ilp_optimization {
         settings.transition_weights.legacy_both_milli = None;
@@ -291,6 +315,12 @@ pub fn read_validated_ifcpp_str(input: &str) -> Result<ValidatedPilePlanProject,
     migrate_legacy_project_value(&mut value);
     validate_project_value_pile_plan_ids(&value)?;
     let mut project: PilePlanProject = serde_json::from_value(value)?;
+    validate_load_point_group_overrides(
+        &project.inputs.load_points,
+        &project.settings.load_point_grouping,
+    )
+    .map_err(IfcppError::InvalidLoadPointGroupOverrides)?;
+    canonicalize_load_point_grouping_settings(&mut project.settings.load_point_grouping);
     normalize_project(&mut project);
     let tip_level_keys = validate_ifcpp_project_with_keys(&project)?;
 
@@ -322,10 +352,11 @@ fn validate_project_value_pile_plan_ids(value: &Value) -> Result<(), IfcppError>
 pub fn write_ifcpp_string(project: &PilePlanProject) -> Result<String, IfcppError> {
     let mut canonical = project.clone();
     migrate_optimizer_settings(&mut canonical);
-    if canonical.schema_version < 4 {
-        canonical.schema_version = 4;
+    if canonical.schema_version < CURRENT_SCHEMA_VERSION {
+        canonical.schema_version = CURRENT_SCHEMA_VERSION;
     }
     validate_ifcpp_project(&canonical)?;
+    canonicalize_load_point_grouping_settings(&mut canonical.settings.load_point_grouping);
 
     Ok(serde_json::to_string_pretty(&sort_json_value(
         serde_json::to_value(canonical)?,
@@ -368,7 +399,7 @@ fn validate_ifcpp_project_with_keys(
         return Err(IfcppError::InvalidSchema(project.schema.clone()));
     }
 
-    if !matches!(project.schema_version, 1 | 2 | 3 | 4) {
+    if !matches!(project.schema_version, 1 | 2 | 3 | 4 | 5) {
         return Err(IfcppError::UnsupportedSchemaVersion(project.schema_version));
     }
 
@@ -385,6 +416,11 @@ fn validate_ifcpp_project_with_keys(
 
     validate_unique_load_point_positions(&project.inputs.load_points)
         .map_err(IfcppError::DuplicateLoadPointPositions)?;
+    validate_load_point_group_overrides(
+        &project.inputs.load_points,
+        &project.settings.load_point_grouping,
+    )
+    .map_err(IfcppError::InvalidLoadPointGroupOverrides)?;
     validate_pile_cost_settings(&project.settings.pile_costs)
         .map_err(IfcppError::InvalidPileCosts)?;
     validate_project_tip_levels(project).map_err(IfcppError::InvalidPileTipLevels)
@@ -395,7 +431,7 @@ fn migrate_legacy_project_value(value: &mut Value) {
         .get("schema_version")
         .and_then(Value::as_u64)
         .unwrap_or(0);
-    if !matches!(original_schema_version, 1 | 2 | 3) {
+    if !matches!(original_schema_version, 1 | 2 | 3 | 4) {
         return;
     }
 
@@ -438,7 +474,41 @@ fn migrate_legacy_project_value(value: &mut Value) {
         });
     }
 
-    migrate_legend_activation_to_schema_four(value);
+    if matches!(original_schema_version, 1 | 2 | 3) {
+        migrate_legend_activation_to_schema_four(value);
+    }
+    migrate_grouping_to_schema_five(value);
+}
+
+fn migrate_grouping_to_schema_five(value: &mut Value) {
+    let Some(settings) = value.get_mut("settings").and_then(Value::as_object_mut) else {
+        return;
+    };
+    let grouping = settings
+        .entry("load_point_grouping")
+        .or_insert_with(|| {
+            serde_json::to_value(crate::LoadPointGroupingSettings::default())
+                .expect("default grouping settings serialize")
+        })
+        .as_object_mut();
+    if let Some(grouping) = grouping {
+        grouping
+            .entry("manual_groups")
+            .or_insert_with(|| Value::Array(Vec::new()));
+        grouping
+            .entry("ungrouped_groups")
+            .or_insert_with(|| Value::Array(Vec::new()));
+    }
+    let viewer = settings
+        .entry("viewer")
+        .or_insert_with(|| serde_json::json!({}))
+        .as_object_mut();
+    if let Some(viewer) = viewer {
+        viewer
+            .entry("show_load_point_groups")
+            .or_insert(Value::Bool(false));
+    }
+    value["schema_version"] = Value::from(CURRENT_SCHEMA_VERSION);
 }
 
 fn migrate_legend_activation_to_schema_four(value: &mut Value) {
@@ -534,8 +604,39 @@ mod tests {
     #[test]
     fn round_trips_load_point_grouping_settings() {
         let mut project = project_fixture();
+        project.inputs.load_points = vec![
+            crate::ProjectLoadPoint {
+                id: 1,
+                name: "A".to_string(),
+                x_mm: 0.0,
+                y_mm: 0.0,
+                design_load_kn: 100.0,
+            },
+            crate::ProjectLoadPoint {
+                id: 2,
+                name: "B".to_string(),
+                x_mm: 500.0,
+                y_mm: 0.0,
+                design_load_kn: 100.0,
+            },
+            crate::ProjectLoadPoint {
+                id: 3,
+                name: "C".to_string(),
+                x_mm: 1_000.0,
+                y_mm: 0.0,
+                design_load_kn: 100.0,
+            },
+        ];
         project.settings.load_point_grouping.automatic = false;
         project.settings.load_point_grouping.max_edge_distance_mm = 2_500.0;
+        project.settings.load_point_grouping.manual_groups = vec![crate::LoadPointGroupOverride {
+            load_point_ids: vec![1, 2],
+        }];
+        project.settings.load_point_grouping.ungrouped_groups =
+            vec![crate::LoadPointGroupOverride {
+                load_point_ids: vec![3],
+            }];
+        project.settings.viewer.show_load_point_groups = true;
 
         let json = write_ifcpp_string(&project).expect("project writes");
         let parsed = read_ifcpp_str(&json).expect("project reads");
@@ -544,6 +645,139 @@ mod tests {
             parsed.settings.load_point_grouping,
             project.settings.load_point_grouping
         );
+        assert!(parsed.settings.viewer.show_load_point_groups);
+    }
+
+    #[test]
+    fn schema_four_migrates_with_empty_group_overrides_and_hidden_contours() {
+        let project = project_fixture();
+        let mut value = serde_json::to_value(project).expect("fixture serializes");
+        value["schema_version"] = serde_json::json!(4);
+        value["settings"]["load_point_grouping"]
+            .as_object_mut()
+            .expect("group settings object")
+            .remove("manual_groups");
+        value["settings"]["load_point_grouping"]
+            .as_object_mut()
+            .expect("group settings object")
+            .remove("ungrouped_groups");
+        value["settings"]["viewer"]
+            .as_object_mut()
+            .expect("viewer settings object")
+            .remove("show_load_point_groups");
+
+        let restored = read_ifcpp_str(&value.to_string()).expect("schema four migrates");
+
+        assert_eq!(restored.schema_version, 5);
+        assert!(restored
+            .settings
+            .load_point_grouping
+            .manual_groups
+            .is_empty());
+        assert!(restored
+            .settings
+            .load_point_grouping
+            .ungrouped_groups
+            .is_empty());
+        assert!(!restored.settings.viewer.show_load_point_groups);
+    }
+
+    #[test]
+    fn schema_five_rejects_malformed_group_overrides() {
+        use crate::InvalidLoadPointGroupOverrideReason;
+
+        let cases = [
+            (
+                vec![crate::LoadPointGroupOverride {
+                    load_point_ids: vec![1, 1],
+                }],
+                vec![],
+                InvalidLoadPointGroupOverrideReason::DuplicateMember,
+            ),
+            (
+                vec![crate::LoadPointGroupOverride {
+                    load_point_ids: vec![1, 99],
+                }],
+                vec![],
+                InvalidLoadPointGroupOverrideReason::UnknownLoadPoint,
+            ),
+            (
+                vec![crate::LoadPointGroupOverride {
+                    load_point_ids: vec![1],
+                }],
+                vec![],
+                InvalidLoadPointGroupOverrideReason::ManualGroupTooSmall,
+            ),
+            (
+                vec![
+                    crate::LoadPointGroupOverride {
+                        load_point_ids: vec![1, 2],
+                    },
+                    crate::LoadPointGroupOverride {
+                        load_point_ids: vec![2, 3],
+                    },
+                ],
+                vec![],
+                InvalidLoadPointGroupOverrideReason::OverlappingManualGroups,
+            ),
+            (
+                vec![crate::LoadPointGroupOverride {
+                    load_point_ids: vec![1, 3],
+                }],
+                vec![],
+                InvalidLoadPointGroupOverrideReason::DisconnectedManualGroup,
+            ),
+            (
+                vec![],
+                vec![
+                    crate::LoadPointGroupOverride {
+                        load_point_ids: vec![1, 2],
+                    },
+                    crate::LoadPointGroupOverride {
+                        load_point_ids: vec![2, 1],
+                    },
+                ],
+                InvalidLoadPointGroupOverrideReason::DuplicateRecord,
+            ),
+        ];
+
+        for (manual_groups, ungrouped_groups, expected_reason) in cases {
+            let mut project = project_fixture();
+            project.inputs.load_points = vec![
+                crate::ProjectLoadPoint {
+                    id: 1,
+                    name: "A".to_string(),
+                    x_mm: 0.0,
+                    y_mm: 0.0,
+                    design_load_kn: 100.0,
+                },
+                crate::ProjectLoadPoint {
+                    id: 2,
+                    name: "B".to_string(),
+                    x_mm: 500.0,
+                    y_mm: 0.0,
+                    design_load_kn: 100.0,
+                },
+                crate::ProjectLoadPoint {
+                    id: 3,
+                    name: "C".to_string(),
+                    x_mm: 1_000.0,
+                    y_mm: 0.0,
+                    design_load_kn: 100.0,
+                },
+            ];
+            project.settings.load_point_grouping.manual_groups = manual_groups;
+            project.settings.load_point_grouping.ungrouped_groups = ungrouped_groups;
+
+            let error = read_ifcpp_str(
+                &serde_json::to_string(&project).expect("invalid fixture serializes"),
+            )
+            .expect_err("malformed overrides are rejected");
+            let IfcppError::InvalidLoadPointGroupOverrides(error) = error else {
+                panic!("expected group override validation error");
+            };
+            assert_eq!(error.errors[0].reason, expected_reason);
+        }
     }
 
     #[test]
@@ -731,7 +965,7 @@ mod tests {
 
     #[test]
     fn supported_schema_versions_keep_quarter_metre_tip_levels() {
-        for schema_version in 1..=4 {
+        for schema_version in 1..=5 {
             let mut project = project_fixture();
             project.schema_version = schema_version;
             project.user_state.pile_plans[0].active_pile_tip_levels = vec![-18.25];
@@ -743,7 +977,7 @@ mod tests {
             let json = serde_json::to_string(&value).unwrap();
             let restored = read_ifcpp_str(&json).unwrap();
 
-            assert_eq!(restored.schema_version, 4);
+            assert_eq!(restored.schema_version, 5);
             assert_eq!(
                 restored.user_state.pile_plans[0].active_pile_tip_levels,
                 vec![-18.25]
@@ -752,8 +986,8 @@ mod tests {
     }
 
     #[test]
-    fn supported_versions_produce_canonical_schema_four_semantics() {
-        for schema_version in 1..=4 {
+    fn supported_versions_produce_canonical_schema_five_semantics() {
+        for schema_version in 1..=5 {
             let mut value = serde_json::to_value(project_fixture()).expect("fixture serializes");
             value["schema_version"] = serde_json::json!(schema_version);
             value["settings"]
@@ -816,7 +1050,7 @@ mod tests {
             .expect("supported project reads")
             .project;
 
-            assert_eq!(restored.schema_version, 4, "schema {schema_version}");
+            assert_eq!(restored.schema_version, 5, "schema {schema_version}");
             assert_eq!(
                 restored.settings.load_point_grouping,
                 crate::LoadPointGroupingSettings::default(),
@@ -1004,7 +1238,7 @@ mod tests {
         let value: Value = serde_json::from_str(&text).expect("written document parses");
 
         assert_eq!(value["schema"], "IFCPP");
-        assert_eq!(value["schema_version"], 4);
+        assert_eq!(value["schema_version"], 5);
         assert_eq!(value["application"]["name"], "Open Pile Plan Studio");
         assert_eq!(value["application"]["version"], env!("CARGO_PKG_VERSION"));
         assert_eq!(value["user_state"]["active_pile_plan_id"], "pile-plan-1");
@@ -1051,7 +1285,7 @@ mod tests {
         let text = serde_json::to_string(&project).expect("legacy project fixture writes");
         let restored = read_project_document(&text).expect("legacy application name is supported");
 
-        assert_eq!(restored.application.name, "Pile Plan Studio");
+        assert_eq!(restored.project.application.name, "Pile Plan Studio");
     }
 
     #[test]
@@ -1231,14 +1465,14 @@ mod tests {
     }
 
     #[test]
-    fn writing_a_legacy_project_emits_schema_version_four() {
+    fn writing_a_legacy_project_emits_schema_version_five() {
         let mut project = project_fixture();
         project.schema_version = 1;
 
         let json = write_ifcpp_string(&project).expect("legacy project writes canonically");
         let value: serde_json::Value = serde_json::from_str(&json).expect("written JSON parses");
 
-        assert_eq!(value["schema_version"], 4);
+        assert_eq!(value["schema_version"], 5);
         assert!(value["user_state"].get("selected_piles").is_none());
     }
 
@@ -1255,7 +1489,7 @@ mod tests {
     }
 
     #[test]
-    fn schema_two_costs_migrate_to_schema_four() {
+    fn schema_two_costs_migrate_to_schema_five() {
         let mut value = serde_json::to_value(project_fixture()).expect("fixture serializes");
         value["schema_version"] = serde_json::json!(2);
         value["units"]["costs"] = serde_json::json!("GBP");
@@ -1277,7 +1511,7 @@ mod tests {
         let json = serde_json::to_string(&value).expect("legacy JSON writes");
         let project = read_ifcpp_str(&json).expect("schema two migrates");
 
-        assert_eq!(project.schema_version, 4);
+        assert_eq!(project.schema_version, 5);
         assert_eq!(project.settings.pile_head_level_m, Some(-1.25));
         assert_eq!(project.settings.pile_costs.items[0].cost_per_m3, 190.0);
         assert_eq!(project.units.costs, "GBP");
@@ -1304,7 +1538,7 @@ mod tests {
             .expect("schema three migrates");
         let migrated = serde_json::to_value(project).expect("migrated project serializes");
 
-        assert_eq!(migrated["schema_version"], 4);
+        assert_eq!(migrated["schema_version"], 5);
         for plan in migrated["user_state"]["pile_plans"]
             .as_array()
             .expect("pile plans remain an array")
@@ -1330,9 +1564,9 @@ mod tests {
     }
 
     #[test]
-    fn schema_four_round_trips_distinct_pile_plan_activation() {
+    fn schema_five_round_trips_distinct_pile_plan_activation() {
         let mut project = project_fixture();
-        project.schema_version = 4;
+        project.schema_version = 5;
         project.user_state.pile_plans[0].active_pile_sizes = vec![290];
         project.user_state.pile_plans[0].active_pile_tip_levels = vec![-18.0];
         let mut second_plan = project.user_state.pile_plans[0].clone();
@@ -1342,12 +1576,12 @@ mod tests {
         second_plan.active_pile_tip_levels = vec![-19.0];
         project.user_state.pile_plans.push(second_plan);
 
-        let json = write_ifcpp_string(&project).expect("schema four writes");
-        let restored = read_ifcpp_str(&json).expect("schema four reads");
+        let json = write_ifcpp_string(&project).expect("schema five writes");
+        let restored = read_ifcpp_str(&json).expect("schema five reads");
 
         assert_eq!(restored, project);
         let written: serde_json::Value = serde_json::from_str(&json).expect("JSON parses");
-        assert_eq!(written["schema_version"], 4);
+        assert_eq!(written["schema_version"], 5);
         assert!(written["settings"].get("active_pile_sizes").is_none());
         assert_eq!(
             written["user_state"]["pile_plans"][1]["active_pile_sizes"],
@@ -1369,7 +1603,7 @@ mod tests {
     fn project_fixture() -> PilePlanProject {
         PilePlanProject {
             schema: "IFCPP".to_string(),
-            schema_version: 4,
+            schema_version: 5,
             application: ProjectApplication {
                 name: APPLICATION_NAME.to_string(),
                 version: "0.1.0-alpha".to_string(),

@@ -51,9 +51,11 @@ fn skipping_excludes_whole_groups_and_respects_the_requested_target() {
     i.groups = vec![
         LoadPointGroup {
             load_point_ids: vec![1, 2],
+            origin: pile_plan_core::LoadPointGroupOrigin::Automatic,
         },
         LoadPointGroup {
             load_point_ids: vec![3],
+            origin: pile_plan_core::LoadPointGroupOrigin::Automatic,
         },
     ];
     i.options_by_load_point.remove(&2);
@@ -337,6 +339,7 @@ fn input() -> IlpOptimizationInput {
         groups: (1..=3)
             .map(|id| LoadPointGroup {
                 load_point_ids: vec![id],
+                origin: pile_plan_core::LoadPointGroupOrigin::Automatic,
             })
             .collect(),
         options_by_load_point: HashMap::from([
@@ -467,9 +470,11 @@ fn ilp_contracts_multiple_location_edges_between_groups_once() {
     i.groups = vec![
         LoadPointGroup {
             load_point_ids: vec![1, 3],
+            origin: pile_plan_core::LoadPointGroupOrigin::Automatic,
         },
         LoadPointGroup {
             load_point_ids: vec![2],
+            origin: pile_plan_core::LoadPointGroupOrigin::Automatic,
         },
     ];
     i.settings.budget_basis_points = 0;
@@ -592,9 +597,11 @@ fn ilp_preserves_lock_filter_and_utilization_exceptions() {
     i.groups = vec![
         LoadPointGroup {
             load_point_ids: vec![1, 2],
+            origin: pile_plan_core::LoadPointGroupOrigin::Automatic,
         },
         LoadPointGroup {
             load_point_ids: vec![3],
+            origin: pile_plan_core::LoadPointGroupOrigin::Automatic,
         },
     ];
     assert!(matches!(run(i), IlpOptimizationOutcome::Blocked { .. }));
@@ -726,7 +733,9 @@ fn ilp_matches_exhaustive_oracle_for_caps_budgets_and_weights() {
                                 p[0].pile_tip_level_mm != p[1].pile_tip_level_mm,
                                 p[0].pile_size_mm != p[1].pile_size_mm,
                             ) {
-                                (true, true) => u64::from(w.tip_only_milli) + u64::from(w.size_only_milli),
+                                (true, true) => {
+                                    u64::from(w.tip_only_milli) + u64::from(w.size_only_milli)
+                                }
                                 (true, false) => w.tip_only_milli as u64,
                                 (false, true) => w.size_only_milli as u64,
                                 _ => 0,
@@ -789,9 +798,11 @@ fn ilp_invalid_fixed_group_is_omitted_from_score_but_labels_still_count() {
     i.groups = vec![
         LoadPointGroup {
             load_point_ids: vec![1],
+            origin: pile_plan_core::LoadPointGroupOrigin::Automatic,
         },
         LoadPointGroup {
             load_point_ids: vec![2, 3],
+            origin: pile_plan_core::LoadPointGroupOrigin::Automatic,
         },
     ];
     i.current_assignments = HashMap::from([(2, config(1000, -11_000)), (3, config(1000, -10_000))]);
@@ -860,7 +871,10 @@ fn custom_candidates_use_only_selected_pairs_and_never_fall_back_to_all() {
     i.settings = serde_json::from_value(settings).unwrap();
     i.candidate_configurations = vec![config(1000, -10_000)];
     let solution = solved(run(i.clone()));
-    assert!(solution.assignments.iter().all(|a| a.configuration == config(1000, -11_000)));
+    assert!(solution
+        .assignments
+        .iter()
+        .all(|a| a.configuration == config(1000, -11_000)));
     let mut settings = serde_json::to_value(&i.settings).unwrap();
     settings["custom_configurations"] = serde_json::json!([]);
     i.settings = serde_json::from_value(settings).unwrap();

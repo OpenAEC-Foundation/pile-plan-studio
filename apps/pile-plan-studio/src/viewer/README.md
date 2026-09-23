@@ -24,15 +24,37 @@ change the Tauri factor. Neither operation changes the stored plan viewport.
 
 Project bounds include load points and CPTs. `viewerGeometry.ts` maps them to a
 fixed initial canvas using one uniform scale, so geometry is never stretched.
-Load points, CPTs, selection rings, CPT labels, connection lines, and the grid
-all use that transform and exact pixel positions. Do not round marker positions
-or convert them to integer CSS percentages.
+Load points, CPTs, selection rings, group contours, CPT labels, connection lines,
+and the grid all use that transform and exact pixel positions. Do not round
+marker positions or convert them to integer CSS percentages.
+
+## Shared SVG drawing surface
+
+`ViewerDrawingSvg` owns one SVG with a viewBox equal to the fixed project canvas
+size. Tip-level regions, load-point group contours, CPT connections, status
+halos, pile/CPT symbols, labels, and selection/hover rings are children of this
+root. Each point-anchored graphic starts with the same unrounded `translate(x y)`;
+its local shapes and rings are centred on `(0, 0)`. This avoids independent
+CSS-border and nested-SVG rasterization centres. The drawing SVG is pointer-
+inert. Transparent HTML buttons at the same projected points keep click,
+hover, lasso, keyboard, and accessibility behavior without drawing duplicate
+markers. Their centred hit areas may be larger than the graphic but must not
+move its visible position.
+
+Marker graphics are sorted by the existing foreground/selected/hover priority;
+the HTML hit targets retain CPT-first then load-point tab order. The pile symbol
+child markup is shared with legend and table symbols, but clip-path IDs are
+unique per map load point because all map symbols now inhabit one SVG. Group
+topology and morphological outside-edge extraction are unchanged. Keep static
+region/group geometry stable across hover and pan updates; do not add a second
+stage transform or device-pixel-specific offsets.
 
 Pan and zoom are applied by the single transform on `.viewer-content`. Marker
-positions must not be recalculated during each pan or zoom frame. A resize
-changes the visible canvas, not the project transform; layout compensation
-keeps the same project coordinate at the same screen position while newly
-available space appears around it.
+positions must not be recalculated during each pan or zoom frame. A whole-window
+resize or display-scale change preserves the project coordinate at the viewer
+centre. Panel and legend changes instead keep the old screen-position anchor.
+Both use transient layout compensation; neither changes the fixed project
+transform, stored plan zoom, project history, or dirty state.
 
 Pointer interactions such as clicking, lasso selection, hover candidates, and
 cursor-centred zoom use the matching screen-to-local conversion. This includes
@@ -43,7 +65,10 @@ the current layout compensation and the root element's CSS zoom.
 Panel dragging dispatches `VIEWER_LAYOUT_CHANGE_EVENT` synchronously so the
 viewer can compensate in the same frame. `ResizeObserver` remains the fallback
 for other layout changes, while `useLayoutEffect` handles React-driven panel
-visibility changes before paint.
+visibility changes before paint. Whole-window changes are identified by the
+window dimensions or device-pixel ratio and coalesced into a single frame so
+that event ordering cannot misclassify them as panel changes. A resolution
+media query also catches DPR-only display moves.
 
 The compensation element `.viewer-layout-anchor` uses absolute `left` and `top`
 positions. It must not add another CSS transform. A nested transform below
@@ -53,17 +78,18 @@ geometry is unchanged.
 
 ## Coordinate-grid rasterization
 
-The grid is a repeating CSS background rather than an SVG path. Its world
-spacing and origin are calculated independently of the visible canvas size, so
-panel resizing cannot select another grid interval. The final background origin
-is aligned once to the global device-pixel lattice using the canvas screen
-position, root CSS zoom, and `devicePixelRatio`.
+The grid is a pointer-inert canvas outside the transformed marker stage. Its
+world spacing and origin are calculated independently of the visible canvas
+size, so panel resizing cannot select another grid interval. Each visible line
+is projected separately and snapped to the global physical-pixel lattice using
+the canvas screen position, root CSS zoom, and `devicePixelRatio`. The backing
+bitmap also starts on that lattice. Fractional viewer borders and dimensions
+must be preserved; integer `clientWidth` and `clientLeft` are not precise enough.
+Pan, zoom, layout, and DPR changes schedule at most one grid draw per frame.
 
-Do not round the local background position or derive it from percentages. Do
-not use SVG `shape-rendering: crispEdges` for this grid: browsers may adjust both
-the path position and stroke width during rasterization, which caused line
-thickness to alternate between physical pixels after layout changes. Preserve
-subpixel world geometry until the final global device-pixel alignment step.
+Do not round world coordinates, use repeated CSS-gradient tiles, or use SVG
+`shape-rendering: crispEdges` for this grid. Those approaches can make line
+positions or thickness alternate between physical pixels after layout changes.
 
 ## Theme boundary
 
@@ -73,40 +99,25 @@ theme. The drawing canvas remains white in every theme.
 
 Use theme variables for viewer controls and surfaces that belong to the
 application chrome. Use explicit viewer-owned colors for project annotations
-that must retain the same meaning and appearance on the drawing canvas. The
-ring around related members of a selected load-point group is one such
-annotation: its stroke must remain the same neutral dark color in light and
-dark themes and must not use a themed text-color variable.
+that must retain the same meaning and appearance on the drawing canvas.
+Load-point group contours are such annotations: their gray, orange-selection,
+and red-conflict strokes must remain fixed across light and dark themes and must
+not use themed text-color variables. The overlay unions marker-radius circles,
+internal Gabriel edges, and faces whose complete boundary belongs to the group.
+Its SVG mask/filter extracts only the outside edge, preserving concave and
+L-shaped groups instead of replacing them with a convex hull. Keep this layer
+below load-point markers and above tip-level-region fills.
 
-### Known residual rasterization issue
+### Physical-pixel verification boundary
 
-Stable computed CSS positions do not guarantee identical painted pixels. With
-the compact `0.8` application zoom and a non-integer device-pixel ratio, the
-gradient line width and repeated spacing can occupy fractional physical pixels.
-Chromium may rasterize that repeating background slightly differently when its
-element changes size. This can cause a small visible grid shift or thickness
-change even though the measured world projection, background position, and
-marker positions are unchanged.
-
-DOM geometry tests cannot prove this visual issue fixed. A future robust fix
-should use a device-pixel-aware canvas and snap every projected grid line
-independently in global screen space. Verification must compare physical-pixel
-screenshots before and after splitter movement, not only computed DOM styles.
-
-### Known initial marker rasterization issue
-
-Directly after a reload, a small subset of markers can shift by a few painted
-pixels while a side-panel splitter moves, even though their measured DOM centres
-remain unchanged. Which markers exhibit it may vary per reload. After the first
-viewer zoom, Chromium keeps the non-identity transformed marker stage in a
-different compositing mode and the movement stops.
-
-Forcing `.viewer-content` into a permanent compositing layer with
-`will-change: transform` removes the initial movement, but makes vector markers
-blurry when zoomed because Chromium enlarges the cached layer bitmap. That
-workaround is deliberately not used. Keep vector sharpness and treat the small
-pre-zoom movement as a known rendering limitation until it can be verified with
-physical-pixel screenshot tests.
+The shared SVG makes the symbol, ring, halo, and region node use one coordinate
+system. A DPR 1 browser check found equal X/Y SVG screen scales and less than
+0.1 CSS pixel between a CPT ring's DOM centre and its transparent hit target.
+This does not prove identical painted centroids on every display. Repeat the
+physical-pixel screenshot check at DPR 1.25, 1.5, and 2 on actual displays
+before removing display-specific rasterization from the regression checklist.
+Do not use permanent `will-change: transform`: it can cache the vector layer as
+a blurry bitmap at high plan zoom.
 
 ## Invariants
 
@@ -120,6 +131,8 @@ physical-pixel screenshot tests.
 - Let the coordinate grid fill the viewer using real project coordinates.
 - Keep theme-independent project annotations visually identical across light
   and dark application themes.
+- Reuse the core-produced Gabriel topology for group contours; do not calculate
+  a second topology in the viewer.
 - Apply stored desktop application scale before mounting the workspace.
 - Never multiply Tauri WebView scale by the compact CSS baseline.
 
@@ -136,11 +149,15 @@ physical-pixel screenshot tests.
 | Desktop symbols are larger at the same logical scale | The compact baseline is being applied twice or included in Tauri zoom |
 | Status bar percentages differ while the same plan extent is visible | Plan viewport initialization differs; do not substitute application scale |
 | Grid and markers drift apart | They use different transforms, bounds, or compensation |
-| Grid lines change thickness after panel resize | Known CSS-gradient rasterization limitation under fractional application zoom and device-pixel ratio |
-| A few markers shift during panel drag only before the first zoom | Known Chromium compositing change at the initial identity transform; do not force permanent `will-change` because it blurs zoomed vectors |
+| Grid lines change thickness after panel resize | A line was not snapped independently to the global device-pixel lattice, or the canvas bitmap origin is not aligned |
+| A symbol and its ring paint apart while their DOM centres agree | Compare physical-pixel screenshots and check for a graphic rendered outside the shared SVG; do not compensate with a DPR-specific nudge |
 
 For a regression check, zoom into a recognizable load point and CPT, drag both
 splitters slowly across a legend wrap, and hide/show both side panels. The same
 project coordinate must remain fixed on screen. CPT numbers, selection rings,
 and connection lines must remain aligned. Repeat in browser and Tauri at the
-same nominal application scale.
+same nominal application scale. Then resize the whole window and move it between
+displays with different scale: the centre project point and plan zoom should
+remain unchanged. Compare physical-pixel screenshots of grid lines at DPR 1,
+1.25, 1.5, and 2 where available; also check pan, zoom, grid toggling, and
+fractional canvas edges for blank strips.

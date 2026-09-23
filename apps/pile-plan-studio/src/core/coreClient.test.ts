@@ -6,6 +6,8 @@ import { binaryResultToUint8Array } from "./binaryCoreResult.ts";
 import {
   aggregatePileOptionsCore,
   applyLoadPointGroupAssignmentCore,
+  applyLoadPointGroupEditCore,
+  assessLoadPointGroupAssignmentsCore,
   assessTechnicalAssignmentCore,
   buildLoadPointTopologyCore,
   buildTipLevelRegionTopologyCore,
@@ -18,6 +20,7 @@ import {
   importProjectFromFilesCore,
   isTauriRuntime,
   previewImportSourceCore,
+  previewLoadPointGroupEditCore,
   previewPilePlanImportCore,
   readProjectDocumentCore,
   refreshProjectFromFilesCore,
@@ -50,6 +53,8 @@ describe("core client public surface", () => {
     const commands = [
       aggregatePileOptionsCore,
       applyLoadPointGroupAssignmentCore,
+      applyLoadPointGroupEditCore,
+      assessLoadPointGroupAssignmentsCore,
       assessTechnicalAssignmentCore,
       buildLoadPointTopologyCore,
       buildTipLevelRegionTopologyCore,
@@ -62,6 +67,7 @@ describe("core client public surface", () => {
       importProjectFromFilesCore,
       isTauriRuntime,
       previewImportSourceCore,
+      previewLoadPointGroupEditCore,
       previewPilePlanImportCore,
       readProjectDocumentCore,
       refreshProjectFromFilesCore,

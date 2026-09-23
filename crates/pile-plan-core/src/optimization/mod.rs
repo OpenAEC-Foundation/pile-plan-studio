@@ -1,5 +1,5 @@
-mod types;
 mod ilp;
+mod types;
 mod units;
 pub use ilp::*;
 pub use types::{OptimizationLimitScope, OptimizationUnassignedReason};

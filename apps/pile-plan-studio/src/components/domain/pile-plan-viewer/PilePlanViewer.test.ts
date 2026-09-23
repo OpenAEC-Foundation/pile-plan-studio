@@ -11,6 +11,9 @@ import {
 const viewerModuleFiles = [
   "PilePlanViewer.tsx",
   "ViewerStage.tsx",
+  "ViewerDrawingSvg.tsx",
+  "ViewerMarkerGraphics.tsx",
+  "viewerMarkerPresentation.ts",
   "useViewerPointerInteractions.ts",
   "useViewerViewport.ts",
   "viewerDomCoordinates.ts",
@@ -32,12 +35,20 @@ function createTestProjectState(
 }
 
 describe("PilePlanViewer inputs", () => {
+  it("draws markers in the shared SVG while keeping labelled HTML hit targets", () => {
+    const stage = readFileSync(resolve(import.meta.dirname, "ViewerStage.tsx"), "utf8");
+    const css = readFileSync(resolve(import.meta.dirname, "viewer.css"), "utf8");
+    assert.match(stage, /<ViewerDrawingSvg[\s\S]*?<ViewerMarkerGraphics graphics=\{markerPresentation\.graphics\}/);
+    assert.match(stage, /data-map-marker-key=\{target\.key\}/);
+    assert.match(stage, /aria-label=\{target\.ariaLabel\}/);
+    assert.match(css, /\.viewer-marker-hit-target\s*\{[\s\S]*?transform:\s*translate\(-50%,\s*-50%\)/);
+  });
   it("renders viewer, hover, and normal legend styles from the project legend", () => {
     const viewer = readViewerSource();
     const legend = readFileSync(resolve(import.meta.dirname, "../pile-plans/Legend.tsx"), "utf8");
 
-    assert.match(viewer, /const legend = state\.pileLegend/);
-    assert.match(viewer, /renderPileSymbol\(style\.symbol, style\.color\)/);
+    assert.match(viewer, /getConfigurationActivationPresentation\(/);
+    assert.match(viewer, /renderPileSymbolSvgChildren\(/);
     assert.match(viewer, /renderPileSymbol\(symbolStyle\.symbol, symbolStyle\.color\)/);
     assert.doesNotMatch(viewer, /getLegendItems/);
     assert.match(legend, /const legend = state\.pileLegend/);
@@ -51,7 +62,8 @@ describe("PilePlanViewer inputs", () => {
     const css = readFileSync(resolve(import.meta.dirname, "viewer.css"), "utf8");
 
     assert.match(viewer, /getConfigurationActivationPresentation/);
-    assert.match(viewer, /style\.smallDot \? " is-small-dot"/);
+    assert.match(viewer, /smallDot: style\.smallDot/);
+    assert.match(viewer, /appearance\.smallDot \? 6 : 12/);
     assert.match(viewer, /symbolStyle\.smallDot \? " is-small-dot"/);
     assert.match(css, /\.load-point-symbol\.is-small-dot \.pile-symbol-svg/);
     assert.match(legend, /INACTIVE_LEGEND_COLOR/);
@@ -150,17 +162,15 @@ describe("PilePlanViewer inputs", () => {
     const source = readViewerSource();
     const css = readFileSync(resolve(import.meta.dirname, "viewer.css"), "utf8");
 
-    assert.match(source, /className=\{`load-point-status-halo/);
-    assert.match(source, /style=\{getProjectMarkerStyle\(point, invalidVisual\.style\)\}/);
-    assert.match(css, /\.load-point-status-halo\s*\{[\s\S]*?pointer-events:\s*none;[\s\S]*?z-index:\s*5;/);
-    assert.match(css, /\.load-point-status-halo,\s*\.load-point-symbol,[\s\S]*?transform:\s*translate\(-50%,\s*-50%\) scale\(var\(--viewer-symbol-scale\)\);/);
-    assert.match(css, /\.load-point-status-halo\.is-above-range,/);
-    assert.match(css, /\.load-point-status-halo\.is-below-range,/);
-    assert.match(css, /\.load-point-status-halo\.is-missing,/);
-    assert.match(source, /load-point-status-halo\$\{invalidVisual\.className\}\$\{isLocked \? " is-locked" : ""\}/);
-    assert.match(css, /\.load-point-status-halo\.is-locked\s*\{[\s\S]*?opacity:\s*0\.28;/);
-    assert.match(css, /\.viewer-content\.is-lock-editing \.load-point-status-halo\.is-locked\s*\{[\s\S]*?opacity:\s*0\.45;/);
-    assert.doesNotMatch(css, /\.load-point-marker\.is-(?:above-range|below-range|missing) \.load-point-symbol/);
+    assert.match(source, /className="viewer-status-halos"/);
+    assert.match(source, /<StatusHalo graphic=\{graphic\}/);
+    assert.ok(source.indexOf('className="viewer-status-halos"') < source.indexOf('className={`viewer-marker-graphic'));
+    assert.match(source, /radialGradient id=\{gradientId\}/);
+    assert.match(source, /kind === "missing"/);
+    assert.match(source, /kind === "above"/);
+    assert.match(source, /className\.includes\("is-below-range"\)/);
+    assert.match(source, /editingLocks \? 0\.45 : 0\.28/);
+    assert.match(css, /\.viewer-drawing-svg\s*\{[\s\S]*?pointer-events:\s*none;/);
   });
 
   it("raises the current hover candidate and selects it on click", () => {
@@ -197,53 +207,52 @@ describe("PilePlanViewer inputs", () => {
     assert.match(source, /function blurActiveNonTextControl\(\)[\s\S]*?activeElement\.blur\(\)/);
   });
 
-  it("shares one orange selection ring style between previews, load points, and inspected CPTs", () => {
+  it("keeps all viewer rings at the group-contour thickness while marker symbols scale", () => {
     const source = readViewerSource();
-    const css = readFileSync(resolve(import.meta.dirname, "viewer.css"), "utf8");
-
     assert.match(source, /state\.selectedCptId === cpt\.id/);
     assert.match(source, /is-inspected-cpt/);
-    assert.match(css, /--selection-ring-width:\s*2px;/);
-    assert.match(css, /\.load-point-marker\.is-selected::before,[\s\S]*?\.cpt-marker\.is-inspected-cpt::before/);
-    assert.match(css, /\.load-point-marker\.is-selected::before,[\s\S]*?transform:\s*translate\(-50%,\s*-50%\) scale\(var\(--viewer-symbol-scale\)\);/);
-    assert.match(css, /\.is-hover-candidate::after\s*{[\s\S]*?border:\s*var\(--selection-ring-width\) solid var\(--theme-accent\)/);
-    assert.doesNotMatch(css, /\.is-hover-candidate::after\s*{[\s\S]*?box-shadow:\s*0 0 0 2px #fff/);
+    assert.match(source, /getLoadPointRing\(selected, groupSelected, hovered, state\.symbolScalePercent\)/);
+    assert.match(source, /getCptRingRadius\(state\.symbolScalePercent\)/);
+    assert.match(source, /strokeWidth=\{1\}/);
+    assert.match(source, /cx=\{0\}/);
+    assert.match(source, /cy=\{0\}/);
   });
 
-  it("keeps related group rings dark and independent from the application theme", () => {
-    const css = readFileSync(resolve(import.meta.dirname, "viewer.css"), "utf8");
-    const relatedGroupRule = css.match(
-      /\.load-point-marker\.is-related-group-member::after\s*\{(?<body>[^}]*)\}/s,
-    )?.groups?.body ?? "";
-
-    assert.match(
-      relatedGroupRule,
-      /border:\s*var\(--selection-ring-width\) solid rgba\(54,\s*54,\s*62,\s*0\.5\)/,
+  it("renders non-convex group contours below markers without full-canvas masks", () => {
+    const source = readViewerSource();
+    const stage = readFileSync(resolve(import.meta.dirname, "ViewerStage.tsx"), "utf8");
+    const overlay = readFileSync(
+      resolve(import.meta.dirname, "load-point-groups/LoadPointGroupOverlay.tsx"),
+      "utf8",
     );
-    assert.doesNotMatch(relatedGroupRule, /var\(--theme-/);
+    const drawing = readFileSync(resolve(import.meta.dirname, "ViewerDrawingSvg.tsx"), "utf8");
+
+    assert.ok(stage.indexOf("<ViewerDrawingSvg") < stage.indexOf("<ViewerMarkerGraphics"));
+    assert.match(drawing, /<LoadPointGroupOverlay geometry=\{loadPointGroupGeometry\}/);
+    assert.match(overlay, /feMorphology/);
+    assert.match(overlay, /operator="out"/);
+    assert.match(overlay, /feFlood floodColor=\{filter\.color\}/);
+    assert.doesNotMatch(overlay, /<mask/);
+    assert.doesNotMatch(overlay, /<rect[^>]*mask=/);
+    assert.match(overlay, /load-point-group-warning/);
+    assert.match(drawing, /aria-label=\{visibleConflictLabel\}/);
   });
 
   it("preserves load-point CPT styling during inspection and marks the governing CPT", () => {
     const source = readViewerSource();
     const css = readFileSync(resolve(import.meta.dirname, "viewer.css"), "utf8");
-    const selectedRule = css.match(
-      /\.is-layer-selected-cpt,\s*\.viewer-hover-marker\.is-cpt\.is-selected-cpt,\s*\.cpt-marker\.is-governing-cpt\s*\{(?<body>[^}]*)\}/s,
-    )?.groups?.body ?? "";
+    const selectedRule = css.match(/\.viewer-cpt-triangle\.is-selected polygon\s*\{(?<body>[^}]*)\}/s)?.groups?.body ?? "";
 
     assert.match(source, /getReactViewerContextCptIds/);
-    assert.match(source, /isInspectedOnly/);
+    assert.match(source, /inspected && !contextSelected/);
     assert.match(source, /is-governing-cpt/);
-    assert.match(css, /\.cpt-marker\.is-inspected-only/);
-    assert.match(css, /\.cpt-marker\.is-governing-cpt/);
+    assert.match(source, /selectedStyle: \(selected \|\| governing\) && !\(inspected && !contextSelected\)/);
     assert.match(css, /--cpt-default-fill:\s*#d4dade/);
     assert.match(css, /--cpt-default-stroke:\s*#a2adb3/);
-    assert.match(
-      selectedRule,
-      /--cpt-fill:\s*color-mix\(in srgb,\s*var\(--theme-accent\) 8%,\s*#fff\)/,
-    );
+    assert.match(selectedRule, /fill:\s*color-mix\(in srgb,\s*var\(--theme-accent\) 8%,\s*#fff\)/);
     assert.doesNotMatch(selectedRule, /--theme-surface/);
     assert.doesNotMatch(selectedRule, /--theme-accent-soft/);
-    assert.match(selectedRule, /--cpt-stroke:\s*var\(--theme-accent\)/);
+    assert.match(selectedRule, /stroke:\s*var\(--theme-accent\)/);
     assert.doesNotMatch(css, /#fff7c2/);
   });
 
@@ -310,21 +319,22 @@ describe("PilePlanViewer inputs", () => {
     const source = readViewerSource();
     const css = readFileSync(resolve(import.meta.dirname, "viewer.css"), "utf8");
 
-    assert.match(source, /left:\s*`\$\{point\.x\}px`/);
-    assert.match(source, /top:\s*`\$\{point\.y\}px`/);
+    assert.match(source, /left:\s*`\$\{target\.x\}px`/);
+    assert.match(source, /top:\s*`\$\{target\.y\}px`/);
     assert.doesNotMatch(source, /left:\s*`\$\{(?:Math\.round|[^}]*toFixed)/);
-    assert.match(source, /<svg className="cpt-triangle"[\s\S]*?<text[\s\S]*?className="cpt-label"[\s\S]*?x="12"[\s\S]*?y="9.5"/);
-    assert.doesNotMatch(source, /<span className="cpt-label"/);
-    assert.match(css, /\.cpt-label\s*{[\s\S]*?text-anchor:\s*middle;[\s\S]*?dominant-baseline:\s*middle;[\s\S]*?text-rendering:\s*geometricPrecision;/);
-    assert.match(css, /\.load-point-marker\.is-selected::before,[\s\S]*?\.cpt-marker\.is-inspected-cpt::before\s*{[\s\S]*?top:\s*0;[\s\S]*?left:\s*0;[\s\S]*?transform:\s*translate\(-50%,\s*-50%\) scale\(var\(--viewer-symbol-scale\)\);/);
+    assert.match(source, /transform=\{`translate\(\$\{graphic\.x\} \$\{graphic\.y\}\)`\}/);
+    assert.match(source, /<text className="viewer-cpt-label" x="12" y="9\.5"/);
+    assert.match(css, /\.viewer-cpt-label\s*\{[\s\S]*?text-anchor:\s*middle;[\s\S]*?dominant-baseline:\s*middle;[\s\S]*?text-rendering:\s*geometricPrecision;/);
+    assert.doesNotMatch(css, /\.load-point-marker\.is-selected[^}]*::before/);
   });
 
   it("uses responsive font scaling for CPT numbers", () => {
     const source = readViewerSource();
     const css = readFileSync(resolve(import.meta.dirname, "viewer.css"), "utf8");
 
-    assert.match(source, /getCptLabelStyle\(cptLabel\)/);
-    assert.match(css, /\.cpt-label\s*{[\s\S]*?var\(--cpt-label-scale\)/);
+    assert.match(source, /getCptLabelScale\(label\)/);
+    assert.match(source, /fontSize: `\$\{21 \* appearance\.labelScale\}px`/);
+    assert.match(css, /\.viewer-cpt-label\s*\{/);
   });
 
   it("does not show focus rectangles on map markers or legend items", () => {
@@ -340,8 +350,8 @@ describe("PilePlanViewer inputs", () => {
     const css = readFileSync(resolve(import.meta.dirname, "viewer.css"), "utf8");
 
     assert.match(source, /ref=\{stageRef\}/);
-    assert.match(source, /style=\{getStageStyle\([\s\S]*?projectTransform\.canvasSize,[\s\S]*?\)\}/);
-    assert.match(source, /style=\{getProjectMarkerStyle\(point\)\}/);
+    assert.match(source, /style=\{getStageStyle\(state\.viewport, state\.symbolScalePercent, projectTransform\.canvasSize\)\}/);
+    assert.match(source, /style=\{getProjectMarkerStyle\(target\)\}/);
     assert.doesNotMatch(source, /style=\{getMarkerStyle\(point,\s*canvasSize,\s*renderViewport\)\}/);
     assert.match(css, /--viewer-symbol-scale:\s*1/);
     assert.match(source, /effectiveSymbolScale\(symbolScalePercent\)/);
@@ -364,8 +374,10 @@ describe("PilePlanViewer inputs", () => {
     const stageContent = source.slice(stageIndex, cptIndex);
 
     assert.match(source, /getCptConnectionSegments/);
-    assert.match(stageContent, /<svg className="cpt-connection-lines"[\s\S]*?<line/);
-    assert.match(css, /\.cpt-connection-lines\s*\{[\s\S]*?pointer-events:\s*none;/);
+    const drawing = readFileSync(resolve(import.meta.dirname, "ViewerDrawingSvg.tsx"), "utf8");
+    assert.match(stageContent, /<ViewerDrawingSvg/);
+    assert.match(drawing, /<g className="cpt-connection-lines">[\s\S]*?<line/);
+    assert.match(css, /\.viewer-drawing-svg\s*\{[\s\S]*?pointer-events:\s*none;/);
     assert.match(css, /\.viewer-content\s*\{[\s\S]*?--viewer-cpt-connection-line:\s*#8f999e/);
     assert.match(css, /\.cpt-connection-line\s*\{[\s\S]*?stroke:\s*var\(--viewer-cpt-connection-line\)/);
     assert.doesNotMatch(css, /\.cpt-connection-line\s*\{[\s\S]*?stroke:\s*var\(--theme-text\)/);
@@ -445,7 +457,6 @@ describe("PilePlanViewer inputs", () => {
 
     assert.doesNotMatch(source, /import \{ flushSync \} from "react-dom"/);
     assert.doesNotMatch(source, /resizeProjectViewTransform/);
-    assert.match(source, /getCanvasLayoutCompensation/);
     assert.match(source, /className="viewer-layout-anchor"/);
     assert.match(source, /const resizeObserver = new ResizeObserver\(updateCanvasRect\)/);
     assert.match(source, /window\.addEventListener\(VIEWER_LAYOUT_CHANGE_EVENT, updateCanvasRect\)/);
@@ -461,10 +472,21 @@ describe("PilePlanViewer inputs", () => {
     );
     assert.match(source, /width: `\$\{canvasSize\.width\}px`/);
     assert.match(source, /height: `\$\{canvasSize\.height\}px`/);
-    assert.match(source, /projectPointPixels\(cpt, projectTransform\)/);
-    assert.match(source, /projectPointPixels\(loadPoint, projectTransform\)/);
-    assert.match(source, /left: `\$\{point\.x\}px`/);
-    assert.match(source, /top: `\$\{point\.y\}px`/);
+    assert.match(source, /projectPointPixels\(cpt, input\.projectTransform\)/);
+    assert.match(source, /projectPointPixels\(loadPoint, input\.projectTransform\)/);
+    assert.match(source, /left: `\$\{target\.x\}px`/);
+    assert.match(source, /top: `\$\{target\.y\}px`/);
+  });
+
+  it("uses transient centering for whole-window and display-scale changes", () => {
+    const source = readViewerSource();
+
+    assert.match(source, /getViewerWindowMetrics/);
+    assert.match(source, /hasViewerWindowMetricsChanged/);
+    assert.match(source, /nextViewerLayoutSnapshot/);
+    assert.match(source, /requestAnimationFrame/);
+    assert.match(source, /matchMedia/);
+    assert.match(source, /kind === "global"[\s\S]*?drawCoordinateGrid/);
   });
 
   it("renders a viewport-filling coordinate grid outside the finite project stage", () => {
@@ -474,9 +496,9 @@ describe("PilePlanViewer inputs", () => {
 
     assert.ok(gridIndex >= 0 && gridIndex < stageIndex);
     assert.match(source, /getCoordinateGridPattern/);
-    assert.match(source, /alignCoordinateGridPatternToDevicePixels/);
-    assert.match(source, /backgroundSize/);
-    assert.match(source, /backgroundPosition/);
+    assert.match(source, /getCoordinateGridCanvasFrame/);
+    assert.match(source, /fillRect/);
+    assert.match(source, /requestAnimationFrame/);
   });
 
   it("keeps coordinate-grid geometry under one imperative owner during layout changes", () => {
@@ -485,9 +507,11 @@ describe("PilePlanViewer inputs", () => {
     const css = readFileSync(resolve(import.meta.dirname, "viewer.css"), "utf8");
 
     assert.doesNotMatch(gridMarkup, /style=/);
-    assert.match(source, /<div[\s\S]*?className="viewer-coordinate-grid"/);
+    assert.match(source, /<canvas[\s\S]*?className="viewer-coordinate-grid"/);
+    assert.match(source, /useRef<HTMLCanvasElement \| null>/);
     assert.doesNotMatch(source, /className="viewer-coordinate-grid-lines"/);
-    assert.match(css, /\.viewer-coordinate-grid\s*\{[\s\S]*?background-image:/);
+    assert.match(css, /\.viewer-coordinate-grid\s*\{[^}]*pointer-events:\s*none/);
+    assert.doesNotMatch(css, /\.viewer-coordinate-grid\s*\{[^}]*background-image:/);
     assert.doesNotMatch(css, /shape-rendering:\s*crispEdges/);
   });
 

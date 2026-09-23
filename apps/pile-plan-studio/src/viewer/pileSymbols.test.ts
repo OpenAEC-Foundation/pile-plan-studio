@@ -2,7 +2,7 @@ import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 
 import { PILE_SYMBOL_CATALOG } from "./legendSymbols.ts";
-import { renderPileSymbol } from "./pileSymbols.ts";
+import { renderPileSymbol, renderPileSymbolSvgChildren } from "./pileSymbols.ts";
 
 const TRIANGLES = {
   "triangle-up": {
@@ -36,6 +36,15 @@ const PARTIAL_FILLS = [
 ] as const;
 
 describe("pile symbol rendering", () => {
+  it("keeps partial-fill clip paths unique when several map symbols share one SVG", () => {
+    const symbol = { baseShape: "circle", fillPattern: "top-half" } as const;
+    const first = renderPileSymbolSvgChildren(symbol, "#123456", "viewer-pile-15");
+    const second = renderPileSymbolSvgChildren(symbol, "#123456", "viewer-pile-43");
+    assert.match(first, /id="viewer-pile-15"/);
+    assert.match(second, /url\(#viewer-pile-43\)/);
+    assert.doesNotMatch(first, /viewer-pile-43|<svg\b/);
+    assert.match(renderPileSymbol(symbol, "#123456"), /<svg\b/);
+  });
   it("renders every catalog symbol as an opaque outlined SVG", () => {
     for (const symbol of PILE_SYMBOL_CATALOG) {
       const svg = renderPileSymbol(symbol, "#0072B2");

@@ -87,7 +87,8 @@ pub(crate) fn validate(
     let w = &p.settings.transition_weights;
     let score = u64::from(transitions.tip_only) * u64::from(w.tip_only_milli)
         + u64::from(transitions.size_only) * u64::from(w.size_only_milli)
-        + u64::from(transitions.both) * (u64::from(w.tip_only_milli) + u64::from(w.size_only_milli));
+        + u64::from(transitions.both)
+            * (u64::from(w.tip_only_milli) + u64::from(w.size_only_milli));
     if score > MAX_EXACT {
         return Err("numeric_range_exceeded".into());
     }

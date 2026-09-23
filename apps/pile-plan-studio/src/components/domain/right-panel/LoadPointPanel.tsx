@@ -2,7 +2,11 @@ import { useEffect, useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import type { ProjectState } from "../../../domain/project/projectState.ts";
 import type { PileConfigurationKey } from "../../../core/projectTypes.ts";
-import type { LoadPointGroup } from "../../../core/loadPointGroupContract.ts";
+import type {
+  LoadPointGroup,
+  LoadPointGroupEditAction,
+  LoadPointGroupEditPreview,
+} from "../../../core/loadPointGroupContract.ts";
 import { openCpt, selectLoadPoint } from "../../../domain/workspace/selectionState.ts";
 import { filterActivePileOptions } from "../../../domain/pile-options/activePileConfigurations.ts";
 import { getActivePilePlan, getPilePlanActivation } from "../../../domain/pile-plans/pilePlanActivation.ts";
@@ -12,8 +16,10 @@ import PileOptionColumns from "./PileOptionColumns.tsx";
 import { getChosenPileOptionConfigurationForSelection, getChosenPileOptionKeyForSelection, getPileOptionsByLoadPointIdForPanel, getRenderableAggregatedPileOptionRows, getRenderablePileOptionRows, getSelectedLoadPoints, optionKey } from "./rightPanelModel.ts";
 import { useAggregatedPileOptions } from "./useAggregatedPileOptions.ts";
 import type { TechnicalAssignmentSnapshot } from "../../../app/derived-state/technicalAssignmentController.ts";
+import type { GroupAssignmentAssessmentSnapshot } from "../../../app/derived-state/groupAssignmentAssessmentController.ts";
 import TechnicalAssignmentNotice from "./TechnicalAssignmentNotice.tsx";
 import MissingCptPopover from "./MissingCptPopover.tsx";
+import LoadPointGroupEditButton from "./LoadPointGroupEditButton.tsx";
 import { CoordinateReadout } from "../shared/CoordinateReadout.ts";
 import { getLoadPointGroupNotice, getLoadPointGroupSelection } from "../../../viewer/loadPointGroupSelection.ts";
 import { InactiveLabel, ResistanceLabel, localizeCptName, localizeLoadPointName } from "./PanelControls.tsx";
@@ -27,6 +33,10 @@ export default function LoadPointPanel({
   selectedLoadPoints,
   loadPointGroups,
   technicalAssignment,
+  groupAssignmentAssessment,
+  groupEditPending,
+  onPreviewLoadPointGroupEdit,
+  onApplyLoadPointGroupEdit,
   columnLayouts,
   onColumnLayoutChange,
 }: {
@@ -41,6 +51,16 @@ export default function LoadPointPanel({
   selectedLoadPoints: ReturnType<typeof getSelectedLoadPoints>;
   loadPointGroups: LoadPointGroup[];
   technicalAssignment: TechnicalAssignmentSnapshot;
+  groupAssignmentAssessment: GroupAssignmentAssessmentSnapshot;
+  groupEditPending: boolean;
+  onPreviewLoadPointGroupEdit: (
+    action: LoadPointGroupEditAction,
+    selectedLoadPointIds?: number[],
+  ) => Promise<LoadPointGroupEditPreview | null>;
+  onApplyLoadPointGroupEdit: (
+    action: LoadPointGroupEditAction,
+    selectedLoadPointIds?: number[],
+  ) => Promise<void>;
   columnLayouts: PileOptionColumnLayouts;
   onColumnLayoutChange: (mode: keyof PileOptionColumnLayouts, layout: PileOptionColumnLayout) => void;
 }) {
@@ -55,6 +75,7 @@ export default function LoadPointPanel({
     pileOptionsByLoadPointId,
   });
   const selectedCount = selectedLoadPoints.length;
+  const selectedIds = selectedLoadPoints.map(({ id }) => id).sort((left, right) => left - right);
   const groupSelection = getLoadPointGroupSelection({
     selectedLoadPointIds: selectedLoadPoints.map(({ id }) => id),
     groups: loadPointGroups,
@@ -136,15 +157,55 @@ export default function LoadPointPanel({
           <h2>{selectedLabel}</h2>
           {selectedLoadPoints.length > 1 ? <span>{t("loadPoints.selection")}</span> : null}
         </div>
-        <strong className={selectedLoadPoints.length === 1 ? "load-point-force" : undefined}>
-          {selectedLoadPoints.length === 1 ? (
+        {selectedLoadPoints.length === 1 ? (
+          <strong className="load-point-force">
             <span className="load-point-force-label">F<sub>Ed</sub></span>
-          ) : null}
-          {fedLabel}
-        </strong>
+            {fedLabel}
+          </strong>
+        ) : (
+          <div className="load-point-selection-controls">
+            <LoadPointGroupEditButton
+              editPending={groupEditPending}
+              groups={loadPointGroups}
+              selectedLoadPointIds={selectedIds}
+              onApply={onApplyLoadPointGroupEdit}
+              onPreview={onPreviewLoadPointGroupEdit}
+            />
+            <details className="load-point-selection-disclosure">
+              <summary>{t("loadPoints.selectedCount", { count: selectedLoadPoints.length })}</summary>
+              <div className="load-point-selection-list" role="list">
+                {selectedLoadPoints.map((loadPoint) => {
+                  const localizedName = localizeLoadPointName(loadPoint.name, t);
+                  const localizedForce = loadPoint.design_load_kn.toLocaleString(i18n.language, { maximumFractionDigits: 1 });
+                  return (
+                    <div key={loadPoint.id} role="listitem">
+                      <button
+                        aria-label={t("loadPoints.inspectMember", { name: localizedName, force: localizedForce })}
+                        type="button"
+                        onClick={() => onStateChange({ ...state, ...selectLoadPoint(state, loadPoint.id) })}
+                      >
+                        <span>{localizedName}</span>
+                        <strong>F<sub>Ed</sub> {localizedForce} kN</strong>
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+            </details>
+          </div>
+        )}
       </header>
 
       <CoordinateReadout points={selectedLoadPoints} locale={i18n.language} />
+
+      {getSelectedGroupConflict(groupAssignmentAssessment, selectedIds) ? (
+        <div className="panel-message is-error load-point-group-conflict" role="alert">
+          <strong>{t("groupConflict.title")}</strong>
+          <span>{getSelectedGroupConflict(groupAssignmentAssessment, selectedIds)?.assignment_repair_blocked
+            ? t("groupConflict.locked")
+            : t("groupConflict.repair")}</span>
+        </div>
+      ) : null}
 
       <TechnicalAssignmentNotice
         state={state}
@@ -302,6 +363,13 @@ export default function LoadPointPanel({
       ) : null}
     </div>
   );
+}
+
+function getSelectedGroupConflict(
+  assessment: GroupAssignmentAssessmentSnapshot,
+  selectedIds: number[],
+) {
+  return selectedIds.map((id) => assessment.conflictsByLoadPointId.get(id)).find(Boolean) ?? null;
 }
 
 function toggleMissingCptPopover(current: string | null, requested: string): string | null {

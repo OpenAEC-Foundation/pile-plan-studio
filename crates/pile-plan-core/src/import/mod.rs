@@ -1,9 +1,8 @@
 use crate::{
-    CptSelectionAlgorithm, CptSelectionSettings, DuplicateLoadPointPositions,
-    PileCostSettings, PilePlanProject,
-    PileTipLevelPrecisionErrorReason, ProjectApplication, ProjectBearingCapacity, ProjectCpt,
-    ProjectImportLogEntry, ProjectInputs, ProjectLoadPoint, ProjectMetadata, ProjectSettings,
-    ProjectUnits, ProjectUserState, APPLICATION_NAME,
+    CptSelectionAlgorithm, CptSelectionSettings, DuplicateLoadPointPositions, PileCostSettings,
+    PilePlanProject, PileTipLevelPrecisionErrorReason, ProjectApplication, ProjectBearingCapacity,
+    ProjectCpt, ProjectImportLogEntry, ProjectInputs, ProjectLoadPoint, ProjectMetadata,
+    ProjectSettings, ProjectUnits, ProjectUserState, APPLICATION_NAME,
 };
 use std::collections::HashMap;
 use std::fmt;
@@ -227,7 +226,7 @@ fn build_imported_project(
     let optimization = crate::IlpOptimizationSettings::default();
     Ok(PilePlanProject {
         schema: "IFCPP".to_string(),
-        schema_version: 4,
+        schema_version: 5,
         application: ProjectApplication {
             name: APPLICATION_NAME.to_string(),
             version: "0.1.0-alpha".to_string(),

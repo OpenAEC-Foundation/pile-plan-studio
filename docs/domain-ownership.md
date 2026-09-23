@@ -52,7 +52,7 @@ Status meanings:
 | `apps/pile-plan-studio/src/components/domain/pile-plans/` | Composes pile-plan exploration, optimization controls, legend presentation, and the nested legend editor | TypeScript view | **Presentation/application-owned.** Legend and plan choices are project content; technical availability and optimization outcomes remain core-owned. |
 | `apps/pile-plan-studio/src/components/domain/imports/`, `project/`, and `source-data/` | Own import workflows, project dialogs, and normalized source-data presentation | TypeScript view/workflow | **Application-owned.** These modules collect user intent and present canonical data without duplicating parsing or engineering rules from Rust. |
 | `apps/pile-plan-studio/src/components/domain/pile-plan-viewer/PilePlanViewer.tsx` | Composes viewer state, derived presentation, viewport, interactions, and ordered map layers | TypeScript view | **Presentation-owned composition.** It consumes core results and delegates focused responsibilities to sibling modules. |
-| `apps/pile-plan-studio/src/components/domain/pile-plan-viewer/ViewerStage.tsx` | Renders regions, connections, status halos, CPTs, and load points in a stable layer order | TypeScript view | **Presentation-owned.** Layering and symbols communicate canonical technical states without recalculating them. |
+| `apps/pile-plan-studio/src/components/domain/pile-plan-viewer/ViewerStage.tsx` and `load-point-groups/` | Renders regions, group contours, connections, status halos, CPTs, and load points in a stable layer order | TypeScript view | **Presentation-owned.** Contour geometry combines core-produced topology primitives and fixed viewer-owned colors without deriving group membership. |
 | `apps/pile-plan-studio/src/components/domain/pile-plan-viewer/useViewerPointerInteractions.ts` | Coordinates hover, marker selection, lasso selection, lock editing, and panning | TypeScript interaction | **Application-owned.** It translates pointer and keyboard intent into immutable project-state changes. |
 | `apps/pile-plan-studio/src/components/domain/pile-plan-viewer/useViewerViewport.ts` and `viewerDomCoordinates.ts` | Own project transforms, zoom commits, layout compensation, grid alignment, and screen-to-local conversion | TypeScript browser presentation | **Presentation/application-owned.** These modules preserve visual alignment and do not alter engineering coordinates or decisions. |
 | `apps/pile-plan-studio/src/components/domain/shared/` | Reusable domain-view primitives without feature-specific workflow | TypeScript view | **Presentation-owned.** Keep this folder small; feature-specific controls belong with their owning view. |
@@ -66,6 +66,7 @@ Status meanings:
 | `apps/pile-plan-studio/src/domain/pile-plans/optimization/optimizationCandidates.ts` | Builds and fingerprints the current UI candidate snapshot | TypeScript snapshot workflow plus Rust invariant | **Application-owned with a core invariant.** TypeScript may preview and detect stale requests; Rust remains authoritative for candidate-source eligibility and limits. |
 | `crates/pile-plan-core/src/source_data.rs` | Serializable load points, CPTs, and flat foundation-advice rows | Rust | **Core-owned.** Source records remain independent so CPTs without advice are valid. |
 | `crates/pile-plan-core/src/cpt_selection.rs` | Automatic and manual CPT selection and selection geometry | Rust | **Core-owned.** |
+| `crates/pile-plan-core/src/load_point_groups.rs` | Derives the effective group partition and Gabriel topology; validates and applies manual grouping/separation edits; assesses assignment conflicts | Rust | **Core-owned.** Every assignment and optimizer consumer uses these effective groups as its optimization units. |
 | `crates/pile-plan-core/src/pile_options/foundation_advice.rs` | Validated pile configurations, grouped display rows, and the per-batch capacity index | Rust | **Core-owned.** Persisted advice remains flat; runtime lookup is indexed once per batch. |
 | `crates/pile-plan-core/src/pile_options/costs.rs` | Pile-cost settings, validation, and physical cost calculation | Rust | **Core-owned.** |
 | `crates/pile-plan-core/src/pile_options/mod.rs` | Technical pile-option evaluation and default option selection | Rust | **Core-owned.** |
@@ -95,7 +96,7 @@ Status meanings:
 
 ```text
 Open or restore:
-IFCPP text -> Rust parse/migrate/default/validate -> canonical schema 4
+IFCPP text -> Rust parse/migrate/default/validate -> canonical schema 5
            -> TypeScript mechanical hydration -> React state
 
 Save or recover:

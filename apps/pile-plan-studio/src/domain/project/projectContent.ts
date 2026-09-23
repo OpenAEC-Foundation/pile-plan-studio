@@ -28,6 +28,7 @@ export type ProjectContent = Pick<ProjectState,
   | "foregroundLayer"
   | "showGrid"
   | "showTipLevelRegions"
+  | "showLoadPointGroups"
   | "pilePlans"
   | "manualCptIdsByLoadPoint"
   | "importLog"
@@ -60,6 +61,7 @@ const PROJECT_CONTENT_KEYS = [
   "foregroundLayer",
   "showGrid",
   "showTipLevelRegions",
+  "showLoadPointGroups",
   "pilePlans",
   "manualCptIdsByLoadPoint",
   "importLog",
@@ -168,6 +170,12 @@ export function projectDocumentDraftFromContent(
       load_point_grouping: {
         automatic: content.loadPointGroupingSettings.automatic,
         max_edge_distance_mm: content.loadPointGroupingSettings.maxEdgeDistanceM * 1_000,
+        manual_groups: content.loadPointGroupingSettings.manualGroups.map(({ loadPointIds }) => ({
+          load_point_ids: [...loadPointIds],
+        })),
+        ungrouped_groups: content.loadPointGroupingSettings.ungroupedGroups.map(({ loadPointIds }) => ({
+          load_point_ids: [...loadPointIds],
+        })),
       },
       pile_costs: structuredClone(content.pileCostSettings),
       pile_head_level_m: content.pileHeadLevelM,
@@ -179,6 +187,7 @@ export function projectDocumentDraftFromContent(
         foreground_layer: content.foregroundLayer,
         show_grid: content.showGrid,
         show_tip_level_regions: content.showTipLevelRegions,
+        show_load_point_groups: content.showLoadPointGroups,
       },
     },
     user_state: {

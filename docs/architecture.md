@@ -114,6 +114,22 @@ infrastructure. IndexedDB stores Rust-serialized IFCPP text, restored text uses
 the same Rust read path as an opened file, and undo/redo restores project-owned
 content before Rust-derived analysis is recalculated.
 
+IFCPP schema 5 stores the automatic load-point grouping settings, manual group
+records, explicit separations of automatic groups, and the viewer's group-
+visibility toggle. Effective groups and their shared Gabriel topology are
+derived by Rust and remain transient. Manual grouping is accepted only when the
+selected locations form a connected induced subgraph of that topology. Grouping
+is transitively closed, so overlapping automatic and manual connections always
+produce one optimization unit. Ungrouping a manual group removes its manual
+record; ungrouping an automatic group adds an explicit separation record.
+
+All ordinary marker, additive, and lasso selection expands to complete effective
+groups. The member list in the right-panel selection header is the intentional
+escape hatch for inspecting one location without changing the group. Assignments,
+default choices, technical assessment, and optimization consume the same last
+completed effective-group snapshot; a recalculation never exposes an interim
+singleton partition.
+
 Pile tip levels remain metre values in IFCPP exchange data and physical
 calculations. The Rust core validates those values and produces exact integer
 millimetre keys for identity, equality, ordering, and deduplication. WASM and
@@ -136,21 +152,43 @@ or native integrations.
 The plan viewer uses a fixed, uniform project transform and keeps application
 scale, layout compensation, and interactive plan zoom as separate layers. This
 prevents markers and pointer interactions from drifting when panels resize or
-when browser and desktop presentation scales differ.
+when browser and desktop presentation scales differ. Whole-window and
+display-scale changes preserve the project coordinate at the viewer centre;
+panel and legend changes preserve the previous screen-position anchor. This
+compensation is transient and does not alter the saved project viewport.
 
 Within `components/domain/pile-plan-viewer/`, `PilePlanViewer.tsx` composes the
-feature, `ViewerStage.tsx` owns the ordered map layers,
+feature, `ViewerStage.tsx` owns the transformed stage and transparent marker
+buttons, `ViewerDrawingSvg.tsx` owns one pointer-inert SVG for all project-
+anchored drawing layers, and `viewerMarkerPresentation.ts` derives their
+appearance and ordering. The region/group overlays, CPT connections, status
+halos, pile/CPT symbols, labels, and selection/hover rings use the same
+unrounded SVG coordinates. The HTML buttons retain pointer and keyboard input
+without painting a second copy of each marker.
 `useViewerPointerInteractions.ts` owns selection, hover, lasso, and pan input,
 and `useViewerViewport.ts` owns the project transform, layout compensation,
-grid alignment, and zoom commits. `viewerDomCoordinates.ts` is the single
-browser-coordinate conversion boundary.
+grid drawing, and zoom commits. `viewerDomCoordinates.ts` is the single
+browser-coordinate conversion boundary. The grid uses a viewport-sized canvas
+outside the transformed marker stage; each world line is snapped independently
+to the global physical-pixel lattice after projection, including the active CSS
+scale and device-pixel ratio.
 
 The viewer also separates application theming from project drawing semantics.
 Panels, controls, and other application chrome use the active `--theme-*`
 palette. The plan itself remains a white engineering canvas, so annotations
 whose meaning must not change with the application theme use viewer-owned
-colors. Related load-point group rings therefore keep the same neutral dark
-stroke in light and dark themes instead of inheriting a themed text color.
+colors. Load-point groups of at least two members are drawn from the union of
+member circles, internal Gabriel edges, and fully enclosed topology faces. An
+outside-only SVG morphology ring preserves concave and L-shaped silhouettes;
+it is not a convex hull. Default contours are gray, the selected group contour
+is orange, and conflicting assignments use a red contour plus a warning glyph,
+so color is never the only conflict signal. These colors remain identical in
+light and dark themes instead of inheriting themed text colors.
+The orange group contour represents selection of every member. Inspecting one
+member from the selection list instead leaves that member's orange ring and
+shows the group once in gray, even when the global group display is off.
+Hover highlights only the pointed-at member; clicking it selects the group.
+Conflicting groups retain their red contour during partial inspection.
 
 The implementation invariants, coordinate pipeline, regression symptoms, and
 manual test procedure live beside the viewer code in
@@ -181,7 +219,8 @@ from the legacy optimizer with a 5% budget, tip/size weights 1/1 and an unlimite
 configuration count. Target/save/boundary
 choices and in-flight results remain transient. Completed plan results are stored
 in optional `pile_plans[].ilp_result` (solution, diagnostics, settings, currency and
-a versioned content fingerprint). Older plans omit this field. The schema stays version 4.
+a versioned content fingerprint). Older plans omit this field. The canonical
+project schema is version 5; versions 1–4 migrate on read.
 The persisted coherence switch defaults to enabled for older projects. Disabling
 it runs only the cost phase; a zero transition objective also skips the spatial
 solve. A bounded local improvement of the reference supplies a validated fallback

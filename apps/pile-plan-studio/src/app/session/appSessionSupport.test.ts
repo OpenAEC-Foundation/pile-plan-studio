@@ -7,6 +7,7 @@ import {
   getLoadPointLockSignature,
   importRoleForSource,
 } from "./appSessionSupport.ts";
+import * as appSessionSupport from "./appSessionSupport.ts";
 
 describe("app session support", () => {
   it("maps every source kind to its import role", () => {
@@ -27,6 +28,18 @@ describe("app session support", () => {
         optimizationUnassignedByLoadPoint: new Map(),
       },
     ], "plan-1"), "2,5,9");
+  });
+
+  it("records the explicit history action for every load-point group edit", () => {
+    const historyAction = (
+      appSessionSupport as typeof appSessionSupport & {
+        getLoadPointGroupEditHistoryAction?: (action: string) => { kind: string };
+      }
+    ).getLoadPointGroupEditHistoryAction;
+
+    assert.deepEqual(historyAction?.("group"), { kind: "group-created" });
+    assert.deepEqual(historyAction?.("ungroup"), { kind: "group-removed" });
+    assert.deepEqual(historyAction?.("reset_overrides"), { kind: "group-overrides-reset" });
   });
 
   it("translates structured open errors and preserves ordinary errors", () => {

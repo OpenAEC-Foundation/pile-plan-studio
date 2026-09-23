@@ -368,6 +368,7 @@ mod tests {
                 .iter()
                 .map(|ids| LoadPointGroup {
                     load_point_ids: ids.to_vec(),
+                    origin: crate::LoadPointGroupOrigin::Automatic,
                 })
                 .collect(),
             options_by_load_point,

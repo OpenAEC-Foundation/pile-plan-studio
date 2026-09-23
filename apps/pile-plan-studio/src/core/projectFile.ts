@@ -80,11 +80,14 @@ type IfcppViewerSettings = {
   foreground_layer?: unknown;
   show_grid?: boolean;
   show_tip_level_regions?: boolean;
+  show_load_point_groups?: boolean;
 };
 
 type IfcppLoadPointGroupingSettings = {
   automatic?: unknown;
   max_edge_distance_mm?: unknown;
+  manual_groups?: Array<{ load_point_ids: number[] }>;
+  ungrouped_groups?: Array<{ load_point_ids: number[] }>;
 };
 
 export type IfcppPilePlan = {
@@ -190,6 +193,7 @@ export type LoadedProjectData = {
   foregroundLayer: "load-points" | "cpts";
   showGrid: boolean;
   showTipLevelRegions: boolean;
+  showLoadPointGroups: boolean;
   pileLegend: LegendItems;
   legendImportWarnings: LegendImportWarning[];
   ilpOptimizationSettings: IlpOptimizationSettings;
@@ -269,6 +273,12 @@ export function hydrateProjectState(
     loadPointGroupingSettings: {
       automatic: Boolean(project.settings.load_point_grouping!.automatic),
       maxEdgeDistanceM: Number(project.settings.load_point_grouping!.max_edge_distance_mm) / 1_000,
+      manualGroups: (project.settings.load_point_grouping!.manual_groups ?? []).map((group) => ({
+        loadPointIds: [...group.load_point_ids],
+      })),
+      ungroupedGroups: (project.settings.load_point_grouping!.ungrouped_groups ?? []).map((group) => ({
+        loadPointIds: [...group.load_point_ids],
+      })),
     },
     pileCostSettings: structuredClone(project.settings.pile_costs),
     pileHeadLevelM: project.settings.pile_head_level_m ?? null,
@@ -279,6 +289,7 @@ export function hydrateProjectState(
       : "load-points",
     showGrid: project.settings.viewer!.show_grid!,
     showTipLevelRegions: project.settings.viewer!.show_tip_level_regions!,
+    showLoadPointGroups: project.settings.viewer!.show_load_point_groups ?? false,
     pileLegend,
     legendImportWarnings,
     ilpOptimizationSettings: structuredClone(project.settings.ilp_optimization!),

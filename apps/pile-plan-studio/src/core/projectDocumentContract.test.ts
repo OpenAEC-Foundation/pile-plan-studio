@@ -154,6 +154,26 @@ describe("project document result mapping", () => {
           ],
         },
       ],
+      [
+        {
+          code: "invalid-load-point-group-overrides",
+          errors: [{
+            collection: "manual_groups",
+            index: 0,
+            load_point_ids: [1, 99],
+            reason: "unknown_load_point",
+          }],
+        },
+        {
+          code: "invalid-load-point-group-overrides",
+          errors: [{
+            collection: "manual_groups",
+            index: 0,
+            loadPointIds: [1, 99],
+            reason: "unknown_load_point",
+          }],
+        },
+      ],
     ];
 
     for (const [input, expected] of cases) {

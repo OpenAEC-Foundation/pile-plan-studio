@@ -94,10 +94,32 @@ describe("project content", () => {
       loadPointGroupingSettings: {
         automatic: false,
         maxEdgeDistanceM: 2.5,
+        manualGroups: [{ loadPointIds: [1, 2] }],
+        ungroupedGroups: [],
       },
     });
 
     assert.equal(projectContentEquals(before, after), false);
+    const draft = projectDocumentDraftFromContent(after, state.activePilePlanId);
+    assert.deepEqual(draft.settings.load_point_grouping.manual_groups, [
+      { load_point_ids: [1, 2] },
+    ]);
+  });
+
+  it("treats group visibility as undoable project content", () => {
+    const state = normalizeProjectContentState(createTestProjectState(
+      sampleProjectText,
+      { initializeDefaultPiles: false },
+    ));
+    const hidden = captureProjectContent({ ...state, showLoadPointGroups: false });
+    const visible = captureProjectContent({ ...state, showLoadPointGroups: true });
+
+    assert.equal(projectContentEquals(hidden, visible), false);
+    assert.equal(
+      projectDocumentDraftFromContent(visible, state.activePilePlanId)
+        .settings.viewer.show_load_point_groups,
+      true,
+    );
   });
 
   it("treats tip-level region visibility as undoable project content", () => {

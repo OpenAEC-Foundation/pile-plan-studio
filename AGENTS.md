@@ -110,6 +110,9 @@ and multiple load-point selection.
 ## Repository workflow
 
 - Preserve unrelated changes already present in the working tree.
+- Create Git worktrees inside the repository-local `.worktrees/` directory by
+  default. Keep that directory ignored, and use another worktree location only
+  when the user explicitly requests it.
 - Keep work in one task by default. Do not delegate to subagents unless the
   user explicitly requests parallel work.
 - Do not commit, push, merge, publish, or create a release unless the user asks.

@@ -1,10 +1,27 @@
 import { useTranslation } from "react-i18next";
 import type { ProjectState } from "../../../domain/project/projectState.ts";
 import { DraftNumberField, SettingsGroup } from "./PanelControls.tsx";
+import type { LoadPointGroupEditAction } from "../../../core/loadPointGroupContract.ts";
+import type { LoadPointGroup, LoadPointGroupEditPreview } from "../../../core/loadPointGroupContract.ts";
+import LoadPointGroupEditButton from "./LoadPointGroupEditButton.tsx";
 
-export type GroupingSettingsPanelProps = { state: ProjectState; onStateChange: (state: ProjectState) => void; onClose: () => void };
+export type GroupingSettingsPanelProps = {
+  state: ProjectState;
+  loadPointGroups: LoadPointGroup[];
+  groupEditPending: boolean;
+  onPreviewLoadPointGroupEdit: (
+    action: LoadPointGroupEditAction,
+    selectedLoadPointIds?: number[],
+  ) => Promise<LoadPointGroupEditPreview | null>;
+  onApplyLoadPointGroupEdit: (
+    action: LoadPointGroupEditAction,
+    selectedLoadPointIds?: number[],
+  ) => Promise<void>;
+  onStateChange: (state: ProjectState) => void;
+  onClose: () => void;
+};
 
-export default function GroupingSettingsPanel({ state, onStateChange, onClose }: GroupingSettingsPanelProps) {
+export default function GroupingSettingsPanel({ state, loadPointGroups, groupEditPending, onPreviewLoadPointGroupEdit, onApplyLoadPointGroupEdit, onStateChange, onClose }: GroupingSettingsPanelProps) {
   const { t } = useTranslation("rightPanel");
   const settings = state.loadPointGroupingSettings;
 
@@ -56,6 +73,47 @@ export default function GroupingSettingsPanel({ state, onStateChange, onClose }:
               },
             })}
           />
+        </SettingsGroup>
+
+        <SettingsGroup title={t("groupingSettings.manualChangesGroup")}>
+          <p className="supporting-text">
+            {t("groupingSettings.manualChangesSummary", {
+              manual: settings.manualGroups.length,
+              ungrouped: settings.ungroupedGroups.length,
+            })}
+          </p>
+          <div className="grouping-settings-actions">
+            <LoadPointGroupEditButton
+              editPending={groupEditPending}
+              groups={loadPointGroups}
+              selectedLoadPointIds={state.selectedLoadPointIds}
+              onApply={onApplyLoadPointGroupEdit}
+              onPreview={onPreviewLoadPointGroupEdit}
+            />
+            <button
+              className="settings-secondary-button"
+              disabled={groupEditPending || (settings.manualGroups.length === 0 && settings.ungroupedGroups.length === 0)}
+              type="button"
+              onClick={() => void onApplyLoadPointGroupEdit("reset_overrides")}
+            >
+              {t("groupingSettings.reset")}
+            </button>
+          </div>
+        </SettingsGroup>
+
+        <SettingsGroup title={t("groupingSettings.visibilityGroup")}>
+          <label className="settings-checkbox">
+            <input
+              checked={state.showLoadPointGroups}
+              type="checkbox"
+              onChange={(event) => onStateChange({
+                ...state,
+                showLoadPointGroups: event.currentTarget.checked,
+              })}
+            />
+            <span>{t("groupingSettings.showGroups")}</span>
+          </label>
+          <p className="supporting-text">{t("groupingSettings.viewHelp")}</p>
         </SettingsGroup>
       </div>
     </div>

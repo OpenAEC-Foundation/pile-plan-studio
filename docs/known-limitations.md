@@ -23,8 +23,9 @@ intentional and should be considered when evaluating its results.
 - The preferred utilization range controls viewer highlighting. Engineering
   option validity remains based on the calculated resistance check. The
   optimizer has a configurable maximum utilization.
-- Load-point grouping is automatic and distance-based. Manual grouping is not
-  available yet.
+- Load-point grouping combines the automatic distance rule with undoable manual
+  group and separation overrides. Manual groups must remain connected in the
+  project's Gabriel graph; arbitrary disconnected location sets are rejected.
 
 ## Data and Projects
 

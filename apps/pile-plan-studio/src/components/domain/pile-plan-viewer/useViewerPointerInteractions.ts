@@ -7,6 +7,7 @@ import {
   type RefObject,
 } from "react";
 import type { ProjectState } from "../../../domain/project/projectState.ts";
+import type { LoadPointGroup } from "../../../core/loadPointGroupContract.ts";
 import { setLassoLoadPointLocks, toggleLoadPointLock } from "../../../domain/pile-plans/loadPointLocking.ts";
 import { elementLayoutScale } from "../../../domain/settings/uiBaseline.ts";
 import {
@@ -60,6 +61,7 @@ export type ViewerInteraction =
 
 type UseViewerPointerInteractionsOptions = {
   state: ProjectState;
+  loadPointGroups: LoadPointGroup[];
   onStateChange: (nextState: ProjectState) => void;
   lassoSelectionActive: boolean;
   isEditingLoadPointLocks: boolean;
@@ -78,6 +80,7 @@ type UseViewerPointerInteractionsOptions = {
 
 export function useViewerPointerInteractions({
   state,
+  loadPointGroups,
   onStateChange,
   lassoSelectionActive,
   isEditingLoadPointLocks,
@@ -239,9 +242,9 @@ export function useViewerPointerInteractions({
       }
       const unlockedIds = loadPointIds.filter((id) => !lockedLoadPointIds.has(id));
       if (interaction.operation === "replace") {
-        onStateChange({ ...state, ...setReactViewerLoadPoints(state, unlockedIds), viewport: viewportRef.current });
+        onStateChange({ ...state, ...setReactViewerLoadPoints(state, unlockedIds, loadPointGroups), viewport: viewportRef.current });
       } else if (unlockedIds.length > 0) {
-        onStateChange({ ...state, ...addReactViewerLoadPoints(state, unlockedIds), viewport: viewportRef.current });
+        onStateChange({ ...state, ...addReactViewerLoadPoints(state, unlockedIds, loadPointGroups), viewport: viewportRef.current });
       }
       return;
     }
@@ -341,8 +344,8 @@ export function useViewerPointerInteractions({
     }
     if (!isViewerSelectionActionAllowed(isEditingCptSelection, "load-point")) return;
     const selection = additiveKey
-      ? toggleReactViewerLoadPoint(state, item.id)
-      : selectReactViewerLoadPoint(state, item.id);
+      ? toggleReactViewerLoadPoint(state, item.id, loadPointGroups)
+      : selectReactViewerLoadPoint(state, item.id, loadPointGroups);
     onStateChange({ ...state, ...selection, viewport: viewportRef.current });
   }
 

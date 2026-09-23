@@ -3,6 +3,7 @@ use std::collections::{BTreeMap, BTreeSet, HashMap};
 use serde::{Deserialize, Serialize};
 
 use crate::source_data::LoadPoint;
+use crate::tip_level_regions::{build_load_point_topology, LoadPointTopology};
 
 pub const DEFAULT_MAX_GROUP_EDGE_DISTANCE_MM: f64 = 1_200.0;
 
@@ -11,6 +12,10 @@ pub struct LoadPointGroupingSettings {
     #[serde(default = "default_automatic_grouping")]
     pub automatic: bool,
     pub max_edge_distance_mm: f64,
+    #[serde(default)]
+    pub manual_groups: Vec<LoadPointGroupOverride>,
+    #[serde(default)]
+    pub ungrouped_groups: Vec<LoadPointGroupOverride>,
 }
 
 impl Default for LoadPointGroupingSettings {
@@ -18,6 +23,8 @@ impl Default for LoadPointGroupingSettings {
         Self {
             automatic: true,
             max_edge_distance_mm: DEFAULT_MAX_GROUP_EDGE_DISTANCE_MM,
+            manual_groups: Vec::new(),
+            ungrouped_groups: Vec::new(),
         }
     }
 }
@@ -27,8 +34,30 @@ fn default_automatic_grouping() -> bool {
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+pub struct LoadPointGroupOverride {
+    pub load_point_ids: Vec<u32>,
+}
+
+#[derive(Clone, Copy, Debug, Default, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum LoadPointGroupOrigin {
+    #[default]
+    Automatic,
+    Manual,
+    ExplicitlySeparated,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub struct LoadPointGroup {
     pub load_point_ids: Vec<u32>,
+    #[serde(default)]
+    pub origin: LoadPointGroupOrigin,
+}
+
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+pub struct DerivedLoadPointGroups {
+    pub groups: Vec<LoadPointGroup>,
+    pub topology: LoadPointTopology,
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
@@ -64,11 +93,136 @@ pub enum ApplyLoadPointGroupAssignmentResult {
     },
 }
 
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum LoadPointGroupEditAction {
+    Group,
+    Ungroup,
+    ResetOverrides,
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum LoadPointGroupEditBlockReason {
+    NotEnoughLocations,
+    DisconnectedSelection,
+    AlreadyGrouped,
+    SelectionMustBeOneGroup,
+    SingletonGroup,
+    NoOverrides,
+}
+
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+pub struct LoadPointGroupEditInput {
+    pub load_points: Vec<LoadPoint>,
+    pub settings: LoadPointGroupingSettings,
+    pub selected_load_point_ids: Vec<u32>,
+    pub action: LoadPointGroupEditAction,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+pub struct LoadPointGroupEditPreview {
+    pub allowed: bool,
+    pub reason: Option<LoadPointGroupEditBlockReason>,
+}
+
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+#[serde(tag = "status", rename_all = "snake_case")]
+pub enum LoadPointGroupEditResult {
+    Applied {
+        settings: LoadPointGroupingSettings,
+        grouping: DerivedLoadPointGroups,
+    },
+    Blocked {
+        reason: LoadPointGroupEditBlockReason,
+        load_point_ids: Vec<u32>,
+    },
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum GroupAssignmentConflictKind {
+    PartialAssignment,
+    DifferentConfigurations,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+pub struct GroupAssignmentConflict {
+    pub load_point_ids: Vec<u32>,
+    pub kind: GroupAssignmentConflictKind,
+    pub assignment_repair_blocked: bool,
+    pub unassignment_repair_blocked: bool,
+    pub blocking_locked_load_point_ids: Vec<u32>,
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum InvalidLoadPointGroupOverrideReason {
+    UnknownLoadPoint,
+    DuplicateMember,
+    DuplicateRecord,
+    ManualGroupTooSmall,
+    OverlappingManualGroups,
+    DisconnectedManualGroup,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+pub struct InvalidLoadPointGroupOverride {
+    pub collection: String,
+    pub index: usize,
+    pub load_point_ids: Vec<u32>,
+    pub reason: InvalidLoadPointGroupOverrideReason,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+pub struct InvalidLoadPointGroupOverrides {
+    pub errors: Vec<InvalidLoadPointGroupOverride>,
+}
+
 pub fn derive_load_point_groups(
     load_points: &[LoadPoint],
     settings: &LoadPointGroupingSettings,
-) -> Vec<LoadPointGroup> {
-    let mut components = UnionFind::new(load_points.len());
+) -> DerivedLoadPointGroups {
+    let topology = build_load_point_topology(load_points);
+    let index_by_id = load_points
+        .iter()
+        .enumerate()
+        .map(|(index, load_point)| (load_point.id, index))
+        .collect::<BTreeMap<_, _>>();
+    let known_ids = index_by_id.keys().copied().collect::<BTreeSet<_>>();
+    let explicitly_separated = settings
+        .ungrouped_groups
+        .iter()
+        .flat_map(|group| group.load_point_ids.iter().copied())
+        .filter(|load_point_id| known_ids.contains(load_point_id))
+        .collect::<BTreeSet<_>>();
+
+    let mut manual_components = UnionFind::new(load_points.len());
+    let mut manual_members = BTreeSet::new();
+    for group in &settings.manual_groups {
+        let members = group
+            .load_point_ids
+            .iter()
+            .copied()
+            .filter(|load_point_id| known_ids.contains(load_point_id))
+            .collect::<BTreeSet<_>>();
+        if members.len() < 2 {
+            continue;
+        }
+        let member_indices = members
+            .iter()
+            .filter_map(|load_point_id| index_by_id.get(load_point_id).copied());
+        let mut member_indices = member_indices.collect::<Vec<_>>().into_iter();
+        let Some(first_index) = member_indices.next() else {
+            continue;
+        };
+        manual_members.extend(members);
+        for member_index in member_indices {
+            manual_components.union(first_index, member_index);
+        }
+    }
+
+    let mut automatic_components = UnionFind::new(load_points.len());
     let max_distance_mm = if settings.automatic && settings.max_edge_distance_mm.is_finite() {
         settings.max_edge_distance_mm.max(0.0)
     } else {
@@ -76,37 +230,425 @@ pub fn derive_load_point_groups(
     };
     let max_distance_squared = max_distance_mm * max_distance_mm;
 
-    for left_index in 0..load_points.len() {
-        for right_index in (left_index + 1)..load_points.len() {
-            let left = &load_points[left_index];
-            let right = &load_points[right_index];
-            let delta_x = left.x_mm - right.x_mm;
-            let delta_y = left.y_mm - right.y_mm;
-            let distance_squared = delta_x * delta_x + delta_y * delta_y;
+    for edge in &topology.edges {
+        if manual_members.contains(&edge.from_load_point_id)
+            || manual_members.contains(&edge.to_load_point_id)
+            || explicitly_separated.contains(&edge.from_load_point_id)
+            || explicitly_separated.contains(&edge.to_load_point_id)
+        {
+            continue;
+        }
+        let Some(&left_index) = index_by_id.get(&edge.from_load_point_id) else {
+            continue;
+        };
+        let Some(&right_index) = index_by_id.get(&edge.to_load_point_id) else {
+            continue;
+        };
+        let left = &load_points[left_index];
+        let right = &load_points[right_index];
+        let delta_x = left.x_mm - right.x_mm;
+        let delta_y = left.y_mm - right.y_mm;
+        let distance_squared = delta_x * delta_x + delta_y * delta_y;
+        if distance_squared < max_distance_squared {
+            automatic_components.union(left_index, right_index);
+        }
+    }
 
-            if distance_squared < max_distance_squared {
-                components.union(left_index, right_index);
+    let mut manual_ids_by_root = BTreeMap::<usize, Vec<u32>>::new();
+    let mut automatic_ids_by_root = BTreeMap::<usize, Vec<u32>>::new();
+    let mut separated_ids = Vec::new();
+    for (index, load_point) in load_points.iter().enumerate() {
+        if manual_members.contains(&load_point.id) {
+            manual_ids_by_root
+                .entry(manual_components.find(index))
+                .or_default()
+                .push(load_point.id);
+        } else if explicitly_separated.contains(&load_point.id) {
+            separated_ids.push(load_point.id);
+        } else {
+            automatic_ids_by_root
+                .entry(automatic_components.find(index))
+                .or_default()
+                .push(load_point.id);
+        }
+    }
+
+    let mut groups = manual_ids_by_root
+        .into_values()
+        .map(|mut load_point_ids| {
+            load_point_ids.sort_unstable();
+            LoadPointGroup {
+                load_point_ids,
+                origin: LoadPointGroupOrigin::Manual,
+            }
+        })
+        .chain(
+            automatic_ids_by_root
+                .into_values()
+                .map(|mut load_point_ids| {
+                    load_point_ids.sort_unstable();
+                    LoadPointGroup {
+                        load_point_ids,
+                        origin: LoadPointGroupOrigin::Automatic,
+                    }
+                }),
+        )
+        .chain(
+            separated_ids
+                .into_iter()
+                .map(|load_point_id| LoadPointGroup {
+                    load_point_ids: vec![load_point_id],
+                    origin: LoadPointGroupOrigin::ExplicitlySeparated,
+                }),
+        )
+        .collect::<Vec<_>>();
+    groups.sort_by(|left, right| left.load_point_ids.cmp(&right.load_point_ids));
+
+    DerivedLoadPointGroups { groups, topology }
+}
+
+pub fn preview_load_point_group_edit(input: &LoadPointGroupEditInput) -> LoadPointGroupEditPreview {
+    match apply_load_point_group_edit(input) {
+        LoadPointGroupEditResult::Applied { .. } => LoadPointGroupEditPreview {
+            allowed: true,
+            reason: None,
+        },
+        LoadPointGroupEditResult::Blocked { reason, .. } => LoadPointGroupEditPreview {
+            allowed: false,
+            reason: Some(reason),
+        },
+    }
+}
+
+pub fn apply_load_point_group_edit(input: &LoadPointGroupEditInput) -> LoadPointGroupEditResult {
+    let current = derive_load_point_groups(&input.load_points, &input.settings);
+    let selected = input
+        .selected_load_point_ids
+        .iter()
+        .copied()
+        .collect::<BTreeSet<_>>();
+    let expanded = current
+        .groups
+        .iter()
+        .filter(|group| {
+            group
+                .load_point_ids
+                .iter()
+                .any(|load_point_id| selected.contains(load_point_id))
+        })
+        .flat_map(|group| group.load_point_ids.iter().copied())
+        .collect::<BTreeSet<_>>();
+    let mut settings = input.settings.clone();
+
+    let blocked = |reason| LoadPointGroupEditResult::Blocked {
+        reason,
+        load_point_ids: expanded.iter().copied().collect(),
+    };
+
+    match input.action {
+        LoadPointGroupEditAction::ResetOverrides => {
+            if settings.manual_groups.is_empty() && settings.ungrouped_groups.is_empty() {
+                return blocked(LoadPointGroupEditBlockReason::NoOverrides);
+            }
+            settings.manual_groups.clear();
+            settings.ungrouped_groups.clear();
+        }
+        LoadPointGroupEditAction::Group => {
+            if expanded.len() < 2 {
+                return blocked(LoadPointGroupEditBlockReason::NotEnoughLocations);
+            }
+            if current.groups.iter().any(|group| {
+                group.load_point_ids.len() == expanded.len()
+                    && group
+                        .load_point_ids
+                        .iter()
+                        .all(|load_point_id| expanded.contains(load_point_id))
+            }) {
+                return blocked(LoadPointGroupEditBlockReason::AlreadyGrouped);
+            }
+            if !is_connected_selection(&expanded, &current.topology) {
+                return blocked(LoadPointGroupEditBlockReason::DisconnectedSelection);
+            }
+            settings.manual_groups.retain(|group| {
+                !group
+                    .load_point_ids
+                    .iter()
+                    .any(|load_point_id| expanded.contains(load_point_id))
+            });
+            let matching_separation = settings.ungrouped_groups.iter().position(|group| {
+                canonical_ids(&group.load_point_ids) == expanded.iter().copied().collect::<Vec<_>>()
+            });
+            if let Some(index) = matching_separation {
+                settings.ungrouped_groups.remove(index);
+            } else {
+                settings.manual_groups.push(LoadPointGroupOverride {
+                    load_point_ids: expanded.iter().copied().collect(),
+                });
+            }
+        }
+        LoadPointGroupEditAction::Ungroup => {
+            let involved = current
+                .groups
+                .iter()
+                .filter(|group| {
+                    group
+                        .load_point_ids
+                        .iter()
+                        .any(|load_point_id| selected.contains(load_point_id))
+                })
+                .collect::<Vec<_>>();
+            if involved.len() != 1 {
+                return blocked(LoadPointGroupEditBlockReason::SelectionMustBeOneGroup);
+            }
+            let group = involved[0];
+            if group.load_point_ids.len() < 2 {
+                return blocked(LoadPointGroupEditBlockReason::SingletonGroup);
+            }
+            match group.origin {
+                LoadPointGroupOrigin::Manual => settings.manual_groups.retain(|record| {
+                    !record
+                        .load_point_ids
+                        .iter()
+                        .any(|load_point_id| group.load_point_ids.contains(load_point_id))
+                }),
+                LoadPointGroupOrigin::Automatic => {
+                    settings.ungrouped_groups.push(LoadPointGroupOverride {
+                        load_point_ids: group.load_point_ids.clone(),
+                    });
+                }
+                LoadPointGroupOrigin::ExplicitlySeparated => {
+                    return blocked(LoadPointGroupEditBlockReason::SingletonGroup);
+                }
             }
         }
     }
 
-    let mut ids_by_root = BTreeMap::<usize, Vec<u32>>::new();
-    for (index, load_point) in load_points.iter().enumerate() {
-        ids_by_root
-            .entry(components.find(index))
-            .or_default()
-            .push(load_point.id);
-    }
+    canonicalize_override_records(&mut settings.manual_groups);
+    canonicalize_override_records(&mut settings.ungrouped_groups);
+    let grouping = derive_load_point_groups(&input.load_points, &settings);
+    LoadPointGroupEditResult::Applied { settings, grouping }
+}
 
-    let mut groups = ids_by_root
-        .into_values()
-        .map(|mut load_point_ids| {
-            load_point_ids.sort_unstable();
-            LoadPointGroup { load_point_ids }
-        })
-        .collect::<Vec<_>>();
-    groups.sort_by(|left, right| left.load_point_ids.cmp(&right.load_point_ids));
+pub fn assess_load_point_group_assignments(
+    groups: &[LoadPointGroup],
+    assignments: &HashMap<u32, crate::PileConfigurationKey>,
+    locked_load_point_ids: &[u32],
+) -> Vec<GroupAssignmentConflict> {
+    let locked = locked_load_point_ids
+        .iter()
+        .copied()
+        .collect::<BTreeSet<_>>();
     groups
+        .iter()
+        .filter_map(|group| {
+            let assigned = group
+                .load_point_ids
+                .iter()
+                .filter_map(|load_point_id| assignments.get(load_point_id))
+                .collect::<Vec<_>>();
+            let distinct = assigned.iter().copied().collect::<BTreeSet<_>>();
+            let kind = if assigned.is_empty()
+                || (assigned.len() == group.load_point_ids.len() && distinct.len() == 1)
+            {
+                return None;
+            } else if assigned.len() != group.load_point_ids.len() {
+                GroupAssignmentConflictKind::PartialAssignment
+            } else {
+                GroupAssignmentConflictKind::DifferentConfigurations
+            };
+            let locked_ids = group
+                .load_point_ids
+                .iter()
+                .copied()
+                .filter(|load_point_id| locked.contains(load_point_id))
+                .collect::<Vec<_>>();
+            let locked_assigned = locked_ids
+                .iter()
+                .filter_map(|load_point_id| assignments.get(load_point_id))
+                .collect::<BTreeSet<_>>();
+            let has_locked_unassigned = locked_ids
+                .iter()
+                .any(|load_point_id| !assignments.contains_key(load_point_id));
+            let assignment_repair_blocked = has_locked_unassigned || locked_assigned.len() > 1;
+            let unassignment_repair_blocked = !locked_assigned.is_empty();
+            let blocking_locked_load_point_ids =
+                if assignment_repair_blocked || unassignment_repair_blocked {
+                    locked_ids
+                } else {
+                    Vec::new()
+                };
+            Some(GroupAssignmentConflict {
+                load_point_ids: group.load_point_ids.clone(),
+                kind,
+                assignment_repair_blocked,
+                unassignment_repair_blocked,
+                blocking_locked_load_point_ids,
+            })
+        })
+        .collect()
+}
+
+pub fn validate_load_point_group_overrides(
+    load_points: &[LoadPoint],
+    settings: &LoadPointGroupingSettings,
+) -> Result<(), InvalidLoadPointGroupOverrides> {
+    let known = load_points
+        .iter()
+        .map(|load_point| load_point.id)
+        .collect::<BTreeSet<_>>();
+    let topology = build_load_point_topology(load_points);
+    let mut errors = Vec::new();
+    validate_override_collection(
+        "manual_groups",
+        &settings.manual_groups,
+        &known,
+        &mut errors,
+    );
+    validate_override_collection(
+        "ungrouped_groups",
+        &settings.ungrouped_groups,
+        &known,
+        &mut errors,
+    );
+    let mut claimed = BTreeSet::new();
+    for (index, group) in settings.manual_groups.iter().enumerate() {
+        let ids = group
+            .load_point_ids
+            .iter()
+            .copied()
+            .collect::<BTreeSet<_>>();
+        if group.load_point_ids.len() < 2 {
+            errors.push(invalid_override(
+                "manual_groups",
+                index,
+                group,
+                InvalidLoadPointGroupOverrideReason::ManualGroupTooSmall,
+            ));
+        }
+        if !ids.is_disjoint(&claimed) {
+            errors.push(invalid_override(
+                "manual_groups",
+                index,
+                group,
+                InvalidLoadPointGroupOverrideReason::OverlappingManualGroups,
+            ));
+        }
+        claimed.extend(ids.iter().copied());
+        if ids.len() >= 2
+            && ids
+                .iter()
+                .all(|load_point_id| known.contains(load_point_id))
+            && !is_connected_selection(&ids, &topology)
+        {
+            errors.push(invalid_override(
+                "manual_groups",
+                index,
+                group,
+                InvalidLoadPointGroupOverrideReason::DisconnectedManualGroup,
+            ));
+        }
+    }
+    if errors.is_empty() {
+        Ok(())
+    } else {
+        Err(InvalidLoadPointGroupOverrides { errors })
+    }
+}
+
+pub(crate) fn canonicalize_load_point_grouping_settings(settings: &mut LoadPointGroupingSettings) {
+    canonicalize_override_records(&mut settings.manual_groups);
+    canonicalize_override_records(&mut settings.ungrouped_groups);
+}
+
+fn validate_override_collection(
+    collection: &str,
+    records: &[LoadPointGroupOverride],
+    known: &BTreeSet<u32>,
+    errors: &mut Vec<InvalidLoadPointGroupOverride>,
+) {
+    let mut seen = BTreeSet::new();
+    for (index, group) in records.iter().enumerate() {
+        let canonical = canonical_ids(&group.load_point_ids);
+        if canonical.len() != group.load_point_ids.len() {
+            errors.push(invalid_override(
+                collection,
+                index,
+                group,
+                InvalidLoadPointGroupOverrideReason::DuplicateMember,
+            ));
+        }
+        if group.load_point_ids.iter().any(|id| !known.contains(id)) {
+            errors.push(invalid_override(
+                collection,
+                index,
+                group,
+                InvalidLoadPointGroupOverrideReason::UnknownLoadPoint,
+            ));
+        }
+        if !seen.insert(canonical) {
+            errors.push(invalid_override(
+                collection,
+                index,
+                group,
+                InvalidLoadPointGroupOverrideReason::DuplicateRecord,
+            ));
+        }
+    }
+}
+
+fn invalid_override(
+    collection: &str,
+    index: usize,
+    group: &LoadPointGroupOverride,
+    reason: InvalidLoadPointGroupOverrideReason,
+) -> InvalidLoadPointGroupOverride {
+    InvalidLoadPointGroupOverride {
+        collection: collection.to_string(),
+        index,
+        load_point_ids: group.load_point_ids.clone(),
+        reason,
+    }
+}
+
+fn canonical_ids(ids: &[u32]) -> Vec<u32> {
+    ids.iter()
+        .copied()
+        .collect::<BTreeSet<_>>()
+        .into_iter()
+        .collect()
+}
+
+fn canonicalize_override_records(records: &mut Vec<LoadPointGroupOverride>) {
+    for record in records.iter_mut() {
+        record.load_point_ids = canonical_ids(&record.load_point_ids);
+    }
+    records.sort_by(|left, right| left.load_point_ids.cmp(&right.load_point_ids));
+    records.dedup_by(|left, right| left.load_point_ids == right.load_point_ids);
+}
+
+fn is_connected_selection(selected: &BTreeSet<u32>, topology: &LoadPointTopology) -> bool {
+    let Some(start) = selected.iter().next().copied() else {
+        return false;
+    };
+    let mut visited = BTreeSet::from([start]);
+    let mut pending = vec![start];
+    while let Some(current) = pending.pop() {
+        for edge in &topology.edges {
+            let neighbor = if edge.from_load_point_id == current {
+                Some(edge.to_load_point_id)
+            } else if edge.to_load_point_id == current {
+                Some(edge.from_load_point_id)
+            } else {
+                None
+            };
+            if let Some(neighbor) = neighbor.filter(|id| selected.contains(id)) {
+                if visited.insert(neighbor) {
+                    pending.push(neighbor);
+                }
+            }
+        }
+    }
+    visited == *selected
 }
 
 pub fn apply_load_point_group_assignment(
@@ -209,14 +751,20 @@ impl UnionFind {
 
 #[cfg(test)]
 mod tests {
+    use std::collections::HashMap;
+
     use crate::source_data::LoadPoint;
     use crate::PileConfigurationKey;
 
     use super::{
-        apply_load_point_group_assignment, derive_load_point_groups,
-        ApplyLoadPointGroupAssignmentInput, ApplyLoadPointGroupAssignmentResult,
-        BlockingLockedLoadPoint, LoadPointGroup, LoadPointGroupAssignmentChange,
-        LoadPointGroupingSettings, DEFAULT_MAX_GROUP_EDGE_DISTANCE_MM,
+        apply_load_point_group_assignment, apply_load_point_group_edit,
+        assess_load_point_group_assignments, derive_load_point_groups,
+        preview_load_point_group_edit, ApplyLoadPointGroupAssignmentInput,
+        ApplyLoadPointGroupAssignmentResult, BlockingLockedLoadPoint, DerivedLoadPointGroups,
+        GroupAssignmentConflict, GroupAssignmentConflictKind, LoadPointGroup,
+        LoadPointGroupAssignmentChange, LoadPointGroupEditAction, LoadPointGroupEditBlockReason,
+        LoadPointGroupEditInput, LoadPointGroupEditResult, LoadPointGroupOrigin,
+        LoadPointGroupOverride, LoadPointGroupingSettings, DEFAULT_MAX_GROUP_EDGE_DISTANCE_MM,
     };
 
     fn point(id: u32, x_mm: f64, y_mm: f64) -> LoadPoint {
@@ -232,11 +780,32 @@ mod tests {
     fn group(load_point_ids: &[u32]) -> LoadPointGroup {
         LoadPointGroup {
             load_point_ids: load_point_ids.to_vec(),
+            origin: LoadPointGroupOrigin::Automatic,
         }
     }
 
     fn derive(load_points: &[LoadPoint]) -> Vec<LoadPointGroup> {
-        derive_load_point_groups(load_points, &LoadPointGroupingSettings::default())
+        derive_load_point_groups(load_points, &LoadPointGroupingSettings::default()).groups
+    }
+
+    fn override_group(load_point_ids: &[u32]) -> LoadPointGroupOverride {
+        LoadPointGroupOverride {
+            load_point_ids: load_point_ids.to_vec(),
+        }
+    }
+
+    fn edit_input(
+        load_points: Vec<LoadPoint>,
+        settings: LoadPointGroupingSettings,
+        selected_load_point_ids: &[u32],
+        action: LoadPointGroupEditAction,
+    ) -> LoadPointGroupEditInput {
+        LoadPointGroupEditInput {
+            load_points,
+            settings,
+            selected_load_point_ids: selected_load_point_ids.to_vec(),
+            action,
+        }
     }
 
     fn configuration(pile_size_mm: u32, pile_tip_level_mm: i64) -> PileConfigurationKey {
@@ -301,7 +870,7 @@ mod tests {
             },
         );
 
-        assert_eq!(groups, vec![group(&[2]), group(&[5]), group(&[8])]);
+        assert_eq!(groups.groups, vec![group(&[2]), group(&[5]), group(&[8])]);
     }
 
     #[test]
@@ -359,7 +928,8 @@ mod tests {
                         max_edge_distance_mm,
                         ..LoadPointGroupingSettings::default()
                     },
-                ),
+                )
+                .groups,
                 vec![group(&[1]), group(&[2])],
             );
         }
@@ -394,6 +964,376 @@ mod tests {
         ]);
 
         assert_eq!(forward, reverse);
+    }
+
+    #[test]
+    fn derivation_returns_the_global_gabriel_topology() {
+        let result = derive_load_point_groups(
+            &[
+                point(1, 0.0, 0.0),
+                point(2, 500.0, 0.0),
+                point(3, 1_000.0, 0.0),
+            ],
+            &LoadPointGroupingSettings::default(),
+        );
+
+        assert_eq!(
+            result.topology.edges,
+            vec![
+                crate::LoadPointEdge {
+                    from_load_point_id: 1,
+                    to_load_point_id: 2,
+                },
+                crate::LoadPointEdge {
+                    from_load_point_id: 2,
+                    to_load_point_id: 3,
+                },
+            ],
+        );
+        assert_eq!(result.groups, vec![group(&[1, 2, 3])]);
+    }
+
+    #[test]
+    fn manual_group_can_span_beyond_the_automatic_distance() {
+        let result = derive_load_point_groups(
+            &[point(1, 0.0, 0.0), point(2, 5_000.0, 0.0)],
+            &LoadPointGroupingSettings {
+                manual_groups: vec![override_group(&[2, 1])],
+                ..LoadPointGroupingSettings::default()
+            },
+        );
+
+        assert_eq!(
+            result.groups,
+            vec![LoadPointGroup {
+                load_point_ids: vec![1, 2],
+                origin: LoadPointGroupOrigin::Manual,
+            }],
+        );
+    }
+
+    #[test]
+    fn manual_group_members_are_extracted_from_the_automatic_partition() {
+        let result = derive_load_point_groups(
+            &[
+                point(1, 0.0, 0.0),
+                point(2, 500.0, 0.0),
+                point(3, 1_000.0, 0.0),
+            ],
+            &LoadPointGroupingSettings {
+                manual_groups: vec![override_group(&[1, 2])],
+                ..LoadPointGroupingSettings::default()
+            },
+        );
+
+        assert_eq!(
+            result.groups,
+            vec![
+                LoadPointGroup {
+                    load_point_ids: vec![1, 2],
+                    origin: LoadPointGroupOrigin::Manual,
+                },
+                LoadPointGroup {
+                    load_point_ids: vec![3],
+                    origin: LoadPointGroupOrigin::Automatic,
+                },
+            ],
+        );
+    }
+
+    #[test]
+    fn ungrouped_record_suppresses_every_members_automatic_edges() {
+        let result = derive_load_point_groups(
+            &[
+                point(1, 0.0, 0.0),
+                point(2, 500.0, 0.0),
+                point(3, 1_000.0, 0.0),
+            ],
+            &LoadPointGroupingSettings {
+                ungrouped_groups: vec![override_group(&[3, 1, 2])],
+                ..LoadPointGroupingSettings::default()
+            },
+        );
+
+        assert_eq!(
+            result.groups,
+            vec![
+                LoadPointGroup {
+                    load_point_ids: vec![1],
+                    origin: LoadPointGroupOrigin::ExplicitlySeparated,
+                },
+                LoadPointGroup {
+                    load_point_ids: vec![2],
+                    origin: LoadPointGroupOrigin::ExplicitlySeparated,
+                },
+                LoadPointGroup {
+                    load_point_ids: vec![3],
+                    origin: LoadPointGroupOrigin::ExplicitlySeparated,
+                },
+            ],
+        );
+    }
+
+    #[test]
+    fn manual_group_overlays_an_ungrouped_record() {
+        let result = derive_load_point_groups(
+            &[
+                point(1, 0.0, 0.0),
+                point(2, 500.0, 0.0),
+                point(3, 1_000.0, 0.0),
+            ],
+            &LoadPointGroupingSettings {
+                manual_groups: vec![override_group(&[1, 2])],
+                ungrouped_groups: vec![override_group(&[1, 2, 3])],
+                ..LoadPointGroupingSettings::default()
+            },
+        );
+
+        assert_eq!(
+            result.groups,
+            vec![
+                LoadPointGroup {
+                    load_point_ids: vec![1, 2],
+                    origin: LoadPointGroupOrigin::Manual,
+                },
+                LoadPointGroup {
+                    load_point_ids: vec![3],
+                    origin: LoadPointGroupOrigin::ExplicitlySeparated,
+                },
+            ],
+        );
+    }
+
+    #[test]
+    fn overrides_remain_effective_when_automatic_grouping_is_disabled() {
+        let result = derive_load_point_groups(
+            &[
+                point(1, 0.0, 0.0),
+                point(2, 500.0, 0.0),
+                point(3, 1_000.0, 0.0),
+            ],
+            &LoadPointGroupingSettings {
+                automatic: false,
+                manual_groups: vec![override_group(&[1, 2])],
+                ungrouped_groups: vec![override_group(&[3])],
+                ..LoadPointGroupingSettings::default()
+            },
+        );
+
+        assert_eq!(
+            result,
+            DerivedLoadPointGroups {
+                groups: vec![
+                    LoadPointGroup {
+                        load_point_ids: vec![1, 2],
+                        origin: LoadPointGroupOrigin::Manual,
+                    },
+                    LoadPointGroup {
+                        load_point_ids: vec![3],
+                        origin: LoadPointGroupOrigin::ExplicitlySeparated,
+                    },
+                ],
+                topology: crate::build_load_point_topology(&[
+                    point(1, 0.0, 0.0),
+                    point(2, 500.0, 0.0),
+                    point(3, 1_000.0, 0.0),
+                ]),
+            },
+        );
+    }
+
+    #[test]
+    fn grouping_requires_a_connected_induced_gabriel_subgraph() {
+        let input = edit_input(
+            vec![
+                point(1, 0.0, 0.0),
+                point(2, 500.0, 0.0),
+                point(3, 1_000.0, 0.0),
+            ],
+            LoadPointGroupingSettings {
+                automatic: false,
+                ..LoadPointGroupingSettings::default()
+            },
+            &[1, 3],
+            LoadPointGroupEditAction::Group,
+        );
+
+        assert_eq!(
+            preview_load_point_group_edit(&input),
+            super::LoadPointGroupEditPreview {
+                allowed: false,
+                reason: Some(LoadPointGroupEditBlockReason::DisconnectedSelection),
+            },
+        );
+    }
+
+    #[test]
+    fn grouping_connected_units_creates_one_canonical_manual_group() {
+        let result = apply_load_point_group_edit(&edit_input(
+            vec![
+                point(1, 0.0, 0.0),
+                point(2, 500.0, 0.0),
+                point(3, 1_000.0, 0.0),
+            ],
+            LoadPointGroupingSettings {
+                automatic: false,
+                ..LoadPointGroupingSettings::default()
+            },
+            &[3, 1, 2],
+            LoadPointGroupEditAction::Group,
+        ));
+
+        let LoadPointGroupEditResult::Applied { settings, grouping } = result else {
+            panic!("connected selection should be grouped");
+        };
+        assert_eq!(settings.manual_groups, vec![override_group(&[1, 2, 3])]);
+        assert_eq!(grouping.groups[0].origin, LoadPointGroupOrigin::Manual);
+    }
+
+    #[test]
+    fn grouping_exactly_restores_an_ungrouped_automatic_group() {
+        let result = apply_load_point_group_edit(&edit_input(
+            vec![point(1, 0.0, 0.0), point(2, 500.0, 0.0)],
+            LoadPointGroupingSettings {
+                ungrouped_groups: vec![override_group(&[1, 2])],
+                ..LoadPointGroupingSettings::default()
+            },
+            &[1, 2],
+            LoadPointGroupEditAction::Group,
+        ));
+
+        let LoadPointGroupEditResult::Applied { settings, grouping } = result else {
+            panic!("previous automatic group should be restored");
+        };
+        assert!(settings.manual_groups.is_empty());
+        assert!(settings.ungrouped_groups.is_empty());
+        assert_eq!(grouping.groups, vec![group(&[1, 2])]);
+    }
+
+    #[test]
+    fn ungrouping_manual_and_automatic_groups_have_distinct_persistence() {
+        let points = vec![point(1, 0.0, 0.0), point(2, 500.0, 0.0)];
+        let manual = apply_load_point_group_edit(&edit_input(
+            points.clone(),
+            LoadPointGroupingSettings {
+                manual_groups: vec![override_group(&[1, 2])],
+                ..LoadPointGroupingSettings::default()
+            },
+            &[1],
+            LoadPointGroupEditAction::Ungroup,
+        ));
+        let automatic = apply_load_point_group_edit(&edit_input(
+            points,
+            LoadPointGroupingSettings::default(),
+            &[1],
+            LoadPointGroupEditAction::Ungroup,
+        ));
+
+        let LoadPointGroupEditResult::Applied {
+            settings: manual, ..
+        } = manual
+        else {
+            panic!("manual group should be removed");
+        };
+        let LoadPointGroupEditResult::Applied {
+            settings: automatic,
+            ..
+        } = automatic
+        else {
+            panic!("automatic group should be separated");
+        };
+        assert!(manual.manual_groups.is_empty());
+        assert!(manual.ungrouped_groups.is_empty());
+        assert_eq!(automatic.ungrouped_groups, vec![override_group(&[1, 2])]);
+    }
+
+    #[test]
+    fn reset_clears_only_group_overrides() {
+        let result = apply_load_point_group_edit(&edit_input(
+            vec![point(1, 0.0, 0.0), point(2, 500.0, 0.0)],
+            LoadPointGroupingSettings {
+                automatic: false,
+                max_edge_distance_mm: 2_500.0,
+                manual_groups: vec![override_group(&[1, 2])],
+                ungrouped_groups: vec![override_group(&[2])],
+            },
+            &[],
+            LoadPointGroupEditAction::ResetOverrides,
+        ));
+
+        let LoadPointGroupEditResult::Applied { settings, .. } = result else {
+            panic!("overrides should reset");
+        };
+        assert!(!settings.automatic);
+        assert_eq!(settings.max_edge_distance_mm, 2_500.0);
+        assert!(settings.manual_groups.is_empty());
+        assert!(settings.ungrouped_groups.is_empty());
+    }
+
+    #[test]
+    fn assignment_conflicts_distinguish_partial_and_different_configurations() {
+        let groups = vec![LoadPointGroup {
+            load_point_ids: vec![1, 2, 3],
+            origin: LoadPointGroupOrigin::Manual,
+        }];
+        let a = configuration(290, -17_500);
+        let b = configuration(320, -18_000);
+
+        assert_eq!(
+            assess_load_point_group_assignments(&groups, &HashMap::from([(1, a.clone())]), &[],)[0]
+                .kind,
+            GroupAssignmentConflictKind::PartialAssignment,
+        );
+        assert_eq!(
+            assess_load_point_group_assignments(
+                &groups,
+                &HashMap::from([(1, a), (2, b.clone()), (3, b)]),
+                &[],
+            )[0]
+            .kind,
+            GroupAssignmentConflictKind::DifferentConfigurations,
+        );
+    }
+
+    #[test]
+    fn consistent_groups_have_no_assignment_conflicts() {
+        let groups = vec![LoadPointGroup {
+            load_point_ids: vec![1, 2],
+            origin: LoadPointGroupOrigin::Automatic,
+        }];
+        let assigned = configuration(320, -18_000);
+
+        assert!(assess_load_point_group_assignments(&groups, &HashMap::new(), &[]).is_empty());
+        assert!(assess_load_point_group_assignments(
+            &groups,
+            &HashMap::from([(1, assigned.clone()), (2, assigned)]),
+            &[],
+        )
+        .is_empty());
+    }
+
+    #[test]
+    fn assignment_conflict_reports_lock_repair_constraints() {
+        let groups = vec![LoadPointGroup {
+            load_point_ids: vec![1, 2, 3],
+            origin: LoadPointGroupOrigin::Manual,
+        }];
+        let assigned = configuration(320, -18_000);
+
+        assert_eq!(
+            assess_load_point_group_assignments(
+                &groups,
+                &HashMap::from([(1, assigned.clone()), (2, assigned)]),
+                &[1, 3],
+            ),
+            vec![GroupAssignmentConflict {
+                load_point_ids: vec![1, 2, 3],
+                kind: GroupAssignmentConflictKind::PartialAssignment,
+                assignment_repair_blocked: true,
+                unassignment_repair_blocked: true,
+                blocking_locked_load_point_ids: vec![1, 3],
+            }],
+        );
     }
 
     #[test]

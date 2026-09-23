@@ -8,6 +8,8 @@ import {
 } from "./selectionState.ts";
 import type { LegendSelectionFilter } from "../../viewer/legendSelection.ts";
 import type { SelectedCpt } from "../.././core/projectTypes.ts";
+import type { LoadPointGroup } from "../../core/loadPointGroupContract.ts";
+import { expandSelectionToGroups } from "../../viewer/loadPointGroupSelection.ts";
 import {
   transitionCptSettingsScope,
   type CptSelectionEditDraft,
@@ -26,6 +28,17 @@ const EMPTY_LEGEND_SELECTION_FILTER: LegendSelectionFilter = {
 export function selectReactViewerLoadPoint(
   state: ReactViewerSelectionState,
   loadPointId: number,
+  groups: LoadPointGroup[] = [],
+): ReactViewerSelectionState {
+  return clearLegendSelection(applySelectionTransition(
+    state,
+    setLoadPointSelection(state, expandSelectionToGroups([loadPointId], groups)),
+  ));
+}
+
+export function selectSingleLoadPointForInspection(
+  state: ReactViewerSelectionState,
+  loadPointId: number,
 ): ReactViewerSelectionState {
   return clearLegendSelection(applySelectionTransition(state, selectLoadPoint(state, loadPointId)));
 }
@@ -33,25 +46,58 @@ export function selectReactViewerLoadPoint(
 export function toggleReactViewerLoadPoint(
   state: ReactViewerSelectionState,
   loadPointId: number,
+  groups: LoadPointGroup[] = [],
 ): ReactViewerSelectionState {
+  const involvedIds = expandSelectionToGroups([loadPointId], groups);
+  const selected = new Set(state.selectedLoadPointIds);
+  const nextIds = involvedIds.every((id) => selected.has(id))
+    ? state.selectedLoadPointIds.filter((id) => !involvedIds.includes(id))
+    : [...state.selectedLoadPointIds, ...involvedIds];
   return clearLegendSelection(applySelectionTransition(
     state,
-    addLoadPointsToSelection(state, [loadPointId], { toggle: true }),
+    setLoadPointSelection(state, nextIds),
   ));
 }
 
 export function addReactViewerLoadPoints(
   state: ReactViewerSelectionState,
   loadPointIds: number[],
+  groups: LoadPointGroup[] = [],
 ): ReactViewerSelectionState {
-  return clearLegendSelection(applySelectionTransition(state, addLoadPointsToSelection(state, loadPointIds)));
+  return clearLegendSelection(applySelectionTransition(
+    state,
+    addLoadPointsToSelection(state, expandSelectionToGroups(loadPointIds, groups)),
+  ));
 }
 
 export function setReactViewerLoadPoints(
   state: ReactViewerSelectionState,
   loadPointIds: number[],
+  groups: LoadPointGroup[] = [],
 ): ReactViewerSelectionState {
-  return clearLegendSelection(applySelectionTransition(state, setLoadPointSelection(state, loadPointIds)));
+  return clearLegendSelection(applySelectionTransition(
+    state,
+    setLoadPointSelection(state, expandSelectionToGroups(loadPointIds, groups)),
+  ));
+}
+
+export function expandInitialReactViewerLoadPointGroup(
+  state: ReactViewerSelectionState,
+  initialLoadPointId: number | null,
+  groups: LoadPointGroup[],
+): ReactViewerSelectionState {
+  if (
+    initialLoadPointId === null
+    || state.selectedLoadPointId !== initialLoadPointId
+    || state.selectedLoadPointIds.length !== 1
+    || state.selectedLoadPointIds[0] !== initialLoadPointId
+  ) {
+    return state;
+  }
+  const expandedIds = expandSelectionToGroups([initialLoadPointId], groups);
+  return expandedIds.length > 1
+    ? setReactViewerLoadPoints(state, expandedIds, groups)
+    : state;
 }
 
 export function clearReactViewerSelection(state: ReactViewerSelectionState): ReactViewerSelectionState {

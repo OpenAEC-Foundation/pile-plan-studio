@@ -3,20 +3,24 @@
 use pile_plan_core::{
     aggregate_pile_options_for_load_points,
     apply_load_point_group_assignment as apply_load_point_group_assignment_core,
+    apply_load_point_group_edit as apply_load_point_group_edit_core,
+    assess_load_point_group_assignments as assess_load_point_group_assignments_core,
     assess_technical_assignment as assess_technical_assignment_core, build_pile_option_analysis,
     build_load_point_topology as build_load_point_topology_core,
     build_tip_level_region_topology as build_tip_level_region_topology_core, calculate_pile_cost,
     choose_default_pile_options,
     derive_load_point_groups as derive_load_point_groups_core,
     import_project_from_sources,
-    preview_import_source, preview_pile_plan_import,
+    preview_import_source, preview_load_point_group_edit as preview_load_point_group_edit_core,
+    preview_pile_plan_import,
     read_project_document as read_project_document_core, refresh_project_from_profiled_sources,
     validate_project_tip_levels,
     write_pile_plan_csv as write_pile_plan_csv_bytes,
     write_pile_plan_xlsx as write_pile_plan_xlsx_bytes, AggregatedPileConfiguration,
     ApplyLoadPointGroupAssignmentInput, ApplyLoadPointGroupAssignmentResult, CptSelectionSettings,
-    ImportSource,
-    ImportSourcePreview, InvalidPileTipLevels, LoadPointGroup, LoadPointGroupingSettings,
+    DerivedLoadPointGroups, GroupAssignmentConflict, ImportSource, ImportSourcePreview,
+    InvalidPileTipLevels, LoadPointGroup, LoadPointGroupEditInput, LoadPointGroupEditPreview,
+    LoadPointGroupEditResult, LoadPointGroupingSettings,
     PileConfigurationKey, PileConfigurationOption, PileCostSettings, PilePlanExportRequest,
     PileOptionAnalysisResult, PilePlanImportPreview, PilePlanImportRequest, PilePlanProject,
     ProjectBearingCapacity, ProjectCpt, ProjectDocumentDraft, ProjectDocumentError,
@@ -167,6 +171,13 @@ struct WriteProjectDocumentRequest {
 struct DeriveLoadPointGroupsRequest {
     load_points: Vec<ProjectLoadPoint>,
     settings: LoadPointGroupingSettings,
+}
+
+#[derive(Debug, Deserialize)]
+struct AssessLoadPointGroupAssignmentsRequest {
+    groups: Vec<LoadPointGroup>,
+    assignments: HashMap<u32, PileConfigurationKey>,
+    locked_load_point_ids: Vec<u32>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -341,8 +352,29 @@ fn build_tip_level_region_topology(
 }
 
 #[tauri::command(rename_all = "snake_case")]
-fn derive_load_point_groups(request: DeriveLoadPointGroupsRequest) -> Vec<LoadPointGroup> {
+fn derive_load_point_groups(request: DeriveLoadPointGroupsRequest) -> DerivedLoadPointGroups {
     derive_load_point_groups_core(&request.load_points, &request.settings)
+}
+
+#[tauri::command(rename_all = "snake_case")]
+fn preview_load_point_group_edit(request: LoadPointGroupEditInput) -> LoadPointGroupEditPreview {
+    preview_load_point_group_edit_core(&request)
+}
+
+#[tauri::command(rename_all = "snake_case")]
+fn apply_load_point_group_edit(request: LoadPointGroupEditInput) -> LoadPointGroupEditResult {
+    apply_load_point_group_edit_core(&request)
+}
+
+#[tauri::command(rename_all = "snake_case")]
+fn assess_load_point_group_assignments(
+    request: AssessLoadPointGroupAssignmentsRequest,
+) -> Vec<GroupAssignmentConflict> {
+    assess_load_point_group_assignments_core(
+        &request.groups,
+        &request.assignments,
+        &request.locked_load_point_ids,
+    )
 }
 
 #[tauri::command(rename_all = "snake_case")]
@@ -379,12 +411,15 @@ fn main() {
             aggregate_pile_options,
             assess_technical_assignment,
             apply_load_point_group_assignment,
+            apply_load_point_group_edit,
+            assess_load_point_group_assignments,
             build_load_point_topology,
             build_tip_level_region_topology,
             calculate_pile_option_analysis,
             calculate_pile_option_cost,
             choose_default_options,
             derive_load_point_groups,
+            preview_load_point_group_edit,
 
             ilp_optimize,
             cancel_ilp_optimization,
@@ -465,7 +500,7 @@ mod tests {
                 .expect("written project reads")
                 .project
                 .schema_version,
-            4
+            5
         );
         assert!(matches!(
             read_project_document(ReadProjectDocumentRequest {
@@ -526,6 +561,7 @@ mod tests {
         let result = assess_technical_assignment(TechnicalAssignmentRequest {
             groups: vec![LoadPointGroup {
                 load_point_ids: vec![1, 2],
+                origin: pile_plan_core::LoadPointGroupOrigin::Automatic,
             }],
             options_by_load_point: HashMap::from([(1, vec![valid]), (2, vec![missing])]),
         })
@@ -553,13 +589,14 @@ mod tests {
                 selected_load_point_ids: vec![2],
                 groups: vec![pile_plan_core::LoadPointGroup {
                     load_point_ids: vec![1, 2],
+                    origin: pile_plan_core::LoadPointGroupOrigin::Automatic,
                 }],
                 requested_configuration: Some(requested_configuration),
                 current_assignments: HashMap::new(),
                 locked_load_point_ids: vec![],
             });
 
-        assert!(groups.is_empty());
+        assert!(groups.groups.is_empty());
         assert!(matches!(
             result,
             pile_plan_core::ApplyLoadPointGroupAssignmentResult::Applied { changes }

@@ -2,6 +2,7 @@ import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 
 import type { LoadPointGroup } from "../../core/loadPointGroupContract.ts";
+import type { DerivedLoadPointGroups } from "../../core/loadPointGroupContract.ts";
 import type { LoadPoint, LoadPointGroupingSettings } from "../../core/projectTypes.ts";
 import { createLoadPointGroupController } from "./loadPointGroupController.ts";
 
@@ -31,9 +32,77 @@ function point(id: number, xMm: number, designLoadKn = 100): LoadPoint {
 const automaticGrouping: LoadPointGroupingSettings = {
   automatic: true,
   maxEdgeDistanceM: 1.2,
+  manualGroups: [],
+  ungroupedGroups: [],
 };
 
+function grouping(groups: LoadPointGroup[]): DerivedLoadPointGroups {
+  return {
+    groups,
+    topology: { load_point_ids: [], edges: [], faces: [] },
+  };
+}
+
+  it("keeps the last completed groups and topology while a newer request is pending", async () => {
+    const next = deferred<DerivedLoadPointGroups>();
+    let callCount = 0;
+    const controller = createLoadPointGroupController(async () => (
+      callCount++ === 0
+        ? grouping([{ load_point_ids: [1, 2], origin: "automatic" }])
+        : next.promise
+    ));
+    const snapshots: unknown[] = [];
+    controller.subscribe((snapshot) => snapshots.push(snapshot));
+
+    await controller.update([point(1, 0), point(2, 500)], automaticGrouping);
+    const pending = controller.update(
+      [point(1, 0), point(2, 500)],
+      { ...automaticGrouping, maxEdgeDistanceM: 2.5 },
+    );
+
+    assert.deepEqual(snapshots.at(-1), {
+      groups: [{ load_point_ids: [1, 2], origin: "automatic" }],
+      topology: { load_point_ids: [], edges: [], faces: [] },
+      pending: true,
+      error: null,
+    });
+    next.resolve(grouping([{ load_point_ids: [1, 2], origin: "manual" }]));
+    await pending;
+    assert.deepEqual((snapshots.at(-1) as { groups: LoadPointGroup[] }).groups, [
+      { load_point_ids: [1, 2], origin: "manual" },
+    ]);
+  });
+
 describe("load point group controller", () => {
+  it("clears a completed grouping when a replacement project has different load-point IDs", async () => {
+    const replacement = deferred<DerivedLoadPointGroups>();
+    let callCount = 0;
+    const controller = createLoadPointGroupController(async () => (
+      callCount++ === 0
+        ? grouping([{ load_point_ids: [1, 2], origin: "automatic" }])
+        : replacement.promise
+    ));
+    const snapshots: Array<{
+      groups: LoadPointGroup[];
+      topology: DerivedLoadPointGroups["topology"] | null;
+      pending: boolean;
+    }> = [];
+    controller.subscribe(({ groups, topology, pending }) => {
+      snapshots.push({ groups, topology, pending });
+    });
+
+    await controller.update([point(1, 0), point(2, 500)], automaticGrouping);
+    const pending = controller.update([point(10, 0), point(11, 500)], automaticGrouping);
+
+    assert.deepEqual(snapshots.at(-1), {
+      groups: [],
+      topology: null,
+      pending: true,
+    });
+    replacement.resolve(grouping([{ load_point_ids: [10, 11], origin: "automatic" }]));
+    await pending;
+  });
+
   it("publishes pending and completed snapshots", async () => {
     const response = deferred<LoadPointGroup[]>();
     const controller = createLoadPointGroupController(() => response.promise);
@@ -80,8 +149,8 @@ describe("load point group controller", () => {
 
     assert.deepEqual(settingsRequests, [
       automaticGrouping,
-      { automatic: true, maxEdgeDistanceM: 2.5 },
-      { automatic: false, maxEdgeDistanceM: 1.2 },
+      { ...automaticGrouping, maxEdgeDistanceM: 2.5 },
+      { ...automaticGrouping, automatic: false },
     ]);
   });
 
@@ -145,6 +214,7 @@ describe("load point group controller", () => {
 
     assert.deepEqual(snapshots.at(-1), {
       groups: [],
+      topology: null,
       pending: false,
       error,
     });

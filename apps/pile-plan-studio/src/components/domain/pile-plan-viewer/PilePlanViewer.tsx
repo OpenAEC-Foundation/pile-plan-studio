@@ -42,8 +42,14 @@ import {
 import { presentTipLevelRegionGeometry } from "../../../viewer/tipLevelRegionPresentation.ts";
 import type { LoadPointGroup } from "../../../core/loadPointGroupContract.ts";
 import type { TechnicalAssignmentSnapshot } from "../../../app/derived-state/technicalAssignmentController.ts";
+import type { GroupAssignmentAssessmentSnapshot } from "../../../app/derived-state/groupAssignmentAssessmentController.ts";
 import type { TipLevelRegionTopology } from "../../../core/tipLevelRegionContract.ts";
-import { getLoadPointGroupSelection } from "../../../viewer/loadPointGroupSelection.ts";
+import type { LoadPointTopology } from "../../../core/tipLevelRegionContract.ts";
+import { buildLoadPointGroupGeometry } from "../../../viewer/loadPointGroupGeometry.ts";
+import {
+  getCompleteSelectedGroupLoadPointIds,
+  getLoadPointGroupSelection,
+} from "../../../viewer/loadPointGroupSelection.ts";
 import { useViewerViewport } from "./useViewerViewport.ts";
 import ViewerStage from "./ViewerStage.tsx";
 import { getSelectedPileOption } from "./viewerPresentation.ts";
@@ -56,7 +62,9 @@ import {
 export type PilePlanViewerProps = {
   state: ProjectState;
   loadPointGroups: LoadPointGroup[];
+  loadPointGroupTopology: LoadPointTopology | null;
   technicalAssignment: TechnicalAssignmentSnapshot;
+  groupAssignmentAssessment: GroupAssignmentAssessmentSnapshot;
   lassoSelectionActive: boolean;
   tipLevelRegionTopology: TipLevelRegionTopology | null;
   onStateChange: (nextState: ProjectState) => void;
@@ -65,7 +73,9 @@ export type PilePlanViewerProps = {
 export default function PilePlanViewer({
   state,
   loadPointGroups,
+  loadPointGroupTopology,
   technicalAssignment,
+  groupAssignmentAssessment,
   lassoSelectionActive,
   tipLevelRegionTopology,
   onStateChange,
@@ -78,6 +88,9 @@ export default function PilePlanViewer({
     groups: loadPointGroups,
   }), [loadPointGroups, state.selectedLoadPointIds]);
   const relatedLoadPointIds = new Set(groupSelection.relatedLoadPointIds);
+  const completeSelectedGroupLoadPointIds = useMemo(() => new Set(
+    getCompleteSelectedGroupLoadPointIds(state.selectedLoadPointIds, loadPointGroups),
+  ), [loadPointGroups, state.selectedLoadPointIds]);
   const activePilePlan = state.pilePlans.find(
     (plan) => plan.id === state.activePilePlanId,
   ) ?? state.pilePlans[0];
@@ -134,6 +147,30 @@ export default function PilePlanViewer({
     ),
     [tipLevelRegionGeometry, legend, activePileConfigurations.pileTipLevelMms],
   );
+  const conflictingLoadPointIds = useMemo(
+    () => new Set(groupAssignmentAssessment.conflicts.flatMap(({ load_point_ids }) => load_point_ids)),
+    [groupAssignmentAssessment.conflicts],
+  );
+  const loadPointGroupGeometry = useMemo(() => {
+    if (!loadPointGroupTopology) return [];
+    return buildLoadPointGroupGeometry({
+      groups: loadPointGroups,
+      topology: loadPointGroupTopology,
+      pointsByLoadPointId: tipLevelRegionPoints,
+      symbolScalePercent: state.symbolScalePercent,
+      selectedLoadPointIds,
+      conflictingLoadPointIds,
+      showDefaultGroups: state.showLoadPointGroups,
+    });
+  }, [
+    conflictingLoadPointIds,
+    loadPointGroups,
+    loadPointGroupTopology,
+    selectedLoadPointIds,
+    state.showLoadPointGroups,
+    state.symbolScalePercent,
+    tipLevelRegionPoints,
+  ]);
   const cptConnectionSegments = useMemo(() => getCptConnectionSegments({
     transform: projectTransform,
     cpts: state.cpts,
@@ -159,6 +196,7 @@ export default function PilePlanViewer({
     handleLoadPointClick,
   } = useViewerPointerInteractions({
     state,
+    loadPointGroups,
     onStateChange,
     lassoSelectionActive,
     isEditingLoadPointLocks,
@@ -187,7 +225,7 @@ export default function PilePlanViewer({
         ref={canvasRef}
       >
         {state.showGrid ? (
-          <div
+          <canvas
             aria-hidden="true"
             className="viewer-coordinate-grid"
             ref={gridRef}
@@ -199,9 +237,11 @@ export default function PilePlanViewer({
             technicalAssignment={technicalAssignment}
             projectTransform={projectTransform}
             tipLevelRegionPresentation={tipLevelRegionPresentation}
+            loadPointGroupGeometry={loadPointGroupGeometry}
             cptConnectionSegments={cptConnectionSegments}
             pileOptionsByLoadPointId={pileOptionsByLoadPointId}
             selectedLoadPointIds={selectedLoadPointIds}
+            completeSelectedGroupLoadPointIds={completeSelectedGroupLoadPointIds}
             relatedLoadPointIds={relatedLoadPointIds}
             lockedLoadPointIds={lockedLoadPointIds}
             contextSelectedCptIds={contextSelectedCptIds}

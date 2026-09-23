@@ -70,7 +70,11 @@ pub struct IlpTransitionWeights {
     pub tip_only_milli: u32,
     pub size_only_milli: u32,
     /// Read-only compatibility for historical result settings; never used by the solver.
-    #[serde(default, rename = "both_milli", skip_serializing_if = "Option::is_none")]
+    #[serde(
+        default,
+        rename = "both_milli",
+        skip_serializing_if = "Option::is_none"
+    )]
     pub legacy_both_milli: Option<u32>,
 }
 impl Default for IlpTransitionWeights {

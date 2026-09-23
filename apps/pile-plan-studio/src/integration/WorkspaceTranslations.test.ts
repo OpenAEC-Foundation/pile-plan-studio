@@ -288,16 +288,16 @@ describe("Workspace translations", () => {
       "This selection is a group of {{count}} marked load points.",
     );
     assert.equal(
-      en["pileOptions.groupSelection.multiple"],
-      "This selection includes {{groupCount}} groups with {{count}} marked load points in total.",
+      en["pileOptions.groupSelection.multiple_one"],
+      "This selection includes {{count}} group with {{markedCount}} marked load points in total.",
     );
     assert.equal(
       nl["pileOptions.groupSelection.single"],
       "Deze selectie betreft een groep van {{count}} gemarkeerde locaties.",
     );
     assert.equal(
-      nl["pileOptions.groupSelection.multiple"],
-      "Deze selectie betreft {{groupCount}} groepen met in totaal {{count}} gemarkeerde locaties.",
+      nl["pileOptions.groupSelection.multiple_one"],
+      "Deze selectie betreft {{count}} groep met in totaal {{markedCount}} gemarkeerde locaties.",
     );
   });
 

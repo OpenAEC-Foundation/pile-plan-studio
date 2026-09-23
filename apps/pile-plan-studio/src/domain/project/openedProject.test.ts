@@ -76,4 +76,31 @@ describe("opened project preparation", () => {
       ),
     );
   });
+
+  it("preserves a malformed schema-five group override as a structured open error", async () => {
+    await assert.rejects(
+      prepareOpenedProject(
+        sampleProjectText,
+        { initializeDefaultPiles: false },
+        {
+          readProjectDocument: async () => ({
+            status: "invalid",
+            error: {
+              code: "invalid-load-point-group-overrides",
+              errors: [{
+                collection: "manual_groups",
+                index: 0,
+                loadPointIds: [1, 99],
+                reason: "unknown_load_point",
+              }],
+            },
+          }),
+        },
+      ),
+      (error: unknown) => (
+        error instanceof ProjectDocumentReadError
+        && error.details.code === "invalid-load-point-group-overrides"
+      ),
+    );
+  });
 });

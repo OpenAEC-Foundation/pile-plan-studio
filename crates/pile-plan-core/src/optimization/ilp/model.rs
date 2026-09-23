@@ -232,7 +232,6 @@ fn build_with_start(
                     constraints.push((d + left + right).leq(2));
                 }
             }
-
         }
     }
     let expression = match objective {
@@ -403,7 +402,10 @@ mod warm_start_tests {
                 solved.primal_solution_status(),
                 HighsSolutionStatus::Feasible
             );
-            assert_eq!(solved.objective_value(), 2.0 * (f64::from(tip) + f64::from(size)));
+            assert_eq!(
+                solved.objective_value(),
+                2.0 * (f64::from(tip) + f64::from(size))
+            );
             assert_eq!(
                 extract_values(&columns, solved.get_solution().columns()).unwrap(),
                 choices

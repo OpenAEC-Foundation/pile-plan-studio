@@ -1,7 +1,7 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import type { Cpt, ProjectBounds, SelectedCpt } from "../core/projectTypes.ts";
-import { getCptConnectionSegments } from "./cptConnectionLines.ts";
+import { getCptConnectionSegments, projectCptConnectionSegmentsToPixels } from "./cptConnectionLines.ts";
 import { createProjectViewTransform } from "./viewerGeometry.ts";
 
 const bounds: ProjectBounds = { minX: 0, maxX: 100, minY: 0, maxY: 100 };
@@ -38,6 +38,13 @@ function getSegments(options: {
 }
 
 describe("getCptConnectionSegments", () => {
+  it("converts percentage endpoints to the shared SVG's project pixels", () => {
+    const [segment] = projectCptConnectionSegmentsToPixels(getSegments(), { width: 1000, height: 500 });
+    assert.deepEqual(new Map([segment!.from, segment!.to].map(({ id, x, y }) => [id, { x, y }])), new Map([
+      [1, { x: 300, y: 450 }],
+      [2, { x: 700, y: 450 }],
+    ]));
+  });
   it("returns no segments when selected load points have different CPT sets", () => {
     const segments = getSegments({
       analyzed: new Map([

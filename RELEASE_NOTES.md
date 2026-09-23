@@ -1,5 +1,43 @@
 # Open Pile Plan Studio Release Notes
 
+## 0.4.1-alpha
+
+This alpha makes load-point groups explicit planning and optimization units,
+with automatic grouping and project-saved manual overrides. It also improves
+viewer alignment and stability across zoom, window resizing, and display scales.
+
+### Added
+
+- Select a whole group by clicking one member, or inspect an individual member
+  from the selection list. Group and ungroup selected locations in the selection
+  panel or grouping settings, with explanations when an edit is unavailable.
+- Show group contours from the View ribbon. The contour follows Gabriel-connected
+  group members rather than a convex hull. Conflicting assignments use a red
+  contour and warning marker; complete selections use an orange contour.
+- Review the number of manual grouping changes in Grouping settings and undo all
+  of them. Manual groups and explicit separations are saved with the project and
+  participate in undo and redo.
+
+### Improved and fixed
+
+- Use complete, transitive groups as optimization units with one pile
+  configuration per group. Block disconnected manual groups and retain valid
+  overrides when refreshing load-point source data.
+- Preserve the project point at the viewer centre when resizing the window or
+  moving it between displays. Render symbols, rings, contours, CPT labels, and
+  tip-level regions in one SVG coordinate system, and stabilize grid lines on
+  the physical-pixel lattice.
+- Keep hover feedback on the pointed-at group member. Inspecting only one member
+  shows its orange ring and one gray group contour instead of overlapping
+  selection and related-member rings.
+
+### Compatibility and limitations
+
+- IFCPP schema version 5 stores manual grouping changes and group visibility.
+  Supported older projects migrate when opened.
+- This remains an alpha release; engineering results and assignment conflicts
+  require professional review.
+
 ## 0.4.0-alpha
 
 This alpha introduces HiGHS optimization in both the browser and Windows app,

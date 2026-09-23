@@ -10,6 +10,7 @@ import {
   cptIcon,
   applyIcon,
   gridIcon,
+  groupsIcon,
   explorerPanelIcon,
   lassoIcon,
   loadPointIcon,
@@ -49,6 +50,7 @@ interface RibbonProps {
   foregroundLayer: ForegroundLayer;
   showGrid: boolean;
   showTipLevelRegions: boolean;
+  showLoadPointGroups: boolean;
   explorerVisible: boolean;
   propertiesVisible: boolean;
   onSymbolScaleChangeStart: () => void;
@@ -58,6 +60,7 @@ interface RibbonProps {
   onForegroundLayerChange: (value: ForegroundLayer) => void;
   onGridVisibilityChange: (visible: boolean) => void;
   onTipLevelRegionVisibilityChange: (visible: boolean) => void;
+  onLoadPointGroupVisibilityChange: (visible: boolean) => void;
   onExplorerVisibilityChange: (visible: boolean) => void;
   onPropertiesVisibilityChange: (visible: boolean) => void;
 }
@@ -81,6 +84,7 @@ export default function Ribbon({
   foregroundLayer,
   showGrid,
   showTipLevelRegions,
+  showLoadPointGroups,
   explorerVisible,
   propertiesVisible,
   onSymbolScaleChangeStart,
@@ -90,6 +94,7 @@ export default function Ribbon({
   onForegroundLayerChange,
   onGridVisibilityChange,
   onTipLevelRegionVisibilityChange,
+  onLoadPointGroupVisibilityChange,
   onExplorerVisibilityChange,
   onPropertiesVisibilityChange,
 }: RibbonProps) {
@@ -292,6 +297,12 @@ export default function Ribbon({
                   icon={tipLevelRegionsIcon}
                   label={t(tipLevelRegionToggle.labelKey)}
                   onClick={() => onTipLevelRegionVisibilityChange(tipLevelRegionToggle.nextVisible)}
+                />
+                <RibbonButton
+                  active={showLoadPointGroups}
+                  icon={groupsIcon}
+                  label={showLoadPointGroups ? t("view.hideGroups") : t("view.showGroups")}
+                  onClick={() => onLoadPointGroupVisibilityChange(!showLoadPointGroups)}
                 />
               </RibbonGroup>
               <RibbonGroup label={t("view.windows")}>

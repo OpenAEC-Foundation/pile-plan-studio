@@ -6,7 +6,9 @@ import PilePlanViewer from "../pile-plan-viewer/PilePlanViewer";
 import { clearLegendSelection, shouldClearLegendSelectionFromPointerTarget } from "../../../domain/workspace/viewerInteractions";
 import "../pile-plan-viewer/viewer.css";
 import type { LoadPointGroup } from "../../../core/loadPointGroupContract.ts";
+import type { LoadPointTopology } from "../../../core/tipLevelRegionContract.ts";
 import type { TechnicalAssignmentSnapshot } from "../../../app/derived-state/technicalAssignmentController.ts";
+import type { GroupAssignmentAssessmentSnapshot } from "../../../app/derived-state/groupAssignmentAssessmentController.ts";
 import { replacePilePlanActivation } from "../../../domain/pile-plans/pilePlanActivation.ts";
 import { useTipLevelRegionTopology } from "../pile-plan-viewer/tip-level-regions/useTipLevelRegionTopology.ts";
 
@@ -14,12 +16,14 @@ type Props = {
   readOnly?: boolean;
   state: ProjectState;
   loadPointGroups: LoadPointGroup[];
+  loadPointGroupTopology: LoadPointTopology | null;
   technicalAssignment: TechnicalAssignmentSnapshot;
+  groupAssignmentAssessment: GroupAssignmentAssessmentSnapshot;
   lassoSelectionActive: boolean;
   onStateChange: (nextState: ProjectState) => void;
 };
 
-export default function PilePlanWorkspace({ readOnly = false, state, loadPointGroups, technicalAssignment, lassoSelectionActive, onStateChange }: Props) {
+export default function PilePlanWorkspace({ readOnly = false, state, loadPointGroups, loadPointGroupTopology, technicalAssignment, groupAssignmentAssessment, lassoSelectionActive, onStateChange }: Props) {
   const [legendEditorOpen, setLegendEditorOpen] = useState(false);
   const tipLevelRegions = useTipLevelRegionTopology({
     enabled: state.showTipLevelRegions,
@@ -40,7 +44,9 @@ export default function PilePlanWorkspace({ readOnly = false, state, loadPointGr
       <PilePlanViewer
         state={state}
         loadPointGroups={loadPointGroups}
+        loadPointGroupTopology={loadPointGroupTopology}
         technicalAssignment={technicalAssignment}
+        groupAssignmentAssessment={groupAssignmentAssessment}
         lassoSelectionActive={lassoSelectionActive}
         tipLevelRegionTopology={tipLevelRegions.topology}
         onStateChange={onStateChange}

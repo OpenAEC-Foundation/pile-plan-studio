@@ -1,8 +1,9 @@
-use std::collections::{HashMap, HashSet};
+use std::collections::{BTreeSet, HashMap, HashSet};
 
 use crate::{
-    pile_tip_level_m, try_pile_tip_level_mm, PilePlanProject, ProjectBearingCapacity, ProjectCpt,
-    ProjectLoadPoint,
+    build_load_point_topology, pile_tip_level_m, try_pile_tip_level_mm, LoadPointGroupOverride,
+    LoadPointGroupingSettings, LoadPointTopology, PilePlanProject, ProjectBearingCapacity,
+    ProjectCpt, ProjectLoadPoint,
 };
 
 use super::{
@@ -203,6 +204,20 @@ pub fn refresh_project_from_profiled_sources(
     }
     refreshed.user_state.manual_cpt_selections =
         remap_manual_cpt_selections(current, &load_point_mapping, &cpt_mapping);
+    if load_source.is_some() {
+        let (grouping, warnings) = reconcile_grouping_overrides(
+            &current.settings.load_point_grouping,
+            &load_point_mapping,
+            &refreshed.inputs.load_points,
+        );
+        refreshed.settings.load_point_grouping = grouping;
+        if let Some(log) = replacement_logs
+            .iter_mut()
+            .find(|entry| entry.source_role == Some(ImportRole::LoadPoints))
+        {
+            log.warnings.extend(warnings);
+        }
+    }
 
     if capacity_source.is_some() {
         for plan in &mut refreshed.user_state.pile_plans {
@@ -297,6 +312,98 @@ fn remap_manual_cpt_selections(
         .collect()
 }
 
+fn reconcile_grouping_overrides(
+    current: &LoadPointGroupingSettings,
+    load_point_mapping: &HashMap<u32, u32>,
+    new_load_points: &[ProjectLoadPoint],
+) -> (LoadPointGroupingSettings, Vec<String>) {
+    let topology = build_load_point_topology(new_load_points);
+    let mut reconciled = current.clone();
+    reconciled.manual_groups.clear();
+    reconciled.ungrouped_groups.clear();
+    let mut warnings = Vec::new();
+
+    for record in &current.manual_groups {
+        let mapped = remapped_group_members(record, load_point_mapping);
+        let replacement = induced_components(&mapped, &topology)
+            .into_iter()
+            .filter(|component| component.len() >= 2)
+            .map(|load_point_ids| LoadPointGroupOverride { load_point_ids })
+            .collect::<Vec<_>>();
+        if replacement.len() != 1 || replacement[0].load_point_ids != record.load_point_ids {
+            warnings.push(group_override_refresh_warning("manual", record));
+        }
+        reconciled.manual_groups.extend(replacement);
+    }
+
+    for record in &current.ungrouped_groups {
+        let mapped = remapped_group_members(record, load_point_mapping);
+        let replacement = (!mapped.is_empty()).then_some(LoadPointGroupOverride {
+            load_point_ids: mapped.into_iter().collect(),
+        });
+        if replacement
+            .as_ref()
+            .is_none_or(|replacement| replacement.load_point_ids != record.load_point_ids)
+        {
+            warnings.push(group_override_refresh_warning("separation", record));
+        }
+        reconciled.ungrouped_groups.extend(replacement);
+    }
+
+    crate::load_point_groups::canonicalize_load_point_grouping_settings(&mut reconciled);
+    (reconciled, warnings)
+}
+
+fn remapped_group_members(
+    record: &LoadPointGroupOverride,
+    load_point_mapping: &HashMap<u32, u32>,
+) -> BTreeSet<u32> {
+    record
+        .load_point_ids
+        .iter()
+        .filter_map(|load_point_id| load_point_mapping.get(load_point_id).copied())
+        .collect()
+}
+
+fn induced_components(selected: &BTreeSet<u32>, topology: &LoadPointTopology) -> Vec<Vec<u32>> {
+    let mut remaining = selected.clone();
+    let mut components = Vec::new();
+    while let Some(start) = remaining.iter().next().copied() {
+        remaining.remove(&start);
+        let mut component = BTreeSet::from([start]);
+        let mut pending = vec![start];
+        while let Some(current) = pending.pop() {
+            for edge in &topology.edges {
+                let neighbor = if edge.from_load_point_id == current {
+                    Some(edge.to_load_point_id)
+                } else if edge.to_load_point_id == current {
+                    Some(edge.from_load_point_id)
+                } else {
+                    None
+                };
+                if let Some(neighbor) = neighbor.filter(|id| remaining.remove(id)) {
+                    component.insert(neighbor);
+                    pending.push(neighbor);
+                }
+            }
+        }
+        components.push(component.into_iter().collect());
+    }
+    components
+}
+
+fn group_override_refresh_warning(override_kind: &str, record: &LoadPointGroupOverride) -> String {
+    let affected_ids = record
+        .load_point_ids
+        .iter()
+        .map(u32::to_string)
+        .collect::<Vec<_>>()
+        .join(", ");
+    format!(
+        "A {override_kind} load-point group override was adjusted during source refresh; affected IDs: {affected_ids}."
+    )
+}
+
 fn reconcile_active_sizes(
     old_capacities: &[ProjectBearingCapacity],
     old_active: &[u32],
@@ -379,8 +486,8 @@ fn checked_tip_keys(
 mod tests {
     use crate::{
         import_project_from_sources, CptSelectionAlgorithm, CptSelectionSettings, ImportProfile,
-        ImportProfileOptions, ImportRole, ImportSource, PileConfigurationKey, ProjectCpt,
-        ProjectLoadPoint, SelectedPileChoice, SourceFormat,
+        ImportProfileOptions, ImportRole, ImportSource, LoadPointGroupOverride,
+        PileConfigurationKey, ProjectCpt, ProjectLoadPoint, SelectedPileChoice, SourceFormat,
     };
 
     use super::{match_cpts, match_load_points, refresh_project_from_profiled_sources};
@@ -500,6 +607,100 @@ mod tests {
             .expect("active plan")
             .selected_piles
             .contains_key(&1));
+    }
+
+    #[test]
+    fn refreshing_load_points_prunes_and_remaps_group_overrides_with_warnings() {
+        let mut current = project_with_load_points("1,0,0,100\n2,1000,0,200\n3,2000,0,300\n");
+        current.settings.load_point_grouping.manual_groups = vec![group(&[1, 2])];
+        current.settings.load_point_grouping.ungrouped_groups = vec![group(&[2, 3])];
+        let plan = current
+            .user_state
+            .active_pile_plan_mut()
+            .expect("active plan");
+        plan.selected_piles.insert(1, selected_pile());
+        plan.locked_load_point_ids.push(1);
+
+        let refreshed = refresh_project_from_profiled_sources(
+            &current,
+            &[csv_source(
+                ImportRole::LoadPoints,
+                "loads.csv",
+                "9,0.5,0,100\n3,2000,0,300\n",
+            )],
+        )
+        .unwrap();
+
+        assert!(refreshed
+            .settings
+            .load_point_grouping
+            .manual_groups
+            .is_empty());
+        assert_eq!(
+            refreshed.settings.load_point_grouping.ungrouped_groups,
+            vec![group(&[3])]
+        );
+        let warnings = &refreshed
+            .import_log
+            .iter()
+            .find(|entry| entry.source_role == Some(ImportRole::LoadPoints))
+            .expect("load-point import log")
+            .warnings;
+        assert_eq!(
+            warnings
+                .iter()
+                .filter(|warning| warning.contains("group override"))
+                .count(),
+            2
+        );
+        assert!(warnings.iter().any(|warning| warning.contains("1, 2")));
+        assert!(warnings.iter().any(|warning| warning.contains("2, 3")));
+
+        let plan = refreshed
+            .user_state
+            .active_pile_plan()
+            .expect("active plan");
+        assert!(plan.selected_piles.contains_key(&9));
+        assert_eq!(plan.locked_load_point_ids, vec![9]);
+    }
+
+    #[test]
+    fn refreshing_load_points_splits_manual_group_by_new_gabriel_components() {
+        let mut current = project_with_load_points(
+            "1,-2000,0,100\n2,-1000,0,100\n3,0,0,100\n4,1000,0,100\n5,2000,0,100\n6,0,1000,100\n",
+        );
+        current.settings.load_point_grouping.manual_groups = vec![group(&[1, 2, 3, 4, 5])];
+
+        let refreshed = refresh_project_from_profiled_sources(
+            &current,
+            &[csv_source(
+                ImportRole::LoadPoints,
+                "loads.csv",
+                "1,-2000,0,100\n2,-1000,0,100\n4,1000,0,100\n5,2000,0,100\n6,0,1000,100\n",
+            )],
+        )
+        .unwrap();
+
+        assert_eq!(
+            refreshed.settings.load_point_grouping.manual_groups,
+            vec![group(&[1, 2]), group(&[4, 5])]
+        );
+        let warnings = &refreshed
+            .import_log
+            .iter()
+            .find(|entry| entry.source_role == Some(ImportRole::LoadPoints))
+            .expect("load-point import log")
+            .warnings;
+        assert_eq!(
+            warnings
+                .iter()
+                .filter(|warning| warning.contains("group override"))
+                .count(),
+            1
+        );
+        assert!(warnings
+            .iter()
+            .any(|warning| warning.contains("1, 2, 3, 4, 5")));
     }
 
     #[test]
@@ -644,10 +845,14 @@ mod tests {
     }
 
     fn project() -> crate::PilePlanProject {
+        project_with_load_points("1,0,0,100\n")
+    }
+
+    fn project_with_load_points(load_points: &str) -> crate::PilePlanProject {
         import_project_from_sources(
             "Refresh project",
             &[
-                csv_source(ImportRole::LoadPoints, "loads.csv", "1,0,0,100\n"),
+                csv_source(ImportRole::LoadPoints, "loads.csv", load_points),
                 csv_source(ImportRole::Cpts, "cpts.csv", "61,0,0\n"),
                 csv_source(
                     ImportRole::BearingCapacities,
@@ -659,6 +864,12 @@ mod tests {
             "EUR",
         )
         .unwrap()
+    }
+
+    fn group(load_point_ids: &[u32]) -> LoadPointGroupOverride {
+        LoadPointGroupOverride {
+            load_point_ids: load_point_ids.to_vec(),
+        }
     }
 
     fn selected_pile() -> SelectedPileChoice {

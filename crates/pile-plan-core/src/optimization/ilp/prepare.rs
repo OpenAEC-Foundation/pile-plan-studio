@@ -2,8 +2,7 @@ use super::types::*;
 use crate::{
     aggregate_pile_options_for_load_points, build_load_point_topology, prepare_optimization_units,
     validate_pile_cost_settings, AggregatedPileConfigurationStatus, OptimizationCandidateSettings,
-    OptimizationLimitScope, OptimizationUnit, PileConfigurationKey,
-    PrepareOptimizationUnitsInput,
+    OptimizationLimitScope, OptimizationUnit, PileConfigurationKey, PrepareOptimizationUnitsInput,
 };
 use std::collections::{BTreeSet, HashMap};
 
@@ -86,8 +85,7 @@ pub(crate) fn prepare(
         .iter()
         .flat_map(|g| g.load_point_ids.iter().copied())
         .collect();
-    let candidates = if input.settings.candidate_source == IlpCandidateSource::AllAvailable
-    {
+    let candidates = if input.settings.candidate_source == IlpCandidateSource::AllAvailable {
         input
             .options_by_load_point
             .iter()

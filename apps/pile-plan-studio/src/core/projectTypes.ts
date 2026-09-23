@@ -60,6 +60,12 @@ export type CptSelectionSettings = {
 export type LoadPointGroupingSettings = {
   automatic: boolean;
   maxEdgeDistanceM: number;
+  manualGroups: LoadPointGroupOverride[];
+  ungroupedGroups: LoadPointGroupOverride[];
+};
+
+export type LoadPointGroupOverride = {
+  loadPointIds: number[];
 };
 
 export type PileOptionTechnicalStatus =

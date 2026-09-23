@@ -4,20 +4,23 @@ mod ilp_optimization;
 use pile_plan_core::{
     aggregate_pile_options_for_load_points,
     apply_load_point_group_assignment as apply_load_point_group_assignment_core,
+    apply_load_point_group_edit as apply_load_point_group_edit_core,
+    assess_load_point_group_assignments as assess_load_point_group_assignments_core,
     assess_technical_assignment as assess_technical_assignment_core,
     build_load_point_topology as build_load_point_topology_core, build_pile_option_analysis,
     build_tip_level_region_topology as build_tip_level_region_topology_core, calculate_pile_cost,
     choose_default_pile_options, derive_load_point_groups as derive_load_point_groups_core,
     import_project_from_sources, preview_import_source,
-    preview_pile_plan_import, read_project_document as read_project_document_core,
-    refresh_project_from_profiled_sources, validate_project_tip_levels, write_pile_plan_csv,
-    write_pile_plan_xlsx, write_project_document as write_project_document_core,
-    ApplyLoadPointGroupAssignmentInput, ApplyLoadPointGroupAssignmentResult, CptSelectionSettings,
-    ImportSource, LoadPointGroup, LoadPointGroupingSettings,
-    LoadPointTopology, PileConfigurationKey, PileConfigurationOption, PileCostSettings,
-    PilePlanExportRequest, PilePlanImportRequest, PilePlanProject, ProjectBearingCapacity,
-    ProjectCpt, ProjectDocumentDraft, ProjectDocumentError, ProjectLoadPoint,
-    TipLevelRegionAssignment, TipLevelRegionTopology, ValidatedPilePlanProject,
+    preview_load_point_group_edit as preview_load_point_group_edit_core, preview_pile_plan_import,
+    read_project_document as read_project_document_core, refresh_project_from_profiled_sources,
+    validate_project_tip_levels, write_pile_plan_csv, write_pile_plan_xlsx,
+    write_project_document as write_project_document_core, ApplyLoadPointGroupAssignmentInput,
+    ApplyLoadPointGroupAssignmentResult, CptSelectionSettings, ImportSource, LoadPointGroup,
+    LoadPointGroupEditInput, LoadPointGroupingSettings, LoadPointTopology, PileConfigurationKey,
+    PileConfigurationOption, PileCostSettings, PilePlanExportRequest, PilePlanImportRequest,
+    PilePlanProject, ProjectBearingCapacity, ProjectCpt, ProjectDocumentDraft,
+    ProjectDocumentError, ProjectLoadPoint, TipLevelRegionAssignment, TipLevelRegionTopology,
+    ValidatedPilePlanProject,
 };
 use serde::{Deserialize, Serialize};
 use wasm_bindgen::prelude::*;
@@ -101,6 +104,13 @@ pub struct DeriveLoadPointGroupsRequest {
 }
 
 #[derive(Debug, Deserialize)]
+pub struct AssessLoadPointGroupAssignmentsRequest {
+    pub groups: Vec<LoadPointGroup>,
+    pub assignments: HashMap<u32, PileConfigurationKey>,
+    pub locked_load_point_ids: Vec<u32>,
+}
+
+#[derive(Debug, Deserialize)]
 pub struct TipLevelRegionTopologyRequest {
     pub load_point_topology: LoadPointTopology,
     pub selected_assignments: HashMap<u32, TipLevelRegionAssignment>,
@@ -176,8 +186,6 @@ pub fn assess_technical_assignment(request: JsValue) -> Result<JsValue, JsValue>
         Err(error) => Err(to_js_value(&error)?),
     }
 }
-
-
 
 #[wasm_bindgen]
 pub fn import_project_from_files(request: JsValue) -> Result<JsValue, JsValue> {
@@ -272,9 +280,32 @@ pub fn build_tip_level_region_topology(request: JsValue) -> Result<JsValue, JsVa
 #[wasm_bindgen]
 pub fn derive_load_point_groups(request: JsValue) -> Result<JsValue, JsValue> {
     let request: DeriveLoadPointGroupsRequest = from_js_value(request)?;
-    let groups: Vec<LoadPointGroup> =
-        derive_load_point_groups_core(&request.load_points, &request.settings);
-    to_js_value(&groups)
+    to_js_value(&derive_load_point_groups_core(
+        &request.load_points,
+        &request.settings,
+    ))
+}
+
+#[wasm_bindgen]
+pub fn preview_load_point_group_edit(request: JsValue) -> Result<JsValue, JsValue> {
+    let request: LoadPointGroupEditInput = from_js_value(request)?;
+    to_js_value(&preview_load_point_group_edit_core(&request))
+}
+
+#[wasm_bindgen]
+pub fn apply_load_point_group_edit(request: JsValue) -> Result<JsValue, JsValue> {
+    let request: LoadPointGroupEditInput = from_js_value(request)?;
+    to_js_value(&apply_load_point_group_edit_core(&request))
+}
+
+#[wasm_bindgen]
+pub fn assess_load_point_group_assignments(request: JsValue) -> Result<JsValue, JsValue> {
+    let request: AssessLoadPointGroupAssignmentsRequest = from_js_value(request)?;
+    to_js_value(&assess_load_point_group_assignments_core(
+        &request.groups,
+        &request.assignments,
+        &request.locked_load_point_ids,
+    ))
 }
 
 #[wasm_bindgen]
@@ -318,9 +349,7 @@ fn write_project_document_draft(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use pile_plan_core::{
-        CptSelectionAlgorithm, OptimizationLimitScope,
-    };
+    use pile_plan_core::CptSelectionAlgorithm;
 
     #[test]
     fn pile_option_analysis_request_supports_optional_cpt_rows() {
@@ -348,6 +377,7 @@ mod tests {
             options_by_load_point: HashMap::from([(1, vec![])]),
             groups: vec![LoadPointGroup {
                 load_point_ids: vec![1],
+                origin: pile_plan_core::LoadPointGroupOrigin::Automatic,
             }],
             pile_head_level_m: 0.0,
             cost_settings: PileCostSettings {
@@ -386,6 +416,7 @@ mod tests {
         let request = TechnicalAssignmentRequest {
             groups: vec![LoadPointGroup {
                 load_point_ids: vec![1, 2],
+                origin: pile_plan_core::LoadPointGroupOrigin::Automatic,
             }],
             options_by_load_point: HashMap::from([
                 (1, vec![aggregation_option(0.72, 61)]),
@@ -422,8 +453,6 @@ mod tests {
         }
     }
 
-
-
     #[test]
     fn project_document_adapters_delegate_read_write_and_structured_errors() {
         let validated = read_project_document_contents(include_str!(
@@ -439,7 +468,7 @@ mod tests {
                 .expect("written project reads")
                 .project
                 .schema_version,
-            4
+            5
         );
         assert!(matches!(
             read_project_document_contents("{").unwrap_err(),
@@ -531,7 +560,7 @@ mod tests {
         let _assignment_export: fn(JsValue) -> Result<JsValue, JsValue> =
             apply_load_point_group_assignment;
 
-        assert!(groups.is_empty());
+        assert!(groups.groups.is_empty());
 
         let requested_configuration = PileConfigurationKey {
             pile_size_mm: 320,
@@ -542,6 +571,7 @@ mod tests {
                 selected_load_point_ids: vec![2],
                 groups: vec![LoadPointGroup {
                     load_point_ids: vec![1, 2],
+                    origin: pile_plan_core::LoadPointGroupOrigin::Automatic,
                 }],
                 requested_configuration: Some(requested_configuration.clone()),
                 current_assignments: HashMap::new(),

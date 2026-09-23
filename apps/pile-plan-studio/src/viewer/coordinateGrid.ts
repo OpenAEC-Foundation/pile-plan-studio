@@ -31,31 +31,6 @@ export function getZoomGridSpacing(
   ));
 }
 
-export function alignCoordinateGridPatternToDevicePixels(
-  pattern: CoordinateGridPattern,
-  layout: {
-    canvasScreen: { x: number; y: number };
-    gridScreen: { x: number; y: number };
-    rootScale: number;
-    devicePixelRatio: number;
-  },
-): CoordinateGridPattern {
-  // Align the pattern origin as a best effort. Repeated CSS-gradient lines may
-  // still rasterize differently when their physical spacing is fractional.
-  const rootScale = Math.max(Math.abs(layout.rootScale), Number.EPSILON);
-  const devicePixelRatio = Math.max(Math.abs(layout.devicePixelRatio), Number.EPSILON);
-  const desiredScreenX = layout.canvasScreen.x + pattern.originX * rootScale;
-  const desiredScreenY = layout.canvasScreen.y + pattern.originY * rootScale;
-  const alignedScreenX = Math.round(desiredScreenX * devicePixelRatio) / devicePixelRatio;
-  const alignedScreenY = Math.round(desiredScreenY * devicePixelRatio) / devicePixelRatio;
-
-  return {
-    ...pattern,
-    originX: (alignedScreenX - layout.gridScreen.x) / rootScale,
-    originY: (alignedScreenY - layout.gridScreen.y) / rootScale,
-  };
-}
-
 export function getCoordinateGridPattern(
   transform: ProjectViewTransform,
   viewport: Viewport,

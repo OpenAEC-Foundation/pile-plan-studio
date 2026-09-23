@@ -17,6 +17,8 @@ function canonicalProject(): IfcppProject {
   project.settings.load_point_grouping = {
     automatic: true,
     max_edge_distance_mm: 1_200,
+    manual_groups: [{ load_point_ids: [1, 2] }],
+    ungrouped_groups: [{ load_point_ids: [3] }],
   };
   project.settings.viewer_utilization ??= { minimum: 0, maximum: 1 };
   project.settings.viewer = {
@@ -24,6 +26,7 @@ function canonicalProject(): IfcppProject {
     foreground_layer: "cpts",
     show_grid: false,
     show_tip_level_regions: true,
+    show_load_point_groups: true,
   };
   project.import_log ??= [];
   return project;
@@ -54,6 +57,9 @@ describe("createInitialProjectState", () => {
     assert.equal(state.foregroundLayer, "cpts");
     assert.equal(state.showGrid, false);
     assert.equal(state.showTipLevelRegions, true);
+    assert.equal(state.showLoadPointGroups, true);
+    assert.deepEqual(state.loadPointGroupingSettings.manualGroups, [{ loadPointIds: [1, 2] }]);
+    assert.deepEqual(state.loadPointGroupingSettings.ungroupedGroups, [{ loadPointIds: [3] }]);
   });
 
   it("uses an explicitly supplied localized label for a newly created base plan", () => {

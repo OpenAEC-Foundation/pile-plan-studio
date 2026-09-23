@@ -23,6 +23,8 @@ function canonicalProjectFixture(): IfcppProject {
   project.settings.load_point_grouping = {
     automatic: false,
     max_edge_distance_mm: 2_750,
+    manual_groups: [{ load_point_ids: [1, 2] }],
+    ungrouped_groups: [{ load_point_ids: [3] }],
   };
   project.settings.viewer_utilization = { minimum: 0.15, maximum: 0.9 };
   project.settings.viewer = {
@@ -30,6 +32,7 @@ function canonicalProjectFixture(): IfcppProject {
     foreground_layer: "cpts",
     show_grid: false,
     show_tip_level_regions: true,
+    show_load_point_groups: true,
   };
   project.import_log ??= [];
   return project;
@@ -48,12 +51,15 @@ describe("canonical project hydration", () => {
     assert.deepEqual(loaded.loadPointGroupingSettings, {
       automatic: false,
       maxEdgeDistanceM: 2.75,
+      manualGroups: [{ loadPointIds: [1, 2] }],
+      ungroupedGroups: [{ loadPointIds: [3] }],
     });
     assert.deepEqual(loaded.viewerUtilizationSettings, { minimum: 0.15, maximum: 0.9 });
     assert.equal(loaded.symbolScalePercent, 135);
     assert.equal(loaded.foregroundLayer, "cpts");
     assert.equal(loaded.showGrid, false);
     assert.equal(loaded.showTipLevelRegions, true);
+    assert.equal(loaded.showLoadPointGroups, true);
     assert.ok(loaded.cptSelectionSettingsByLoadPoint instanceof Map);
     assert.ok(loaded.manualCptIdsByLoadPoint instanceof Map);
   });
@@ -68,6 +74,12 @@ describe("canonical project hydration", () => {
     assert.notEqual(loaded.cpts, project.inputs.cpts);
     assert.notEqual(loaded.bearingCapacities, project.inputs.bearing_capacities);
     assert.notEqual(loaded.pilePlans, project.user_state.pile_plans);
+    assert.notEqual(
+      loaded.loadPointGroupingSettings.manualGroups[0].loadPointIds,
+      project.settings.load_point_grouping?.manual_groups?.[0].load_point_ids,
+    );
+    loaded.loadPointGroupingSettings.manualGroups[0].loadPointIds.push(99);
+    assert.deepEqual(project.settings.load_point_grouping?.manual_groups?.[0].load_point_ids, [1, 2]);
     loaded.loadPoints[0].name = "Runtime edit";
     assert.notEqual(project.inputs.load_points[0].name, "Runtime edit");
   });

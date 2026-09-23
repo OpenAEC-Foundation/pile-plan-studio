@@ -3,8 +3,13 @@ import type { ReactNode } from "react";
 import type { ProjectState } from "../../../domain/project/projectState.ts";
 import type { PileConfigurationKey, PileCostSettings } from "../../../core/projectTypes.ts";
 import { getSelectedLoadPoints, formatLoadPointPanelTitle } from "./rightPanelModel.ts";
-import type { LoadPointGroup } from "../../../core/loadPointGroupContract.ts";
+import type {
+  LoadPointGroup,
+  LoadPointGroupEditAction,
+  LoadPointGroupEditPreview,
+} from "../../../core/loadPointGroupContract.ts";
 import type { TechnicalAssignmentSnapshot } from "../../../app/derived-state/technicalAssignmentController.ts";
+import type { GroupAssignmentAssessmentSnapshot } from "../../../app/derived-state/groupAssignmentAssessmentController.ts";
 import "./rightPanel.css";
 import SplitRightPanel from "./SplitRightPanel.tsx";
 import { DEFAULT_RIGHT_PANEL_SPLIT } from "../../../domain/workspace/rightPanelLayout.ts";
@@ -28,6 +33,16 @@ export type RightPanelProps = {
   state: ProjectState;
   loadPointGroups?: LoadPointGroup[];
   technicalAssignment?: TechnicalAssignmentSnapshot;
+  groupAssignmentAssessment?: GroupAssignmentAssessmentSnapshot;
+  groupEditPending?: boolean;
+  onPreviewLoadPointGroupEdit?: (
+    action: LoadPointGroupEditAction,
+    selectedLoadPointIds?: number[],
+  ) => Promise<LoadPointGroupEditPreview | null>;
+  onApplyLoadPointGroupEdit?: (
+    action: LoadPointGroupEditAction,
+    selectedLoadPointIds?: number[],
+  ) => Promise<void>;
   onStateChange: (nextState: ProjectState) => void;
   pileAssignmentPending?: boolean;
   onApplyPileConfiguration?: (
@@ -57,6 +72,15 @@ export default function RightPanel({
     issuesByLoadPointId: new Map(),
     error: null,
   },
+  groupAssignmentAssessment = {
+    conflicts: [],
+    conflictsByLoadPointId: new Map(),
+    pending: false,
+    error: null,
+  },
+  groupEditPending = false,
+  onPreviewLoadPointGroupEdit = async () => null,
+  onApplyLoadPointGroupEdit = async () => undefined,
   onStateChange,
   pileAssignmentPending = false,
   onApplyPileConfiguration = () => undefined,
@@ -89,6 +113,10 @@ export default function RightPanel({
       selectedLoadPoints={selectedLoadPoints}
       loadPointGroups={loadPointGroups}
       technicalAssignment={technicalAssignment}
+      groupAssignmentAssessment={groupAssignmentAssessment}
+      groupEditPending={groupEditPending}
+      onPreviewLoadPointGroupEdit={onPreviewLoadPointGroupEdit}
+      onApplyLoadPointGroupEdit={onApplyLoadPointGroupEdit}
       columnLayouts={columnLayouts}
       onColumnLayoutChange={onColumnLayoutChange}
     />
@@ -123,7 +151,15 @@ export default function RightPanel({
       ) : taskPanel === "cpt-settings" ? (
         <CptSettingsPanel state={state} onStateChange={onStateChange} onClose={onCloseTaskPanel} />
       ) : taskPanel === "grouping-settings" ? (
-        <GroupingSettingsPanel state={state} onStateChange={onStateChange} onClose={onCloseTaskPanel} />
+        <GroupingSettingsPanel
+          state={state}
+          loadPointGroups={loadPointGroups}
+          groupEditPending={groupEditPending}
+          onPreviewLoadPointGroupEdit={onPreviewLoadPointGroupEdit}
+          onApplyLoadPointGroupEdit={onApplyLoadPointGroupEdit}
+          onStateChange={onStateChange}
+          onClose={onCloseTaskPanel}
+        />
       ) : state.rightPanelMode === "cpts" ? cptContent : state.rightPanelMode === "combined" ? (
         <SplitRightPanel top={loadPointContent} bottom={cptContent} ratio={splitRatio} onRatioChange={onSplitRatioChange} />
       ) : loadPointContent}

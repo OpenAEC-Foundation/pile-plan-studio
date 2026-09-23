@@ -17,6 +17,7 @@ import PilePlanWorkspace from "../../components/domain/pile-plans/PilePlanWorksp
 import RightPanel, { type RightTaskPanel } from "../../components/domain/right-panel/RightPanel";
 import { useLoadPointGroups } from "../derived-state/useLoadPointGroups.ts";
 import { useTechnicalAssignment } from "../derived-state/useTechnicalAssignment.ts";
+import { useGroupAssignmentAssessment } from "../derived-state/useGroupAssignmentAssessment.ts";
 import ProjectInformationDialog from "../../components/domain/project/ProjectInformationDialog";
 import UnsavedChangesDialog from "../../components/domain/project/UnsavedChangesDialog.tsx";
 import PilePlanExplorer from "../../components/domain/pile-plans/PilePlanExplorer.tsx";
@@ -25,6 +26,7 @@ import type { InputSourceKind } from "../../domain/project/projectState.ts";
 import type { SourceLoadPointSelection } from "../../domain/source-data/sourceTableModel.ts";
 import {
   applyLoadPointGroupAssignmentCore,
+  applyLoadPointGroupEditCore,
   calculatePileCostCore,
   calculatePileOptionAnalysisCore,
   chooseDefaultPileOptionsCore,
@@ -32,11 +34,16 @@ import {
   exportPilePlanXlsxCore,
   importProjectFromFilesCore,
   readProjectDocumentCore,
+  previewLoadPointGroupEditCore,
   refreshProjectFromFilesCore,
   writeProjectDocumentCore,
 } from "../../core/coreClient";
 import { invokeDesktop, listenDesktop } from "../../core/coreTransport.ts";
 import type { PileConfigurationKey, PileCostSettings } from "../../core/projectTypes.ts";
+import type {
+  LoadPointGroupEditAction,
+  LoadPointGroupEditPreview,
+} from "../../core/loadPointGroupContract.ts";
 import type { ImportSourceInput } from "../../core/coreImportContract";
 import type { ProjectImportProperties } from "../../components/domain/imports/ProjectImportPanel.tsx";
 import type { ImportFileRole } from "../../core/importFiles.ts";
@@ -104,6 +111,7 @@ import {
 } from "../project/projectLifecycleController.ts";
 import { createPileOptionAnalysisController } from "../derived-state/pileOptionAnalysisController.ts";
 import { describeHistoryAction, describeHistoryResult } from "../../domain/project/history/historyMessage.ts";
+import type { HistoryAction } from "../../domain/project/history/historyAction.ts";
 import { createBrowserRecoveryRecord } from "../../domain/project/recovery/browserRecovery.ts";
 import {
   createBrowserRecoveryWriter,
@@ -141,12 +149,14 @@ import {
 import {
   addReactViewerLoadPoints,
   clearReactViewerSelection,
+  expandInitialReactViewerLoadPointGroup,
   openReactViewerCpt,
   setReactViewerLoadPoints,
   toggleReactViewerLoadPoint,
 } from "../../domain/workspace/viewerInteractions.ts";
 import {
   describeProjectOpenError,
+  getLoadPointGroupEditHistoryAction,
   getLoadPointLockSignature,
   importRoleForSource,
 } from "./appSessionSupport.ts";
@@ -208,6 +218,13 @@ export default function AppSession({
     )),
   );
   const projectState = managedProject.present;
+  const initialGroupSelectionRef = useRef({
+    loadPoints: projectState.loadPoints,
+    loadPointId: projectState.selectedLoadPointIds.length === 1
+      ? projectState.selectedLoadPointId
+      : null,
+    handled: false,
+  });
   const [analysisPipeline] = useState(() => (
     createPileOptionAnalysisController(calculatePileOptionAnalysisCore)
   ));
@@ -217,6 +234,8 @@ export default function AppSession({
     projectState.loadPoints,
     projectState.loadPointGroupingSettings,
   );
+  const hasCompletedLoadPointGroups = projectState.loadPoints.length === 0
+    || loadPointGroups.groups.length > 0;
   const technicalPileOptionsByLoadPointId = useMemo(
     () => getEffectivePileOptionsByLoadPointId(projectState),
     [projectState.cptSelectionEditDraft, projectState.cptSelectionPreview, projectState.pileOptionsByLoadPointId],
@@ -225,8 +244,7 @@ export default function AppSession({
     ? projectState.cptSelectionPreview
     : null;
   const technicalAssignmentInput = useMemo(() => (
-    loadPointGroups.pending
-      || loadPointGroups.error !== null
+    !hasCompletedLoadPointGroups
       || projectState.analysisError !== null
       || currentPreview?.status === "analyzing"
       || currentPreview?.status === "failed"
@@ -236,11 +254,11 @@ export default function AppSession({
           groups: loadPointGroups.groups,
           optionsByLoadPoint: technicalPileOptionsByLoadPointId,
         }
-  ), [currentPreview?.status, loadPointGroups.error, loadPointGroups.groups, loadPointGroups.pending, projectState.analysisError, projectState.loadPoints.length, technicalPileOptionsByLoadPointId]);
+  ), [currentPreview?.status, hasCompletedLoadPointGroups, loadPointGroups.groups, projectState.analysisError, projectState.loadPoints.length, technicalPileOptionsByLoadPointId]);
   const assessedTechnicalAssignment = useTechnicalAssignment(technicalAssignmentInput);
   const technicalAssignment = useMemo(() => {
     const upstreamError = projectState.analysisError
-      ?? loadPointGroups.error
+      ?? (!hasCompletedLoadPointGroups ? loadPointGroups.error : null)
       ?? (currentPreview?.status === "failed" ? currentPreview.error : null);
     if (upstreamError) {
       return {
@@ -259,11 +277,13 @@ export default function AppSession({
       };
     }
     return assessedTechnicalAssignment;
-  }, [assessedTechnicalAssignment, currentPreview, loadPointGroups.error, projectState.analysisError, technicalAssignmentInput]);
+  }, [assessedTechnicalAssignment, currentPreview, hasCompletedLoadPointGroups, loadPointGroups.error, projectState.analysisError, technicalAssignmentInput]);
   const loadPointGroupsRef = useRef(loadPointGroups.groups);
   loadPointGroupsRef.current = loadPointGroups.groups;
   const pileAssignmentRequestIdRef = useRef(0);
   const [pileAssignmentPending, setPileAssignmentPending] = useState(false);
+  const groupEditRequestIdRef = useRef(0);
+  const [groupEditPending, setGroupEditPending] = useState(false);
   const invalidatePileAssignmentRequests = useCallback(() => {
     pileAssignmentRequestIdRef.current += 1;
     setPileAssignmentPending(false);
@@ -271,8 +291,40 @@ export default function AppSession({
   const setProjectState = useCallback((update: SetStateAction<ProjectState>) => {
     dispatchProject({ type: "runtime", update });
   }, []);
-  const commitProjectState = useCallback((update: SetStateAction<ProjectState>) => {
-    dispatchProject({ type: "commit", update });
+  useEffect(() => {
+    const initialSelection = initialGroupSelectionRef.current;
+    if (
+      initialSelection.handled
+      || initialSelection.loadPoints !== projectState.loadPoints
+      || loadPointGroups.pending
+      || loadPointGroups.error !== null
+      || loadPointGroups.topology === null
+    ) {
+      return;
+    }
+    initialSelection.handled = true;
+    setProjectState((current) => {
+      if (current.loadPoints !== initialSelection.loadPoints) return current;
+      const selection = expandInitialReactViewerLoadPointGroup(
+        current,
+        initialSelection.loadPointId,
+        loadPointGroups.groups,
+      );
+      return selection === current ? current : { ...current, ...selection };
+    });
+  }, [
+    loadPointGroups.error,
+    loadPointGroups.groups,
+    loadPointGroups.pending,
+    loadPointGroups.topology,
+    projectState.loadPoints,
+    setProjectState,
+  ]);
+  const commitProjectState = useCallback((
+    update: SetStateAction<ProjectState>,
+    action?: HistoryAction,
+  ) => {
+    dispatchProject({ type: "commit", update, action });
   }, []);
   const amendProjectState = useCallback((update: SetStateAction<ProjectState>) => {
     dispatchProject({ type: "amend", update });
@@ -294,6 +346,11 @@ export default function AppSession({
     symbolScaleHistoryRef.current = "idle";
   }, []);
   const replaceProjectState = useCallback((state: ProjectState) => {
+    initialGroupSelectionRef.current = {
+      loadPoints: state.loadPoints,
+      loadPointId: state.selectedLoadPointIds.length === 1 ? state.selectedLoadPointId : null,
+      handled: false,
+    };
     invalidatePileAssignmentRequests();
     dispatchProject({ type: "replace", state });
   }, [invalidatePileAssignmentRequests]);
@@ -330,6 +387,23 @@ export default function AppSession({
     projectState.pilePlans,
     projectState.activePilePlanId,
   )), [projectState.activePilePlanId, projectState.pilePlans]);
+  const groupAssignmentAssessmentInput = useMemo(() => (
+    !hasCompletedLoadPointGroups
+      ? null
+      : {
+          groups: loadPointGroups.groups,
+          assignments: projectState.selectedPileConfigurationsByLoadPoint,
+          lockedLoadPointIds: [...activeLockedLoadPointIdSet],
+        }
+  ), [
+    activeLockedLoadPointIdSet,
+    loadPointGroups.groups,
+    hasCompletedLoadPointGroups,
+    projectState.selectedPileConfigurationsByLoadPoint,
+  ]);
+  const groupAssignmentAssessment = useGroupAssignmentAssessment(
+    groupAssignmentAssessmentInput,
+  );
 
   useEffect(() => {
     invalidatePileAssignmentRequests();
@@ -653,10 +727,10 @@ export default function AppSession({
     const loadPointIds = intent.loadPointIds.filter((id) => !activeLockedLoadPointIdSet.has(id));
     if (loadPointIds.length === 0) return;
     const selection = intent.mode === "toggle"
-      ? toggleReactViewerLoadPoint(projectState, loadPointIds[0])
+      ? toggleReactViewerLoadPoint(projectState, loadPointIds[0], loadPointGroups.groups)
       : intent.mode === "add"
-        ? addReactViewerLoadPoints(projectState, loadPointIds)
-        : setReactViewerLoadPoints(projectState, loadPointIds);
+        ? addReactViewerLoadPoints(projectState, loadPointIds, loadPointGroups.groups)
+        : setReactViewerLoadPoints(projectState, loadPointIds, loadPointGroups.groups);
     handleProjectStateChange({ ...projectState, ...selection });
   };
 
@@ -670,13 +744,76 @@ export default function AppSession({
     handleProjectStateChange({ ...projectState, ...clearReactViewerSelection(projectState) });
   };
 
+  const previewGroupEdit = async (
+    action: LoadPointGroupEditAction,
+    selectedLoadPointIds = projectState.selectedLoadPointIds,
+  ): Promise<LoadPointGroupEditPreview | null> => {
+    if (loadPointGroups.pending || loadPointGroups.error !== null) return null;
+    return previewLoadPointGroupEditCore({
+      loadPoints: projectState.loadPoints,
+      settings: projectState.loadPointGroupingSettings,
+      selectedLoadPointIds,
+      action,
+    });
+  };
+
+  const applyGroupEdit = async (
+    action: LoadPointGroupEditAction,
+    selectedLoadPointIds = projectState.selectedLoadPointIds,
+  ): Promise<void> => {
+    if (groupEditPending || loadPointGroups.pending || loadPointGroups.error !== null) return;
+    const requestId = ++groupEditRequestIdRef.current;
+    const capturedLoadPoints = projectState.loadPoints;
+    const capturedSettings = projectState.loadPointGroupingSettings;
+    const capturedSelectedIds = [...selectedLoadPointIds];
+    setGroupEditPending(true);
+    try {
+      const result = await applyLoadPointGroupEditCore({
+        loadPoints: capturedLoadPoints,
+        settings: capturedSettings,
+        selectedLoadPointIds: capturedSelectedIds,
+        action,
+      });
+      if (
+        requestId !== groupEditRequestIdRef.current
+        || projectStateRef.current.loadPoints !== capturedLoadPoints
+        || projectStateRef.current.loadPointGroupingSettings !== capturedSettings
+      ) return;
+      if (result.status === "blocked") {
+        showActionNotice(t(`loadPointGroups.editBlocked.${result.reason}`), "error");
+        return;
+      }
+      commitProjectState((current) => {
+        if (
+          current.loadPoints !== capturedLoadPoints
+          || current.loadPointGroupingSettings !== capturedSettings
+        ) return current;
+        const groupingSettings = {
+          ...result.settings,
+          manualGroups: result.settings.manualGroups.map(({ loadPointIds }) => ({
+            loadPointIds: [...loadPointIds],
+          })),
+          ungroupedGroups: result.settings.ungroupedGroups.map(({ loadPointIds }) => ({
+            loadPointIds: [...loadPointIds],
+          })),
+        };
+        const selection = action === "group"
+          ? setReactViewerLoadPoints(current, capturedSelectedIds, result.grouping.groups)
+          : action === "ungroup"
+            ? setReactViewerLoadPoints(current, capturedSelectedIds)
+            : current;
+        return { ...current, ...selection, loadPointGroupingSettings: groupingSettings };
+      }, getLoadPointGroupEditHistoryAction(action));
+    } finally {
+      if (requestId === groupEditRequestIdRef.current) setGroupEditPending(false);
+    }
+  };
+
   const applyGroupedPileConfiguration = async (
     selectedLoadPointIds: number[],
     requestedConfiguration: PileConfigurationKey | null,
   ): Promise<void> => {
-    const groupsReady = !loadPointGroups.pending
-      && loadPointGroups.error === null
-      && (projectState.loadPoints.length === 0 || loadPointGroups.groups.length > 0);
+    const groupsReady = hasCompletedLoadPointGroups;
     if (!groupsReady || selectedLoadPointIds.length === 0) return;
 
     pileAssignmentRequestIdRef.current += 1;
@@ -912,9 +1049,7 @@ export default function AppSession({
     if (
       technicalPileOptionsByLoadPointId.size !== snapshot.loadPoints.length
       || snapshot.analysisError !== null
-      || loadPointGroups.pending
-      || loadPointGroups.error !== null
-      || (snapshot.loadPoints.length > 0 && loadPointGroups.groups.length === 0)
+      || !hasCompletedLoadPointGroups
       || technicalAssignment.status !== "ready"
     ) {
       return;
@@ -1102,9 +1237,7 @@ export default function AppSession({
     if (
       !projectState.defaultPileSelectionPending
       || projectState.pileOptionsByLoadPointId.size !== projectState.loadPoints.length
-      || loadPointGroups.pending
-      || loadPointGroups.error !== null
-      || (projectState.loadPoints.length > 0 && loadPointGroups.groups.length === 0)
+      || !hasCompletedLoadPointGroups
     ) {
       return;
     }
@@ -1159,9 +1292,8 @@ export default function AppSession({
     projectState.analysisRequest,
     projectState.defaultPileSelectionPending,
     projectState.loadPoints.length,
-    loadPointGroups.error,
+    hasCompletedLoadPointGroups,
     loadPointGroups.groups,
-    loadPointGroups.pending,
     projectState.pileCostSettings,
     projectState.pileOptionsByLoadPointId,
   ]);
@@ -1198,7 +1330,7 @@ export default function AppSession({
   }, [projectState.pileCostSettings, projectState.pileHeadLevelM, projectState.pileOptionsByLoadPointId]);
 
   const ilp = useIlpOptimization(projectState, loadPointGroups.groups,
-    !loadPointGroups.pending && loadPointGroups.error === null && projectState.analysisError === null
+    hasCompletedLoadPointGroups && projectState.analysisError === null
       && !projectState.defaultPileSelectionPending && projectState.cptSelectionEditDraft === null
       && projectState.loadPointLockDraft === null && projectState.loadPoints.length > 0
       && projectState.pileOptionsByLoadPointId.size === projectState.loadPoints.length,
@@ -1376,6 +1508,7 @@ export default function AppSession({
           foregroundLayer={projectState.foregroundLayer}
           showGrid={projectState.showGrid}
           showTipLevelRegions={projectState.showTipLevelRegions}
+          showLoadPointGroups={projectState.showLoadPointGroups}
           explorerVisible={workspaceLayout.explorerVisible}
           propertiesVisible={workspaceLayout.propertiesVisible}
           onSymbolScaleChangeStart={beginSymbolScaleChange}
@@ -1396,6 +1529,10 @@ export default function AppSession({
           onTipLevelRegionVisibilityChange={(showTipLevelRegions) => handleProjectStateChange({
             ...projectState,
             showTipLevelRegions,
+          })}
+          onLoadPointGroupVisibilityChange={(showLoadPointGroups) => handleProjectStateChange({
+            ...projectState,
+            showLoadPointGroups,
           })}
           onExplorerVisibilityChange={(explorerVisible) => updateWorkspaceLayout({ explorerVisible })}
           onPropertiesVisibilityChange={(propertiesVisible) => updateWorkspaceLayout({ propertiesVisible })}
@@ -1452,6 +1589,8 @@ export default function AppSession({
                 state={ilp.displayState}
                 readOnly={ilp.running}
                 loadPointGroups={loadPointGroups.groups}
+                loadPointGroupTopology={loadPointGroups.topology}
+                groupAssignmentAssessment={groupAssignmentAssessment}
                 technicalAssignment={technicalAssignment}
                 lassoSelectionActive={lassoSelectionActive}
                 onStateChange={handleDisplayedStateChange}
@@ -1533,11 +1672,14 @@ export default function AppSession({
               />}</IlpOptimizationSettingsPanel>}
             state={ilp.displayState}
             loadPointGroups={loadPointGroups.groups}
+            groupAssignmentAssessment={groupAssignmentAssessment}
+            groupEditPending={groupEditPending || loadPointGroups.pending}
+            onPreviewLoadPointGroupEdit={previewGroupEdit}
+            onApplyLoadPointGroupEdit={applyGroupEdit}
             technicalAssignment={technicalAssignment}
             onStateChange={handleDisplayedStateChange}
             pileAssignmentPending={ilp.running || pileAssignmentPending
-              || loadPointGroups.pending
-              || loadPointGroups.error !== null
+              || !hasCompletedLoadPointGroups
               || (projectState.loadPoints.length > 0 && loadPointGroups.groups.length === 0)}
             onApplyPileConfiguration={applyGroupedPileConfiguration}
             taskPanel={rightTaskPanel}

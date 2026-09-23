@@ -205,6 +205,7 @@ mod tests {
     fn group(ids: &[u32]) -> LoadPointGroup {
         LoadPointGroup {
             load_point_ids: ids.to_vec(),
+            origin: crate::LoadPointGroupOrigin::Automatic,
         }
     }
 
