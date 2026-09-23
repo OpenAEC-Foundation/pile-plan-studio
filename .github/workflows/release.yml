@@ -98,6 +98,6 @@ jobs:
           draft: true
           prerelease: true
           generate_release_notes: true
-          name: Pile Plan Studio ${{ github.ref_name }}
+          name: Open Pile Plan Studio ${{ github.ref_name }}
           files: ${{ steps.installer.outputs.path }}
           fail_on_unmatched_files: true
