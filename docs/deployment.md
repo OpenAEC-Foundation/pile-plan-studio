@@ -56,6 +56,16 @@ The [site workflow](../.github/workflows/live.yml) builds and deploys on every
 push to `main`, or through manual workflow dispatch. Browser publication is
 independent of the Windows release tag and draft publication.
 
+The [OpenAEC product page](https://open-aec.com/open-pile-plan-studio/) is
+maintained in the separate `OpenAEC-Foundation/website` repository. Its download
+block links directly to a published Windows installer asset, while its release
+notes come from that website's generated release data. Publishing an app build
+or release does not itself update the product page: let the website data update
+and deploy, then verify the displayed version, direct installer link, and release
+notes on the live page. If changing shared website CSS or JavaScript with
+long-lived caching, version the asset URL in every affected language page; the
+download anchor must leave its title visible below the sticky navigation.
+
 ## Hosting Requirements
 
 - Serve the application over HTTPS.

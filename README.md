@@ -16,7 +16,7 @@
 <p align="center">
   <a href="https://pile-plan-studio.open-aec.com/"><strong>Try Open Pile Plan Studio in your browser</strong></a>
   &nbsp;&middot;&nbsp;
-  <a href="https://github.com/OpenAEC-Foundation/pile-plan-studio/releases/latest"><strong>Download the Windows installer</strong></a>
+  <a href="https://open-aec.com/open-pile-plan-studio/#download"><strong>Download the Windows installer</strong></a>
 </p>
 
 ---
@@ -87,8 +87,10 @@ for the model and solver details.
 The [live browser demo](https://pile-plan-studio.open-aec.com/) opens directly
 with the sample project and is the quickest way to explore the application.
 
-The latest signed Windows x64 installer is available on the
-[GitHub Releases page](https://github.com/OpenAEC-Foundation/pile-plan-studio/releases).
+The [OpenAEC download page](https://open-aec.com/open-pile-plan-studio/#download)
+links directly to the latest published signed Windows x64 installer. Release
+history and installer assets remain available on
+[GitHub Releases](https://github.com/OpenAEC-Foundation/pile-plan-studio/releases).
 After installation, `.ifcpp` project files can be opened directly from Windows
 Explorer. If Open Pile Plan Studio is already running, the project opens in the
 existing application window.
@@ -166,15 +168,30 @@ the import preview before the project is changed.
 
 ## Selection and Inspection
 
-- Click a load point to select it.
-- Use **Shift+click** to add or remove a load point from the selection.
-- Use **Shift+drag** on empty viewer space to select load points with a lasso.
+- Click a load point to select it, or its entire effective group when grouped.
+- Use **Shift+click** to add or remove a complete group from the selection.
+- Use **Shift+drag** on empty viewer space to select load points with a lasso;
+  touching one group member includes its entire group.
 - Hover over a marker to inspect its compact information.
 - When markers overlap, press **Space** to cycle through the candidates beneath
   the pointer before clicking.
 - Use **Shift+click** on a pile size or tip level in the legend to select load
   points that currently use it.
 - Press **Escape** or click empty viewer space to clear the selection.
+
+The selection header lists members of a selected group. Choose a member there
+to inspect just that load point without changing its group. Its orange selection
+ring then appears alongside a gray group contour (red if the group conflicts),
+even if **Show groups** is off. A pile assignment still applies to the whole
+group. Group and ungroup actions are available beside the selection header and
+in the grouping settings.
+Manual groups must be connected in the project's Gabriel graph. Ungrouping an
+automatic group stores an explicit separation; ungrouping a manual group removes
+that manual override. The grouping settings show both override counts and can
+reset them in one undoable action. **View > Show groups** draws gray contours for
+unselected groups of two or more load points. A group with conflicting
+assignments has a warning and a red contour, which becomes orange when the
+whole group is selected.
 
 In the pile-options table, click a row to assign its configuration. With
 multiple load points selected, the table shows their common options and applies

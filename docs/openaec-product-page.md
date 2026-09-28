@@ -10,7 +10,8 @@ funderingsadvies, paalopties, benutting en geraamde kosten komen samen in één
 interactief palenplan.
 
 De publieke alpha is direct in de browser te proberen met een voorbeeldproject.
-Een ondertekende Windows-installer is beschikbaar via GitHub Releases. De
+De OpenAEC-productpagina biedt een directe download van de laatst gepubliceerde,
+ondertekende Windows-installer; releasehistorie staat op GitHub Releases. De
 rekenkern is geschreven in Rust en draait in de browser via WebAssembly en op
 de desktop via Tauri; de interface is gebouwd met React.
 
@@ -29,6 +30,7 @@ belastinglocaties en sonderingen samen tonen, met instelbare tabelkolommen.
 gecontroleerd.**
 
 - Broncode: https://github.com/OpenAEC-Foundation/pile-plan-studio
+- Productpagina en download: https://open-aec.com/open-pile-plan-studio/#download
 - Releases: https://github.com/OpenAEC-Foundation/pile-plan-studio/releases
 
 ## English
@@ -41,7 +43,8 @@ foundation advice, pile options, utilization, and estimated costs in one
 interactive pile plan.
 
 The public alpha can be explored directly in the browser with a sample project.
-A signed Windows installer is available from GitHub Releases. Its calculation
+The OpenAEC product page offers a direct download of the latest published signed
+Windows installer; release history remains on GitHub Releases. Its calculation
 core is written in Rust and runs through WebAssembly in the browser and Tauri
 on desktop; the interface is built with React.
 
@@ -60,5 +63,6 @@ customizable table columns.
 professional.**
 
 - Source: https://github.com/OpenAEC-Foundation/pile-plan-studio
+- Product page and download: https://open-aec.com/open-pile-plan-studio/#download
 - Releases: https://github.com/OpenAEC-Foundation/pile-plan-studio/releases
 
