@@ -145,6 +145,35 @@ struct ParsedPilePlanSource {
     diagnostics: Vec<PilePlanImportDiagnostic>,
 }
 
+pub fn pile_plan_import_requirements() -> serde_json::Value {
+    serde_json::json!({
+        "version": 1,
+        "profile": "standard-table",
+        "format": "csv",
+        "encoding": "UTF-8",
+        "delimiter": ",",
+        "decimal_separator": ".",
+        "columns": [
+            {"name": "Load Point ID", "type": "unsigned integer"},
+            {"name": "X [mm]", "type": "number", "unit": "mm"},
+            {"name": "Y [mm]", "type": "number", "unit": "mm"},
+            {"name": "FEd [kN]", "type": "number", "unit": "kN", "used_for_matching": false},
+            {"name": "Pile Size [mm]", "type": "positive integer or empty", "unit": "mm"},
+            {"name": "Pile Tip Level [m]", "type": "number or empty", "unit": "m"},
+            {"name": "Selected CPTs", "type": "comma-separated CPT IDs or empty"}
+        ],
+        "example": "Load Point ID,X [mm],Y [mm],FEd [kN],Pile Size [mm],Pile Tip Level [m],Selected CPTs\n1,1000,1500,80,320,-18.5,\n",
+        "notes": [
+            "The named header is required; columns may be reordered.",
+            "Pile Size and Pile Tip Level both empty clear the pile assignment when that category is enabled.",
+            "An empty Selected CPTs cell clears the manual CPT choice when that category is enabled.",
+            "Manual CPT choices are project-wide and shared by all pile plans.",
+            "Load points match by ID when coordinates agree, otherwise by one unique coordinate within the chosen tolerance.",
+            "Decimals use a point, not a comma."
+        ]
+    })
+}
+
 pub fn preview_pile_plan_import(request: &PilePlanImportRequest) -> PilePlanImportPreview {
     if !request.options.coordinate_tolerance_mm.is_finite()
         || request.options.coordinate_tolerance_mm < 0.0
@@ -825,6 +854,22 @@ mod tests {
     use rust_xlsxwriter::Workbook;
 
     use super::*;
+
+    #[test]
+    fn machine_readable_requirements_example_parses_as_standard_table() {
+        let requirements = pile_plan_import_requirements();
+        assert_eq!(requirements["version"], 1);
+        assert_eq!(requirements["profile"], "standard-table");
+        let example = requirements["example"].as_str().expect("CSV example");
+        let parsed = parse_pile_plan_source(
+            "example.csv",
+            SourceFormat::Csv,
+            example.as_bytes(),
+            PilePlanImportProfile::StandardTable,
+        )
+        .expect("requirements example must parse");
+        assert_eq!(parsed.source_rows, 1);
+    }
 
     #[test]
     fn pile_plan_import_contract_uses_stable_profile_names() {

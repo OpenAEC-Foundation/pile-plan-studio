@@ -309,8 +309,8 @@ export function toBrowserProjectDocumentDraft(
     active_selected_piles: numericMap(draft.active_selected_piles),
     import_log: draft.import_log.map((entry) => ({
       ...entry,
-      mapped_columns: stringMap(entry.mapped_columns),
-      profile_details: stringMap(entry.profile_details),
+      mapped_columns: stringMap(entry.mapped_columns ?? {}),
+      profile_details: stringMap(entry.profile_details ?? {}),
     })),
   };
 }
@@ -336,8 +336,8 @@ export function toDesktopProjectDocumentDraft(
     active_selected_piles: { ...draft.active_selected_piles },
     import_log: draft.import_log.map((entry) => ({
       ...entry,
-      mapped_columns: { ...entry.mapped_columns },
-      profile_details: { ...entry.profile_details },
+      mapped_columns: { ...(entry.mapped_columns ?? {}) },
+      profile_details: { ...(entry.profile_details ?? {}) },
     })),
   };
 }

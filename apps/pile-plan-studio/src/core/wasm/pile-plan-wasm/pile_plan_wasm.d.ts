@@ -12,7 +12,11 @@ export function aggregate_pile_options(request: any): any;
 
 export function apply_load_point_group_assignment(request: any): any;
 
+export function apply_load_point_group_assignment_batch(request: any): any;
+
 export function apply_load_point_group_edit(request: any): any;
+
+export function apply_load_point_group_ungroup_batch(request: any): any;
 
 export function assess_load_point_group_assignments(request: any): any;
 
@@ -30,6 +34,14 @@ export function choose_default_options(request: any): any;
 
 export function derive_load_point_groups(request: any): any;
 
+export function evaluate_cpt_settings_edit(request: any): any;
+
+export function evaluate_load_point_grouping_settings(request: any): any;
+
+export function evaluate_mcp_project_edit(request: any): any;
+
+export function evaluate_pile_cost_catalog_edit(request: any): any;
+
 export function export_pile_plan_csv(request: any): Uint8Array;
 
 export function export_pile_plan_xlsx(request: any): Uint8Array;
@@ -46,6 +58,10 @@ export function read_project_document(request: any): any;
 
 export function refresh_project_from_files(request: any): any;
 
+export function validate_load_point_lock_batch(request: any): any;
+
+export function validate_manual_cpt_selection_batch(request: any): any;
+
 export function write_project_document(request: any): string;
 
 export type InitInput = RequestInfo | URL | Response | BufferSource | WebAssembly.Module;
@@ -55,7 +71,9 @@ export interface InitOutput {
     readonly __wbg_wasmilpsession_free: (a: number, b: number) => void;
     readonly aggregate_pile_options: (a: any) => [number, number, number];
     readonly apply_load_point_group_assignment: (a: any) => [number, number, number];
+    readonly apply_load_point_group_assignment_batch: (a: any) => [number, number, number];
     readonly apply_load_point_group_edit: (a: any) => [number, number, number];
+    readonly apply_load_point_group_ungroup_batch: (a: any) => [number, number, number];
     readonly assess_load_point_group_assignments: (a: any) => [number, number, number];
     readonly assess_technical_assignment: (a: any) => [number, number, number];
     readonly build_load_point_topology: (a: any) => [number, number, number];
@@ -64,6 +82,10 @@ export interface InitOutput {
     readonly calculate_pile_option_cost: (a: any) => [number, number, number];
     readonly choose_default_options: (a: any) => [number, number, number];
     readonly derive_load_point_groups: (a: any) => [number, number, number];
+    readonly evaluate_cpt_settings_edit: (a: any) => [number, number, number];
+    readonly evaluate_load_point_grouping_settings: (a: any) => [number, number, number];
+    readonly evaluate_mcp_project_edit: (a: any) => [number, number, number];
+    readonly evaluate_pile_cost_catalog_edit: (a: any) => [number, number, number];
     readonly export_pile_plan_csv: (a: any) => [number, number, number, number];
     readonly export_pile_plan_xlsx: (a: any) => [number, number, number, number];
     readonly import_project_from_files: (a: any) => [number, number, number];
@@ -72,6 +94,8 @@ export interface InitOutput {
     readonly preview_pile_plan_import_file: (a: any) => [number, number, number];
     readonly read_project_document: (a: any) => [number, number, number];
     readonly refresh_project_from_files: (a: any) => [number, number, number];
+    readonly validate_load_point_lock_batch: (a: any) => [number, number, number];
+    readonly validate_manual_cpt_selection_batch: (a: any) => [number, number, number];
     readonly wasmilpsession_new: () => number;
     readonly wasmilpsession_run: (a: number, b: any, c: any, d: any) => [number, number, number];
     readonly write_project_document: (a: any) => [number, number, number, number];

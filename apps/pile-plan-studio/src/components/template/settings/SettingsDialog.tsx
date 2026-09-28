@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import { LANGUAGES, changeLanguage } from "../../../i18n/config";
 import { PRODUCT_INFO } from "../../../productInfo.ts";
 import type { UserLanguage } from "../../../domain/settings/userSettings.ts";
+import type { McpConnection } from "../../../app/mcp/desktopBridge.ts";
 import {
   DEFAULT_INTERFACE_SCALE,
   INTERFACE_SCALE_STEP,
@@ -52,6 +53,12 @@ interface SettingsDialogProps {
   isDesktop: boolean;
   interfaceScalePercent: number;
   onInterfaceScalePreview: (scalePercent: number) => void;
+  mcpStatus: "off" | "starting" | "on" | "stopping" | "error";
+  mcpConnection: McpConnection | null;
+  mcpError: string | null;
+  onMcpToggle: (enabled: boolean) => void;
+  mcpWriteEnabled: boolean;
+  onMcpWriteToggle: (enabled: boolean) => void;
 }
 
 export default function SettingsDialog({
@@ -64,6 +71,12 @@ export default function SettingsDialog({
   isDesktop,
   interfaceScalePercent,
   onInterfaceScalePreview,
+  mcpStatus,
+  mcpConnection,
+  mcpError,
+  onMcpToggle,
+  mcpWriteEnabled,
+  onMcpWriteToggle,
 }: SettingsDialogProps) {
   const { t } = useTranslation("settings");
   const { t: tCommon } = useTranslation("common");
@@ -187,14 +200,22 @@ export default function SettingsDialog({
         </div>
 
         <div className="settings-content">
-          {activeTab === "general" && (
+          {activeTab === "general" && (<>
             <GeneralTabContent
               lang={draftLang}
               onLangChange={handleLangPreview}
               defaultCurrencyCode={draftCurrencyCode}
               onDefaultCurrencyCodeChange={setDraftCurrencyCode}
             />
-          )}
+            {isDesktop && <McpConnectionSection
+              status={mcpStatus}
+              connection={mcpConnection}
+              error={mcpError}
+              onToggle={onMcpToggle}
+              writeEnabled={mcpWriteEnabled}
+              onWriteToggle={onMcpWriteToggle}
+            />}
+          </>)}
           {activeTab === "appearance" && (
             <AppearanceTabContent
               theme={draftTheme}
@@ -228,6 +249,57 @@ export default function SettingsDialog({
       <div style={{ padding: 12, fontSize: 12 }}>{t("resetConfirm")}</div>
     </Modal>
     </>
+  );
+}
+
+function McpConnectionSection({ status, connection, error, onToggle, writeEnabled, onWriteToggle }: {
+  status: SettingsDialogProps["mcpStatus"];
+  connection: McpConnection | null;
+  error: string | null;
+  onToggle: (enabled: boolean) => void;
+  writeEnabled: boolean;
+  onWriteToggle: (enabled: boolean) => void;
+}) {
+  const { t } = useTranslation("settings");
+  const [copyError, setCopyError] = useState(false);
+  const copy = async (value: string) => {
+    try {
+      if (!navigator.clipboard?.writeText) throw new Error("clipboard_unavailable");
+      await navigator.clipboard.writeText(value);
+      setCopyError(false);
+    } catch { setCopyError(true); }
+  };
+  return (
+    <div className="settings-section settings-mcp-section">
+      <h3>{t("mcp.title")}</h3>
+      <p className="settings-description">{t("mcp.description")}</p>
+      <label className="settings-checkbox-row">
+        <input type="checkbox" checked={status === "on" || status === "starting"}
+          disabled={status === "starting" || status === "stopping"}
+          onChange={(event) => onToggle(event.currentTarget.checked)} />
+        <span>{t("mcp.enable")}</span>
+      </label>
+      <label className="settings-checkbox-row">
+        <input type="checkbox" checked={writeEnabled} disabled={status !== "on"}
+          onChange={(event) => onWriteToggle(event.currentTarget.checked)} />
+        <span>{t("mcp.allowEdits")}</span>
+      </label>
+      <div className="settings-mcp-status" role="status">{t(`mcp.status_${status}`)}</div>
+      {connection && status === "on" && <>
+        <div className="settings-mcp-connection">
+          <span>{t("mcp.endpoint")}</span>
+          <code>{connection.endpoint}</code>
+          <button type="button" className="settings-btn settings-btn-secondary"
+            onClick={() => void copy(connection.endpoint)}>{t("mcp.copyEndpoint")}</button>
+        </div>
+        <div className="settings-mcp-token-action">
+          <button type="button" className="settings-btn settings-btn-secondary"
+            onClick={() => void copy(connection.token)}>{t("mcp.copyToken")}</button>
+        </div>
+      </>}
+      {error && status === "error" && <p className="settings-mcp-error">{t("mcp.connectionError")}: {error}</p>}
+      {copyError && <p className="settings-mcp-error">{t("mcp.copyError")}</p>}
+    </div>
   );
 }
 

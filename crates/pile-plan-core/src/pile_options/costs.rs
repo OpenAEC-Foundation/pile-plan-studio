@@ -1,4 +1,5 @@
 use serde::{Deserialize, Serialize};
+use std::collections::HashSet;
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
 pub struct PileCostSettings {
@@ -40,6 +41,181 @@ pub struct InvalidPileCostSettings {
 pub enum PileCostShape {
     Round,
     Square,
+}
+
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+#[serde(tag = "action", rename_all = "snake_case")]
+pub enum PileCostCatalogAction {
+    Add {
+        item: PileCostSettingsItem,
+    },
+    Update {
+        pile_size_mm: u32,
+        shape: Option<PileCostShape>,
+        cost_per_m3: Option<f64>,
+    },
+    Remove {
+        pile_size_mm: u32,
+    },
+}
+
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+pub struct PileCostCatalogEditInput {
+    pub settings: PileCostSettings,
+    pub used_pile_sizes_mm: Vec<u32>,
+    pub actions: Vec<PileCostCatalogAction>,
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum PileCostCatalogBlockReason {
+    EmptyActions,
+    DuplicateTarget,
+    DuplicatePileSize,
+    UnknownPileSize,
+    UsedPileSize,
+    EmptyUpdate,
+    InvalidCost,
+    InvalidPileSize,
+}
+
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+#[serde(tag = "status", rename_all = "snake_case")]
+pub enum PileCostCatalogEditResult {
+    Applied {
+        settings: PileCostSettings,
+        changed_sizes_mm: Vec<u32>,
+        changed: bool,
+    },
+    Blocked {
+        reason: PileCostCatalogBlockReason,
+        pile_size_mm: Option<u32>,
+        action_index: usize,
+    },
+}
+
+pub fn evaluate_pile_cost_catalog_edit(
+    input: &PileCostCatalogEditInput,
+) -> PileCostCatalogEditResult {
+    let blocked = |reason, pile_size_mm, action_index| PileCostCatalogEditResult::Blocked {
+        reason,
+        pile_size_mm,
+        action_index,
+    };
+    if input.actions.is_empty() {
+        return blocked(PileCostCatalogBlockReason::EmptyActions, None, 0);
+    }
+    let used = input
+        .used_pile_sizes_mm
+        .iter()
+        .copied()
+        .collect::<HashSet<_>>();
+    let mut seen = HashSet::new();
+    let mut settings = input.settings.clone();
+    let mut changed_sizes = Vec::new();
+    for (index, action) in input.actions.iter().enumerate() {
+        let size = match action {
+            PileCostCatalogAction::Add { item } => item.pile_size_mm,
+            PileCostCatalogAction::Update { pile_size_mm, .. }
+            | PileCostCatalogAction::Remove { pile_size_mm } => *pile_size_mm,
+        };
+        if size == 0 {
+            return blocked(
+                PileCostCatalogBlockReason::InvalidPileSize,
+                Some(size),
+                index,
+            );
+        }
+        if !seen.insert(size) {
+            return blocked(
+                PileCostCatalogBlockReason::DuplicateTarget,
+                Some(size),
+                index,
+            );
+        }
+        let position = settings
+            .items
+            .iter()
+            .position(|item| item.pile_size_mm == size);
+        match action {
+            PileCostCatalogAction::Add { item } => {
+                if position.is_some() {
+                    return blocked(
+                        PileCostCatalogBlockReason::DuplicatePileSize,
+                        Some(size),
+                        index,
+                    );
+                }
+                if !item.cost_per_m3.is_finite() || item.cost_per_m3 < 0.0 {
+                    return blocked(PileCostCatalogBlockReason::InvalidCost, Some(size), index);
+                }
+                settings.items.push(item.clone());
+                changed_sizes.push(size);
+            }
+            PileCostCatalogAction::Update {
+                shape, cost_per_m3, ..
+            } => {
+                let Some(position) = position else {
+                    return blocked(
+                        PileCostCatalogBlockReason::UnknownPileSize,
+                        Some(size),
+                        index,
+                    );
+                };
+                if shape.is_none() && cost_per_m3.is_none() {
+                    return blocked(PileCostCatalogBlockReason::EmptyUpdate, Some(size), index);
+                }
+                if cost_per_m3.is_some_and(|cost| !cost.is_finite() || cost < 0.0) {
+                    return blocked(PileCostCatalogBlockReason::InvalidCost, Some(size), index);
+                }
+                let item = &mut settings.items[position];
+                let before = item.clone();
+                if let Some(shape) = shape {
+                    item.shape = shape.clone();
+                }
+                if let Some(cost) = cost_per_m3 {
+                    item.cost_per_m3 = *cost;
+                }
+                if *item != before {
+                    changed_sizes.push(size);
+                }
+            }
+            PileCostCatalogAction::Remove { .. } => {
+                let Some(position) = position else {
+                    return blocked(
+                        PileCostCatalogBlockReason::UnknownPileSize,
+                        Some(size),
+                        index,
+                    );
+                };
+                if used.contains(&size) {
+                    return blocked(PileCostCatalogBlockReason::UsedPileSize, Some(size), index);
+                }
+                settings.items.remove(position);
+                changed_sizes.push(size);
+            }
+        }
+    }
+    if changed_sizes.is_empty() {
+        return PileCostCatalogEditResult::Applied {
+            settings: input.settings.clone(),
+            changed_sizes_mm: vec![],
+            changed: false,
+        };
+    }
+    settings.items.sort_by_key(|item| item.pile_size_mm);
+    if validate_pile_cost_settings(&settings).is_err() {
+        return blocked(
+            PileCostCatalogBlockReason::InvalidCost,
+            None,
+            input.actions.len(),
+        );
+    }
+    PileCostCatalogEditResult::Applied {
+        changed: settings != input.settings,
+        settings,
+        changed_sizes_mm: changed_sizes,
+    }
 }
 
 pub fn validate_pile_cost_settings(

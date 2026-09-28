@@ -104,6 +104,16 @@ test("a custom new-plan name stays identical in preview and the saved result",()
   assert.equal(createIlpPlanRun(existing,"en",false,"Ignored").target.name,existing.pilePlans.find(p=>p.id===existing.activePilePlanId)?.name);
 });
 
+test("an explicit destination choice overrides the UI setting without changing it",()=>{
+  const {state}=fixture(false);
+  const newRun=createIlpPlanRun(state,"nl",false,"Via MCP",true);
+  assert.notEqual(newRun.target.id,state.activePilePlanId);
+  assert.equal(newRun.target.name,"Via MCP");
+  assert.equal(state.ilpOptimizationCreatesPilePlan,false);
+  const existingRun=createIlpPlanRun(state,"nl",false,undefined,false);
+  assert.equal(existingRun.target.id,state.activePilePlanId);
+});
+
 test("empty names use the next localized optimization name",()=>{
   for(const language of ["nl","en"] as const) {
     const {state,outcome}=fixture(true);

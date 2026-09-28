@@ -3,31 +3,41 @@
 use pile_plan_core::{
     aggregate_pile_options_for_load_points,
     apply_load_point_group_assignment as apply_load_point_group_assignment_core,
+    apply_load_point_group_assignment_batch as apply_load_point_group_assignment_batch_core,
     apply_load_point_group_edit as apply_load_point_group_edit_core,
+    apply_load_point_group_ungroup_batch as apply_load_point_group_ungroup_batch_core,
     assess_load_point_group_assignments as assess_load_point_group_assignments_core,
-    assess_technical_assignment as assess_technical_assignment_core, build_pile_option_analysis,
-    build_load_point_topology as build_load_point_topology_core,
+    assess_technical_assignment as assess_technical_assignment_core,
+    build_load_point_topology as build_load_point_topology_core, build_pile_option_analysis,
     build_tip_level_region_topology as build_tip_level_region_topology_core, calculate_pile_cost,
-    choose_default_pile_options,
-    derive_load_point_groups as derive_load_point_groups_core,
-    import_project_from_sources,
-    preview_import_source, preview_load_point_group_edit as preview_load_point_group_edit_core,
-    preview_pile_plan_import,
+    choose_default_pile_options, derive_load_point_groups as derive_load_point_groups_core,
+    evaluate_cpt_settings_edit as evaluate_cpt_settings_edit_core,
+    evaluate_load_point_grouping_settings as evaluate_load_point_grouping_settings_core,
+    evaluate_pile_cost_catalog_edit as evaluate_pile_cost_catalog_edit_core,
+    evaluate_mcp_project_edit as evaluate_mcp_project_edit_core,
+    import_project_from_sources, preview_import_source,
+    preview_load_point_group_edit as preview_load_point_group_edit_core, preview_pile_plan_import,
     read_project_document as read_project_document_core, refresh_project_from_profiled_sources,
-    validate_project_tip_levels,
-    write_pile_plan_csv as write_pile_plan_csv_bytes,
-    write_pile_plan_xlsx as write_pile_plan_xlsx_bytes, AggregatedPileConfiguration,
+    validate_load_point_lock_batch as validate_load_point_lock_batch_core,
+    validate_manual_cpt_selection_batch as validate_manual_cpt_selection_batch_core,
+    validate_project_tip_levels, write_pile_plan_csv as write_pile_plan_csv_bytes,
+    write_pile_plan_xlsx as write_pile_plan_xlsx_bytes,
+    write_project_document as write_project_document_core, AggregatedPileConfiguration,
+    ApplyLoadPointGroupAssignmentBatchInput, ApplyLoadPointGroupAssignmentBatchResult,
     ApplyLoadPointGroupAssignmentInput, ApplyLoadPointGroupAssignmentResult, CptSelectionSettings,
-    DerivedLoadPointGroups, GroupAssignmentConflict, ImportSource, ImportSourcePreview,
-    InvalidPileTipLevels, LoadPointGroup, LoadPointGroupEditInput, LoadPointGroupEditPreview,
-    LoadPointGroupEditResult, LoadPointGroupingSettings,
-    PileConfigurationKey, PileConfigurationOption, PileCostSettings, PilePlanExportRequest,
-    PileOptionAnalysisResult, PilePlanImportPreview, PilePlanImportRequest, PilePlanProject,
-    ProjectBearingCapacity, ProjectCpt, ProjectDocumentDraft, ProjectDocumentError,
-    ProjectLoadPoint, LoadPointTopology,
-    TipLevelRegionAssignment, TechnicalAssignmentAssessment, TechnicalAssignmentAssessmentError,
+    CptSettingsEditInput, CptSettingsEditResult, DerivedLoadPointGroups, GroupAssignmentConflict,
+    ImportSource, ImportSourcePreview, InvalidPileTipLevels, LoadPointGroup,
+    LoadPointGroupEditInput, LoadPointGroupEditPreview, LoadPointGroupEditResult,
+    LoadPointGroupUngroupBatchInput, LoadPointGroupingSettings, LoadPointGroupingSettingsEditInput,
+    LoadPointGroupingSettingsEditResult, LoadPointLockBatchInput, LoadPointLockBatchResult,
+    LoadPointTopology, ManualCptSelectionBatchInput, ManualCptSelectionBatchResult,
+    PileConfigurationKey, PileConfigurationOption, PileCostCatalogEditInput,
+    PileCostCatalogEditResult, PileCostSettings, PileOptionAnalysisResult, PilePlanExportRequest,
+    McpProjectEditInput, McpProjectEditResult,
+    PilePlanImportPreview, PilePlanImportRequest, PilePlanProject, ProjectBearingCapacity,
+    ProjectCpt, ProjectDocumentDraft, ProjectDocumentError, ProjectLoadPoint,
+    TechnicalAssignmentAssessment, TechnicalAssignmentAssessmentError, TipLevelRegionAssignment,
     TipLevelRegionTopology, ValidatedPilePlanProject,
-    write_project_document as write_project_document_core,
 };
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -36,7 +46,9 @@ use std::path::{Path, PathBuf};
 use std::sync::Mutex;
 use tauri::{Emitter, Manager, State};
 mod ilp_optimization;
-use ilp_optimization::{ilp_optimize, cancel_ilp_optimization, IlpJobs};
+mod mcp_bridge;
+use ilp_optimization::{cancel_ilp_optimization, ilp_optimize, IlpJobs};
+use mcp_bridge::{mcp_bridge_start, mcp_bridge_stop, McpBridgeState};
 
 const PROJECT_OPEN_REQUESTED_EVENT: &str = "project-open-requested";
 
@@ -261,7 +273,8 @@ fn import_project_from_files(
         &request.currency_code,
     )
     .map_err(|error| error.to_string())?;
-    let tip_level_keys = validate_project_tip_levels(&project).map_err(|error| error.to_string())?;
+    let tip_level_keys =
+        validate_project_tip_levels(&project).map_err(|error| error.to_string())?;
     Ok(ValidatedPilePlanProject {
         project,
         tip_level_keys,
@@ -274,7 +287,8 @@ fn refresh_project_from_files(
 ) -> Result<ValidatedPilePlanProject, String> {
     let project = refresh_project_from_profiled_sources(&request.current_project, &request.sources)
         .map_err(|error| error.to_string())?;
-    let tip_level_keys = validate_project_tip_levels(&project).map_err(|error| error.to_string())?;
+    let tip_level_keys =
+        validate_project_tip_levels(&project).map_err(|error| error.to_string())?;
     Ok(ValidatedPilePlanProject {
         project,
         tip_level_keys,
@@ -284,6 +298,16 @@ fn refresh_project_from_files(
 #[tauri::command(rename_all = "snake_case")]
 fn preview_import_file(request: PreviewImportRequest) -> ImportSourcePreview {
     preview_import_source(&request.source)
+}
+
+#[tauri::command]
+fn get_standard_csv_requirements() -> serde_json::Value {
+    pile_plan_core::standard_csv_requirements()
+}
+
+#[tauri::command]
+fn get_pile_plan_import_requirements() -> serde_json::Value {
+    pile_plan_core::pile_plan_import_requirements()
 }
 
 #[tauri::command(rename_all = "snake_case")]
@@ -384,6 +408,54 @@ fn apply_load_point_group_assignment(
     apply_load_point_group_assignment_core(&request)
 }
 
+#[tauri::command(rename_all = "snake_case")]
+fn apply_load_point_group_assignment_batch(
+    request: ApplyLoadPointGroupAssignmentBatchInput,
+) -> ApplyLoadPointGroupAssignmentBatchResult {
+    apply_load_point_group_assignment_batch_core(&request)
+}
+
+#[tauri::command(rename_all = "snake_case")]
+fn apply_load_point_group_ungroup_batch(
+    request: LoadPointGroupUngroupBatchInput,
+) -> LoadPointGroupEditResult {
+    apply_load_point_group_ungroup_batch_core(&request)
+}
+
+#[tauri::command(rename_all = "snake_case")]
+fn validate_manual_cpt_selection_batch(
+    request: ManualCptSelectionBatchInput,
+) -> ManualCptSelectionBatchResult {
+    validate_manual_cpt_selection_batch_core(&request)
+}
+
+#[tauri::command(rename_all = "snake_case")]
+fn evaluate_cpt_settings_edit(request: CptSettingsEditInput) -> CptSettingsEditResult {
+    evaluate_cpt_settings_edit_core(&request)
+}
+
+#[tauri::command(rename_all = "snake_case")]
+fn evaluate_load_point_grouping_settings(
+    request: LoadPointGroupingSettingsEditInput,
+) -> LoadPointGroupingSettingsEditResult {
+    evaluate_load_point_grouping_settings_core(&request)
+}
+
+#[tauri::command(rename_all = "snake_case")]
+fn evaluate_pile_cost_catalog_edit(request: PileCostCatalogEditInput) -> PileCostCatalogEditResult {
+    evaluate_pile_cost_catalog_edit_core(&request)
+}
+
+#[tauri::command(rename_all = "snake_case")]
+fn evaluate_mcp_project_edit(request: McpProjectEditInput) -> McpProjectEditResult {
+    evaluate_mcp_project_edit_core(&request)
+}
+
+#[tauri::command(rename_all = "snake_case")]
+fn validate_load_point_lock_batch(request: LoadPointLockBatchInput) -> LoadPointLockBatchResult {
+    validate_load_point_lock_batch_core(&request)
+}
+
 fn main() {
     let launch_cwd = std::env::current_dir().unwrap_or_default();
     let launch_paths = project_paths_from_args(std::env::args_os(), &launch_cwd);
@@ -403,15 +475,32 @@ fn main() {
         }))
         .plugin(tauri_plugin_dialog::init())
         .manage(IlpJobs::default())
+        .manage(McpBridgeState::default())
+        .setup(|app| {
+            app.state::<McpBridgeState>()
+                .install_response_listener(&app.handle());
+            Ok(())
+        })
         .on_window_event(|window, event| {
-            if matches!(event, tauri::WindowEvent::Destroyed) { window.state::<IlpJobs>().cancel(); }
+            if matches!(event, tauri::WindowEvent::Destroyed) {
+                window.state::<IlpJobs>().cancel();
+                window.state::<McpBridgeState>().stop();
+            }
         })
         .plugin(tauri_plugin_store::Builder::default().build())
         .invoke_handler(tauri::generate_handler![
             aggregate_pile_options,
             assess_technical_assignment,
             apply_load_point_group_assignment,
+            apply_load_point_group_assignment_batch,
             apply_load_point_group_edit,
+            apply_load_point_group_ungroup_batch,
+            validate_manual_cpt_selection_batch,
+            evaluate_cpt_settings_edit,
+            evaluate_load_point_grouping_settings,
+            evaluate_pile_cost_catalog_edit,
+            evaluate_mcp_project_edit,
+            validate_load_point_lock_batch,
             assess_load_point_group_assignments,
             build_load_point_topology,
             build_tip_level_region_topology,
@@ -420,7 +509,6 @@ fn main() {
             choose_default_options,
             derive_load_point_groups,
             preview_load_point_group_edit,
-
             ilp_optimize,
             cancel_ilp_optimization,
             read_project_document,
@@ -428,6 +516,8 @@ fn main() {
             import_project_from_files,
             refresh_project_from_files,
             preview_import_file,
+            get_standard_csv_requirements,
+            get_pile_plan_import_requirements,
             preview_pile_plan_import_file,
             export_pile_plan_csv,
             export_pile_plan_xlsx,
@@ -435,6 +525,8 @@ fn main() {
             write_project_file,
             write_binary_file,
             take_pending_project_paths,
+            mcp_bridge_start,
+            mcp_bridge_stop,
         ])
         .run(tauri::generate_context!())
         .expect("failed to run Open Pile Plan Studio");
@@ -445,6 +537,14 @@ mod tests {
     use super::*;
 
     #[test]
+    fn mcp_import_requirements_command_uses_core_contract() {
+        let requirements = get_standard_csv_requirements();
+        assert_eq!(requirements["version"], 1);
+        assert_eq!(requirements["roles"][0]["role"], "load-points");
+        assert_eq!(requirements["roles"][2]["columns"][1]["unit"], "m");
+    }
+
+    #[test]
     fn launch_arguments_select_only_ifcpp_projects_and_resolve_relative_paths() {
         let paths = project_paths_from_args(
             ["pile-plan-studio.exe", "project.IFCPP", "notes.txt"],
@@ -453,12 +553,10 @@ mod tests {
 
         assert_eq!(
             paths,
-            vec![
-                std::path::Path::new("C:/projects")
-                    .join("project.IFCPP")
-                    .to_string_lossy()
-                    .into_owned()
-            ]
+            vec![std::path::Path::new("C:/projects")
+                .join("project.IFCPP")
+                .to_string_lossy()
+                .into_owned()]
         );
     }
 
@@ -603,6 +701,4 @@ mod tests {
                 if changes.len() == 2
         ));
     }
-
-
 }

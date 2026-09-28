@@ -3,6 +3,16 @@ import assert from "node:assert/strict";
 import { DEFAULT_USER_SETTINGS, normalizeUserSettings, patchPileCostDefaults, patchUserSettings } from "./userSettings.ts";
 
 describe("user settings", () => {
+  it("keeps a personal optimizer duration and normalizes invalid limits", () => {
+    assert.equal(DEFAULT_USER_SETTINGS.preferences.optimizationTimeLimitSeconds, 600);
+    for (const value of [null, 1800]) {
+      const saved = patchUserSettings(DEFAULT_USER_SETTINGS, { optimizationTimeLimitSeconds: value });
+      assert.equal(normalizeUserSettings(JSON.parse(JSON.stringify(saved))).preferences.optimizationTimeLimitSeconds, value);
+    }
+    for (const value of [0, 7201, 1.5, "600"]) {
+      assert.equal(normalizeUserSettings({ preferences: { optimizationTimeLimitSeconds: value } }).preferences.optimizationTimeLimitSeconds, 600);
+    }
+  });
   it("round-trips column order and visibility without changing other preferences", () => {
     const initial = normalizeUserSettings(undefined);
     const columns = initial.preferences.pileOptionColumns;
@@ -23,6 +33,7 @@ describe("user settings", () => {
         theme: "light",
         interfaceScalePercent: 100,
         defaultCurrencyCode: "EUR",
+        optimizationTimeLimitSeconds: 600,
         pileOptionColumns: {
           single: ["symbol", "size", "tip", "status", "cost", "use", "governing", "frd"].map(key => ({ key, visible: true })),
           multiple: ["symbol", "size", "tip", "status", "totalCost", "maxUse", "criticalLoadPoint"].map(key => ({ key, visible: true })),

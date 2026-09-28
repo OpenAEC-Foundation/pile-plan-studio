@@ -1,4 +1,4 @@
-use std::collections::HashSet;
+use std::collections::{BTreeMap, BTreeSet, HashSet};
 
 use serde::{Deserialize, Serialize};
 
@@ -17,6 +17,204 @@ fn default_monopoly_distance_m() -> f64 {
     1.0
 }
 
+#[derive(Clone, Debug, Default, Deserialize, PartialEq, Serialize)]
+pub struct CptSettingsPatch {
+    pub algorithm: Option<CptSelectionAlgorithm>,
+    pub max_distance_m: Option<f64>,
+    pub monopoly_distance_m: Option<f64>,
+    pub max_angle_degrees: Option<f64>,
+}
+
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+pub struct CptSettingsLocationValue {
+    pub load_point_id: u32,
+    pub settings: CptSelectionSettings,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+pub struct ManualCptLocationValue {
+    pub load_point_id: u32,
+    pub cpt_ids: Vec<u32>,
+}
+
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+pub struct CptSettingsLoadPointChange {
+    pub load_point_id: u32,
+    pub settings: CptSettingsPatch,
+    #[serde(default)]
+    pub overwrite_manual_selections: bool,
+}
+
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+pub struct CptSettingsEditInput {
+    pub load_point_ids: Vec<u32>,
+    pub global_settings: CptSelectionSettings,
+    pub settings_by_load_point: Vec<CptSettingsLocationValue>,
+    pub manual_cpt_ids_by_load_point: Vec<ManualCptLocationValue>,
+    pub global_patch: Option<CptSettingsPatch>,
+    #[serde(default)]
+    pub overwrite_manual_selections: bool,
+    #[serde(default)]
+    pub changes: Vec<CptSettingsLoadPointChange>,
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum CptSettingsEditBlockReason {
+    EmptyPatch,
+    InvalidSetting,
+    UnknownLoadPoint,
+    DuplicateTarget,
+    InvalidScope,
+}
+
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+#[serde(tag = "status", rename_all = "snake_case")]
+pub enum CptSettingsEditResult {
+    Applied {
+        global_settings: CptSelectionSettings,
+        settings_by_load_point: Vec<CptSettingsLocationValue>,
+        manual_cpt_ids_by_load_point: Vec<ManualCptLocationValue>,
+        changed_load_point_ids: Vec<u32>,
+        global_changed: bool,
+        changed: bool,
+    },
+    Blocked {
+        reason: CptSettingsEditBlockReason,
+        ids: Vec<u32>,
+    },
+}
+
+fn patch_cpt_settings(
+    current: &CptSelectionSettings,
+    patch: &CptSettingsPatch,
+) -> Result<CptSelectionSettings, CptSettingsEditBlockReason> {
+    if patch.algorithm.is_none()
+        && patch.max_distance_m.is_none()
+        && patch.monopoly_distance_m.is_none()
+        && patch.max_angle_degrees.is_none()
+    {
+        return Err(CptSettingsEditBlockReason::EmptyPatch);
+    }
+    let valid_distance = |value: f64| value.is_finite() && value >= 0.0;
+    if patch
+        .max_distance_m
+        .is_some_and(|value| !valid_distance(value))
+        || patch
+            .monopoly_distance_m
+            .is_some_and(|value| !valid_distance(value))
+        || patch
+            .max_angle_degrees
+            .is_some_and(|value| !value.is_finite() || !(1.0..=360.0).contains(&value))
+    {
+        return Err(CptSettingsEditBlockReason::InvalidSetting);
+    }
+    Ok(CptSelectionSettings {
+        algorithm: patch
+            .algorithm
+            .clone()
+            .unwrap_or_else(|| current.algorithm.clone()),
+        max_distance_m: patch.max_distance_m.unwrap_or(current.max_distance_m),
+        monopoly_distance_m: patch
+            .monopoly_distance_m
+            .unwrap_or(current.monopoly_distance_m),
+        max_angle_degrees: patch.max_angle_degrees.unwrap_or(current.max_angle_degrees),
+    })
+}
+
+pub fn evaluate_cpt_settings_edit(input: &CptSettingsEditInput) -> CptSettingsEditResult {
+    let blocked = |reason, ids| CptSettingsEditResult::Blocked { reason, ids };
+    if input.global_patch.is_some() == !input.changes.is_empty() {
+        return blocked(CptSettingsEditBlockReason::InvalidScope, vec![]);
+    }
+    let known = input.load_point_ids.iter().copied().collect::<HashSet<_>>();
+    let mut overrides = input
+        .settings_by_load_point
+        .iter()
+        .map(|entry| (entry.load_point_id, entry.settings.clone()))
+        .collect::<BTreeMap<_, _>>();
+    let mut manual = input
+        .manual_cpt_ids_by_load_point
+        .iter()
+        .map(|entry| (entry.load_point_id, entry.cpt_ids.clone()))
+        .collect::<BTreeMap<_, _>>();
+    let mut global = input.global_settings.clone();
+    let mut changed_ids = BTreeSet::new();
+    let mut global_changed = false;
+    if let Some(patch) = &input.global_patch {
+        let next = match patch_cpt_settings(&global, patch) {
+            Ok(next) => next,
+            Err(reason) => return blocked(reason, vec![]),
+        };
+        global_changed = next != global;
+        global = next;
+        if global_changed {
+            changed_ids.extend(&known);
+        }
+        for (id, settings) in &mut overrides {
+            let next = match patch_cpt_settings(settings, patch) {
+                Ok(next) => next,
+                Err(reason) => return blocked(reason, vec![*id]),
+            };
+            if next != *settings {
+                changed_ids.insert(*id);
+            }
+            *settings = next;
+        }
+        if input.overwrite_manual_selections {
+            for id in &known {
+                if manual.remove(id).is_some() {
+                    changed_ids.insert(*id);
+                }
+            }
+        }
+    } else {
+        let mut seen = HashSet::new();
+        for change in &input.changes {
+            let id = change.load_point_id;
+            if !known.contains(&id) {
+                return blocked(CptSettingsEditBlockReason::UnknownLoadPoint, vec![id]);
+            }
+            if !seen.insert(id) {
+                return blocked(CptSettingsEditBlockReason::DuplicateTarget, vec![id]);
+            }
+            let current = overrides.get(&id).unwrap_or(&global);
+            let next = match patch_cpt_settings(current, &change.settings) {
+                Ok(next) => next,
+                Err(reason) => return blocked(reason, vec![id]),
+            };
+            if next != *current {
+                overrides.insert(id, next);
+                changed_ids.insert(id);
+            }
+            if change.overwrite_manual_selections && manual.remove(&id).is_some() {
+                changed_ids.insert(id);
+            }
+        }
+    }
+    let changed_load_point_ids = changed_ids.into_iter().collect::<Vec<_>>();
+    CptSettingsEditResult::Applied {
+        global_settings: global,
+        settings_by_load_point: overrides
+            .into_iter()
+            .map(|(load_point_id, settings)| CptSettingsLocationValue {
+                load_point_id,
+                settings,
+            })
+            .collect(),
+        manual_cpt_ids_by_load_point: manual
+            .into_iter()
+            .map(|(load_point_id, cpt_ids)| ManualCptLocationValue {
+                load_point_id,
+                cpt_ids,
+            })
+            .collect(),
+        global_changed,
+        changed: global_changed || !changed_load_point_ids.is_empty(),
+        changed_load_point_ids,
+    }
+}
+
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
 #[serde(rename_all = "kebab-case")]
 pub enum CptSelectionAlgorithm {
@@ -30,6 +228,87 @@ pub struct SelectedCpt {
     pub quadrant: Option<String>,
     pub cpt: Cpt,
     pub distance_mm: f64,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+pub struct ManualCptSelectionProposal {
+    pub load_point_id: u32,
+    pub cpt_ids: Option<Vec<u32>>,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+pub struct ManualCptSelectionBatchInput {
+    pub load_point_ids: Vec<u32>,
+    pub cpt_ids: Vec<u32>,
+    pub changes: Vec<ManualCptSelectionProposal>,
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ManualCptSelectionBatchBlockReason {
+    UnknownLoadPoint,
+    UnknownCpt,
+    DuplicateTarget,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(tag = "status", rename_all = "snake_case")]
+pub enum ManualCptSelectionBatchResult {
+    Valid {
+        changes: Vec<ManualCptSelectionProposal>,
+    },
+    Blocked {
+        reason: ManualCptSelectionBatchBlockReason,
+        ids: Vec<u32>,
+    },
+}
+
+pub fn validate_manual_cpt_selection_batch(
+    input: &ManualCptSelectionBatchInput,
+) -> ManualCptSelectionBatchResult {
+    use ManualCptSelectionBatchBlockReason as Reason;
+    let known_points = input
+        .load_point_ids
+        .iter()
+        .copied()
+        .collect::<BTreeSet<_>>();
+    let known_cpts = input.cpt_ids.iter().copied().collect::<BTreeSet<_>>();
+    let mut seen = BTreeSet::new();
+    let mut changes = Vec::with_capacity(input.changes.len());
+    for proposal in &input.changes {
+        let id = proposal.load_point_id;
+        if !seen.insert(id) {
+            return ManualCptSelectionBatchResult::Blocked {
+                reason: Reason::DuplicateTarget,
+                ids: vec![id],
+            };
+        }
+        if !known_points.contains(&id) {
+            return ManualCptSelectionBatchResult::Blocked {
+                reason: Reason::UnknownLoadPoint,
+                ids: vec![id],
+            };
+        }
+        let requested = proposal
+            .cpt_ids
+            .as_ref()
+            .map(|ids| ids.iter().copied().collect::<BTreeSet<_>>());
+        if let Some(unknown) = requested
+            .as_ref()
+            .and_then(|ids| ids.iter().find(|id| !known_cpts.contains(id)))
+        {
+            return ManualCptSelectionBatchResult::Blocked {
+                reason: Reason::UnknownCpt,
+                ids: vec![*unknown],
+            };
+        }
+        changes.push(ManualCptSelectionProposal {
+            load_point_id: id,
+            cpt_ids: requested.map(|ids| ids.into_iter().collect()),
+        });
+    }
+    changes.sort_by_key(|change| change.load_point_id);
+    ManualCptSelectionBatchResult::Valid { changes }
 }
 
 pub(crate) fn select_cpts(
@@ -281,6 +560,31 @@ fn clockwise_angle_degrees(origin: &LoadPoint, from: &Cpt, to: &Cpt) -> f64 {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn bulk_cpt_validation_preserves_explicit_empty_and_automatic_choices() {
+        let result =
+            super::validate_manual_cpt_selection_batch(&super::ManualCptSelectionBatchInput {
+                load_point_ids: vec![1, 2],
+                cpt_ids: vec![10],
+                changes: vec![
+                    super::ManualCptSelectionProposal {
+                        load_point_id: 1,
+                        cpt_ids: Some(vec![]),
+                    },
+                    super::ManualCptSelectionProposal {
+                        load_point_id: 2,
+                        cpt_ids: None,
+                    },
+                ],
+            });
+        match result {
+            super::ManualCptSelectionBatchResult::Valid { changes } => {
+                assert_eq!(changes[0].cpt_ids, Some(vec![]));
+                assert_eq!(changes[1].cpt_ids, None);
+            }
+            other => panic!("expected valid result: {other:?}"),
+        }
+    }
     use super::*;
 
     fn load() -> LoadPoint {

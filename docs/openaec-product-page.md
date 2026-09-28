@@ -14,6 +14,10 @@ Een ondertekende Windows-installer is beschikbaar via GitHub Releases. De
 rekenkern is geschreven in Rust en draait in de browser via WebAssembly en op
 de desktop via Tauri; de interface is gebouwd met React.
 
+De Windows-app biedt een lokale MCP-koppeling voor AI-clients zoals ChatGPT
+Desktop en Claude Desktop. De gebruiker schakelt leestoegang en bewerken apart
+in; bewerkingen doorlopen dezelfde Rust-controles en projecthistorie als de app.
+
 De alpha ondersteunt CSV/XLSX- en RFEM-import, IFCPP-projectbestanden, import en
 export van palenplannen, handmatige en regelgestuurde sonderingselectie,
 gezamenlijke bewerking van sonderingselecties, het verversen van afzonderlijke
@@ -44,6 +48,10 @@ The public alpha can be explored directly in the browser with a sample project.
 A signed Windows installer is available from GitHub Releases. Its calculation
 core is written in Rust and runs through WebAssembly in the browser and Tauri
 on desktop; the interface is built with React.
+
+The Windows app offers a local MCP connection for AI clients such as ChatGPT
+Desktop and Claude Desktop. Users enable reading and editing separately; edits
+use the app's Rust checks and project history.
 
 The alpha supports CSV/XLSX and RFEM import, IFCPP projects, pile-plan import
 and export, manual and rule-based CPT selection, common options for multiple

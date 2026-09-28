@@ -1,5 +1,46 @@
 # Open Pile Plan Studio Release Notes
 
+## 0.4.2-alpha
+
+This alpha adds an MCP connection to the Windows desktop app. A local AI client
+such as ChatGPT Desktop or Claude Desktop can inspect the open project, propose
+edits, run optimization, and work with project files through the same Rust
+engineering rules used by the interface.
+
+### Added
+
+- Enable a local, token-protected MCP connection in Settings. Reading and
+  editing have separate session controls; editing starts disabled.
+- Read project settings, load points, CPTs, advice, groups, plans, costs,
+  technical assessments, and optimization results through MCP. Compare two
+  named plans without changing the active one.
+- Apply assignments, locks, manual CPT selections, grouping changes, settings,
+  legend styles, project properties, and targeted source corrections. Bulk
+  changes use Rust validation and one Undo step.
+- Start, monitor, stop, or cancel optimization through MCP. The same time-limit
+  preference is available in the app, including an explicit unlimited option.
+- Create or refresh a project from converted CSV source data, import an existing
+  pile plan, open or save IFCPP projects, and export a chosen plan to CSV/XLSX.
+  Native file dialogs require the user's choice for local files.
+
+### Improved and fixed
+
+- Keep foundation advice when only CPT positions or identifiers change and
+  equivalent CPTs can be reconciled during source refresh.
+- Clarify that the coherence cost allowance is measured against the optimizer's
+  cost reference, not the current pile plan.
+- Keep MCP work tied to the currently open project revision and reject stale
+  operations rather than applying them after the project changes.
+
+### Compatibility and limitations
+
+- MCP is available in the Windows desktop app. The browser app still uses the
+  same Rust engineering core but does not expose an MCP listener.
+- The MCP address stays local to this computer. Its access token is renewed
+  each time the bridge starts and must be updated in the AI client.
+- IFCPP project schema remains compatible with supported older projects.
+  Engineering results still require professional review.
+
 ## 0.4.1-alpha
 
 This alpha makes load-point groups explicit planning and optimization units,

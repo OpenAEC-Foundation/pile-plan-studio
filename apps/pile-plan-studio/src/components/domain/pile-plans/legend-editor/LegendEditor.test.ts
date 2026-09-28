@@ -44,7 +44,7 @@ describe("legend editor", () => {
     assert.match(source, /LegendColorSchemeSelect/);
     assert.match(source, /legend-editor-enabled/);
     assert.match(source, /legend-editor-disabled/);
-    assert.match(source, /onApply\(draft\)/);
+    assert.match(source, /onApply\(draft, enableTipLevelRegions\)/);
   });
 
   it("keeps appearance and activation as separate controls", () => {

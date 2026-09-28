@@ -5,7 +5,7 @@
 </p>
 
 <p align="center">
-  <a href="RELEASE_NOTES.md"><img src="https://img.shields.io/badge/release-v0.4.1--alpha-D97706?style=flat-square" alt="Release v0.4.1-alpha"></a>
+  <a href="RELEASE_NOTES.md"><img src="https://img.shields.io/badge/release-v0.4.2--alpha-D97706?style=flat-square" alt="Release v0.4.2-alpha"></a>
   <a href="https://github.com/OpenAEC-Foundation/pile-plan-studio/releases"><img src="https://img.shields.io/github/downloads/OpenAEC-Foundation/pile-plan-studio/total?style=flat-square" alt="Total downloads"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-LGPL--3.0-blue?style=flat-square" alt="LGPL-3.0 license"></a>
   <a href="https://pile-plan-studio.open-aec.com/"><img src="https://img.shields.io/badge/platform-Web%20%7C%20Windows-lightgrey?style=flat-square" alt="Web and Windows"></a>
@@ -57,6 +57,8 @@ browser.
   pile plans and export assignments and CPT identifiers to Excel or CSV.
 - Keep project costs separate from application preferences while using the same
   Rust calculation core in the browser and Windows desktop application.
+- Connect a local AI client to the Windows desktop app through MCP to inspect
+  and, when explicitly enabled, edit the open project using the Rust core.
 
 ## Screenshots
 
@@ -95,6 +97,21 @@ existing application window.
 The browser and desktop editions use the same Rust calculation core.
 
 See the [release notes](RELEASE_NOTES.md) for the changes in each alpha.
+
+## Desktop AI connection (MCP)
+
+The Windows app can expose its currently open project to a local MCP client,
+including ChatGPT Desktop or Claude Desktop. Enable the bridge in **Settings →
+General → AI connection**, then copy its local address and session token into
+the client. Reading is available while connected; project changes require a
+second **Allow editing through MCP** switch. The browser demo does not provide
+an MCP endpoint.
+
+The client can inspect project data, compare plans, validate and apply bulk
+edits, run optimization, import converted CSV sources, and use native file
+dialogs for IFCPP save/open and plan export. Project edits pass through the
+same Rust engineering checks and project history as the interface. See the
+[MCP connection guide](docs/mcp.md) for setup, tool contracts, and examples.
 
 ## Supported Project Data
 

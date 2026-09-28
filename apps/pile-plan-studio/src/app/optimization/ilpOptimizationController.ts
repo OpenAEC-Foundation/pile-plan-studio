@@ -7,6 +7,7 @@ export class IlpOptimizationController {
   private client:IlpOptimizationClient;
   private changed:(state:IlpRunState)=>void;
   private handle:IlpRunHandle|null=null;
+  private activeRunId:string|null=null;
   private generation=0;
   private discard=false;
   private previewTimer:ReturnType<typeof setTimeout>|null=null;
@@ -35,6 +36,7 @@ export class IlpOptimizationController {
   private publish(state:IlpRunState) {this.state=state;this.changed(state);}
   async start(request:IlpRunRequest,isCurrent:()=>boolean,apply:(outcome:IlpOptimizationOutcome)=>void) {
     if(this.state.running)return;
+    this.activeRunId=request.runId;
     const generation=++this.generation;
     this.discard=false;this.clearPreviewQueue();this.previewUpdatedAt=Number.NEGATIVE_INFINITY;
     this.publish({running:true,stopping:false,progress:null,outcome:null,context:{
@@ -55,13 +57,16 @@ export class IlpOptimizationController {
       if(generation!==this.generation)return;
       const accepted=!this.discard && isCurrent();
       this.handle=null;this.clearPreviewQueue();
+      this.activeRunId=null;
       this.publish({...this.state,running:false,stopping:false,cancelling:false,previewSolution:undefined,outcome:accepted?outcome:{status:"cancelled"}});
       if(accepted)apply(outcome);
     } catch {
-      if(generation===this.generation){this.handle=null;this.clearPreviewQueue();this.publish({...this.state,running:false,stopping:false,cancelling:false,previewSolution:undefined,outcome:{status:"failed",code:"solver_worker_error"}});}
+      if(generation===this.generation){this.handle=null;this.activeRunId=null;this.clearPreviewQueue();this.publish({...this.state,running:false,stopping:false,cancelling:false,previewSolution:undefined,outcome:{status:"failed",code:"solver_worker_error"}});}
     }
   }
   stop() {if(!this.state.running || this.discard)return;this.publish({...this.state,stopping:true});this.handle?.stop();}
   cancel() {if(!this.state.running || this.discard)return;this.discard=true;this.clearPreviewQueue();this.publish({...this.state,stopping:true,cancelling:true,previewSolution:undefined});this.handle?.cancel();}
-  dispose() {this.generation++;this.clearPreviewQueue();this.handle?.cancel();this.handle=null;this.client.dispose();this.state={running:false,stopping:false,progress:null,outcome:null};}
+  stopRun(runId:string) {if(!this.state.running || this.activeRunId!==runId)return false;this.stop();return true;}
+  cancelRun(runId:string) {if(!this.state.running || this.activeRunId!==runId)return false;this.cancel();return true;}
+  dispose() {this.generation++;this.clearPreviewQueue();this.handle?.cancel();this.handle=null;this.activeRunId=null;this.client.dispose();this.state={running:false,stopping:false,progress:null,outcome:null};}
 }

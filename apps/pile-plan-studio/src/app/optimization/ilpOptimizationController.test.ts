@@ -20,6 +20,18 @@ test("controller waits for the result and rejects a changed project snapshot",as
   current=false;fake.finish(ilpSolvedForTest);await pending;
   assert.equal(applied,0);assert.equal(controller.state.running,false);
 });
+test("run controls require the exact active run ID",async()=>{
+  const fake=transport();
+  const controller=new IlpOptimizationController(fake.client,()=>undefined);
+  const pending=controller.start(request,()=>true,()=>undefined);
+  assert.equal(controller.stopRun("another-run"),false);
+  assert.equal(controller.state.stopping,false);
+  assert.equal(controller.stopRun(request.runId),true);
+  assert.equal(controller.cancelRun("another-run"),false);
+  assert.equal(controller.cancelRun(request.runId),true);
+  fake.finish({status:"cancelled"});await pending;
+  assert.equal(controller.cancelRun(request.runId),false);
+});
 test("stop accepts the best result but a subsequent context change still discards it",async()=>{
   for(const change of [false,true]) {
     const fake=transport();let current=true;let applied=0;

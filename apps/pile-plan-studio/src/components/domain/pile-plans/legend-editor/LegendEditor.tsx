@@ -49,7 +49,7 @@ import LegendConflictNotice from "./LegendConflictNotice.tsx";
 export type LegendEditorProps = {
   open: boolean;
   state: ProjectState;
-  onApply: (draft: LegendEditorDraft, enableTipLevelRegions?: boolean) => void;
+  onApply: (draft: LegendEditorDraft, enableTipLevelRegions?: boolean) => Promise<boolean>;
   onClose: () => void;
 };
 
@@ -69,6 +69,7 @@ export default function LegendEditor({ open, state, onApply, onClose }: LegendEd
   const [openInfoKey, setOpenInfoKey] = useState<string | null>(null);
   const [symbolLimitError, setSymbolLimitError] = useState(false);
   const [enableTipLevelRegions, setEnableTipLevelRegions] = useState(false);
+  const [applying, setApplying] = useState(false);
   const openedPlanId = useRef(state.activePilePlanId);
   const encodingDisclosure = useRef<HTMLDetailsElement>(null);
   const used = deriveUsedPileConfigurations(state.selectedPileConfigurationsByLoadPoint.values());
@@ -148,7 +149,7 @@ export default function LegendEditor({ open, state, onApply, onClose }: LegendEd
       <button className="settings-btn settings-btn-secondary" type="button" onClick={onClose}>
         {t("cancel")}
       </button>
-      <button className="settings-btn settings-btn-primary" type="button" onClick={applyDraft}>
+      <button className="settings-btn settings-btn-primary" type="button" disabled={applying} onClick={() => void applyDraft()}>
         {t("apply")}
       </button>
     </>
@@ -416,9 +417,14 @@ export default function LegendEditor({ open, state, onApply, onClose }: LegendEd
     );
   }
 
-  function applyDraft() {
-    if (enableTipLevelRegions) onApply(draft, true);
-    else onApply(draft);
+  async function applyDraft() {
+    if (applying) return;
+    setApplying(true);
+    try {
+      await onApply(draft, enableTipLevelRegions);
+    } finally {
+      setApplying(false);
+    }
   }
 
   function encodingModeLabel(mode: LegendEncodingMode): string {

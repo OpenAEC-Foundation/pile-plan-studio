@@ -61,8 +61,32 @@ export function apply_load_point_group_assignment(request) {
  * @param {any} request
  * @returns {any}
  */
+export function apply_load_point_group_assignment_batch(request) {
+    const ret = wasm.apply_load_point_group_assignment_batch(request);
+    if (ret[2]) {
+        throw takeFromExternrefTable0(ret[1]);
+    }
+    return takeFromExternrefTable0(ret[0]);
+}
+
+/**
+ * @param {any} request
+ * @returns {any}
+ */
 export function apply_load_point_group_edit(request) {
     const ret = wasm.apply_load_point_group_edit(request);
+    if (ret[2]) {
+        throw takeFromExternrefTable0(ret[1]);
+    }
+    return takeFromExternrefTable0(ret[0]);
+}
+
+/**
+ * @param {any} request
+ * @returns {any}
+ */
+export function apply_load_point_group_ungroup_batch(request) {
+    const ret = wasm.apply_load_point_group_ungroup_batch(request);
     if (ret[2]) {
         throw takeFromExternrefTable0(ret[1]);
     }
@@ -167,6 +191,54 @@ export function derive_load_point_groups(request) {
 
 /**
  * @param {any} request
+ * @returns {any}
+ */
+export function evaluate_cpt_settings_edit(request) {
+    const ret = wasm.evaluate_cpt_settings_edit(request);
+    if (ret[2]) {
+        throw takeFromExternrefTable0(ret[1]);
+    }
+    return takeFromExternrefTable0(ret[0]);
+}
+
+/**
+ * @param {any} request
+ * @returns {any}
+ */
+export function evaluate_load_point_grouping_settings(request) {
+    const ret = wasm.evaluate_load_point_grouping_settings(request);
+    if (ret[2]) {
+        throw takeFromExternrefTable0(ret[1]);
+    }
+    return takeFromExternrefTable0(ret[0]);
+}
+
+/**
+ * @param {any} request
+ * @returns {any}
+ */
+export function evaluate_mcp_project_edit(request) {
+    const ret = wasm.evaluate_mcp_project_edit(request);
+    if (ret[2]) {
+        throw takeFromExternrefTable0(ret[1]);
+    }
+    return takeFromExternrefTable0(ret[0]);
+}
+
+/**
+ * @param {any} request
+ * @returns {any}
+ */
+export function evaluate_pile_cost_catalog_edit(request) {
+    const ret = wasm.evaluate_pile_cost_catalog_edit(request);
+    if (ret[2]) {
+        throw takeFromExternrefTable0(ret[1]);
+    }
+    return takeFromExternrefTable0(ret[0]);
+}
+
+/**
+ * @param {any} request
  * @returns {Uint8Array}
  */
 export function export_pile_plan_csv(request) {
@@ -259,6 +331,30 @@ export function read_project_document(request) {
  */
 export function refresh_project_from_files(request) {
     const ret = wasm.refresh_project_from_files(request);
+    if (ret[2]) {
+        throw takeFromExternrefTable0(ret[1]);
+    }
+    return takeFromExternrefTable0(ret[0]);
+}
+
+/**
+ * @param {any} request
+ * @returns {any}
+ */
+export function validate_load_point_lock_batch(request) {
+    const ret = wasm.validate_load_point_lock_batch(request);
+    if (ret[2]) {
+        throw takeFromExternrefTable0(ret[1]);
+    }
+    return takeFromExternrefTable0(ret[0]);
+}
+
+/**
+ * @param {any} request
+ * @returns {any}
+ */
+export function validate_manual_cpt_selection_batch(request) {
+    const ret = wasm.validate_manual_cpt_selection_batch(request);
     if (ret[2]) {
         throw takeFromExternrefTable0(ret[1]);
     }
@@ -547,7 +643,7 @@ function __wbg_get_imports() {
                 }
             };
             cb0._wbg_cb_unref = () => state0.a = 0;
-            // Cast intrinsic for `Closure(Closure { owned: false, function: Function { arguments: [Externref], shim_idx: 133, ret: Unit, inner_ret: Some(Unit) }, mutable: true }) -> Externref`.
+            // Cast intrinsic for `Closure(Closure { owned: false, function: Function { arguments: [Externref], shim_idx: 187, ret: Unit, inner_ret: Some(Unit) }, mutable: true }) -> Externref`.
             const ret = cb0;
             return ret;
         },

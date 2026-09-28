@@ -4,6 +4,14 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
 describe("Workspace translations", () => {
+  it("explains rejected shared project edits in both languages", () => {
+    for (const language of ["nl", "en"]) {
+      const common = JSON.parse(readFileSync(resolve(import.meta.dirname,
+        `../i18n/locales/${language}/common.json`), "utf8"));
+      assert.ok(common.projectEdit.projectChanged?.trim());
+      assert.ok(common.projectEdit.failed?.trim());
+    }
+  });
   it("translates pile option column preferences in both languages", () => {
     for (const language of ["en", "nl"]) {
       const panel = JSON.parse(readFileSync(resolve(import.meta.dirname, `../i18n/locales/${language}/rightPanel.json`), "utf8"));
@@ -31,7 +39,7 @@ describe("Workspace translations", () => {
     for(const language of ["nl","en"]) {
       const ribbon=JSON.parse(readFileSync(resolve(import.meta.dirname,`../i18n/locales/${language}/ribbon.json`),"utf8")).ilp;
       const panel=JSON.parse(readFileSync(resolve(import.meta.dirname,`../i18n/locales/${language}/rightPanel.json`),"utf8")).ilp;
-      for(const key of ["runSolver","runLocal","localShort","localHelp","stopBest","cancel"]) assert.ok(ribbon[key]?.length);
+      for(const key of ["runSolver","runLocal","localShort","localHelp","stopBest","cancel","timeLimitMinutes","timeLimitSummary","noTimeLimit","runSettings"]) assert.ok(ribbon[key]?.length);
       assert.ok(ribbon.skipUnsolvable?.length);
       assert.ok(ribbon.targetLocations?.length);
       for(const key of ["saveAs","planName","currentPlan","customCandidates","customHelp","chooseCandidates","utilizationAndCost","allowedConfigurations","selectSizeCandidates","selectTipCandidates","selectAllCandidates","clearCandidates"])assert.ok(ribbon[key]?.length);

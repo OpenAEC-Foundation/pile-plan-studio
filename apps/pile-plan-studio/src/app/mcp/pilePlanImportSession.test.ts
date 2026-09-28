@@ -1,0 +1,64 @@
+import { describe, it } from "node:test";
+import assert from "node:assert/strict";
+import { createPilePlanImportSession } from "./pilePlanImportSession.ts";
+
+const marker = { project_instance_id: "project", project_revision: 3 };
+const preview = { canApply: true, supportsCptSelections: true,
+  summary: { sourceRows: 2, matchedRows: 1, skippedRows: 1, conflicts: 0, coordinateFallbacks: 0 },
+  diagnostics: [{ severity: "warning", code: "unmatched-load-point", message: "unmatched", location: null }],
+  patch: { changes: [{ load_point_id: 1, pile: { action: "set", value: { pile_size_mm: 300, pile_tip_level_mm: -12000 } },
+    manual_cpt_ids: { action: "preserve" } }] } };
+
+async function ready(session: ReturnType<typeof createPilePlanImportSession>, transactionId: string) {
+  for (let i = 0; i < 20; i++) {
+    const result = await session.call("pile_get_pile_plan_import_status", { transaction_id: transactionId }, marker);
+    if (result.data.status === "ready") return result;
+    await new Promise((resolve) => setImmediate(resolve));
+  }
+  throw new Error("validation did not finish");
+}
+
+describe("MCP pile-plan import session", () => {
+  it("requires explicit acceptance of skipped rows and applies once", async () => {
+    let applications = 0;
+    const session = createPilePlanImportSession({ requirements: async () => ({ version: 1 }),
+      validate: async () => preview,
+      apply: async () => { applications++; return { plan_id: "new" }; } });
+    const begun = await session.call("pile_begin_pile_plan_import", { file_name: "plan.csv", plan_name: "New",
+      coordinate_tolerance_mm: 1, import_pile_assignments: true, import_cpt_selections: false,
+      expected_project_instance_id: "project", expected_project_revision: 3 }, marker);
+    const transactionId = begun.data.transaction_id as string;
+    await session.call("pile_append_pile_plan_import", { transaction_id: transactionId, chunk_index: 0,
+      text: "Load Point ID\n1", final: true }, marker);
+    await session.call("pile_validate_pile_plan_import", { transaction_id: transactionId }, marker);
+    const validated = await ready(session, transactionId);
+    assert.equal(validated.data.summary.skipped_rows, 1);
+    await assert.rejects(session.call("pile_apply_pile_plan_import", { transaction_id: transactionId,
+      validation_id: validated.data.validation_id }, marker), /partial_import_requires_acceptance/);
+    assert.equal(applications, 0);
+    await session.call("pile_apply_pile_plan_import", { transaction_id: transactionId,
+      validation_id: validated.data.validation_id, allow_partial_import: true }, marker);
+    assert.equal(applications, 1);
+    await assert.rejects(session.call("pile_apply_pile_plan_import", { transaction_id: transactionId,
+      validation_id: validated.data.validation_id, allow_partial_import: true }, marker), /import_not_found/);
+  });
+
+  it("refuses out-of-order chunks and project changes", async () => {
+    const session = createPilePlanImportSession({ requirements: async () => ({}),
+      validate: async () => preview, apply: async () => ({}) });
+    const begun = await session.call("pile_begin_pile_plan_import", { file_name: "plan.csv", plan_name: "New",
+      coordinate_tolerance_mm: 1, import_pile_assignments: true, import_cpt_selections: false,
+      expected_project_instance_id: "project", expected_project_revision: 3 }, marker);
+    const id = begun.data.transaction_id;
+    await assert.rejects(session.call("pile_append_pile_plan_import", { transaction_id: id, chunk_index: 1,
+      text: "bad", final: true }, marker), /invalid_chunk_order/);
+    await assert.rejects(session.call("pile_append_pile_plan_import", { transaction_id: id, chunk_index: 0,
+      text: "x", final: true }, { ...marker, project_revision: 4 }), /project_changed/);
+    await session.call("pile_append_pile_plan_import", { transaction_id: id, chunk_index: 0,
+      text: "first", final: true }, marker);
+    await assert.rejects(session.call("pile_append_pile_plan_import", { transaction_id: id, chunk_index: 1,
+      text: "extra", final: true }, marker), /invalid_chunk_order/);
+    await session.call("pile_append_pile_plan_import", { transaction_id: id, chunk_index: 0,
+      text: "replacement", final: true }, marker);
+  });
+});

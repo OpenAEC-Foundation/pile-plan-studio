@@ -31,6 +31,11 @@
 .ilp-result > .ilp-disclosure:last-child { margin-bottom:-12px; }
 .ilp-result-overview dd { font-weight:600; }
 .ilp-inline-settings { padding:14px 12px; }
+.ilp-run-setting-label { margin:0 0 8px; color:var(--theme-text-secondary); font-size:11px; }
+.ilp-duration-settings { margin-top:14px; padding-top:12px; border-top:1px solid var(--theme-border-subtle); }
+.ilp-duration-settings .settings-number-row { grid-template-columns:minmax(0,1fr) 68px; }
+.ilp-duration-settings .settings-checkbox { margin-top:10px; }
+.ilp-duration-settings .supporting-text { margin:6px 0 0; }
 .ilp-inline-settings .settings-checkbox { margin:0; align-items:baseline; }
 .ilp-inline-label,
 .ilp-inline-settings .settings-number-row > span:first-child,

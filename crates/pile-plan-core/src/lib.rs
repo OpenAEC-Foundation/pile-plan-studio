@@ -5,6 +5,7 @@ mod import;
 mod legacy_optimization;
 mod load_point_groups;
 mod load_point_positions;
+mod mcp_project_edits;
 mod optimization;
 mod pile_configuration;
 mod pile_options;
@@ -17,7 +18,13 @@ mod tip_level_regions;
 
 pub(crate) use project::APPLICATION_NAME;
 
-pub use cpt_selection::{CptSelectionAlgorithm, CptSelectionSettings, SelectedCpt};
+pub use cpt_selection::{
+    evaluate_cpt_settings_edit, validate_manual_cpt_selection_batch, CptSelectionAlgorithm,
+    CptSelectionSettings, CptSettingsEditBlockReason, CptSettingsEditInput, CptSettingsEditResult,
+    CptSettingsLoadPointChange, CptSettingsLocationValue, CptSettingsPatch, ManualCptLocationValue,
+    ManualCptSelectionBatchBlockReason, ManualCptSelectionBatchInput,
+    ManualCptSelectionBatchResult, ManualCptSelectionProposal, SelectedCpt,
+};
 pub use export::{
     build_pile_plan_export_rows, write_pile_plan_csv, write_pile_plan_xlsx, ExportError,
     PilePlanExportRequest, PilePlanExportRow, PILE_PLAN_EXPORT_HEADERS,
@@ -28,26 +35,37 @@ pub use ifcpp::{
 };
 pub use import::{
     import_project_from_sources, preview_import_source, refresh_project_from_profiled_sources,
-    ImportDiagnostic, ImportDiagnosticCode, ImportDiagnosticLocation, ImportDiagnosticSeverity,
-    ImportError, ImportPreviewDetails, ImportProfile, ImportProfileOptions, ImportRole,
-    ImportSource, ImportSourcePreview, RfemPreviewDetails, SourceFormat,
+    standard_csv_requirements, ImportDiagnostic, ImportDiagnosticCode, ImportDiagnosticLocation,
+    ImportDiagnosticSeverity, ImportError, ImportPreviewDetails, ImportProfile,
+    ImportProfileOptions, ImportRole, ImportSource, ImportSourcePreview, RfemPreviewDetails,
+    SourceFormat,
 };
 pub use legacy_optimization::LegacyOptimizationSettings;
 pub use load_point_groups::{
-    apply_load_point_group_assignment, apply_load_point_group_edit,
-    assess_load_point_group_assignments, derive_load_point_groups, preview_load_point_group_edit,
-    validate_load_point_group_overrides, ApplyLoadPointGroupAssignmentInput,
+    apply_load_point_group_assignment, apply_load_point_group_assignment_batch,
+    apply_load_point_group_edit, apply_load_point_group_ungroup_batch,
+    assess_load_point_group_assignments, derive_load_point_groups,
+    evaluate_load_point_grouping_settings, preview_load_point_group_edit,
+    validate_load_point_group_overrides, ApplyLoadPointGroupAssignmentBatchInput,
+    ApplyLoadPointGroupAssignmentBatchResult, ApplyLoadPointGroupAssignmentInput,
     ApplyLoadPointGroupAssignmentResult, BlockingLockedLoadPoint, DerivedLoadPointGroups,
     GroupAssignmentConflict, GroupAssignmentConflictKind, InvalidLoadPointGroupOverride,
     InvalidLoadPointGroupOverrideReason, InvalidLoadPointGroupOverrides, LoadPointGroup,
-    LoadPointGroupAssignmentChange, LoadPointGroupEditAction, LoadPointGroupEditBlockReason,
+    LoadPointGroupAssignmentBatchBlockReason, LoadPointGroupAssignmentChange,
+    LoadPointGroupAssignmentProposal, LoadPointGroupEditAction, LoadPointGroupEditBlockReason,
     LoadPointGroupEditInput, LoadPointGroupEditPreview, LoadPointGroupEditResult,
-    LoadPointGroupOrigin, LoadPointGroupOverride, LoadPointGroupingSettings,
+    LoadPointGroupOrigin, LoadPointGroupOverride, LoadPointGroupUngroupBatchInput,
+    LoadPointGroupingSettings, LoadPointGroupingSettingsEditBlockReason,
+    LoadPointGroupingSettingsEditInput, LoadPointGroupingSettingsEditResult,
     DEFAULT_MAX_GROUP_EDGE_DISTANCE_MM,
 };
 pub use load_point_positions::{
     duplicate_load_point_positions, validate_unique_load_point_positions,
     DuplicateLoadPointPosition, DuplicateLoadPointPositionMember, DuplicateLoadPointPositions,
+};
+pub use mcp_project_edits::{
+    evaluate_mcp_project_edit, BearingCapacityAction, CptAction, LoadPointAction, McpProjectEdit,
+    McpProjectEditInput, McpProjectEditResult,
 };
 pub use optimization::{
     prepare_optimization_units, IlpAssignment, IlpCandidateSource, IlpCostReference, IlpCounts,
@@ -63,15 +81,16 @@ pub use optimization::{
 pub use pile_configuration::PileConfigurationKey;
 pub use pile_options::{
     aggregate_pile_options_for_load_points, build_pile_option_analysis, calculate_pile_cost,
-    choose_default_pile_options, pile_option_technical_status, validate_pile_cost_settings,
-    AggregatedPileConfiguration, AggregatedPileConfigurationStatus, CptBearingCapacityRow,
-    InvalidPileCostSettings, InvalidPileCostSettingsItem, PileConfigurationOption,
-    PileCostSettings, PileCostSettingsItem, PileCostShape, PileCostValidationReason,
-    PileOptionAnalysisResult, PileOptionTechnicalStatus,
+    choose_default_pile_options, evaluate_pile_cost_catalog_edit, pile_option_technical_status,
+    validate_pile_cost_settings, AggregatedPileConfiguration, AggregatedPileConfigurationStatus,
+    CptBearingCapacityRow, InvalidPileCostSettings, InvalidPileCostSettingsItem,
+    PileConfigurationOption, PileCostCatalogAction, PileCostCatalogBlockReason,
+    PileCostCatalogEditInput, PileCostCatalogEditResult, PileCostSettings, PileCostSettingsItem,
+    PileCostShape, PileCostValidationReason, PileOptionAnalysisResult, PileOptionTechnicalStatus,
 };
 pub use pile_plan_import::{
-    preview_pile_plan_import, PilePlanImportChange, PilePlanImportDiagnostic,
-    PilePlanImportDiagnosticCode, PilePlanImportDiagnosticLocation,
+    pile_plan_import_requirements, preview_pile_plan_import, PilePlanImportChange,
+    PilePlanImportDiagnostic, PilePlanImportDiagnosticCode, PilePlanImportDiagnosticLocation,
     PilePlanImportDiagnosticSeverity, PilePlanImportOptions, PilePlanImportPatch,
     PilePlanImportPreview, PilePlanImportProfile, PilePlanImportRequest, PilePlanImportSummary,
     PilePlanImportedValue,
@@ -81,12 +100,13 @@ pub use pile_tip_levels::{
     PileTipLevelPrecisionErrorReason,
 };
 pub use project::{
-    validate_project_tip_levels, ExternalReference, InvalidProjectPileTipLevel,
-    InvalidProjectPileTipLevels, PilePlan, PilePlanProject, PilePlanTipLevelKeys,
-    ProjectApplication, ProjectDocumentDraft, ProjectImportLogEntry, ProjectInputs,
-    ProjectMetadata, ProjectPileTipLevelContext, ProjectSettings, ProjectTipLevelKeys,
-    ProjectUnits, ProjectUserState, SelectedPileChoice, ValidatedPilePlanProject,
-    ViewerUtilizationSettings,
+    validate_load_point_lock_batch, validate_project_tip_levels, ExternalReference,
+    InvalidProjectPileTipLevel, InvalidProjectPileTipLevels, LoadPointLockBatchBlockReason,
+    LoadPointLockBatchInput, LoadPointLockBatchResult, LoadPointLockProposal, PilePlan,
+    PilePlanProject, PilePlanTipLevelKeys, ProjectApplication, ProjectDocumentDraft,
+    ProjectImportLogEntry, ProjectInputs, ProjectMetadata, ProjectPileTipLevelContext,
+    ProjectSettings, ProjectTipLevelKeys, ProjectUnits, ProjectUserState, SelectedPileChoice,
+    ValidatedPilePlanProject, ViewerUtilizationSettings,
 };
 pub use source_data::{
     BearingCapacity as ProjectBearingCapacity, Cpt as ProjectCpt, LoadPoint as ProjectLoadPoint,

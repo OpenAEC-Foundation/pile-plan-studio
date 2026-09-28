@@ -18,6 +18,85 @@ The guiding rule is that engineering decisions must be implemented and tested in
 `crates/pile-plan-core` first. Frontend code may present results, but should not
 be the source of truth for calculations.
 
+## Desktop MCP connection
+
+The desktop app can expose the open project to a local MCP client after the
+user enables the AI connection in Settings. Tauri owns the fixed loopback HTTP
+listener, per-session bearer token, request limits, and request correlation.
+Its accept loop dispatches bounded concurrent requests so one slow core call
+does not hold later MCP calls at the TCP listener.
+The webview's `app/mcp/` code owns MCP tool discovery and uses the current
+`AppSession` project state. It calls the existing Rust core clients for current
+cost calculations and group assessment. Editing requires a separate session
+toggle. Write calls carry an expected project instance and revision, use the
+same project operations and Rust group assignment rules as the interface,
+and commit through project history. Bulk writes are validated as a whole by
+the Rust core, then committed once, so all changed locations share one Undo
+entry. No separate copy of the project is opened.
+
+MCP reads do not enter undo history or dirty state. The browser build has no
+listener. See [MCP connection](mcp.md) for user-facing connection steps and
+settings edit contracts. Automatic CPT rule edits, grouping settings and project
+cost-catalog edits use focused Rust evaluators via the same WASM/native core
+wrappers; accepted MCP batches commit one immutable project change and Undo
+entry. Manual CPT overwrite is explicit, group settings never reconcile pile
+assignments, and used pile-size cost rows cannot be removed.
+
+Project-owned optimization settings, per-plan active configurations, visual
+legend styles, project properties, and targeted source edits use a shared
+Rust evaluator over the current `ProjectDocumentDraft`. It returns a canonical
+validated project only after the complete edit passes; TypeScript maps that
+result into immutable project content and commits it once. Source deletions
+prune dependent references, reconcile activation and groups, invalidate old
+optimizer summaries, and schedule new technical analysis. The evaluator is
+available through both Tauri and WASM, although only desktop has an MCP
+listener.
+
+`app/project/projectEditOperations.ts` adapts this evaluator to the live
+project state for both MCP and the project-information and legend editors.
+The legend editor evaluates appearance and active configurations before one
+history commit, so its combined action is one Undo step. UI edits reject a
+stale project revision before committing. The optimization panel still keeps
+its per-field draft interaction in the interface; MCP applies a complete
+settings object through the Rust evaluator.
+
+MCP optimization controls call the same `useIlpOptimization` coordinator as
+the panel. A start call validates the active plan and explicit target IDs,
+returns a run ID before the solver finishes, and reuses the Tauri native Rust
+optimizer. Stop and Cancel address that exact run ID. Progress and terminal
+outcomes remain transient; only a solved plan is committed through project
+history. The personal run-duration preference belongs to app settings, while
+an MCP call may override it or explicitly request no limit for one run.
+
+MCP source import is a transient transaction in `app/mcp/`: the webview stages
+bounded UTF-8 CSV chunks, then calls the existing Rust preview and complete
+import/refresh clients. The standard-table CSV contract is exposed by the
+Rust import module through one native command. Validation holds the candidate
+project in memory and reports diagnostics without changing IFCPP, Undo, or
+dirty state. Apply checks the captured project marker again. Refresh commits
+one history entry; new-project import uses the app's replacement path and
+refuses to replace unsaved content. Staged data is cleared when the MCP bridge
+stops or the transaction expires. The browser has no MCP listener, while its
+ordinary import UI still uses the same Rust import clients through WASM.
+
+Existing pile-plan CSV import has a separate transient MCP transaction. Rust
+supplies the standard-table format contract and parses the uploaded CSV against
+the current load points, CPTs, and configuration catalog. The webview stages
+bounded chunks and reports paged diagnostics; applying a validated patch also
+passes assignment changes through Rust's group and lock batch validator. The
+new plan, any project-wide manual CPT changes, and analysis invalidation commit
+as one history entry. The transaction is tied to a project revision and is
+discarded when the bridge stops.
+
+Desktop file operations use the app's existing IFCPP reader/writer and
+CSV/XLSX export clients. MCP starts a native file dialog asynchronously and
+polls a short-lived operation ID so the dialog never holds an HTTP request.
+The operation checks the project revision after each await and before writing;
+the response exposes a basename but no local path. Export reads an explicit
+plan ID without changing the viewed plan. Two-plan comparison reads immutable
+plan state and uses the Rust cost calculator before returning paged assignment
+and lock differences.
+
 ## Frontend module boundaries
 
 The React application is divided by responsibility rather than by runtime:
@@ -210,6 +289,11 @@ A browser Worker owns its WASM session. Tauri owns one background job with atomi
 cancellation and retains the session between runs. `app/optimization/` rejects
 stale results; `domain/pile-plans/ilp-optimization/` installs a validated result
 immutably as one history change. Stop never installs a partial result.
+The panel and MCP share this path. The run captures its time limit at start:
+one to 7200 seconds, or no deadline. The panel stores its chosen default in
+personal app preferences, not in IFCPP. A solved MCP run can be read after
+commit even though installing a new destination plan makes the original run
+fingerprint no longer current.
 
 New projects start with unlimited tip-level, size and configuration counts
 (empty limit fields); importing source data does not turn catalog counts into limits.

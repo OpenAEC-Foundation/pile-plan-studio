@@ -1,62 +1,30 @@
+import { readFileSync } from "node:fs";
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
+import { canonicalProjectForTest, projectTipLevelKeysForTest } from "../../core/projectTestSupport.ts";
+import { createInitialProjectState } from "../project/projectState.ts";
+import { buildPilePlanExportInputForPlan } from "./pilePlanExport.ts";
 
-import { buildPilePlanExportInput } from "./pilePlanExport.ts";
-import type { ProjectState } from "../project/projectState.ts";
+const source = readFileSync("../../sample_project/sample_project.ifcpp", "utf8");
+const project = canonicalProjectForTest(source);
 
-describe("pile plan export input", () => {
-  it("uses current pile choices and effective selected CPTs", () => {
-    const state = {
-      loadPoints: [{
-        id: 7,
-        name: "Load point 7",
-        x_mm: 1000,
-        y_mm: 2000,
-        design_load_kn: 90,
-      }],
-      selectedPileConfigurationsByLoadPoint: new Map([[7, {
-        pile_size_mm: 320,
-        pile_tip_level_mm: -18_500,
-      }]]),
-      selectedCptsByLoadPointId: new Map([[
-        7,
-        [
-          {
-            label: "upper right",
-            cpt: { id: 12, name: "CPT 12", x_mm: 0, y_mm: 0 },
-            distance_mm: 1000,
-          },
-          {
-            label: "lower left",
-            cpt: { id: 3, name: "CPT 3", x_mm: 0, y_mm: 0 },
-            distance_mm: 2000,
-          },
-        ],
-      ]]),
-    } as Pick<
-      ProjectState,
-      "loadPoints" | "selectedPileConfigurationsByLoadPoint" | "selectedCptsByLoadPointId"
-    >;
-
-    const input = buildPilePlanExportInput(state);
-
-    assert.deepEqual(input.selectedPiles.get(7), {
-      pile_size_mm: 320,
-      pile_tip_level_mm: -18_500,
-    });
-    assert.deepEqual(input.selectedCpts.get(7), [12, 3]);
-  });
-
-  it("omits absent pile choices", () => {
-    const state = {
-      loadPoints: [],
-      selectedPileConfigurationsByLoadPoint: new Map(),
-      selectedCptsByLoadPointId: new Map(),
-    } as Pick<
-      ProjectState,
-      "loadPoints" | "selectedPileConfigurationsByLoadPoint" | "selectedCptsByLoadPointId"
-    >;
-
-    assert.deepEqual(buildPilePlanExportInput(state).selectedPiles, new Map());
+describe("pile-plan export for explicit plans", () => {
+  it("exports an inactive plan without changing the active plan or shared CPTs", () => {
+    const base = createInitialProjectState(project, { initializeDefaultPiles: false }, projectTipLevelKeysForTest(project));
+    const id = base.loadPoints[0].id;
+    const first = { pile_size_mm: 300, pile_tip_level_mm: -12000 };
+    const second = { pile_size_mm: 350, pile_tip_level_mm: -13000 };
+    const state = { ...base,
+      selectedPileConfigurationsByLoadPoint: new Map([[id, first]]),
+      selectedCptsByLoadPointId: new Map([[id, [{ label: "CPT", cpt: base.cpts[0], distance_mm: 0 }]]]),
+      pilePlans: [{ ...base.pilePlans[0], selectedPileConfigurationsByLoadPoint: new Map([[id, first]]) },
+        { ...base.pilePlans[0], id: "alternative", name: "Alternative",
+          selectedPileConfigurationsByLoadPoint: new Map([[id, second]]) }],
+    };
+    const exported = buildPilePlanExportInputForPlan(state, "alternative");
+    assert.deepEqual(exported.selectedPiles.get(id), second);
+    assert.equal(state.activePilePlanId, base.activePilePlanId);
+    assert.deepEqual(exported.selectedCpts.get(id), [base.cpts[0].id]);
+    assert.throws(() => buildPilePlanExportInputForPlan(state, "missing"), /unknown_plan/);
   });
 });

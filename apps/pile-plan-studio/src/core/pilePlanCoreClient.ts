@@ -1,6 +1,8 @@
 import initWasm, {
   apply_load_point_group_assignment,
+  apply_load_point_group_assignment_batch,
   apply_load_point_group_edit,
+  apply_load_point_group_ungroup_batch,
   assess_load_point_group_assignments,
   derive_load_point_groups,
   export_pile_plan_csv,
@@ -26,18 +28,25 @@ import {
   groupAssignmentConflictsFromCore,
   loadPointGroupEditResultFromCore,
   loadPointGroupAssignmentResultFromCore,
+  loadPointGroupAssignmentBatchResultFromCore,
   toApplyLoadPointGroupEditRequest,
   toBrowserGroupAssignmentAssessmentRequest,
   toBrowserLoadPointGroupAssignmentRequest,
+  toBrowserLoadPointGroupAssignmentBatchRequest,
   toDeriveLoadPointGroupsRequest,
   toDesktopGroupAssignmentAssessmentRequest,
   toDesktopLoadPointGroupAssignmentRequest,
+  toDesktopLoadPointGroupAssignmentBatchRequest,
+  toLoadPointGroupUngroupBatchRequest,
   toPreviewLoadPointGroupEditRequest,
   type ApplyLoadPointGroupAssignmentResult,
   type DerivedLoadPointGroups,
   type GroupAssignmentAssessmentInput,
   type GroupAssignmentConflict,
   type LoadPointGroupAssignmentInput,
+  type LoadPointGroupAssignmentBatchInput,
+  type LoadPointGroupAssignmentBatchResult,
+  type LoadPointGroupUngroupBatchInput,
   type LoadPointGroupEditInput,
   type LoadPointGroupEditPreview,
   type LoadPointGroupEditResult,
@@ -122,6 +131,38 @@ export async function applyLoadPointGroupAssignmentCore(
     );
   }
   return loadPointGroupAssignmentResultFromCore(result);
+}
+
+export async function applyLoadPointGroupAssignmentBatchCore(
+  input: LoadPointGroupAssignmentBatchInput,
+): Promise<LoadPointGroupAssignmentBatchResult> {
+  let result: LoadPointGroupAssignmentBatchResult;
+  if (!isTauriRuntime()) {
+    await ensureWasm();
+    result = apply_load_point_group_assignment_batch(
+      toBrowserLoadPointGroupAssignmentBatchRequest(input),
+    ) as LoadPointGroupAssignmentBatchResult;
+  } else {
+    result = await invokeDesktop<LoadPointGroupAssignmentBatchResult>(
+      "apply_load_point_group_assignment_batch",
+      { request: toDesktopLoadPointGroupAssignmentBatchRequest(input) },
+    );
+  }
+  return loadPointGroupAssignmentBatchResultFromCore(result);
+}
+
+export async function applyLoadPointGroupUngroupBatchCore(
+  input: LoadPointGroupUngroupBatchInput,
+): Promise<LoadPointGroupEditResult> {
+  const request = toLoadPointGroupUngroupBatchRequest(input);
+  let result: Parameters<typeof loadPointGroupEditResultFromCore>[0];
+  if (!isTauriRuntime()) {
+    await ensureWasm();
+    result = apply_load_point_group_ungroup_batch(request) as typeof result;
+  } else {
+    result = await invokeDesktop<typeof result>("apply_load_point_group_ungroup_batch", { request });
+  }
+  return loadPointGroupEditResultFromCore(result);
 }
 
 
