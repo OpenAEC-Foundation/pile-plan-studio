@@ -30,6 +30,10 @@ The central domain concepts are:
 - A **pile plan** is a named variant containing active pile sizes and tip
   levels, pile assignments, locks, and optimizer outcomes.
 - Load-point groups require their members to use the same pile configuration.
+  Effective groups are transitive optimization and ordinary selection units.
+  Only the Rust core determines their membership and validates manual edits;
+  manually joined members must form a connected induced subgraph of the shared
+  Gabriel topology.
 - Optimization searches for a practical, lower-cost pile plan with limited
   configuration diversity while respecting technical availability, groups,
   locks, and the selected optimization settings.
@@ -57,6 +61,10 @@ configurations, optimizer restrictions, and unresolved optimizer outcomes.
 - TypeScript may derive presentation state, but must not duplicate engineering
   decisions that belong in the Rust core.
 - Keep browser/WASM and desktop/native behavior aligned.
+- The desktop-only MCP listener lives in Tauri; `app/mcp/` exposes the current
+  `AppSession` to local AI clients. Keep MCP tool handling on the same project
+  operations and Rust validation paths as the interface. The browser has no MCP
+  listener. See `docs/mcp.md` and `docs/architecture.md` for details.
 - Do not edit generated files in
   `apps/pile-plan-studio/src/core/wasm/pile-plan-wasm` manually. Regenerate them
   through the existing npm scripts.
@@ -75,8 +83,20 @@ Project-content changes must participate correctly in undo/redo and dirty
 state. When changing the IFCPP schema, preserve supported older schema versions
 through normalization or migration and add corresponding tests.
 
+Automatic grouping settings, manual group records, explicit separations of
+automatic groups, and the group-visibility toggle are project content.
+Ungrouping a manual group removes its record; separating an automatic group
+records an override. Keep these operations atomic and undoable. Do not silently
+reconcile different pile-plan assignments when grouping reveals a conflict.
+
 Avoid mutating stored maps, arrays, or pile plans in place when project history
 depends on structural comparison.
+
+MCP reads must not change project history. MCP project-content edits require
+session editing permission and a current project instance and revision;
+transient runs and import transactions use their own scoped IDs. Reuse Rust
+validation; reject an invalid bulk edit as a whole and commit an accepted bulk
+edit as one immutable project change and one undo step.
 
 Optimization previews are transient: save, recovery, and undo history must not
 capture intermediate solutions. Commit a validated outcome and its per-plan
@@ -154,6 +174,9 @@ npm run dev
 
 For Tauri-specific or release work, also perform the relevant desktop build or
 manual desktop verification described in `docs/deployment.md`.
+When smoke-testing a desktop build, verify the running process path and product
+version. An app shortcut or launch helper may open an older installed executable
+even when the intended build has the same window title.
 The root workspace excludes the Tauri crate; test it separately from the
 repository root with `cargo test --manifest-path apps/pile-plan-studio/src-tauri/Cargo.toml`.
 Native HiGHS build prerequisites are documented in that deployment guide.
@@ -163,6 +186,15 @@ Native HiGHS build prerequisites are documented in that deployment guide.
 Update documentation when behavior, architecture, supported data, or known
 limitations change. Do not update versions, release notes, screenshots, or
 deployment configuration unless they are part of the requested work.
+
+The public OpenAEC product page and direct installer download live in the
+separate `OpenAEC-Foundation/website` repository, not in this app's browser
+build. Application publication, GitHub release publication, and website
+deployment are separate steps. For requested release or product-page work,
+check each relevant output and the website's generated download/release-note
+data; do not assume a new app commit automatically updates the product page.
+When changing a long-cache website asset, change its referenced URL as well
+and verify the live page after deployment.
 
 Keep implementation plans local in the ignored `docs/plans/` directory; do not
 add them to Git or link to them from public documentation. Current behavior
