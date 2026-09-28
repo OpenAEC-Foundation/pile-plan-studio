@@ -55,11 +55,13 @@ intentional and should be considered when evaluating its results.
 - Historical Legacy rows are ignored when a more reliable current ID match is
   available. Conflicting equally reliable rows remain skipped with warnings.
 - Individual project sources can be refreshed while matched pile assignments
-  and manual CPT selections are retained. Matching uses validated IDs first and
-  a unique coordinate fallback second.
-- When the CPT source changes, refresh the corresponding foundation advice as
-  well. Otherwise capacities for unmatched CPTs and related pile configurations
-  can be temporarily unavailable.
+  and manual CPT selections are retained. Load points use a validated ID and
+  position match, followed by a unique coordinate fallback. CPTs keep their
+  identity by ID even when their position changes; renamed CPTs use the unique
+  coordinate fallback.
+- When CPT IDs are removed and cannot be matched by position, their existing
+  foundation advice is removed as well. Refresh the corresponding foundation
+  advice when adding new CPTs or changing the capacity data.
 
 ## Platforms and Deferred Features
 

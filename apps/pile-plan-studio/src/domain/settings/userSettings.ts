@@ -34,6 +34,7 @@ export type UserSettings = {
     theme: string;
     interfaceScalePercent: number;
     defaultCurrencyCode: string;
+    optimizationTimeLimitSeconds: number | null;
     workspaceLayout: WorkspaceLayoutSettings;
     ilpSections: IlpSections;
     pileOptionColumns: PileOptionColumnLayouts;
@@ -50,6 +51,7 @@ export const DEFAULT_USER_SETTINGS: UserSettings = {
     theme: "light",
     interfaceScalePercent: 100,
     defaultCurrencyCode: "EUR",
+    optimizationTimeLimitSeconds: 600,
     ilpSections: { ...DEFAULT_ILP_SECTIONS },
     pileOptionColumns: normalizePileOptionColumnLayouts(undefined),
     workspaceLayout: {
@@ -85,6 +87,7 @@ export function normalizeUserSettings(value: unknown): UserSettings {
           : DEFAULT_USER_SETTINGS.preferences.interfaceScalePercent,
       ),
       defaultCurrencyCode: normalizeCurrencyCode(preferences.defaultCurrencyCode),
+      optimizationTimeLimitSeconds: normalizeOptimizationTimeLimitSeconds(preferences.optimizationTimeLimitSeconds),
       ilpSections: normalizeIlpSections(preferences.ilpSections),
       pileOptionColumns: normalizePileOptionColumnLayouts(preferences.pileOptionColumns),
       workspaceLayout: {
@@ -99,6 +102,11 @@ export function normalizeUserSettings(value: unknown): UserSettings {
     },
     defaults: { pileCostCatalog: normalizePileCostDefaults(defaults.pileCostCatalog) },
   };
+}
+
+export function normalizeOptimizationTimeLimitSeconds(value: unknown): number | null {
+  return value === null ? null
+    : typeof value === "number" && Number.isInteger(value) && value >= 1 && value <= 7200 ? value : 600;
 }
 
 export function patchUserSettings(

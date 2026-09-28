@@ -22,6 +22,10 @@
   "paste": "Plakken",
   "undo": "Ongedaan maken",
   "redo": "Opnieuw",
+  "projectEdit": {
+    "projectChanged": "Het project is intussen gewijzigd. Controleer de gegevens en probeer opnieuw.",
+    "failed": "De projectwijziging kon niet worden toegepast. Controleer de gegevens en probeer opnieuw."
+  },
   "history": {
     "undoLabel": "Ongedaan maken: {{action}} (Ctrl+Z)",
     "redoLabel": "Opnieuw: {{action}} (Ctrl+Y)",

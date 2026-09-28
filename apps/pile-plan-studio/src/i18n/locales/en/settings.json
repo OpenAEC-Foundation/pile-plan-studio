@@ -62,6 +62,22 @@
   "plugins": {
     "placeholder": "Plugin management will appear here."
   },
+  "mcp": {
+    "title": "AI connection",
+    "description": "Temporarily give a local AI access to the open project. You can separately allow editing for this session.",
+    "enable": "Enable MCP access for this session",
+    "allowEdits": "Allow editing through MCP",
+    "status_off": "Off",
+    "status_starting": "Starting connection…",
+    "status_on": "Available to local AI clients",
+    "status_stopping": "Stopping connection…",
+    "status_error": "Connection unavailable",
+    "endpoint": "Endpoint",
+    "copyEndpoint": "Copy endpoint",
+    "copyToken": "Copy access token",
+    "connectionError": "Connection error",
+    "copyError": "Could not copy"
+  },
   "about": {
     "version": "Version",
     "status": "Status",

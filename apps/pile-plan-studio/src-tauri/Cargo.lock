@@ -2696,7 +2696,7 @@ dependencies = [
 
 [[package]]
 name = "pile-plan-core"
-version = "0.4.1"
+version = "0.4.2"
 dependencies = [
  "calamine",
  "csv",
@@ -2710,10 +2710,12 @@ dependencies = [
 
 [[package]]
 name = "pile-plan-studio"
-version = "0.4.1"
+version = "0.4.2"
 dependencies = [
+ "getrandom 0.3.4",
  "pile-plan-core",
  "serde",
+ "serde_json",
  "tauri",
  "tauri-build",
  "tauri-plugin-dialog",

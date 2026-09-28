@@ -18,3 +18,14 @@ export function buildPilePlanExportInput(state: PilePlanExportState): PilePlanEx
     ),
   };
 }
+
+export function buildPilePlanExportInputForPlan(state: ProjectState, planId: string): PilePlanExportInput {
+  const plan = state.pilePlans.find((candidate) => candidate.id === planId);
+  if (!plan) throw new Error("unknown_plan");
+  return buildPilePlanExportInput({
+    loadPoints: state.loadPoints,
+    selectedPileConfigurationsByLoadPoint: planId === state.activePilePlanId
+      ? state.selectedPileConfigurationsByLoadPoint : plan.selectedPileConfigurationsByLoadPoint,
+    selectedCptsByLoadPointId: state.selectedCptsByLoadPointId,
+  });
+}

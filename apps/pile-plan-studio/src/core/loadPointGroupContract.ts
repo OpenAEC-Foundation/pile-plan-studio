@@ -26,7 +26,8 @@ export type LoadPointGroupEditBlockReason =
   | "already_grouped"
   | "selection_must_be_one_group"
   | "singleton_group"
-  | "no_overrides";
+  | "no_overrides"
+  | "unknown_load_point";
 
 export type LoadPointGroupEditInput = {
   loadPoints: LoadPoint[];
@@ -86,6 +87,24 @@ export type LoadPointGroupAssignmentInput = {
   requestedConfiguration: PileConfigurationKey | null;
   currentAssignments: Map<number, PileConfigurationKey>;
   lockedLoadPointIds: number[];
+};
+
+export type LoadPointGroupAssignmentBatchInput = {
+  changes: LoadPointGroupAssignmentChange[];
+  groups: LoadPointGroup[];
+  currentAssignments: Map<number, PileConfigurationKey>;
+  lockedLoadPointIds: number[];
+};
+
+export type LoadPointGroupAssignmentBatchResult =
+  | { status: "applied"; changes: LoadPointGroupAssignmentChange[] }
+  | { status: "blocked"; reason: "duplicate_target" | "unknown_load_point" |
+      "conflicting_group_proposals" | "locked_load_points"; load_point_ids: number[] };
+
+export type LoadPointGroupUngroupBatchInput = {
+  loadPoints: LoadPoint[];
+  settings: LoadPointGroupingSettings;
+  selectedLoadPointIds: number[];
 };
 
 type CoreGroupingSettings = {
@@ -158,6 +177,43 @@ export function toDesktopLoadPointGroupAssignmentRequest(
   input: LoadPointGroupAssignmentInput,
 ): DesktopLoadPointGroupAssignmentRequest {
   return toCoreAssignmentRequest(input, toStringKeyedRecord(input.currentAssignments));
+}
+
+export function toBrowserLoadPointGroupAssignmentBatchRequest(input: LoadPointGroupAssignmentBatchInput) {
+  return {
+    changes: input.changes,
+    groups: input.groups,
+    current_assignments: toWasmNumberKeyedMap(input.currentAssignments),
+    locked_load_point_ids: input.lockedLoadPointIds,
+  };
+}
+
+export function toDesktopLoadPointGroupAssignmentBatchRequest(input: LoadPointGroupAssignmentBatchInput) {
+  return {
+    changes: input.changes,
+    groups: input.groups,
+    current_assignments: toStringKeyedRecord(input.currentAssignments),
+    locked_load_point_ids: input.lockedLoadPointIds,
+  };
+}
+
+export function toLoadPointGroupUngroupBatchRequest(input: LoadPointGroupUngroupBatchInput) {
+  return {
+    load_points: input.loadPoints,
+    settings: groupingSettingsToCore(input.settings),
+    selected_load_point_ids: input.selectedLoadPointIds,
+  };
+}
+
+export function loadPointGroupAssignmentBatchResultFromCore(
+  result: LoadPointGroupAssignmentBatchResult,
+): LoadPointGroupAssignmentBatchResult {
+  return result.status === "applied"
+    ? { status: "applied", changes: result.changes.map((change) => ({
+      load_point_id: change.load_point_id,
+      configuration: change.configuration ? { ...change.configuration } : null,
+    })) }
+    : { ...result, load_point_ids: [...result.load_point_ids] };
 }
 
 export function toBrowserGroupAssignmentAssessmentRequest(
@@ -261,7 +317,7 @@ function groupingSettingsToCore(settings: LoadPointGroupingSettings): CoreGroupi
   };
 }
 
-function groupingSettingsFromCore(settings: CoreGroupingSettings): LoadPointGroupingSettings {
+export function groupingSettingsFromCore(settings: CoreGroupingSettings): LoadPointGroupingSettings {
   return {
     automatic: settings.automatic,
     maxEdgeDistanceM: settings.max_edge_distance_mm / 1_000,

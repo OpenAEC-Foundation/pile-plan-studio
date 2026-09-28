@@ -14,9 +14,10 @@ pub use aggregation::{
 };
 pub use analysis::{build_pile_option_analysis, PileOptionAnalysisResult};
 pub use costs::{
-    calculate_pile_cost, validate_pile_cost_settings, InvalidPileCostSettings,
-    InvalidPileCostSettingsItem, PileCostSettings, PileCostSettingsItem, PileCostShape,
-    PileCostValidationReason,
+    calculate_pile_cost, evaluate_pile_cost_catalog_edit, validate_pile_cost_settings,
+    InvalidPileCostSettings, InvalidPileCostSettingsItem, PileCostCatalogAction,
+    PileCostCatalogBlockReason, PileCostCatalogEditInput, PileCostCatalogEditResult,
+    PileCostSettings, PileCostSettingsItem, PileCostShape, PileCostValidationReason,
 };
 pub use foundation_advice::CptBearingCapacityRow;
 pub use status::{pile_option_technical_status, PileOptionTechnicalStatus};

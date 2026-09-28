@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{BTreeSet, HashMap};
 
 use serde::{de::Error as _, Deserialize, Deserializer, Serialize, Serializer};
 
@@ -13,6 +13,63 @@ use crate::{try_pile_tip_level_mm, PileTipLevelPrecisionErrorReason};
 use crate::{LegacyOptimizationSettings, OptimizationUnassignedReason};
 
 pub(crate) const APPLICATION_NAME: &str = "Open Pile Plan Studio";
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+pub struct LoadPointLockProposal {
+    pub load_point_id: u32,
+    pub locked: bool,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+pub struct LoadPointLockBatchInput {
+    pub load_point_ids: Vec<u32>,
+    pub changes: Vec<LoadPointLockProposal>,
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum LoadPointLockBatchBlockReason {
+    UnknownLoadPoint,
+    DuplicateTarget,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(tag = "status", rename_all = "snake_case")]
+pub enum LoadPointLockBatchResult {
+    Valid {
+        changes: Vec<LoadPointLockProposal>,
+    },
+    Blocked {
+        reason: LoadPointLockBatchBlockReason,
+        ids: Vec<u32>,
+    },
+}
+
+pub fn validate_load_point_lock_batch(input: &LoadPointLockBatchInput) -> LoadPointLockBatchResult {
+    let known = input
+        .load_point_ids
+        .iter()
+        .copied()
+        .collect::<BTreeSet<_>>();
+    let mut seen = BTreeSet::new();
+    for change in &input.changes {
+        if !seen.insert(change.load_point_id) {
+            return LoadPointLockBatchResult::Blocked {
+                reason: LoadPointLockBatchBlockReason::DuplicateTarget,
+                ids: vec![change.load_point_id],
+            };
+        }
+        if !known.contains(&change.load_point_id) {
+            return LoadPointLockBatchResult::Blocked {
+                reason: LoadPointLockBatchBlockReason::UnknownLoadPoint,
+                ids: vec![change.load_point_id],
+            };
+        }
+    }
+    let mut changes = input.changes.clone();
+    changes.sort_by_key(|change| change.load_point_id);
+    LoadPointLockBatchResult::Valid { changes }
+}
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
 pub struct PilePlanProject {
@@ -594,6 +651,26 @@ pub struct ProjectImportLogEntry {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn bulk_lock_validation_rejects_unknown_location_without_partial_result() {
+        let result = super::validate_load_point_lock_batch(&super::LoadPointLockBatchInput {
+            load_point_ids: vec![1],
+            changes: vec![
+                super::LoadPointLockProposal {
+                    load_point_id: 1,
+                    locked: true,
+                },
+                super::LoadPointLockProposal {
+                    load_point_id: 2,
+                    locked: false,
+                },
+            ],
+        });
+        assert!(matches!(
+            result,
+            super::LoadPointLockBatchResult::Blocked { .. }
+        ));
+    }
     use super::*;
 
     #[test]

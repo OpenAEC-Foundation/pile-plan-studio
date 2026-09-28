@@ -14,7 +14,7 @@ type Props = {
   pileHeadLevelM: number | null;
   currencyCode: string;
   onClose: () => void;
-  onSave: (project: { projectName: string; pileHeadLevelM: number; currencyCode: string }) => void;
+  onSave: (project: { projectName: string; pileHeadLevelM: number; currencyCode: string }) => Promise<boolean>;
 };
 
 export default function ProjectInformationDialog({ open, projectName, pileHeadLevelM, currencyCode, onClose, onSave }: Props) {
@@ -22,6 +22,7 @@ export default function ProjectInformationDialog({ open, projectName, pileHeadLe
   const [nameDraft, setNameDraft] = useState(projectName);
   const [pileHeadLevelDraft, setPileHeadLevelDraft] = useState(pileHeadLevelM?.toString() ?? "");
   const [currencyDraft, setCurrencyDraft] = useState(currencyCode);
+  const [saving, setSaving] = useState(false);
   const normalizedName = normalizeProjectName(nameDraft);
   const normalizedPileHeadLevel = normalizePileHeadLevel(pileHeadLevelDraft);
 
@@ -43,17 +44,22 @@ export default function ProjectInformationDialog({ open, projectName, pileHeadLe
           <button className="settings-btn settings-btn-secondary" type="button" onClick={onClose}>{t("cancel")}</button>
           <button
             className="settings-btn settings-btn-primary"
-            disabled={normalizedName === null || normalizedPileHeadLevel === null}
+            disabled={saving || normalizedName === null || normalizedPileHeadLevel === null}
             type="button"
-            onClick={() => {
+            onClick={() => void (async () => {
               if (normalizedName === null || normalizedPileHeadLevel === null) return;
-              onSave({
-                projectName: normalizedName,
-                pileHeadLevelM: normalizedPileHeadLevel,
-                currencyCode: currencyDraft,
-              });
-              onClose();
-            }}
+              setSaving(true);
+              try {
+                const saved = await onSave({
+                  projectName: normalizedName,
+                  pileHeadLevelM: normalizedPileHeadLevel,
+                  currencyCode: currencyDraft,
+                });
+                if (saved) onClose();
+              } finally {
+                setSaving(false);
+              }
+            })()}
           >{t("save")}</button>
         </>
       )}

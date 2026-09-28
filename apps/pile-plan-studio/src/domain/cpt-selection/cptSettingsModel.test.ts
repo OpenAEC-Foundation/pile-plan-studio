@@ -368,6 +368,29 @@ describe("React CPT settings model", () => {
   });
 });
 
+describe("direct manual CPT updates", () => {
+  it("keeps an empty manual selection distinct from automatic selection", () => {
+    const state = minimalState({ loadPoints: [loadPoint(1), loadPoint(2)],
+      manualCptIdsByLoadPoint: new Map([[2, [62]]]) });
+    assert.equal(typeof cptSettingsModel.applyManualCptSelectionUpdates, "function");
+    const next = cptSettingsModel.applyManualCptSelectionUpdates(state, new Map([[1, []]]));
+    assert.deepEqual(next.manualCptIdsByLoadPoint.get(1), []);
+    assert.deepEqual(next.manualCptIdsByLoadPoint.get(2), [62]);
+    assert.equal(next.analysisRequest.revision, state.analysisRequest.revision + 1);
+    assert.deepEqual(next.analysisRequest.loadPointIds, [1]);
+  });
+
+  it("removes only the targeted override and avoids analysis for a repeated reset", () => {
+    const state = minimalState({ loadPoints: [loadPoint(1), loadPoint(2)],
+      manualCptIdsByLoadPoint: new Map([[1, [61]], [2, [62]]]) });
+    const next = cptSettingsModel.applyManualCptSelectionUpdates(state, new Map([[1, null]]));
+    assert.equal(next.manualCptIdsByLoadPoint.has(1), false);
+    assert.deepEqual(next.manualCptIdsByLoadPoint.get(2), [62]);
+    assert.equal(next.analysisRequest.revision, state.analysisRequest.revision + 1);
+    assert.equal(cptSettingsModel.applyManualCptSelectionUpdates(next, new Map([[1, null]])), next);
+  });
+});
+
 function minimalState(overrides: Partial<ProjectState> = {}): ProjectState {
   return {
     activePileSizes: [],

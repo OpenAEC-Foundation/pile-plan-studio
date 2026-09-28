@@ -4,23 +4,34 @@ mod ilp_optimization;
 use pile_plan_core::{
     aggregate_pile_options_for_load_points,
     apply_load_point_group_assignment as apply_load_point_group_assignment_core,
+    apply_load_point_group_assignment_batch as apply_load_point_group_assignment_batch_core,
     apply_load_point_group_edit as apply_load_point_group_edit_core,
+    apply_load_point_group_ungroup_batch as apply_load_point_group_ungroup_batch_core,
     assess_load_point_group_assignments as assess_load_point_group_assignments_core,
     assess_technical_assignment as assess_technical_assignment_core,
     build_load_point_topology as build_load_point_topology_core, build_pile_option_analysis,
     build_tip_level_region_topology as build_tip_level_region_topology_core, calculate_pile_cost,
     choose_default_pile_options, derive_load_point_groups as derive_load_point_groups_core,
+    evaluate_cpt_settings_edit as evaluate_cpt_settings_edit_core,
+    evaluate_load_point_grouping_settings as evaluate_load_point_grouping_settings_core,
+    evaluate_mcp_project_edit as evaluate_mcp_project_edit_core,
+    evaluate_pile_cost_catalog_edit as evaluate_pile_cost_catalog_edit_core,
     import_project_from_sources, preview_import_source,
     preview_load_point_group_edit as preview_load_point_group_edit_core, preview_pile_plan_import,
     read_project_document as read_project_document_core, refresh_project_from_profiled_sources,
+    validate_load_point_lock_batch as validate_load_point_lock_batch_core,
+    validate_manual_cpt_selection_batch as validate_manual_cpt_selection_batch_core,
     validate_project_tip_levels, write_pile_plan_csv, write_pile_plan_xlsx,
-    write_project_document as write_project_document_core, ApplyLoadPointGroupAssignmentInput,
-    ApplyLoadPointGroupAssignmentResult, CptSelectionSettings, ImportSource, LoadPointGroup,
-    LoadPointGroupEditInput, LoadPointGroupingSettings, LoadPointTopology, PileConfigurationKey,
-    PileConfigurationOption, PileCostSettings, PilePlanExportRequest, PilePlanImportRequest,
-    PilePlanProject, ProjectBearingCapacity, ProjectCpt, ProjectDocumentDraft,
-    ProjectDocumentError, ProjectLoadPoint, TipLevelRegionAssignment, TipLevelRegionTopology,
-    ValidatedPilePlanProject,
+    write_project_document as write_project_document_core, ApplyLoadPointGroupAssignmentBatchInput,
+    ApplyLoadPointGroupAssignmentBatchResult, ApplyLoadPointGroupAssignmentInput,
+    ApplyLoadPointGroupAssignmentResult, CptSelectionSettings, CptSettingsEditInput, ImportSource,
+    LoadPointGroup, LoadPointGroupEditInput, LoadPointGroupUngroupBatchInput,
+    LoadPointGroupingSettings, LoadPointGroupingSettingsEditInput, LoadPointLockBatchInput,
+    LoadPointTopology, ManualCptSelectionBatchInput, McpProjectEditInput, PileConfigurationKey,
+    PileConfigurationOption, PileCostCatalogEditInput, PileCostSettings, PilePlanExportRequest,
+    PilePlanImportRequest, PilePlanProject, ProjectBearingCapacity, ProjectCpt,
+    ProjectDocumentDraft, ProjectDocumentError, ProjectLoadPoint, TipLevelRegionAssignment,
+    TipLevelRegionTopology, ValidatedPilePlanProject,
 };
 use serde::{Deserialize, Serialize};
 use wasm_bindgen::prelude::*;
@@ -314,6 +325,56 @@ pub fn apply_load_point_group_assignment(request: JsValue) -> Result<JsValue, Js
     let result: ApplyLoadPointGroupAssignmentResult =
         apply_load_point_group_assignment_core(&request);
     to_js_value(&result)
+}
+
+#[wasm_bindgen]
+pub fn apply_load_point_group_assignment_batch(request: JsValue) -> Result<JsValue, JsValue> {
+    let request: ApplyLoadPointGroupAssignmentBatchInput = from_js_value(request)?;
+    let result: ApplyLoadPointGroupAssignmentBatchResult =
+        apply_load_point_group_assignment_batch_core(&request);
+    to_js_value(&result)
+}
+
+#[wasm_bindgen]
+pub fn apply_load_point_group_ungroup_batch(request: JsValue) -> Result<JsValue, JsValue> {
+    let request: LoadPointGroupUngroupBatchInput = from_js_value(request)?;
+    to_js_value(&apply_load_point_group_ungroup_batch_core(&request))
+}
+
+#[wasm_bindgen]
+pub fn validate_manual_cpt_selection_batch(request: JsValue) -> Result<JsValue, JsValue> {
+    let request: ManualCptSelectionBatchInput = from_js_value(request)?;
+    to_js_value(&validate_manual_cpt_selection_batch_core(&request))
+}
+
+#[wasm_bindgen]
+pub fn evaluate_cpt_settings_edit(request: JsValue) -> Result<JsValue, JsValue> {
+    let request: CptSettingsEditInput = from_js_value(request)?;
+    to_js_value(&evaluate_cpt_settings_edit_core(&request))
+}
+
+#[wasm_bindgen]
+pub fn evaluate_load_point_grouping_settings(request: JsValue) -> Result<JsValue, JsValue> {
+    let request: LoadPointGroupingSettingsEditInput = from_js_value(request)?;
+    to_js_value(&evaluate_load_point_grouping_settings_core(&request))
+}
+
+#[wasm_bindgen]
+pub fn evaluate_pile_cost_catalog_edit(request: JsValue) -> Result<JsValue, JsValue> {
+    let request: PileCostCatalogEditInput = from_js_value(request)?;
+    to_js_value(&evaluate_pile_cost_catalog_edit_core(&request))
+}
+
+#[wasm_bindgen]
+pub fn evaluate_mcp_project_edit(request: JsValue) -> Result<JsValue, JsValue> {
+    let request: McpProjectEditInput = from_js_value(request)?;
+    to_js_value(&evaluate_mcp_project_edit_core(&request))
+}
+
+#[wasm_bindgen]
+pub fn validate_load_point_lock_batch(request: JsValue) -> Result<JsValue, JsValue> {
+    let request: LoadPointLockBatchInput = from_js_value(request)?;
+    to_js_value(&validate_load_point_lock_batch_core(&request))
 }
 
 fn from_js_value<T>(value: JsValue) -> Result<T, JsValue>

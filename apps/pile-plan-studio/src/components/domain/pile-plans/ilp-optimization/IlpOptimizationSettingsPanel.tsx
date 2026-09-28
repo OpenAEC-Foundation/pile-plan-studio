@@ -21,6 +21,8 @@ type Props = {
   onRunLocal: () => void;
   onStop: () => void;
   onCancel: () => void;
+  timeLimitSeconds: number | null;
+  onTimeLimitChange: (seconds: number | null) => void;
   hasBestSolution: boolean;
   onClose: () => void;
   running: boolean;
@@ -32,7 +34,7 @@ type Props = {
   children: ReactNode;
 };
 
-export default function IlpOptimizationSettingsPanel({ newPlanName, onNewPlanNameChange, sections, onToggleSection, state, onChange, onRun, onRunLocal, onStop, onCancel, hasBestSolution, onClose, running, stopping, cancelling, runningPlanName, onViewRunningPlan, disabled, children }: Props) {
+export default function IlpOptimizationSettingsPanel({ newPlanName, onNewPlanNameChange, sections, onToggleSection, state, onChange, onRun, onRunLocal, onStop, onCancel, timeLimitSeconds, onTimeLimitChange, hasBestSolution, onClose, running, stopping, cancelling, runningPlanName, onViewRunningPlan, disabled, children }: Props) {
   const { t, i18n } = useTranslation("ribbon");
   const { t: panel } = useTranslation("rightPanel");
   const s = state.ilpOptimizationSettings;
@@ -55,6 +57,15 @@ export default function IlpOptimizationSettingsPanel({ newPlanName, onNewPlanNam
     .flatMap((key, index) => s[key] === null ? [] : [t(`ilp.sectionSummary.${["tips", "sizes", "configurations"][index]}`, { count: s[key] })])
     .join(" · ") || t("ilp.sectionSummary.unlimited");
   const scroll=useRef<HTMLDivElement>(null);
+  const durationInputId=useId();
+  const [minutesDraft,setMinutesDraft]=useState(String(Math.round((timeLimitSeconds??600)/60)));
+  const [minutesInvalid,setMinutesInvalid]=useState(false);
+  useEffect(()=>{if(timeLimitSeconds!==null){setMinutesDraft(String(Math.round(timeLimitSeconds/60)));setMinutesInvalid(false);}},[timeLimitSeconds]);
+  const commitMinutes=()=>{
+    const minutes=Number(minutesDraft);
+    if(!Number.isInteger(minutes)||minutes<1||minutes>120){setMinutesInvalid(true);return;}
+    setMinutesInvalid(false);onTimeLimitChange(minutes*60);
+  };
   useEffect(()=>{if(running)scroll.current?.scrollTo({top:0});},[running]);
   return <div className="optimization-panel ilp-panel">
     <header className="right-panel-header">
@@ -74,7 +85,8 @@ export default function IlpOptimizationSettingsPanel({ newPlanName, onNewPlanNam
     </div>
       {children}
       <div className="ilp-settings">
-        <IlpDisclosure title={t("ilp.targetLocations")} {...disclosure("optimize", [selected ? panel("optimization.selected", { count: state.selectedLoadPointIds.length }) : panel("optimization.allLoadPoints"), ...(s.skip_unsolvable_units ? [t("ilp.skipUnsolvable")] : [])].join(" · "))}>
+        <IlpDisclosure title={t("ilp.runSettings")} {...disclosure("optimize", [selected ? panel("optimization.selected", { count: state.selectedLoadPointIds.length }) : panel("optimization.allLoadPoints"), timeLimitSeconds===null?t("ilp.noTimeLimit"):t("ilp.timeLimitSummary",{count:Math.round(timeLimitSeconds/60)}), ...(s.skip_unsolvable_units ? [t("ilp.skipUnsolvable")] : [])].join(" · "))}>
+          <p className="ilp-run-setting-label">{t("ilp.targetLocations")}</p>
           <div className="segmented-control">
             <button className={!selected ? "is-selected" : ""} type="button" onClick={() => onChange({ ...state, ilpOptimizationTargetScope: "all" })}>{panel("optimization.allLoadPoints")}</button>
             <button className={selected ? "is-selected" : ""} type="button" onClick={() => onChange({ ...state, ilpOptimizationTargetScope: "selected" })}>{panel("optimization.selected", { count: state.selectedLoadPointIds.length })}</button>
@@ -84,6 +96,17 @@ export default function IlpOptimizationSettingsPanel({ newPlanName, onNewPlanNam
             <span>{t("ilp.skipUnsolvable")}</span>
           </label>
           <p className="supporting-text">{t("ilp.skipUnsolvableHelp")}</p>
+          <div className="ilp-duration-settings">
+            <div className={`settings-number-row${timeLimitSeconds===null?" is-muted":""}`}>
+              <label htmlFor={durationInputId}>{t("ilp.timeLimitMinutes")}</label>
+              <ThemedNumberInput id={durationInputId} min={1} max={120} step={1} value={minutesDraft} disabled={timeLimitSeconds===null}
+                aria-invalid={minutesInvalid} onValueChange={setMinutesDraft} onBlur={commitMinutes}
+                onKeyDown={e=>{if(e.key==="Enter")e.currentTarget.blur();}} />
+            </div>
+            {minutesInvalid && <p className="supporting-text" role="alert">{t("ilp.invalidNumber")}</p>}
+            <label className="settings-checkbox"><input type="checkbox" checked={timeLimitSeconds===null}
+              onChange={e=>{setMinutesInvalid(false);onTimeLimitChange(e.target.checked?null:600);}} /><span>{t("ilp.noTimeLimit")}</span></label>
+          </div>
         </IlpDisclosure>
         <IlpDisclosure title={panel("optimization.candidates")} {...disclosure("candidates", candidateSummary)}>
           <div className="segmented-control optimization-candidate-source ilp-candidate-source">

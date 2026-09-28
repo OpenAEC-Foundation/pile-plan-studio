@@ -22,6 +22,10 @@
   "paste": "Paste",
   "undo": "Undo",
   "redo": "Redo",
+  "projectEdit": {
+    "projectChanged": "The project changed in the meantime. Check the details and try again.",
+    "failed": "The project change could not be applied. Check the details and try again."
+  },
   "history": {
     "undoLabel": "Undo: {{action}} (Ctrl+Z)",
     "redoLabel": "Redo: {{action}} (Ctrl+Y)",

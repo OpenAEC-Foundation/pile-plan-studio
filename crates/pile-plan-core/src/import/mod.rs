@@ -34,6 +34,69 @@ pub use table::{
     read_source_table, SourceFormat, SourceLocation, SourceRow, SourceTable, TableCell,
 };
 
+/// Machine-readable standard-table CSV contract used by local AI import clients.
+pub fn standard_csv_requirements() -> serde_json::Value {
+    serde_json::json!({
+        "version": 1,
+        "format": "csv",
+        "encoding": "UTF-8",
+        "delimiter": ",",
+        "decimal_separator": ".",
+        "header": "optional first row; detected when first cell is not numeric; column names are ignored",
+        "column_mapping": "positional; extra trailing columns are ignored",
+        "roles": [
+            {"role":"load-points","columns":[
+                {"position":1,"name":"ID","type":"unsigned integer"},
+                {"position":2,"name":"X","type":"number","unit":"mm"},
+                {"position":3,"name":"Y","type":"number","unit":"mm"},
+                {"position":4,"name":"FED","type":"number","unit":"kN"}],
+             "example":"ID,X,Y,FED\n1,0,0,1200"},
+            {"role":"cpts","columns":[
+                {"position":1,"name":"ID","type":"unsigned integer"},
+                {"position":2,"name":"X","type":"number","unit":"mm"},
+                {"position":3,"name":"Y","type":"number","unit":"mm"}],
+             "example":"ID,X,Y\n11,1000,0"},
+            {"role":"bearing-capacities","columns":[
+                {"position":1,"name":"CPT ID","type":"unsigned integer"},
+                {"position":2,"name":"Tip","type":"number","unit":"m","precision":"whole millimetres"},
+                {"position":3,"name":"Size","type":"unsigned integer > 0","unit":"mm"},
+                {"position":4,"name":"FRD","type":"number","unit":"kN"}],
+             "example":"CPT ID,Tip,Size,FRD\n11,-18.5,320,1750"}
+        ],
+        "new_project_required_roles": ["load-points","cpts","bearing-capacities"],
+        "refresh_required_roles": "one or more of the three roles",
+        "notes": ["IDs must be unique within load points and CPTs", "An empty FRD cell skips that advice row with a warning", "The importer validates engineering relationships after parsing"]
+    })
+}
+
+#[cfg(test)]
+mod standard_csv_contract_tests {
+    use super::*;
+
+    #[test]
+    fn examples_follow_the_standard_table_parser() {
+        let spec = standard_csv_requirements();
+        assert_eq!(spec["version"], 1);
+        assert_eq!(spec["roles"].as_array().unwrap().len(), 3);
+        for role in spec["roles"].as_array().unwrap() {
+            let source = ImportSource {
+                role: serde_json::from_value(role["role"].clone()).unwrap(),
+                profile: ImportProfile::StandardTable,
+                profile_options: ImportProfileOptions::default(),
+                file_name: "example.csv".to_owned(),
+                format: SourceFormat::Csv,
+                bytes: role["example"].as_str().unwrap().as_bytes().to_vec(),
+            };
+            let preview = preview_import_source(&source);
+            assert_eq!(preview.item_count, 1, "{}", role["role"]);
+            assert!(preview
+                .diagnostics
+                .iter()
+                .all(|item| item.severity != ImportDiagnosticSeverity::Error));
+        }
+    }
+}
+
 #[derive(Clone, Copy, Debug, Deserialize, Eq, Hash, PartialEq, Serialize)]
 #[serde(rename_all = "kebab-case")]
 pub enum ImportRole {

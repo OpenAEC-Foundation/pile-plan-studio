@@ -46,14 +46,18 @@ impl PositionedObject for ProjectCpt {
 }
 
 fn match_load_points(old: &[ProjectLoadPoint], new: &[ProjectLoadPoint]) -> HashMap<u32, u32> {
-    match_positioned_objects(old, new)
+    match_positioned_objects(old, new, true)
 }
 
 fn match_cpts(old: &[ProjectCpt], new: &[ProjectCpt]) -> HashMap<u32, u32> {
-    match_positioned_objects(old, new)
+    match_positioned_objects(old, new, false)
 }
 
-fn match_positioned_objects<T: PositionedObject>(old: &[T], new: &[T]) -> HashMap<u32, u32> {
+fn match_positioned_objects<T: PositionedObject>(
+    old: &[T],
+    new: &[T],
+    same_id_requires_same_position: bool,
+) -> HashMap<u32, u32> {
     let new_by_id: HashMap<u32, usize> = new
         .iter()
         .enumerate()
@@ -64,10 +68,9 @@ fn match_positioned_objects<T: PositionedObject>(old: &[T], new: &[T]) -> HashMa
     let mut unmatched_old = Vec::new();
 
     for (old_index, old_item) in old.iter().enumerate() {
-        let same_id_match = new_by_id
-            .get(&old_item.id())
-            .copied()
-            .filter(|new_index| within_tolerance(old_item, &new[*new_index]));
+        let same_id_match = new_by_id.get(&old_item.id()).copied().filter(|new_index| {
+            !same_id_requires_same_position || within_tolerance(old_item, &new[*new_index])
+        });
         if let Some(new_index) = same_id_match {
             mapping.insert(old_item.id(), new[new_index].id());
             used_new.insert(new_index);
@@ -543,14 +546,14 @@ mod tests {
     }
 
     #[test]
-    fn cpts_follow_the_same_matching_rules() {
+    fn cpts_match_stable_ids_before_unique_coordinate_fallback() {
         let mapping = match_cpts(
             &[cpt(61, 1000.0, 2000.0), cpt(62, 5000.0, 6000.0)],
             &[cpt(71, 1000.5, 1999.5), cpt(62, 9000.0, 9000.0)],
         );
 
         assert_eq!(mapping.get(&61), Some(&71));
-        assert!(!mapping.contains_key(&62));
+        assert_eq!(mapping.get(&62), Some(&62));
     }
 
     #[test]
@@ -719,6 +722,27 @@ mod tests {
         assert_eq!(
             refreshed.user_state.manual_cpt_selections.get(&1),
             Some(&vec![71])
+        );
+    }
+
+    #[test]
+    fn refreshing_cpt_positions_with_stable_ids_keeps_foundation_advice() {
+        let mut current = project();
+        current.user_state.manual_cpt_selections.insert(1, vec![61]);
+        let original_capacities = current.inputs.bearing_capacities.clone();
+
+        let refreshed = refresh_project_from_profiled_sources(
+            &current,
+            &[csv_source(ImportRole::Cpts, "cpts.csv", "61,5000,5000\n")],
+        )
+        .unwrap();
+
+        assert_eq!(refreshed.inputs.cpts[0].x_mm, 5000.0);
+        assert_eq!(refreshed.inputs.cpts[0].y_mm, 5000.0);
+        assert_eq!(refreshed.inputs.bearing_capacities, original_capacities);
+        assert_eq!(
+            refreshed.user_state.manual_cpt_selections.get(&1),
+            Some(&vec![61])
         );
     }
 

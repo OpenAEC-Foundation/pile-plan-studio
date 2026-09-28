@@ -1,7 +1,21 @@
 import type { CptSelectionEditDraft, CptSettingsScope, ProjectState } from "../project/projectState.ts";
 import type { CptSelectionSettings, PileConfigurationOption, PileOptionAnalysisResult } from "../.././core/projectTypes.ts";
+import type { CptSettingsEditResult } from "../../core/settingsEditCoreClient.ts";
 
 export type CptSelectionSettingsPatch = Partial<CptSelectionSettings>;
+
+export function applyValidatedCptSettingsEdit(
+  state: ProjectState,
+  result: Extract<CptSettingsEditResult, { status: "applied" }>,
+): ProjectState {
+  if (!result.changed) return state;
+  return requestAnalysis({
+    ...state,
+    globalCptSelectionSettings: result.globalSettings,
+    cptSelectionSettingsByLoadPoint: new Map(result.settingsByLoadPoint),
+    manualCptIdsByLoadPoint: new Map(result.manualCptIdsByLoadPoint),
+  }, result.globalChanged ? null : result.changedLoadPointIds);
+}
 
 export type CptSelectionSettingsAggregate = {
   [K in keyof CptSelectionSettings]: CptSelectionSettings[K] | null;
@@ -147,16 +161,16 @@ export function saveManualCptSelection(state: ProjectState): ProjectState {
   if (!draft) {
     return state;
   }
-  const manualSelections = new Map(state.manualCptIdsByLoadPoint);
+  const updates = new Map<number, number[] | null>();
   for (const loadPointId of draft.loadPointIds) {
-    manualSelections.set(loadPointId, [...(draft.cptIdsByLoadPoint.get(loadPointId) ?? new Set())].sort((left, right) => left - right));
+    updates.set(loadPointId, [...(draft.cptIdsByLoadPoint.get(loadPointId) ?? new Set())]);
   }
-  return requestAnalysis({
-    ...state,
-    manualCptIdsByLoadPoint: manualSelections,
+  const updated = applyManualCptSelectionUpdates(state, updates);
+  return {
+    ...updated,
     cptSelectionEditDraft: null,
     cptSelectionPreview: null,
-  }, draft.loadPointIds);
+  };
 }
 
 export function cancelManualCptSelection(state: ProjectState): ProjectState {
@@ -167,14 +181,40 @@ export function clearManualCptSelection(state: ProjectState): ProjectState {
   if (state.selectedLoadPointIds.length === 0) {
     return state;
   }
-  const manualSelections = new Map(state.manualCptIdsByLoadPoint);
-  state.selectedLoadPointIds.forEach((loadPointId) => manualSelections.delete(loadPointId));
-  return requestAnalysis({
-    ...state,
-    manualCptIdsByLoadPoint: manualSelections,
+  const updates = new Map<number, number[] | null>(state.selectedLoadPointIds.map((id) => [id, null]));
+  const updated = applyManualCptSelectionUpdates(state, updates);
+  return {
+    ...updated,
     cptSelectionEditDraft: null,
     cptSelectionPreview: null,
-  }, state.selectedLoadPointIds);
+  };
+}
+
+export function applyManualCptSelectionUpdates(
+  state: ProjectState,
+  updates: Map<number, number[] | null>,
+): ProjectState {
+  const manualSelections = new Map(state.manualCptIdsByLoadPoint);
+  const changedIds: number[] = [];
+  for (const [loadPointId, requested] of updates) {
+    const previous = manualSelections.get(loadPointId);
+    if (requested === null) {
+      if (previous !== undefined) {
+        manualSelections.delete(loadPointId);
+        changedIds.push(loadPointId);
+      }
+      continue;
+    }
+    const ids = [...new Set(requested)].sort((left, right) => left - right);
+    if (previous !== undefined && previous.length === ids.length
+      && previous.every((id, index) => id === ids[index])) continue;
+    manualSelections.set(loadPointId, ids);
+    changedIds.push(loadPointId);
+  }
+  return changedIds.length === 0 ? state : requestAnalysis({
+    ...state,
+    manualCptIdsByLoadPoint: manualSelections,
+  }, changedIds);
 }
 
 export function getCptSelectionPreviewInput(state: ProjectState): {

@@ -60,6 +60,22 @@
   "plugins": {
     "placeholder": "Beheer van invoegtoepassingen verschijnt hier."
   },
+  "mcp": {
+    "title": "AI-koppeling",
+    "description": "Geef een lokale AI tijdelijk toegang tot het geopende project. Bewerken kun je apart toestaan voor deze sessie.",
+    "enable": "MCP-toegang inschakelen voor deze sessie",
+    "allowEdits": "Bewerken via MCP toestaan",
+    "status_off": "Uitgeschakeld",
+    "status_starting": "Verbinding starten…",
+    "status_on": "Beschikbaar voor lokale AI-clients",
+    "status_stopping": "Verbinding stoppen…",
+    "status_error": "Verbinding niet beschikbaar",
+    "endpoint": "Adres",
+    "copyEndpoint": "Adres kopiëren",
+    "copyToken": "Toegangscode kopiëren",
+    "connectionError": "Verbindingsfout",
+    "copyError": "Kopiëren is niet gelukt"
+  },
   "about": {
     "version": "Versie",
     "status": "Status",

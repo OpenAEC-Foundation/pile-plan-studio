@@ -38,9 +38,11 @@ function runFingerprint(state:ProjectState,plan:PilePlanData) {
   return fingerprint({basis:basis(state,plan),name:plan.name,references:plan.externalReferencesByLoadPoint,unassigned:plan.optimizationUnassignedByLoadPoint,locked:plan.lockedLoadPointIds,sizes:plan.activePileSizes,tips:plan.activePileTipLevelMms,
     settings:state.ilpOptimizationSettings,scope:state.ilpOptimizationLimitScope,boundary:state.ilpIncludeBoundaryTransitions});
 }
-export function createIlpPlanRun(state:ProjectState,language:"nl"|"en",localOnly:boolean,newPlanName?:string) {
+export function createIlpPlanRun(state:ProjectState,language:"nl"|"en",localOnly:boolean,newPlanName?:string,
+  createNewPlan=state.ilpOptimizationCreatesPilePlan,limitScope=state.ilpOptimizationLimitScope,
+  includeBoundaryTransitions=state.ilpIncludeBoundaryTransitions) {
   const source=currentSource(state,state.activePilePlanId)!;
-  const transition=state.ilpOptimizationCreatesPilePlan?createOptimizationPilePlan({...state,
+  const transition=createNewPlan?createOptimizationPilePlan({...state,
     optimizedChoices:source.selectedPileConfigurationsByLoadPoint,resolvedCandidateConfigurations:[...source.selectedPileConfigurationsByLoadPoint.values()],
     optimizationUnassignedByLoadPoint:source.optimizationUnassignedByLoadPoint,language}):null;
   const generated=transition?transition.pilePlans.find(p=>p.id===transition.activePilePlanId)!:source;
@@ -48,7 +50,7 @@ export function createIlpPlanRun(state:ProjectState,language:"nl"|"en",localOnly
   const settings=structuredClone(state.ilpOptimizationSettings);
   delete settings.transition_weights.both_milli;
   return {sourceId:source.id,target,fingerprint:runFingerprint(state,source),settings,
-    wholePlanLimits:state.ilpOptimizationLimitScope==="whole-plan",boundaryTransitions:state.ilpIncludeBoundaryTransitions,localOnly,currencyCode:state.currencyCode};
+    wholePlanLimits:limitScope==="whole-plan",boundaryTransitions:includeBoundaryTransitions,localOnly,currencyCode:state.currencyCode};
 }
 export type IlpPlanRun=ReturnType<typeof createIlpPlanRun>;
 export function isIlpPlanRunCurrent(state:ProjectState,run:IlpPlanRun) {
