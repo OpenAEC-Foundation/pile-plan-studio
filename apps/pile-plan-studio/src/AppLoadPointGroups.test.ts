@@ -5,6 +5,8 @@ import assert from "node:assert/strict";
 const source = readFileSync(new URL("./app/session/AppSession.tsx", import.meta.url), "utf8");
 const technicalHook = readFileSync(new URL("./app/derived-state/useProjectTechnicalAssignment.ts", import.meta.url), "utf8");
 const technicalPreparation = readFileSync(new URL("./app/derived-state/projectTechnicalAssignment.ts", import.meta.url), "utf8");
+const assignmentHook = readFileSync(new URL("./app/project/usePileAssignment.ts", import.meta.url), "utf8");
+const assignmentController = readFileSync(new URL("./app/project/pileAssignmentController.ts", import.meta.url), "utf8");
 
 describe("App load point group integration", () => {
   it("uses the derived runtime partition and delegates assignment decisions to Rust", () => {
@@ -13,42 +15,41 @@ describe("App load point group integration", () => {
     assert.match(technicalHook, /getEffectivePileOptionsByLoadPointId\(state\)/);
     assert.match(technicalHook, /useTechnicalAssignment\(input\)/);
     assert.match(technicalPreparation, /preview\?\.status === "analyzing"/);
-    assert.match(source, /applyLoadPointGroupAssignmentCore\(\{/);
+    assert.match(source, /usePileAssignment\(\{/);
+    assert.match(source, /currentGroups: \(\) => loadPointGroupsRef\.current/);
+    assert.match(source, /groupsReady: \(\) => hasCompletedLoadPointGroups/);
+    assert.match(assignmentHook, /evaluate: applyLoadPointGroupAssignmentCore/);
     assert.doesNotMatch(source, /distance.*1200|1200.*distance/i);
   });
 
   it("rejects stale responses before changing the active plan", () => {
-    assert.match(source, /pileAssignmentRequestIdRef\.current \+= 1/);
-    assert.match(source, /capturedActivePilePlanId = projectState\.activePilePlanId/);
-    assert.match(source, /capturedAssignments = projectState\.selectedPileConfigurationsByLoadPoint/);
-    assert.match(source, /requestId !== pileAssignmentRequestIdRef\.current/);
-    assert.match(source, /latest\.activePilePlanId !== capturedActivePilePlanId/);
-    assert.match(source, /latest\.selectedPileConfigurationsByLoadPoint !== capturedAssignments/);
+    assert.match(assignmentController, /requestId === generation/);
+    assert.match(assignmentController, /state\.activePilePlanId === captured\.activePilePlanId/);
+    assert.match(assignmentController, /state\.selectedPileConfigurationsByLoadPoint === captured\.selectedPileConfigurationsByLoadPoint/);
+    assert.match(assignmentController, /if \(!isCurrent\(dependencies\.currentState\(\)\)\) return/);
   });
 
   it("commits every applied change once and reports blocked locks as an error notice", () => {
-    assert.match(source, /if \(result\.status === "blocked"\)/);
+    assert.match(assignmentController, /if \(result\.status === "blocked"\)/);
     assert.match(
       source,
       /showActionNotice\(\s*t\("loadPointGroups\.assignmentBlocked"[\s\S]*?"error"/,
     );
-    assert.match(source, /commitProjectState\(\(current\) => \{/);
-    assert.match(source, /for \(const change of result\.changes\)/);
-    assert.match(source, /synchronizeActivePilePlan\(/);
+    assert.match(source, /commit: \(update\) => commitProjectState\(update\)/);
+    assert.match(assignmentController, /for \(const change of result\.changes\)/);
+    assert.match(assignmentController, /synchronizeActivePilePlan\(/);
   });
 
   it("removes group assignments returned as empty changes", () => {
-    assert.match(source, /requestedConfiguration: PileConfigurationKey \| null/);
-    assert.match(source, /if \(change\.configuration\) \{/);
-    assert.match(source, /nextAssignments\.delete\(change\.load_point_id\)/);
+    assert.match(assignmentController, /requestedConfiguration: PileConfigurationKey \| null/);
+    assert.match(assignmentController, /if \(change\.configuration\) \{/);
+    assert.match(assignmentController, /nextAssignments\.delete\(change\.load_point_id\)/);
   });
 
   it("rejects a response when groups or locks changed during the request", () => {
-    assert.match(source, /capturedGroups = loadPointGroups\.groups/);
-    assert.match(source, /loadPointGroupsRef\.current !== capturedGroups/);
-    assert.match(source, /capturedLockedLoadPointSignature/);
-    assert.match(source, /getLoadPointLockSignature\(latest\.pilePlans, capturedActivePilePlanId\)/);
-    assert.match(source, /getLoadPointLockSignature\(current\.pilePlans, capturedActivePilePlanId\)/);
+    assert.match(assignmentController, /dependencies\.currentGroups\(\) === capturedGroups/);
+    assert.match(assignmentController, /getLoadPointLockSignature\(state\.pilePlans, captured\.activePilePlanId\) === capturedLockSignature/);
+    assert.match(assignmentController, /if \(!isCurrent\(current\)\) return current/);
   });
 
   it("invalidates assignment requests for replacement projects and plan switches", () => {

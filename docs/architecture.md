@@ -28,6 +28,14 @@ pile options and gates Rust assessment on completed upstream analysis and the
 current CPT preview. Its preparation and error precedence are isolated in
 `projectTechnicalAssignment.ts`; engineering assessment remains in Rust.
 
+`app/project/pileAssignmentController.ts` coordinates manual pile assignment
+and removal through the Rust group-assignment evaluator. It captures the active
+plan, assignment map, effective groups and lock signature, and checks them again
+after evaluation and inside the history update. `usePileAssignment.ts` supplies
+live callbacks and invalidates pending requests on unmount; `AppSession` provides
+the history commit and translated notices. All accepted changes are installed
+immutably in one history step, including group-expanded changes and removals.
+
 ## Desktop MCP connection
 
 `app/mcp/connectionController.ts` owns connection status, startup cancellation,

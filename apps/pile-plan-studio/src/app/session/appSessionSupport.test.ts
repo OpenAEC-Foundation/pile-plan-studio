@@ -17,6 +17,7 @@ describe("app session support", () => {
   });
 
   it("creates a stable sorted signature for active-plan locks", () => {
+    const locks = [9, 2, 5];
     assert.equal(getLoadPointLockSignature([
       {
         id: "plan-1",
@@ -24,10 +25,11 @@ describe("app session support", () => {
         selectedPileConfigurationsByLoadPoint: new Map(),
         activePileSizesMm: [],
         activePileTipLevelsMm: [],
-        lockedLoadPointIds: [9, 2, 5],
+        lockedLoadPointIds: locks,
         optimizationUnassignedByLoadPoint: new Map(),
       },
     ], "plan-1"), "2,5,9");
+    assert.deepEqual(locks, [9, 2, 5]);
   });
 
   it("records the explicit history action for every load-point group edit", () => {

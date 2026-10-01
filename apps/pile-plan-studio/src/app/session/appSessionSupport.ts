@@ -46,7 +46,7 @@ export function getLoadPointLockSignature(
   pilePlans: PilePlanData[],
   activePilePlanId: string,
 ): string {
-  return getActiveLockedLoadPointIds(pilePlans, activePilePlanId)
+  return [...getActiveLockedLoadPointIds(pilePlans, activePilePlanId)]
     .sort((left, right) => left - right)
     .join(",");
 }

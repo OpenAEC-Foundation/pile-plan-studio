@@ -35,6 +35,7 @@ import PilePlanWorkspace from "../../components/domain/pile-plans/PilePlanWorksp
 import RightPanel, { type RightTaskPanel } from "../../components/domain/right-panel/RightPanel";
 import { usePileOptionCosts } from "../derived-state/usePileOptionCosts.ts";
 import { useLoadPointGroups } from "../derived-state/useLoadPointGroups.ts";
+import { usePileAssignment } from "../project/usePileAssignment.ts";
 import { useProjectTechnicalAssignment } from "../derived-state/useProjectTechnicalAssignment.ts";
 import { useGroupAssignmentAssessment } from "../derived-state/useGroupAssignmentAssessment.ts";
 import ProjectInformationDialog from "../../components/domain/project/ProjectInformationDialog";
@@ -44,7 +45,6 @@ import SourceDataViewer from "../../components/domain/source-data/SourceDataView
 import type { InputSourceKind } from "../../domain/project/projectState.ts";
 import type { SourceLoadPointSelection } from "../../domain/source-data/sourceTableModel.ts";
 import {
-  applyLoadPointGroupAssignmentCore,
   assessLoadPointGroupAssignmentsCore,
   applyLoadPointGroupEditCore,
   calculatePileCostCore,
@@ -59,7 +59,7 @@ import {
   writeProjectDocumentCore,
 } from "../../core/coreClient";
 import { invokeDesktop, listenDesktop } from "../../core/coreTransport.ts";
-import type { PileConfigurationKey, PileCostSettings } from "../../core/projectTypes.ts";
+import type { PileCostSettings } from "../../core/projectTypes.ts";
 import type {
   LoadPointGroupEditAction,
   LoadPointGroupEditPreview,
@@ -174,7 +174,6 @@ import {
 import {
   describeProjectOpenError,
   getLoadPointGroupEditHistoryAction,
-  getLoadPointLockSignature,
   importRoleForSource,
 } from "./appSessionSupport.ts";
 
@@ -271,14 +270,17 @@ export default function AppSession({
     useProjectTechnicalAssignment(projectState, loadPointGroups);
   const loadPointGroupsRef = useRef(loadPointGroups.groups);
   loadPointGroupsRef.current = loadPointGroups.groups;
-  const pileAssignmentRequestIdRef = useRef(0);
-  const [pileAssignmentPending, setPileAssignmentPending] = useState(false);
+  const { pending: pileAssignmentPending, apply: applyGroupedPileConfiguration, invalidate: invalidatePileAssignmentRequests } =
+    usePileAssignment({
+      currentState: () => projectStateRef.current,
+      currentGroups: () => loadPointGroupsRef.current,
+      groupsReady: () => hasCompletedLoadPointGroups,
+      commit: (update) => commitProjectState(update),
+      blocked: (names) => showActionNotice(t("loadPointGroups.assignmentBlocked", { names: names.join(", ") }), "error"),
+      failed: (message) => showActionNotice(message, "error"),
+    });
   const groupEditRequestIdRef = useRef(0);
   const [groupEditPending, setGroupEditPending] = useState(false);
-  const invalidatePileAssignmentRequests = useCallback(() => {
-    pileAssignmentRequestIdRef.current += 1;
-    setPileAssignmentPending(false);
-  }, []);
   const setProjectState = useCallback((update: SetStateAction<ProjectState>) => {
     dispatchProject({ type: "runtime", update });
   }, []);
@@ -837,100 +839,6 @@ export default function AppSession({
       }, getLoadPointGroupEditHistoryAction(action));
     } finally {
       if (requestId === groupEditRequestIdRef.current) setGroupEditPending(false);
-    }
-  };
-
-  const applyGroupedPileConfiguration = async (
-    selectedLoadPointIds: number[],
-    requestedConfiguration: PileConfigurationKey | null,
-  ): Promise<void> => {
-    const groupsReady = hasCompletedLoadPointGroups;
-    if (!groupsReady || selectedLoadPointIds.length === 0) return;
-
-    pileAssignmentRequestIdRef.current += 1;
-    const requestId = pileAssignmentRequestIdRef.current;
-    const capturedActivePilePlanId = projectState.activePilePlanId;
-    const capturedAssignments = projectState.selectedPileConfigurationsByLoadPoint;
-    const capturedLoadPoints = projectState.loadPoints;
-    const capturedGroups = loadPointGroups.groups;
-    const capturedLockedLoadPointSignature = getLoadPointLockSignature(
-      projectState.pilePlans,
-      capturedActivePilePlanId,
-    );
-    const lockedLoadPointIds = getActiveLockedLoadPointIds(
-      projectState.pilePlans,
-      capturedActivePilePlanId,
-    );
-    setPileAssignmentPending(true);
-
-    try {
-      const result = await applyLoadPointGroupAssignmentCore({
-        selectedLoadPointIds,
-        groups: capturedGroups,
-        requestedConfiguration,
-        currentAssignments: capturedAssignments,
-        lockedLoadPointIds,
-      });
-      const latest = projectStateRef.current;
-      if (
-        requestId !== pileAssignmentRequestIdRef.current
-        || latest.activePilePlanId !== capturedActivePilePlanId
-        || latest.selectedPileConfigurationsByLoadPoint !== capturedAssignments
-        || loadPointGroupsRef.current !== capturedGroups
-        || getLoadPointLockSignature(latest.pilePlans, capturedActivePilePlanId)
-          !== capturedLockedLoadPointSignature
-      ) {
-        return;
-      }
-
-      if (result.status === "blocked") {
-        const names = result.blocking_locked_load_points.map(({ load_point_id }) =>
-          capturedLoadPoints.find(({ id }) => id === load_point_id)?.name ?? String(load_point_id));
-        showActionNotice(
-          t("loadPointGroups.assignmentBlocked", { names: names.join(", ") }),
-          "error",
-        );
-        return;
-      }
-
-      if (result.changes.length === 0) return;
-
-      commitProjectState((current) => {
-        if (
-          current.activePilePlanId !== capturedActivePilePlanId
-          || current.selectedPileConfigurationsByLoadPoint !== capturedAssignments
-          || loadPointGroupsRef.current !== capturedGroups
-          || getLoadPointLockSignature(current.pilePlans, capturedActivePilePlanId)
-            !== capturedLockedLoadPointSignature
-        ) {
-          return current;
-        }
-        const nextAssignments = new Map(capturedAssignments);
-        for (const change of result.changes) {
-          if (change.configuration) {
-            nextAssignments.set(change.load_point_id, { ...change.configuration });
-          } else {
-            nextAssignments.delete(change.load_point_id);
-          }
-        }
-        return {
-          ...current,
-          selectedPileConfigurationsByLoadPoint: nextAssignments,
-          pilePlans: synchronizeActivePilePlan(
-            current.pilePlans,
-            capturedActivePilePlanId,
-            nextAssignments,
-          ),
-        };
-      });
-    } catch (error) {
-      if (requestId === pileAssignmentRequestIdRef.current) {
-        showActionNotice(error instanceof Error ? error.message : String(error), "error");
-      }
-    } finally {
-      if (requestId === pileAssignmentRequestIdRef.current) {
-        setPileAssignmentPending(false);
-      }
     }
   };
 
