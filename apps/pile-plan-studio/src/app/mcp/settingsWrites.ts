@@ -1,5 +1,5 @@
 import { applyLoadPointGroupEditCore, evaluateCptSettingsEditCore,
-  evaluateLoadPointGroupingSettingsCore, evaluatePileCostCatalogEditCore,
+  evaluateLoadPointGroupingSettingsCore,
   type CostCatalogAction, type CptSettingsPatch } from "../../core/coreClient.ts";
 import { applyValidatedCptSettingsEdit } from "../../domain/cpt-selection/cptSettingsModel.ts";
 import type { PileCostSettingsItem } from "../../core/projectTypes.ts";
@@ -7,6 +7,7 @@ import { McpReadError } from "./readModel.ts";
 import { requireCurrentGroups } from "./projectSettingsSources.ts";
 import type { McpSnapshot, PileMcpWriteToolName } from "./protocol.ts";
 import type { PreparedMcpWrite } from "./writeModel.ts";
+import { preparePileCostCatalogEdit, PileCostCatalogEditError } from "../project/projectEditOperations.ts";
 
 function cptPatch(raw: Record<string, unknown>): CptSettingsPatch {
   return {
@@ -83,12 +84,15 @@ export async function prepareSettingsWrite(
   else if (name === "pile_remove_cost_item") actions = [{ action: "remove", pile_size_mm: args.pile_size_mm as number }];
   else if (name === "pile_edit_cost_catalog_bulk") actions = args.actions as CostCatalogAction[];
   else throw new McpReadError("unknown_tool");
-  const result = await evaluatePileCostCatalogEditCore({ settings: state.pileCostSettings,
-    usedPileSizesMm: [...new Set(state.bearingCapacities.map((row) => row.pile_size_mm))], actions });
-  if (result.status === "blocked") throw new McpReadError(result.reason,
-    result.pile_size_mm === null ? undefined : [result.pile_size_mm]);
-  return { mode: "history", changed: result.changed,
-    data: { submitted_count: actions.length, changed_count: result.changed_sizes_mm.length,
-      changed_pile_sizes_mm: result.changed_sizes_mm, changed: result.changed },
-    update: (current) => result.changed ? { ...current, pileCostSettings: result.settings } : current };
+  try {
+    const prepared = await preparePileCostCatalogEdit(state, actions);
+    return { mode: "history", changed: prepared.changed,
+      data: { submitted_count: actions.length, changed_count: prepared.changedSizesMm.length,
+        changed_pile_sizes_mm: prepared.changedSizesMm, changed: prepared.changed },
+      update: prepared.update };
+  } catch (error) {
+    if (error instanceof PileCostCatalogEditError) throw new McpReadError(error.result.reason,
+      error.result.pile_size_mm === null ? undefined : [error.result.pile_size_mm]);
+    throw error;
+  }
 }

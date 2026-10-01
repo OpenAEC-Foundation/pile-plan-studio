@@ -14,12 +14,30 @@ async function settledStatus(session: ReturnType<typeof createSourceImportSessio
 }
 
 describe("MCP source import session", () => {
+  it("does not apply a transaction disposed during its content check", async () => {
+    let applied = 0;
+    const session = createSourceImportSession({ requirements: async () => ({}), validate: async () => ({}),
+      apply: async () => { applied++; return {}; } });
+    const { data } = await session.call("pile_begin_source_import", { mode: "refresh",
+      expected_project_instance_id: "one", expected_project_revision: 3 }, marker);
+    const transaction_id = data.transaction_id as string;
+    await session.call("pile_append_import_source", { transaction_id, ...source }, marker);
+    await session.call("pile_validate_source_import", { transaction_id }, marker);
+    const ready = await settledStatus(session, transaction_id);
+    const applying = session.call("pile_apply_source_import", { transaction_id, validation_id: ready.data.validation_id }, marker);
+    session.dispose();
+    await assert.rejects(applying, /import_not_found/);
+    assert.equal(applied, 0);
+  });
+
   it("stages, validates asynchronously, and applies exactly once", async () => {
     let resolve!: (value: { data: { load_points: number }; value: string }) => void;
+    let started!: () => void;
+    const validationStarted = new Promise<void>((done) => { started = done; });
     let applied = 0;
     const session = createSourceImportSession({
       requirements: async () => ({ version: 1 }),
-      validate: async () => new Promise((done) => { resolve = done; }),
+      validate: async () => new Promise((done) => { resolve = done; started(); }),
       apply: async () => { applied++; return { changed: true }; },
     });
     const begun = await session.call("pile_begin_source_import", { mode: "refresh", expected_project_instance_id: "one", expected_project_revision: 3 }, marker);
@@ -28,7 +46,7 @@ describe("MCP source import session", () => {
     const validating = await session.call("pile_validate_source_import", { transaction_id }, marker);
     assert.equal(validating.data.status, "processing");
     assert.equal((await session.call("pile_get_source_import_status", { transaction_id }, marker)).data.status, "processing");
-    await new Promise((done) => setImmediate(done));
+    await validationStarted;
     resolve({ data: { load_points: 1 }, value: "valid" });
     const ready = await settledStatus(session, transaction_id);
     assert.equal(ready.data.status, "ready");

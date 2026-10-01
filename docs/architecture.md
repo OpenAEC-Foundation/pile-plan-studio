@@ -42,6 +42,12 @@ wrappers; accepted MCP batches commit one immutable project change and Undo
 entry. Manual CPT overwrite is explicit, group settings never reconcile pile
 assignments, and used pile-size cost rows cannot be removed.
 
+The cost editor and MCP tools share `preparePileCostCatalogEdit` in
+`app/project/projectEditOperations.ts`. Loading cost defaults and merging
+defaults into a new imported project also pass their proposed changes through
+this Rust validator. Accepted edits enter history once; rejected rows do not
+change project content. TypeScript retains preference precedence and input drafts.
+
 Project-owned optimization settings, per-plan active configurations, visual
 legend styles, project properties, and targeted source edits use a shared
 Rust evaluator over the current `ProjectDocumentDraft`. It returns a canonical
@@ -87,6 +93,11 @@ passes assignment changes through Rust's group and lock batch validator. The
 new plan, any project-wide manual CPT changes, and analysis invalidation commit
 as one history entry. The transaction is tied to a project revision and is
 discarded when the bridge stops.
+
+Both import transactions share an apply lock acquired before asynchronous
+content-digest checks. They recheck transaction lifetime and project identity
+after the digest, preventing concurrent or discarded transactions from applying.
+The lock is released after failure so a valid transaction can be retried.
 
 Desktop file operations use the app's existing IFCPP reader/writer and
 CSV/XLSX export clients. MCP starts a native file dialog asynchronously and

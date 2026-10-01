@@ -74,7 +74,7 @@ describe("React app startup", () => {
     assert.match(source, /createInitialProjectState\(\s*project\.project,\s*\{[\s\S]*?initializeDefaultPiles,[\s\S]*?defaultPilePlanName: i18n\.language\.startsWith\("nl"\) \? "Basisplan" : "Base plan",[\s\S]*?\},\s*project\.keys,?\s*\)/);
     assert.match(source, /initialProject: result\.project,[\s\S]*?initializeDefaultPiles: false/);
     assert.match(source, /createInitialProjectState\(sample\.project, \{[\s\S]*?initializeDefaultPiles: true[\s\S]*?\}, sample\.keys\)/);
-    assert.match(source, /createInitialProjectState\(withCosts, \{[\s\S]*?initializeDefaultPiles: true[\s\S]*?\}, imported\.keys\)/);
+    assert.match(source, /createInitialProjectState\(project, \{[\s\S]*?initializeDefaultPiles: true[\s\S]*?\}, imported\.keys\)/);
     assert.match(source, /createInitialProjectState\(refreshedProject, \{[\s\S]*?initializeDefaultPiles: true[\s\S]*?\}, refreshed\.keys\)/);
     assert.match(source, /prepareOpenedProject\(\s*await file\.text\(\),\s*\{ initializeDefaultPiles: false \},\s*\{/);
     assert.match(source, /readProjectDocument:\s*readProjectDocumentCore/);
@@ -218,8 +218,8 @@ describe("React app startup", () => {
     const source = readFileSync(resolve(import.meta.dirname, "app/session/AppSession.tsx"), "utf8");
 
     assert.match(source, /BUILT_IN_PILE_COST_DEFAULTS\s*=\s*\([\s\S]*?JSON\.parse\(sampleProjectText\)[\s\S]*?\)\.settings\.pile_costs/);
-    assert.match(source, /mergePileCostCatalog\([\s\S]*?BUILT_IN_PILE_COST_DEFAULTS/);
-    assert.match(source, /applyPileCostCatalogDefault\([\s\S]*?BUILT_IN_PILE_COST_DEFAULTS/);
+    assert.match(source, /prepareMergedPileCostCatalogEdit\([\s\S]*?BUILT_IN_PILE_COST_DEFAULTS/);
+    assert.match(source, /loadCostCatalogDefault\(BUILT_IN_PILE_COST_DEFAULTS\)/);
     assert.doesNotMatch(source, /PILE_COST_DEFAULTS_KEY/);
     assert.doesNotMatch(source, /getSetting<PileCostSettings/);
     assert.doesNotMatch(

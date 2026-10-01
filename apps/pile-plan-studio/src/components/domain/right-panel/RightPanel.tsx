@@ -2,6 +2,7 @@ import { useTranslation } from "react-i18next";
 import type { ReactNode } from "react";
 import type { ProjectState } from "../../../domain/project/projectState.ts";
 import type { PileConfigurationKey, PileCostSettings } from "../../../core/projectTypes.ts";
+import type { CostCatalogAction } from "../../../core/settingsEditCoreClient.ts";
 import { getSelectedLoadPoints, formatLoadPointPanelTitle } from "./rightPanelModel.ts";
 import type {
   LoadPointGroup,
@@ -52,6 +53,7 @@ export type RightPanelProps = {
   taskPanel?: RightTaskPanel | null;
   onCloseTaskPanel?: () => void;
   hasPersonalCostDefault?: boolean;
+  onEditCosts?: (actions: CostCatalogAction[]) => Promise<boolean>;
   onSaveCostDefault?: (settings: PileCostSettings) => void;
   onLoadCostDefault?: () => void;
   onRemoveCostDefault?: () => void;
@@ -87,6 +89,7 @@ export default function RightPanel({
   taskPanel = null,
   onCloseTaskPanel = () => undefined,
   hasPersonalCostDefault = false,
+  onEditCosts = async () => false,
   onSaveCostDefault = () => undefined,
   onLoadCostDefault = () => undefined,
   onRemoveCostDefault = () => undefined,
@@ -140,7 +143,7 @@ export default function RightPanel({
       {taskPanel === "ilp-optimization" ? ilpResult : taskPanel === "cost-settings" ? (
         <CostSettingsPanel
           state={state}
-          onStateChange={onStateChange}
+          onEditCosts={onEditCosts}
           onClose={onCloseTaskPanel}
           hasPersonalCostDefault={hasPersonalCostDefault}
           onSaveCostDefault={onSaveCostDefault}

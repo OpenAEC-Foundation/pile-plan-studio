@@ -1,12 +1,8 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { BearingCapacity, PileCostSettings, PileCostSettingsItem } from "../../../core/projectTypes.ts";
-import {
-  addPileCostItem,
-  partitionPileCostItems,
-  removePileCostItem,
-  updatePileCostItem,
-} from "../../../domain/pile-plans/pileCostCatalog.ts";
+import { partitionPileCostItems } from "../../../domain/pile-plans/pileCostCatalog.ts";
+import type { CostCatalogAction } from "../../../core/settingsEditCoreClient.ts";
 import { formatNumber } from "../../../domain/formatting.ts";
 import { commitCostInput } from "./costSettingsModel.ts";
 import ThemedNumberInput from "../../template/ThemedNumberInput.tsx";
@@ -20,7 +16,7 @@ type Props = {
   bearingCapacities: BearingCapacity[];
   currencyCode: string;
   hasPersonalDefault: boolean;
-  onSettingsChange: (settings: PileCostSettings) => void;
+  onEditCosts: (actions: CostCatalogAction[]) => Promise<boolean>;
   onSavePersonalDefault: (settings: PileCostSettings) => void;
   onLoadPersonalDefault: () => void;
   onRemovePersonalDefault: () => void;
@@ -33,7 +29,7 @@ export default function CostCatalogEditor({
   bearingCapacities,
   currencyCode,
   hasPersonalDefault,
-  onSettingsChange,
+  onEditCosts,
   onSavePersonalDefault,
   onLoadPersonalDefault,
   onRemovePersonalDefault,
@@ -45,30 +41,46 @@ export default function CostCatalogEditor({
   const [newShape, setNewShape] = useState<"round" | "square">("round");
   const [newCostDraft, setNewCostDraft] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [pending, setPending] = useState(false);
+  const pendingRef = useRef(false);
   const usedPileSizes = useMemo(
     () => new Set(bearingCapacities.map((capacity) => capacity.pile_size_mm)),
     [bearingCapacities],
   );
   const { used, missingSizes, other } = partitionPileCostItems(settings, usedPileSizes);
 
-  function addSize() {
+  async function editCosts(actions: CostCatalogAction[]): Promise<boolean> {
+    if (pendingRef.current) return false;
+    pendingRef.current = true;
+    setPending(true);
+    try {
+      const applied = await onEditCosts(actions);
+      setError(applied ? null : t("cost.invalidRow"));
+      return applied;
+    } catch {
+      setError(t("cost.invalidRow"));
+      return false;
+    } finally {
+      pendingRef.current = false;
+      setPending(false);
+    }
+  }
+
+  async function addSize() {
     const pileSizeMm = Number(newSizeDraft);
     const costPerM3 = commitCostInput(newCostDraft);
     if (!Number.isFinite(pileSizeMm) || pileSizeMm <= 0 || costPerM3 === null) {
       setError(t("cost.invalidRow"));
       return;
     }
-    try {
-      onSettingsChange(addPileCostItem(settings, {
+    if (await editCosts([{ action: "add", item: {
         pile_size_mm: pileSizeMm,
         shape: newShape,
         cost_per_m3: costPerM3,
-      }));
+    } }])) {
       setNewSizeDraft("");
       setNewCostDraft("");
       setError(null);
-    } catch (reason) {
-      setError(reason instanceof Error ? reason.message : String(reason));
     }
   }
 
@@ -78,7 +90,7 @@ export default function CostCatalogEditor({
         <div><h2>{t("cost.title")}</h2><span>{t("cost.subtitle")}</span></div>
         <button className="right-panel-task-close" type="button" aria-label={t("actions.close")} onClick={onClose}>&times;</button>
       </header>
-      <div className="settings-scroll cost-catalog-scroll">
+      <fieldset className="settings-scroll cost-catalog-scroll" disabled={pending}>
         <section className="settings-group cost-size-settings">
           <h3>{t("cost.projectSizes")}</h3>
           {missingSizes.length > 0 && (
@@ -90,9 +102,8 @@ export default function CostCatalogEditor({
           <CostTable
             currencyCode={currencyCode}
             items={used}
-            settings={settings}
             usedPileSizes={usedPileSizes}
-            onSettingsChange={onSettingsChange}
+            onEditCosts={editCosts}
           />
         </section>
 
@@ -101,9 +112,8 @@ export default function CostCatalogEditor({
           <CostTable
             currencyCode={currencyCode}
             items={other}
-            settings={settings}
             usedPileSizes={usedPileSizes}
-            onSettingsChange={onSettingsChange}
+            onEditCosts={editCosts}
           />
         </details>
 
@@ -137,17 +147,16 @@ export default function CostCatalogEditor({
             <p>{t("cost.builtInSourceDescription")}</p>
           </div>
         </section>
-      </div>
+      </fieldset>
     </div>
   );
 }
 
-function CostTable({ currencyCode, items, settings, usedPileSizes, onSettingsChange }: {
+function CostTable({ currencyCode, items, usedPileSizes, onEditCosts }: {
   currencyCode: string;
   items: PileCostSettingsItem[];
-  settings: PileCostSettings;
   usedPileSizes: ReadonlySet<number>;
-  onSettingsChange: (settings: PileCostSettings) => void;
+  onEditCosts: (actions: CostCatalogAction[]) => Promise<boolean>;
 }) {
   const { t } = useTranslation("rightPanel");
   if (items.length === 0) return <p className="supporting-text">{t("cost.noRows")}</p>;
@@ -160,10 +169,9 @@ function CostTable({ currencyCode, items, settings, usedPileSizes, onSettingsCha
             currencyCode={currencyCode}
             item={item}
             key={item.pile_size_mm}
-            settings={settings}
             used={usedPileSizes.has(item.pile_size_mm)}
-            onSettingsChange={onSettingsChange}
-            onRemove={() => onSettingsChange(removePileCostItem(settings, item.pile_size_mm, usedPileSizes))}
+            onEditCosts={onEditCosts}
+            onRemove={() => { void onEditCosts([{ action: "remove", pile_size_mm: item.pile_size_mm }]); }}
           />
         ))}</tbody>
       </table>
@@ -171,12 +179,11 @@ function CostTable({ currencyCode, items, settings, usedPileSizes, onSettingsCha
   );
 }
 
-function CostSettingsRow({ currencyCode, item, settings, used, onSettingsChange, onRemove }: {
+function CostSettingsRow({ currencyCode, item, used, onEditCosts, onRemove }: {
   currencyCode: string;
   item: PileCostSettingsItem;
-  settings: PileCostSettings;
   used: boolean;
-  onSettingsChange: (settings: PileCostSettings) => void;
+  onEditCosts: (actions: CostCatalogAction[]) => Promise<boolean>;
   onRemove: () => void;
 }) {
   const { t } = useTranslation("rightPanel");
@@ -189,18 +196,18 @@ function CostSettingsRow({ currencyCode, item, settings, used, onSettingsChange,
         ariaLabel={t("cost.shape")}
         value={item.shape}
         options={shapeOptions(t)}
-        onChange={(value) => onSettingsChange(updatePileCostItem(settings, item.pile_size_mm, { shape: value === "round" ? "round" : "square" }))}
+        onChange={(value) => { void onEditCosts([{ action: "update", pile_size_mm: item.pile_size_mm, shape: value === "round" ? "round" : "square" }]); }}
       /></td>
       <td><label className="table-number-field"><span>{currencyCode}</span><ThemedNumberInput
         min="0"
         step="1"
         value={costDraft}
         onValueChange={setCostDraft}
-        onBlur={() => {
+        onBlur={async () => {
           const cost = commitCostInput(costDraft);
           if (cost === null) return setCostDraft(String(item.cost_per_m3));
-          setCostDraft(String(cost));
-          onSettingsChange(updatePileCostItem(settings, item.pile_size_mm, { cost_per_m3: cost }));
+          const applied = await onEditCosts([{ action: "update", pile_size_mm: item.pile_size_mm, cost_per_m3: cost }]);
+          setCostDraft(String(applied ? cost : item.cost_per_m3));
         }}
         onKeyDown={(event) => { if (event.key === "Enter") event.currentTarget.blur(); }}
       /></label></td>

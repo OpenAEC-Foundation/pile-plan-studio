@@ -182,7 +182,8 @@ describe("React cost settings panel", () => {
 
     assert.doesNotMatch(panel, /PILE_COST_DEFAULTS_KEY/);
     assert.doesNotMatch(panel, /setSetting\(/);
-    assert.match(costPanel, /onSettingsChange/);
+    assert.match(costPanel, /onEditCosts/);
+    assert.doesNotMatch(costPanel, /onSettingsChange/);
   });
 });
 

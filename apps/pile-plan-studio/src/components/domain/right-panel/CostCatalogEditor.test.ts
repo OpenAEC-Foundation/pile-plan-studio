@@ -15,14 +15,22 @@ describe("Cost settings panel", () => {
   });
 
   it("supports adding sizes and protects used rows from deletion", () => {
-    assert.match(source, /addPileCostItem/);
-    assert.match(source, /removePileCostItem/);
+    assert.match(source, /action: "add"/);
+    assert.match(source, /action: "remove"/);
+    assert.match(source, /onEditCosts/);
     assert.match(source, /usedPileSizes\.has/);
   });
 
   it("labels costs with the project currency and omits pile head level", () => {
     assert.match(source, /currencyCode/);
     assert.doesNotMatch(source, /pileHeadLevel/);
+  });
+
+  it("explains the whole-millimetre requirement in both languages", () => {
+    const en = JSON.parse(readFileSync(resolve(import.meta.dirname, "../../../i18n/locales/en/rightPanel.json"), "utf8"));
+    const nl = JSON.parse(readFileSync(resolve(import.meta.dirname, "../../../i18n/locales/nl/rightPanel.json"), "utf8"));
+    assert.match(en["cost.invalidRow"], /positive integer pile size in mm/);
+    assert.match(nl["cost.invalidRow"], /positieve, gehele paalafmeting in mm/);
   });
 
   it("exposes explicit personal and built-in default actions", () => {

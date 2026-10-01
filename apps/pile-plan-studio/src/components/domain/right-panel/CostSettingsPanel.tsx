@@ -1,16 +1,17 @@
 import type { ProjectState } from "../../../domain/project/projectState.ts";
 import type { PileCostSettings } from "../../../core/projectTypes.ts";
+import type { CostCatalogAction } from "../../../core/settingsEditCoreClient.ts";
 import CostCatalogEditor from "./CostCatalogEditor.tsx";
 
 export type CostSettingsPanelProps = {
-  state: ProjectState; onStateChange: (state: ProjectState) => void; onClose: () => void;
+  state: ProjectState; onEditCosts: (actions: CostCatalogAction[]) => Promise<boolean>; onClose: () => void;
   hasPersonalCostDefault?: boolean; onSaveCostDefault?: (settings: PileCostSettings) => void;
   onLoadCostDefault?: () => void; onRemoveCostDefault?: () => void; onLoadBuiltInCosts?: () => void;
 };
 
 export default function CostSettingsPanel({
   state,
-  onStateChange,
+  onEditCosts,
   onClose,
   hasPersonalCostDefault = false,
   onSaveCostDefault = () => undefined,
@@ -24,7 +25,7 @@ export default function CostSettingsPanel({
       bearingCapacities={state.bearingCapacities}
       currencyCode={state.currencyCode}
       hasPersonalDefault={hasPersonalCostDefault}
-      onSettingsChange={(pileCostSettings) => onStateChange({ ...state, pileCostSettings })}
+      onEditCosts={onEditCosts}
       onSavePersonalDefault={onSaveCostDefault}
       onLoadPersonalDefault={onLoadCostDefault}
       onRemovePersonalDefault={onRemoveCostDefault}

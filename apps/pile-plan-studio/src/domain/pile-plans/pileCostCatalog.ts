@@ -29,46 +29,6 @@ export function validatePileCostItem(item: unknown): string | null {
   return null;
 }
 
-export function addPileCostItem(
-  catalog: PileCostSettings,
-  item: PileCostSettingsItem,
-): PileCostSettings {
-  assertValid(item);
-  if (catalog.items.some((current) => current.pile_size_mm === item.pile_size_mm)) {
-    throw new Error("Pile size must be unique.");
-  }
-  return withSortedItems(catalog, [...catalog.items, item]);
-}
-
-export function updatePileCostItem(
-  catalog: PileCostSettings,
-  pileSizeMm: number,
-  patch: Partial<PileCostSettingsItem>,
-): PileCostSettings {
-  const index = catalog.items.findIndex((item) => item.pile_size_mm === pileSizeMm);
-  if (index < 0) return catalog;
-  const nextItem = { ...catalog.items[index], ...patch };
-  assertValid(nextItem);
-  if (nextItem.pile_size_mm !== pileSizeMm
-    && catalog.items.some((item) => item.pile_size_mm === nextItem.pile_size_mm)) {
-    throw new Error("Pile size must be unique.");
-  }
-  const items = catalog.items.map((item, itemIndex) => itemIndex === index ? nextItem : item);
-  return withSortedItems(catalog, items);
-}
-
-export function removePileCostItem(
-  catalog: PileCostSettings,
-  pileSizeMm: number,
-  usedPileSizes: ReadonlySet<number>,
-): PileCostSettings {
-  if (usedPileSizes.has(pileSizeMm)) {
-    throw new Error("A pile size that is in use cannot be removed.");
-  }
-  const items = catalog.items.filter((item) => item.pile_size_mm !== pileSizeMm);
-  return items.length === catalog.items.length ? catalog : { ...catalog, items };
-}
-
 export function partitionPileCostItems(
   catalog: PileCostSettings,
   usedPileSizes: ReadonlySet<number>,
@@ -151,15 +111,6 @@ function addValidRows(
       reason: `${rowSource}: ${reason}`,
     });
   }
-}
-
-function assertValid(item: PileCostSettingsItem): void {
-  const reason = validatePileCostItem(item);
-  if (reason) throw new Error(reason);
-}
-
-function withSortedItems(catalog: PileCostSettings, items: PileCostSettingsItem[]): PileCostSettings {
-  return { ...catalog, items: [...items].sort(comparePileSize) };
 }
 
 function comparePileSize(left: PileCostSettingsItem, right: PileCostSettingsItem): number {

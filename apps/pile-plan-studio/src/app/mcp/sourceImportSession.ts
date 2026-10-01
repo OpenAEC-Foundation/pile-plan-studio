@@ -1,6 +1,7 @@
 import type { ImportSourceInput } from "../../core/coreImportContract.ts";
 import { McpReadError, type ToolPayload } from "./readModel.ts";
 import type { ProjectMarkerValue } from "./projectMarker.ts";
+import { withImportApplyLock } from "./importApplyLock.ts";
 
 export class SourceImportValidationError extends Error {
   readonly diagnostics: unknown[];
@@ -171,16 +172,17 @@ export function createSourceImportSession(dependencies: Dependencies) {
     if (name === "pile_apply_source_import") {
       if (transaction.applying || transaction.status !== "ready" || !transaction.validated
         || args.validation_id !== transaction.validationId) throw new McpReadError("import_not_validated");
-      transaction.applying = true;
-      try {
+      const validated = transaction.validated;
+      return withImportApplyLock(transaction, async () => {
         if (transaction.validationDigest !== await contentDigest(transaction)) {
           throw new McpReadError("import_content_changed");
         }
-        const result = await dependencies.apply({ mode: transaction.mode, validated: transaction.validated,
+        find(transaction.id, marker);
+        const result = await dependencies.apply({ mode: transaction.mode, validated,
           marker: transaction.marker });
         transactions.delete(transaction.id);
         return { ...marker, data: { transaction_id: transaction.id, ...result } };
-      } finally { transaction.applying = false; }
+      });
     }
     throw new McpReadError("unknown_tool");
   }

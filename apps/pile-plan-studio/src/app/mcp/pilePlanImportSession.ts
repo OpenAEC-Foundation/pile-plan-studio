@@ -1,6 +1,7 @@
 import type { PilePlanImportPreview } from "../../core/pilePlanImportContract.ts";
 import { McpReadError, page, type ToolPayload } from "./readModel.ts";
 import type { ProjectMarkerValue } from "./projectMarker.ts";
+import { withImportApplyLock } from "./importApplyLock.ts";
 
 export type PilePlanImportToolName = "pile_get_pile_plan_import_requirements" | "pile_begin_pile_plan_import"
   | "pile_append_pile_plan_import" | "pile_validate_pile_plan_import" | "pile_get_pile_plan_import_status"
@@ -147,14 +148,15 @@ export function createPilePlanImportSession(dependencies: Dependencies) {
       if (transaction.preview.summary.skippedRows > 0 || transaction.preview.summary.conflicts > 0) {
         if (args.allow_partial_import !== true) throw new McpReadError("partial_import_requires_acceptance");
       }
-      if (await digest(transaction.chunks) !== transaction.digest) throw new McpReadError("import_content_changed");
-      transaction.applying = true;
-      try {
-        const result = await dependencies.apply({ preview: transaction.preview, fileName: transaction.fileName,
+      const preview = transaction.preview;
+      return withImportApplyLock(transaction, async () => {
+        if (await digest(transaction.chunks) !== transaction.digest) throw new McpReadError("import_content_changed");
+        find(transaction.id, marker);
+        const result = await dependencies.apply({ preview, fileName: transaction.fileName,
           planName: transaction.planName, options: transaction.options, marker });
         transactions.delete(transaction.id);
         return { ...marker, data: { ...result, transaction_id: transaction.id, applied: true } };
-      } finally { transaction.applying = false; }
+      });
     }
     throw new McpReadError("unknown_tool");
   }

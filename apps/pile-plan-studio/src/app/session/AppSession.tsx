@@ -20,7 +20,9 @@ import { requireCurrentGroups } from "../mcp/projectSettingsSources.ts";
 import { runProjectFileOperation } from "../project/projectFileOperations.ts";
 import { summarizeImportReconciliation } from "../mcp/sourceImportSummary.ts";
 import { prepareLegendEditorEdit, prepareProjectDocumentEdit,
+  preparePileCostCatalogEdit, preparePileCostCatalogDefaultEdit, prepareMergedPileCostCatalogEdit,
   type PreparedProjectDocumentEdit } from "../project/projectEditOperations.ts";
+import type { CostCatalogAction } from "../../core/settingsEditCoreClient.ts";
 import type { LegendEditorDraft } from "../../domain/legend/legendEditorModel.ts";
 import { buildLoadPointGroupSignature } from "../derived-state/loadPointGroupController.ts";
 import { buildTechnicalAssignmentSignature } from "../derived-state/technicalAssignmentController.ts";
@@ -161,7 +163,6 @@ import {
 } from "../../domain/settings/userSettingsStore.ts";
 import { changeLanguage } from "../../i18n/config.ts";
 import { elementLayoutScale, screenToLocal } from "../../domain/settings/uiBaseline.ts";
-import { applyPileCostCatalogDefault, mergePileCostCatalog } from "../../domain/pile-plans/pileCostCatalog.ts";
 import { VIEWER_LAYOUT_CHANGE_EVENT } from "../../viewer/viewerGeometry.ts";
 import { transitionLassoSelectionMode } from "../../viewer/lassoSelection.ts";
 import {
@@ -802,6 +803,12 @@ export default function AppSession({
 
   const applyLegendEditor = (draft: LegendEditorDraft, enableTipLevelRegions: boolean) =>
     applyValidatedProjectEdit((state) => prepareLegendEditorEdit(state, draft, enableTipLevelRegions));
+
+  const applyCostCatalogEdit = (actions: CostCatalogAction[]) =>
+    applyValidatedProjectEdit((state) => preparePileCostCatalogEdit(state, actions));
+
+  const loadCostCatalogDefault = (catalog: PileCostSettings) =>
+    applyValidatedProjectEdit((state) => preparePileCostCatalogDefaultEdit(state, catalog));
 
   const handleSourceLoadPointSelection = (intent: SourceLoadPointSelection) => {
     if (projectState.loadPointLockDraft !== null || projectState.cptSelectionEditDraft !== null) return;
@@ -1513,15 +1520,19 @@ export default function AppSession({
             setIsDirty(true);
           } else {
             const project = imported.project;
-            const usedPileSizes = new Set(project.inputs.bearing_capacities.map((capacity) => capacity.pile_size_mm));
-            const costs = mergePileCostCatalog(project.settings.pile_costs,
-              userSettingsRef.current.defaults.pileCostCatalog, BUILT_IN_PILE_COST_DEFAULTS, usedPileSizes).catalog;
-            const withCosts = { ...project, settings: { ...project.settings, pile_costs: costs } };
-            defaultSelectionKeepsDirtyRef.current = false;
-            flushSync(() => replaceProjectState(createInitialProjectState(withCosts, {
+            const importedState = createInitialProjectState(project, {
               initializeDefaultPiles: true,
               defaultPilePlanName: pilePlanLanguage() === "nl" ? "Basisplan" : "Base plan",
-            }, imported.keys)));
+            }, imported.keys);
+            const costs = await prepareMergedPileCostCatalogEdit(importedState,
+              userSettingsRef.current.defaults.pileCostCatalog, BUILT_IN_PILE_COST_DEFAULTS);
+            if (run !== mcpLifecycleRef.current || !mcpWriteEnabledRef.current) throw new McpReadError("write_access_disabled");
+            const latest = mcpProjectMarkerRef.current!.observe(projectStateRef.current);
+            if (latest.project_instance_id !== marker.project_instance_id
+              || latest.project_revision !== marker.project_revision) throw new McpReadError("project_changed");
+            if (isDirtyRef.current) throw new McpReadError("unsaved_project_changes");
+            defaultSelectionKeepsDirtyRef.current = false;
+            flushSync(() => replaceProjectState(costs.update(importedState)));
             setProjectPath(null);
             updateSavedProjectSignature("");
             isDirtyRef.current = true;
@@ -2115,31 +2126,16 @@ export default function AppSession({
             taskPanel={rightTaskPanel}
             onCloseTaskPanel={() => setRightTaskPanel(null)}
             hasPersonalCostDefault={userSettings.defaults.pileCostCatalog !== null}
+            onEditCosts={applyCostCatalogEdit}
             onSaveCostDefault={(pileCostCatalog) => commitUserSettings(patchPileCostDefaults(userSettings, pileCostCatalog))}
             onRemoveCostDefault={() => commitUserSettings(patchPileCostDefaults(userSettings, null))}
             onLoadCostDefault={() => {
               const catalog = userSettings.defaults.pileCostCatalog;
               if (!catalog) return;
-              const usedPileSizes = new Set(projectState.bearingCapacities.map((capacity) => capacity.pile_size_mm));
-              handleProjectStateChange({
-                ...projectState,
-                pileCostSettings: applyPileCostCatalogDefault(
-                  projectState.pileCostSettings,
-                  catalog,
-                  usedPileSizes,
-                ).catalog,
-              });
+              void loadCostCatalogDefault(catalog);
             }}
             onLoadBuiltInCosts={() => {
-              const usedPileSizes = new Set(projectState.bearingCapacities.map((capacity) => capacity.pile_size_mm));
-              handleProjectStateChange({
-                ...projectState,
-                pileCostSettings: applyPileCostCatalogDefault(
-                  projectState.pileCostSettings,
-                  BUILT_IN_PILE_COST_DEFAULTS,
-                  usedPileSizes,
-                ).catalog,
-              });
+              void loadCostCatalogDefault(BUILT_IN_PILE_COST_DEFAULTS);
             }}
           />}
         </div>
@@ -2190,22 +2186,14 @@ export default function AppSession({
               sources,
             });
             const project = imported.project;
-            const usedPileSizes = new Set(project.inputs.bearing_capacities.map((capacity) => capacity.pile_size_mm));
-            const mergedCosts = mergePileCostCatalog(
-              project.settings.pile_costs,
-              userSettings.defaults.pileCostCatalog,
-              BUILT_IN_PILE_COST_DEFAULTS,
-              usedPileSizes,
-            ).catalog;
-            const withCosts = {
-              ...project,
-              settings: { ...project.settings, pile_costs: mergedCosts },
-            };
-          defaultSelectionKeepsDirtyRef.current = false;
-          replaceProjectState(createInitialProjectState(withCosts, {
+          const importedState = createInitialProjectState(project, {
             initializeDefaultPiles: true,
             defaultPilePlanName: pilePlanLanguage() === "nl" ? "Basisplan" : "Base plan",
-          }, imported.keys));
+          }, imported.keys);
+          const costs = await prepareMergedPileCostCatalogEdit(importedState,
+            userSettings.defaults.pileCostCatalog, BUILT_IN_PILE_COST_DEFAULTS);
+          defaultSelectionKeepsDirtyRef.current = false;
+          replaceProjectState(costs.update(importedState));
           setProjectPath(null);
           updateSavedProjectSignature("");
           setIsDirty(true);

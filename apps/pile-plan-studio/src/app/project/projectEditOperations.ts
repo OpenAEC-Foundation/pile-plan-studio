@@ -3,12 +3,75 @@ import { captureProjectContent, restoreProjectContent } from "../../domain/proje
 import { createInitialProjectState, type ProjectState } from "../../domain/project/projectState.ts";
 import type { LegendEditorDraft } from "../../domain/legend/legendEditorModel.ts";
 import { projectDraftFromState, projectStateSignature } from "./projectLifecycleController.ts";
+import { evaluatePileCostCatalogEditCore, type CostCatalogAction, type CostCatalogEditResult } from "../../core/settingsEditCoreClient.ts";
+import type { PileCostSettings } from "../../core/projectTypes.ts";
+import { applyPileCostCatalogDefault, mergePileCostCatalog } from "../../domain/pile-plans/pileCostCatalog.ts";
 
 export type PreparedProjectDocumentEdit = {
   changed: boolean;
   next: ProjectState;
   update: (current: ProjectState) => ProjectState;
 };
+
+export class PileCostCatalogEditError extends Error {
+  readonly result: Extract<CostCatalogEditResult, { status: "blocked" }>;
+  constructor(result: Extract<CostCatalogEditResult, { status: "blocked" }>) {
+    super(result.reason);
+    this.result = result;
+  }
+}
+
+/** Both interface and MCP cost edits use Rust validation before entering project history. */
+export async function preparePileCostCatalogEdit(
+  state: ProjectState, actions: CostCatalogAction[],
+): Promise<PreparedProjectDocumentEdit & { changedSizesMm: number[] }> {
+  const result = await evaluatePileCostCatalogEditCore({
+    settings: state.pileCostSettings,
+    usedPileSizesMm: [...new Set(state.bearingCapacities.map((row) => row.pile_size_mm))],
+    actions,
+  });
+  if (result.status === "blocked") throw new PileCostCatalogEditError(result);
+  const update = (current: ProjectState): ProjectState => result.changed
+    ? { ...current, pileCostSettings: result.settings } : current;
+  return { changed: result.changed, next: update(state), update, changedSizesMm: result.changed_sizes_mm };
+}
+
+export async function preparePileCostCatalogDefaultEdit(
+  state: ProjectState, preferred: PileCostSettings,
+): Promise<PreparedProjectDocumentEdit> {
+  const used = new Set(state.bearingCapacities.map((row) => row.pile_size_mm));
+  const proposed = applyPileCostCatalogDefault(state.pileCostSettings, preferred, used).catalog;
+  return preparePileCostCatalogReplacement(state, proposed);
+}
+
+export async function prepareMergedPileCostCatalogEdit(
+  state: ProjectState, preferred: PileCostSettings | null, builtIn: PileCostSettings | null,
+): Promise<PreparedProjectDocumentEdit> {
+  const used = new Set(state.bearingCapacities.map((row) => row.pile_size_mm));
+  const proposed = mergePileCostCatalog(state.pileCostSettings, preferred, builtIn, used).catalog;
+  return preparePileCostCatalogReplacement(state, proposed);
+}
+
+function preparePileCostCatalogReplacement(
+  state: ProjectState, proposed: PileCostSettings,
+): Promise<PreparedProjectDocumentEdit> {
+  const currentBySize = new Map(state.pileCostSettings.items.map((item) => [item.pile_size_mm, item]));
+  const proposedSizes = new Set(proposed.items.map((item) => item.pile_size_mm));
+  const actions: CostCatalogAction[] = [];
+  for (const item of proposed.items) {
+    const current = currentBySize.get(item.pile_size_mm);
+    if (!current) actions.push({ action: "add", item });
+    else if (current.shape !== item.shape || current.cost_per_m3 !== item.cost_per_m3) {
+      actions.push({ action: "update", pile_size_mm: item.pile_size_mm,
+        shape: item.shape, cost_per_m3: item.cost_per_m3 });
+    }
+  }
+  for (const item of state.pileCostSettings.items) {
+    if (!proposedSizes.has(item.pile_size_mm)) actions.push({ action: "remove", pile_size_mm: item.pile_size_mm });
+  }
+  return actions.length > 0 ? preparePileCostCatalogEdit(state, actions)
+    : Promise.resolve({ changed: false, next: state, update: (current: ProjectState) => current });
+}
 
 const sourceEdits = new Set(["load_points", "cpts", "bearing_capacities"]);
 
