@@ -62,19 +62,11 @@ const MULTI_PILE_OPTION_COLUMNS: Array<{ key: PileOptionTableColumn; label: stri
   { key: "maxUse", label: "Max use" },
   { key: "criticalLoadPoint", label: "Critical load point" },
 ];
-const ALL_PILE_OPTION_COLUMNS = [...SINGLE_PILE_OPTION_COLUMNS, ...MULTI_PILE_OPTION_COLUMNS]
-  .filter((column, index, columns) => columns.findIndex(({ key }) => key === column.key) === index);
-
 export function getPileOptionColumns(
   selectedLoadPointCount: number,
 ): Array<{ key: PileOptionTableColumn; label: string }> {
   return selectedLoadPointCount > 1 ? MULTI_PILE_OPTION_COLUMNS : SINGLE_PILE_OPTION_COLUMNS;
 }
-
-export const SORTABLE_PILE_OPTION_COLUMNS: Array<{ key: SortablePileOptionTableColumn; label: string }> =
-  ALL_PILE_OPTION_COLUMNS.filter(
-    (column): column is { key: SortablePileOptionTableColumn; label: string } => column.key !== "symbol",
-  );
 
 export function createEmptyPileOptionFilters(): PileOptionFilterState {
   return {

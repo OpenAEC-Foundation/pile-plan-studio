@@ -10,7 +10,6 @@ import {
   isViewerSelectionActionAllowed,
   openReactViewerCpt,
   selectReactViewerLoadPoint,
-  selectSingleLoadPointForInspection,
   setReactViewerLoadPoints,
   shouldClearLegendSelectionFromPointerTarget,
   shouldRaiseCptMarker,
@@ -149,22 +148,6 @@ describe("React viewer interactions", () => {
       expandInitialReactViewerLoadPointGroup(userSelection, 2, groups),
       userSelection,
     );
-  });
-
-  it("selects exactly one member for disclosure-list inspection", () => {
-    const state = {
-      selectedLoadPointId: 1,
-      selectedLoadPointIds: [1, 2, 3],
-      selectedCptId: 64,
-      rightPanelMode: "load-point" as const,
-      cptSettingsScope: "selected" as const,
-      legendSelectionFilter: { pileSizes: [], pileTipLevels: [] },
-    };
-
-    const next = selectSingleLoadPointForInspection(state, 2);
-    assert.deepEqual(next.selectedLoadPointIds, [2]);
-    assert.equal(next.selectedLoadPointId, 2);
-    assert.equal(next.selectedCptId, null);
   });
 
   it("toggles a load point for additive modifier-click selection", () => {

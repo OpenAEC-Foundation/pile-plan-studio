@@ -31,5 +31,3 @@ export async function evaluateProjectDocumentEditCore(
   if (document.status !== "valid") throw new Error("Rust returned an invalid MCP project edit document");
   return { status: "applied", changed: result.changed, document };
 }
-
-export const evaluateMcpProjectEditCore = evaluateProjectDocumentEditCore;

@@ -85,15 +85,3 @@ export function createProjectViewTransform(
     },
   };
 }
-
-export function getVisibleProjectBounds(transform: ProjectViewTransform): ProjectBounds {
-  const centerX = (transform.bounds.minX + transform.bounds.maxX) / 2;
-  const centerY = (transform.bounds.minY + transform.bounds.maxY) / 2;
-
-  return {
-    minX: centerX - transform.projectCenterPx.x / transform.pixelsPerMillimeter,
-    maxX: centerX + (transform.canvasSize.width - transform.projectCenterPx.x) / transform.pixelsPerMillimeter,
-    minY: centerY - (transform.canvasSize.height - transform.projectCenterPx.y) / transform.pixelsPerMillimeter,
-    maxY: centerY + transform.projectCenterPx.y / transform.pixelsPerMillimeter,
-  };
-}

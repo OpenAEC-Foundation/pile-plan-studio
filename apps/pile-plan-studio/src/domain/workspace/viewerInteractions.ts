@@ -2,7 +2,6 @@ import {
   addLoadPointsToSelection,
   clearSelection,
   openCpt,
-  selectLoadPoint,
   setLoadPointSelection,
   type SelectionState,
 } from "./selectionState.ts";
@@ -34,13 +33,6 @@ export function selectReactViewerLoadPoint(
     state,
     setLoadPointSelection(state, expandSelectionToGroups([loadPointId], groups)),
   ));
-}
-
-export function selectSingleLoadPointForInspection(
-  state: ReactViewerSelectionState,
-  loadPointId: number,
-): ReactViewerSelectionState {
-  return clearLegendSelection(applySelectionTransition(state, selectLoadPoint(state, loadPointId)));
 }
 
 export function toggleReactViewerLoadPoint(
