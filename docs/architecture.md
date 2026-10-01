@@ -36,6 +36,13 @@ live callbacks and invalidates pending requests on unmount; `AppSession` provide
 the history commit and translated notices. All accepted changes are installed
 immutably in one history step, including group-expanded changes and removals.
 
+Manual grouping, ungrouping and reset of grouping overrides are coordinated by
+`app/project/groupEditController.ts` and its React adapter `useGroupEdit.ts`.
+They reuse the Rust preview and edit evaluators, reject concurrent edits and
+stale source/settings snapshots, and commit copied grouping records with the
+appropriate selection and history action. Group edits preserve pile assignments;
+conflicts remain visible through the Rust-derived assessment.
+
 ## Desktop MCP connection
 
 `app/mcp/connectionController.ts` owns connection status, startup cancellation,

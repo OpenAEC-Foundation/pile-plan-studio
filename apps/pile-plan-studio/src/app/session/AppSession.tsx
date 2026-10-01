@@ -35,6 +35,7 @@ import PilePlanWorkspace from "../../components/domain/pile-plans/PilePlanWorksp
 import RightPanel, { type RightTaskPanel } from "../../components/domain/right-panel/RightPanel";
 import { usePileOptionCosts } from "../derived-state/usePileOptionCosts.ts";
 import { useLoadPointGroups } from "../derived-state/useLoadPointGroups.ts";
+import { useGroupEdit } from "../project/useGroupEdit.ts";
 import { usePileAssignment } from "../project/usePileAssignment.ts";
 import { useProjectTechnicalAssignment } from "../derived-state/useProjectTechnicalAssignment.ts";
 import { useGroupAssignmentAssessment } from "../derived-state/useGroupAssignmentAssessment.ts";
@@ -46,7 +47,6 @@ import type { InputSourceKind } from "../../domain/project/projectState.ts";
 import type { SourceLoadPointSelection } from "../../domain/source-data/sourceTableModel.ts";
 import {
   assessLoadPointGroupAssignmentsCore,
-  applyLoadPointGroupEditCore,
   calculatePileCostCore,
   calculatePileOptionAnalysisCore,
   chooseDefaultPileOptionsCore,
@@ -54,16 +54,11 @@ import {
   exportPilePlanXlsxCore,
   importProjectFromFilesCore,
   readProjectDocumentCore,
-  previewLoadPointGroupEditCore,
   refreshProjectFromFilesCore,
   writeProjectDocumentCore,
 } from "../../core/coreClient";
 import { invokeDesktop, listenDesktop } from "../../core/coreTransport.ts";
 import type { PileCostSettings } from "../../core/projectTypes.ts";
-import type {
-  LoadPointGroupEditAction,
-  LoadPointGroupEditPreview,
-} from "../../core/loadPointGroupContract.ts";
 import type { ImportSourceInput } from "../../core/coreImportContract";
 import type { ProjectImportProperties } from "../../components/domain/imports/ProjectImportPanel.tsx";
 import type { ImportFileRole } from "../../core/importFiles.ts";
@@ -279,8 +274,12 @@ export default function AppSession({
       blocked: (names) => showActionNotice(t("loadPointGroups.assignmentBlocked", { names: names.join(", ") }), "error"),
       failed: (message) => showActionNotice(message, "error"),
     });
-  const groupEditRequestIdRef = useRef(0);
-  const [groupEditPending, setGroupEditPending] = useState(false);
+  const { pending: groupEditPending, preview: previewGroupEdit, apply: applyGroupEdit } = useGroupEdit({
+    currentState: () => projectStateRef.current,
+    ready: () => !loadPointGroups.pending && loadPointGroups.error === null,
+    commit: (update, action) => commitProjectState(update, action),
+    blocked: (reason) => showActionNotice(t(`loadPointGroups.editBlocked.${reason}`), "error"),
+  });
   const setProjectState = useCallback((update: SetStateAction<ProjectState>) => {
     dispatchProject({ type: "runtime", update });
   }, []);
@@ -775,71 +774,6 @@ export default function AppSession({
   const clearSourceSelection = () => {
     if (projectState.loadPointLockDraft !== null || projectState.cptSelectionEditDraft !== null) return;
     handleProjectStateChange({ ...projectState, ...clearReactViewerSelection(projectState) });
-  };
-
-  const previewGroupEdit = async (
-    action: LoadPointGroupEditAction,
-    selectedLoadPointIds = projectState.selectedLoadPointIds,
-  ): Promise<LoadPointGroupEditPreview | null> => {
-    if (loadPointGroups.pending || loadPointGroups.error !== null) return null;
-    return previewLoadPointGroupEditCore({
-      loadPoints: projectState.loadPoints,
-      settings: projectState.loadPointGroupingSettings,
-      selectedLoadPointIds,
-      action,
-    });
-  };
-
-  const applyGroupEdit = async (
-    action: LoadPointGroupEditAction,
-    selectedLoadPointIds = projectState.selectedLoadPointIds,
-  ): Promise<void> => {
-    if (groupEditPending || loadPointGroups.pending || loadPointGroups.error !== null) return;
-    const requestId = ++groupEditRequestIdRef.current;
-    const capturedLoadPoints = projectState.loadPoints;
-    const capturedSettings = projectState.loadPointGroupingSettings;
-    const capturedSelectedIds = [...selectedLoadPointIds];
-    setGroupEditPending(true);
-    try {
-      const result = await applyLoadPointGroupEditCore({
-        loadPoints: capturedLoadPoints,
-        settings: capturedSettings,
-        selectedLoadPointIds: capturedSelectedIds,
-        action,
-      });
-      if (
-        requestId !== groupEditRequestIdRef.current
-        || projectStateRef.current.loadPoints !== capturedLoadPoints
-        || projectStateRef.current.loadPointGroupingSettings !== capturedSettings
-      ) return;
-      if (result.status === "blocked") {
-        showActionNotice(t(`loadPointGroups.editBlocked.${result.reason}`), "error");
-        return;
-      }
-      commitProjectState((current) => {
-        if (
-          current.loadPoints !== capturedLoadPoints
-          || current.loadPointGroupingSettings !== capturedSettings
-        ) return current;
-        const groupingSettings = {
-          ...result.settings,
-          manualGroups: result.settings.manualGroups.map(({ loadPointIds }) => ({
-            loadPointIds: [...loadPointIds],
-          })),
-          ungroupedGroups: result.settings.ungroupedGroups.map(({ loadPointIds }) => ({
-            loadPointIds: [...loadPointIds],
-          })),
-        };
-        const selection = action === "group"
-          ? setReactViewerLoadPoints(current, capturedSelectedIds, result.grouping.groups)
-          : action === "ungroup"
-            ? setReactViewerLoadPoints(current, capturedSelectedIds)
-            : current;
-        return { ...current, ...selection, loadPointGroupingSettings: groupingSettings };
-      }, getLoadPointGroupEditHistoryAction(action));
-    } finally {
-      if (requestId === groupEditRequestIdRef.current) setGroupEditPending(false);
-    }
   };
 
   const importPilePlan = (patch: PilePlanImportPatch, fileName: string) => {
