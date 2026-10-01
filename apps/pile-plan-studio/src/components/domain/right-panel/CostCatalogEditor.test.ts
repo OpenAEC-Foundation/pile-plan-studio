@@ -33,6 +33,13 @@ describe("Cost settings panel", () => {
     assert.match(nl["cost.invalidRow"], /positieve, gehele paalafmeting in mm/);
   });
 
+  it("explains duplicate sizes in both languages", () => {
+    const en = JSON.parse(readFileSync(resolve(import.meta.dirname, "../../../i18n/locales/en/rightPanel.json"), "utf8"));
+    const nl = JSON.parse(readFileSync(resolve(import.meta.dirname, "../../../i18n/locales/nl/rightPanel.json"), "utf8"));
+    assert.match(en["cost.duplicateSize"], /already exists/);
+    assert.match(nl["cost.duplicateSize"], /bestaat al/);
+  });
+
   it("exposes explicit personal and built-in default actions", () => {
     assert.match(source, /onSavePersonalDefault/);
     assert.match(source, /onLoadPersonalDefault/);

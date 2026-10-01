@@ -4,7 +4,6 @@ import assert from "node:assert/strict";
 import {
   filterActivePileOptions,
   pileConfigurationKey,
-  toggleActiveNumber,
 } from "./activePileConfigurations.ts";
 
 describe("active pile configurations", () => {
@@ -44,12 +43,6 @@ describe("active pile configurations", () => {
       ),
       [options[0], options[2]],
     );
-  });
-
-  it("toggles numeric values and keeps them sorted", () => {
-    assert.deepEqual(toggleActiveNumber([320], 290, true), [290, 320]);
-    assert.deepEqual(toggleActiveNumber([-18], -19, true, true), [-18, -19]);
-    assert.deepEqual(toggleActiveNumber([290, 320], 290, false), [320]);
   });
 
   it("copies the canonical Rust configuration key", () => {

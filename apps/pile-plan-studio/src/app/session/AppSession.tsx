@@ -782,6 +782,7 @@ export default function AppSession({
 
   const applyValidatedProjectEdit = async (
     prepare: (state: ProjectState) => Promise<PreparedProjectDocumentEdit>,
+    reportFailure = true,
   ): Promise<boolean> => {
     const captured = projectStateRef.current;
     const signature = projectStateSignature(captured);
@@ -795,7 +796,8 @@ export default function AppSession({
         projectStateSignature(current) === signature ? prepared.update(current) : current
       ));
       return true;
-    } catch {
+    } catch (error) {
+      if (!reportFailure) throw error;
       showActionNotice(t("projectEdit.failed"), "error");
       return false;
     }
@@ -805,7 +807,7 @@ export default function AppSession({
     applyValidatedProjectEdit((state) => prepareLegendEditorEdit(state, draft, enableTipLevelRegions));
 
   const applyCostCatalogEdit = (actions: CostCatalogAction[]) =>
-    applyValidatedProjectEdit((state) => preparePileCostCatalogEdit(state, actions));
+    applyValidatedProjectEdit((state) => preparePileCostCatalogEdit(state, actions), false);
 
   const loadCostCatalogDefault = (catalog: PileCostSettings) =>
     applyValidatedProjectEdit((state) => preparePileCostCatalogDefaultEdit(state, catalog));

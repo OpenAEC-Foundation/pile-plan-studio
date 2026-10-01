@@ -42,6 +42,7 @@
   "cost.addSize": "Add pile size",
   "cost.add": "Add",
   "cost.invalidRow": "Enter a positive integer pile size in mm and a non-negative cost.",
+  "cost.duplicateSize": "This pile size already exists. Edit the cost in the existing row.",
   "cost.noRows": "No cost rows in this group.",
   "cost.inUse": "This pile size is used by the project and cannot be removed.",
   "cost.removeSize": "Remove pile size",

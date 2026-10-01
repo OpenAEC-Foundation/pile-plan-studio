@@ -23,18 +23,6 @@ export function filterActivePileOptions<T extends {
   });
 }
 
-export function toggleActiveNumber(values: number[], value: number, enabled: boolean, descending = false): number[] {
-  const nextValues = new Set(values);
-
-  if (enabled) {
-    nextValues.add(value);
-  } else {
-    nextValues.delete(value);
-  }
-
-  return [...nextValues].sort((left, right) => (descending ? right - left : left - right));
-}
-
 export function pileConfigurationKey(
   option: Pick<PileConfigurationOption, "configuration">,
 ): PileConfigurationKey {

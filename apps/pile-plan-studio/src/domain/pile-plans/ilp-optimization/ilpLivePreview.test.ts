@@ -6,8 +6,8 @@ import { canonicalProjectForTest, projectTipLevelKeysForTest } from "../../../co
 import { createManagedProjectState, projectHistoryReducer } from "../../project/history/projectHistoryReducer.ts";
 import { captureProjectContent } from "../../project/projectContent.ts";
 import { ilpSolvedForTest } from "../../../core/ilpOptimizationTestSupport.ts";
-import { applyIlpSolutionToState } from "./ilpResultApplication.ts";
-import { createIlpLivePreview, applyIlpPreviewInteraction } from "./ilpLivePreview.ts";
+import { createIlpPlanRun, displayIlpPlanRun, completeIlpPlanRun } from "./ilpPlanRun.ts";
+import { applyIlpPreviewInteraction } from "./ilpLivePreview.ts";
 
 function fixture(newPlan:boolean) {
   const project=canonicalProjectForTest(readFileSync("../../sample_project/sample_project.ifcpp","utf8"));
@@ -21,11 +21,12 @@ function fixture(newPlan:boolean) {
 
 for(const newPlan of [true,false])test(`preview ${newPlan?"new":"current"} plan stays temporary; completion records one undo step`,()=>{
   const {state,solution}=fixture(newPlan);
+  const run=createIlpPlanRun(state,"nl",false);
   let managed=createManagedProjectState(state);
   const before=captureProjectContent(managed.present);
-  const first=createIlpLivePreview(state,solution,"nl");
+  const first=displayIlpPlanRun(state,run,solution,true);
   const better={...solution,score_milli:0,assignments:solution.assignments.map(a=>({...a,configuration:{pile_size_mm:400,pile_tip_level_mm:-19000}}))};
-  const second=createIlpLivePreview(state,better,"nl");
+  const second=displayIlpPlanRun(state,run,better,true);
   assert.equal(first.activePilePlanId,second.activePilePlanId);
   assert.equal(second.pilePlans.length,state.pilePlans.length+(newPlan?1:0));
   assert.equal(second.selectedPileConfigurationsByLoadPoint.get(state.selectedLoadPointIds[0])?.pile_size_mm,400);
@@ -37,7 +38,9 @@ for(const newPlan of [true,false])test(`preview ${newPlan?"new":"current"} plan 
   assert.equal(panned.pilePlans,state.pilePlans);
   assert.equal(panned.selectedPileConfigurationsByLoadPoint,state.selectedPileConfigurationsByLoadPoint);
   managed=projectHistoryReducer(managed,{type:"runtime",update:panned});
-  managed=projectHistoryReducer(managed,{type:"commit",update:now=>applyIlpSolutionToState(now,better,"nl")});
+  if(ilpSolvedForTest.status!=="solved")throw new Error("fixture");
+  const outcome={...ilpSolvedForTest,solution:better};
+  managed=projectHistoryReducer(managed,{type:"commit",update:now=>completeIlpPlanRun(now,run,outcome,true)});
   assert.equal(managed.history.past.length,1);
   assert.equal(managed.present.activePilePlanId,second.activePilePlanId);
   managed=projectHistoryReducer(managed,{type:"undo"});
@@ -49,7 +52,8 @@ for(const newPlan of [true,false])test(`preview ${newPlan?"new":"current"} plan 
 });
 
 test("preview interactions cannot save a temporary plan or overwrite its assignments",()=>{
-  const {state,solution}=fixture(true);const shown={...state,...createIlpLivePreview(state,solution,"nl")};
+  const {state,solution}=fixture(true);
+  const shown=displayIlpPlanRun(state,createIlpPlanRun(state,"nl",false),solution,true);
   assert.equal(applyIlpPreviewInteraction(state,shown,{...shown,pilePlans:[...shown.pilePlans]}),null);
   assert.equal(applyIlpPreviewInteraction(state,shown,{...shown,selectedPileConfigurationsByLoadPoint:new Map()}),null);
   const selected=applyIlpPreviewInteraction(state,shown,{...shown,selectedLoadPointIds:[]});

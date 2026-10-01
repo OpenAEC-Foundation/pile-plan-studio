@@ -11,7 +11,6 @@ import {
   generatedPilePlanName,
   nextPilePlanId,
   renamePilePlan,
-  replaceOptimizationOutcomesForTargets,
   switchPilePlan,
   synchronizeActivePilePlan,
 } from "./pilePlanManagement.ts";
@@ -85,19 +84,6 @@ describe("pile plan management", () => {
       new Map([[8, "optimization_constraints"]]),
     );
     assert.equal(original.optimizationUnassignedByLoadPoint.has(7), true);
-  });
-
-  it("replaces optimizer outcomes only for the effective target scope", () => {
-    const result = replaceOptimizationOutcomesForTargets(
-      new Map([[1, "configuration_limits"], [3, "optimization_constraints"]]),
-      [1, 2],
-      new Map([[2, "configuration_limits"]]),
-    );
-
-    assert.deepEqual(
-      result,
-      new Map([[3, "optimization_constraints"], [2, "configuration_limits"]]),
-    );
   });
 
   it("stores active edits before switching and returns a copy of the target choices", () => {

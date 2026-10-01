@@ -32,18 +32,6 @@ export function synchronizeActivePilePlan(
   }) : plan);
 }
 
-export function replaceOptimizationOutcomesForTargets(
-  previous: Map<number, OptimizationUnassignedReason>,
-  targetIds: number[],
-  next: Map<number, OptimizationUnassignedReason>,
-): Map<number, OptimizationUnassignedReason> {
-  const targetSet = new Set(targetIds);
-  return new Map([
-    ...[...previous].filter(([loadPointId]) => !targetSet.has(loadPointId)),
-    ...next,
-  ]);
-}
-
 export function switchPilePlan(
   input: ActivePilePlanInput & { targetPilePlanId: string },
 ): PilePlanTransition {

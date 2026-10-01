@@ -4,7 +4,7 @@ import type { BearingCapacity, PileCostSettings, PileCostSettingsItem } from "..
 import { partitionPileCostItems } from "../../../domain/pile-plans/pileCostCatalog.ts";
 import type { CostCatalogAction } from "../../../core/settingsEditCoreClient.ts";
 import { formatNumber } from "../../../domain/formatting.ts";
-import { commitCostInput } from "./costSettingsModel.ts";
+import { commitCostInput, costEditErrorKey } from "./costSettingsModel.ts";
 import ThemedNumberInput from "../../template/ThemedNumberInput.tsx";
 import ThemedSelect from "../../template/ThemedSelect.tsx";
 import "../../template/ThemedSelect.css";
@@ -57,8 +57,8 @@ export default function CostCatalogEditor({
       const applied = await onEditCosts(actions);
       setError(applied ? null : t("cost.invalidRow"));
       return applied;
-    } catch {
-      setError(t("cost.invalidRow"));
+    } catch (error) {
+      setError(t(costEditErrorKey(error)));
       return false;
     } finally {
       pendingRef.current = false;
