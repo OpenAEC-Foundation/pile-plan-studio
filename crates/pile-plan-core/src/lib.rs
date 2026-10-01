@@ -15,6 +15,7 @@ mod project;
 mod source_data;
 mod technical_assignment;
 mod tip_level_regions;
+mod transport_requests;
 
 pub(crate) use project::APPLICATION_NAME;
 
@@ -119,4 +120,12 @@ pub use technical_assignment::{
 pub use tip_level_regions::{
     build_load_point_topology, build_tip_level_region_topology, LoadPointEdge, LoadPointFace,
     LoadPointTopology, TipLevelRegionAssignment, TipLevelRegionGroup, TipLevelRegionTopology,
+};
+
+pub use transport_requests::{
+    AggregatePileOptionsRequest, AssessLoadPointGroupAssignmentsRequest, DefaultPileOptionsRequest,
+    DeriveLoadPointGroupsRequest, ImportProjectRequest, LoadPointTopologyRequest, PileCostRequest,
+    PileCostResponse, PileOptionAnalysisRequest, PreviewImportRequest, ReadProjectDocumentRequest,
+    RefreshProjectRequest, TechnicalAssignmentRequest, TipLevelRegionTopologyRequest,
+    WriteProjectDocumentRequest,
 };

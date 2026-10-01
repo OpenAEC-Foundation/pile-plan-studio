@@ -13,8 +13,8 @@ use pile_plan_core::{
     choose_default_pile_options, derive_load_point_groups as derive_load_point_groups_core,
     evaluate_cpt_settings_edit as evaluate_cpt_settings_edit_core,
     evaluate_load_point_grouping_settings as evaluate_load_point_grouping_settings_core,
-    evaluate_pile_cost_catalog_edit as evaluate_pile_cost_catalog_edit_core,
     evaluate_mcp_project_edit as evaluate_mcp_project_edit_core,
+    evaluate_pile_cost_catalog_edit as evaluate_pile_cost_catalog_edit_core,
     import_project_from_sources, preview_import_source,
     preview_load_point_group_edit as preview_load_point_group_edit_core, preview_pile_plan_import,
     read_project_document as read_project_document_core, refresh_project_from_profiled_sources,
@@ -24,22 +24,25 @@ use pile_plan_core::{
     write_pile_plan_xlsx as write_pile_plan_xlsx_bytes,
     write_project_document as write_project_document_core, AggregatedPileConfiguration,
     ApplyLoadPointGroupAssignmentBatchInput, ApplyLoadPointGroupAssignmentBatchResult,
-    ApplyLoadPointGroupAssignmentInput, ApplyLoadPointGroupAssignmentResult, CptSelectionSettings,
-    CptSettingsEditInput, CptSettingsEditResult, DerivedLoadPointGroups, GroupAssignmentConflict,
-    ImportSource, ImportSourcePreview, InvalidPileTipLevels, LoadPointGroup,
-    LoadPointGroupEditInput, LoadPointGroupEditPreview, LoadPointGroupEditResult,
-    LoadPointGroupUngroupBatchInput, LoadPointGroupingSettings, LoadPointGroupingSettingsEditInput,
+    ApplyLoadPointGroupAssignmentInput, ApplyLoadPointGroupAssignmentResult, CptSettingsEditInput,
+    CptSettingsEditResult, DerivedLoadPointGroups, GroupAssignmentConflict, ImportSourcePreview,
+    InvalidPileTipLevels, LoadPointGroupEditInput, LoadPointGroupEditPreview,
+    LoadPointGroupEditResult, LoadPointGroupUngroupBatchInput, LoadPointGroupingSettingsEditInput,
     LoadPointGroupingSettingsEditResult, LoadPointLockBatchInput, LoadPointLockBatchResult,
     LoadPointTopology, ManualCptSelectionBatchInput, ManualCptSelectionBatchResult,
-    PileConfigurationKey, PileConfigurationOption, PileCostCatalogEditInput,
-    PileCostCatalogEditResult, PileCostSettings, PileOptionAnalysisResult, PilePlanExportRequest,
-    McpProjectEditInput, McpProjectEditResult,
-    PilePlanImportPreview, PilePlanImportRequest, PilePlanProject, ProjectBearingCapacity,
-    ProjectCpt, ProjectDocumentDraft, ProjectDocumentError, ProjectLoadPoint,
-    TechnicalAssignmentAssessment, TechnicalAssignmentAssessmentError, TipLevelRegionAssignment,
-    TipLevelRegionTopology, ValidatedPilePlanProject,
+    McpProjectEditInput, McpProjectEditResult, PileConfigurationKey, PileCostCatalogEditInput,
+    PileCostCatalogEditResult, PileOptionAnalysisResult, PilePlanExportRequest,
+    PilePlanImportPreview, PilePlanImportRequest, ProjectDocumentError,
+    TechnicalAssignmentAssessment, TechnicalAssignmentAssessmentError, TipLevelRegionTopology,
+    ValidatedPilePlanProject,
 };
-use serde::{Deserialize, Serialize};
+use pile_plan_core::{
+    AggregatePileOptionsRequest, AssessLoadPointGroupAssignmentsRequest, DefaultPileOptionsRequest,
+    DeriveLoadPointGroupsRequest, ImportProjectRequest, LoadPointTopologyRequest, PileCostRequest,
+    PileCostResponse, PileOptionAnalysisRequest, PreviewImportRequest, ReadProjectDocumentRequest,
+    RefreshProjectRequest, TechnicalAssignmentRequest, TipLevelRegionTopologyRequest,
+    WriteProjectDocumentRequest,
+};
 use std::collections::HashMap;
 use std::ffi::OsStr;
 use std::path::{Path, PathBuf};
@@ -105,103 +108,6 @@ where
             Some(path.to_string_lossy().into_owned())
         })
         .collect()
-}
-
-#[derive(Debug, Deserialize)]
-struct PileOptionAnalysisRequest {
-    load_points: Vec<ProjectLoadPoint>,
-    cpts: Vec<ProjectCpt>,
-    bearing_capacities: Vec<ProjectBearingCapacity>,
-    global_settings: CptSelectionSettings,
-    settings_by_load_point: HashMap<u32, CptSelectionSettings>,
-    manual_cpt_ids_by_load_point: HashMap<u32, Vec<u32>>,
-    include_cpt_frd_rows: bool,
-}
-
-#[derive(Debug, Deserialize)]
-struct PileCostRequest {
-    pile_size_mm: u32,
-    pile_tip_level_m: f64,
-    pile_head_level_m: f64,
-    settings: PileCostSettings,
-}
-
-#[derive(Debug, Deserialize)]
-struct DefaultPileOptionsRequest {
-    options_by_load_point: HashMap<u32, Vec<PileConfigurationOption>>,
-    groups: Vec<LoadPointGroup>,
-    pile_head_level_m: f64,
-    cost_settings: PileCostSettings,
-}
-
-#[derive(Debug, Deserialize)]
-struct AggregatePileOptionsRequest {
-    options_by_load_point: HashMap<u32, Vec<PileConfigurationOption>>,
-}
-
-#[derive(Debug, Deserialize)]
-struct TechnicalAssignmentRequest {
-    groups: Vec<LoadPointGroup>,
-    options_by_load_point: HashMap<u32, Vec<PileConfigurationOption>>,
-}
-
-#[derive(Debug, Deserialize)]
-struct ImportProjectRequest {
-    project_name: String,
-    pile_head_level_m: Option<f64>,
-    currency_code: String,
-    sources: Vec<ImportSource>,
-}
-
-#[derive(Debug, Deserialize)]
-struct RefreshProjectRequest {
-    current_project: PilePlanProject,
-    sources: Vec<ImportSource>,
-}
-
-#[derive(Debug, Deserialize)]
-struct PreviewImportRequest {
-    source: ImportSource,
-}
-
-#[derive(Debug, Deserialize)]
-struct LoadPointTopologyRequest {
-    load_points: Vec<ProjectLoadPoint>,
-}
-
-#[derive(Debug, Deserialize)]
-struct ReadProjectDocumentRequest {
-    contents: String,
-}
-
-#[derive(Debug, Deserialize)]
-struct WriteProjectDocumentRequest {
-    draft: ProjectDocumentDraft,
-}
-
-#[derive(Debug, Deserialize)]
-struct DeriveLoadPointGroupsRequest {
-    load_points: Vec<ProjectLoadPoint>,
-    settings: LoadPointGroupingSettings,
-}
-
-#[derive(Debug, Deserialize)]
-struct AssessLoadPointGroupAssignmentsRequest {
-    groups: Vec<LoadPointGroup>,
-    assignments: HashMap<u32, PileConfigurationKey>,
-    locked_load_point_ids: Vec<u32>,
-}
-
-#[derive(Debug, Deserialize)]
-struct TipLevelRegionTopologyRequest {
-    load_point_topology: LoadPointTopology,
-    selected_assignments: HashMap<u32, TipLevelRegionAssignment>,
-    options_by_load_point: HashMap<u32, Vec<PileConfigurationOption>>,
-}
-
-#[derive(Debug, Serialize)]
-struct PileCostResponse {
-    cost: Option<u32>,
 }
 
 #[tauri::command(rename_all = "snake_case")]
@@ -535,6 +441,9 @@ fn main() {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use pile_plan_core::{
+        LoadPointGroup, LoadPointGroupingSettings, PileConfigurationOption, ProjectDocumentDraft,
+    };
 
     #[test]
     fn mcp_import_requirements_command_uses_core_contract() {

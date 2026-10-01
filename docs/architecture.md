@@ -14,6 +14,11 @@ Open Pile Plan Studio follows the OpenAEC application model:
   around the same Rust core. This keeps the Vite preview aligned with the
   desktop calculation model.
 
+Shared browser/desktop request and response models live in the core's
+`transport_requests.rs`. WASM and Tauri deserialize the same types; adapters
+retain their own command entry points and transport conversion. These models
+contain wire fields only, with engineering behavior in the feature modules.
+
 The guiding rule is that engineering decisions must be implemented and tested in
 `crates/pile-plan-core` first. Frontend code may present results, but should not
 be the source of truth for calculations.
