@@ -66,6 +66,15 @@ Rust pile-option analysis client and domain draft-identity guards. Cancellation
 prevents late results from installing a preview, while base options and project
 assignments remain unchanged.
 
+Import panels keep their form state and present the existing immutable draft
+models. `app/import/projectImportPreviewController.ts` coordinates source-file
+reads and Rust previews independently per project role;
+`pilePlanImportPreviewController.ts` handles pile-plan previews against the
+current project inputs and configuration catalog. Their React hooks invalidate
+pending work on unmount. Request identity is captured before file reads, so a
+late read, result or error cannot replace a newer preview or a changed context.
+Preview updates remain transient; final import validation stays in Rust.
+
 ## Desktop MCP connection
 
 `app/mcp/connectionController.ts` owns connection status, startup cancellation,

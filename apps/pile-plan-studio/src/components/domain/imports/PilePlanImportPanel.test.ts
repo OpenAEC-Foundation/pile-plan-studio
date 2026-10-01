@@ -7,7 +7,7 @@ describe("PilePlanImportPanel", () => {
   const source = readFileSync(resolve(import.meta.dirname, "PilePlanImportPanel.tsx"), "utf8");
 
   it("previews the selected file through the shared Rust core", () => {
-    assert.match(source, /previewPilePlanImportCore/);
+    assert.match(source, /usePilePlanImportPreview\(/);
     assert.match(source, /accept="\.csv,\.xlsx"/);
     assert.match(source, /coordinateToleranceMm/);
   });

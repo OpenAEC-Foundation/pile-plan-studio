@@ -1,6 +1,6 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { previewImportSourceCore } from "../../../core/coreClient.ts";
+import { useProjectImportPreviews } from "../../../app/import/useProjectImportPreviews.ts";
 import {
   type ImportProfile,
   type ImportProfileOptions,
@@ -20,11 +20,8 @@ import { ifcImportIcon, infoIcon } from "../../template/ribbon/icons.ts";
 import { importProfileChoices } from "./importProfileChoices.ts";
 import { normalizePileHeadLevel } from "../project/projectInformationModel.ts";
 import {
-  applyImportPreview,
-  beginImportPreview,
   canSubmitProjectImport,
   createEmptyImportDrafts,
-  failImportPreview,
   setImportFile,
   setImportProfile,
   setImportProfileOptions,
@@ -75,37 +72,11 @@ export default function ProjectImportPanel({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [summary, setSummary] = useState<ImportSummary | null>(null);
-  const nextRequestId = useRef(0);
+  const { preview: previewFile } = useProjectImportPreviews(setDrafts);
   const normalizedPileHeadLevel = normalizePileHeadLevel(pileHeadLevel);
   const projectPropertiesValid = mode === "refresh" || normalizedPileHeadLevel !== null;
   const sourcesReady = canSubmitProjectImport(drafts, mode);
   const showPileHeadLevelBlocker = mode === "new-project" && sourcesReady && !projectPropertiesValid;
-
-  const previewFile = async (
-    role: ImportFileRole,
-    file: File,
-    profile: ImportProfile,
-    profileOptions: ImportProfileOptions,
-  ) => {
-    const format = getImportFileFormat(file.name);
-    if (!format) return;
-    const requestId = ++nextRequestId.current;
-    setDrafts((current) => beginImportPreview(current, role, requestId));
-    try {
-      const preview = await previewImportSourceCore({
-        role,
-        profile,
-        profileOptions,
-        fileName: file.name,
-        format,
-        bytes: new Uint8Array(await file.arrayBuffer()),
-      });
-      setDrafts((current) => applyImportPreview(current, role, requestId, preview));
-    } catch (reason) {
-      const message = reason instanceof Error ? reason.message : String(reason);
-      setDrafts((current) => failImportPreview(current, role, requestId, message));
-    }
-  };
 
   const assignRoleFile = (role: ImportFileRole, file: File | null) => {
     setDrafts((current) => setImportFile(current, role, file));

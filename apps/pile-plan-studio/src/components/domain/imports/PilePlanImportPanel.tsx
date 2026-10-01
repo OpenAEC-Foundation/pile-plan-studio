@@ -1,7 +1,6 @@
-import { useRef, useState } from "react";
+import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { previewPilePlanImportCore } from "../../../core/coreClient.ts";
-import { getImportFileFormat } from "../../../core/importFiles.ts";
+import { usePilePlanImportPreview } from "../../../app/import/usePilePlanImportPreview.ts";
 import type {
   PilePlanImportPatch,
   PilePlanImportProfile,
@@ -12,13 +11,9 @@ import ThemedSelect from "../../template/ThemedSelect.tsx";
 import "../../template/ThemedSelect.css";
 import { ifcImportIcon } from "../../template/ribbon/icons.ts";
 import {
-  applyPilePlanImportPreview,
-  beginPilePlanImportPreview,
   canApplyPilePlanImport,
   canImportCptSelections,
   createPilePlanImportDraft,
-  failPilePlanImportPreview,
-  pilePlanImportTolerance,
   setPilePlanImportCategory,
   setPilePlanImportFile,
   setPilePlanImportProfile,
@@ -41,40 +36,7 @@ export default function PilePlanImportPanel({
 }) {
   const { t } = useTranslation("backstage");
   const [draft, setDraft] = useState(() => createPilePlanImportDraft<File>());
-  const nextRequestId = useRef(0);
-
-  const preview = async (next: PilePlanImportDraft<File>) => {
-    const tolerance = pilePlanImportTolerance(next);
-    const file = next.file;
-    const format = file ? getImportFileFormat(file.name) : null;
-    if (!file || !format || tolerance === null || (!next.importPileAssignments && !next.importCptSelections)) {
-      setDraft(next);
-      return;
-    }
-
-    const requestId = ++nextRequestId.current;
-    setDraft(beginPilePlanImportPreview(next, requestId));
-    try {
-      const result = await previewPilePlanImportCore({
-        fileName: file.name,
-        format,
-        bytes: new Uint8Array(await file.arrayBuffer()),
-        profile: next.requestedProfile,
-        options: {
-          importPileAssignments: next.importPileAssignments,
-          importCptSelections: next.importCptSelections,
-          coordinateToleranceMm: tolerance,
-        },
-        loadPoints,
-        cpts,
-        availablePileConfigurations,
-      });
-      setDraft((current) => applyPilePlanImportPreview(current, requestId, result));
-    } catch (reason) {
-      const message = reason instanceof Error ? reason.message : String(reason);
-      setDraft((current) => failPilePlanImportPreview(current, requestId, message));
-    }
-  };
+  const { preview } = usePilePlanImportPreview({ loadPoints, cpts, availablePileConfigurations }, setDraft);
 
   const changeFile = (file: File | null) => {
     void preview(setPilePlanImportFile(draft, file));

@@ -13,8 +13,8 @@ describe("ProjectImportPanel", () => {
   });
 
   it("previews assigned files before final import", () => {
-    assert.match(panel, /previewImportSourceCore/);
-    assert.match(panel, /beginImportPreview/);
+    assert.match(panel, /useProjectImportPreviews\(setDrafts\)/);
+    assert.match(panel, /void previewFile\(/);
     assert.match(panel, /canSubmitProjectImport/);
   });
 
