@@ -9,7 +9,7 @@ import {useIlpOptimization} from "../optimization/useIlpOptimization.ts";
 import { createProjectMarker } from "../mcp/projectMarker.ts";
 import { createMcpDispatcher, type McpSnapshot } from "../mcp/protocol.ts";
 import { createDesktopMcpBridge, type McpConnection } from "../mcp/desktopBridge.ts";
-import { createDerivedSnapshotGate, type DerivedSnapshotGate } from "../mcp/derivedSnapshotGate.ts";
+import { useMcpDerivedState } from "../mcp/useMcpDerivedState.ts";
 import { prepareMcpWrite } from "../mcp/writeModel.ts";
 import { McpReadError } from "../mcp/readModel.ts";
 import { prepareOptimizationStart, requireMatchingRunId } from "../mcp/optimizationControls.ts";
@@ -24,9 +24,6 @@ import { prepareLegendEditorEdit, prepareProjectDocumentEdit,
   type PreparedProjectDocumentEdit } from "../project/projectEditOperations.ts";
 import type { CostCatalogAction } from "../../core/settingsEditCoreClient.ts";
 import type { LegendEditorDraft } from "../../domain/legend/legendEditorModel.ts";
-import { buildLoadPointGroupSignature } from "../derived-state/loadPointGroupController.ts";
-import { buildTechnicalAssignmentSignature } from "../derived-state/technicalAssignmentController.ts";
-import { buildGroupAssignmentAssessmentSignature } from "../derived-state/groupAssignmentAssessmentController.ts";
 import IlpOptimizationSettingsPanel from "../../components/domain/pile-plans/ilp-optimization/IlpOptimizationSettingsPanel.tsx";
 import IlpOptimizationResultPanel from "../../components/domain/pile-plans/ilp-optimization/IlpOptimizationResultPanel.tsx";
 import Backstage from "../../components/template/backstage/Backstage";
@@ -37,6 +34,7 @@ import InterfaceScaleNotice, { type InterfaceScaleNoticeValue } from "../../comp
 import ActionNotice, { type ActionNoticeTone } from "../../components/viewer/ActionNotice";
 import PilePlanWorkspace from "../../components/domain/pile-plans/PilePlanWorkspace";
 import RightPanel, { type RightTaskPanel } from "../../components/domain/right-panel/RightPanel";
+import { usePileOptionCosts } from "../derived-state/usePileOptionCosts.ts";
 import { useLoadPointGroups } from "../derived-state/useLoadPointGroups.ts";
 import { useTechnicalAssignment } from "../derived-state/useTechnicalAssignment.ts";
 import { useGroupAssignmentAssessment } from "../derived-state/useGroupAssignmentAssessment.ts";
@@ -82,7 +80,6 @@ import {
   type ProjectDocumentOutcome,
 } from "../../core/projectDocumentContract.ts";
 import { getSetting } from "../../store";
-import { optionKey } from "../../components/domain/right-panel/rightPanelModel";
 import { switchRightPanelMode } from "../../domain/workspace/selectionState";
 import {
   getProjectFileCommands,
@@ -1372,36 +1369,7 @@ export default function AppSession({
     projectState.pileOptionsByLoadPointId,
   ]);
 
-  useEffect(() => {
-    let cancelled = false;
-    const uniqueOptions = [
-      ...new Map(
-        [...projectState.pileOptionsByLoadPointId.values()]
-          .flat()
-          .map((option) => [optionKey(option), option]),
-      ).values(),
-    ];
-
-    Promise.all(uniqueOptions.map(async (option) => [
-      optionKey(option),
-      await calculatePileCostCore({
-        pileSizeMm: option.pile_size_mm,
-        pileTipLevelM: option.pile_tip_level_m,
-        pileHeadLevelM: projectState.pileHeadLevelM ?? 0,
-        settings: projectState.pileCostSettings,
-      }),
-    ] as const)).then((entries) => {
-      if (!cancelled) {
-        setProjectState((current) => ({ ...current, pileCostByOptionKey: new Map(entries) }));
-      }
-    }).catch((error: unknown) => {
-      console.error("Failed to calculate pile costs", error);
-    });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [projectState.pileCostSettings, projectState.pileHeadLevelM, projectState.pileOptionsByLoadPointId]);
+  usePileOptionCosts(projectState, setProjectState);
 
   const ilp = useIlpOptimization(projectState, loadPointGroups.groups,
     hasCompletedLoadPointGroups && projectState.analysisError === null
@@ -1411,21 +1379,9 @@ export default function AppSession({
     commitProjectState, pilePlanLanguage(),userSettings.preferences.optimizationTimeLimitSeconds);
   const mcpOptimizationRef=useRef(ilp);
   mcpOptimizationRef.current=ilp;
-  const mcpGroupGateRef = useRef<DerivedSnapshotGate<typeof loadPointGroups> | null>(null);
-  const mcpTechnicalGateRef = useRef<DerivedSnapshotGate<typeof technicalAssignment> | null>(null);
-  const mcpConflictGateRef = useRef<DerivedSnapshotGate<typeof groupAssignmentAssessment> | null>(null);
-  const groupSignature = buildLoadPointGroupSignature(projectState.loadPoints, projectState.loadPointGroupingSettings);
-  const technicalSignature = technicalAssignmentInput ? buildTechnicalAssignmentSignature(technicalAssignmentInput) : "unavailable";
-  const conflictSignature = groupAssignmentAssessmentInput ? buildGroupAssignmentAssessmentSignature(groupAssignmentAssessmentInput) : "unavailable";
-  mcpGroupGateRef.current ??= createDerivedSnapshotGate(groupSignature, loadPointGroups);
-  mcpTechnicalGateRef.current ??= createDerivedSnapshotGate(technicalSignature, technicalAssignment);
-  mcpConflictGateRef.current ??= createDerivedSnapshotGate(conflictSignature, groupAssignmentAssessment);
-  const mcpGroups = mcpGroupGateRef.current.observe(groupSignature, loadPointGroups)
-    ? { ...loadPointGroups, pending: true } : loadPointGroups;
-  const mcpTechnical = mcpTechnicalGateRef.current.observe(technicalSignature, technicalAssignment)
-    ? { ...technicalAssignment, status: "loading" as const } : technicalAssignment;
-  const mcpConflicts = mcpConflictGateRef.current.observe(conflictSignature, groupAssignmentAssessment)
-    ? { ...groupAssignmentAssessment, pending: true } : groupAssignmentAssessment;
+  const { groups: mcpGroups, technicalAssignment: mcpTechnical, groupAssignmentAssessment: mcpConflicts } =
+    useMcpDerivedState(projectState, loadPointGroups, technicalAssignment, groupAssignmentAssessment,
+      technicalAssignmentInput, groupAssignmentAssessmentInput);
   const mcpDerivedRef = useRef({
     analysisReady: mcpAnalysisReady,
     groups: mcpGroups,

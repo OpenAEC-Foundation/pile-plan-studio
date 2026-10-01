@@ -18,6 +18,12 @@ The guiding rule is that engineering decisions must be implemented and tested in
 `crates/pile-plan-core` first. Frontend code may present results, but should not
 be the source of truth for calculations.
 
+`AppSession` composes runtime features. Pile-option cost batching lives in
+`app/derived-state/pileOptionCosts.ts`, with its cancellable React effect in
+`usePileOptionCosts.ts`; only Rust calculates individual costs. MCP snapshot
+freshness is coordinated by `app/mcp/useMcpDerivedState.ts`, which reuses the
+shared snapshot gate for groups, technical assignment, and group conflicts.
+
 ## Desktop MCP connection
 
 The desktop app can expose the open project to a local MCP client after the
