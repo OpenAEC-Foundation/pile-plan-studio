@@ -3,7 +3,8 @@ use std::collections::{BTreeSet, HashMap, HashSet};
 use crate::{try_pile_tip_level_mm, ProjectBearingCapacity, ProjectCpt, ProjectLoadPoint};
 
 use super::{
-    ImportError, InvalidSourcePileTipLevel, SourceLocation, SourceRow, SourceTable, TableCell,
+    parse_finite_number, parse_nonnegative_u32, ImportError, InvalidSourcePileTipLevel,
+    NumericParseError, SourceLocation, SourceRow, SourceTable, TableCell,
 };
 
 #[derive(Clone, Copy)]
@@ -324,44 +325,24 @@ fn cell_u32(table: &SourceTable, row: &SourceRow, column: Column) -> Result<u32,
 fn cell_f64(table: &SourceTable, row: &SourceRow, column: Column) -> Result<f64, ImportError> {
     let location = cell_location(table, row, column);
     let value = cell(row, column, &location)?.as_text();
-    let number = value
-        .parse::<f64>()
-        .map_err(|_| ImportError::InvalidValue {
-            location: location.clone(),
-            value: value.clone(),
-            expected: "a number",
-        })?;
-    if !number.is_finite() {
-        return Err(ImportError::InvalidValue {
-            location,
-            value,
-            expected: "a finite number",
-        });
-    }
-    Ok(number)
+    parse_finite_number(&value).map_err(|error| ImportError::InvalidValue {
+        location,
+        value,
+        expected: if error == NumericParseError::NonFinite {
+            "a finite number"
+        } else {
+            "a number"
+        },
+    })
 }
 
 fn parse_u32(cell: &TableCell, location: SourceLocation) -> Result<u32, ImportError> {
     let value = cell.as_text();
-    let number = value
-        .parse::<f64>()
-        .map_err(|_| ImportError::InvalidValue {
-            location: location.clone(),
-            value: value.clone(),
-            expected: "a positive integer",
-        })?;
-    if !number.is_finite()
-        || number.fract().abs() > f64::EPSILON
-        || number < 0.0
-        || number > u32::MAX as f64
-    {
-        return Err(ImportError::InvalidValue {
-            location,
-            value,
-            expected: "a positive integer",
-        });
-    }
-    Ok(number as u32)
+    parse_nonnegative_u32(&value).map_err(|_| ImportError::InvalidValue {
+        location,
+        value,
+        expected: "a positive integer",
+    })
 }
 
 fn cell<'a>(
@@ -393,4 +374,72 @@ fn reject_duplicate_ids(
         }
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod numeric_characterization_tests {
+    use super::*;
+
+    #[test]
+    fn source_numbers_preserve_values_and_diagnostic_locations() {
+        for (text, integer, float_error) in [
+            ("0", Some(0), None),
+            ("-0", Some(0), None),
+            ("42", Some(42), None),
+            ("1e3", Some(1000), None),
+            ("1.5", None, None),
+            ("-1", None, None),
+            ("4294967295", Some(u32::MAX), None),
+            ("4294967296", None, None),
+            ("1.0000000000000002", Some(1), None),
+            ("1.0000000000000004", None, None),
+            ("", None, Some("a number")),
+            ("abc", None, Some("a number")),
+            (" 42 ", None, Some("a number")),
+            ("NaN", None, Some("a finite number")),
+            ("inf", None, Some("a finite number")),
+            ("-inf", None, Some("a finite number")),
+        ] {
+            let row = SourceRow {
+                number: 7,
+                cells: vec![TableCell::Text(text.into())],
+            };
+            let table = SourceTable {
+                file_name: "numbers.csv".into(),
+                sheet_name: Some("Sheet1".into()),
+                rows: vec![row.clone()],
+            };
+            let expected_location = table.location(Some(7), Some(1), Some("ID"));
+            match cell_u32(&table, &row, ID) {
+                Ok(value) => assert_eq!(Some(value), integer, "{text}"),
+                Err(ImportError::InvalidValue {
+                    location,
+                    value,
+                    expected,
+                }) => {
+                    assert_eq!(integer, None, "{text}");
+                    assert_eq!(location, expected_location);
+                    assert_eq!(value, text);
+                    assert_eq!(expected, "a positive integer");
+                }
+                other => panic!("{text}: {other:?}"),
+            }
+            match cell_f64(&table, &row, ID) {
+                Ok(value) => {
+                    assert_eq!(float_error, None);
+                    assert_eq!(value.to_bits(), text.parse::<f64>().unwrap().to_bits());
+                }
+                Err(ImportError::InvalidValue {
+                    location,
+                    value,
+                    expected,
+                }) => {
+                    assert_eq!(Some(expected), float_error, "{text}");
+                    assert_eq!(location, expected_location);
+                    assert_eq!(value, text);
+                }
+                other => panic!("{text}: {other:?}"),
+            }
+        }
+    }
 }

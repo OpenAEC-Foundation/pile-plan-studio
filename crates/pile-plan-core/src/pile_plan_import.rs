@@ -1,3 +1,4 @@
+use crate::import::{parse_finite_number, parse_nonnegative_u32, NumericParseError};
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
 
@@ -766,11 +767,14 @@ fn parse_f64_cell(
 }
 
 fn parse_u32(value: &TableCell) -> Result<u32, String> {
-    let number = parse_f64(value)?;
-    if number < 0.0 || number > u32::MAX as f64 || number.fract().abs() > f64::EPSILON {
-        return Err(format!("Invalid positive integer '{}'.", value.as_text()));
-    }
-    Ok(number as u32)
+    let text = value.as_text();
+    parse_nonnegative_u32(&text).map_err(|error| match error {
+        NumericParseError::InvalidNumber => format!("Invalid number '{text}'."),
+        NumericParseError::NonFinite => format!("Invalid finite number '{text}'."),
+        NumericParseError::NonInteger | NumericParseError::OutOfRange => {
+            format!("Invalid positive integer '{text}'.")
+        }
+    })
 }
 
 fn parse_positive_u32(value: &TableCell) -> Result<u32, String> {
@@ -794,13 +798,13 @@ fn parse_tip_level_key(value: &TableCell) -> Result<i64, String> {
 
 fn parse_f64(value: &TableCell) -> Result<f64, String> {
     let text = value.as_text();
-    let number = text
-        .parse::<f64>()
-        .map_err(|_| format!("Invalid number '{text}'."))?;
-    if !number.is_finite() {
-        return Err(format!("Invalid finite number '{text}'."));
-    }
-    Ok(number)
+    parse_finite_number(&text).map_err(|error| {
+        if error == NumericParseError::NonFinite {
+            format!("Invalid finite number '{text}'.")
+        } else {
+            format!("Invalid number '{text}'.")
+        }
+    })
 }
 
 fn location(
@@ -1378,5 +1382,67 @@ mod tests {
                 },
             ],
         })
+    }
+}
+
+#[cfg(test)]
+mod numeric_characterization_tests {
+    use super::*;
+
+    #[test]
+    fn pile_plan_numbers_preserve_values_and_diagnostics() {
+        for (text, integer, error_prefix) in [
+            ("0", Some(0), None),
+            ("-0", Some(0), None),
+            ("42", Some(42), None),
+            ("1e3", Some(1000), None),
+            ("1.5", None, None),
+            ("-1", None, None),
+            ("4294967295", Some(u32::MAX), None),
+            ("4294967296", None, None),
+            ("1.0000000000000002", Some(1), None),
+            ("1.0000000000000004", None, None),
+            ("", None, Some("Invalid number")),
+            ("abc", None, Some("Invalid number")),
+            (" 42 ", None, Some("Invalid number")),
+            ("NaN", None, Some("Invalid finite number")),
+            ("inf", None, Some("Invalid finite number")),
+            ("-inf", None, Some("Invalid finite number")),
+        ] {
+            let cell = TableCell::Text(text.into());
+            let number_error = error_prefix.map(|prefix| format!("{prefix} '{text}'."));
+            match parse_u32(&cell) {
+                Ok(value) => assert_eq!(Some(value), integer, "{text}"),
+                Err(message) => {
+                    assert_eq!(integer, None, "{text}");
+                    assert_eq!(
+                        message,
+                        number_error
+                            .clone()
+                            .unwrap_or_else(|| format!("Invalid positive integer '{text}'."))
+                    );
+                }
+            }
+            let table = SourceTable {
+                file_name: "numbers.csv".into(),
+                sheet_name: Some("Sheet1".into()),
+                rows: vec![crate::import::SourceRow {
+                    number: 7,
+                    cells: vec![cell],
+                }],
+            };
+            match parse_f64_cell(&table, 7, 0) {
+                Ok(value) => {
+                    assert!(number_error.is_none());
+                    assert_eq!(value.to_bits(), text.parse::<f64>().unwrap().to_bits());
+                }
+                Err(error) => {
+                    assert_eq!(error.code, PilePlanImportDiagnosticCode::InvalidRow);
+                    assert_eq!(error.severity, PilePlanImportDiagnosticSeverity::Error);
+                    assert_eq!(error.message, number_error.unwrap());
+                    assert_eq!(error.location, Some(location(&table, 7, Some(0))));
+                }
+            }
+        }
     }
 }

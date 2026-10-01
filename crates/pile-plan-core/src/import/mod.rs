@@ -9,12 +9,15 @@ use std::fmt;
 
 use serde::{Deserialize, Serialize};
 
+mod numeric;
 mod pipeline;
 mod profile;
 mod refresh;
 mod rfem;
 mod roles;
 mod table;
+
+pub(crate) use numeric::{parse_finite_number, parse_nonnegative_u32, NumericParseError};
 
 pub use pipeline::{import_project_from_sources, preview_import_source};
 pub use profile::{
