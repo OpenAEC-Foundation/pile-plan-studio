@@ -1,15 +1,16 @@
 import { applyManualCptSelectionUpdates } from "../../domain/cpt-selection/cptSettingsModel.ts";
 import { McpReadError } from "./readModel.ts";
-import type { McpSnapshot, PileMcpWriteToolName } from "./protocol.ts";
+import type { WriteOperation, McpSnapshot } from "./protocol.ts";
 import type { PreparedMcpWrite } from "./writeModel.ts";
 
-export function prepareCptWrite(snapshot: McpSnapshot, name: PileMcpWriteToolName,
-  args: Record<string, unknown>): PreparedMcpWrite {
+export function prepareCptWrite(snapshot: McpSnapshot, operation: WriteOperation): PreparedMcpWrite {
+  const { name, args } = operation;
+  if (name !== "pile_set_manual_cpts" && name !== "pile_use_automatic_cpts") throw new McpReadError("unknown_tool");
   const { state } = snapshot;
   if (state.cptSelectionEditDraft) throw new McpReadError("editing_in_progress");
-  const loadPointId = args.load_point_id as number;
+  const loadPointId = args.load_point_id;
   if (!state.loadPoints.some((point) => point.id === loadPointId)) throw new McpReadError("unknown_id");
-  const requested = name === "pile_set_manual_cpts" ? args.cpt_ids as number[] : null;
+  const requested = name === "pile_set_manual_cpts" ? args.cpt_ids : null;
   if (requested && requested.some((id) => !state.cpts.some((cpt) => cpt.id === id))) {
     throw new McpReadError("unknown_id");
   }

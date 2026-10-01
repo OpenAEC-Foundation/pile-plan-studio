@@ -2,41 +2,41 @@ import { applyLoadPointGroupEditCore, evaluateCptSettingsEditCore,
   evaluateLoadPointGroupingSettingsCore,
   type CostCatalogAction, type CptSettingsPatch } from "../../core/coreClient.ts";
 import { applyValidatedCptSettingsEdit } from "../../domain/cpt-selection/cptSettingsModel.ts";
-import type { PileCostSettingsItem } from "../../core/projectTypes.ts";
 import { McpReadError } from "./readModel.ts";
 import { requireCurrentGroups } from "./projectSettingsSources.ts";
-import type { McpSnapshot, PileMcpWriteToolName } from "./protocol.ts";
+import type { WriteToolArguments, WriteOperation, McpSnapshot } from "./protocol.ts";
 import type { PreparedMcpWrite } from "./writeModel.ts";
 import { preparePileCostCatalogEdit, PileCostCatalogEditError } from "../project/projectEditOperations.ts";
 
-function cptPatch(raw: Record<string, unknown>): CptSettingsPatch {
+function cptPatch(raw: WriteToolArguments["pile_set_cpt_selection_settings"]["settings"]): CptSettingsPatch {
   return {
-    ...(raw.algorithm !== undefined ? { algorithm: raw.algorithm as CptSettingsPatch["algorithm"] } : {}),
-    ...(raw.max_distance_m !== undefined ? { maxDistanceM: raw.max_distance_m as number } : {}),
-    ...(raw.monopoly_distance_m !== undefined ? { monopolyDistanceM: raw.monopoly_distance_m as number } : {}),
-    ...(raw.max_angle_degrees !== undefined ? { maxAngleDegrees: raw.max_angle_degrees as number } : {}),
+    ...(raw.algorithm !== undefined ? { algorithm: raw.algorithm } : {}),
+    ...(raw.max_distance_m !== undefined ? { maxDistanceM: raw.max_distance_m } : {}),
+    ...(raw.monopoly_distance_m !== undefined ? { monopolyDistanceM: raw.monopoly_distance_m } : {}),
+    ...(raw.max_angle_degrees !== undefined ? { maxAngleDegrees: raw.max_angle_degrees } : {}),
   };
 }
 
 export async function prepareSettingsWrite(
-  snapshot: McpSnapshot, name: PileMcpWriteToolName, args: Record<string, unknown>,
+  snapshot: McpSnapshot, operation: WriteOperation,
 ): Promise<PreparedMcpWrite> {
+  const { name, args } = operation;
   const { state } = snapshot;
   if (name === "pile_set_cpt_selection_settings" || name === "pile_set_cpt_selection_settings_bulk") {
     if (state.cptSelectionEditDraft) throw new McpReadError("editing_in_progress");
     const global = name === "pile_set_cpt_selection_settings";
-    const changes = global ? [] : (args.changes as Array<Record<string, unknown>>).map((entry) => ({
-      load_point_id: entry.load_point_id as number,
-      settings: cptPatch(entry.settings as Record<string, unknown>),
-      overwrite_manual_selections: entry.overwrite_manual_selections as boolean | undefined,
+    const changes = name === "pile_set_cpt_selection_settings" ? [] : args.changes.map((entry) => ({
+      load_point_id: entry.load_point_id,
+      settings: cptPatch(entry.settings),
+      overwrite_manual_selections: entry.overwrite_manual_selections,
     }));
     const result = await evaluateCptSettingsEditCore({
       loadPointIds: state.loadPoints.map((point) => point.id),
       globalSettings: state.globalCptSelectionSettings,
       settingsByLoadPoint: state.cptSelectionSettingsByLoadPoint,
       manualCptIdsByLoadPoint: state.manualCptIdsByLoadPoint,
-      ...(global ? { globalPatch: cptPatch(args.settings as Record<string, unknown>),
-        overwriteManualSelections: args.overwrite_manual_selections as boolean | undefined } : { changes }),
+      ...(name === "pile_set_cpt_selection_settings" ? { globalPatch: cptPatch(args.settings),
+        overwriteManualSelections: args.overwrite_manual_selections } : { changes }),
     });
     if (result.status === "blocked") throw new McpReadError(result.reason, result.ids);
     return { mode: "history", changed: result.changed,
@@ -49,8 +49,8 @@ export async function prepareSettingsWrite(
   if (name === "pile_set_grouping_settings") {
     const result = await evaluateLoadPointGroupingSettingsCore({
       loadPoints: state.loadPoints, settings: state.loadPointGroupingSettings,
-      automatic: args.automatic as boolean | undefined,
-      maxEdgeDistanceM: args.max_edge_distance_m as number | undefined,
+      automatic: args.automatic,
+      maxEdgeDistanceM: args.max_edge_distance_m,
     });
     if (result.status === "blocked") throw new McpReadError(result.reason);
     return { mode: "history", changed: result.changed,
@@ -77,12 +77,13 @@ export async function prepareSettingsWrite(
   }
 
   let actions: CostCatalogAction[];
-  if (name === "pile_add_cost_item") actions = [{ action: "add", item: args.item as PileCostSettingsItem }];
-  else if (name === "pile_update_cost_item") actions = [{ action: "update", pile_size_mm: args.pile_size_mm as number,
-    ...(args.shape !== undefined ? { shape: args.shape as "round" | "square" } : {}),
-    ...(args.cost_per_m3 !== undefined ? { cost_per_m3: args.cost_per_m3 as number } : {}) }];
-  else if (name === "pile_remove_cost_item") actions = [{ action: "remove", pile_size_mm: args.pile_size_mm as number }];
-  else if (name === "pile_edit_cost_catalog_bulk") actions = args.actions as CostCatalogAction[];
+  if (name === "pile_add_cost_item") actions = [{ action: "add", item: args.item }];
+  else if (name === "pile_update_cost_item") {
+    actions = [{ action: "update", pile_size_mm: args.pile_size_mm,
+      ...(args.shape !== undefined ? { shape: args.shape } : {}),
+      ...(args.cost_per_m3 !== undefined ? { cost_per_m3: args.cost_per_m3 } : {}) }];
+  } else if (name === "pile_remove_cost_item") actions = [{ action: "remove", pile_size_mm: args.pile_size_mm }];
+  else if (name === "pile_edit_cost_catalog_bulk") actions = args.actions;
   else throw new McpReadError("unknown_tool");
   try {
     const prepared = await preparePileCostCatalogEdit(state, actions);

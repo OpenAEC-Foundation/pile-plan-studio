@@ -4,7 +4,7 @@ import { useTranslation } from "react-i18next";
 import { useRecentFiles, type RecentFile } from "../../../hooks/useRecentFiles";
 import ProjectImportPanel from "../../domain/imports/ProjectImportPanel";
 import type { ProjectImportProperties } from "../../domain/imports/ProjectImportPanel.tsx";
-import type { ProjectImportMode } from "../../domain/imports/projectImportModel.ts";
+import type { ProjectImportMode } from "../../../domain/imports/projectImportModel.ts";
 import type { ImportFileRole } from "../../../core/importFiles.ts";
 import PilePlanImportPanel from "../../domain/imports/PilePlanImportPanel.tsx";
 import type { ImportSourceInput } from "../../.././core/coreImportContract";

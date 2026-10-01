@@ -12,7 +12,7 @@ import { prepareGroupWrite } from "./groupWrites.ts";
 import { prepareBulkWrite, type BulkWriteDependencies } from "./bulkWrites.ts";
 import { prepareSettingsWrite } from "./settingsWrites.ts";
 import { prepareProjectEditWrite } from "./projectEdits.ts";
-import type { McpSnapshot, PileMcpWriteToolName } from "./protocol.ts";
+import { writeOperation, type McpSnapshot, type PileMcpWriteToolName } from "./protocol.ts";
 
 export type PreparedMcpWrite = {
   mode?: "history" | "navigation";
@@ -35,39 +35,43 @@ function requirePlan(snapshot: McpSnapshot, id: unknown) {
 
 export async function prepareMcpWrite(
   snapshot: McpSnapshot,
-  name: PileMcpWriteToolName,
-  args: Record<string, unknown>,
+  rawName: PileMcpWriteToolName,
+  raw: unknown,
   dependencies: McpWriteDependencies = {},
 ): Promise<PreparedMcpWrite> {
+  const operation = writeOperation(rawName, raw);
+  const { name, args } = operation;
   if (name === "pile_set_optimization_settings" || name === "pile_set_active_configurations"
     || name === "pile_set_legend_settings" || name === "pile_set_project_properties"
     || name === "pile_edit_load_points_bulk" || name === "pile_edit_cpts_bulk"
     || name === "pile_edit_foundation_advice_bulk") {
-    return prepareProjectEditWrite(snapshot, name, args);
+    return prepareProjectEditWrite(snapshot, operation);
   }
   if (name === "pile_set_cpt_selection_settings" || name === "pile_set_cpt_selection_settings_bulk"
     || name === "pile_set_grouping_settings" || name === "pile_reset_group_overrides"
     || name === "pile_add_cost_item" || name === "pile_update_cost_item"
     || name === "pile_remove_cost_item" || name === "pile_edit_cost_catalog_bulk") {
-    return prepareSettingsWrite(snapshot, name, args);
+    return prepareSettingsWrite(snapshot, operation);
   }
   if (name === "pile_set_assignments_bulk" || name === "pile_set_load_point_locks_bulk"
     || name === "pile_set_cpt_selections_bulk" || name === "pile_ungroup_load_points_bulk") {
-    return prepareBulkWrite(snapshot, name, args, dependencies);
+    return prepareBulkWrite(snapshot, operation, dependencies);
   }
   if (name === "pile_activate_plan" || name === "pile_delete_plan" || name === "pile_set_load_point_lock") {
-    return preparePlanWrite(snapshot, name, args);
+    return preparePlanWrite(snapshot, operation);
   }
   if (name === "pile_set_manual_cpts" || name === "pile_use_automatic_cpts") {
-    return prepareCptWrite(snapshot, name, args);
+    return prepareCptWrite(snapshot, operation);
   }
   if (name === "pile_group_load_points" || name === "pile_ungroup_load_points") {
-    return prepareGroupWrite(snapshot, name, args, dependencies.applyGroupEdit);
+    return prepareGroupWrite(snapshot, operation, dependencies.applyGroupEdit);
   }
   const { state } = snapshot;
+  if (name !== "pile_rename_plan" && name !== "pile_duplicate_plan"
+    && name !== "pile_assign_configuration" && name !== "pile_clear_assignment") throw new McpReadError("unknown_tool");
   const plan = requirePlan(snapshot, args.plan_id);
   if (name === "pile_rename_plan") {
-    const nextName = (args.name as string).trim();
+    const nextName = args.name.trim();
     if (!nextName || nextName.length > 120) throw new McpReadError("invalid_name");
     const changed = plan.name !== nextName;
     return {
@@ -93,11 +97,11 @@ export async function prepareMcpWrite(
     };
   }
   if (plan.id !== state.activePilePlanId) throw new McpReadError("plan_not_active");
-  const loadPointId = args.load_point_id as number;
+  const loadPointId = args.load_point_id;
   if (!state.loadPoints.some((point) => point.id === loadPointId)) throw new McpReadError("unknown_id");
   const groups = requireCurrentGroups(snapshot.groups);
   const requestedConfiguration: PileConfigurationKey | null = name === "pile_assign_configuration"
-    ? { pile_size_mm: args.pile_size_mm as number, pile_tip_level_mm: args.pile_tip_level_mm as number }
+    ? { pile_size_mm: args.pile_size_mm, pile_tip_level_mm: args.pile_tip_level_mm }
     : null;
   if (requestedConfiguration) {
     const options = requireCompletedOptions(state, loadPointId, snapshot.analysisReady);

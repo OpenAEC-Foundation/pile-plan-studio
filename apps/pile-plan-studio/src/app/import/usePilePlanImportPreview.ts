@@ -1,6 +1,6 @@
 import { useEffect, useRef } from "react";
 import { previewPilePlanImportCore } from "../../core/coreClient.ts";
-import type { PilePlanImportDraft } from "../../components/domain/imports/pilePlanImportModel.ts";
+import type { PilePlanImportDraft } from "../../domain/imports/pilePlanImportModel.ts";
 import { createPilePlanImportPreviewController, type PilePlanImportContext } from "./pilePlanImportPreviewController.ts";
 
 export function usePilePlanImportPreview(context: PilePlanImportContext,

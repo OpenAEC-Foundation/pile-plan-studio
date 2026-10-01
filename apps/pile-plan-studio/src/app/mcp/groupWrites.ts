@@ -2,17 +2,18 @@ import { applyLoadPointGroupEditCore } from "../../core/coreClient.ts";
 import type { LoadPointGroupEditAction } from "../../core/loadPointGroupContract.ts";
 import { McpReadError } from "./readModel.ts";
 import { requireCurrentGroups } from "./projectSettingsSources.ts";
-import type { McpSnapshot, PileMcpWriteToolName } from "./protocol.ts";
+import type { WriteOperation, McpSnapshot } from "./protocol.ts";
 import type { PreparedMcpWrite } from "./writeModel.ts";
 
-export async function prepareGroupWrite(snapshot: McpSnapshot, name: PileMcpWriteToolName,
-  args: Record<string, unknown>, applyGroupEdit: typeof applyLoadPointGroupEditCore = applyLoadPointGroupEditCore,
+export async function prepareGroupWrite(snapshot: McpSnapshot, operation: WriteOperation, applyGroupEdit: typeof applyLoadPointGroupEditCore = applyLoadPointGroupEditCore,
 ): Promise<PreparedMcpWrite> {
+  const { name, args } = operation;
+  if (name !== "pile_group_load_points" && name !== "pile_ungroup_load_points") throw new McpReadError("unknown_tool");
   const { state } = snapshot;
   requireCurrentGroups(snapshot.groups);
   const action: LoadPointGroupEditAction = name === "pile_group_load_points" ? "group" : "ungroup";
-  const selectedLoadPointIds = action === "group"
-    ? args.load_point_ids as number[] : [args.load_point_id as number];
+  const selectedLoadPointIds = name === "pile_group_load_points"
+    ? args.load_point_ids : [args.load_point_id];
   const knownIds = new Set(state.loadPoints.map((point) => point.id));
   if (selectedLoadPointIds.some((id) => !knownIds.has(id))) throw new McpReadError("unknown_id");
   const result = await applyGroupEdit({

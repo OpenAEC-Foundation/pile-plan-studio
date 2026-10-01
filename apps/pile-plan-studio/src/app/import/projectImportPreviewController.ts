@@ -1,7 +1,7 @@
 import type { ImportProfile, ImportProfileOptions, ImportSourceInput, ImportSourcePreview } from "../../core/coreImportContract.ts";
 import { getImportFileFormat, type ImportFileRole } from "../../core/importFiles.ts";
 import { applyImportPreview, beginImportPreview, failImportPreview,
-  type ImportDrafts } from "../../components/domain/imports/projectImportModel.ts";
+  type ImportDrafts } from "../../domain/imports/projectImportModel.ts";
 
 type Dependencies = {
   evaluate: (source: ImportSourceInput) => Promise<ImportSourcePreview>;

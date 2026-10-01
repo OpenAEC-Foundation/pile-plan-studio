@@ -6,6 +6,12 @@ const panel = readFileSync(new URL("./ProjectImportPanel.tsx", import.meta.url),
 const styles = readFileSync(new URL("./projectImport.css", import.meta.url), "utf8");
 
 describe("ProjectImportPanel", () => {
+  it("requires project properties for a new project import", () => {
+    assert.match(panel, /defaultCurrencyCode/);
+    assert.match(panel, /pileHeadLevel/);
+    assert.match(panel, /normalizePileHeadLevel/);
+  });
+
   it("renders one profiled source card for every project role", () => {
     assert.match(panel, /ROLES\.map/);
     assert.match(panel, /project-import-source-card/);

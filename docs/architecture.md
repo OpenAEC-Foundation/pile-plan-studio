@@ -67,7 +67,8 @@ prevents late results from installing a preview, while base options and project
 assignments remain unchanged.
 
 Import panels keep their form state and present the existing immutable draft
-models. `app/import/projectImportPreviewController.ts` coordinates source-file
+models in `domain/imports/`. Both the views and runtime import that pure logic.
+`app/import/projectImportPreviewController.ts` coordinates source-file
 reads and Rust previews independently per project role;
 `pilePlanImportPreviewController.ts` handles pile-plan previews against the
 current project inputs and configuration catalog. Their React hooks invalidate
@@ -76,6 +77,12 @@ late read, result or error cannot replace a newer preview or a changed context.
 Preview updates remain transient; final import validation stays in Rust.
 
 ## Desktop MCP connection
+
+MCP project writes are narrowed against their published schemas into a typed
+operation before dispatch to the write adapters. The operation name determines
+the argument type; bulk proposals reuse the core transport models. Rust still
+validates engineering rules, and the session dispatcher enforces editing
+permission and the current project instance and revision.
 
 `app/mcp/connectionController.ts` owns connection status, startup cancellation,
 and disposal of the import/file sessions belonging to each connection.

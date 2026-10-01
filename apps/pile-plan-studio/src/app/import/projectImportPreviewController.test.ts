@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { createProjectImportPreviewController } from "./projectImportPreviewController.ts";
-import { createEmptyImportDrafts, setImportFile } from "../../components/domain/imports/projectImportModel.ts";
+import { createEmptyImportDrafts, setImportFile } from "../../domain/imports/projectImportModel.ts";
 import type { ImportSourceInput, ImportSourcePreview } from "../../core/coreImportContract.ts";
 import type { ImportFileRole } from "../../core/importFiles.ts";
 

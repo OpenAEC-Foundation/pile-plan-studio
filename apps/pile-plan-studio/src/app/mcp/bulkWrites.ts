@@ -5,15 +5,13 @@ import {
 import type {
   LoadPointGroupAssignmentBatchInput, LoadPointGroupUngroupBatchInput,
 } from "../../core/loadPointGroupContract.ts";
-import type { ManualCptSelectionProposal, LoadPointLockProposal } from "../../core/locationBulkCoreClient.ts";
-import type { PileConfigurationKey } from "../../core/projectTypes.ts";
 import { samePileConfiguration } from "../../core/pileConfigurationKey.ts";
 import { applyManualCptSelectionUpdates } from "../../domain/cpt-selection/cptSettingsModel.ts";
 import { applyLoadPointLockDraft, getActiveLockedLoadPointIds } from "../../domain/pile-plans/loadPointLocking.ts";
 import { synchronizeActivePilePlan } from "../../domain/pile-plans/pilePlanManagement.ts";
 import { McpReadError, requireCompletedOptions } from "./readModel.ts";
 import { requireCurrentGroups } from "./projectSettingsSources.ts";
-import type { McpSnapshot, PileMcpWriteToolName } from "./protocol.ts";
+import type { WriteOperation, McpSnapshot } from "./protocol.ts";
 import type { PreparedMcpWrite } from "./writeModel.ts";
 
 export type BulkWriteDependencies = {
@@ -30,13 +28,13 @@ function activePlan(snapshot: McpSnapshot, id: unknown) {
   return plan;
 }
 
-export async function prepareBulkWrite(snapshot: McpSnapshot, name: PileMcpWriteToolName,
-  args: Record<string, unknown>, dependencies: BulkWriteDependencies = {}): Promise<PreparedMcpWrite> {
+export async function prepareBulkWrite(snapshot: McpSnapshot, operation: WriteOperation, dependencies: BulkWriteDependencies = {}): Promise<PreparedMcpWrite> {
+  const { name, args } = operation;
   const { state } = snapshot;
   if (name === "pile_set_assignments_bulk") {
     const plan = activePlan(snapshot, args.plan_id);
     const groups = requireCurrentGroups(snapshot.groups);
-    const changes = args.changes as Array<{ load_point_id: number; configuration: PileConfigurationKey | null }>;
+    const changes = args.changes;
     const known = new Set(state.loadPoints.map((point) => point.id));
     for (const change of changes) {
       if (!known.has(change.load_point_id)) throw new McpReadError("unknown_id");
@@ -72,7 +70,7 @@ export async function prepareBulkWrite(snapshot: McpSnapshot, name: PileMcpWrite
   }
   if (name === "pile_ungroup_load_points_bulk") {
     const groups = requireCurrentGroups(snapshot.groups);
-    const ids = args.load_point_ids as number[];
+    const ids = args.load_point_ids;
     const input: LoadPointGroupUngroupBatchInput = {
       loadPoints: state.loadPoints, settings: state.loadPointGroupingSettings, selectedLoadPointIds: ids,
     };
@@ -90,7 +88,7 @@ export async function prepareBulkWrite(snapshot: McpSnapshot, name: PileMcpWrite
   }
   if (name === "pile_set_load_point_locks_bulk") {
     const plan = activePlan(snapshot, args.plan_id);
-    const changes = args.changes as LoadPointLockProposal[];
+    const changes = args.changes;
     const result = await (dependencies.validateLockBatch ?? validateLoadPointLockBatchCore)({
       loadPointIds: state.loadPoints.map((point) => point.id), changes,
     });
@@ -119,7 +117,7 @@ export async function prepareBulkWrite(snapshot: McpSnapshot, name: PileMcpWrite
   }
   if (name === "pile_set_cpt_selections_bulk") {
     if (state.cptSelectionEditDraft) throw new McpReadError("editing_in_progress");
-    const changes = args.changes as ManualCptSelectionProposal[];
+    const changes = args.changes;
     const result = await (dependencies.validateCptBatch ?? validateManualCptSelectionBatchCore)({
       loadPointIds: state.loadPoints.map((point) => point.id), cptIds: state.cpts.map((cpt) => cpt.id), changes,
     });

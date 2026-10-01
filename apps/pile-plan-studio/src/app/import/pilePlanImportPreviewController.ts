@@ -1,7 +1,7 @@
 import { getImportFileFormat } from "../../core/importFiles.ts";
 import type { PilePlanImportPreview, PilePlanImportRequest } from "../../core/pilePlanImportContract.ts";
 import { applyPilePlanImportPreview, beginPilePlanImportPreview, failPilePlanImportPreview,
-  pilePlanImportTolerance, type PilePlanImportDraft } from "../../components/domain/imports/pilePlanImportModel.ts";
+  pilePlanImportTolerance, type PilePlanImportDraft } from "../../domain/imports/pilePlanImportModel.ts";
 
 export type PilePlanImportContext = Pick<PilePlanImportRequest, "loadPoints" | "cpts" | "availablePileConfigurations">;
 type Dependencies = {

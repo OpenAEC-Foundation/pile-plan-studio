@@ -1,6 +1,6 @@
 import { useEffect, useRef } from "react";
 import { previewImportSourceCore } from "../../core/coreClient.ts";
-import type { ImportDrafts } from "../../components/domain/imports/projectImportModel.ts";
+import type { ImportDrafts } from "../../domain/imports/projectImportModel.ts";
 import { createProjectImportPreviewController } from "./projectImportPreviewController.ts";
 
 export function useProjectImportPreviews(update: (update: (drafts: ImportDrafts<File>) => ImportDrafts<File>) => void) {

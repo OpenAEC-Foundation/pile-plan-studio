@@ -6,6 +6,9 @@ import type { PilePlanImportToolName } from "./pilePlanImportSession.ts";
 
 import type { ProjectDocumentEdit } from "../../core/projectDocumentEditContract.ts";
 import type { IlpOptimizationSettings } from "../../core/ilpOptimizationTypes.ts";
+import type { CptSelectionSettings, PileCostSettingsItem, PileConfigurationKey } from "../../core/projectTypes.ts";
+import type { CostCatalogAction } from "../../core/settingsEditCoreClient.ts";
+import type { ManualCptSelectionProposal, LoadPointLockProposal } from "../../core/locationBulkCoreClient.ts";
 
 export type McpSnapshot = SourceSnapshot & PlanAssessmentSnapshot;
 export type PileMcpWriteToolName =
@@ -416,7 +419,40 @@ type EditArguments<K extends ProjectDocumentEdit["kind"]> = Omit<Extract<Project
 type OptimizationPatch = Omit<Partial<IlpOptimizationSettings>, "transition_weights"> & {
   transition_weights?: Partial<IlpOptimizationSettings["transition_weights"]>;
 };
-type ProjectEditToolArguments = {
+type CptSettingsArguments = {
+  algorithm?: CptSelectionSettings["algorithm"];
+  max_distance_m?: number;
+  monopoly_distance_m?: number;
+  max_angle_degrees?: number;
+};
+type CptSettingsChangeArguments = { settings: CptSettingsArguments; overwrite_manual_selections?: boolean };
+type PlanArguments = { plan_id: string };
+type LoadPointArguments = { load_point_id: number };
+
+export type WriteToolArguments = {
+  pile_duplicate_plan: PlanArguments;
+  pile_rename_plan: PlanArguments & { name: string };
+  pile_assign_configuration: PlanArguments & LoadPointArguments & PileConfigurationKey;
+  pile_clear_assignment: PlanArguments & LoadPointArguments;
+  pile_activate_plan: PlanArguments;
+  pile_delete_plan: PlanArguments;
+  pile_set_load_point_lock: PlanArguments & LoadPointArguments & { locked: boolean };
+  pile_set_manual_cpts: LoadPointArguments & { cpt_ids: number[] };
+  pile_use_automatic_cpts: LoadPointArguments;
+  pile_group_load_points: { load_point_ids: number[] };
+  pile_ungroup_load_points: LoadPointArguments;
+  pile_set_assignments_bulk: PlanArguments & { changes: Array<LoadPointArguments & { configuration: PileConfigurationKey | null }> };
+  pile_set_load_point_locks_bulk: PlanArguments & { changes: LoadPointLockProposal[] };
+  pile_set_cpt_selections_bulk: { changes: ManualCptSelectionProposal[] };
+  pile_ungroup_load_points_bulk: { load_point_ids: number[] };
+  pile_set_cpt_selection_settings: CptSettingsChangeArguments;
+  pile_set_cpt_selection_settings_bulk: { changes: Array<LoadPointArguments & CptSettingsChangeArguments> };
+  pile_set_grouping_settings: { automatic?: boolean; max_edge_distance_m?: number };
+  pile_reset_group_overrides: Record<string, never>;
+  pile_add_cost_item: { item: PileCostSettingsItem };
+  pile_update_cost_item: Omit<Extract<CostCatalogAction, { action: "update" }>, "action">;
+  pile_remove_cost_item: { pile_size_mm: number };
+  pile_edit_cost_catalog_bulk: { actions: CostCatalogAction[] };
   pile_set_optimization_settings: { settings: OptimizationPatch };
   pile_set_active_configurations: EditArguments<"active_configurations">;
   pile_set_legend_settings: EditArguments<"legend_settings">;
@@ -426,17 +462,25 @@ type ProjectEditToolArguments = {
   pile_edit_foundation_advice_bulk: EditArguments<"bearing_capacities">;
 };
 
+export type WriteOperation = {
+  [K in PileMcpWriteToolName]: { name: K; args: WriteToolArguments[K] }
+}[PileMcpWriteToolName];
+
+export function writeOperation(name: PileMcpWriteToolName, raw: unknown): WriteOperation {
+  return { name, args: writeArguments(name, raw) } as WriteOperation;
+}
+
 // The dispatcher checks revision fields; direct operation callers need only the edit fields.
 // Narrowing reuses the published tool schema rather than maintaining a second validator.
-export function projectEditArguments<K extends keyof ProjectEditToolArguments>(
+function writeArguments<K extends keyof WriteToolArguments>(
   name: K, raw: unknown,
-): ProjectEditToolArguments[K] {
+): WriteToolArguments[K] {
   const schema = definitions.get(name)!.inputSchema as ValueSchema;
   const editSchema = { ...schema,
     required: schema.required?.filter(key => !expectedFields.includes(key)),
   };
   if (!validateValue(editSchema, raw)) throw new McpReadError("invalid_arguments");
-  return raw as ProjectEditToolArguments[K];
+  return raw as WriteToolArguments[K];
 }
 
 function validateArgs(name: string, raw: unknown): Record<string, unknown> {

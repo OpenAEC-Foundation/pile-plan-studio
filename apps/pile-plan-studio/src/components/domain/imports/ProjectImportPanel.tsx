@@ -28,7 +28,7 @@ import {
   shouldWarnAboutMissingFoundationAdvice,
   type ImportPreviewState,
   type ProjectImportMode,
-} from "./projectImportModel.ts";
+} from "../../../domain/imports/projectImportModel.ts";
 import "./projectImport.css";
 
 const ROLES: Array<{ role: ImportFileRole; labelKey: string; columnsKey: string }> = [

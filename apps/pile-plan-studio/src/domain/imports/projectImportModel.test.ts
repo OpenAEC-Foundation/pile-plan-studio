@@ -1,6 +1,5 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
 
 import {
   applyImportPreview,
@@ -11,7 +10,7 @@ import {
   setImportProfile,
   shouldWarnAboutMissingFoundationAdvice,
 } from "./projectImportModel.ts";
-import type { ImportSourcePreview } from "../../../core/coreImportContract.ts";
+import type { ImportSourcePreview } from "../../core/coreImportContract.ts";
 
 describe("project import model", () => {
   it("warns only when refreshing CPTs without foundation advice", () => {
@@ -98,13 +97,7 @@ describe("project import model", () => {
     });
   });
 
-  it("requires project properties for a new project import", () => {
-    const source = readFileSync(new URL("./ProjectImportPanel.tsx", import.meta.url), "utf8");
 
-    assert.match(source, /defaultCurrencyCode/);
-    assert.match(source, /pileHeadLevel/);
-    assert.match(source, /normalizePileHeadLevel/);
-  });
 });
 
 function standardPreview(role: "load-points" | "cpts" | "bearing-capacities"): ImportSourcePreview {

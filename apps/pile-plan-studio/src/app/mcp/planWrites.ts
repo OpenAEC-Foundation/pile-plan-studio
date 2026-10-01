@@ -2,11 +2,14 @@ import { activatePilePlanState } from "../../domain/pile-plans/pilePlanNavigatio
 import { applyLoadPointLockDraft, getActiveLockedLoadPointIds } from "../../domain/pile-plans/loadPointLocking.ts";
 import { deletePilePlan } from "../../domain/pile-plans/pilePlanManagement.ts";
 import { McpReadError } from "./readModel.ts";
-import type { McpSnapshot, PileMcpWriteToolName } from "./protocol.ts";
+import type { WriteOperation, McpSnapshot } from "./protocol.ts";
 import type { PreparedMcpWrite } from "./writeModel.ts";
 
-export function preparePlanWrite(snapshot: McpSnapshot, name: PileMcpWriteToolName,
-  args: Record<string, unknown>): PreparedMcpWrite {
+export function preparePlanWrite(snapshot: McpSnapshot, operation: WriteOperation): PreparedMcpWrite {
+  const { name, args } = operation;
+  if (name !== "pile_activate_plan" && name !== "pile_delete_plan" && name !== "pile_set_load_point_lock") {
+    throw new McpReadError("unknown_tool");
+  }
   const { state } = snapshot;
   const plan = state.pilePlans.find((item) => item.id === args.plan_id);
   if (!plan) throw new McpReadError("unknown_id");
@@ -32,9 +35,8 @@ export function preparePlanWrite(snapshot: McpSnapshot, name: PileMcpWriteToolNa
 
   if (name !== "pile_set_load_point_lock") throw new McpReadError("unknown_tool");
   if (plan.id !== state.activePilePlanId) throw new McpReadError("plan_not_active");
-  const loadPointId = args.load_point_id as number;
+  const { load_point_id: loadPointId, locked } = args;
   if (!state.loadPoints.some((point) => point.id === loadPointId)) throw new McpReadError("unknown_id");
-  const locked = args.locked as boolean;
   const currentLocks = new Set(getActiveLockedLoadPointIds(state.pilePlans, plan.id));
   const changed = currentLocks.has(loadPointId) !== locked;
   return {

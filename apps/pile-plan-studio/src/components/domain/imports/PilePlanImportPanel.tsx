@@ -19,7 +19,7 @@ import {
   setPilePlanImportProfile,
   setPilePlanImportTolerance,
   type PilePlanImportDraft,
-} from "./pilePlanImportModel.ts";
+} from "../../../domain/imports/pilePlanImportModel.ts";
 import "./projectImport.css";
 import "./pilePlanImport.css";
 

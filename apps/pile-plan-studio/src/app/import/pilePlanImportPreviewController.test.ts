@@ -2,7 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { createPilePlanImportPreviewController } from "./pilePlanImportPreviewController.ts";
 import { createPilePlanImportDraft, setPilePlanImportFile, setPilePlanImportProfile,
-  setPilePlanImportTolerance, setPilePlanImportCategory } from "../../components/domain/imports/pilePlanImportModel.ts";
+  setPilePlanImportTolerance, setPilePlanImportCategory } from "../../domain/imports/pilePlanImportModel.ts";
 import type { PilePlanImportPreview, PilePlanImportRequest } from "../../core/pilePlanImportContract.ts";
 
 function deferred<T>() {
