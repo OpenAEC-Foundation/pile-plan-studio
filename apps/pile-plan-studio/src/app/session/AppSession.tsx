@@ -1,3 +1,4 @@
+import { beginLoadPointLockEditing, cancelLoadPointLockEditing, clearLoadPointLockDraft, finishLoadPointLockEditing } from "../../domain/pile-plans/loadPointLockEditing.ts";
 import {applyIlpPreviewInteraction} from "../../domain/pile-plans/ilp-optimization/ilpLivePreview.ts";
 import { useCallback, useEffect, useMemo, useReducer, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent, type SetStateAction } from "react";
 import { flushSync } from "react-dom";
@@ -110,9 +111,7 @@ import {
   getAvailablePileConfigurationCatalog,
 } from "../../domain/pile-plans/optimization/optimizationCandidates.ts";
 import {
-  applyLoadPointLockDraft,
   getActiveLockedLoadPointIds,
-  startLoadPointLockDraft,
 } from "../../domain/pile-plans/loadPointLocking.ts";
 import {
   createManagedProjectState,
@@ -794,76 +793,11 @@ export default function AppSession({
 
   const startLockEditing = () => {
     setRightTaskPanel(null);
-    setProjectState((current) => ({
-      ...current,
-      cptSelectionEditDraft: null,
-      loadPointLockDraft: startLoadPointLockDraft(
-        current.pilePlans,
-        current.activePilePlanId,
-        current.selectedLoadPointIds,
-      ),
-      loadPointLockSelectionSnapshot: {
-        selectedLoadPointIds: [...current.selectedLoadPointIds],
-        selectedLoadPointId: current.selectedLoadPointId,
-        selectedCptId: current.selectedCptId,
-      },
-      selectedLoadPointIds: [],
-      selectedLoadPointId: null,
-      selectedCptId: null,
-    }));
+    setProjectState(beginLoadPointLockEditing);
   };
-
-  const cancelLockEditing = () => {
-    setProjectState((current) => {
-      const snapshot = current.loadPointLockSelectionSnapshot;
-      if (snapshot === null) {
-        return { ...current, loadPointLockDraft: null };
-      }
-      return {
-        ...current,
-        loadPointLockDraft: null,
-        loadPointLockSelectionSnapshot: null,
-        selectedLoadPointIds: snapshot.selectedLoadPointIds,
-        selectedLoadPointId: snapshot.selectedLoadPointId,
-        selectedCptId: snapshot.selectedCptId,
-      };
-    });
-  };
-
-  const unlockAllInDraft = () => {
-    setProjectState((current) => current.loadPointLockDraft === null
-      ? current
-      : { ...current, loadPointLockDraft: new Set() });
-  };
-
-  const applyLockEditing = () => {
-    commitProjectState((current) => {
-      const draft = current.loadPointLockDraft;
-      if (draft === null) return current;
-      const previous = getActiveLockedLoadPointIds(current.pilePlans, current.activePilePlanId);
-      const changed = previous.length !== draft.size || previous.some((id) => !draft.has(id));
-      const selectedLoadPointIds = current.selectedLoadPointIds.filter((id) => !draft.has(id));
-      const selectedLoadPointId = selectedLoadPointIds.includes(current.selectedLoadPointId ?? -1)
-        ? current.selectedLoadPointId
-        : selectedLoadPointIds[0] ?? null;
-      if (!changed) {
-        return {
-          ...current,
-          loadPointLockDraft: null,
-          loadPointLockSelectionSnapshot: null,
-        };
-      }
-      return {
-        ...current,
-        pilePlans: applyLoadPointLockDraft(current.pilePlans, current.activePilePlanId, draft),
-        loadPointLockDraft: null,
-        loadPointLockSelectionSnapshot: null,
-        selectedLoadPointIds,
-        selectedLoadPointId,
-        selectedCptId: null,
-      };
-    });
-  };
+  const cancelLockEditing = () => setProjectState(cancelLoadPointLockEditing);
+  const unlockAllInDraft = () => setProjectState(clearLoadPointLockDraft);
+  const applyLockEditing = () => commitProjectState(finishLoadPointLockEditing);
 
   const renameProjectPilePlan = (pilePlanId: string, name: string) => {
     commitProjectState((current) => {

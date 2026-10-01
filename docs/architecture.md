@@ -43,6 +43,12 @@ stale source/settings snapshots, and commit copied grouping records with the
 appropriate selection and history action. Group edits preserve pile assignments;
 conflicts remain visible through the Rust-derived assessment.
 
+Lock-editing state transitions live in `domain/pile-plans/loadPointLockEditing.ts`,
+beside the per-plan lock helpers. Entry snapshots the transient selection; cancel
+restores it; apply installs the detached draft in the active plan. AppSession
+dispatches draft changes as runtime updates and applies locks as one project
+commit, so unchanged locks do not add an undo step.
+
 ## Desktop MCP connection
 
 `app/mcp/connectionController.ts` owns connection status, startup cancellation,
