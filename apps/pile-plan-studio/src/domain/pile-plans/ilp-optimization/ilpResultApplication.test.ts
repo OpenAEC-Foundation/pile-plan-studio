@@ -2,36 +2,11 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import type { PilePlanData } from "../../../core/projectFile.ts";
 import type { IlpSolution } from "../../../core/ilpOptimizationTypes.ts";
-import { applyIlpSolutionToPlan, applyIlpSolutionToState, canSkipUnsolvableIlpTargets, enableSkippingUnsolvableTargets } from "./ilpResultApplication.ts";
+import { applyIlpSolutionToPlan, canSkipUnsolvableIlpTargets, enableSkippingUnsolvableTargets } from "./ilpResultApplication.ts";
 import { readFileSync } from "node:fs";
 import { createInitialProjectState } from "../../project/projectState.ts";
 import { canonicalProjectForTest, projectTipLevelKeysForTest } from "../../../core/projectTestSupport.ts";
-import { createManagedProjectState, projectHistoryReducer } from "../../project/history/projectHistoryReducer.ts";
-import { ilpSolvedForTest } from "../../../core/ilpOptimizationTestSupport.ts";
 const a={pile_size_mm:300,pile_tip_level_mm:-10000}, b={pile_size_mm:400,pile_tip_level_mm:-11000};
-test("selection survives two optimization results, a new variant, undo and redo", () => {
-  const project = canonicalProjectForTest(readFileSync("../../sample_project/sample_project.ifcpp", "utf8"));
-  const state = createInitialProjectState(project, {initializeDefaultPiles:false}, projectTipLevelKeysForTest(project));
-  const ids = state.loadPoints.slice(0,3).map(p=>p.id);
-  state.selectedLoadPointIds = ids;
-  state.selectedLoadPointId = ids[0];
-  state.ilpOptimizationTargetScope = "selected";
-  assert.equal(ilpSolvedForTest.status,"solved");
-  if (ilpSolvedForTest.status !== "solved") return;
-  const solution = {...ilpSolvedForTest.solution, assignments:ids.map(load_point_id=>({load_point_id,configuration:b}))};
-  let managed = createManagedProjectState(state);
-  for (const newPlan of [true,false]) {
-    managed = projectHistoryReducer(managed,{type:"commit",update:now=>applyIlpSolutionToState({...now,ilpOptimizationCreatesPilePlan:newPlan},solution,"nl")});
-    assert.deepEqual(managed.present.selectedLoadPointIds,ids);
-    assert.equal(managed.present.selectedLoadPointId,ids[0]);
-    assert.equal(managed.present.ilpOptimizationTargetScope,"selected");
-  }
-  assert.equal(managed.present.pilePlans.length,state.pilePlans.length+1);
-  for (const type of ["undo","redo"] as const) {
-    managed = projectHistoryReducer(managed,{type});
-    assert.deepEqual(managed.present.selectedLoadPointIds,ids);
-  }
-});
 test("ILP patches only targets, preserving locks and excluded/outside assignments", () => {
   const plan: PilePlanData={id:"p",name:"P",activePileSizes:[300],activePileTipLevelMms:[-10000],
     selectedPileConfigurationsByLoadPoint:new Map([[1,a],[2,a],[3,a]]),lockedLoadPointIds:[3],

@@ -123,3 +123,31 @@ test("empty names use the next localized optimization name",()=>{
     assert.equal(createIlpPlanRun(finished,language,false).target.name,language==="nl"?"Optimalisatie 2":"Optimization 2");
   }
 });
+
+for (const newPlan of [true, false]) test(`optimization completion (${newPlan ? "new" : "existing"} plan) preserves selection and restores content on undo/redo`, () => {
+  const initial = fixture(newPlan);
+  const ids = initial.state.loadPoints.slice(0, 3).map(point => point.id);
+  const state = { ...initial.state, selectedLoadPointIds: ids, selectedLoadPointId: ids[1],
+    ilpOptimizationTargetScope: "selected" as const };
+  const run = createIlpPlanRun(state, "nl", false);
+  let managed = createManagedProjectState(state);
+  managed = projectHistoryReducer(managed, { type: "commit",
+    update: now => completeIlpPlanRun(now, run, initial.outcome, true) });
+  const finishedPlans = managed.present.pilePlans;
+  const assertSelection = () => {
+    assert.deepEqual(managed.present.selectedLoadPointIds, ids);
+    assert.equal(managed.present.selectedLoadPointId, ids[1]);
+    assert.equal(managed.present.ilpOptimizationTargetScope, "selected");
+  };
+  assertSelection();
+  assert.equal(managed.history.past.length, 1);
+  assert.equal(finishedPlans.length, state.pilePlans.length + (newPlan ? 1 : 0));
+  assert.deepEqual(finishedPlans.find(plan => plan.id === run.target.id)?.selectedPileConfigurationsByLoadPoint.get(ids[0]),
+    initial.outcome.solution.assignments[0].configuration);
+  managed = projectHistoryReducer(managed, { type: "undo" });
+  assertSelection();
+  assert.deepEqual(managed.present.pilePlans, state.pilePlans);
+  managed = projectHistoryReducer(managed, { type: "redo" });
+  assertSelection();
+  assert.deepEqual(managed.present.pilePlans, finishedPlans);
+});
