@@ -23,8 +23,18 @@ be the source of truth for calculations.
 `usePileOptionCosts.ts`; only Rust calculates individual costs. MCP snapshot
 freshness is coordinated by `app/mcp/useMcpDerivedState.ts`, which reuses the
 shared snapshot gate for groups, technical assignment, and group conflicts.
+`app/derived-state/useProjectTechnicalAssignment.ts` prepares the effective
+pile options and gates Rust assessment on completed upstream analysis and the
+current CPT preview. Its preparation and error precedence are isolated in
+`projectTechnicalAssignment.ts`; engineering assessment remains in Rust.
 
 ## Desktop MCP connection
+
+`app/mcp/connectionController.ts` owns connection status, startup cancellation,
+and disposal of the import/file sessions belonging to each connection.
+`useMcpConnection.ts` publishes that lifecycle to React. A replacement listener
+waits for the previous stop and any cancelled startup to complete, so delayed
+native cleanup cannot stop the replacement connection.
 
 The desktop app can expose the open project to a local MCP client after the
 user enables the AI connection in Settings. Tauri owns the fixed loopback HTTP
@@ -39,6 +49,12 @@ same project operations and Rust group assignment rules as the interface,
 and commit through project history. Bulk writes are validated as a whole by
 the Rust core, then committed once, so all changed locations share one Undo
 entry. No separate copy of the project is opened.
+
+`app/mcp/sessionDispatcher.ts` connects protocol requests to live session state,
+validated writes, optimizer controls, and the import/file sessions. `AppSession`
+supplies current-state getters and atomic history or navigation callbacks. The
+dispatcher rechecks edit permission and snapshot freshness after write validation
+and verifies installed content before returning success.
 
 MCP reads do not enter undo history or dirty state. The browser build has no
 listener. See [MCP connection](mcp.md) for user-facing connection steps and
@@ -91,6 +107,12 @@ refuses to replace unsaved content. Staged data is cleared when the MCP bridge
 stops or the transaction expires. The browser has no MCP listener, while its
 ordinary import UI still uses the same Rust import clients through WASM.
 
+`app/mcp/sourceImportOperations.ts` owns the source preview, Rust import/refresh
+calls, validation summary, and guarded application of a staged result.
+`AppSession` supplies live state and permission getters and atomic installation
+callbacks. New-project imports recheck lifecycle, edit permission, project
+marker, and unsaved content after cost defaults have been validated.
+
 Existing pile-plan CSV import has a separate transient MCP transaction. Rust
 supplies the standard-table format contract and parses the uploaded CSV against
 the current load points, CPTs, and configuration catalog. The webview stages
@@ -99,6 +121,12 @@ passes assignment changes through Rust's group and lock batch validator. The
 new plan, any project-wide manual CPT changes, and analysis invalidation commit
 as one history entry. The transaction is tied to a project revision and is
 discarded when the bridge stops.
+
+`app/mcp/pilePlanImportOperations.ts` coordinates Rust preview, group and lock
+batch validation, and guarded installation through the session. It rejects
+group-expanded assignments outside the import patch and verifies the committed
+project before reporting success. The new plan and shared CPT edits remain one
+history entry.
 
 Both import transactions share an apply lock acquired before asynchronous
 content-digest checks. They recheck transaction lifetime and project identity
@@ -109,8 +137,13 @@ Desktop file operations use the app's existing IFCPP reader/writer and
 CSV/XLSX export clients. MCP starts a native file dialog asynchronously and
 polls a short-lived operation ID so the dialog never holds an HTTP request.
 The operation checks the project revision after each await and before writing;
-the response exposes a basename but no local path. Export reads an explicit
-plan ID without changing the viewed plan. Two-plan comparison reads immutable
+the response exposes a basename but no local path.
+`app/mcp/projectFileOperations.ts` wires the native
+dialogs, validated file opening, serialization, and save callbacks to the shared
+project-file lifecycle runner. `AppSession` supplies current state and installs
+opened projects or records successful saves.
+
+Export reads an explicit plan ID without changing the viewed plan. Two-plan comparison reads immutable
 plan state and uses the Rust cost calculator before returning paged assignment
 and lock differences.
 

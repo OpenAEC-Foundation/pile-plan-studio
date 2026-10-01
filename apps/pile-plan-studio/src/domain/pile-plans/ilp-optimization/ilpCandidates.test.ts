@@ -1,5 +1,6 @@
 import {test} from "node:test";
 import assert from "node:assert/strict";
+import type { PileConfigurationOption } from "../../../core/projectTypes.ts";
 import {ilpRequestForTest} from "../../../core/ilpOptimizationTestSupport.ts";
 import {ilpCandidateCatalog,ilpCandidates,toggleIlpCandidate,ilpCandidateGroupState,toggleIlpCandidateGroup} from "./ilpCandidates.ts";
 
@@ -24,6 +25,16 @@ test("candidate catalog lists each exact configuration once across load points",
   const catalog=ilpCandidateCatalog(options);
   assert.equal(catalog.length,new Set([...options.values()].flat().map(o=>JSON.stringify(o.configuration))).size);
   assert.ok(catalog.length>0);
+});
+
+test("candidate catalog preserves tip-first ordering and isolates its configuration copies",()=>{
+  const keys=[{pile_size_mm:290,pile_tip_level_mm:-19000},
+    {pile_size_mm:320,pile_tip_level_mm:-18000},{pile_size_mm:290,pile_tip_level_mm:-18000}];
+  const options=new Map([[1,keys.map(configuration=>({configuration}) as PileConfigurationOption)]]);
+  const catalog=ilpCandidateCatalog(options);
+  assert.deepEqual(catalog,[keys[2],keys[1],keys[0]]);
+  catalog[0].pile_size_mm=999;
+  assert.equal(keys[2].pile_size_mm,290);
 });
 
 test("row and column selection only adds catalog pairs and keeps other selections",()=>{

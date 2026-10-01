@@ -3,12 +3,16 @@ import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 
 const source = readFileSync(new URL("./app/session/AppSession.tsx", import.meta.url), "utf8");
+const technicalHook = readFileSync(new URL("./app/derived-state/useProjectTechnicalAssignment.ts", import.meta.url), "utf8");
+const technicalPreparation = readFileSync(new URL("./app/derived-state/projectTechnicalAssignment.ts", import.meta.url), "utf8");
 
 describe("App load point group integration", () => {
   it("uses the derived runtime partition and delegates assignment decisions to Rust", () => {
     assert.match(source, /useLoadPointGroups\(\s*projectState\.loadPoints,\s*projectState\.loadPointGroupingSettings,?\s*\)/);
-    assert.match(source, /getEffectivePileOptionsByLoadPointId\(projectState\)/);
-    assert.match(source, /currentPreview\?\.status === "analyzing"/);
+    assert.match(source, /useProjectTechnicalAssignment\(projectState, loadPointGroups\)/);
+    assert.match(technicalHook, /getEffectivePileOptionsByLoadPointId\(state\)/);
+    assert.match(technicalHook, /useTechnicalAssignment\(input\)/);
+    assert.match(technicalPreparation, /preview\?\.status === "analyzing"/);
     assert.match(source, /applyLoadPointGroupAssignmentCore\(\{/);
     assert.doesNotMatch(source, /distance.*1200|1200.*distance/i);
   });

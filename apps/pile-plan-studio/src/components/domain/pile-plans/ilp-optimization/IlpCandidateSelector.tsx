@@ -1,13 +1,14 @@
+import { pileConfigurationToken } from "../../../../core/pileConfigurationKey.ts";
 import {useEffect,useMemo,useRef} from "react";
 import {useTranslation} from "react-i18next";
 import type {PileConfigurationKey} from "../../../../core/projectTypes.ts";
-import {candidateKey,toggleIlpCandidate,ilpCandidateGroupState,toggleIlpCandidateGroup} from "../../../../domain/pile-plans/ilp-optimization/ilpCandidates.ts";
+import {toggleIlpCandidate,ilpCandidateGroupState,toggleIlpCandidateGroup} from "../../../../domain/pile-plans/ilp-optimization/ilpCandidates.ts";
 
 export default function IlpCandidateSelector({catalog,selected,onChange}:{catalog:PileConfigurationKey[];selected:PileConfigurationKey[];onChange:(selected:PileConfigurationKey[])=>void}) {
   const {t,i18n}=useTranslation("ribbon");
   const sizes=useMemo(()=>[...new Set([...catalog,...selected].map(c=>c.pile_size_mm))].sort((a,b)=>a-b),[catalog,selected]);
   const tips=useMemo(()=>[...new Set([...catalog,...selected].map(c=>c.pile_tip_level_mm))].sort((a,b)=>b-a),[catalog,selected]);
-  const available=new Set(catalog.map(candidateKey)),checked=new Set(selected.map(candidateKey));
+  const available=new Set(catalog.map(pileConfigurationToken)),checked=new Set(selected.map(pileConfigurationToken));
   const level=(mm:number)=>new Intl.NumberFormat(i18n.language,{maximumFractionDigits:3}).format(mm/1000);
   return <div className="ilp-candidate-selector">
     <p className="supporting-text">{t("ilp.customHelp")}</p>
@@ -26,7 +27,7 @@ export default function IlpCandidateSelector({catalog,selected,onChange}:{catalo
         accessibleLabel={t("ilp.selectTipCandidates",{value:level(tip)})}
         {...ilpCandidateGroupState(selected,catalog,"pile_tip_level_mm",tip)}
         onChange={enabled=>onChange(toggleIlpCandidateGroup(selected,catalog,"pile_tip_level_mm",tip,enabled))}/></th>{sizes.map(size=>{
-        const configuration={pile_size_mm:size,pile_tip_level_mm:tip},key=candidateKey(configuration);
+        const configuration={pile_size_mm:size,pile_tip_level_mm:tip},key=pileConfigurationToken(configuration);
         const label=`${size} mm / ${level(tip)} m`;
         return <td key={size}>{available.has(key)||checked.has(key)
           ? <input type="checkbox" aria-label={label} checked={checked.has(key)}

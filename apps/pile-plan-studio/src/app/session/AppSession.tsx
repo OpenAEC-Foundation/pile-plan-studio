@@ -7,18 +7,17 @@ import TitleBar from "../../components/template/TitleBar";
 import Ribbon from "../../components/template/ribbon/Ribbon";
 import {useIlpOptimization} from "../optimization/useIlpOptimization.ts";
 import { createProjectMarker } from "../mcp/projectMarker.ts";
-import { createMcpDispatcher, type McpSnapshot } from "../mcp/protocol.ts";
-import { createDesktopMcpBridge, type McpConnection } from "../mcp/desktopBridge.ts";
+import type { McpSnapshot } from "../mcp/protocol.ts";
+import { createSessionMcpDispatcher } from "../mcp/sessionDispatcher.ts";
+import { useMcpConnection } from "../mcp/useMcpConnection.ts";
 import { useMcpDerivedState } from "../mcp/useMcpDerivedState.ts";
-import { prepareMcpWrite } from "../mcp/writeModel.ts";
-import { McpReadError } from "../mcp/readModel.ts";
-import { prepareOptimizationStart, requireMatchingRunId } from "../mcp/optimizationControls.ts";
-import { createSourceImportSession, SourceImportValidationError } from "../mcp/sourceImportSession.ts";
+import { createSourceImportSession } from "../mcp/sourceImportSession.ts";
 import { createMcpFileOperationSession } from "../mcp/fileOperationSession.ts";
 import { createPilePlanImportSession } from "../mcp/pilePlanImportSession.ts";
+import { createPilePlanImportOperations } from "../mcp/pilePlanImportOperations.ts";
 import { requireCurrentGroups } from "../mcp/projectSettingsSources.ts";
-import { runProjectFileOperation } from "../project/projectFileOperations.ts";
-import { summarizeImportReconciliation } from "../mcp/sourceImportSummary.ts";
+import { createMcpProjectFileOperations } from "../mcp/projectFileOperations.ts";
+import { createSourceImportOperations } from "../mcp/sourceImportOperations.ts";
 import { prepareLegendEditorEdit, prepareProjectDocumentEdit,
   preparePileCostCatalogEdit, preparePileCostCatalogDefaultEdit, prepareMergedPileCostCatalogEdit,
   type PreparedProjectDocumentEdit } from "../project/projectEditOperations.ts";
@@ -36,7 +35,7 @@ import PilePlanWorkspace from "../../components/domain/pile-plans/PilePlanWorksp
 import RightPanel, { type RightTaskPanel } from "../../components/domain/right-panel/RightPanel";
 import { usePileOptionCosts } from "../derived-state/usePileOptionCosts.ts";
 import { useLoadPointGroups } from "../derived-state/useLoadPointGroups.ts";
-import { useTechnicalAssignment } from "../derived-state/useTechnicalAssignment.ts";
+import { useProjectTechnicalAssignment } from "../derived-state/useProjectTechnicalAssignment.ts";
 import { useGroupAssignmentAssessment } from "../derived-state/useGroupAssignmentAssessment.ts";
 import ProjectInformationDialog from "../../components/domain/project/ProjectInformationDialog";
 import UnsavedChangesDialog from "../../components/domain/project/UnsavedChangesDialog.tsx";
@@ -46,7 +45,6 @@ import type { InputSourceKind } from "../../domain/project/projectState.ts";
 import type { SourceLoadPointSelection } from "../../domain/source-data/sourceTableModel.ts";
 import {
   applyLoadPointGroupAssignmentCore,
-  applyLoadPointGroupAssignmentBatchCore,
   assessLoadPointGroupAssignmentsCore,
   applyLoadPointGroupEditCore,
   calculatePileCostCore,
@@ -55,8 +53,6 @@ import {
   exportPilePlanCsvCore,
   exportPilePlanXlsxCore,
   importProjectFromFilesCore,
-  previewImportSourceCore,
-  previewPilePlanImportCore,
   readProjectDocumentCore,
   previewLoadPointGroupEditCore,
   refreshProjectFromFilesCore,
@@ -64,7 +60,6 @@ import {
 } from "../../core/coreClient";
 import { invokeDesktop, listenDesktop } from "../../core/coreTransport.ts";
 import type { PileConfigurationKey, PileCostSettings } from "../../core/projectTypes.ts";
-import { samePileConfiguration } from "../../core/pileConfigurationKey.ts";
 import type {
   LoadPointGroupEditAction,
   LoadPointGroupEditPreview,
@@ -166,7 +161,6 @@ import {
   applyCptSelectionPreviewResult,
   beginCptSelectionPreview,
   failCptSelectionPreview,
-  getEffectivePileOptionsByLoadPointId,
   getCptSelectionPreviewInput,
 } from "../../domain/cpt-selection/cptSettingsModel.ts";
 import {
@@ -273,50 +267,8 @@ export default function AppSession({
     projectState.loadPoints,
     projectState.loadPointGroupingSettings,
   );
-  const hasCompletedLoadPointGroups = projectState.loadPoints.length === 0
-    || loadPointGroups.groups.length > 0;
-  const technicalPileOptionsByLoadPointId = useMemo(
-    () => getEffectivePileOptionsByLoadPointId(projectState),
-    [projectState.cptSelectionEditDraft, projectState.cptSelectionPreview, projectState.pileOptionsByLoadPointId],
-  );
-  const currentPreview = projectState.cptSelectionPreview?.draft === projectState.cptSelectionEditDraft
-    ? projectState.cptSelectionPreview
-    : null;
-  const technicalAssignmentInput = useMemo(() => (
-    !hasCompletedLoadPointGroups
-      || projectState.analysisError !== null
-      || currentPreview?.status === "analyzing"
-      || currentPreview?.status === "failed"
-      || technicalPileOptionsByLoadPointId.size !== projectState.loadPoints.length
-      ? null
-      : {
-          groups: loadPointGroups.groups,
-          optionsByLoadPoint: technicalPileOptionsByLoadPointId,
-        }
-  ), [currentPreview?.status, hasCompletedLoadPointGroups, loadPointGroups.groups, projectState.analysisError, projectState.loadPoints.length, technicalPileOptionsByLoadPointId]);
-  const assessedTechnicalAssignment = useTechnicalAssignment(technicalAssignmentInput);
-  const technicalAssignment = useMemo(() => {
-    const upstreamError = projectState.analysisError
-      ?? (!hasCompletedLoadPointGroups ? loadPointGroups.error : null)
-      ?? (currentPreview?.status === "failed" ? currentPreview.error : null);
-    if (upstreamError) {
-      return {
-        status: "error" as const,
-        assessment: null,
-        issuesByLoadPointId: new Map(),
-        error: upstreamError instanceof Error ? upstreamError : new Error(upstreamError),
-      };
-    }
-    if (technicalAssignmentInput === null) {
-      return {
-        status: "loading" as const,
-        assessment: null,
-        issuesByLoadPointId: new Map(),
-        error: null,
-      };
-    }
-    return assessedTechnicalAssignment;
-  }, [assessedTechnicalAssignment, currentPreview, hasCompletedLoadPointGroups, loadPointGroups.error, projectState.analysisError, technicalAssignmentInput]);
+  const { hasCompletedLoadPointGroups, technicalPileOptionsByLoadPointId, technicalAssignmentInput, technicalAssignment } =
+    useProjectTechnicalAssignment(projectState, loadPointGroups);
   const loadPointGroupsRef = useRef(loadPointGroups.groups);
   loadPointGroupsRef.current = loadPointGroups.groups;
   const pileAssignmentRequestIdRef = useRef(0);
@@ -396,16 +348,8 @@ export default function AppSession({
     dispatchProject({ type: "replace", state });
   }, [invalidatePileAssignmentRequests]);
   const [settingsOpen, setSettingsOpen] = useState(false);
-  const [mcpStatus, setMcpStatus] = useState<"off" | "starting" | "on" | "stopping" | "error">("off");
-  const [mcpConnection, setMcpConnection] = useState<McpConnection | null>(null);
-  const [mcpError, setMcpError] = useState<string | null>(null);
   const [mcpWriteEnabled, setMcpWriteEnabled] = useState(false);
   const mcpWriteEnabledRef = useRef(false);
-  const mcpBridgeRef = useRef<ReturnType<typeof createDesktopMcpBridge> | null>(null);
-  const mcpImportSessionRef = useRef<ReturnType<typeof createSourceImportSession> | null>(null);
-  const mcpFileOperationSessionRef = useRef<ReturnType<typeof createMcpFileOperationSession> | null>(null);
-  const mcpPilePlanImportSessionRef = useRef<ReturnType<typeof createPilePlanImportSession> | null>(null);
-  const mcpLifecycleRef = useRef(0);
   const [backstageOpen, setBackstageOpen] = useState(false);
   const [feedbackOpen, setFeedbackOpen] = useState(false);
   const [projectInformationOpen, setProjectInformationOpen] = useState(false);
@@ -1400,219 +1344,59 @@ export default function AppSession({
       runId:ilp.currentRunId,timeLimitSeconds:ilp.currentRunTimeLimitSeconds,
       targetLoadPointIds:ilp.currentRunTargetLoadPointIds },
   };
-  const setMcpEnabled = async (enabled: boolean) => {
-    const run = ++mcpLifecycleRef.current;
-    if (!enabled) {
-      mcpImportSessionRef.current?.dispose();
-      mcpImportSessionRef.current = null;
-      mcpFileOperationSessionRef.current?.invalidate();
-      mcpFileOperationSessionRef.current = null;
-      mcpPilePlanImportSessionRef.current?.dispose();
-      mcpPilePlanImportSessionRef.current = null;
-      mcpWriteEnabledRef.current = false;
-      setMcpWriteEnabled(false);
-      setMcpStatus("stopping");
-      setMcpConnection(null);
-      const bridge = mcpBridgeRef.current;
-      mcpBridgeRef.current = null;
-      try { await bridge?.stop(); }
-      finally { if (run === mcpLifecycleRef.current) setMcpStatus("off"); }
-      return;
-    }
-    if (!isDesktop || mcpBridgeRef.current) return;
-    setMcpError(null);
-    setMcpStatus("starting");
-    try {
-      const [{ invoke }, { listen, emit }] = await Promise.all([
-        import("@tauri-apps/api/core"), import("@tauri-apps/api/event"),
-      ]);
-      if (run !== mcpLifecycleRef.current) return;
-      const bridge = createDesktopMcpBridge({ invoke, listen, emit });
-      mcpBridgeRef.current = bridge;
-      const importSession = createSourceImportSession({
-        requirements: () => invokeDesktop<Record<string, unknown>>("get_standard_csv_requirements", {}),
-        validate: async ({ mode, projectName, pileHeadLevelM, currencyCode, sources, marker }) => {
-          const current = mcpProjectMarkerRef.current!.observe(projectStateRef.current);
-          if (current.project_instance_id !== marker.project_instance_id
-            || current.project_revision !== marker.project_revision) throw new McpReadError("project_changed");
-          const previews = await Promise.all(sources.map(previewImportSourceCore));
-          const sourceErrors = previews.flatMap((preview) => preview.diagnostics
-            .filter((diagnostic) => diagnostic.severity === "error"));
-          if (sourceErrors.length) throw new SourceImportValidationError(
-            "One or more CSV sources contain invalid rows; inspect diagnostics and restage the affected role.", sourceErrors);
-          const before = mode === "refresh" ? requireValidProjectDocument(
-            await readProjectDocumentCore(await writeProjectDocumentCore(projectDraftFromState(projectStateRef.current))),
-          ).project : null;
-          const outcome = mode === "refresh"
-            ? await refreshProjectFromFilesCore({ currentProject: before!, sources })
-            : await importProjectFromFilesCore({ projectName: projectName!, pileHeadLevelM: pileHeadLevelM!,
-              currencyCode: currencyCode!, sources });
-          const after = mcpProjectMarkerRef.current!.observe(projectStateRef.current);
-          if (after.project_instance_id !== marker.project_instance_id
-            || after.project_revision !== marker.project_revision) throw new McpReadError("project_changed");
-          const summary = getImportSummary(outcome.project);
-          return { outcome, data: {
-            project_name: outcome.project.metadata.name,
-            load_point_count: summary.loadPointCount, cpt_count: summary.cptCount,
-            bearing_capacity_count: summary.bearingCapacityCount, warnings: summary.warnings.slice(0, 100),
-            warning_count: summary.warnings.length,
-            source_counts: previews.map((preview) => ({ role: preview.role, item_count: preview.itemCount,
-              warning_count: preview.diagnostics.filter((diagnostic) => diagnostic.severity === "warning").length })),
-            pile_plan_count: (outcome.project.user_state.pile_plans ?? []).length,
-            ...(before ? { reconciliation: summarizeImportReconciliation(before, outcome.project) } : {}),
-          } };
-        },
-        apply: async ({ mode, validated, marker }) => {
-          if (run !== mcpLifecycleRef.current || !mcpWriteEnabledRef.current) throw new McpReadError("write_access_disabled");
-          const current = mcpProjectMarkerRef.current!.observe(projectStateRef.current);
-          if (current.project_instance_id !== marker.project_instance_id
-            || current.project_revision !== marker.project_revision) throw new McpReadError("project_changed");
-          if (mode === "new_project" && isDirtyRef.current) throw new McpReadError("unsaved_project_changes");
-          const imported = validated.outcome as Extract<ProjectDocumentOutcome, { status: "valid" }>;
-          if (mode === "refresh") {
-            defaultSelectionKeepsDirtyRef.current = true;
-            flushSync(() => commitProjectState(createInitialProjectState(imported.project, {
-              initializeDefaultPiles: true,
-            }, imported.keys)));
-            isDirtyRef.current = true;
-            setIsDirty(true);
-          } else {
-            const project = imported.project;
-            const importedState = createInitialProjectState(project, {
-              initializeDefaultPiles: true,
-              defaultPilePlanName: pilePlanLanguage() === "nl" ? "Basisplan" : "Base plan",
-            }, imported.keys);
-            const costs = await prepareMergedPileCostCatalogEdit(importedState,
-              userSettingsRef.current.defaults.pileCostCatalog, BUILT_IN_PILE_COST_DEFAULTS);
-            if (run !== mcpLifecycleRef.current || !mcpWriteEnabledRef.current) throw new McpReadError("write_access_disabled");
-            const latest = mcpProjectMarkerRef.current!.observe(projectStateRef.current);
-            if (latest.project_instance_id !== marker.project_instance_id
-              || latest.project_revision !== marker.project_revision) throw new McpReadError("project_changed");
-            if (isDirtyRef.current) throw new McpReadError("unsaved_project_changes");
-            defaultSelectionKeepsDirtyRef.current = false;
-            flushSync(() => replaceProjectState(costs.update(importedState)));
-            setProjectPath(null);
-            updateSavedProjectSignature("");
-            isDirtyRef.current = true;
-            setIsDirty(true);
-          }
-          return { applied: true, mode, ...mcpProjectMarkerRef.current!.observe(projectStateRef.current) };
-        },
-      });
-      mcpImportSessionRef.current = importSession;
-      const fileSession = createMcpFileOperationSession({
-        run: (request, marker, isValid) => runProjectFileOperation(request, marker,
-          () => isValid() && run === mcpLifecycleRef.current && mcpWriteEnabledRef.current, {
-            currentMarker: () => mcpProjectMarkerRef.current!.observe(projectStateRef.current),
-            currentPath: () => projectPathRef.current,
-            chooseOpen: async () => {
-              const { open } = await import("@tauri-apps/plugin-dialog");
-              const path = await open({ multiple: false, filters: [{ name: "IFCPP project", extensions: ["ifcpp"] }] });
-              return typeof path === "string" ? path : null;
-            },
-            chooseSave: async (suggestedPath) => {
-              const { save } = await import("@tauri-apps/plugin-dialog");
-              return await save({ defaultPath: suggestedPath,
-                filters: [{ name: "IFCPP project", extensions: ["ifcpp"] }] });
-            },
-            suggestedName: () => projectFileName(projectStateRef.current.name),
-            openProject: async (path, isCurrent) => {
-              if (!await confirmProjectReplacement()) return false;
-              if (!isCurrent()) throw new McpReadError("project_changed");
-              const text = await invokeDesktop<string>("read_project_file", { path });
-              const project = await prepareOpenedProject(text, { initializeDefaultPiles: false },
-                { readProjectDocument: readProjectDocumentCore });
-              if (!isCurrent()) throw new McpReadError("project_changed");
-              flushSync(() => installOpenedProject(project, path));
-              projectPathRef.current = path;
-              return true;
-            },
-            serialize: () => writeProjectDocumentCore(projectDraftFromState(projectStateRef.current)),
-            writeProject: (path, contents) => invokeDesktop("write_project_file", { path, contents }),
-            didSave: (path) => {
-              projectPathRef.current = path;
-              setProjectPath(path);
-              updateSavedProjectSignature(projectStateSignature(projectStateRef.current));
-              isDirtyRef.current = false;
-              setIsDirty(false);
-            },
-            exportPlan: async (planId, format) => {
-              const state = projectStateRef.current;
-              const plan = state.pilePlans.find((candidate) => candidate.id === planId);
-              if (!plan) throw new McpReadError("unknown_plan");
-              const input = buildPilePlanExportInputForPlan(state, planId);
-              const bytes = format === "csv" ? await exportPilePlanCsvCore(input) : await exportPilePlanXlsxCore(input);
-              return { basename: pilePlanExportFileName(plan.name, format), bytes };
-            },
-            chooseExport: async (suggestedName, format) => {
-              const { save } = await import("@tauri-apps/plugin-dialog");
-              return await save({ defaultPath: suggestedName,
-                filters: [{ name: suggestedName, extensions: [format] }] });
-            },
-            writeExport: (path, bytes) => invokeDesktop<void>("write_binary_file", { path, contents: [...bytes] }),
-          }),
-      });
-      mcpFileOperationSessionRef.current = fileSession;
-      const pilePlanImportSession = createPilePlanImportSession({
-        requirements: () => invokeDesktop<Record<string, unknown>>("get_pile_plan_import_requirements", {}),
-        validate: async ({ bytes, fileName, options, marker }) => {
-          const before = mcpProjectMarkerRef.current!.observe(projectStateRef.current);
-          if (before.project_instance_id !== marker.project_instance_id
-            || before.project_revision !== marker.project_revision) throw new McpReadError("project_changed");
-          const state = projectStateRef.current;
-          const preview = await previewPilePlanImportCore({ fileName, format: "csv", bytes,
-            profile: "standard-table", options, loadPoints: state.loadPoints, cpts: state.cpts,
-            availablePileConfigurations: getAvailablePileConfigurationCatalog(state.pileOptionsByLoadPointId) });
-          const after = mcpProjectMarkerRef.current!.observe(projectStateRef.current);
-          if (after.project_instance_id !== marker.project_instance_id
-            || after.project_revision !== marker.project_revision) throw new McpReadError("project_changed");
-          return preview;
-        },
-        apply: async ({ preview, planName, marker }) => {
-          if (run !== mcpLifecycleRef.current || !mcpWriteEnabledRef.current) {
-            throw new McpReadError("write_access_disabled");
-          }
-          const currentMarker = mcpProjectMarkerRef.current!.observe(projectStateRef.current);
-          if (currentMarker.project_instance_id !== marker.project_instance_id
-            || currentMarker.project_revision !== marker.project_revision) throw new McpReadError("project_changed");
-          const before = projectStateRef.current;
-          const pileChanges = preview.patch.changes.flatMap((change) => change.pile.action === "preserve" ? [] : [{
-            load_point_id: change.load_point_id,
-            configuration: change.pile.action === "set" ? change.pile.value : null,
-          }]);
-          if (pileChanges.length > 0) {
-            const result = await applyLoadPointGroupAssignmentBatchCore({ changes: pileChanges,
-              groups: requireCurrentGroups(mcpDerivedRef.current.groups),
-              currentAssignments: before.selectedPileConfigurationsByLoadPoint,
-              lockedLoadPointIds: getActiveLockedLoadPointIds(before.pilePlans, before.activePilePlanId) });
-            if (result.status === "blocked") throw new McpReadError(result.reason, result.load_point_ids);
-            const requested = new Map(pileChanges.map((change) => [change.load_point_id, change.configuration]));
-            if (result.changes.some((change) => !requested.has(change.load_point_id)
-              || !samePileConfiguration(requested.get(change.load_point_id) ?? undefined,
-                change.configuration ?? undefined))) {
-              throw new McpReadError("group_assignment_expansion_required");
-            }
-          }
-          const beforeSignature = projectStateSignature(before);
-          const next = applyPilePlanImportAsNewPlan(before, preview.patch, planName);
-          if (run !== mcpLifecycleRef.current || !mcpWriteEnabledRef.current) {
-            throw new McpReadError("write_access_disabled");
-          }
-          const latestMarker = mcpProjectMarkerRef.current!.observe(projectStateRef.current);
-          if (latestMarker.project_instance_id !== marker.project_instance_id
-            || latestMarker.project_revision !== marker.project_revision) throw new McpReadError("project_changed");
-          flushSync(() => commitProjectState((current) =>
-            projectStateSignature(current) === beforeSignature ? next : current));
-          if (projectStateSignature(projectStateRef.current) !== projectStateSignature(next)) {
-            throw new McpReadError("project_changed");
-          }
-          return { plan_id: next.activePilePlanId, plan_name: next.pilePlans[next.pilePlans.length - 1]?.name,
-            matched_rows: preview.summary.matchedRows, skipped_rows: preview.summary.skippedRows,
-            conflicts: preview.summary.conflicts };
-        },
-      });
-      mcpPilePlanImportSessionRef.current = pilePlanImportSession;
-      const dispatch = createMcpDispatcher((): McpSnapshot => {
+  const createMcpSession = (isActive: () => boolean) => {
+    const importSession = createSourceImportSession(createSourceImportOperations({
+      requirements: () => invokeDesktop<Record<string, unknown>>("get_standard_csv_requirements", {}),
+      currentState: () => projectStateRef.current,
+      currentMarker: () => mcpProjectMarkerRef.current!.observe(projectStateRef.current),
+      canEdit: () => isActive() && mcpWriteEnabledRef.current,
+      isDirty: () => isDirtyRef.current,
+      defaultPlanName: () => pilePlanLanguage() === "nl" ? "Basisplan" : "Base plan",
+      personalCostDefault: () => userSettingsRef.current.defaults.pileCostCatalog,
+      builtInCostDefault: BUILT_IN_PILE_COST_DEFAULTS,
+      installRefresh: (state) => {
+        defaultSelectionKeepsDirtyRef.current = true;
+        flushSync(() => commitProjectState(state));
+        isDirtyRef.current = true;
+        setIsDirty(true);
+      },
+      installNewProject: (state) => {
+        defaultSelectionKeepsDirtyRef.current = false;
+        flushSync(() => replaceProjectState(state));
+        setProjectPath(null);
+        updateSavedProjectSignature("");
+        isDirtyRef.current = true;
+        setIsDirty(true);
+      },
+    }));
+    const fileSession = createMcpFileOperationSession(createMcpProjectFileOperations({
+      currentState: () => projectStateRef.current,
+      currentMarker: () => mcpProjectMarkerRef.current!.observe(projectStateRef.current),
+      currentPath: () => projectPathRef.current,
+      canEdit: () => isActive() && mcpWriteEnabledRef.current,
+      confirmReplacement: confirmProjectReplacement,
+      installOpened: (state, path) => {
+        flushSync(() => installOpenedProject(state, path));
+        projectPathRef.current = path;
+      },
+      didSave: (path) => {
+        projectPathRef.current = path;
+        setProjectPath(path);
+        updateSavedProjectSignature(projectStateSignature(projectStateRef.current));
+        isDirtyRef.current = false;
+        setIsDirty(false);
+      },
+    }));
+    const pilePlanImportSession = createPilePlanImportSession(createPilePlanImportOperations({
+      requirements: () => invokeDesktop<Record<string, unknown>>("get_pile_plan_import_requirements", {}),
+      currentState: () => projectStateRef.current,
+      currentMarker: () => mcpProjectMarkerRef.current!.observe(projectStateRef.current),
+      canEdit: () => isActive() && mcpWriteEnabledRef.current,
+      currentGroups: () => requireCurrentGroups(mcpDerivedRef.current.groups),
+      commit: (update) => { flushSync(() => commitProjectState(update)); },
+    }));
+    const dispatch = createSessionMcpDispatcher({
+      snapshot: (): McpSnapshot => {
         const state = projectStateRef.current;
         const marker = mcpProjectMarkerRef.current!.observe(state);
         return {
@@ -1627,110 +1411,42 @@ export default function AppSession({
               && current.project_revision === marker.project_revision;
           },
         };
-      }, async (snapshot, name, args) => {
-        const prepared = await prepareMcpWrite(snapshot, name, args, {
-          applyAssignment: applyLoadPointGroupAssignmentCore,
-          language: i18n.language.startsWith("nl") ? "nl" : "en",
-        });
-        if (run !== mcpLifecycleRef.current || !mcpWriteEnabledRef.current) throw new McpReadError("write_access_disabled");
-        if (snapshot.isCurrent && !snapshot.isCurrent()) throw new McpReadError("project_changed");
-        const beforeSignature = projectStateSignature(snapshot.state);
-        const afterSignature = prepared.changed ? projectStateSignature(prepared.update(snapshot.state)) : beforeSignature;
-        if (prepared.changed) {
-          if (prepared.mode === "navigation") {
-            setActiveSourceKind(null);
-            invalidatePileAssignmentRequests();
-            flushSync(() => setProjectState((current) => (
-              projectStateSignature(current) === beforeSignature ? prepared.update(current) : current
-            )));
-          } else {
-            const historyAction = name === "pile_group_load_points"
-              ? getLoadPointGroupEditHistoryAction("group")
-              : name === "pile_ungroup_load_points"
-                ? getLoadPointGroupEditHistoryAction("ungroup") : undefined;
-            flushSync(() => commitProjectState((current) => (
-              projectStateSignature(current) === beforeSignature ? prepared.update(current) : current
-            ), historyAction));
-          }
+      },
+      currentState: () => projectStateRef.current,
+      currentMarker: () => mcpProjectMarkerRef.current!.observe(projectStateRef.current),
+      canWrite: () => mcpWriteEnabledRef.current,
+      isActive,
+      language: () => i18n.language.startsWith("nl") ? "nl" : "en",
+      defaultTimeLimit: () => userSettingsRef.current.preferences.optimizationTimeLimitSeconds,
+      optimization: () => mcpOptimizationRef.current,
+      sourceImport: importSession, pilePlanImport: pilePlanImportSession, files: fileSession,
+      install: (update, mode, name) => {
+        if (mode === "navigation") {
+          setActiveSourceKind(null);
+          invalidatePileAssignmentRequests();
+          flushSync(() => setProjectState(update));
+        } else {
+          const historyAction = name === "pile_group_load_points"
+            ? getLoadPointGroupEditHistoryAction("group")
+            : name === "pile_ungroup_load_points" ? getLoadPointGroupEditHistoryAction("ungroup") : undefined;
+          flushSync(() => commitProjectState(update, historyAction));
         }
-        const marker = mcpProjectMarkerRef.current!.observe(projectStateRef.current);
-        if (prepared.changed && projectStateSignature(projectStateRef.current) !== afterSignature) {
-          throw new McpReadError("project_changed");
-        }
-        return { ...marker, data: prepared.data };
-      }, () => mcpWriteEnabledRef.current, async (snapshot,name,args) => {
-        if(run!==mcpLifecycleRef.current||!mcpWriteEnabledRef.current)throw new McpReadError("write_access_disabled");
-        const optimization=mcpOptimizationRef.current;
-        if(name==="pile_start_optimization"){
-          if(snapshot.isCurrent&&!snapshot.isCurrent())throw new McpReadError("project_changed");
-          if(optimization.running)throw new McpReadError("optimization_already_running");
-          const options=prepareOptimizationStart(snapshot,args,userSettingsRef.current.preferences.optimizationTimeLimitSeconds);
-          try {
-            const receipt=optimization.startWithOptions(options);
-            return {...snapshot.marker,data:{run_id:receipt.runId,source_plan_id:receipt.sourcePlanId,
-              destination_plan_id:receipt.destinationPlanId,destination_plan_name:receipt.destinationPlanName,
-              target_count:receipt.targetCount,time_limit_seconds:receipt.timeLimitSeconds,status:"running"}};
-          }catch(error){throw new McpReadError(error instanceof Error?error.message:"optimization_not_ready");}
-        }
-        const runId=args.run_id as string;
-        requireMatchingRunId(runId,optimization.getCurrentRunId());
-        const accepted=name==="pile_stop_optimization"?optimization.stopRun(runId):optimization.cancelRun(runId);
-        if(!accepted)throw new McpReadError("run_not_current");
-        return {...mcpProjectMarkerRef.current!.observe(projectStateRef.current),data:{run_id:runId,status:"stopping"}};
-      }, async (snapshot, name, args) => {
-        if (run !== mcpLifecycleRef.current) throw new McpReadError("unavailable");
-        const result = await importSession.call(name, args, snapshot.marker);
-        if (name === "pile_apply_source_import") {
-          return { ...mcpProjectMarkerRef.current!.observe(projectStateRef.current), data: result.data };
-        }
-        return result;
-      }, async (snapshot, name, args) => {
-        if (run !== mcpLifecycleRef.current) throw new McpReadError("unavailable");
-        if (name === "pile_get_file_operation_status") return fileSession.status(args.operation_id as string);
-        if (name === "pile_export_plan") return fileSession.start({ kind: "export",
-          planId: args.plan_id as string, format: args.format as "csv" | "xlsx" }, snapshot.marker);
-        const kind = name === "pile_open_project" ? "open"
-          : name === "pile_save_project_as" ? "save-as" : "save";
-        return fileSession.start({ kind }, snapshot.marker);
-      }, async (snapshot, name, args) => {
-        if (run !== mcpLifecycleRef.current) throw new McpReadError("unavailable");
-        const result = await pilePlanImportSession.call(name, args, snapshot.marker);
-        if (name === "pile_apply_pile_plan_import") {
-          return { ...mcpProjectMarkerRef.current!.observe(projectStateRef.current), data: result.data };
-        }
-        return result;
-      });
-      const connection = await bridge.start(dispatch);
-      if (run !== mcpLifecycleRef.current) { await bridge.stop(); return; }
-      setMcpConnection(connection);
-      setMcpStatus("on");
-    } catch (error) {
-      mcpImportSessionRef.current?.dispose();
-      mcpImportSessionRef.current = null;
-      mcpFileOperationSessionRef.current?.invalidate();
-      mcpFileOperationSessionRef.current = null;
-      mcpPilePlanImportSessionRef.current?.dispose();
-      mcpPilePlanImportSessionRef.current = null;
-      if (run !== mcpLifecycleRef.current) return;
-      const bridge = mcpBridgeRef.current;
-      mcpBridgeRef.current = null;
-      await bridge?.stop().catch(() => undefined);
-      setMcpError(error instanceof Error ? error.message : String(error));
-      setMcpStatus("error");
-    }
+      },
+    });
+    return {
+      dispatch,
+      dispose: () => {
+        importSession.dispose();
+        fileSession.invalidate();
+        pilePlanImportSession.dispose();
+      },
+    };
   };
-  useEffect(() => () => {
-    mcpImportSessionRef.current?.dispose();
-    mcpImportSessionRef.current = null;
-    mcpFileOperationSessionRef.current?.invalidate();
-    mcpFileOperationSessionRef.current = null;
-    mcpPilePlanImportSessionRef.current?.dispose();
-    mcpPilePlanImportSessionRef.current = null;
-    mcpLifecycleRef.current += 1;
-    mcpWriteEnabledRef.current = false;
-    void mcpBridgeRef.current?.stop();
-    mcpBridgeRef.current = null;
-  }, []);
+  const { status: mcpStatus, connection: mcpConnection, error: mcpError, setEnabled: setMcpEnabled } =
+    useMcpConnection(isDesktop, createMcpSession, () => {
+      mcpWriteEnabledRef.current = false;
+      setMcpWriteEnabled(false);
+    });
   const pilePlanCostSummaries = useMemo(() => summarizePilePlanCosts(
     synchronizeActivePilePlan(
       ilp.displayState.pilePlans,
