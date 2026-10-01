@@ -6,6 +6,7 @@ import { canonicalProjectForTest, projectTipLevelKeysForTest } from "../../core/
 import { createInitialProjectState } from "../../domain/project/projectState.ts";
 import { createManagedProjectState, projectHistoryReducer } from "../../domain/project/history/projectHistoryReducer.ts";
 import { projectDraftFromState } from "../project/projectLifecycleController.ts";
+import { McpReadError } from "./readModel.ts";
 import { prepareMcpWrite } from "./writeModel.ts";
 
 initSync({ module: readFileSync(new URL("../../core/wasm/pile-plan-wasm/pile_plan_wasm_bg.wasm", import.meta.url)) });
@@ -103,4 +104,20 @@ describe("MCP complete project editing", () => {
         pile_size_mm: advice.pile_size_mm, pile_tip_level_mm: template.pile_tip_level_mm }] });
     assert.equal(removed.update(withAdvice).bearingCapacities.some((row) => row.cpt_id === cptId), false);
   });
+});
+
+it("rejects a bulk edit atomically and preserves the failing action index", async () => {
+  const row = state.cpts[0];
+  await assert.rejects(prepareMcpWrite(snapshot, "pile_edit_cpts_bulk", {
+    actions: [{ action: "update", item: { ...row, name: "Should not be installed" } },
+      { action: "remove", id: 4294967295 }],
+  }), error => error instanceof McpReadError && error.code === "unknown_id"
+    && assert.deepEqual(error.ids, [1]) === undefined);
+  assert.equal(state.cpts[0].name, row.name);
+});
+
+it("rejects malformed action shapes at the existing MCP schema boundary", async () => {
+  await assert.rejects(prepareMcpWrite(snapshot, "pile_edit_cpts_bulk", {
+    actions: [{ action: "remove", item: state.cpts[0] }],
+  }), /invalid_arguments/);
 });

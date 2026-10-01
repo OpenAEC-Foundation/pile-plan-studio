@@ -4,6 +4,9 @@ import { readPlanAssessment, type PlanAssessmentSnapshot, type PlanAssessmentToo
 import type { SourceImportToolName } from "./sourceImportSession.ts";
 import type { PilePlanImportToolName } from "./pilePlanImportSession.ts";
 
+import type { ProjectDocumentEdit } from "../../core/projectDocumentEditContract.ts";
+import type { IlpOptimizationSettings } from "../../core/ilpOptimizationTypes.ts";
+
 export type McpSnapshot = SourceSnapshot & PlanAssessmentSnapshot;
 export type PileMcpWriteToolName =
   | "pile_duplicate_plan" | "pile_rename_plan" | "pile_assign_configuration" | "pile_clear_assignment"
@@ -406,6 +409,34 @@ function validateValue(schema: ValueSchema, value: unknown): boolean {
       ? validateValue(properties[key], item) : schema.additionalProperties !== false);
   }
   return false;
+}
+
+
+type EditArguments<K extends ProjectDocumentEdit["kind"]> = Omit<Extract<ProjectDocumentEdit, { kind: K }>, "kind">;
+type OptimizationPatch = Omit<Partial<IlpOptimizationSettings>, "transition_weights"> & {
+  transition_weights?: Partial<IlpOptimizationSettings["transition_weights"]>;
+};
+type ProjectEditToolArguments = {
+  pile_set_optimization_settings: { settings: OptimizationPatch };
+  pile_set_active_configurations: EditArguments<"active_configurations">;
+  pile_set_legend_settings: EditArguments<"legend_settings">;
+  pile_set_project_properties: EditArguments<"project_properties">;
+  pile_edit_load_points_bulk: EditArguments<"load_points">;
+  pile_edit_cpts_bulk: EditArguments<"cpts">;
+  pile_edit_foundation_advice_bulk: EditArguments<"bearing_capacities">;
+};
+
+// The dispatcher checks revision fields; direct operation callers need only the edit fields.
+// Narrowing reuses the published tool schema rather than maintaining a second validator.
+export function projectEditArguments<K extends keyof ProjectEditToolArguments>(
+  name: K, raw: unknown,
+): ProjectEditToolArguments[K] {
+  const schema = definitions.get(name)!.inputSchema as ValueSchema;
+  const editSchema = { ...schema,
+    required: schema.required?.filter(key => !expectedFields.includes(key)),
+  };
+  if (!validateValue(editSchema, raw)) throw new McpReadError("invalid_arguments");
+  return raw as ProjectEditToolArguments[K];
 }
 
 function validateArgs(name: string, raw: unknown): Record<string, unknown> {

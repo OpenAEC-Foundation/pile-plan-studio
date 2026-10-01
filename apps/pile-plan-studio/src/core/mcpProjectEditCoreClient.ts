@@ -4,7 +4,8 @@ import { projectDocumentOutcomeFromCore, toBrowserProjectDocumentDraft,
   toDesktopProjectDocumentDraft, type CoreValidatedProjectDocument,
   type ProjectDocumentDraft } from "./projectDocumentContract.ts";
 
-export type ProjectDocumentEdit = Record<string, unknown> & { kind: string };
+import type { ProjectDocumentEdit } from "./projectDocumentEditContract.ts";
+export type { ProjectDocumentEdit } from "./projectDocumentEditContract.ts";
 export type McpProjectEdit = ProjectDocumentEdit;
 export type McpProjectEditResult =
   | { status: "applied"; changed: boolean;
