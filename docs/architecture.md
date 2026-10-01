@@ -49,6 +49,18 @@ restores it; apply installs the detached draft in the active plan. AppSession
 dispatches draft changes as runtime updates and applies locks as one project
 commit, so unchanged locks do not add an undo step.
 
+`app/project/newPilePlanController.ts` coordinates fresh-plan creation from the
+full technical option set through Rust's default-choice evaluator. It rejects
+concurrent starts and stale analysis, CPT-preview, group, cost or active-plan
+inputs before committing one plan. `useNewPilePlan.ts` supplies live session
+callbacks and cancels installation when the session unmounts.
+
+`app/derived-state/cptSelectionPreview.ts` runs the transient manual CPT preview;
+`useCptSelectionPreview.ts` binds its lifetime to the draft. It uses the existing
+Rust pile-option analysis client and domain draft-identity guards. Cancellation
+prevents late results from installing a preview, while base options and project
+assignments remain unchanged.
+
 ## Desktop MCP connection
 
 `app/mcp/connectionController.ts` owns connection status, startup cancellation,

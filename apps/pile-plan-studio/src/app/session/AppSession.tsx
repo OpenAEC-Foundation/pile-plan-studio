@@ -1,3 +1,5 @@
+import { useCptSelectionPreview } from "../derived-state/useCptSelectionPreview.ts";
+import { useNewPilePlan } from "../project/useNewPilePlan.ts";
 import { beginLoadPointLockEditing, cancelLoadPointLockEditing, clearLoadPointLockDraft, finishLoadPointLockEditing } from "../../domain/pile-plans/loadPointLockEditing.ts";
 import {applyIlpPreviewInteraction} from "../../domain/pile-plans/ilp-optimization/ilpLivePreview.ts";
 import { useCallback, useEffect, useMemo, useReducer, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent, type SetStateAction } from "react";
@@ -96,7 +98,6 @@ import type { PilePlanImportPatch } from "../../core/pilePlanImportContract.ts";
 import { mergeDefaultPileChoices } from "../../domain/pile-plans/defaultPileChoices.ts";
 import { summarizePilePlanCosts } from "../../domain/pile-plans/projectCostSummary.ts";
 import {
-  createPilePlan,
   deletePilePlan,
   duplicatePilePlan,
   renamePilePlan,
@@ -104,9 +105,6 @@ import {
   type PilePlanLanguage,
 } from "../../domain/pile-plans/pilePlanManagement.ts";
 import { activatePilePlanState } from "../../domain/pile-plans/pilePlanNavigation.ts";
-import {
-  activationFromConfigurations,
-} from "../../domain/pile-plans/pilePlanActivation.ts";
 import {
   getAvailablePileConfigurationCatalog,
 } from "../../domain/pile-plans/optimization/optimizationCandidates.ts";
@@ -151,12 +149,6 @@ import { changeLanguage } from "../../i18n/config.ts";
 import { elementLayoutScale, screenToLocal } from "../../domain/settings/uiBaseline.ts";
 import { VIEWER_LAYOUT_CHANGE_EVENT } from "../../viewer/viewerGeometry.ts";
 import { transitionLassoSelectionMode } from "../../viewer/lassoSelection.ts";
-import {
-  applyCptSelectionPreviewResult,
-  beginCptSelectionPreview,
-  failCptSelectionPreview,
-  getCptSelectionPreviewInput,
-} from "../../domain/cpt-selection/cptSettingsModel.ts";
 import {
   addReactViewerLoadPoints,
   clearReactViewerSelection,
@@ -377,7 +369,6 @@ export default function AppSession({
   const expireInterfaceScaleNotice = useCallback((id: number) => {
     setInterfaceScaleNotice((current) => current?.id === id ? null : current);
   }, []);
-  const [creatingPilePlan, setCreatingPilePlan] = useState(false);
   const [statusMessage, setStatusMessage] = useState("");
   const statusMessageTimeoutRef = useRef<number | null>(null);
   const lassoSelectionAvailable = projectState.loadPointLockDraft === null
@@ -834,57 +825,14 @@ export default function AppSession({
     });
   };
 
-  const createFreshPilePlan = async () => {
-    if (creatingPilePlan) return;
-    const snapshot = projectState;
-    if (
-      technicalPileOptionsByLoadPointId.size !== snapshot.loadPoints.length
-      || snapshot.analysisError !== null
-      || !hasCompletedLoadPointGroups
-      || technicalAssignment.status !== "ready"
-    ) {
-      return;
-    }
-    const capturedTechnicalOptions = technicalPileOptionsByLoadPointId;
-    const capturedGroups = loadPointGroups.groups;
-    setCreatingPilePlan(true);
-    try {
-      const choices = capturedTechnicalOptions.size === 0
-        ? new Map()
-        : await chooseDefaultPileOptionsCore({
-            groups: capturedGroups,
-            optionsByLoadPointId: capturedTechnicalOptions,
-            pileHeadLevelM: snapshot.pileHeadLevelM ?? 0,
-            costSettings: snapshot.pileCostSettings,
-          });
-      commitProjectState((current) => {
-        if (
-          current.analysisRequest !== snapshot.analysisRequest
-          || current.pileOptionsByLoadPointId !== snapshot.pileOptionsByLoadPointId
-          || current.cptSelectionEditDraft !== snapshot.cptSelectionEditDraft
-          || current.cptSelectionPreview !== snapshot.cptSelectionPreview
-          || loadPointGroupsRef.current !== capturedGroups
-          || current.pileCostSettings !== snapshot.pileCostSettings
-          || current.pileHeadLevelM !== snapshot.pileHeadLevelM
-          || current.activePilePlanId !== snapshot.activePilePlanId
-        ) return current;
-        return {
-          ...current,
-          ...createPilePlan({
-            ...current,
-            choices,
-            activation: activationFromConfigurations(availablePileConfigurations),
-            kind: "variant",
-            language: pilePlanLanguage(),
-          }),
-        };
-      });
-    } catch (error) {
-      console.error("Failed to create pile plan", error);
-    } finally {
-      setCreatingPilePlan(false);
-    }
-  };
+  const { pending: creatingPilePlan, create: createFreshPilePlan } = useNewPilePlan({
+    snapshot: () => ({ state: projectStateRef.current, groups: loadPointGroupsRef.current,
+      options: technicalPileOptionsByLoadPointId,
+      ready: hasCompletedLoadPointGroups && technicalAssignment.status === "ready" }),
+    language: pilePlanLanguage,
+    commit: (update) => commitProjectState(update),
+    failed: (error) => console.error("Failed to create pile plan", error),
+  });
 
   useEffect(() => {
     let cancelled = false;
@@ -940,40 +888,7 @@ export default function AppSession({
     return () => { cancelled = true; };
   }, [persistedProjectSignature]);
 
-  useEffect(() => {
-    const previewInput = getCptSelectionPreviewInput(projectState);
-    if (!previewInput) return;
-    const { draft } = previewInput;
-    let cancelled = false;
-    setProjectState((current) => beginCptSelectionPreview(current, draft));
-
-    calculatePileOptionAnalysisCore({
-      bearingCapacities: projectState.bearingCapacities,
-      cpts: projectState.cpts,
-      globalSettings: projectState.globalCptSelectionSettings,
-      loadPoints: previewInput.loadPoints,
-      manualCptIdsByLoadPoint: previewInput.manualCptIdsByLoadPoint,
-      settingsByLoadPoint: projectState.cptSelectionSettingsByLoadPoint,
-      includeCptFrdRows: false,
-    }).then((analysis) => {
-      if (!cancelled) {
-        setProjectState((current) => applyCptSelectionPreviewResult(current, draft, analysis));
-      }
-    }).catch((error: unknown) => {
-      console.error("Failed to preview CPT selection", error);
-      if (!cancelled) {
-        setProjectState((current) => failCptSelectionPreview(
-          current,
-          draft,
-          error instanceof Error ? error.message : String(error),
-        ));
-      }
-    });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [projectState.cptSelectionEditDraft]);
+  useCptSelectionPreview(projectState, setProjectState);
 
   useEffect(() => {
     const analysisRequest = projectState.analysisRequest;
