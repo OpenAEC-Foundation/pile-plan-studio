@@ -5,6 +5,12 @@ import assert from "node:assert/strict";
 const source = readFileSync(new URL("./AppSession.tsx", import.meta.url), "utf8");
 
 describe("App group editing and assessment wiring", () => {
+  it("delegates MCP construction to the connection-scoped project factory", () => {
+    assert.match(source, /createProjectMcpSession\(\{/);
+    assert.match(source, /useMcpConnection\(isDesktop, createMcpSession/);
+    assert.doesNotMatch(source, /createSourceImportSession|createPilePlanImportSession|createSessionMcpDispatcher/);
+  });
+
   it("uses the shared group edit controller for previews and commits", () => {
     assert.match(source, /useGroupEdit\(\{/);
     assert.match(source, /commit: commitProjectState/);

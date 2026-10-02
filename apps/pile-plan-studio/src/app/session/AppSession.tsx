@@ -1,3 +1,4 @@
+import { createProjectMcpSession } from "../mcp/projectSession.ts";
 import { createSymbolScaleHistory } from "../project/symbolScaleHistory.ts";
 import { useCptSelectionPreview } from "../derived-state/useCptSelectionPreview.ts";
 import { useNewPilePlan } from "../project/useNewPilePlan.ts";
@@ -11,17 +12,8 @@ import TitleBar from "../../components/template/TitleBar";
 import Ribbon from "../../components/template/ribbon/Ribbon";
 import {useIlpOptimization} from "../optimization/useIlpOptimization.ts";
 import { createProjectMarker } from "../mcp/projectMarker.ts";
-import type { McpSnapshot } from "../mcp/protocol.ts";
-import { createSessionMcpDispatcher } from "../mcp/sessionDispatcher.ts";
 import { useMcpConnection } from "../mcp/useMcpConnection.ts";
 import { useMcpDerivedState } from "../mcp/useMcpDerivedState.ts";
-import { createSourceImportSession } from "../mcp/sourceImportSession.ts";
-import { createMcpFileOperationSession } from "../mcp/fileOperationSession.ts";
-import { createPilePlanImportSession } from "../mcp/pilePlanImportSession.ts";
-import { createPilePlanImportOperations } from "../mcp/pilePlanImportOperations.ts";
-import { requireCurrentGroups } from "../mcp/projectSettingsSources.ts";
-import { createMcpProjectFileOperations } from "../mcp/projectFileOperations.ts";
-import { createSourceImportOperations } from "../mcp/sourceImportOperations.ts";
 import { prepareLegendEditorEdit, prepareProjectDocumentEdit,
   preparePileCostCatalogEdit, preparePileCostCatalogDefaultEdit, prepareMergedPileCostCatalogEdit,
   type PreparedProjectDocumentEdit } from "../project/projectEditOperations.ts";
@@ -50,8 +42,6 @@ import SourceDataViewer from "../../components/domain/source-data/SourceDataView
 import type { InputSourceKind } from "../../domain/project/projectState.ts";
 import type { SourceLoadPointSelection } from "../../domain/source-data/sourceTableModel.ts";
 import {
-  assessLoadPointGroupAssignmentsCore,
-  calculatePileCostCore,
   calculatePileOptionAnalysisCore,
   chooseDefaultPileOptionsCore,
   exportPilePlanCsvCore,
@@ -160,7 +150,6 @@ import {
 } from "../../domain/workspace/viewerInteractions.ts";
 import {
   describeProjectOpenError,
-  getLoadPointGroupEditHistoryAction,
   importRoleForSource,
 } from "./appSessionSupport.ts";
 
@@ -985,104 +974,53 @@ export default function AppSession({
       runId:ilp.currentRunId,timeLimitSeconds:ilp.currentRunTimeLimitSeconds,
       targetLoadPointIds:ilp.currentRunTargetLoadPointIds },
   };
-  const createMcpSession = (isActive: () => boolean) => {
-    const importSession = createSourceImportSession(createSourceImportOperations({
-      requirements: () => invokeDesktop<Record<string, unknown>>("get_standard_csv_requirements", {}),
-      currentState: () => projectStateRef.current,
-      currentMarker: () => mcpProjectMarkerRef.current!.observe(projectStateRef.current),
-      canEdit: () => isActive() && mcpWriteEnabledRef.current,
-      isDirty: () => isDirtyRef.current,
-      defaultPlanName: () => pilePlanLanguage() === "nl" ? "Basisplan" : "Base plan",
-      personalCostDefault: () => userSettingsRef.current.defaults.pileCostCatalog,
-      builtInCostDefault: BUILT_IN_PILE_COST_DEFAULTS,
-      installRefresh: (state) => {
-        defaultSelectionKeepsDirtyRef.current = true;
-        flushSync(() => commitProjectState(state));
-        isDirtyRef.current = true;
-        setIsDirty(true);
-      },
-      installNewProject: (state) => {
-        defaultSelectionKeepsDirtyRef.current = false;
-        flushSync(() => replaceProjectState(state));
-        setProjectPath(null);
-        updateSavedProjectSignature("");
-        isDirtyRef.current = true;
-        setIsDirty(true);
-      },
-    }));
-    const fileSession = createMcpFileOperationSession(createMcpProjectFileOperations({
-      currentState: () => projectStateRef.current,
-      currentMarker: () => mcpProjectMarkerRef.current!.observe(projectStateRef.current),
-      currentPath: () => projectPathRef.current,
-      canEdit: () => isActive() && mcpWriteEnabledRef.current,
-      confirmReplacement: confirmProjectReplacement,
-      installOpened: (state, path) => {
-        flushSync(() => installOpenedProject(state, path));
-        projectPathRef.current = path;
-      },
-      didSave: (path) => {
-        projectPathRef.current = path;
-        setProjectPath(path);
-        updateSavedProjectSignature(projectStateSignature(projectStateRef.current));
-        isDirtyRef.current = false;
-        setIsDirty(false);
-      },
-    }));
-    const pilePlanImportSession = createPilePlanImportSession(createPilePlanImportOperations({
-      requirements: () => invokeDesktop<Record<string, unknown>>("get_pile_plan_import_requirements", {}),
-      currentState: () => projectStateRef.current,
-      currentMarker: () => mcpProjectMarkerRef.current!.observe(projectStateRef.current),
-      canEdit: () => isActive() && mcpWriteEnabledRef.current,
-      currentGroups: () => requireCurrentGroups(mcpDerivedRef.current.groups),
-      commit: (update) => { flushSync(() => commitProjectState(update)); },
-    }));
-    const dispatch = createSessionMcpDispatcher({
-      snapshot: (): McpSnapshot => {
-        const state = projectStateRef.current;
-        const marker = mcpProjectMarkerRef.current!.observe(state);
-        return {
-          state, marker,
-          defaultOptimizationTimeLimitSeconds:userSettingsRef.current.preferences.optimizationTimeLimitSeconds,
-          ...mcpDerivedRef.current,
-          calculateCost: calculatePileCostCore,
-          assessGroupAssignments: assessLoadPointGroupAssignmentsCore,
-          isCurrent: () => {
-            const current = mcpProjectMarkerRef.current!.observe(projectStateRef.current);
-            return current.project_instance_id === marker.project_instance_id
-              && current.project_revision === marker.project_revision;
-          },
-        };
-      },
-      currentState: () => projectStateRef.current,
-      currentMarker: () => mcpProjectMarkerRef.current!.observe(projectStateRef.current),
-      canWrite: () => mcpWriteEnabledRef.current,
-      isActive,
-      language: () => i18n.language.startsWith("nl") ? "nl" : "en",
-      defaultTimeLimit: () => userSettingsRef.current.preferences.optimizationTimeLimitSeconds,
-      optimization: () => mcpOptimizationRef.current,
-      sourceImport: importSession, pilePlanImport: pilePlanImportSession, files: fileSession,
-      install: (update, mode, name) => {
-        if (mode === "navigation") {
-          setActiveSourceKind(null);
-          invalidatePileAssignmentRequests();
-          flushSync(() => setProjectState(update));
-        } else {
-          const historyAction = name === "pile_group_load_points"
-            ? getLoadPointGroupEditHistoryAction("group")
-            : name === "pile_ungroup_load_points" ? getLoadPointGroupEditHistoryAction("ungroup") : undefined;
-          flushSync(() => commitProjectState(update, historyAction));
-        }
-      },
-    });
-    return {
-      dispatch,
-      dispose: () => {
-        importSession.dispose();
-        fileSession.invalidate();
-        pilePlanImportSession.dispose();
-      },
-    };
-  };
+  const createMcpSession = (isActive: () => boolean) => createProjectMcpSession({
+    currentState: () => projectStateRef.current,
+    currentMarker: () => mcpProjectMarkerRef.current!.observe(projectStateRef.current),
+    currentPath: () => projectPathRef.current,
+    canWrite: () => mcpWriteEnabledRef.current,
+    derivedState: () => mcpDerivedRef.current,
+    language: () => i18n.language.startsWith("nl") ? "nl" : "en",
+    defaultTimeLimit: () => userSettingsRef.current.preferences.optimizationTimeLimitSeconds,
+    optimization: () => mcpOptimizationRef.current,
+    sourceImportRequirements: () => invokeDesktop<Record<string, unknown>>("get_standard_csv_requirements", {}),
+    pilePlanImportRequirements: () => invokeDesktop<Record<string, unknown>>("get_pile_plan_import_requirements", {}),
+    isDirty: () => isDirtyRef.current,
+    personalCostDefault: () => userSettingsRef.current.defaults.pileCostCatalog,
+    builtInCostDefault: BUILT_IN_PILE_COST_DEFAULTS,
+    installRefresh: (state) => {
+      defaultSelectionKeepsDirtyRef.current = true;
+      flushSync(() => commitProjectState(state));
+      isDirtyRef.current = true;
+      setIsDirty(true);
+    },
+    installNewProject: (state) => {
+      defaultSelectionKeepsDirtyRef.current = false;
+      flushSync(() => replaceProjectState(state));
+      setProjectPath(null);
+      updateSavedProjectSignature("");
+      isDirtyRef.current = true;
+      setIsDirty(true);
+    },
+    confirmReplacement: confirmProjectReplacement,
+    installOpened: (state, path) => {
+      flushSync(() => installOpenedProject(state, path));
+      projectPathRef.current = path;
+    },
+    didSave: (path) => {
+      projectPathRef.current = path;
+      setProjectPath(path);
+      updateSavedProjectSignature(projectStateSignature(projectStateRef.current));
+      isDirtyRef.current = false;
+      setIsDirty(false);
+    },
+    navigate: (update) => {
+      setActiveSourceKind(null);
+      invalidatePileAssignmentRequests();
+      flushSync(() => setProjectState(update));
+    },
+    commit: (update, action) => { flushSync(() => commitProjectState(update, action)); },
+  }, isActive);
   const { status: mcpStatus, connection: mcpConnection, error: mcpError, setEnabled: setMcpEnabled } =
     useMcpConnection(isDesktop, createMcpSession, () => {
       mcpWriteEnabledRef.current = false;

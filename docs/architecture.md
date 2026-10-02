@@ -108,6 +108,15 @@ and commit through project history. Bulk writes are validated as a whole by
 the Rust core, then committed once, so all changed locations share one Undo
 entry. No separate copy of the project is opened.
 
+`app/mcp/projectSession.ts` builds the project-facing session for each connection:
+source imports, file operations, pile-plan imports, dispatcher, and read snapshots.
+It reads live project/settings/derived-state getters and captures the current
+project instance and revision for snapshot freshness checks. Each import/file
+adapter shares the active-session and editing-permission check. Disposing this
+session clears both import transaction stores and invalidates its file operations.
+`AppSession` supplies the existing atomic installation callbacks, including
+refresh history, replacement paths, save signatures, navigation, and dirty state.
+
 `app/mcp/sessionDispatcher.ts` connects protocol requests to live session state,
 validated writes, optimizer controls, and the import/file sessions. `AppSession`
 supplies current-state getters and atomic history or navigation callbacks. The
