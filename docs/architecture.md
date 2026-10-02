@@ -75,6 +75,10 @@ current project inputs and configuration catalog. Their React hooks invalidate
 pending work on unmount. Request identity is captured before file reads, so a
 late read, result or error cannot replace a newer preview or a changed context.
 Preview updates remain transient; final import validation stays in Rust.
+`app/import/projectImportRequest.ts` prepares the selected source bytes and
+project properties using the same readiness model as the import panel.
+Behavior tests cover request preparation and preview timing; source inspections
+remain for view conventions.
 
 ## Desktop MCP connection
 
@@ -518,3 +522,26 @@ discarded; saved projects contain only the current ILP settings.
 The candidate matrix row/column headers toggle all available pairs for one tip
 level or size, with an indeterminate checkbox for partial selections. Each group
 toggle is one settings change and does not create unavailable size/level pairs.
+
+## Frontend test boundaries
+
+`npm test` in `apps/pile-plan-studio` runs both the Node unit/contract suite
+(`npm run test:unit`) and the rendered React suite (`npm run test:ui`). React
+component and hook tests use Vitest, Testing Library, and jsdom; `.test.tsx`
+files are colocated with their feature. The UI runner shares the browser Vite
+configuration and real Dutch/English translations. Shared DOM setup and the
+canonical sample-project fixture live in `src/test/`.
+
+Test interactions through rendered controls and observable callbacks/state.
+Mock external boundaries such as Rust requests, file operations, and native
+services; keep presentation logic and immutable domain operations real.
+Use controlled promises for stale responses and fake timers for repeated or
+expiring controls. These tests do not launch a native window or open external
+links. jsdom cannot verify drawing geometry or actual browser layout, so retain
+the browser/native verification appropriate to those changes.
+
+Source inspection tests are limited to explicit architecture wiring, static
+styling, translation, and view conventions. They complement behavioral tests;
+they do not establish that clicks, asynchronous guards, or history updates work.
+Session shortcut dispatch and symbol-scale gesture history have small shared
+controllers, tested through actual DOM events and the project history reducer.

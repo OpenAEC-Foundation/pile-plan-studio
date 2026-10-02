@@ -4,14 +4,6 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
 describe("Alpha command surfaces", () => {
-  it("uses the platform-specific primary project action", () => {
-    const source = readFileSync(resolve(import.meta.dirname, "TitleBar.tsx"), "utf8");
-    assert.match(source, /projectAction/);
-    assert.match(source, /projectActionKind/);
-    assert.doesNotMatch(source, /aria-label=\{t\("undo"\)\}/);
-    assert.doesNotMatch(source, /aria-label=\{t\("redo"\)\}/);
-    assert.doesNotMatch(source, /aria-label=\{t\("print"\)\}/);
-  });
 
   it("identifies the public build as an engineering alpha", () => {
     const titleBar = readFileSync(resolve(import.meta.dirname, "TitleBar.tsx"), "utf8");
@@ -23,18 +15,6 @@ describe("Alpha command surfaces", () => {
     assert.match(nlCommon, /"alphaLabel":\s*"Alpha"/);
     assert.match(enCommon, /professional verification/i);
     assert.match(nlCommon, /deskundige/);
-  });
-
-  it("shows save commands only when supported by the platform", () => {
-    const source = readFileSync(resolve(import.meta.dirname, "backstage/Backstage.tsx"), "utf8");
-    assert.match(source, /commands\.save/);
-    assert.match(source, /commands\.saveAs/);
-    assert.match(source, /commands\.download/);
-    assert.doesNotMatch(source, /label=\{t\("new"\)\}/);
-    assert.doesNotMatch(source, /label=\{t\("print"\)\}/);
-    assert.doesNotMatch(source, /label=\{t\("extensions"\)\}/);
-    assert.doesNotMatch(source, /actionAndClose/);
-    assert.match(source, /\{commands\.save \? <>\s*<Divider \/>[\s\S]*?label=\{t\("exit"\)\}/);
   });
 
   it("uses one shared visual language for backstage content panels", () => {
@@ -90,16 +70,6 @@ describe("Alpha command surfaces", () => {
     );
     assert.match(backstage, /activePanel === "pile-plan-import"/);
     assert.match(backstage, /<PilePlanImportPanel/);
-  });
-
-  it("shows one busy state while either export action is running", () => {
-    const backstage = readFileSync(resolve(import.meta.dirname, "backstage/Backstage.tsx"), "utf8");
-    const styles = readFileSync(resolve(import.meta.dirname, "backstage/Backstage.css"), "utf8");
-
-    assert.match(backstage, /runningExport/);
-    assert.match(backstage, /aria-busy/);
-    assert.match(backstage, /is-exporting/);
-    assert.match(styles, /cursor:\s*wait/);
   });
 
   it("resizes the properties sidebar from the workspace divider", () => {

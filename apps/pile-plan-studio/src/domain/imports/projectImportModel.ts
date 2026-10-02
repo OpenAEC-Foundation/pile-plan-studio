@@ -135,6 +135,22 @@ export function shouldWarnAboutMissingFoundationAdvice(
     && drafts["bearing-capacities"].file === null;
 }
 
+export type ProjectImportProperties = {
+  pileHeadLevelM: number;
+  currencyCode: string;
+};
+
+export function projectImportReadiness(
+  drafts: ImportDrafts<NamedImportFile>, mode: ProjectImportMode, pileHeadLevelM: number | null,
+) {
+  const sourcesReady = canSubmitProjectImport(drafts, mode);
+  const propertiesValid = mode === "refresh" || pileHeadLevelM !== null;
+  return {
+    canSubmit: sourcesReady && propertiesValid,
+    showPileHeadLevelBlocker: mode === "new-project" && sourcesReady && !propertiesValid,
+  };
+}
+
 function isReady<TFile extends NamedImportFile>(draft: ImportRoleDraft<TFile>): boolean {
   if (!draft.file || draft.previewState.status !== "ready") return false;
   const preview = draft.previewState.preview;

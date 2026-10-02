@@ -22,16 +22,6 @@ describe("Plan and View ribbon", () => {
     assert.match(styles, /\.ribbon-foreground-control button:hover\s*{[\s\S]*?background:\s*var\(--theme-ribbon-btn-hover\)/);
   });
 
-  it("offers independent workspace panel visibility controls", () => {
-    const source = readFileSync(resolve(import.meta.dirname, "Ribbon.tsx"), "utf8");
-
-    assert.match(source, /explorerVisible/);
-    assert.match(source, /propertiesVisible/);
-    assert.match(source, /onExplorerVisibilityChange/);
-    assert.match(source, /onPropertiesVisibilityChange/);
-    assert.match(source, /view\.windows/);
-  });
-
   it("offers a project-backed group visibility toggle under View", () => {
     const source = readFileSync(resolve(import.meta.dirname, "Ribbon.tsx"), "utf8");
     const app = readFileSync(resolve(import.meta.dirname, "../../../app/session/AppSession.tsx"), "utf8");
@@ -74,32 +64,6 @@ describe("Plan and View ribbon", () => {
     assert.match(css, /::-moz-range-track\s*{[\s\S]*?background:\s*transparent/);
   });
 
-  it("keeps utilization dragging local and commits only the completed range", () => {
-    const source = readFileSync(resolve(import.meta.dirname, "Ribbon.tsx"), "utf8");
-
-    assert.match(source, /utilizationDraft/);
-    assert.match(source, /setUtilizationDraft/);
-    assert.match(source, /commitUtilizationRange/);
-    assert.match(source, /onPointerUp=\{commitUtilizationRange\}/);
-    assert.match(source, /onKeyUp=\{commitUtilizationRange\}/);
-    assert.doesNotMatch(source, /onChange=\{\(event\) => onViewerUtilizationRangeChange/);
-  });
-
-  it("delimits pointer and keyboard symbol-scale gestures", () => {
-    const source = readFileSync(resolve(import.meta.dirname, "Ribbon.tsx"), "utf8");
-
-    assert.match(source, /onSymbolScaleChangeStart/);
-    assert.match(source, /onSymbolScaleChangeEnd/);
-    assert.match(source, /onPointerDown=\{onSymbolScaleChangeStart\}/);
-    assert.match(source, /onPointerUp=\{onSymbolScaleChangeEnd\}/);
-    assert.match(source, /onPointerCancel=\{onSymbolScaleChangeEnd\}/);
-    assert.match(source, /isRangeAdjustmentKey/);
-    assert.match(source, /onKeyDown=\{handleSymbolScaleKeyDown\}/);
-    assert.match(source, /onKeyUp=\{handleSymbolScaleKeyUp\}/);
-    assert.match(source, /handleSymbolScaleBlur/);
-    assert.match(source, /onBlur=\{handleSymbolScaleBlur\}/);
-  });
-
   it("opens the optimization panel from a single ribbon button", () => {
     const source = readFileSync(resolve(import.meta.dirname, "Ribbon.tsx"), "utf8");
     const group = source.slice(source.indexOf('<RibbonGroup label={t("optimize.ilp")}>'));
@@ -116,16 +80,6 @@ describe("Plan and View ribbon", () => {
       const panel = JSON.parse(readFileSync(resolve(import.meta.dirname, `../../../i18n/locales/${language}/rightPanel.json`), "utf8"));
       assert.doesNotMatch(panel.ilp.title + panel.ilp.planResult, /ILP/);
     }
-  });
-
-  it("offers draft-based load-point lock controls", () => {
-    const source = readFileSync(resolve(import.meta.dirname, "Ribbon.tsx"), "utf8");
-
-    assert.match(source, /isLockEditing/);
-    assert.match(source, /onStartLockEditing/);
-    assert.match(source, /onApplyLockEditing/);
-    assert.match(source, /onCancelLockEditing/);
-    assert.match(source, /onUnlockAll/);
   });
 
   it("connects only supported project and plan commands", () => {

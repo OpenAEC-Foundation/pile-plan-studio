@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { prepareProjectImportRequest } from "../../../app/import/projectImportRequest.ts";
 import { useProjectImportPreviews } from "../../../app/import/useProjectImportPreviews.ts";
 import {
   type ImportProfile,
@@ -9,7 +10,6 @@ import {
 } from "../../../core/coreImportContract.ts";
 import { importDiagnosticText } from "../../../core/importDiagnosticText.ts";
 import {
-  getImportFileFormat,
   inferImportFileAssignments,
   type ImportFileRole,
 } from "../../../core/importFiles.ts";
@@ -20,7 +20,7 @@ import { ifcImportIcon, infoIcon } from "../../template/ribbon/icons.ts";
 import { importProfileChoices } from "./importProfileChoices.ts";
 import { normalizePileHeadLevel } from "../project/projectInformationModel.ts";
 import {
-  canSubmitProjectImport,
+  projectImportReadiness,
   createEmptyImportDrafts,
   setImportFile,
   setImportProfile,
@@ -28,6 +28,7 @@ import {
   shouldWarnAboutMissingFoundationAdvice,
   type ImportPreviewState,
   type ProjectImportMode,
+  type ProjectImportProperties,
 } from "../../../domain/imports/projectImportModel.ts";
 import "./projectImport.css";
 
@@ -44,10 +45,7 @@ const EMPTY_OPTIONS: ImportProfileOptions = {
 
 const CURRENCY_OPTIONS = ["EUR", "GBP", "USD"].map((currency) => ({ value: currency, label: currency }));
 
-export type ProjectImportProperties = {
-  pileHeadLevelM: number;
-  currencyCode: string;
-};
+export type { ProjectImportProperties } from "../../../domain/imports/projectImportModel.ts";
 
 export default function ProjectImportPanel({
   onImportProject,
@@ -74,9 +72,7 @@ export default function ProjectImportPanel({
   const [summary, setSummary] = useState<ImportSummary | null>(null);
   const { preview: previewFile } = useProjectImportPreviews(setDrafts);
   const normalizedPileHeadLevel = normalizePileHeadLevel(pileHeadLevel);
-  const projectPropertiesValid = mode === "refresh" || normalizedPileHeadLevel !== null;
-  const sourcesReady = canSubmitProjectImport(drafts, mode);
-  const showPileHeadLevelBlocker = mode === "new-project" && sourcesReady && !projectPropertiesValid;
+  const { canSubmit, showPileHeadLevelBlocker } = projectImportReadiness(drafts, mode, normalizedPileHeadLevel);
 
   const assignRoleFile = (role: ImportFileRole, file: File | null) => {
     setDrafts((current) => setImportFile(current, role, file));
@@ -115,33 +111,15 @@ export default function ProjectImportPanel({
   };
 
   const importProject = async () => {
-    if (!canSubmitProjectImport(drafts, mode) || !projectPropertiesValid) return;
+    if (!canSubmit) return;
     setBusy(true);
     setError(null);
     try {
-      const sourceRoles = ROLES.filter(({ role }) => drafts[role].file);
-      const sources = await Promise.all(sourceRoles.map(async ({ role }) => {
-        const draft = drafts[role];
-        const file = draft.file!;
-        const format = getImportFileFormat(file.name);
-        if (!format) throw new Error(`Unsupported file format: ${file.name}`);
-        return {
-          role,
-          profile: draft.requestedProfile,
-          profileOptions: draft.profileOptions,
-          fileName: file.name,
-          format,
-          bytes: new Uint8Array(await file.arrayBuffer()),
-        };
-      }));
-      const result = await onImportProject(
-        mode,
-        mode === "new-project" ? projectName.trim() || "Imported Project" : null,
-        sources,
-        mode === "new-project" && normalizedPileHeadLevel !== null
-          ? { pileHeadLevelM: normalizedPileHeadLevel, currencyCode }
-          : null,
-      );
+      const request = await prepareProjectImportRequest({
+        drafts, mode, projectName, pileHeadLevelM: normalizedPileHeadLevel, currencyCode,
+      });
+      if (!request) return;
+      const result = await onImportProject(request.mode, request.projectName, request.sources, request.properties);
       if (result) setSummary(result);
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : String(reason));
@@ -306,7 +284,7 @@ export default function ProjectImportPanel({
         </section>
       )}
       <div className="project-import-submit-area">
-        <button className="primary-action project-import-submit" type="button" disabled={busy || !sourcesReady || !projectPropertiesValid} onClick={importProject}>
+        <button className="primary-action project-import-submit" type="button" disabled={busy || !canSubmit} onClick={importProject}>
           {busy
             ? t(mode === "refresh" ? "importProject.refreshing" : "importProject.importing")
             : t(mode === "refresh" ? "importProject.refreshSubmit" : "importProject.submit")}

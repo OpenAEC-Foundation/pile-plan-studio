@@ -26,18 +26,6 @@ it("keeps the public right-panel props contract", () => {
 });
 
 describe("missing CPT popover", () => {
-  it("opens from Missing without assigning the row and links identifier-only CPT buttons", () => {
-    const panel = readRightPanelSource();
-    const popover = readFileSync(resolve(import.meta.dirname, "MissingCptPopover.tsx"), "utf8");
-
-    assert.match(panel, /row\.missingCptIds\.length > 0/);
-    assert.match(panel, /<MissingCptPopover/);
-    assert.match(popover, /aria-haspopup="dialog"/);
-    assert.match(popover, /event\.stopPropagation\(\)/);
-    assert.match(popover, /event\.key !== "Escape"/);
-    assert.match(popover, /openCpt\(state, cptId\)/);
-    assert.match(popover, />\{cptId\}<\/button>/);
-  });
 
   it("controls all Missing popovers with one active row key", () => {
     const panel = readRightPanelSource();
@@ -140,11 +128,10 @@ describe("React optimization panel", () => {
     assert.match(panel, /active && state\.rightPanelMode === mode/);
   });
 
-  it("closes a task panel when a permanent inspection tab is activated", () => {
+  it("binds permanent inspection tabs to the task-close callback", () => {
     const panel = readRightPanelSource();
 
     assert.match(panel, /<PanelTab[\s\S]*?onActivate=\{onCloseTaskPanel\}/);
-    assert.match(panel, /onActivate\(\);[\s\S]*?switchRightPanelMode\(state, mode\)/);
   });
 
   it("keeps only inspection views as permanent tabs", () => {
@@ -160,19 +147,6 @@ describe("React optimization panel", () => {
 });
 
 describe("React load point grouping settings panel", () => {
-  it("edits automatic grouping and preserves the disabled distance field", () => {
-    const panel = readRightPanelSource();
-    const english = JSON.parse(readFileSync(resolve(import.meta.dirname, "../../../i18n/locales/en/rightPanel.json"), "utf8"));
-    const dutch = JSON.parse(readFileSync(resolve(import.meta.dirname, "../../../i18n/locales/nl/rightPanel.json"), "utf8"));
-
-    assert.match(panel, /taskPanel === "grouping-settings"[\s\S]*?<GroupingSettingsPanel/);
-    assert.match(panel, /checked=\{settings\.automatic\}/);
-    assert.match(panel, /loadPointGroupingSettings:\s*\{[\s\S]*automatic:\s*event\.currentTarget\.checked/);
-    assert.match(panel, /ariaLabel=\{t\("groupingSettings\.maxDistance"\)\}[\s\S]*disabled=\{!settings\.automatic\}/);
-    assert.match(panel, /maxEdgeDistanceM:\s*value/);
-    assert.equal(english["groupingSettings.automatic"], "Automatically group load points");
-    assert.equal(dutch["groupingSettings.automatic"], "Belastinglocaties automatisch groeperen");
-  });
 });
 
 describe("React cost settings panel", () => {
@@ -188,21 +162,6 @@ describe("React cost settings panel", () => {
 });
 
 describe("React CPT settings panel", () => {
-  it("keeps settings available without a selection and exposes all or selected scope", () => {
-    const panel = readRightPanelSource();
-
-    assert.doesNotMatch(panel, /cptSettingsScope\s*(?:===|:)\s*"current"/);
-    assert.doesNotMatch(panel, /const loadPoint = state\.loadPoints\.find\(.*selectedLoadPointId/s);
-    assert.doesNotMatch(panel, /empty\.selectLoadPointForCpts/);
-    assert.match(panel, /settingsScope === "selected"/);
-    assert.match(panel, /selectedLoadPoints\.length === 0 \? "all" : state\.cptSettingsScope/);
-    assert.match(panel, /t\("cptSettings\.allLoadPoints"\)/);
-    assert.match(panel, /t\("cptSettings\.selectedLoadPoints"\)/);
-    assert.match(panel, /disabled=\{selectedLoadPoints\.length === 0\}/);
-    assert.match(panel, /t\("cptSettings\.selectedCount", \{ count: selectedLoadPoints\.length \}\)/);
-    assert.match(panel, /const settingsLoadPoints = selectedLoadPoints/);
-    assert.doesNotMatch(panel, /cptSettings\.thisLoadPoint/);
-  });
 
   it("uses aggregate values, mixed placeholders, and field-level settings patches", () => {
     const panel = readRightPanelSource();
@@ -230,16 +189,6 @@ describe("React CPT settings panel", () => {
     assert.match(panel, /t\("cptSettings\.overwriteManualSelections"\)/);
     assert.match(panel, /cptSettings\.maxDistance[\s\S]*cptSettings\.monopolyDistance/);
     assert.match(panel, /ariaLabel=\{t\("cptSettings\.monopolyDistance"\)\}[\s\S]*min=\{0\}/);
-  });
-
-  it("defers CPT number changes until blur or Enter", () => {
-    const panel = readRightPanelSource();
-
-    assert.match(panel, /function DraftNumberField/);
-    assert.match(panel, /const \[draft, setDraft\] = useState/);
-    assert.match(panel, /onBlur=\{commit\}/);
-    assert.match(panel, /if \(event\.key === "Enter"\) event\.currentTarget\.blur\(\)/);
-    assert.doesNotMatch(panel, /pileHeadLevelM: updatePileHeadLevel/);
   });
 
   it("groups CPT values into compact label-and-field rows", () => {

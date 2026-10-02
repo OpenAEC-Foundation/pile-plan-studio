@@ -4,22 +4,16 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
 describe("ThemedSelect", () => {
-  it("exposes accessible listbox semantics without native selection colors", () => {
-    const source = readFileSync(resolve(import.meta.dirname, "ThemedSelect.tsx"), "utf8");
+  it("uses the themed active selection color", () => {
     const styles = readFileSync(resolve(import.meta.dirname, "ThemedSelect.css"), "utf8");
 
-    assert.match(source, /aria-label=\{ariaLabel\}/);
-    assert.match(source, /role="listbox"/);
-    assert.match(source, /role="option"/);
-    assert.match(source, /disabled=\{opt\.disabled\}/);
     assert.match(styles, /\.themed-select-item\.active\s*\{[\s\S]*?background:\s*var\(--theme-dialog-tab-active-bg\)/);
   });
 
-  it("renders its menu in a viewport overlay so scrolling panels cannot clip it", () => {
+  it("preserves fixed overlay placement and the trigger font", () => {
     const source = readFileSync(resolve(import.meta.dirname, "ThemedSelect.tsx"), "utf8");
     const styles = readFileSync(resolve(import.meta.dirname, "ThemedSelect.css"), "utf8");
 
-    assert.match(source, /createPortal/);
     assert.match(source, /getBoundingClientRect/);
     assert.match(source, /elementLayoutScale/);
     assert.match(source, /menuRef/);
@@ -30,12 +24,4 @@ describe("ThemedSelect", () => {
     assert.doesNotMatch(styles, /\.themed-select-menu\s*\{[\s\S]*?top:\s*100%/);
   });
 
-  it("closes its own open menu on Escape without closing a surrounding modal", () => {
-    const source = readFileSync(resolve(import.meta.dirname, "ThemedSelect.tsx"), "utf8");
-
-    assert.match(source, /event\.key !== "Escape" \|\| !open/);
-    assert.match(source, /event\.preventDefault\(\)/);
-    assert.match(source, /event\.stopPropagation\(\)/);
-    assert.match(source, /setOpen\(false\)/);
-  });
 });

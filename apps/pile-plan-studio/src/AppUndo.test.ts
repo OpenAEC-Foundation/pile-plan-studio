@@ -39,40 +39,11 @@ describe("App Undo integration", () => {
     assert.match(source, /defaultSelectionKeepsDirtyRef\.current[\s\S]*?amendProjectState/);
   });
 
-  it("clears history when a different project is installed", () => {
-    assert.match(source, /const installOpenedProject[\s\S]*?replaceProjectState\(project\)/);
-  });
-
-  it("supports history shortcuts without overriding focused editors", () => {
-    assert.match(source, /isEditableTarget/);
-    assert.match(source, /event\.ctrlKey \|\| event\.metaKey/);
-    assert.match(source, /const key = event\.key\.toLowerCase\(\)/);
-    assert.match(source, /key === "z"/);
-    assert.match(source, /key === "y"/);
-    assert.match(source, /dispatchProject\(\{ type: "undo" \}\)/);
-    assert.match(source, /dispatchProject\(\{ type: "redo" \}\)/);
-    assert.doesNotMatch(source, /undoRequested && canUndo/);
-    assert.doesNotMatch(source, /redoRequested && canRedo/);
-    assert.match(source, /key === "z" && event\.shiftKey/);
-  });
-
-  it("keeps project history shortcuts active while a range slider has focus", () => {
-    const editableTarget = source.match(/function isEditableTarget[\s\S]*?\n}/)?.[0] ?? "";
-
-    assert.match(editableTarget, /input:not\(\[type=['"]range['"]\]\)/);
-    assert.match(editableTarget, /textarea, select/);
-    assert.match(editableTarget, /isContentEditable/);
-  });
-
-  it("coalesces one symbol-scale gesture into one project history entry", () => {
-    assert.match(source, /symbolScaleHistoryRef/);
-    assert.match(source, /beginSymbolScaleChange/);
-    assert.match(source, /commitSymbolScaleChange/);
-    assert.match(source, /endSymbolScaleChange/);
-    assert.match(source, /symbolScaleHistoryRef\.current === "amend"[\s\S]*?amendProjectState/);
-    assert.match(source, /commitProjectState/);
-    assert.match(source, /onSymbolScaleChangeStart=\{beginSymbolScaleChange\}/);
-    assert.match(source, /onSymbolScaleChangeEnd=\{endSymbolScaleChange\}/);
+  it("wires the ribbon gesture to the shared history controller", () => {
+    assert.match(source, /createSymbolScaleHistory\(\{\s*commit: commitProjectState,\s*amend: amendProjectState/);
+    assert.match(source, /onSymbolScaleChangeStart=\{symbolScaleHistory.begin\}/);
+    assert.match(source, /onSymbolScaleChange=\{symbolScaleHistory.change\}/);
+    assert.match(source, /onSymbolScaleChangeEnd=\{symbolScaleHistory.end\}/);
   });
 
   it("shows history results in the viewer without replacing general status feedback", () => {

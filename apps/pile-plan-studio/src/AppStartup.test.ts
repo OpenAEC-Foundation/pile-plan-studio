@@ -37,7 +37,7 @@ describe("React app startup", () => {
     assert.doesNotMatch(source, /React\.StrictMode/);
   });
 
-  it("runs one batched analysis whenever the analysis request object changes", () => {
+  it("wires analysis request changes to the shared batched pipeline", () => {
     const source = readFileSync(resolve(import.meta.dirname, "app/session/AppSession.tsx"), "utf8");
 
     assert.match(source, /analysisPipeline\.run/);
@@ -49,15 +49,12 @@ describe("React app startup", () => {
   it("runs transient CPT draft previews through the shared pile-option analysis core", () => {
     const source = readFileSync(resolve(import.meta.dirname, "app/session/AppSession.tsx"), "utf8");
     const hook = readFileSync(resolve(import.meta.dirname, "app/derived-state/useCptSelectionPreview.ts"), "utf8");
-    const runner = readFileSync(resolve(import.meta.dirname, "app/derived-state/cptSelectionPreview.ts"), "utf8");
     assert.match(source, /useCptSelectionPreview\(projectState, setProjectState\)/);
     assert.match(hook, /analyze: calculatePileOptionAnalysisCore/);
     assert.match(hook, /\[state\.cptSelectionEditDraft\]/);
-    assert.match(runner, /getCptSelectionPreviewInput/);
-    assert.match(runner, /applyCptSelectionPreviewResult/);
   });
 
-  it("stores analysis failures instead of leaving a permanent loading state", () => {
+  it("binds the analysis failure field to the inspection panel", () => {
     const appSource = readFileSync(resolve(import.meta.dirname, "app/session/AppSession.tsx"), "utf8");
     const panelSource = readFileSync(
       resolve(import.meta.dirname, "components/domain/right-panel/LoadPointPanel.tsx"),
@@ -135,28 +132,11 @@ describe("React app startup", () => {
     );
   });
 
-  it("waits for complete analysis before creating a fresh pile plan", () => {
-    const controller = readFileSync(resolve(import.meta.dirname, "app/project/newPilePlanController.ts"), "utf8");
-    assert.match(controller, /options\.size !== captured\.loadPoints\.length/);
-    assert.match(controller, /captured\.analysisError !== null/);
-  });
-
-  it("chooses defaults from the full technical option set, independent of optimizer filters", () => {
+  it("wires new-plan creation to complete technical options", () => {
     const source = readFileSync(resolve(import.meta.dirname, "app/session/AppSession.tsx"), "utf8");
-    const controller = readFileSync(resolve(import.meta.dirname, "app/project/newPilePlanController.ts"), "utf8");
     assert.match(source, /useNewPilePlan\(\{/);
     assert.match(source, /options: technicalPileOptionsByLoadPointId/);
     assert.match(source, /ready: hasCompletedLoadPointGroups && technicalAssignment\.status === "ready"/);
-    assert.match(controller, /optionsByLoadPointId: options/);
-    assert.doesNotMatch(controller, /activePileSizes|activePileTipLevelMms|isPileConfigurationActive/);
-  });
-
-  it("discards a fresh-plan default choice when its technical input changes", () => {
-    const controller = readFileSync(resolve(import.meta.dirname, "app/project/newPilePlanController.ts"), "utf8");
-    assert.match(controller, /current\.cptSelectionPreview === captured\.cptSelectionPreview/);
-    assert.match(controller, /dependencies\.snapshot\(\)\.groups === groups/);
-    assert.match(controller, /current\.pileCostSettings === captured\.pileCostSettings/);
-    assert.match(controller, /current\.pileHeadLevelM === captured\.pileHeadLevelM/);
   });
 
   it("uses the working pile plan explorer instead of passive source rows", () => {

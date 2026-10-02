@@ -41,14 +41,6 @@ describe("ThemedNumberInput integration", () => {
     assert.equal(stepNumericDraft("", 1, { min: 1, max: 64, step: 1 }), "1");
   });
 
-  it("starts a delayed repeat and stops it on pointer completion", () => {
-    const source = readFileSync(resolve(import.meta.dirname, "ThemedNumberInput.tsx"), "utf8");
-    assert.match(source, /window\.setTimeout\([\s\S]*?window\.setInterval/);
-    assert.match(source, /onPointerUp=\{stopRepeating\}/);
-    assert.match(source, /onPointerCancel=\{stopRepeating\}/);
-    assert.match(source, /onPointerLeave=\{stopRepeating\}/);
-  });
-
   it("shows the stepper on pointer hover without keeping it visible after focus", () => {
     const styles = readFileSync(resolve(import.meta.dirname, "ThemedNumberInput.css"), "utf8");
     assert.match(styles, /\.themed-number-input:hover \.themed-number-stepper/);

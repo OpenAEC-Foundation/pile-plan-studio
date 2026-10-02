@@ -1,3 +1,4 @@
+import { createSymbolScaleHistory } from "../project/symbolScaleHistory.ts";
 import { useCptSelectionPreview } from "../derived-state/useCptSelectionPreview.ts";
 import { useNewPilePlan } from "../project/useNewPilePlan.ts";
 import { beginLoadPointLockEditing, cancelLoadPointLockEditing, clearLoadPointLockDraft, finishLoadPointLockEditing } from "../../domain/pile-plans/loadPointLockEditing.ts";
@@ -128,7 +129,7 @@ import {
   createBrowserRecoveryWriter,
   type BrowserRecoveryStore,
 } from "../../domain/project/recovery/browserRecoveryStore.ts";
-import { classifyAppShortcut } from "../../domain/workspace/appShortcuts.ts";
+import { createAppShortcutHandler, dispatchHistoryShortcut, releasePointerActivatedControlFocus } from "./sessionShortcuts.ts";
 import { DEFAULT_INTERFACE_SCALE, normalizeInterfaceScale, stepInterfaceScale } from "../../domain/settings/interfaceScale.ts";
 import { applyDesktopInterfaceScale } from "../../domain/settings/interfaceScaleRuntime.ts";
 import {
@@ -172,15 +173,6 @@ function requireValidProjectDocument(
 ): Extract<ProjectDocumentOutcome, { status: "valid" }> {
   if (outcome.status === "invalid") throw new ProjectDocumentReadError(outcome.error);
   return outcome;
-}
-
-const POINTER_FOCUS_CONTROL_SELECTOR = "button, [role='option'], [role='tab'], [role='row'][tabindex='0']";
-
-function releasePointerActivatedControlFocus(event: ReactPointerEvent<HTMLDivElement>) {
-  const target = event.target;
-  if (!(target instanceof Element)) return;
-  const control = target.closest<HTMLElement>(POINTER_FOCUS_CONTROL_SELECTOR);
-  if (control && event.currentTarget.contains(control)) control.blur();
 }
 
 export type AppSessionProps = {
@@ -312,22 +304,10 @@ export default function AppSession({
   const amendProjectState = useCallback((update: SetStateAction<ProjectState>) => {
     dispatchProject({ type: "amend", update });
   }, []);
-  const symbolScaleHistoryRef = useRef<"idle" | "commit" | "amend">("idle");
-  const beginSymbolScaleChange = useCallback(() => {
-    if (symbolScaleHistoryRef.current === "idle") symbolScaleHistoryRef.current = "commit";
-  }, []);
-  const commitSymbolScaleChange = useCallback((symbolScalePercent: number) => {
-    const update = (current: ProjectState) => ({ ...current, symbolScalePercent });
-    if (symbolScaleHistoryRef.current === "amend") {
-      amendProjectState(update);
-      return;
-    }
-    commitProjectState(update);
-    if (symbolScaleHistoryRef.current === "commit") symbolScaleHistoryRef.current = "amend";
-  }, [amendProjectState, commitProjectState]);
-  const endSymbolScaleChange = useCallback(() => {
-    symbolScaleHistoryRef.current = "idle";
-  }, []);
+  const [symbolScaleHistory] = useState(() => createSymbolScaleHistory({
+    commit: commitProjectState,
+    amend: amendProjectState,
+  }));
   const replaceProjectState = useCallback((state: ProjectState) => {
     mcpProjectMarkerRef.current!.reset();
     projectStateRef.current = state;
@@ -578,17 +558,7 @@ export default function AppSession({
 
   useEffect(() => {
     const handleHistoryShortcut = (event: KeyboardEvent) => {
-      if (!(event.ctrlKey || event.metaKey) || event.altKey || isEditableTarget(event.target)) return;
-      const key = event.key.toLowerCase();
-      const undoRequested = key === "z" && !event.shiftKey;
-      const redoRequested = key === "y" || (key === "z" && event.shiftKey);
-      if (undoRequested) {
-        event.preventDefault();
-        dispatchProject({ type: "undo" });
-      } else if (redoRequested) {
-        event.preventDefault();
-        dispatchProject({ type: "redo" });
-      }
+      dispatchHistoryShortcut(event, type => dispatchProject({ type }));
     };
     window.addEventListener("keydown", handleHistoryShortcut);
     return () => window.removeEventListener("keydown", handleHistoryShortcut);
@@ -642,32 +612,12 @@ export default function AppSession({
   projectActionRef.current = isDesktop ? saveProject : downloadProject;
 
   useEffect(() => {
-    const handleAppShortcut = (event: KeyboardEvent) => {
-      const action = classifyAppShortcut(event, isDesktop);
-      if (!action) return;
-      event.preventDefault();
-
-      if (action === "save") {
-        if (saveShortcutInFlightRef.current || !projectActionRef.current) return;
-        saveShortcutInFlightRef.current = true;
-        void projectActionRef.current().finally(() => {
-          saveShortcutInFlightRef.current = false;
-        });
-        return;
-      }
-
-      if (action === "open") {
-        if (openProjectActionRef.current) void openProjectActionRef.current();
-        return;
-      }
-
-      const current = userSettingsRef.current;
-      const currentScale = current.preferences.interfaceScalePercent;
-      const scale = action === "zoom-reset"
-        ? DEFAULT_INTERFACE_SCALE
-        : stepInterfaceScale(currentScale, action === "zoom-in" ? 1 : -1);
-      applyInterfaceScale(scale);
-    };
+    const handleAppShortcut = createAppShortcutHandler({
+      isDesktop, saveInFlight: saveShortcutInFlightRef,
+      save: () => projectActionRef.current, open: () => openProjectActionRef.current,
+      currentScale: () => userSettingsRef.current.preferences.interfaceScalePercent,
+      applyScale: applyInterfaceScale,
+    });
     window.addEventListener("keydown", handleAppShortcut);
     return () => window.removeEventListener("keydown", handleAppShortcut);
   }, [isDesktop]);
@@ -1314,9 +1264,9 @@ export default function AppSession({
           showLoadPointGroups={projectState.showLoadPointGroups}
           explorerVisible={workspaceLayout.explorerVisible}
           propertiesVisible={workspaceLayout.propertiesVisible}
-          onSymbolScaleChangeStart={beginSymbolScaleChange}
-          onSymbolScaleChange={commitSymbolScaleChange}
-          onSymbolScaleChangeEnd={endSymbolScaleChange}
+          onSymbolScaleChangeStart={symbolScaleHistory.begin}
+          onSymbolScaleChange={symbolScaleHistory.change}
+          onSymbolScaleChangeEnd={symbolScaleHistory.end}
           onViewerUtilizationRangeChange={(minimum, maximum) => handleProjectStateChange({
             ...projectState,
             viewerUtilizationSettings: { minimum, maximum },
@@ -1696,11 +1646,5 @@ export default function AppSession({
 
 function dispatchViewerLayoutChange() {
   window.dispatchEvent(new Event(VIEWER_LAYOUT_CHANGE_EVENT));
-}
-
-function isEditableTarget(target: EventTarget | null): boolean {
-  return target instanceof HTMLElement && (
-    target.matches("input:not([type='range']), textarea, select") || target.isContentEditable
-  );
 }
 

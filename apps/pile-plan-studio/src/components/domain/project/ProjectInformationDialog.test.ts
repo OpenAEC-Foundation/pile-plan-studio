@@ -17,14 +17,6 @@ describe("Project information", () => {
     assert.equal(normalizePileHeadLevel("not a level"), null);
   });
 
-  it("edits the project name, pile head level and currency together", () => {
-    const source = readFileSync(new URL("./ProjectInformationDialog.tsx", import.meta.url), "utf8");
-
-    assert.match(source, /pileHeadLevelM/);
-    assert.match(source, /currencyCode/);
-    assert.match(source, /onSave\(\{/);
-  });
-
   it("uses the custom themed listbox for project currency", () => {
     const source = readFileSync(new URL("./ProjectInformationDialog.tsx", import.meta.url), "utf8");
 

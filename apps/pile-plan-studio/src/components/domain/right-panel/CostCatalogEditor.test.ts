@@ -14,13 +14,6 @@ describe("Cost settings panel", () => {
     assert.match(source, /missingSizes/);
   });
 
-  it("supports adding sizes and protects used rows from deletion", () => {
-    assert.match(source, /action: "add"/);
-    assert.match(source, /action: "remove"/);
-    assert.match(source, /onEditCosts/);
-    assert.match(source, /usedPileSizes\.has/);
-  });
-
   it("labels costs with the project currency and omits pile head level", () => {
     assert.match(source, /currencyCode/);
     assert.doesNotMatch(source, /pileHeadLevel/);
@@ -38,14 +31,6 @@ describe("Cost settings panel", () => {
     const nl = JSON.parse(readFileSync(resolve(import.meta.dirname, "../../../i18n/locales/nl/rightPanel.json"), "utf8"));
     assert.match(en["cost.duplicateSize"], /already exists/);
     assert.match(nl["cost.duplicateSize"], /bestaat al/);
-  });
-
-  it("exposes explicit personal and built-in default actions", () => {
-    assert.match(source, /onSavePersonalDefault/);
-    assert.match(source, /onLoadPersonalDefault/);
-    assert.match(source, /onRemovePersonalDefault/);
-    assert.match(source, /onLoadBuiltInDefault/);
-    assert.match(source, /window\.confirm/);
   });
 
   it("shows bilingual provenance and scope for the built-in cost default", () => {
