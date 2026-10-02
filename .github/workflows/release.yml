@@ -49,6 +49,9 @@ jobs:
         working-directory: apps/pile-plan-studio
         run: npm test
 
+      - name: Test Tauri shell
+        run: cargo test --manifest-path apps/pile-plan-studio/src-tauri/Cargo.toml
+
       - name: Build NSIS installer
         working-directory: apps/pile-plan-studio
         run: npm run tauri build -- --bundles nsis
@@ -91,6 +94,14 @@ jobs:
           "path=$($installer.FullName)" >> $env:GITHUB_OUTPUT
           "name=$($installer.Name)" >> $env:GITHUB_OUTPUT
           Write-Host "Verified $($installer.Name) signed by $($signature.SignerCertificate.Subject)"
+
+      - name: Test signed installer installation and launch
+        shell: pwsh
+        env:
+          INSTALLER_PATH: ${{ steps.installer.outputs.path }}
+        run: |
+          $version = (Get-Content apps/pile-plan-studio/src-tauri/tauri.conf.json | ConvertFrom-Json).version
+          ./tools/test_windows_installer.ps1 -InstallerPath $env:INSTALLER_PATH -ExpectedVersion $version
 
       - name: Create draft GitHub release
         uses: softprops/action-gh-release@v2

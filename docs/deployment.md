@@ -48,7 +48,7 @@ apps/pile-plan-studio/dist/
 ```
 
 Deploy the complete contents of this directory from one commit or release tag.
-For the current public alpha source, use release version `0.4.2-alpha`.
+For the current public alpha source, use release version `0.4.3-alpha`.
 This includes the Rust core WASM, HiGHS WASM and Worker assets; the browser solver
 does not load its executable code from a CDN.
 
@@ -121,11 +121,18 @@ installer, signs it through Azure Artifact Signing, and verifies that Windows
 recognizes `Impertio Studio B.V.` as its publisher. A failed build, missing
 secret, or invalid signature stops the workflow before release creation.
 
+Before creating a draft, the workflow silently installs the signed installer on
+its disposable Windows runner, verifies the installed version and running
+executable path, and checks that the app starts WebView2 and remains running.
+The workflow summary records the signature, SHA-256 hash, installation, and
+launch results. This check does not interact with the developer's desktop.
+
 Successful builds are attached to a draft release. Download the installer and
-verify its product version, Authenticode signature/publisher, and SHA-256 hash.
-Test installation and launch in a suitable Windows test environment before
-publishing that draft as a public prerelease. Signature and version checks do
-not replace an installation/launch test; record which checks were performed.
+verify its product version, Authenticode signature/publisher, and SHA-256 hash
+against the workflow summary before publishing it as a public prerelease.
+The automated launch check covers startup; manually verify native file dialogs
+and other desktop interactions in a suitable Windows test environment when
+those behaviors change.
 
 Replace generated notes with the prepared release notes, then publish the draft
 (the example assumes GitHub CLI and a notes file containing only this release):

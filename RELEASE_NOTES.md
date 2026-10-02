@@ -1,5 +1,30 @@
 # Open Pile Plan Studio Release Notes
 
+## 0.4.3-alpha
+
+This maintenance alpha simplifies project-session, import, and MCP orchestration
+and strengthens regression coverage while preserving the engineering model and
+supported project formats.
+
+### Improved and fixed
+
+- Show a specific duplicate-size message when adding a pile cost entry whose
+  size is already saved, instead of reporting an invalid number.
+- Centralize cost validation, immutable project edits, and shared browser/native
+  request models. Remove obsolete helpers and an unused optimizer result route.
+- Separate project editing, import previews, and MCP session lifecycles into
+  focused modules with the existing revision and editing-permission checks.
+- Add interaction tests for imports, costs, settings, tables, shortcuts, and
+  application controls, replacing tests tied to implementation text.
+- Verify the signed Windows installer's installation and launch on the build
+  server before creating the release draft.
+
+### Compatibility and limitations
+
+- Supported IFCPP project versions and engineering calculations are unchanged.
+- MCP remains available only in the Windows desktop app.
+- This remains an alpha release; engineering results require professional review.
+
 ## 0.4.2-alpha
 
 This alpha adds an MCP connection to the Windows desktop app. A local AI client
