@@ -128,12 +128,15 @@
 }
 
 .cpt-panel {
-  display: grid;
+  display: flex;
+  flex-direction: column;
   flex: 1;
   min-height: 0;
-  overflow: hidden;
-  grid-template-rows: auto auto 1fr;
+  overflow: auto;
 }
+
+.cpt-panel > :not(.cpt-table-wrap) { flex-shrink: 0; }
+.cpt-panel > .cpt-table-wrap { flex: 1; min-height: 80px; }
 
 .cpt-settings-panel,
 .grouping-settings-panel {
@@ -1121,4 +1124,79 @@
 .table-number-field input {
   width: 100%;
   padding: 3px 4px;
+}
+
+
+.cpt-edit-scope {
+  padding: 8px 10px 0;
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+  font-size: 11px;
+}
+
+.cpt-location-picker {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.cpt-location-picker select {
+  width: 100%;
+  min-width: 0;
+  padding: 4px;
+  border: 1px solid var(--theme-border);
+  border-radius: 3px;
+  background: var(--theme-surface);
+  color: var(--theme-text);
+  font: inherit;
+}
+
+.cpt-location-navigation, .cpt-usage-members {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+.cpt-location-navigation { justify-content: space-between; }
+.cpt-usage-members { padding: 5px 0; max-height: 140px; overflow: auto; }
+
+.cpt-usage-members button, .cpt-location-navigation button {
+  padding: 3px 6px;
+  border: 1px solid var(--theme-border);
+  border-radius: 3px;
+  background: var(--theme-surface);
+  color: var(--theme-text);
+  cursor: pointer;
+  font: inherit;
+}
+
+.cpt-usage-details summary, .cpt-edit-summary summary {
+  cursor: pointer;
+  color: var(--theme-text);
+}
+
+.cpt-usage-details summary { text-decoration: underline; text-underline-offset: 2px; }
+.cpt-usage-members button:focus-visible, .cpt-usage-details summary:focus-visible,
+.cpt-location-picker select:focus-visible, .cpt-location-navigation button:focus-visible,
+.cpt-edit-summary summary:focus-visible {
+  outline: 2px solid var(--theme-focus-color);
+  outline-offset: 2px;
+}
+.cpt-location-navigation button:disabled { opacity: 0.5; cursor: default; }
+
+.cpt-preview-status.is-error { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; }
+.cpt-preview-status button {
+  border: 1px solid var(--theme-border);
+  border-radius: 3px;
+  padding: 3px 6px;
+  background: var(--theme-surface);
+  color: var(--theme-text);
+  font: inherit;
+  cursor: pointer;
+}
+.cpt-edit-actions button:disabled, .cpt-remove-button:disabled {
+  opacity: 0.55;
+  cursor: default;
 }

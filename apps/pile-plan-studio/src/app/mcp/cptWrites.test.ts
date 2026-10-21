@@ -34,6 +34,13 @@ describe("MCP manual CPT writes", () => {
     assert.equal(projectHistoryReducer(recorded, { type: "undo" }).present.manualCptIdsByLoadPoint.has(pointId), false);
   });
 
+  it("can explicitly make an automatic selection manual without changing its effective CPTs", async () => {
+    const automatic = { ...state, manualCptIdsByLoadPoint: new Map(), selectedCptsByLoadPointId: new Map([[pointId, [{ cpt: state.cpts[0], label: "nearest", distance_mm: 1000 }]]]) };
+    const prepared = await prepareMcpWrite({ ...snapshot, state: automatic }, "pile_set_manual_cpts", { load_point_id: pointId, cpt_ids: [cptId] });
+    assert.equal(prepared.changed, true);
+    assert.deepEqual(prepared.update(automatic).manualCptIdsByLoadPoint.get(pointId), [cptId]);
+  });
+
   it("keeps an explicit empty list and resets it to automatic selection", async () => {
     const empty = await prepareMcpWrite(snapshot, "pile_set_manual_cpts", {
       load_point_id: pointId, cpt_ids: [],

@@ -29,7 +29,7 @@ import {
   getReactViewerSelectedCptIds,
   isReactViewerCptSelectionEditing,
 } from "../../../domain/workspace/viewerInteractions.ts";
-import { getEffectivePileOptionsByLoadPointId } from "../../../domain/cpt-selection/cptSettingsModel.ts";
+import { getDraftCptIds, getManualCptEditTargetIds, getEffectivePileOptionsByLoadPointId } from "../../../domain/cpt-selection/cptSettingsModel.ts";
 import {
   getActiveLockedLoadPointIds,
 } from "../../../domain/pile-plans/loadPointLocking.ts";
@@ -106,7 +106,7 @@ export default function PilePlanViewer({
   const governingCptId = getHighlightedGoverningCptId({
     activeSelectedCptIds: [...contextSelectedCptIds],
     pileOptionsByLoadPointId,
-    selectedLoadPointIds: state.selectedLoadPointIds,
+    selectedLoadPointIds: state.cptSelectionEditDraft ? getManualCptEditTargetIds(state) : state.selectedLoadPointIds,
     selectedPileConfigurationsByLoadPoint: state.selectedPileConfigurationsByLoadPoint,
   });
   const isEditingCptSelection = isReactViewerCptSelectionEditing(state);
@@ -174,12 +174,17 @@ export default function PilePlanViewer({
   const cptConnectionSegments = useMemo(() => getCptConnectionSegments({
     transform: projectTransform,
     cpts: state.cpts,
-    selectedLoadPointIds: state.selectedLoadPointIds,
+    selectedLoadPointIds: state.cptSelectionEditDraft ? getManualCptEditTargetIds(state) : state.selectedLoadPointIds,
     selectedCptsByLoadPointId: state.selectedCptsByLoadPointId,
-    cptSelectionEditDraft: state.cptSelectionEditDraft,
+    cptSelectionEditDraft: state.cptSelectionEditDraft ? {
+      ...state.cptSelectionEditDraft,
+      cptIdsByLoadPoint: new Map(state.cptSelectionEditDraft.loadPointIds.map(id => [id, getDraftCptIds(state, id)])),
+    } : null,
   }), [
     projectTransform,
     state.cptSelectionEditDraft,
+    state.cptSelectionEditLoadPointId,
+    state.cptSelectionPreview,
     state.cpts,
     state.selectedCptsByLoadPointId,
     state.selectedLoadPointIds,

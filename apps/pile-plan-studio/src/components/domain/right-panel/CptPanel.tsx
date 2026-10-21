@@ -1,14 +1,18 @@
+import CptEditScope from "./CptEditScope.tsx";
+import CptUsageButton from "./CptUsageButton.tsx";
 import type { ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import type { ProjectState } from "../../../domain/project/projectState.ts";
 import { openCpt } from "../../../domain/workspace/selectionState.ts";
 import { getCptFrdPanelModel, getSelectedCptOverviewModel, getSelectedLoadPoints } from "./rightPanelModel.ts";
-import { cancelManualCptSelection, clearManualCptSelection, removeManualCpt, saveManualCptSelection, selectOnlyNearestCpts, startManualCptSelectionEdit } from "../../../domain/cpt-selection/cptSettingsModel.ts";
+import { cancelManualCptSelection, clearManualCptSelection, removeManualCpt, getManualCptEditTargetIds, isManualCptSelectionPending, selectOnlyNearestCpts, startManualCptSelectionEdit } from "../../../domain/cpt-selection/cptSettingsModel.ts";
 import { removeIcon } from "../../template/ribbon/icons.ts";
 import { CoordinateReadout } from "../shared/CoordinateReadout.ts";
 import { ResistanceLabel, localizeCptName, localizeCptTableValue, localizeLoadPointName } from "./PanelControls.tsx";
 
-export default function CptPanel({ state, onStateChange, selectedLoadPoints }: {
+export default function CptPanel({ state, onStateChange, selectedLoadPoints, saving = false, onSave }: {
+  saving?: boolean;
+  onSave?: () => Promise<void>;
   state: ProjectState;
   onStateChange: (nextState: ProjectState) => void;
   selectedLoadPoints: ReturnType<typeof getSelectedLoadPoints>;
@@ -18,11 +22,11 @@ export default function CptPanel({ state, onStateChange, selectedLoadPoints }: {
   const draft = state.cptSelectionEditDraft;
   const isEditing = draft !== null;
   const cptPanelLoadPoints = draft
-    ? state.loadPoints.filter((loadPoint) => draft.loadPointIds.includes(loadPoint.id))
+    ? state.loadPoints.filter((loadPoint) => getManualCptEditTargetIds(state).includes(loadPoint.id))
     : selectedLoadPoints;
 
   if (isEditing) {
-    return <CptSelectionOverview state={state} onStateChange={onStateChange} selectedLoadPoints={cptPanelLoadPoints} editing />;
+    return <CptSelectionOverview state={state} onStateChange={onStateChange} selectedLoadPoints={cptPanelLoadPoints} editing saving={saving} onSave={onSave} />;
   }
 
   if (selectedCpt) {
@@ -59,16 +63,19 @@ export default function CptPanel({ state, onStateChange, selectedLoadPoints }: {
     );
   }
 
-  return <CptSelectionOverview state={state} onStateChange={onStateChange} selectedLoadPoints={selectedLoadPoints} editing={false} />;
+  return <CptSelectionOverview state={state} onStateChange={onStateChange} selectedLoadPoints={selectedLoadPoints} editing={false} saving={saving} />;
 }
 
-function CptSelectionOverview({ state, onStateChange, selectedLoadPoints, editing }: {
+function CptSelectionOverview({ state, onStateChange, selectedLoadPoints, editing, saving, onSave }: {
   state: ProjectState;
   onStateChange: (nextState: ProjectState) => void;
   selectedLoadPoints: ReturnType<typeof getSelectedLoadPoints>;
   editing: boolean;
+  saving: boolean;
+  onSave?: () => Promise<void>;
 }) {
   const { t } = useTranslation("rightPanel");
+  const editPending = saving || isManualCptSelectionPending(state);
   const overview = getSelectedCptOverviewModel(state, selectedLoadPoints);
   const preview = state.cptSelectionPreview?.draft === state.cptSelectionEditDraft
     ? state.cptSelectionPreview
@@ -93,23 +100,29 @@ function CptSelectionOverview({ state, onStateChange, selectedLoadPoints, editin
         {!editing ? <CptModifyButton state={state} onStateChange={onStateChange} selectedLoadPoints={selectedLoadPoints} /> : null}
       </header>
       {editing ? (
+        <>
+        <CptEditScope state={state} onStateChange={onStateChange} disabled={saving} />
         <div className="cpt-edit-actions">
           <div className="cpt-edit-methods">
-            <button type="button" onClick={() => onStateChange(clearManualCptSelection(state))}>{t("actions.useAlgorithm")}</button>
-            <button type="button" onClick={() => onStateChange(saveManualCptSelection(selectOnlyNearestCpts(state)))}>{t("actions.onlyNearest")}</button>
+            <button type="button" disabled={editPending} onClick={() => onStateChange(clearManualCptSelection(state))}>{t("actions.useAlgorithm")}</button>
+            <button type="button" disabled={editPending} onClick={() => onStateChange(selectOnlyNearestCpts(state))}>{t("actions.onlyNearest")}</button>
           </div>
           <div className="cpt-edit-commit-actions">
-            <button type="button" onClick={() => onStateChange(saveManualCptSelection(state))}>{t("actions.save")}</button>
+            <button type="button" disabled={editPending || !onSave} onClick={() => void onSave?.()}>{t(saving ? "cpts.saving" : "actions.save")}</button>
             <button type="button" onClick={() => onStateChange(cancelManualCptSelection(state))}>{t("actions.cancel")}</button>
           </div>
         </div>
+        </>
       ) : null}
       {editing && preview?.status === "analyzing" ? (
         <div className="cpt-preview-status" role="status">{t("cpts.previewCalculating")}</div>
       ) : null}
       {editing && preview?.status === "failed" ? (
         <div className="cpt-preview-status is-error" role="alert">
-          {t("cpts.previewFailed", { error: preview.error })}
+          <span>{t("cpts.previewFailed", { error: preview.error })}</span>
+          <button type="button" disabled={saving} onClick={() => onStateChange({
+            ...state, cptSelectionEditDraft: { ...state.cptSelectionEditDraft! }, cptSelectionPreview: null,
+          })}>{t("cpts.retryPreview")}</button>
         </div>
       ) : null}
       <div className="cpt-table-wrap">
@@ -139,7 +152,11 @@ function CptSelectionOverview({ state, onStateChange, selectedLoadPoints, editin
 
                   return (
                     <td key={`${row.cpt.id}-${column}`} title={usageTitle}>
-                      {overview.columns[index] === "CPT" && !editing ? (
+                      {column === "Used by" ? (
+                        <CptUsageButton state={state} ids={row.usingLoadPointIds} onStateChange={onStateChange} disabled={saving}>
+                          {localizeCptTableValue(column, value, t)}
+                        </CptUsageButton>
+                      ) : overview.columns[index] === "CPT" && !editing ? (
                         <button
                           className="cpt-link"
                           type="button"
@@ -157,6 +174,8 @@ function CptSelectionOverview({ state, onStateChange, selectedLoadPoints, editin
                   <td className="cpt-remove-cell">
                     <button
                       aria-label={t("actions.removeCpt", { cpt: localizeCptName(row.cpt.name, t) })}
+                      title={t("cpts.removeFromLocations", { cpt: localizeCptName(row.cpt.name, t), count: selectedLoadPoints.length })}
+                      disabled={editPending}
                       className="cpt-remove-button"
                       type="button"
                       onClick={() => onStateChange(removeManualCpt(state, row.cpt.id))}

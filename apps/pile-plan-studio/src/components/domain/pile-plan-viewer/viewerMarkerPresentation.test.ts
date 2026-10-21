@@ -31,6 +31,17 @@ function sampleInput() {
 }
 
 describe("viewer marker presentation", () => {
+  it("marks the CPT editor's focused member while retaining the group selection", () => {
+    const input = sampleInput();
+    const id = input.state.loadPoints[0]!.id;
+    input.state = { ...input.state, cptSelectionEditLoadPointId: id,
+      cptSelectionEditDraft: { loadPointIds: [id], cptIdsByLoadPoint: new Map(), initialCptIdsByLoadPoint: new Map(), automaticLoadPointIds: new Set() } };
+    const result = buildViewerMarkerPresentation(input);
+    assert.deepEqual(result.graphics.find(entry => entry.key === `load-point:${id}`)?.ring, { color: "selection", radius: 7.75 });
+    assert.ok(result.hitTargets.find(entry => entry.key === `load-point:${id}`)?.className.includes("is-cpt-edit-focus"));
+    assert.deepEqual([...input.selectedLoadPointIds], [id]);
+  });
+
   it("uses one shared projected point for selected group graphics and their hit target", () => {
     const input = sampleInput();
     const id = input.state.loadPoints[0]!.id;

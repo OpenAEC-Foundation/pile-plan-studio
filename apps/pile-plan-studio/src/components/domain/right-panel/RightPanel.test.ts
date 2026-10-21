@@ -239,32 +239,6 @@ describe("React CPT settings panel", () => {
 });
 
 describe("React CPT panel edit mode", () => {
-  it("keeps Modify available, disables it without a selection, and presents draft controls", () => {
-    const panel = readRightPanelSource();
-
-    assert.match(panel, /t\("actions\.modify"\)/);
-    assert.match(panel, /disabled=\{selectedLoadPoints\.length === 0\}/);
-    assert.match(panel, /selectOnlyNearestCpts\(state\)/);
-    assert.match(panel, /saveManualCptSelection\(state\)/);
-    assert.match(panel, /cancelManualCptSelection\(state\)/);
-    assert.match(panel, /draft\.loadPointIds\.includes\(loadPoint\.id\)/);
-  });
-
-  it("can restore algorithmic CPT selection directly from edit mode", () => {
-    const panel = readRightPanelSource();
-    const editActions = panel.match(/\{editing \? \([\s\S]*?<div className="cpt-table-wrap">/)?.[0] ?? "";
-
-    assert.match(editActions, /clearManualCptSelection\(state\)/);
-    assert.match(editActions, /t\("actions\.useAlgorithm"\)/);
-  });
-
-  it("saves the nearest-only selection immediately and closes edit mode", () => {
-    const panel = readRightPanelSource();
-    const editActions = panel.match(/\{editing \? \([\s\S]*?<div className="cpt-table-wrap">/)?.[0] ?? "";
-
-    assert.match(editActions, /saveManualCptSelection\(selectOnlyNearestCpts\(state\)\)/);
-  });
-
   it("uses icon-only remove controls in edit mode and preserves normal CPT inspection links", () => {
     const panel = readRightPanelSource();
     const icons = readFileSync(resolve(import.meta.dirname, "../../template/ribbon/icons.ts"), "utf8");

@@ -32,6 +32,8 @@ export type RightPanelProps = {
   onSplitRatioChange?: (ratio: number) => void;
   ilpResult?: ReactNode;
   state: ProjectState;
+  cptEditPending?: boolean;
+  onSaveCptSelection?: () => Promise<void>;
   loadPointGroups?: LoadPointGroup[];
   technicalAssignment?: TechnicalAssignmentSnapshot;
   groupAssignmentAssessment?: GroupAssignmentAssessmentSnapshot;
@@ -67,6 +69,8 @@ export default function RightPanel({
   splitRatio = DEFAULT_RIGHT_PANEL_SPLIT,
   onSplitRatioChange = () => undefined,
   state,
+  cptEditPending = false,
+  onSaveCptSelection,
   loadPointGroups = [],
   technicalAssignment = {
     status: "idle",
@@ -124,7 +128,7 @@ export default function RightPanel({
       onColumnLayoutChange={onColumnLayoutChange}
     />
   );
-  const cptContent = <CptPanel state={state} onStateChange={onStateChange} selectedLoadPoints={selectedLoadPoints} />;
+  const cptContent = <CptPanel saving={cptEditPending} onSave={onSaveCptSelection} state={state} onStateChange={onStateChange} selectedLoadPoints={selectedLoadPoints} />;
 
   return (
     <aside className="properties-panel" aria-label={t("aria.properties")}>

@@ -139,7 +139,7 @@ export default function CptSettingsPanel({ state, onStateChange, onClose }: CptS
               }}
             >{t("actions.modifySelection")}</button>
             {manualCptCount > 0 && state.selectedLoadPointId !== null ? (
-              <button type="button" onClick={() => onStateChange(clearManualCptSelection(state))}>{t("actions.useAlgorithm")}</button>
+              <button type="button" onClick={() => { onStateChange(clearManualCptSelection(startCptSelectionEdit(state))); onClose(); }}>{t("actions.useAlgorithm")}</button>
             ) : null}
           </div>
         </SettingsGroup>

@@ -12,6 +12,7 @@ import { expandSelectionToGroups } from "../../viewer/loadPointGroupSelection.ts
 import {
   transitionCptSettingsScope,
   type CptSelectionEditDraft,
+  type CptSelectionPreview,
   type ProjectState,
 } from "../project/projectState.ts";
 
@@ -102,6 +103,8 @@ export function openReactViewerCpt(state: ReactViewerSelectionState, cptId: numb
 
 export function getReactViewerSelectedCptIds(state: {
   cptSelectionEditDraft?: CptSelectionEditDraft | null;
+  cptSelectionEditLoadPointId?: number | null;
+  cptSelectionPreview?: CptSelectionPreview | null;
   selectedCptId: number | null;
   selectedLoadPointIds: number[];
   selectedCptsByLoadPointId: Map<number, SelectedCpt[]>;
@@ -117,14 +120,23 @@ export function getReactViewerSelectedCptIds(state: {
 
 export function getReactViewerContextCptIds(state: {
   cptSelectionEditDraft?: CptSelectionEditDraft | null;
+  cptSelectionEditLoadPointId?: number | null;
+  cptSelectionPreview?: CptSelectionPreview | null;
   selectedLoadPointIds: number[];
   selectedCptsByLoadPointId: Map<number, SelectedCpt[]>;
 }): number[] {
   const draft = state.cptSelectionEditDraft;
   if (draft) {
     const draftCptIds = new Set<number>();
-    draft.loadPointIds.forEach((loadPointId) => {
-      (draft.cptIdsByLoadPoint.get(loadPointId) ?? new Set()).forEach((cptId) => draftCptIds.add(cptId));
+    const ids = state.cptSelectionEditLoadPointId != null && draft.loadPointIds.includes(state.cptSelectionEditLoadPointId)
+      ? [state.cptSelectionEditLoadPointId] : draft.loadPointIds;
+    ids.forEach((loadPointId) => {
+      const preview = state.cptSelectionPreview;
+      const cpts = draft.automaticLoadPointIds?.has(loadPointId)
+        ? new Set(preview?.draft === draft && preview.status === "ready"
+          ? preview.selectedCptsByLoadPointId?.get(loadPointId)?.map(item => item.cpt.id) : [])
+        : draft.cptIdsByLoadPoint.get(loadPointId) ?? new Set<number>();
+      cpts.forEach(cptId => draftCptIds.add(cptId));
     });
     return [...draftCptIds].sort((left, right) => left - right);
   }
@@ -142,6 +154,8 @@ export function getReactViewerContextCptIds(state: {
 
 export function isReactViewerCptSelectionEditing(state: {
   cptSelectionEditDraft?: CptSelectionEditDraft | null;
+  cptSelectionEditLoadPointId?: number | null;
+  cptSelectionPreview?: CptSelectionPreview | null;
 }): boolean {
   return state.cptSelectionEditDraft !== null && state.cptSelectionEditDraft !== undefined;
 }

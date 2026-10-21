@@ -1,3 +1,4 @@
+import { useManualCptSelectionEdit } from "../project/useManualCptSelectionEdit.ts";
 import { createProjectMcpSession } from "../mcp/projectSession.ts";
 import { createSymbolScaleHistory } from "../project/symbolScaleHistory.ts";
 import { useCptSelectionPreview } from "../derived-state/useCptSelectionPreview.ts";
@@ -290,6 +291,12 @@ export default function AppSession({
   ) => {
     dispatchProject({ type: "commit", update, action });
   }, []);
+  const { pending: cptEditPending, save: saveCptSelection } = useManualCptSelectionEdit({
+    currentState: () => projectStateRef.current,
+    commit: update => commitProjectState(update),
+    blocked: () => showActionNotice(t("rightPanel:cpts.saveBlocked"), "error"),
+    failed: () => showActionNotice(t("rightPanel:cpts.saveFailed"), "error"),
+  });
   const amendProjectState = useCallback((update: SetStateAction<ProjectState>) => {
     dispatchProject({ type: "amend", update });
   }, []);
@@ -1365,6 +1372,8 @@ export default function AppSession({
               onEnableSkipUnsolvable={ilp.enableSkipUnsolvable} onApplyProposal={ilp.applyProposal}
               />}</IlpOptimizationSettingsPanel>}
             state={ilp.displayState}
+            cptEditPending={cptEditPending}
+            onSaveCptSelection={saveCptSelection}
             loadPointGroups={loadPointGroups.groups}
             groupAssignmentAssessment={groupAssignmentAssessment}
             groupEditPending={groupEditPending || loadPointGroups.pending}
