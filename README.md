@@ -153,7 +153,20 @@ The source files may be selected together and assigned to their roles before
 import. Load points can use either the standard tabular profile or the
 automatically detected RFEM Excel export profile. The RFEM profile joins node
 coordinates and reactions by node number and currently interprets the design
-load from the minimum PZ envelope (`Min PZ'`, `Min PZ`, or `Min`).
+load as the absolute value of the minimum PZ envelope (`Min PZ'`, `Min PZ`, or
+`Min`). It also recognises the RFEM 6 component-envelope reaction layout, with
+or without column headers: each node has two `Pz` rows, whose smaller signed
+PZ value governs. Per-node `Extremes` rows and the Dutch/English overall
+max/min summary are ignored, including the unlabelled twelve-row summary after
+the final node's extremes. An incomplete or repeated PZ pair is rejected.
+Both the coordinates and reactions must be in the same XLSX workbook. In the
+RFEM 6 Cartesian coordinate layout, the importer uses the global X/Y columns
+(I/J), rather than the input-coordinate columns (F/G), and accepts headerless
+data starting on the first row. The legacy coordinate layouts remain supported.
+An additional nodal-support table is optional and is ignored, regardless of
+how many support types it contains. Imported load points are the node numbers
+present in both the coordinate and reaction tables; a support table cannot
+recover reactions omitted by the selected result export or its filters.
 
 Imported data, source profiles, project settings, selected piles, and manual
 CPT choices are stored in an `.ifcpp` project file.
