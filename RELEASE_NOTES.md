@@ -1,5 +1,37 @@
 # Open Pile Plan Studio Release Notes
 
+## 2026.43.1
+
+This alpha adds multi-source foundation-advice import and signs the Windows app,
+uninstaller and installer with the Impertio publisher identity.
+
+### Added
+
+- Import pile-capacity advice from multiple CSV/XLSX files and selected worksheets.
+  Recognize pile sizes, tip levels and capacity columns, and preview each source
+  before applying the combined advice.
+- Add advice to an existing project or replace a selected advice source while
+  retaining the other sources. Keep source ownership in saved IFCPP projects.
+
+### Improved and fixed
+
+- Report identical duplicates, conflicting capacity values, empty cells and
+  unknown CPT positions separately. Block conflicting advice before applying it.
+- Preserve atomic project edits, undo/redo and the current-project checks when
+  refreshing advice through the interface or desktop MCP connection.
+- Explain which load-point or CPT files are still missing when creating a project
+  instead of showing a misleading advice-selection error or empty preview.
+- Sign the final Windows app, NSIS uninstaller and installer with trusted
+  timestamps. Verify all three signatures, installation and startup during
+  release builds.
+
+### Compatibility and limitations
+
+- Supported IFCPP project versions and engineering calculations are unchanged.
+- Valid code signatures do not guarantee the absence of SmartScreen reputation
+  warnings for a newly downloaded release.
+- The application remains Alpha; engineering results require professional review.
+
 ## 2026.43.0
 
 This alpha improves CPT editing for grouped load points, adds support for RFEM 6

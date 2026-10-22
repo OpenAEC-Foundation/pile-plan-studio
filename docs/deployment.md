@@ -48,7 +48,7 @@ apps/pile-plan-studio/dist/
 ```
 
 Deploy the complete contents of this directory from one commit or release tag.
-For the current public alpha source, use release tag `v2026.43.0`.
+For the current public alpha source, use release tag `v2026.43.1`.
 This includes the Rust core WASM, HiGHS WASM and Worker assets; the browser solver
 does not load its executable code from a CDN.
 
