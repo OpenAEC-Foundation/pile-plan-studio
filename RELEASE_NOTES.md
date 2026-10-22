@@ -1,5 +1,35 @@
 # Open Pile Plan Studio Release Notes
 
+## 2026.43.0
+
+This alpha improves CPT editing for grouped load points, adds support for RFEM 6
+exports, and introduces ISO-week release numbers with Alpha shown separately.
+
+### Added
+
+- Import RFEM 6 load-point coordinates and support reactions from a workbook
+  containing both source tables. Read global Cartesian X/Y coordinates and
+  paired Pz envelope rows, and skip summary rows.
+- Use `YYYY.W.N` release numbers: ISO week-year, week and sequence starting at
+  zero. Keep Alpha as a separate application status and GitHub prerelease flag.
+
+### Improved and fixed
+
+- Edit CPT selections for all selected load points or one group member, with
+  per-location automatic/manual state and a count of changed locations.
+- Preserve individual selections when saving without changes or changing only
+  part of a group. Restore automatic selection and undo accepted changes as one
+  project edit. CPT choices remain shared by all pile plans.
+- Validate consistent application, Rust, WASM and Windows installer versions
+  before release, and verify signed installer installation and startup in CI.
+
+### Compatibility and limitations
+
+- RFEM 6 coordinates and reactions must be in the same workbook; separate-file
+  import is not supported. Invalid or inconsistent source rows are rejected.
+- Supported IFCPP project versions and engineering calculations are unchanged.
+- The application remains Alpha; engineering results require professional review.
+
 ## 0.4.3-alpha
 
 This maintenance alpha simplifies project-session, import, and MCP orchestration
