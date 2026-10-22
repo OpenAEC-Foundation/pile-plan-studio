@@ -102,6 +102,21 @@ late read, result or error cannot replace a newer preview or a changed context.
 Preview updates remain transient; final import validation stays in Rust.
 `app/import/projectImportRequest.ts` prepares the selected source bytes and
 project properties using the same readiness model as the import panel.
+Advice files use immutable source identities, per-sheet selections, and a
+joint project preview. `adviceImportPreviewController.ts` rejects stale file,
+selection, mode, and project-context results. Rust `import/` owns discovery,
+column-table parsing, exact conflict detection before orphan filtering, and
+refresh merging. `preview_project_import_files` uses the same merge rules as
+final import on WASM and native. Preview is read-only project context.
+
+Advice provenance stores durable `advice_id` and normalized `capacity_keys` in
+existing import-log `profile_details`. Shared identical keys retain all owners;
+replacing one owner preserves values owned by another. CPT refresh remaps these
+keys. Incomplete historical provenance is represented as one combined legacy
+advice. Explicit append/replace operations preserve unrelated sources; legacy
+requests without operations retain their previous whole-advice replacement
+semantics. No IFCPP schema bump is required.
+
 Behavior tests cover request preparation and preview timing; source inspections
 remain for view conventions.
 

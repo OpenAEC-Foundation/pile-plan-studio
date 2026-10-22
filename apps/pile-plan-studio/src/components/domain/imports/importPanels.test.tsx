@@ -6,8 +6,8 @@ import PilePlanImportPanel from "./PilePlanImportPanel.tsx";
 import type { ImportSourceInput } from "../../../core/coreImportContract.ts";
 import type { PilePlanImportRequest } from "../../../core/pilePlanImportContract.ts";
 
-const core = vi.hoisted(() => ({ project: vi.fn(), plan: vi.fn() }));
-vi.mock("../../../core/coreClient.ts", () => ({ previewImportSourceCore: core.project, previewPilePlanImportCore: core.plan }));
+const core = vi.hoisted(() => ({ project: vi.fn(), plan: vi.fn(), joint: vi.fn() }));
+vi.mock("../../../core/coreClient.ts", () => ({ previewImportSourceCore: core.project, previewPilePlanImportCore: core.plan, previewProjectImportCore: core.joint }));
 const t = (key: string, ns = "common") => i18n.t(key, { ns });
 function file(name: string) {
   const file = new File(["source data"], name);
@@ -15,6 +15,7 @@ function file(name: string) {
   return file;
 }
 function projectPreview(input: ImportSourceInput) {
+  if (input.role === "bearing-capacities") return { role: input.role, requestedProfile: input.profile, detectedProfile: "standard-table", resolvedProfile: "standard-table", availableProfiles: ["standard-table"], resolvedOptions: input.profileOptions, itemCount: 1, diagnostics: [], details: { kind: "foundation-advice", advice: { sourceId: input.sourceId, suggestedSelection: [], diagnostics: [], sheets: [{ sheetName: "", status: "ready", detectedProfile: "standard-table", resolvedProfile: "standard-table", diagnostics: [], summary: { itemCount: 1, cptCount: 1, pileSizesMm: [290], minTipLevelMm: -18000, maxTipLevelMm: -18000, missingCellCount: 0 } }] } } };
   return { role: input.role, requestedProfile: input.profile, detectedProfile: "standard-table",
     resolvedProfile: "standard-table", availableProfiles: ["standard-table"],
     resolvedOptions: input.profileOptions, itemCount: 1, diagnostics: [], details: null };
@@ -23,6 +24,7 @@ const planPreview = { requestedProfile: "automatic", detectedProfile: "standard-
   canApply: true, summary: { sourceRows: 1, matchedRows: 1, skippedRows: 0, coordinateFallbacks: 0, conflicts: 0 },
   diagnostics: [], patch: { rows: [] } };
 beforeEach(() => {
+  core.joint.mockReset().mockResolvedValue({ canApply: true, uniqueValueCount: 1, importedValueCount: 1, exactDuplicateCount: 0, orphanValueCount: 0, conflicts: [], diagnostics: [] });
   core.project.mockReset().mockImplementation(async input => projectPreview(input));
   core.plan.mockReset().mockResolvedValue(planPreview);
 });
@@ -71,6 +73,7 @@ test("pending previews and a failed final import block submission and surface th
   await waitFor(() => expect(core.project).toHaveBeenCalledOnce());
   expect((submit as HTMLButtonElement).disabled).toBe(true);
   await act(async () => resolve(projectPreview(core.project.mock.calls[0][0])));
+  await waitFor(() => expect((submit as HTMLButtonElement).disabled).toBe(false));
   fireEvent.click(submit);
   expect((submit as HTMLButtonElement).disabled).toBe(true);
   expect((await screen.findByRole("alert")).textContent).toBe("import rejected");
@@ -106,4 +109,25 @@ test("pile and CPT categories independently alter the next preview request; lega
   core.plan.mockResolvedValueOnce({ ...planPreview, detectedProfile: "legacy", supportsCptSelections: false });
   fireEvent.change(view.container.querySelector('input[type="file"]')!, { target: { files: [file("legacy.csv")] } });
   await waitFor(() => expect((boxes[1] as HTMLInputElement).disabled).toBe(true));
+});
+
+test("successful refresh clears staged replacements so they cannot target a removed advice", async () => {
+  const apply=vi.fn().mockResolvedValue({loadPointCount:1,cptCount:1,bearingCapacityCount:1,warnings:[]});
+  core.joint.mockImplementation(async ({ sources }) => ({canApply:sources.length>0,existingSources:[],uniqueValueCount:1,importedValueCount:1,exactDuplicateCount:0,orphanValueCount:0,conflicts:[],diagnostics:[]}));
+  render(<ProjectImportPanel initialSource={{role:"bearing-capacities",file:file("extra.csv")}} defaultCurrencyCode="EUR" onImportProject={apply} />);
+  const submit=(await screen.findAllByRole("button",{name:t("importProject.refreshSubmit")}))[1];
+  await waitFor(()=>expect((submit as HTMLButtonElement).disabled).toBe(false));
+  fireEvent.click(submit);
+  await waitFor(()=>expect(apply).toHaveBeenCalledOnce());
+  await waitFor(()=>expect(screen.queryByText("extra.csv")).toBeNull());
+  expect((submit as HTMLButtonElement).disabled).toBe(true);
+});
+
+test("advice-only new-project selection explains missing files without reporting zero imported values", async()=>{
+  const view=render(<ProjectImportPanel defaultCurrencyCode="EUR" onImportProject={vi.fn()} />);
+  fireEvent.change(view.container.querySelectorAll('input[type="file"]')[3],{target:{files:[file("advice.csv")]}});
+  await screen.findByText(i18n.t("importProject.status.validCount",{count:1}));
+  expect(screen.getByText(t("importProject.advice.requiresLoadPointsAndCpts"))).toBeTruthy();
+  expect(view.container.querySelector(".advice-import-diagnostics")).toBeNull();
+  expect((screen.getByRole("button",{name:t("importProject.submit")}) as HTMLButtonElement).disabled).toBe(true);
 });

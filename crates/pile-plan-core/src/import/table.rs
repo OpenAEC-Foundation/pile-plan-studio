@@ -1,3 +1,4 @@
+use std::collections::BTreeSet;
 use std::io::Cursor;
 
 use calamine::{Data, Reader, Xlsx};
@@ -52,12 +53,16 @@ pub struct SourceRow {
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct SourceTable {
+    pub formula_cells: BTreeSet<(usize, usize)>,
     pub file_name: String,
     pub sheet_name: Option<String>,
     pub rows: Vec<SourceRow>,
 }
 
 impl SourceTable {
+    pub fn has_formula(&self, row: usize, column: usize) -> bool {
+        self.formula_cells.contains(&(row, column))
+    }
     pub fn location(
         &self,
         row: Option<usize>,
@@ -127,6 +132,7 @@ fn read_csv(file_name: &str, bytes: &[u8]) -> Result<SourceTable, ImportError> {
     }
 
     Ok(SourceTable {
+        formula_cells: BTreeSet::new(),
         file_name: file_name.to_string(),
         sheet_name: None,
         rows,
@@ -158,17 +164,53 @@ pub fn read_xlsx_tables(file_name: &str, bytes: &[u8]) -> Result<Vec<SourceTable
                 file_name: file_name.to_string(),
                 message: error.to_string(),
             })?;
-        let rows: Vec<SourceRow> = range
-            .rows()
-            .enumerate()
-            .map(|(index, row)| SourceRow {
-                number: index + 1,
-                cells: row.iter().map(from_excel_cell).collect(),
+        let formulas =
+            workbook
+                .worksheet_formula(&sheet_name)
+                .map_err(|error| ImportError::Excel {
+                    file_name: file_name.to_owned(),
+                    message: error.to_string(),
+                })?;
+        let formula_cells: BTreeSet<_> = formulas
+            .used_cells()
+            .filter(|(_, _, formula)| !formula.is_empty())
+            .map(|(r, c, _)| {
+                let (sr, sc) = formulas.start().unwrap_or_default();
+                (sr as usize + r + 1, sc as usize + c + 1)
             })
-            .filter(|row| !row.cells.iter().all(TableCell::is_empty))
             .collect();
+        let max_row = range
+            .end()
+            .map(|p| p.0 as usize + 1)
+            .unwrap_or(0)
+            .max(formula_cells.iter().map(|p| p.0).max().unwrap_or(0));
+        let max_col = range
+            .end()
+            .map(|p| p.1 as usize + 1)
+            .unwrap_or(0)
+            .max(formula_cells.iter().map(|p| p.1).max().unwrap_or(0));
+        let mut rows = Vec::new();
+        for r in 0..max_row {
+            let cells: Vec<_> = (0..max_col)
+                .map(|c| {
+                    range
+                        .get_value((r as u32, c as u32))
+                        .map(from_excel_cell)
+                        .unwrap_or(TableCell::Empty)
+                })
+                .collect();
+            if cells.iter().any(|cell| !cell.is_empty())
+                || formula_cells.iter().any(|p| p.0 == r + 1)
+            {
+                rows.push(SourceRow {
+                    number: r + 1,
+                    cells,
+                });
+            }
+        }
         if !rows.is_empty() {
             tables.push(SourceTable {
+                formula_cells,
                 file_name: file_name.to_string(),
                 sheet_name: Some(sheet_name),
                 rows,
@@ -197,6 +239,19 @@ fn from_excel_cell(cell: &Data) -> TableCell {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn xlsx_preserves_physical_offsets() {
+        let mut book = rust_xlsxwriter::Workbook::new();
+        let sheet = book.add_worksheet();
+        sheet.write_string(6, 2, "Sondering").unwrap();
+        sheet.write_number(8, 3, 123.0).unwrap();
+        let tables = read_xlsx_tables("offset.xlsx", &book.save_to_buffer().unwrap()).unwrap();
+        assert_eq!(tables[0].rows[0].number, 7);
+        assert_eq!(tables[0].rows[0].cells[2].as_text(), "Sondering");
+        assert_eq!(tables[0].rows[1].number, 9);
+        assert_eq!(tables[0].rows[1].cells[3], TableCell::Number(123.0));
+    }
 
     #[test]
     fn reads_every_non_empty_rfem_worksheet() {

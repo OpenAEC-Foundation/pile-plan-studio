@@ -649,6 +649,8 @@ mod tests {
     #[test]
     fn imports_known_load_point_from_sample_rfem_export() {
         let source = ImportSource {
+            advice_operation: None,
+            source_id: None,
             role: ImportRole::LoadPoints,
             profile: ImportProfile::RfemExport,
             profile_options: ImportProfileOptions::default(),
@@ -875,6 +877,7 @@ mod tests {
     #[test]
     fn rfem6_support_types_are_optional_and_do_not_change_the_imported_nodes() {
         let supports = SourceTable {
+            formula_cells: Default::default(),
             file_name: "RFEM 6.xlsx".to_string(),
             sheet_name: Some("Steunpunten".to_string()),
             rows: vec![
@@ -948,6 +951,7 @@ mod tests {
 
     fn rfem6_coordinate_table(name: &str) -> SourceTable {
         SourceTable {
+            formula_cells: Default::default(),
             file_name: "RFEM 6.xlsx".to_string(),
             sheet_name: Some(name.to_string()),
             // Input coordinates deliberately differ from the global I/J/K columns.
@@ -1026,6 +1030,8 @@ mod tests {
             }
         }
         ImportSource {
+            advice_operation: None,
+            source_id: None,
             role: ImportRole::LoadPoints,
             profile: ImportProfile::Auto,
             profile_options: ImportProfileOptions::default(),
@@ -1069,6 +1075,7 @@ mod tests {
                 }),
         );
         SourceTable {
+            formula_cells: Default::default(),
             file_name: "Export RFEM.xlsx".to_string(),
             sheet_name: Some(name.to_string()),
             rows: source_rows,
@@ -1104,6 +1111,7 @@ mod tests {
             });
         }
         SourceTable {
+            formula_cells: Default::default(),
             file_name: "Export RFEM.xlsx".to_string(),
             sheet_name: Some(name.to_string()),
             rows: source_rows,
@@ -1151,6 +1159,7 @@ mod tests {
             });
         }
         SourceTable {
+            formula_cells: Default::default(),
             file_name: "Export RFEM.xlsx".to_string(),
             sheet_name: Some(name.to_string()),
             rows: source_rows,

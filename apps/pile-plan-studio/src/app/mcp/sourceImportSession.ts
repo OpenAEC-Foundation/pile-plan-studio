@@ -1,3 +1,4 @@
+import type { AdviceConflict } from "../../core/adviceImportContract.ts";
 import type { ImportSourceInput } from "../../core/coreImportContract.ts";
 import { McpReadError, type ToolPayload } from "./readModel.ts";
 import type { ProjectMarkerValue } from "./projectMarker.ts";
@@ -5,9 +6,11 @@ import { withImportApplyLock } from "./importApplyLock.ts";
 
 export class SourceImportValidationError extends Error {
   readonly diagnostics: unknown[];
-  constructor(message: string, diagnostics: unknown[]) {
+  readonly conflicts: AdviceConflict[];
+  constructor(message: string, diagnostics: unknown[], conflicts: AdviceConflict[] = []) {
     super(message);
     this.diagnostics = diagnostics;
+    this.conflicts = conflicts;
   }
 }
 
@@ -22,7 +25,7 @@ type Transaction = {
   id: string; marker: ProjectMarkerValue; mode: Mode; projectName?: string;
   pileHeadLevelM?: number; currencyCode?: string; sources: Map<Role, Source>;
   createdAt: number; validationId?: string; status: "staging" | "processing" | "ready" | "failed";
-  validated?: Validated; validationDigest?: string; validationError?: string; validationDiagnostics?: unknown[];
+  validated?: Validated; validationDigest?: string; validationError?: string; validationDiagnostics?: unknown[]; validationConflicts?: AdviceConflict[];
   generation: number; applying: boolean;
 };
 type Dependencies = {
@@ -66,7 +69,7 @@ export function createSourceImportSession(dependencies: Dependencies) {
       staged_roles: [...transaction.sources].filter(([, source]) => source.final).map(([role]) => role),
       ...(transaction.validated?.data ?? {}),
       ...(transaction.validationError ? { error: { code: "import_validation_failed", message: transaction.validationError,
-        diagnostics: transaction.validationDiagnostics ?? [] } } : {}),
+        diagnostics: transaction.validationDiagnostics ?? [], conflicts: transaction.validationConflicts ?? [] } } : {}),
     };
   }
   async function contentDigest(transaction: Transaction): Promise<string> {
@@ -130,6 +133,7 @@ export function createSourceImportSession(dependencies: Dependencies) {
       transaction.validationDigest = undefined;
       transaction.validationError = undefined;
       transaction.validationDiagnostics = undefined;
+      transaction.validationConflicts = undefined;
       transaction.status = "staging";
       return { ...marker, data: { transaction_id: transaction.id, role, received_bytes: source.bytes,
         next_chunk_index: source.chunks.length, complete: source.final } };
@@ -141,7 +145,7 @@ export function createSourceImportSession(dependencies: Dependencies) {
       if (missing.length || ![...transaction.sources.values()].some((source) => source.final)
         || [...transaction.sources.values()].some((source) => !source.final)) throw new McpReadError("missing_import_roles");
       const sources: ImportSourceInput[] = [...transaction.sources].map(([role, source]) => ({
-        role, profile: "standard-table", profileOptions: { coordinateSheet: null, reactionSheet: null },
+        sourceId: `mcp-${role}`, role, profile: "standard-table", profileOptions: { coordinateSheet: null, reactionSheet: null },
         fileName: source.name, format: "csv", bytes: encoder.encode(source.chunks.join("")),
       }));
       const generation = transaction.generation;
@@ -152,6 +156,7 @@ export function createSourceImportSession(dependencies: Dependencies) {
       transaction.validationDigest = undefined;
       transaction.validationError = undefined;
       transaction.validationDiagnostics = undefined;
+      transaction.validationConflicts = undefined;
       void (async () => {
         const digest = await contentDigest(transaction);
         const result = await dependencies.validate({ mode: transaction.mode, projectName: transaction.projectName,
@@ -165,6 +170,7 @@ export function createSourceImportSession(dependencies: Dependencies) {
         if (transactions.get(transaction.id) !== transaction || transaction.generation !== generation) return;
         transaction.validationError = error instanceof Error ? error.message : String(error);
         transaction.validationDiagnostics = error instanceof SourceImportValidationError ? error.diagnostics : undefined;
+        transaction.validationConflicts = error instanceof SourceImportValidationError ? error.conflicts : undefined;
         transaction.status = "failed";
       });
       return { ...marker, data: status(transaction) };

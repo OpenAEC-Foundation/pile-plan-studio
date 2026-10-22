@@ -287,7 +287,7 @@
     "pileHeadLevelRequired": "Vul een geldig peil t.o.v. NAP in om het project te importeren.",
     "currency": "Projectvaluta",
     "projectProperties": "Projecteigenschappen",
-    "chooseFiles": "Kies maximaal drie bestanden",
+    "chooseFiles": "Bronbestanden kiezen",
     "noFile": "Geen bestand geselecteerd",
     "choose": "Kiezen",
     "replace": "Vervangen",
@@ -303,7 +303,7 @@
       "label": "Importbewerking",
       "newProject": "Nieuw project importeren",
       "refresh": "Gegevens verversen",
-      "newProjectDescription": "Maak een nieuw project vanuit alle drie de bronbestanden.",
+      "newProjectDescription": "Maak een nieuw project met belastinglocaties, sonderingen en één of meer funderingsadviezen.",
       "refreshDescription": "Vervang één of meer datasets en behoud gekoppelde projectkeuzes en instellingen."
     },
     "warnings": {
@@ -313,7 +313,8 @@
       "label": "Importprofiel",
       "automatic": "Automatisch herkennen",
       "standardTable": "Standaardtabel",
-      "rfemExport": "RFEM-export"
+      "rfemExport": "RFEM-export",
+      "capacityColumns": "Afmetingen in kolommen"
     },
     "status": {
       "analyzing": "Analyseren...",
@@ -344,7 +345,13 @@
       "invalid-pile-tip-level-precision": "{{count}} paalpuntniveau(s) kunnen niet exact op hele millimeters worden opgeslagen: {{values}}.",
       "sourceSheet": "werkblad {{sheet}}",
       "sourceRow": "rij {{row}}",
-      "sourceColumn": "kolom {{column}}"
+      "sourceColumn": "kolom {{column}}",
+      "conflicting-bearing-capacities": "De geselecteerde bronnen bevatten verschillende waarden voor dezelfde sondering, afmeting en puntniveau. Pas de bronselectie of de bronbestanden aan.",
+      "missing-bearing-capacity-data": "Er ontbreken draagvermogens; controleer de bronselectie en de bekende sonderingen.",
+      "invalid-advice-selection": "Selecteer geldige bronbestanden en kies welke werkbladen je wilt importeren.",
+      "advice-orphan-values": "{{count}} waarden zonder bekende sonderingscoördinaten worden overgeslagen. Sonderingen: {{locations}}.",
+      "advice-cpts-without-values": "Voor {{count}} sonderingen ontbreekt draagvermogensadvies: {{locations}}.",
+      "advice-no-values": "De geselecteerde tabellen leveren geen draagvermogens op."
     },
     "roles": {
       "loadPoints": "Belastinglocaties",
@@ -355,6 +362,41 @@
       "loadPoints": "ID, X, Y, FED",
       "cpts": "ID, X, Y",
       "foundationAdvice": "Sondering-ID, puntniveau, afmeting, R_c;net;d"
+    },
+    "advice": {
+      "addFiles": "Adviesbestanden toevoegen",
+      "assumptions": "Combineer alleen adviezen met dezelfde uitgangspunten.",
+      "chooseSheets": "Kies welke werkbladen je wilt importeren.",
+      "sourceNumber": "Bron {{count}}",
+      "sourceIdentity": "bron {{source}}",
+      "status": {
+        "ready": "Bruikbaar",
+        "invalid": "Fout",
+        "unsupported": "Geen ondersteunde tabel"
+      },
+      "sheetSummary": "{{count}} waarden · {{cpts}} sonderingen · {{sizes}} mm · {{min}} tot {{max}} m · {{missing}} lege cellen",
+      "unitsAndRange": "Niveaus in m, afmetingen in mm, draagvermogens in kN. Een niveau-bereik betekent niet dat alle tussenliggende niveaus beschikbaar zijn.",
+      "totals": "{{count}} waarden worden opgenomen; {{duplicates}} identieke duplicaten; {{orphans}} waarden zonder bekende sonderingscoördinaten.",
+      "conflicts": "Tegenstrijdige draagvermogens ({{count}})",
+      "conflictHelp": "De geselecteerde bronnen bevatten verschillende waarden voor dezelfde sondering, afmeting en puntniveau. Pas de bronselectie of de bronbestanden aan.",
+      "configuration": "Sondering {{cpt}} · {{size}} mm · {{level}} m",
+      "previous": "Vorige",
+      "next": "Volgende",
+      "page": "Pagina {{page}} van {{pages}}",
+      "conflictPages": "Conflicten doorbladeren",
+      "addAdvice": "Funderingsadvies toevoegen",
+      "details": "Importdetails",
+      "existing": "Bestaand advies",
+      "additional": "Extra advies",
+      "replaceHelp": "Vervangt alleen dit bestaande advies.",
+      "appendHelp": "Voegt een advies toe aan de bestaande adviezen.",
+      "legacy": "Gecombineerd bestaand advies",
+      "legacyHelp": "De oorspronkelijke bronverdeling is niet beschikbaar. Vervangen vervangt dit gecombineerde advies.",
+      "storedValue": "bestaande projectwaarde",
+      "noSheets": "Geen bruikbaar werkblad gevonden.",
+      "requiresLoadPointsAndCpts": "Kies voor een nieuw project ook bestanden met belastinglocaties en sonderingen. Gebruik Gegevens verversen om adviezen in het bestaande project bij te werken.",
+      "requiresLoadPoints": "Kies voor een nieuw project ook een bestand met belastinglocaties.",
+      "requiresCpts": "Kies voor een nieuw project ook een bestand met sonderingen."
     }
   },
   "projectInformation": {

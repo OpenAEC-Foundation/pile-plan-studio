@@ -129,3 +129,14 @@ pub use transport_requests::{
     RefreshProjectRequest, TechnicalAssignmentRequest, TipLevelRegionTopologyRequest,
     WriteProjectDocumentRequest,
 };
+
+pub use import::{
+    AdviceConflict, AdviceConflictValue, AdviceSheetPreview, AdviceSheetSelection,
+    AdviceSheetStatus, AdviceSourcePreview, AdviceTableSummary, AdviceValueLocation,
+    ProjectImportPreview, SourceImportFailure,
+};
+
+pub use import::{preview_advice_source, preview_project_import};
+pub use transport_requests::PreviewProjectImportRequest;
+
+pub use import::{AdviceImportOperation, StoredAdviceSource};

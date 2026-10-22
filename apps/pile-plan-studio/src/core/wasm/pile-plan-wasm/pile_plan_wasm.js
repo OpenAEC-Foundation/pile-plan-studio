@@ -317,6 +317,18 @@ export function preview_pile_plan_import_file(request) {
  * @param {any} request
  * @returns {any}
  */
+export function preview_project_import_files(request) {
+    const ret = wasm.preview_project_import_files(request);
+    if (ret[2]) {
+        throw takeFromExternrefTable0(ret[1]);
+    }
+    return takeFromExternrefTable0(ret[0]);
+}
+
+/**
+ * @param {any} request
+ * @returns {any}
+ */
 export function read_project_document(request) {
     const ret = wasm.read_project_document(request);
     if (ret[2]) {
@@ -643,7 +655,7 @@ function __wbg_get_imports() {
                 }
             };
             cb0._wbg_cb_unref = () => state0.a = 0;
-            // Cast intrinsic for `Closure(Closure { owned: false, function: Function { arguments: [Externref], shim_idx: 187, ret: Unit, inner_ret: Some(Unit) }, mutable: true }) -> Externref`.
+            // Cast intrinsic for `Closure(Closure { owned: false, function: Function { arguments: [Externref], shim_idx: 202, ret: Unit, inner_ret: Some(Unit) }, mutable: true }) -> Externref`.
             const ret = cb0;
             return ret;
         },

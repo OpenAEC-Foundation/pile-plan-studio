@@ -106,3 +106,16 @@ test("apply rejects disabled editing and unsaved replacement before preparing de
   await assert.rejects(dirty.operations.apply({ mode: "new_project", validated: { outcome }, marker }), /unsaved_project_changes/);
   assert.equal(dirty.replacements.length, 0);
 });
+
+test("final Rust conflicts retain provenance and never install project content", async () => {
+  const { SourceImportError } = await import("../../core/adviceImportContract.ts");
+  const conflicts=[{ cptId: 999,pileSizeMm:290,pileTipLevelMm:-18000,values:[{frdKn:500,locations:[{sourceId:"a",fileName:"advice.csv",sheetName:null,row:1,column:4}]},{frdKn:600,locations:[{sourceId:"a",fileName:"advice.csv",sheetName:null,row:2,column:4}]}] }];
+  const context=setup();
+  context.afterImport(()=>{throw new SourceImportError("Conflicting bearing capacities",[],conflicts);});
+  await assert.rejects(context.operations.validate({mode:"new_project",sources:[],marker,projectName:"Test",pileHeadLevelM:0,currencyCode:"EUR"}), error => {
+    assert.ok(error instanceof SourceImportValidationError);
+    assert.deepEqual(error.conflicts,conflicts);
+    return true;
+  });
+  assert.equal(context.replacements.length,0);assert.equal(context.refresh.length,0);
+});

@@ -63,3 +63,8 @@ export function getImportFileFormat(fileName: string): "csv" | "xlsx" | null {
   if (normalized.endsWith(".xlsx")) return "xlsx";
   return null;
 }
+
+export function inferImportFileSelections<TFile extends NamedImportFile>(files: TFile[], current = emptyImportFileAssignments<TFile>()) {
+  return { assignments: inferImportFileAssignments(files.filter(f => inferImportFileRole(f.name) !== "bearing-capacities"), current),
+    adviceFiles: files.filter(f => inferImportFileRole(f.name) === "bearing-capacities") };
+}

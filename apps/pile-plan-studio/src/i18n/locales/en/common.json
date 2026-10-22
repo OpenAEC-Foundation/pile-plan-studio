@@ -287,7 +287,7 @@
     "pileHeadLevelRequired": "Enter a valid reference level to import the project.",
     "currency": "Project currency",
     "projectProperties": "Project properties",
-    "chooseFiles": "Choose up to three files",
+    "chooseFiles": "Choose source files",
     "noFile": "No file selected",
     "choose": "Choose",
     "replace": "Replace",
@@ -303,7 +303,7 @@
       "label": "Import operation",
       "newProject": "Import new project",
       "refresh": "Refresh data",
-      "newProjectDescription": "Create a new project from all three source files.",
+      "newProjectDescription": "Create a new project with load points, CPTs and one or more foundation advice sources.",
       "refreshDescription": "Replace one or more datasets while retaining matched project choices and settings."
     },
     "warnings": {
@@ -313,7 +313,8 @@
       "label": "Import profile",
       "automatic": "Automatically detect",
       "standardTable": "Standard table",
-      "rfemExport": "RFEM export"
+      "rfemExport": "RFEM export",
+      "capacityColumns": "Sizes in columns"
     },
     "status": {
       "analyzing": "Analysing...",
@@ -344,7 +345,13 @@
       "invalid-pile-tip-level-precision": "{{count}} pile tip level(s) cannot be stored exactly in whole millimetres: {{values}}.",
       "sourceSheet": "sheet {{sheet}}",
       "sourceRow": "row {{row}}",
-      "sourceColumn": "column {{column}}"
+      "sourceColumn": "column {{column}}",
+      "conflicting-bearing-capacities": "The selected sources contain different values for the same CPT, size and tip level. Adjust the source selection or source files.",
+      "missing-bearing-capacity-data": "Bearing capacities are missing; check the source selection and known CPTs.",
+      "invalid-advice-selection": "Select valid source files and choose which worksheets to import.",
+      "advice-orphan-values": "{{count}} values without known CPT coordinates will be skipped. CPTs: {{locations}}.",
+      "advice-cpts-without-values": "Bearing capacity advice is missing for {{count}} CPTs: {{locations}}.",
+      "advice-no-values": "The selected tables provide no bearing capacity values."
     },
     "roles": {
       "loadPoints": "Load points",
@@ -355,6 +362,41 @@
       "loadPoints": "ID, X, Y, FED",
       "cpts": "ID, X, Y",
       "foundationAdvice": "CPT ID, tip, size, R_c;net;d"
+    },
+    "advice": {
+      "addFiles": "Add advice files",
+      "assumptions": "Only combine advice based on the same assumptions.",
+      "chooseSheets": "Choose which worksheets to import.",
+      "sourceNumber": "Source {{count}}",
+      "sourceIdentity": "source {{source}}",
+      "status": {
+        "ready": "Usable",
+        "invalid": "Error",
+        "unsupported": "No supported table"
+      },
+      "sheetSummary": "{{count}} values · {{cpts}} CPTs · {{sizes}} mm · {{min}} to {{max}} m · {{missing}} empty cells",
+      "unitsAndRange": "Levels in m, sizes in mm, resistances in kN. A level range does not mean that all intermediate levels are available.",
+      "totals": "{{count}} values will be imported; {{duplicates}} identical duplicates; {{orphans}} values without known CPT coordinates.",
+      "conflicts": "Conflicting bearing capacities ({{count}})",
+      "conflictHelp": "The selected sources contain different values for the same CPT, size and tip level. Adjust the source selection or source files.",
+      "configuration": "CPT {{cpt}} · {{size}} mm · {{level}} m",
+      "previous": "Previous",
+      "next": "Next",
+      "page": "Page {{page}} of {{pages}}",
+      "conflictPages": "Browse conflicts",
+      "addAdvice": "Add foundation advice",
+      "details": "Import details",
+      "existing": "Existing advice",
+      "additional": "Additional advice",
+      "replaceHelp": "Replaces only this existing advice.",
+      "appendHelp": "Adds advice to the existing advice.",
+      "legacy": "Combined existing advice",
+      "legacyHelp": "The original source allocation is unavailable. Replacing replaces this combined advice.",
+      "storedValue": "existing project value",
+      "noSheets": "No usable worksheet found.",
+      "requiresLoadPointsAndCpts": "For a new project, also choose load-point and CPT files. Use Refresh data to update advice in the existing project.",
+      "requiresLoadPoints": "For a new project, also choose a load-point file.",
+      "requiresCpts": "For a new project, also choose a CPT file."
     }
   },
   "projectInformation": {

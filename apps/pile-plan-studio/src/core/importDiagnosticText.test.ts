@@ -53,3 +53,10 @@ describe("import diagnostic text", () => {
     assert.equal(calls.at(-1)?.key, "importProject.diagnostics.invalid-pile-tip-level-precision");
   });
 });
+
+it("keeps physical cell locations visible for invalid advice values",()=>{
+  const text=importDiagnosticText({severity:"error",code:"invalid-required-value",count:1,nodeIds:[],loadPointNames:[],xMm:null,yMm:null,
+    location:{fileName:"advies.xlsx",sheetName:"diep",row:7,column:4,columnName:null},tipLevelValues:[],fallbackMessage:"Invalid"},
+    (key, options)=>key.endsWith("sourceSheet") ? `sheet ${options?.sheet}` : key.endsWith("sourceRow") ? `row ${options?.row}` : key.endsWith("sourceColumn") ? `column ${options?.column}` : "Invalid value");
+  assert.match(text,/advies\.xlsx/);assert.match(text,/sheet diep/);assert.match(text,/row 7/);assert.match(text,/column 4/);
+});

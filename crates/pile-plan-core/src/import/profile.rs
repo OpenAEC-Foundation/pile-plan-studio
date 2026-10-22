@@ -11,10 +11,13 @@ pub enum ImportProfile {
     Auto,
     StandardTable,
     RfemExport,
+    CapacityColumns,
 }
 
 #[derive(Clone, Debug, Default, Deserialize, Eq, PartialEq, Serialize)]
 pub struct ImportProfileOptions {
+    #[serde(default)]
+    pub advice_sheets: Option<Vec<super::AdviceSheetSelection>>,
     pub coordinate_sheet: Option<String>,
     pub reaction_sheet: Option<String>,
 }
@@ -46,6 +49,12 @@ pub enum ImportDiagnosticCode {
     ReactionNodesWithoutCoordinates,
     CoordinateNodesWithoutReactions,
     NoImportedRows,
+    ConflictingBearingCapacities,
+    InvalidAdviceSelection,
+    MissingBearingCapacityData,
+    AdviceOrphanValues,
+    AdviceCptsWithoutValues,
+    AdviceNoValues,
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
@@ -97,6 +106,7 @@ pub struct ImportPileTipLevelDiagnostic {
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
 #[serde(tag = "kind", rename_all = "kebab-case")]
 pub enum ImportPreviewDetails {
+    FoundationAdvice(super::AdviceSourcePreview),
     StandardTable { sheet_name: Option<String> },
     RfemExport(RfemPreviewDetails),
 }
@@ -133,6 +143,9 @@ impl ImportSourcePreview {
 
 pub fn available_profiles(role: ImportRole, format: SourceFormat) -> Vec<ImportProfile> {
     match (role, format) {
+        (ImportRole::BearingCapacities, SourceFormat::Xlsx) => {
+            vec![ImportProfile::StandardTable, ImportProfile::CapacityColumns]
+        }
         (ImportRole::LoadPoints, SourceFormat::Xlsx) => {
             vec![ImportProfile::StandardTable, ImportProfile::RfemExport]
         }

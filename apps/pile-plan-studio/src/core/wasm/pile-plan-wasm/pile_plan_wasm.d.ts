@@ -54,6 +54,8 @@ export function preview_load_point_group_edit(request: any): any;
 
 export function preview_pile_plan_import_file(request: any): any;
 
+export function preview_project_import_files(request: any): any;
+
 export function read_project_document(request: any): any;
 
 export function refresh_project_from_files(request: any): any;
@@ -92,6 +94,7 @@ export interface InitOutput {
     readonly preview_import_file: (a: any) => [number, number, number];
     readonly preview_load_point_group_edit: (a: any) => [number, number, number];
     readonly preview_pile_plan_import_file: (a: any) => [number, number, number];
+    readonly preview_project_import_files: (a: any) => [number, number, number];
     readonly read_project_document: (a: any) => [number, number, number];
     readonly refresh_project_from_files: (a: any) => [number, number, number];
     readonly validate_load_point_lock_batch: (a: any) => [number, number, number];

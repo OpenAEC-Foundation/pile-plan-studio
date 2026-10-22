@@ -7,8 +7,7 @@ use crate::{
 };
 
 use super::{
-    capacity_columns, cpt_columns, import_warnings, parse_bearing_capacities_with_diagnostics,
-    parse_cpts, pipeline::parse_load_source, provenance_entry, read_source_table,
+    cpt_columns, parse_cpts, pipeline::parse_load_source, provenance_entry, read_source_table,
     reconcile_imported_inputs, ImportError, ImportProfile, ImportRole, ImportSource,
     InvalidSourcePileTipLevel, SourceLocation,
 };
@@ -49,7 +48,7 @@ fn match_load_points(old: &[ProjectLoadPoint], new: &[ProjectLoadPoint]) -> Hash
     match_positioned_objects(old, new, true)
 }
 
-fn match_cpts(old: &[ProjectCpt], new: &[ProjectCpt]) -> HashMap<u32, u32> {
+pub(super) fn match_cpts(old: &[ProjectCpt], new: &[ProjectCpt]) -> HashMap<u32, u32> {
     match_positioned_objects(old, new, false)
 }
 
@@ -121,6 +120,19 @@ pub fn refresh_project_from_profiled_sources(
     current: &PilePlanProject,
     sources: &[ImportSource],
 ) -> Result<PilePlanProject, ImportError> {
+    let effective_sources: Vec<_> = sources
+        .iter()
+        .filter(|s| {
+            !(s.role == ImportRole::BearingCapacities
+                && s.format == super::SourceFormat::Xlsx
+                && s.profile_options
+                    .advice_sheets
+                    .as_ref()
+                    .is_some_and(Vec::is_empty))
+        })
+        .cloned()
+        .collect();
+    let sources = effective_sources.as_slice();
     if sources.is_empty() {
         return Err(ImportError::Validation(
             "Select at least one import source to refresh.".to_string(),
@@ -129,7 +141,8 @@ pub fn refresh_project_from_profiled_sources(
 
     let load_source = optional_source_for_role(sources, ImportRole::LoadPoints)?;
     let cpt_source = optional_source_for_role(sources, ImportRole::Cpts)?;
-    let capacity_source = optional_source_for_role(sources, ImportRole::BearingCapacities)?;
+    let mut advice = super::advice::analyze_advice_sources(sources)?;
+    let refresh_advice = !advice.logs.is_empty();
     let mut replacement_logs = Vec::new();
 
     let new_load_points = if let Some(source) = load_source {
@@ -161,15 +174,16 @@ pub fn refresh_project_from_profiled_sources(
         identity_mapping(current.inputs.cpts.iter().map(|item| item.id))
     };
 
-    let new_bearing_capacities = if let Some(source) = capacity_source {
-        let table = read_source_table(&source.file_name, source.format, &source.bytes)?;
-        let parsed = parse_bearing_capacities_with_diagnostics(&table)?;
-        let reconciliation =
-            reconcile_imported_inputs(&new_load_points, &new_cpts, parsed.bearing_capacities)?;
-        let mut log = provenance_entry(source, table.sheet_name.clone(), capacity_columns());
-        log.source_profile = Some(ImportProfile::StandardTable);
-        log.warnings = import_warnings(&table, &parsed.empty_frd_rows, &reconciliation);
-        replacement_logs.push(log);
+    if refresh_advice {
+        advice =
+            super::advice_refresh::combine_advice_refresh(current, sources, advice, &cpt_mapping)?;
+    }
+    let new_bearing_capacities = if refresh_advice {
+        let reconciliation = reconcile_imported_inputs(&new_load_points, &new_cpts, advice.values)?;
+        advice.logs[0]
+            .warnings
+            .extend(super::reconciliation_warnings(&reconciliation));
+        replacement_logs.extend(advice.logs);
         reconciliation.bearing_capacities
     } else if cpt_source.is_some() {
         remap_bearing_capacities(&current.inputs.bearing_capacities, &cpt_mapping)
@@ -222,7 +236,7 @@ pub fn refresh_project_from_profiled_sources(
         }
     }
 
-    if capacity_source.is_some() {
+    if refresh_advice {
         for plan in &mut refreshed.user_state.pile_plans {
             let Some(current_plan) = current
                 .user_state
@@ -252,6 +266,9 @@ pub fn refresh_project_from_profiled_sources(
             .is_none_or(|role| !supplied_roles.contains(&role))
     });
     refreshed.import_log.extend(replacement_logs);
+    if cpt_source.is_some() && !refresh_advice {
+        super::advice_refresh::remap_advice_ownership(&mut refreshed.import_log, &cpt_mapping);
+    }
 
     Ok(refreshed)
 }
@@ -917,6 +934,8 @@ mod tests {
 
     fn csv_source(role: ImportRole, file_name: &str, contents: &str) -> ImportSource {
         ImportSource {
+            advice_operation: None,
+            source_id: None,
             role,
             profile: ImportProfile::Auto,
             profile_options: ImportProfileOptions::default(),

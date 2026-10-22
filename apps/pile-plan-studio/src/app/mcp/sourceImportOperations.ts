@@ -1,3 +1,4 @@
+import { SourceImportError } from "../../core/adviceImportContract.ts";
 import {
   importProjectFromFilesCore, previewImportSourceCore, readProjectDocumentCore,
   refreshProjectFromFilesCore, writeProjectDocumentCore,
@@ -65,10 +66,15 @@ export function createSourceImportOperations(
         if (document.status === "invalid") throw new ProjectDocumentReadError(document.error);
         before = document.project;
       }
-      const outcome = mode === "refresh"
+      let outcome;
+      try { outcome = mode === "refresh"
         ? await core.refreshProject({ currentProject: before!, sources })
         : await core.importProject({ projectName: projectName!, pileHeadLevelM: pileHeadLevelM!,
           currencyCode: currencyCode!, sources });
+      } catch (error) {
+        if (error instanceof SourceImportError) throw new SourceImportValidationError(error.message, error.diagnostics, error.conflicts);
+        throw error;
+      }
       requireCurrent(marker);
       const summary = getImportSummary(outcome.project);
       return { outcome, data: {

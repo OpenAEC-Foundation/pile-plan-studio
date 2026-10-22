@@ -145,6 +145,28 @@ required RFEM columns by their headers. When those headers cannot be detected,
 it falls back to the traditional RFEM layout with nodes on the first worksheet
 and nodal reactions on the second.
 
+Foundation advice also supports the **Sizes in columns** Excel profile: rows
+contain CPT ID and pile tip level, with one resistance column per pile size.
+Recognized headings include `Sondering` / `CPT ID`, `PPN` / `Paalpuntniveau`,
+and `Prefab 290`, `290 mm`, or `#290`. Headers must occur within the first
+20 rows. A limited two-row header is supported; report layouts and pivot tables
+should be supplied as a clean table. Levels use metres, sizes millimetres,
+and resistances kN. Empty resistance cells remain missing; zero is a value.
+Formulas require a cached numeric result from the spreadsheet application.
+
+Each advice file has its own import card. Add further files below it; choose
+which worksheets to combine when a workbook has multiple sheets. Combine only
+advice with compatible assumptions. Identical values for the same CPT, size,
+and millimetre tip level are deduplicated. Different values block import, even
+for CPTs without known coordinates. Conflict details show all values and source
+cells. No intermediate tip levels are inferred.
+
+When refreshing, **Replace** affects the selected existing advice only;
+**Add foundation advice** retains the existing advice and adds the selected
+sources. The complete refresh is validated and applied as one undoable change.
+Older projects without source ownership show one combined existing advice;
+replacing that card replaces the combined advice.
+
 Pile tip levels are expressed in metres and may resolve to whole millimetres
 (up to three decimal places). Finer values are rejected with their source
 locations instead of being rounded. The interface omits unnecessary trailing

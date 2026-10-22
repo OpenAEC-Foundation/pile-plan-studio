@@ -189,11 +189,34 @@ pub(super) fn reconcile_imported_inputs(
     capacities: Vec<ProjectBearingCapacity>,
 ) -> Result<ImportReconciliation, ImportError> {
     validate_imported_inputs(load_points, cpts, &capacities)?;
+    let localized: Vec<_> = capacities
+        .iter()
+        .enumerate()
+        .map(|(i, c)| super::advice_merge::SourcedCapacity {
+            capacity: c.clone(),
+            location: super::AdviceValueLocation {
+                source_id: "project-inputs".into(),
+                file_name: "project inputs".into(),
+                sheet_name: None,
+                row: Some(i + 1),
+                column: Some(4),
+            },
+        })
+        .collect();
+    let merged = super::advice_merge::merge_advice_values(&localized)?;
+    if !merged.conflicts.is_empty() {
+        return Err(ImportError::Advice(super::SourceImportFailure {
+            unique_value_count: merged.unique_values.len() + merged.conflicts.len(),
+            exact_duplicate_count: merged.exact_duplicate_count,
+            message: "Conflicting bearing capacities".into(),
+            diagnostics: vec![],
+            conflicts: merged.conflicts,
+        }));
+    }
     let cpt_ids: HashSet<_> = cpts.iter().map(|item| item.id).collect();
     let mut orphan_ids = BTreeSet::new();
     let mut ignored_orphan_rows = 0;
     let mut deduplicated_rows = 0;
-    let mut conflicting_keys = BTreeSet::new();
     let mut key_indexes: HashMap<(u32, u32, i64), usize> = HashMap::new();
     let mut bearing_capacities: Vec<ProjectBearingCapacity> = Vec::new();
 
@@ -214,15 +237,7 @@ pub(super) fn reconcile_imported_inputs(
                 )])
             })?,
         );
-        if let Some(&index) = key_indexes.get(&key) {
-            let existing = &bearing_capacities[index];
-            if (existing.frd_kn - capacity.frd_kn).abs() > f64::EPSILON {
-                conflicting_keys.insert(key);
-                if capacity.frd_kn < existing.frd_kn {
-                    bearing_capacities[index] = capacity;
-                }
-                continue;
-            }
+        if key_indexes.contains_key(&key) {
             deduplicated_rows += 1;
         } else {
             key_indexes.insert(key, bearing_capacities.len());
@@ -241,7 +256,7 @@ pub(super) fn reconcile_imported_inputs(
         ignored_orphan_rows,
         ignored_orphan_cpt_ids: orphan_ids.into_iter().collect(),
         deduplicated_rows,
-        conflicting_duplicate_keys: conflicting_keys.len(),
+        conflicting_duplicate_keys: 0,
         cpt_ids_without_capacities,
     })
 }
@@ -405,6 +420,7 @@ mod numeric_characterization_tests {
                 cells: vec![TableCell::Text(text.into())],
             };
             let table = SourceTable {
+                formula_cells: Default::default(),
                 file_name: "numbers.csv".into(),
                 sheet_name: Some("Sheet1".into()),
                 rows: vec![row.clone()],

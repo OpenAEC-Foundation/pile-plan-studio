@@ -114,7 +114,9 @@ pub fn import_project_from_files(request: JsValue) -> Result<JsValue, JsValue> {
         request.pile_head_level_m,
         &request.currency_code,
     )
-    .map_err(to_error_value)?;
+    .map_err(|error| {
+        to_js_value(&error.to_source_import_failure()).unwrap_or_else(|_| to_error_value(error))
+    })?;
 
     let tip_level_keys = validate_project_tip_levels(&project)
         .map_err(|error| to_js_value(&error).unwrap_or_else(|_| to_error_value(error)))?;
@@ -128,7 +130,9 @@ pub fn import_project_from_files(request: JsValue) -> Result<JsValue, JsValue> {
 pub fn refresh_project_from_files(request: JsValue) -> Result<JsValue, JsValue> {
     let request: RefreshProjectRequest = from_js_value(request)?;
     let project = refresh_project_from_profiled_sources(&request.current_project, &request.sources)
-        .map_err(to_error_value)?;
+        .map_err(|error| {
+            to_js_value(&error.to_source_import_failure()).unwrap_or_else(|_| to_error_value(error))
+        })?;
 
     let tip_level_keys = validate_project_tip_levels(&project)
         .map_err(|error| to_js_value(&error).unwrap_or_else(|_| to_error_value(error)))?;
@@ -451,9 +455,12 @@ mod tests {
     fn preview_import_request_accepts_profiled_source() {
         let request = PreviewImportRequest {
             source: ImportSource {
+                advice_operation: None,
+                source_id: None,
                 role: pile_plan_core::ImportRole::LoadPoints,
                 profile: pile_plan_core::ImportProfile::RfemExport,
                 profile_options: pile_plan_core::ImportProfileOptions {
+                    advice_sheets: None,
                     coordinate_sheet: Some("Coordinates".to_string()),
                     reaction_sheet: Some("Reactions".to_string()),
                 },
@@ -564,4 +571,10 @@ mod tests {
             }
         );
     }
+}
+
+#[wasm_bindgen]
+pub fn preview_project_import_files(request: JsValue) -> Result<JsValue, JsValue> {
+    let request: pile_plan_core::PreviewProjectImportRequest = from_js_value(request)?;
+    to_js_value(&pile_plan_core::preview_project_import(&request))
 }
