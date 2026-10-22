@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { spawnSync } from 'node:child_process';
-import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, existsSync, rmSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, existsSync, rmSync, realpathSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { resolve, join, sep } from 'node:path';
 
@@ -41,10 +41,13 @@ test('signing configuration passes absolute tools and binary placeholder to Taur
   const result = powershell('tools/configure_windows_signing.ps1', ['-ToolRoot', directory, '-OutputDirectory', output], signingEnv);
   assert.equal(result.status, 0, result.stdout + result.stderr);
   const config = JSON.parse(readFileSync(join(output, 'tauri.windows-signing.json'), 'utf8'));
-  assert.equal(config.bundle.windows.signCommand.cmd, tools.signtool);
-  assert.deepEqual(config.bundle.windows.signCommand.args, [
+  // Windows runners expose TEMP through its 8.3 alias; PowerShell expands it.
+  const { cmd, args } = config.bundle.windows.signCommand;
+  assert.equal(realpathSync.native(cmd), realpathSync.native(tools.signtool));
+  const canonicalArgs = args.map((arg, index) => [9, 11].includes(index) ? realpathSync.native(arg) : arg);
+  assert.deepEqual(canonicalArgs, [
     'sign', '/v', '/fd', 'SHA256', '/tr', 'http://timestamp.acs.microsoft.com', '/td', 'SHA256',
-    '/dlib', tools.dlib, '/dmdf', join(output, 'trusted-signing-metadata.json'), '%1',
+    '/dlib', realpathSync.native(tools.dlib), '/dmdf', realpathSync.native(join(output, 'trusted-signing-metadata.json')), '%1',
   ]);
   const metadata = JSON.parse(readFileSync(join(output, 'trusted-signing-metadata.json'), 'utf8'));
   assert.deepEqual(metadata, {

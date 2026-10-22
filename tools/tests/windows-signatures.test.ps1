@@ -33,7 +33,7 @@ foreach ($record in $records) {
 }
 foreach ($file in @($installer, $app, $uninstaller)) {
     foreach ($failure in @('NotSigned', 'HashMismatch', 'publisher', 'timestamp')) {
-        $script:InvalidFile = $file
+        $script:InvalidFile = (Get-Item -LiteralPath $file).FullName
         $script:Failure = $failure
         $rejected = $false
         try { Assert-WindowsReleaseSignatures -InstallerPath $installer -InstallDirectory $installDirectory | Out-Null }
