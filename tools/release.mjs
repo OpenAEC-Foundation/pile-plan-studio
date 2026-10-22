@@ -59,10 +59,14 @@ export function main(args, {
     tag: values.tag,
     publicationDate: values.publish ? amsterdamDate(now()) : undefined,
   });
+  if (command === 'workflow' && !['', 'false', 'true'].includes(process.env.INPUT_SIGN_PROOF ?? '')) {
+    throw new Error('INPUT_SIGN_PROOF must be a boolean (true or false).');
+  }
   if (values.available) assertAvailable(info.tag, readTags(root));
   if (command === 'info' || command === 'workflow') {
     const details = command === 'workflow' ? { ...info, ...workflowPlan({
       event: process.env.GITHUB_EVENT_NAME, ref: process.env.GITHUB_REF, tag: process.env.INPUT_RELEASE_TAG,
+      signProof: process.env.INPUT_SIGN_PROOF === 'true',
     }, info.version) } : info;
     if (values['github-output']) {
       if (!process.env.GITHUB_OUTPUT) throw new Error('--github-output requires GITHUB_OUTPUT.');

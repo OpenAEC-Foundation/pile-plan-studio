@@ -1,6 +1,7 @@
 import { checkTag } from './release-version.mjs';
 
-export function workflowPlan({ event, ref, tag }, version) {
+export function workflowPlan({ event, ref, tag, signProof = false }, version) {
+  if (typeof signProof !== 'boolean') throw new Error('Signing proof input must be boolean.');
   if (event === 'push') {
     if (!ref?.startsWith('refs/tags/')) throw new Error('A release push must reference a tag.');
     tag = ref.slice('refs/tags/'.length);
@@ -9,5 +10,5 @@ export function workflowPlan({ event, ref, tag }, version) {
   }
   checkTag(tag, version);
   const proof = event === 'workflow_dispatch';
-  return { tag, mode: proof ? 'proof' : 'release', sign: !proof, create_draft: !proof };
+  return { tag, mode: proof ? (signProof ? 'signed-proof' : 'proof') : 'release', sign: !proof || signProof, create_draft: !proof };
 }

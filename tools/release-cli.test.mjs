@@ -3,6 +3,7 @@ import { test } from 'node:test';
 import { main, readGitTags } from './release.mjs';
 import { resolve } from 'node:path';
 import { readFileSync, existsSync } from 'node:fs';
+import { spawnSync } from 'node:child_process';
 
 const root = resolve(import.meta.dirname, '..');
 const packagePath = resolve(root, 'apps/pile-plan-studio/package.json');
@@ -57,4 +58,21 @@ test('offline consistency and info work without accessing Git or the current dat
   main(['info'], options);
   assert.ok(output.join('\n').includes(JSON.parse(readFileSync(packagePath, 'utf8')).version));
   assert.match(output.join('\n'), /Alpha/);
+});
+
+test('workflow CLI honors an explicit signed proof and rejects ambiguous signing input', () => {
+  const version = JSON.parse(readFileSync(packagePath, 'utf8')).version;
+  const env = { ...process.env, GITHUB_EVENT_NAME: 'workflow_dispatch', GITHUB_REF: 'refs/heads/windows-app-signing', INPUT_RELEASE_TAG: `v${version}` };
+  const run = value => spawnSync(process.execPath, [resolve(root, 'tools/release.mjs'), 'workflow'], {
+    cwd: root, env: { ...env, INPUT_SIGN_PROOF: value }, encoding: 'utf8',
+  });
+  const signed = run('true');
+  assert.equal(signed.status, 0, signed.stderr);
+  const result = JSON.parse(signed.stdout);
+  assert.equal(result.mode, 'signed-proof');
+  assert.equal(result.sign, true);
+  assert.equal(result.create_draft, false);
+  const invalid = run('yes');
+  assert.notEqual(invalid.status, 0);
+  assert.match(invalid.stderr, /INPUT_SIGN_PROOF|boolean/i);
 });

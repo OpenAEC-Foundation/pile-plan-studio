@@ -7,9 +7,14 @@ on:
   workflow_dispatch:
     inputs:
       release_tag:
-        description: "Prepared tag to validate (vYYYY.W.N); proof only, no signing or release creation"
+        description: "Prepared tag to validate (vYYYY.W.N); proof only, no release creation"
         required: true
         type: string
+      sign_proof:
+        description: "Sign the proof app, uninstaller and installer with the existing Azure identity; never create a release"
+        required: false
+        default: false
+        type: boolean
 
 permissions:
   contents: write
@@ -53,6 +58,7 @@ jobs:
         working-directory: apps/pile-plan-studio
         env:
           INPUT_RELEASE_TAG: ${{ inputs.release_tag }}
+          INPUT_SIGN_PROOF: ${{ inputs.sign_proof }}
         run: npm run release:workflow -- --github-output
 
       - name: Test Rust workspace
@@ -65,17 +71,13 @@ jobs:
       - name: Test Tauri shell
         run: cargo test --manifest-path apps/pile-plan-studio/src-tauri/Cargo.toml
 
-      - name: Build NSIS installer
+      - name: Build app before packaging
         working-directory: apps/pile-plan-studio
-        run: npm run tauri build -- --bundles nsis
+        run: npm run tauri build -- --no-bundle
 
-      - name: Recheck generated package versions
-        working-directory: apps/pile-plan-studio
-        env:
-          RELEASE_TAG: ${{ steps.release.outputs.tag }}
-        run: npm run release:check -- --tag "$env:RELEASE_TAG"
-
-      - name: Sign Windows installer
+      # Bootstrap Azure's supported signing tools using our freshly built app.
+      # Bundling patches the app again, so Tauri must sign it again afterwards.
+      - name: Install Azure tools and sign the built app
         if: steps.release.outputs.sign == 'true'
         uses: azure/trusted-signing-action@v1
         with:
@@ -86,12 +88,40 @@ jobs:
           signing-account-name: ${{ secrets.AZURE_TRUSTED_SIGNING_ACCOUNT_NAME }}
           certificate-profile-name: ${{ secrets.AZURE_CERTIFICATE_PROFILE_NAME }}
           cache-dependencies: false
-          files-folder: ${{ github.workspace }}/apps/pile-plan-studio/src-tauri/target/release/bundle/nsis
-          files-folder-filter: exe
-          files-folder-depth: 1
+          files: ${{ github.workspace }}/apps/pile-plan-studio/src-tauri/target/release/pile-plan-studio.exe
           file-digest: SHA256
           timestamp-rfc3161: http://timestamp.acs.microsoft.com
           timestamp-digest: SHA256
+
+      - name: Configure Tauri signing during packaging
+        if: steps.release.outputs.sign == 'true'
+        shell: pwsh
+        env:
+          AZURE_ENDPOINT: ${{ secrets.AZURE_ENDPOINT }}
+          AZURE_ACCOUNT: ${{ secrets.AZURE_TRUSTED_SIGNING_ACCOUNT_NAME }}
+          AZURE_PROFILE: ${{ secrets.AZURE_CERTIFICATE_PROFILE_NAME }}
+        run: ./tools/configure_windows_signing.ps1 -OutputDirectory "$env:RUNNER_TEMP/pile-plan-signing"
+
+      - name: Bundle and sign app, uninstaller and installer
+        if: steps.release.outputs.sign == 'true'
+        working-directory: apps/pile-plan-studio
+        shell: pwsh
+        env:
+          AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+          AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+          AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
+        run: npm run tauri bundle -- --bundles nsis --config "$env:RUNNER_TEMP/pile-plan-signing/tauri.windows-signing.json"
+
+      - name: Bundle unsigned proof
+        if: steps.release.outputs.sign != 'true'
+        working-directory: apps/pile-plan-studio
+        run: npm run tauri bundle -- --bundles nsis
+
+      - name: Recheck generated package versions
+        working-directory: apps/pile-plan-studio
+        env:
+          RELEASE_TAG: ${{ steps.release.outputs.tag }}
+        run: npm run release:check -- --tag "$env:RELEASE_TAG"
 
       - name: Locate installer and verify release signature
         id: installer
@@ -106,14 +136,8 @@ jobs:
           $installer = $installers[0]
 
           if ($env:VERIFY_SIGNATURE -eq 'true') {
-            $signature = Get-AuthenticodeSignature -FilePath $installer.FullName
-            if ($signature.Status -ne "Valid") {
-              throw "Installer signature is $($signature.Status): $($signature.StatusMessage)"
-            }
-            if ($signature.SignerCertificate.Subject -notmatch "Impertio Studio B\.V\.") {
-              throw "Unexpected installer publisher: $($signature.SignerCertificate.Subject)"
-            }
-            Write-Host "Verified $($installer.Name) signed by $($signature.SignerCertificate.Subject)"
+            . ./tools/windows_signatures.ps1
+            Assert-WindowsFileSignature -Path $installer.FullName | Format-List
           }
 
           "path=$($installer.FullName)" >> $env:GITHUB_OUTPUT
@@ -124,16 +148,16 @@ jobs:
         env:
           INSTALLER_PATH: ${{ steps.installer.outputs.path }}
           EXPECTED_VERSION: ${{ steps.release.outputs.version }}
-          UNSIGNED_PROOF: ${{ steps.release.outputs.mode == 'proof' }}
+          UNSIGNED_PROOF: ${{ steps.release.outputs.sign != 'true' }}
         run: |
           ./tools/test_windows_installer.ps1 -InstallerPath $env:INSTALLER_PATH -ExpectedVersion $env:EXPECTED_VERSION -UnsignedProof:($env:UNSIGNED_PROOF -eq 'true')
 
-      - name: Upload proof installer
-        if: steps.release.outputs.mode == 'proof'
+      - name: Upload proof binaries and signature report
+        if: steps.release.outputs.create_draft == 'false'
         uses: actions/upload-artifact@v4
         with:
-          name: windows-proof-${{ steps.release.outputs.version }}
-          path: ${{ steps.installer.outputs.path }}
+          name: windows-${{ steps.release.outputs.mode }}-${{ steps.release.outputs.version }}
+          path: ${{ runner.temp }}/pile-plan-windows-proof
           if-no-files-found: error
 
       - name: Create draft GitHub release
