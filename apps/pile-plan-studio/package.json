@@ -2,14 +2,23 @@
   "name": "pile-plan-studio",
   "private": true,
   "version": "0.4.3",
+  "release": {
+    "channel": "alpha",
+    "date": null
+  },
   "license": "LGPL-3.0-or-later",
   "type": "module",
   "scripts": {
     "build:wasm": "wasm-pack build ../../crates/pile-plan-wasm --target web --out-dir ../../apps/pile-plan-studio/src/core/wasm/pile-plan-wasm && node ../../tools/allow_wasm_package.mjs src/core/wasm/pile-plan-wasm",
     "predev": "npm run build:wasm",
     "dev": "vite --host 127.0.0.1",
-    "test": "npm run test:unit && npm run test:ui",
-    "build": "npm run build:wasm && tsc -p tsconfig.json && vite build --config vite.config.ts",
+    "release:prepare": "node ../../tools/release.mjs prepare",
+    "release:check": "node ../../tools/release.mjs check",
+    "release:info": "node ../../tools/release.mjs info",
+    "release:workflow": "node ../../tools/release.mjs workflow",
+    "test:release": "node --test ../../tools/release-*.test.mjs",
+    "test": "npm run test:release && npm run release:check && npm run test:unit && npm run test:ui",
+    "build": "npm run release:check && npm run build:wasm && npm run release:check && tsc -p tsconfig.json && vite build --config vite.config.ts",
     "tauri": "tauri",
     "test:unit": "node --test src/**/*.test.ts src-primary-entry.test.ts",
     "test:ui": "vitest run --config vitest.config.ts"

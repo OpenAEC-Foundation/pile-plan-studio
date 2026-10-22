@@ -10,3 +10,4 @@ docs/superpowers/
 docs/plans/
 .superpowers/
 .worktrees/
+.release-preparation.json

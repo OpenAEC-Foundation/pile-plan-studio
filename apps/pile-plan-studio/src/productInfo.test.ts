@@ -2,6 +2,7 @@ import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
+import { releaseInfo } from "../../../tools/release-version.mjs";
 
 const productInfo = readFileSync(resolve(import.meta.dirname, "productInfo.ts"), "utf8");
 const settings = readFileSync(
@@ -33,10 +34,14 @@ const recoveryStore = readFileSync(
 );
 
 describe("product information", () => {
-  it("defines one build-versioned product identity", () => {
+  it("defines one build-versioned product identity", async () => {
     assert.match(productInfo, /name:\s*"Open Pile Plan Studio"/);
     assert.match(productInfo, /version:\s*__APP_VERSION__/);
-    assert.match(productInfo, /status:\s*"Alpha"/);
+    const expected = releaseInfo(packageJson, { allowLegacy: true });
+    Object.assign(globalThis, { __APP_VERSION__: expected.version, __APP_RELEASE_STATUS__: expected.status });
+    const { PRODUCT_INFO } = await import("./productInfo.ts");
+    assert.equal(PRODUCT_INFO.version, expected.version);
+    assert.equal(PRODUCT_INFO.status, expected.status);
     assert.match(productInfo, /organization:\s*"OpenAEC Foundation"/);
     assert.match(productInfo, /license:\s*"LGPL-3\.0-or-later"/);
   });
@@ -51,9 +56,8 @@ describe("product information", () => {
     assert.match(browserStore, /pile-plan-studio:/);
   });
 
-  it("identifies the 0.4.3 alpha consistently in web and desktop packages", () => {
-    assert.equal(packageJson.version, "0.4.3");
-    assert.equal(tauriConfig.version, "0.4.3");
+  it("identifies the same product version in web and desktop packages", () => {
+    assert.equal(tauriConfig.version, packageJson.version);
   });
 
   it("uses the shared identity in both About views", () => {
