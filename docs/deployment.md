@@ -166,15 +166,42 @@ update current-release references such as the README badge at release time.
 The [release workflow](../.github/workflows/release.yml) has two routes:
 
 - A new `vYYYY.W.N` tag validates the prepared commit, runs tests, builds NSIS,
-  signs through Azure Artifact Signing, verifies the publisher, installs and
+  signs the app, NSIS uninstaller and installer through Azure Artifact Signing,
+  verifies their publisher and timestamps, installs and
   launches the app, then creates a draft GitHub prerelease. Version/tag
   mismatches fail before building; generated package versions are checked again
   after the build.
 - Manual dispatch takes a `release_tag` in the same format and checks it against
-  the selected prepared source. It builds an **unsigned proof** and performs the
+  the selected prepared source. By default it builds an **unsigned proof** and performs the
   version, installation, executable-path and launch checks on the disposable
   runner. It uploads a workflow artifact, skips signing and never creates a
   GitHub release. This does not prove the signing route.
+- Manual dispatch with `sign_proof=true` explicitly enables a **signed proof**
+  using the existing Azure identity. It checks all three signatures on the
+  installed files and uploads the installer, app, uninstaller and JSON signature
+  report as a workflow artifact. It never creates a tag, draft or GitHub release.
+
+Packaging first builds the app without bundling. The Azure action signs that
+binary and installs its supported signing tools. Tauri then bundles with a
+temporary `bundle.windows.signCommand` configuration, re-signing the app after
+patching its bundle metadata and signing the NSIS uninstaller and installer.
+Signing metadata stays under `RUNNER_TEMP`; credentials are passed through the
+environment and are not written into the configuration. Ordinary local builds
+and default unsigned proofs need no signing credentials.
+
+For an explicitly authorized signed test on a feature branch, without publishing:
+
+```powershell
+$signingInfo = node tools/release.mjs info | ConvertFrom-Json
+$signingBranch = git branch --show-current
+gh workflow run release.yml --ref $signingBranch -f "release_tag=$($signingInfo.tag)" -f sign_proof=true
+```
+
+Use the tag-format value matching the tested branch's prepared source version;
+this input validates the version and does not create or move that tag. Inspect
+the workflow summary and `signatures.json`, including the installed app and
+uninstaller. Signature and silent-install tests do not reproduce SmartScreen
+reputation checks after an ordinary browser download.
 
 Manual dispatch is available once the workflow exists on the default branch.
 Local route/validator tests do not prove that GitHub actually received a tag

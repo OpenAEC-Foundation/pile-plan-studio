@@ -14,6 +14,19 @@ test('a manual proof accepts the same tag format but cannot sign or create a rel
   });
 });
 
+test('an explicitly requested signed proof signs without creating a release', () => {
+  assert.deepEqual(workflowPlan({
+    event: 'workflow_dispatch', ref: 'refs/heads/windows-app-signing', tag: 'v2026.43.0', signProof: true,
+  }, '2026.43.0'), {
+    tag: 'v2026.43.0', mode: 'signed-proof', sign: true, create_draft: false,
+  });
+});
+
+test('a signed proof still rejects an incorrect tag and invalid signing input', () => {
+  assert.throws(() => workflowPlan({ event: 'workflow_dispatch', tag: 'v2026.43.1', signProof: true }, '2026.43.0'), /tag|version/i);
+  assert.throws(() => workflowPlan({ event: 'workflow_dispatch', tag: 'v2026.43.0', signProof: 'false' }, '2026.43.0'), /sign|boolean/i);
+});
+
 test('branch pushes, unknown events, old alpha tags and mismatched tags fail before building', () => {
   for (const event of [
     { event: 'push', ref: 'refs/heads/main' },

@@ -5,6 +5,7 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
+. (Join-Path $PSScriptRoot 'windows_signatures.ps1')
 # This installs and launches the app only on a disposable GitHub Actions runner.
 if ($env:GITHUB_ACTIONS -ne 'true' -or -not $env:RUNNER_TEMP) {
     throw 'Run this installation smoke test on a GitHub Actions Windows runner.'
@@ -15,13 +16,9 @@ $versionPattern = '^' + [regex]::Escape($ExpectedVersion) + '(\.0)?$'
 if ($installer.VersionInfo.ProductVersion -notmatch $versionPattern) {
     throw "Unexpected installer version: $($installer.VersionInfo.ProductVersion)"
 }
-$signature = Get-AuthenticodeSignature -LiteralPath $installer.FullName
-if (-not $UnsignedProof -and ($signature.Status -ne 'Valid' -or
-    $signature.SignerCertificate.Subject -notmatch 'Impertio Studio B\.V\.')) {
-    throw 'The installer must have a valid Impertio Studio B.V. signature.'
-}
+if (-not $UnsignedProof) { Assert-WindowsFileSignature -Path $installer.FullName | Out-Null }
 $hash = (Get-FileHash -LiteralPath $installer.FullName -Algorithm SHA256).Hash
-$signatureSummary = if ($UnsignedProof) { 'unsigned workflow proof; not a signed release' } else { 'valid, Impertio Studio B.V.' }
+$signatureSummary = if ($UnsignedProof) { 'unsigned workflow proof; not a signed release' } else { 'app, uninstaller and installer valid, timestamped, Impertio Studio B.V.' }
 $installDirectory = Join-Path $env:RUNNER_TEMP 'pile-plan-studio-smoke'
 if (Test-Path -LiteralPath $installDirectory) {
     throw "Smoke-test destination already exists: $installDirectory"
@@ -40,6 +37,11 @@ $executable = Get-Item -LiteralPath (Join-Path $installDirectory 'pile-plan-stud
 if ($executable.VersionInfo.ProductVersion -notmatch $versionPattern) {
     throw "Unexpected installed product version: $($executable.VersionInfo.ProductVersion)"
 }
+$signatureProof = @()
+if (-not $UnsignedProof) {
+    $signatureProof = @(Assert-WindowsReleaseSignatures -InstallerPath $installer.FullName -InstallDirectory $installDirectory)
+    $signatureProof | Format-Table File, Status, Timestamped, Publisher
+}
 
 $app = Start-Process -FilePath $executable.FullName -WorkingDirectory $installDirectory -WindowStyle Hidden -PassThru
 try {
@@ -55,6 +57,20 @@ try {
     Start-Sleep -Seconds 10
     $app.Refresh()
     if ($app.HasExited) { throw 'The installed application exited after startup.' }
+
+    $proofDirectory = Join-Path $env:RUNNER_TEMP 'pile-plan-windows-proof'
+    if (Test-Path -LiteralPath $proofDirectory) { throw "Proof destination already exists: $proofDirectory" }
+    New-Item -ItemType Directory -Path $proofDirectory | Out-Null
+    foreach ($proofFile in @($installer.FullName, $executable.FullName, (Join-Path $installDirectory 'uninstall.exe'))) {
+        Copy-Item -LiteralPath $proofFile -Destination $proofDirectory
+    }
+    [pscustomobject]@{
+        Version = $ExpectedVersion
+        Signed = -not $UnsignedProof
+        Files = $signatureProof
+        InstalledExecutable = $app.Path
+        LaunchPassed = $true
+    } | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath (Join-Path $proofDirectory 'signatures.json') -Encoding utf8
 
     @"
 ### Windows installer smoke test
