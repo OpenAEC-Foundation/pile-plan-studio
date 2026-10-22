@@ -1,6 +1,11 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import {
+  setManualCptEditLoadPoint,
+  getManualCptSelectionUpdates,
+  getCptSelectionPreviewInput,
+  applyCptSelectionPreviewResult,
+  getDraftCptIds,
   applyCptSelectionSettingsPatch,
   beginManualCptSelection,
   cancelManualCptSelection,
@@ -17,6 +22,108 @@ import type { ProjectState } from "../../domain/project/projectState.ts";
 import type { PileOptionAnalysisResult } from "../../../core/projectTypes.ts";
 
 describe("React CPT settings model", () => {
+  it("preserves mixed automatic and manual selections when saving without edits", () => {
+    const state = minimalState({
+      loadPoints: [loadPoint(1), loadPoint(2), loadPoint(3)],
+      selectedLoadPointIds: [1, 2, 3],
+      manualCptIdsByLoadPoint: new Map([[2, [62]]]),
+      selectedCptsByLoadPointId: new Map([[1, [selectedCpt(cpt(61))]], [2, [selectedCpt(cpt(62))]], [3, [selectedCpt(cpt(61))]]]),
+    });
+    const saved = saveManualCptSelection(beginManualCptSelection(state));
+    assert.equal(saved.manualCptIdsByLoadPoint, state.manualCptIdsByLoadPoint);
+    assert.equal(saved.analysisRequest, state.analysisRequest);
+    assert.equal(saved.cptSelectionEditDraft, null);
+  });
+
+  it("does not persist an addition that is genuinely reverted before save", () => {
+    const state = minimalState({ selectedCptsByLoadPointId: new Map([[1, [selectedCpt(cpt(61))]]]) });
+    const editing = beginManualCptSelection(state);
+    const saved = saveManualCptSelection(removeManualCpt(toggleManualCpt(editing, 99), 99));
+    assert.equal(saved.manualCptIdsByLoadPoint, state.manualCptIdsByLoadPoint);
+    assert.equal(saved.analysisRequest, state.analysisRequest);
+    assert.deepEqual(editing.cptSelectionEditDraft?.cptIdsByLoadPoint.get(1), new Set([61]));
+  });
+
+  it("only persists the points actually changed by adding a partially used CPT", () => {
+    const state = minimalState({ loadPoints: [loadPoint(1), loadPoint(2)], selectedLoadPointIds: [1, 2],
+      selectedCptsByLoadPointId: new Map([[1, [selectedCpt(cpt(61))]], [2, [selectedCpt(cpt(62))]]]) });
+    const saved = saveManualCptSelection(toggleManualCpt(beginManualCptSelection(state), 61));
+    assert.equal(saved.manualCptIdsByLoadPoint.has(1), false);
+    assert.deepEqual(saved.manualCptIdsByLoadPoint.get(2), [61, 62]);
+    assert.deepEqual(saved.analysisRequest.loadPointIds, [2]);
+  });
+
+  it("does not mistake two toggles on a partially used CPT for restoring the original distribution", () => {
+    const state = minimalState({ loadPoints: [loadPoint(1), loadPoint(2)], selectedLoadPointIds: [1, 2],
+      selectedCptsByLoadPointId: new Map([[1, [selectedCpt(cpt(61))]], [2, [selectedCpt(cpt(62))]]]) });
+    const saved = saveManualCptSelection(toggleManualCpt(toggleManualCpt(beginManualCptSelection(state), 61), 61));
+    assert.deepEqual(saved.manualCptIdsByLoadPoint.get(1), []);
+    assert.equal(saved.manualCptIdsByLoadPoint.has(2), false);
+    assert.deepEqual(saved.analysisRequest.loadPointIds, [1]);
+  });
+
+  it("preserves existing manual selections when only their draft order changes", () => {
+    const state = minimalState({ manualCptIdsByLoadPoint: new Map([[1, [61, 62]]]) });
+    const saved = saveManualCptSelection(toggleManualCpt(removeManualCpt(beginManualCptSelection(state), 61), 61));
+    assert.equal(saved.manualCptIdsByLoadPoint, state.manualCptIdsByLoadPoint);
+    assert.equal(saved.analysisRequest, state.analysisRequest);
+  });
+
+  it("scopes removals and nearest selection to one captured location without losing other edits", () => {
+    const state = minimalState({ loadPoints: [loadPoint(1), loadPoint(2)], selectedLoadPointIds: [1, 2],
+      cpts: [cpt(61, 1000), cpt(62, 9000)], manualCptIdsByLoadPoint: new Map([[1, [61, 62]], [2, [61, 62]]]) });
+    const editing = beginManualCptSelection(state);
+    const focused = setManualCptEditLoadPoint(editing, 1);
+    assert.equal(focused.cptSelectionEditDraft, editing.cptSelectionEditDraft);
+    const removed = removeManualCpt(focused, 62);
+    const next = selectOnlyNearestCpts(setManualCptEditLoadPoint(removed, 2));
+    assert.deepEqual(next.cptSelectionEditDraft?.cptIdsByLoadPoint.get(1), new Set([61]));
+    assert.deepEqual(next.cptSelectionEditDraft?.cptIdsByLoadPoint.get(2), new Set([61]));
+    assert.deepEqual(next.selectedLoadPointIds, [1, 2]);
+    assert.equal(setManualCptEditLoadPoint(next, 999), next);
+    assert.deepEqual(editing.cptSelectionEditDraft?.initialCptIdsByLoadPoint.get(1), new Set([61, 62]));
+  });
+
+  it("stages explicit automatic reset for the focused draft target even when the viewer selection changes", () => {
+    const state = minimalState({ loadPoints: [loadPoint(1), loadPoint(2)], selectedLoadPointIds: [1, 2],
+      manualCptIdsByLoadPoint: new Map([[1, [61]], [2, [62]]]) });
+    const focused = setManualCptEditLoadPoint(beginManualCptSelection(state), 1);
+    const reset = clearManualCptSelection({ ...focused, selectedLoadPointIds: [2] });
+    assert.equal(reset.manualCptIdsByLoadPoint, state.manualCptIdsByLoadPoint);
+    assert.equal(reset.analysisRequest, state.analysisRequest);
+    assert.deepEqual(getManualCptSelectionUpdates(reset), new Map([[1, null]]));
+    assert.equal(getCptSelectionPreviewInput(reset)?.manualCptIdsByLoadPoint.has(1), false);
+    assert.deepEqual(getCptSelectionPreviewInput(reset)?.manualCptIdsByLoadPoint.get(2), [62]);
+    const ready = applyCptSelectionPreviewResult(reset, reset.cptSelectionEditDraft, {
+      pileOptionsByLoadPointId: new Map(), cptFrdRowsByCptId: null,
+      selectedCptsByLoadPointId: new Map([[1, [selectedCpt(cpt(61))]]]),
+    });
+    assert.deepEqual(getDraftCptIds(ready, 1), new Set([61]));
+    const saved = saveManualCptSelection(ready);
+    assert.equal(saved.manualCptIdsByLoadPoint.has(1), false);
+    assert.deepEqual(saved.manualCptIdsByLoadPoint.get(2), [62]);
+    assert.deepEqual(saved.analysisRequest.loadPointIds, [1]);
+  });
+
+  it("edits the Rust automatic preview after reset rather than the old manual set", () => {
+    const state = minimalState({ manualCptIdsByLoadPoint: new Map([[1, [61]]]) });
+    const reset = clearManualCptSelection(beginManualCptSelection(state));
+    assert.equal(removeManualCpt(reset, 61), reset);
+    const ready = applyCptSelectionPreviewResult(reset, reset.cptSelectionEditDraft, {
+      pileOptionsByLoadPointId: new Map(), cptFrdRowsByCptId: null,
+      selectedCptsByLoadPointId: new Map([[1, [selectedCpt(cpt(62))]]]),
+    });
+    const saved = saveManualCptSelection(toggleManualCpt(ready, 63));
+    assert.deepEqual(saved.manualCptIdsByLoadPoint.get(1), [62, 63]);
+  });
+
+  it("keeps an explicitly emptied draft manual, and a restored automatic empty selection automatic", () => {
+    const state = minimalState({ selectedCptsByLoadPointId: new Map([[1, [selectedCpt(cpt(61))]]]) });
+    const saved = saveManualCptSelection(removeManualCpt(beginManualCptSelection(state), 61));
+    assert.deepEqual(saved.manualCptIdsByLoadPoint.get(1), []);
+    assert.equal(saveManualCptSelection(clearManualCptSelection(beginManualCptSelection(saved))).manualCptIdsByLoadPoint.has(1), false);
+  });
+
   it("keeps both panes visible during manual CPT editing", () => {
     const state = minimalState({ rightPanelMode: "combined", selectedLoadPointIds: [1] });
     const editing = startManualCptSelectionEdit(state);

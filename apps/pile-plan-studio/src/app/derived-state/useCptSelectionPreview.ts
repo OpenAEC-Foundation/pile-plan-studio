@@ -13,5 +13,6 @@ export function useCptSelectionPreview(state: ProjectState, update: (update: (st
       failed: error => console.error("Failed to preview CPT selection", error),
     });
     return task?.cancel;
-  }, [state.cptSelectionEditDraft]);
+  }, [state.cptSelectionEditDraft, state.loadPoints, state.cpts, state.bearingCapacities,
+    state.globalCptSelectionSettings, state.cptSelectionSettingsByLoadPoint, state.manualCptIdsByLoadPoint]);
 }

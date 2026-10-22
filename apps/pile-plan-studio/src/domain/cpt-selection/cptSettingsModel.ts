@@ -91,7 +91,10 @@ export function beginManualCptSelection(state: ProjectState, _legacySelectedCptI
     cptSelectionEditDraft: {
       loadPointIds,
       cptIdsByLoadPoint,
+      initialCptIdsByLoadPoint: new Map([...cptIdsByLoadPoint].map(([id, ids]) => [id, new Set(ids)])),
+      automaticLoadPointIds: new Set(),
     },
+    cptSelectionEditLoadPointId: null,
     cptSelectionPreview: null,
   };
 }
@@ -111,7 +114,7 @@ export function toggleManualCpt(state: ProjectState, cptId: number): ProjectStat
     return state;
   }
 
-  const removeFromAll = draft.loadPointIds.every((loadPointId) => draft.cptIdsByLoadPoint.get(loadPointId)?.has(cptId));
+  const removeFromAll = getManualCptEditTargetIds(state).every((id) => getDraftCptIds(state, id).has(cptId));
   return updateManualCptDraft(state, (cptIds) => {
     removeFromAll ? cptIds.delete(cptId) : cptIds.add(cptId);
   });
@@ -127,8 +130,10 @@ export function selectOnlyNearestCpts(state: ProjectState): ProjectState {
     return state;
   }
 
-  const cptIdsByLoadPoint = new Map<number, Set<number>>();
-  for (const loadPointId of draft.loadPointIds) {
+  const cptIdsByLoadPoint = new Map(draft.cptIdsByLoadPoint);
+  const automaticLoadPointIds = new Set(draft.automaticLoadPointIds);
+  for (const loadPointId of getManualCptEditTargetIds(state)) {
+    automaticLoadPointIds.delete(loadPointId);
     const loadPoint = state.loadPoints.find((item) => item.id === loadPointId);
     const maxDistanceMm = getSettingsForLoadPoint(state, loadPointId).maxDistanceM * 1000;
     const nearestCpt = loadPoint
@@ -151,33 +156,39 @@ export function selectOnlyNearestCpts(state: ProjectState): ProjectState {
 
   return {
     ...state,
-    cptSelectionEditDraft: { ...draft, cptIdsByLoadPoint },
+    cptSelectionEditDraft: { ...draft, cptIdsByLoadPoint, automaticLoadPointIds },
     cptSelectionPreview: null,
   };
 }
 
-export function saveManualCptSelection(state: ProjectState): ProjectState {
+export function saveManualCptSelection(
+  state: ProjectState,
+  validatedUpdates?: Map<number, number[] | null>,
+): ProjectState {
   const draft = state.cptSelectionEditDraft;
   if (!draft) {
     return state;
   }
-  const updates = new Map<number, number[] | null>();
-  for (const loadPointId of draft.loadPointIds) {
-    updates.set(loadPointId, [...(draft.cptIdsByLoadPoint.get(loadPointId) ?? new Set())]);
-  }
+  const updates = validatedUpdates ?? getManualCptSelectionUpdates(state);
   const updated = applyManualCptSelectionUpdates(state, updates);
   return {
     ...updated,
     cptSelectionEditDraft: null,
+    cptSelectionEditLoadPointId: null,
     cptSelectionPreview: null,
   };
 }
 
 export function cancelManualCptSelection(state: ProjectState): ProjectState {
-  return { ...state, cptSelectionEditDraft: null, cptSelectionPreview: null };
+  return { ...state, cptSelectionEditDraft: null, cptSelectionEditLoadPointId: null, cptSelectionPreview: null };
 }
 
 export function clearManualCptSelection(state: ProjectState): ProjectState {
+  if (state.cptSelectionEditDraft) {
+    const automaticLoadPointIds = new Set(state.cptSelectionEditDraft.automaticLoadPointIds);
+    for (const id of getManualCptEditTargetIds(state)) automaticLoadPointIds.add(id);
+    return { ...state, cptSelectionEditDraft: { ...state.cptSelectionEditDraft, automaticLoadPointIds }, cptSelectionPreview: null };
+  }
   if (state.selectedLoadPointIds.length === 0) {
     return state;
   }
@@ -186,6 +197,7 @@ export function clearManualCptSelection(state: ProjectState): ProjectState {
   return {
     ...updated,
     cptSelectionEditDraft: null,
+    cptSelectionEditLoadPointId: null,
     cptSelectionPreview: null,
   };
 }
@@ -227,6 +239,10 @@ export function getCptSelectionPreviewInput(state: ProjectState): {
   const targetIds = new Set(draft.loadPointIds);
   const manualCptIdsByLoadPoint = new Map(state.manualCptIdsByLoadPoint);
   for (const loadPointId of draft.loadPointIds) {
+    if (draft.automaticLoadPointIds?.has(loadPointId)) {
+      manualCptIdsByLoadPoint.delete(loadPointId);
+      continue;
+    }
     manualCptIdsByLoadPoint.set(
       loadPointId,
       [...(draft.cptIdsByLoadPoint.get(loadPointId) ?? new Set())].sort((left, right) => left - right),
@@ -260,6 +276,7 @@ export function applyCptSelectionPreviewResult(
       draft,
       status: "ready",
       pileOptionsByLoadPointId: analysis.pileOptionsByLoadPointId,
+      selectedCptsByLoadPointId: analysis.selectedCptsByLoadPointId,
     },
   };
 }
@@ -303,15 +320,20 @@ function updateManualCptDraft(
     return state;
   }
 
-  const cptIdsByLoadPoint = new Map<number, Set<number>>();
-  for (const loadPointId of draft.loadPointIds) {
-    const cptIds = new Set(draft.cptIdsByLoadPoint.get(loadPointId));
+  if (isManualCptSelectionPending(state)) return state;
+  const cptIdsByLoadPoint = new Map(draft.cptIdsByLoadPoint);
+  const automaticLoadPointIds = new Set(draft.automaticLoadPointIds);
+  for (const loadPointId of getManualCptEditTargetIds(state)) {
+    const previous = getDraftCptIds(state, loadPointId);
+    const cptIds = new Set(previous);
     update(cptIds);
+    if (sameCptIds(previous, cptIds)) continue;
     cptIdsByLoadPoint.set(loadPointId, cptIds);
+    automaticLoadPointIds.delete(loadPointId);
   }
   return {
     ...state,
-    cptSelectionEditDraft: { ...draft, cptIdsByLoadPoint },
+    cptSelectionEditDraft: { ...draft, cptIdsByLoadPoint, automaticLoadPointIds },
     cptSelectionPreview: null,
   };
 }
@@ -340,4 +362,55 @@ function getCommonValue<K extends keyof CptSelectionSettings>(
 ): CptSelectionSettings[K] | null {
   const firstValue = settings[0]?.[field];
   return settings.every((value) => value[field] === firstValue) ? firstValue ?? null : null;
+}
+
+
+/** Editing focus never changes the viewer's group selection or the draft contents. */
+export function setManualCptEditLoadPoint(state: ProjectState, id: number | null): ProjectState {
+  if (!state.cptSelectionEditDraft || (id !== null && !state.cptSelectionEditDraft.loadPointIds.includes(id))) return state;
+  return { ...state, cptSelectionEditLoadPointId: id };
+}
+
+export function getManualCptEditTargetIds(state: ProjectState): number[] {
+  const ids = state.cptSelectionEditDraft?.loadPointIds ?? [];
+  const id = state.cptSelectionEditLoadPointId;
+  return id != null && ids.includes(id) ? [id] : ids;
+}
+
+export function getDraftCptIds(state: ProjectState, id: number): ReadonlySet<number> {
+  const draft = state.cptSelectionEditDraft;
+  if (!draft) return new Set(state.selectedCptsByLoadPointId.get(id)?.map(item => item.cpt.id));
+  if (draft.automaticLoadPointIds?.has(id)) {
+    const preview = state.cptSelectionPreview;
+    return new Set(preview?.draft === draft && preview.status === "ready"
+      ? preview.selectedCptsByLoadPointId?.get(id)?.map(item => item.cpt.id) : []);
+  }
+  return draft.cptIdsByLoadPoint.get(id) ?? new Set();
+}
+
+export function isManualCptSelectionPending(state: ProjectState): boolean {
+  const draft = state.cptSelectionEditDraft;
+  return !!draft?.automaticLoadPointIds?.size && !(state.cptSelectionPreview?.draft === draft && state.cptSelectionPreview.status === "ready");
+}
+
+/** UI no-op filtering is deliberately separate from explicit MCP/manual writes. */
+export function getManualCptSelectionUpdates(state: ProjectState): Map<number, number[] | null> {
+  const draft = state.cptSelectionEditDraft;
+  const updates = new Map<number, number[] | null>();
+  if (!draft) return updates;
+  for (const id of draft.loadPointIds) {
+    if (draft.automaticLoadPointIds?.has(id)) {
+      if (state.manualCptIdsByLoadPoint.has(id)) updates.set(id, null);
+      continue;
+    }
+    const ids = draft.cptIdsByLoadPoint.get(id) ?? new Set<number>();
+    const initial = draft.initialCptIdsByLoadPoint?.get(id)
+      ?? new Set(state.manualCptIdsByLoadPoint.get(id) ?? state.selectedCptsByLoadPointId.get(id)?.map(item => item.cpt.id));
+    if (!sameCptIds(ids, initial)) updates.set(id, [...ids].sort((a, b) => a - b));
+  }
+  return updates;
+}
+
+function sameCptIds(left: ReadonlySet<number>, right: ReadonlySet<number>): boolean {
+  return left.size === right.size && [...left].every(id => right.has(id));
 }

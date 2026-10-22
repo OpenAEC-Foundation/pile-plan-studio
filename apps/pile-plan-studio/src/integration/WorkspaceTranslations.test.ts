@@ -4,6 +4,17 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
 describe("Workspace translations", () => {
+  it("translates scoped CPT editing and preserves its interpolation fields in both languages", () => {
+    const keys = ["cpts.editFor", "cpts.allLocations", "cpts.manual", "cpts.automatic", "cpts.previousLocation", "cpts.nextLocation", "cpts.changedLocations", "cpts.editLocation", "cpts.projectWideHelp", "cpts.removeFromLocations", "cpts.saving", "cpts.retryPreview", "cpts.saveBlocked", "cpts.saveFailed", "actions.useAlgorithm"];
+    const copies = ["nl", "en"].map(language => JSON.parse(readFileSync(resolve(import.meta.dirname, `../i18n/locales/${language}/rightPanel.json`), "utf8")));
+    for (const copy of copies) {
+      for (const key of keys) assert.ok(copy[key]?.trim(), key);
+      for (const [key, fields] of [["cpts.allLocations", ["count"]], ["cpts.changedLocations", ["changed", "total"]], ["cpts.editLocation", ["id"]], ["cpts.removeFromLocations", ["cpt", "count"]]] as const) {
+        for (const field of fields) assert.ok(copy[key].includes(`{{${field}}}`), `${key}: ${field}`);
+      }
+    }
+  });
+
   it("explains rejected shared project edits in both languages", () => {
     for (const language of ["nl", "en"]) {
       const common = JSON.parse(readFileSync(resolve(import.meta.dirname,

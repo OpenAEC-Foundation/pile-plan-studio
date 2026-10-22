@@ -1,3 +1,5 @@
+import { beginManualCptSelection, toggleManualCpt, saveManualCptSelection, setManualCptEditLoadPoint, clearManualCptSelection } from "../../cpt-selection/cptSettingsModel.ts";
+import { projectStateSignature } from "../../../app/project/projectLifecycleController.ts";
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
@@ -23,6 +25,52 @@ function createTestProjectState(
 }
 
 describe("project history reducer", () => {
+  it("keeps no-op CPT editing out of undo history and the saved project signature", () => {
+    const initial = { ...state(), manualCptIdsByLoadPoint: new Map() };
+    const id = initial.loadPoints[0]!.id, cpt = initial.cpts[0]!;
+    initial.selectedLoadPointIds = [id];
+    initial.selectedCptsByLoadPointId = new Map([[id, [{ cpt, label: "nearest", distance_mm: 1000 }]]]);
+    let managed = createManagedProjectState(initial);
+    const signature = projectStateSignature(managed.present), analysis = managed.present.analysisRequest;
+    managed = projectHistoryReducer(managed, { type: "commit", update: beginManualCptSelection });
+    managed = projectHistoryReducer(managed, { type: "commit", update: saveManualCptSelection });
+    assert.equal(managed.history.past.length, 0);
+    assert.equal(projectStateSignature(managed.present), signature);
+    assert.equal(managed.present.analysisRequest, analysis);
+  });
+
+  it("undoes and redoes a multi-location CPT edit as one change with scoped analysis", () => {
+    const initial = { ...state(), manualCptIdsByLoadPoint: new Map() };
+    const ids = initial.loadPoints.slice(0, 3).map(p => p.id), cpt = initial.cpts[0]!.id;
+    initial.selectedLoadPointIds = ids;
+    let managed = createManagedProjectState(initial);
+    const plans = managed.present.pilePlans;
+    managed = projectHistoryReducer(managed, { type: "commit", update: current => {
+      const draft = beginManualCptSelection(current);
+      const first = toggleManualCpt(setManualCptEditLoadPoint(draft, ids[0]!), cpt);
+      return saveManualCptSelection(toggleManualCpt(setManualCptEditLoadPoint(first, ids[2]!), cpt));
+    } });
+    assert.equal(managed.history.past.length, 1);
+    assert.deepEqual([...managed.present.manualCptIdsByLoadPoint], [[ids[0], [cpt]], [ids[2], [cpt]]]);
+    assert.deepEqual(managed.present.analysisRequest.loadPointIds, [ids[0], ids[2]]);
+    assert.deepEqual(managed.present.pilePlans, plans);
+    managed = projectHistoryReducer(managed, { type: "undo" });
+    assert.equal(managed.present.manualCptIdsByLoadPoint.size, 0);
+    managed = projectHistoryReducer(managed, { type: "redo" });
+    assert.deepEqual([...managed.present.manualCptIdsByLoadPoint], [[ids[0], [cpt]], [ids[2], [cpt]]]);
+  });
+
+  it("records explicit automatic reset even when the effective CPT set is identical", () => {
+    const initial = state(), id = initial.loadPoints[0]!.id, cpt = initial.cpts[0]!.id;
+    const manual = { ...initial, selectedLoadPointIds: [id], manualCptIdsByLoadPoint: new Map([[id, [cpt]]]) };
+    let managed = createManagedProjectState(manual);
+    managed = projectHistoryReducer(managed, { type: "commit", update: current => saveManualCptSelection(clearManualCptSelection(beginManualCptSelection(current))) });
+    assert.equal(managed.history.past.length, 1);
+    assert.equal(managed.present.manualCptIdsByLoadPoint.has(id), false);
+    managed = projectHistoryReducer(managed, { type: "undo" });
+    assert.deepEqual(managed.present.manualCptIdsByLoadPoint.get(id), [cpt]);
+  });
+
   it("reports an unavailable Undo request without changing the project", () => {
     const managed = createManagedProjectState(state());
 

@@ -61,10 +61,35 @@ inputs before committing one plan. `useNewPilePlan.ts` supplies live session
 callbacks and cancels installation when the session unmounts.
 
 `app/derived-state/cptSelectionPreview.ts` runs the transient manual CPT preview;
-`useCptSelectionPreview.ts` binds its lifetime to the draft. It uses the existing
-Rust pile-option analysis client and domain draft-identity guards. Cancellation
-prevents late results from installing a preview, while base options and project
-assignments remain unchanged.
+`useCptSelectionPreview.ts` binds its lifetime to the draft and source/settings
+references. It uses the existing Rust pile-option analysis client. Cancellation
+and captured-input guards prevent late results from installing a preview,
+while base options and project assignments remain unchanged. Explicit automatic
+resets remove overrides from preview input and display the returned Rust CPT
+selections; further manual edits use those selections.
+
+The CPT editor captures per-location effective selections when opened. A
+transient location picker scopes table rows, viewer CPT toggles, nearest-only
+selection and automatic reset without changing the selected load-point group.
+Usage counts expose their actual members and open a member directly in this
+editor. Navigating between members retains one shared draft and shows which
+locations will change. CPT ownership and technical assessment remain per load
+point; the union displayed for a group does not become every member's selection.
+
+`app/project/manualCptEditController.ts` sends only effective changes and
+explicit resets through Rust's existing manual-CPT bulk validator. It guards
+the draft and project inputs before and during the immutable history commit.
+Valid changes commit in one undo step and request analysis only for changed
+locations; blocked or stale batches commit nothing. Nearest-only and automatic
+reset are staged until Save, and Cancel discards all staged changes. Saving an
+unchanged or genuinely reverted selection retains its original automatic/manual
+mode and does not change project history, dirty state or analysis requests.
+Explicit automatic reset removes an override even if its effective CPT set is
+unchanged. Empty manual selections stay distinct from automatic selection.
+These UI-specific no-op rules do not filter explicit MCP manual writes.
+Manual choices stay attached to their locations after ungrouping and apply
+across all pile plans. The edit snapshot, focus and previews are runtime state;
+the IFCPP schema is unchanged.
 
 Import panels keep their form state and present the existing immutable draft
 models in `domain/imports/`. Both the views and runtime import that pure logic.

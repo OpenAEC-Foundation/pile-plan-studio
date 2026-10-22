@@ -64,3 +64,15 @@ test("current analysis error becomes a failed preview without modifying source o
   assert.deepEqual(h.errors, [error]);
   assert.equal(h.state().pileOptionsByLoadPointId, h.initial.pileOptionsByLoadPointId);
 });
+
+for (const cause of ["cpts", "loadPoints", "settings", "manual"]) {
+  test(`preview cannot install after its ${cause} inputs change`, async () => {
+    const h = setup();
+    h.change(state => cause === "cpts" ? { ...state, cpts: [...state.cpts] }
+      : cause === "loadPoints" ? { ...state, loadPoints: [...state.loadPoints] }
+      : cause === "settings" ? { ...state, globalCptSelectionSettings: { ...state.globalCptSelectionSettings } }
+      : { ...state, manualCptIdsByLoadPoint: new Map(state.manualCptIdsByLoadPoint) });
+    const before = h.state(); h.resolve(h.analysis); await h.task!.finished;
+    assert.equal(h.state(), before);
+  });
+}

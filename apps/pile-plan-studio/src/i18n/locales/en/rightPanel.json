@@ -98,7 +98,7 @@
   "actions.remove": "Remove",
   "actions.removeCpt": "Remove {{cpt}}",
   "actions.editSelection": "Edit selection",
-  "actions.useAlgorithm": "Use algorithm",
+  "actions.useAlgorithm": "Restore automatic selection",
   "actions.clear": "Clear",
   "actions.all": "All",
   "cpts.selected": "Selected CPT",
@@ -339,5 +339,21 @@
     "unsolvableSummary_other": "{{count}} locations cannot be optimized with the current data and settings.",
     "enableSkipUnsolvable": "Skip locations without a valid configuration",
     "skipUnsolvableEnabled": "Skipping is enabled — optimize again"
-  }
+  },
+  "cpts.editFor": "Edit for",
+  "cpts.allLocations": "All {{count}} locations",
+  "cpts.manual": "Manual",
+  "cpts.automatic": "Automatic",
+  "cpts.previousLocation": "Previous",
+  "cpts.nextLocation": "Next",
+  "cpts.changedLocations": "{{changed}} of {{total}} locations changed",
+  "cpts.editLocation": "Edit CPTs for location {{id}}",
+  "cpts.projectWideHelp": "Applies to all pile plans. Manual selections remain after ungrouping.",
+  "cpts.removeFromLocations": "Remove {{cpt}} from all {{count}} locations in this scope",
+  "cpts.saving": "Saving…",
+  "cpts.saveBlocked": "The CPT changes are invalid. Nothing has been saved.",
+  "cpts.saveFailed": "The CPT changes could not be saved. Please try again.",
+  "cpts.retryPreview": "Retry preview",
+  "cpts.allLocations_one": "All {{count}} location",
+  "cpts.allLocations_other": "All {{count}} locations"
 }

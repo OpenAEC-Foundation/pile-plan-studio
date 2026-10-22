@@ -28,7 +28,7 @@ import type {
   PileCostSettings,
   SelectedCpt,
 } from "../../../core/projectTypes.ts";
-import { getEffectivePileOptionsByLoadPointId } from "../../../domain/cpt-selection/cptSettingsModel.ts";
+import { getDraftCptIds, getManualCptEditTargetIds, getEffectivePileOptionsByLoadPointId } from "../../../domain/cpt-selection/cptSettingsModel.ts";
 
 export type RenderablePileOptionTableRow = PileOptionTableRow & {
   criticalLoadPointId: number | null;
@@ -46,6 +46,7 @@ export type SelectedCptOverviewModel = {
     cpt: Cpt;
     governingLoadPointCount: number;
     usageDetails?: string | null;
+    usingLoadPointIds: number[];
     values: string[];
   }>;
 };
@@ -101,14 +102,17 @@ export function getSelectedCptOverviewModel(
 ): SelectedCptOverviewModel {
   const draft = state.cptSelectionEditDraft ?? null;
   const loadPoints = draft
-    ? state.loadPoints.filter((loadPoint) => draft.loadPointIds.includes(loadPoint.id))
+    ? state.loadPoints.filter((loadPoint) => getManualCptEditTargetIds(state).includes(loadPoint.id))
     : selectedLoadPoints;
   const table = getSelectedCptTableModel(
     loadPoints.map((loadPoint) => ({
       loadPoint,
       isManualSelection: draft !== null,
       selectedCpts: draft
-        ? buildDraftSelectedCpts(state, loadPoint, draft.cptIdsByLoadPoint.get(loadPoint.id) ?? new Set())
+        ? draft.automaticLoadPointIds?.has(loadPoint.id)
+          ? (state.cptSelectionPreview?.draft === draft && state.cptSelectionPreview.status === "ready"
+            ? state.cptSelectionPreview.selectedCptsByLoadPointId?.get(loadPoint.id) ?? [] : [])
+          : buildDraftSelectedCpts(state, loadPoint, new Set(getDraftCptIds(state, loadPoint.id)))
         : state.selectedCptsByLoadPointId.get(loadPoint.id) ?? [],
     })),
   );
@@ -142,6 +146,9 @@ export function getSelectedCptOverviewModel(
         cpt: row.cpt,
         governingLoadPointCount,
         usageDetails: row.usageDetails,
+        usingLoadPointIds: loadPoints.filter(point => draft
+          ? getDraftCptIds(state, point.id).has(row.cpt.id)
+          : state.selectedCptsByLoadPointId.get(point.id)?.some(item => item.cpt.id === row.cpt.id)).map(point => point.id),
         values: [
           ...row.values,
           showChosenPileCapacity

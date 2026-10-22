@@ -211,7 +211,6 @@ describe("PilePlanViewer inputs", () => {
     const source = readViewerSource();
     assert.match(source, /state\.selectedCptId === cpt\.id/);
     assert.match(source, /is-inspected-cpt/);
-    assert.match(source, /getLoadPointRing\(selected, groupSelected, hovered, state\.symbolScalePercent\)/);
     assert.match(source, /getCptRingRadius\(state\.symbolScalePercent\)/);
     assert.match(source, /strokeWidth=\{1\}/);
     assert.match(source, /cx=\{0\}/);

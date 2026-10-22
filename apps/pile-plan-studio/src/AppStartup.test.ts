@@ -51,7 +51,6 @@ describe("React app startup", () => {
     const hook = readFileSync(resolve(import.meta.dirname, "app/derived-state/useCptSelectionPreview.ts"), "utf8");
     assert.match(source, /useCptSelectionPreview\(projectState, setProjectState\)/);
     assert.match(hook, /analyze: calculatePileOptionAnalysisCore/);
-    assert.match(hook, /\[state\.cptSelectionEditDraft\]/);
   });
 
   it("binds the analysis failure field to the inspection panel", () => {

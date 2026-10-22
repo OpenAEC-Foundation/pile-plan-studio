@@ -1,3 +1,4 @@
+import { beginManualCptSelection, setManualCptEditLoadPoint, toggleManualCpt, saveManualCptSelection } from "../../domain/cpt-selection/cptSettingsModel.ts";
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
@@ -117,4 +118,18 @@ test("preview uses a captured selection and ignores changed source data", async 
   h.change(state => ({ ...state, loadPoints: [...state.loadPoints] }));
   h.previews[0].result.resolve({ allowed: true, reason: null });
   assert.equal(await running, null);
+});
+
+test("ungrouping after an individual CPT edit preserves that manual selection and the other automatic member", async () => {
+  const h = setup(), cpt = h.state().cpts[0].id;
+  h.change(state => saveManualCptSelection(toggleManualCpt(setManualCptEditLoadPoint(beginManualCptSelection({ ...state,
+    selectedLoadPointIds: h.ids, manualCptIdsByLoadPoint: new Map(),
+  }), h.ids[0]), cpt)));
+  const before = h.state().manualCptIdsByLoadPoint;
+  const task = h.controller.apply("ungroup");
+  const result = h.applied();
+  if (result.status === "applied") { result.settings.manualGroups = []; result.grouping.groups = h.ids.map(id => ({ load_point_ids: [id] })); }
+  h.edits[0].result.resolve(result); await task;
+  assert.equal(h.state().manualCptIdsByLoadPoint, before);
+  assert.deepEqual(before.get(h.ids[0]), [cpt]); assert.equal(before.has(h.ids[1]), false);
 });

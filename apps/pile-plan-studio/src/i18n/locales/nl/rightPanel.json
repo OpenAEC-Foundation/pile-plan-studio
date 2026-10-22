@@ -98,7 +98,7 @@
   "actions.remove": "Verwijderen",
   "actions.removeCpt": "{{cpt}} verwijderen",
   "actions.editSelection": "Selectie aanpassen",
-  "actions.useAlgorithm": "Algoritme gebruiken",
+  "actions.useAlgorithm": "Automatische selectie herstellen",
   "actions.clear": "Wissen",
   "actions.all": "Alles",
   "cpts.selected": "Geselecteerde sondering",
@@ -339,5 +339,21 @@
     "unsolvableSummary_other": "{{count}} locaties kunnen niet worden geoptimaliseerd met de huidige gegevens en instellingen.",
     "enableSkipUnsolvable": "Locaties zonder geldige configuratie overslaan",
     "skipUnsolvableEnabled": "Overslaan staat aan — optimaliseer opnieuw"
-  }
+  },
+  "cpts.editFor": "Bewerken voor",
+  "cpts.allLocations": "Alle {{count}} locaties",
+  "cpts.manual": "Handmatig",
+  "cpts.automatic": "Automatisch",
+  "cpts.previousLocation": "Vorige",
+  "cpts.nextLocation": "Volgende",
+  "cpts.changedLocations": "{{changed}} van {{total}} locaties gewijzigd",
+  "cpts.editLocation": "Sonderingen voor locatie {{id}} bewerken",
+  "cpts.projectWideHelp": "Geldt voor alle paalplannen. Handmatige keuzes blijven na ontgroeperen behouden.",
+  "cpts.removeFromLocations": "{{cpt}} verwijderen bij alle {{count}} locaties binnen dit bereik",
+  "cpts.saving": "Opslaan…",
+  "cpts.saveBlocked": "De sonderingswijzigingen zijn niet geldig. Er is niets opgeslagen.",
+  "cpts.saveFailed": "De sonderingswijzigingen konden niet worden opgeslagen. Probeer het opnieuw.",
+  "cpts.retryPreview": "Opnieuw berekenen",
+  "cpts.allLocations_one": "Alle {{count}} locatie",
+  "cpts.allLocations_other": "Alle {{count}} locaties"
 }

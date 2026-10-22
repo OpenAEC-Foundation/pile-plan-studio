@@ -123,6 +123,7 @@ export function buildViewerMarkerPresentation(input: ViewerMarkerPresentationInp
     const key = `load-point:${loadPoint.id}`;
     const selected = input.selectedLoadPointIds.has(loadPoint.id);
     const groupSelected = input.completeSelectedGroupLoadPointIds.has(loadPoint.id);
+    const editFocused = state.cptSelectionEditDraft != null && state.cptSelectionEditLoadPointId === loadPoint.id;
     const related = input.relatedLoadPointIds.has(loadPoint.id);
     const locked = input.lockedLoadPointIds.has(loadPoint.id);
     const hovered = input.activeHoverCandidateKey === key;
@@ -142,7 +143,7 @@ export function buildViewerMarkerPresentation(input: ViewerMarkerPresentationInp
       ? " is-pending" : unselectedState === "optimizer-unassigned" ? " has-optimizer-unassigned" : "";
     const invalid = getLoadPointMarkerInvalidVisual(option, state.viewerUtilizationSettings);
     const halo = parseLoadPointStatusHalo(invalid.className, invalid.style, locked, input.isEditingLoadPointLocks);
-    const ring = getLoadPointRing(selected, groupSelected, hovered, state.symbolScalePercent);
+    const ring = getLoadPointRing(selected, groupSelected, hovered || editFocused, state.symbolScalePercent);
     const appearance: ViewerMarkerAppearance = style
       ? { type: "pile", symbol: style.symbol, color: style.color, smallDot: style.smallDot }
       : unselectedState && usesNeutralUnassignedMarker(unselectedState)
@@ -152,13 +153,13 @@ export function buildViewerMarkerPresentation(input: ViewerMarkerPresentationInp
           : { type: "error", color: unselectedState === "missing-capacity-data" ? "#d99b00" : "#c92a2a" };
     graphics.push({ key, kind: "load-point", id: loadPoint.id, ...point, scale,
       drawPriority: getMarkerDrawPriority({ kind: "load-point", foregroundLayer: state.foregroundLayer,
-        selected: selected || related, raised: false, hovered }),
+        selected: selected || related, raised: false, hovered: hovered || editFocused }),
       ring, halo, appearance, locked,
       opacity: locked ? input.isEditingLoadPointLocks ? 0.45 : 0.28 : 1,
     });
     hitTargets.push({ key, kind: "load-point", id: loadPoint.id, ...point,
       ariaLabel: `Load point ${loadPoint.name}${unselectedTitle ? `. ${unselectedTitle}` : ""}`,
-      className: `load-point-marker${getLoadPointMarkerLayerClass(selected || related)}${selected ? " is-selected" : ""}${groupSelected ? " is-group-contour-selected" : ""}${related ? " is-related-group-member" : ""}${locked ? " is-locked" : ""}${unselectedClass}${hovered ? " is-hover-candidate" : ""}`,
+      className: `load-point-marker${getLoadPointMarkerLayerClass(selected || related)}${selected ? " is-selected" : ""}${groupSelected ? " is-group-contour-selected" : ""}${editFocused ? " is-cpt-edit-focus" : ""}${related ? " is-related-group-member" : ""}${locked ? " is-locked" : ""}${unselectedClass}${hovered ? " is-hover-candidate" : ""}`,
       hitDiameter: getMarkerHitDiameter("load-point", state.symbolScalePercent, ring !== null),
     });
   }

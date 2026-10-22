@@ -15,6 +15,12 @@ export function runCptSelectionPreview(state: ProjectState, dependencies: Depend
   if (!input) return null;
   const { draft } = input;
   let cancelled = false;
+  const isCurrent = (current: ProjectState) => !cancelled && current.cptSelectionEditDraft === draft
+    && current.loadPoints === state.loadPoints && current.cpts === state.cpts
+    && current.bearingCapacities === state.bearingCapacities
+    && current.globalCptSelectionSettings === state.globalCptSelectionSettings
+    && current.cptSelectionSettingsByLoadPoint === state.cptSelectionSettingsByLoadPoint
+    && current.manualCptIdsByLoadPoint === state.manualCptIdsByLoadPoint;
   dependencies.update(current => beginCptSelectionPreview(current, draft));
   const finished = dependencies.analyze({
     bearingCapacities: state.bearingCapacities,
@@ -26,10 +32,10 @@ export function runCptSelectionPreview(state: ProjectState, dependencies: Depend
     includeCptFrdRows: false,
   }).then(analysis => {
     if (!cancelled) dependencies.update(current =>
-      cancelled ? current : applyCptSelectionPreviewResult(current, draft, analysis));
+      !isCurrent(current) ? current : applyCptSelectionPreviewResult(current, draft, analysis));
   }).catch((error: unknown) => {
     dependencies.failed(error);
-    if (!cancelled) dependencies.update(current => cancelled ? current : failCptSelectionPreview(
+    if (!cancelled) dependencies.update(current => !isCurrent(current) ? current : failCptSelectionPreview(
       current, draft, error instanceof Error ? error.message : String(error),
     ));
   });
