@@ -1,9 +1,15 @@
-name: Build signed Windows alpha
+name: Build Windows release
 
 on:
   push:
     tags:
-      - "v*-alpha"
+      - "v[0-9]*.[0-9]*.[0-9]*"
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: "Prepared tag to validate (vYYYY.W.N); proof only, no signing or release creation"
+        required: true
+        type: string
 
 permissions:
   contents: write
@@ -14,7 +20,7 @@ concurrency:
 
 jobs:
   windows:
-    name: Test, build, and sign Windows installer
+    name: Test and build Windows installer
     runs-on: windows-latest
 
     steps:
@@ -42,6 +48,13 @@ jobs:
         working-directory: apps/pile-plan-studio
         run: npm ci
 
+      - name: Validate prepared version and workflow route
+        id: release
+        working-directory: apps/pile-plan-studio
+        env:
+          INPUT_RELEASE_TAG: ${{ inputs.release_tag }}
+        run: npm run release:workflow -- --github-output
+
       - name: Test Rust workspace
         run: cargo test --workspace
 
@@ -56,7 +69,14 @@ jobs:
         working-directory: apps/pile-plan-studio
         run: npm run tauri build -- --bundles nsis
 
+      - name: Recheck generated package versions
+        working-directory: apps/pile-plan-studio
+        env:
+          RELEASE_TAG: ${{ steps.release.outputs.tag }}
+        run: npm run release:check -- --tag "$env:RELEASE_TAG"
+
       - name: Sign Windows installer
+        if: steps.release.outputs.sign == 'true'
         uses: azure/trusted-signing-action@v1
         with:
           azure-tenant-id: ${{ secrets.AZURE_TENANT_ID }}
@@ -73,42 +93,56 @@ jobs:
           timestamp-rfc3161: http://timestamp.acs.microsoft.com
           timestamp-digest: SHA256
 
-      - name: Verify installer signature
+      - name: Locate installer and verify release signature
         id: installer
         shell: pwsh
+        env:
+          VERIFY_SIGNATURE: ${{ steps.release.outputs.sign }}
         run: |
-          $installer = Get-ChildItem "apps/pile-plan-studio/src-tauri/target/release/bundle/nsis/*-setup.exe" |
-            Select-Object -First 1
-          if (-not $installer) {
-            throw "The NSIS installer was not produced."
+          $installers = @(Get-ChildItem "apps/pile-plan-studio/src-tauri/target/release/bundle/nsis/*-setup.exe")
+          if ($installers.Count -ne 1) {
+            throw "Expected exactly one NSIS installer, found $($installers.Count)."
           }
+          $installer = $installers[0]
 
-          $signature = Get-AuthenticodeSignature -FilePath $installer.FullName
-          if ($signature.Status -ne "Valid") {
-            throw "Installer signature is $($signature.Status): $($signature.StatusMessage)"
-          }
-          if ($signature.SignerCertificate.Subject -notmatch "Impertio Studio B\.V\.") {
-            throw "Unexpected installer publisher: $($signature.SignerCertificate.Subject)"
+          if ($env:VERIFY_SIGNATURE -eq 'true') {
+            $signature = Get-AuthenticodeSignature -FilePath $installer.FullName
+            if ($signature.Status -ne "Valid") {
+              throw "Installer signature is $($signature.Status): $($signature.StatusMessage)"
+            }
+            if ($signature.SignerCertificate.Subject -notmatch "Impertio Studio B\.V\.") {
+              throw "Unexpected installer publisher: $($signature.SignerCertificate.Subject)"
+            }
+            Write-Host "Verified $($installer.Name) signed by $($signature.SignerCertificate.Subject)"
           }
 
           "path=$($installer.FullName)" >> $env:GITHUB_OUTPUT
           "name=$($installer.Name)" >> $env:GITHUB_OUTPUT
-          Write-Host "Verified $($installer.Name) signed by $($signature.SignerCertificate.Subject)"
 
-      - name: Test signed installer installation and launch
+      - name: Test installer version, installation, and launch
         shell: pwsh
         env:
           INSTALLER_PATH: ${{ steps.installer.outputs.path }}
+          EXPECTED_VERSION: ${{ steps.release.outputs.version }}
+          UNSIGNED_PROOF: ${{ steps.release.outputs.mode == 'proof' }}
         run: |
-          $version = (Get-Content apps/pile-plan-studio/src-tauri/tauri.conf.json | ConvertFrom-Json).version
-          ./tools/test_windows_installer.ps1 -InstallerPath $env:INSTALLER_PATH -ExpectedVersion $version
+          ./tools/test_windows_installer.ps1 -InstallerPath $env:INSTALLER_PATH -ExpectedVersion $env:EXPECTED_VERSION -UnsignedProof:($env:UNSIGNED_PROOF -eq 'true')
+
+      - name: Upload proof installer
+        if: steps.release.outputs.mode == 'proof'
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-proof-${{ steps.release.outputs.version }}
+          path: ${{ steps.installer.outputs.path }}
+          if-no-files-found: error
 
       - name: Create draft GitHub release
+        if: steps.release.outputs.create_draft == 'true'
         uses: softprops/action-gh-release@v2
         with:
           draft: true
-          prerelease: true
+          prerelease: ${{ steps.release.outputs.prerelease == 'true' }}
           generate_release_notes: true
-          name: Open Pile Plan Studio ${{ github.ref_name }}
+          name: ${{ steps.release.outputs.title }}
           files: ${{ steps.installer.outputs.path }}
           fail_on_unmatched_files: true

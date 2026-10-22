@@ -92,58 +92,127 @@ After deployment, test in current Chrome and Edge:
 
 The browser build and Windows desktop build use the same Rust calculation core.
 
-## Signed Windows Alpha Release
+## Release versions and preparation
 
-Before tagging, update the release version consistently in both Rust crate
-manifests, the app `package.json`, the Tauri manifest and `tauri.conf.json`.
-Refresh the corresponding Cargo/npm lockfiles and regenerate the WASM package
-through `npm run build`. Update the version expectation in `productInfo.test.ts`,
-the README badge, release notes, and the release reference in this guide.
+The app `package.json` is the source of the product version and release metadata:
+`version`, `release.channel` and `release.date`. The channel is currently `alpha`;
+the frontend displays **Alpha** independently of the numeric version. GitHub
+release titles include **— Alpha** and releases are marked as prereleases.
+Changing product maturity is a separate decision from choosing a date version.
 
-Run the Rust and separate Tauri tests above, then `npm test` and `npm run build`
-from `apps/pile-plan-studio`. Perform the relevant desktop smoke checks as well,
-especially for changes to native file opening, windows, or installer integration.
-Merge the verified changes to `main` and confirm the intended commit and a clean
-working tree before tagging. Only publish when the user has requested a release.
+New releases use `YYYY.W.N` and tags use `vYYYY.W.N`, without an alpha suffix or
+leading zeros. `YYYY` is the ISO week-numbering year, `W` the ISO week and `N` a
+sequence starting at zero for each week. For example, 1 January 2027 belongs to
+2026 week 53, while 4 January belongs to 2027 week 1. No next release week is
+fixed in advance. Existing published tags remain unchanged. The legacy `0.x.y`
+development version remains buildable until an actual release is prepared;
+it cannot pass the new release gate and its release date must be `null`.
 
-Push an annotated alpha tag matching `v*-alpha`. Set the version to the prepared
-release; never move an already published release tag:
+From `apps/pile-plan-studio`, preview preparation, then prepare when the release
+date and source contents have been chosen:
 
 ```powershell
-$releaseVersion = 'X.Y.Z' # Replace with the prepared application version.
-$releaseTag = "v$releaseVersion-alpha"
+npm run release:prepare -- --dry-run
+npm run release:prepare
+```
+
+The default date is today's date in `Europe/Amsterdam`. For a reproducible,
+explicit input, use `--date YYYY-MM-DD` with the chosen actual release date.
+Preparation reads local and current remote tags and chooses the highest numeric
+sequence for that ISO week plus one, or zero if none exists. All release channels
+share that sequence. A remote read failure stops preparation before any write.
+A tag, including one whose build failed, reserves its number. Build retries on
+the same tag use the same source commit and version.
+
+Preparation synchronizes npm, all three Rust crate manifests, and Tauri config;
+refreshes the npm and both Cargo lockfiles; and regenerates WASM with the existing
+`npm run build:wasm` script. Install the prerequisites and run `npm ci` first.
+Only the product package versions may change in the lockfiles: dependency
+upgrades are rejected. An ignored `.release-preparation.json` marker retains the
+dependency baseline if a generator fails. The normal consistency check rejects
+an incomplete preparation. Resolve the reported cause and rerun with the same
+date; do not bypass the check by deleting the marker. Inspect the resulting diff.
+
+```powershell
+npm run release:check
+npm run release:check -- --release --publish --available
+```
+
+The first command checks all source versions, lock records and generated WASM
+package metadata without network access or dependence on today's date. Tests
+and browser builds include this check. The second command additionally requires
+the new release format, checks the current Amsterdam publication week and verifies
+that the intended tag is still unused locally and remotely. Run it immediately
+before tagging; if another release used that number, prepare again. Preparation
+does not reserve a remote number or create any Git refs.
+
+## Windows release build and proof
+
+Windows packaging explicitly uses NSIS both locally and in CI. A local build is:
+
+```powershell
+npm run tauri build -- --bundles nsis
+```
+
+MSI requires a separately designed version mapping: its major version cannot
+exceed 255, so the year cannot be used directly. macOS and Linux packaging are
+separate work. See the [Tauri configuration reference](https://v2.tauri.app/reference/config/#wixconfig).
+
+Before tagging, run the Rust and separate Tauri tests above, then `npm test` and
+`npm run build`. Check both About views in the browser and desktop. Verify the
+actual running executable path and product version. Prepare release notes and
+update current-release references such as the README badge at release time.
+
+The [release workflow](../.github/workflows/release.yml) has two routes:
+
+- A new `vYYYY.W.N` tag validates the prepared commit, runs tests, builds NSIS,
+  signs through Azure Artifact Signing, verifies the publisher, installs and
+  launches the app, then creates a draft GitHub prerelease. Version/tag
+  mismatches fail before building; generated package versions are checked again
+  after the build.
+- Manual dispatch takes a `release_tag` in the same format and checks it against
+  the selected prepared source. It builds an **unsigned proof** and performs the
+  version, installation, executable-path and launch checks on the disposable
+  runner. It uploads a workflow artifact, skips signing and never creates a
+  GitHub release. This does not prove the signing route.
+
+Manual dispatch is available once the workflow exists on the default branch.
+Local route/validator tests do not prove that GitHub actually received a tag
+push. An actual CI proof requires a separately authorized push/run; do not push
+to `main` merely to enable it, because that also deploys the browser application.
+
+## Tagging and publication
+
+Only tag, push or publish when requested. Use a reviewed source commit with a
+clean working tree; integration into `main` is a separate decision. From the
+repository root, obtain the centrally defined tag:
+
+```powershell
+$releaseInfo = node tools/release.mjs info | ConvertFrom-Json
+$releaseTag = $releaseInfo.tag
+node tools/release.mjs check --release --publish --available
 git tag -a $releaseTag -m "Open Pile Plan Studio $releaseTag"
 git push origin $releaseTag
 ```
 
-The release workflow runs the Rust and frontend tests, builds the NSIS Windows
-installer, signs it through Azure Artifact Signing, and verifies that Windows
-recognizes `Impertio Studio B.V.` as its publisher. A failed build, missing
-secret, or invalid signature stops the workflow before release creation.
-
-Before creating a draft, the workflow silently installs the signed installer on
-its disposable Windows runner, verifies the installed version and running
-executable path, and checks that the app starts WebView2 and remains running.
-The workflow summary records the signature, SHA-256 hash, installation, and
-launch results. This check does not interact with the developer's desktop.
-
-Successful builds are attached to a draft release. Download the installer and
-verify its product version, Authenticode signature/publisher, and SHA-256 hash
-against the workflow summary before publishing it as a public prerelease.
-The automated launch check covers startup; manually verify native file dialogs
-and other desktop interactions in a suitable Windows test environment when
-those behaviors change.
-
-Replace generated notes with the prepared release notes, then publish the draft
-(the example assumes GitHub CLI and a notes file containing only this release):
+Never reuse or move an existing release tag. Check the workflow summary and
+downloaded installer's product version, Authenticode publisher and SHA-256 hash.
+The runner checks installation and startup; manually check relevant native
+interactions as well. Replace generated notes with the prepared release notes.
+Immediately before publishing, from the exact tagged source, run:
 
 ```powershell
+node tools/release.mjs check --tag $releaseTag --publish
 gh release edit $releaseTag --notes-file target/release-notes.md --prerelease --draft=false
 ```
 
-Finally verify the public release page and downloadable signed asset, and check
-that the independent site workflow succeeded. The application version is
-`X.Y.Z`; the public alpha tag includes the `v` prefix and `-alpha` suffix.
+If publication has moved to another ISO week, prepare a new version, build and
+tag. Leave the old tag unchanged and the old draft unpublished. Historical
+consistency checks and rebuilds deliberately do not check today's week.
+
+Finally verify the public release and signed download. Browser deployment and
+the product website/download links are independent publication steps described
+above; a successful Windows release does not establish that they are updated.
 
 The repository requires access to these OpenAEC GitHub Actions secrets:
 

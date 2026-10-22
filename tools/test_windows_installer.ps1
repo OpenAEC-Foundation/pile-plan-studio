@@ -1,6 +1,7 @@
 param(
     [Parameter(Mandatory = $true)][string]$InstallerPath,
-    [Parameter(Mandatory = $true)][string]$ExpectedVersion
+    [Parameter(Mandatory = $true)][string]$ExpectedVersion,
+    [switch]$UnsignedProof
 )
 
 $ErrorActionPreference = 'Stop'
@@ -15,11 +16,12 @@ if ($installer.VersionInfo.ProductVersion -notmatch $versionPattern) {
     throw "Unexpected installer version: $($installer.VersionInfo.ProductVersion)"
 }
 $signature = Get-AuthenticodeSignature -LiteralPath $installer.FullName
-if ($signature.Status -ne 'Valid' -or
-    $signature.SignerCertificate.Subject -notmatch 'Impertio Studio B\.V\.') {
+if (-not $UnsignedProof -and ($signature.Status -ne 'Valid' -or
+    $signature.SignerCertificate.Subject -notmatch 'Impertio Studio B\.V\.')) {
     throw 'The installer must have a valid Impertio Studio B.V. signature.'
 }
 $hash = (Get-FileHash -LiteralPath $installer.FullName -Algorithm SHA256).Hash
+$signatureSummary = if ($UnsignedProof) { 'unsigned workflow proof; not a signed release' } else { 'valid, Impertio Studio B.V.' }
 $installDirectory = Join-Path $env:RUNNER_TEMP 'pile-plan-studio-smoke'
 if (Test-Path -LiteralPath $installDirectory) {
     throw "Smoke-test destination already exists: $installDirectory"
@@ -57,7 +59,7 @@ try {
     @"
 ### Windows installer smoke test
 - Version: $ExpectedVersion
-- Signature: valid, Impertio Studio B.V.
+- Signature: $signatureSummary
 - SHA-256: $hash
 - Silent installation: passed
 - Launch: passed; installed executable started WebView2 and remained running

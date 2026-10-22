@@ -22,7 +22,7 @@
   },
   "bundle": {
     "active": true,
-    "targets": "all",
+    "targets": ["nsis"],
     "fileAssociations": [
       {
         "ext": ["ifcpp"],
