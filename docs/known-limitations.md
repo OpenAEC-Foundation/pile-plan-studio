@@ -40,8 +40,16 @@ intentional and should be considered when evaluating its results.
   and falls back to the first two worksheets for traditional RFEM exports. The
   profile joins coordinates and reactions by node number.
 - RFEM design loads currently use the minimum PZ envelope value, supporting the
-  `Min PZ'`, `Min PZ`, and `Min` row variants. Selecting another force component
-  or result rule is not yet supported.
+  `Min PZ'`, `Min PZ`, and `Min` row variants and the RFEM 6 component-envelope
+  layout with two `Pz` rows per node. The latter requires a complete pair and
+  ignores per-node extremes and the Dutch/English overall max/min summary,
+  including an unlabelled twelve-row summary following the final node's extremes.
+  Coordinates and reactions must share one workbook. The RFEM 6 Cartesian
+  coordinate layout uses global X/Y in columns I/J, with or without headers.
+  Additional support-type tables are ignored; only nodes present in both the
+  coordinate and reaction tables are imported. Missing results cannot be
+  reconstructed from support definitions.
+  Selecting another force component or result rule is not yet supported.
 - Empty foundation-advice values are imported as missing data and produce
   warnings.
 - CPTs without coordinates are ignored when reconciling foundation advice.
