@@ -3,9 +3,8 @@ use std::collections::HashMap;
 use crate::{PilePlanProject, ProjectImportLogEntry, ProjectLoadPoint};
 
 use super::{
-    available_profiles, build_imported_project, capacity_columns, import_warnings,
-    parse_bearing_capacities_with_diagnostics, parse_cpts, parse_load_points, provenance_entry,
-    read_source_table,
+    available_profiles, build_imported_project, parse_bearing_capacities_with_diagnostics,
+    parse_cpts, parse_load_points, provenance_entry, read_source_table,
     rfem::{analyze_rfem_load_points, detect_rfem_sheets},
     source_for_role,
     table::read_xlsx_tables,
@@ -15,11 +14,41 @@ use super::{
 };
 
 pub fn preview_import_source(source: &ImportSource) -> ImportSourcePreview {
+    if source.role == ImportRole::BearingCapacities {
+        let mut discovery = super::preview_advice_source(source);
+        if source.format == SourceFormat::Csv {
+            discovery
+                .diagnostics
+                .extend(discovery.sheets.iter().flat_map(|s| s.diagnostics.clone()));
+        }
+        let requested = source.profile;
+        return ImportSourcePreview {
+            role: source.role,
+            requested_profile: requested,
+            detected_profile: discovery
+                .sheets
+                .iter()
+                .find_map(|s| s.detected_profile)
+                .unwrap_or(ImportProfile::StandardTable),
+            resolved_profile: if discovery.sheets.len() == 1 {
+                discovery.sheets[0].resolved_profile
+            } else {
+                None
+            },
+            available_profiles: available_profiles(source.role, source.format),
+            resolved_options: source.profile_options.clone(),
+            item_count: discovery.sheets.iter().map(|s| s.summary.item_count).sum(),
+            diagnostics: discovery.diagnostics.clone(),
+            details: Some(ImportPreviewDetails::FoundationAdvice(discovery)),
+        };
+    }
     let available = available_profiles(source.role, source.format);
     let resolved = resolve_profile(source);
     match resolved {
         Ok(ImportProfile::RfemExport) => preview_rfem_source(source, available),
-        Ok(ImportProfile::StandardTable) => preview_standard_source(source, available),
+        Ok(ImportProfile::CapacityColumns) | Ok(ImportProfile::StandardTable) => {
+            preview_standard_source(source, available)
+        }
         Ok(ImportProfile::Auto) => unreachable!("automatic profile must resolve"),
         Err(message) => ImportSourcePreview {
             role: source.role,
@@ -46,40 +75,41 @@ pub fn import_project_from_sources(
 ) -> Result<PilePlanProject, ImportError> {
     let load_source = source_for_role(sources, ImportRole::LoadPoints)?;
     let cpt_source = source_for_role(sources, ImportRole::Cpts)?;
-    let capacity_source = source_for_role(sources, ImportRole::BearingCapacities)?;
+    if sources.iter().any(|s| {
+        matches!(
+            s.advice_operation,
+            Some(super::AdviceImportOperation::Replace { .. })
+        )
+    }) {
+        return Err(ImportError::Validation(
+            "No existing advice to replace".into(),
+        ));
+    }
+    let mut advice = super::advice::analyze_advice_sources(sources)?;
+    if advice.logs.is_empty() {
+        return Err(ImportError::Validation(
+            "Select at least one foundation advice table".into(),
+        ));
+    }
 
     let (load_points, load_log) = parse_load_source(load_source)?;
     let cpt_table = read_source_table(&cpt_source.file_name, cpt_source.format, &cpt_source.bytes)?;
     let cpts = parse_cpts(&cpt_table)?;
-    let capacity_table = read_source_table(
-        &capacity_source.file_name,
-        capacity_source.format,
-        &capacity_source.bytes,
-    )?;
-    let capacity_parse = parse_bearing_capacities_with_diagnostics(&capacity_table)?;
-    let reconciliation =
-        super::reconcile_imported_inputs(&load_points, &cpts, capacity_parse.bearing_capacities)?;
-
+    let reconciliation = super::reconcile_imported_inputs(&load_points, &cpts, advice.values)?;
     let mut cpt_log = provenance_entry(cpt_source, cpt_table.sheet_name, super::cpt_columns());
     cpt_log.source_profile = Some(ImportProfile::StandardTable);
-    let mut capacity_log = provenance_entry(
-        capacity_source,
-        capacity_table.sheet_name.clone(),
-        capacity_columns(),
-    );
-    capacity_log.source_profile = Some(ImportProfile::StandardTable);
-    capacity_log.warnings = import_warnings(
-        &capacity_table,
-        &capacity_parse.empty_frd_rows,
-        &reconciliation,
-    );
+    advice.logs[0]
+        .warnings
+        .extend(super::reconciliation_warnings(&reconciliation));
+    let mut logs = vec![load_log, cpt_log];
+    logs.extend(advice.logs);
 
     build_imported_project(
         project_name.to_string(),
         load_points,
         cpts,
         reconciliation.bearing_capacities,
-        vec![load_log, cpt_log, capacity_log],
+        logs,
         pile_head_level_m,
         currency_code,
     )
@@ -128,6 +158,9 @@ pub(crate) fn parse_load_source(
                 },
             ))
         }
+        ImportProfile::CapacityColumns => Err(ImportError::Validation(
+            "Capacity columns requires an advice source".into(),
+        )),
         ImportProfile::Auto => unreachable!("automatic profile must resolve"),
     }
 }
@@ -197,6 +230,7 @@ fn preview_rfem_source(
         source.profile_options.reaction_sheet.as_deref(),
     );
     let resolved_options = ImportProfileOptions {
+        advice_sheets: None,
         coordinate_sheet: selected_coordinate_sheet.clone(),
         reaction_sheet: selected_reaction_sheet.clone(),
     };
@@ -271,6 +305,9 @@ fn resolve_profile(source: &ImportSource) -> Result<ImportProfile, String> {
             }
             _ => Ok(ImportProfile::StandardTable),
         },
+        ImportProfile::CapacityColumns => {
+            Err("Capacity columns requires an XLSX foundation advice source".into())
+        }
         ImportProfile::RfemExport
             if source.role != ImportRole::LoadPoints || source.format != SourceFormat::Xlsx =>
         {
@@ -489,7 +526,7 @@ fn import_error_diagnostic(error: ImportError) -> ImportDiagnostic {
     }
 }
 
-fn error_diagnostic(code: ImportDiagnosticCode, message: String) -> ImportDiagnostic {
+pub(super) fn error_diagnostic(code: ImportDiagnosticCode, message: String) -> ImportDiagnostic {
     ImportDiagnostic {
         severity: ImportDiagnosticSeverity::Error,
         code,
@@ -639,7 +676,7 @@ mod tests {
                 xlsx_source(
                     ImportRole::BearingCapacities,
                     "Draagvermogens.xlsx",
-                    include_bytes!("../../../../sample_project/Draagvermogens.xlsx"),
+                    &super::super::test_support::capacity_workbook(),
                 ),
             ],
             None,
@@ -664,7 +701,7 @@ mod tests {
                 xlsx_source(
                     ImportRole::BearingCapacities,
                     "Draagvermogens.xlsx",
-                    include_bytes!("../../../../sample_project/Draagvermogens.xlsx"),
+                    &super::super::test_support::capacity_workbook(),
                 ),
             ],
             None,
@@ -700,7 +737,7 @@ mod tests {
                 xlsx_source(
                     ImportRole::BearingCapacities,
                     "Draagvermogens.xlsx",
-                    include_bytes!("../../../../sample_project/Draagvermogens.xlsx"),
+                    &super::super::test_support::capacity_workbook(),
                 ),
             ],
             None,
@@ -735,6 +772,8 @@ mod tests {
 
     fn rfem_auto_source() -> ImportSource {
         ImportSource {
+            advice_operation: None,
+            source_id: None,
             role: ImportRole::LoadPoints,
             profile: ImportProfile::Auto,
             profile_options: ImportProfileOptions::default(),
@@ -746,6 +785,8 @@ mod tests {
 
     fn csv_source(role: ImportRole, file_name: &str, contents: &str) -> ImportSource {
         ImportSource {
+            advice_operation: None,
+            source_id: None,
             role,
             profile: ImportProfile::Auto,
             profile_options: ImportProfileOptions::default(),
@@ -757,6 +798,8 @@ mod tests {
 
     fn xlsx_source(role: ImportRole, file_name: &str, contents: &[u8]) -> ImportSource {
         ImportSource {
+            advice_operation: None,
+            source_id: None,
             role,
             profile: ImportProfile::Auto,
             profile_options: ImportProfileOptions::default(),

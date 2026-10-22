@@ -1,14 +1,18 @@
+import { fromCoreAdviceSourcePreview, type AdviceImportOperation, type AdviceSheetSelection, type AdviceSourcePreview, type CoreAdviceSourcePreview } from "./adviceImportContract.ts";
 import type { ImportFileRole } from "./importFiles.ts";
 import type { PileTipLevelPrecisionReason } from "./projectDocumentContract.ts";
 
-export type ImportProfile = "auto" | "standard-table" | "rfem-export";
+export type ImportProfile = "auto" | "standard-table" | "rfem-export" | "capacity-columns";
 
 export type ImportProfileOptions = {
+  adviceSheets?: AdviceSheetSelection[] | null;
   coordinateSheet: string | null;
   reactionSheet: string | null;
 };
 
 export type ImportSourceInput = {
+  sourceId?: string;
+  adviceOperation?: AdviceImportOperation;
   role: ImportFileRole;
   profile: ImportProfile;
   profileOptions: ImportProfileOptions;
@@ -19,9 +23,12 @@ export type ImportSourceInput = {
 
 export function toCoreImportSource(source: ImportSourceInput) {
   return {
+    ...(source.sourceId === undefined ? {} : { source_id: source.sourceId }),
+    ...(source.adviceOperation === undefined ? {} : {advice_operation: source.adviceOperation.kind === "append" ? {kind:"append"} : {kind:"replace",advice_id:source.adviceOperation.adviceId}}),
     role: source.role,
     profile: source.profile,
     profile_options: {
+      ...(source.profileOptions.adviceSheets === undefined ? {} : { advice_sheets: source.profileOptions.adviceSheets?.map(s => ({ sheet_name: s.sheetName, profile: s.profile })) ?? null }),
       coordinate_sheet: source.profileOptions.coordinateSheet,
       reaction_sheet: source.profileOptions.reactionSheet,
     },
@@ -61,6 +68,7 @@ export type ImportPileTipLevelDiagnostic = {
 };
 
 export type ImportPreviewDetails =
+  | { kind: "foundation-advice"; advice: AdviceSourcePreview }
   | { kind: "standard-table"; sheetName: string | null }
   | {
       kind: "rfem-export";
@@ -83,13 +91,14 @@ export type ImportSourcePreview = {
   details: ImportPreviewDetails | null;
 };
 
-type CoreImportSourcePreview = {
+export type CoreImportSourcePreview = {
   role: ImportFileRole;
   requested_profile: ImportProfile;
   detected_profile: ImportProfile;
   resolved_profile: ImportProfile | null;
   available_profiles: ImportProfile[];
   resolved_options: {
+    advice_sheets?: Array<{ sheet_name: string; profile: ImportProfile }> | null;
     coordinate_sheet: string | null;
     reaction_sheet: string | null;
   };
@@ -111,6 +120,7 @@ type CoreImportSourcePreview = {
     fallback_message: string;
   }>;
   details:
+    | ({ kind: "foundation-advice" } & CoreAdviceSourcePreview)
     | { kind: "standard-table"; sheet_name: string | null }
     | {
         kind: "rfem-export";
@@ -131,26 +141,12 @@ export function fromCoreImportSourcePreview(preview: CoreImportSourcePreview): I
     resolvedProfile: preview.resolved_profile,
     availableProfiles: preview.available_profiles,
     resolvedOptions: {
+      ...(preview.resolved_options.advice_sheets === undefined ? {} : { adviceSheets: preview.resolved_options.advice_sheets?.map(s => ({ sheetName: s.sheet_name, profile: s.profile })) ?? null }),
       coordinateSheet: preview.resolved_options.coordinate_sheet,
       reactionSheet: preview.resolved_options.reaction_sheet,
     },
     itemCount: preview.item_count,
-    diagnostics: preview.diagnostics.map((diagnostic) => ({
-      severity: diagnostic.severity,
-      code: diagnostic.code,
-      count: diagnostic.count,
-      nodeIds: diagnostic.node_ids,
-      loadPointNames: diagnostic.load_point_names ?? [],
-      xMm: diagnostic.x_mm ?? null,
-      yMm: diagnostic.y_mm ?? null,
-      location: diagnostic.location ? fromCoreDiagnosticLocation(diagnostic.location) : null,
-      tipLevelValues: (diagnostic.pile_tip_levels ?? []).map((item) => ({
-        value: item.value,
-        reason: item.reason,
-        location: fromCoreDiagnosticLocation(item.location),
-      })),
-      fallbackMessage: diagnostic.fallback_message,
-    })),
+    diagnostics: preview.diagnostics.map(fromCoreImportDiagnostic),
     details: fromCorePreviewDetails(preview.details),
   };
 }
@@ -179,6 +175,7 @@ function fromCorePreviewDetails(
   details: CoreImportSourcePreview["details"],
 ): ImportPreviewDetails | null {
   if (!details) return null;
+  if (details.kind === "foundation-advice") return { kind: details.kind, advice: fromCoreAdviceSourcePreview(details) };
   if (details.kind === "standard-table") {
     return { kind: details.kind, sheetName: details.sheet_name };
   }
@@ -191,3 +188,21 @@ function fromCorePreviewDetails(
     loadRule: details.load_rule,
   };
 }
+
+export type CoreImportDiagnostic = CoreImportSourcePreview["diagnostics"][number];
+export function fromCoreImportDiagnostic(diagnostic: CoreImportDiagnostic): ImportDiagnostic { return {
+      severity: diagnostic.severity,
+      code: diagnostic.code,
+      count: diagnostic.count,
+      nodeIds: diagnostic.node_ids,
+      loadPointNames: diagnostic.load_point_names ?? [],
+      xMm: diagnostic.x_mm ?? null,
+      yMm: diagnostic.y_mm ?? null,
+      location: diagnostic.location ? fromCoreDiagnosticLocation(diagnostic.location) : null,
+      tipLevelValues: (diagnostic.pile_tip_levels ?? []).map((item) => ({
+        value: item.value,
+        reason: item.reason,
+        location: fromCoreDiagnosticLocation(item.location),
+      })),
+      fallbackMessage: diagnostic.fallback_message,
+    }; }

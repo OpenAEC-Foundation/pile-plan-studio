@@ -414,6 +414,14 @@ Changes to the project while validation is running invalidate the staged
 result. A converted CSV may still contain invalid engineering data; only a
 `ready` status means Rust accepted the complete import.
 
+Bearing-capacity CSV validation rejects different resistance values for the
+same CPT, pile size, and millimetre tip level before discarding unknown CPTs.
+Identical values are deduplicated. Failed validation exposes the conflicting
+values and source locations and cannot be applied. The CSV requirements remain
+version 1. MCP retains one converted CSV per role; refreshing its advice role
+replaces the advice collection. The interface additionally supports separate
+Excel advice files, worksheet selection, and per-advice append/replace actions.
+
 ## Existing pile plans, files, and comparison
 
 Use `pile_get_pile_plan_import_requirements` for the Rust-defined standard-table

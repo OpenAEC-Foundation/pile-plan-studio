@@ -1,3 +1,4 @@
+import { selectedAdviceSources, type AdviceDraft } from "./adviceImportModel.ts";
 import type {
   ImportProfile,
   ImportProfileOptions,
@@ -22,7 +23,7 @@ export type ImportRoleDraft<TFile extends NamedImportFile> = {
 export type ImportDrafts<TFile extends NamedImportFile> = Record<
   ImportFileRole,
   ImportRoleDraft<TFile>
->;
+> & { advice?: AdviceDraft<TFile> };
 
 export type ProjectImportMode = "new-project" | "refresh";
 
@@ -33,7 +34,7 @@ const EMPTY_OPTIONS: ImportProfileOptions = {
 };
 
 export function createEmptyImportDrafts<TFile extends NamedImportFile>(): ImportDrafts<TFile> {
-  return Object.fromEntries(ROLES.map((role) => [role, emptyDraft<TFile>(role)])) as ImportDrafts<TFile>;
+  return { "load-points": emptyDraft<TFile>("load-points"), cpts: emptyDraft<TFile>("cpts"), "bearing-capacities": emptyDraft<TFile>("bearing-capacities") };
 }
 
 export function setImportFile<TFile extends NamedImportFile>(
@@ -120,6 +121,13 @@ export function canSubmitProjectImport(
   drafts: ImportDrafts<NamedImportFile>,
   mode: ProjectImportMode,
 ): boolean {
+  if (drafts.advice) {
+    const roles: ImportFileRole[] = mode === "new-project" ? ["load-points", "cpts"] : (["load-points", "cpts"] as ImportFileRole[]).filter(r => drafts[r].file);
+    const preview = drafts.advice.previewState;
+    return roles.every(role => isReady(drafts[role])) && preview.status === "ready" && preview.preview.canApply
+      && (mode === "refresh" || selectedAdviceSources(drafts.advice).length > 0)
+      && drafts.advice.sources.filter(s => s.selected).every(s => s.discovery.status === "ready");
+  }
   const roles = mode === "new-project"
     ? ROLES
     : ROLES.filter((role) => drafts[role].file !== null);
@@ -132,7 +140,7 @@ export function shouldWarnAboutMissingFoundationAdvice(
 ): boolean {
   return mode === "refresh"
     && drafts.cpts.file !== null
-    && drafts["bearing-capacities"].file === null;
+    && (drafts.advice ? selectedAdviceSources(drafts.advice).length === 0 : drafts["bearing-capacities"].file === null);
 }
 
 export type ProjectImportProperties = {

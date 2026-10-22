@@ -133,3 +133,16 @@ test("an unsupported selected file is rejected before a request can be delivered
   await assert.rejects(prepareProjectImportRequest({ drafts, mode: "refresh", projectName: "",
     pileHeadLevelM: null, currencyCode: "EUR" }), /Unsupported file format: cpts.txt/);
 });
+import { prepareProjectImportSources } from "./projectImportRequest.ts";
+import { addAdviceSource, createEmptyAdviceDraft, replaceStoredAdvice } from "../../domain/imports/adviceImportModel.ts";
+import { toCoreImportSource } from "../../core/coreImportContract.ts";
+
+test("refresh distinguishes appending a file from replacing a stored advice", async () => {
+  let advice=addAdviceSource(createEmptyAdviceDraft<File>(),"extra",new File(["1,-20,290,700"],"extra.csv"));
+  advice=replaceStoredAdvice(advice,"stored-a",new File(["1,-18,290,600"],"replacement.csv"));
+  const drafts={...createEmptyImportDrafts<File>(),advice};
+  const refresh=await prepareProjectImportSources(drafts,"refresh");
+  assert.deepEqual(refresh.map(s=>s.adviceOperation),[{kind:"append"},{kind:"replace",adviceId:"stored-a"}]);
+  assert.deepEqual(toCoreImportSource(refresh[1]).advice_operation,{kind:"replace",advice_id:"stored-a"});
+  assert.ok((await prepareProjectImportSources(drafts,"new-project")).every(s=>s.adviceOperation===undefined));
+});

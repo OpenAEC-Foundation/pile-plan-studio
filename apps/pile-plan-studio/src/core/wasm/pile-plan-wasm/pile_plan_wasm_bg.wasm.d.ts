@@ -25,6 +25,7 @@ export const import_project_from_files: (a: any) => [number, number, number];
 export const preview_import_file: (a: any) => [number, number, number];
 export const preview_load_point_group_edit: (a: any) => [number, number, number];
 export const preview_pile_plan_import_file: (a: any) => [number, number, number];
+export const preview_project_import_files: (a: any) => [number, number, number];
 export const read_project_document: (a: any) => [number, number, number];
 export const refresh_project_from_files: (a: any) => [number, number, number];
 export const validate_load_point_lock_batch: (a: any) => [number, number, number];

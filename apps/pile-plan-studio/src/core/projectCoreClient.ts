@@ -1,6 +1,8 @@
+import { fromCoreProjectImportPreview, sourceImportErrorFromUnknown, type CoreProjectImportPreview, type ProjectImportPreview } from "./adviceImportContract.ts";
 import initWasm, {
   import_project_from_files,
   preview_import_file,
+  preview_project_import_files,
   read_project_document,
   refresh_project_from_files,
   write_project_document,
@@ -34,6 +36,7 @@ export async function importProjectFromFilesCore(input: {
   currencyCode: string;
   sources: ImportSourceInput[];
 }): Promise<Extract<ProjectDocumentOutcome, { status: "valid" }>> {
+  try {
   const request = {
     project_name: input.projectName,
     pile_head_level_m: input.pileHeadLevelM,
@@ -49,12 +52,14 @@ export async function importProjectFromFilesCore(input: {
   return validProjectDocumentFromCore(
     await invokeDesktop<CoreValidatedProjectDocument>("import_project_from_files", { request }),
   );
+  } catch (error) { throw sourceImportErrorFromUnknown(error) ?? error; }
 }
 
 export async function refreshProjectFromFilesCore(input: {
   currentProject: IfcppProject;
   sources: ImportSourceInput[];
 }): Promise<Extract<ProjectDocumentOutcome, { status: "valid" }>> {
+  try {
   const sources = input.sources.map(toCoreImportSource);
   if (!isTauriRuntime()) {
     await ensureWasm();
@@ -70,6 +75,7 @@ export async function refreshProjectFromFilesCore(input: {
       request: { current_project: input.currentProject, sources },
     }),
   );
+  } catch (error) { throw sourceImportErrorFromUnknown(error) ?? error; }
 }
 
 export async function readProjectDocumentCore(contents: string): Promise<ProjectDocumentOutcome> {
@@ -152,4 +158,10 @@ function toWasmIfcppProject(project: IfcppProject) {
     },
     user_state: userState,
   };
+}
+
+export async function previewProjectImportCore(input: {sources: ImportSourceInput[];currentProject: IfcppProject | null}): Promise<ProjectImportPreview> {
+    const request={sources:input.sources.map(toCoreImportSource),current_project:input.currentProject ? (isTauriRuntime() ? input.currentProject : toWasmIfcppProject(input.currentProject)) : null};
+    if (!isTauriRuntime()) {await ensureWasm();return fromCoreProjectImportPreview(preview_project_import_files(request) as CoreProjectImportPreview);}
+    return fromCoreProjectImportPreview(await invokeDesktop<CoreProjectImportPreview>("preview_project_import_files",{request}));
 }

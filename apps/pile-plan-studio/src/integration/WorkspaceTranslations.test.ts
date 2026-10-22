@@ -416,3 +416,12 @@ it("describes two additive neighbor weights in both languages",()=>{
     assert.doesNotMatch(copy.sectionSummary.weights,/both/);
   }
 });
+
+it("translates advice selection, blocking conflicts and pagination in both languages",()=>{
+  for(const language of ["nl","en"]) {
+    const copy=JSON.parse(readFileSync(resolve(import.meta.dirname,`../i18n/locales/${language}/common.json`),"utf8")).importProject;
+    for(const key of ["addAdvice","details","existing","additional","replaceHelp","appendHelp","legacy","legacyHelp","storedValue","requiresLoadPointsAndCpts","requiresLoadPoints","requiresCpts","assumptions","chooseSheets","conflicts","conflictHelp","next","previous","page","unitsAndRange"]) assert.ok(copy.advice[key]?.trim(),`${language}: ${key}`);
+    assert.ok(copy.profile.capacityColumns?.trim());
+    assert.match(copy.advice.conflicts,/{{count}}/);assert.match(copy.advice.page,/{{page}}/);assert.match(copy.advice.page,/{{pages}}/);
+  }
+});

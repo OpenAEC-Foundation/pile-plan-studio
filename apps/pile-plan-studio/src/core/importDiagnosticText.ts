@@ -29,7 +29,7 @@ export function importDiagnosticText(
     })
     .join("; ");
 
-  return t(`importProject.diagnostics.${diagnostic.code}`, {
+  const message = t(`importProject.diagnostics.${diagnostic.code}`, {
     count: diagnostic.count,
     locations,
     values,
@@ -37,4 +37,13 @@ export function importDiagnosticText(
     y: diagnostic.yMm,
     defaultValue: diagnostic.fallbackMessage,
   });
+  const location=diagnostic.location;
+  if (!location) return message;
+  const source=[location.fileName,
+    location.sheetName ? t("importProject.diagnostics.sourceSheet",{sheet:location.sheetName}) : null,
+    location.row !== null ? t("importProject.diagnostics.sourceRow",{row:location.row}) : null,
+    location.column !== null ? t("importProject.diagnostics.sourceColumn",{column:location.column}) : null,
+  ].filter(Boolean).join(", ");
+  return `${message} (${source})`;
+
 }

@@ -103,3 +103,9 @@ pub struct TipLevelRegionTopologyRequest {
 pub struct PileCostResponse {
     pub cost: Option<u32>,
 }
+
+#[derive(Debug, Deserialize)]
+pub struct PreviewProjectImportRequest {
+    pub sources: Vec<ImportSource>,
+    pub current_project: Option<PilePlanProject>,
+}

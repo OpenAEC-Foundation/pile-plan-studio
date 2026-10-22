@@ -1424,6 +1424,7 @@ mod numeric_characterization_tests {
                 }
             }
             let table = SourceTable {
+                formula_cells: Default::default(),
                 file_name: "numbers.csv".into(),
                 sheet_name: Some("Sheet1".into()),
                 rows: vec![crate::import::SourceRow {

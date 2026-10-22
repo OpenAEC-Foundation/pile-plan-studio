@@ -171,16 +171,16 @@ fn assess_technical_assignment(
 #[tauri::command(rename_all = "snake_case")]
 fn import_project_from_files(
     request: ImportProjectRequest,
-) -> Result<ValidatedPilePlanProject, String> {
+) -> Result<ValidatedPilePlanProject, pile_plan_core::SourceImportFailure> {
     let project = import_project_from_sources(
         &request.project_name,
         &request.sources,
         request.pile_head_level_m,
         &request.currency_code,
     )
-    .map_err(|error| error.to_string())?;
+    .map_err(|error| error.to_source_import_failure())?;
     let tip_level_keys =
-        validate_project_tip_levels(&project).map_err(|error| error.to_string())?;
+        validate_project_tip_levels(&project).map_err(|error| pile_plan_core::SourceImportFailure{unique_value_count:0,exact_duplicate_count:0,message:error.to_string(),diagnostics:vec![],conflicts:vec![]})?;
     Ok(ValidatedPilePlanProject {
         project,
         tip_level_keys,
@@ -190,11 +190,11 @@ fn import_project_from_files(
 #[tauri::command(rename_all = "snake_case")]
 fn refresh_project_from_files(
     request: RefreshProjectRequest,
-) -> Result<ValidatedPilePlanProject, String> {
+) -> Result<ValidatedPilePlanProject, pile_plan_core::SourceImportFailure> {
     let project = refresh_project_from_profiled_sources(&request.current_project, &request.sources)
-        .map_err(|error| error.to_string())?;
+        .map_err(|error| error.to_source_import_failure())?;
     let tip_level_keys =
-        validate_project_tip_levels(&project).map_err(|error| error.to_string())?;
+        validate_project_tip_levels(&project).map_err(|error| pile_plan_core::SourceImportFailure{unique_value_count:0,exact_duplicate_count:0,message:error.to_string(),diagnostics:vec![],conflicts:vec![]})?;
     Ok(ValidatedPilePlanProject {
         project,
         tip_level_keys,
@@ -422,6 +422,7 @@ fn main() {
             import_project_from_files,
             refresh_project_from_files,
             preview_import_file,
+            preview_project_import_files,
             get_standard_csv_requirements,
             get_pile_plan_import_requirements,
             preview_pile_plan_import_file,
@@ -610,4 +611,9 @@ mod tests {
                 if changes.len() == 2
         ));
     }
+}
+
+#[tauri::command(rename_all="snake_case")]
+fn preview_project_import_files(request: pile_plan_core::PreviewProjectImportRequest) -> pile_plan_core::ProjectImportPreview {
+    pile_plan_core::preview_project_import(&request)
 }

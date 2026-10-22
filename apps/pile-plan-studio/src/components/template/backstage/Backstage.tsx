@@ -1,3 +1,4 @@
+import type { ProjectImportPreview } from "../../../core/adviceImportContract.ts";
 import { useState, useEffect } from "react";
 import { flushSync } from "react-dom";
 import { useTranslation } from "react-i18next";
@@ -66,6 +67,8 @@ interface BackstageProps {
   onOpenSettings: () => void;
   onOpenFile?: (path: string) => void;
   onImportProject: (mode: ProjectImportMode, projectName: string | null, sources: ImportSourceInput[], properties: ProjectImportProperties | null) => Promise<ImportSummary | null>;
+  onPreviewProjectImport?: (mode: ProjectImportMode, sources: ImportSourceInput[]) => Promise<ProjectImportPreview>;
+  importPreviewContextKey?: string;
   defaultCurrencyCode: string;
   loadPoints: LoadPoint[];
   cpts: Cpt[];
@@ -84,7 +87,7 @@ interface BackstageProps {
   initialImportSource?: { role: ImportFileRole; file: File } | null;
 }
 
-export default function Backstage({ open, onClose, onOpenSettings, onOpenFile, onImportProject, defaultCurrencyCode, loadPoints, cpts, availablePileConfigurations, activePilePlanName, onImportPilePlan, onOpenProjectFile, onOpenSampleProject, onDownloadProject, onExportPilePlanXlsx, onExportPilePlanCsv, onChooseDesktopProject, onSaveProject, onSaveProjectAs, commands, initialImportSource = null }: BackstageProps) {
+export default function Backstage({ open, onClose, onOpenSettings, onOpenFile, onImportProject, onPreviewProjectImport, importPreviewContextKey, defaultCurrencyCode, loadPoints, cpts, availablePileConfigurations, activePilePlanName, onImportPilePlan, onOpenProjectFile, onOpenSampleProject, onDownloadProject, onExportPilePlanXlsx, onExportPilePlanCsv, onChooseDesktopProject, onSaveProject, onSaveProjectAs, commands, initialImportSource = null }: BackstageProps) {
   const { t } = useTranslation("backstage");
   const [activePanel, setActivePanel] = useState<string>("none");
   const { recentFiles, removeRecentFile, clearRecentFiles } = useRecentFiles();
@@ -218,7 +221,7 @@ export default function Backstage({ open, onClose, onOpenSettings, onOpenFile, o
             />
           )}
           {activePanel === "about" && <AboutPanel />}
-          {activePanel === "import" && <ProjectImportPanel defaultCurrencyCode={defaultCurrencyCode} initialSource={initialImportSource} onImportProject={async (mode, name, sources, properties) => {
+          {activePanel === "import" && <ProjectImportPanel onPreviewProjectImport={onPreviewProjectImport} importPreviewContextKey={importPreviewContextKey} defaultCurrencyCode={defaultCurrencyCode} initialSource={initialImportSource} onImportProject={async (mode, name, sources, properties) => {
             return onImportProject(mode, name, sources, properties);
           }} />}
           {activePanel === "pile-plan-import" && (

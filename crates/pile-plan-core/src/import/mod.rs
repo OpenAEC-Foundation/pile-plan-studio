@@ -9,7 +9,16 @@ use std::fmt;
 
 use serde::{Deserialize, Serialize};
 
+mod advice;
+mod advice_contract;
+mod advice_merge;
+mod advice_refresh;
+mod capacity_columns;
 mod numeric;
+#[cfg(test)]
+mod test_support;
+pub use advice::{preview_advice_source, preview_project_import};
+pub use advice_contract::*;
 mod pipeline;
 mod profile;
 mod refresh;
@@ -68,7 +77,7 @@ pub fn standard_csv_requirements() -> serde_json::Value {
         ],
         "new_project_required_roles": ["load-points","cpts","bearing-capacities"],
         "refresh_required_roles": "one or more of the three roles",
-        "notes": ["IDs must be unique within load points and CPTs", "An empty FRD cell skips that advice row with a warning", "The importer validates engineering relationships after parsing"]
+        "notes": ["IDs must be unique within load points and CPTs", "An empty FRD cell skips that advice row with a warning", "The importer validates engineering relationships after parsing", "Bearing capacities use (CPT ID, Size, Tip in whole mm) as a key; identical values deduplicate and different values block the entire import before unknown CPTs are filtered"]
     })
 }
 
@@ -83,6 +92,8 @@ mod standard_csv_contract_tests {
         assert_eq!(spec["roles"].as_array().unwrap().len(), 3);
         for role in spec["roles"].as_array().unwrap() {
             let source = ImportSource {
+                advice_operation: None,
+                source_id: None,
                 role: serde_json::from_value(role["role"].clone()).unwrap(),
                 profile: ImportProfile::StandardTable,
                 profile_options: ImportProfileOptions::default(),
@@ -110,6 +121,10 @@ pub enum ImportRole {
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct ImportSource {
+    #[serde(default)]
+    pub advice_operation: Option<AdviceImportOperation>,
+    #[serde(default)]
+    pub source_id: Option<String>,
     pub role: ImportRole,
     #[serde(default)]
     pub profile: ImportProfile,
@@ -122,6 +137,7 @@ pub struct ImportSource {
 
 #[derive(Debug)]
 pub enum ImportError {
+    Advice(SourceImportFailure),
     Csv {
         file_name: String,
         message: String,
@@ -171,6 +187,7 @@ pub struct InvalidSourcePileTipLevel {
 impl fmt::Display for ImportError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            Self::Advice(error) => formatter.write_str(&error.message),
             Self::Csv { file_name, message } => {
                 write!(formatter, "{file_name}: invalid CSV data: {message}")
             }
@@ -429,31 +446,12 @@ fn reconciliation_warnings(reconciliation: &ImportReconciliation) -> Vec<String>
             reconciliation.deduplicated_rows
         ));
     }
-    if reconciliation.conflicting_duplicate_keys > 0 {
-        warnings.push(format!(
-            "Selected the lowest FRD for {} conflicting duplicate bearing-capacity key(s)",
-            reconciliation.conflicting_duplicate_keys
-        ));
-    }
     if !reconciliation.cpt_ids_without_capacities.is_empty() {
         warnings.push(format!(
             "CPTs without bearing capacities: {}. Pile options using these CPTs will be Missing.",
             join_ids(&reconciliation.cpt_ids_without_capacities)
         ));
     }
-    warnings
-}
-
-fn import_warnings(
-    capacity_table: &SourceTable,
-    empty_frd_rows: &[usize],
-    reconciliation: &ImportReconciliation,
-) -> Vec<String> {
-    let mut warnings = Vec::new();
-    if !empty_frd_rows.is_empty() {
-        warnings.push(empty_frd_warning(capacity_table, empty_frd_rows));
-    }
-    warnings.extend(reconciliation_warnings(reconciliation));
     warnings
 }
 
@@ -566,6 +564,7 @@ mod tests {
             resolved_profile: Some(ImportProfile::RfemExport),
             available_profiles: vec![ImportProfile::StandardTable, ImportProfile::RfemExport],
             resolved_options: ImportProfileOptions {
+                advice_sheets: None,
                 coordinate_sheet: Some("1.1 Knopen".to_string()),
                 reaction_sheet: Some("RC1".to_string()),
             },
@@ -670,6 +669,7 @@ mod tests {
     #[test]
     fn reports_invalid_capacity_value_with_excel_location() {
         let table = SourceTable {
+            formula_cells: Default::default(),
             file_name: "capacities.xlsx".to_string(),
             sheet_name: Some("Sheet1".to_string()),
             rows: vec![SourceRow {
@@ -719,6 +719,7 @@ mod tests {
     #[test]
     fn reports_submillimetre_capacity_with_workbook_sheet_and_column() {
         let table = SourceTable {
+            formula_cells: Default::default(),
             file_name: "capacities.xlsx".to_string(),
             sheet_name: Some("Advice".to_string()),
             rows: vec![SourceRow {
@@ -910,7 +911,7 @@ mod tests {
     }
 
     #[test]
-    fn reconciliation_uses_lowest_conflicting_duplicate_capacity() {
+    fn reconciliation_rejects_conflicting_duplicate_capacity() {
         let loads = vec![ProjectLoadPoint {
             id: 1,
             name: "Load point 1".into(),
@@ -939,10 +940,8 @@ mod tests {
             },
         ];
 
-        let result = reconcile_imported_inputs(&loads, &cpts, capacities).unwrap();
-        assert_eq!(result.bearing_capacities.len(), 1);
-        assert_eq!(result.bearing_capacities[0].frd_kn, 672.0);
-        assert_eq!(result.conflicting_duplicate_keys, 1);
+        let error = reconcile_imported_inputs(&loads, &cpts, capacities).unwrap_err();
+        assert_eq!(error.to_source_import_failure().conflicts.len(), 1);
     }
 
     #[test]
@@ -975,6 +974,8 @@ mod tests {
     fn generic_sources_import_atomically_and_record_provenance() {
         let sources = vec![
             ImportSource {
+                advice_operation: None,
+                source_id: None,
                 role: ImportRole::LoadPoints,
                 profile: ImportProfile::Auto,
                 profile_options: ImportProfileOptions::default(),
@@ -983,6 +984,8 @@ mod tests {
                 bytes: include_bytes!("../../../../sample_project/Belastinglocaties.csv").to_vec(),
             },
             ImportSource {
+                advice_operation: None,
+                source_id: None,
                 role: ImportRole::Cpts,
                 profile: ImportProfile::Auto,
                 profile_options: ImportProfileOptions::default(),
@@ -991,12 +994,14 @@ mod tests {
                 bytes: include_bytes!("../../../../sample_project/Sonderingen.xlsx").to_vec(),
             },
             ImportSource {
+                advice_operation: None,
+                source_id: None,
                 role: ImportRole::BearingCapacities,
                 profile: ImportProfile::Auto,
                 profile_options: ImportProfileOptions::default(),
                 file_name: "capacities.xlsx".to_string(),
                 format: SourceFormat::Xlsx,
-                bytes: include_bytes!("../../../../sample_project/Draagvermogens.xlsx").to_vec(),
+                bytes: test_support::capacity_workbook(),
             },
         ];
 
@@ -1070,6 +1075,8 @@ mod tests {
 
     fn csv_source(role: ImportRole, file_name: &str, contents: &str) -> ImportSource {
         ImportSource {
+            advice_operation: None,
+            source_id: None,
             role,
             profile: ImportProfile::Auto,
             profile_options: ImportProfileOptions::default(),
@@ -1081,6 +1088,7 @@ mod tests {
 
     fn source_table(rows: Vec<Vec<TableCell>>) -> SourceTable {
         SourceTable {
+            formula_cells: Default::default(),
             file_name: "test.csv".to_string(),
             sheet_name: None,
             rows: rows

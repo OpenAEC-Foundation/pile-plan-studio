@@ -1,3 +1,5 @@
+import { applyProjectRefresh } from "../import/projectImportApply.ts";
+import { previewProjectImportCore } from "../../core/projectCoreClient.ts";
 import { useManualCptSelectionEdit } from "../project/useManualCptSelectionEdit.ts";
 import { createProjectMcpSession } from "../mcp/projectSession.ts";
 import { createSymbolScaleHistory } from "../project/symbolScaleHistory.ts";
@@ -1421,23 +1423,32 @@ export default function AppSession({
           activePilePlanName={activePilePlanName}
           defaultCurrencyCode={userSettings.preferences.defaultCurrencyCode}
         onImportPilePlan={importPilePlan}
+        importPreviewContextKey={JSON.stringify(mcpProjectMarkerRef.current!.observe(projectState))}
+        onPreviewProjectImport={async (mode, sources) => {
+          const marker = mcpProjectMarkerRef.current!.observe(projectStateRef.current);
+          const currentProject = mode === "refresh" ? requireValidProjectDocument(await readProjectDocumentCore(await writeProjectDocumentCore(projectDraftFromState(projectStateRef.current)))).project : null;
+          const result = await previewProjectImportCore({ sources, currentProject });
+          const current = mcpProjectMarkerRef.current!.observe(projectStateRef.current);
+          if (marker.project_instance_id !== current.project_instance_id || marker.project_revision !== current.project_revision) throw new Error(t("projectEdit.projectChanged"));
+          return result;
+        }}
         onImportProject={async (mode, projectName: string | null, sources: ImportSourceInput[], properties: ProjectImportProperties | null) => {
           if (mode === "refresh") {
-            const refreshed = await refreshProjectFromFilesCore({
-              currentProject: requireValidProjectDocument(
-                await readProjectDocumentCore(
-                  await writeProjectDocumentCore(projectDraftFromState(projectState)),
-                ),
-              ).project,
-              sources,
-            });
-            const refreshedProject = refreshed.project;
-            defaultSelectionKeepsDirtyRef.current = true;
-            commitProjectState(createInitialProjectState(refreshedProject, {
-              initializeDefaultPiles: true,
-            }, refreshed.keys));
-            setIsDirty(true);
-            return getImportSummary(refreshedProject);
+            return applyProjectRefresh({
+              context: () => JSON.stringify(mcpProjectMarkerRef.current!.observe(projectStateRef.current)),
+              snapshot: async () => requireValidProjectDocument(await readProjectDocumentCore(
+                await writeProjectDocumentCore(projectDraftFromState(projectStateRef.current)),
+              )).project,
+              refresh: refreshProjectFromFilesCore,
+              install: refreshed => {
+                defaultSelectionKeepsDirtyRef.current = true;
+                commitProjectState(createInitialProjectState(refreshed.project, {
+                  initializeDefaultPiles: true,
+                }, refreshed.keys));
+                setIsDirty(true);
+              },
+              changed: () => new Error(t("projectEdit.projectChanged")),
+            }, sources);
           }
 
           if (!await confirmProjectReplacement()) return null;

@@ -1,3 +1,10 @@
+import AdviceImportSources from "./AdviceImportSources.tsx";
+import AdviceImportDiagnostics from "./AdviceImportDiagnostics.tsx";
+import { SourceImportError, type ProjectImportPreview } from "../../../core/adviceImportContract.ts";
+import { previewProjectImportCore } from "../../../core/coreClient.ts";
+import { useAdviceImportPreviews } from "../../../app/import/useAdviceImportPreviews.ts";
+import { addAdviceSource, createEmptyAdviceDraft, type AdviceDraft } from "../../../domain/imports/adviceImportModel.ts";
+import type { ImportDrafts } from "../../../domain/imports/projectImportModel.ts";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { prepareProjectImportRequest } from "../../../app/import/projectImportRequest.ts";
@@ -10,7 +17,7 @@ import {
 } from "../../../core/coreImportContract.ts";
 import { importDiagnosticText } from "../../../core/importDiagnosticText.ts";
 import {
-  inferImportFileAssignments,
+  inferImportFileSelections,
   type ImportFileRole,
 } from "../../../core/importFiles.ts";
 import type { ImportSummary } from "../../../core/projectFile.ts";
@@ -51,6 +58,8 @@ export default function ProjectImportPanel({
   onImportProject,
   initialSource,
   defaultCurrencyCode,
+  onPreviewProjectImport = (_mode, sources) => previewProjectImportCore({ sources, currentProject: null }),
+  importPreviewContextKey = "",
 }: {
   onImportProject: (
     mode: ProjectImportMode,
@@ -60,21 +69,37 @@ export default function ProjectImportPanel({
   ) => Promise<ImportSummary | null>;
   initialSource?: { role: ImportFileRole; file: File } | null;
   defaultCurrencyCode: string;
+  onPreviewProjectImport?: (mode: ProjectImportMode, sources: ImportSourceInput[]) => Promise<ProjectImportPreview>;
+  importPreviewContextKey?: string;
 }) {
   const { t } = useTranslation("common");
   const [mode, setMode] = useState<ProjectImportMode>("new-project");
   const [projectName, setProjectName] = useState(() => t("importProject.defaultName"));
   const [pileHeadLevel, setPileHeadLevel] = useState("");
   const [currencyCode, setCurrencyCode] = useState(defaultCurrencyCode);
-  const [drafts, setDrafts] = useState(() => createEmptyImportDrafts<File>());
+  const [drafts, setDrafts] = useState<ImportDrafts<File>>(() => ({ ...createEmptyImportDrafts<File>(), advice: createEmptyAdviceDraft<File>() }));
+  const [finalFailure, setFinalFailure] = useState<ProjectImportPreview | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [summary, setSummary] = useState<ImportSummary | null>(null);
   const { preview: previewFile } = useProjectImportPreviews(setDrafts);
+  useAdviceImportPreviews(drafts, setDrafts, mode, importPreviewContextKey, onPreviewProjectImport);
   const normalizedPileHeadLevel = normalizePileHeadLevel(pileHeadLevel);
   const { canSubmit, showPileHeadLevelBlocker } = projectImportReadiness(drafts, mode, normalizedPileHeadLevel);
 
+  const missingProjectSources = mode === "new-project" && drafts.advice!.sources.length > 0
+    ? !drafts["load-points"].file && !drafts.cpts.file ? "requiresLoadPointsAndCpts"
+      : !drafts["load-points"].file ? "requiresLoadPoints"
+      : !drafts.cpts.file ? "requiresCpts" : null
+    : null;
+
+  const updateAdvice = (fn: (draft: AdviceDraft<File>) => AdviceDraft<File>) => {
+    setDrafts(current => ({ ...current, advice: fn(current.advice!) })); setError(null); setFinalFailure(null);
+  };
+  const addAdviceFiles = (files: File[]) => updateAdvice(d => files.reduce((current, file) => addAdviceSource(current, crypto.randomUUID(), file), d));
   const assignRoleFile = (role: ImportFileRole, file: File | null) => {
+    if (role === "bearing-capacities") { if (file) addAdviceFiles([file]); return; }
+
     setDrafts((current) => setImportFile(current, role, file));
     setError(null);
     if (file) void previewFile(role, file, "auto", EMPTY_OPTIONS);
@@ -90,7 +115,8 @@ export default function ProjectImportPanel({
     const currentAssignments = Object.fromEntries(
       ROLES.map(({ role }) => [role, drafts[role].file]),
     ) as Record<ImportFileRole, File | null>;
-    const assignments = inferImportFileAssignments(files, currentAssignments);
+    const { assignments, adviceFiles } = inferImportFileSelections(files, currentAssignments);
+    if (adviceFiles.length) addAdviceFiles(adviceFiles);
     ROLES.forEach(({ role }) => {
       if (assignments[role] && assignments[role] !== drafts[role].file) {
         assignRoleFile(role, assignments[role]);
@@ -114,14 +140,19 @@ export default function ProjectImportPanel({
     if (!canSubmit) return;
     setBusy(true);
     setError(null);
+    setFinalFailure(null);
     try {
       const request = await prepareProjectImportRequest({
         drafts, mode, projectName, pileHeadLevelM: normalizedPileHeadLevel, currencyCode,
       });
       if (!request) return;
       const result = await onImportProject(request.mode, request.projectName, request.sources, request.properties);
-      if (result) setSummary(result);
+      if (result) {
+        setSummary(result);
+        if (mode === "refresh") setDrafts({ ...createEmptyImportDrafts<File>(), advice: createEmptyAdviceDraft<File>() });
+      }
     } catch (reason) {
+      if (reason instanceof SourceImportError) setFinalFailure({ canApply: false, uniqueValueCount: 0, importedValueCount: 0, exactDuplicateCount: 0, orphanValueCount: 0, conflicts: reason.conflicts, diagnostics: reason.diagnostics });
       setError(reason instanceof Error ? reason.message : String(reason));
     } finally {
       setBusy(false);
@@ -133,6 +164,7 @@ export default function ProjectImportPanel({
       <header className="project-import-heading">
         <h2 className="backstage-panel-title">{t("importProject.title")}</h2>
       </header>
+      <fieldset className="project-import-controls" disabled={busy}>
       <div className="project-import-mode" role="group" aria-label={t("importProject.modes.label")}>
         {(["new-project", "refresh"] as const).map((value) => (
           <button
@@ -209,6 +241,7 @@ export default function ProjectImportPanel({
 
       <div className="project-import-sources">
         {ROLES.map(({ role, labelKey, columnsKey }) => {
+          if (role === "bearing-capacities") return <AdviceImportSources key={role} draft={drafts.advice!} onChange={updateAdvice} refresh={mode === "refresh"} />;
           const draft = drafts[role];
           const preview = draft.previewState.status === "ready" ? draft.previewState.preview : null;
           return (
@@ -270,6 +303,9 @@ export default function ProjectImportPanel({
         })}
       </div>
 
+      {missingProjectSources && <p className="project-import-mode-description" role="status">
+        {t(`importProject.advice.${missingProjectSources}`)}
+      </p>}
       {shouldWarnAboutMissingFoundationAdvice(drafts, mode) && (
         <p className="project-import-warning" role="status">
           {t("importProject.warnings.cptsWithoutFoundationAdvice")}
@@ -283,6 +319,8 @@ export default function ProjectImportPanel({
           {summary.warnings.length > 0 && <ul>{summary.warnings.map((warning) => <li key={warning}>{warning}</li>)}</ul>}
         </section>
       )}
+      </fieldset>
+      {finalFailure && <AdviceImportDiagnostics preview={finalFailure} />}
       <div className="project-import-submit-area">
         <button className="primary-action project-import-submit" type="button" disabled={busy || !canSubmit} onClick={importProject}>
           {busy
