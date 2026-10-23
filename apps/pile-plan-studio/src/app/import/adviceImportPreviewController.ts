@@ -15,9 +15,10 @@ export function createAdviceImportPreviewController(deps: Dependencies) {
   async function discover(sourceId: string) {
     const source = deps.readDrafts().advice?.sources.find(s => s.id === sourceId);
     if (!source) return;
+    const sheetProfiles = JSON.stringify(source.sheetSelection);
     const requestId = ++serial;
     discoveries.set(sourceId, requestId);
-    const current = () => discoveries.get(sourceId) === requestId && deps.readDrafts().advice?.sources.some(s => s.id === sourceId && s.file === source.file && s.requestedProfile === source.requestedProfile);
+    const current = () => discoveries.get(sourceId) === requestId && deps.readDrafts().advice?.sources.some(s => s.id === sourceId && s.file === source.file && s.requestedProfile === source.requestedProfile && JSON.stringify(s.sheetSelection) === sheetProfiles);
     deps.update(d => d.advice ? { ...d, advice: beginAdviceDiscovery(d.advice, sourceId, requestId) } : d);
     try {
       const input = await prepareAdviceSource(source, true);

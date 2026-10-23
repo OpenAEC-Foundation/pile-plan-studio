@@ -20,3 +20,16 @@ test("structured final errors retain all conflict values and physical locations"
   assert.equal(result?.conflicts[0].values[1].locations[0].row, 9);
   assert.equal(result?.message, "Conflict");
 });
+
+import { fromCoreImportDiagnostic } from './coreImportContract.ts';
+import { fromCoreProjectImportPreview } from './adviceImportContract.ts';
+test('diagnostics preserve empty raw values and typed advice meanings', () => {
+ const d=fromCoreImportDiagnostic({severity:'error',code:'advice-profile-required',count:1,node_ids:[],location:null,fallback_message:'Choose profile',
+ advice:{field:'header',value:'',expected_unit:'millimetres',pile_sizes_mm:[250,290],column_count:4,required_profile:'capacity-columns'}});
+ assert.deepEqual(d.advice,{field:'header',value:'',expectedUnit:'millimetres',pileSizesMm:[250,290],columnCount:4,requiredProfile:'capacity-columns'});
+});
+test('uncomputed totals do not become an asserted zero count', () => {
+ const p={can_apply:false,unique_value_count:0,imported_value_count:0,exact_duplicate_count:0,orphan_value_count:0,conflicts:[],diagnostics:[]};
+ assert.equal(fromCoreProjectImportPreview(p).countsAvailable,false);
+ assert.equal(fromCoreProjectImportPreview({...p,counts_available:true}).countsAvailable,true);
+});

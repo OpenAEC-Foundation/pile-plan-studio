@@ -351,7 +351,15 @@
       "invalid-advice-selection": "Select valid source files and choose which worksheets to import.",
       "advice-orphan-values": "{{count}} values without known CPT coordinates will be skipped. CPTs: {{locations}}.",
       "advice-cpts-without-values": "Bearing capacity advice is missing for {{count}} CPTs: {{locations}}.",
-      "advice-no-values": "The selected tables provide no bearing capacity values."
+      "advice-no-values": "The selected tables provide no bearing capacity values.",
+      "advice-profile-required": "Sizes found in the column headings: {{sizes}}. Choose the {{profile}} profile. The first column contains CPT ID, the second tip level in m; the remaining columns contain resistances in kN for sizes in mm.",
+      "advice-profile-mismatch": "This worksheet does not match the selected profile. Choose {{profile}}. A matrix with sizes in its headings cannot be read as a standard table.",
+      "unsupported-advice-layout": "This table layout is not supported. Use the four standard columns or the fixed Sizes in columns layout.",
+      "ambiguous-advice-layout": "The table layout is ambiguous. Check duplicate headings and extra populated columns. Use four standard columns with recognised headings or the fixed Sizes in columns layout.",
+      "missing-advice-header": "A required heading is missing or invalid: ‘{{value}}’. For a matrix, use CPT ID, Tip and size headings such as 250 or 250 mm; generic first headings require explicitly choosing Sizes in columns.",
+      "missing-advice-value": "{{field}} is missing. {{action}}",
+      "invalid-advice-value": "{{field}} ‘{{value}}’ is invalid. {{action}}",
+      "missing-advice-formula-result": "This formula has no saved calculation result. Recalculate the file in a spreadsheet application and save it."
     },
     "roles": {
       "loadPoints": "Load points",
@@ -372,7 +380,8 @@
       "status": {
         "ready": "Usable",
         "invalid": "Error",
-        "unsupported": "No supported table"
+        "unsupported": "No supported table",
+        "needs-profile": "Choose import profile"
       },
       "sheetSummary": "{{count}} values · {{cpts}} CPTs · {{sizes}} mm · {{min}} to {{max}} m · {{missing}} empty cells",
       "unitsAndRange": "Levels in m, sizes in mm, resistances in kN. A level range does not mean that all intermediate levels are available.",
@@ -396,7 +405,26 @@
       "noSheets": "No usable worksheet found.",
       "requiresLoadPointsAndCpts": "For a new project, also choose load-point and CPT files. Use Refresh data to update advice in the existing project.",
       "requiresLoadPoints": "For a new project, also choose a load-point file.",
-      "requiresCpts": "For a new project, also choose a CPT file."
+      "requiresCpts": "For a new project, also choose a CPT file.",
+      "fields": {
+        "cpt-id": "CPT ID",
+        "tip-level": "Tip level",
+        "pile-size": "Pile size",
+        "resistance": "Resistance",
+        "header": "Column heading"
+      },
+      "actions": {
+        "cpt-id": "Enter a whole CPT ID on every data row.",
+        "tip-level": "Use a number in m, a decimal point and at most three decimal places.",
+        "pile-size": "Use a positive whole number in mm, such as 320, without a unit in the cell.",
+        "resistance": "Use a number in kN with a decimal point and no unit in the cell.",
+        "header": "Check headings and units: tip levels in m, sizes in mm and resistances in kN."
+      },
+      "units": {
+        "metres": "m",
+        "millimetres": "mm",
+        "kilonewtons": "kN"
+      }
     }
   },
   "projectInformation": {

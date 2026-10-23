@@ -40,6 +40,15 @@ export function toCoreImportSource(source: ImportSourceInput) {
 
 export type ImportDiagnosticSeverity = "warning" | "error";
 
+export type AdviceDiagnosticDetails = {
+  field: "cpt-id" | "tip-level" | "pile-size" | "resistance" | "header" | null;
+  value: string | null; expectedUnit: "metres" | "millimetres" | "kilonewtons" | null;
+  pileSizesMm: number[]; columnCount: number | null; requiredProfile: ImportProfile | null;
+};
+export type CoreAdviceDiagnosticDetails = {
+  field: AdviceDiagnosticDetails["field"]; value: string | null; expected_unit: AdviceDiagnosticDetails["expectedUnit"];
+  pile_sizes_mm?: number[]; column_count: number | null; required_profile: ImportProfile | null;
+};
 export type ImportDiagnostic = {
   severity: ImportDiagnosticSeverity;
   code: string;
@@ -50,6 +59,7 @@ export type ImportDiagnostic = {
   yMm: number | null;
   location: ImportDiagnosticLocation | null;
   tipLevelValues: ImportPileTipLevelDiagnostic[];
+  advice?: AdviceDiagnosticDetails | null;
   fallbackMessage: string;
 };
 
@@ -117,6 +127,7 @@ export type CoreImportSourcePreview = {
       value: string;
       reason: PileTipLevelPrecisionReason;
     }>;
+    advice?: CoreAdviceDiagnosticDetails | null;
     fallback_message: string;
   }>;
   details:
@@ -153,10 +164,10 @@ export function fromCoreImportSourcePreview(preview: CoreImportSourcePreview): I
 
 type CoreImportDiagnosticLocation = {
   file_name: string;
-  sheet_name: string | null;
-  row: number | null;
-  column: number | null;
-  column_name: string | null;
+  sheet_name?: string | null;
+  row?: number | null;
+  column?: number | null;
+  column_name?: string | null;
 };
 
 function fromCoreDiagnosticLocation(
@@ -164,10 +175,10 @@ function fromCoreDiagnosticLocation(
 ): ImportDiagnosticLocation {
   return {
     fileName: location.file_name,
-    sheetName: location.sheet_name,
-    row: location.row,
-    column: location.column,
-    columnName: location.column_name,
+    sheetName: location.sheet_name ?? null,
+    row: location.row ?? null,
+    column: location.column ?? null,
+    columnName: location.column_name ?? null,
   };
 }
 
@@ -204,5 +215,8 @@ export function fromCoreImportDiagnostic(diagnostic: CoreImportDiagnostic): Impo
         reason: item.reason,
         location: fromCoreDiagnosticLocation(item.location),
       })),
+      ...(diagnostic.advice ? {advice: { field: diagnostic.advice.field ?? null, value: diagnostic.advice.value ?? null,
+        expectedUnit: diagnostic.advice.expected_unit ?? null, pileSizesMm: diagnostic.advice.pile_sizes_mm ?? [],
+        columnCount: diagnostic.advice.column_count ?? null, requiredProfile: diagnostic.advice.required_profile ?? null }} : {}),
       fallbackMessage: diagnostic.fallback_message,
     }; }

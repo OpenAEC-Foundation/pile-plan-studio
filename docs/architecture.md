@@ -203,6 +203,17 @@ outcomes remain transient; only a solved plan is committed through project
 history. The personal run-duration preference belongs to app settings, while
 an MCP call may override it or explicitly request no limit for one run.
 
+Excel foundation-advice discovery and final parsing share a Rust layout
+classifier and profile resolver. Size matrices cannot fall back to the
+positional standard-table parser. Bare numeric size headings use millimetres;
+matrices with generic first headings require an explicit Sizes in columns
+choice (`needs-profile`) before parsing. Typed diagnostics retain the source
+location, raw value and expected meaning; the interface translates them into
+messages with recovery actions and keeps the profile choice and primary reason
+visible. Joint preview distinguishes unavailable counts from a validated zero
+result. These rules also apply to append/replace operations and do not
+reinterpret stored project advice.
+
 MCP source import is a transient transaction in `app/mcp/`: the webview stages
 bounded UTF-8 CSV chunks, then calls the existing Rust preview and complete
 import/refresh clients. The standard-table CSV contract is exposed by the

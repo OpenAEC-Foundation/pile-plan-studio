@@ -1,7 +1,5 @@
 use super::advice_merge::{merge_advice_values, SourcedCapacity};
-use super::capacity_columns::{
-    detect_capacity_columns, parse_capacity_columns, LocatedCapacity, ParsedAdviceTable,
-};
+use super::capacity_columns::{parse_capacity_columns, LocatedCapacity, ParsedAdviceTable};
 use super::*;
 use crate::{
     try_pile_tip_level_mm, PreviewProjectImportRequest, ProjectBearingCapacity,
@@ -88,29 +86,63 @@ fn source_tables(source: &ImportSource) -> Result<Vec<SourceTable>, ImportError>
         )?]),
     }
 }
+fn normalized_advice_values(table: &SourceTable) -> SourceTable {
+    let mut result = table.clone();
+    for row in &mut result.rows {
+        for cell in &mut row.cells {
+            if let TableCell::Text(t) = cell {
+                *t = t.trim().into();
+            }
+        }
+    }
+    result
+}
 fn parse_table(
     table: &SourceTable,
     profile: ImportProfile,
+    format: SourceFormat,
 ) -> Result<(ImportProfile, ParsedAdviceTable), ImportError> {
-    let layout = if profile != ImportProfile::StandardTable {
-        detect_capacity_columns(table)?
+    let original = table;
+    let mut normalized;
+    let table = if format == SourceFormat::Xlsx {
+        use super::advice_layout::{classify_advice_table, resolve_advice_layout, AdviceLayout};
+        let layout = resolve_advice_layout(classify_advice_table(table)?, profile, table)?;
+        if let AdviceLayout::CapacityColumns { layout, .. } = layout {
+            return parse_capacity_columns(table, &layout)
+                .map(|p| (ImportProfile::CapacityColumns, p));
+        }
+        normalized = normalized_advice_values(table);
+        if matches!(layout, AdviceLayout::Standard { header_row: None }) {
+            normalized.rows.insert(
+                0,
+                SourceRow {
+                    number: 0,
+                    cells: ["ID", "Tip", "Size", "FRD"]
+                        .into_iter()
+                        .map(|v| TableCell::Text(v.into()))
+                        .collect(),
+                },
+            );
+        }
+        &normalized
     } else {
-        None
+        table
     };
-    if let Some(layout) = layout {
-        return Ok((
-            ImportProfile::CapacityColumns,
-            parse_capacity_columns(table, &layout)?,
-        ));
-    }
-    if profile == ImportProfile::CapacityColumns {
-        return Err(ImportError::Validation(
-            "No supported capacity columns header in first twenty rows".into(),
-        ));
-    }
-    if profile == ImportProfile::RfemExport {
-        return Err(ImportError::Validation("Unsupported advice profile".into()));
-    }
+    parse_standard_table(table).map_err(|e| {
+        ImportError::Advice(SourceImportFailure {
+            unique_value_count: 0,
+            exact_duplicate_count: 0,
+            message: e.to_string(),
+            diagnostics: vec![super::advice_diagnostics::diagnostic_for_table(
+                &e, original,
+            )],
+            conflicts: vec![],
+        })
+    })
+}
+fn parse_standard_table(
+    table: &SourceTable,
+) -> Result<(ImportProfile, ParsedAdviceTable), ImportError> {
     let parsed = super::roles::parse_bearing_capacities_with_diagnostics(table)?;
     let mut data_rows = table.rows.iter().skip(usize::from(
         table
@@ -147,19 +179,6 @@ fn parse_table(
         }
     }
     Ok((ImportProfile::StandardTable, result))
-}
-fn is_recognized(table: &SourceTable) -> bool {
-    match detect_capacity_columns(table) {
-        Ok(Some(_)) | Err(_) => return true,
-        _ => {}
-    }
-    if super::roles::parse_bearing_capacities_with_diagnostics(table).is_ok() {
-        return true;
-    }
-    table
-        .rows
-        .first()
-        .is_some_and(|r| r.cells.len() >= 4 && r.cells.iter().take(4).all(|c| !c.is_empty()))
 }
 fn summary(parsed: &ParsedAdviceTable) -> AdviceTableSummary {
     let tips: Vec<_> = parsed
@@ -207,7 +226,7 @@ pub fn preview_advice_source(source: &ImportSource) -> AdviceSourcePreview {
                     .and_then(|s| s.iter().find(|s| s.sheet_name == name))
                     .map(|s| s.profile)
                     .unwrap_or(source.profile);
-                let recognized = is_recognized(&table);
+
                 let mut preview = AdviceSheetPreview {
                     sheet_name: name,
                     status: AdviceSheetStatus::Unsupported,
@@ -216,24 +235,39 @@ pub fn preview_advice_source(source: &ImportSource) -> AdviceSourcePreview {
                     summary: Default::default(),
                     diagnostics: vec![],
                 };
-                if recognized || requested != ImportProfile::Auto {
-                    preview.detected_profile = Some(
-                        if detect_capacity_columns(&table).ok().flatten().is_some() {
-                            ImportProfile::CapacityColumns
-                        } else {
-                            ImportProfile::StandardTable
-                        },
-                    );
-                    match parse_table(&table, requested) {
-                        Ok((profile, parsed)) => {
-                            preview.status = AdviceSheetStatus::Ready;
-                            preview.resolved_profile = Some(profile);
-                            preview.summary = summary(&parsed);
-                        }
+                if source.format == SourceFormat::Xlsx {
+                    match super::advice_layout::classify_advice_table(&table) {
+                        Ok(layout) => preview.detected_profile = Some(layout.profile()),
                         Err(e) => {
-                            preview.status = AdviceSheetStatus::Invalid;
-                            preview.diagnostics.push(diagnostic(&e));
+                            let d = super::advice_diagnostics::diagnostic_for_table(&e, &table);
+                            preview.status =
+                                if d.code == ImportDiagnosticCode::UnsupportedAdviceLayout {
+                                    AdviceSheetStatus::Unsupported
+                                } else {
+                                    AdviceSheetStatus::Invalid
+                                };
+                            preview.diagnostics.push(d);
+                            result.sheets.push(preview);
+                            continue;
                         }
+                    }
+                } else {
+                    preview.detected_profile = Some(ImportProfile::StandardTable);
+                }
+                match parse_table(&table, requested, source.format) {
+                    Ok((profile, parsed)) => {
+                        preview.status = AdviceSheetStatus::Ready;
+                        preview.resolved_profile = Some(profile);
+                        preview.summary = summary(&parsed);
+                    }
+                    Err(e) => {
+                        let d = super::advice_diagnostics::diagnostic_for_table(&e, &table);
+                        preview.status = if d.code == ImportDiagnosticCode::AdviceProfileRequired {
+                            AdviceSheetStatus::NeedsProfile
+                        } else {
+                            AdviceSheetStatus::Invalid
+                        };
+                        preview.diagnostics.push(d);
                     }
                 }
                 result.sheets.push(preview);
@@ -311,7 +345,7 @@ pub(super) fn analyze_advice_sources(
                 .ok_or_else(|| {
                     ImportError::Validation(format!("Unknown worksheet: {}", selected.sheet_name))
                 })?;
-            let (profile, parsed) = parse_table(table, selected.profile)?;
+            let (profile, parsed) = parse_table(table, selected.profile, source.format)?;
             for value in &parsed.values {
                 values.push(SourcedCapacity {
                     capacity: value.capacity.clone(),
@@ -509,6 +543,7 @@ pub fn preview_project_import(request: &PreviewProjectImportRequest) -> ProjectI
         };
         let reconciliation =
             reconcile_imported_inputs(&effective_loads, &effective_cpts, effective_values)?;
+        result.counts_available = true;
         result.imported_value_count = reconciliation.bearing_capacities.len();
         result.orphan_value_count = reconciliation.ignored_orphan_rows;
         if reconciliation.ignored_orphan_rows > 0 {

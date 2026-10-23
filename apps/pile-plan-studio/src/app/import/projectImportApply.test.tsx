@@ -45,3 +45,13 @@ test("a conflict or a changed project cannot install a refresh candidate",async(
   await expect(applyProjectRefresh({...deps,refresh:async()=>{context="two";return valid;}},[])).rejects.toThrow("changed");
   expect(install).not.toHaveBeenCalled();
 });
+
+test('a rejected advice refresh preserves the project reference, history and dirty state',async()=>{
+ const project=canonicalProjectForTest(sample),before=projectFixture();
+ const initial=createManagedProjectState(before);let managed=initial,dirty=false;
+ const failure=new SourceImportError('Invalid advice',[{severity:'error',code:'advice-profile-mismatch',count:1,nodeIds:[],loadPointNames:[],xMm:null,yMm:null,location:null,tipLevelValues:[],fallbackMessage:'Choose profile'}],[]);
+ await expect(applyProjectRefresh({context:()=> 'same',snapshot:async()=>project,
+   refresh:async()=>{throw failure;},changed:()=>new Error('changed'),
+   install:result=>{managed=projectHistoryReducer(managed,{type:'commit',update:createInitialProjectState(result.project,{initializeDefaultPiles:false},result.keys)});dirty=true;}},[])).rejects.toBe(failure);
+ expect(managed).toBe(initial);expect(managed.present).toBe(initial.present);expect(managed.history.past).toHaveLength(0);expect(dirty).toBe(false);
+});

@@ -135,8 +135,11 @@ position rather than by header name:
 - foundation advice: `CPT ID`, `pile tip level`, `pile size`,
   R<sub>c;net;d</sub>.
 
-One header row is optional, and additional columns after the required columns
-are allowed. Every load point must have an exact unique X/Y position. Source
+One header row is optional. Additional columns after the required columns
+are allowed for CSV and for load-point/CPT imports. For Excel foundation
+advice, extra populated columns require recognised standard headings in the
+first four positions; empty formatting columns do not count. Every load point
+must have an exact unique X/Y position. Source
 previews identify all conflicting locations and their shared coordinates; an
 import, refresh, or IFCPP project open is rejected until those conflicts are
 resolved. Nearby but non-identical positions remain valid. The RFEM load-point
@@ -148,10 +151,21 @@ and nodal reactions on the second.
 Foundation advice also supports the **Sizes in columns** Excel profile: rows
 contain CPT ID and pile tip level, with one resistance column per pile size.
 Recognized headings include `Sondering` / `CPT ID`, `PPN` / `Paalpuntniveau`,
-and `Prefab 290`, `290 mm`, or `#290`. Headers must occur within the first
-20 rows. A limited two-row header is supported; report layouts and pivot tables
-should be supplied as a clean table. Levels use metres, sizes millimetres,
-and resistances kN. Empty resistance cells remain missing; zero is a value.
+and `Prefab 290`, `290 mm`, `#290`, or bare size headings such as `250` and `290`.
+Headings stored as numbers or numeric text are equivalent. With generic first
+headings such as `Kolom1` and `Kolom2`, explicitly choose **Sizes in columns**:
+the first column is CPT ID, the second tip level in metres, and the remaining
+columns contain resistances for the sizes in the headings (millimetres).
+Generic headings `Column1`/`Column2`, also with spaces, are supported in the
+same fixed order. A recognised size matrix can never fall back to the standard
+four-column parser, even after an explicit incorrect profile choice or a value
+error. The preview explains the required profile or source correction.
+Headers must occur within the first 20 rows. A limited two-row header is
+supported. A clean matrix may come from a pivot table; free-form report layouts
+must be supplied as a supported table. Levels use metres, sizes millimetres,
+and resistances kN. Numeric text and surrounding spaces in advice values are
+accepted; units in numeric data cells and ambiguous number separators are not
+inferred. Empty resistance cells remain missing; zero is a value.
 Formulas require a cached numeric result from the spreadsheet application.
 
 Each advice file has its own import card. Add further files below it; choose

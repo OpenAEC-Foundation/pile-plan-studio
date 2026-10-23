@@ -42,7 +42,7 @@ export async function prepareAdviceSource(source: AdviceSourceDraft<File>, disco
   const format=getImportFileFormat(source.file.name);
   if (!format) throw new Error(`Unsupported file format: ${source.file.name}`);
   return {...(!discovery && mode === "refresh" ? {adviceOperation: source.replacementId ? {kind:"replace" as const,adviceId:source.replacementId} : {kind:"append" as const}} : {}),sourceId:source.id,role:"bearing-capacities",profile:source.requestedProfile,
-    profileOptions:{coordinateSheet:null,reactionSheet:null,...(format==="xlsx" ? {adviceSheets:discovery ? null : source.sheetSelection?.map(s=>({...s})) ?? []} : {})},
+    profileOptions:{coordinateSheet:null,reactionSheet:null,...(format==="xlsx" ? {adviceSheets:discovery ? source.sheetSelection?.map(s=>({...s})) ?? null : source.sheetSelection?.map(s=>({...s})) ?? []} : {})},
     fileName:source.file.name,format,bytes:await readBytes(source.file)};
 }
 export async function prepareProjectImportSources(drafts: ImportDrafts<File>, mode: ProjectImportMode = "new-project"): Promise<ImportSourceInput[]> {

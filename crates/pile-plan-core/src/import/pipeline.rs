@@ -416,6 +416,7 @@ fn duplicate_position_diagnostics(load_points: &[ProjectLoadPoint]) -> Vec<Impor
                 severity: ImportDiagnosticSeverity::Error,
                 code: ImportDiagnosticCode::DuplicateLoadPointPosition,
                 count: node_ids.len(),
+                advice: None,
                 fallback_message: format!(
                     "Load points {} share position ({}, {}) mm. Every load point must have a unique position.",
                     node_ids.iter().map(u32::to_string).collect::<Vec<_>>().join(", "),
@@ -459,6 +460,7 @@ fn push_warning(
         y_mm: None,
         location: None,
         pile_tip_levels: vec![],
+        advice: None,
         fallback_message: format!("{message} Count: {}.", ids.len()),
     });
 }
@@ -504,6 +506,7 @@ fn import_error_diagnostic(error: ImportError) -> ImportDiagnostic {
     let fallback_message = error.to_string();
     match error {
         ImportError::InvalidPileTipLevels(values) => ImportDiagnostic {
+            advice: None,
             severity: ImportDiagnosticSeverity::Error,
             code: ImportDiagnosticCode::InvalidPileTipLevelPrecision,
             count: values.len(),
@@ -537,6 +540,7 @@ pub(super) fn error_diagnostic(code: ImportDiagnosticCode, message: String) -> I
         y_mm: None,
         location: None,
         pile_tip_levels: vec![],
+        advice: None,
         fallback_message: message,
     }
 }

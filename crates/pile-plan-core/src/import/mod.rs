@@ -10,6 +10,8 @@ use std::fmt;
 use serde::{Deserialize, Serialize};
 
 mod advice;
+mod advice_layout;
+mod advice_diagnostics;
 mod advice_contract;
 mod advice_merge;
 mod advice_refresh;
@@ -585,6 +587,7 @@ mod tests {
                     column_name: None,
                 }),
                 pile_tip_levels: vec![],
+                advice: None,
                 fallback_message: "One node was skipped".to_string(),
             }],
             details: Some(ImportPreviewDetails::RfemExport(RfemPreviewDetails {
@@ -1110,3 +1113,6 @@ mod tests {
         TableCell::Number(value)
     }
 }
+
+#[cfg(test)]
+mod advice_regression_tests;

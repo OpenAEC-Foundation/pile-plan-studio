@@ -41,6 +41,7 @@ pub enum AdviceSheetStatus {
     Ready,
     Invalid,
     Unsupported,
+    NeedsProfile,
 }
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq)]
 pub struct AdviceSheetPreview {
@@ -62,6 +63,8 @@ pub struct AdviceSourcePreview {
 pub struct ProjectImportPreview {
     pub existing_sources: Vec<StoredAdviceSource>,
     pub can_apply: bool,
+    #[serde(default)]
+    pub counts_available: bool,
     pub unique_value_count: usize,
     pub imported_value_count: usize,
     pub exact_duplicate_count: usize,
@@ -93,4 +96,65 @@ pub struct StoredAdviceSource {
     pub sheet_names: Vec<String>,
     pub item_count: usize,
     pub combined_legacy: bool,
+}
+
+#[cfg(test)]
+mod contract_tests {
+    use super::*;
+    #[test]
+    fn profile_requirement_and_diagnostic_details_survive_transport() {
+        assert_eq!(
+            serde_json::from_str::<AdviceSheetStatus>("\"needs-profile\"").unwrap(),
+            AdviceSheetStatus::NeedsProfile
+        );
+        let d: ImportDiagnostic = serde_json::from_value(serde_json::json!({
+            "severity":"error","code":"advice-profile-required","count":1,"node_ids":[],
+            "location":null,"fallback_message":"Choose profile",
+            "advice":{"field":"header","value":"","expected_unit":"millimetres",
+                "pile_sizes_mm":[250,290],"column_count":4,"required_profile":"capacity-columns"}
+        }))
+        .unwrap();
+        assert_eq!(d.advice.as_ref().unwrap().value.as_deref(), Some(""));
+        assert_eq!(
+            serde_json::to_value(d).unwrap()["advice"]["pile_sizes_mm"],
+            serde_json::json!([250, 290])
+        );
+    }
+    #[test]
+    fn legacy_diagnostic_and_uncomputed_counts_remain_distinct() {
+        let d: ImportDiagnostic = serde_json::from_value(serde_json::json!({
+            "severity":"error","code":"invalid-required-value","count":1,"node_ids":[],
+            "location":null,"fallback_message":"Invalid"
+        }))
+        .unwrap();
+        assert!(d.advice.is_none());
+        assert!(!ProjectImportPreview::default().counts_available);
+    }
+}
+
+#[derive(Clone, Debug, Default, Deserialize, Serialize, PartialEq)]
+pub struct AdviceDiagnosticDetails {
+    pub field: Option<AdviceField>,
+    pub value: Option<String>,
+    pub expected_unit: Option<AdviceUnit>,
+    #[serde(default)]
+    pub pile_sizes_mm: Vec<u32>,
+    pub column_count: Option<usize>,
+    pub required_profile: Option<ImportProfile>,
+}
+#[derive(Clone, Copy, Debug, Deserialize, Serialize, PartialEq)]
+#[serde(rename_all = "kebab-case")]
+pub enum AdviceField {
+    CptId,
+    TipLevel,
+    PileSize,
+    Resistance,
+    Header,
+}
+#[derive(Clone, Copy, Debug, Deserialize, Serialize, PartialEq)]
+#[serde(rename_all = "kebab-case")]
+pub enum AdviceUnit {
+    Metres,
+    Millimetres,
+    Kilonewtons,
 }

@@ -506,3 +506,14 @@
 .advice-import-details { color: var(--theme-text-secondary); font-size: 11px; }
 .advice-import-details summary { cursor: pointer; }
 .advice-import-details p { margin: 5px 0; }
+
+.advice-import-sheet-profile,
+.advice-import-primary-diagnostics { grid-column: 1 / -1; min-width: 0; }
+.advice-import-sheet .advice-import-sheet-profile {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  width: 100%;
+  gap: 4px;
+}
+.advice-import-primary-diagnostics { margin: 4px 0; overflow-wrap: anywhere; }
+.advice-import-single-sheet:empty { display: none; }

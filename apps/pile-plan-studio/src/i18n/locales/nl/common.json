@@ -351,7 +351,15 @@
       "invalid-advice-selection": "Selecteer geldige bronbestanden en kies welke werkbladen je wilt importeren.",
       "advice-orphan-values": "{{count}} waarden zonder bekende sonderingscoördinaten worden overgeslagen. Sonderingen: {{locations}}.",
       "advice-cpts-without-values": "Voor {{count}} sonderingen ontbreekt draagvermogensadvies: {{locations}}.",
-      "advice-no-values": "De geselecteerde tabellen leveren geen draagvermogens op."
+      "advice-no-values": "De geselecteerde tabellen leveren geen draagvermogens op.",
+      "advice-profile-required": "Afmetingen herkend in de kolomkoppen: {{sizes}}. Kies het profiel {{profile}}. De eerste kolom bevat sondering-ID, de tweede puntniveau in m; de overige kolommen bevatten draagvermogens in kN bij de afmetingen in mm.",
+      "advice-profile-mismatch": "Dit werkblad past niet bij het gekozen profiel. Kies {{profile}}. Een matrix met afmetingen in de koppen kan niet als standaardtabel worden gelezen.",
+      "unsupported-advice-layout": "De tabelindeling wordt niet ondersteund. Gebruik de vier standaardkolommen of de vaste indeling van Afmetingen in kolommen.",
+      "ambiguous-advice-layout": "De tabelindeling is niet eenduidig. Controleer dubbele koppen en extra gevulde kolommen. Gebruik vier standaardkolommen met herkenbare koppen of de vaste indeling van Afmetingen in kolommen.",
+      "missing-advice-header": "Een vereiste kolomkop ontbreekt of is ongeldig: ‘{{value}}’. Gebruik voor een matrix Sondering, PPN en afmetingskoppen zoals 250 of 250 mm; bij generieke eerste koppen moet je het profiel Afmetingen in kolommen kiezen.",
+      "missing-advice-value": "{{field}} ontbreekt. {{action}}",
+      "invalid-advice-value": "{{field}} ‘{{value}}’ is ongeldig. {{action}}",
+      "missing-advice-formula-result": "Deze formule heeft geen opgeslagen berekeningsresultaat. Bereken het bestand opnieuw in een spreadsheetprogramma en sla het op."
     },
     "roles": {
       "loadPoints": "Belastinglocaties",
@@ -372,7 +380,8 @@
       "status": {
         "ready": "Bruikbaar",
         "invalid": "Fout",
-        "unsupported": "Geen ondersteunde tabel"
+        "unsupported": "Geen ondersteunde tabel",
+        "needs-profile": "Kies importprofiel"
       },
       "sheetSummary": "{{count}} waarden · {{cpts}} sonderingen · {{sizes}} mm · {{min}} tot {{max}} m · {{missing}} lege cellen",
       "unitsAndRange": "Niveaus in m, afmetingen in mm, draagvermogens in kN. Een niveau-bereik betekent niet dat alle tussenliggende niveaus beschikbaar zijn.",
@@ -396,7 +405,26 @@
       "noSheets": "Geen bruikbaar werkblad gevonden.",
       "requiresLoadPointsAndCpts": "Kies voor een nieuw project ook bestanden met belastinglocaties en sonderingen. Gebruik Gegevens verversen om adviezen in het bestaande project bij te werken.",
       "requiresLoadPoints": "Kies voor een nieuw project ook een bestand met belastinglocaties.",
-      "requiresCpts": "Kies voor een nieuw project ook een bestand met sonderingen."
+      "requiresCpts": "Kies voor een nieuw project ook een bestand met sonderingen.",
+      "fields": {
+        "cpt-id": "Sondering-ID",
+        "tip-level": "Puntniveau",
+        "pile-size": "Afmeting",
+        "resistance": "Draagvermogen",
+        "header": "Kolomkop"
+      },
+      "actions": {
+        "cpt-id": "Vul op iedere gegevensrij een geheel sondering-ID in.",
+        "tip-level": "Gebruik een getal in m, met een punt als decimaalteken en maximaal drie decimalen.",
+        "pile-size": "Gebruik een positief geheel getal in mm, bijvoorbeeld 320, zonder eenheid in de cel.",
+        "resistance": "Gebruik een getal in kN met een punt als decimaalteken, zonder eenheid in de cel.",
+        "header": "Controleer de koppen en eenheden: puntniveau in m, afmetingen in mm en draagvermogens in kN."
+      },
+      "units": {
+        "metres": "m",
+        "millimetres": "mm",
+        "kilonewtons": "kN"
+      }
     }
   },
   "projectInformation": {

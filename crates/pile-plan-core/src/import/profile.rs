@@ -55,6 +55,14 @@ pub enum ImportDiagnosticCode {
     AdviceOrphanValues,
     AdviceCptsWithoutValues,
     AdviceNoValues,
+    AdviceProfileRequired,
+    AdviceProfileMismatch,
+    UnsupportedAdviceLayout,
+    AmbiguousAdviceLayout,
+    MissingAdviceHeader,
+    MissingAdviceValue,
+    InvalidAdviceValue,
+    MissingAdviceFormulaResult,
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
@@ -93,6 +101,8 @@ pub struct ImportDiagnostic {
     pub location: Option<ImportDiagnosticLocation>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub pile_tip_levels: Vec<ImportPileTipLevelDiagnostic>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub advice: Option<super::AdviceDiagnosticDetails>,
     pub fallback_message: String,
 }
 

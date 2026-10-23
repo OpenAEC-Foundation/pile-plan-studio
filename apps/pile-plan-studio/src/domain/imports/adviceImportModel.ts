@@ -27,7 +27,12 @@ export function setAdviceSourceSelected<T extends NamedImportFile>(draft: Advice
   return change(draft, draft.sources.map(s => s.id === id ? { ...s, selected } : s));
 }
 export function setAdviceSheetSelection<T extends NamedImportFile>(draft: AdviceDraft<T>, id: string, selection: AdviceSheetSelection[]): AdviceDraft<T> {
-  return change(draft, draft.sources.map(s => s.id === id ? { ...s, sheetSelection: selection.map(v => ({ ...v })) } : s));
+  return change(draft, draft.sources.map(s => {
+    if (s.id !== id) return s;
+    const profileChanged = selection.some(v => v.profile !== (s.sheetSelection?.find(old => old.sheetName === v.sheetName)?.profile ?? s.requestedProfile));
+    return { ...s, sheetSelection: selection.map(v => ({ ...v })),
+      discovery: profileChanged || s.discovery.status === "analyzing" ? {status: "empty" as const} : s.discovery };
+  }));
 }
 export function beginAdviceDiscovery<T extends NamedImportFile>(draft: AdviceDraft<T>, id: string, requestId: number): AdviceDraft<T> {
   return { ...draft, sources: draft.sources.map(s => s.id === id ? { ...s, discovery: { status: "analyzing", requestId } } : s) };

@@ -42,13 +42,16 @@ fn bad(
     row: usize,
     column: usize,
     value: String,
-    expected: &'static str,
+    field: super::AdviceField,
 ) -> ImportError {
-    ImportError::InvalidValue {
-        location: table.location(Some(row), Some(column), None),
-        value,
-        expected,
-    }
+    let code = if table.has_formula(row, column) && value.trim().is_empty() {
+        super::ImportDiagnosticCode::MissingAdviceFormulaResult
+    } else if value.trim().is_empty() {
+        super::ImportDiagnosticCode::MissingAdviceValue
+    } else {
+        super::ImportDiagnosticCode::InvalidAdviceValue
+    };
+    super::advice_diagnostics::cell_error(table, row, column, field, code)
 }
 fn header_base(text: &str) -> &str {
     text.split('[').next().unwrap_or(text).trim()
@@ -56,6 +59,115 @@ fn header_base(text: &str) -> &str {
 fn unit(text: &str) -> Option<&str> {
     text.split_once('[')
         .map(|(_, u)| u.trim_end_matches(']').trim())
+}
+
+pub(super) fn size_from_header(raw: &str) -> Option<Result<u32, ()>> {
+    let text = normalized(raw);
+    let base = header_base(&text);
+    let number = base
+        .strip_prefix("prefab ")
+        .or_else(|| base.strip_prefix('#'))
+        .or_else(|| base.strip_suffix(" mm"))
+        .or_else(|| parse_finite_number(base).ok().map(|_| base))?;
+    let number = number.split(" rc;").next().unwrap_or(number).trim();
+    Some(
+        parse_nonnegative_u32(number)
+            .map_err(|_| ())
+            .and_then(|size| {
+                if size == 0 || unit(&text).is_some_and(|u| u != "kn") {
+                    Err(())
+                } else {
+                    Ok(size)
+                }
+            }),
+    )
+}
+
+pub(super) fn detect_positional_capacity_columns(
+    table: &SourceTable,
+) -> Result<Option<CapacityColumnsLayout>, ImportError> {
+    use super::advice_layout::{generic_header, role_header, validate_role_unit};
+    use super::{AdviceDiagnosticDetails, AdviceField, ImportDiagnosticCode};
+    let mut layouts = vec![];
+    for row in table.rows.iter().filter(|r| r.number <= 20) {
+        let first = value(row, 1);
+        let second = value(row, 2);
+        if !(generic_header(&first, 1) || role_header(&first, 1))
+            || !(generic_header(&second, 2) || role_header(&second, 2))
+        {
+            continue;
+        }
+        if row
+            .cells
+            .iter()
+            .skip(2)
+            .filter(|c| size_from_header(&c.as_text()).is_some())
+            .count()
+            < 2
+        {
+            continue;
+        }
+        validate_role_unit(table, row, 2)?;
+        let width = table
+            .rows
+            .iter()
+            .map(|r| {
+                r.cells
+                    .iter()
+                    .rposition(|c| !c.is_empty())
+                    .map_or(0, |c| c + 1)
+            })
+            .chain(table.formula_cells.iter().map(|p| p.1))
+            .max()
+            .unwrap_or(0);
+        let mut sizes = vec![];
+        for column in 3..=width {
+            let raw = value(row, column);
+            let size = size_from_header(&raw).and_then(Result::ok).ok_or_else(|| {
+                super::advice_diagnostics::advice_error(
+                    table,
+                    ImportDiagnosticCode::MissingAdviceHeader,
+                    Some(row.number),
+                    Some(column),
+                    AdviceDiagnosticDetails {
+                        field: Some(AdviceField::Header),
+                        value: Some(raw),
+                        ..Default::default()
+                    },
+                )
+            })?;
+            if sizes.iter().any(|(s, _)| *s == size) {
+                return Err(super::advice_diagnostics::advice_error(
+                    table,
+                    ImportDiagnosticCode::AmbiguousAdviceLayout,
+                    Some(row.number),
+                    Some(column),
+                    AdviceDiagnosticDetails {
+                        pile_sizes_mm: vec![size],
+                        ..Default::default()
+                    },
+                ));
+            }
+            sizes.push((size, column));
+        }
+        layouts.push(CapacityColumnsLayout {
+            header_row: row.number,
+            id_column: 1,
+            check_id_column: None,
+            tip_column: 2,
+            size_columns: sizes,
+        });
+    }
+    if layouts.len() > 1 {
+        return Err(super::advice_diagnostics::advice_error(
+            table,
+            ImportDiagnosticCode::AmbiguousAdviceLayout,
+            None,
+            None,
+            Default::default(),
+        ));
+    }
+    Ok(layouts.pop())
 }
 
 pub(super) fn detect_capacity_columns(
@@ -69,8 +181,14 @@ pub(super) fn detect_capacity_columns(
         .filter(|(_, r)| r.number <= 20)
     {
         if !row.cells.iter().any(|cell| {
-            ["cpt id", "sondering", "naam sondering"]
-                .contains(&header_base(&normalized(&cell.as_text())))
+            [
+                "id",
+                "cpt id",
+                "sondering",
+                "sondering-id",
+                "naam sondering",
+            ]
+            .contains(&header_base(&normalized(&cell.as_text())))
         }) {
             continue;
         }
@@ -86,7 +204,15 @@ pub(super) fn detect_capacity_columns(
             let col = i + 1;
             let text = normalized(&cell.as_text());
             let base = header_base(&text);
-            if ["cpt id", "sondering", "naam sondering"].contains(&base) {
+            if [
+                "id",
+                "cpt id",
+                "sondering",
+                "sondering-id",
+                "naam sondering",
+            ]
+            .contains(&base)
+            {
                 ids.push(col);
             }
             if base == "s" && normalized(&value(row, col + 1)) == "sondering" {
@@ -95,45 +221,32 @@ pub(super) fn detect_capacity_columns(
             let upper = previous
                 .map(|r| normalized(&value(r, col)))
                 .unwrap_or_default();
-            if ["ppn", "paalpuntniveau", "tip"].contains(&base)
+            if ["ppn", "paalpuntniveau", "puntniveau", "tip"].contains(&base)
                 || (["niveau", "niveau2"].contains(&base) && upper == "paalpunt")
             {
                 if let Some(u) = unit(&text) {
                     if !(u == "m" || u.starts_with("m ")) {
-                        return Err(bad(table, row.number, col, text, "level in metres"));
+                        return Err(bad(
+                            table,
+                            row.number,
+                            col,
+                            text,
+                            super::AdviceField::Header,
+                        ));
                     }
                 }
                 tips.push(col);
             }
-            let size_text = base
-                .strip_prefix("prefab ")
-                .or_else(|| base.strip_prefix('#'))
-                .or_else(|| base.strip_suffix(" mm"));
-            if let Some(size_text) = size_text {
-                let number = size_text.split(" rc;").next().unwrap_or(size_text).trim();
-                let size = parse_nonnegative_u32(number).map_err(|_| {
+            if let Some(size) = size_from_header(&text) {
+                let size = size.map_err(|_| {
                     bad(
                         table,
                         row.number,
                         col,
                         text.clone(),
-                        "positive whole millimetre pile size",
+                        super::AdviceField::Header,
                     )
                 })?;
-                if size == 0 {
-                    return Err(bad(
-                        table,
-                        row.number,
-                        col,
-                        text,
-                        "positive whole millimetre pile size",
-                    ));
-                }
-                if let Some(u) = unit(&text) {
-                    if u != "kn" {
-                        return Err(bad(table, row.number, col, text, "resistance in kN"));
-                    }
-                }
                 sizes.push((size, col));
             }
         }
@@ -142,10 +255,16 @@ pub(super) fn detect_capacity_columns(
                 || tips.len() != 1
                 || sizes.iter().map(|p| p.0).collect::<BTreeSet<_>>().len() != sizes.len()
             {
-                return Err(ImportError::Validation(format!(
-                    "{}: ambiguous capacity columns at row {}",
-                    table.file_name, row.number
-                )));
+                return Err(super::advice_diagnostics::advice_error(
+                    table,
+                    super::ImportDiagnosticCode::AmbiguousAdviceLayout,
+                    Some(row.number),
+                    None,
+                    super::AdviceDiagnosticDetails {
+                        pile_sizes_mm: sizes.iter().map(|p| p.0).collect(),
+                        ..Default::default()
+                    },
+                ));
             }
             candidates.push(CapacityColumnsLayout {
                 header_row: row.number,
@@ -157,10 +276,13 @@ pub(super) fn detect_capacity_columns(
         }
     }
     if candidates.len() > 1 {
-        return Err(ImportError::Validation(format!(
-            "{}: multiple capacity tables",
-            table.file_name
-        )));
+        return Err(super::advice_diagnostics::advice_error(
+            table,
+            super::ImportDiagnosticCode::AmbiguousAdviceLayout,
+            None,
+            None,
+            Default::default(),
+        ));
     }
     Ok(candidates.pop())
 }
@@ -189,7 +311,13 @@ pub(super) fn parse_capacity_columns(
             for &(size, col) in &layout.size_columns {
                 let text = normalized(&value(row, col));
                 if text.starts_with('[') && unit(&text) != Some("kn") {
-                    return Err(bad(table, row.number, col, text, "resistance in kN"));
+                    return Err(bad(
+                        table,
+                        row.number,
+                        col,
+                        text,
+                        super::AdviceField::Header,
+                    ));
                 }
                 result
                     .mapped_columns
@@ -203,7 +331,7 @@ pub(super) fn parse_capacity_columns(
                         row.number,
                         layout.tip_column,
                         text,
-                        "level in metres",
+                        super::AdviceField::Header,
                     ));
                 }
             }
@@ -211,29 +339,29 @@ pub(super) fn parse_capacity_columns(
         }
         started = true;
         let id_text = value(row, layout.id_column);
-        let id = parse_nonnegative_u32(&id_text).map_err(|_| {
+        let id = parse_nonnegative_u32(id_text.trim()).map_err(|_| {
             bad(
                 table,
                 row.number,
                 layout.id_column,
                 id_text,
-                "unsigned integer CPT ID",
+                super::AdviceField::CptId,
             )
         })?;
         if let Some(col) = layout.check_id_column {
             let t = value(row, col);
-            if !t.trim().is_empty() && parse_nonnegative_u32(&t).ok() != Some(id) {
-                return Err(bad(table, row.number, col, t, "matching CPT ID"));
+            if !t.trim().is_empty() && parse_nonnegative_u32(t.trim()).ok() != Some(id) {
+                return Err(bad(table, row.number, col, t, super::AdviceField::CptId));
             }
         }
         let tip_text = value(row, layout.tip_column);
-        let tip = parse_finite_number(&tip_text).map_err(|_| {
+        let tip = parse_finite_number(tip_text.trim()).map_err(|_| {
             bad(
                 table,
                 row.number,
                 layout.tip_column,
                 tip_text.clone(),
-                "finite tip level in metres",
+                super::AdviceField::TipLevel,
             )
         })?;
         try_pile_tip_level_mm(tip).map_err(|e| {
@@ -247,13 +375,19 @@ pub(super) fn parse_capacity_columns(
             let text = value(row, col);
             if text.trim().is_empty() {
                 if table.has_formula(row.number, col) {
-                    return Err(bad(table, row.number, col, text, "cached formula result"));
+                    return Err(bad(
+                        table,
+                        row.number,
+                        col,
+                        text,
+                        super::AdviceField::Resistance,
+                    ));
                 }
                 result.missing_cells.push((row.number, col));
                 continue;
             }
-            let frd = parse_finite_number(&text)
-                .map_err(|_| bad(table, row.number, col, text, "finite resistance in kN"))?;
+            let frd = parse_finite_number(text.trim())
+                .map_err(|_| bad(table, row.number, col, text, super::AdviceField::Resistance))?;
             result.values.push(LocatedCapacity {
                 capacity: ProjectBearingCapacity {
                     cpt_id: id,
@@ -342,10 +476,14 @@ mod tests {
         t.formula_cells.insert((2, 3));
         t.formula_cells.insert((2, 4));
         let layout = detect_capacity_columns(&t).unwrap().unwrap();
-        assert!(parse_capacity_columns(&t, &layout)
-            .unwrap_err()
-            .to_string()
-            .contains("cached formula result"));
+        assert!(
+            parse_capacity_columns(&t, &layout)
+                .unwrap_err()
+                .to_source_import_failure()
+                .diagnostics[0]
+                .code
+                == super::super::ImportDiagnosticCode::MissingAdviceFormulaResult
+        );
         t.formula_cells.remove(&(2, 3));
         let parsed = parse_capacity_columns(&t, &layout).unwrap();
         assert_eq!(parsed.values[0].capacity.frd_kn, 0.);

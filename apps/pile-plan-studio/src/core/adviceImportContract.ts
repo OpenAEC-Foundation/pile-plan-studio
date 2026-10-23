@@ -4,7 +4,7 @@ export type AdviceSheetSelection = { sheetName: string; profile: ImportProfile }
 export type AdviceValueLocation = { sourceId: string; fileName: string; sheetName: string | null; row: number | null; column: number | null };
 export type AdviceConflict = { cptId: number; pileSizeMm: number; pileTipLevelMm: number;
   values: Array<{ frdKn: number; locations: AdviceValueLocation[] }> };
-export type AdviceSheetPreview = { sheetName: string; status: "ready" | "invalid" | "unsupported";
+export type AdviceSheetPreview = { sheetName: string; status: "ready" | "invalid" | "unsupported" | "needs-profile";
   detectedProfile: ImportProfile | null; resolvedProfile: ImportProfile | null;
   summary: { itemCount: number; cptCount: number; pileSizesMm: number[]; minTipLevelMm: number | null;
     maxTipLevelMm: number | null; missingCellCount: number }; diagnostics: ImportDiagnostic[] };
@@ -12,7 +12,7 @@ export type AdviceSourcePreview = { sourceId: string; sheets: AdviceSheetPreview
   suggestedSelection: AdviceSheetSelection[]; diagnostics: ImportDiagnostic[] };
 export type AdviceImportOperation = { kind: "append" } | { kind: "replace"; adviceId: string };
 export type StoredAdviceSource = { id: string; fileNames: string[]; sheetNames: string[]; itemCount: number; combinedLegacy: boolean };
-export type ProjectImportPreview = { existingSources?: StoredAdviceSource[]; canApply: boolean; uniqueValueCount: number; importedValueCount: number;
+export type ProjectImportPreview = { existingSources?: StoredAdviceSource[]; canApply: boolean; countsAvailable?: boolean; uniqueValueCount: number; importedValueCount: number;
   exactDuplicateCount: number; orphanValueCount: number; conflicts: AdviceConflict[]; diagnostics: ImportDiagnostic[] };
 
 type CoreLocation = { source_id: string; file_name: string; sheet_name: string | null; row: number | null; column: number | null };
@@ -23,7 +23,7 @@ export type CoreAdviceSourcePreview = { source_id: string; sheets: Array<{ sheet
   summary: { item_count: number; cpt_count: number; pile_sizes_mm: number[]; min_tip_level_mm: number | null;
     max_tip_level_mm: number | null; missing_cell_count: number }; diagnostics: CoreImportDiagnostic[] }>;
   suggested_selection: Array<{ sheet_name: string; profile: ImportProfile }>; diagnostics: CoreImportDiagnostic[] };
-export type CoreProjectImportPreview = { existing_sources?: Array<{id:string;file_names:string[];sheet_names:string[];item_count:number;combined_legacy:boolean}>; can_apply: boolean; unique_value_count: number; imported_value_count: number;
+export type CoreProjectImportPreview = { existing_sources?: Array<{id:string;file_names:string[];sheet_names:string[];item_count:number;combined_legacy:boolean}>; can_apply: boolean; counts_available?: boolean; unique_value_count: number; imported_value_count: number;
   exact_duplicate_count: number; orphan_value_count: number; conflicts: CoreAdviceConflict[]; diagnostics: CoreImportDiagnostic[] };
 
 function fromCoreConflict(c: CoreAdviceConflict): AdviceConflict {
@@ -42,7 +42,7 @@ export function fromCoreAdviceSourcePreview(p: CoreAdviceSourcePreview): AdviceS
     })) };
 }
 export function fromCoreProjectImportPreview(p: CoreProjectImportPreview): ProjectImportPreview {
-  return { existingSources: p.existing_sources?.map(s => ({id:s.id,fileNames:s.file_names,sheetNames:s.sheet_names,itemCount:s.item_count,combinedLegacy:s.combined_legacy})), canApply: p.can_apply, uniqueValueCount: p.unique_value_count, importedValueCount: p.imported_value_count,
+  return { existingSources: p.existing_sources?.map(s => ({id:s.id,fileNames:s.file_names,sheetNames:s.sheet_names,itemCount:s.item_count,combinedLegacy:s.combined_legacy})), canApply: p.can_apply, countsAvailable: p.counts_available ?? false, uniqueValueCount: p.unique_value_count, importedValueCount: p.imported_value_count,
     exactDuplicateCount: p.exact_duplicate_count, orphanValueCount: p.orphan_value_count,
     conflicts: p.conflicts.map(fromCoreConflict), diagnostics: p.diagnostics.map(fromCoreImportDiagnostic) };
 }

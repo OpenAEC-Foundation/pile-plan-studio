@@ -29,7 +29,17 @@ export function importDiagnosticText(
     })
     .join("; ");
 
+  const advice = diagnostic.advice;
+  const field = advice?.field ? t(`importProject.advice.fields.${advice.field}`) : "";
+  const action = advice?.field ? t(`importProject.advice.actions.${advice.field}`) : "";
+  const requiredProfile = advice?.requiredProfile;
+  const profile = requiredProfile ? t(`importProject.profile.${requiredProfile === "capacity-columns" ? "capacityColumns" : "standardTable"}`) : "";
   const message = t(`importProject.diagnostics.${diagnostic.code}`, {
+    field, action, profile,
+    value: advice?.value ?? "",
+    sizes: advice?.pileSizesMm.join(", ") ?? "",
+    columns: advice?.columnCount,
+    unit: advice?.expectedUnit ? t(`importProject.advice.units.${advice.expectedUnit}`) : "",
     count: diagnostic.count,
     locations,
     values,

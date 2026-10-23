@@ -79,3 +79,24 @@ test("a new project waits for load-point and CPT files before joint validation a
   drafts={...drafts,cpts:{...drafts.cpts,file:new File(["1,0,0"],"cpts.csv")}};
   await controller.preview();assert.equal(calls,1);assert.equal(drafts.advice!.previewState.status,"ready");
 });
+
+import { setAdviceSheetSelection } from '../../domain/imports/adviceImportModel.ts';
+import { prepareAdviceSource } from './projectImportRequest.ts';
+test('explicit worksheet profiles reach discovery and stale responses cannot undo a profile choice', async()=>{
+ let advice=addAdviceSource(createEmptyAdviceDraft<File>(),'a',new File(['x'],'a.xlsx'));
+ advice=setAdviceSheetSelection(advice,'a',[{sheetName:'Blad1',profile:'auto'}]);
+ let drafts:ImportDrafts<File>={...createEmptyImportDrafts<File>(),advice};
+ let resolve!:(p:ImportSourcePreview)=>void, started!:()=>void;
+ const pending=new Promise<ImportSourcePreview>(r=>resolve=r),reached=new Promise<void>(r=>started=r);
+ const controller=createAdviceImportPreviewController({readDrafts:()=>drafts,update:f=>drafts=f(drafts),readMode:()=> 'refresh',contextKey:()=> 'one',
+ discoverSource:()=>{started();return pending;},previewProject:async()=>{throw new Error('unused');}});
+ const running=controller.discover('a');await reached;
+ drafts={...drafts,advice:setAdviceSheetSelection(drafts.advice!,'a',[{sheetName:'Blad1',profile:'capacity-columns'}])};
+ assert.equal(drafts.advice!.sources[0].discovery.status,'empty');
+ const input=await prepareAdviceSource(drafts.advice!.sources[0],true);
+ assert.deepEqual(input.profileOptions.adviceSheets,[{sheetName:'Blad1',profile:'capacity-columns'}]);
+ resolve({details:{kind:'foundation-advice',advice:{sourceId:'a',sheets:[],suggestedSelection:[],diagnostics:[]}}} as unknown as ImportSourcePreview);
+ await running;
+ assert.equal(drafts.advice!.sources[0].discovery.status,'empty');
+ assert.equal(drafts.advice!.sources[0].sheetSelection![0].profile,'capacity-columns');
+});

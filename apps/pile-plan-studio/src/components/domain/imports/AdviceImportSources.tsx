@@ -19,6 +19,9 @@ export default function AdviceImportSources({ draft, onChange, refresh }: Props)
   const stored = refresh ? draft.existingSources ?? [] : [];
   const sourceOrder=[...stored.map(s => `stored:${s.id}`),...draft.sources.filter(s => !s.replacementId || !refresh).map(s => s.id)];
   const sourceLabels=Object.fromEntries(sourceOrder.map((id,index) => [id,t("importProject.advice.sourceNumber",{count:index+1})]));
+  const alreadyShownDiagnostics = draft.sources.flatMap(source => source.discovery.status === "ready"
+    ? [...source.discovery.preview.diagnostics, ...source.discovery.preview.sheets.flatMap(sheet => sheet.diagnostics.slice(0, 1))]
+    : []);
   for (const source of draft.sources) if(refresh && source.replacementId) sourceLabels[source.id]=sourceLabels[`stored:${source.replacementId}`];
   const profiles = ["auto", "standard-table", "capacity-columns"].map(value => ({value,
     label: t(`importProject.profile.${value === "auto" ? "automatic" : value === "standard-table" ? "standardTable" : "capacityColumns"}`)}));
@@ -70,29 +73,33 @@ export default function AdviceImportSources({ draft, onChange, refresh }: Props)
           : multiple && !selected.length ? t("importProject.advice.chooseSheets")
           : t("importProject.status.validCount",{count:source ? count : existing!.itemCount})}
       </div>}
-      {multiple && <div className="advice-import-sheet-choice"><small>{t("importProject.advice.chooseSheets")}</small>
+      {preview?.diagnostics.map((d,i) => <p className="project-import-error" key={i}>{importDiagnosticText(d,t)}</p>)}
+      {preview && <div className="advice-import-sheet-choice">
+        {multiple && <small>{t("importProject.advice.chooseSheets")}</small>}
         {sheets.map(sheet => {
           const selection = source!.sheetSelection?.find(v => v.sheetName===sheet.sheetName);
-          return <div className="advice-import-sheet" key={sheet.sheetName}>
-            <label><input type="checkbox" checked={!!selection} disabled={sheet.status==="unsupported"} onChange={e => onChange(d => setAdviceSheetSelection(d,source!.id,
-              e.target.checked ? [...source!.sheetSelection ?? [],{sheetName:sheet.sheetName,profile:sheet.resolvedProfile ?? profile}]
-                : (source!.sheetSelection ?? []).filter(v => v.sheetName!==sheet.sheetName)))} />{sheet.sheetName}</label>
-            <span>{t(`importProject.advice.status.${sheet.status}`)}</span>
-
+          return <div className={multiple ? "advice-import-sheet" : "advice-import-single-sheet"} key={sheet.sheetName}>
+            {multiple && <>
+              <label><input type="checkbox" checked={!!selection} disabled={sheet.status==="unsupported"} onChange={e => onChange(d => setAdviceSheetSelection(d,source!.id,
+                e.target.checked ? [...source!.sheetSelection ?? [],{sheetName:sheet.sheetName,profile:sheet.resolvedProfile ?? profile}]
+                  : (source!.sheetSelection ?? []).filter(v => v.sheetName!==sheet.sheetName)))} />{sheet.sheetName}</label>
+              <span>{t(`importProject.advice.status.${sheet.status}`)}</span>
+            </>}
+            {multiple && selection && <label className="project-import-profile advice-import-sheet-profile"><span>{t("importProject.profile.label")}</span>
+              <ThemedSelect value={selection.profile} options={profiles}
+                ariaLabel={`${t("importProject.profile.label")} ${sheet.sheetName}`} onChange={value => onChange(d => setAdviceSheetSelection(d,source!.id,
+                  source!.sheetSelection!.map(v => v.sheetName===sheet.sheetName ? {...v,profile:value as ImportProfile} : v)))} />
+            </label>}
+            {(!multiple || selection) && sheet.diagnostics[0] && <p className="advice-import-primary-diagnostics project-import-error">{importDiagnosticText(sheet.diagnostics[0],t)}</p>}
           </div>;
         })}
       </div>}
       {preview && <details className="advice-import-details"><summary>{t("importProject.advice.details")}</summary>
-        {preview.diagnostics.map((d,i) => <p key={i}>{importDiagnosticText(d,t)}</p>)}
-        {sheets.map(sheet => <div key={sheet.sheetName}><strong>{sheet.sheetName}</strong><p>{t("importProject.advice.sheetSummary",{count:sheet.summary.itemCount,cpts:sheet.summary.cptCount,
-          sizes:sheet.summary.pileSizesMm.join(", "),min:sheet.summary.minTipLevelMm===null ? "—" : sheet.summary.minTipLevelMm/1000,
-          max:sheet.summary.maxTipLevelMm===null ? "—" : sheet.summary.maxTipLevelMm/1000,missing:sheet.summary.missingCellCount})}</p>
-          {multiple && source?.sheetSelection?.some(v => v.sheetName===sheet.sheetName) && <label className="project-import-profile"><span>{t("importProject.profile.label")}</span>
-            <ThemedSelect value={source.sheetSelection.find(v => v.sheetName===sheet.sheetName)!.profile} options={profiles}
-              ariaLabel={`${t("importProject.profile.label")} ${sheet.sheetName}`} onChange={value => onChange(d => setAdviceSheetSelection(d,source.id,
-                source.sheetSelection!.map(v => v.sheetName===sheet.sheetName ? {...v,profile:value as ImportProfile} : v)))} />
-          </label>}
-          {sheet.diagnostics.map((d,i) => <p key={i}>{importDiagnosticText(d,t)}</p>)}</div>)}
+        {selected.map(sheet => <div key={sheet.sheetName}><strong>{sheet.sheetName}</strong>
+          {sheet.status === "ready" && <p>{t("importProject.advice.sheetSummary",{count:sheet.summary.itemCount,cpts:sheet.summary.cptCount,
+            sizes:sheet.summary.pileSizesMm.join(", "),min:sheet.summary.minTipLevelMm===null ? "—" : sheet.summary.minTipLevelMm/1000,
+            max:sheet.summary.maxTipLevelMm===null ? "—" : sheet.summary.maxTipLevelMm/1000,missing:sheet.summary.missingCellCount})}</p>}
+          {sheet.diagnostics.slice(1).map((d,i) => <p key={i}>{importDiagnosticText(d,t)}</p>)}</div>)}
         <small>{t("importProject.advice.unitsAndRange")}</small>
       </details>}
     </section>;
@@ -105,6 +112,6 @@ export default function AdviceImportSources({ draft, onChange, refresh }: Props)
     <button type="button" className="project-import-button advice-import-add" onClick={() => setEmptyCards(cards => [...cards,crypto.randomUUID()])}>{t("importProject.advice.addAdvice")}</button>
     <small>{t("importProject.advice.assumptions")}</small>
     {draft.previewState.status==="failed" && <p className="project-import-error">{draft.previewState.message}</p>}
-    {draft.previewState.status==="ready" && (draft.sources.length>0 || draft.previewState.preview.conflicts.length>0) && <AdviceImportDiagnostics preview={draft.previewState.preview} sourceLabels={sourceLabels} />}
+    {draft.previewState.status==="ready" && (draft.sources.length>0 || draft.previewState.preview.conflicts.length>0) && <AdviceImportDiagnostics preview={draft.previewState.preview} sourceLabels={sourceLabels} alreadyShownDiagnostics={alreadyShownDiagnostics} />}
   </div>;
 }
