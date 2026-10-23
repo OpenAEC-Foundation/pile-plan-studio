@@ -293,8 +293,8 @@ These boundaries do not move engineering authority into React. CPT selection,
 pile-option evaluation, capacity, cost, grouping, assignment, optimization, and
 project validation remain authoritative in `crates/pile-plan-core`.
 
-The right panel defaults to a single view. Its optional split view keeps load
-points above a compact CPT pane, with independent scrolling and a draggable,
+The right panel defaults to a single view. Its optional split view keeps pile
+options above a compact CPT pane, with independent scrolling and a draggable,
 keyboard-accessible divider. The divider ratio is an application preference;
 the chosen view and selections remain transient workspace state. Opening a CPT
 or editing its selection keeps the split view active. Source tables have a close
@@ -304,6 +304,42 @@ Pile-option column visibility and order are application preferences, stored
 separately for single-location and multiple-location selections. Defaults preserve
 the existing columns; hidden columns do not participate in filtering or sorting.
 Changing this layout does not change project content, undo history, or dirty state.
+One permanent selection overview sits above the pile-options, CPT and combined
+content, with one location list and navigation control in every view. The list
+has no column headers and defaults to four rows before scrolling. A draggable,
+keyboard-accessible separator adjusts the visible row count from one to twelve;
+double-click restores four rows. The heading collapses/expands the overview.
+Row count and collapsed state are application preferences, independent of project
+history and dirty state. Members of the
+effective Rust-derived groups appear together with a clickable group label in
+the left rail; clicking that label selects the complete group. The list includes
+unselected group members as context and highlights the actual selection. The
+group label is also accented when every member is selected. A row click inspects
+one location; pile options and CPT edits follow that same selection in both
+panels and the viewer. Load-point coordinates remain available in the hover
+panel. FEd labels and force values use shared aligned
+grid tracks across all groups. The list scrolls the first selected member into
+view when selection or group context changes. The former group-selection banner
+is replaced by these inline labels; assignment-conflict notices remain separate.
+The current group/multiselection remains as transient navigation context while
+inspecting its members. The shared overview offers Previous/Next in the displayed
+group order, both inside and outside editing. Selecting outside this context
+replaces it; clearing the selection clears the context. The compact arrow control
+sits beneath the list, alongside an Entire selection action. The CPT content
+provides its edit actions beneath this shared block. Navigating through the list during CPT
+editing captures newly visited locations without losing earlier draft changes.
+Save validates and commits all changed locations together; Cancel discards the
+entire draft. Zero changed locations is plain text; the changed-location details
+only expand when there are actual member links. Automatic reset and Only nearest
+are also available outside editing and validate/commit directly without exposing
+an intermediate draft. Viewer point/background/lasso selection and switching to
+Pile options finish editing by saving first; the requested UI transition runs
+inside the successful guarded commit. Failed or stale saves keep the editor and
+selection intact. Source selection and shared-list navigation can still change
+edit targets without discarding staged changes.
+The CPT batch client normalizes Rust's absent CPT IDs to explicit `null` across
+WASM and native transport: this means automatic selection, whereas an explicit
+empty array means a deliberately empty manual selection.
 Optional columns default to hidden, including when older saved layouts are
 normalized. Single selection offers FEd in addition to the existing columns.
 Multiple selection also offers governing resistance (R_c;net;d min), governing

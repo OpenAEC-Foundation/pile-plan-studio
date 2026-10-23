@@ -17,7 +17,7 @@
     "selection": "Selection",
     "lassoSelection": "Box selection",
     "lassoSelectionTooltip": "Select load points by dragging a box. Shortcut: Shift+drag; hold Ctrl to add.",
-    "loadPoints": "Load points",
+    "loadPoints": "Pile options",
     "cpts": "CPTs",
     "settings": "Settings",
     "cptSettings": "CPT settings",

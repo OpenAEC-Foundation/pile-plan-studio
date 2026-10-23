@@ -1,7 +1,6 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import {
-  formatLoadPointPanelTitle,
   getCptFrdPanelModel,
   getChosenPileOptionKeyForSelection,
   getPileOptionsByLoadPointIdForPanel,
@@ -306,11 +305,6 @@ describe("React right panel model", () => {
     }), "350|-20300");
   });
 
-  it("does not duplicate the load point prefix in panel titles", () => {
-    assert.equal(formatLoadPointPanelTitle("Load point 15"), "Load point 15");
-    assert.equal(formatLoadPointPanelTitle("15"), "Load point 15");
-  });
-
   it("shows the CPT capacity for the pile assigned to one load point", () => {
     const state = minimalState({
       bearingCapacities: [{
@@ -431,6 +425,7 @@ describe("React right panel model", () => {
     const cpt64 = { id: 64, name: "CPT 64", x_mm: 0, y_mm: 0 };
     const cpt65 = { id: 65, name: "CPT 65", x_mm: 10, y_mm: 10 };
     const state = minimalState({
+      selectedLoadPointIds: [1, 2],
       cpts: [cpt64, cpt65],
       cptSelectionEditDraft: {
         loadPointIds: [1, 2],

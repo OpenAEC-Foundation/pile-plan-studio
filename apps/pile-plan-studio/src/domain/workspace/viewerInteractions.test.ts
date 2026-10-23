@@ -7,7 +7,6 @@ import {
   getReactViewerContextCptIds,
   getReactViewerSelectedCptIds,
   isReactViewerCptSelectionEditing,
-  isViewerSelectionActionAllowed,
   openReactViewerCpt,
   selectReactViewerLoadPoint,
   setReactViewerLoadPoints,
@@ -17,15 +16,6 @@ import {
 } from "./viewerInteractions.ts";
 
 describe("React viewer interactions", () => {
-  it("locks load-point selection while manually editing CPTs", () => {
-    assert.equal(isViewerSelectionActionAllowed(false, "load-point"), true);
-    assert.equal(isViewerSelectionActionAllowed(false, "background"), true);
-    assert.equal(isViewerSelectionActionAllowed(false, "lasso"), true);
-    assert.equal(isViewerSelectionActionAllowed(true, "cpt"), true);
-    assert.equal(isViewerSelectionActionAllowed(true, "load-point"), false);
-    assert.equal(isViewerSelectionActionAllowed(true, "background"), false);
-    assert.equal(isViewerSelectionActionAllowed(true, "lasso"), false);
-  });
 
   it("defaults selected scope when creating a selection from empty", () => {
     const state = {
@@ -251,7 +241,7 @@ describe("React viewer interactions", () => {
     assert.deepEqual(contextIds, [61]);
   });
 
-  it("shows the union of manual CPT draft sets while editing", () => {
+  it("shows only the shared selection's CPT draft sets while editing", () => {
     const selectedIds = getReactViewerSelectedCptIds({
       cptSelectionEditDraft: {
         loadPointIds: [1, 2],
@@ -264,7 +254,7 @@ describe("React viewer interactions", () => {
       ]),
     });
 
-    assert.deepEqual(selectedIds, [61, 62, 64]);
+    assert.deepEqual(selectedIds, [62, 64]);
   });
 
   it("treats any active manual CPT draft as editing", () => {

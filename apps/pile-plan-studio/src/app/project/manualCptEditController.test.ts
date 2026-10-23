@@ -4,9 +4,11 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { canonicalProjectForTest, projectTipLevelKeysForTest } from "../../core/projectTestSupport.ts";
 import { createInitialProjectState } from "../../domain/project/projectState.ts";
-import { beginManualCptSelection, toggleManualCpt, cancelManualCptSelection } from "../../domain/cpt-selection/cptSettingsModel.ts";
+import { beginManualCptSelection, toggleManualCpt, cancelManualCptSelection, clearManualCptSelection } from "../../domain/cpt-selection/cptSettingsModel.ts";
 import { createManualCptEditController } from "./manualCptEditController.ts";
 import type { ManualCptSelectionBatchResult } from "../../core/locationBulkCoreClient.ts";
+import { validateManualCptSelectionBatchCore } from "../../core/locationBulkCoreClient.ts";
+import initWasm from "../../core/wasm/pile-plan-wasm/pile_plan_wasm.js";
 
 function setup() {
   const project = canonicalProjectForTest(readFileSync(new URL("../../../../../sample_project/sample_project.ifcpp", import.meta.url), "utf8"));
@@ -34,6 +36,70 @@ test("manual CPT save installs one validated batch and closes the draft", async 
   assert.equal(h.commits(), 1); assert.equal(h.state().cptSelectionEditDraft, null);
   assert.deepEqual(h.state().manualCptIdsByLoadPoint.get(h.id), [h.cpt]);
   assert.deepEqual(h.state().analysisRequest.loadPointIds, [h.id]);
+});
+
+test("auto-save applies a requested view change only with its accepted project commit", async () => {
+  const h = setup();
+  const task = h.controller.save(state => ({ ...state, rightPanelMode: "load-point", selectedLoadPointIds: [], selectedLoadPointId: null }));
+  assert.notEqual(h.state().cptSelectionEditDraft, null);
+  h.finish({ status: "valid", changes: [{ load_point_id: h.id, cpt_ids: [h.cpt] }] });
+  await task;
+  assert.equal(h.state().cptSelectionEditDraft, null);
+  assert.equal(h.state().rightPanelMode, "load-point");
+  assert.deepEqual(h.state().selectedLoadPointIds, []);
+  assert.deepEqual(h.state().manualCptIdsByLoadPoint.get(h.id), [h.cpt]);
+  assert.equal(h.commits(), 1);
+});
+
+test("a rejected auto-save never navigates away or discards the draft", async () => {
+  const h = setup(), before = h.state();
+  const task = h.controller.save(() => { assert.fail("must not navigate"); });
+  h.finish({ status: "blocked", reason: "unknown_cpt", ids: [999] }); await task;
+  assert.equal(h.state(), before);
+});
+
+test("no-op auto-save still finishes the editor and changes views without validation", async () => {
+  const h = setup(); h.change(state => toggleManualCpt(state, h.cpt));
+  h.change(state => ({ ...state, rightPanelMode: "cpts" }));
+  await h.controller.save(state => ({ ...state, rightPanelMode: "load-point" }));
+  assert.equal(h.state().rightPanelMode, "load-point");
+  assert.equal(h.state().cptSelectionEditDraft, null);
+  assert.equal(h.inputs.length, 0);
+});
+
+test("automatic selection can be restored directly without exposing an intermediate editor", async () => {
+  const h = setup();
+  h.change(state => ({ ...cancelManualCptSelection(state), manualCptIdsByLoadPoint: new Map([[h.id, [h.cpt]]]) }));
+  const task = h.controller.applyMethod("automatic");
+  assert.equal(h.state().cptSelectionEditDraft, null);
+  assert.deepEqual(h.inputs[0]!.changes, [{ load_point_id: h.id, cpt_ids: null }]);
+  h.finish({ status: "valid", changes: h.inputs[0]!.changes }); await task;
+  assert.equal(h.state().manualCptIdsByLoadPoint.has(h.id), false);
+  assert.equal(h.state().cptSelectionEditDraft, null);
+  assert.equal(h.commits(), 1);
+});
+
+test("saving an automatic group reset through real WASM removes overrides while preserving explicit empty manual selections elsewhere", async () => {
+  await initWasm({ module_or_path: readFileSync(new URL("../../core/wasm/pile-plan-wasm/pile_plan_wasm_bg.wasm", import.meta.url)) });
+  const project = setup().state();
+  const [first, second, untouched] = project.loadPoints.slice(0, 3).map(point => point.id);
+  const cpt = project.cpts[0]!.id;
+  let state = clearManualCptSelection(beginManualCptSelection({ ...project,
+    selectedLoadPointIds: [first!, second!], manualCptIdsByLoadPoint: new Map([[first!, [cpt]], [second!, []], [untouched!, []]]),
+  }));
+  let commits = 0;
+  const controller = createManualCptEditController({ currentState: () => state,
+    evaluate: validateManualCptSelectionBatchCore,
+    commit: update => { state = update(state); commits++; },
+    setPending: () => {}, blocked: () => assert.fail("unexpected rejection"), failed: error => { throw error; },
+  });
+  await controller.save();
+  assert.equal(commits, 1);
+  assert.equal(state.cptSelectionEditDraft, null);
+  assert.equal(state.manualCptIdsByLoadPoint.has(first!), false);
+  assert.equal(state.manualCptIdsByLoadPoint.has(second!), false);
+  assert.deepEqual(state.manualCptIdsByLoadPoint.get(untouched!), []);
+  assert.deepEqual(state.analysisRequest.loadPointIds, [first, second]);
 });
 
 test("a blocked manual CPT batch leaves every location and the editor intact", async () => {

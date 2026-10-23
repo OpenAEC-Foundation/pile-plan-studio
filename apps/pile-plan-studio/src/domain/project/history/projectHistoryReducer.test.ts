@@ -42,14 +42,16 @@ describe("project history reducer", () => {
   it("undoes and redoes a multi-location CPT edit as one change with scoped analysis", () => {
     const initial = { ...state(), manualCptIdsByLoadPoint: new Map() };
     const ids = initial.loadPoints.slice(0, 3).map(p => p.id), cpt = initial.cpts[0]!.id;
-    initial.selectedLoadPointIds = ids;
+    initial.selectedLoadPointIds = [ids[0]!];
     let managed = createManagedProjectState(initial);
     const plans = managed.present.pilePlans;
-    managed = projectHistoryReducer(managed, { type: "commit", update: current => {
-      const draft = beginManualCptSelection(current);
-      const first = toggleManualCpt(setManualCptEditLoadPoint(draft, ids[0]!), cpt);
-      return saveManualCptSelection(toggleManualCpt(setManualCptEditLoadPoint(first, ids[2]!), cpt));
-    } });
+    managed = projectHistoryReducer(managed, { type: "commit", update: beginManualCptSelection });
+    managed = projectHistoryReducer(managed, { type: "commit", update: current => toggleManualCpt(current, cpt) });
+    managed = projectHistoryReducer(managed, { type: "commit", update: current => setManualCptEditLoadPoint(current, ids[2]!) });
+    managed = projectHistoryReducer(managed, { type: "commit", update: current => toggleManualCpt(current, cpt) });
+    assert.equal(managed.history.past.length, 0);
+    assert.equal(projectStateSignature(managed.present), projectStateSignature(initial));
+    managed = projectHistoryReducer(managed, { type: "commit", update: saveManualCptSelection });
     assert.equal(managed.history.past.length, 1);
     assert.deepEqual([...managed.present.manualCptIdsByLoadPoint], [[ids[0], [cpt]], [ids[2], [cpt]]]);
     assert.deepEqual(managed.present.analysisRequest.loadPointIds, [ids[0], ids[2]]);

@@ -2,6 +2,7 @@ import { clampRightPanelSplit, DEFAULT_RIGHT_PANEL_SPLIT } from "../workspace/ri
 import type { PileCostSettings } from "../../core/projectTypes.ts";
 import { normalizePileOptionColumnLayouts, type PileOptionColumnLayouts } from "../pile-options/pileOptionColumnLayout.ts";
 import { normalizeInterfaceScale } from "./interfaceScale.ts";
+import { clampSelectionOverviewRows, DEFAULT_SELECTION_OVERVIEW_ROWS } from "../workspace/selectionOverviewLayout.ts";
 import {
   clampExplorerWidth,
   clampRightPanelWidth,
@@ -23,6 +24,8 @@ export type WorkspaceLayoutSettings = {
   propertiesVisible: boolean;
   propertiesWidth: number;
   propertiesSplitRatio: number;
+  selectionOverviewRows: number;
+  selectionOverviewCollapsed: boolean;
   inputSourcesExpanded: boolean;
   pilePlansExpanded: boolean;
 };
@@ -60,6 +63,8 @@ export const DEFAULT_USER_SETTINGS: UserSettings = {
       propertiesVisible: true,
       propertiesWidth: DEFAULT_RIGHT_PANEL_WIDTH,
       propertiesSplitRatio: DEFAULT_RIGHT_PANEL_SPLIT,
+      selectionOverviewRows: DEFAULT_SELECTION_OVERVIEW_ROWS,
+      selectionOverviewCollapsed: false,
       inputSourcesExpanded: true,
       pilePlansExpanded: true,
     },
@@ -96,6 +101,8 @@ export function normalizeUserSettings(value: unknown): UserSettings {
         propertiesVisible: booleanOr(workspace.propertiesVisible, true),
         propertiesWidth: clampRightPanelWidth(numberOr(workspace.propertiesWidth, DEFAULT_RIGHT_PANEL_WIDTH)),
         propertiesSplitRatio: clampRightPanelSplit(numberOr(workspace.propertiesSplitRatio, DEFAULT_RIGHT_PANEL_SPLIT)),
+        selectionOverviewRows: clampSelectionOverviewRows(numberOr(workspace.selectionOverviewRows, DEFAULT_SELECTION_OVERVIEW_ROWS)),
+        selectionOverviewCollapsed: booleanOr(workspace.selectionOverviewCollapsed, false),
         inputSourcesExpanded: booleanOr(workspace.inputSourcesExpanded, true),
         pilePlansExpanded: booleanOr(workspace.pilePlansExpanded, true),
       },

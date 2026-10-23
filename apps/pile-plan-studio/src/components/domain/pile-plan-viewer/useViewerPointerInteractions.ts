@@ -37,7 +37,6 @@ import { toggleManualCpt } from "../../../domain/cpt-selection/cptSettingsModel.
 import {
   addReactViewerLoadPoints,
   clearReactViewerSelection,
-  isViewerSelectionActionAllowed,
   openReactViewerCpt,
   selectReactViewerLoadPoint,
   setReactViewerLoadPoints,
@@ -63,6 +62,7 @@ type UseViewerPointerInteractionsOptions = {
   state: ProjectState;
   loadPointGroups: LoadPointGroup[];
   onStateChange: (nextState: ProjectState) => void;
+  onSelectionChange?: (nextState: ProjectState) => void;
   lassoSelectionActive: boolean;
   isEditingLoadPointLocks: boolean;
   isEditingCptSelection: boolean;
@@ -82,6 +82,7 @@ export function useViewerPointerInteractions({
   state,
   loadPointGroups,
   onStateChange,
+  onSelectionChange = onStateChange,
   lassoSelectionActive,
   isEditingLoadPointLocks,
   isEditingCptSelection,
@@ -136,9 +137,9 @@ export function useViewerPointerInteractions({
         if (shouldClearViewerSelectionOnEscape({
           lassoSelectionActive,
           isEditingLoadPointLocks,
-          selectionAllowed: isViewerSelectionActionAllowed(isEditingCptSelection, "background"),
+          selectionAllowed: true,
         })) {
-          onStateChange({ ...state, ...clearReactViewerSelection(state), viewport: viewportRef.current });
+          onSelectionChange({ ...state, ...clearReactViewerSelection(state), viewport: viewportRef.current });
         }
       }
     }
@@ -159,7 +160,7 @@ export function useViewerPointerInteractions({
       lassoSelectionActive,
       shiftKey: event.shiftKey,
       targetIsInteractive,
-      selectionAllowed: isViewerSelectionActionAllowed(isEditingCptSelection, "lasso"),
+      selectionAllowed: true,
       isEditingLoadPointLocks,
     })) {
       event.preventDefault();
@@ -242,14 +243,14 @@ export function useViewerPointerInteractions({
       }
       const unlockedIds = loadPointIds.filter((id) => !lockedLoadPointIds.has(id));
       if (interaction.operation === "replace") {
-        onStateChange({ ...state, ...setReactViewerLoadPoints(state, unlockedIds, loadPointGroups), viewport: viewportRef.current });
+        onSelectionChange({ ...state, ...setReactViewerLoadPoints(state, unlockedIds, loadPointGroups), viewport: viewportRef.current });
       } else if (unlockedIds.length > 0) {
-        onStateChange({ ...state, ...addReactViewerLoadPoints(state, unlockedIds, loadPointGroups), viewport: viewportRef.current });
+        onSelectionChange({ ...state, ...addReactViewerLoadPoints(state, unlockedIds, loadPointGroups), viewport: viewportRef.current });
       }
       return;
     }
-    if (!interaction.moved && !isEditingLoadPointLocks && isViewerSelectionActionAllowed(isEditingCptSelection, "background")) {
-      onStateChange({ ...state, ...clearReactViewerSelection(state), viewport: viewportRef.current });
+    if (!interaction.moved && !isEditingLoadPointLocks) {
+      onSelectionChange({ ...state, ...clearReactViewerSelection(state), viewport: viewportRef.current });
       return;
     }
     onStateChange({ ...state, viewport: viewportRef.current });
@@ -270,11 +271,8 @@ export function useViewerPointerInteractions({
         viewport: viewportRef.current,
         preferredMarkerType: state.foregroundLayer === "cpts" ? "cpt" : "load-point",
       });
-      const candidateKeys = candidates.map((candidate) => candidate.key).filter((key) => (
-        isEditingLoadPointLocks
-          ? key.startsWith("load-point:")
-          : !isEditingCptSelection || key.startsWith("cpt:")
-      ));
+      const candidateKeys = candidates.map((candidate) => candidate.key)
+        .filter(key => !isEditingLoadPointLocks || key.startsWith("load-point:"));
       setHoverCandidates((current) => updateHoverCandidateState(current, candidateKeys));
     });
   }
@@ -288,11 +286,8 @@ export function useViewerPointerInteractions({
       viewport: viewportRef.current,
       preferredMarkerType: state.foregroundLayer === "cpts" ? "cpt" : "load-point",
     });
-    const candidateKeys = candidates.map((candidate) => candidate.key).filter((key) => (
-      isEditingLoadPointLocks
-        ? key.startsWith("load-point:")
-        : !isEditingCptSelection || key.startsWith("cpt:")
-    ));
+    const candidateKeys = candidates.map((candidate) => candidate.key)
+      .filter(key => !isEditingLoadPointLocks || key.startsWith("load-point:"));
     return resolveHoverClickCandidateKey(hoverCandidates, candidateKeys, fallbackKey);
   }
 
@@ -324,10 +319,6 @@ export function useViewerPointerInteractions({
       return;
     }
     if (lockedLoadPointIds.has(loadPointId)) return;
-    if (!isViewerSelectionActionAllowed(isEditingCptSelection, "load-point")) {
-      clearHoverCandidates();
-      return;
-    }
     const clickedKey = getClickCandidateKey(event, `load-point:${loadPointId}`);
     clearHoverCandidates();
     selectMapMarker(clickedKey, getAdditiveSelectionModifier(event));
@@ -342,11 +333,10 @@ export function useViewerPointerInteractions({
       onStateChange({ ...nextState, viewport: viewportRef.current });
       return;
     }
-    if (!isViewerSelectionActionAllowed(isEditingCptSelection, "load-point")) return;
     const selection = additiveKey
       ? toggleReactViewerLoadPoint(state, item.id, loadPointGroups)
       : selectReactViewerLoadPoint(state, item.id, loadPointGroups);
-    onStateChange({ ...state, ...selection, viewport: viewportRef.current });
+    onSelectionChange({ ...state, ...selection, viewport: viewportRef.current });
   }
 
   return {

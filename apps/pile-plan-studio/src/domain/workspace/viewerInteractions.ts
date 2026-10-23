@@ -128,8 +128,7 @@ export function getReactViewerContextCptIds(state: {
   const draft = state.cptSelectionEditDraft;
   if (draft) {
     const draftCptIds = new Set<number>();
-    const ids = state.cptSelectionEditLoadPointId != null && draft.loadPointIds.includes(state.cptSelectionEditLoadPointId)
-      ? [state.cptSelectionEditLoadPointId] : draft.loadPointIds;
+    const ids = state.selectedLoadPointIds;
     ids.forEach((loadPointId) => {
       const preview = state.cptSelectionPreview;
       const cpts = draft.automaticLoadPointIds?.has(loadPointId)
@@ -158,15 +157,6 @@ export function isReactViewerCptSelectionEditing(state: {
   cptSelectionPreview?: CptSelectionPreview | null;
 }): boolean {
   return state.cptSelectionEditDraft !== null && state.cptSelectionEditDraft !== undefined;
-}
-
-export type ViewerSelectionAction = "cpt" | "load-point" | "background" | "lasso";
-
-export function isViewerSelectionActionAllowed(
-  isEditingCptSelection: boolean,
-  action: ViewerSelectionAction,
-): boolean {
-  return !isEditingCptSelection || action === "cpt";
 }
 
 export function clearLegendSelection<T extends ReactViewerSelectionState>(state: T): T {

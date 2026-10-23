@@ -302,33 +302,20 @@ describe("React CPT panel edit mode", () => {
 });
 
 describe("React coordinate inspection", () => {
-  it("uses the shared two-column coordinate readout for CPTs and load points", () => {
+  it("keeps coordinates in CPT details and removes them from the load-point overview", () => {
     const panel = readRightPanelSource();
     const styles = readFileSync(resolve(import.meta.dirname, "rightPanel.css"), "utf8");
 
     assert.match(panel, /import \{ CoordinateReadout \} from "\.\.\/shared\/CoordinateReadout\.ts"/);
     assert.match(panel, /<CoordinateReadout points=\{\[selectedCpt\.cpt\]\} locale=\{i18n\.language\} \/>/);
-    assert.match(panel, /<CoordinateReadout points=\{selectedLoadPoints\} locale=\{i18n\.language\} \/>/);
+    assert.doesNotMatch(panel, /<CoordinateReadout points=\{selectedLoadPoints\}/);
     assert.doesNotMatch(panel, /cpt-detail-grid/);
     assert.match(styles, /\.load-point-panel > \.coordinate-readout,[\s\S]*?grid-template-columns:\s*repeat\(2,\s*minmax\(0,\s*1fr\)\)/);
     assert.match(styles, /\.load-point-panel > \.coordinate-readout div,[\s\S]*?display:\s*flex;[\s\S]*?align-items:\s*baseline/);
-    assert.match(panel, /className="load-point-force-label">F<sub>Ed<\/sub><\/span>/);
-    assert.match(panel, /selectedLoadPoints\.length > 1 \? <span>\{t\("loadPoints\.selection"\)\}<\/span> : null/);
   });
 });
 
 describe("load-point group controls", () => {
-  it("discloses every selected member with its identity and FEd for single-member inspection", () => {
-    const panel = readRightPanelSource();
-    const styles = readFileSync(resolve(import.meta.dirname, "rightPanel.css"), "utf8");
-
-    assert.match(panel, /className="load-point-selection-disclosure"/);
-    assert.match(panel, /t\("loadPoints\.selectedCount"/);
-    assert.match(panel, /loadPoint\.design_load_kn\.toLocaleString/);
-    assert.match(panel, /selectLoadPoint\(state, loadPoint\.id\)/);
-    assert.match(styles, /\.load-point-selection-list/);
-  });
-
   it("previews and applies group edits without changing assignments or locks", () => {
     const panel = readRightPanelSource();
 

@@ -68,6 +68,7 @@ export type PilePlanViewerProps = {
   lassoSelectionActive: boolean;
   tipLevelRegionTopology: TipLevelRegionTopology | null;
   onStateChange: (nextState: ProjectState) => void;
+  onSelectionChange?: (nextState: ProjectState) => void;
 };
 
 export default function PilePlanViewer({
@@ -79,6 +80,7 @@ export default function PilePlanViewer({
   lassoSelectionActive,
   tipLevelRegionTopology,
   onStateChange,
+  onSelectionChange,
 }: PilePlanViewerProps) {
   const { t, i18n } = useTranslation("common");
   const legend = state.pileLegend;
@@ -203,6 +205,7 @@ export default function PilePlanViewer({
     state,
     loadPointGroups,
     onStateChange,
+    onSelectionChange,
     lassoSelectionActive,
     isEditingLoadPointLocks,
     isEditingCptSelection,

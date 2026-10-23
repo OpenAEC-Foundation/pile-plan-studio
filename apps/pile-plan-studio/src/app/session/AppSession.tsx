@@ -1,6 +1,7 @@
 import { applyProjectRefresh } from "../import/projectImportApply.ts";
 import { previewProjectImportCore } from "../../core/projectCoreClient.ts";
 import { useManualCptSelectionEdit } from "../project/useManualCptSelectionEdit.ts";
+import { synchronizeManualCptSelection, toggleManualCpt } from "../../domain/cpt-selection/cptSettingsModel.ts";
 import { createProjectMcpSession } from "../mcp/projectSession.ts";
 import { createSymbolScaleHistory } from "../project/symbolScaleHistory.ts";
 import { useCptSelectionPreview } from "../derived-state/useCptSelectionPreview.ts";
@@ -293,7 +294,7 @@ export default function AppSession({
   ) => {
     dispatchProject({ type: "commit", update, action });
   }, []);
-  const { pending: cptEditPending, save: saveCptSelection } = useManualCptSelectionEdit({
+  const { pending: cptEditPending, save: saveCptSelection, applyMethod: applyCptSelectionMethod } = useManualCptSelectionEdit({
     currentState: () => projectStateRef.current,
     commit: update => commitProjectState(update),
     blocked: () => showActionNotice(t("rightPanel:cpts.saveBlocked"), "error"),
@@ -657,7 +658,7 @@ export default function AppSession({
   };
 
   const handleProjectStateChange = (nextState: typeof projectState) => {
-    commitProjectState(nextState);
+    commitProjectState(synchronizeManualCptSelection(nextState));
   };
 
   const applyValidatedProjectEdit = async (
@@ -693,7 +694,7 @@ export default function AppSession({
     applyValidatedProjectEdit((state) => preparePileCostCatalogDefaultEdit(state, catalog));
 
   const handleSourceLoadPointSelection = (intent: SourceLoadPointSelection) => {
-    if (projectState.loadPointLockDraft !== null || projectState.cptSelectionEditDraft !== null) return;
+    if (projectState.loadPointLockDraft !== null || cptEditPending) return;
     const loadPointIds = intent.loadPointIds.filter((id) => !activeLockedLoadPointIdSet.has(id));
     if (loadPointIds.length === 0) return;
     const selection = intent.mode === "toggle"
@@ -705,12 +706,14 @@ export default function AppSession({
   };
 
   const handleSourceCptSelection = (cptId: number) => {
-    if (projectState.loadPointLockDraft !== null || projectState.cptSelectionEditDraft !== null) return;
-    handleProjectStateChange({ ...projectState, ...openReactViewerCpt(projectState, cptId) });
+    if (projectState.loadPointLockDraft !== null || cptEditPending) return;
+    handleProjectStateChange(projectState.cptSelectionEditDraft
+      ? toggleManualCpt(projectState, cptId)
+      : { ...projectState, ...openReactViewerCpt(projectState, cptId) });
   };
 
   const clearSourceSelection = () => {
-    if (projectState.loadPointLockDraft !== null || projectState.cptSelectionEditDraft !== null) return;
+    if (projectState.loadPointLockDraft !== null || cptEditPending) return;
     handleProjectStateChange({ ...projectState, ...clearReactViewerSelection(projectState) });
   };
 
@@ -1053,6 +1056,19 @@ export default function AppSession({
       ? applyIlpPreviewInteraction(projectState, ilp.displayState, next) : next;
     if (actual) handleProjectStateChange(actual);
   };
+  const handleViewerSelectionChange = (next: ProjectState) => {
+    if (!projectStateRef.current.cptSelectionEditDraft) { handleDisplayedStateChange(next); return; }
+    void saveCptSelection(current => ({
+      ...current,
+      selectedLoadPointId: next.selectedLoadPointId,
+      selectedLoadPointIds: next.selectedLoadPointIds,
+      selectedCptId: next.selectedCptId,
+      rightPanelMode: next.rightPanelMode,
+      cptSettingsScope: next.cptSettingsScope,
+      legendSelectionFilter: next.legendSelectionFilter,
+      viewport: next.viewport,
+    }));
+  };
 
   const installOpenedProject = (project: ProjectState, path: string | null) => {
     const lifecycle = openedProjectLifecycleState(project, path);
@@ -1186,7 +1202,9 @@ export default function AppSession({
           onOpenRightPanel={(mode) => {
             updateWorkspaceLayout({ propertiesVisible: true });
             setRightTaskPanel(null);
-            setProjectState((current) => ({ ...current, ...switchRightPanelMode(current, mode) }));
+            if (mode === "load-point" && projectStateRef.current.cptSelectionEditDraft) {
+              void saveCptSelection(current => ({ ...current, ...switchRightPanelMode(current, mode) }));
+            } else setProjectState((current) => ({ ...current, ...switchRightPanelMode(current, mode) }));
           }}
           onOpenTaskPanel={(panel) => {
             updateWorkspaceLayout({ propertiesVisible: true });
@@ -1295,6 +1313,7 @@ export default function AppSession({
                 lassoSelectionActive={lassoSelectionActive}
                 onStateChange={handleDisplayedStateChange}
                 onLegendApply={applyLegendEditor}
+                onSelectionChange={handleViewerSelectionChange}
               />
             ) : (
               <SourceDataViewer
@@ -1307,7 +1326,7 @@ export default function AppSession({
                 selectedLoadPointIds={projectState.selectedLoadPointIds}
                 selectedCptId={projectState.selectedCptId}
                 lockedLoadPointIds={activeLockedLoadPointIdSet}
-                selectionDisabled={projectState.loadPointLockDraft !== null || projectState.cptSelectionEditDraft !== null}
+                selectionDisabled={projectState.loadPointLockDraft !== null || cptEditPending}
                 onSelectLoadPoints={handleSourceLoadPointSelection}
                 onSelectCpt={handleSourceCptSelection}
                 onClearSelection={clearSourceSelection}
@@ -1339,6 +1358,12 @@ export default function AppSession({
               commitUserSettings(next);
             }}
             splitRatio={workspaceLayout.propertiesSplitRatio}
+            selectionRows={workspaceLayout.selectionOverviewRows}
+            selectionCollapsed={workspaceLayout.selectionOverviewCollapsed}
+            onSelectionLayoutChange={patch => updateWorkspaceLayout({
+              ...(patch.rows === undefined ? {} : { selectionOverviewRows: patch.rows }),
+              ...(patch.collapsed === undefined ? {} : { selectionOverviewCollapsed: patch.collapsed }),
+            })}
             onSplitRatioChange={propertiesSplitRatio => updateWorkspaceLayout({ propertiesSplitRatio })}
             ilpResult={<IlpOptimizationSettingsPanel
               newPlanName={ilp.newPlanName} onNewPlanNameChange={ilp.setNewPlanName}
@@ -1376,6 +1401,7 @@ export default function AppSession({
             state={ilp.displayState}
             cptEditPending={cptEditPending}
             onSaveCptSelection={saveCptSelection}
+            onApplyCptMethod={applyCptSelectionMethod}
             loadPointGroups={loadPointGroups.groups}
             groupAssignmentAssessment={groupAssignmentAssessment}
             groupEditPending={groupEditPending || loadPointGroups.pending}

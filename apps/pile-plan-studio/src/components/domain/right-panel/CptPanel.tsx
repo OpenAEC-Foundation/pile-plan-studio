@@ -1,18 +1,20 @@
 import CptEditScope from "./CptEditScope.tsx";
 import CptUsageButton from "./CptUsageButton.tsx";
+import type { CptEditCompletion, CptSelectionMethod } from "../../../app/project/manualCptEditController.ts";
 import type { ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import type { ProjectState } from "../../../domain/project/projectState.ts";
 import { openCpt } from "../../../domain/workspace/selectionState.ts";
 import { getCptFrdPanelModel, getSelectedCptOverviewModel, getSelectedLoadPoints } from "./rightPanelModel.ts";
-import { cancelManualCptSelection, clearManualCptSelection, removeManualCpt, getManualCptEditTargetIds, isManualCptSelectionPending, selectOnlyNearestCpts, startManualCptSelectionEdit } from "../../../domain/cpt-selection/cptSettingsModel.ts";
+import { cancelManualCptSelection, clearManualCptSelection, removeManualCpt, isManualCptSelectionPending, selectOnlyNearestCpts, startManualCptSelectionEdit, synchronizeManualCptSelection } from "../../../domain/cpt-selection/cptSettingsModel.ts";
 import { removeIcon } from "../../template/ribbon/icons.ts";
 import { CoordinateReadout } from "../shared/CoordinateReadout.ts";
-import { ResistanceLabel, localizeCptName, localizeCptTableValue, localizeLoadPointName } from "./PanelControls.tsx";
+import { ResistanceLabel, localizeCptName, localizeCptTableValue } from "./PanelControls.tsx";
 
-export default function CptPanel({ state, onStateChange, selectedLoadPoints, saving = false, onSave }: {
+export default function CptPanel({ state, onStateChange: publishState, selectedLoadPoints, saving = false, onSave, onApplyMethod }: {
   saving?: boolean;
-  onSave?: () => Promise<void>;
+  onSave?: (afterSave?: CptEditCompletion) => Promise<void>;
+  onApplyMethod?: (method: CptSelectionMethod) => Promise<void>;
   state: ProjectState;
   onStateChange: (nextState: ProjectState) => void;
   selectedLoadPoints: ReturnType<typeof getSelectedLoadPoints>;
@@ -21,12 +23,12 @@ export default function CptPanel({ state, onStateChange, selectedLoadPoints, sav
   const selectedCpt = getCptFrdPanelModel(state, i18n.language);
   const draft = state.cptSelectionEditDraft;
   const isEditing = draft !== null;
-  const cptPanelLoadPoints = draft
-    ? state.loadPoints.filter((loadPoint) => getManualCptEditTargetIds(state).includes(loadPoint.id))
-    : selectedLoadPoints;
+  const onStateChange = (next: ProjectState) => publishState(synchronizeManualCptSelection(next));
+  const actions = <CptSelectionActions state={state} onStateChange={onStateChange} selectedLoadPoints={selectedLoadPoints}
+    saving={saving} onSave={onSave} onApplyMethod={onApplyMethod} />;
 
   if (isEditing) {
-    return <CptSelectionOverview state={state} onStateChange={onStateChange} selectedLoadPoints={cptPanelLoadPoints} editing saving={saving} onSave={onSave} />;
+    return <CptSelectionOverview state={state} onStateChange={onStateChange} selectedLoadPoints={selectedLoadPoints} actions={actions} editing saving={saving} />;
   }
 
   if (selectedCpt) {
@@ -37,8 +39,8 @@ export default function CptPanel({ state, onStateChange, selectedLoadPoints, sav
             <h2>{localizeCptName(selectedCpt.cpt.name, t)}</h2>
             <span>{t("cpts.selected")}</span>
           </div>
-          <CptModifyButton state={state} onStateChange={onStateChange} selectedLoadPoints={selectedLoadPoints} />
         </header>
+        {actions}
         <CoordinateReadout points={[selectedCpt.cpt]} locale={i18n.language} />
         <CptTable
           columns={[t("columns.size"), t("columns.tip"), <ResistanceLabel key="resistance" />]}
@@ -53,8 +55,8 @@ export default function CptPanel({ state, onStateChange, selectedLoadPoints, sav
       <div className="cpt-panel">
         <header className="right-panel-header">
           <div><h2>{t("tabs.cpts")}</h2></div>
-          <CptModifyButton state={state} onStateChange={onStateChange} selectedLoadPoints={selectedLoadPoints} />
         </header>
+        {actions}
         <div className="right-panel-empty">
           <strong>{t("empty.noCpts")}</strong>
           <span>{t("empty.selectCpt")}</span>
@@ -63,16 +65,16 @@ export default function CptPanel({ state, onStateChange, selectedLoadPoints, sav
     );
   }
 
-  return <CptSelectionOverview state={state} onStateChange={onStateChange} selectedLoadPoints={selectedLoadPoints} editing={false} saving={saving} />;
+  return <CptSelectionOverview state={state} onStateChange={onStateChange} selectedLoadPoints={selectedLoadPoints} actions={actions} editing={false} saving={saving} />;
 }
 
-function CptSelectionOverview({ state, onStateChange, selectedLoadPoints, editing, saving, onSave }: {
+function CptSelectionOverview({ state, onStateChange, selectedLoadPoints, actions, editing, saving }: {
   state: ProjectState;
   onStateChange: (nextState: ProjectState) => void;
   selectedLoadPoints: ReturnType<typeof getSelectedLoadPoints>;
   editing: boolean;
   saving: boolean;
-  onSave?: () => Promise<void>;
+  actions: ReactNode;
 }) {
   const { t } = useTranslation("rightPanel");
   const editPending = saving || isManualCptSelectionPending(state);
@@ -80,9 +82,7 @@ function CptSelectionOverview({ state, onStateChange, selectedLoadPoints, editin
   const preview = state.cptSelectionPreview?.draft === state.cptSelectionEditDraft
     ? state.cptSelectionPreview
     : editing ? { status: "analyzing" as const } : null;
-  const heading = selectedLoadPoints.length > 1
-    ? t("cpts.selectedHeading")
-    : `${localizeLoadPointName(selectedLoadPoints[0].name, t)} - ${t("tabs.cpts")}`;
+  const heading = t("tabs.cpts");
   const columnLabels: Record<string, ReactNode> = {
     CPT: t("cpts.name"),
     Selection: t("cpts.selection"),
@@ -97,23 +97,8 @@ function CptSelectionOverview({ state, onStateChange, selectedLoadPoints, editin
     <div className="cpt-panel">
       <header className="right-panel-header">
         <div><h2>{heading}</h2></div>
-        {!editing ? <CptModifyButton state={state} onStateChange={onStateChange} selectedLoadPoints={selectedLoadPoints} /> : null}
       </header>
-      {editing ? (
-        <>
-        <CptEditScope state={state} onStateChange={onStateChange} disabled={saving} />
-        <div className="cpt-edit-actions">
-          <div className="cpt-edit-methods">
-            <button type="button" disabled={editPending} onClick={() => onStateChange(clearManualCptSelection(state))}>{t("actions.useAlgorithm")}</button>
-            <button type="button" disabled={editPending} onClick={() => onStateChange(selectOnlyNearestCpts(state))}>{t("actions.onlyNearest")}</button>
-          </div>
-          <div className="cpt-edit-commit-actions">
-            <button type="button" disabled={editPending || !onSave} onClick={() => void onSave?.()}>{t(saving ? "cpts.saving" : "actions.save")}</button>
-            <button type="button" onClick={() => onStateChange(cancelManualCptSelection(state))}>{t("actions.cancel")}</button>
-          </div>
-        </div>
-        </>
-      ) : null}
+      {actions}
       {editing && preview?.status === "analyzing" ? (
         <div className="cpt-preview-status" role="status">{t("cpts.previewCalculating")}</div>
       ) : null}
@@ -193,20 +178,36 @@ function CptSelectionOverview({ state, onStateChange, selectedLoadPoints, editin
   );
 }
 
-function CptModifyButton({ state, onStateChange, selectedLoadPoints }: {
+function CptSelectionActions({ state, onStateChange, selectedLoadPoints, saving, onSave, onApplyMethod }: {
   state: ProjectState;
   onStateChange: (nextState: ProjectState) => void;
   selectedLoadPoints: ReturnType<typeof getSelectedLoadPoints>;
+  saving: boolean;
+  onSave?: (afterSave?: CptEditCompletion) => Promise<void>;
+  onApplyMethod?: (method: CptSelectionMethod) => Promise<void>;
 }) {
   const { t } = useTranslation("rightPanel");
-  return (
-    <button
-      className="cpt-modify-button"
-      disabled={selectedLoadPoints.length === 0}
-      type="button"
-      onClick={() => onStateChange(startCptSelectionEdit(state))}
-    >{t("actions.modify")}</button>
-  );
+  const editing = state.cptSelectionEditDraft !== null;
+  const pending = saving || isManualCptSelectionPending(state);
+  const noTargets = selectedLoadPoints.length === 0;
+  const method = (value: CptSelectionMethod) => {
+    if (editing) onStateChange(value === "automatic" ? clearManualCptSelection(state) : selectOnlyNearestCpts(state));
+    else void onApplyMethod?.(value);
+  };
+  return <>
+    <div className="cpt-edit-actions" aria-busy={saving}>
+      <div className="cpt-edit-methods">
+        <button type="button" disabled={pending || noTargets || (!editing && !onApplyMethod)} onClick={() => method("automatic")}>{t("actions.useAlgorithm")}</button>
+        <button type="button" disabled={pending || noTargets || (!editing && !onApplyMethod)} onClick={() => method("nearest")}>{t("actions.onlyNearest")}</button>
+      </div>
+      <div className="cpt-edit-commit-actions">{editing ? <>
+        <button type="button" disabled={pending || !onSave} onClick={() => void onSave?.()}>{t(saving ? "cpts.saving" : "actions.save")}</button>
+        <button type="button" disabled={saving} onClick={() => onStateChange(cancelManualCptSelection(state))}>{t("actions.cancel")}</button>
+      </> : <button className="cpt-modify-button" type="button" disabled={pending || noTargets}
+        onClick={() => onStateChange(startCptSelectionEdit(state))}>{t("actions.modify")}</button>}</div>
+    </div>
+    {editing ? <CptEditScope state={state} onStateChange={onStateChange} disabled={saving} /> : null}
+  </>;
 }
 
 export function startCptSelectionEdit(state: ProjectState): ProjectState {

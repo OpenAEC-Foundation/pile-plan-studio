@@ -15,5 +15,5 @@ export function useManualCptSelectionEdit(dependencies: Omit<ManualCptEditDepend
   });
   const active = controller.current;
   useEffect(() => () => active.invalidate(), [active]);
-  return { pending, save: active.save };
+  return { pending, save: active.save, applyMethod: active.applyMethod };
 }

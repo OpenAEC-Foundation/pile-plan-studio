@@ -65,10 +65,6 @@ export function getSelectedLoadPoints(state: ProjectState): LoadPoint[] {
   return state.loadPoints.filter((loadPoint) => selectedIds.has(loadPoint.id));
 }
 
-export function formatLoadPointPanelTitle(name: string): string {
-  return /^load point\b/i.test(name.trim()) ? name.trim() : `Load point ${name.trim()}`;
-}
-
 export function getPileOptionsByLoadPointIdForPanel(
   state: ProjectState,
 ): Map<number, PileConfigurationOption[]> {

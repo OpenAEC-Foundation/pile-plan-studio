@@ -6,11 +6,6 @@ export type LoadPointGroupSelection = {
   relatedLoadPointIds: number[];
 };
 
-export type LoadPointGroupNotice = {
-  translationKey: "pileOptions.groupSelection.single" | "pileOptions.groupSelection.multiple";
-  values: { count: number; markedCount?: number };
-};
-
 export function expandSelectionToGroups(
   selectedIds: Iterable<number>,
   groups: LoadPointGroup[],
@@ -66,27 +61,5 @@ export function getLoadPointGroupSelection(input: {
     relatedLoadPointIds: sortedMarkedLoadPointIds.filter(
       (loadPointId) => !selectedLoadPointIds.has(loadPointId),
     ),
-  };
-}
-
-export function getLoadPointGroupNotice(input: {
-  selection: LoadPointGroupSelection;
-  selectedLoadPointCount: number;
-}): LoadPointGroupNotice | null {
-  if (input.selection.groupCount === 0) return null;
-
-  if (input.selectedLoadPointCount === 1) {
-    return {
-      translationKey: "pileOptions.groupSelection.single",
-      values: { count: input.selection.markedLoadPointIds.length },
-    };
-  }
-
-  return {
-    translationKey: "pileOptions.groupSelection.multiple",
-    values: {
-      count: input.selection.groupCount,
-      markedCount: input.selection.markedLoadPointIds.length,
-    },
   };
 }

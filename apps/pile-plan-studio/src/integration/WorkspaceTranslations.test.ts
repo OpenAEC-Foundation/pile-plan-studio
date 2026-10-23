@@ -4,7 +4,21 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
 describe("Workspace translations", () => {
+  it("names the shared resizable selection and pile-options tab in both languages", () => {
+    for (const language of ["en", "nl"]) {
+      const copy = JSON.parse(readFileSync(resolve(import.meta.dirname, `../i18n/locales/${language}/rightPanel.json`), "utf8"));
+      assert.equal(copy["tabs.loadPoint"], language === "nl" ? "Paalopties" : "Pile options");
+      for (const key of ["title", "collapse", "expand", "resize", "resizeHelp"]) assert.ok(copy[`selectionOverview.${key}`]?.trim());
+      for (const suffix of ["one", "other"]) assert.ok(copy[`selectionOverview.visibleRows_${suffix}`]?.includes("{{count}}"));
+    }
+  });
   it("translates scoped CPT editing and preserves its interpolation fields in both languages", () => {
+    for (const language of ["en", "nl"]) {
+      const copy = JSON.parse(readFileSync(resolve(import.meta.dirname, `../i18n/locales/${language}/rightPanel.json`), "utf8"));
+      for (const key of ["cpts.navigation", "cpts.selectEntireContext", "cpts.contextCount_one", "cpts.contextCount_other"]) assert.ok(copy[key]?.trim(), key);
+      for (const field of ["current", "total"]) assert.ok(copy["cpts.locationPosition"].includes(`{{${field}}}`));
+      for (const suffix of ["one", "other"]) assert.ok(copy[`cpts.contextCount_${suffix}`].includes("{{count}}"));
+    }
     const keys = ["cpts.editFor", "cpts.allLocations", "cpts.manual", "cpts.automatic", "cpts.previousLocation", "cpts.nextLocation", "cpts.changedLocations", "cpts.editLocation", "cpts.projectWideHelp", "cpts.removeFromLocations", "cpts.saving", "cpts.retryPreview", "cpts.saveBlocked", "cpts.saveFailed", "actions.useAlgorithm"];
     const copies = ["nl", "en"].map(language => JSON.parse(readFileSync(resolve(import.meta.dirname, `../i18n/locales/${language}/rightPanel.json`), "utf8")));
     for (const copy of copies) {
@@ -267,12 +281,13 @@ describe("Workspace translations", () => {
     assert.equal(nl.viewer.hover.nextCandidate, "Volgend object");
   });
 
-  it("uses load-location terminology in the Dutch panel and ribbon", () => {
+  it("names the pile-options inspector while keeping load-location terminology for drawing layers", () => {
     const panel = readFileSync(resolve(import.meta.dirname, "../i18n/locales/nl/rightPanel.json"), "utf8");
     const ribbon = readFileSync(resolve(import.meta.dirname, "../i18n/locales/nl/ribbon.json"), "utf8");
 
-    assert.match(panel, /"tabs\.loadPoint":\s*"Belastinglocaties"/);
+    assert.match(panel, /"tabs\.loadPoint":\s*"Paalopties"/);
     assert.match(ribbon, /"loadPoints":\s*"Belastinglocaties"/);
+    assert.equal(JSON.parse(ribbon).plan.loadPoints, "Paalopties");
   });
 
   it("provides complete English and Dutch copy for multi-load-point CPT settings", () => {
@@ -298,26 +313,15 @@ describe("Workspace translations", () => {
     assert.match(nl, /"cptSettings\.manualCount":\s*"\{\{count\}\} sonderingen zijn handmatig geselecteerd voor de geselecteerde belastinglocaties\."/);
   });
 
-  it("provides bilingual group-selection notices for the pile options panel", () => {
-    const en = JSON.parse(readFileSync(resolve(import.meta.dirname, "../i18n/locales/en/rightPanel.json"), "utf8"));
-    const nl = JSON.parse(readFileSync(resolve(import.meta.dirname, "../i18n/locales/nl/rightPanel.json"), "utf8"));
-
-    assert.equal(
-      en["pileOptions.groupSelection.single"],
-      "This selection is a group of {{count}} marked load points.",
-    );
-    assert.equal(
-      en["pileOptions.groupSelection.multiple_one"],
-      "This selection includes {{count}} group with {{markedCount}} marked load points in total.",
-    );
-    assert.equal(
-      nl["pileOptions.groupSelection.single"],
-      "Deze selectie betreft een groep van {{count}} gemarkeerde locaties.",
-    );
-    assert.equal(
-      nl["pileOptions.groupSelection.multiple_one"],
-      "Deze selectie betreft {{count}} groep met in totaal {{markedCount}} gemarkeerde locaties.",
-    );
+  it("provides bilingual group labels and full-group selection actions", () => {
+    for (const language of ["nl", "en"]) {
+      const copy = JSON.parse(readFileSync(resolve(import.meta.dirname, `../i18n/locales/${language}/rightPanel.json`), "utf8"));
+      for (const key of ["group", "groupMembers_one", "groupMembers_other", "groupSelected", "selectGroup_one", "selectGroup_other"]) {
+        assert.ok(copy[`loadPoints.${key}`]?.trim(), `${language}: ${key}`);
+      }
+      for (const field of ["selected", "total"]) assert.ok(copy["loadPoints.groupSelected"].includes(`{{${field}}}`));
+      for (const key of ["groupMembers_other", "selectGroup_other"]) assert.ok(copy[`loadPoints.${key}`].includes("{{count}}"));
+    }
   });
 
   it("translates CPT selection values and range labels at render time", () => {

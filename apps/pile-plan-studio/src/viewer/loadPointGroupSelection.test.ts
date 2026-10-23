@@ -2,7 +2,6 @@ import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import {
   expandSelectionToGroups,
-  getLoadPointGroupNotice,
   getLoadPointGroupSelection,
 } from "./loadPointGroupSelection.ts";
 import * as loadPointGroupSelection from "./loadPointGroupSelection.ts";
@@ -86,31 +85,4 @@ describe("load point group selection", () => {
     });
   });
 
-  it("describes one selected location by the size of its group", () => {
-    assert.deepEqual(getLoadPointGroupNotice({
-      selection: {
-        groupCount: 1,
-        markedLoadPointIds: [1, 2, 3],
-        relatedLoadPointIds: [2, 3],
-      },
-      selectedLoadPointCount: 1,
-    }), {
-      translationKey: "pileOptions.groupSelection.single",
-      values: { count: 3 },
-    });
-  });
-
-  it("describes a multiselection by its distinct groups and marked locations", () => {
-    assert.deepEqual(getLoadPointGroupNotice({
-      selection: {
-        groupCount: 2,
-        markedLoadPointIds: [1, 2, 3, 4, 5, 9],
-        relatedLoadPointIds: [1, 5],
-      },
-      selectedLoadPointCount: 4,
-    }), {
-      translationKey: "pileOptions.groupSelection.multiple",
-      values: { count: 2, markedCount: 6 },
-    });
-  });
 });

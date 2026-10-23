@@ -3,7 +3,7 @@ import type { ReactNode } from "react";
 import type { ProjectState } from "../../../domain/project/projectState.ts";
 import type { PileConfigurationKey, PileCostSettings } from "../../../core/projectTypes.ts";
 import type { CostCatalogAction } from "../../../core/settingsEditCoreClient.ts";
-import { getSelectedLoadPoints, formatLoadPointPanelTitle } from "./rightPanelModel.ts";
+import { getSelectedLoadPoints } from "./rightPanelModel.ts";
 import type {
   LoadPointGroup,
   LoadPointGroupEditAction,
@@ -21,7 +21,13 @@ import LoadPointPanel from "./LoadPointPanel.tsx";
 import GroupingSettingsPanel from "./GroupingSettingsPanel.tsx";
 import CostSettingsPanel from "./CostSettingsPanel.tsx";
 import CptSettingsPanel from "./CptSettingsPanel.tsx";
-import { PanelTab, localizeLoadPointName } from "./PanelControls.tsx";
+import { PanelTab } from "./PanelControls.tsx";
+import { useLoadPointSelectionContext } from "./useLoadPointSelectionContext.ts";
+import { synchronizeManualCptSelection } from "../../../domain/cpt-selection/cptSettingsModel.ts";
+import SelectionOverview, { type SelectionOverviewLayout } from "./SelectionOverview.tsx";
+import LoadPointGroupEditButton from "./LoadPointGroupEditButton.tsx";
+import { setLoadPointSelection } from "../../../domain/workspace/selectionState.ts";
+import type { CptEditCompletion, CptSelectionMethod } from "../../../app/project/manualCptEditController.ts";
 
 export type RightTaskPanel = "cpt-settings" | "cost-settings" | "grouping-settings" | "ilp-optimization";
 
@@ -29,11 +35,15 @@ export type RightPanelProps = {
   columnLayouts?: PileOptionColumnLayouts;
   onColumnLayoutChange?: (mode: keyof PileOptionColumnLayouts, layout: PileOptionColumnLayout) => void;
   splitRatio?: number;
+  selectionRows?: number;
+  selectionCollapsed?: boolean;
+  onSelectionLayoutChange?: (patch: Partial<SelectionOverviewLayout>) => void;
   onSplitRatioChange?: (ratio: number) => void;
   ilpResult?: ReactNode;
   state: ProjectState;
   cptEditPending?: boolean;
-  onSaveCptSelection?: () => Promise<void>;
+  onSaveCptSelection?: (afterSave?: CptEditCompletion) => Promise<void>;
+  onApplyCptMethod?: (method: CptSelectionMethod) => Promise<void>;
   loadPointGroups?: LoadPointGroup[];
   technicalAssignment?: TechnicalAssignmentSnapshot;
   groupAssignmentAssessment?: GroupAssignmentAssessmentSnapshot;
@@ -67,10 +77,14 @@ export default function RightPanel({
   onColumnLayoutChange = () => undefined,
   ilpResult,
   splitRatio = DEFAULT_RIGHT_PANEL_SPLIT,
+  selectionRows = 4,
+  selectionCollapsed = false,
+  onSelectionLayoutChange = () => undefined,
   onSplitRatioChange = () => undefined,
   state,
   cptEditPending = false,
   onSaveCptSelection,
+  onApplyCptMethod,
   loadPointGroups = [],
   technicalAssignment = {
     status: "idle",
@@ -87,7 +101,7 @@ export default function RightPanel({
   groupEditPending = false,
   onPreviewLoadPointGroupEdit = async () => null,
   onApplyLoadPointGroupEdit = async () => undefined,
-  onStateChange,
+  onStateChange: publishState,
   pileAssignmentPending = false,
   onApplyPileConfiguration = () => undefined,
   taskPanel = null,
@@ -101,9 +115,13 @@ export default function RightPanel({
 }: RightPanelProps) {
   const { t } = useTranslation("rightPanel");
   const selectedLoadPoints = getSelectedLoadPoints(state);
-  const selectedLabel = selectedLoadPoints.length === 1
-    ? localizeLoadPointName(formatLoadPointPanelTitle(selectedLoadPoints[0].name), t)
-    : t("loadPoints.count", { count: selectedLoadPoints.length });
+  const selectionContextIds = useLoadPointSelectionContext(state.loadPoints, state.selectedLoadPointIds, loadPointGroups);
+  const onStateChange = (next: ProjectState) => publishState(synchronizeManualCptSelection(next));
+  const changePanelView = (next: ProjectState) => {
+    if (state.cptSelectionEditDraft && next.rightPanelMode === "load-point") {
+      void onSaveCptSelection?.(current => ({ ...current, ...switchRightPanelMode(current, "load-point") }));
+    } else onStateChange(next);
+  };
 
   const loadPointContent = selectedLoadPoints.length === 0 ? (
     <div className="right-panel-empty">
@@ -116,24 +134,20 @@ export default function RightPanel({
       onStateChange={onStateChange}
       pileAssignmentPending={pileAssignmentPending}
       onApplyPileConfiguration={onApplyPileConfiguration}
-      selectedLabel={selectedLabel}
       selectedLoadPoints={selectedLoadPoints}
       loadPointGroups={loadPointGroups}
       technicalAssignment={technicalAssignment}
       groupAssignmentAssessment={groupAssignmentAssessment}
-      groupEditPending={groupEditPending}
-      onPreviewLoadPointGroupEdit={onPreviewLoadPointGroupEdit}
-      onApplyLoadPointGroupEdit={onApplyLoadPointGroupEdit}
       columnLayouts={columnLayouts}
       onColumnLayoutChange={onColumnLayoutChange}
     />
   );
-  const cptContent = <CptPanel saving={cptEditPending} onSave={onSaveCptSelection} state={state} onStateChange={onStateChange} selectedLoadPoints={selectedLoadPoints} />;
+  const cptContent = <CptPanel saving={cptEditPending} onSave={onSaveCptSelection} onApplyMethod={onApplyCptMethod} state={state} onStateChange={onStateChange} selectedLoadPoints={selectedLoadPoints} />;
 
   return (
     <aside className="properties-panel" aria-label={t("aria.properties")}>
       <div className="right-panel-tabs" aria-label={t("aria.views")}>
-        <PanelTab active={taskPanel === null} label={t("tabs.loadPoint")} mode="load-point" state={state} onActivate={onCloseTaskPanel} onStateChange={onStateChange} />
+        <PanelTab active={taskPanel === null} label={t("tabs.loadPoint")} mode="load-point" state={state} onActivate={onCloseTaskPanel} onStateChange={changePanelView} />
         <PanelTab active={taskPanel === null} label={t("tabs.cpts")} mode="cpts" state={state} onActivate={onCloseTaskPanel} onStateChange={onStateChange} />
         <button className={`right-panel-tab right-panel-combined-toggle${taskPanel === null && state.rightPanelMode === "combined" ? " is-active" : ""}`}
           type="button" title={t("tabs.combined")} aria-label={t("tabs.combined")}
@@ -144,6 +158,13 @@ export default function RightPanel({
           </svg>
         </button>
       </div>
+      {taskPanel === null ? <SelectionOverview loadPoints={state.loadPoints} selectedIds={state.selectedLoadPointIds}
+        contextIds={selectionContextIds} groups={loadPointGroups} rows={selectionRows} collapsed={selectionCollapsed}
+        onLayoutChange={onSelectionLayoutChange} disabled={cptEditPending}
+        onSelect={ids => onStateChange({ ...state, ...setLoadPointSelection(state, ids) })}
+        groupControl={selectedLoadPoints.length > 1 ? <LoadPointGroupEditButton editPending={groupEditPending || cptEditPending}
+          groups={loadPointGroups} selectedLoadPointIds={state.selectedLoadPointIds}
+          onApply={onApplyLoadPointGroupEdit} onPreview={onPreviewLoadPointGroupEdit} /> : null} /> : null}
       {taskPanel === "ilp-optimization" ? ilpResult : taskPanel === "cost-settings" ? (
         <CostSettingsPanel
           state={state}

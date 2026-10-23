@@ -21,10 +21,11 @@ type Props = {
   groupAssignmentAssessment: GroupAssignmentAssessmentSnapshot;
   lassoSelectionActive: boolean;
   onStateChange: (nextState: ProjectState) => void;
+  onSelectionChange?: (nextState: ProjectState) => void;
   onLegendApply: (draft: LegendEditorDraft, enableTipLevelRegions: boolean) => Promise<boolean>;
 };
 
-export default function PilePlanWorkspace({ readOnly = false, state, loadPointGroups, loadPointGroupTopology, technicalAssignment, groupAssignmentAssessment, lassoSelectionActive, onStateChange, onLegendApply }: Props) {
+export default function PilePlanWorkspace({ readOnly = false, state, loadPointGroups, loadPointGroupTopology, technicalAssignment, groupAssignmentAssessment, lassoSelectionActive, onStateChange, onSelectionChange, onLegendApply }: Props) {
   const [legendEditorOpen, setLegendEditorOpen] = useState(false);
   const tipLevelRegions = useTipLevelRegionTopology({
     enabled: state.showTipLevelRegions,
@@ -50,6 +51,7 @@ export default function PilePlanWorkspace({ readOnly = false, state, loadPointGr
         groupAssignmentAssessment={groupAssignmentAssessment}
         lassoSelectionActive={lassoSelectionActive}
         tipLevelRegionTopology={tipLevelRegions.topology}
+        onSelectionChange={onSelectionChange}
         onStateChange={onStateChange}
       />
       <LegendEditor

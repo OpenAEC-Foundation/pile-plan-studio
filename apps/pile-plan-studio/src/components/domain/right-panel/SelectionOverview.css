@@ -1,0 +1,13 @@
+.selection-overview { flex: 0 0 auto; min-width: 0; border-bottom: 1px solid var(--theme-border); background: var(--theme-bg); }
+.selection-overview-header { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 7px 12px; }
+.selection-overview-header h2 { margin: 0; min-width: 0; font-size: 12px; }
+.selection-overview-header h2 button { display: flex; align-items: center; flex-wrap: wrap; gap: 7px; border: 0; padding: 3px 0; background: transparent; color: var(--theme-text); font: inherit; cursor: pointer; text-align: left; }
+.selection-overview-header svg { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 1.5; }
+.selection-overview-header svg.is-collapsed { transform: rotate(-90deg); }
+.selection-overview-count { color: var(--theme-text-secondary); font-weight: 400; font-size: 11px; }
+.selection-overview-navigation { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 0 12px 5px; font-size: 11px; }
+.selection-overview-resizer { position: relative; height: 9px; cursor: row-resize; touch-action: none; }
+.selection-overview-resizer::after { content: ""; position: absolute; width: 36px; height: 2px; border-radius: 2px; top: 3px; left: calc(50% - 18px); background: var(--theme-border); }
+.selection-overview-resizer:hover, .selection-overview-resizer:focus-visible { background: var(--theme-ribbon-btn-hover); outline: 1px solid var(--theme-accent); outline-offset: -1px; }
+.selection-overview-header button:focus-visible { outline: 2px solid var(--theme-focus-color); outline-offset: 2px; }
+.selection-overview-empty { margin: 4px 12px 12px; color: var(--theme-text-secondary); font-size: 11px; }

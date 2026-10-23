@@ -1,8 +1,17 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { DEFAULT_USER_SETTINGS, normalizeUserSettings, patchPileCostDefaults, patchUserSettings } from "./userSettings.ts";
+import { DEFAULT_USER_SETTINGS, normalizeUserSettings, patchPileCostDefaults, patchUserSettings, patchWorkspaceLayout } from "./userSettings.ts";
 
 describe("user settings", () => {
+  it("defaults to four expanded selection rows and preserves resized/collapsed layout separately from project content", () => {
+    assert.equal(normalizeUserSettings(undefined).preferences.workspaceLayout.selectionOverviewRows, 4);
+    const saved = patchWorkspaceLayout(DEFAULT_USER_SETTINGS, { selectionOverviewRows: 7, selectionOverviewCollapsed: true });
+    const restored = normalizeUserSettings(JSON.parse(JSON.stringify(saved)));
+    assert.equal(restored.preferences.workspaceLayout.selectionOverviewRows, 7);
+    assert.equal(restored.preferences.workspaceLayout.selectionOverviewCollapsed, true);
+    assert.equal(DEFAULT_USER_SETTINGS.preferences.workspaceLayout.selectionOverviewRows, 4);
+    assert.equal(DEFAULT_USER_SETTINGS.preferences.workspaceLayout.selectionOverviewCollapsed, false);
+  });
   it("keeps a personal optimizer duration and normalizes invalid limits", () => {
     assert.equal(DEFAULT_USER_SETTINGS.preferences.optimizationTimeLimitSeconds, 600);
     for (const value of [null, 1800]) {
@@ -53,6 +62,8 @@ describe("user settings", () => {
           propertiesVisible: true,
           propertiesWidth: 620,
           propertiesSplitRatio: 0.7,
+          selectionOverviewRows: 4,
+          selectionOverviewCollapsed: false,
           inputSourcesExpanded: true,
           pilePlansExpanded: true,
         },

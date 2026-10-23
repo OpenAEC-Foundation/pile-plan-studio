@@ -4,36 +4,47 @@ import { expect, test } from "vitest";
 import i18n from "../../../i18n/config.ts";
 import { projectFixture } from "../../../test/projectFixture.ts";
 import CptPanel from "./CptPanel.tsx";
-import { saveManualCptSelection, toggleManualCpt } from "../../../domain/cpt-selection/cptSettingsModel.ts";
+import RightPanel from "./RightPanel.tsx";
+import { saveManualCptSelection, toggleManualCpt, beginManualCptSelection, clearManualCptSelection, selectOnlyNearestCpts } from "../../../domain/cpt-selection/cptSettingsModel.ts";
 import { getSelectedLoadPoints } from "./rightPanelModel.ts";
 import type { ProjectState } from "../../../domain/project/projectState.ts";
+import { localizeLoadPointName } from "./PanelControls.tsx";
 
-function setup() {
+function setup(grouped = false) {
   const project = projectFixture();
-  const points = project.loadPoints.slice(0, 3), [a, b] = project.cpts;
-  const state = { ...project, loadPoints: points, cpts: [a!, b!], manualCptIdsByLoadPoint: new Map([[points[1]!.id, [b!.id]]]),
+  const points = project.loadPoints.slice(0, grouped ? 4 : 3), [a, b] = project.cpts;
+  const groups = grouped ? [{ load_point_ids: [points[0]!.id, points[2]!.id] }, { load_point_ids: [points[1]!.id, points[3]!.id] }] : [];
+  const state: ProjectState = { ...project, rightPanelMode: "cpts", loadPoints: points, cpts: [a!, b!], manualCptIdsByLoadPoint: new Map([[points[1]!.id, [b!.id]]]),
     selectedLoadPointIds: points.map(p => p.id), selectedLoadPointId: points[0]!.id,
     selectedCptsByLoadPointId: new Map(points.map((p, index) => [p.id, [{ cpt: index === 1 ? b! : a!, label: "nearest", distance_mm: 1000 }]])),
   };
   let current: ProjectState = state;
   function Editor() {
     const [s, update] = useState<ProjectState>(state); current = s;
-    return <><CptPanel state={s} onStateChange={update} selectedLoadPoints={getSelectedLoadPoints(s)} onSave={async () => update(saveManualCptSelection(s))} />
+    return <><RightPanel state={s} onStateChange={update} loadPointGroups={groups}
+      onApplyCptMethod={async method => update(current => {
+        const editing = beginManualCptSelection(current);
+        return saveManualCptSelection(method === "automatic" ? clearManualCptSelection(editing) : selectOnlyNearestCpts(editing));
+      })}
+      onSaveCptSelection={async afterSave => update(current => { const saved = saveManualCptSelection(current); return afterSave ? afterSave(saved) : saved; })} />
       <button onClick={() => update(toggleManualCpt(s, b!.id))}>Toggle test CPT</button></>;
   }
   render(<Editor />);
   return { points, a: a!, b: b!, current: () => current };
 }
 const tr = (key: string) => i18n.t(key, { ns: "rightPanel" });
+function inspect(point: ProjectState["loadPoints"][number]) {
+  const name = localizeLoadPointName(point.name, i18n.getFixedT(null, "rightPanel"));
+  const force = point.design_load_kn.toLocaleString(i18n.language, { maximumFractionDigits: 1 });
+  fireEvent.click(screen.getByRole("button", { name: i18n.t("loadPoints.inspectMember", { ns: "rightPanel", name, force }) }));
+}
 
-test("location picker scopes map edits, keeps the group selected and retains edits across navigation", () => {
+test("shared location selection scopes map edits and retains edits across navigation", () => {
   const h = setup(); fireEvent.click(screen.getByRole("button", { name: tr("actions.modify") }));
-  const picker = screen.getByRole("combobox", { name: tr("cpts.editFor") });
-  fireEvent.change(picker, { target: { value: String(h.points[0]!.id) } });
+  inspect(h.points[0]!);
   fireEvent.click(screen.getByRole("button", { name: "Toggle test CPT" }));
   fireEvent.click(screen.getByRole("button", { name: tr("cpts.nextLocation") }));
-  expect((picker as HTMLSelectElement).value).toBe(String(h.points[1]!.id));
-  expect(h.current().selectedLoadPointIds).toEqual(h.points.map(p => p.id));
+  expect(h.current().selectedLoadPointIds).toEqual([h.points[1]!.id]);
   expect(h.current().manualCptIdsByLoadPoint.size).toBe(1);
   fireEvent.click(screen.getByRole("button", { name: tr("cpts.previousLocation") }));
   expect(h.current().cptSelectionEditDraft?.cptIdsByLoadPoint.get(h.points[0]!.id)).toEqual(new Set([h.a.id, h.b.id]));
@@ -48,7 +59,7 @@ test("usage counts expose actual members and open that location directly in the 
   fireEvent.click(within(row!).getByRole("button", { name: /1 \/ 3/ }));
   fireEvent.click(screen.getByRole("button", { name: i18n.t("cpts.editLocation", { ns: "rightPanel", id: h.points[1]!.id }) }));
   expect(h.current().cptSelectionEditLoadPointId).toBe(h.points[1]!.id);
-  expect(h.current().selectedLoadPointIds).toEqual(h.points.map(p => p.id));
+  expect(h.current().selectedLoadPointIds).toEqual([h.points[1]!.id]);
   expect(screen.getByRole("columnheader", { name: tr("cpts.distance") })).toBeTruthy();
 });
 
@@ -57,7 +68,7 @@ test("nearest and automatic reset remain cancellable draft operations", () => {
   fireEvent.click(screen.getByRole("button", { name: tr("actions.modify") }));
   fireEvent.click(screen.getByRole("button", { name: tr("actions.onlyNearest") }));
   expect(h.current().cptSelectionEditDraft).not.toBeNull();
-  fireEvent.change(screen.getByRole("combobox", { name: tr("cpts.editFor") }), { target: { value: String(h.points[1]!.id) } });
+  inspect(h.points[1]!);
   fireEvent.click(screen.getByRole("button", { name: tr("actions.useAlgorithm") }));
   expect(h.current().cptSelectionEditDraft?.automaticLoadPointIds).toEqual(new Set([h.points[1]!.id]));
   expect(h.current().manualCptIdsByLoadPoint).toBe(original);
@@ -71,15 +82,77 @@ for (const language of ["nl", "en"]) {
     await i18n.changeLanguage(language);
     const h = setup();
     fireEvent.click(screen.getByRole("button", { name: tr("actions.modify") }));
-    const picker = screen.getByRole("combobox", { name: tr("cpts.editFor") });
-    expect(within(picker).getAllByRole("option")).toHaveLength(4);
-    fireEvent.change(picker, { target: { value: String(h.points[2]!.id) } });
+    expect(screen.queryByRole("combobox", { name: tr("cpts.editFor") })).toBeNull();
+    inspect(h.points[2]!);
+    expect(screen.getByText(i18n.t("cpts.locationPosition", { ns: "rightPanel", current: 3, total: 3 }))).toBeTruthy();
     expect((screen.getByRole("button", { name: tr("cpts.nextLocation") }) as HTMLButtonElement).disabled).toBe(true);
     expect((screen.getByRole("button", { name: tr("cpts.previousLocation") }) as HTMLButtonElement).disabled).toBe(false);
     fireEvent.click(screen.getByRole("button", { name: tr("actions.cancel") }));
     expect(h.current().cptSelectionEditDraft).toBeNull();
   });
 }
+
+test("navigation stays within the displayed multiselection and visits each group together outside edit mode", () => {
+  const h = setup(true);
+  expect(screen.getByRole("region", { name: tr("selectionOverview.title") })).toBeTruthy();
+  inspect(h.points[0]!);
+  for (const expected of [h.points[2]!, h.points[1]!, h.points[3]!]) {
+    fireEvent.click(screen.getByRole("button", { name: tr("cpts.nextLocation") }));
+    expect(h.current().selectedLoadPointIds).toEqual([expected.id]);
+    expect(screen.getAllByRole("button").filter(button => button.classList.contains("load-point-selection-row"))).toHaveLength(4);
+  }
+  expect((screen.getByRole("button", { name: tr("cpts.nextLocation") }) as HTMLButtonElement).disabled).toBe(true);
+  fireEvent.click(screen.getByRole("button", { name: tr("cpts.previousLocation") }));
+  expect(h.current().selectedLoadPointIds).toEqual([h.points[1]!.id]);
+  fireEvent.click(screen.getAllByRole("button", { name: i18n.t("loadPoints.selectGroup", { ns: "rightPanel", count: 2 }) })[0]!);
+  expect(h.current().selectedLoadPointIds).toEqual([h.points[0]!.id, h.points[2]!.id]);
+  expect(h.current().cptSelectionEditDraft).toBeNull();
+  fireEvent.click(screen.getByRole("button", { name: tr("cpts.selectEntireContext") }));
+  expect(h.current().selectedLoadPointIds).toEqual([h.points[0]!.id, h.points[2]!.id, h.points[1]!.id, h.points[3]!.id]);
+  expect((screen.getByRole("button", { name: tr("cpts.selectEntireContext") }) as HTMLButtonElement).disabled).toBe(true);
+  const modify = screen.getByRole("button", { name: tr("actions.modify") });
+  const region = screen.getByRole("region", { name: tr("selectionOverview.title") });
+  expect(region.compareDocumentPosition(modify) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  expect(modify.closest("header")).toBeNull();
+});
+
+test("CPT methods are available outside editing and zero changes has no empty disclosure", () => {
+  const h = setup();
+  expect(screen.getByRole("button", { name: tr("actions.onlyNearest") })).toBeTruthy();
+  fireEvent.click(screen.getByRole("button", { name: tr("actions.onlyNearest") }));
+  expect(h.current().cptSelectionEditDraft).toBeNull();
+  fireEvent.click(screen.getByRole("button", { name: tr("actions.useAlgorithm") }));
+  expect(h.current().manualCptIdsByLoadPoint.size).toBe(0);
+  fireEvent.click(screen.getByRole("button", { name: tr("actions.modify") }));
+  expect(screen.getByText(i18n.t("cpts.changedLocations", { ns: "rightPanel", changed: 0, total: 3 })).closest("details")).toBeNull();
+});
+
+test("switching to pile options saves staged changes and closes the CPT editor", () => {
+  const h = setup();
+  inspect(h.points[0]!);
+  fireEvent.click(screen.getByRole("button", { name: tr("actions.modify") }));
+  fireEvent.click(screen.getByRole("button", { name: "Toggle test CPT" }));
+  fireEvent.click(screen.getByRole("button", { name: tr("tabs.loadPoint") }));
+  expect(h.current().cptSelectionEditDraft).toBeNull();
+  expect(h.current().rightPanelMode).toBe("load-point");
+  expect(h.current().manualCptIdsByLoadPoint.get(h.points[0]!.id)).toEqual([h.a.id, h.b.id].sort((a,b) => a-b));
+});
+
+test("starting on one member can edit another group member without losing the first draft", () => {
+  const h = setup(true);
+  inspect(h.points[0]!);
+  fireEvent.click(screen.getByRole("button", { name: tr("actions.modify") }));
+  fireEvent.click(screen.getByRole("button", { name: "Toggle test CPT" }));
+  fireEvent.click(screen.getByRole("button", { name: tr("cpts.nextLocation") }));
+  expect(h.current().selectedLoadPointIds).toEqual([h.points[2]!.id]);
+  fireEvent.click(screen.getByRole("button", { name: "Toggle test CPT" }));
+  expect(h.current().manualCptIdsByLoadPoint.has(h.points[0]!.id)).toBe(false);
+  fireEvent.click(screen.getByRole("button", { name: tr("actions.save") }));
+  for (const point of [h.points[0]!, h.points[2]!]) {
+    expect(h.current().manualCptIdsByLoadPoint.get(point.id)).toEqual([h.a.id, h.b.id].sort((a, b) => a - b));
+  }
+  expect(h.current().manualCptIdsByLoadPoint.get(h.points[1]!.id)).toEqual([h.b.id]);
+});
 
 test("Modify is disabled without load points and saving stays disabled without a session handler", () => {
   const state = projectFixture();

@@ -4,8 +4,6 @@ import type { ProjectState } from "../../../domain/project/projectState.ts";
 import type { PileConfigurationKey } from "../../../core/projectTypes.ts";
 import type {
   LoadPointGroup,
-  LoadPointGroupEditAction,
-  LoadPointGroupEditPreview,
 } from "../../../core/loadPointGroupContract.ts";
 import { openCpt, selectLoadPoint } from "../../../domain/workspace/selectionState.ts";
 import { filterActivePileOptions } from "../../../domain/pile-options/activePileConfigurations.ts";
@@ -19,9 +17,6 @@ import type { TechnicalAssignmentSnapshot } from "../../../app/derived-state/tec
 import type { GroupAssignmentAssessmentSnapshot } from "../../../app/derived-state/groupAssignmentAssessmentController.ts";
 import TechnicalAssignmentNotice from "./TechnicalAssignmentNotice.tsx";
 import MissingCptPopover from "./MissingCptPopover.tsx";
-import LoadPointGroupEditButton from "./LoadPointGroupEditButton.tsx";
-import { CoordinateReadout } from "../shared/CoordinateReadout.ts";
-import { getLoadPointGroupNotice, getLoadPointGroupSelection } from "../../../viewer/loadPointGroupSelection.ts";
 import { InactiveLabel, ResistanceLabel, localizeCptName, localizeLoadPointName } from "./PanelControls.tsx";
 
 export default function LoadPointPanel({
@@ -29,14 +24,10 @@ export default function LoadPointPanel({
   onStateChange,
   pileAssignmentPending,
   onApplyPileConfiguration,
-  selectedLabel,
   selectedLoadPoints,
   loadPointGroups,
   technicalAssignment,
   groupAssignmentAssessment,
-  groupEditPending,
-  onPreviewLoadPointGroupEdit,
-  onApplyLoadPointGroupEdit,
   columnLayouts,
   onColumnLayoutChange,
 }: {
@@ -47,20 +38,10 @@ export default function LoadPointPanel({
     selectedLoadPointIds: number[],
     configuration: PileConfigurationKey | null,
   ) => void;
-  selectedLabel: string;
   selectedLoadPoints: ReturnType<typeof getSelectedLoadPoints>;
   loadPointGroups: LoadPointGroup[];
   technicalAssignment: TechnicalAssignmentSnapshot;
   groupAssignmentAssessment: GroupAssignmentAssessmentSnapshot;
-  groupEditPending: boolean;
-  onPreviewLoadPointGroupEdit: (
-    action: LoadPointGroupEditAction,
-    selectedLoadPointIds?: number[],
-  ) => Promise<LoadPointGroupEditPreview | null>;
-  onApplyLoadPointGroupEdit: (
-    action: LoadPointGroupEditAction,
-    selectedLoadPointIds?: number[],
-  ) => Promise<void>;
   columnLayouts: PileOptionColumnLayouts;
   onColumnLayoutChange: (mode: keyof PileOptionColumnLayouts, layout: PileOptionColumnLayout) => void;
 }) {
@@ -76,14 +57,6 @@ export default function LoadPointPanel({
   });
   const selectedCount = selectedLoadPoints.length;
   const selectedIds = selectedLoadPoints.map(({ id }) => id).sort((left, right) => left - right);
-  const groupSelection = getLoadPointGroupSelection({
-    selectedLoadPointIds: selectedLoadPoints.map(({ id }) => id),
-    groups: loadPointGroups,
-  });
-  const groupNotice = getLoadPointGroupNotice({
-    selection: groupSelection,
-    selectedLoadPointCount: selectedCount,
-  });
   const columnMode = selectedCount > 1 ? "multiple" : "single";
   const columnLayout = columnLayouts[columnMode];
   const columns = getVisiblePileOptionColumns(selectedCount, columnLayout);
@@ -149,57 +122,8 @@ export default function LoadPointPanel({
   const tableError = selectedCount > 1 && aggregation.status === "error"
     ? aggregation.error
     : state.analysisError;
-  const fedLabel = selectedLoadPoints.length === 1
-    ? `${selectedLoadPoints[0].design_load_kn.toLocaleString(i18n.language, { maximumFractionDigits: 1 })} kN`
-    : t("loadPoints.selectedCount", { count: selectedLoadPoints.length });
   return (
     <div className="load-point-panel">
-      <header className="right-panel-header">
-        <div>
-          <h2>{selectedLabel}</h2>
-          {selectedLoadPoints.length > 1 ? <span>{t("loadPoints.selection")}</span> : null}
-        </div>
-        {selectedLoadPoints.length === 1 ? (
-          <strong className="load-point-force">
-            <span className="load-point-force-label">F<sub>Ed</sub></span>
-            {fedLabel}
-          </strong>
-        ) : (
-          <div className="load-point-selection-controls">
-            <LoadPointGroupEditButton
-              editPending={groupEditPending}
-              groups={loadPointGroups}
-              selectedLoadPointIds={selectedIds}
-              onApply={onApplyLoadPointGroupEdit}
-              onPreview={onPreviewLoadPointGroupEdit}
-            />
-            <details className="load-point-selection-disclosure">
-              <summary>{t("loadPoints.selectedCount", { count: selectedLoadPoints.length })}</summary>
-              <div className="load-point-selection-list" role="list">
-                {selectedLoadPoints.map((loadPoint) => {
-                  const localizedName = localizeLoadPointName(loadPoint.name, t);
-                  const localizedForce = loadPoint.design_load_kn.toLocaleString(i18n.language, { maximumFractionDigits: 1 });
-                  return (
-                    <div key={loadPoint.id} role="listitem">
-                      <button
-                        aria-label={t("loadPoints.inspectMember", { name: localizedName, force: localizedForce })}
-                        type="button"
-                        onClick={() => onStateChange({ ...state, ...selectLoadPoint(state, loadPoint.id) })}
-                      >
-                        <span>{localizedName}</span>
-                        <strong>F<sub>Ed</sub> {localizedForce} kN</strong>
-                      </button>
-                    </div>
-                  );
-                })}
-              </div>
-            </details>
-          </div>
-        )}
-      </header>
-
-      <CoordinateReadout points={selectedLoadPoints} locale={i18n.language} />
-
       {getSelectedGroupConflict(groupAssignmentAssessment, selectedIds) ? (
         <div className="panel-message is-error load-point-group-conflict" role="alert">
           <strong>{t("groupConflict.title")}</strong>
@@ -236,11 +160,6 @@ export default function LoadPointPanel({
               ) : null}
             </div>
           </div>
-          {groupNotice ? (
-            <div className="pile-options-group-notice" role="status">
-              {t(groupNotice.translationKey, groupNotice.values)}
-            </div>
-          ) : null}
         </div>
         {!isLoading && tableError ? (
           <div className="right-panel-empty is-inline" role="alert">

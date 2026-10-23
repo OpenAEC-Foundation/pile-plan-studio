@@ -1,6 +1,7 @@
 import type { CptSelectionEditDraft, CptSettingsScope, ProjectState } from "../project/projectState.ts";
 import type { CptSelectionSettings, PileConfigurationOption, PileOptionAnalysisResult } from "../.././core/projectTypes.ts";
 import type { CptSettingsEditResult } from "../../core/settingsEditCoreClient.ts";
+import { setLoadPointSelection } from "../workspace/selectionState.ts";
 
 export type CptSelectionSettingsPatch = Partial<CptSelectionSettings>;
 
@@ -365,16 +366,34 @@ function getCommonValue<K extends keyof CptSelectionSettings>(
 }
 
 
-/** Editing focus never changes the viewer's group selection or the draft contents. */
+/** Inspecting a location uses the same selection as the viewer and both panels. */
 export function setManualCptEditLoadPoint(state: ProjectState, id: number | null): ProjectState {
-  if (!state.cptSelectionEditDraft || (id !== null && !state.cptSelectionEditDraft.loadPointIds.includes(id))) return state;
-  return { ...state, cptSelectionEditLoadPointId: id };
+  if (!state.cptSelectionEditDraft || (id !== null && !state.loadPoints.some(point => point.id === id))) return state;
+  return synchronizeManualCptSelection({ ...state, ...setLoadPointSelection(state, id === null ? state.cptSelectionEditDraft.loadPointIds : [id]) });
+}
+
+/** Capture newly visited locations without replacing edits already staged elsewhere. */
+export function synchronizeManualCptSelection(state: ProjectState): ProjectState {
+  const draft = state.cptSelectionEditDraft;
+  if (!draft) return state;
+  const addedIds = state.selectedLoadPointIds.filter(id => !draft.loadPointIds.includes(id) && state.loadPoints.some(point => point.id === id));
+  const focus = state.selectedLoadPointIds.length === 1 ? state.selectedLoadPointIds[0]! : null;
+  if (addedIds.length === 0) return state.cptSelectionEditLoadPointId === focus ? state : { ...state, cptSelectionEditLoadPointId: focus };
+  const cptIdsByLoadPoint = new Map(draft.cptIdsByLoadPoint);
+  const initialCptIdsByLoadPoint = new Map(draft.initialCptIdsByLoadPoint);
+  for (const id of addedIds) {
+    const ids = new Set(state.manualCptIdsByLoadPoint.get(id) ?? state.selectedCptsByLoadPointId.get(id)?.map(item => item.cpt.id));
+    cptIdsByLoadPoint.set(id, ids);
+    initialCptIdsByLoadPoint.set(id, new Set(ids));
+  }
+  return { ...state, cptSelectionEditLoadPointId: focus,
+    cptSelectionEditDraft: { ...draft, loadPointIds: [...draft.loadPointIds, ...addedIds], cptIdsByLoadPoint, initialCptIdsByLoadPoint },
+    cptSelectionPreview: null };
 }
 
 export function getManualCptEditTargetIds(state: ProjectState): number[] {
   const ids = state.cptSelectionEditDraft?.loadPointIds ?? [];
-  const id = state.cptSelectionEditLoadPointId;
-  return id != null && ids.includes(id) ? [id] : ids;
+  return state.selectedLoadPointIds.filter(id => ids.includes(id));
 }
 
 export function getDraftCptIds(state: ProjectState, id: number): ReadonlySet<number> {

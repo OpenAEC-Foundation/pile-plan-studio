@@ -356,13 +356,11 @@ describe("PilePlanViewer inputs", () => {
     assert.match(source, /effectiveSymbolScale\(symbolScalePercent\)/);
   });
 
-  it("keeps load-point selection locked while manually editing CPTs", () => {
+  it("keeps ordinary selection available while CPT clicks edit the active locations", () => {
     const source = readViewerSource();
 
-    assert.match(source, /isViewerSelectionActionAllowed\(isEditingCptSelection, "background"\)/);
-    assert.match(source, /isViewerSelectionActionAllowed\(isEditingCptSelection, "load-point"\)/);
-    assert.match(source, /isViewerSelectionActionAllowed\(isEditingCptSelection, "lasso"\)/);
-    assert.match(source, /!isEditingCptSelection \|\| key\.startsWith\("cpt:"\)/);
+    assert.doesNotMatch(source, /isViewerSelectionActionAllowed/);
+    assert.match(source, /isEditingCptSelection\s*\? toggleManualCpt\(state, item\.id\)/);
   });
 
   it("renders pointer-inert CPT connection lines inside the transformed stage before map markers", () => {
