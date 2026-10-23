@@ -1,5 +1,37 @@
 # Open Pile Plan Studio Release Notes
 
+## 2026.43.2
+
+This alpha unifies grouped location selection, streamlines CPT editing, and
+improves foundation-advice import recognition.
+
+### Added
+
+- Use one shared location overview in Pile options, CPTs and the combined panel.
+  Show group context, select individual members or whole groups, and navigate
+  the current selection in group order. Resize or collapse the overview; four
+  location rows are visible by default.
+- Enable optional columns for governing resistance, the critical location's
+  governing CPT and design load in multiple selection. The design-load column
+  is also available for a single location. New columns are hidden by default.
+
+### Improved and fixed
+
+- Keep location selection synchronized between the drawing, source table and
+  shared overview. Rename the load-point inspector to Pile options.
+- Offer automatic CPT selection and nearest-only selection outside edit mode.
+  Save CPT edits when selecting in the drawing or switching to Pile options;
+  retain validation and a single undo step.
+- Preserve automatic CPT selection when restoring and saving a group instead
+  of accidentally saving an empty manual selection.
+- Recognize more foundation-advice table layouts and capacity headers, with
+  clearer source previews and diagnostics for unsupported or ambiguous data.
+
+### Compatibility and limitations
+
+- Supported IFCPP project versions and engineering calculations are unchanged.
+- The application remains Alpha; engineering results require professional review.
+
 ## 2026.43.1
 
 This alpha adds multi-source foundation-advice import and signs the Windows app,
