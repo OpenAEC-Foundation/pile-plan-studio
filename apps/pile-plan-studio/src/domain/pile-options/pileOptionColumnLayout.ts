@@ -4,7 +4,7 @@ export type PileOptionColumnLayout = Array<{ key: PileOptionTableColumn; visible
 export type PileOptionColumnLayouts = { single: PileOptionColumnLayout; multiple: PileOptionColumnLayout };
 
 export function defaultPileOptionColumnLayout(selectedCount: number): PileOptionColumnLayout {
-  return getPileOptionColumns(selectedCount).map(({ key }) => ({ key, visible: true }));
+  return getPileOptionColumns(selectedCount).map(({ key, defaultVisible }) => ({ key, visible: defaultVisible !== false }));
 }
 
 export function normalizePileOptionColumnLayouts(value: unknown): PileOptionColumnLayouts {

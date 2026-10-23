@@ -9,6 +9,7 @@ export type PileOptionTableColumn =
   | "maxUse"
   | "governing"
   | "frd"
+  | "fed"
   | "criticalLoadPoint";
 
 export type PileOptionTableRow = {
@@ -30,6 +31,8 @@ export type PileOptionTableRow = {
   governingLabel: string;
   frdValue: number | null;
   frdLabel: string;
+  fedValue: number | null;
+  fedLabel: string;
   criticalLoadPointId: number | null;
   criticalLoadPointLabel: string;
   missingCptIds: number[];
@@ -43,7 +46,9 @@ export type PileOptionSortState = {
 export type PileOptionFilterState = Partial<Record<PileOptionTableColumn, string[]>>;
 export type SortablePileOptionTableColumn = Exclude<PileOptionTableColumn, "symbol">;
 
-const SINGLE_PILE_OPTION_COLUMNS: Array<{ key: PileOptionTableColumn; label: string }> = [
+type PileOptionColumnDefinition = { key: PileOptionTableColumn; label: string; defaultVisible?: boolean };
+
+const SINGLE_PILE_OPTION_COLUMNS: PileOptionColumnDefinition[] = [
   { key: "symbol", label: "Symbol" },
   { key: "size", label: "Size" },
   { key: "tip", label: "Tip" },
@@ -52,8 +57,9 @@ const SINGLE_PILE_OPTION_COLUMNS: Array<{ key: PileOptionTableColumn; label: str
   { key: "use", label: "Use" },
   { key: "governing", label: "Governing" },
   { key: "frd", label: "R_c;net;d min" },
+  { key: "fed", label: "FEd", defaultVisible: false },
 ];
-const MULTI_PILE_OPTION_COLUMNS: Array<{ key: PileOptionTableColumn; label: string }> = [
+const MULTI_PILE_OPTION_COLUMNS: PileOptionColumnDefinition[] = [
   { key: "symbol", label: "Symbol" },
   { key: "size", label: "Size" },
   { key: "tip", label: "Tip" },
@@ -61,10 +67,13 @@ const MULTI_PILE_OPTION_COLUMNS: Array<{ key: PileOptionTableColumn; label: stri
   { key: "totalCost", label: "Total cost" },
   { key: "maxUse", label: "Max use" },
   { key: "criticalLoadPoint", label: "Critical load point" },
+  { key: "frd", label: "R_c;net;d min", defaultVisible: false },
+  { key: "governing", label: "Governing", defaultVisible: false },
+  { key: "fed", label: "FEd", defaultVisible: false },
 ];
 export function getPileOptionColumns(
   selectedLoadPointCount: number,
-): Array<{ key: PileOptionTableColumn; label: string }> {
+): PileOptionColumnDefinition[] {
   return selectedLoadPointCount > 1 ? MULTI_PILE_OPTION_COLUMNS : SINGLE_PILE_OPTION_COLUMNS;
 }
 
@@ -73,6 +82,7 @@ export function createEmptyPileOptionFilters(): PileOptionFilterState {
     cost: [],
     totalCost: [],
     frd: [],
+    fed: [],
     governing: [],
     size: [],
     status: [],
@@ -152,6 +162,8 @@ function getFilterText(row: PileOptionTableRow, column: PileOptionTableColumn): 
       return row.governingLabel;
     case "frd":
       return row.frdLabel;
+    case "fed":
+      return row.fedLabel;
     case "criticalLoadPoint":
       return row.criticalLoadPointLabel;
   }
@@ -179,6 +191,8 @@ function compareRows(left: PileOptionTableRow, right: PileOptionTableRow, column
       return compareText(left.governingLabel, right.governingLabel);
     case "frd":
       return compareOptionalNumbers(left.frdValue, right.frdValue);
+    case "fed":
+      return compareOptionalNumbers(left.fedValue, right.fedValue);
     case "criticalLoadPoint":
       return compareText(left.criticalLoadPointLabel, right.criticalLoadPointLabel);
   }
