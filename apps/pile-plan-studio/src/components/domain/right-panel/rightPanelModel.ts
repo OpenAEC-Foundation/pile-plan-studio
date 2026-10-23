@@ -227,12 +227,19 @@ export function getCptFrdPanelModel(state: ProjectState, locale = "en-US"): CptF
   };
 }
 
+function formatDesignLoad(value: number | null | undefined, locale = "en-US"): string {
+  return value === null || value === undefined || !Number.isFinite(value)
+    ? "-"
+    : `${value.toLocaleString(locale, { maximumFractionDigits: 1 })} kN`;
+}
+
 export function getRenderablePileOptionRows(input: {
   activeConfigurations: ActivePileConfigurations;
   cpts: Cpt[];
   costsByOptionKey: Map<string, number | null>;
   currencyCode?: string;
   options: PileConfigurationOption[];
+  loadPoint: LoadPoint | null;
   selectedLoadPointCount: number;
   legend: LegendItems;
   pileCostSettings?: PileCostSettings;
@@ -263,6 +270,8 @@ export function getRenderablePileOptionRows(input: {
       totalCostValue: cost,
       frdLabel: isMissing ? "-" : formatOptionalNumber(option.governing_frd_kn, " kN"),
       frdValue: isMissing ? null : option.governing_frd_kn,
+      fedValue: input.loadPoint?.design_load_kn ?? null,
+      fedLabel: formatDesignLoad(input.loadPoint?.design_load_kn, input.locale),
       governingCptId: governingCpt?.id ?? null,
       governingLabel,
       missingCptIds: sortedUniqueIds(option.missing_cpt_ids),
@@ -291,6 +300,7 @@ export function getRenderablePileOptionRows(input: {
 export function getRenderableAggregatedPileOptionRows(input: {
   activeConfigurations: ActivePileConfigurations;
   aggregates: AggregatedPileConfiguration[];
+  cpts: Cpt[];
   costsByOptionKey: Map<string, number | null>;
   currencyCode?: string;
   legend: LegendItems;
@@ -318,6 +328,9 @@ export function getRenderableAggregatedPileOptionRows(input: {
         ? { className: "is-missing", label: "Missing" }
         : { className: "is-not-ok", label: "Insufficient capacity" };
     const isMissing = aggregate.status === "missing";
+    const governingCpt = isMissing ? null
+      : input.cpts.find(({ id }) => id === aggregate.critical_governing_cpt_id) ?? null;
+    const fedValue = isMissing ? null : criticalLoadPoint?.design_load_kn ?? null;
     const sizeLabel = `${formatNumber(pileSizeMm)} mm`;
     const tipLabel = formatPileTipLevelMillimetres(
       aggregate.configuration.pile_tip_level_mm,
@@ -333,10 +346,12 @@ export function getRenderableAggregatedPileOptionRows(input: {
       useValue: isMissing ? null : aggregate.maximum_utilization,
       maxUseLabel: isMissing ? "-" : formatOptionalNumber(aggregate.maximum_utilization, "%", 100),
       maxUseValue: isMissing ? null : aggregate.maximum_utilization,
-      governingCptId: isMissing ? null : aggregate.critical_governing_cpt_id,
-      governingLabel: "-",
+      governingCptId: governingCpt?.id ?? null,
+      governingLabel: governingCpt ? getCptDisplayName(governingCpt) : "-",
       frdLabel: isMissing ? "-" : formatOptionalNumber(aggregate.critical_governing_frd_kn, " kN"),
       frdValue: isMissing ? null : aggregate.critical_governing_frd_kn,
+      fedValue,
+      fedLabel: formatDesignLoad(fedValue, input.locale),
       criticalLoadPointId: isMissing ? null : criticalLoadPoint?.id ?? null,
       criticalLoadPointLabel: isMissing ? "-" : criticalLoadPoint?.name || (
         aggregate.critical_load_point_id === null ? "-" : `Load point ${aggregate.critical_load_point_id}`

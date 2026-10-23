@@ -20,15 +20,28 @@ describe("pile option table", () => {
   it("keeps governing CPT and FRd for a single location", () => {
     assert.deepEqual(
       getPileOptionColumns(1).map((column) => column.key),
-      ["symbol", "size", "tip", "status", "cost", "use", "governing", "frd"],
+      ["symbol", "size", "tip", "status", "cost", "use", "governing", "frd", "fed"],
     );
   });
 
-  it("shows critical multiselection facts instead of averages and governing CPT", () => {
+  it("offers the critical multiselection facts including capacity, CPT and FEd", () => {
     assert.deepEqual(
       getPileOptionColumns(2).map((column) => column.key),
-      ["symbol", "size", "tip", "status", "totalCost", "maxUse", "criticalLoadPoint"],
+      ["symbol", "size", "tip", "status", "totalCost", "maxUse", "criticalLoadPoint", "frd", "governing", "fed"],
     );
+  });
+
+  it("sorts FEd numerically and filters by its displayed value", () => {
+    const forceRows = rows.map((item, index) => ({ ...item,
+      fedValue: [1000, 90, null][index], fedLabel: ["1,000 kN", "90 kN", "-"][index],
+    }));
+    assert.deepEqual(getPileOptionTableRows(forceRows, {}, { column: "fed", direction: "asc" })
+      .map(({ key }) => key), ["350|-20", "290|-18", "320|-19"]);
+    assert.deepEqual(getPileOptionTableRows(forceRows, {}, { column: "fed", direction: "desc" })
+      .map(({ key }) => key), ["320|-19", "290|-18", "350|-20"]);
+    assert.deepEqual(getPileOptionFilterValues(forceRows, "fed"), ["-", "1,000 kN", "90 kN"]);
+    assert.deepEqual(getPileOptionTableRows(forceRows, { fed: ["90 kN"] }, null)
+      .map(({ key }) => key), ["350|-20"]);
   });
 
   it("sorts numeric columns and keeps missing values last", () => {
@@ -97,6 +110,8 @@ function row(input: {
     costValue: input.costValue,
     frdLabel: "800 kN",
     frdValue: 800,
+    fedValue: 100,
+    fedLabel: "100 kN",
     criticalLoadPointId: 1,
     criticalLoadPointLabel: "Load point 1",
     governingLabel: "CPT 1",

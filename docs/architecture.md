@@ -293,6 +293,13 @@ Pile-option column visibility and order are application preferences, stored
 separately for single-location and multiple-location selections. Defaults preserve
 the existing columns; hidden columns do not participate in filtering or sorting.
 Changing this layout does not change project content, undo history, or dirty state.
+Optional columns default to hidden, including when older saved layouts are
+normalized. Single selection offers FEd in addition to the existing columns.
+Multiple selection also offers governing resistance (R_c;net;d min), governing
+CPT and FEd for each configuration's critical load point, as identified by Rust
+aggregation (maximum utilization). These critical metrics remain unavailable
+when capacity data is incomplete; single-location FEd remains available because
+it comes directly from the load point.
 
 The Rust core is divided into feature modules rather than broad utility or
 orchestration catch-alls. Its main grouped subsystems are:

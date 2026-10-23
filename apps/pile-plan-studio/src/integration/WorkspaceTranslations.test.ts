@@ -30,7 +30,7 @@ describe("Workspace translations", () => {
         assert.ok(panel[`columnSettings.${key}`]?.trim(), `${language}: ${key}`);
       }
       for (const key of ["drag", "moved"]) assert.ok(panel[`columnSettings.${key}`].includes("{{column}}"));
-      for (const key of ["symbol", "size", "tip", "status", "cost", "use", "governing", "frd", "totalCost", "maxUse", "criticalLoadPoint"]) {
+      for (const key of ["symbol", "size", "tip", "status", "cost", "use", "governing", "frd", "fed", "totalCost", "maxUse", "criticalLoadPoint"]) {
         assert.ok(panel[`columns.${key}`]?.trim(), `${language}: columns.${key}`);
       }
     }

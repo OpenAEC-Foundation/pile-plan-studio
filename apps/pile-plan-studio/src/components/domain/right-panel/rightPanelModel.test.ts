@@ -28,6 +28,8 @@ describe("React right panel model", () => {
     });
 
     const rows = getRenderablePileOptionRows({
+      loadPoint: { ...minimalState().loadPoints[0], design_load_kn: 1234.5 },
+      locale: "nl-NL",
       cpts: state.cpts,
       costsByOptionKey: state.pileCostByOptionKey,
       currencyCode: "GBP",
@@ -68,6 +70,8 @@ describe("React right panel model", () => {
     assert.equal(rows[0].costLabel, "£1,234");
     assert.equal(rows[0].useLabel, "75%");
     assert.equal(rows[0].frdLabel, "900 kN");
+    assert.equal(rows[0].fedValue, 1234.5);
+    assert.equal(rows[0].fedLabel, "1.234,5 kN");
     assert.match(rows[0].symbolHtml, /<rect x="3" y="7" width="18" height="10"/);
     assert.match(rows[0].symbolHtml, /fill="#123456"/);
   });
@@ -75,6 +79,7 @@ describe("React right panel model", () => {
   it("marks each inactive property on a retained pile-option row", () => {
     const state = minimalState();
     const rows = getRenderablePileOptionRows({
+      loadPoint: minimalState().loadPoints[0],
       cpts: state.cpts,
       costsByOptionKey: state.pileCostByOptionKey,
       options: [{
@@ -105,6 +110,7 @@ describe("React right panel model", () => {
 
   it("shows the governing CPT id when an imported CPT has no name", () => {
     const rows = getRenderablePileOptionRows({
+      loadPoint: minimalState().loadPoints[0],
       activeConfigurations: { pileSizes: [290], pileTipLevelMms: [-17_500] },
       cpts: [{ id: 64, name: "", x_mm: 0, y_mm: 0 }],
       costsByOptionKey: new Map(),
@@ -144,6 +150,7 @@ describe("React right panel model", () => {
       pileCostByOptionKey: new Map([["320|-18500", 1200]]),
     });
     const rows = getRenderableAggregatedPileOptionRows({
+      cpts: minimalState().cpts,
       activeConfigurations: { pileSizes: [320], pileTipLevelMms: [-18_500] },
       aggregates: [{
         configuration: { pile_size_mm: 320, pile_tip_level_mm: -18_500 },
@@ -168,10 +175,45 @@ describe("React right panel model", () => {
     assert.equal(rows[0].maxUseLabel, "90%");
     assert.equal(rows[0].criticalLoadPointLabel, "Load point 2");
     assert.equal(rows[0].criticalLoadPointId, 2);
+    assert.equal(rows[0].governingCptId, 64);
+    assert.equal(rows[0].governingLabel, "CPT 64");
+    assert.equal(rows[0].frdValue, 900);
+    assert.equal(rows[0].fedValue, 200);
+    assert.equal(rows[0].fedLabel, "200 kN");
+  });
+
+  it("uses each configuration's core-selected critical location, including insufficient capacity", () => {
+    const base = {
+      pile_tip_level_m: -18.5,
+      status: "valid" as const,
+      missing_load_point_ids: [], missing_cpt_ids: [], invalid_load_point_ids: [],
+      configuration: { pile_size_mm: 320, pile_tip_level_mm: -18_500 },
+      maximum_utilization: 0.9,
+      critical_load_point_id: 2, critical_governing_cpt_id: 64, critical_governing_frd_kn: 900,
+    };
+    const rows = getRenderableAggregatedPileOptionRows({
+      activeConfigurations: { pileSizes: [320, 350], pileTipLevelMms: [-18_500] },
+      aggregates: [base, { ...base,
+        configuration: { pile_size_mm: 350, pile_tip_level_mm: -18_500 },
+        status: "invalid", invalid_load_point_ids: [1], maximum_utilization: 1.2,
+        critical_load_point_id: 1, critical_governing_cpt_id: 65, critical_governing_frd_kn: 1000,
+      }],
+      cpts: [{ id: 64, name: "Sondering Noord", x_mm: 0, y_mm: 0 },
+        { id: 65, name: "", x_mm: 0, y_mm: 0 }],
+      loadPoints: [{ id: 1, name: "A", x_mm: 0, y_mm: 0, design_load_kn: 1200 },
+        { id: 2, name: "B", x_mm: 0, y_mm: 0, design_load_kn: 810 }],
+      costsByOptionKey: new Map(), legend: minimalState().pileLegend, selectedLoadPointCount: 2, locale: "nl-NL",
+    });
+    assert.deepEqual(rows.map(row => [row.criticalLoadPointId, row.fedValue, row.frdValue, row.governingLabel]),
+      [[2, 810, 900, "Sondering Noord"], [1, 1200, 1000, "CPT 65"]]);
+    assert.equal(rows[1].governingCptId, 65);
+    assert.equal(rows[1].fedLabel, "1.200 kN");
+    assert.equal(rows[1].statusLabel, "Insufficient capacity");
   });
 
   it("keeps total cost but suppresses inconclusive metrics for a missing aggregate", () => {
     const rows = getRenderableAggregatedPileOptionRows({
+      cpts: minimalState().cpts,
       activeConfigurations: { pileSizes: [320], pileTipLevelMms: [-18_500] },
       aggregates: [{
         configuration: { pile_size_mm: 320, pile_tip_level_mm: -18_500 },
@@ -196,10 +238,16 @@ describe("React right panel model", () => {
     assert.equal(rows[0].maxUseLabel, "-");
     assert.deepEqual(rows[0].missingCptIds, [61, 62]);
     assert.equal(rows[0].criticalLoadPointLabel, "-");
+    assert.equal(rows[0].governingCptId, null);
+    assert.equal(rows[0].governingLabel, "-");
+    assert.equal(rows[0].frdValue, null);
+    assert.equal(rows[0].fedValue, null);
+    assert.equal(rows[0].fedLabel, "-");
   });
 
   it("suppresses inconclusive single-location metrics for missing capacity data", () => {
     const rows = getRenderablePileOptionRows({
+      loadPoint: minimalState().loadPoints[0],
       activeConfigurations: { pileSizes: [290], pileTipLevelMms: [-17_500] },
       cpts: [{ id: 64, name: "CPT 64", x_mm: 0, y_mm: 0 }],
       costsByOptionKey: new Map([["290|-17500", 500]]),
@@ -219,6 +267,8 @@ describe("React right panel model", () => {
     });
 
     assert.equal(rows[0].costValue, 500);
+    assert.equal(rows[0].fedValue, 100);
+    assert.equal(rows[0].fedLabel, "100 kN");
     assert.equal(rows[0].useValue, null);
     assert.equal(rows[0].useLabel, "-");
     assert.equal(rows[0].governingCptId, null);

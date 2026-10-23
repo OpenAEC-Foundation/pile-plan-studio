@@ -35,8 +35,14 @@ describe("user settings", () => {
         defaultCurrencyCode: "EUR",
         optimizationTimeLimitSeconds: 600,
         pileOptionColumns: {
-          single: ["symbol", "size", "tip", "status", "cost", "use", "governing", "frd"].map(key => ({ key, visible: true })),
-          multiple: ["symbol", "size", "tip", "status", "totalCost", "maxUse", "criticalLoadPoint"].map(key => ({ key, visible: true })),
+          single: [
+            ...["symbol", "size", "tip", "status", "cost", "use", "governing", "frd"].map(key => ({ key, visible: true })),
+            { key: "fed", visible: false },
+          ],
+          multiple: [
+            ...["symbol", "size", "tip", "status", "totalCost", "maxUse", "criticalLoadPoint"].map(key => ({ key, visible: true })),
+            ...["frd", "governing", "fed"].map(key => ({ key, visible: false })),
+          ],
         },
         ilpSections: {
           optimize: true, limits: true, neighbors: false, result: false, saveAs: false, candidates: false, costLimits: false,

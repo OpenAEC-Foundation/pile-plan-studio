@@ -90,6 +90,7 @@ export default function LoadPointPanel({
   const retainedConfiguration = getChosenPileOptionConfigurationForSelection(state, selectedLoadPoints);
   const rows = (selectedCount > 1
     ? getRenderableAggregatedPileOptionRows({
+        cpts: state.cpts,
         aggregates: aggregation.status === "ready"
           ? filterActivePileOptions(aggregation.result, active, retainedConfiguration)
           : [],
@@ -103,6 +104,7 @@ export default function LoadPointPanel({
         selectedLoadPointCount: selectedCount,
       })
     : getRenderablePileOptionRows({
+        loadPoint: selectedLoadPoints[0] ?? null,
         activeConfigurations: active,
         cpts: state.cpts,
         costsByOptionKey: state.pileCostByOptionKey,
@@ -265,6 +267,7 @@ export default function LoadPointPanel({
                           column={column.key}
                           label={column.key === "frd"
                             ? <ResistanceLabel qualifier={t("columns.minimumQualifier")} />
+                            : column.key === "fed" ? <>F<sub>Ed</sub></>
                             : t(`columns.${column.key}`)}
                           labelText={t(`columns.${column.key}`)}
                           rows={rows}
@@ -338,6 +341,7 @@ export default function LoadPointPanel({
                               </button>
                             ))
                             : key === "frd" ? row.frdLabel
+                            : key === "fed" ? row.fedLabel
                             : row.criticalLoadPointId === null ? row.criticalLoadPointLabel : (
                               <button
                                 className="cpt-link"

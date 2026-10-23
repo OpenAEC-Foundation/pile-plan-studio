@@ -6,11 +6,35 @@ import { defaultPileOptionColumnLayout, normalizePileOptionColumnLayouts, movePi
 describe("pile option column layouts", () => {
   it("keeps existing defaults and separate layouts for single and multiple selections", () => {
     const layouts = normalizePileOptionColumnLayouts(undefined);
-    assert.deepEqual(getVisiblePileOptionColumns(1, layouts.single), getPileOptionColumns(1));
-    assert.deepEqual(getVisiblePileOptionColumns(2, layouts.multiple), getPileOptionColumns(2));
+    assert.deepEqual(getVisiblePileOptionColumns(1, layouts.single).map(({ key }) => key),
+      ["symbol", "size", "tip", "status", "cost", "use", "governing", "frd"]);
+    assert.deepEqual(getVisiblePileOptionColumns(2, layouts.multiple).map(({ key }) => key),
+      ["symbol", "size", "tip", "status", "totalCost", "maxUse", "criticalLoadPoint"]);
+    assert.deepEqual(layouts.single.find(({ key }) => key === "fed"), { key: "fed", visible: false });
+    for (const key of ["frd", "governing", "fed"]) {
+      assert.deepEqual(layouts.multiple.find(column => column.key === key), { key, visible: false });
+    }
     const changed = movePileOptionColumn(layouts.single, "cost", "status");
     assert.notDeepEqual(changed, layouts.single);
     assert.deepEqual(layouts.multiple, defaultPileOptionColumnLayout(2));
+  });
+
+  it("adds optional columns hidden to old preferences and preserves explicit choices on reload", () => {
+    const layouts = normalizePileOptionColumnLayouts({
+      single: [{ key: "cost", visible: false }, { key: "frd", visible: true }],
+      multiple: [{ key: "criticalLoadPoint", visible: true }, { key: "symbol", visible: false }],
+    });
+    assert.equal(layouts.single.find(({ key }) => key === "fed")?.visible, false);
+    for (const key of ["frd", "governing", "fed"]) {
+      assert.equal(layouts.multiple.find(column => column.key === key)?.visible, false);
+    }
+    const multiple = setPileOptionColumnVisible(layouts.multiple, "fed", true);
+    const restored = normalizePileOptionColumnLayouts(JSON.parse(JSON.stringify({ ...layouts, multiple })));
+    assert.equal(restored.multiple.find(({ key }) => key === "fed")?.visible, true);
+    assert.equal(restored.single.find(({ key }) => key === "fed")?.visible, false);
+    assert.deepEqual(restored.multiple.slice(0, 2), [
+      { key: "criticalLoadPoint", visible: true }, { key: "symbol", visible: false },
+    ]);
   });
 
   it("normalizes old, corrupt and future settings without losing valid order or visibility", () => {
@@ -31,9 +55,9 @@ describe("pile option column layouts", () => {
     assert.equal(initial[0].key, "symbol");
     assert.deepEqual(movePileOptionColumn(moved, "size", "size"), moved);
     assert.deepEqual(movePileOptionColumn(initial, "symbol", "frd").map(column => column.key),
-      ["size", "tip", "status", "cost", "use", "governing", "frd", "symbol"]);
+      ["size", "tip", "status", "cost", "use", "governing", "frd", "symbol", "fed"]);
     assert.deepEqual(movePileOptionColumn(initial, "frd", "symbol").map(column => column.key),
-      ["frd", "symbol", "size", "tip", "status", "cost", "use", "governing"]);
+      ["frd", "symbol", "size", "tip", "status", "cost", "use", "governing", "fed"]);
     assert.equal(getVisiblePileOptionColumns(1, moved).some(column => column.key === "size"), false);
   });
 
