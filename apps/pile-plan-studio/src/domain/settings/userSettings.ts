@@ -1,5 +1,5 @@
 import { clampRightPanelSplit, DEFAULT_RIGHT_PANEL_SPLIT } from "../workspace/rightPanelLayout.ts";
-import type { PileCostSettings } from "../../core/projectTypes.ts";
+import type { PileCostSettings, PileSizeExportFormat } from "../../core/projectTypes.ts";
 import { normalizePileOptionColumnLayouts, type PileOptionColumnLayouts } from "../pile-options/pileOptionColumnLayout.ts";
 import { normalizeInterfaceScale } from "./interfaceScale.ts";
 import { clampSelectionOverviewRows, DEFAULT_SELECTION_OVERVIEW_ROWS } from "../workspace/selectionOverviewLayout.ts";
@@ -38,6 +38,7 @@ export type UserSettings = {
     interfaceScalePercent: number;
     defaultCurrencyCode: string;
     optimizationTimeLimitSeconds: number | null;
+    pileSizeExportFormat: PileSizeExportFormat;
     workspaceLayout: WorkspaceLayoutSettings;
     ilpSections: IlpSections;
     pileOptionColumns: PileOptionColumnLayouts;
@@ -55,6 +56,7 @@ export const DEFAULT_USER_SETTINGS: UserSettings = {
     interfaceScalePercent: 100,
     defaultCurrencyCode: "EUR",
     optimizationTimeLimitSeconds: 600,
+    pileSizeExportFormat: "numeric",
     ilpSections: { ...DEFAULT_ILP_SECTIONS },
     pileOptionColumns: normalizePileOptionColumnLayouts(undefined),
     workspaceLayout: {
@@ -93,6 +95,7 @@ export function normalizeUserSettings(value: unknown): UserSettings {
       ),
       defaultCurrencyCode: normalizeCurrencyCode(preferences.defaultCurrencyCode),
       optimizationTimeLimitSeconds: normalizeOptimizationTimeLimitSeconds(preferences.optimizationTimeLimitSeconds),
+      pileSizeExportFormat: preferences.pileSizeExportFormat === "dimensions" ? "dimensions" : "numeric",
       ilpSections: normalizeIlpSections(preferences.ilpSections),
       pileOptionColumns: normalizePileOptionColumnLayouts(preferences.pileOptionColumns),
       workspaceLayout: {

@@ -34,7 +34,9 @@ export default function SelectionOverview({ loadPoints, selectedIds, contextIds,
         aria-expanded={!collapsed} aria-controls={contentId} onClick={() => onLayoutChange({ collapsed: !collapsed })}>
         <svg viewBox="0 0 16 16" aria-hidden="true" className={collapsed ? "is-collapsed" : ""}><path d="m4 6 4 4 4-4" /></svg>
         <span>{t("selectionOverview.title")}</span>
-        <span className="selection-overview-count">{t("loadPoints.selectedCount", { count: selectedIds.length })}</span>
+        <span className="selection-overview-count">{contextIds.length > selectedIds.length
+          ? t("selectionOverview.inspectionCount", { selected: selectedIds.length, total: contextIds.length })
+          : t("loadPoints.selectedCount", { count: selectedIds.length })}</span>
       </button></h2>
       {groupControl}
     </header>

@@ -21,6 +21,8 @@ test("shares inspected members and grouped navigation context across the load-po
   const rows = () => container.querySelectorAll<HTMLButtonElement>(".load-point-selection-row");
   fireEvent.click(rows()[0]!);
   expect(current!.selectedLoadPointIds).toEqual([points[0]!.id]);
+  expect(current!.loadPointSelectionContext?.ids).toEqual([points[0]!.id, points[2]!.id, points[1]!.id, points[3]!.id]);
+  expect(container.querySelector(".selection-overview-count")!.textContent).toBe("1 of 4 selected");
   fireEvent.click(screen.getByRole("button", { name: i18n.t("tabs.loadPoint", { ns: "rightPanel" }) }));
   expect(rows()).toHaveLength(4);
   expect(rows()[0]!.getAttribute("aria-pressed")).toBe("true");
@@ -30,6 +32,9 @@ test("shares inspected members and grouped navigation context across the load-po
   expect(rows()).toHaveLength(4);
   fireEvent.click(screen.getByRole("button", { name: i18n.t("cpts.nextLocation", { ns: "rightPanel" }) }));
   expect(current!.selectedLoadPointIds).toEqual([points[1]!.id]);
+  fireEvent.click(screen.getByRole("button", { name: i18n.t("cpts.selectEntireContext", { ns: "rightPanel" }) }));
+  expect(current!.selectedLoadPointIds).toEqual([points[0]!.id, points[2]!.id, points[1]!.id, points[3]!.id]);
+  expect(container.querySelector(".selection-overview-count")!.textContent).toBe("4 selected");
 });
 
 test("one permanent selection block and navigation are shared by both views, with collapse controls", () => {

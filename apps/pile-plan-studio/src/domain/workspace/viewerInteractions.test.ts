@@ -16,6 +16,29 @@ import {
 } from "./viewerInteractions.ts";
 
 describe("React viewer interactions", () => {
+  it("inspects a clicked member of a selected group or multiselection and retains that context", () => {
+    const loadPoints = [1, 2, 3, 4].map(id => ({ id, name: String(id), x_mm: id, y_mm: 0, design_load_kn: 10 }));
+    const initial = { loadPoints, selectedLoadPointId: null, selectedLoadPointIds: [], selectedCptId: null,
+      rightPanelMode: "load-point" as const, cptSettingsScope: "all" as const,
+      legendSelectionFilter: { pileSizes: [], pileTipLevels: [] } };
+    for (const groups of [[], [{ load_point_ids: [1, 2] }, { load_point_ids: [3, 4] }]]) {
+      const selected = { ...initial, ...setReactViewerLoadPoints(initial, [1, 2], groups) };
+      const focused = { ...selected, ...selectReactViewerLoadPoint(selected, 1, groups) };
+      assert.deepEqual(focused.selectedLoadPointIds, [1]);
+      assert.deepEqual(focused.loadPointSelectionContext?.ids, [1, 2]);
+      const next = { ...focused, ...selectReactViewerLoadPoint(focused, 2, groups) };
+      assert.deepEqual(next.selectedLoadPointIds, [2]);
+      assert.deepEqual(next.loadPointSelectionContext?.ids, [1, 2]);
+      assert.deepEqual(selectReactViewerLoadPoint(next, 2, groups).selectedLoadPointIds, [2]);
+      const outside = selectReactViewerLoadPoint(next, 3, groups);
+      assert.deepEqual(outside.selectedLoadPointIds, groups.length ? [3, 4] : [3]);
+      assert.equal(outside.loadPointSelectionContext, undefined);
+      assert.equal(toggleReactViewerLoadPoint(next, 1, groups).loadPointSelectionContext, undefined);
+    }
+    const single = { ...initial, ...setReactViewerLoadPoints(initial, [1]) };
+    assert.equal(selectReactViewerLoadPoint(single, 1).loadPointSelectionContext, undefined);
+    assert.deepEqual(selectReactViewerLoadPoint(single, 1).selectedLoadPointIds, [1]);
+  });
 
   it("defaults selected scope when creating a selection from empty", () => {
     const state = {

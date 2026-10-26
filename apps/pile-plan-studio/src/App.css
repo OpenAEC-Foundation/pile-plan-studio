@@ -83,6 +83,16 @@ body,
 
 body {
   overflow: hidden;
+  color: var(--theme-text);
+  font-family: var(--theme-font-body, Inter, system-ui, sans-serif);
+  font-synthesis: none;
+}
+
+button,
+input,
+select,
+textarea {
+  font-family: inherit;
 }
 
 .app-shell {

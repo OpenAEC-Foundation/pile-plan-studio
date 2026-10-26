@@ -13,6 +13,7 @@ export const SMALL_DOT_SYMBOL: PileSymbol = { baseShape: "circle", fillPattern: 
 export type ConfigurationActivationPresentation = {
   symbol: PileSymbol;
   color: string;
+  tipRegionColor: string | null;
   smallDot: boolean;
   sizeActive: boolean;
   tipActive: boolean;
@@ -33,6 +34,11 @@ export function getConfigurationActivationPresentation(
   return {
     symbol: symbolActive ? base.symbol : SMALL_DOT_SYMBOL,
     color: colorActive ? base.color : INACTIVE_LEGEND_COLOR,
+    tipRegionColor: dualColor
+      ? tipActive
+        ? legend.pileTipLevels.find(({ value }) => value === configuration.configuration.pile_tip_level_mm)?.color ?? INACTIVE_LEGEND_COLOR
+        : INACTIVE_LEGEND_COLOR
+      : null,
     smallDot: !symbolActive,
     sizeActive,
     tipActive,

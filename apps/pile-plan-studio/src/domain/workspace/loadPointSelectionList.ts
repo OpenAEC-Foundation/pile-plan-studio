@@ -1,5 +1,14 @@
 import type { LoadPointGroup } from "../../core/loadPointGroupContract.ts";
 import type { LoadPoint } from "../../core/projectTypes.ts";
+import type { LoadPointSelectionContext } from "./selectionState.ts";
+
+export function getLoadPointSelectionContext(state: {
+  loadPoints: LoadPoint[]; selectedLoadPointIds: number[]; loadPointSelectionContext?: LoadPointSelectionContext;
+}, groups: readonly LoadPointGroup[]): number[] {
+  const context = state.loadPointSelectionContext;
+  return resolveLoadPointSelectionContext(state.loadPoints, state.selectedLoadPointIds, groups,
+    context?.loadPoints === state.loadPoints ? context.ids : []);
+}
 
 export type LoadPointSelectionBlock = {
   key: string;

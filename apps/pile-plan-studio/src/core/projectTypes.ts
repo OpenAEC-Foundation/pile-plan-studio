@@ -108,10 +108,14 @@ export type IfcppPileConfigurationKey = {
   pile_tip_level_m_key: number;
 };
 
+export type PileSizeExportFormat = "numeric" | "dimensions";
+
 export type PilePlanExportInput = {
   loadPoints: LoadPoint[];
   selectedPiles: Map<number, PileConfigurationKey>;
   selectedCpts: Map<number, number[]>;
+  pileShapes: Map<number, PileCostShape>;
+  pileSizeFormat: PileSizeExportFormat;
 };
 
 export type OptimizationUnassignedReason =

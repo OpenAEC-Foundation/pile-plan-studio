@@ -159,13 +159,14 @@ pub fn pile_plan_import_requirements() -> serde_json::Value {
             {"name": "X [mm]", "type": "number", "unit": "mm"},
             {"name": "Y [mm]", "type": "number", "unit": "mm"},
             {"name": "FEd [kN]", "type": "number", "unit": "kN", "used_for_matching": false},
-            {"name": "Pile Size [mm]", "type": "positive integer or empty", "unit": "mm"},
+            {"name": "Pile Size [mm]", "type": "positive integer, equal square dimensions, or empty", "unit": "mm"},
             {"name": "Pile Tip Level [m]", "type": "number or empty", "unit": "m"},
             {"name": "Selected CPTs", "type": "comma-separated CPT IDs or empty"}
         ],
         "example": "Load Point ID,X [mm],Y [mm],FEd [kN],Pile Size [mm],Pile Tip Level [m],Selected CPTs\n1,1000,1500,80,320,-18.5,\n",
         "notes": [
             "The named header is required; columns may be reordered.",
+            "Square pile sizes may use equal dimensions such as 290x290; x, X and × are accepted. This notation does not change project pile shapes.",
             "Pile Size and Pile Tip Level both empty clear the pile assignment when that category is enabled.",
             "An empty Selected CPTs cell clears the manual CPT choice when that category is enabled.",
             "Manual CPT choices are project-wide and shared by all pile plans.",
@@ -573,7 +574,7 @@ fn parse_standard_table(
         let pile = match (size.is_empty(), tip.is_empty()) {
             (true, true) => PilePlanImportedValue::Clear,
             (false, false) => PilePlanImportedValue::Set(PileConfigurationKey {
-                pile_size_mm: parse_positive_u32(size).map_err(|message| {
+                pile_size_mm: parse_standard_pile_size(size).map_err(|message| {
                     invalid_cell(table, source_row.number, columns.pile_size, message)
                 })?,
                 pile_tip_level_mm: parse_tip_level_key(tip).map_err(|message| {
@@ -785,6 +786,23 @@ fn parse_positive_u32(value: &TableCell) -> Result<u32, String> {
     Ok(number)
 }
 
+fn parse_standard_pile_size(value: &TableCell) -> Result<u32, String> {
+    let text = value.as_text();
+    if !text.contains(['x', 'X', '×']) {
+        return parse_positive_u32(value);
+    }
+    let dimensions = text.split(['x', 'X', '×']).collect::<Vec<_>>();
+    if dimensions.len() != 2 {
+        return Err(format!("Invalid square pile dimensions '{text}'."));
+    }
+    let width = parse_positive_u32(&TableCell::Text(dimensions[0].trim().to_string()))?;
+    let height = parse_positive_u32(&TableCell::Text(dimensions[1].trim().to_string()))?;
+    if width != height {
+        return Err(format!("Square pile dimensions must be equal: '{text}'."));
+    }
+    Ok(width)
+}
+
 fn parse_tip_level_key(value: &TableCell) -> Result<i64, String> {
     let scaled = parse_f64(value)? * 1000.0;
     if scaled < i64::MIN as f64 || scaled > i64::MAX as f64 {
@@ -938,6 +956,122 @@ mod tests {
     }
 
     #[test]
+    fn standard_table_accepts_numeric_and_square_dimension_sizes() {
+        for size in ["290", "290x290", " 290 X 290 ", "290 × 290"] {
+            let csv = format!("Load Point ID,X [mm],Y [mm],FEd [kN],Pile Size [mm],Pile Tip Level [m],Selected CPTs\n1,1000,1500,80,{size},-18.5,\n");
+            let parsed = parse_pile_plan_source(
+                "plan.csv",
+                SourceFormat::Csv,
+                csv.as_bytes(),
+                PilePlanImportProfile::Automatic,
+            )
+            .unwrap_or_else(|error| panic!("{size}: {error:?}"));
+            assert_eq!(
+                parsed.rows[0].pile,
+                PilePlanImportedValue::Set(PileConfigurationKey {
+                    pile_size_mm: 290,
+                    pile_tip_level_mm: -18_500,
+                })
+            );
+        }
+    }
+
+    #[test]
+    fn standard_table_rejects_invalid_dimensions_with_cell_location() {
+        for size in [
+            "290x320",
+            "290x290x290",
+            "0x0",
+            "-290x-290",
+            "290.5x290.5",
+            "4294967296x4294967296",
+            "x290",
+            "290x",
+            "NaNxNaN",
+        ] {
+            let csv = format!("Load Point ID,X [mm],Y [mm],FEd [kN],Pile Size [mm],Pile Tip Level [m],Selected CPTs\n1,1000,1500,80,{size},-18.5,\n");
+            let error = parse_pile_plan_source(
+                "plan.csv",
+                SourceFormat::Csv,
+                csv.as_bytes(),
+                PilePlanImportProfile::Automatic,
+            )
+            .expect_err(size);
+            assert_eq!(
+                error.code,
+                PilePlanImportDiagnosticCode::InvalidRow,
+                "{size}"
+            );
+            let location = error.location.unwrap();
+            assert_eq!(location.row, Some(2));
+            assert_eq!(location.column, Some(5));
+        }
+    }
+
+    #[test]
+    fn both_export_notations_round_trip_through_csv_and_xlsx() {
+        let square = PileConfigurationKey {
+            pile_size_mm: 290,
+            pile_tip_level_mm: -18_500,
+        };
+        let round = PileConfigurationKey {
+            pile_size_mm: 320,
+            pile_tip_level_mm: -19_000,
+        };
+        for notation in [
+            crate::PileSizeExportFormat::Numeric,
+            crate::PileSizeExportFormat::Dimensions,
+        ] {
+            let input = crate::PilePlanExportRequest {
+                load_points: vec![
+                    load_point(1, 1000.0, 1500.0),
+                    load_point(2, 2000.0, 2500.0),
+                    load_point(3, 3000.0, 3500.0),
+                ],
+                selected_piles: HashMap::from([(1, square.clone()), (2, round.clone())]),
+                selected_cpts: HashMap::from([(1, vec![11, 2])]),
+                pile_shapes: HashMap::from([
+                    (290, crate::PileCostShape::Square),
+                    (320, crate::PileCostShape::Round),
+                ]),
+                pile_size_format: notation,
+            };
+            for (name, format, bytes) in [
+                (
+                    "plan.csv",
+                    SourceFormat::Csv,
+                    crate::write_pile_plan_csv(&input).unwrap(),
+                ),
+                (
+                    "plan.xlsx",
+                    SourceFormat::Xlsx,
+                    crate::write_pile_plan_xlsx(&input).unwrap(),
+                ),
+            ] {
+                let parsed =
+                    parse_pile_plan_source(name, format, &bytes, PilePlanImportProfile::Automatic)
+                        .expect(name);
+                assert_eq!(parsed.rows.len(), 3);
+                assert_eq!(
+                    parsed.rows[0].pile,
+                    PilePlanImportedValue::Set(square.clone())
+                );
+                assert_eq!(
+                    parsed.rows[1].pile,
+                    PilePlanImportedValue::Set(round.clone())
+                );
+                assert_eq!(parsed.rows[2].pile, PilePlanImportedValue::Clear);
+                assert_eq!(
+                    parsed.rows[0].manual_cpt_ids,
+                    PilePlanImportedValue::Set(vec![2, 11])
+                );
+                assert_eq!(parsed.rows[2].manual_cpt_ids, PilePlanImportedValue::Clear);
+                assert_eq!((parsed.rows[0].x_mm, parsed.rows[0].y_mm), (1000.0, 1500.0));
+            }
+        }
+    }
+
+    #[test]
     fn parses_standard_xlsx_created_by_the_exporter() {
         let pile = PileConfigurationKey {
             pile_size_mm: 320,
@@ -947,6 +1081,8 @@ mod tests {
             load_points: vec![load_point(7, 1000.0, 1500.0)],
             selected_piles: HashMap::from([(7, pile.clone())]),
             selected_cpts: HashMap::from([(7, vec![61, 64])]),
+            pile_shapes: HashMap::new(),
+            pile_size_format: Default::default(),
         })
         .expect("export workbook");
 

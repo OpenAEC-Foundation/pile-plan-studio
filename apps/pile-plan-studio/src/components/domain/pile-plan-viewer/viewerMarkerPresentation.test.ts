@@ -18,6 +18,7 @@ function sampleInput() {
     projectTransform: createProjectViewTransform(state.bounds, { width: 1000, height: 600 }),
     pileOptionsByLoadPointId: state.pileOptionsByLoadPointId,
     selectedLoadPointIds: new Set([firstId]),
+    selectionContextLoadPointIds: new Set<number>(),
     completeSelectedGroupLoadPointIds: new Set([firstId]),
     relatedLoadPointIds: new Set<number>(),
     lockedLoadPointIds: new Set<number>(),
@@ -31,6 +32,36 @@ function sampleInput() {
 }
 
 describe("viewer marker presentation", () => {
+  it("marks the retained context in gray without changing active targets, symbols or coordinates", () => {
+    const input = sampleInput();
+    input.completeSelectedGroupLoadPointIds.clear();
+    const [first, second, third] = input.state.loadPoints;
+    input.selectionContextLoadPointIds = new Set([first.id, second.id]);
+    const before = buildViewerMarkerPresentation({ ...input, selectionContextLoadPointIds: new Set() });
+    const result = buildViewerMarkerPresentation(input);
+    const point = (id: number) => result.graphics.find(entry => entry.kind === "load-point" && entry.id === id)!;
+    assert.deepEqual(point(first.id).ring, { color: "selection", radius: 7.75 });
+    assert.deepEqual(point(second.id).ring, { color: "context", radius: 7.75 });
+    assert.equal(point(third.id).ring, null);
+    const target = result.hitTargets.find(entry => entry.key === `load-point:${second.id}`)!;
+    assert.ok(target.className.includes("is-selection-context"));
+    assert.ok(!target.className.includes(" is-selected"));
+    const original = before.graphics.find(entry => entry.key === `load-point:${second.id}`)!;
+    assert.deepEqual(point(second.id).appearance, original.appearance);
+    assert.deepEqual({ x: point(second.id).x, y: point(second.id).y }, { x: original.x, y: original.y });
+    assert.deepEqual([...input.selectedLoadPointIds], [first.id]);
+    input.activeHoverCandidateKey = `load-point:${second.id}`;
+    assert.deepEqual(buildViewerMarkerPresentation(input).graphics.find(entry => entry.key === target.key)!.ring,
+      { color: "selection", radius: 7.75 });
+    input.activeHoverCandidateKey = null;
+    input.selectedLoadPointIds = new Set([second.id]);
+    const stepped = buildViewerMarkerPresentation(input);
+    assert.equal(stepped.graphics.find(entry => entry.id === first.id && entry.kind === "load-point")!.ring?.color, "context");
+    assert.equal(stepped.graphics.find(entry => entry.id === second.id && entry.kind === "load-point")!.ring?.color, "selection");
+    input.selectedLoadPointIds = new Set([first.id, second.id]);
+    assert.ok(buildViewerMarkerPresentation(input).graphics.every(entry => entry.ring?.color !== "context"));
+  });
+
   it("marks the CPT editor's focused member while retaining the group selection", () => {
     const input = sampleInput();
     const id = input.state.loadPoints[0]!.id;

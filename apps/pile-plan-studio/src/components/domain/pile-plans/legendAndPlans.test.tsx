@@ -8,6 +8,21 @@ import PilePlanExplorer from "./PilePlanExplorer.tsx";
 import { projectFixture } from "../../../test/projectFixture.ts";
 import { LEGEND_COLOR_SCHEMES } from "../../../viewer/legendColors.ts";
 import i18n from "../../../i18n/config.ts";
+import Legend from "./Legend.tsx";
+
+test("legend selection replaces inspection context even when selecting its existing members", () => {
+  const base = projectFixture();
+  const ids = base.loadPoints.slice(0, 3).map(point => point.id);
+  const state = { ...base, selectedLoadPointIds: [ids[0]],
+    loadPointSelectionContext: { loadPoints: base.loadPoints, ids },
+    selectedPileConfigurationsByLoadPoint: new Map([[ids[1], { pile_size_mm: 290, pile_tip_level_mm: -17500 }]]) };
+  const changed = vi.fn();
+  render(<Legend state={state} onStateChange={changed} onEdit={() => {}} tipLevelRegionStatus="idle" />);
+  fireEvent.click(screen.getByRole("button", { name: "290 mm" }));
+  expect(changed).toHaveBeenCalledOnce();
+  expect(changed.mock.calls[0][0].selectedLoadPointIds).toEqual([ids[1]]);
+  expect(changed.mock.calls[0][0].loadPointSelectionContext).toBeUndefined();
+});
 
 test("symbol picker changes shape and fill independently, and Escape closes only its own dialog", () => {
   const change = vi.fn(), parent = vi.fn(); const symbol = { baseShape: "square" as const, fillPattern: "full" as const };

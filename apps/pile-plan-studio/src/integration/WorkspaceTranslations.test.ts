@@ -389,6 +389,21 @@ describe("Workspace translations", () => {
     assert.match(nlBackstage, /"tolerance":\s*"Coördinatietolerantie"/);
   });
 
+  it("explains the optional Excel size notation and retained selection count in both languages", () => {
+    for (const language of ["nl", "en"]) {
+      const backstage = JSON.parse(readFileSync(resolve(import.meta.dirname, `../i18n/locales/${language}/backstage.json`), "utf8"));
+      const panel = JSON.parse(readFileSync(resolve(import.meta.dirname, `../i18n/locales/${language}/rightPanel.json`), "utf8"));
+      assert.ok(backstage.exportPanel.pileSizeFormat.length > 0);
+      assert.ok(backstage.exportPanel.pilePlan.length > 0);
+      assert.ok(backstage.exportPanel.exportExcel.length > 0);
+      assert.ok(backstage.exportPanel.exportCsv.length > 0);
+      assert.match(backstage.exportPanel.pileSizeNumeric, /290/);
+      assert.match(backstage.exportPanel.pileSizeDimensions, /290x290/);
+      assert.match(backstage.exportPanel.pileSizeHelp, language === "nl" ? /vierkante.*Ronde/ : /square.*Round/);
+      assert.match(panel["selectionOverview.inspectionCount"], /{{selected}}.*{{total}}/);
+    }
+  });
+
   it("renders the updated design resistance notation in visible tables", () => {
     const panel = ["CptPanel.tsx", "LoadPointPanel.tsx", "PanelControls.tsx"]
       .map((file) => `../components/domain/right-panel/${file}`)

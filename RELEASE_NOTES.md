@@ -1,5 +1,41 @@
 # Open Pile Plan Studio Release Notes
 
+## 2026.44.0
+
+This alpha improves pile-plan exports, inspection within grouped selections,
+and the readability of legends and side panels.
+
+### Added
+
+- Choose numeric pile sizes (`290`) or square dimensions (`290x290`) in one
+  shared Excel/CSV export block. The choice is remembered across restarts.
+  Square dimensions use the project's pile-shape settings; round and unknown
+  shapes retain numeric sizes and unassigned cells remain empty. (#52)
+- Re-import both export notations from CSV and XLSX. Equal square dimensions
+  accept `x`, `X` or `×`; unequal or invalid dimensions are rejected with a
+  source-cell diagnostic.
+- Inspect a member of a selected group or multiple selection by clicking it
+  again in the drawing. Keep the other context members visible with dashed
+  gray rings, show the inspected count, and return to the entire selection. (#53)
+
+### Improved and fixed
+
+- Show the tip-level region color beside the numeric tip level in pile-option
+  rows when using size-colored symbols and tip-colored regions. Preserve both
+  color channels for single and multiple selections, even with regions hidden.
+  Inactive levels retain a gray indicator and an explicit inactive label. (#50)
+- Use consistent icons, aligned actions and one shared notation control for
+  Excel and CSV exports.
+- Apply the bundled interface font consistently to menus, dialogs and form
+  controls. Improve secondary-text contrast across light and dark themes.
+
+### Compatibility and limitations
+
+- Numeric export remains the default for existing API/MCP callers.
+- Supported IFCPP project versions and engineering calculations are unchanged.
+  Inspection context remains transient; export notation is a user preference.
+- The application remains Alpha; engineering results require professional review.
+
 ## 2026.43.2
 
 This alpha unifies grouped location selection, streamlines CPT editing, and

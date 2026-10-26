@@ -13,6 +13,40 @@ import {
 import type { ProjectState } from "../../../domain/project/projectState.ts";
 
 describe("React right panel model", () => {
+  it("keeps both legend colors in single and aggregated option rows", () => {
+    const state = minimalState();
+    const options = [-17_500, -18_000].map(tip => ({
+      configuration: { pile_size_mm: 290, pile_tip_level_mm: tip },
+      pile_size_mm: 290, pile_tip_level_m: tip / 1000,
+      isOption: true, governing_cpt_id: 64, governing_frd_kn: 900,
+      utilization: 0.75, missing_cpt_ids: [], technicalStatus: "valid" as const,
+    }));
+    const legend = {
+      ...state.pileLegend, encodingMode: "size-color-tip-region" as const,
+      pileSizes: [{ value: 290, symbol: { baseShape: "circle" as const, fillPattern: "full" as const }, color: "#123456" }],
+      pileTipLevels: [-17_500, -18_000].map((value, index) => ({
+        value, symbol: { baseShape: "circle" as const, fillPattern: "full" as const }, color: index === 0 ? "#ABCDEF" : "#FEDCBA",
+      })),
+    };
+    const shared = { legend, cpts: state.cpts, costsByOptionKey: new Map(),
+      activeConfigurations: { pileSizes: [290], pileTipLevelMms: [-17_500, -18_000] } };
+    const singles = getRenderablePileOptionRows({ ...shared, options,
+      loadPoint: state.loadPoints[0], selectedLoadPointCount: 1 });
+    const aggregates = getRenderableAggregatedPileOptionRows({ ...shared,
+      loadPoints: state.loadPoints, selectedLoadPointCount: 2,
+      aggregates: options.map(option => ({
+        configuration: option.configuration, pile_tip_level_m: option.pile_tip_level_m,
+        status: "valid", missing_load_point_ids: [], missing_cpt_ids: [], invalid_load_point_ids: [],
+        maximum_utilization: 0.75, critical_load_point_id: 1, critical_governing_cpt_id: 64, critical_governing_frd_kn: 900,
+      })),
+    });
+    for (const rows of [singles, aggregates]) {
+      assert.deepEqual(rows.map(row => row.tipRegionColor), ["#ABCDEF", "#FEDCBA"]);
+      assert.deepEqual(rows.map(row => row.tipLabel), ["-17.5 m", "-18 m"]);
+      for (const row of rows) assert.match(row.symbolHtml, /fill="#123456"/);
+    }
+  });
+
   it("returns selected load points in project order", () => {
     const state = minimalState({
       selectedLoadPointIds: [2, 1],

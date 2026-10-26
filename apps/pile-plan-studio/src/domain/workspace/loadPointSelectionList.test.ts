@@ -1,11 +1,23 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import type { LoadPoint } from "../../core/projectTypes.ts";
-import { buildLoadPointSelectionBlocks, resolveLoadPointSelectionContext } from "./loadPointSelectionList.ts";
+import { buildLoadPointSelectionBlocks, getLoadPointSelectionContext, resolveLoadPointSelectionContext } from "./loadPointSelectionList.ts";
+import { setLoadPointSelection } from "./selectionState.ts";
 
 const point = (id: number): LoadPoint => ({ id, name: `Load point ${id}`, x_mm: 0, y_mm: 0, design_load_kn: id * 10 });
 
 describe("selected load point display blocks", () => {
+  it("shares inspection context but discards it for a new selection or load-point source", () => {
+    const loadPoints = [1, 2, 3].map(point);
+    const context = { loadPoints, ids: [1, 2] };
+    const state = { loadPoints, selectedLoadPointIds: [1], selectedLoadPointId: 1,
+      selectedCptId: null, rightPanelMode: "load-point" as const, loadPointSelectionContext: context };
+    assert.deepEqual(getLoadPointSelectionContext(state, []), [1, 2]);
+    const newSelection = { ...state, ...setLoadPointSelection(state, [2]) };
+    assert.deepEqual(getLoadPointSelectionContext(newSelection, []), [2]);
+    assert.deepEqual(getLoadPointSelectionContext({ ...state, loadPoints: [...loadPoints] }, []), [1]);
+    assert.deepEqual(getLoadPointSelectionContext({ ...state, selectedLoadPointIds: [] }, []), []);
+  });
   it("retains the multiselection while inspecting members and navigates in displayed group order", () => {
     const points = [1, 4, 7, 2, 5, 3, 8].map(point);
     const groups = [{ load_point_ids: [3, 1, 2] }, { load_point_ids: [5, 4] }];

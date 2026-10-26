@@ -2696,7 +2696,7 @@ dependencies = [
 
 [[package]]
 name = "pile-plan-core"
-version = "2026.43.2"
+version = "2026.44.0"
 dependencies = [
  "calamine",
  "csv",
@@ -2710,7 +2710,7 @@ dependencies = [
 
 [[package]]
 name = "pile-plan-studio"
-version = "2026.43.2"
+version = "2026.44.0"
 dependencies = [
  "getrandom 0.3.4",
  "pile-plan-core",

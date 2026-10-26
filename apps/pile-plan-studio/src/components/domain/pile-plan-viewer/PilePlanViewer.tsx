@@ -51,6 +51,7 @@ import {
   getLoadPointGroupSelection,
 } from "../../../viewer/loadPointGroupSelection.ts";
 import { useViewerViewport } from "./useViewerViewport.ts";
+import { getLoadPointSelectionContext } from "../../../domain/workspace/loadPointSelectionList.ts";
 import ViewerStage from "./ViewerStage.tsx";
 import { getSelectedPileOption } from "./viewerPresentation.ts";
 import {
@@ -85,6 +86,7 @@ export default function PilePlanViewer({
   const { t, i18n } = useTranslation("common");
   const legend = state.pileLegend;
   const selectedLoadPointIds = new Set(state.selectedLoadPointIds);
+  const selectionContextLoadPointIds = new Set(getLoadPointSelectionContext(state, loadPointGroups));
   const groupSelection = useMemo(() => getLoadPointGroupSelection({
     selectedLoadPointIds: state.selectedLoadPointIds,
     groups: loadPointGroups,
@@ -249,6 +251,7 @@ export default function PilePlanViewer({
             cptConnectionSegments={cptConnectionSegments}
             pileOptionsByLoadPointId={pileOptionsByLoadPointId}
             selectedLoadPointIds={selectedLoadPointIds}
+            selectionContextLoadPointIds={selectionContextLoadPointIds}
             completeSelectedGroupLoadPointIds={completeSelectedGroupLoadPointIds}
             relatedLoadPointIds={relatedLoadPointIds}
             lockedLoadPointIds={lockedLoadPointIds}

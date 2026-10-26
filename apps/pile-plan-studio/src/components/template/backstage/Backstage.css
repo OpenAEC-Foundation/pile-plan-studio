@@ -550,6 +550,19 @@ body:has(.bs-export-panel.is-exporting) * {
   border-radius: 4px;
 }
 
+.bs-export-card.has-options {
+  display: grid;
+  grid-template-columns: 42px minmax(0, 1fr);
+  align-items: start;
+  row-gap: 14px;
+}
+
+.bs-export-card-options {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--theme-border);
+}
+
 .bs-export-card-icon svg {
   width: 24px;
   height: 24px;
@@ -564,6 +577,7 @@ body:has(.bs-export-panel.is-exporting) * {
   display: flex;
   align-items: center;
   gap: 8px;
+  flex-wrap: wrap;
   margin-bottom: 4px;
 }
 
@@ -591,14 +605,38 @@ body:has(.bs-export-panel.is-exporting) * {
   font-weight: 700;
 }
 
+.bs-export-size-format {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 10px;
+  margin-top: 0;
+  font-size: 12px;
+}
+
+.bs-export-size-format select {
+  max-width: 100%;
+  padding: 5px 8px;
+  border: 1px solid var(--theme-border);
+  border-radius: 4px;
+  color: var(--theme-text);
+  background: var(--theme-bg);
+  font: inherit;
+}
+
+.bs-export-card-info .bs-export-size-help {
+  margin-top: 6px;
+  font-size: 11px;
+}
+
 .bs-export-action {
   flex-shrink: 0;
   min-width: 108px;
-  height: 30px;
+  min-height: 32px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 6px;
+  gap: 8px;
   padding: 0 12px;
   color: var(--theme-accent-text);
   background: var(--theme-accent);
@@ -608,6 +646,35 @@ body:has(.bs-export-panel.is-exporting) * {
   font-size: 11px;
   font-weight: 600;
   cursor: pointer;
+}
+
+.bs-export-card-actions {
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+  gap: 8px;
+}
+
+.bs-export-card.has-options .bs-export-card-actions {
+  grid-column: 2;
+  flex-direction: row;
+  flex-wrap: wrap;
+  width: auto;
+  margin-left: 0;
+}
+
+.bs-export-card.has-options .bs-export-action {
+  flex: 1 1 132px;
+}
+
+.bs-export-action svg {
+  flex-shrink: 0;
+}
+
+.bs-export-action:focus-visible,
+.bs-export-size-format select:focus-visible {
+  outline: 2px solid var(--theme-focus-color);
+  outline-offset: 2px;
 }
 
 .bs-export-action:hover:not(:disabled) {
@@ -636,9 +703,13 @@ body:has(.bs-export-panel.is-exporting) * {
     flex-wrap: wrap;
   }
 
-  .bs-open-project-action,
-  .bs-export-action {
+  .bs-open-project-action {
     width: 100%;
+    margin-left: 56px;
+  }
+
+  .bs-export-card-actions {
+    width: calc(100% - 56px);
     margin-left: 56px;
   }
 }

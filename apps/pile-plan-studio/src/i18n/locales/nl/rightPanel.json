@@ -4,6 +4,7 @@
   "actions.close": "Instellingen sluiten",
   "tabs.loadPoint": "Paalopties",
   "selectionOverview.title": "Selectie",
+  "selectionOverview.inspectionCount": "{{selected}} van {{total}} geselecteerd",
   "selectionOverview.collapse": "Selectie inklappen",
   "selectionOverview.expand": "Selectie uitklappen",
   "selectionOverview.resize": "Hoogte van selectieoverzicht aanpassen",

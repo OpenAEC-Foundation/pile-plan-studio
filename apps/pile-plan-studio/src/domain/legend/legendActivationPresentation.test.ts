@@ -40,12 +40,36 @@ for (const encodingMode of ["size-symbol", "tip-symbol"] as const) {
         assert.equal(result.color === INACTIVE_LEGEND_COLOR, !colorActive);
         assert.equal(result.sizeActive, sizeActive);
         assert.equal(result.tipActive, tipActive);
+        assert.equal(result.tipRegionColor, null);
       });
     }
   });
 }
 
 describe("dual-color activation presentation", () => {
+  for (const sizeActive of [true, false]) {
+    for (const tipActive of [true, false]) {
+      it(`presents size and tip colors independently when size=${sizeActive}, tip=${tipActive}`, () => {
+        const result = getConfigurationActivationPresentation(configuration, {
+          ...baseLegend, encodingMode: "size-color-tip-region",
+          pileSizes: [{ ...baseLegend.pileSizes[0], color: "#123456" }],
+          pileTipLevels: [{ ...baseLegend.pileTipLevels[0], color: "#ABCDEF" }],
+        }, { pileSizes: sizeActive ? [290] : [], pileTipLevelMms: tipActive ? [-18_000] : [] });
+        assert.equal(result.color, sizeActive ? "#123456" : "#8C989F");
+        assert.equal(result.tipRegionColor, tipActive ? "#ABCDEF" : "#8C989F");
+        assert.equal(result.smallDot, false);
+      });
+    }
+  }
+
+  it("uses neutral colors for a configuration absent from the legend", () => {
+    const result = getConfigurationActivationPresentation(configuration, {
+      ...baseLegend, encodingMode: "size-color-tip-region", pileSizes: [], pileTipLevels: [],
+    }, { pileSizes: [290], pileTipLevelMms: [-18_000] });
+    assert.equal(result.color, "#8C989F");
+    assert.equal(result.tipRegionColor, "#8C989F");
+  });
+
   it("keeps the cost-table shape while only size activation controls its color", () => {
     const costs = {
       schema_version: 2,

@@ -4,6 +4,7 @@
   "actions.close": "Close settings",
   "tabs.loadPoint": "Pile options",
   "selectionOverview.title": "Selection",
+  "selectionOverview.inspectionCount": "{{selected}} of {{total}} selected",
   "selectionOverview.collapse": "Collapse selection",
   "selectionOverview.expand": "Expand selection",
   "selectionOverview.resize": "Resize selection overview",

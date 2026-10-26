@@ -18,6 +18,7 @@ import {
 import { INACTIVE_LEGEND_COLOR, SMALL_DOT_SYMBOL } from "../../../domain/legend/legendActivationPresentation.ts";
 import type { TipLevelRegionTopologyStatus } from "../pile-plan-viewer/tip-level-regions/useTipLevelRegionTopology.ts";
 import { formatPileTipLevelMillimetres } from "../../../domain/formatting.ts";
+import { setLoadPointSelection } from "../../../domain/workspace/selectionState.ts";
 
 type Props = {
   readOnly?: boolean;
@@ -49,10 +50,8 @@ export default function Legend({ readOnly = false, state, onStateChange, onEdit,
     ).filter((id) => !getActiveLockedLoadPointIds(state.pilePlans, state.activePilePlanId).includes(id));
     onStateChange({
       ...state,
+      ...setLoadPointSelection(state, selectedLoadPointIds),
       legendSelectionFilter: nextFilter,
-      selectedLoadPointId: selectedLoadPointIds[0] ?? null,
-      selectedLoadPointIds,
-      selectedCptId: null,
     });
   }
 

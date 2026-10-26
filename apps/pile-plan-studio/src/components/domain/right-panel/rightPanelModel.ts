@@ -35,6 +35,7 @@ export type RenderablePileOptionTableRow = PileOptionTableRow & {
   governingCptId: number | null;
   statusClassName: string;
   symbolHtml: string;
+  tipRegionColor: string | null;
   sizeActive: boolean;
   tipActive: boolean;
   smallDot: boolean;
@@ -279,6 +280,7 @@ export function getRenderablePileOptionRows(input: {
       statusClassName: status.className,
       statusLabel: status.label,
       symbolHtml: renderPileSymbol(style.symbol, style.color),
+      tipRegionColor: style.tipRegionColor,
       sizeActive: style.sizeActive,
       tipActive: style.tipActive,
       smallDot: style.smallDot,
@@ -359,6 +361,7 @@ export function getRenderableAggregatedPileOptionRows(input: {
       statusClassName: status.className,
       statusLabel: status.label,
       symbolHtml: renderPileSymbol(style.symbol, style.color),
+      tipRegionColor: style.tipRegionColor,
       sizeActive: style.sizeActive,
       tipActive: style.tipActive,
       smallDot: style.smallDot,

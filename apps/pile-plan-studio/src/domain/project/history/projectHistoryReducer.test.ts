@@ -13,6 +13,7 @@ import {
   projectHistoryReducer,
 } from "./projectHistoryReducer.ts";
 import { createPilePlan, switchPilePlan } from "../../pile-plans/pilePlanManagement.ts";
+import { setLoadPointSelection } from "../../workspace/selectionState.ts";
 
 const sampleProjectText = readFileSync("../../sample_project/sample_project.ifcpp", "utf8");
 
@@ -25,6 +26,18 @@ function createTestProjectState(
 }
 
 describe("project history reducer", () => {
+  it("keeps selection inspection context out of saved content and undo history", () => {
+    const initial = state();
+    const ids = initial.loadPoints.slice(0, 3).map(point => point.id);
+    const context = { loadPoints: initial.loadPoints, ids };
+    const managed = projectHistoryReducer(createManagedProjectState(initial), {
+      type: "commit", update: current => ({ ...current, ...setLoadPointSelection(current, [ids[1]!], { context }) }),
+    });
+    assert.deepEqual(managed.present.selectedLoadPointIds, [ids[1]]);
+    assert.equal(managed.present.loadPointSelectionContext, context);
+    assert.equal(managed.history.past.length, 0);
+    assert.equal(projectStateSignature(managed.present), projectStateSignature(initial));
+  });
   it("keeps no-op CPT editing out of undo history and the saved project signature", () => {
     const initial = { ...state(), manualCptIdsByLoadPoint: new Map() };
     const id = initial.loadPoints[0]!.id, cpt = initial.cpts[0]!;

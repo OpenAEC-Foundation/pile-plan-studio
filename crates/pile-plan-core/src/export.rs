@@ -7,7 +7,7 @@ use std::{
 use rust_xlsxwriter::{Color, Format, FormatAlign, Workbook};
 use serde::{Deserialize, Serialize};
 
-use crate::{PileConfigurationKey, ProjectLoadPoint};
+use crate::{PileConfigurationKey, PileCostShape, ProjectLoadPoint};
 
 pub const PILE_PLAN_EXPORT_HEADERS: [&str; 7] = [
     "Load Point ID",
@@ -24,6 +24,18 @@ pub struct PilePlanExportRequest {
     pub load_points: Vec<ProjectLoadPoint>,
     pub selected_piles: HashMap<u32, PileConfigurationKey>,
     pub selected_cpts: HashMap<u32, Vec<u32>>,
+    #[serde(default)]
+    pub pile_shapes: HashMap<u32, PileCostShape>,
+    #[serde(default)]
+    pub pile_size_format: PileSizeExportFormat,
+}
+
+#[derive(Clone, Debug, Default, Deserialize, Serialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum PileSizeExportFormat {
+    #[default]
+    Numeric,
+    Dimensions,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize)]
@@ -112,8 +124,19 @@ pub fn write_pile_plan_csv(request: &PilePlanExportRequest) -> Result<Vec<u8>, E
         .map_err(|error| ExportError(format!("Could not write pile plan CSV header: {error}")))?;
 
     for row in rows {
+        let pile_size = row
+            .pile_size_mm
+            .map(|size| pile_size_dimensions(request, size).unwrap_or_else(|| size.to_string()));
         writer
-            .serialize(row)
+            .serialize((
+                row.load_point_id,
+                row.x_mm,
+                row.y_mm,
+                row.design_load_kn,
+                pile_size,
+                row.pile_tip_level_m,
+                row.selected_cpts,
+            ))
             .map_err(|error| ExportError(format!("Could not write pile plan CSV: {error}")))?;
     }
 
@@ -155,9 +178,15 @@ pub fn write_pile_plan_xlsx(request: &PilePlanExportRequest) -> Result<Vec<u8>, 
             .write_number(excel_row, 3, row.design_load_kn)
             .map_err(xlsx_error)?;
         if let Some(pile_size_mm) = row.pile_size_mm {
-            worksheet
-                .write_number(excel_row, 4, pile_size_mm)
-                .map_err(xlsx_error)?;
+            if let Some(dimensions) = pile_size_dimensions(request, pile_size_mm) {
+                worksheet
+                    .write_string(excel_row, 4, dimensions)
+                    .map_err(xlsx_error)?;
+            } else {
+                worksheet
+                    .write_number(excel_row, 4, pile_size_mm)
+                    .map_err(xlsx_error)?;
+            }
         }
         if let Some(pile_tip_level_m) = row.pile_tip_level_m {
             worksheet
@@ -189,6 +218,15 @@ pub fn write_pile_plan_xlsx(request: &PilePlanExportRequest) -> Result<Vec<u8>, 
 
 fn xlsx_error(error: impl Display) -> ExportError {
     ExportError(format!("Could not write pile plan XLSX: {error}"))
+}
+
+fn pile_size_dimensions(request: &PilePlanExportRequest, pile_size_mm: u32) -> Option<String> {
+    (request.pile_size_format == PileSizeExportFormat::Dimensions
+        && matches!(
+            request.pile_shapes.get(&pile_size_mm),
+            Some(PileCostShape::Square)
+        ))
+    .then(|| format!("{pile_size_mm}x{pile_size_mm}"))
 }
 
 fn validate_finite(load_point_id: u32, field: &str, value: f64) -> Result<(), ExportError> {
@@ -236,6 +274,8 @@ mod tests {
                 },
             )]),
             selected_cpts: HashMap::from([(20, vec![11, 2])]),
+            pile_shapes: HashMap::new(),
+            pile_size_format: Default::default(),
         }
     }
 
@@ -272,6 +312,8 @@ mod tests {
             load_points: vec![],
             selected_piles: HashMap::new(),
             selected_cpts: HashMap::new(),
+            pile_shapes: HashMap::new(),
+            pile_size_format: Default::default(),
         })
         .expect("csv");
         let text = String::from_utf8(bytes).expect("utf8");
@@ -315,5 +357,70 @@ mod tests {
             range.get_value((2, 6)),
             Some(&Data::String("2, 11".to_string()))
         );
+    }
+
+    #[test]
+    fn export_size_notation_is_optional_and_uses_project_shape() {
+        use calamine::{Data, Reader, Xlsx};
+        use std::io::Cursor;
+
+        for (shape, format, expected) in [
+            ("square", "dimensions", Data::String("290x290".into())),
+            ("round", "dimensions", Data::Float(290.0)),
+            ("square", "numeric", Data::Float(290.0)),
+        ] {
+            let mut input = request();
+            input.selected_piles.get_mut(&20).unwrap().pile_size_mm = 290;
+            let mut json = serde_json::to_value(input).unwrap();
+            json["pile_shapes"] = serde_json::json!({ "290": shape });
+            json["pile_size_format"] = serde_json::json!(format);
+            let input: PilePlanExportRequest = serde_json::from_value(json).unwrap();
+            let mut workbook =
+                Xlsx::new(Cursor::new(write_pile_plan_xlsx(&input).unwrap())).unwrap();
+            let range = workbook.worksheet_range("Pile Plan").unwrap();
+            assert_eq!(
+                range.get_value((2, 4)),
+                Some(&expected),
+                "{shape}, {format}"
+            );
+            assert_eq!(range.get_value((1, 4)), Some(&Data::Empty));
+            assert_eq!(range.get_value((2, 5)), Some(&Data::Float(-18.5)));
+            let csv = String::from_utf8(write_pile_plan_csv(&input).unwrap()).unwrap();
+            let size = if shape == "square" && format == "dimensions" {
+                "290x290"
+            } else {
+                "290"
+            };
+            assert!(csv.contains(&format!("20,2000.0,3000.0,120.0,{size},-18.5,")));
+            assert!(csv.contains("3,1000.0,1500.0,80.0,,,"));
+        }
+    }
+
+    #[test]
+    fn xlsx_does_not_guess_missing_shapes_and_older_requests_stay_numeric() {
+        use calamine::{Data, Reader, Xlsx};
+        use std::io::Cursor;
+
+        for (format, shapes) in [
+            (Some("dimensions"), serde_json::json!({})),
+            (None, serde_json::json!({"320": "square"})),
+        ] {
+            let mut json = serde_json::to_value(request()).unwrap();
+            json["pile_shapes"] = shapes;
+            json.as_object_mut().unwrap().remove("pile_size_format");
+            if let Some(format) = format {
+                json["pile_size_format"] = format.into();
+            }
+            let input = serde_json::from_value(json).unwrap();
+            let mut workbook =
+                Xlsx::new(Cursor::new(write_pile_plan_xlsx(&input).unwrap())).unwrap();
+            assert_eq!(
+                workbook
+                    .worksheet_range("Pile Plan")
+                    .unwrap()
+                    .get_value((2, 4)),
+                Some(&Data::Float(320.0))
+            );
+        }
     }
 }

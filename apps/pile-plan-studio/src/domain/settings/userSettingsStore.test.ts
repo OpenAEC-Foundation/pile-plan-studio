@@ -17,6 +17,13 @@ function createMemoryStore(initial: unknown): UserSettingsStore {
 }
 
 describe("user settings store", () => {
+  it("persists export notation through the shared browser/desktop settings record", async () => {
+    const store = createMemoryStore(null);
+    await saveUserSettings(store, { ...DEFAULT_USER_SETTINGS, preferences: {
+      ...DEFAULT_USER_SETTINGS.preferences, pileSizeExportFormat: "dimensions",
+    } });
+    assert.equal((await loadUserSettings(store)).preferences.pileSizeExportFormat, "dimensions");
+  });
   it("normalizes values read through the platform-independent store", async () => {
     const store: UserSettingsStore = {
       read: async () => ({ preferences: { theme: "openaec", defaultCurrencyCode: "usd" } }),

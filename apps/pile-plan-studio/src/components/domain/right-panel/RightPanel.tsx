@@ -22,7 +22,7 @@ import GroupingSettingsPanel from "./GroupingSettingsPanel.tsx";
 import CostSettingsPanel from "./CostSettingsPanel.tsx";
 import CptSettingsPanel from "./CptSettingsPanel.tsx";
 import { PanelTab } from "./PanelControls.tsx";
-import { useLoadPointSelectionContext } from "./useLoadPointSelectionContext.ts";
+import { getLoadPointSelectionContext } from "../../../domain/workspace/loadPointSelectionList.ts";
 import { synchronizeManualCptSelection } from "../../../domain/cpt-selection/cptSettingsModel.ts";
 import SelectionOverview, { type SelectionOverviewLayout } from "./SelectionOverview.tsx";
 import LoadPointGroupEditButton from "./LoadPointGroupEditButton.tsx";
@@ -115,7 +115,7 @@ export default function RightPanel({
 }: RightPanelProps) {
   const { t } = useTranslation("rightPanel");
   const selectedLoadPoints = getSelectedLoadPoints(state);
-  const selectionContextIds = useLoadPointSelectionContext(state.loadPoints, state.selectedLoadPointIds, loadPointGroups);
+  const selectionContextIds = getLoadPointSelectionContext(state, loadPointGroups);
   const onStateChange = (next: ProjectState) => publishState(synchronizeManualCptSelection(next));
   const changePanelView = (next: ProjectState) => {
     if (state.cptSelectionEditDraft && next.rightPanelMode === "load-point") {
@@ -161,7 +161,8 @@ export default function RightPanel({
       {taskPanel === null ? <SelectionOverview loadPoints={state.loadPoints} selectedIds={state.selectedLoadPointIds}
         contextIds={selectionContextIds} groups={loadPointGroups} rows={selectionRows} collapsed={selectionCollapsed}
         onLayoutChange={onSelectionLayoutChange} disabled={cptEditPending}
-        onSelect={ids => onStateChange({ ...state, ...setLoadPointSelection(state, ids) })}
+        onSelect={ids => onStateChange({ ...state, ...setLoadPointSelection(state, ids,
+          { context: { loadPoints: state.loadPoints, ids: selectionContextIds } }) })}
         groupControl={selectedLoadPoints.length > 1 ? <LoadPointGroupEditButton editPending={groupEditPending || cptEditPending}
           groups={loadPointGroups} selectedLoadPointIds={state.selectedLoadPointIds}
           onApply={onApplyLoadPointGroupEdit} onPreview={onPreviewLoadPointGroupEdit} /> : null} /> : null}

@@ -427,7 +427,10 @@ Excel advice files, worksheet selection, and per-advice append/replace actions.
 Use `pile_get_pile_plan_import_requirements` for the Rust-defined standard-table
 CSV header, units, and example. The AI client reads an attached file itself and
 sends converted UTF-8 CSV text; an attachment does not automatically become a
-file inside Pile Plan Studio. To add an existing plan:
+file inside Pile Plan Studio. Pile sizes accept numeric values such as `290` or
+equal square dimensions such as `290x290` (also `X` and `×`). Unequal dimensions
+are rejected, and this notation does not change project pile-shape settings.
+To add an existing plan:
 
 1. Read `pile_project_overview` and begin with `pile_begin_pile_plan_import`,
    providing the project instance ID and revision, a `.csv` display filename,

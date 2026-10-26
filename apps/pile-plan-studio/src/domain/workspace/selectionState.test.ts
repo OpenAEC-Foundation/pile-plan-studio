@@ -94,6 +94,21 @@ describe("selection state transitions", () => {
     });
   });
 
+  it("retains inspection context only for explicit overview navigation", () => {
+    const context = { loadPoints: [], ids: [15, 18, 22] };
+    const inspected = setLoadPointSelection(cptOpenState, [18], { context });
+    assert.deepEqual(inspected.selectedLoadPointIds, [18]);
+    assert.equal(inspected.loadPointSelectionContext, context);
+    const next = setLoadPointSelection(inspected, [22], { context });
+    assert.deepEqual(next.selectedLoadPointIds, [22]);
+    assert.equal(next.loadPointSelectionContext, context);
+    assert.equal(setLoadPointSelection(next, [15]).loadPointSelectionContext, undefined);
+    assert.equal(selectLoadPoint(next, 18).loadPointSelectionContext, undefined);
+    assert.equal(addLoadPointsToSelection(next, [15]).loadPointSelectionContext, undefined);
+    assert.equal(clearSelection(next).loadPointSelectionContext, undefined);
+    assert.deepEqual(setLoadPointSelection(next, context.ids, { context }).selectedLoadPointIds, context.ids);
+  });
+
   it("keeps both panels visible when opening a CPT in the combined view", () => {
     const combined = switchRightPanelMode(cptOpenState, "combined");
     assert.equal(combined.selectedCptId, 64);

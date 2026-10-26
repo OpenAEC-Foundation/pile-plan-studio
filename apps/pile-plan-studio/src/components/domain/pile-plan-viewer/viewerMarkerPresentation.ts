@@ -25,7 +25,7 @@ import {
 import { projectPointPixels, type ProjectViewTransform } from "../../../viewer/viewerGeometry.ts";
 import { getSelectedPileOption } from "./viewerPresentation.ts";
 
-export type ViewerMarkerRing = { color: "selection"; radius: number };
+export type ViewerMarkerRing = { color: "selection" | "context"; radius: number };
 export type ViewerMarkerHalo = {
   kind: "above" | "below" | "missing";
   intensity: number;
@@ -66,6 +66,7 @@ export type ViewerMarkerPresentationInput = {
   projectTransform: ProjectViewTransform;
   pileOptionsByLoadPointId: ProjectState["pileOptionsByLoadPointId"];
   selectedLoadPointIds: ReadonlySet<number>;
+  selectionContextLoadPointIds: ReadonlySet<number>;
   completeSelectedGroupLoadPointIds: ReadonlySet<number>;
   relatedLoadPointIds: ReadonlySet<number>;
   lockedLoadPointIds: ReadonlySet<number>;
@@ -122,6 +123,7 @@ export function buildViewerMarkerPresentation(input: ViewerMarkerPresentationInp
     const point = projectPointPixels(loadPoint, input.projectTransform);
     const key = `load-point:${loadPoint.id}`;
     const selected = input.selectedLoadPointIds.has(loadPoint.id);
+    const inSelectionContext = !selected && input.selectionContextLoadPointIds.has(loadPoint.id);
     const groupSelected = input.completeSelectedGroupLoadPointIds.has(loadPoint.id);
     const editFocused = state.cptSelectionEditDraft != null && state.cptSelectionEditLoadPointId === loadPoint.id;
     const related = input.relatedLoadPointIds.has(loadPoint.id);
@@ -143,7 +145,8 @@ export function buildViewerMarkerPresentation(input: ViewerMarkerPresentationInp
       ? " is-pending" : unselectedState === "optimizer-unassigned" ? " has-optimizer-unassigned" : "";
     const invalid = getLoadPointMarkerInvalidVisual(option, state.viewerUtilizationSettings);
     const halo = parseLoadPointStatusHalo(invalid.className, invalid.style, locked, input.isEditingLoadPointLocks);
-    const ring = getLoadPointRing(selected, groupSelected, hovered || editFocused, state.symbolScalePercent);
+    const ring = getLoadPointRing(selected, groupSelected, hovered || editFocused, state.symbolScalePercent)
+      ?? (inSelectionContext ? { color: "context" as const, radius: getLoadPointRingRadius(state.symbolScalePercent) } : null);
     const appearance: ViewerMarkerAppearance = style
       ? { type: "pile", symbol: style.symbol, color: style.color, smallDot: style.smallDot }
       : unselectedState && usesNeutralUnassignedMarker(unselectedState)
@@ -153,13 +156,13 @@ export function buildViewerMarkerPresentation(input: ViewerMarkerPresentationInp
           : { type: "error", color: unselectedState === "missing-capacity-data" ? "#d99b00" : "#c92a2a" };
     graphics.push({ key, kind: "load-point", id: loadPoint.id, ...point, scale,
       drawPriority: getMarkerDrawPriority({ kind: "load-point", foregroundLayer: state.foregroundLayer,
-        selected: selected || related, raised: false, hovered: hovered || editFocused }),
+        selected: selected || related || inSelectionContext, raised: false, hovered: hovered || editFocused }),
       ring, halo, appearance, locked,
       opacity: locked ? input.isEditingLoadPointLocks ? 0.45 : 0.28 : 1,
     });
     hitTargets.push({ key, kind: "load-point", id: loadPoint.id, ...point,
       ariaLabel: `Load point ${loadPoint.name}${unselectedTitle ? `. ${unselectedTitle}` : ""}`,
-      className: `load-point-marker${getLoadPointMarkerLayerClass(selected || related)}${selected ? " is-selected" : ""}${groupSelected ? " is-group-contour-selected" : ""}${editFocused ? " is-cpt-edit-focus" : ""}${related ? " is-related-group-member" : ""}${locked ? " is-locked" : ""}${unselectedClass}${hovered ? " is-hover-candidate" : ""}`,
+      className: `load-point-marker${getLoadPointMarkerLayerClass(selected || related || inSelectionContext)}${selected ? " is-selected" : ""}${inSelectionContext ? " is-selection-context" : ""}${groupSelected ? " is-group-contour-selected" : ""}${editFocused ? " is-cpt-edit-focus" : ""}${related ? " is-related-group-member" : ""}${locked ? " is-locked" : ""}${unselectedClass}${hovered ? " is-hover-candidate" : ""}`,
       hitDiameter: getMarkerHitDiameter("load-point", state.symbolScalePercent, ring !== null),
     });
   }

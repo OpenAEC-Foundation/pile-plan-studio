@@ -15,8 +15,9 @@ import {
   type CptSelectionPreview,
   type ProjectState,
 } from "../project/projectState.ts";
+import { getLoadPointSelectionContext } from "./loadPointSelectionList.ts";
 
-type ReactViewerSelectionState = SelectionState & Pick<ProjectState, "cptSettingsScope"> & {
+type ReactViewerSelectionState = SelectionState & Pick<ProjectState, "cptSettingsScope"> & Partial<Pick<ProjectState, "loadPoints">> & {
   legendSelectionFilter: LegendSelectionFilter;
 };
 
@@ -30,6 +31,16 @@ export function selectReactViewerLoadPoint(
   loadPointId: number,
   groups: LoadPointGroup[] = [],
 ): ReactViewerSelectionState {
+  if (state.loadPoints) {
+    const contextIds = getLoadPointSelectionContext({ ...state, loadPoints: state.loadPoints }, groups);
+    const canInspect = state.selectedLoadPointIds.length > 1
+      || state.loadPointSelectionContext?.loadPoints === state.loadPoints;
+    if (canInspect && contextIds.length > 1 && contextIds.includes(loadPointId)) {
+      return clearLegendSelection(applySelectionTransition(state, setLoadPointSelection(state, [loadPointId], {
+        context: { loadPoints: state.loadPoints, ids: contextIds },
+      })));
+    }
+  }
   return clearLegendSelection(applySelectionTransition(
     state,
     setLoadPointSelection(state, expandSelectionToGroups([loadPointId], groups)),

@@ -196,6 +196,8 @@ async function exportPilePlanCore(
     load_points: input.loadPoints,
     selected_piles: toWasmNumberKeyedMap(input.selectedPiles),
     selected_cpts: toWasmNumberKeyedMap(input.selectedCpts),
+    pile_shapes: toWasmNumberKeyedMap(input.pileShapes),
+    pile_size_format: input.pileSizeFormat,
   };
 
   if (!isTauriRuntime()) {
@@ -210,6 +212,8 @@ async function exportPilePlanCore(
       load_points: input.loadPoints,
       selected_piles: toStringKeyedRecord(input.selectedPiles),
       selected_cpts: toStringKeyedRecord(input.selectedCpts),
+      pile_shapes: toStringKeyedRecord(input.pileShapes),
+      pile_size_format: input.pileSizeFormat,
     },
   });
   return binaryResultToUint8Array(result);

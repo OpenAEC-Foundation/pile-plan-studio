@@ -49,6 +49,12 @@ topology and morphological outside-edge extraction are unchanged. Keep static
 region/group geometry stable across hover and pan updates; do not add a second
 stage transform or device-pixel-specific offsets.
 
+Inspection context uses individual dashed gray rings around the remaining
+context members. Active and hovered points retain orange rings. Both colors
+are viewer-owned and fixed across application themes. The context does not
+expand the active edit targets; it shares the overview's transient selection
+context and the same projected coordinates and ring radius as active selection.
+
 Pan and zoom are applied by the single transform on `.viewer-content`. Marker
 positions must not be recalculated during each pan or zoom frame. A whole-window
 resize or display-scale change preserves the project coordinate at the viewer

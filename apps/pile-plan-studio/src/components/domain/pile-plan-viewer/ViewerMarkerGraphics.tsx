@@ -131,7 +131,8 @@ export default function ViewerMarkerGraphics({ graphics }: Props) {
               cy={0}
               r={graphic.ring.radius}
               fill="none"
-              stroke="var(--theme-accent)"
+              stroke={graphic.ring.color === "context" ? "#738087" : "#ed7100"}
+              strokeDasharray={graphic.ring.color === "context" ? "2 2" : undefined}
               strokeWidth={1}
             />
           ) : null}

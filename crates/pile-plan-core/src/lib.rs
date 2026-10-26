@@ -28,7 +28,7 @@ pub use cpt_selection::{
 };
 pub use export::{
     build_pile_plan_export_rows, write_pile_plan_csv, write_pile_plan_xlsx, ExportError,
-    PilePlanExportRequest, PilePlanExportRow, PILE_PLAN_EXPORT_HEADERS,
+    PilePlanExportRequest, PilePlanExportRow, PileSizeExportFormat, PILE_PLAN_EXPORT_HEADERS,
 };
 pub use ifcpp::{
     read_ifcpp_str, read_project_document, read_validated_ifcpp_str, validate_ifcpp_project,

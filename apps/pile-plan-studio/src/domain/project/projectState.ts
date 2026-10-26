@@ -1,7 +1,7 @@
 import { createEmptyPileOptionFilters, type PileOptionFilterState } from "../pile-options/pileOptionTable.ts";
 import type { PileOptionSortState } from "../pile-options/pileOptionTable.ts";
 import { hydrateProjectState, type IfcppProject, type LoadedProjectData } from "../../core/projectFile.ts";
-import type { RightPanelMode } from "../workspace/selectionState.ts";
+import type { LoadPointSelectionContext, RightPanelMode } from "../workspace/selectionState.ts";
 import { getProjectBounds } from "../../viewer/viewerGeometry.ts";
 import type {
   CptBearingCapacityRow,
@@ -67,6 +67,7 @@ export type ProjectState = LoadedProjectData & {
   selectedLoadPointIds: number[];
   selectedCptId: number | null;
   rightPanelMode: RightPanelMode;
+  loadPointSelectionContext?: LoadPointSelectionContext;
   viewport: Viewport;
   pileOptionFilters: PileOptionFilterState;
   pileOptionSort: PileOptionSortState;

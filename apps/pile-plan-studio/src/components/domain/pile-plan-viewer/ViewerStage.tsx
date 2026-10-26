@@ -23,6 +23,7 @@ type ViewerStageProps = {
   cptConnectionSegments: ReturnType<typeof getCptConnectionSegments>;
   pileOptionsByLoadPointId: ReturnType<typeof getEffectivePileOptionsByLoadPointId>;
   selectedLoadPointIds: ReadonlySet<number>;
+  selectionContextLoadPointIds: ReadonlySet<number>;
   completeSelectedGroupLoadPointIds: ReadonlySet<number>;
   relatedLoadPointIds: ReadonlySet<number>;
   lockedLoadPointIds: ReadonlySet<number>;
@@ -45,6 +46,7 @@ export default function ViewerStage({
   cptConnectionSegments,
   pileOptionsByLoadPointId,
   selectedLoadPointIds,
+  selectionContextLoadPointIds,
   completeSelectedGroupLoadPointIds,
   relatedLoadPointIds,
   lockedLoadPointIds,
@@ -64,6 +66,7 @@ export default function ViewerStage({
     projectTransform,
     pileOptionsByLoadPointId,
     selectedLoadPointIds,
+    selectionContextLoadPointIds,
     completeSelectedGroupLoadPointIds,
     relatedLoadPointIds,
     lockedLoadPointIds,

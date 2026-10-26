@@ -3,6 +3,17 @@ import assert from "node:assert/strict";
 import { DEFAULT_USER_SETTINGS, normalizeUserSettings, patchPileCostDefaults, patchUserSettings, patchWorkspaceLayout } from "./userSettings.ts";
 
 describe("user settings", () => {
+  it("remembers export notation independently and normalizes missing or invalid preferences", () => {
+    for (const format of ["numeric", "dimensions"] as const) {
+      const saved = patchUserSettings(DEFAULT_USER_SETTINGS, { pileSizeExportFormat: format });
+      assert.equal(normalizeUserSettings(JSON.parse(JSON.stringify(saved))).preferences.pileSizeExportFormat, format);
+      assert.equal(DEFAULT_USER_SETTINGS.preferences.pileSizeExportFormat, "numeric");
+      assert.deepEqual(saved.defaults, DEFAULT_USER_SETTINGS.defaults);
+    }
+    for (const value of [undefined, null, "290x290", "other", 42]) {
+      assert.equal(normalizeUserSettings({ preferences: { pileSizeExportFormat: value } }).preferences.pileSizeExportFormat, "numeric");
+    }
+  });
   it("defaults to four expanded selection rows and preserves resized/collapsed layout separately from project content", () => {
     assert.equal(normalizeUserSettings(undefined).preferences.workspaceLayout.selectionOverviewRows, 4);
     const saved = patchWorkspaceLayout(DEFAULT_USER_SETTINGS, { selectionOverviewRows: 7, selectionOverviewCollapsed: true });
@@ -43,6 +54,7 @@ describe("user settings", () => {
         interfaceScalePercent: 100,
         defaultCurrencyCode: "EUR",
         optimizationTimeLimitSeconds: 600,
+        pileSizeExportFormat: "numeric",
         pileOptionColumns: {
           single: [
             ...["symbol", "size", "tip", "status", "cost", "use", "governing", "frd"].map(key => ({ key, visible: true })),

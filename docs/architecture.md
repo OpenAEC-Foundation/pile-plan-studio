@@ -463,6 +463,13 @@ outside the transformed marker stage; each world line is snapped independently
 to the global physical-pixel lattice after projection, including the active CSS
 scale and device-pixel ratio.
 
+UI typography is defined on the document body so menus and dialogs outside the
+main app shell inherit the same bundled Inter font. Native form controls inherit
+that font as well. Secondary and muted text colors are opaque theme tokens with
+at least 4.5:1 contrast against the base, raised, and surface backgrounds in every
+theme. Text sizes and the shared application scale remain independent of these
+typography and contrast choices.
+
 The viewer also separates application theming from project drawing semantics.
 Panels, controls, and other application chrome use the active `--theme-*`
 palette. The plan itself remains a white engineering canvas, so annotations
@@ -479,6 +486,39 @@ member from the selection list instead leaves that member's orange ring and
 shows the group once in gray, even when the global group display is off.
 Hover highlights only the pointed-at member; clicking it selects the group.
 Conflicting groups retain their red contour during partial inspection.
+
+In `size-color-tip-region` legend mode, pile-option tables preserve the
+size-colored symbol and add a tip-level color swatch beside the numeric tip
+level. Both single-location and aggregated rows use the shared activation
+presentation, independently of viewer region visibility. Inactive tip levels
+use neutral gray and retain the inactive text label; absent legend colors also
+fall back to neutral gray. Text keeps the application theme's readable color,
+while the swatch retains the exact project legend color. Other encoding modes
+retain their existing symbol and color presentation.
+
+The Selection overview retains an explicit transient inspection context in
+selection state. Navigating or inspecting a member keeps this context. Clicking
+a member of a selected group or multiselection in the viewer inspects that member;
+clicking another context member moves the focus. Clicking outside the context or
+making a new source-table, legend, modifier, or lasso selection replaces it. The overview and viewer derive
+the same ordered context from the core groups. Context members outside the active
+selection have dashed gray rings on the drawing; hover and focus remain orange.
+The overview shows both active and context counts while inspecting. These rings
+do not add action targets, saved content, or undo steps. Context is discarded when
+the load-point source changes.
+
+Excel and CSV pile-plan export share one block and one notation setting: numeric
+pile sizes (the default) or square dimensions such as `290x290`. The shared Rust writer resolves square shapes from project
+pile-size settings supplied with the export request, independently of legend
+symbols. Round and unknown shapes stay numeric, unassigned cells stay empty,
+and CSV stays numeric by default. Only an explicit dimensions choice changes its
+size field. The notation choice is an application-wide user preference, shared
+by Excel and CSV and remembered across restarts without changing project history.
+Existing API/MCP callers retain numeric defaults. Standard-table import accepts
+both numeric sizes and equal square dimensions, using `x`, `X` or `×` with
+optional surrounding spaces. Unequal dimensions are rejected; dimension notation
+does not modify project pile-shape settings. Both export notations can be
+re-imported from CSV and XLSX.
 
 The implementation invariants, coordinate pipeline, regression symptoms, and
 manual test procedure live beside the viewer code in

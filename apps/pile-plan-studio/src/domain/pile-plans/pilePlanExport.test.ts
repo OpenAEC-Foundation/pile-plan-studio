@@ -25,6 +25,9 @@ describe("pile-plan export for explicit plans", () => {
     assert.deepEqual(exported.selectedPiles.get(id), second);
     assert.equal(state.activePilePlanId, base.activePilePlanId);
     assert.deepEqual(exported.selectedCpts.get(id), [base.cpts[0].id]);
+    assert.deepEqual(exported.pileShapes, new Map(state.pileCostSettings.items.map(item => [item.pile_size_mm, item.shape])));
+    assert.equal(exported.pileSizeFormat, "numeric");
+    assert.equal(buildPilePlanExportInputForPlan(state, "alternative", "dimensions").pileSizeFormat, "dimensions");
     assert.throws(() => buildPilePlanExportInputForPlan(state, "missing"), /unknown_plan/);
   });
 });

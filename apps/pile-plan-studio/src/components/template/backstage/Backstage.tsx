@@ -1,5 +1,5 @@
 import type { ProjectImportPreview } from "../../../core/adviceImportContract.ts";
-import { useState, useEffect } from "react";
+import { useState, useEffect, type ReactNode } from "react";
 import { flushSync } from "react-dom";
 import { useTranslation } from "react-i18next";
 import { useRecentFiles, type RecentFile } from "../../../hooks/useRecentFiles";
@@ -11,7 +11,7 @@ import PilePlanImportPanel from "../../domain/imports/PilePlanImportPanel.tsx";
 import type { ImportSourceInput } from "../../.././core/coreImportContract";
 import type { ImportSummary } from "../../.././core/projectFile";
 import type { PilePlanImportPatch } from "../../../core/pilePlanImportContract.ts";
-import type { Cpt, LoadPoint, PileConfigurationKey } from "../../../core/projectTypes.ts";
+import type { Cpt, LoadPoint, PileConfigurationKey, PileSizeExportFormat } from "../../../core/projectTypes.ts";
 import type { ProjectFileCommands } from "../../../domain/project/projectPersistence.ts";
 import { PRODUCT_INFO } from "../../../productInfo.ts";
 import "./Backstage.css";
@@ -78,8 +78,10 @@ interface BackstageProps {
   onOpenProjectFile: (file: File) => Promise<void>;
   onOpenSampleProject: () => Promise<void>;
   onDownloadProject: () => Promise<void>;
-  onExportPilePlanXlsx: () => Promise<void>;
-  onExportPilePlanCsv: () => Promise<void>;
+  onExportPilePlanXlsx: (pileSizeFormat: PileSizeExportFormat) => Promise<void>;
+  onExportPilePlanCsv: (pileSizeFormat: PileSizeExportFormat) => Promise<void>;
+  pileSizeFormat?: PileSizeExportFormat;
+  onPileSizeFormatChange?: (pileSizeFormat: PileSizeExportFormat) => void;
   onChooseDesktopProject: () => Promise<void>;
   onSaveProject: () => Promise<void>;
   onSaveProjectAs: () => Promise<void>;
@@ -87,7 +89,7 @@ interface BackstageProps {
   initialImportSource?: { role: ImportFileRole; file: File } | null;
 }
 
-export default function Backstage({ open, onClose, onOpenSettings, onOpenFile, onImportProject, onPreviewProjectImport, importPreviewContextKey, defaultCurrencyCode, loadPoints, cpts, availablePileConfigurations, activePilePlanName, onImportPilePlan, onOpenProjectFile, onOpenSampleProject, onDownloadProject, onExportPilePlanXlsx, onExportPilePlanCsv, onChooseDesktopProject, onSaveProject, onSaveProjectAs, commands, initialImportSource = null }: BackstageProps) {
+export default function Backstage({ open, onClose, onOpenSettings, onOpenFile, onImportProject, onPreviewProjectImport, importPreviewContextKey, defaultCurrencyCode, loadPoints, cpts, availablePileConfigurations, activePilePlanName, onImportPilePlan, onOpenProjectFile, onOpenSampleProject, onDownloadProject, onExportPilePlanXlsx, onExportPilePlanCsv, pileSizeFormat = "numeric", onPileSizeFormatChange, onChooseDesktopProject, onSaveProject, onSaveProjectAs, commands, initialImportSource = null }: BackstageProps) {
   const { t } = useTranslation("backstage");
   const [activePanel, setActivePanel] = useState<string>("none");
   const { recentFiles, removeRecentFile, clearRecentFiles } = useRecentFiles();
@@ -242,6 +244,8 @@ export default function Backstage({ open, onClose, onOpenSettings, onOpenFile, o
               onDownloadProject={onDownloadProject}
               onExportPilePlanXlsx={onExportPilePlanXlsx}
               onExportPilePlanCsv={onExportPilePlanCsv}
+              pileSizeFormat={pileSizeFormat}
+              onPileSizeFormatChange={onPileSizeFormatChange}
             />
           )}
         </div>
@@ -503,12 +507,14 @@ function SampleProjectOptionContent({ t }: { t: (key: string) => string }) {
   );
 }
 
-function ExportPanel({ canDownloadProject, activePilePlanName, onDownloadProject, onExportPilePlanXlsx, onExportPilePlanCsv }: {
+function ExportPanel({ canDownloadProject, activePilePlanName, onDownloadProject, onExportPilePlanXlsx, onExportPilePlanCsv, pileSizeFormat, onPileSizeFormatChange }: {
   canDownloadProject: boolean;
   activePilePlanName: string;
   onDownloadProject: () => Promise<void>;
-  onExportPilePlanXlsx: () => Promise<void>;
-  onExportPilePlanCsv: () => Promise<void>;
+  onExportPilePlanXlsx: (pileSizeFormat: PileSizeExportFormat) => Promise<void>;
+  onExportPilePlanCsv: (pileSizeFormat: PileSizeExportFormat) => Promise<void>;
+  pileSizeFormat: PileSizeExportFormat;
+  onPileSizeFormatChange?: (pileSizeFormat: PileSizeExportFormat) => void;
 }) {
   const { t } = useTranslation("backstage");
   const [runningExport, setRunningExport] = useState(false);
@@ -544,23 +550,25 @@ function ExportPanel({ canDownloadProject, activePilePlanName, onDownloadProject
           />
         ) : null}
         <ExportOption
-          title={t("exportPanel.excel")}
+          title={t("exportPanel.pilePlan")}
           description={t("exportPanel.excelDesc")}
-          format="XLSX"
+          format="XLSX / CSV"
           disabled={runningExport}
           icon="table"
-          actionLabel={t("exportPanel.export")}
-          onClick={() => runExport(onExportPilePlanXlsx)}
-        />
-        <ExportOption
-          title={t("exportPanel.csv")}
-          description={t("exportPanel.csvDesc")}
-          format="CSV"
-          disabled={runningExport}
-          icon="rows"
-          actionLabel={t("exportPanel.export")}
-          onClick={() => runExport(onExportPilePlanCsv)}
-        />
+          actionLabel={t("exportPanel.exportExcel")}
+          onClick={() => runExport(() => onExportPilePlanXlsx(pileSizeFormat))}
+          additionalAction={{ label: t("exportPanel.exportCsv"), onClick: () => runExport(() => onExportPilePlanCsv(pileSizeFormat)) }}
+        >
+          <label className="bs-export-size-format">
+            <span>{t("exportPanel.pileSizeFormat")}</span>
+            <select value={pileSizeFormat} disabled={runningExport}
+              onChange={event => onPileSizeFormatChange?.(event.target.value === "dimensions" ? "dimensions" : "numeric")}>
+              <option value="numeric">{t("exportPanel.pileSizeNumeric")}</option>
+              <option value="dimensions">{t("exportPanel.pileSizeDimensions")}</option>
+            </select>
+          </label>
+          <p className="bs-export-size-help">{t("exportPanel.pileSizeHelp")}</p>
+        </ExportOption>
       </div>
       {exportError ? <p className="bs-export-error" role="alert">{exportError}</p> : null}
     </div>
@@ -575,6 +583,8 @@ function ExportOption({
   icon,
   actionLabel,
   onClick,
+  children,
+  additionalAction,
 }: {
   title: string;
   description: string;
@@ -583,9 +593,11 @@ function ExportOption({
   icon: "project" | "table" | "rows";
   actionLabel: string;
   onClick: () => void;
+  children?: ReactNode;
+  additionalAction?: { label: string; onClick: () => void };
 }) {
   return (
-    <div className="bs-export-card">
+    <div className={`bs-export-card${children ? " has-options" : ""}`}>
       <div className="bs-export-card-icon" aria-hidden="true">
         {icon === "project" ? (
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
@@ -609,13 +621,18 @@ function ExportOption({
           <span className="bs-export-format">{format}</span>
         </div>
         <p>{description}</p>
+        {children ? <div className="bs-export-card-options">{children}</div> : null}
       </div>
-      <button type="button" className="bs-export-action" disabled={disabled} onClick={onClick}>
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-          <path d="M12 3v12M7 10l5 5 5-5M5 21h14" />
-        </svg>
-        {actionLabel}
-      </button>
+      <div className="bs-export-card-actions">
+        {[{ label: actionLabel, onClick }, ...(additionalAction ? [additionalAction] : [])].map(action => (
+          <button key={action.label} type="button" className="bs-export-action" disabled={disabled} onClick={action.onClick}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <path d="M12 3v12M7 10l5 5 5-5M5 21h14" />
+            </svg>
+            <span>{action.label}</span>
+          </button>
+        ))}
+      </div>
     </div>
   );
 }

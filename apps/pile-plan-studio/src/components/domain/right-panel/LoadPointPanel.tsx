@@ -225,7 +225,12 @@ export default function LoadPointPanel({
                         <td className={key === "symbol" ? "pile-option-symbol-cell" : undefined} key={key}>
                           {key === "symbol" ? <span className={row.smallDot ? "is-small-dot" : undefined} dangerouslySetInnerHTML={{ __html: row.symbolHtml }} />
                             : key === "size" ? <>{row.sizeLabel}{!row.sizeActive ? <InactiveLabel /> : null}</>
-                            : key === "tip" ? <>{row.tipLabel}{!row.tipActive ? <InactiveLabel /> : null}</>
+                            : key === "tip" ? <>{row.tipRegionColor ? (
+                              <span className="pile-option-tip-label">
+                                <span className="pile-option-tip-color" aria-hidden="true" style={{ backgroundColor: row.tipRegionColor }} />
+                                <span>{row.tipLabel}</span>
+                              </span>
+                            ) : row.tipLabel}{!row.tipActive ? <InactiveLabel /> : null}</>
                             : key === "status" ? (
                               row.statusClassName === "is-missing" && row.missingCptIds.length > 0
                                 ? <MissingCptPopover

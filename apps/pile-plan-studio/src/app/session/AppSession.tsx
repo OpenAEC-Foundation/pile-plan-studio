@@ -56,7 +56,7 @@ import {
   writeProjectDocumentCore,
 } from "../../core/coreClient";
 import { invokeDesktop, listenDesktop } from "../../core/coreTransport.ts";
-import type { PileCostSettings } from "../../core/projectTypes.ts";
+import type { PileCostSettings, PileSizeExportFormat } from "../../core/projectTypes.ts";
 import type { ImportSourceInput } from "../../core/coreImportContract";
 import type { ProjectImportProperties } from "../../components/domain/imports/ProjectImportPanel.tsx";
 import type { ImportFileRole } from "../../core/importFiles.ts";
@@ -625,8 +625,8 @@ export default function AppSession({
     (pilePlan) => pilePlan.id === projectState.activePilePlanId,
   )?.name ?? projectState.name;
 
-  const exportPilePlan = async (format: "xlsx" | "csv"): Promise<void> => {
-    const input = buildPilePlanExportInputForPlan(projectState, projectState.activePilePlanId);
+  const exportPilePlan = async (format: "xlsx" | "csv", pileSizeFormat: PileSizeExportFormat = "numeric"): Promise<void> => {
+    const input = buildPilePlanExportInputForPlan(projectState, projectState.activePilePlanId, pileSizeFormat);
     const bytes = format === "xlsx"
       ? await exportPilePlanXlsxCore(input)
       : await exportPilePlanCsvCore(input);
@@ -1062,6 +1062,7 @@ export default function AppSession({
       ...current,
       selectedLoadPointId: next.selectedLoadPointId,
       selectedLoadPointIds: next.selectedLoadPointIds,
+      loadPointSelectionContext: next.loadPointSelectionContext,
       selectedCptId: next.selectedCptId,
       rightPanelMode: next.rightPanelMode,
       cptSettingsScope: next.cptSettingsScope,
@@ -1517,8 +1518,14 @@ export default function AppSession({
         onOpenFile={(path) => void openDesktopProjectPath(path)}
         onChooseDesktopProject={chooseDesktopProject}
         onDownloadProject={async () => { await downloadProject(); }}
-        onExportPilePlanXlsx={() => exportPilePlan("xlsx")}
-        onExportPilePlanCsv={() => exportPilePlan("csv")}
+        onExportPilePlanXlsx={pileSizeFormat => exportPilePlan("xlsx", pileSizeFormat)}
+        onExportPilePlanCsv={pileSizeFormat => exportPilePlan("csv", pileSizeFormat)}
+        pileSizeFormat={userSettings.preferences.pileSizeExportFormat}
+        onPileSizeFormatChange={pileSizeExportFormat => {
+          const next = patchUserSettings(userSettingsRef.current, { pileSizeExportFormat });
+          userSettingsRef.current = next;
+          commitUserSettings(next);
+        }}
         onSaveProject={async () => { await saveProject(); }}
         onSaveProjectAs={async () => { await saveProjectAs(); }}
       />

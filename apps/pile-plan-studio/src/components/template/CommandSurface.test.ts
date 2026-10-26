@@ -57,8 +57,9 @@ describe("Alpha command surfaces", () => {
     assert.doesNotMatch(viewer, /data-export-target="pile-plan"/);
     assert.match(backstage, /onExportPilePlanXlsx/);
     assert.match(backstage, /onExportPilePlanCsv/);
-    assert.match(backstage, /exportPanel\.excel/);
-    assert.match(backstage, /exportPanel\.csv/);
+    assert.match(backstage, /exportPanel\.pilePlan/);
+    assert.match(backstage, /exportPanel\.exportExcel/);
+    assert.match(backstage, /exportPanel\.exportCsv/);
   });
 
   it("offers pile plan import directly after project source import", () => {
