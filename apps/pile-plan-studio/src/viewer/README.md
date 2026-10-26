@@ -66,6 +66,12 @@ Pointer interactions such as clicking, lasso selection, hover candidates, and
 cursor-centred zoom use the matching screen-to-local conversion. This includes
 the current layout compensation and the root element's CSS zoom.
 
+Manual CPT editing gives CPTs first priority in both hover and click candidate
+queries, independently of the stored foreground-layer preference. Changing that
+effective priority clears the transient hover cycle. Outside editing, the
+stored foreground preference applies again. Space can still explicitly cycle
+through all overlapping candidates, including load points.
+
 ## Panel and legend resizing
 
 Panel dragging dispatches `VIEWER_LAYOUT_CHANGE_EVENT` synchronously so the

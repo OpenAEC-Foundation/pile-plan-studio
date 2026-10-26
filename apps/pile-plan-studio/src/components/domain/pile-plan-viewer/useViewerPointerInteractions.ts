@@ -97,6 +97,7 @@ export function useViewerPointerInteractions({
   getProjectViewportPointer,
   getVisibleLoadPointScreenPoints,
 }: UseViewerPointerInteractionsOptions) {
+  const preferredMarkerType = isEditingCptSelection || state.foregroundLayer === "cpts" ? "cpt" : "load-point";
   const hoverFrameRef = useRef<number | null>(null);
   const hoverPointerRef = useRef<{ x: number; y: number } | null>(null);
   const [lasso, setLasso] = useState<LassoRectangle | null>(null);
@@ -150,6 +151,10 @@ export function useViewerPointerInteractions({
   useEffect(() => () => {
     if (hoverFrameRef.current !== null) cancelAnimationFrame(hoverFrameRef.current);
   }, []);
+
+  useEffect(() => {
+    clearHoverCandidates();
+  }, [preferredMarkerType]);
 
   function handleMouseDown(event: MouseEvent<HTMLDivElement>) {
     const target = event.target as HTMLElement;
@@ -269,7 +274,7 @@ export function useViewerPointerInteractions({
         pointer,
         canvas: projectTransformRef.current.canvasSize,
         viewport: viewportRef.current,
-        preferredMarkerType: state.foregroundLayer === "cpts" ? "cpt" : "load-point",
+        preferredMarkerType,
       });
       const candidateKeys = candidates.map((candidate) => candidate.key)
         .filter(key => !isEditingLoadPointLocks || key.startsWith("load-point:"));
@@ -284,7 +289,7 @@ export function useViewerPointerInteractions({
       pointer: getProjectViewportPointer(event.clientX, event.clientY, rect),
       canvas: projectTransformRef.current.canvasSize,
       viewport: viewportRef.current,
-      preferredMarkerType: state.foregroundLayer === "cpts" ? "cpt" : "load-point",
+      preferredMarkerType,
     });
     const candidateKeys = candidates.map((candidate) => candidate.key)
       .filter(key => !isEditingLoadPointLocks || key.startsWith("load-point:"));

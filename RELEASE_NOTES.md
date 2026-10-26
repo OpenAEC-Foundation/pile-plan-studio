@@ -1,6 +1,6 @@
 # Open Pile Plan Studio Release Notes
 
-## 2026.44.0
+## 2026.44.1
 
 This alpha improves pile-plan exports, inspection within grouped selections,
 and the readability of legends and side panels.
@@ -20,6 +20,9 @@ and the readability of legends and side panels.
 
 ### Improved and fixed
 
+- Prioritize CPTs for both hover and clicking during manual CPT editing, even
+  when load points are the stored foreground preference. Clear stale hover
+  candidates when that priority changes and retain explicit Space cycling.
 - Show the tip-level region color beside the numeric tip level in pile-option
   rows when using size-colored symbols and tip-colored regions. Preserve both
   color channels for single and multiple selections, even with regions hidden.
