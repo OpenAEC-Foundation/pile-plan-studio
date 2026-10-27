@@ -119,6 +119,7 @@ export default function PilePlanExplorer({
           <div className="pile-plan-list" role="listbox" aria-label={t("projectExplorer.pilePlans")}>
             {pilePlans.map((plan) => {
               const active = plan.id === activePilePlanId;
+              const proposalCount = plan.pileCapProposals?.length ?? 0;
               const summary = costSummaries.get(plan.id) ?? { missingCount: 0, totalCost: 0 };
               return (
                 <div className={`pile-plan-row${active ? " active" : ""}`} key={plan.id}>
@@ -144,7 +145,12 @@ export default function PilePlanExplorer({
                       <strong>{plan.name}</strong>
                       {plan.id === optimizingPlanId && <small>{t("projectExplorer.optimizing")}</small>}
                       <span className="pile-plan-meta">
-                        {formatCurrency(summary.totalCost)}
+                        <span>{summary.proposalPending ? t("rightPanel:pileCap.calculating") : summary.proposalError ? t("rightPanel:pileCap.failed") : formatCurrency(summary.totalCost)}</span>
+                        {proposalCount > 0 ? (
+                          <span title={t("rightPanel:pileCap.costsIndicative")}>
+                            {t("projectExplorer.proposalCount", { count: proposalCount })}
+                          </span>
+                        ) : null}
                         {summary.missingCount > 0 ? (
                           <span className="pile-plan-warning" title={t("projectExplorer.missingCosts", { count: summary.missingCount })}>
                             <Icon kind="warning" /> {summary.missingCount}

@@ -16,6 +16,12 @@ pub enum IlpCandidateSource {
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
 pub struct IlpOptimizationSettings {
     #[serde(default)]
+    pub allow_pile_count_changes: bool,
+    #[serde(default = "default_max_piles_per_cap")]
+    pub max_piles_per_cap: u8,
+    #[serde(default = "default_allowed_pile_counts")]
+    pub allowed_pile_counts: Vec<u8>,
+    #[serde(default)]
     pub skip_unsolvable_units: bool,
     #[serde(default = "coherence_enabled_by_default")]
     pub optimize_coherence: bool,
@@ -32,6 +38,9 @@ pub struct IlpOptimizationSettings {
 impl Default for IlpOptimizationSettings {
     fn default() -> Self {
         Self {
+            allow_pile_count_changes: false,
+            max_piles_per_cap: default_max_piles_per_cap(),
+            allowed_pile_counts: default_allowed_pile_counts(),
             skip_unsolvable_units: false,
             optimize_coherence: true,
             max_pile_tip_levels: None,
@@ -45,14 +54,36 @@ impl Default for IlpOptimizationSettings {
         }
     }
 }
+fn default_max_piles_per_cap() -> u8 {
+    6
+}
+fn default_allowed_pile_counts() -> Vec<u8> {
+    (1..=crate::pile_cap_proposals::MAX_PILE_CAP_COUNT).collect()
+}
 fn coherence_enabled_by_default() -> bool {
     true
 }
 impl IlpOptimizationSettings {
     pub fn is_valid(&self) -> bool {
-        self.custom_configurations
-            .iter()
-            .all(|c| c.pile_size_mm > 0)
+        (1..=crate::pile_cap_proposals::MAX_PILE_CAP_COUNT).contains(&self.max_piles_per_cap)
+            && self
+                .allowed_pile_counts
+                .iter()
+                .all(|n| (1..=crate::pile_cap_proposals::MAX_PILE_CAP_COUNT).contains(n))
+            && self
+                .allowed_pile_counts
+                .iter()
+                .any(|n| *n <= self.max_piles_per_cap)
+            && self
+                .allowed_pile_counts
+                .iter()
+                .collect::<std::collections::HashSet<_>>()
+                .len()
+                == self.allowed_pile_counts.len()
+            && self
+                .custom_configurations
+                .iter()
+                .all(|c| c.pile_size_mm > 0)
             && self.max_utilization.is_finite()
             && self.max_utilization >= 0.0
             && self.max_utilization <= 1.0
@@ -69,6 +100,8 @@ impl IlpOptimizationSettings {
 pub struct IlpTransitionWeights {
     pub tip_only_milli: u32,
     pub size_only_milli: u32,
+    #[serde(default)]
+    pub pile_count_milli: u32,
     /// Read-only compatibility for historical result settings; never used by the solver.
     #[serde(
         default,
@@ -82,12 +115,15 @@ impl Default for IlpTransitionWeights {
         Self {
             tip_only_milli: 1000,
             size_only_milli: 1000,
+            pile_count_milli: 1000,
             legacy_both_milli: None,
         }
     }
 }
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
 pub struct IlpOptimizationInput {
+    #[serde(default)]
+    pub pile_cap_context: Option<crate::ProjectDocumentDraft>,
     pub load_points: Vec<ProjectLoadPoint>,
     pub groups: Vec<LoadPointGroup>,
     pub options_by_load_point: HashMap<u32, Vec<PileConfigurationOption>>,
@@ -147,6 +183,8 @@ pub struct IlpCounts {
 }
 #[derive(Clone, Debug, Default, Deserialize, PartialEq, Eq, Serialize)]
 pub struct IlpTransitionCounts {
+    #[serde(default, skip_serializing_if = "is_zero")]
+    pub pile_count: u32,
     pub tip_only: u32,
     pub size_only: u32,
     pub both: u32,
@@ -159,6 +197,8 @@ pub struct IlpCostReference {
 }
 #[derive(Clone, Debug, Deserialize, PartialEq, Eq, Serialize)]
 pub struct IlpSolution {
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub pile_cap_proposals: Vec<crate::PileCapProposal>,
     pub assignments: Vec<IlpAssignment>,
     pub cost: u64,
     pub budget: u64,
@@ -248,4 +288,8 @@ pub struct IlpPlanResult {
     pub currency_code: String,
     /// Versioned frontend content fingerprint used only to label stale historical results.
     pub basis_fingerprint: String,
+}
+
+fn is_zero(value: &u32) -> bool {
+    *value == 0
 }

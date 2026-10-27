@@ -122,7 +122,9 @@
       "nextCandidate": "Next object",
       "clickKey": "Click",
       "addToSelection": "Add to selection"
-    }
+    },
+    "pileCapProposal": "Pile cap proposal with {{count}} piles",
+    "pileCapCrowded": "Limited space for this schematic layout; spacing has not been checked."
   },
   "legend": {
     "aria": "Pile symbol legend",
@@ -253,7 +255,9 @@
       "missing": "missing",
       "changed": "changed"
     },
-    "optimizing": "Optimization in progress"
+    "optimizing": "Optimization in progress",
+    "proposalCount_one": "{{count}} cap change",
+    "proposalCount_other": "{{count}} cap changes"
   },
   "sourceViewer": {
     "backToPlan": "Back to pile plan",

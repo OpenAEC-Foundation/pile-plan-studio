@@ -48,6 +48,7 @@ fn main() {
         .into_iter()
         .collect();
     let mut input = IlpOptimizationInput {
+        pile_cap_context: None,
         target_load_point_ids: p.inputs.load_points.iter().map(|p| p.id).collect(),
         load_points: p.inputs.load_points.clone(),
         groups,
@@ -66,6 +67,7 @@ fn main() {
             transition_weights: IlpTransitionWeights {
                 tip_only_milli: extra(6, 1000),
                 size_only_milli: extra(7, 1000),
+                pile_count_milli: 0,
                 legacy_both_milli: None,
             },
             ..Default::default()
@@ -128,7 +130,7 @@ fn main() {
         .collect();
     let pairs: usize = prepared.units.iter().map(|u| u.options.len()).sum();
     let w = &input.settings.transition_weights;
-    let edge_variables = usize::from(w.tip_only_milli != 0) + usize::from(w.size_only_milli != 0);
+    let edge_variables = usize::from(w.tip_only_milli != 0) + usize::from(w.size_only_milli != 0) + usize::from(w.pile_count_milli != 0);
     eprintln!(
         "points={} targets={} units={} choices={} edges={} base_binaries={} analysis_ms={}",
         input.load_points.len(),

@@ -2,6 +2,10 @@ import { pileConfigurationToken } from "../../core/pileConfigurationKey.ts";
 import type { PilePlanData } from "../../core/projectFile.ts";
 
 export type ProjectCostSummary = {
+  includesProposals?: boolean;
+  proposalPending?: boolean;
+  proposalError?: boolean;
+  pileCount?: number;
   missingCount: number;
   totalCost: number;
 };

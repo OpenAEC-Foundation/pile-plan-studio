@@ -96,7 +96,7 @@ Status meanings:
 
 ```text
 Open or restore:
-IFCPP text -> Rust parse/migrate/default/validate -> canonical schema 5
+IFCPP text -> Rust parse/migrate/default/validate -> canonical schema 6
            -> TypeScript mechanical hydration -> React state
 
 Save or recover:

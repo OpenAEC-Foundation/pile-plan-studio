@@ -1,3 +1,4 @@
+import { usePileCapProposals } from "../derived-state/usePileCapProposals.ts";
 import { applyProjectRefresh } from "../import/projectImportApply.ts";
 import { previewProjectImportCore } from "../../core/projectCoreClient.ts";
 import { useManualCptSelectionEdit } from "../project/useManualCptSelectionEdit.ts";
@@ -68,7 +69,8 @@ import {
   type ProjectDocumentOutcome,
 } from "../../core/projectDocumentContract.ts";
 import { getSetting } from "../../store";
-import { switchRightPanelMode } from "../../domain/workspace/selectionState";
+import { setLoadPointSelection, switchRightPanelMode } from "../../domain/workspace/selectionState";
+import type { ViewerFocusRequest } from "../../domain/workspace/viewerFocus.ts";
 import {
   getProjectFileCommands,
   isDesktopRuntime,
@@ -325,6 +327,7 @@ export default function AppSession({
   const [feedbackOpen, setFeedbackOpen] = useState(false);
   const [projectInformationOpen, setProjectInformationOpen] = useState(false);
   const [rightTaskPanel, setRightTaskPanel] = useState<RightTaskPanel | null>(null);
+  const [viewerFocusRequest, setViewerFocusRequest] = useState<ViewerFocusRequest | null>(null);
   const [lassoSelectionActive, setLassoSelectionActive] = useState(false);
   const [activeSourceKind, setActiveSourceKind] = useState<InputSourceKind | null>(null);
   const [initialImportSource, setInitialImportSource] = useState<{ role: ImportFileRole; file: File } | null>(null);
@@ -417,6 +420,7 @@ export default function AppSession({
       actionNoticeTimeoutRef.current = null;
     }, 3500);
   }, []);
+
   const defaultSelectionRequestRef = useRef<typeof projectState.analysisRequest | null>(null);
   const defaultSelectionKeepsDirtyRef = useRef(false);
   const replacementResolverRef = useRef<((proceed: boolean) => void) | null>(null);
@@ -626,6 +630,7 @@ export default function AppSession({
   )?.name ?? projectState.name;
 
   const exportPilePlan = async (format: "xlsx" | "csv", pileSizeFormat: PileSizeExportFormat = "numeric"): Promise<void> => {
+    if(projectState.pilePlans.find(p=>p.id===projectState.activePilePlanId)?.pileCapProposals?.length){showActionNotice(t("rightPanel:pileCap.exportUnsupported"),"error");return;}
     const input = buildPilePlanExportInputForPlan(projectState, projectState.activePilePlanId, pileSizeFormat);
     const bytes = format === "xlsx"
       ? await exportPilePlanXlsxCore(input)
@@ -1038,7 +1043,9 @@ export default function AppSession({
       mcpWriteEnabledRef.current = false;
       setMcpWriteEnabled(false);
     });
-  const pilePlanCostSummaries = useMemo(() => summarizePilePlanCosts(
+  const pileCaps = usePileCapProposals(ilp.displayState, update=>commitProjectState(update),
+    ()=>showActionNotice(t("rightPanel:pileCap.failed"),"error"));
+  const basePilePlanCostSummaries = useMemo(() => summarizePilePlanCosts(
     synchronizeActivePilePlan(
       ilp.displayState.pilePlans,
       ilp.displayState.activePilePlanId,
@@ -1051,6 +1058,16 @@ export default function AppSession({
     ilp.displayState.selectedPileConfigurationsByLoadPoint,
     ilp.displayState.pileCostByOptionKey,
   ]);
+  const pilePlanCostSummaries = useMemo(()=>{
+    const summaries=new Map(basePilePlanCostSummaries);
+    if(!pileCaps.result)for(const plan of ilp.displayState.pilePlans){
+      if(plan.pileCapProposals?.length)summaries.set(plan.id,{...(summaries.get(plan.id)??{totalCost:0,missingCount:0}),includesProposals:true,proposalPending:!pileCaps.error,proposalError:pileCaps.error});
+    }
+    for(const plan of pileCaps.result?.plans??[]){
+      if(plan.proposals.length)summaries.set(plan.plan_id,{totalCost:plan.total_cost,missingCount:plan.missing_cost_count,includesProposals:true,pileCount:plan.pile_count});
+    }
+    return summaries;
+  },[basePilePlanCostSummaries,pileCaps.result,pileCaps.error,ilp.previewPlanId,ilp.displayState.pilePlans]);
   const handleDisplayedStateChange = (next: ProjectState) => {
     const actual = ilp.previewPlanId
       ? applyIlpPreviewInteraction(projectState, ilp.displayState, next) : next;
@@ -1209,6 +1226,7 @@ export default function AppSession({
           }}
           onOpenTaskPanel={(panel) => {
             updateWorkspaceLayout({ propertiesVisible: true });
+            if (panel === "pile-cap-changes") setActiveSourceKind(null);
             setRightTaskPanel(panel);
           }}
           isLassoSelectionActive={lassoSelectionActive}
@@ -1305,6 +1323,9 @@ export default function AppSession({
           <main className="workspace" aria-label="Pile plan workspace">
             {activeSourceKind === null ? (
               <PilePlanWorkspace
+                focusRequest={viewerFocusRequest}
+                onFocusHandled={request => setViewerFocusRequest(current => current === request ? null : current)}
+                pileCapPreviews={pileCaps.result?.plans.find(p=>p.plan_id===ilp.displayState.activePilePlanId)?.previews??[]}
                 state={ilp.displayState}
                 readOnly={ilp.running}
                 loadPointGroups={loadPointGroups.groups}
@@ -1350,6 +1371,11 @@ export default function AppSession({
             onPointerDown={beginRightPanelResize}
           />}
           {workspaceLayout.propertiesVisible && <RightPanel
+            pileCapResult={pileCaps.result} pileCapPending={pileCaps.pending||ilp.running} pileCapError={pileCaps.error}
+            onEditPileCap={(proposal,remove)=>{if(!ilp.running&&!projectState.cptSelectionEditDraft&&!projectState.loadPointLockDraft)void pileCaps.edit(proposal,remove);}}
+            onResetAllPileCaps={() => {
+              if (!ilp.running && !projectState.cptSelectionEditDraft && !projectState.loadPointLockDraft) void pileCaps.resetAll();
+            }}
             columnLayouts={userSettings.preferences.pileOptionColumns}
             onColumnLayoutChange={(mode, layout) => {
               const next = patchUserSettings(userSettingsRef.current, {
@@ -1410,6 +1436,14 @@ export default function AppSession({
             onApplyLoadPointGroupEdit={applyGroupEdit}
             technicalAssignment={technicalAssignment}
             onStateChange={handleDisplayedStateChange}
+            onSelectLoadPoints={ids => {
+              setActiveSourceKind(null);
+              setViewerFocusRequest({ loadPointIds: [...ids], loadPoints: ilp.displayState.loadPoints, planId: ilp.displayState.activePilePlanId });
+              handleViewerSelectionChange({
+                ...ilp.displayState,
+                ...setLoadPointSelection({ ...ilp.displayState, rightPanelMode: "load-point" }, ids),
+              });
+            }}
             pileAssignmentPending={ilp.running || pileAssignmentPending
               || !hasCompletedLoadPointGroups
               || (projectState.loadPoints.length > 0 && loadPointGroups.groups.length === 0)}

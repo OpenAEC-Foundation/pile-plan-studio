@@ -59,6 +59,10 @@ export default function IlpOptimizationResultPanel({planName,stale,settings,skip
       <dl className="ilp-result-overview">
         <dt>{t("ilp.cost")}</dt><dd>{money(o.solution.cost)}</dd>
         <dt>{t("ilp.targets")}</dt><dd>{o.solution.assignments.length}</dd>
+        {(settings?.allow_pile_count_changes || o.solution.pile_cap_proposals?.length) ? <>
+          <dt>{t("ilp.piles")}</dt><dd>{o.solution.assignments.length+(o.solution.pile_cap_proposals??[]).reduce((n,p)=>n+p.pile_count-p.load_point_ids.length,0)}</dd>
+          <dt>{t("ilp.pileCaps")}</dt><dd>{o.solution.pile_cap_proposals?.length??0}</dd>
+        </>:null}
         {skipped && <><dt>{t("ilp.skipped")}</dt><dd>{skipped.load_point_ids.length}</dd></>}
       </dl>
       <IlpDisclosure title={t("ilp.details")} open={detailsOpen} onToggle={onToggleDetails}><dl>
@@ -66,7 +70,12 @@ export default function IlpOptimizationResultPanel({planName,stale,settings,skip
       {run.context&&<>{coherence && <><dt>{t("ilp.extraCost")}</dt><dd>{number(run.context.budgetBasisPoints/100)}%</dd></>}
         <dt>{t("ilp.limitScope")}</dt><dd>{t(run.context.wholePlanLimits?"ilp.wholePlan":"ilp.targetOnly")}</dd>
         {coherence && <><dt>{t("ilp.boundary")}</dt><dd>{t(run.context.boundaryTransitions?"ilp.yes":"ilp.no")}</dd></>}</>}
-      {weights && <><dt>{t(legacyWeights ? "ilp.legacyUsedWeights" : "ilp.usedWeights")}</dt><dd>{[weights.tip_only_milli,weights.size_only_milli,...(legacyWeights ? [weights.both_milli!] : [])].map(v=>number(v/1000)).join(" / ")}</dd></>}
+      {weights && <><dt>{t(legacyWeights ? "ilp.legacyUsedWeights" : "ilp.usedWeights")}</dt><dd>{[weights.tip_only_milli,weights.size_only_milli,...(legacyWeights ? [weights.both_milli!] : [weights.pile_count_milli??0])].map(v=>number(v/1000)).join(" / ")}</dd></>}
+      {legacyWeights&&weights&&<><dt>{t("ilp.usedPileCountWeight")}</dt><dd>{number((weights.pile_count_milli??0)/1000)}</dd></>}
+      {settings?.allow_pile_count_changes && <>
+        <dt>{t("ilp.usedPileCountMaximum")}</dt><dd>{settings.max_piles_per_cap??6}</dd>
+        <dt>{t("ilp.usedAllowedPileCounts")}</dt><dd>{(settings.allowed_pile_counts??Array.from({length:20},(_,i)=>i+1)).filter(n=>n<=(settings.max_piles_per_cap??6)).join(", ")}</dd>
+      </>}
       <dt>{t("ilp.reference")}</dt><dd>{money(o.solution.reference.cost)}</dd>
       <dt>{t("ilp.referenceProof")}</dt><dd>{t(`ilp.proof.${o.solution.reference.proof}`)}</dd>
       <dt>{t("ilp.solutionProof")}</dt><dd>{t(`ilp.proof.${o.solution.proof}`)}</dd>
@@ -75,6 +84,7 @@ export default function IlpOptimizationResultPanel({planName,stale,settings,skip
       <dt>{t("ilp.configurations")}</dt><dd>{o.solution.counts.configurations}</dd>
       <dt>{t("ilp.tips")}</dt><dd>{o.solution.counts.tip_levels}</dd><dt>{t("ilp.sizes")}</dt><dd>{o.solution.counts.pile_sizes}</dd>
       <dt>{t("ilp.tipOnly")}</dt><dd>{o.solution.transitions.tip_only}</dd><dt>{t("ilp.sizeOnly")}</dt><dd>{o.solution.transitions.size_only}</dd>
+      <dt>{t("ilp.pileCountDifferences")}</dt><dd>{o.solution.transitions.pile_count??0}</dd>
       <dt>{t("ilp.both")}</dt><dd>{o.solution.transitions.both}</dd>
     </dl></IlpDisclosure></>}
     {blockedLocationCount>0 && <p className="panel-message">{t("ilp.unsolvableSummary",{count:blockedLocationCount})}</p>}

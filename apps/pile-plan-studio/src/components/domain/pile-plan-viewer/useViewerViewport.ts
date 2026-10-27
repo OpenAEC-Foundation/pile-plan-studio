@@ -7,6 +7,7 @@ import {
   type WheelEvent,
 } from "react";
 import type { ProjectState } from "../../../domain/project/projectState.ts";
+import type { ViewerFocusRequest } from "../../../domain/workspace/viewerFocus.ts";
 import { elementLayoutScale } from "../../../domain/settings/uiBaseline.ts";
 import { getCoordinateGridPattern } from "../../../viewer/coordinateGrid.ts";
 import { getCoordinateGridCanvasFrame } from "../../../viewer/coordinateGridCanvas.ts";
@@ -17,6 +18,7 @@ import {
 } from "../../../viewer/viewerGeometry.ts";
 import {
   clampScale,
+  centerViewportAtPoint,
   getViewportTransform,
   zoomViewportAtPoint,
 } from "../../../viewer/viewport.ts";
@@ -38,12 +40,16 @@ type UseViewerViewportOptions = {
   state: ProjectState;
   onStateChange: (nextState: ProjectState) => void;
   interactionRef: RefObject<unknown | null>;
+  focusRequest?: ViewerFocusRequest | null;
+  onFocusHandled?: (request: ViewerFocusRequest) => void;
 };
 
 export function useViewerViewport({
   state,
   onStateChange,
   interactionRef,
+  focusRequest,
+  onFocusHandled,
 }: UseViewerViewportOptions) {
   const [projectTransform, setProjectTransform] = useState(
     () => createProjectViewTransform(state.bounds, { width: 1, height: 1 }),
@@ -61,6 +67,7 @@ export function useViewerViewport({
   const globalResizeFrameRef = useRef<number | null>(null);
   const pendingGlobalResizeRef = useRef(false);
   const gridDrawFrameRef = useRef<number | null>(null);
+  const handledFocusRef = useRef<ViewerFocusRequest | null>(null);
 
   useEffect(() => {
     if (!interactionRef.current && !zoomCommitTimerRef.current) {
@@ -168,6 +175,46 @@ export function useViewerViewport({
   }, [state.bounds.minX, state.bounds.maxX, state.bounds.minY, state.bounds.maxY]);
 
   useLayoutEffect(updateCanvasRect);
+
+  useEffect(() => {
+    if (!focusRequest || handledFocusRef.current === focusRequest) return;
+    const finish = () => {
+      handledFocusRef.current = focusRequest;
+      onFocusHandled?.(focusRequest);
+    };
+    if (focusRequest.loadPoints !== state.loadPoints || focusRequest.planId !== state.activePilePlanId) {
+      finish();
+      return;
+    }
+    // Selection can still be waiting for an existing CPT edit to be saved.
+    if (state.selectedLoadPointIds.length !== focusRequest.loadPointIds.length
+      || !focusRequest.loadPointIds.every(id => state.selectedLoadPointIds.includes(id))) return;
+    const ids = new Set(focusRequest.loadPointIds);
+    const points = state.loadPoints.filter(point => ids.has(point.id));
+    const canvas = canvasRef.current;
+    if (!canvas || points.length === 0) { finish(); return; }
+    const center = points.reduce((sum, point) => ({
+      x_mm: sum.x_mm + point.x_mm / points.length,
+      y_mm: sum.y_mm + point.y_mm / points.length,
+    }), { x_mm: 0, y_mm: 0 });
+    const rect = getLocalCanvasRect(canvas);
+    const style = getComputedStyle(canvas);
+    const border = (value: string) => parseFloat(value) || 0;
+    const nextViewport = centerViewportAtPoint(
+      viewportRef.current, projectPointPixels(center, projectTransformRef.current),
+      { width: rect.width - border(style.borderLeftWidth) - border(style.borderRightWidth),
+        height: rect.height - border(style.borderTopWidth) - border(style.borderBottomWidth) },
+      layoutCompensationRef.current,
+    );
+    if (zoomCommitTimerRef.current) {
+      clearTimeout(zoomCommitTimerRef.current);
+      zoomCommitTimerRef.current = null;
+    }
+    viewportRef.current = nextViewport;
+    applyViewportDisplay(nextViewport);
+    finish();
+    onStateChange({ ...state, viewport: nextViewport });
+  }, [focusRequest, state.loadPoints, state.activePilePlanId, state.selectedLoadPointIds]);
 
   useEffect(() => () => {
     if (zoomCommitTimerRef.current) {
@@ -282,19 +329,19 @@ export function useViewerViewport({
     scheduleViewportCommit(nextViewport);
   }
 
-  function getVisibleLoadPointScreenPoints() {
+  function getVisibleLoadPointScreenPoints(displayPoints?: {id:number;x:number;y:number}[]) {
     const canvas = canvasRef.current;
     if (!canvas) return [];
     const rect = getLocalCanvasRect(canvas);
     const viewport = viewportRef.current;
-    return state.loadPoints.map((loadPoint) => {
-      const point = projectPointPixels(loadPoint, projectTransformRef.current);
+    const points=displayPoints??state.loadPoints.map(loadPoint=>({id:loadPoint.id,...projectPointPixels(loadPoint,projectTransformRef.current)}));
+    return points.map((point) => {
       const screenPoint = {
         x: point.x * viewport.scale + viewport.offsetX,
         y: point.y * viewport.scale + viewport.offsetY,
       };
       return {
-        id: loadPoint.id,
+        id: point.id,
         x: rect.left + layoutCompensationRef.current.x + screenPoint.x,
         y: rect.top + layoutCompensationRef.current.y + screenPoint.y,
       };

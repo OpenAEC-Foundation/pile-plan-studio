@@ -45,6 +45,10 @@ impl LegacyOptimizationSettings {
                 .filter(|n| *n > 0),
             max_pile_sizes: u32::try_from(self.max_pile_sizes).ok().filter(|n| *n > 0),
             max_pile_configurations: None,
+            transition_weights: crate::IlpTransitionWeights {
+                pile_count_milli: 0,
+                ..Default::default()
+            },
             max_utilization: self.max_utilization,
             candidate_source: match self.candidate_source {
                 LegacyCandidateSource::AllAvailable => IlpCandidateSource::AllAvailable,

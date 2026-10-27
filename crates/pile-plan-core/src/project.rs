@@ -445,6 +445,11 @@ pub struct ProjectUserState {
 pub struct PilePlan {
     pub id: String,
     pub name: String,
+    #[serde(
+        default,
+        deserialize_with = "crate::pile_cap_proposals::deserialize_proposals"
+    )]
+    pub pile_cap_proposals: Vec<crate::PileCapProposal>,
     pub active_pile_sizes: Vec<u32>,
     pub active_pile_tip_levels: Vec<f64>,
     pub selected_piles: HashMap<u32, SelectedPileChoice>,
@@ -485,6 +490,7 @@ impl PilePlan {
         Self {
             id: "pile-plan-1".to_string(),
             name: "Pile plan 1".to_string(),
+            pile_cap_proposals: Vec::new(),
             active_pile_sizes,
             active_pile_tip_levels,
             selected_piles,
@@ -1091,6 +1097,7 @@ mod tests {
                 pile_plans: vec![PilePlan {
                     id: "pile-plan-1".to_string(),
                     name: "Pile plan 1".to_string(),
+                    pile_cap_proposals: Vec::new(),
                     active_pile_sizes: vec![290],
                     active_pile_tip_levels: vec![-18.0],
                     selected_piles: HashMap::from([(

@@ -1,3 +1,8 @@
+import {projectPileCapPreviews} from "../../../viewer/pileCapProposalGeometry.ts";
+import {projectPointPixels} from "../../../viewer/viewerGeometry.ts";
+import type { PileCapPreview } from "../../../core/pileCapProposalTypes.ts";
+import type { ViewerFocusRequest } from "../../../domain/workspace/viewerFocus.ts";
+import { setLoadPointSelection } from "../../../domain/workspace/selectionState.ts";
 import {
   useMemo,
   useRef,
@@ -61,6 +66,9 @@ import {
 } from "./useViewerPointerInteractions.ts";
 
 export type PilePlanViewerProps = {
+  focusRequest?: ViewerFocusRequest | null;
+  onFocusHandled?: (request: ViewerFocusRequest) => void;
+  pileCapPreviews?: PileCapPreview[];
   state: ProjectState;
   loadPointGroups: LoadPointGroup[];
   loadPointGroupTopology: LoadPointTopology | null;
@@ -73,6 +81,9 @@ export type PilePlanViewerProps = {
 };
 
 export default function PilePlanViewer({
+  focusRequest,
+  onFocusHandled,
+  pileCapPreviews=[],
   state,
   loadPointGroups,
   loadPointGroupTopology,
@@ -107,12 +118,15 @@ export default function PilePlanViewer({
   const contextSelectedCptIds = new Set(getReactViewerContextCptIds(state));
   const selectedCptIds = new Set(getReactViewerSelectedCptIds(state));
   const pileOptionsByLoadPointId = getEffectivePileOptionsByLoadPointId(state);
-  const governingCptId = getHighlightedGoverningCptId({
+  const originalGoverningCptId = getHighlightedGoverningCptId({
     activeSelectedCptIds: [...contextSelectedCptIds],
     pileOptionsByLoadPointId,
     selectedLoadPointIds: state.cptSelectionEditDraft ? getManualCptEditTargetIds(state) : state.selectedLoadPointIds,
     selectedPileConfigurationsByLoadPoint: state.selectedPileConfigurationsByLoadPoint,
   });
+  const selectedCap=pileCapPreviews.find(cap=>cap.proposal.load_point_ids.length===state.selectedLoadPointIds.length&&cap.proposal.load_point_ids.every(id=>selectedLoadPointIds.has(id)));
+  const capConfiguration=selectedCap?.proposal.configuration;
+  const governingCptId=selectedCap?selectedCap.options.find(option=>option.configuration.pile_size_mm===capConfiguration?.pile_size_mm&&option.configuration.pile_tip_level_mm===capConfiguration?.pile_tip_level_mm)?.governing_cpt_id??null:originalGoverningCptId;
   const isEditingCptSelection = isReactViewerCptSelectionEditing(state);
   const interactionRef = useRef<ViewerInteraction | null>(null);
   const {
@@ -129,7 +143,8 @@ export default function PilePlanViewer({
     getProjectViewportPointer,
     getVisibleLoadPointScreenPoints,
     handleWheel: handleViewportWheel,
-  } = useViewerViewport({ state, onStateChange, interactionRef });
+  } = useViewerViewport({ state, onStateChange, interactionRef, focusRequest, onFocusHandled });
+  const proposalLayouts=useMemo(()=>isEditingCptSelection||isEditingLoadPointLocks?[]:projectPileCapPreviews(pileCapPreviews,state.loadPoints,projectTransform,state.symbolScalePercent),[pileCapPreviews,state.loadPoints,projectTransform,state.symbolScalePercent,isEditingCptSelection,isEditingLoadPointLocks]);
   const tipLevelRegionPoints = useMemo(
     () => projectTipLevelRegionPoints(state.loadPoints, projectTransform),
     [projectTransform, state.loadPoints],
@@ -139,10 +154,11 @@ export default function PilePlanViewer({
       ? buildTipLevelRegionGeometry({
           topology: tipLevelRegionTopology,
           pointsByLoadPointId: tipLevelRegionPoints,
+          pileCapLayouts: proposalLayouts,
           symbolScalePercent: state.symbolScalePercent,
         })
       : []
-  ), [tipLevelRegionPoints, tipLevelRegionTopology, state.symbolScalePercent]);
+  ), [tipLevelRegionPoints, tipLevelRegionTopology, state.symbolScalePercent, proposalLayouts]);
   const tipLevelRegionPresentation = useMemo(
     () => presentTipLevelRegionGeometry(
       tipLevelRegionGeometry,
@@ -193,6 +209,14 @@ export default function PilePlanViewer({
     state.selectedCptsByLoadPointId,
     state.selectedLoadPointIds,
   ]);
+  const visibleSelectionPoints=()=>{
+    if(!proposalLayouts.length)return getVisibleLoadPointScreenPoints();
+    const replaced=new Set(proposalLayouts.flatMap(cap=>cap.sourceIds));
+    return getVisibleLoadPointScreenPoints([
+      ...state.loadPoints.filter(p=>!replaced.has(p.id)).map(p=>({id:p.id,...projectPointPixels(p,projectTransform)})),
+      ...proposalLayouts.flatMap(cap=>cap.points.map(point=>({id:cap.sourceIds[0],...point}))),
+    ]);
+  };
   const {
     lasso,
     hoverCandidates,
@@ -220,7 +244,7 @@ export default function PilePlanViewer({
     zoomCommitTimerRef,
     applyViewportDisplay,
     getProjectViewportPointer,
-    getVisibleLoadPointScreenPoints,
+    getVisibleLoadPointScreenPoints:visibleSelectionPoints,
   });
 
   return (
@@ -243,6 +267,13 @@ export default function PilePlanViewer({
         ) : null}
         <div className="viewer-layout-anchor" ref={layoutAnchorRef}>
           <ViewerStage
+            pileCapPreviews={pileCapPreviews}
+            onPileCapClick={(event,ids)=>{
+              event.stopPropagation(); clearHoverCandidates();
+              const additive=event.ctrlKey||event.metaKey;
+              const selected=additive?[...new Set([...state.selectedLoadPointIds,...ids])]:ids;
+              (onSelectionChange??onStateChange)({...state,...setLoadPointSelection(state,selected),viewport:viewportRef.current});
+            }}
             state={state}
             technicalAssignment={technicalAssignment}
             projectTransform={projectTransform}

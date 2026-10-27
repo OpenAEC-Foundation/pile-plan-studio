@@ -1,3 +1,4 @@
+mod pile_caps;
 mod backend;
 #[cfg(all(feature = "native-highs", not(target_arch = "wasm32")))]
 mod highs_backend;

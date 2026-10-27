@@ -28,7 +28,7 @@ function basis(state:ProjectState,plan:PilePlanData) {
     globalCptSelectionSettings:state.globalCptSelectionSettings,cptSelectionSettingsByLoadPoint:state.cptSelectionSettingsByLoadPoint,
     manualCptIdsByLoadPoint:state.manualCptIdsByLoadPoint,loadPointGroupingSettings:state.loadPointGroupingSettings,
     pileCostSettings:state.pileCostSettings,pileHeadLevelM:state.pileHeadLevelM,currencyCode:state.currencyCode,
-    assignments:plan.selectedPileConfigurationsByLoadPoint};
+    pileCapProposals:plan.pileCapProposals??[],assignments:plan.selectedPileConfigurationsByLoadPoint};
 }
 function currentSource(state:ProjectState,id:string) {
   const plan=state.pilePlans.find(p=>p.id===id);
@@ -46,7 +46,8 @@ export function createIlpPlanRun(state:ProjectState,language:"nl"|"en",localOnly
     optimizedChoices:source.selectedPileConfigurationsByLoadPoint,resolvedCandidateConfigurations:[...source.selectedPileConfigurationsByLoadPoint.values()],
     optimizationUnassignedByLoadPoint:source.optimizationUnassignedByLoadPoint,language}):null;
   const generated=transition?transition.pilePlans.find(p=>p.id===transition.activePilePlanId)!:source;
-  const target=transition && newPlanName?.trim()?{...generated,name:newPlanName.trim()}:generated;
+  const inherited={...generated,pileCapProposals:structuredClone(source.pileCapProposals??[])};
+  const target=transition && newPlanName?.trim()?{...inherited,name:newPlanName.trim()}:inherited;
   const settings=structuredClone(state.ilpOptimizationSettings);
   delete settings.transition_weights.both_milli;
   return {sourceId:source.id,target,fingerprint:runFingerprint(state,source),settings,

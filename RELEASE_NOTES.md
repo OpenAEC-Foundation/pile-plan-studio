@@ -1,5 +1,50 @@
 # Open Pile Plan Studio Release Notes
 
+## 2026.44.2
+
+This alpha adds persistent pile-cap proposals and optional pile-count optimization,
+with a compact overview for exploring changes within each pile plan.
+
+### Added
+
+- Propose one to twenty piles per cap using count, 90-degree rotation and Reset
+  controls beside the selection's grouping action. Keep proposals independently
+  in each pile plan, including after saving and reopening a project.
+- Open **Plan > Pile cap changes** to compare original and proposed pile counts.
+  Select and center a group at the current zoom, edit it directly above the list,
+  or reset every proposal in the active plan with one undoable action.
+- Optionally let the optimizer change pile counts in groups and at single-pile
+  locations. Choose individual allowed counts and a maximum, defaulting to six.
+  Existing larger groups are preserved, and locked groups retain their count.
+- Weight differences in pile count between neighboring caps alongside the
+  existing tip-level and pile-size weights.
+
+### Improved and fixed
+
+- Preserve insufficient-capacity and missing-data markers on proposal piles.
+  Make tip-level regions follow the proposed layout.
+- Keep the active plan's existing proposal display visible while count edits are
+  validated, avoiding a brief flash of the original source layout.
+- Reduce schematic spacing near neighboring locations while retaining symbol
+  sizes and distinguishable pile centers. Keep count controls in fixed positions.
+- Show compact, wrapping proposal and lock summaries in the explorer. Keep the
+  proposal overview's row order stable during edits.
+
+### Compatibility and limitations
+
+- **CSV/XLSX export is not available for pile plans containing pile-cap proposals.**
+  Save these plans as IFCPP, which retains all proposals, or export a separate
+  plan without proposals. Export is blocked to avoid silently exporting only the
+  original source locations.
+- IFCPP schema 6 stores per-plan proposals. Supported older project versions
+  remain readable. Proposal changes participate in recovery and undo/redo;
+  original load points and assignments are retained.
+- Proposals are indicative: original FEd values are added and redistributed
+  equally using the source members' combined CPT selections. Moments, eccentricity,
+  cap design and pile-group effects are not recalculated. Layout spacing is
+  schematic, and indicative costs include piles but exclude cap costs.
+- The application remains Alpha; engineering results require professional review.
+
 ## 2026.44.1
 
 This alpha improves pile-plan exports, inspection within grouped selections,

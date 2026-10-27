@@ -17,17 +17,34 @@ pub(crate) fn starting_choices(
         .units
         .iter()
         .map(|unit| {
-            let configuration = current.get(&unit.load_point_ids[0])?;
-            if !unit
-                .load_point_ids
+            let proposal = p
+                .current_pile_cap_proposals
                 .iter()
-                .all(|id| current.get(id) == Some(configuration))
+                .find(|c| c.load_point_ids == unit.load_point_ids);
+            let configuration = if let Some(proposal) = proposal {
+                proposal.configuration.as_ref()?
+            } else {
+                current.get(&unit.load_point_ids[0])?
+            };
+            if proposal.is_none()
+                && !unit
+                    .load_point_ids
+                    .iter()
+                    .all(|id| current.get(id) == Some(configuration))
             {
                 return None;
             }
-            unit.options
-                .iter()
-                .position(|option| &option.configuration == configuration)
+            unit.options.iter().position(|option| {
+                &option.configuration == configuration
+                    && option
+                        .pile_cap_proposal
+                        .as_ref()
+                        .map(|p| usize::from(p.pile_count))
+                        .unwrap_or(unit.load_point_ids.len())
+                        == proposal
+                            .map(|p| usize::from(p.pile_count))
+                            .unwrap_or(unit.load_point_ids.len())
+            })
         })
         .collect();
     if let Some(choices) = existing {
@@ -109,12 +126,29 @@ pub(crate) fn improve(
                 let gain: i64 = neighbors[u]
                     .iter()
                     .map(|neighbor| {
-                        let c = match neighbor {
-                            Neighbor::Unit(v) => &p.units[*v].options[choices[*v]].configuration,
-                            Neighbor::Fixed(c) => c,
+                        let (c, count) = match neighbor {
+                            Neighbor::Unit(v) => {
+                                let neighbor = &p.units[*v].options[choices[*v]];
+                                (
+                                    &neighbor.configuration,
+                                    neighbor.pile_count(p.units[*v].load_point_ids.len()),
+                                )
+                            }
+                            Neighbor::Fixed(c, count) => (c, *count),
                         };
-                        penalty(a, c, &p.settings.transition_weights)
-                            - penalty(b, c, &p.settings.transition_weights)
+                        penalty(
+                            a,
+                            old.pile_count(unit.load_point_ids.len()),
+                            c,
+                            count,
+                            &p.settings.transition_weights,
+                        ) - penalty(
+                            b,
+                            option.pile_count(unit.load_point_ids.len()),
+                            c,
+                            count,
+                            &p.settings.transition_weights,
+                        )
                     })
                     .sum();
                 if gain > best_gain {
@@ -138,8 +172,15 @@ pub(crate) fn improve(
         cost = next_cost;
     }
 }
-fn penalty(a: &PileConfigurationKey, b: &PileConfigurationKey, w: &IlpTransitionWeights) -> i64 {
-    i64::from(a.pile_tip_level_mm != b.pile_tip_level_mm) * i64::from(w.tip_only_milli)
+fn penalty(
+    a: &PileConfigurationKey,
+    a_count: usize,
+    b: &PileConfigurationKey,
+    b_count: usize,
+    w: &IlpTransitionWeights,
+) -> i64 {
+    i64::from(a_count != b_count) * i64::from(w.pile_count_milli)
+        + i64::from(a.pile_tip_level_mm != b.pile_tip_level_mm) * i64::from(w.tip_only_milli)
         + i64::from(a.pile_size_mm != b.pile_size_mm) * i64::from(w.size_only_milli)
 }
 fn allows<T: Ord>(counts: &BTreeMap<T, u32>, old: &T, new: &T, cap: Option<u32>) -> bool {
@@ -255,7 +296,7 @@ mod tests {
             .insert(p.units[0].options[old].configuration.clone());
         p.edges = vec![(
             0,
-            Neighbor::Fixed(p.units[0].options[new].configuration.clone()),
+            Neighbor::Fixed(p.units[0].options[new].configuration.clone(), 1),
         )];
         let run = |p: &PreparedIlpProblem| {
             improve(

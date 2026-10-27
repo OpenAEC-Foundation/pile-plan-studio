@@ -27,7 +27,7 @@ import { getTipLevelRegionToggle } from "./tipLevelRegionToggle.ts";
 import "./Ribbon.css";
 
 type TabId = "plan" | "view";
-type TaskPanel = "cpt-settings" | "cost-settings" | "grouping-settings" | "ilp-optimization";
+type TaskPanel = "cpt-settings" | "cost-settings" | "grouping-settings" | "ilp-optimization" | "pile-cap-changes";
 
 const TABS: TabId[] = ["plan", "view"];
 
@@ -161,6 +161,7 @@ export default function Ribbon({
               <RibbonGroup label={t("plan.inspect")}>
                 <RibbonButton icon={loadPointIcon} label={t("plan.loadPoints")} wide onClick={() => onOpenRightPanel?.("load-point")} />
                 <RibbonButton icon={cptIcon} label={t("plan.cpts")} onClick={() => onOpenRightPanel?.("cpts")} />
+                <RibbonButton icon={groupsIcon} label={t("plan.pileCapChanges")} wide onClick={() => onOpenTaskPanel?.("pile-cap-changes")} />
               </RibbonGroup>
               <RibbonGroup label={t("plan.selection")}>
                 <RibbonButton

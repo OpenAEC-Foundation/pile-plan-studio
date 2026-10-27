@@ -40,6 +40,8 @@ export function evaluate_load_point_grouping_settings(request: any): any;
 
 export function evaluate_mcp_project_edit(request: any): any;
 
+export function evaluate_pile_cap_proposals(request: any): any;
+
 export function evaluate_pile_cost_catalog_edit(request: any): any;
 
 export function export_pile_plan_csv(request: any): Uint8Array;
@@ -87,6 +89,7 @@ export interface InitOutput {
     readonly evaluate_cpt_settings_edit: (a: any) => [number, number, number];
     readonly evaluate_load_point_grouping_settings: (a: any) => [number, number, number];
     readonly evaluate_mcp_project_edit: (a: any) => [number, number, number];
+    readonly evaluate_pile_cap_proposals: (a: any) => [number, number, number];
     readonly evaluate_pile_cost_catalog_edit: (a: any) => [number, number, number];
     readonly export_pile_plan_csv: (a: any) => [number, number, number, number];
     readonly export_pile_plan_xlsx: (a: any) => [number, number, number, number];

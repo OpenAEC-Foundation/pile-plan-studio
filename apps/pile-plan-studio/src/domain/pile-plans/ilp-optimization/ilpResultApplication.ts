@@ -7,12 +7,18 @@ export function applyIlpSolutionToPlan(plan: PilePlanData, solution: IlpSolution
   const selectedPileConfigurationsByLoadPoint=new Map(plan.selectedPileConfigurationsByLoadPoint);
   const externalReferencesByLoadPoint=new Map(plan.externalReferencesByLoadPoint);
   const optimizationUnassignedByLoadPoint=new Map(plan.optimizationUnassignedByLoadPoint);
+  const proposals=solution.pile_cap_proposals??[];
+  const replaced=new Set(proposals.flatMap(p=>p.load_point_ids));
+  const targets=new Set(solution.assignments.map(a=>a.load_point_id));
+  const pileCapProposals=[...(plan.pileCapProposals??[]).filter(p=>!p.load_point_ids.some(id=>targets.has(id))),...structuredClone(proposals)];
   for (const {load_point_id,configuration} of solution.assignments) {
+    optimizationUnassignedByLoadPoint.delete(load_point_id);
+    if(replaced.has(load_point_id))continue;
     if (!samePileConfiguration(selectedPileConfigurationsByLoadPoint.get(load_point_id),configuration)) externalReferencesByLoadPoint.delete(load_point_id);
     selectedPileConfigurationsByLoadPoint.set(load_point_id,{...configuration});
     optimizationUnassignedByLoadPoint.delete(load_point_id);
   }
-  return {...plan,selectedPileConfigurationsByLoadPoint,externalReferencesByLoadPoint,optimizationUnassignedByLoadPoint,
+  return {...plan,pileCapProposals,selectedPileConfigurationsByLoadPoint,externalReferencesByLoadPoint,optimizationUnassignedByLoadPoint,
     activePileSizes:[...new Set([...plan.activePileSizes,...solution.assignments.map(a=>a.configuration.pile_size_mm)])].sort((a,b)=>a-b),
     activePileTipLevelMms:[...new Set([...plan.activePileTipLevelMms,...solution.assignments.map(a=>a.configuration.pile_tip_level_mm)])].sort((a,b)=>b-a)};
 }

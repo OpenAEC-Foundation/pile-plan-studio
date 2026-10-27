@@ -23,9 +23,63 @@ intentional and should be considered when evaluating its results.
 - The preferred utilization range controls viewer highlighting. Engineering
   option validity remains based on the calculated resistance check. The
   optimizer has a configurable maximum utilization.
+- Neighbor coherence can independently weight differences in tip level, pile
+  size and pile count per cap. The count term counts mismatching neighbor pairs,
+  not the number of distinct cap types across the whole plan or physical cap
+  dimensions. Zero disables it; the existing cost budget and locks still apply.
+  Older projects and historical results default a missing count weight to zero.
 - Load-point grouping combines the automatic distance rule with undoable manual
   group and separation overrides. Manual groups must remain connected in the
   project's Gabriel graph; arbitrary disconnected location sets are rejected.
+
+## Pile-cap proposals
+
+- A compact **Pile cap** control beside the selection's grouping action explores
+  one to twenty piles. Minus/plus changes the count and the rotation button turns
+  the schematic layout 90 degrees. Returning to the original count removes
+  the proposal; Reset restores the original cap too. Selecting another group or
+  closing the control retains it.
+- Proposals belong to individual pile plans and are saved in IFCPP schema 6,
+  recovery and undo/redo. Existing source locations and assignments are retained.
+  Ordinary new plans start without proposals; duplicates and optimization
+  destinations inherit independent copies of existing proposals.
+- The total of the original FEd values is redistributed equally. This does not
+  preserve moments or reconstruct load combinations or eccentricity. Cap
+  stiffness, pile-group effects, cap footprint, edge distances and structural
+  adequacy are not checked. Negative/uplift loads are not supported by this
+  force-only preview.
+- All hypothetical piles use the union of the original members' effective CPT
+  selections. This can be more restrictive than the original per-point checks.
+  A member with no selected CPTs prevents an assessed proposal.
+- Spacing is schematic and adapts to nearby locations. Members of the same
+  proposal may partially overlap to keep external locations clear; symbols
+  retain their size and distinct centers. Spacing never increases beyond the
+  original spacing. It shrinks to a third of the symbol diameter, or the
+  original spacing if that was already smaller. Remaining unavoidable external
+  overlap is indicated on hover. The dashed contour is not a physical
+  cap boundary.
+- Indicative costs use the existing pile-cost catalog and exclude cap costs.
+  A changed source group makes its stored proposal inactive instead of silently
+  transferring it to another group; inspect an involved member to remove it.
+- Optimization honors existing proposals at their current counts by default.
+  The explicit **Allow pile counts per cap to change** setting is off by default.
+  When enabled, groups and single piles may use checked counts up to the optimizer
+  maximum (default 6, adjustable up to 20). The popup allows individual exclusions,
+  such as five-pile caps. Existing larger source/proposal counts remain preservation
+  options; original groups above 20 are not truncated. Any locked member keeps its cap's effective count and
+  configuration fixed. Candidate filters, utilization, configuration limits,
+  cost budgets and selection scopes still apply. Source loads/assignments remain
+  intact for changed counts; results are per-plan proposals, saved atomically
+  with the optimization summary. Alternative counts share the manual proposal's
+  equal-force/CPT-union assumptions. No structural cap checks or cap costs enter
+  the objective, so the lowest pile cost need not be the lowest foundation cost.
+- CSV/XLSX pile export is unavailable for plans containing proposals. Save those
+  variants as IFCPP, or use a separate plan without proposals for export.
+  Conversion to real source locations and dedicated MCP proposal editing are
+  deferred. The Plan ribbon's proposal overview supports selection, centering,
+  count/rotation edits, individual Reset and a single undoable Reset all.
+  MCP optimization settings expose the same explicit
+  count-change flag as the interface.
 
 ## Data and Projects
 

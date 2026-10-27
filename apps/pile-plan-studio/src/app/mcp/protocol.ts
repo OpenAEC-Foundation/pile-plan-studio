@@ -271,7 +271,9 @@ PILE_TOOL_SCHEMAS.push(
     ["actions", ...expectedFields], false),
   definition("pile_set_optimization_settings", "Patch project-owned optimization settings. budget_basis_points is extra cost above the cost-only reference, not the current plan. One Undo step.", {
     settings: { type: "object", minProperties: 1, properties: {
-      skip_unsolvable_units: { type: "boolean" }, optimize_coherence: { type: "boolean" },
+      max_piles_per_cap: { type: "integer", minimum: 1, maximum: 20 },
+      allowed_pile_counts: { type: "array", minItems: 1, maxItems: 20, uniqueItems: true, items: { type: "integer", minimum: 1, maximum: 20 } },
+      allow_pile_count_changes: { type: "boolean" }, skip_unsolvable_units: { type: "boolean" }, optimize_coherence: { type: "boolean" },
       max_pile_tip_levels: nullablePositiveInteger, max_pile_sizes: nullablePositiveInteger,
       max_pile_configurations: nullablePositiveInteger,
       max_utilization: { type: "number", minimum: 0, maximum: 1 },
@@ -279,7 +281,7 @@ PILE_TOOL_SCHEMAS.push(
       custom_configurations: { type: "array", items: configuration, maxItems: 500 },
       budget_basis_points: integer,
       transition_weights: { type: "object", minProperties: 1, properties: {
-        tip_only_milli: integer, size_only_milli: integer,
+        tip_only_milli: integer, size_only_milli: integer, pile_count_milli: integer,
       }, additionalProperties: false },
     }, additionalProperties: false }, ...expected,
   }, ["settings", ...expectedFields], false),

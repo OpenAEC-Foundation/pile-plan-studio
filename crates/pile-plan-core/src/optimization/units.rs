@@ -34,12 +34,23 @@ pub struct OptimizationUnit {
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
 pub struct OptimizationUnitOption {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub pile_cap_proposal: Option<crate::PileCapProposal>,
     pub configuration: PileConfigurationKey,
     pub total_cost: u64,
     pub maximum_utilization: f64,
     pub critical_load_point_id: u32,
     pub critical_governing_cpt_id: Option<u32>,
     pub critical_governing_frd_kn: Option<f64>,
+}
+
+impl OptimizationUnitOption {
+    pub(crate) fn pile_count(&self, source_count: usize) -> usize {
+        self.pile_cap_proposal
+            .as_ref()
+            .map(|p| usize::from(p.pile_count))
+            .unwrap_or(source_count)
+    }
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
@@ -288,6 +299,7 @@ pub fn prepare_optimization_units(
                     continue;
                 };
                 options.push(OptimizationUnitOption {
+                    pile_cap_proposal: None,
                     configuration: candidate.configuration.clone(),
                     total_cost: u64::from(member_cost) * group.load_point_ids.len() as u64,
                     maximum_utilization,

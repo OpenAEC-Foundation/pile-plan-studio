@@ -252,6 +252,7 @@ fn zero_transition_weights_skip_the_spatial_phase() {
     i.settings.transition_weights = IlpTransitionWeights {
         tip_only_milli: 0,
         size_only_milli: 0,
+        pile_count_milli: 0,
         legacy_both_milli: None,
     };
     let mut phases = vec![];
@@ -327,6 +328,7 @@ fn input() -> IlpOptimizationInput {
     let a = config(1000, -10_000);
     let b = config(1000, -11_000);
     IlpOptimizationInput {
+        pile_cap_context: None,
         load_points: (1..=3)
             .map(|id| ProjectLoadPoint {
                 id,
@@ -480,8 +482,13 @@ fn ilp_contracts_multiple_location_edges_between_groups_once() {
     i.settings.budget_basis_points = 0;
     let s = solved(run(i));
     assert_eq!(
-        (s.cost, s.score_milli, s.transitions.tip_only),
-        (31, 1000, 1)
+        (
+            s.cost,
+            s.score_milli,
+            s.transitions.tip_only,
+            s.transitions.pile_count
+        ),
+        (31, 2000, 1, 1)
     );
     assert_eq!(
         s.assignments
@@ -543,12 +550,14 @@ fn ilp_transition_penalty_is_additive_and_ignores_legacy_joint_weights() {
         i.settings.transition_weights = IlpTransitionWeights {
             tip_only_milli: 1000,
             size_only_milli: 3000,
+            pile_count_milli: 0,
             legacy_both_milli: Some(500),
         };
         assert_eq!(solved(run(i.clone())).score_milli, want);
         i.settings.transition_weights = IlpTransitionWeights {
             tip_only_milli: 0,
             size_only_milli: 0,
+            pile_count_milli: 0,
             legacy_both_milli: None,
         };
         assert_eq!(solved(run(i)).score_milli, 0);
@@ -687,11 +696,13 @@ fn ilp_matches_exhaustive_oracle_for_caps_budgets_and_weights() {
             0 => IlpTransitionWeights {
                 tip_only_milli: 1000,
                 size_only_milli: 3000,
+                pile_count_milli: 0,
                 legacy_both_milli: Some(500),
             },
             1 => IlpTransitionWeights {
                 tip_only_milli: 0,
                 size_only_milli: 0,
+                pile_count_milli: 0,
                 legacy_both_milli: None,
             },
             _ => IlpTransitionWeights::default(),

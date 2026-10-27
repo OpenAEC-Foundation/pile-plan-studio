@@ -18,6 +18,7 @@ export const derive_load_point_groups: (a: any) => [number, number, number];
 export const evaluate_cpt_settings_edit: (a: any) => [number, number, number];
 export const evaluate_load_point_grouping_settings: (a: any) => [number, number, number];
 export const evaluate_mcp_project_edit: (a: any) => [number, number, number];
+export const evaluate_pile_cap_proposals: (a: any) => [number, number, number];
 export const evaluate_pile_cost_catalog_edit: (a: any) => [number, number, number];
 export const export_pile_plan_csv: (a: any) => [number, number, number, number];
 export const export_pile_plan_xlsx: (a: any) => [number, number, number, number];

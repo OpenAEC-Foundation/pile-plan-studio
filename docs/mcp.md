@@ -472,3 +472,24 @@ cost, and optimizer-result differences. The changed load points are paged.
 Costs are calculated from the project cost catalog; if either plan has
 assignments without a price, the response gives known subtotals and omits a
 total cost difference. Comparison does not change either plan.
+
+### Pile-cap counts in optimization
+
+`pile_set_optimization_settings` supports `allow_pile_count_changes` (boolean,
+default false). Optimization includes existing cap proposals at fixed counts
+when this is off. When on, unlocked effective groups and singletons may use
+checked `allowed_pile_counts` (unique integers 1–20) up to `max_piles_per_cap`
+(integer 1–20, default 6). Missing allowed counts default to all 1–20; at least
+one selected count must fall within the maximum. Existing source/proposal counts
+above the maximum remain preservation options, including original groups above 20.
+Locked caps retain their count even when excluded from new choices. The run uses the same captured
+project validation, CPT union and equal-force model as the interface. Results
+carry per-plan proposal definitions; original source locations and assignments
+are retained for changed counts. Dedicated manual proposal editing is not yet
+exposed through MCP.
+
+`transition_weights.pile_count_milli` controls neighboring cap-count differences
+in the same optimization settings edit. Values are nonnegative integers in
+thousandths (1000 means weight 1; zero disables the term). Every mismatching
+neighbor pair contributes once, independently of the difference magnitude and
+the tip/size terms. Solved result metadata exposes `transitions.pile_count`.

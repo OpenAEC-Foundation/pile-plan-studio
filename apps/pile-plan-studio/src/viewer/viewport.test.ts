@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 
 import {
   clampScale,
+  centerViewportAtPoint,
   getViewportTransform,
   panViewport,
   projectViewPointToScreen,
@@ -11,6 +12,17 @@ import {
 } from "./viewport.ts";
 
 describe("viewport interaction helpers", () => {
+  it("centers an unrounded projected point at the current zoom, including layout compensation", () => {
+    const viewport = { scale: 2.25, offsetX: -120, offsetY: 43 };
+    const point = { x: 123.456, y: 345.678 };
+    const compensation = { x: -45.5, y: 28.25 };
+    const size = { width: 731.25, height: 532.75 };
+    const centered = centerViewportAtPoint(viewport, point, size, compensation);
+    assert.equal(centered.scale, viewport.scale);
+    assert.ok(Math.abs(point.x * centered.scale + centered.offsetX + compensation.x - size.width / 2) < 1e-10);
+    assert.ok(Math.abs(point.y * centered.scale + centered.offsetY + compensation.y - size.height / 2) < 1e-10);
+    assert.deepEqual(viewport, { scale: 2.25, offsetX: -120, offsetY: 43 });
+  });
   it("clamps zoom between 80 and 1000 percent", () => {
     assert.equal(clampScale(0.25), 0.8);
     assert.equal(clampScale(7.5), 7.5);

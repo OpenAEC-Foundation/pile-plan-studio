@@ -25,3 +25,24 @@ test("new optimization requests omit the historical joint weight without mutatin
   }
   assert.equal(request.input.settings.transition_weights.both_milli,500);
 });
+
+
+test("cap metadata rejects duplicate members, invalid counts and unassigned cap choices",()=>{
+ if(ilpSolvedForTest.status!=="solved")throw new Error("fixture");
+ const cap={load_point_ids:[1,2],pile_count:3,quarter_turns:0,configuration:{pile_size_mm:320,pile_tip_level_mm:-18500}};
+ const result={...ilpSolvedForTest,solution:{...ilpSolvedForTest.solution,assignments:[1,2].map(load_point_id=>({load_point_id,configuration:cap.configuration})),pile_cap_proposals:[cap]}};
+ assert.equal(ilpOptimizationOutcomeFromCore(result).status,"solved");
+ for (const count of [7,12,20]) assert.equal(ilpOptimizationOutcomeFromCore({...result,solution:{...result.solution,pile_cap_proposals:[{...cap,pile_count:count}]}}).status,"solved");
+ for(const bad of [{...cap,pile_count:21},{...cap,load_point_ids:[1,1]},{...cap,quarter_turns:4},{...cap,configuration:null},{...cap,load_point_ids:[999]},{...cap,configuration:{...cap.configuration,pile_size_mm:450}}]){
+  assert.deepEqual(ilpOptimizationOutcomeFromCore({...result,solution:{...result.solution,pile_cap_proposals:[bad]}}),{status:"failed",code:"invalid_contract"});
+ }
+});
+
+
+test("new pile-count transition facts are preserved and malformed counts are rejected",()=>{
+ if(ilpSolvedForTest.status!=="solved")throw new Error("fixture");
+ const solution={...ilpSolvedForTest.solution,transitions:{...ilpSolvedForTest.solution.transitions,pile_count:2},score_milli:2500};
+ const parsed=ilpOptimizationOutcomeFromCore({...ilpSolvedForTest,solution});
+ assert.equal(parsed.status,"solved");if(parsed.status==="solved")assert.equal(parsed.solution.transitions.pile_count,2);
+ for(const count of [-1,0.5,NaN])assert.deepEqual(ilpOptimizationOutcomeFromCore({...ilpSolvedForTest,solution:{...solution,transitions:{...solution.transitions,pile_count:count}}}),{status:"failed",code:"invalid_contract"});
+});

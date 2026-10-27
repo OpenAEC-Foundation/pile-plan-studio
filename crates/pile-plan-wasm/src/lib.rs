@@ -200,6 +200,13 @@ pub fn build_tip_level_region_topology(request: JsValue) -> Result<JsValue, JsVa
 }
 
 #[wasm_bindgen]
+pub fn evaluate_pile_cap_proposals(request: JsValue) -> Result<JsValue, JsValue> {
+    let request: pile_plan_core::PileCapProposalRequest = from_js_value(request)?;
+    let result = pile_plan_core::evaluate_pile_cap_proposals(request).map_err(to_error_value)?;
+    to_js_value(&result)
+}
+
+#[wasm_bindgen]
 pub fn derive_load_point_groups(request: JsValue) -> Result<JsValue, JsValue> {
     let request: DeriveLoadPointGroupsRequest = from_js_value(request)?;
     to_js_value(&derive_load_point_groups_core(
@@ -443,7 +450,7 @@ mod tests {
                 .expect("written project reads")
                 .project
                 .schema_version,
-            5
+            6
         );
         assert!(matches!(
             read_project_document_contents("{").unwrap_err(),

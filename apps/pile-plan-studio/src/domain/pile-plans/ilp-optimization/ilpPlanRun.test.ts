@@ -151,3 +151,27 @@ for (const newPlan of [true, false]) test(`optimization completion (${newPlan ? 
   assertSelection();
   assert.deepEqual(managed.present.pilePlans, finishedPlans);
 });
+
+
+test("cap-aware runs inherit outside proposals, persist accepted cap choices and reject late cap changes",()=>{
+ const {state:initial,outcome:base}=fixture(true);
+ const ids=initial.loadPoints.slice(0,2).map(p=>p.id).sort((a,b)=>a-b);
+ const configuration={pile_size_mm:320,pile_tip_level_mm:-18000};
+ const proposal={load_point_ids:ids,pile_count:3,quarter_turns:1,configuration};
+ const state={...initial,pilePlans:initial.pilePlans.map(p=>p.id===initial.activePilePlanId?{...p,pileCapProposals:[proposal]}:p)};
+ const run=createIlpPlanRun(state,"nl",false);
+ assert.deepEqual(run.target.pileCapProposals,[proposal]);
+ const changed={...state,pilePlans:state.pilePlans.map(p=>p.id===state.activePilePlanId?{...p,pileCapProposals:[{...proposal,pile_count:4}]}:p)};
+ assert.equal(isIlpPlanRunCurrent(changed,run),false);
+ const outcome={...base,solution:{...base.solution,assignments:ids.map(load_point_id=>({load_point_id,configuration})),pile_cap_proposals:[proposal]}};
+ const finished=completeIlpPlanRun(state,run,outcome,true);
+ const contents=write_project_document({draft:toBrowserProjectDocumentDraft(projectDocumentDraftFromContent(captureProjectContent(finished),finished.activePilePlanId))});
+ const wire=projectDocumentOutcomeFromCore({status:"valid",...read_project_document({contents})});
+ assert.equal(wire.status,"valid");if(wire.status!=="valid")return;
+ const loaded=createInitialProjectState(wire.project,{initializeDefaultPiles:false},wire.keys);
+ const target=loaded.pilePlans.find(p=>p.id===run.target.id)!;
+ assert.deepEqual(target.pileCapProposals,[proposal]);
+ assert.deepEqual(target.ilpResult?.solution.pile_cap_proposals,[proposal]);
+ assert.equal(isIlpResultStale(loaded,target),false);
+ for(const id of ids)assert.deepEqual(target.selectedPileConfigurationsByLoadPoint.get(id),state.selectedPileConfigurationsByLoadPoint.get(id));
+});

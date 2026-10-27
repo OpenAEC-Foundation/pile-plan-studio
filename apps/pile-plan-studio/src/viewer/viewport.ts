@@ -4,6 +4,19 @@ export type Viewport = {
   offsetY: number;
 };
 
+export function centerViewportAtPoint(
+  viewport: Viewport,
+  point: { x: number; y: number },
+  canvasSize: { width: number; height: number },
+  compensation: { x: number; y: number },
+): Viewport {
+  return {
+    scale: viewport.scale,
+    offsetX: canvasSize.width / 2 - compensation.x - point.x * viewport.scale,
+    offsetY: canvasSize.height / 2 - compensation.y - point.y * viewport.scale,
+  };
+}
+
 export function zoomViewportAtPoint(
   viewport: Viewport,
   input: {

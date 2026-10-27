@@ -70,7 +70,7 @@ describe("technical assignment availability", () => {
     const notice = readFileSync(resolve(import.meta.dirname, "TechnicalAssignmentNotice.tsx"), "utf8");
     const styles = readFileSync(resolve(import.meta.dirname, "rightPanel.css"), "utf8");
 
-    assert.match(panel, /technicalAssignment\.status !== "error"\s*\?\s*\(\s*<section className="pile-options-section">/s);
+    assert.match(panel, /technicalAssignment\.status !== "error" \|\| pileCapProposal\s*\?\s*\(\s*<section className="pile-options-section">/s);
     assert.match(notice, /getAnalysisFailureNotice/);
     assert.match(notice, /technicalNotice\.analysisErrorExplanation/);
     assert.match(styles, /\.load-point-panel\s*\{[^}]*display:\s*flex;[^}]*flex-direction:\s*column;/s);

@@ -282,6 +282,11 @@ fn build_tip_level_region_topology(
 }
 
 #[tauri::command(rename_all = "snake_case")]
+fn evaluate_pile_cap_proposals(request: pile_plan_core::PileCapProposalRequest) -> Result<pile_plan_core::PileCapProposalResult, String> {
+    pile_plan_core::evaluate_pile_cap_proposals(request)
+}
+
+#[tauri::command(rename_all = "snake_case")]
 fn derive_load_point_groups(request: DeriveLoadPointGroupsRequest) -> DerivedLoadPointGroups {
     derive_load_point_groups_core(&request.load_points, &request.settings)
 }
@@ -414,6 +419,7 @@ fn main() {
             calculate_pile_option_cost,
             choose_default_options,
             derive_load_point_groups,
+            evaluate_pile_cap_proposals,
             preview_load_point_group_edit,
             ilp_optimize,
             cancel_ilp_optimization,
@@ -493,6 +499,26 @@ mod tests {
     }
 
     #[test]
+    fn pile_cap_proposal_survives_native_file_save_and_reopen() {
+        let validated=read_project_document(ReadProjectDocumentRequest{contents:include_str!("../../../../sample_project/sample_project.ifcpp").to_string()}).unwrap();
+        let mut draft=ProjectDocumentDraft::from_project(&validated.project);
+        let plan_id=draft.user_state.active_pile_plan_id.clone();
+        let result=evaluate_pile_cap_proposals(pile_plan_core::PileCapProposalRequest{draft:draft.clone(),edit:Some(pile_plan_core::PileCapProposalEdit{
+            plan_id:plan_id.clone(),proposal:pile_plan_core::PileCapProposal{load_point_ids:vec![15,43],pile_count:3,quarter_turns:1,configuration:None},remove:false,
+        })}).unwrap();
+        draft.user_state.pile_plans.iter_mut().find(|p|p.id==plan_id).unwrap().pile_cap_proposals=result.plans.iter().find(|p|p.plan_id==plan_id).unwrap().proposals.clone();
+        let contents=write_project_document(WriteProjectDocumentRequest{draft}).unwrap();
+        let name=format!("pile-cap-proposal-{}-{}.ifcpp",std::process::id(),std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos());
+        let path=std::env::temp_dir().join(name).to_string_lossy().into_owned();
+        write_project_file(path.clone(),contents).unwrap();
+        let reopened=read_project_document(ReadProjectDocumentRequest{contents:read_project_file(path.clone()).unwrap()}).unwrap();
+        std::fs::remove_file(path).unwrap();
+        let proposal=&reopened.project.user_state.active_pile_plan().unwrap().pile_cap_proposals[0];
+        assert_eq!(proposal.load_point_ids,vec![15,43]);assert_eq!(proposal.pile_count,3);assert_eq!(proposal.quarter_turns,1);
+        assert_eq!(reopened.project.inputs,validated.project.inputs);
+    }
+
+    #[test]
     fn project_document_commands_delegate_read_write_and_structured_errors() {
         let validated = read_project_document(ReadProjectDocumentRequest {
             contents: include_str!("../../../../sample_project/sample_project.ifcpp").to_string(),
@@ -508,7 +534,7 @@ mod tests {
                 .expect("written project reads")
                 .project
                 .schema_version,
-            5
+            6
         );
         assert!(matches!(
             read_project_document(ReadProjectDocumentRequest {

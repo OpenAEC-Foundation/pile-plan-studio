@@ -27,6 +27,28 @@ fn label(c: &PileConfigurationKey, kind: usize) -> (i64, i64) {
         _ => (c.pile_tip_level_mm, i64::from(c.pile_size_mm)),
     }
 }
+fn transition_label(
+    unit: &crate::OptimizationUnit,
+    option: &crate::OptimizationUnitOption,
+    kind: usize,
+) -> (i64, i64) {
+    if kind == 2 {
+        (option.pile_count(unit.load_point_ids.len()) as i64, 0)
+    } else {
+        label(&option.configuration, kind)
+    }
+}
+fn fixed_transition_label(
+    configuration: &PileConfigurationKey,
+    count: usize,
+    kind: usize,
+) -> (i64, i64) {
+    if kind == 2 {
+        (count as i64, 0)
+    } else {
+        label(configuration, kind)
+    }
+}
 pub(crate) fn build_spatial(
     p: &PreparedIlpProblem,
     budget: u64,
@@ -72,7 +94,8 @@ fn build_with_start(
         .filter(|v| *v <= MAX_EXACT)
         .ok_or("numeric_range_exceeded")?;
     let max_weight = u64::from(p.settings.transition_weights.tip_only_milli)
-        + u64::from(p.settings.transition_weights.size_only_milli);
+        + u64::from(p.settings.transition_weights.size_only_milli)
+        + u64::from(p.settings.transition_weights.pile_count_milli);
     if max_weight
         .checked_mul(p.edges.len() as u64)
         .is_none_or(|x| x > MAX_EXACT)
@@ -172,39 +195,38 @@ fn build_with_start(
     if matches!(objective, Objective::Transitions) {
         let w = &p.settings.transition_weights;
         for (a, b) in &p.edges {
-            let start_differences = selected.as_ref().map(|selected| {
-                let left = selected[*a];
-                let right = match b {
-                    Neighbor::Unit(b) => selected[*b],
-                    Neighbor::Fixed(c) => c,
-                };
-                [
-                    label(left, 0) != label(right, 0),
-                    label(left, 1) != label(right, 1),
-                ]
-            });
-            for kind in 0..2 {
-                let weight = [w.tip_only_milli, w.size_only_milli][kind];
-                // An unweighted dimension does not contribute to the additive objective.
+            for kind in 0..3 {
+                let weight = [w.tip_only_milli, w.size_only_milli, w.pile_count_milli][kind];
                 if weight == 0 {
                     continue;
                 }
-                let d = vars.add(binary_with_start(start_differences.map(|d| d[kind])));
+                let start_difference = start.map(|start| {
+                    let left =
+                        transition_label(&p.units[*a], &p.units[*a].options[start[*a]], kind);
+                    let right = match b {
+                        Neighbor::Unit(b) => {
+                            transition_label(&p.units[*b], &p.units[*b].options[start[*b]], kind)
+                        }
+                        Neighbor::Fixed(c, count) => fixed_transition_label(c, *count, kind),
+                    };
+                    left != right
+                });
+                let d = vars.add(binary_with_start(start_difference));
                 transitions += f64::from(weight) * d;
                 let mut labels: BTreeSet<_> = p.units[*a]
                     .options
                     .iter()
-                    .map(|o| label(&o.configuration, kind))
+                    .map(|o| transition_label(&p.units[*a], o, kind))
                     .collect();
                 match b {
                     Neighbor::Unit(b) => labels.extend(
                         p.units[*b]
                             .options
                             .iter()
-                            .map(|o| label(&o.configuration, kind)),
+                            .map(|o| transition_label(&p.units[*b], o, kind)),
                     ),
-                    Neighbor::Fixed(c) => {
-                        labels.insert(label(c, kind));
+                    Neighbor::Fixed(c, count) => {
+                        labels.insert(fixed_transition_label(c, *count, kind));
                     }
                 }
                 for l in labels {
@@ -212,7 +234,7 @@ fn build_with_start(
                         .options
                         .iter()
                         .zip(&x[*a])
-                        .filter(|(o, _)| label(&o.configuration, kind) == l)
+                        .filter(|(o, _)| transition_label(&p.units[*a], o, kind) == l)
                         .map(|(_, v)| *v)
                         .sum();
                     let right: Expression = match b {
@@ -220,11 +242,15 @@ fn build_with_start(
                             .options
                             .iter()
                             .zip(&x[*b])
-                            .filter(|(o, _)| label(&o.configuration, kind) == l)
+                            .filter(|(o, _)| transition_label(&p.units[*b], o, kind) == l)
                             .map(|(_, v)| *v)
                             .sum(),
-                        Neighbor::Fixed(c) => {
-                            Expression::from(if label(c, kind) == l { 1.0 } else { 0.0 })
+                        Neighbor::Fixed(c, count) => {
+                            Expression::from(if fixed_transition_label(c, *count, kind) == l {
+                                1.0
+                            } else {
+                                0.0
+                            })
                         }
                     };
                     constraints.push((d - left.clone() + right.clone()).geq(0));
@@ -378,8 +404,8 @@ mod warm_start_tests {
         p.edges = vec![
             (0, Neighbor::Unit(1)),
             (1, Neighbor::Unit(2)),
-            (0, Neighbor::Fixed(fixed.clone())),
-            (1, Neighbor::Fixed(fixed)),
+            (0, Neighbor::Fixed(fixed.clone(), 1)),
+            (1, Neighbor::Fixed(fixed, 1)),
         ];
         p.settings.max_pile_tip_levels = Some(2);
         p.settings.max_pile_sizes = Some(2);
@@ -389,6 +415,7 @@ mod warm_start_tests {
             p.settings.transition_weights = crate::IlpTransitionWeights {
                 tip_only_milli: tip,
                 size_only_milli: size,
+                pile_count_milli: 0,
                 legacy_both_milli: None,
             };
             let model = build_spatial(&p, 32, &choices).unwrap();

@@ -5,7 +5,7 @@
 </p>
 
 <p align="center">
-  <a href="RELEASE_NOTES.md"><img src="https://img.shields.io/badge/release-v2026.44.1-D97706?style=flat-square" alt="Release v2026.44.1"></a>
+  <a href="RELEASE_NOTES.md"><img src="https://img.shields.io/badge/release-v2026.44.2-D97706?style=flat-square" alt="Release v2026.44.2"></a>
   <img src="https://img.shields.io/badge/status-Alpha-D97706?style=flat-square" alt="Status: Alpha">
   <a href="https://github.com/OpenAEC-Foundation/pile-plan-studio/releases"><img src="https://img.shields.io/github/downloads/OpenAEC-Foundation/pile-plan-studio/total?style=flat-square" alt="Total downloads"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-LGPL--3.0-blue?style=flat-square" alt="LGPL-3.0 license"></a>
@@ -50,8 +50,22 @@ browser.
   retaining matched assignments and CPT selections.
 - Organize load points into shared-configuration groups, lock assignments per
   plan, and maintain multiple named pile-plan variants in one project.
+- Explore a different pile count using the compact **Pile cap** control beside
+  the selection's grouping action, with proposals from 1 to 20 piles. Per-plan
+  proposals retain the total FEd,
+  show indicative options and costs, and remain available after saving and
+  reopening. **Plan > Pile cap changes** opens a compact overview of the active
+  plan's original and proposed counts; click a row to select and center its source
+  group at the current zoom. The selected group's count, rotation and Reset
+  controls are available directly above the list. **Reset all** clears the
+  active plan's proposals in one undoable action.
+  See [proposal limitations](docs/known-limitations.md#pile-cap-proposals).
 - Minimize cost with HiGHS, limit configuration diversity, and optionally
   reduce differences between neighboring load points within a cost budget.
+  Existing cap proposals participate at fixed counts; an explicit option allows
+  optimizing pile counts in groups and at single-pile locations. Choose individual
+  allowed counts and an optimizer maximum (default 6); existing larger counts
+  remain available to preserve.
 - Customize the plan legend, visible configurations, marker presentation,
   panels, and pile-option columns for compact inspection workflows.
 - Save projects as IFCPP with undo, redo, and browser recovery; import existing

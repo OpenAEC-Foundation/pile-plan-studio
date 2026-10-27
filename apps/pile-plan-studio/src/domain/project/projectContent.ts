@@ -220,6 +220,7 @@ function pilePlanToDocument(plan: ProjectContent["pilePlans"][number]): IfcppPil
   return {
     id: plan.id,
     name: plan.name,
+    pile_cap_proposals: structuredClone(plan.pileCapProposals ?? []),
     active_pile_sizes: [...plan.activePileSizes],
     active_pile_tip_levels: plan.activePileTipLevelMms.map((value) => value / 1_000),
     selected_piles: Object.fromEntries(

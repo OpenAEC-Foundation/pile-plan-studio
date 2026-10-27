@@ -24,6 +24,7 @@ export function buildPilePlanExportInput(state: PilePlanExportState, pileSizeFor
 export function buildPilePlanExportInputForPlan(state: ProjectState, planId: string, pileSizeFormat: PileSizeExportFormat = "numeric"): PilePlanExportInput {
   const plan = state.pilePlans.find((candidate) => candidate.id === planId);
   if (!plan) throw new Error("unknown_plan");
+  if (plan.pileCapProposals?.length) throw new Error("pile_cap_proposals_not_exportable");
   return buildPilePlanExportInput({
     loadPoints: state.loadPoints,
     pileCostSettings: state.pileCostSettings,

@@ -1,3 +1,4 @@
+import IlpPileCountSelector from "./IlpPileCountSelector.tsx";
 import {ilpCandidateCatalog} from "../../../../domain/pile-plans/ilp-optimization/ilpCandidates.ts";
 import IlpCandidateSelector from "./IlpCandidateSelector.tsx";
 import { useEffect, useMemo, useId, useRef, useState, type ReactNode } from "react";
@@ -85,7 +86,7 @@ export default function IlpOptimizationSettingsPanel({ newPlanName, onNewPlanNam
     </div>
       {children}
       <div className="ilp-settings">
-        <IlpDisclosure title={t("ilp.runSettings")} {...disclosure("optimize", [selected ? panel("optimization.selected", { count: state.selectedLoadPointIds.length }) : panel("optimization.allLoadPoints"), timeLimitSeconds===null?t("ilp.noTimeLimit"):t("ilp.timeLimitSummary",{count:Math.round(timeLimitSeconds/60)}), ...(s.skip_unsolvable_units ? [t("ilp.skipUnsolvable")] : [])].join(" · "))}>
+        <IlpDisclosure title={t("ilp.runSettings")} {...disclosure("optimize", [selected ? panel("optimization.selected", { count: state.selectedLoadPointIds.length }) : panel("optimization.allLoadPoints"), timeLimitSeconds===null?t("ilp.noTimeLimit"):t("ilp.timeLimitSummary",{count:Math.round(timeLimitSeconds/60)}), ...(s.skip_unsolvable_units ? [t("ilp.skipUnsolvable")] : []), ...(s.allow_pile_count_changes ? [t("ilp.allowPileCountChanges")] : [])].join(" · "))}>
           <p className="ilp-run-setting-label">{t("ilp.targetLocations")}</p>
           <div className="segmented-control">
             <button className={!selected ? "is-selected" : ""} type="button" onClick={() => onChange({ ...state, ilpOptimizationTargetScope: "all" })}>{panel("optimization.allLoadPoints")}</button>
@@ -96,6 +97,13 @@ export default function IlpOptimizationSettingsPanel({ newPlanName, onNewPlanNam
             <span>{t("ilp.skipUnsolvable")}</span>
           </label>
           <p className="supporting-text">{t("ilp.skipUnsolvableHelp")}</p>
+          <label className="settings-checkbox">
+            <input type="checkbox" checked={s.allow_pile_count_changes??false} disabled={running}
+              onChange={e=>update({allow_pile_count_changes:e.target.checked})}/>
+            <span>{t("ilp.allowPileCountChanges")}</span>
+          </label>
+          <p className="supporting-text">{t("ilp.pileCountChangesHelp")}</p>
+          <IlpPileCountSelector settings={s} disabled={running || !s.allow_pile_count_changes} onChange={update}/>
           <div className="ilp-duration-settings">
             <div className={`settings-number-row${timeLimitSeconds===null?" is-muted":""}`}>
               <label htmlFor={durationInputId}>{t("ilp.timeLimitMinutes")}</label>
@@ -134,10 +142,11 @@ export default function IlpOptimizationSettingsPanel({ newPlanName, onNewPlanNam
           <p className="supporting-text">{t("ilp.budgetHelp")}</p></>}
         </IlpDisclosure>
         {s.optimize_coherence && <>
-        <IlpDisclosure title={t("ilp.transitionWeights")} {...disclosure("neighbors", t("ilp.sectionSummary.weights", { tip: number(s.transition_weights.tip_only_milli / 1000), size: number(s.transition_weights.size_only_milli / 1000) }))}>
-          {(["tip_only_milli", "size_only_milli"] as const).map(key =>
-            <ScaledField key={key} label={t(`ilp.${key}`)} value={s.transition_weights[key]} decimals={3} onChange={v => update({ transition_weights: { ...s.transition_weights, [key]: v } })} />)}
+        <IlpDisclosure title={t("ilp.transitionWeights")} {...disclosure("neighbors", t("ilp.sectionSummary.weights", { tip: number(s.transition_weights.tip_only_milli / 1000), size: number(s.transition_weights.size_only_milli / 1000), count: number((s.transition_weights.pile_count_milli??0)/1000) }))}>
+          {(["tip_only_milli", "size_only_milli", "pile_count_milli"] as const).map(key =>
+            <ScaledField key={key} label={t(`ilp.${key}`)} value={s.transition_weights[key]??0} decimals={3} onChange={v => update({ transition_weights: { ...s.transition_weights, [key]: v } })} />)}
           <p className="supporting-text">{t("ilp.bothHelp")}</p>
+          <p className="supporting-text">{t("ilp.pileCountWeightHelp")}</p>
           {selected && <label className="settings-checkbox" title={t("ilp.boundaryHelp")}>
             <input type="checkbox" checked={state.ilpIncludeBoundaryTransitions} onChange={e => onChange({ ...state, ilpIncludeBoundaryTransitions: e.target.checked })} />
             <span>{t("ilp.boundary")}</span>

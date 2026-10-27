@@ -88,6 +88,7 @@ export function duplicatePilePlan(
 
   const copy: PilePlanData = {
     ...source,
+    pileCapProposals: structuredClone(source.pileCapProposals ?? []),
     id: nextPilePlanId(pilePlans),
     name: generatedPilePlanName(pilePlans, "duplicate", input.language, source.name),
     selectedPileConfigurationsByLoadPoint: cloneConfigurationMap(
@@ -117,6 +118,7 @@ export function createPilePlan(
     input.selectedPileConfigurationsByLoadPoint,
   );
   const created: PilePlanData = {
+    pileCapProposals: [],
     id: nextPilePlanId(pilePlans),
     name: generatedPilePlanName(pilePlans, input.kind, input.language),
     activePileSizes: [...input.activation.pileSizes],
@@ -153,6 +155,7 @@ export function createOptimizationPilePlan(
       .map(([loadPointId, references]) => [loadPointId, [...references]]),
   );
   const created: PilePlanData = {
+    pileCapProposals: [],
     id: nextPilePlanId(pilePlans),
     name: generatedPilePlanName(pilePlans, "optimization", input.language),
     ...planActivationFields(activationFromConfigurations(input.resolvedCandidateConfigurations)),

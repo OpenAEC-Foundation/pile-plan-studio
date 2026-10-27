@@ -1,3 +1,4 @@
+import type { PileCapProposal } from "./pileCapProposalTypes.ts";
 import type {
   BearingCapacity,
   Cpt,
@@ -91,6 +92,7 @@ type IfcppLoadPointGroupingSettings = {
 };
 
 export type IfcppPilePlan = {
+  pile_cap_proposals?: PileCapProposal[];
   id: string;
   name: string;
   active_pile_sizes?: number[];
@@ -206,6 +208,7 @@ export type LoadedProjectData = {
 };
 
 export type PilePlanData = {
+  pileCapProposals?: PileCapProposal[];
   id: string;
   name: string;
   activePileSizes: number[];
@@ -332,6 +335,7 @@ function pilePlanDataFromWire(
   return {
     id: plan.id,
     name: plan.name,
+    pileCapProposals: structuredClone(plan.pile_cap_proposals ?? []),
     activePileSizes: [...plan.active_pile_sizes!],
     activePileTipLevelMms: [...activePileTipLevelMms],
     selectedPileConfigurationsByLoadPoint: new Map(selectedEntries),

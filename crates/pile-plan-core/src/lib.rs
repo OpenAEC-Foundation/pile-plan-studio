@@ -7,6 +7,7 @@ mod load_point_groups;
 mod load_point_positions;
 mod mcp_project_edits;
 mod optimization;
+mod pile_cap_proposals;
 mod pile_configuration;
 mod pile_options;
 mod pile_plan_import;
@@ -78,6 +79,11 @@ pub use optimization::{
     OptimizationPreparationDiagnosticKind, OptimizationPreparationResult,
     OptimizationUnassignedReason, OptimizationUnit, OptimizationUnitOption,
     PrepareOptimizationUnitsInput,
+};
+pub use pile_cap_proposals::{
+    evaluate_pile_cap_proposals, pile_cap_pattern, PileCapOption, PileCapPlanPreview, PileCapPoint,
+    PileCapPreview, PileCapProposal, PileCapProposalEdit, PileCapProposalRequest,
+    PileCapProposalResult,
 };
 pub use pile_configuration::PileConfigurationKey;
 pub use pile_options::{

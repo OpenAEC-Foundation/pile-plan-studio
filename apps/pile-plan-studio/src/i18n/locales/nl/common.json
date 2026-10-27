@@ -122,7 +122,9 @@
       "nextCandidate": "Volgend object",
       "clickKey": "Klik",
       "addToSelection": "Toevoegen aan selectie"
-    }
+    },
+    "pileCapProposal": "Poervoorstel met {{count}} palen",
+    "pileCapCrowded": "Weinig ruimte voor deze schematische opstelling; afstanden zijn niet getoetst."
   },
   "legend": {
     "aria": "Legenda voor paalsymbolen",
@@ -253,7 +255,9 @@
       "missing": "ontbreekt",
       "changed": "gewijzigd"
     },
-    "optimizing": "Optimalisatie bezig"
+    "optimizing": "Optimalisatie bezig",
+    "proposalCount_one": "{{count}} poerwijziging",
+    "proposalCount_other": "{{count}} poerwijzigingen"
   },
   "sourceViewer": {
     "backToPlan": "Terug naar palenplan",

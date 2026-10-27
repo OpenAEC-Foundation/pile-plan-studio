@@ -6,6 +6,7 @@ use std::collections::BTreeSet;
 pub(crate) const MAX_EXACT: u64 = (1_u64 << 53) - 1;
 pub(crate) struct ValidatedAssignment {
     pub assignments: Vec<IlpAssignment>,
+    pub pile_cap_proposals: Vec<crate::PileCapProposal>,
     pub cost: u64,
     pub counts: IlpCounts,
     pub transitions: IlpTransitionCounts,
@@ -22,7 +23,9 @@ pub(crate) fn validate(
     let mut cost = 0_u64;
     let mut configs = p.outside.clone();
     let mut assignments = vec![];
+    let mut pile_cap_proposals = vec![];
     let mut selected = vec![];
+    let mut pile_counts = vec![];
     for (u, &choice) in p.units.iter().zip(choices) {
         let o = u.options.get(choice).ok_or("invalid_solver_assignment")?;
         if u.forced_configuration
@@ -31,12 +34,16 @@ pub(crate) fn validate(
         {
             return Err("lock_violation".into());
         }
+        if let Some(proposal) = &o.pile_cap_proposal {
+            pile_cap_proposals.push(proposal.clone());
+        }
         cost = cost
             .checked_add(o.total_cost)
             .filter(|n| *n <= MAX_EXACT)
             .ok_or("numeric_range_exceeded")?;
         configs.insert(o.configuration.clone());
         selected.push(&o.configuration);
+        pile_counts.push(o.pile_count(u.load_point_ids.len()));
         assignments.extend(u.load_point_ids.iter().map(|id| IlpAssignment {
             load_point_id: *id,
             configuration: o.configuration.clone(),
@@ -68,12 +75,15 @@ pub(crate) fn validate(
         }
     }
     let mut transitions = IlpTransitionCounts::default();
-    for (a, b) in &p.edges {
-        let a = selected[*a];
-        let b = match b {
-            Neighbor::Unit(u) => selected[*u],
-            Neighbor::Fixed(c) => c,
+    for (a_index, b) in &p.edges {
+        let a = selected[*a_index];
+        let (b, count) = match b {
+            Neighbor::Unit(u) => (selected[*u], pile_counts[*u]),
+            Neighbor::Fixed(c, count) => (c, *count),
         };
+        if pile_counts[*a_index] != count {
+            transitions.pile_count += 1;
+        }
         match (
             a.pile_tip_level_mm != b.pile_tip_level_mm,
             a.pile_size_mm != b.pile_size_mm,
@@ -87,6 +97,7 @@ pub(crate) fn validate(
     let w = &p.settings.transition_weights;
     let score = u64::from(transitions.tip_only) * u64::from(w.tip_only_milli)
         + u64::from(transitions.size_only) * u64::from(w.size_only_milli)
+        + u64::from(transitions.pile_count) * u64::from(w.pile_count_milli)
         + u64::from(transitions.both)
             * (u64::from(w.tip_only_milli) + u64::from(w.size_only_milli));
     if score > MAX_EXACT {
@@ -94,6 +105,7 @@ pub(crate) fn validate(
     }
     Ok(ValidatedAssignment {
         assignments,
+        pile_cap_proposals,
         cost,
         counts,
         transitions,

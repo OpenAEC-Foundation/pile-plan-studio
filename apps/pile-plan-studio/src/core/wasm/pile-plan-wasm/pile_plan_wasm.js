@@ -229,6 +229,18 @@ export function evaluate_mcp_project_edit(request) {
  * @param {any} request
  * @returns {any}
  */
+export function evaluate_pile_cap_proposals(request) {
+    const ret = wasm.evaluate_pile_cap_proposals(request);
+    if (ret[2]) {
+        throw takeFromExternrefTable0(ret[1]);
+    }
+    return takeFromExternrefTable0(ret[0]);
+}
+
+/**
+ * @param {any} request
+ * @returns {any}
+ */
 export function evaluate_pile_cost_catalog_edit(request) {
     const ret = wasm.evaluate_pile_cost_catalog_edit(request);
     if (ret[2]) {
@@ -655,7 +667,7 @@ function __wbg_get_imports() {
                 }
             };
             cb0._wbg_cb_unref = () => state0.a = 0;
-            // Cast intrinsic for `Closure(Closure { owned: false, function: Function { arguments: [Externref], shim_idx: 195, ret: Unit, inner_ret: Some(Unit) }, mutable: true }) -> Externref`.
+            // Cast intrinsic for `Closure(Closure { owned: false, function: Function { arguments: [Externref], shim_idx: 189, ret: Unit, inner_ret: Some(Unit) }, mutable: true }) -> Externref`.
             const ret = cb0;
             return ret;
         },

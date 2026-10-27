@@ -4,6 +4,17 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
 describe("Workspace translations", () => {
+  it("labels the per-plan pile cap overview and its selection action in both languages", () => {
+    for (const language of ["en", "nl"]) {
+      const panel = JSON.parse(readFileSync(resolve(import.meta.dirname, `../i18n/locales/${language}/rightPanel.json`), "utf8")).pileCapOverview;
+      const ribbon = JSON.parse(readFileSync(resolve(import.meta.dirname, `../i18n/locales/${language}/ribbon.json`), "utf8"));
+      assert.equal(ribbon.plan.pileCapChanges, panel.title);
+      assert.match(panel.help, language === "nl" ? /centreren/ : /center/);
+      for (const key of ["title", "close", "resetAll", "resetAllHelp", "empty", "help", "locations", "original", "proposed", "sourceMissing"]) assert.ok(panel[key]?.trim());
+      for (const suffix of ["one", "other"]) assert.ok(panel[`count_${suffix}`].includes("{{count}}"));
+      for (const field of ["locations", "original", "proposed"]) assert.ok(panel.select.includes(`{{${field}}}`));
+    }
+  });
   it("names the shared resizable selection and pile-options tab in both languages", () => {
     for (const language of ["en", "nl"]) {
       const copy = JSON.parse(readFileSync(resolve(import.meta.dirname, `../i18n/locales/${language}/rightPanel.json`), "utf8"));
@@ -69,6 +80,11 @@ describe("Workspace translations", () => {
       assert.ok(ribbon.targetLocations?.length);
       for(const key of ["saveAs","planName","currentPlan","customCandidates","customHelp","chooseCandidates","utilizationAndCost","allowedConfigurations","selectSizeCandidates","selectTipCandidates","selectAllCandidates","clearCandidates"])assert.ok(ribbon[key]?.length);
       assert.ok(ribbon.skipUnsolvableHelp?.length);
+      for(const key of ["allowPileCountChanges","pileCountChangesHelp","pile_count_milli","pileCountWeightHelp","choosePileCounts","allowedPileCounts","maxPilesPerCap","pileCountsSummary","pileCountsHelp","selectAllPileCounts","clearPileCounts","pileCountLabel_one","pileCountLabel_other","invalidPileCountMaximum","chooseAtLeastOnePileCount","existingPileCountsHelp"])assert.ok(ribbon[key]?.length);
+      assert.equal(ribbon.pile_count_milli, language === "nl"
+        ? "Gewicht verschillen in poergrootte"
+        : "Pile cap size difference weight");
+      for(const key of ["piles","pileCaps","pileCountDifferences","usedPileCountWeight","usedPileCountMaximum","usedAllowedPileCounts"])assert.ok(panel[key]?.length);
       for (const key of ["tips", "sizes", "configurations", "unlimited", "weights", "currentPlan"]) assert.ok(ribbon.sectionSummary[key]?.length);
       assert.ok(panel.details?.length);
       assert.ok(panel.enableSkipUnsolvable?.length);
@@ -426,10 +442,11 @@ it("explains the running plan, cooperative stopping and historical results in bo
   }
 });
 
-it("describes two additive neighbor weights in both languages",()=>{
+it("describes three additive neighbor weights in both languages",()=>{
   for(const language of ["nl","en"]) {
     const copy=JSON.parse(readFileSync(resolve(import.meta.dirname,`../i18n/locales/${language}/ribbon.json`),"utf8")).ilp;
-    assert.ok(copy.tip_only_milli && copy.size_only_milli);
+    assert.ok(copy.tip_only_milli && copy.size_only_milli && copy.pile_count_milli);
+    assert.ok(copy.pileCountWeightHelp);
     assert.equal(copy.both_milli,undefined);
     assert.match(copy.bothHelp,language==="nl"?/opgeteld/:/added together/);
     assert.doesNotMatch(copy.sectionSummary.weights,/both/);

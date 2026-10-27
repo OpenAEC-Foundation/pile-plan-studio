@@ -14,7 +14,7 @@ use crate::{
     SelectedPileChoice, ValidatedPilePlanProject, APPLICATION_NAME,
 };
 
-const CURRENT_SCHEMA_VERSION: u32 = 5;
+const CURRENT_SCHEMA_VERSION: u32 = 6;
 
 #[derive(Debug)]
 pub enum IfcppError {
@@ -399,10 +399,15 @@ fn validate_ifcpp_project_with_keys(
         return Err(IfcppError::InvalidSchema(project.schema.clone()));
     }
 
-    if !matches!(project.schema_version, 1 | 2 | 3 | 4 | 5) {
+    if !matches!(project.schema_version, 1 | 2 | 3 | 4 | 5 | 6) {
         return Err(IfcppError::UnsupportedSchemaVersion(project.schema_version));
     }
 
+    for plan in &project.user_state.pile_plans {
+        crate::pile_cap_proposals::validate_proposals(&plan.pile_cap_proposals).map_err(
+            |message| IfcppError::Json(<JsonError as serde::de::Error>::custom(message)),
+        )?;
+    }
     let mut pile_plan_ids = std::collections::HashSet::new();
     if let Some(duplicate_id) = project
         .user_state
@@ -431,6 +436,10 @@ fn migrate_legacy_project_value(value: &mut Value) {
         .get("schema_version")
         .and_then(Value::as_u64)
         .unwrap_or(0);
+    if original_schema_version == 5 {
+        value["schema_version"] = Value::from(CURRENT_SCHEMA_VERSION);
+        return;
+    }
     if !matches!(original_schema_version, 1 | 2 | 3 | 4) {
         return;
     }
@@ -668,7 +677,7 @@ mod tests {
 
         let restored = read_ifcpp_str(&value.to_string()).expect("schema four migrates");
 
-        assert_eq!(restored.schema_version, 5);
+        assert_eq!(restored.schema_version, 6);
         assert!(restored
             .settings
             .load_point_grouping
@@ -977,7 +986,7 @@ mod tests {
             let json = serde_json::to_string(&value).unwrap();
             let restored = read_ifcpp_str(&json).unwrap();
 
-            assert_eq!(restored.schema_version, 5);
+            assert_eq!(restored.schema_version, 6);
             assert_eq!(
                 restored.user_state.pile_plans[0].active_pile_tip_levels,
                 vec![-18.25]
@@ -986,7 +995,7 @@ mod tests {
     }
 
     #[test]
-    fn supported_versions_produce_canonical_schema_five_semantics() {
+    fn supported_versions_produce_canonical_schema_six_semantics() {
         for schema_version in 1..=5 {
             let mut value = serde_json::to_value(project_fixture()).expect("fixture serializes");
             value["schema_version"] = serde_json::json!(schema_version);
@@ -1050,7 +1059,7 @@ mod tests {
             .expect("supported project reads")
             .project;
 
-            assert_eq!(restored.schema_version, 5, "schema {schema_version}");
+            assert_eq!(restored.schema_version, 6, "schema {schema_version}");
             assert_eq!(
                 restored.settings.load_point_grouping,
                 crate::LoadPointGroupingSettings::default(),
@@ -1238,7 +1247,7 @@ mod tests {
         let value: Value = serde_json::from_str(&text).expect("written document parses");
 
         assert_eq!(value["schema"], "IFCPP");
-        assert_eq!(value["schema_version"], 5);
+        assert_eq!(value["schema_version"], 6);
         assert_eq!(value["application"]["name"], "Open Pile Plan Studio");
         assert_eq!(value["application"]["version"], env!("CARGO_PKG_VERSION"));
         assert_eq!(value["user_state"]["active_pile_plan_id"], "pile-plan-1");
@@ -1465,14 +1474,14 @@ mod tests {
     }
 
     #[test]
-    fn writing_a_legacy_project_emits_schema_version_five() {
+    fn writing_a_legacy_project_emits_schema_version_six() {
         let mut project = project_fixture();
         project.schema_version = 1;
 
         let json = write_ifcpp_string(&project).expect("legacy project writes canonically");
         let value: serde_json::Value = serde_json::from_str(&json).expect("written JSON parses");
 
-        assert_eq!(value["schema_version"], 5);
+        assert_eq!(value["schema_version"], 6);
         assert!(value["user_state"].get("selected_piles").is_none());
     }
 
@@ -1489,7 +1498,7 @@ mod tests {
     }
 
     #[test]
-    fn schema_two_costs_migrate_to_schema_five() {
+    fn schema_two_costs_migrate_to_schema_six() {
         let mut value = serde_json::to_value(project_fixture()).expect("fixture serializes");
         value["schema_version"] = serde_json::json!(2);
         value["units"]["costs"] = serde_json::json!("GBP");
@@ -1511,7 +1520,7 @@ mod tests {
         let json = serde_json::to_string(&value).expect("legacy JSON writes");
         let project = read_ifcpp_str(&json).expect("schema two migrates");
 
-        assert_eq!(project.schema_version, 5);
+        assert_eq!(project.schema_version, 6);
         assert_eq!(project.settings.pile_head_level_m, Some(-1.25));
         assert_eq!(project.settings.pile_costs.items[0].cost_per_m3, 190.0);
         assert_eq!(project.units.costs, "GBP");
@@ -1538,7 +1547,7 @@ mod tests {
             .expect("schema three migrates");
         let migrated = serde_json::to_value(project).expect("migrated project serializes");
 
-        assert_eq!(migrated["schema_version"], 5);
+        assert_eq!(migrated["schema_version"], 6);
         for plan in migrated["user_state"]["pile_plans"]
             .as_array()
             .expect("pile plans remain an array")
@@ -1564,9 +1573,9 @@ mod tests {
     }
 
     #[test]
-    fn schema_five_round_trips_distinct_pile_plan_activation() {
+    fn schema_six_round_trips_distinct_pile_plan_activation() {
         let mut project = project_fixture();
-        project.schema_version = 5;
+        project.schema_version = 6;
         project.user_state.pile_plans[0].active_pile_sizes = vec![290];
         project.user_state.pile_plans[0].active_pile_tip_levels = vec![-18.0];
         let mut second_plan = project.user_state.pile_plans[0].clone();
@@ -1581,7 +1590,7 @@ mod tests {
 
         assert_eq!(restored, project);
         let written: serde_json::Value = serde_json::from_str(&json).expect("JSON parses");
-        assert_eq!(written["schema_version"], 5);
+        assert_eq!(written["schema_version"], 6);
         assert!(written["settings"].get("active_pile_sizes").is_none());
         assert_eq!(
             written["user_state"]["pile_plans"][1]["active_pile_sizes"],
@@ -1603,7 +1612,7 @@ mod tests {
     fn project_fixture() -> PilePlanProject {
         PilePlanProject {
             schema: "IFCPP".to_string(),
-            schema_version: 5,
+            schema_version: 6,
             application: ProjectApplication {
                 name: APPLICATION_NAME.to_string(),
                 version: "0.1.0-alpha".to_string(),

@@ -1,5 +1,9 @@
+import PileCapProposalControl from "./PileCapProposalControl.tsx";
+import PileCapChangesPanel from "./PileCapChangesPanel.tsx";
+import { findSelectedPileCapGroup, pileCapGroupKey } from "../../../domain/pile-plans/pileCapProposals.ts";
+import type { PileCapProposalResult, PileCapProposal } from "../../../core/pileCapProposalTypes.ts";
 import { useTranslation } from "react-i18next";
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import type { ProjectState } from "../../../domain/project/projectState.ts";
 import type { PileConfigurationKey, PileCostSettings } from "../../../core/projectTypes.ts";
 import type { CostCatalogAction } from "../../../core/settingsEditCoreClient.ts";
@@ -29,9 +33,15 @@ import LoadPointGroupEditButton from "./LoadPointGroupEditButton.tsx";
 import { setLoadPointSelection } from "../../../domain/workspace/selectionState.ts";
 import type { CptEditCompletion, CptSelectionMethod } from "../../../app/project/manualCptEditController.ts";
 
-export type RightTaskPanel = "cpt-settings" | "cost-settings" | "grouping-settings" | "ilp-optimization";
+export type RightTaskPanel = "cpt-settings" | "cost-settings" | "grouping-settings" | "ilp-optimization" | "pile-cap-changes";
 
 export type RightPanelProps = {
+  pileCapResult?: PileCapProposalResult | null;
+  pileCapPending?: boolean;
+  pileCapError?: boolean;
+  onEditPileCap?: (proposal:PileCapProposal,remove?:boolean)=>void;
+  onResetAllPileCaps?: () => void;
+
   columnLayouts?: PileOptionColumnLayouts;
   onColumnLayoutChange?: (mode: keyof PileOptionColumnLayouts, layout: PileOptionColumnLayout) => void;
   splitRatio?: number;
@@ -57,6 +67,7 @@ export type RightPanelProps = {
     selectedLoadPointIds?: number[],
   ) => Promise<void>;
   onStateChange: (nextState: ProjectState) => void;
+  onSelectLoadPoints?: (ids: number[]) => void;
   pileAssignmentPending?: boolean;
   onApplyPileConfiguration?: (
     selectedLoadPointIds: number[],
@@ -73,6 +84,8 @@ export type RightPanelProps = {
 };
 
 export default function RightPanel({
+  pileCapResult=null, pileCapPending=false, pileCapError=false, onEditPileCap=()=>{},
+  onResetAllPileCaps = () => undefined,
   columnLayouts = normalizePileOptionColumnLayouts(undefined),
   onColumnLayoutChange = () => undefined,
   ilpResult,
@@ -102,6 +115,7 @@ export default function RightPanel({
   onPreviewLoadPointGroupEdit = async () => null,
   onApplyLoadPointGroupEdit = async () => undefined,
   onStateChange: publishState,
+  onSelectLoadPoints,
   pileAssignmentPending = false,
   onApplyPileConfiguration = () => undefined,
   taskPanel = null,
@@ -115,6 +129,14 @@ export default function RightPanel({
 }: RightPanelProps) {
   const { t } = useTranslation("rightPanel");
   const selectedLoadPoints = getSelectedLoadPoints(state);
+  const [pileCapOpen,setPileCapOpen]=useState(false);
+  const capIds=findSelectedPileCapGroup(state.selectedLoadPointIds,loadPointGroups);
+  const capPlan=state.pilePlans.find(p=>p.id===state.activePilePlanId);
+  const capProposal=capIds?capPlan?.pileCapProposals?.find(p=>pileCapGroupKey(p.load_point_ids)===pileCapGroupKey(capIds))??null:null;
+  const capPreview=capProposal?pileCapResult?.plans.find(p=>p.plan_id===state.activePilePlanId)?.previews.find(p=>pileCapGroupKey(p.proposal.load_point_ids)===pileCapGroupKey(capProposal.load_point_ids))??null:null;
+  const invalidCaps=(pileCapResult?.plans.find(p=>p.plan_id===state.activePilePlanId)?.previews??[]).filter(p=>p.status==='group_changed'&&(p.proposal.load_point_ids.some(id=>state.selectedLoadPointIds.includes(id))||!p.proposal.load_point_ids.some(id=>state.loadPoints.some(point=>point.id===id))));
+  const capDisabled=groupEditPending||cptEditPending||pileCapPending||pileAssignmentPending||state.cptSelectionEditDraft!==null||state.loadPointLockDraft!==null;
+
   const selectionContextIds = getLoadPointSelectionContext(state, loadPointGroups);
   const onStateChange = (next: ProjectState) => publishState(synchronizeManualCptSelection(next));
   const changePanelView = (next: ProjectState) => {
@@ -130,6 +152,8 @@ export default function RightPanel({
     </div>
   ) : (
     <LoadPointPanel
+      pileCapProposal={state.cptSelectionEditDraft||state.loadPointLockDraft?null:capProposal} pileCapPreview={capPreview} pileCapPending={pileCapPending} pileCapError={pileCapError}
+      onPileCapConfigurationChange={configuration=>capProposal&&onEditPileCap({...capProposal,configuration})}
       state={state}
       onStateChange={onStateChange}
       pileAssignmentPending={pileAssignmentPending}
@@ -163,10 +187,27 @@ export default function RightPanel({
         onLayoutChange={onSelectionLayoutChange} disabled={cptEditPending}
         onSelect={ids => onStateChange({ ...state, ...setLoadPointSelection(state, ids,
           { context: { loadPoints: state.loadPoints, ids: selectionContextIds } }) })}
-        groupControl={selectedLoadPoints.length > 1 ? <LoadPointGroupEditButton editPending={groupEditPending || cptEditPending}
+        groupControl={<span className="selection-overview-actions">{selectedLoadPoints.length > 1 ? <LoadPointGroupEditButton editPending={groupEditPending || cptEditPending}
           groups={loadPointGroups} selectedLoadPointIds={state.selectedLoadPointIds}
-          onApply={onApplyLoadPointGroupEdit} onPreview={onPreviewLoadPointGroupEdit} /> : null} /> : null}
-      {taskPanel === "ilp-optimization" ? ilpResult : taskPanel === "cost-settings" ? (
+          onApply={onApplyLoadPointGroupEdit} onPreview={onPreviewLoadPointGroupEdit} /> : null}
+          {capIds?<button className="pile-cap-toggle" type="button" aria-expanded={pileCapOpen} onClick={()=>setPileCapOpen(!pileCapOpen)}>{t("pileCap.title")}</button>:null}</span>}
+        extraContent={<>{pileCapOpen&&capIds?<PileCapProposalControl state={state} ids={capIds} proposal={capProposal} preview={capPreview} pending={capDisabled} onEdit={onEditPileCap}/>:null}
+          {invalidCaps.map(cap=><div className="pile-cap-invalid" role="status" key={pileCapGroupKey(cap.proposal.load_point_ids)}><span>{t("pileCap.groupChanged")}</span><button type="button" disabled={capDisabled} onClick={()=>onEditPileCap(cap.proposal,true)}>{t("pileCap.remove")}</button></div>)}</>}/>:null}
+      {taskPanel === "pile-cap-changes" ? <PileCapChangesPanel
+        state={state}
+        previews={pileCapResult?.plans.find(plan => plan.plan_id === state.activePilePlanId)?.previews ?? []}
+        selectionPending={cptEditPending}
+        resetDisabled={capDisabled}
+        onResetAll={onResetAllPileCaps}
+        selectionControls={capIds ? <section className="pile-cap-changes-selection" aria-label={t("selectionOverview.title")}>
+          <h3>{t("selectionOverview.title")} <span>{capIds.join(", ")}</span></h3>
+          <PileCapProposalControl state={state} ids={capIds} proposal={capProposal} preview={capPreview}
+            pending={capDisabled} onEdit={onEditPileCap} />
+        </section> : null}
+        onSelect={ids => onSelectLoadPoints ? onSelectLoadPoints(ids)
+          : onStateChange({ ...state, ...setLoadPointSelection({ ...state, rightPanelMode: "load-point" }, ids) })}
+        onClose={onCloseTaskPanel}
+      /> : taskPanel === "ilp-optimization" ? ilpResult : taskPanel === "cost-settings" ? (
         <CostSettingsPanel
           state={state}
           onEditCosts={onEditCosts}

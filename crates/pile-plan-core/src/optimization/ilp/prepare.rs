@@ -9,7 +9,7 @@ use std::collections::{BTreeSet, HashMap};
 #[derive(Clone, Debug, PartialEq)]
 pub(crate) enum Neighbor {
     Unit(usize),
-    Fixed(PileConfigurationKey),
+    Fixed(PileConfigurationKey, usize),
 }
 #[derive(Clone, Debug, PartialEq)]
 pub(crate) struct PreparedIlpProblem {
@@ -18,6 +18,7 @@ pub(crate) struct PreparedIlpProblem {
     pub edges: Vec<(usize, Neighbor)>,
     pub diagnostics: Vec<IlpDiagnostic>,
     pub settings: IlpOptimizationSettings,
+    pub current_pile_cap_proposals: Vec<crate::PileCapProposal>,
 }
 pub(crate) fn diagnostic(code: &str, ids: Vec<u32>, blocking: bool) -> IlpDiagnostic {
     IlpDiagnostic {
@@ -46,6 +47,8 @@ pub(crate) fn prepare(
     {
         return Err(blocked("invalid_cost_settings"));
     }
+    let caps = super::pile_caps::prepare_caps(input)?;
+    let input = &caps.input;
     let ids: BTreeSet<_> = input.load_points.iter().map(|p| p.id).collect();
     let grouped: Vec<_> = input
         .groups
@@ -111,6 +114,7 @@ pub(crate) fn prepare(
             enabled_configurations: candidates.clone(),
         },
     });
+    caps.apply(&mut prepared.units);
     let mut diagnostics: Vec<_> = prepared
         .diagnostics
         .iter()
@@ -125,6 +129,7 @@ pub(crate) fn prepare(
         })
         .collect();
     let input_error = !diagnostics.is_empty();
+    diagnostics.extend(caps.diagnostics.clone());
     let mut solvable = vec![];
     for group in &target_groups {
         if prepared
@@ -195,7 +200,8 @@ pub(crate) fn prepare(
             if !d.load_point_ids.is_empty()
                 && matches!(
                     d.code.as_str(),
-                    "missing_analysis_data"
+                    "missing_cpt_selection"
+                        | "missing_analysis_data"
                         | "missing_capacity_data"
                         | "insufficient_capacity"
                         | "no_common_group_configuration"
@@ -272,7 +278,13 @@ pub(crate) fn prepare(
                 })
             });
             if valid {
-                fixed.insert(index, c.unwrap().clone());
+                let count = caps
+                    .current_proposals
+                    .iter()
+                    .find(|p| p.load_point_ids == g.load_point_ids)
+                    .map(|p| usize::from(p.pile_count))
+                    .unwrap_or(g.load_point_ids.len());
+                fixed.insert(index, (c.unwrap().clone(), count));
             } else {
                 diagnostics.push(diagnostic(
                     "invalid_fixed_neighbor",
@@ -291,12 +303,12 @@ pub(crate) fn prepare(
             (Some(a), Some(b)) => edges.push((*a, Neighbor::Unit(*b))),
             (Some(a), None) => {
                 if let Some(c) = fixed.get(&b) {
-                    edges.push((*a, Neighbor::Fixed(c.clone())));
+                    edges.push((*a, Neighbor::Fixed(c.0.clone(), c.1)));
                 }
             }
             (None, Some(b)) => {
                 if let Some(c) = fixed.get(&a) {
-                    edges.push((*b, Neighbor::Fixed(c.clone())));
+                    edges.push((*b, Neighbor::Fixed(c.0.clone(), c.1)));
                 }
             }
             _ => {}
@@ -308,5 +320,6 @@ pub(crate) fn prepare(
         edges,
         diagnostics,
         settings: input.settings.clone(),
+        current_pile_cap_proposals: caps.current_proposals,
     })
 }

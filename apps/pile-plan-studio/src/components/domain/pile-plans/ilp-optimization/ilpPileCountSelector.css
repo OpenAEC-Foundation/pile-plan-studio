@@ -1,0 +1,62 @@
+.ilp-pile-count-selector { display: grid; min-width: 0; gap: 5px; margin-bottom: 10px; }
+.ilp-pile-count-selector > button { justify-self: start; max-width: 100%; }
+.ilp-pile-count-selector .supporting-text { overflow-wrap: anywhere; }
+.ilp-pile-count-dialog { max-width: calc(100vw - 24px); }
+.ilp-pile-count-dialog .modal-body { padding: 12px; gap: 10px; overflow-y: auto; font-size: 12px; line-height: 1.45; }
+.ilp-pile-count-dialog .supporting-text { margin: 0; color: var(--theme-text-secondary); font-size: 11px; line-height: 1.45; }
+
+/* Keep action styling separate from the number input's small stepper buttons. */
+.ilp-pile-count-selector > button,
+.ilp-pile-count-actions > button,
+.ilp-pile-count-dialog .modal-footer > button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  min-height: 26px;
+  margin: 0;
+  padding: 4px 7px;
+  border: 1px solid var(--theme-border);
+  border-radius: 4px;
+  background: var(--theme-bg);
+  color: var(--theme-text);
+  font: inherit;
+  font-size: 11px;
+  line-height: 16px;
+  cursor: pointer;
+}
+.ilp-pile-count-selector > button:hover:not(:disabled),
+.ilp-pile-count-actions > button:hover:not(:disabled),
+.ilp-pile-count-dialog .modal-footer > button:hover:not(:disabled) {
+  background: var(--theme-ribbon-btn-hover);
+  border-color: var(--theme-ribbon-btn-hover-border);
+}
+.ilp-pile-count-selector > button:focus-visible,
+.ilp-pile-count-actions > button:focus-visible,
+.ilp-pile-count-dialog .modal-footer > button:focus-visible {
+  outline: 1px solid var(--theme-accent);
+  outline-offset: 1px;
+}
+.ilp-pile-count-selector > button:disabled,
+.ilp-pile-count-actions > button:disabled,
+.ilp-pile-count-dialog .modal-footer > button:disabled { opacity: .45; cursor: default; }
+.ilp-pile-count-dialog .modal-footer .primary-action { border-color: var(--theme-accent); font-weight: 600; }
+
+.ilp-pile-count-maximum { display: flex; align-items: center; gap: 12px; justify-content: space-between; }
+.ilp-pile-count-maximum .themed-number-input { width: 76px; flex: none; }
+.ilp-pile-count-maximum input {
+  height: 28px;
+  padding: 4px 7px;
+  border: 1px solid var(--theme-dialog-input-border);
+  border-radius: 4px;
+  background: var(--theme-dialog-input-bg);
+  color: var(--theme-text);
+  font: inherit;
+  font-variant-numeric: tabular-nums;
+}
+.ilp-pile-count-maximum input:focus-visible { outline: 1px solid var(--theme-accent); outline-offset: 1px; }
+.ilp-pile-count-actions { display: flex; flex-wrap: wrap; gap: 6px; }
+.ilp-pile-count-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 2px 8px; }
+.ilp-pile-count-grid label { display: flex; align-items: center; gap: 6px; padding: 4px 0; white-space: nowrap; cursor: pointer; }
+.ilp-pile-count-grid input { flex: none; width: 13px; height: 13px; margin: 0; accent-color: var(--theme-accent); cursor: inherit; }
+.ilp-pile-count-grid .is-disabled { opacity: .45; cursor: default; }

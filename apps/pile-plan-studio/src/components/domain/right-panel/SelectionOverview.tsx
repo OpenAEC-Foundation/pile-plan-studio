@@ -10,10 +10,10 @@ import "./SelectionOverview.css";
 
 export type SelectionOverviewLayout = { rows: number; collapsed: boolean };
 
-export default function SelectionOverview({ loadPoints, selectedIds, contextIds, groups, onSelect, rows, collapsed, onLayoutChange, disabled, groupControl }: {
+export default function SelectionOverview({ loadPoints, selectedIds, contextIds, groups, onSelect, rows, collapsed, onLayoutChange, disabled, groupControl, extraContent }: {
   loadPoints: LoadPoint[]; selectedIds: number[]; contextIds: number[]; groups: LoadPointGroup[];
   onSelect: (ids: number[]) => void; rows: number; collapsed: boolean;
-  onLayoutChange: (patch: Partial<SelectionOverviewLayout>) => void; disabled: boolean; groupControl: ReactNode;
+  onLayoutChange: (patch: Partial<SelectionOverviewLayout>) => void; disabled: boolean; groupControl: ReactNode; extraContent?: ReactNode;
 }) {
   const { t } = useTranslation("rightPanel");
   const contentId = useId();
@@ -40,6 +40,7 @@ export default function SelectionOverview({ loadPoints, selectedIds, contextIds,
       </button></h2>
       {groupControl}
     </header>
+    {extraContent}
     {!collapsed ? <div id={contentId} className="selection-overview-content">
       {contextIds.length > 0 ? <>
         <LoadPointSelectionList loadPoints={loadPoints} selectedLoadPointIds={selectedIds} contextLoadPointIds={contextIds}

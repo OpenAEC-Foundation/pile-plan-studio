@@ -23,7 +23,7 @@ pub use foundation_advice::CptBearingCapacityRow;
 pub use status::{pile_option_technical_status, PileOptionTechnicalStatus};
 
 use crate::{cpt_selection::SelectedCpt, pile_configuration::PileConfigurationKey};
-use foundation_advice::FoundationAdviceIndex;
+pub(crate) use foundation_advice::FoundationAdviceIndex;
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
 pub struct PileConfigurationOption {

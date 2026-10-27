@@ -1,3 +1,4 @@
+import {pileCapProposalDraft} from "../derived-state/pileCapProposalController.ts";
 import {ilpCandidateCatalog,ilpCandidates} from "../../domain/pile-plans/ilp-optimization/ilpCandidates.ts";
 import {generatedPilePlanName} from "../../domain/pile-plans/pilePlanManagement.ts";
 import {useEffect,useMemo,useRef,useState,type Dispatch,type SetStateAction} from "react";
@@ -51,7 +52,7 @@ export function useIlpOptimization(state:ProjectState,groups:LoadPointGroup[],re
     runMeta.current={runId,timeLimitSeconds:options.timeLimitSeconds,targetLoadPointIds:resolved.targetLoadPointIds};
     viewingTarget.current=true;
     void controller.current?.start({runId,timeLimitMs:resolved.timeLimitMs,localOnly:options.localOnly,input:{
-      loadPoints:state.loadPoints,groups,optionsByLoadPoint:state.pileOptionsByLoadPointId,
+      pileCapContext:pileCapProposalDraft(state),loadPoints:state.loadPoints,groups,optionsByLoadPoint:state.pileOptionsByLoadPointId,
       targetLoadPointIds:resolved.targetLoadPointIds,lockedLoadPointIds:active.lockedLoadPointIds,currentAssignments:state.selectedPileConfigurationsByLoadPoint,
       candidateConfigurations:candidates,pileHeadLevelM:state.pileHeadLevelM,costSettings:state.pileCostSettings,
       settings:state.ilpOptimizationSettings,limitScope:resolved.limitScope,includeBoundaryTransitions:resolved.includeBoundaryTransitions,

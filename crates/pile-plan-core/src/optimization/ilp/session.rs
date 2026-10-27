@@ -81,7 +81,9 @@ impl IlpOptimizationSession {
         let weights = &p.settings.transition_weights;
         let needs_spatial = p.settings.optimize_coherence
             && !p.edges.is_empty()
-            && (weights.tip_only_milli != 0 || weights.size_only_milli != 0);
+            && (weights.tip_only_milli != 0
+                || weights.size_only_milli != 0
+                || weights.pile_count_milli != 0);
         if cancelled() {
             return Ok(IlpOptimizationOutcome::Cancelled);
         }
@@ -452,6 +454,7 @@ fn solution(
 ) -> IlpSolution {
     IlpSolution {
         assignments: valid.assignments,
+        pile_cap_proposals: valid.pile_cap_proposals,
         cost: valid.cost,
         budget,
         reference,

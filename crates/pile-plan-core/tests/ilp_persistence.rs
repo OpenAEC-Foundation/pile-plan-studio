@@ -15,7 +15,7 @@ fn joint_weight_is_retired_for_new_runs() {
     assert_eq!(
         saved["settings"]["ilp_optimization"]["transition_weights"],
         serde_json::json!({
-            "tip_only_milli": 1500, "size_only_milli": 2500
+            "tip_only_milli": 1500, "size_only_milli": 2500, "pile_count_milli": 0
         })
     );
 }
@@ -79,6 +79,10 @@ fn legacy_projects_receive_independent_ilp_settings_with_five_percent_budget() {
         assert_eq!(
             json["settings"]["ilp_optimization"]["budget_basis_points"],
             500
+        );
+        assert_eq!(
+            json["settings"]["ilp_optimization"]["transition_weights"]["pile_count_milli"],
+            0
         );
         assert_eq!(json["settings"]["ilp_optimization"]["max_pile_sizes"], 4);
         json["settings"]["ilp_optimization"]["budget_basis_points"] = 1000.into();

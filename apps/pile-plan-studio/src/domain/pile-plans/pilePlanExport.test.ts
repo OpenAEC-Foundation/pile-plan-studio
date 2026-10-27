@@ -31,3 +31,9 @@ describe("pile-plan export for explicit plans", () => {
     assert.throws(() => buildPilePlanExportInputForPlan(state, "missing"), /unknown_plan/);
   });
 });
+
+it("does not export a proposal-bearing plan as if its source piles were the effective layout",()=>{
+ const base=createInitialProjectState(project,{initializeDefaultPiles:false},projectTipLevelKeysForTest(project));
+ const state={...base,pilePlans:base.pilePlans.map(plan=>({...plan,pileCapProposals:[{load_point_ids:[15,43],pile_count:3,quarter_turns:0,configuration:null}]}))};
+ assert.throws(()=>buildPilePlanExportInputForPlan(state,state.activePilePlanId),/pile_cap_proposals_not_exportable/);
+});

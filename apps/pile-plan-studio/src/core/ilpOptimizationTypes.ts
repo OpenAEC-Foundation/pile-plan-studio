@@ -1,8 +1,13 @@
+import type { PileCapProposal } from "./pileCapProposalTypes.ts";
+import type { ProjectDocumentDraft } from "./projectDocumentContract.ts";
 import type { LoadPointGroup } from "./loadPointGroupContract.ts";
 import type { LoadPoint, PileConfigurationKey, PileConfigurationOption, PileCostSettings, OptimizationLimitScope } from "./projectTypes.ts";
 
-export type IlpTransitionWeights = { tip_only_milli: number; size_only_milli: number; /** Historical result metadata only; ignored for new optimizations. */ both_milli?: number };
+export type IlpTransitionWeights = { tip_only_milli: number; size_only_milli: number; pile_count_milli?: number; /** Historical result metadata only; ignored for new optimizations. */ both_milli?: number };
 export type IlpOptimizationSettings = {
+  allow_pile_count_changes?: boolean;
+  max_piles_per_cap?: number;
+  allowed_pile_counts?: number[];
   skip_unsolvable_units: boolean;
   optimize_coherence: boolean;
   max_pile_tip_levels: number | null; max_pile_sizes: number | null; max_pile_configurations: number | null;
@@ -12,6 +17,7 @@ export type IlpOptimizationSettings = {
 };
 export type OptimizationTargetScope = "all" | "selected";
 export type IlpOptimizationContractInput = {
+  pileCapContext?: ProjectDocumentDraft;
   groups: LoadPointGroup[];
   optionsByLoadPoint: Map<number, PileConfigurationOption[]>;
   targetLoadPointIds: number[];
@@ -30,9 +36,10 @@ export type IlpProof = "optimal" | "feasible" | "infeasible" | "unknown";
 export type IlpCounts = { tip_levels: number; pile_sizes: number; configurations: number };
 export type IlpAssignment = { load_point_id: number; configuration: PileConfigurationKey };
 export type IlpSolution = {
+  pile_cap_proposals?: PileCapProposal[];
   assignments: IlpAssignment[]; cost: number; budget: number;
   reference: { cost: number; proof: IlpProof; termination: IlpTermination };
-  counts: IlpCounts; transitions: { tip_only: number; size_only: number; both: number };
+  counts: IlpCounts; transitions: { tip_only: number; size_only: number; both: number; pile_count?: number };
   score_milli: number; proof: IlpProof; termination: IlpTermination;
 };
 export type IlpDiagnostic = { code: string; load_point_ids: number[]; blocking: boolean };

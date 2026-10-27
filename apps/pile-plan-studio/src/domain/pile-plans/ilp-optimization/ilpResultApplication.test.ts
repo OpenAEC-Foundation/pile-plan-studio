@@ -45,3 +45,18 @@ test("enabling skip from a blocked result preserves target scope, selection and 
     assert.equal(enableSkippingUnsolvableTargets(state,invalid),state);
   }
 });
+
+test("optimized cap choices preserve source assignments and replace only targeted proposal records",()=>{
+ const cap={load_point_ids:[1,2],pile_count:3,quarter_turns:1,configuration:b};
+ const outside={load_point_ids:[3],pile_count:2,quarter_turns:0,configuration:a};
+ const plan:PilePlanData={id:"p",name:"P",activePileSizes:[300],activePileTipLevelMms:[-10000],selectedPileConfigurationsByLoadPoint:new Map([[1,a],[2,a],[3,a]]),lockedLoadPointIds:[],externalReferencesByLoadPoint:new Map([[1,["ref"]]]),optimizationUnassignedByLoadPoint:new Map(),pileCapProposals:[outside]};
+ const solution:IlpSolution={assignments:[{load_point_id:1,configuration:b},{load_point_id:2,configuration:b}],pile_cap_proposals:[cap],cost:30,budget:30,reference:{cost:30,proof:"optimal",termination:"completed"},counts:{configurations:1,tip_levels:1,pile_sizes:1},transitions:{both:0,tip_only:0,size_only:0},score_milli:0,proof:"optimal",termination:"completed"};
+ const next=applyIlpSolutionToPlan(plan,solution);
+ assert.deepEqual(next.selectedPileConfigurationsByLoadPoint,plan.selectedPileConfigurationsByLoadPoint);
+ assert.deepEqual(next.externalReferencesByLoadPoint.get(1),["ref"]);
+ assert.deepEqual(next.pileCapProposals,[outside,cap]);
+ const original=applyIlpSolutionToPlan(next,{...solution,pile_cap_proposals:[]});
+ assert.deepEqual(original.pileCapProposals,[outside]);
+ assert.deepEqual(original.selectedPileConfigurationsByLoadPoint.get(1),b);
+ assert.deepEqual(plan.pileCapProposals,[outside]);
+});

@@ -1,3 +1,5 @@
+import type { PileCapProposal, PileCapPreview } from "../../../core/pileCapProposalTypes.ts";
+import { pileConfigurationToken } from "../../../core/pileConfigurationKey.ts";
 import { useEffect, useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import type { ProjectState } from "../../../domain/project/projectState.ts";
@@ -20,6 +22,7 @@ import MissingCptPopover from "./MissingCptPopover.tsx";
 import { InactiveLabel, ResistanceLabel, localizeCptName, localizeLoadPointName } from "./PanelControls.tsx";
 
 export default function LoadPointPanel({
+  pileCapProposal=null,pileCapPreview=null,pileCapPending=false,pileCapError=false,onPileCapConfigurationChange=()=>{},
   state,
   onStateChange,
   pileAssignmentPending,
@@ -31,6 +34,11 @@ export default function LoadPointPanel({
   columnLayouts,
   onColumnLayoutChange,
 }: {
+  pileCapProposal?: PileCapProposal|null;
+  pileCapPreview?: PileCapPreview|null;
+  pileCapPending?: boolean;
+  pileCapError?: boolean;
+  onPileCapConfigurationChange?: (configuration:PileConfigurationKey|null)=>void;
   state: ProjectState;
   onStateChange: (nextState: ProjectState) => void;
   pileAssignmentPending: boolean;
@@ -57,11 +65,19 @@ export default function LoadPointPanel({
   });
   const selectedCount = selectedLoadPoints.length;
   const selectedIds = selectedLoadPoints.map(({ id }) => id).sort((left, right) => left - right);
-  const columnMode = selectedCount > 1 ? "multiple" : "single";
+  const columnCount = pileCapProposal ? Math.max(2,pileCapProposal.pile_count) : selectedCount;
+  const columnMode = columnCount > 1 ? "multiple" : "single";
   const columnLayout = columnLayouts[columnMode];
-  const columns = getVisiblePileOptionColumns(selectedCount, columnLayout);
-  const retainedConfiguration = getChosenPileOptionConfigurationForSelection(state, selectedLoadPoints);
-  const rows = (selectedCount > 1
+  const columns = getVisiblePileOptionColumns(columnCount, columnLayout);
+  const retainedConfiguration = pileCapProposal?.configuration ?? getChosenPileOptionConfigurationForSelection(state, selectedLoadPoints);
+  const proposalCosts = new Map((pileCapPreview?.options??[]).map(o=>[pileConfigurationToken(o.configuration),o.cost_per_pile]));
+  const proposalRows = getRenderablePileOptionRows({activeConfigurations:active,cpts:state.cpts,costsByOptionKey:proposalCosts,
+    currencyCode:state.currencyCode,options:pileCapPreview?.options??[],loadPoint:selectedLoadPoints[0]&&pileCapPreview?.load_per_pile_kn!=null?{...selectedLoadPoints[0],design_load_kn:pileCapPreview.load_per_pile_kn}:null,
+    selectedLoadPointCount:pileCapProposal?.pile_count??0,legend:state.pileLegend,pileCostSettings:state.pileCostSettings,locale:i18n.language}).map((row,index)=>{
+      const total=pileCapPreview!.options[index].total_cost;
+      return {...row,totalCostValue:total,totalCostLabel:total===null?"-":new Intl.NumberFormat(i18n.language,{style:"currency",currency:state.currencyCode,maximumFractionDigits:0}).format(total)};
+    });
+  const rows = (pileCapProposal ? proposalRows : selectedCount > 1
     ? getRenderableAggregatedPileOptionRows({
         cpts: state.cpts,
         aggregates: aggregation.status === "ready"
@@ -106,7 +122,7 @@ export default function LoadPointPanel({
     ? state.pileOptionSort
     : null;
   const tableRows = getPileOptionTableRows(rows, visibleFilters, visibleSort);
-  const chosenKey = getChosenPileOptionKeyForSelection(state, selectedLoadPoints);
+  const chosenKey = pileCapProposal ? (pileCapProposal.configuration?pileConfigurationToken(pileCapProposal.configuration):null) : getChosenPileOptionKeyForSelection(state, selectedLoadPoints);
   const selectedLoadPointIds = new Set(selectedLoadPoints.map(({ id }) => id));
   const involvedLoadPointIds = new Set(selectedLoadPointIds);
   for (const group of loadPointGroups) {
@@ -114,12 +130,12 @@ export default function LoadPointPanel({
       group.load_point_ids.forEach((loadPointId) => involvedLoadPointIds.add(loadPointId));
     }
   }
-  const hasAssignedSelection = [...involvedLoadPointIds].some((loadPointId) =>
+  const hasAssignedSelection = pileCapProposal ? pileCapProposal.configuration!==null : [...involvedLoadPointIds].some((loadPointId) =>
     state.selectedPileConfigurationsByLoadPoint.has(loadPointId));
   const isUnavailable = technicalAssignment.status === "unavailable";
-  const isLoading = state.pileOptionsByLoadPointId.size === 0
+  const isLoading = pileCapProposal ? pileCapPending : state.pileOptionsByLoadPointId.size === 0
     || (selectedCount > 1 && aggregation.status === "loading");
-  const tableError = selectedCount > 1 && aggregation.status === "error"
+  const tableError = pileCapProposal ? (pileCapError?t("pileCap.failed"):null) : selectedCount > 1 && aggregation.status === "error"
     ? aggregation.error
     : state.analysisError;
   return (
@@ -139,21 +155,21 @@ export default function LoadPointPanel({
         onStateChange={onStateChange}
       />
 
-      {technicalAssignment.status !== "error" ? (
+      {technicalAssignment.status !== "error" || pileCapProposal ? (
       <section className="pile-options-section">
         <div className="pile-options-heading-stack">
           <div className="section-heading">
-            <h3>{t("pileOptions.title")}</h3>
+            <h3>{t(pileCapProposal?"pileCap.optionsTitle":"pileOptions.title")}</h3>
             <div className="section-heading-actions">
               <span>{isLoading ? t("pileOptions.loading") : t("pileOptions.shown", { count: tableRows.length })}</span>
-              <PileOptionColumns layout={columnLayout} selectedCount={selectedCount}
+              <PileOptionColumns layout={columnLayout} selectedCount={columnCount}
                 onChange={layout => onColumnLayoutChange(columnMode, layout)} />
               {hasAssignedSelection ? (
                 <button
                   className="clear-pile-assignment"
                   disabled={pileAssignmentPending}
                   type="button"
-                  onClick={() => onApplyPileConfiguration(selectedLoadPoints.map(({ id }) => id), null)}
+                  onClick={() => pileCapProposal ? onPileCapConfigurationChange(null) : onApplyPileConfiguration(selectedLoadPoints.map(({ id }) => id), null)}
                 >
                   {t("pileOptions.clearAssignment")}
                 </button>
@@ -161,6 +177,7 @@ export default function LoadPointPanel({
             </div>
           </div>
         </div>
+        {pileCapPreview&&pileCapPreview.status!=="active"?<div className="panel-message" role="status">{t(pileCapPreview.status==="missing_cpt_selection"?"pileCap.missingSelection":"pileCap.invalidSource")}</div>:null}
         {!isLoading && tableError ? (
           <div className="right-panel-empty is-inline" role="alert">
             {t("pileOptions.failed", { error: tableError })}
@@ -213,7 +230,7 @@ export default function LoadPointPanel({
                       className={`pile-option-row${row.key === chosenKey ? " is-chosen" : ""}`}
                       key={row.key}
                       aria-disabled={pileAssignmentPending}
-                      onClick={() => applyPileOption(
+                      onClick={() => pileCapProposal ? (!pileAssignmentPending&&!pileCapPending&&onPileCapConfigurationChange(pileCapPreview?.options.find(o=>pileConfigurationToken(o.configuration)===row.key)?.configuration??null)) : applyPileOption(
                         state,
                         onApplyPileConfiguration,
                         pileAssignmentPending,

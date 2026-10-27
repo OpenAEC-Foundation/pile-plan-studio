@@ -1,4 +1,6 @@
-import { useState, type MouseEvent } from "react";
+import type { PileCapPreview } from "../../../core/pileCapProposalTypes.ts";
+import type { ViewerFocusRequest } from "../../../domain/workspace/viewerFocus.ts";
+import { useMemo, useState, type MouseEvent } from "react";
 import type { ProjectState } from "../../../domain/project/projectState";
 import Legend from "./Legend";
 import LegendEditor from "./legend-editor/LegendEditor";
@@ -13,6 +15,9 @@ import { useTipLevelRegionTopology } from "../pile-plan-viewer/tip-level-regions
 import type { LegendEditorDraft } from "../../../domain/legend/legendEditorModel.ts";
 
 type Props = {
+  focusRequest?: ViewerFocusRequest | null;
+  onFocusHandled?: (request: ViewerFocusRequest) => void;
+  pileCapPreviews?: PileCapPreview[];
   readOnly?: boolean;
   state: ProjectState;
   loadPointGroups: LoadPointGroup[];
@@ -25,13 +30,24 @@ type Props = {
   onLegendApply: (draft: LegendEditorDraft, enableTipLevelRegions: boolean) => Promise<boolean>;
 };
 
-export default function PilePlanWorkspace({ readOnly = false, state, loadPointGroups, loadPointGroupTopology, technicalAssignment, groupAssignmentAssessment, lassoSelectionActive, onStateChange, onSelectionChange, onLegendApply }: Props) {
+export default function PilePlanWorkspace({ focusRequest, onFocusHandled, pileCapPreviews=[], readOnly = false, state, loadPointGroups, loadPointGroupTopology, technicalAssignment, groupAssignmentAssessment, lassoSelectionActive, onStateChange, onSelectionChange, onLegendApply }: Props) {
   const [legendEditorOpen, setLegendEditorOpen] = useState(false);
+  const effectiveRegions=useMemo(()=>{
+    const assignments=new Map(state.selectedPileConfigurationsByLoadPoint),options=new Map(state.pileOptionsByLoadPointId);
+    for(const cap of pileCapPreviews){
+      if(cap.status!=="active"&&cap.status!=="missing_cpt_selection")continue;
+      for(const id of cap.proposal.load_point_ids){
+        if(cap.proposal.configuration)assignments.set(id,cap.proposal.configuration);else assignments.delete(id);
+        options.set(id,cap.options);
+      }
+    }
+    return {assignments,options};
+  },[pileCapPreviews,state.selectedPileConfigurationsByLoadPoint,state.pileOptionsByLoadPointId]);
   const tipLevelRegions = useTipLevelRegionTopology({
     enabled: state.showTipLevelRegions,
     loadPoints: state.loadPoints,
-    selectedPileConfigurationsByLoadPoint: state.selectedPileConfigurationsByLoadPoint,
-    pileOptionsByLoadPointId: state.pileOptionsByLoadPointId,
+    selectedPileConfigurationsByLoadPoint: effectiveRegions.assignments,
+    pileOptionsByLoadPointId: effectiveRegions.options,
   });
 
   return (
@@ -44,6 +60,9 @@ export default function PilePlanWorkspace({ readOnly = false, state, loadPointGr
         onStateChange={onStateChange}
       />
       <PilePlanViewer
+        focusRequest={focusRequest}
+        onFocusHandled={onFocusHandled}
+        pileCapPreviews={pileCapPreviews}
         state={state}
         loadPointGroups={loadPointGroups}
         loadPointGroupTopology={loadPointGroupTopology}

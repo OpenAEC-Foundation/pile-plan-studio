@@ -524,6 +524,114 @@ The implementation invariants, coordinate pipeline, regression symptoms, and
 manual test procedure live beside the viewer code in
 [`apps/pile-plan-studio/src/viewer/README.md`](../apps/pile-plan-studio/src/viewer/README.md).
 
+## Pile-cap proposals
+
+`pile_cap_proposals.rs` owns per-plan proposal definitions, edit validation,
+centered one-to-twenty-pile patterns, force distribution, CPT union, option analysis
+and indicative costs. `evaluate_pile_cap_proposals` is shared by WASM and Tauri
+and uses the ordinary project-document validation boundary. Original load
+points, assignments, locks and the shared grouping topology remain unchanged.
+
+IFCPP schema 6 adds `pile_cap_proposals` to each pile plan. Supported older
+schemas normalize to empty proposal lists. Only definitions are stored: sorted
+source member IDs, count, quarter-turn rotation and optional configuration.
+Calculated positions and results are transient. Counts 1–6 retain their existing
+patterns; 7–20 use balanced centered rows, including 3×3, 4×3, 4×4 and 5×4 layouts.
+Manual controls support 1–20. An original group above 20 is preserved and its minus
+control enters the supported proposal range at 20; Reset restores the original. Changing a definition commits
+one undo step; opening the compact control does not. A new plan starts empty;
+duplication copies proposal definitions independently. A proposal whose source
+members no longer form one effective group is retained but inactive.
+
+`app/derived-state/pileCapProposalController.ts` guards calculations and edits
+against project replacement, input changes, plan switches and disposal. The
+controller retains the last validated result during an edit only when its source
+array and full active-plan/input key still match. This prevents a temporary return
+to source geometry while native validation is pending, without reusing assessed
+previews after project, plan or engineering-input changes. The
+selection header exposes a compact count/rotation/reset bar beside the grouping
+action, and the existing pile-option table displays the proposal's core facts.
+The Plan ribbon also opens a compact right task panel listing all proposals in
+the displayed active plan, with source-member and proposed pile counts. Row
+selection uses the existing transient viewer-selection path (including pending
+CPT edits), keeps the overview open, and does not edit project content. Inactive
+proposals remain listed with core-provided status; missing source members are
+not selected. The overview is derived from existing per-plan records, not saved
+as additional project content. Selecting a row issues a one-shot, project/plan-scoped
+viewer focus request after selection completes. The viewport hook centers the
+source centroid using its fixed projection, current zoom and layout compensation;
+it cancels pending wheel commits and acknowledges the request without adding
+project content. The overview reuses the selected group's ordinary cap control
+and edit guards above its list. These controls remain available after Reset removes
+the last proposal. Rows stay sorted by source IDs when a core edit replaces a record.
+The overview's Reset all action prepares an immutable cleared draft for the active
+plan, validates it through the same core boundary, and commits all removals in one
+undo step. It includes inactive records and preserves other plans and original
+assignments. Empty plans are a no-op; async results retain the ordinary source,
+plan and input guards.
+Reset removes only that proposal and restores the original source presentation; it is one undoable project edit. Validated edit results are reused by the following derived-state refresh, with the same project/input guards. Core evaluation selects CPTs only for proposal source members instead of calculating all original pile options.
+The whole source group is the edit target, including singletons. A union of the
+members' effective CPT selections applies to every hypothetical pile; an empty
+member selection cannot be hidden by that union.
+
+The viewer projects the core pattern through its existing fixed transform.
+`viewer/pileCapProposalGeometry.ts` normalizes schematic spacing to the symbol size and
+reduces it around nearby ordinary markers and neighboring proposal centers.
+Symbols and status halos retain their ordinary size; only the pattern spacing
+changes, without changing engineering input. Members of the same proposal may
+overlap partially, with a minimum center spacing of one third of the symbol
+diameter. Spacing never exceeds the original group spacing or the core pattern;
+an already tighter original spacing also caps the readability minimum. If
+these bounds cannot fit around the fixed center, the viewer exposes the
+remaining spacing limitation on hover. Dashed contours
+remain visible without selection or ordinary group visibility; no additional
+permanent viewer labels are drawn. Proposal piles reuse the ordinary marker
+status halos and utilization-range preferences, including red insufficient-capacity
+and yellow missing-data feedback after deselection. Markers and lasso selection map back to the
+original group. Region presentation reuses the core's existing topology with
+the proposal's configuration and core-produced option facts. Region geometry
+replaces source-marker circles with the displayed proposal positions and
+reanchors existing core connections to those positions. A rounded footprint
+joins the core-owned cap pattern, so added piles and rotated or reduced layouts
+remain inside their region. It does not compute a second inter-location topology
+or change source coordinates. The compact cap control reserves label/count width
+so its minus and plus buttons stay in place across count and proposal changes.
+
+Effective cost/count summaries replace each active proposal's original members
+once. Missing proposal choices or costs remain incomplete. These are indicative
+pile costs, not a cap cost or structural cap check. Source-pile CSV/XLSX export
+rejects proposal-bearing plans; IFCPP save and recovery preserve them.
+
+`optimization/ilp/pile_caps.rs` prepares cap-aware unit domains from a captured
+project draft, validated against the run's source locations, groups and cost
+settings. The shared `PileCapAnalysis` evaluates manual and optimized cap
+candidates through the same CPT selection and resistance rules. Existing counts
+are fixed unless `allow_pile_count_changes` is explicitly enabled (default
+false). New counts must be selected in `allowed_pile_counts` and must not exceed
+`max_piles_per_cap` (default 6, supported range 1–20). Missing fields normalize to
+maximum 6 and all counts 1–20 selected, preserving old projects. Both settings
+are project content and are captured with result metadata. The count popup edits
+them together in one undo step. Existing source/proposal counts above the maximum
+remain preservation options, including original groups above 20; disallowed
+counts within the maximum are not silently reintroduced as original-count choices. Any locked member fixes its cap's effective count and configuration.
+With count coherence disabled, each configuration retains its least-cost
+eligible count and cost ties prefer the current count. With a positive
+`pile_count_milli` and coherence enabled, every eligible count/configuration
+combination remains in the unit domain: a more expensive count can improve
+neighbor coherence within the cost budget. Original-count choices retain the
+ordinary source demand model.
+
+Validated solutions include explicit `pile_cap_proposals` alongside the source
+member coverage assignments. The frontend retains original assignments and
+references for those hypothetical caps; ordinary-count assignments remove a
+target's proposal. New destinations inherit outside proposals. Definitions and
+result metadata commit in one undo step. Live proposals use the existing
+transient display state and never enter history, save or recovery. Run and
+result fingerprints include proposal definitions. Whole-plan limits, boundary
+transitions, both solver phases, local search and limit diagnosis use the same
+prepared domains. Historical solutions/settings without these fields remain
+readable.
+
 ## ILP optimization
 
 The Plan ribbon exposes one Optimize button that opens the Optimization panel.
@@ -621,10 +729,16 @@ To exercise the production backend with an exported request:
 The feature is also enabled by default. The example emits progress snapshots as JSONL;
 an optional fourth argument requests cancellation after that many milliseconds.
 
-Neighbor differences use two nonnegative weights: tip level and pile size. An edge
-that differs in both receives the sum, so there is no joint-difference variable
-or interaction constraint in the model. The local improvement heuristic and result
-validation use the same additive score. Current project settings omit the retired
+Neighbor differences use three nonnegative weights: tip level, pile size and
+pile count per cap. A difference in each dimension contributes its weight once;
+2 versus 3 piles is the same categorical mismatch as 2 versus 6. Contributions
+are independent and additive. Fixed neighbors outside the selected target carry
+their effective pile counts, including existing proposals. Solver constraints,
+warm starts, local improvement, independently validated scores and result
+transition counts use the same rule. The cap-count weight is serialized as
+`pile_count_milli`; a missing historical value means zero, and older result
+transition metadata normalizes a missing `pile_count` to zero. Current project
+settings omit the retired
 `both_milli` field; historical plan results preserve it only as read-only metadata
 alongside their original score. Older requests cannot override the additive rule.
 

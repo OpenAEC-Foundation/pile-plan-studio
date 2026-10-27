@@ -38,7 +38,7 @@ describe("PilePlanViewer inputs", () => {
   it("draws markers in the shared SVG while keeping labelled HTML hit targets", () => {
     const stage = readFileSync(resolve(import.meta.dirname, "ViewerStage.tsx"), "utf8");
     const css = readFileSync(resolve(import.meta.dirname, "viewer.css"), "utf8");
-    assert.match(stage, /<ViewerDrawingSvg[\s\S]*?<ViewerMarkerGraphics graphics=\{markerPresentation\.graphics\}/);
+    assert.match(stage, /<ViewerDrawingSvg[\s\S]*?<ViewerMarkerGraphics graphics=\{sortMarkerGraphics\(/);
     assert.match(stage, /data-map-marker-key=\{target\.key\}/);
     assert.match(stage, /aria-label=\{target\.ariaLabel\}/);
     assert.match(css, /\.viewer-marker-hit-target\s*\{[\s\S]*?transform:\s*translate\(-50%,\s*-50%\)/);
