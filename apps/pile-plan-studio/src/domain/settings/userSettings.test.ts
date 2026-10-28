@@ -55,6 +55,10 @@ describe("user settings", () => {
         defaultCurrencyCode: "EUR",
         optimizationTimeLimitSeconds: 600,
         pileSizeExportFormat: "numeric",
+        pilePlanExportOptions: {
+          mark:{enabled:false,start:1,rule:{axis:"y",x_direction:"ascending",y_direction:"descending",tolerance_mm:1}},
+          tip_code:{enabled:false,sequence:"letters",direction:"descending"},
+        },
         pileOptionColumns: {
           single: [
             ...["symbol", "size", "tip", "status", "cost", "use", "governing", "frd"].map(key => ({ key, visible: true })),

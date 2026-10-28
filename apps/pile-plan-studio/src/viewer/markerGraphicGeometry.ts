@@ -1,5 +1,5 @@
 import type { ForegroundLayer } from "../domain/settings/viewerPreferences.ts";
-import { effectiveSymbolScale, loadPointMarkerDiameter } from "./hoverCandidates.ts";
+import { effectiveSymbolScale, loadPointMarkerDiameter, SYMBOL_BASE_SCALE } from "./hoverCandidates.ts";
 
 export type MarkerGraphicKind = "load-point" | "cpt";
 
@@ -38,4 +38,11 @@ export function getMarkerDrawPriority(input: MarkerDrawPriorityInput): number {
     return input.selected ? 40 : input.foregroundLayer === "cpts" ? 10 : 20;
   }
   return input.selected || input.raised ? 30 : input.foregroundLayer === "cpts" ? 20 : 10;
+}
+
+/** Keep outlines legible: compact dashes/gaps shrink, but the normal line weight stays fixed. */
+export function getDashedOutlineDasharray(effectiveScale: number, dashLength: number) {
+  const factor = Math.min(1, effectiveScale / SYMBOL_BASE_SCALE);
+  const dash = dashLength * factor;
+  return `${dash} ${dash}`;
 }

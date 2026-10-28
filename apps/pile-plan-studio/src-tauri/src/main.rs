@@ -17,7 +17,7 @@ use pile_plan_core::{
     evaluate_pile_cost_catalog_edit as evaluate_pile_cost_catalog_edit_core,
     import_project_from_sources, preview_import_source,
     preview_load_point_group_edit as preview_load_point_group_edit_core, preview_pile_plan_import,
-    read_project_document as read_project_document_core, refresh_project_from_profiled_sources,
+    read_project_document as read_project_document_core,
     validate_load_point_lock_batch as validate_load_point_lock_batch_core,
     validate_manual_cpt_selection_batch as validate_manual_cpt_selection_batch_core,
     validate_project_tip_levels, write_pile_plan_csv as write_pile_plan_csv_bytes,
@@ -191,7 +191,7 @@ fn import_project_from_files(
 fn refresh_project_from_files(
     request: RefreshProjectRequest,
 ) -> Result<ValidatedPilePlanProject, pile_plan_core::SourceImportFailure> {
-    let project = refresh_project_from_profiled_sources(&request.current_project, &request.sources)
+    let project = pile_plan_core::refresh_project_with_location_decisions(&request.current_project, &request.sources, request.location_decisions.as_ref())
         .map_err(|error| error.to_source_import_failure())?;
     let tip_level_keys =
         validate_project_tip_levels(&project).map_err(|error| pile_plan_core::SourceImportFailure{unique_value_count:0,exact_duplicate_count:0,message:error.to_string(),diagnostics:vec![],conflicts:vec![]})?;
@@ -229,6 +229,43 @@ fn export_pile_plan_csv(request: PilePlanExportRequest) -> Result<Vec<u8>, Strin
 #[tauri::command(rename_all = "snake_case")]
 fn export_pile_plan_xlsx(request: PilePlanExportRequest) -> Result<Vec<u8>, String> {
     write_pile_plan_xlsx_bytes(&request).map_err(|error| error.to_string())
+}
+
+#[tauri::command]
+fn preview_configured_pile_plan_export(request: pile_plan_core::ConfiguredPilePlanExportRequest) -> Result<pile_plan_core::PilePlanExportPreview, String> {
+    pile_plan_core::preview_configured_pile_plan_export(&request).map_err(|e|e.to_string())
+}
+#[tauri::command]
+fn export_configured_pile_plan_csv(request: pile_plan_core::ConfiguredPilePlanExportRequest) -> Result<Vec<u8>, String> {
+    pile_plan_core::write_configured_pile_plan_csv(&request).map_err(|e|e.to_string())
+}
+#[tauri::command]
+fn export_configured_pile_plan_xlsx(request: pile_plan_core::ConfiguredPilePlanExportRequest) -> Result<Vec<u8>, String> {
+    pile_plan_core::write_configured_pile_plan_xlsx(&request).map_err(|e|e.to_string())
+}
+#[tauri::command]
+fn preview_revit_revision(request: pile_plan_core::RevitRevisionRequest) -> Result<pile_plan_core::RevitRevisionPreview, String> {
+    pile_plan_core::preview_revit_revision(&request).map_err(|e|e.to_string())
+}
+#[tauri::command]
+fn inspect_pile_table(request: pile_plan_core::InspectPileTableRequest) -> Result<pile_plan_core::PileTableInspection, String> {
+    pile_plan_core::inspect_pile_table(&request).map_err(|e|e.to_string())
+}
+#[tauri::command]
+fn export_revit_revision_csv(request: pile_plan_core::RevitRevisionRequest) -> Result<Vec<u8>, String> {
+    pile_plan_core::write_revit_revision_csv(&request).map_err(|e|e.to_string())
+}
+#[tauri::command]
+fn export_revit_revision_xlsx(request: pile_plan_core::RevitRevisionRequest) -> Result<Vec<u8>, String> {
+    pile_plan_core::write_revit_revision_xlsx(&request).map_err(|e|e.to_string())
+}
+#[tauri::command]
+fn reconcile_locations(request: pile_plan_core::LocationMatchingRequest) -> Result<pile_plan_core::LocationMatchingResult, String> {
+    pile_plan_core::reconcile_locations(&request).map_err(|e|e.to_string())
+}
+#[tauri::command]
+fn prepare_load_point_refresh(request: pile_plan_core::LoadPointRefreshRequest) -> Result<pile_plan_core::LoadPointRefreshPreview, String> {
+    pile_plan_core::prepare_load_point_refresh(&request).map_err(|e|e.to_string())
 }
 
 #[tauri::command(rename_all = "snake_case")]
@@ -434,6 +471,15 @@ fn main() {
             preview_pile_plan_import_file,
             export_pile_plan_csv,
             export_pile_plan_xlsx,
+            preview_configured_pile_plan_export,
+            export_configured_pile_plan_csv,
+            export_configured_pile_plan_xlsx,
+            preview_revit_revision,
+            inspect_pile_table,
+            export_revit_revision_csv,
+            export_revit_revision_xlsx,
+            reconcile_locations,
+            prepare_load_point_refresh,
             read_project_file,
             write_project_file,
             write_binary_file,

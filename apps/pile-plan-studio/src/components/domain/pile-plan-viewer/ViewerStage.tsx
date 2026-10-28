@@ -9,6 +9,7 @@ import type { TechnicalAssignmentSnapshot } from "../../../app/derived-state/tec
 import type { ProjectState } from "../../../domain/project/projectState.ts";
 import type { getEffectivePileOptionsByLoadPointId } from "../../../domain/cpt-selection/cptSettingsModel.ts";
 import type { getCptConnectionSegments } from "../../../viewer/cptConnectionLines.ts";
+import { getDashedOutlineDasharray } from "../../../viewer/markerGraphicGeometry.ts";
 import { effectiveSymbolScale } from "../../../viewer/hoverCandidates.ts";
 import type { LoadPointGroupGeometry } from "../../../viewer/loadPointGroupGeometry.ts";
 import type { presentTipLevelRegionGeometry } from "../../../viewer/tipLevelRegionPresentation.ts";
@@ -109,7 +110,7 @@ export default function ViewerStage({
           const selected=cap.sourceIds.every(id=>selectedLoadPointIds.has(id));
           const conflict=loadPointGroupGeometry.some(g=>g.hasConflict&&g.loadPointIds.some(id=>cap.sourceIds.includes(id)));
           return <rect key={cap.sourceIds.join(",")} x={cap.bounds.x} y={cap.bounds.y} width={cap.bounds.width} height={cap.bounds.height}
-            rx={7*effectiveSymbolScale(state.symbolScalePercent)} fill="none" stroke={conflict?"#c62828":selected?"#d97706":"#747b82"} strokeWidth="1" strokeDasharray="3 3"/>;
+            rx={7*effectiveSymbolScale(state.symbolScalePercent)} fill="none" stroke={conflict?"#c62828":selected?"#d97706":"#747b82"} strokeWidth="1" strokeDasharray={getDashedOutlineDasharray(effectiveSymbolScale(state.symbolScalePercent), 3)}/>;
         })}</g>
         <ViewerMarkerGraphics graphics={sortMarkerGraphics([...visibleGraphics,...capGraphics])} />
       </ViewerDrawingSvg>

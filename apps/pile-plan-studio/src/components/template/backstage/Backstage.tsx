@@ -1,3 +1,6 @@
+import PilePlanExportPanel, {type ExportFeatureProps} from "../../domain/exports/PilePlanExportPanel.tsx";
+import type {ExportOptions, LoadPointRefreshSelection} from "../../../core/exportRevisionContract.ts";
+import type {PrepareLoadPointRefresh} from "../../../app/import/useLoadPointRefreshReview.ts";
 import type { ProjectImportPreview } from "../../../core/adviceImportContract.ts";
 import { useState, useEffect, type ReactNode } from "react";
 import { flushSync } from "react-dom";
@@ -61,12 +64,14 @@ function Divider() {
   return <div className="backstage-divider" />;
 }
 
-interface BackstageProps {
+interface BackstageProps extends ExportFeatureProps {
   open: boolean;
+  suspended?: boolean;
   onClose: () => void;
   onOpenSettings: () => void;
   onOpenFile?: (path: string) => void;
-  onImportProject: (mode: ProjectImportMode, projectName: string | null, sources: ImportSourceInput[], properties: ProjectImportProperties | null) => Promise<ImportSummary | null>;
+  onImportProject: (mode: ProjectImportMode, projectName: string | null, sources: ImportSourceInput[], properties: ProjectImportProperties | null, selection?: LoadPointRefreshSelection) => Promise<ImportSummary | null>;
+  onPrepareLoadPointRefresh?: PrepareLoadPointRefresh;
   onPreviewProjectImport?: (mode: ProjectImportMode, sources: ImportSourceInput[]) => Promise<ProjectImportPreview>;
   importPreviewContextKey?: string;
   defaultCurrencyCode: string;
@@ -78,8 +83,8 @@ interface BackstageProps {
   onOpenProjectFile: (file: File) => Promise<void>;
   onOpenSampleProject: () => Promise<void>;
   onDownloadProject: () => Promise<void>;
-  onExportPilePlanXlsx: (pileSizeFormat: PileSizeExportFormat) => Promise<void>;
-  onExportPilePlanCsv: (pileSizeFormat: PileSizeExportFormat) => Promise<void>;
+  onExportPilePlanXlsx: (pileSizeFormat: PileSizeExportFormat, options?: ExportOptions) => Promise<void>;
+  onExportPilePlanCsv: (pileSizeFormat: PileSizeExportFormat, options?: ExportOptions) => Promise<void>;
   pileSizeFormat?: PileSizeExportFormat;
   onPileSizeFormatChange?: (pileSizeFormat: PileSizeExportFormat) => void;
   onChooseDesktopProject: () => Promise<void>;
@@ -89,7 +94,7 @@ interface BackstageProps {
   initialImportSource?: { role: ImportFileRole; file: File } | null;
 }
 
-export default function Backstage({ open, onClose, onOpenSettings, onOpenFile, onImportProject, onPreviewProjectImport, importPreviewContextKey, defaultCurrencyCode, loadPoints, cpts, availablePileConfigurations, activePilePlanName, onImportPilePlan, onOpenProjectFile, onOpenSampleProject, onDownloadProject, onExportPilePlanXlsx, onExportPilePlanCsv, pileSizeFormat = "numeric", onPileSizeFormatChange, onChooseDesktopProject, onSaveProject, onSaveProjectAs, commands, initialImportSource = null }: BackstageProps) {
+export default function Backstage({ open, suspended = false, onClose, onOpenSettings, onOpenFile, onImportProject, onPreviewProjectImport, onPrepareLoadPointRefresh, importPreviewContextKey, defaultCurrencyCode, loadPoints, cpts, availablePileConfigurations, activePilePlanName, onImportPilePlan, onOpenProjectFile, onOpenSampleProject, onDownloadProject, onExportPilePlanXlsx, onExportPilePlanCsv, pileSizeFormat = "numeric", onPileSizeFormatChange, exportPlans, exportPlanId, onExportPlanChange, exportPlan, exportContextKey, exportOptions, onExportOptionsChange, onExportRevision, onChooseDesktopProject, onSaveProject, onSaveProjectAs, commands, initialImportSource = null }: BackstageProps) {
   const { t } = useTranslation("backstage");
   const [activePanel, setActivePanel] = useState<string>("none");
   const { recentFiles, removeRecentFile, clearRecentFiles } = useRecentFiles();
@@ -99,12 +104,13 @@ export default function Backstage({ open, onClose, onOpenSettings, onOpenFile, o
       setActivePanel("none");
       return;
     }
+    if (suspended) return;
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape") onClose();
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [open, onClose]);
+  }, [open, onClose, suspended]);
 
   useEffect(() => {
     if (open && initialImportSource) setActivePanel("import");
@@ -120,7 +126,7 @@ export default function Backstage({ open, onClose, onOpenSettings, onOpenFile, o
     activePanel === "export";
 
   return (
-    <div className="backstage-overlay">
+    <div className="backstage-overlay" style={suspended ? {display: "none"} : undefined}>
       <div className="backstage-sidebar">
         <button className="backstage-back" onClick={onClose}>
           <svg
@@ -223,8 +229,8 @@ export default function Backstage({ open, onClose, onOpenSettings, onOpenFile, o
             />
           )}
           {activePanel === "about" && <AboutPanel />}
-          {activePanel === "import" && <ProjectImportPanel onPreviewProjectImport={onPreviewProjectImport} importPreviewContextKey={importPreviewContextKey} defaultCurrencyCode={defaultCurrencyCode} initialSource={initialImportSource} onImportProject={async (mode, name, sources, properties) => {
-            return onImportProject(mode, name, sources, properties);
+          {activePanel === "import" && <ProjectImportPanel onPrepareLoadPointRefresh={onPrepareLoadPointRefresh} onPreviewProjectImport={onPreviewProjectImport} importPreviewContextKey={importPreviewContextKey} defaultCurrencyCode={defaultCurrencyCode} initialSource={initialImportSource} onImportProject={async (mode, name, sources, properties, selection) => {
+            return selection ? onImportProject(mode, name, sources, properties, selection) : onImportProject(mode, name, sources, properties);
           }} />}
           {activePanel === "pile-plan-import" && (
             <PilePlanImportPanel
@@ -239,6 +245,12 @@ export default function Backstage({ open, onClose, onOpenSettings, onOpenFile, o
           )}
           {activePanel === "export" && (
             <ExportPanel
+              exportPlans={exportPlans} exportPlanId={exportPlanId} onExportPlanChange={onExportPlanChange}
+              exportPlan={exportPlan}
+              exportContextKey={exportContextKey}
+              exportOptions={exportOptions}
+              onExportOptionsChange={onExportOptionsChange}
+              onExportRevision={onExportRevision}
               canDownloadProject={commands.download}
               activePilePlanName={activePilePlanName}
               onDownloadProject={onDownloadProject}
@@ -507,72 +519,35 @@ function SampleProjectOptionContent({ t }: { t: (key: string) => string }) {
   );
 }
 
-function ExportPanel({ canDownloadProject, activePilePlanName, onDownloadProject, onExportPilePlanXlsx, onExportPilePlanCsv, pileSizeFormat, onPileSizeFormatChange }: {
+function ExportPanel({ canDownloadProject, activePilePlanName, onDownloadProject, onExportPilePlanXlsx, onExportPilePlanCsv, pileSizeFormat, onPileSizeFormatChange, ...features }: ExportFeatureProps & {
   canDownloadProject: boolean;
   activePilePlanName: string;
   onDownloadProject: () => Promise<void>;
-  onExportPilePlanXlsx: (pileSizeFormat: PileSizeExportFormat) => Promise<void>;
-  onExportPilePlanCsv: (pileSizeFormat: PileSizeExportFormat) => Promise<void>;
+  onExportPilePlanXlsx: (format: PileSizeExportFormat, options?: ExportOptions) => Promise<void>;
+  onExportPilePlanCsv: (format: PileSizeExportFormat, options?: ExportOptions) => Promise<void>;
   pileSizeFormat: PileSizeExportFormat;
-  onPileSizeFormatChange?: (pileSizeFormat: PileSizeExportFormat) => void;
+  onPileSizeFormatChange?: (format: PileSizeExportFormat) => void;
 }) {
   const { t } = useTranslation("backstage");
   const [runningExport, setRunningExport] = useState(false);
   const [exportError, setExportError] = useState<string | null>(null);
-
   const runExport = (action: () => Promise<void>) => {
     flushSync(() => setRunningExport(true));
     setExportError(null);
-    void action()
-      .catch((error: unknown) => {
-        setExportError(error instanceof Error ? error.message : t("exportPanel.error"));
-      })
+    void action().catch((error: unknown) => setExportError(error instanceof Error ? error.message : t("exportPanel.error")))
       .finally(() => setRunningExport(false));
   };
-
-  return (
-    <div className={`bs-export-panel${runningExport ? " is-exporting" : ""}`} aria-busy={runningExport}>
-      <h2 className="backstage-panel-title">{t("exportPanel.title")}</h2>
-      <p className="backstage-panel-intro">{t("exportPanel.intro")}</p>
-      <p className="backstage-panel-intro">
-        {t("exportPanel.activePilePlan", { pilePlanName: activePilePlanName })}
-      </p>
-      <div className="bs-export-cards">
-        {canDownloadProject ? (
-          <ExportOption
-            title={t("exportPanel.ifcpp")}
-            description={t("exportPanel.ifcppDesc")}
-            format="IFCPP"
-            disabled={runningExport}
-            icon="project"
-            actionLabel={t("exportPanel.download")}
-            onClick={() => runExport(onDownloadProject)}
-          />
-        ) : null}
-        <ExportOption
-          title={t("exportPanel.pilePlan")}
-          description={t("exportPanel.excelDesc")}
-          format="XLSX / CSV"
-          disabled={runningExport}
-          icon="table"
-          actionLabel={t("exportPanel.exportExcel")}
-          onClick={() => runExport(() => onExportPilePlanXlsx(pileSizeFormat))}
-          additionalAction={{ label: t("exportPanel.exportCsv"), onClick: () => runExport(() => onExportPilePlanCsv(pileSizeFormat)) }}
-        >
-          <label className="bs-export-size-format">
-            <span>{t("exportPanel.pileSizeFormat")}</span>
-            <select value={pileSizeFormat} disabled={runningExport}
-              onChange={event => onPileSizeFormatChange?.(event.target.value === "dimensions" ? "dimensions" : "numeric")}>
-              <option value="numeric">{t("exportPanel.pileSizeNumeric")}</option>
-              <option value="dimensions">{t("exportPanel.pileSizeDimensions")}</option>
-            </select>
-          </label>
-          <p className="bs-export-size-help">{t("exportPanel.pileSizeHelp")}</p>
-        </ExportOption>
-      </div>
-      {exportError ? <p className="bs-export-error" role="alert">{exportError}</p> : null}
+  return <div className={`bs-export-panel${runningExport ? " is-exporting" : ""}`} aria-busy={runningExport}>
+    <h2 className="backstage-panel-title">{t("exportPanel.title")}</h2>
+    <p className="backstage-panel-intro">{t("exportPanel.intro")}</p>
+    <div className="bs-export-cards">
+      {canDownloadProject && <ExportOption title={t("exportPanel.ifcpp")} description={t("exportPanel.ifcppDesc")} format="IFCPP" disabled={runningExport}
+        icon="project" actionLabel={t("exportPanel.download")} onClick={() => runExport(onDownloadProject)} />}
+      <PilePlanExportPanel {...features} activePilePlanName={activePilePlanName} pileSizeFormat={pileSizeFormat} onPileSizeFormatChange={onPileSizeFormatChange}
+        onExportPilePlanXlsx={onExportPilePlanXlsx} onExportPilePlanCsv={onExportPilePlanCsv} running={runningExport} runExport={runExport} />
     </div>
-  );
+    {exportError && <p className="bs-export-error" role="alert">{exportError}</p>}
+  </div>;
 }
 
 function ExportOption({

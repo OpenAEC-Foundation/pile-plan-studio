@@ -44,11 +44,25 @@ export function evaluate_pile_cap_proposals(request: any): any;
 
 export function evaluate_pile_cost_catalog_edit(request: any): any;
 
+export function export_configured_pile_plan_csv(request: any): Uint8Array;
+
+export function export_configured_pile_plan_xlsx(request: any): Uint8Array;
+
 export function export_pile_plan_csv(request: any): Uint8Array;
 
 export function export_pile_plan_xlsx(request: any): Uint8Array;
 
+export function export_revit_revision_csv(request: any): Uint8Array;
+
+export function export_revit_revision_xlsx(request: any): Uint8Array;
+
 export function import_project_from_files(request: any): any;
+
+export function inspect_pile_table(request: any): any;
+
+export function prepare_load_point_refresh(request: any): any;
+
+export function preview_configured_pile_plan_export(request: any): any;
 
 export function preview_import_file(request: any): any;
 
@@ -58,7 +72,11 @@ export function preview_pile_plan_import_file(request: any): any;
 
 export function preview_project_import_files(request: any): any;
 
+export function preview_revit_revision(request: any): any;
+
 export function read_project_document(request: any): any;
+
+export function reconcile_locations(request: any): any;
 
 export function refresh_project_from_files(request: any): any;
 
@@ -91,14 +109,23 @@ export interface InitOutput {
     readonly evaluate_mcp_project_edit: (a: any) => [number, number, number];
     readonly evaluate_pile_cap_proposals: (a: any) => [number, number, number];
     readonly evaluate_pile_cost_catalog_edit: (a: any) => [number, number, number];
+    readonly export_configured_pile_plan_csv: (a: any) => [number, number, number, number];
+    readonly export_configured_pile_plan_xlsx: (a: any) => [number, number, number, number];
     readonly export_pile_plan_csv: (a: any) => [number, number, number, number];
     readonly export_pile_plan_xlsx: (a: any) => [number, number, number, number];
+    readonly export_revit_revision_csv: (a: any) => [number, number, number, number];
+    readonly export_revit_revision_xlsx: (a: any) => [number, number, number, number];
     readonly import_project_from_files: (a: any) => [number, number, number];
+    readonly inspect_pile_table: (a: any) => [number, number, number];
+    readonly prepare_load_point_refresh: (a: any) => [number, number, number];
+    readonly preview_configured_pile_plan_export: (a: any) => [number, number, number];
     readonly preview_import_file: (a: any) => [number, number, number];
     readonly preview_load_point_group_edit: (a: any) => [number, number, number];
     readonly preview_pile_plan_import_file: (a: any) => [number, number, number];
     readonly preview_project_import_files: (a: any) => [number, number, number];
+    readonly preview_revit_revision: (a: any) => [number, number, number];
     readonly read_project_document: (a: any) => [number, number, number];
+    readonly reconcile_locations: (a: any) => [number, number, number];
     readonly refresh_project_from_files: (a: any) => [number, number, number];
     readonly validate_load_point_lock_batch: (a: any) => [number, number, number];
     readonly validate_manual_cpt_selection_batch: (a: any) => [number, number, number];

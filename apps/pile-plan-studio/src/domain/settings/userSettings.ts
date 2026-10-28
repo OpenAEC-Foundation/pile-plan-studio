@@ -2,6 +2,8 @@ import { clampRightPanelSplit, DEFAULT_RIGHT_PANEL_SPLIT } from "../workspace/ri
 import type { PileCostSettings, PileSizeExportFormat } from "../../core/projectTypes.ts";
 import { normalizePileOptionColumnLayouts, type PileOptionColumnLayouts } from "../pile-options/pileOptionColumnLayout.ts";
 import { normalizeInterfaceScale } from "./interfaceScale.ts";
+import {normalizeExportOptions} from "../exports/exportPreferences.ts";
+import {DEFAULT_EXPORT_OPTIONS,type ExportOptions} from "../../core/exportRevisionContract.ts";
 import { clampSelectionOverviewRows, DEFAULT_SELECTION_OVERVIEW_ROWS } from "../workspace/selectionOverviewLayout.ts";
 import {
   clampExplorerWidth,
@@ -39,6 +41,7 @@ export type UserSettings = {
     defaultCurrencyCode: string;
     optimizationTimeLimitSeconds: number | null;
     pileSizeExportFormat: PileSizeExportFormat;
+    pilePlanExportOptions: ExportOptions;
     workspaceLayout: WorkspaceLayoutSettings;
     ilpSections: IlpSections;
     pileOptionColumns: PileOptionColumnLayouts;
@@ -57,6 +60,7 @@ export const DEFAULT_USER_SETTINGS: UserSettings = {
     defaultCurrencyCode: "EUR",
     optimizationTimeLimitSeconds: 600,
     pileSizeExportFormat: "numeric",
+    pilePlanExportOptions: DEFAULT_EXPORT_OPTIONS,
     ilpSections: { ...DEFAULT_ILP_SECTIONS },
     pileOptionColumns: normalizePileOptionColumnLayouts(undefined),
     workspaceLayout: {
@@ -96,6 +100,7 @@ export function normalizeUserSettings(value: unknown): UserSettings {
       defaultCurrencyCode: normalizeCurrencyCode(preferences.defaultCurrencyCode),
       optimizationTimeLimitSeconds: normalizeOptimizationTimeLimitSeconds(preferences.optimizationTimeLimitSeconds),
       pileSizeExportFormat: preferences.pileSizeExportFormat === "dimensions" ? "dimensions" : "numeric",
+      pilePlanExportOptions: normalizeExportOptions(preferences.pilePlanExportOptions),
       ilpSections: normalizeIlpSections(preferences.ilpSections),
       pileOptionColumns: normalizePileOptionColumnLayouts(preferences.pileOptionColumns),
       workspaceLayout: {

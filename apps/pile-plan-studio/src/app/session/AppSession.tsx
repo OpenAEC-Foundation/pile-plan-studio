@@ -1,4 +1,7 @@
+import {LocationMatchingSurfaceContext, useLocationMatchingSurface} from "../exports/locationMatchingSurface.tsx";
 import { usePileCapProposals } from "../derived-state/usePileCapProposals.ts";
+import {exportConfiguredPilePlanCore,exportRevitRevisionCore,prepareLoadPointRefreshCore} from "../../core/exportRevisionCoreClient.ts";
+import type {ExportOptions,RevitRevisionInput,LoadPointRefreshSelection} from "../../core/exportRevisionContract.ts";
 import { applyProjectRefresh } from "../import/projectImportApply.ts";
 import { previewProjectImportCore } from "../../core/projectCoreClient.ts";
 import { useManualCptSelectionEdit } from "../project/useManualCptSelectionEdit.ts";
@@ -324,6 +327,7 @@ export default function AppSession({
   const [mcpWriteEnabled, setMcpWriteEnabled] = useState(false);
   const mcpWriteEnabledRef = useRef(false);
   const [backstageOpen, setBackstageOpen] = useState(false);
+  const matchingSurface = useLocationMatchingSurface(projectState.pileLegend);
   const [feedbackOpen, setFeedbackOpen] = useState(false);
   const [projectInformationOpen, setProjectInformationOpen] = useState(false);
   const [rightTaskPanel, setRightTaskPanel] = useState<RightTaskPanel | null>(null);
@@ -561,11 +565,12 @@ export default function AppSession({
 
   useEffect(() => {
     const handleHistoryShortcut = (event: KeyboardEvent) => {
+      if (matchingSurface.active) return;
       dispatchHistoryShortcut(event, type => dispatchProject({ type }));
     };
     window.addEventListener("keydown", handleHistoryShortcut);
     return () => window.removeEventListener("keydown", handleHistoryShortcut);
-  }, []);
+  }, [matchingSurface.active]);
 
 
   const serializeProject = async () => {
@@ -629,15 +634,28 @@ export default function AppSession({
     (pilePlan) => pilePlan.id === projectState.activePilePlanId,
   )?.name ?? projectState.name;
 
-  const exportPilePlan = async (format: "xlsx" | "csv", pileSizeFormat: PileSizeExportFormat = "numeric"): Promise<void> => {
-    if(projectState.pilePlans.find(p=>p.id===projectState.activePilePlanId)?.pileCapProposals?.length){showActionNotice(t("rightPanel:pileCap.exportUnsupported"),"error");return;}
-    const input = buildPilePlanExportInputForPlan(projectState, projectState.activePilePlanId, pileSizeFormat);
-    const bytes = format === "xlsx"
+  const exportMarker=mcpProjectMarkerRef.current!.observe(projectState);
+  const [exportPlanChoice,setExportPlanChoice]=useState<{instance:string;id:string}|null>(null);
+  useEffect(()=>{if(!backstageOpen)setExportPlanChoice(null);},[backstageOpen]);
+  const exportPlanId=exportPlanChoice?.instance===exportMarker.project_instance_id&&projectState.pilePlans.some(plan=>plan.id===exportPlanChoice.id)?exportPlanChoice.id:projectState.activePilePlanId;
+  const exportPlanIdRef=useRef(exportPlanId);exportPlanIdRef.current=exportPlanId;
+  const exportPilePlanName=projectState.pilePlans.find(plan=>plan.id===exportPlanId)?.name??activePilePlanName;
+  const exportContextKey=JSON.stringify([exportMarker,exportPlanId]);
+  const exportPlanForPanel = useMemo(() => {
+    try { return buildPilePlanExportInputForPlan(projectState, exportPlanId, userSettings.preferences.pileSizeExportFormat); }
+    catch { return null; }
+  }, [projectState, exportPlanId, userSettings.preferences.pileSizeExportFormat]);
+
+  const exportPilePlan = async (format: "xlsx" | "csv", pileSizeFormat: PileSizeExportFormat = "numeric", options?: ExportOptions): Promise<void> => {
+    if(projectState.pilePlans.find(p=>p.id===exportPlanId)?.pileCapProposals?.length){showActionNotice(t("rightPanel:pileCap.exportUnsupported"),"error");return;}
+    const input = buildPilePlanExportInputForPlan(projectState, exportPlanId, pileSizeFormat);
+    const bytes = options ? await exportConfiguredPilePlanCore(format, input, options) : format === "xlsx"
       ? await exportPilePlanXlsxCore(input)
       : await exportPilePlanCsvCore(input);
+    if(exportContextKey!==JSON.stringify([mcpProjectMarkerRef.current!.observe(projectStateRef.current),exportPlanIdRef.current]))throw new Error(t("exportTools.projectChanged"));
     await saveBinaryExport(
       {
-        fileName: pilePlanExportFileName(activePilePlanName, format),
+        fileName: pilePlanExportFileName(exportPilePlanName, format),
         mimeType: format === "xlsx"
           ? "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
           : "text/csv",
@@ -645,6 +663,15 @@ export default function AppSession({
       },
       bytes,
     );
+  };
+
+  const exportRevision = async (format: "xlsx" | "csv", request: RevitRevisionInput, capturedContext: string): Promise<void> => {
+    const currentContext = () => JSON.stringify([mcpProjectMarkerRef.current!.observe(projectStateRef.current), exportPlanIdRef.current]);
+    if (currentContext() !== capturedContext) throw new Error(t("exportTools.projectChanged"));
+    const bytes = await exportRevitRevisionCore(format, request);
+    if (currentContext() !== capturedContext) throw new Error(t("exportTools.projectChanged"));
+    await saveBinaryExport({fileName:pilePlanExportFileName(`${exportPilePlanName}-changes`,format),
+      mimeType:format === "xlsx" ? "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" : "text/csv", extensions:[`.${format}`]},bytes);
   };
 
   const confirmProjectReplacement = useCallback((): Promise<boolean> => {
@@ -1182,7 +1209,7 @@ export default function AppSession({
   }
 
   return (
-    <>
+    <LocationMatchingSurfaceContext.Provider value={matchingSurface.value}>
       <div className="app-shell"
         data-testid="openaec-shell"
         onPointerUpCapture={releasePointerActivatedControlFocus}
@@ -1190,8 +1217,8 @@ export default function AppSession({
         <TitleBar
           projectAction={() => void (isDesktop ? saveProject() : downloadProject())}
           projectActionKind={isDesktop ? "save" : "download"}
-          canUndo={canUndo}
-          canRedo={canRedo}
+          canUndo={canUndo && !matchingSurface.active}
+          canRedo={canRedo && !matchingSurface.active}
           undoLabel={undoLabel}
           redoLabel={redoLabel}
           onUndo={() => dispatchProject({ type: "undo" })}
@@ -1214,6 +1241,8 @@ export default function AppSession({
             />
           ) : undefined}
         />
+        <div className="location-matching-host" ref={matchingSurface.setElement} hidden={!matchingSurface.active}/>
+        {!matchingSurface.active && <>
         <Ribbon
           onFileTabClick={() => setBackstageOpen(true)}
           onOpenProjectInformation={() => setProjectInformationOpen(true)}
@@ -1468,8 +1497,10 @@ export default function AppSession({
           zoomPercent={projectState.viewport.scale * 100}
           message={statusMessage}
         />
+        </>}
       </div>
       <Backstage
+        suspended={matchingSurface.active}
         open={backstageOpen}
         onClose={() => {
           setBackstageOpen(false);
@@ -1493,7 +1524,15 @@ export default function AppSession({
           if (marker.project_instance_id !== current.project_instance_id || marker.project_revision !== current.project_revision) throw new Error(t("projectEdit.projectChanged"));
           return result;
         }}
-        onImportProject={async (mode, projectName: string | null, sources: ImportSourceInput[], properties: ProjectImportProperties | null) => {
+        onPrepareLoadPointRefresh={async (sources, toleranceMm, decisions) => {
+          const marker = mcpProjectMarkerRef.current!.observe(projectStateRef.current);
+          const currentProject = requireValidProjectDocument(await readProjectDocumentCore(await writeProjectDocumentCore(projectDraftFromState(projectStateRef.current)))).project;
+          const result = await prepareLoadPointRefreshCore({currentProject, sources, toleranceMm, decisions});
+          const current = mcpProjectMarkerRef.current!.observe(projectStateRef.current);
+          if (marker.project_instance_id !== current.project_instance_id || marker.project_revision !== current.project_revision) throw new Error(t("projectEdit.projectChanged"));
+          return result;
+        }}
+        onImportProject={async (mode, projectName: string | null, sources: ImportSourceInput[], properties: ProjectImportProperties | null, selection?: LoadPointRefreshSelection) => {
           if (mode === "refresh") {
             return applyProjectRefresh({
               context: () => JSON.stringify(mcpProjectMarkerRef.current!.observe(projectStateRef.current)),
@@ -1504,12 +1543,12 @@ export default function AppSession({
               install: refreshed => {
                 defaultSelectionKeepsDirtyRef.current = true;
                 commitProjectState(createInitialProjectState(refreshed.project, {
-                  initializeDefaultPiles: true,
+                  initializeDefaultPiles: false,
                 }, refreshed.keys));
                 setIsDirty(true);
               },
               changed: () => new Error(t("projectEdit.projectChanged")),
-            }, sources);
+            }, sources, selection);
           }
 
           if (!await confirmProjectReplacement()) return null;
@@ -1552,8 +1591,20 @@ export default function AppSession({
         onOpenFile={(path) => void openDesktopProjectPath(path)}
         onChooseDesktopProject={chooseDesktopProject}
         onDownloadProject={async () => { await downloadProject(); }}
-        onExportPilePlanXlsx={pileSizeFormat => exportPilePlan("xlsx", pileSizeFormat)}
-        onExportPilePlanCsv={pileSizeFormat => exportPilePlan("csv", pileSizeFormat)}
+        onExportPilePlanXlsx={(pileSizeFormat,options) => exportPilePlan("xlsx", pileSizeFormat,options)}
+        onExportPilePlanCsv={(pileSizeFormat,options) => exportPilePlan("csv", pileSizeFormat,options)}
+        exportPlans={projectState.pilePlans.map(({id,name})=>({id,name}))}
+        exportPlanId={exportPlanId}
+        onExportPlanChange={id=>setExportPlanChoice({instance:exportMarker.project_instance_id,id})}
+        exportPlan={exportPlanForPanel}
+        exportContextKey={exportContextKey}
+        exportOptions={userSettings.preferences.pilePlanExportOptions}
+        onExportRevision={exportRevision}
+        onExportOptionsChange={pilePlanExportOptions => {
+          const next = patchUserSettings(userSettingsRef.current, { pilePlanExportOptions });
+          userSettingsRef.current = next;
+          commitUserSettings(next);
+        }}
         pileSizeFormat={userSettings.preferences.pileSizeExportFormat}
         onPileSizeFormatChange={pileSizeExportFormat => {
           const next = patchUserSettings(userSettingsRef.current, { pileSizeExportFormat });
@@ -1605,7 +1656,7 @@ export default function AppSession({
         })}
       />
       <FeedbackDialog open={feedbackOpen} onClose={() => setFeedbackOpen(false)} />
-    </>
+    </LocationMatchingSurfaceContext.Provider>
   );
 
   function beginExplorerResize(event: ReactPointerEvent<HTMLDivElement>) {

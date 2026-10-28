@@ -18,7 +18,7 @@ use pile_plan_core::{
     evaluate_pile_cost_catalog_edit as evaluate_pile_cost_catalog_edit_core,
     import_project_from_sources, preview_import_source,
     preview_load_point_group_edit as preview_load_point_group_edit_core, preview_pile_plan_import,
-    read_project_document as read_project_document_core, refresh_project_from_profiled_sources,
+    read_project_document as read_project_document_core,
     validate_load_point_lock_batch as validate_load_point_lock_batch_core,
     validate_manual_cpt_selection_batch as validate_manual_cpt_selection_batch_core,
     validate_project_tip_levels, write_pile_plan_csv, write_pile_plan_xlsx,
@@ -129,10 +129,14 @@ pub fn import_project_from_files(request: JsValue) -> Result<JsValue, JsValue> {
 #[wasm_bindgen]
 pub fn refresh_project_from_files(request: JsValue) -> Result<JsValue, JsValue> {
     let request: RefreshProjectRequest = from_js_value(request)?;
-    let project = refresh_project_from_profiled_sources(&request.current_project, &request.sources)
-        .map_err(|error| {
-            to_js_value(&error.to_source_import_failure()).unwrap_or_else(|_| to_error_value(error))
-        })?;
+    let project = pile_plan_core::refresh_project_with_location_decisions(
+        &request.current_project,
+        &request.sources,
+        request.location_decisions.as_ref(),
+    )
+    .map_err(|error| {
+        to_js_value(&error.to_source_import_failure()).unwrap_or_else(|_| to_error_value(error))
+    })?;
 
     let tip_level_keys = validate_project_tip_levels(&project)
         .map_err(|error| to_js_value(&error).unwrap_or_else(|_| to_error_value(error)))?;
@@ -164,6 +168,62 @@ pub fn export_pile_plan_csv(request: JsValue) -> Result<Vec<u8>, JsValue> {
 pub fn export_pile_plan_xlsx(request: JsValue) -> Result<Vec<u8>, JsValue> {
     let request: PilePlanExportRequest = from_js_value(request)?;
     write_pile_plan_xlsx(&request).map_err(to_error_value)
+}
+
+#[wasm_bindgen]
+pub fn preview_configured_pile_plan_export(request: JsValue) -> Result<JsValue, JsValue> {
+    let request: pile_plan_core::ConfiguredPilePlanExportRequest = from_js_value(request)?;
+    to_js_value(
+        &pile_plan_core::preview_configured_pile_plan_export(&request).map_err(to_error_value)?,
+    )
+}
+
+#[wasm_bindgen]
+pub fn export_configured_pile_plan_csv(request: JsValue) -> Result<Vec<u8>, JsValue> {
+    let request: pile_plan_core::ConfiguredPilePlanExportRequest = from_js_value(request)?;
+    pile_plan_core::write_configured_pile_plan_csv(&request).map_err(to_error_value)
+}
+
+#[wasm_bindgen]
+pub fn export_configured_pile_plan_xlsx(request: JsValue) -> Result<Vec<u8>, JsValue> {
+    let request: pile_plan_core::ConfiguredPilePlanExportRequest = from_js_value(request)?;
+    pile_plan_core::write_configured_pile_plan_xlsx(&request).map_err(to_error_value)
+}
+
+#[wasm_bindgen]
+pub fn preview_revit_revision(request: JsValue) -> Result<JsValue, JsValue> {
+    let request: pile_plan_core::RevitRevisionRequest = from_js_value(request)?;
+    to_js_value(&pile_plan_core::preview_revit_revision(&request).map_err(to_error_value)?)
+}
+
+#[wasm_bindgen]
+pub fn inspect_pile_table(request: JsValue) -> Result<JsValue, JsValue> {
+    let request: pile_plan_core::InspectPileTableRequest = from_js_value(request)?;
+    to_js_value(&pile_plan_core::inspect_pile_table(&request).map_err(to_error_value)?)
+}
+
+#[wasm_bindgen]
+pub fn export_revit_revision_csv(request: JsValue) -> Result<Vec<u8>, JsValue> {
+    let request: pile_plan_core::RevitRevisionRequest = from_js_value(request)?;
+    pile_plan_core::write_revit_revision_csv(&request).map_err(to_error_value)
+}
+
+#[wasm_bindgen]
+pub fn export_revit_revision_xlsx(request: JsValue) -> Result<Vec<u8>, JsValue> {
+    let request: pile_plan_core::RevitRevisionRequest = from_js_value(request)?;
+    pile_plan_core::write_revit_revision_xlsx(&request).map_err(to_error_value)
+}
+
+#[wasm_bindgen]
+pub fn reconcile_locations(request: JsValue) -> Result<JsValue, JsValue> {
+    let request: pile_plan_core::LocationMatchingRequest = from_js_value(request)?;
+    to_js_value(&pile_plan_core::reconcile_locations(&request).map_err(to_error_value)?)
+}
+
+#[wasm_bindgen]
+pub fn prepare_load_point_refresh(request: JsValue) -> Result<JsValue, JsValue> {
+    let request: pile_plan_core::LoadPointRefreshRequest = from_js_value(request)?;
+    to_js_value(&pile_plan_core::prepare_load_point_refresh(&request).map_err(to_error_value)?)
 }
 
 #[wasm_bindgen]

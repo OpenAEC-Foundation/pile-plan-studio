@@ -10,9 +10,9 @@ use std::fmt;
 use serde::{Deserialize, Serialize};
 
 mod advice;
-mod advice_layout;
-mod advice_diagnostics;
 mod advice_contract;
+mod advice_diagnostics;
+mod advice_layout;
 mod advice_merge;
 mod advice_refresh;
 mod capacity_columns;
@@ -36,7 +36,10 @@ pub use profile::{
     ImportDiagnosticSeverity, ImportPileTipLevelDiagnostic, ImportPreviewDetails, ImportProfile,
     ImportProfileOptions, ImportSourcePreview, RfemPreviewDetails,
 };
-pub use refresh::refresh_project_from_profiled_sources;
+pub use refresh::{
+    prepare_load_point_refresh, refresh_project_from_profiled_sources,
+    refresh_project_with_location_decisions, LoadPointRefreshPreview,
+};
 #[cfg(test)]
 use roles::parse_bearing_capacities;
 use roles::{

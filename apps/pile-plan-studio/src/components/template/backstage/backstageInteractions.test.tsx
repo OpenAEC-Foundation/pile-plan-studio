@@ -15,6 +15,19 @@ function props() {
     commands: { save: false, saveAs: false, download: true } };
 }
 
+test("workspace review hides backstage without losing the current panel or handling Escape", () => {
+  const p=props(), view=render(<Backstage {...p}/>);
+  fireEvent.click(screen.getByRole("button",{name:t("exportMenu")}));
+  fireEvent.click(view.container.querySelector(".export-columns-disclosure > summary")!);
+  fireEvent.change(screen.getByLabelText(i18n.t("exportTools.addColumn")),{target:{value:"mark"}});
+  view.rerender(<Backstage {...p} suspended/>);
+  expect(screen.queryByRole("button",{name:i18n.t("exportTools.selectColumn",{name:"Mark"})})).toBeNull();
+  fireEvent.keyDown(window,{key:"Escape"});
+  expect(p.onClose).not.toHaveBeenCalled();
+  view.rerender(<Backstage {...p} suspended={false}/>);
+  expect(screen.getByRole("button",{name:i18n.t("exportTools.selectColumn",{name:"Mark"})})).toBeTruthy();
+});
+
 test("save commands follow platform capabilities and close after the action finishes", async () => {
   const p = props(); const view = render(<Backstage {...p} />);
   expect(screen.queryByRole("button", { name: /Save/ })).toBeNull();
@@ -28,61 +41,47 @@ test("all exports are blocked during one pending export and failures restore the
   p.onExportPilePlanXlsx.mockReturnValue(new Promise((_resolve, fail) => { reject = fail; }));
   const view = render(<Backstage {...p} />);
   fireEvent.click(screen.getByRole("button", { name: t("exportMenu") }));
-  const actions = view.container.querySelectorAll('.bs-export-card button');
-  fireEvent.click(actions[1]); expect(p.onExportPilePlanXlsx).toHaveBeenCalledOnce();
+  const actions = view.container.querySelectorAll('.export-actions button');
+  fireEvent.click(screen.getByRole("button", {name:t("exportPanel.exportExcel")})); expect(p.onExportPilePlanXlsx).toHaveBeenCalledOnce();
   expect([...actions].every(button => (button as HTMLButtonElement).disabled)).toBe(true);
-  fireEvent.click(actions[2]); expect(p.onExportPilePlanCsv).not.toHaveBeenCalled();
+  fireEvent.click(screen.getByRole("button", {name:t("exportPanel.exportCsv")})); expect(p.onExportPilePlanCsv).not.toHaveBeenCalled();
   await act(async () => reject(new Error("Export failed")));
   expect(screen.getByRole("alert").textContent).toBe("Export failed");
   expect([...actions].every(button => !(button as HTMLButtonElement).disabled)).toBe(true);
 });
 
-test("Excel and CSV share one size notation setting and export block", async () => {
-  const p = props();
-  p.onExportPilePlanXlsx.mockResolvedValue(undefined);
-  p.onExportPilePlanCsv.mockResolvedValue(undefined);
-  function Harness() {
-    const [format, setFormat] = useState(DEFAULT_USER_SETTINGS.preferences.pileSizeExportFormat);
-    return <Backstage {...p} pileSizeFormat={format} onPileSizeFormatChange={setFormat} />;
-  }
-  const view = render(<Harness />);
-  fireEvent.click(screen.getByRole("button", { name: t("exportMenu") }));
-  const format = screen.getByRole("combobox", { name: t("exportPanel.pileSizeFormat") });
+const selectSize = () => {
+  const disclosure=document.querySelector<HTMLDetailsElement>(".export-columns-disclosure")!;
+  if(!disclosure.open)fireEvent.click(disclosure.querySelector("summary")!);
+  fireEvent.click(screen.getByRole("button", {name:i18n.t("exportTools.selectColumn",{name:"Pile Size [mm]"})}));
+};
+const notation = () => screen.getByRole("combobox",{name:i18n.t("exportTools.sizeNotation")}) as HTMLSelectElement;
+
+test("Excel and CSV share the configured column notation", async () => {
+  const p=props();p.onExportPilePlanXlsx.mockResolvedValue(undefined);p.onExportPilePlanCsv.mockResolvedValue(undefined);
+  const view=render(<Backstage {...p}/>);
+  fireEvent.click(screen.getByRole("button",{name:t("exportMenu")}));selectSize();
   expect(view.container.querySelectorAll(".bs-export-card")).toHaveLength(2);
-  expect((format as HTMLSelectElement).value).toBe("numeric");
-  const actions = view.container.querySelectorAll('.bs-export-card button');
-  fireEvent.click(actions[1]);
-  await waitFor(() => expect(p.onExportPilePlanXlsx).toHaveBeenLastCalledWith("numeric"));
-  await waitFor(() => expect((format as HTMLSelectElement).disabled).toBe(false));
-  fireEvent.change(format, { target: { value: "dimensions" } });
-  fireEvent.click(actions[1]);
-  await waitFor(() => expect(p.onExportPilePlanXlsx).toHaveBeenLastCalledWith("dimensions"));
-  await waitFor(() => expect((format as HTMLSelectElement).disabled).toBe(false));
-  fireEvent.click(actions[2]);
-  await waitFor(() => expect(p.onExportPilePlanCsv).toHaveBeenCalledWith("dimensions"));
+  expect(notation().value).toBe("numeric");
+  fireEvent.change(notation(),{target:{value:"dimensions"}});
+  fireEvent.click(screen.getByRole("button",{name:t("exportPanel.exportExcel")}));
+  await waitFor(()=>expect(p.onExportPilePlanXlsx).toHaveBeenCalledWith("numeric",expect.objectContaining({columns:expect.arrayContaining([expect.objectContaining({field:"pile_size",size_format:"dimensions"})])})));
+  await waitFor(()=>expect(notation().disabled).toBe(false));
+  fireEvent.click(screen.getByRole("button",{name:t("exportPanel.exportCsv")}));
+  await waitFor(()=>expect(p.onExportPilePlanCsv.mock.calls[0]).toEqual(p.onExportPilePlanXlsx.mock.calls[0]));
 });
 
-test("export notation survives closing the menu and remounting from saved user preferences", () => {
-  const p = props();
-  let saved = DEFAULT_USER_SETTINGS;
-  function Harness({ open }: { open: boolean }) {
-    const [settings, setSettings] = useState(() => normalizeUserSettings(JSON.parse(JSON.stringify(saved))));
-    return <Backstage {...p} open={open} pileSizeFormat={settings.preferences.pileSizeExportFormat}
-      onPileSizeFormatChange={format => {
-        saved = patchUserSettings(settings, { pileSizeExportFormat: format });
-        setSettings(saved);
-      }} />;
+test("column notation survives closing the menu and reloading user preferences",()=>{
+  const p=props();let saved=DEFAULT_USER_SETTINGS;
+  function Harness({open}:{open:boolean}){
+    const [settings,setSettings]=useState(()=>normalizeUserSettings(JSON.parse(JSON.stringify(saved))));
+    return <Backstage {...p} open={open} pileSizeFormat={settings.preferences.pileSizeExportFormat} exportOptions={settings.preferences.pilePlanExportOptions}
+      onExportOptionsChange={options=>{saved=patchUserSettings(settings,{pilePlanExportOptions:options});setSettings(saved);}}/>;
   }
-  const view = render(<Harness open />);
-  fireEvent.click(screen.getByRole("button", { name: t("exportMenu") }));
-  fireEvent.change(screen.getByRole("combobox", { name: t("exportPanel.pileSizeFormat") }), { target: { value: "dimensions" } });
-  expect(saved.preferences.pileSizeExportFormat).toBe("dimensions");
-  view.rerender(<Harness open={false} />);
-  view.rerender(<Harness open />);
-  fireEvent.click(screen.getByRole("button", { name: t("exportMenu") }));
-  expect((screen.getByRole("combobox", { name: t("exportPanel.pileSizeFormat") }) as HTMLSelectElement).value).toBe("dimensions");
-  view.unmount();
-  render(<Harness open />);
-  fireEvent.click(screen.getByRole("button", { name: t("exportMenu") }));
-  expect((screen.getByRole("combobox", { name: t("exportPanel.pileSizeFormat") }) as HTMLSelectElement).value).toBe("dimensions");
+  const view=render(<Harness open/>);fireEvent.click(screen.getByRole("button",{name:t("exportMenu")}));selectSize();
+  fireEvent.change(notation(),{target:{value:"dimensions"}});
+  expect(saved.preferences.pilePlanExportOptions.columns?.find(c=>c.field==="pile_size")?.size_format).toBe("dimensions");
+  view.rerender(<Harness open={false}/>);view.rerender(<Harness open/>);
+  fireEvent.click(screen.getByRole("button",{name:t("exportMenu")}));selectSize();expect(notation().value).toBe("dimensions");
+  view.unmount();render(<Harness open/>);fireEvent.click(screen.getByRole("button",{name:t("exportMenu")}));selectSize();expect(notation().value).toBe("dimensions");
 });

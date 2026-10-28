@@ -117,8 +117,10 @@ intentional and should be considered when evaluating its results.
 - Historical Legacy rows are ignored when a more reliable current ID match is
   available. Conflicting equally reliable rows remain skipped with warnings.
 - Individual project sources can be refreshed while matched pile assignments
-  and manual CPT selections are retained. Load points use a validated ID and
-  position match, followed by a unique coordinate fallback. CPTs keep their
+  and manual CPT selections are retained. Load-point replacements can be reviewed
+  visually using reciprocal unique coordinate matches and explicit old/new links;
+  node numbers alone do not establish identity. The legacy unreviewed API path
+  retains its validated ID/position and unique coordinate fallback. CPTs keep their
   identity by ID even when their position changes; renamed CPTs use the unique
   coordinate fallback.
 - When CPT IDs are removed and cannot be matched by position, their existing
@@ -132,3 +134,15 @@ intentional and should be considered when evaluating its results.
 - macOS and Linux packages are not provided for this release.
 - Browser projects store imported source information, but are not refresh-linked
   to the original files on the user's computer.
+
+## Export and change tables
+
+- Previous/new CSV/XLSX tables and reviewed location links remain transient;
+  they are not stored in IFCPP. Review ambiguous links before exporting a change
+  table or applying a load-point refresh. The tool generates the output table;
+  processing that table in another application is outside its scope.
+- Old tables require X/Y coordinates. Other source fields can be mapped when
+  available; absent old size/shape/level values cannot be compared and do not
+  generate false change codes. Verify source units and coordinate systems.
+- Removed rows retain their old location IDs and Marks. Full active-plan
+  renumbering can therefore reuse a number present on a removed row.

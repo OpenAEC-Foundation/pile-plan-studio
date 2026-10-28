@@ -38,6 +38,9 @@ import {
   type ProjectImportProperties,
 } from "../../../domain/imports/projectImportModel.ts";
 import "./projectImport.css";
+import {useLoadPointRefreshReview, type PrepareLoadPointRefresh} from "../../../app/import/useLoadPointRefreshReview.ts";
+import type {LoadPointRefreshSelection} from "../../../core/exportRevisionContract.ts";
+import LocationMatchingWorkspace from "../location-matching/LocationMatchingWorkspace.tsx";
 
 const ROLES: Array<{ role: ImportFileRole; labelKey: string; columnsKey: string }> = [
   { role: "load-points", labelKey: "importProject.roles.loadPoints", columnsKey: "importProject.columns.loadPoints" },
@@ -60,17 +63,20 @@ export default function ProjectImportPanel({
   defaultCurrencyCode,
   onPreviewProjectImport = (_mode, sources) => previewProjectImportCore({ sources, currentProject: null }),
   importPreviewContextKey = "",
+  onPrepareLoadPointRefresh,
 }: {
   onImportProject: (
     mode: ProjectImportMode,
     projectName: string | null,
     sources: ImportSourceInput[],
     properties: ProjectImportProperties | null,
+    selection?: LoadPointRefreshSelection,
   ) => Promise<ImportSummary | null>;
   initialSource?: { role: ImportFileRole; file: File } | null;
   defaultCurrencyCode: string;
   onPreviewProjectImport?: (mode: ProjectImportMode, sources: ImportSourceInput[]) => Promise<ProjectImportPreview>;
   importPreviewContextKey?: string;
+  onPrepareLoadPointRefresh?: PrepareLoadPointRefresh;
 }) {
   const { t } = useTranslation("common");
   const [mode, setMode] = useState<ProjectImportMode>("new-project");
@@ -86,6 +92,9 @@ export default function ProjectImportPanel({
   useAdviceImportPreviews(drafts, setDrafts, mode, importPreviewContextKey, onPreviewProjectImport);
   const normalizedPileHeadLevel = normalizePileHeadLevel(pileHeadLevel);
   const { canSubmit, showPileHeadLevelBlocker } = projectImportReadiness(drafts, mode, normalizedPileHeadLevel);
+  const refreshReview = useLoadPointRefreshReview(importPreviewContextKey, drafts["load-points"].file,
+    JSON.stringify([mode, drafts["load-points"].requestedProfile, drafts["load-points"].profileOptions]), onPrepareLoadPointRefresh);
+  const needsLocationReview = mode === "refresh" && !!drafts["load-points"].file && !!onPrepareLoadPointRefresh;
 
   const missingProjectSources = mode === "new-project" && drafts.advice!.sources.length > 0
     ? !drafts["load-points"].file && !drafts.cpts.file ? "requiresLoadPointsAndCpts"
@@ -146,14 +155,20 @@ export default function ProjectImportPanel({
         drafts, mode, projectName, pileHeadLevelM: normalizedPileHeadLevel, currencyCode,
       });
       if (!request) return;
-      const result = await onImportProject(request.mode, request.projectName, request.sources, request.properties);
+      if (needsLocationReview && !refreshReview.selection) {
+        await refreshReview.prepare(request.sources);
+        return;
+      }
+      const result = refreshReview.selection && needsLocationReview
+        ? await onImportProject(request.mode, request.projectName, request.sources, request.properties, refreshReview.selection)
+        : await onImportProject(request.mode, request.projectName, request.sources, request.properties);
       if (result) {
         setSummary(result);
         if (mode === "refresh") setDrafts({ ...createEmptyImportDrafts<File>(), advice: createEmptyAdviceDraft<File>() });
       }
     } catch (reason) {
       if (reason instanceof SourceImportError) setFinalFailure({ canApply: false, uniqueValueCount: 0, importedValueCount: 0, exactDuplicateCount: 0, orphanValueCount: 0, conflicts: reason.conflicts, diagnostics: reason.diagnostics });
-      setError(reason instanceof Error ? reason.message : String(reason));
+      setError(reason instanceof Error && reason.message === "project_changed" ? t("exportTools.projectChanged") : reason instanceof Error ? reason.message : String(reason));
     } finally {
       setBusy(false);
     }
@@ -316,16 +331,31 @@ export default function ProjectImportPanel({
         <section className="project-import-summary" aria-label={t("importProject.summaryAria")}>
           <strong>{t("importProject.completed")}</strong>
           <span>{t("importProject.summary", { loadPoints: summary.loadPointCount.toLocaleString(), cpts: summary.cptCount.toLocaleString(), advice: summary.bearingCapacityCount.toLocaleString() })}</span>
-          {summary.warnings.length > 0 && <ul>{summary.warnings.map((warning) => <li key={warning}>{warning}</li>)}</ul>}
+          {summary.warnings.length > 0 && <ul>{summary.warnings.map((warning) => <li key={warning}>{warning === "load_refresh_removed_cap_proposals" ? t("exportTools.removedCapProposals") : warning}</li>)}</ul>}
         </section>
       )}
       </fieldset>
+      {needsLocationReview && <label className="export-field"><span>{t("exportTools.matchTolerance")}</span>
+        <input type="number" min={0} step="any" value={refreshReview.tolerance} disabled={busy} onChange={e => refreshReview.setTolerance(Number(e.target.value))}/>
+      </label>}
+      {needsLocationReview && refreshReview.selection && <p className="export-help">{t("exportTools.refreshEffects", {added: refreshReview.selection.decisions.added.length, removed: refreshReview.selection.decisions.removed.length})}
+        <button type="button" disabled={busy} onClick={async () => {
+          setBusy(true);
+          try { const request = await prepareProjectImportRequest({drafts, mode, projectName, pileHeadLevelM: normalizedPileHeadLevel, currencyCode}); if (request) await refreshReview.prepare(request.sources); }
+          catch (reason) { setError(reason instanceof Error ? reason.message : String(reason)); }
+          finally { setBusy(false); }
+        }}>{t("exportTools.reviewAgain")}</button></p>}
+      {needsLocationReview && refreshReview.preview && <LocationMatchingWorkspace
+        key={JSON.stringify([importPreviewContextKey, refreshReview.tolerance])}
+        oldLocations={refreshReview.preview.old_locations} newLocations={refreshReview.preview.new_locations}
+        initial={refreshReview.preview.matching} toleranceMm={refreshReview.tolerance}
+        onConfirm={refreshReview.confirm} onCancel={refreshReview.cancel} initialAutomatic={!refreshReview.selection}/>}
       {finalFailure && <AdviceImportDiagnostics preview={finalFailure} />}
       <div className="project-import-submit-area">
         <button className="primary-action project-import-submit" type="button" disabled={busy || !canSubmit} onClick={importProject}>
           {busy
             ? t(mode === "refresh" ? "importProject.refreshing" : "importProject.importing")
-            : t(mode === "refresh" ? "importProject.refreshSubmit" : "importProject.submit")}
+            : t(needsLocationReview && !refreshReview.selection ? "exportTools.refreshReview" : mode === "refresh" ? "importProject.refreshSubmit" : "importProject.submit")}
         </button>
         {showPileHeadLevelBlocker && (
           <p className="project-import-property-blocker" role="status">

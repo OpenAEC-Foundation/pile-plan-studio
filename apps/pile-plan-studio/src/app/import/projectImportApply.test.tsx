@@ -55,3 +55,20 @@ test('a rejected advice refresh preserves the project reference, history and dir
    install:result=>{managed=projectHistoryReducer(managed,{type:'commit',update:createInitialProjectState(result.project,{initializeDefaultPiles:false},result.keys)});dirty=true;}},[])).rejects.toBe(failure);
  expect(managed).toBe(initial);expect(managed.present).toBe(initial.present);expect(managed.history.past).toHaveLength(0);expect(dirty).toBe(false);
 });
+
+test("confirmed location links cannot target a newer project revision",async()=>{
+  const project=canonicalProjectForTest(sample),install=vi.fn();
+  const result={status:"valid" as const,project,keys:projectTipLevelKeysForTest(project)};
+  await expect(applyProjectRefresh({context:()=>"new revision",snapshot:async()=>project,refresh:async()=>result,install,changed:()=>new Error("changed")},[],
+    {contextKey:"old revision",decisions:{links:[],added:[],removed:[]}})).rejects.toThrow("changed");
+  expect(install).not.toHaveBeenCalled();
+});
+
+test("accepted location decisions reach the refresh operation as one project change",async()=>{
+  const project=canonicalProjectForTest(sample),install=vi.fn();
+  const refresh=vi.fn(async()=>({status:"valid" as const,project,keys:projectTipLevelKeysForTest(project)}));
+  const decisions={links:[{old_id:1,new_id:9}],added:[10],removed:[2]};
+  await applyProjectRefresh({context:()=>"one",snapshot:async()=>project,refresh,install,changed:()=>new Error("changed")},[],{contextKey:"one",decisions});
+  expect(refresh).toHaveBeenCalledWith({currentProject:project,sources:[],locationDecisions:decisions});
+  expect(install).toHaveBeenCalledOnce();
+});

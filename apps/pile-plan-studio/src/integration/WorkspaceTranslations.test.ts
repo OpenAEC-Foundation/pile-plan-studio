@@ -461,3 +461,50 @@ it("translates advice selection, blocking conflicts and pagination in both langu
     assert.match(copy.advice.conflicts,/{{count}}/);assert.match(copy.advice.page,/{{page}}/);assert.match(copy.advice.page,/{{pages}}/);
   }
 });
+
+it("translates export rules, revision review and refresh consequences in both languages", () => {
+  const load = (language: string) => JSON.parse(readFileSync(resolve(import.meta.dirname, `../i18n/locales/${language}/common.json`), "utf8")).exportTools;
+  const en = load("en"), nl = load("nl");
+  assert.deepEqual(Object.keys(nl).sort(), Object.keys(en).sort());
+  for (const copy of [nl, en]) {
+    for (const key of ["revisionMode", "reviewAgain", "bulkNearest", "bulkSeparate", "refreshReview", "removedCapProposals", "matchTolerance", "rowTolerance"]) assert.ok(copy[key]?.trim(), key);
+    assert.match(copy.detection, /{{matched}}/);
+    assert.match(copy.refreshEffects, /{{added}}/);
+    assert.match(copy.refreshEffects, /{{removed}}/);
+    assert.deepEqual(Object.keys(nl.errors).sort(), Object.keys(en.errors).sort());
+  }
+});
+
+it("translates generic change tables, configurable columns and source mapping in both languages",()=>{
+  for(const language of ["nl","en"]){
+    const copy=JSON.parse(readFileSync(resolve(import.meta.dirname,`../i18n/locales/${language}/common.json`),"utf8")).exportTools;
+    for(const key of ["outputColumns","columnCaption","columnContent","sourceMapping","sourceUnits","changeCodes","movementThreshold","codeSeparator","sizeTemplateHelp","missingComparisonFields"])assert.ok(copy[key]?.trim(),`${language}: ${key}`);
+    assert.doesNotMatch(copy.revisionMode,/Revit/);assert.doesNotMatch(copy.oldSource,/Revit/);
+    for(const field of ["mark","tip_code","pile_size","change_code","literal","source"])assert.ok(copy.fields[field]?.trim());
+    assert.match(copy.includeColumn,/{{name}}/);assert.match(copy.sourceField,/{{name}}/);
+    for(const kind of ["moved","size","level","added","removed"])assert.ok(copy.changeKinds[kind]?.trim());
+  }
+});
+
+it("uses language-specific default export captions",()=>{
+  const load=(language:string)=>JSON.parse(readFileSync(resolve(import.meta.dirname,`../i18n/locales/${language}/common.json`),"utf8")).exportTools;
+  const nl=load("nl"),en=load("en");assert.equal(nl.headers.tip_code,"Inheicode");assert.equal(en.headers.tip_code,"Tip code");
+  assert.doesNotMatch(Object.values(en.headers).join(" "),/Inheicode|Wijzigingscode/);
+  assert.deepEqual(Object.keys(nl.headers).sort(),Object.keys(en.headers).sort());assert.match(en.removeNamedColumn,/{{name}}/);
+});
+
+it("explains plan selection and both numbering modes in both languages",()=>{
+  for(const language of ["nl","en"]){
+    const copy=JSON.parse(readFileSync(resolve(import.meta.dirname,`../i18n/locales/${language}/common.json`),"utf8")).exportTools;
+    for(const key of ["markRevisionMode","preserveNumbering","renumberPlan","renumberHelp","exportPilePlan","selectedPlan"])assert.ok(copy[key]?.trim());
+    assert.match(copy.renumberHelp,language==="nl"?/Verwijderde.*oude nummer/:/Removed.*old number/);
+  }
+});
+
+it("translates guided matching, reassignment, remaining actions and completion",()=>{
+  for(const language of ["nl","en"]){
+    const copy=JSON.parse(readFileSync(resolve(import.meta.dirname,`../i18n/locales/${language}/common.json`),"utf8")).exportTools;
+    for(const key of ["matchingGrid","reviewProgress","newPending","oldPending","reviewComplete","reviewCompleteHelp","continueReview","showAllLocations","occupiedBy","linkReassigned","pendingMarkerHelp","bulkNearestShort","bulkSeparateShort"])assert.ok(copy[key]?.trim(),`${language}: ${key}`);
+    assert.match(copy.occupiedBy,/{{id}}/);assert.match(copy.linkReassigned,/{{id}}/);
+  }
+});

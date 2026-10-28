@@ -253,6 +253,34 @@ export function evaluate_pile_cost_catalog_edit(request) {
  * @param {any} request
  * @returns {Uint8Array}
  */
+export function export_configured_pile_plan_csv(request) {
+    const ret = wasm.export_configured_pile_plan_csv(request);
+    if (ret[3]) {
+        throw takeFromExternrefTable0(ret[2]);
+    }
+    var v1 = getArrayU8FromWasm0(ret[0], ret[1]).slice();
+    wasm.__wbindgen_free(ret[0], ret[1] * 1, 1);
+    return v1;
+}
+
+/**
+ * @param {any} request
+ * @returns {Uint8Array}
+ */
+export function export_configured_pile_plan_xlsx(request) {
+    const ret = wasm.export_configured_pile_plan_xlsx(request);
+    if (ret[3]) {
+        throw takeFromExternrefTable0(ret[2]);
+    }
+    var v1 = getArrayU8FromWasm0(ret[0], ret[1]).slice();
+    wasm.__wbindgen_free(ret[0], ret[1] * 1, 1);
+    return v1;
+}
+
+/**
+ * @param {any} request
+ * @returns {Uint8Array}
+ */
 export function export_pile_plan_csv(request) {
     const ret = wasm.export_pile_plan_csv(request);
     if (ret[3]) {
@@ -279,10 +307,74 @@ export function export_pile_plan_xlsx(request) {
 
 /**
  * @param {any} request
+ * @returns {Uint8Array}
+ */
+export function export_revit_revision_csv(request) {
+    const ret = wasm.export_revit_revision_csv(request);
+    if (ret[3]) {
+        throw takeFromExternrefTable0(ret[2]);
+    }
+    var v1 = getArrayU8FromWasm0(ret[0], ret[1]).slice();
+    wasm.__wbindgen_free(ret[0], ret[1] * 1, 1);
+    return v1;
+}
+
+/**
+ * @param {any} request
+ * @returns {Uint8Array}
+ */
+export function export_revit_revision_xlsx(request) {
+    const ret = wasm.export_revit_revision_xlsx(request);
+    if (ret[3]) {
+        throw takeFromExternrefTable0(ret[2]);
+    }
+    var v1 = getArrayU8FromWasm0(ret[0], ret[1]).slice();
+    wasm.__wbindgen_free(ret[0], ret[1] * 1, 1);
+    return v1;
+}
+
+/**
+ * @param {any} request
  * @returns {any}
  */
 export function import_project_from_files(request) {
     const ret = wasm.import_project_from_files(request);
+    if (ret[2]) {
+        throw takeFromExternrefTable0(ret[1]);
+    }
+    return takeFromExternrefTable0(ret[0]);
+}
+
+/**
+ * @param {any} request
+ * @returns {any}
+ */
+export function inspect_pile_table(request) {
+    const ret = wasm.inspect_pile_table(request);
+    if (ret[2]) {
+        throw takeFromExternrefTable0(ret[1]);
+    }
+    return takeFromExternrefTable0(ret[0]);
+}
+
+/**
+ * @param {any} request
+ * @returns {any}
+ */
+export function prepare_load_point_refresh(request) {
+    const ret = wasm.prepare_load_point_refresh(request);
+    if (ret[2]) {
+        throw takeFromExternrefTable0(ret[1]);
+    }
+    return takeFromExternrefTable0(ret[0]);
+}
+
+/**
+ * @param {any} request
+ * @returns {any}
+ */
+export function preview_configured_pile_plan_export(request) {
+    const ret = wasm.preview_configured_pile_plan_export(request);
     if (ret[2]) {
         throw takeFromExternrefTable0(ret[1]);
     }
@@ -341,8 +433,32 @@ export function preview_project_import_files(request) {
  * @param {any} request
  * @returns {any}
  */
+export function preview_revit_revision(request) {
+    const ret = wasm.preview_revit_revision(request);
+    if (ret[2]) {
+        throw takeFromExternrefTable0(ret[1]);
+    }
+    return takeFromExternrefTable0(ret[0]);
+}
+
+/**
+ * @param {any} request
+ * @returns {any}
+ */
 export function read_project_document(request) {
     const ret = wasm.read_project_document(request);
+    if (ret[2]) {
+        throw takeFromExternrefTable0(ret[1]);
+    }
+    return takeFromExternrefTable0(ret[0]);
+}
+
+/**
+ * @param {any} request
+ * @returns {any}
+ */
+export function reconcile_locations(request) {
+    const ret = wasm.reconcile_locations(request);
     if (ret[2]) {
         throw takeFromExternrefTable0(ret[1]);
     }
@@ -667,7 +783,7 @@ function __wbg_get_imports() {
                 }
             };
             cb0._wbg_cb_unref = () => state0.a = 0;
-            // Cast intrinsic for `Closure(Closure { owned: false, function: Function { arguments: [Externref], shim_idx: 189, ret: Unit, inner_ret: Some(Unit) }, mutable: true }) -> Externref`.
+            // Cast intrinsic for `Closure(Closure { owned: false, function: Function { arguments: [Externref], shim_idx: 249, ret: Unit, inner_ret: Some(Unit) }, mutable: true }) -> Externref`.
             const ret = cb0;
             return ret;
         },

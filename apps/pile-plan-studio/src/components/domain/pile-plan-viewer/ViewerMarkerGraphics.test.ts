@@ -36,4 +36,23 @@ describe("shared marker SVG graphics", () => {
       await server.close();
     }
   });
+  it("draws compact context rings with fine dashes while keeping selection rings solid", async () => {
+    const server = await createServer({ server: { middlewareMode: true }, appType: "custom" });
+    try {
+      const { default: ViewerMarkerGraphics } = await server.ssrLoadModule("/src/components/domain/pile-plan-viewer/ViewerMarkerGraphics.tsx");
+      const common={kind:"load-point",x:100.25,y:200.5,scale:0.075,drawPriority:40,halo:null,locked:false,opacity:1,appearance:{type:"neutral"}};
+      const html=renderToStaticMarkup(createElement("svg",null,createElement(ViewerMarkerGraphics,{graphics:[
+        {...common,key:"load-point:1",id:1,ring:{color:"context",radius:3.025}},
+        {...common,key:"load-point:2",id:2,ring:{color:"selection",radius:3.025}},
+      ]})));
+      const context=html.match(/<circle[^>]*stroke="#738087"[^>]*>/)![0];
+      const selected=html.match(/<circle[^>]*stroke="#ed7100"[^>]*>/)![0];
+      assert.match(context,/stroke-width="1"/);
+      assert.ok(Number(context.match(/stroke-dasharray="([^ ]+)/)![1])<0.21);
+      assert.doesNotMatch(selected,/stroke-dasharray/);
+      assert.match(selected,/stroke-width="1"/);
+      assert.match(html,/translate\(100\.25 200\.5\)/);
+    } finally {await server.close();}
+  });
+
 });

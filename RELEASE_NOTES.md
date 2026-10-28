@@ -1,5 +1,69 @@
 # Open Pile Plan Studio Release Notes
 
+## 2026.44.3
+
+This alpha adds configurable pile-plan exports and change tables, with a large
+visual workspace for reviewing old-to-new location links.
+
+### Added
+
+- Choose which pile plan to export without switching the viewed plan. Configure
+  output columns, drag their order, rename captions, add or remove columns, and
+  choose their content and formatting. Keep column settings and the live table
+  preview in separate collapsible sections, initially closed.
+- Configure dimension notation, coordinate/level units and additional text.
+  Add spatial Mark numbering and tip-level codes using letters or numbers,
+  ordered from high to low or low to high. Default captions follow the interface
+  language; custom captions stay intact. New captions only receive a numeric
+  suffix when the plain name already exists.
+- Create a change table from a previous CSV/XLSX pile-plan table and a chosen
+  project plan or new export file. Inspect worksheets, map source columns and
+  units, and retain additional old data at linked locations. Output is a table;
+  importing it into Revit or another target application is a separate step.
+- Configure an optional change-code column: movement, size, tip level, additions
+  and removals default to M/S/L/A/R, with editable codes, separator and movement
+  threshold. Missing optional source fields do not produce false size/level codes.
+- Preserve existing Marks and number additions above the previous maximum, or
+  renumber the active new plan using the chosen rule. Removed rows retain their
+  old Marks. Detect a candidate numbering rule from the previous table and allow
+  it to be adjusted, including row/column tolerance.
+- Review old/new links in an integrated pan/zoom drawing with a sidebar editor.
+  Start on unresolved locations and advance after each decision. Select occupied
+  partners directly to reassign them, use explicit added/removed decisions, or
+  resolve remaining locations in bulk by nearest distance or as added/removed.
+
+### Improved and fixed
+
+- Reuse visual location review when refreshing load points from a new RFEM export,
+  including load-only refreshes that retain the current foundation advice.
+  Reviewed mappings carry linked assignments, locks and CPT selections to the new
+  node numbers across plans; node numbers are not assumed to be stable identities.
+- Distinguish old selection/hover with a dashed ring and new selection/hover with
+  a solid orange ring. Escape or an empty drawing click clears selection. Pending
+  badges and progress counters expose unresolved locations. Grid and all link
+  lines start enabled; thin straight center-to-center lines render above symbols,
+  without a halo, and coincident locations show no line.
+- Keep export editing scroll positions stable while adding, removing or reordering
+  columns, including change tables. Correct the old/new layer icons in dark themes.
+- Keep the existing outline line weight while shrinking dash length and gaps at
+  compact symbol sizes for context rings and pile-cap proposal contours. (#54)
+- Clear obsolete optimizer outcomes when source data changes. Remap pile-cap
+  proposal members through reviewed location links and warn when removed members
+  require a proposal to be dropped.
+
+### Compatibility and limitations
+
+- Supported IFCPP project schemas and engineering calculations remain unchanged.
+  Export column/numbering preferences are application settings; source tables and
+  matching review are transient and are not stored in the project.
+- Change tables retain removed rows and their original IDs/Marks. After full
+  renumbering, a removed old Mark may coincide with an active new Mark.
+- CSV/XLSX export remains unavailable for plans containing pile-cap proposals;
+  save those variants as IFCPP or export a separate plan without proposals.
+- Existing unconfigured API/MCP export writers retain their numeric/default
+  contract. Browser and native interfaces use the same Rust matching/export rules.
+- The application remains Alpha; engineering results require professional review.
+
 ## 2026.44.2
 
 This alpha adds persistent pile-cap proposals and optional pile-count optimization,

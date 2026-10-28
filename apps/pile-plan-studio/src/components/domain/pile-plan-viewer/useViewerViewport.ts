@@ -36,21 +36,24 @@ import {
   type ViewerWindowMetrics,
 } from "./viewerResizePolicy.ts";
 
-type UseViewerViewportOptions = {
-  state: ProjectState;
-  onStateChange: (nextState: ProjectState) => void;
+export type ViewerViewportState = Pick<ProjectState, "bounds" | "viewport" | "activePilePlanId" | "selectedLoadPointIds"> & {
+  loadPoints: ReadonlyArray<{id: number; x_mm: number; y_mm: number}>;
+};
+type UseViewerViewportOptions<State extends ViewerViewportState> = {
+  state: State;
+  onStateChange: (nextState: State) => void;
   interactionRef: RefObject<unknown | null>;
   focusRequest?: ViewerFocusRequest | null;
   onFocusHandled?: (request: ViewerFocusRequest) => void;
 };
 
-export function useViewerViewport({
+export function useViewerViewport<State extends ViewerViewportState>({
   state,
   onStateChange,
   interactionRef,
   focusRequest,
   onFocusHandled,
-}: UseViewerViewportOptions) {
+}: UseViewerViewportOptions<State>) {
   const [projectTransform, setProjectTransform] = useState(
     () => createProjectViewTransform(state.bounds, { width: 1, height: 1 }),
   );

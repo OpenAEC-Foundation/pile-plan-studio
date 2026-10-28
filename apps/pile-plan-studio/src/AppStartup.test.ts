@@ -64,7 +64,7 @@ describe("React app startup", () => {
     assert.match(panelSource, /state\.analysisError/);
   });
 
-  it("initializes default piles for the sample, new imports, and refreshed unmatched points", () => {
+  it("initializes defaults for sample/new imports and leaves newly refreshed points unassigned", () => {
     const source = ["App.tsx", "app/session/AppSession.tsx"]
       .map((fileName) => readFileSync(resolve(import.meta.dirname, fileName), "utf8"))
       .join("\n");
@@ -73,7 +73,7 @@ describe("React app startup", () => {
     assert.match(source, /initialProject: result\.project,[\s\S]*?initializeDefaultPiles: false/);
     assert.match(source, /createInitialProjectState\(sample\.project, \{[\s\S]*?initializeDefaultPiles: true[\s\S]*?\}, sample\.keys\)/);
     assert.match(source, /createInitialProjectState\(project, \{[\s\S]*?initializeDefaultPiles: true[\s\S]*?\}, imported\.keys\)/);
-    assert.match(source, /createInitialProjectState\(refreshed\.project, \{[\s\S]*?initializeDefaultPiles: true[\s\S]*?\}, refreshed\.keys\)/);
+    assert.match(source, /createInitialProjectState\(refreshed\.project, \{[\s\S]*?initializeDefaultPiles: false[\s\S]*?\}, refreshed\.keys\)/);
     assert.match(source, /prepareOpenedProject\(\s*await file\.text\(\),\s*\{ initializeDefaultPiles: false \},\s*\{/);
     assert.match(source, /readProjectDocument:\s*readProjectDocumentCore/);
     assert.doesNotMatch(source, /validatePositions:\s*validateLoadPointPositionsCore/);
@@ -125,7 +125,7 @@ describe("React app startup", () => {
     assert.match(handler, /return applyProjectRefresh\(\{/);
     assert.match(handler, /snapshot: async \(\) => requireValidProjectDocument\([\s\S]*?writeProjectDocumentCore\(projectDraftFromState\(projectStateRef\.current\)\)/);
     assert.match(handler, /refresh: refreshProjectFromFilesCore/);
-    assert.match(source, /createInitialProjectState\(refreshed\.project, \{[\s\S]*?initializeDefaultPiles: true,[\s\S]*?\}, refreshed\.keys\)/);
+    assert.match(source, /createInitialProjectState\(refreshed\.project, \{[\s\S]*?initializeDefaultPiles: false,[\s\S]*?\}, refreshed\.keys\)/);
     assert.match(source, /defaultSelectionKeepsDirtyRef\.current = true/);
     assert.ok(
       handler.indexOf('mode === "refresh"') < handler.indexOf("confirmProjectReplacement()"),

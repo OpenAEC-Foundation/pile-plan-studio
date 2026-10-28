@@ -1,5 +1,5 @@
 import { OPTIMIZER_QUESTION_PATH } from "../../../viewer/optimizerMarkerGeometry.ts";
-import { getCptSymbolScale } from "../../../viewer/markerGraphicGeometry.ts";
+import { getCptSymbolScale, getDashedOutlineDasharray } from "../../../viewer/markerGraphicGeometry.ts";
 import { renderPileSymbolSvgChildren } from "../../../viewer/pileSymbols.ts";
 import type { ViewerMarkerGraphic, ViewerMarkerHalo } from "./viewerMarkerPresentation.ts";
 
@@ -132,7 +132,7 @@ export default function ViewerMarkerGraphics({ graphics }: Props) {
               r={graphic.ring.radius}
               fill="none"
               stroke={graphic.ring.color === "context" ? "#738087" : "#ed7100"}
-              strokeDasharray={graphic.ring.color === "context" ? "2 2" : undefined}
+              strokeDasharray={graphic.ring.color === "context" ? getDashedOutlineDasharray(graphic.scale, 2) : undefined}
               strokeWidth={1}
             />
           ) : null}

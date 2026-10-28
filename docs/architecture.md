@@ -507,18 +507,82 @@ The overview shows both active and context counts while inspecting. These rings
 do not add action targets, saved content, or undo steps. Context is discarded when
 the load-point source changes.
 
-Excel and CSV pile-plan export share one block and one notation setting: numeric
-pile sizes (the default) or square dimensions such as `290x290`. The shared Rust writer resolves square shapes from project
-pile-size settings supplied with the export request, independently of legend
-symbols. Round and unknown shapes stay numeric, unassigned cells stay empty,
-and CSV stays numeric by default. Only an explicit dimensions choice changes its
-size field. The notation choice is an application-wide user preference, shared
-by Excel and CSV and remembered across restarts without changing project history.
-Existing API/MCP callers retain numeric defaults. Standard-table import accepts
-both numeric sizes and equal square dimensions, using `x`, `X` or `×` with
-optional surrounding spaces. Unequal dimensions are rejected; dimension notation
-does not modify project pile-shape settings. Both export notations can be
-re-imported from CSV and XLSX.
+Excel and CSV share an explicit, ordered column layout with stable field keys
+independent from user captions. `export_columns.rs` validates layouts and projects
+typed records, including size notation/templates, units and literal cells. Normal
+layout and numbering/code options are application preferences. Default captions
+follow the interface language and selected output units; edited captions and
+imported source names remain explicit. The column list holds exported columns
+only, with drag grips, keyboard reordering and per-row removal. Newly added
+captions receive a free numeric suffix, retained when default captions change
+language. The editor uses bounded lists/settings and reserves preview space;
+while column/code recalculation is pending, it presents the previous table for
+the same plan/source context with busy state and export disabled. It never
+exports that cached presentation. Failed sheet/header interpretation retains
+its controls so users can correct the choice. The original
+unconfigured API/MCP writers retain their original seven-column contract.
+Configured dimension notation renders square sizes as `290x290` and round sizes
+as `Ø290`; unassigned values stay empty. Ordinary pile-plan import accepts numeric
+and equal square dimensions; customized captions/templates use the generic
+change-table source mapper rather than altering project pile shapes.
+
+`export_rules.rs` owns optional spatial Mark ordering and tip-level code rules;
+`export_table.rs` writes the typed scalar table used by previews and CSV/XLSX.
+`location_matching.rs` owns reciprocal unique automatic matching, explicit
+one-to-one decisions, nearest/separate bulk actions and numbering-rule scoring.
+`revit_revision/` retains its transport name but implements generic change tables.
+Its inspector selects worksheets/header rows, suggests known column meanings
+and units and returns an editable source layout even before full row validation.
+Explicit field mapping accepts customized captions. Only old X/Y are required;
+missing old size/shape/level remains optional and never produces false S/L codes.
+The new file requires IDs and complete configurations. Comparison preserves
+source metadata by index and existing Marks, allocates missing/new Marks,
+regenerates active tip codes and computes configurable M/S/L/A/R-style codes.
+A Mark mode can retain old numbering and number additions above its maximum, or
+renumber every active new location from the configured start. Removed rows retain
+old Marks in either mode, so a removed number may overlap an active new one.
+The export destination plan is a transient session choice, initially the viewed
+plan. Preview, writers, filenames and revision guards share this destination;
+changing it invalidates matching review without switching the viewed plan.
+Export column settings and the output preview use separate native disclosures,
+initially closed; their mounted contents preserve edits and cached presentation.
+Output projection can include, reorder, rename or omit any column. Source
+mappings and inherited layouts remain transient. Layout/code edits preserve
+confirmed links; source, interpretation or geometry changes invalidate them. RFEM refresh accepts the same
+validated decisions through `import/refresh.rs`; ID reuse never establishes
+identity in the reviewed workflow. Source refresh clears optimizer outcomes,
+remaps pile-cap proposal member IDs and drops proposals with removed members
+with a visible warning. Load-only previews validate the refreshed project and
+preserve unchanged legacy advice instead of re-importing it through advice
+reconciliation. Source advice/CPT changes retain their full validation.
+
+The WASM and native wrappers expose matching, export previews/writers and
+load-point refresh preparation. `app/exports/` guards asynchronous previews and
+transient mapping decisions against changed source/project context. The shared
+`components/domain/location-matching/` workspace renders core proposals and sends
+all edits and bulk actions back to Rust. `locationMatchingSurface.tsx` registers
+the review in the AppSession host below the ordinary title bar. Backstage stays
+mounted and suspended so files and settings survive confirm/cancel. The viewport
+mounts after its host becomes visible and reuses `useViewerViewport`, the shared
+SVG surface, marker geometry and nearest-hit index. Review pan/zoom is transient.
+Only the selected location has a dropdown; the list and SVG stay linear in the
+number of points. Old symbols are outlined and new symbols filled, using the
+project legend when source configuration data is available. Lines have
+selected/all/off modes, initially all. Thin straight center-to-center lines render
+after the symbols, without a halo; coincident endpoints render no line. The same
+viewport hook draws the coordinate grid in its
+untransformed canvas layer, enabled initially. Old hover/selection uses explicit
+navy dashed rings; new hover/selection uses solid orange rings. Pending points
+on both layers carry question badges. The review starts in old-partner picking
+mode for the first unresolved new point, advances after accepted decisions,
+then visits old orphans. Empty clicks/Escape clear selection, while drags pan.
+An occupied target replaces conflicting edges in one immutable edit proposal;
+Rust validates the complete one-to-one result. Displaced points stay unresolved.
+Bulk actions and pending counters remain visible above the drawing. The RFEM review passes the confirmed
+mapping with its project revision to the atomic refresh installer. No revision
+source, link or preview enters IFCPP/history. Export settings are normalized
+application preferences. Annotation options are opt-in; old API/MCP writers
+retain their original contract and columns.
 
 The implementation invariants, coordinate pipeline, regression symptoms, and
 manual test procedure live beside the viewer code in

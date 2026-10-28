@@ -1,6 +1,7 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import {
+  getDashedOutlineDasharray,
   getCptRingRadius,
   getCptSymbolScale,
   getLoadPointRingRadius,
@@ -34,5 +35,24 @@ describe("shared marker graphic geometry", () => {
     assert.equal(getMarkerDrawPriority({ kind: "load-point", foregroundLayer: "cpts", selected: false, raised: false, hovered: true }), 50);
     assert.equal(getMarkerDrawPriority({ kind: "load-point", foregroundLayer: "cpts", selected: false, raised: false, hovered: false }), 10);
     assert.equal(getMarkerDrawPriority({ kind: "cpt", foregroundLayer: "cpts", selected: false, raised: false, hovered: false }), 20);
+  });
+});
+
+
+describe("compact dashed viewer outlines", () => {
+  it("scales compact dashes and gaps with the symbol while preserving line weight", () => {
+    for(const baseDash of [2,3]){
+      const normal=getDashedOutlineDasharray(0.75,baseDash);
+      assert.equal(normal,`${baseDash} ${baseDash}`);
+      for(const scale of [0.075,0.15,0.375]){
+        const compact=getDashedOutlineDasharray(scale,baseDash);
+        const [dash,gap]=compact.split(" ").map(Number);
+        assert.ok(Math.abs(dash/scale-baseDash/0.75)<1e-10);
+        assert.equal(dash,gap);
+      }
+    }
+  });
+  it("retains the existing dash rhythm for normal and larger symbols", () => {
+    assert.deepEqual(getDashedOutlineDasharray(1.5,3),getDashedOutlineDasharray(0.75,3));
   });
 });

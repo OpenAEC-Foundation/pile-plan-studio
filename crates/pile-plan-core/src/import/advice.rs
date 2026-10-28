@@ -530,6 +530,19 @@ pub fn preview_project_import(request: &PreviewProjectImportRequest) -> ProjectI
                 let candidate =
                     super::refresh_project_from_profiled_sources(current, &request.sources)?;
                 result.unique_value_count = candidate.inputs.bearing_capacities.len();
+                // A load-only replacement carries the existing advice through unchanged.
+                // Re-import reconciliation would reject supported legacy projects for
+                // pre-existing duplicate advice values unrelated to this operation.
+                if request
+                    .sources
+                    .iter()
+                    .any(|s| s.role == ImportRole::LoadPoints)
+                    && !request.sources.iter().any(|s| s.role == ImportRole::Cpts)
+                {
+                    result.counts_available = true;
+                    result.imported_value_count = candidate.inputs.bearing_capacities.len();
+                    return Ok(());
+                }
                 (
                     candidate.inputs.load_points,
                     candidate.inputs.cpts,

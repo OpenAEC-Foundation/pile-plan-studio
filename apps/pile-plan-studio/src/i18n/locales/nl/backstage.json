@@ -90,7 +90,7 @@
   },
   "exportPanel": {
     "title": "Projectgegevens exporteren",
-    "intro": "Download het volledige project of exporteer alleen het actieve palenplan.",
+    "intro": "Download het volledige project of exporteer een gekozen palenplan.",
     "activePilePlan": "Actief palenplan voor Excel/CSV: {{pilePlanName}}",
     "ifcpp": "IFCPP downloaden",
     "ifcppDesc": "Sla het volledige project, de instellingen, brongegevens en huidige keuzes op.",

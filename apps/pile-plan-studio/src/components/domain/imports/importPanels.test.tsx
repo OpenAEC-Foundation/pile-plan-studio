@@ -44,6 +44,26 @@ test("a selected initial source enters refresh mode, previews, and submits only 
   expect(apply.mock.calls[0][3]).toBeNull();
 });
 
+test("load-point refresh requires a reviewed mapping and passes the confirmed project context", async () => {
+  const apply = vi.fn().mockResolvedValue(null);
+  const prepare = vi.fn().mockResolvedValue({
+    old_locations: [{id: 10, x_mm: 0, y_mm: 0}],
+    new_locations: [{id: 20, x_mm: 0, y_mm: 0}],
+    matching: {links: [{old_id: 10, new_id: 20, distance_mm: 0}], added: [], removed: [], unmatched_old: [], unmatched_new: [], proposals: [], complete: true},
+  });
+  render(<ProjectImportPanel initialSource={{role: "load-points", file: file("load-points.csv")}} defaultCurrencyCode="EUR" onImportProject={apply} onPrepareLoadPointRefresh={prepare} importPreviewContextKey="revision-1" />);
+  const review = await screen.findByRole("button", {name: t("exportTools.refreshReview")});
+  await waitFor(() => expect((review as HTMLButtonElement).disabled).toBe(false));
+  fireEvent.click(review);
+  await screen.findByRole("region", {name: t("exportTools.matchingTitle")});
+  expect(apply).not.toHaveBeenCalled();
+  expect(prepare).toHaveBeenCalledWith(expect.any(Array), 1);
+  fireEvent.click(screen.getByRole("button", {name: t("exportTools.confirm")}));
+  fireEvent.click(screen.getAllByRole("button", {name: t("importProject.refreshSubmit")})[1]);
+  await waitFor(() => expect(apply).toHaveBeenCalledOnce());
+  expect(apply.mock.calls[0][4]).toEqual({contextKey: "revision-1", decisions: {links: [{old_id: 10, new_id: 20}], added: [], removed: []}});
+});
+
 test("new-project submission is blocked until the reference level is valid, and sends normalized properties", async () => {
   const apply = vi.fn().mockResolvedValue(null);
   const view = render(<ProjectImportPanel defaultCurrencyCode="GBP" onImportProject={apply} />);

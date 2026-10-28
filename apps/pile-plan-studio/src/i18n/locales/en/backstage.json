@@ -90,7 +90,7 @@
   },
   "exportPanel": {
     "title": "Export project data",
-    "intro": "Download the complete project or export only the active pile plan.",
+    "intro": "Download the complete project or export a chosen pile plan.",
     "activePilePlan": "Active pile plan for Excel/CSV: {{pilePlanName}}",
     "ifcpp": "Download IFCPP",
     "ifcppDesc": "Save the complete project, settings, source data, and current choices.",

@@ -44,6 +44,7 @@ describe("Alpha command surfaces", () => {
 
   it("offers IFCPP and standard pile plan table exports", () => {
     const backstage = readFileSync(resolve(import.meta.dirname, "backstage/Backstage.tsx"), "utf8");
+    const exportPanel = readFileSync(resolve(import.meta.dirname, "../domain/exports/PilePlanExportPanel.tsx"), "utf8");
     const app = readFileSync(resolve(import.meta.dirname, "../../app/session/AppSession.tsx"), "utf8");
     const workspace = readFileSync(resolve(import.meta.dirname, "../domain/pile-plans/PilePlanWorkspace.tsx"), "utf8");
     const viewer = readFileSync(resolve(import.meta.dirname, "../domain/pile-plan-viewer/PilePlanViewer.tsx"), "utf8");
@@ -57,9 +58,9 @@ describe("Alpha command surfaces", () => {
     assert.doesNotMatch(viewer, /data-export-target="pile-plan"/);
     assert.match(backstage, /onExportPilePlanXlsx/);
     assert.match(backstage, /onExportPilePlanCsv/);
-    assert.match(backstage, /exportPanel\.pilePlan/);
-    assert.match(backstage, /exportPanel\.exportExcel/);
-    assert.match(backstage, /exportPanel\.exportCsv/);
+    assert.match(exportPanel, /exportTools\.exportTitle/);
+    assert.match(exportPanel, /exportPanel\.exportExcel/);
+    assert.match(exportPanel, /exportPanel\.exportCsv/);
   });
 
   it("offers pile plan import directly after project source import", () => {

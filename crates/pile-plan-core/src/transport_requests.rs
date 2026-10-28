@@ -57,6 +57,19 @@ pub struct ImportProjectRequest {
 pub struct RefreshProjectRequest {
     pub current_project: PilePlanProject,
     pub sources: Vec<ImportSource>,
+    #[serde(default)]
+    pub location_decisions: Option<crate::LocationDecisions>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct LoadPointRefreshRequest {
+    pub current_project: PilePlanProject,
+    pub sources: Vec<ImportSource>,
+    pub tolerance_mm: f64,
+    #[serde(default)]
+    pub decisions: Option<crate::LocationDecisions>,
+    #[serde(default)]
+    pub bulk_action: Option<crate::LocationBulkAction>,
 }
 
 #[derive(Debug, Deserialize)]

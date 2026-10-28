@@ -11,3 +11,5 @@ docs/plans/
 .superpowers/
 .worktrees/
 .release-preparation.json
+
+.vite/

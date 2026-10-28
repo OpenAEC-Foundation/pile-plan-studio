@@ -9,6 +9,7 @@ import initWasm, {
 } from "./wasm/pile-plan-wasm/pile_plan_wasm.js";
 import { toWasmNumberKeyedRecord } from "./coreSerialization.ts";
 import type { IfcppProject } from "./projectFile.ts";
+import type {LocationDecisions} from "./exportRevisionContract.ts";
 import {
   fromCoreImportSourcePreview,
   toCoreImportSource,
@@ -58,6 +59,7 @@ export async function importProjectFromFilesCore(input: {
 export async function refreshProjectFromFilesCore(input: {
   currentProject: IfcppProject;
   sources: ImportSourceInput[];
+  locationDecisions?: LocationDecisions;
 }): Promise<Extract<ProjectDocumentOutcome, { status: "valid" }>> {
   try {
   const sources = input.sources.map(toCoreImportSource);
@@ -67,12 +69,13 @@ export async function refreshProjectFromFilesCore(input: {
       refresh_project_from_files({
         current_project: toWasmIfcppProject(input.currentProject),
         sources,
+        location_decisions: input.locationDecisions,
       }) as CoreValidatedProjectDocument,
     );
   }
   return validProjectDocumentFromCore(
     await invokeDesktop<CoreValidatedProjectDocument>("refresh_project_from_files", {
-      request: { current_project: input.currentProject, sources },
+      request: { current_project: input.currentProject, sources, location_decisions: input.locationDecisions },
     }),
   );
   } catch (error) { throw sourceImportErrorFromUnknown(error) ?? error; }
@@ -132,7 +135,7 @@ function validProjectDocumentFromCore(
   return outcome;
 }
 
-function toWasmIfcppProject(project: IfcppProject) {
+export function toWasmIfcppProject(project: IfcppProject) {
   const userState = project.schema_version >= 2
     ? {
         pile_plans: (project.user_state.pile_plans ?? []).map((plan) => ({

@@ -120,6 +120,14 @@ pub fn refresh_project_from_profiled_sources(
     current: &PilePlanProject,
     sources: &[ImportSource],
 ) -> Result<PilePlanProject, ImportError> {
+    refresh_project_with_location_decisions(current, sources, None)
+}
+
+pub fn refresh_project_with_location_decisions(
+    current: &PilePlanProject,
+    sources: &[ImportSource],
+    decisions: Option<&crate::LocationDecisions>,
+) -> Result<PilePlanProject, ImportError> {
     let effective_sources: Vec<_> = sources
         .iter()
         .filter(|s| {
@@ -152,7 +160,32 @@ pub fn refresh_project_from_profiled_sources(
     } else {
         current.inputs.load_points.clone()
     };
-    let load_point_mapping = if load_source.is_some() {
+    let load_point_mapping = if let Some(decisions) = decisions {
+        if load_source.is_none() {
+            return Err(ImportError::Validation("load_point_source_required".into()));
+        }
+        let matched = crate::reconcile_locations(&crate::LocationMatchingRequest {
+            old_locations: current
+                .inputs
+                .load_points
+                .iter()
+                .map(numbering_point)
+                .collect(),
+            new_locations: new_load_points.iter().map(numbering_point).collect(),
+            tolerance_mm: MATCH_TOLERANCE_MM,
+            decisions: Some(decisions.clone()),
+            bulk_action: None,
+        })
+        .map_err(|error| ImportError::Validation(error.to_string()))?;
+        if !matched.complete {
+            return Err(ImportError::Validation("revision_unresolved".into()));
+        }
+        matched
+            .links
+            .into_iter()
+            .map(|link| (link.old_id, link.new_id))
+            .collect()
+    } else if load_source.is_some() {
         match_load_points(&current.inputs.load_points, &new_load_points)
     } else {
         identity_mapping(current.inputs.load_points.iter().map(|item| item.id))
@@ -205,7 +238,31 @@ pub fn refresh_project_from_profiled_sources(
                 .map(|new_id| (*new_id, settings.clone()))
         })
         .collect();
+    let mut removed_cap_proposals = false;
     for plan in &mut refreshed.user_state.pile_plans {
+        // Source data changed; these reasons and summaries describe the previous inputs.
+        plan.optimization_unassigned.clear();
+        plan.ilp_result = None;
+        if load_source.is_some() {
+            plan.pile_cap_proposals = std::mem::take(&mut plan.pile_cap_proposals)
+                .into_iter()
+                .filter_map(|mut proposal| {
+                    let members: Option<Vec<_>> = proposal
+                        .load_point_ids
+                        .iter()
+                        .map(|id| load_point_mapping.get(id).copied())
+                        .collect();
+                    if let Some(mut members) = members {
+                        members.sort_unstable();
+                        proposal.load_point_ids = members;
+                        Some(proposal)
+                    } else {
+                        removed_cap_proposals = true;
+                        None
+                    }
+                })
+                .collect();
+        }
         plan.selected_piles = std::mem::take(&mut plan.selected_piles)
             .into_iter()
             .filter_map(|(old_id, choice)| {
@@ -221,6 +278,15 @@ pub fn refresh_project_from_profiled_sources(
     }
     refreshed.user_state.manual_cpt_selections =
         remap_manual_cpt_selections(current, &load_point_mapping, &cpt_mapping);
+    if removed_cap_proposals {
+        if let Some(log) = replacement_logs
+            .iter_mut()
+            .find(|entry| entry.source_role == Some(ImportRole::LoadPoints))
+        {
+            log.warnings
+                .push("load_refresh_removed_cap_proposals".into());
+        }
+    }
     if load_source.is_some() {
         let (grouping, warnings) = reconcile_grouping_overrides(
             &current.settings.load_point_grouping,
@@ -270,7 +336,46 @@ pub fn refresh_project_from_profiled_sources(
         super::advice_refresh::remap_advice_ownership(&mut refreshed.import_log, &cpt_mapping);
     }
 
+    crate::validate_ifcpp_project(&refreshed)
+        .map_err(|error| ImportError::Validation(error.to_string()))?;
     Ok(refreshed)
+}
+
+fn numbering_point(point: &ProjectLoadPoint) -> crate::NumberingPoint {
+    crate::NumberingPoint {
+        id: point.id,
+        x_mm: point.x_mm,
+        y_mm: point.y_mm,
+    }
+}
+
+#[derive(Clone, Debug, serde::Serialize)]
+pub struct LoadPointRefreshPreview {
+    pub old_locations: Vec<ProjectLoadPoint>,
+    pub new_locations: Vec<ProjectLoadPoint>,
+    pub matching: crate::LocationMatchingResult,
+}
+
+pub fn prepare_load_point_refresh(
+    request: &crate::LoadPointRefreshRequest,
+) -> Result<LoadPointRefreshPreview, ImportError> {
+    let source = optional_source_for_role(&request.sources, ImportRole::LoadPoints)?
+        .ok_or_else(|| ImportError::Validation("load_point_source_required".into()))?;
+    let (new_locations, _) = parse_load_source(source)?;
+    let old_locations = request.current_project.inputs.load_points.clone();
+    let matching = crate::reconcile_locations(&crate::LocationMatchingRequest {
+        old_locations: old_locations.iter().map(numbering_point).collect(),
+        new_locations: new_locations.iter().map(numbering_point).collect(),
+        tolerance_mm: request.tolerance_mm,
+        decisions: request.decisions.clone(),
+        bulk_action: request.bulk_action,
+    })
+    .map_err(|error| ImportError::Validation(error.to_string()))?;
+    Ok(LoadPointRefreshPreview {
+        old_locations,
+        new_locations,
+        matching,
+    })
 }
 
 fn optional_source_for_role(
@@ -887,6 +992,169 @@ mod tests {
 
     fn project() -> crate::PilePlanProject {
         project_with_load_points("1,0,0,100\n")
+    }
+
+    #[test]
+    fn explicit_refresh_mapping_supports_movement_and_id_swaps_in_every_plan() {
+        let mut current = project_with_load_points("1,0,0,100\n2,1000,0,200\n");
+        let plan = current.user_state.active_pile_plan_mut().unwrap();
+        plan.selected_piles.insert(1, selected_pile());
+        plan.locked_load_point_ids.push(1);
+        let mut other = plan.clone();
+        other.id = "other".into();
+        other.selected_piles.clear();
+        other.selected_piles.insert(2, selected_pile());
+        current.user_state.pile_plans.push(other);
+        current.user_state.manual_cpt_selections.insert(1, vec![61]);
+        let decisions = crate::LocationDecisions {
+            links: vec![
+                crate::LocationLink {
+                    old_id: 1,
+                    new_id: 2,
+                },
+                crate::LocationLink {
+                    old_id: 2,
+                    new_id: 1,
+                },
+            ],
+            ..Default::default()
+        };
+        let updated = super::refresh_project_with_location_decisions(
+            &current,
+            &[csv_source(
+                ImportRole::LoadPoints,
+                "new.csv",
+                "2,800,0,900\n1,1800,0,1200\n",
+            )],
+            Some(&decisions),
+        )
+        .unwrap();
+        assert!(updated.user_state.pile_plans[0]
+            .selected_piles
+            .contains_key(&2));
+        assert!(!updated.user_state.pile_plans[0]
+            .selected_piles
+            .contains_key(&1));
+        assert!(updated.user_state.pile_plans[1]
+            .selected_piles
+            .contains_key(&1));
+        assert_eq!(updated.user_state.pile_plans[0].locked_load_point_ids, [2]);
+        assert_eq!(
+            updated.user_state.manual_cpt_selections.get(&2),
+            Some(&vec![61])
+        );
+        assert_eq!(updated.inputs.load_points[0].design_load_kn, 900.0);
+    }
+
+    #[test]
+    fn explicit_refresh_rejects_incomplete_or_duplicate_links_without_changes() {
+        let current = project_with_load_points("1,0,0,100\n2,1000,0,200\n");
+        let before = current.clone();
+        let sources = [csv_source(
+            ImportRole::LoadPoints,
+            "new.csv",
+            "9,800,0,900\n10,1800,0,1200\n",
+        )];
+        for links in [
+            vec![crate::LocationLink {
+                old_id: 1,
+                new_id: 9,
+            }],
+            vec![
+                crate::LocationLink {
+                    old_id: 1,
+                    new_id: 9,
+                },
+                crate::LocationLink {
+                    old_id: 1,
+                    new_id: 10,
+                },
+            ],
+        ] {
+            let decisions = crate::LocationDecisions {
+                links,
+                ..Default::default()
+            };
+            assert!(super::refresh_project_with_location_decisions(
+                &current,
+                &sources,
+                Some(&decisions)
+            )
+            .is_err());
+            assert_eq!(current, before);
+        }
+    }
+
+    #[test]
+    fn load_refresh_clears_old_optimizer_reasons_and_remaps_cap_proposal_members() {
+        let mut current = project_with_load_points("1,0,0,100\n2,1000,0,200\n");
+        let plan = current.user_state.active_pile_plan_mut().unwrap();
+        plan.optimization_unassigned
+            .insert(1, crate::OptimizationUnassignedReason::ConfigurationLimits);
+        plan.pile_cap_proposals.push(crate::PileCapProposal {
+            load_point_ids: vec![1, 2],
+            pile_count: 3,
+            quarter_turns: 0,
+            configuration: None,
+        });
+        let decisions = crate::LocationDecisions {
+            links: vec![
+                crate::LocationLink {
+                    old_id: 1,
+                    new_id: 8,
+                },
+                crate::LocationLink {
+                    old_id: 2,
+                    new_id: 9,
+                },
+            ],
+            ..Default::default()
+        };
+        let updated = super::refresh_project_with_location_decisions(
+            &current,
+            &[csv_source(
+                ImportRole::LoadPoints,
+                "new.csv",
+                "8,100,0,900\n9,1100,0,1200\n",
+            )],
+            Some(&decisions),
+        )
+        .unwrap();
+        let plan = &updated.user_state.pile_plans[0];
+        assert!(plan.optimization_unassigned.is_empty());
+        assert!(plan.ilp_result.is_none());
+        assert_eq!(plan.pile_cap_proposals[0].load_point_ids, [8, 9]);
+        assert_eq!(plan.pile_cap_proposals[0].pile_count, 3);
+    }
+
+    #[test]
+    fn sample_load_only_refresh_preview_does_not_reimport_unchanged_legacy_advice() {
+        let current = crate::read_ifcpp_str(include_str!(
+            "../../../../sample_project/sample_project.ifcpp"
+        ))
+        .unwrap();
+        let source = ImportSource {
+            role: ImportRole::LoadPoints,
+            file_name: "Export RFEM.xlsx".into(),
+            format: SourceFormat::Xlsx,
+            bytes: include_bytes!("../../../../sample_project/Export RFEM.xlsx").to_vec(),
+            profile: ImportProfile::Auto,
+            profile_options: ImportProfileOptions::default(),
+            advice_operation: None,
+            source_id: None,
+        };
+        let preview = crate::preview_project_import(&crate::PreviewProjectImportRequest {
+            current_project: Some(current.clone()),
+            sources: vec![source.clone()],
+        });
+        assert!(preview.can_apply, "{:?}", preview.diagnostics);
+        let refreshed = super::refresh_project_from_profiled_sources(&current, &[source]).unwrap();
+        assert_eq!(
+            refreshed.inputs.bearing_capacities,
+            current.inputs.bearing_capacities
+        );
+        assert_eq!(refreshed.inputs.cpts, current.inputs.cpts);
+        assert!(!refreshed.inputs.load_points.is_empty());
     }
 
     fn project_with_load_points(load_points: &str) -> crate::PilePlanProject {

@@ -1,10 +1,15 @@
 mod cpt_selection;
 mod export;
+mod export_rules;
+mod export_columns;
+pub use export_columns::{ExportColumn, ExportField, ExportLengthUnit, PileSizeNotation};
+mod export_table;
 mod ifcpp;
 mod import;
 mod legacy_optimization;
 mod load_point_groups;
 mod load_point_positions;
+mod location_matching;
 mod mcp_project_edits;
 mod optimization;
 mod pile_cap_proposals;
@@ -13,6 +18,7 @@ mod pile_options;
 mod pile_plan_import;
 mod pile_tip_levels;
 mod project;
+mod revit_revision;
 mod source_data;
 mod technical_assignment;
 mod tip_level_regions;
@@ -31,6 +37,8 @@ pub use export::{
     build_pile_plan_export_rows, write_pile_plan_csv, write_pile_plan_xlsx, ExportError,
     PilePlanExportRequest, PilePlanExportRow, PileSizeExportFormat, PILE_PLAN_EXPORT_HEADERS,
 };
+pub use export_rules::*;
+pub use export_table::ExportTable;
 pub use ifcpp::{
     read_ifcpp_str, read_project_document, read_validated_ifcpp_str, validate_ifcpp_project,
     write_ifcpp_string, write_project_document, IfcppError, ProjectDocumentError,
@@ -41,6 +49,9 @@ pub use import::{
     ImportDiagnosticSeverity, ImportError, ImportPreviewDetails, ImportProfile,
     ImportProfileOptions, ImportRole, ImportSource, ImportSourcePreview, RfemPreviewDetails,
     SourceFormat,
+};
+pub use import::{
+    prepare_load_point_refresh, refresh_project_with_location_decisions, LoadPointRefreshPreview,
 };
 pub use legacy_optimization::LegacyOptimizationSettings;
 pub use load_point_groups::{
@@ -65,6 +76,7 @@ pub use load_point_positions::{
     duplicate_load_point_positions, validate_unique_load_point_positions,
     DuplicateLoadPointPosition, DuplicateLoadPointPositionMember, DuplicateLoadPointPositions,
 };
+pub use location_matching::*;
 pub use mcp_project_edits::{
     evaluate_mcp_project_edit, BearingCapacityAction, CptAction, LoadPointAction, McpProjectEdit,
     McpProjectEditInput, McpProjectEditResult,
@@ -115,6 +127,7 @@ pub use project::{
     ProjectSettings, ProjectTipLevelKeys, ProjectUnits, ProjectUserState, SelectedPileChoice,
     ValidatedPilePlanProject, ViewerUtilizationSettings,
 };
+pub use revit_revision::*;
 pub use source_data::{
     BearingCapacity as ProjectBearingCapacity, Cpt as ProjectCpt, LoadPoint as ProjectLoadPoint,
 };
@@ -128,6 +141,7 @@ pub use tip_level_regions::{
     LoadPointTopology, TipLevelRegionAssignment, TipLevelRegionGroup, TipLevelRegionTopology,
 };
 
+pub use transport_requests::LoadPointRefreshRequest;
 pub use transport_requests::{
     AggregatePileOptionsRequest, AssessLoadPointGroupAssignmentsRequest, DefaultPileOptionsRequest,
     DeriveLoadPointGroupsRequest, ImportProjectRequest, LoadPointTopologyRequest, PileCostRequest,

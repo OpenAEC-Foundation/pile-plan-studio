@@ -5,7 +5,7 @@
 </p>
 
 <p align="center">
-  <a href="RELEASE_NOTES.md"><img src="https://img.shields.io/badge/release-v2026.44.2-D97706?style=flat-square" alt="Release v2026.44.2"></a>
+  <a href="RELEASE_NOTES.md"><img src="https://img.shields.io/badge/release-v2026.44.3-D97706?style=flat-square" alt="Release v2026.44.3"></a>
   <img src="https://img.shields.io/badge/status-Alpha-D97706?style=flat-square" alt="Status: Alpha">
   <a href="https://github.com/OpenAEC-Foundation/pile-plan-studio/releases"><img src="https://img.shields.io/github/downloads/OpenAEC-Foundation/pile-plan-studio/total?style=flat-square" alt="Total downloads"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-LGPL--3.0-blue?style=flat-square" alt="LGPL-3.0 license"></a>
@@ -219,6 +219,35 @@ how many support types it contains. Imported load points are the node numbers
 present in both the coordinate and reaction tables; a support table cannot
 recover reactions omitted by the selected result export or its filters.
 
+When refreshing load points, **Check location links before refreshing** opens an integrated
+matching workspace with a large pan/zoom plan and an editor on the right. Pick
+a new location, then its old partner on the plan. Layers and link lines can be
+toggled independently; lines initially show all pairs. The old-location
+inspection tool also handles coincident points and unpaired removals. The
+sidebar opens on unresolved locations, ready to pick the first old partner. Each
+link, addition or removal advances to the next unresolved location. Question
+badges and clickable progress counters show what remains. Old selection/hover
+uses a navy dashed ring; new selection/hover uses a solid orange ring. Escape
+or an empty canvas click clears selection; dragging still pans. The coordinate
+grid starts enabled and follows the shared viewer pan/zoom. All connection lines
+are shown initially as thin straight center-to-center lines above the symbols;
+coincident locations show no line. Selected-only and hidden modes remain available. Nearest/separate
+bulk actions are always visible above the drawing. Taking an occupied partner
+releases the previous edges and returns the displaced locations to review.
+All links can still be edited using the viewer or one explicit sidebar editor. Node
+numbers are not treated as stable identities. Automatic matching uses a separate
+1 mm tolerance by default and only accepts reciprocal unique matches. Every
+link can be changed; remaining locations can be paired by nearest distance or
+explicitly treated as added/removed. Confirm the review before applying the
+refresh. Linked choices, locks and CPT settings follow the new node numbers in
+all plans; added points remain unassigned. Old optimization results are cleared. A load-only refresh preserves the existing
+foundation-advice rows; it does not re-import unchanged legacy advice. New or
+replaced advice and CPT changes retain the ordinary validation rules.
+Pile-cap proposal members are remapped; proposals containing removed members
+are discarded with a warning. Changed group membership remains subject to the
+usual core validation and conflict display. The complete refresh is one undo
+step.
+
 Imported data, source profiles, project settings, selected piles, and manual
 CPT choices are stored in an `.ifcpp` project file.
 
@@ -374,3 +403,68 @@ responsibility.
 
 Open Pile Plan Studio is licensed under the
 [GNU Lesser General Public License v3.0 or later](LICENSE).
+
+### Export columns, numbering and change tables
+
+Under **File > Export**, choose the pile plan to export (initially the currently
+viewed plan). This choice is shared with change tables and does not switch the
+viewer or edit the project. **Column settings** and **Table preview** are separate
+collapsible sections, initially closed in both export modes. Collapsing them
+preserves the settings and preview. Add or remove columns and drag their grips to
+change the order. Select a column to edit its caption and content. Added columns
+use their plain default caption when it is available, such as `Mark`. Only
+when that caption already exists is a free numeric suffix added (`Mark 1`,
+`Mark 2`, …), to avoid duplicate headers. The editor reserves its space while the preview updates to preserve
+scroll position. Default
+captions follow the interface language; custom captions and imported source
+captions are preserved. Focus a
+grip and use the arrow keys, Home or End to reorder with the keyboard. Column
+settings include size notation (numeric, dimensions or a custom template),
+coordinate/level units, fixed text, Mark numbering and tip-level codes. The
+preview shows the first 12 rows; exported files contain all rows. Column choices
+and numbering rules are application preferences. The default remains the
+original seven columns; Marks and tip codes are optional.
+
+Marks can run by rows or columns with independent X/Y directions, a starting
+number and a row/column tolerance (default 1 mm). A group spans at most that
+tolerance; nearby rows do not join through a chain of intermediate points.
+Tip codes can use `A, B, C, …` (including `AA` after `Z`) or `1, 2, 3, …`, ordered
+from high to low or low to high. Size templates support `{size}`, `{width}`,
+`{height}` and `{diameter}`. Dimensions render square piles as `290x290` and round
+piles as `Ø290`.
+
+Choose **Create change table** to compare a previous XLSX/CSV pile-plan table
+from Pile Plan Studio, Revit or another program with the active fully assigned
+plan or a new pile-plan file. Check the detected worksheet, header row and source
+columns; map custom captions manually. The previous table requires X/Y only.
+Missing optional size/shape and level information is indicated and is not
+invented for comparisons. Numeric old sizes can be given a square/round shape
+hint. Source units and custom size templates can be set explicitly. A new file
+requires unique location IDs, coordinates, size/shape and tip level. Numeric
+new sizes can use the current project's known shapes.
+
+Automatic matching uses a 99 mm tolerance by default. Review and confirm links
+in the visual matching workspace used for source refresh. In the default numbering mode linked Marks stay
+unchanged and active rows receive the new location IDs. New Marks start above
+the highest old Mark, including removed piles. Missing old Marks are generated
+using the selected rule when an output Mark column is requested. The proposed
+numbering rule is detected from existing Marks and can be adjusted; equally
+fitting rules are indicated. Alternatively choose **Renumber the entire new pile
+plan** to number all active new locations from the chosen start using the rule.
+Removed rows keep their old Mark in both modes; those old numbers may also occur
+in the newly numbered plan. Renumbering alone does not add a change code. The
+tolerance is chosen, not inferred uniquely.
+
+By default the output retains previous columns/order and additional cell values
+and includes `Wijzigingscode`: `M` for XY movement strictly greater than 99 mm,
+`S` for size/known shape change, `L` for numeric tip-level change, `A` for
+additions and `R` for removals. Configure each code, its inclusion, the separator
+and movement threshold in the change-code column settings. This column can be
+renamed, moved or excluded like any other output column. Removed rows remain
+present even if the code column is excluded. They retain their old ID, Mark and
+other values; an old ID may also occur as a new active node ID. Active tip codes
+are regenerated; a changed code alone does not produce `L`. Added rows leave
+unavailable previous metadata blank. Only cell values carry over, not workbook
+formulas, styling or other sheets. Source mappings, output changes and links
+for the comparison are transient. The tool exports a table; it does not update
+another program or keep a revision database.

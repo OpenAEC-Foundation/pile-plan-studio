@@ -57,7 +57,7 @@ pub struct PilePlanExportRow {
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct ExportError(String);
+pub struct ExportError(pub(crate) String);
 
 impl ExportError {
     fn invalid_value(load_point_id: u32, field: &str) -> Self {
@@ -220,7 +220,10 @@ fn xlsx_error(error: impl Display) -> ExportError {
     ExportError(format!("Could not write pile plan XLSX: {error}"))
 }
 
-fn pile_size_dimensions(request: &PilePlanExportRequest, pile_size_mm: u32) -> Option<String> {
+pub(crate) fn pile_size_dimensions(
+    request: &PilePlanExportRequest,
+    pile_size_mm: u32,
+) -> Option<String> {
     (request.pile_size_format == PileSizeExportFormat::Dimensions
         && matches!(
             request.pile_shapes.get(&pile_size_mm),
