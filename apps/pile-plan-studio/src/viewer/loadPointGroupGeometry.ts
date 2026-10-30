@@ -109,3 +109,34 @@ export function buildLoadPointGroupGeometry({
     }];
   });
 }
+
+/** Keep the Gabriel-derived shape independent of transient selection styling. */
+export function createLoadPointGroupGeometrySelector() {
+  let shapeKey: unknown[] = [];
+  let shapes: LoadPointGroupGeometry[] = [];
+  let previous: LoadPointGroupGeometry[] = [];
+  const empty = new Set<number>();
+  return (input: Input): LoadPointGroupGeometry[] => {
+    const key = [input.groups, input.topology, input.pointsByLoadPointId, input.symbolScalePercent];
+    if (key.some((value, i) => value !== shapeKey[i])) {
+      shapes = buildLoadPointGroupGeometry({...input, selectedLoadPointIds: empty,
+        conflictingLoadPointIds: empty, showDefaultGroups: true});
+      shapeKey = key;
+    }
+    const previousByKey = new Map(previous.map(group => [group.key, group]));
+    const next = shapes.flatMap(shape => {
+      const count = shape.loadPointIds.filter(id => input.selectedLoadPointIds.has(id)).length;
+      const hasConflict = shape.loadPointIds.some(id => input.conflictingLoadPointIds.has(id));
+      const state: LoadPointGroupContourState = count === shape.loadPointIds.length ? "selected"
+        : hasConflict ? "conflict" : "default";
+      const isSelectionContext = count > 0 && count < shape.loadPointIds.length;
+      if (input.showDefaultGroups === false && state === "default" && !isSelectionContext) return [];
+      const old = previousByKey.get(shape.key);
+      return [old && old.circles === shape.circles && old.state === state
+        && old.hasConflict === hasConflict && old.isSelectionContext === isSelectionContext
+        ? old : {...shape, state, hasConflict, isSelectionContext}];
+    });
+    if (next.length !== previous.length || next.some((group, i) => group !== previous[i])) previous = next;
+    return previous;
+  };
+}

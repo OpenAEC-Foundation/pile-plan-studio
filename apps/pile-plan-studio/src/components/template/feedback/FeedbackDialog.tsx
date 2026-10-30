@@ -434,7 +434,6 @@ export default function FeedbackDialog({
                   key={s.id}
                   className={`feedback-sentiment${sentiment === s.id ? " active" : ""}`}
                   onClick={() => setSentiment(sentiment === s.id ? null : s.id)}
-                  title={t(`sentiment${s.id.charAt(0).toUpperCase() + s.id.slice(1)}`)}
                 >
                   <span className="feedback-sentiment-emoji">{s.emoji}</span>
                   <span className="feedback-sentiment-text">

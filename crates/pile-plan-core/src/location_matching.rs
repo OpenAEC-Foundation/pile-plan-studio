@@ -22,6 +22,7 @@ pub struct LocationDecisions {
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum LocationBulkAction {
+    Automatic,
     Nearest,
     Separate,
 }
@@ -58,6 +59,8 @@ pub struct LocationProposal {
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct LocationMatchingResult {
+    pub old_order: Vec<u32>,
+    pub new_order: Vec<u32>,
     pub links: Vec<MatchedLocation>,
     pub added: Vec<u32>,
     pub removed: Vec<u32>,
@@ -89,6 +92,15 @@ fn distance(a: &NumberingPoint, b: &NumberingPoint) -> f64 {
 }
 fn invalid() -> ExportError {
     ExportError("invalid_location_mapping".into())
+}
+
+pub(crate) fn review_location_order(points: &[NumberingPoint]) -> Result<Vec<u32>, ExportError> {
+    Ok(
+        order_numbering_locations(points, &PileNumberingRule::default())?
+            .into_iter()
+            .map(|index| points[index].id)
+            .collect(),
+    )
 }
 
 pub fn reconcile_locations(
@@ -162,6 +174,33 @@ pub fn reconcile_locations(
         }
     }
     match request.bulk_action {
+        Some(LocationBulkAction::Automatic) => {
+            let automatic = reconcile_locations(&LocationMatchingRequest {
+                old_locations: request
+                    .old_locations
+                    .iter()
+                    .filter(|p| !used_old.contains(&p.id))
+                    .cloned()
+                    .collect(),
+                new_locations: request
+                    .new_locations
+                    .iter()
+                    .filter(|p| !used_new.contains(&p.id))
+                    .cloned()
+                    .collect(),
+                tolerance_mm: request.tolerance_mm,
+                decisions: None,
+                bulk_action: None,
+            })?;
+            for link in automatic.links {
+                used_old.insert(link.old_id);
+                used_new.insert(link.new_id);
+                decisions.links.push(LocationLink {
+                    old_id: link.old_id,
+                    new_id: link.new_id,
+                });
+            }
+        }
         Some(LocationBulkAction::Nearest) => {
             let mut pairs = Vec::new();
             for n in &request.new_locations {
@@ -242,6 +281,8 @@ pub fn reconcile_locations(
         })
         .collect();
     Ok(LocationMatchingResult {
+        old_order: review_location_order(&request.old_locations)?,
+        new_order: review_location_order(&request.new_locations)?,
         complete: unmatched_old.is_empty() && unmatched_new.is_empty(),
         links,
         added: decisions.added,

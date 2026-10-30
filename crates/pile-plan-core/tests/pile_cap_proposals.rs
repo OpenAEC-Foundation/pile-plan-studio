@@ -205,3 +205,37 @@ fn validated_edits_and_refresh_produce_identical_results_and_reset_keeps_sources
     assert_eq!(reset.plans[0].pile_count, 2);
     assert_eq!(input.draft.inputs.load_points.len(), 2);
 }
+
+#[test]
+fn separately_distributes_pressure_and_tension_without_netting_or_unknown_zeroes() {
+    let mut input = request();
+    input.draft.inputs.load_points[0].tension =
+        pile_plan_core::TensionDemand::Known { value_kn: 300. };
+    input.draft.inputs.load_points[1].tension =
+        pile_plan_core::TensionDemand::Known { value_kn: 150. };
+    let result = evaluate_pile_cap_proposals(input.clone()).unwrap();
+    let preview = &result.plans[0].previews[0];
+    assert_eq!(preview.load_per_pile_kn, Some(400.));
+    assert_eq!(
+        preview.tension_per_pile,
+        pile_plan_core::TensionDemand::Known { value_kn: 150. }
+    );
+    assert!(!preview.options[0].option.is_option);
+    input.draft.inputs.load_points[1].tension = Default::default();
+    let result = evaluate_pile_cap_proposals(input).unwrap();
+    assert_eq!(
+        result.plans[0].previews[0].tension_per_pile,
+        pile_plan_core::TensionDemand::Missing
+    );
+}
+
+#[test]
+fn proposed_count_selects_its_own_advice_instead_of_single_or_existing_count(){
+ let mut input=request();
+ let scoped=input.draft.inputs.bearing_capacities.iter().cloned().map(|mut v|{v.pile_count=Some(3);v.frd_kn=100.;v}).collect::<Vec<_>>();
+ input.draft.inputs.bearing_capacities.extend(scoped);
+ let result=evaluate_pile_cap_proposals(input).unwrap();
+ let option=&result.plans[0].previews[0].options[0].option;
+ assert_eq!(option.compression.as_ref().unwrap().governing_frd_kn,Some(100.));
+ assert!(!option.is_option);
+}

@@ -20,7 +20,7 @@ export type SourceImportToolName = "pile_get_import_requirements" | "pile_begin_
 type Mode = "refresh" | "new_project";
 type Role = ImportSourceInput["role"];
 type Validated = { data?: Record<string, unknown> } & Record<string, unknown>;
-type Source = { name: string; chunks: string[]; bytes: number; final: boolean };
+type Source = { options?:ImportSourceInput["profileOptions"]; name: string; chunks: string[]; bytes: number; final: boolean };
 type Transaction = {
   id: string; marker: ProjectMarkerValue; mode: Mode; projectName?: string;
   pileHeadLevelM?: number; currencyCode?: string; sources: Map<Role, Source>;
@@ -73,7 +73,7 @@ export function createSourceImportSession(dependencies: Dependencies) {
     };
   }
   async function contentDigest(transaction: Transaction): Promise<string> {
-    const content = [...transaction.sources].map(([role, source]) => [role, source.name, source.chunks]);
+    const content = [...transaction.sources].map(([role, source]) => [role, source.name, source.chunks,source.options]);
     const digest = await crypto.subtle.digest("SHA-256", encoder.encode(JSON.stringify(content)));
     return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, "0")).join("");
   }
@@ -117,9 +117,17 @@ export function createSourceImportSession(dependencies: Dependencies) {
       }
       if (!source) {
         if (args.chunk_index !== 0) throw new McpReadError("invalid_chunk_order");
-        source = { name: fileName, chunks: [], bytes: 0, final: false };
+        const options:ImportSourceInput["profileOptions"]={coordinateSheet:null,reactionSheet:null,
+          ...(args.table&&typeof args.table==="object"?{table:structuredClone(args.table) as ImportSourceInput["profileOptions"]["table"]}:{}),
+          ...(typeof args.import_tension==="boolean"?{importTension:args.import_tension}:{}),
+          ...(typeof args.clear_tension==="boolean"?{clearTension:args.clear_tension}:{}),
+          ...(typeof args.tension_column==="number"?{tensionColumn:args.tension_column}:{}),
+          ...(args.resistance_direction==="tension"||args.resistance_direction==="compression"?{resistanceDirection:args.resistance_direction}:{}),
+        };
+        source = { options, name: fileName, chunks: [], bytes: 0, final: false };
         transaction.sources.set(role, source);
       }
+      if(args.chunk_index!==0&&["table","import_tension","clear_tension","tension_column","resistance_direction"].some(key=>args[key]!==undefined))throw new McpReadError("invalid_chunk_order");
       if (source.final || source.name !== fileName || args.chunk_index !== source.chunks.length) throw new McpReadError("invalid_chunk_order");
       if (source.bytes + bytes > MAX_SOURCE) throw new McpReadError("import_source_too_large");
       const total = [...transaction.sources.values()].reduce((sum, item) => sum + item.bytes, 0);
@@ -145,7 +153,7 @@ export function createSourceImportSession(dependencies: Dependencies) {
       if (missing.length || ![...transaction.sources.values()].some((source) => source.final)
         || [...transaction.sources.values()].some((source) => !source.final)) throw new McpReadError("missing_import_roles");
       const sources: ImportSourceInput[] = [...transaction.sources].map(([role, source]) => ({
-        sourceId: `mcp-${role}`, role, profile: "standard-table", profileOptions: { coordinateSheet: null, reactionSheet: null },
+        sourceId: `mcp-${role}`, role, profile: "standard-table", profileOptions: source.options??{ coordinateSheet: null, reactionSheet: null },
         fileName: source.name, format: "csv", bytes: encoder.encode(source.chunks.join("")),
       }));
       const generation = transaction.generation;

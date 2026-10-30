@@ -1,8 +1,13 @@
+import type {TableImportSettings,SourceTablePreview} from "./coreImportContract.ts";
+import type {LocationDecisions,MatchingResult,LocationBulkAction} from "./exportRevisionContract.ts";
 import type { Cpt, LoadPoint, PileConfigurationKey } from "./projectTypes.ts";
 
 export type PilePlanImportProfile = "automatic" | "standard-table" | "legacy";
 
 export type PilePlanImportOptions = {
+  table?:TableImportSettings|null;
+  locationDecisions?:LocationDecisions|null;
+  bulkAction?:LocationBulkAction|null;
   importPileAssignments: boolean;
   importCptSelections: boolean;
   coordinateToleranceMm: number;
@@ -53,7 +58,12 @@ export type PilePlanImportSummary = {
   conflicts: number;
 };
 
+export type PilePlanImportLocation={id:number;row:number;source_id:number|null;x_mm:number|null;y_mm:number|null;pile_size_mm:number|null;tip_level_mm:number|null};
 export type PilePlanImportPreview = {
+  table?:SourceTablePreview|null;
+  sourceLocations?:PilePlanImportLocation[];
+  matching?:MatchingResult|null;
+  supportsPileAssignments?:boolean;
   requestedProfile: PilePlanImportProfile;
   detectedProfile: PilePlanImportProfile | null;
   supportsCptSelections: boolean;
@@ -64,6 +74,10 @@ export type PilePlanImportPreview = {
 };
 
 type CorePilePlanImportPreview = {
+  table?:SourceTablePreview|null;
+  source_locations?:PilePlanImportLocation[];
+  matching?:MatchingResult|null;
+  supports_pile_assignments?:boolean;
   requested_profile: PilePlanImportProfile;
   detected_profile: PilePlanImportProfile | null;
   supports_cpt_selections: boolean;
@@ -95,6 +109,9 @@ export function toCorePilePlanImportRequest(request: PilePlanImportRequest) {
     bytes: request.bytes,
     profile: request.profile,
     options: {
+      table: request.options.table,
+      location_decisions: request.options.locationDecisions,
+      bulk_action: request.options.bulkAction,
       import_pile_assignments: request.options.importPileAssignments,
       import_cpt_selections: request.options.importCptSelections,
       coordinate_tolerance_mm: request.options.coordinateToleranceMm,
@@ -109,6 +126,7 @@ export function fromCorePilePlanImportPreview(
   preview: CorePilePlanImportPreview,
 ): PilePlanImportPreview {
   return {
+    table:preview.table, sourceLocations:preview.source_locations, matching:preview.matching, supportsPileAssignments:preview.supports_pile_assignments,
     requestedProfile: preview.requested_profile,
     detectedProfile: preview.detected_profile,
     supportsCptSelections: preview.supports_cpt_selections,

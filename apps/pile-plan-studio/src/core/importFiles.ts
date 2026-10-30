@@ -42,16 +42,20 @@ export function inferImportFileRole(fileName: string): ImportFileRole | null {
     || normalized.includes("load-point")
     || normalized.includes("load_point")
     || normalized.includes("rfem")
+    || normalized.includes("trekkracht")
   ) {
     return "load-points";
   }
 
-  if (normalized.includes("sonder") || normalized.includes("cpt")) {
-    return "cpts";
+  const adviceNames = ["draag", "capacity", "capacities", "bearing", "fundering", "foundation", "advies", "advice", "weerstand", "resistance", "trekvermogen", "drukvermogen", "capaciteit"];
+  const pileResistanceName = /\b(?:trek|druk)\b/.test(normalized)
+    && /prefab|betonpalen|paal|vibro/.test(normalized);
+  if (adviceNames.some(name => normalized.includes(name)) || pileResistanceName) {
+    return "bearing-capacities";
   }
 
-  if (normalized.includes("draag") || normalized.includes("capacity") || normalized.includes("bearing")) {
-    return "bearing-capacities";
+  if (normalized.includes("sonder") || normalized.includes("cpt")) {
+    return "cpts";
   }
 
   return null;

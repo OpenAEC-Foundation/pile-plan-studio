@@ -38,6 +38,7 @@
   "view": {
     "symbols": "Symbols",
     "symbolSize": "Symbol size",
+    "editValue": "Edit {{label}}",
     "utilization": "Utilization",
     "preferredRange": "Preferred range",
     "minimumUtilization": "Minimum utilization",

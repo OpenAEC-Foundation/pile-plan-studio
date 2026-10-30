@@ -308,7 +308,7 @@ function toLoadPointGroupEditRequest(
   };
 }
 
-function groupingSettingsToCore(settings: LoadPointGroupingSettings): CoreGroupingSettings {
+export function groupingSettingsToCore(settings: LoadPointGroupingSettings): CoreGroupingSettings {
   return {
     automatic: settings.automatic,
     max_edge_distance_mm: settings.maxEdgeDistanceM * 1_000,

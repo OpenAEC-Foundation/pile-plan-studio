@@ -33,6 +33,18 @@ function option(status: PileConfigurationOption["technicalStatus"]): PileConfigu
 const AVAILABLE: TechnicalAssignmentAssessment = { availability: "available", issues: [] };
 
 describe("technical assignment controller", () => {
+  it("restores the completed assessment after a temporary pause with unchanged inputs",async()=>{
+    let calls=0;
+    const controller=createTechnicalAssignmentController(async()=>{calls++;return AVAILABLE;});
+    const input={groups:[{load_point_ids:[1]}],optionsByLoadPoint:new Map([[1,[option("valid")]]])};
+    await controller.update(input);
+    await controller.update(null);
+    assert.equal(controller.getState().status,"idle");
+    await controller.update(input);
+    assert.equal(controller.getState().status,"ready");
+    assert.deepEqual(controller.getState().assessment,AVAILABLE);
+    assert.equal(calls,1);
+  });
   it("publishes loading and an indexed ready assessment", async () => {
     const response = deferred<TechnicalAssignmentAssessment>();
     const controller = createTechnicalAssignmentController(() => response.promise);

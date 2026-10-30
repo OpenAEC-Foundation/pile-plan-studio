@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { fireEvent, render, screen, within } from "@testing-library/react";
+import { fireEvent, render, screen, within, waitFor } from "@testing-library/react";
 import { expect, test } from "vitest";
 import i18n from "../../../i18n/config.ts";
 import { projectFixture } from "../../../test/projectFixture.ts";
@@ -9,10 +9,11 @@ import { saveManualCptSelection, toggleManualCpt, beginManualCptSelection, clear
 import { getSelectedLoadPoints } from "./rightPanelModel.ts";
 import type { ProjectState } from "../../../domain/project/projectState.ts";
 import { localizeLoadPointName } from "./PanelControls.tsx";
+import ApplicationTooltip from "../../template/ApplicationTooltip.tsx";
 
 function setup(grouped = false) {
   const project = projectFixture();
-  const points = project.loadPoints.slice(0, grouped ? 4 : 3), [a, b] = project.cpts;
+  const points = project.loadPoints.slice(0, grouped ? 4 : 3).map((p,index)=>({...p,x_mm:index*1000,y_mm:0})), [a, b] = project.cpts;
   const groups = grouped ? [{ load_point_ids: [points[0]!.id, points[2]!.id] }, { load_point_ids: [points[1]!.id, points[3]!.id] }] : [];
   const state: ProjectState = { ...project, rightPanelMode: "cpts", loadPoints: points, cpts: [a!, b!], manualCptIdsByLoadPoint: new Map([[points[1]!.id, [b!.id]]]),
     selectedLoadPointIds: points.map(p => p.id), selectedLoadPointId: points[0]!.id,
@@ -63,6 +64,23 @@ test("usage counts expose actual members and open that location directly in the 
   expect(screen.getByRole("columnheader", { name: tr("cpts.distance") })).toBeTruthy();
 });
 
+test("expanded CPT usage shows its members without retaining their tooltip", async () => {
+  const h=setup(); render(<ApplicationTooltip/>);
+  const row=screen.getAllByRole("row").find(row=>within(row).queryByText(h.b.name))!;
+  const summary=within(row).getByRole("button",{name:/1 \/ 3/});
+  fireEvent.mouseOver(summary);
+  expect(screen.getByRole("tooltip").textContent).toContain(String(h.points[1]!.id));
+  const details=summary.closest("details")!;
+  details.open=true; fireEvent(details,new Event("toggle"));
+  await waitFor(()=>expect(screen.queryByRole("tooltip")).toBeNull());
+  fireEvent.mouseOut(summary); fireEvent.mouseOver(summary);
+  expect(screen.queryByRole("tooltip")).toBeNull();
+  details.open=false; fireEvent(details,new Event("toggle"));
+  await waitFor(()=>expect(summary.getAttribute("data-tooltip")).toContain(String(h.points[1]!.id)));
+  fireEvent.mouseOut(summary); fireEvent.mouseOver(summary);
+  expect(screen.getByRole("tooltip")).toBeTruthy();
+});
+
 test("nearest and automatic reset remain cancellable draft operations", () => {
   const h = setup(), original = h.current().manualCptIdsByLoadPoint;
   fireEvent.click(screen.getByRole("button", { name: tr("actions.modify") }));
@@ -81,6 +99,7 @@ for (const language of ["nl", "en"]) {
   test(`CPT editor controls are usable in ${language}`, async () => {
     await i18n.changeLanguage(language);
     const h = setup();
+    expect(screen.getByRole("button",{name:i18n.t("cpts.usedByValue",{ns:"rightPanel",used:2,total:3})})).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: tr("actions.modify") }));
     expect(screen.queryByRole("combobox", { name: tr("cpts.editFor") })).toBeNull();
     inspect(h.points[2]!);

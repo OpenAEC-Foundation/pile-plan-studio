@@ -24,9 +24,9 @@ export default function AdviceImportDiagnostics({ preview, sourceLabels = {}, al
       <h4>{t("importProject.advice.conflicts", { count: preview.conflicts.length })}</h4>
       <p>{t("importProject.advice.conflictHelp")}</p>
       <ol className="advice-conflict-list" start={current * 50 + 1}>
-        {preview.conflicts.slice(current * 50, (current + 1) * 50).map(c => <li key={`${c.cptId}/${c.pileSizeMm}/${c.pileTipLevelMm}`}>
-          <strong>{t("importProject.advice.configuration", { cpt: c.cptId, size: c.pileSizeMm, level: c.pileTipLevelMm / 1000 })}</strong>
-          {c.values.map((v, i) => <div key={i}><b>{String(v.frdKn)} kN</b>
+        {preview.conflicts.slice(current * 50, (current + 1) * 50).map(c => <li key={`${c.cptId}/${c.pileSizeMm}/${c.pileTipLevelMm}/${c.direction}/${c.pileCount}`}>
+          <strong>{t("importProject.advice.configuration", { cpt: c.cptId, size: c.pileSizeMm, level: c.pileTipLevelMm / 1000 })}</strong> <span>{t(c.pileCount==null?"tableImport.allPileCounts":"tableImport.capPileCount")}{c.pileCount==null?"":`: ${c.pileCount}`}</span>
+          {c.values.map((v, i) => <div key={i}><b>{v.missing?t("tableImport.missingResistance"):`${v.frdKn} kN`}</b>
             <ul>{v.locations.map((l, j) => <li key={j}>{l.fileName}{l.sheetName ? ` — ${l.sheetName}` : ""} — {l.column !== null && l.row !== null ? cellLabel(l.column, l.row) : t("importProject.advice.storedValue")} <small>({sourceLabels[l.sourceId] ?? t("importProject.advice.sourceNumber",{count:sourceIds.indexOf(l.sourceId)+1})})</small></li>)}</ul>
           </div>)}
         </li>)}

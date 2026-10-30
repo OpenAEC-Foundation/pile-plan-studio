@@ -8,12 +8,13 @@ import type { ImportFileRole, NamedImportFile } from "../../core/importFiles.ts"
 
 export type ImportPreviewState =
   | { status: "empty" }
-  | { status: "analyzing"; requestId: number }
+  | { status: "analyzing"; requestId: number;preview?:ImportSourcePreview }
   | { status: "ready"; requestId: number; preview: ImportSourcePreview }
   | { status: "failed"; requestId: number; message: string };
 
 export type ImportRoleDraft<TFile extends NamedImportFile> = {
   role: ImportFileRole;
+  lastPreview?:ImportSourcePreview;
   file: TFile | null;
   requestedProfile: ImportProfile;
   profileOptions: ImportProfileOptions;
@@ -69,6 +70,7 @@ export function setImportProfileOptions<TFile extends NamedImportFile>(
   return updateDraft(drafts, role, {
     ...drafts[role],
     profileOptions,
+    lastPreview:drafts[role].previewState.status==="ready"?drafts[role].previewState.preview:drafts[role].lastPreview,
     previewState: { status: "empty" },
   });
 }
@@ -80,7 +82,7 @@ export function beginImportPreview<TFile extends NamedImportFile>(
 ): ImportDrafts<TFile> {
   return updateDraft(drafts, role, {
     ...drafts[role],
-    previewState: { status: "analyzing", requestId },
+    previewState: { status: "analyzing", requestId,...(drafts[role].previewState.status==="ready"?{preview:drafts[role].previewState.preview}:drafts[role].previewState.status==="analyzing"?{preview:drafts[role].previewState.preview}:{}) },
   });
 }
 

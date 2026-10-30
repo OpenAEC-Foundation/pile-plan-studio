@@ -1,5 +1,6 @@
 import {act,render,screen,fireEvent,waitFor} from "@testing-library/react";
 import {test,expect,vi,beforeEach} from "vitest";
+import ApplicationTooltip from "../../template/ApplicationTooltip.tsx";
 import LocationMatchingWorkspace from "./LocationMatchingWorkspace.tsx";
 import {reconcileLocationsCore} from "../../../core/exportRevisionCoreClient.ts";
 import i18n from "../../../i18n/config.ts";
@@ -8,6 +9,26 @@ beforeEach(()=>vi.mocked(reconcileLocationsCore).mockReset());
 const t=(key:string)=>i18n.t(`exportTools.${key}`);
 const initial={links:[{old_id:1,new_id:9,distance_mm:0}],added:[],removed:[],unmatched_old:[],unmatched_new:[],proposals:[],complete:true};
 const points={oldLocations:[{id:1,x_mm:0,y_mm:0}],newLocations:[{id:9,x_mm:0,y_mm:0}]};
+
+test("import mode keeps unlocated rows in the list without creating fake map markers",()=>{
+ const evaluate=vi.fn();
+ const view=render(<LocationMatchingWorkspace mode="import" evaluate={evaluate} oldLocations={points.oldLocations} newLocations={[{id:9,source_id:99,x_mm:null,y_mm:null}]} initial={{...initial,links:[],unmatched_new:[9],complete:false}} toleranceMm={1} onConfirm={()=>{}} onCancel={()=>{}}/>);
+ expect(screen.getAllByText(i18n.t("pilePlanMatching.source")).length).toBeGreaterThan(0);
+ expect(view.container.querySelector('[data-matching-side="new"][data-location-id="9"]')).toBeNull();
+ expect(screen.getByRole("button",{name:i18n.t("pilePlanMatching.skip")})).toBeTruthy();
+ expect(screen.queryByRole("button",{name:t("markRemoved")})).toBeNull();
+});
+
+test("import links use the import evaluator and confirm without dismissing unrelated project locations",async()=>{
+ const evaluate=vi.fn().mockResolvedValue({...initial,links:[{old_id:1,new_id:9,distance_mm:null}]}),confirm=vi.fn();
+ render(<LocationMatchingWorkspace mode="import" evaluate={evaluate} oldLocations={[...points.oldLocations,{id:2,x_mm:10,y_mm:0}]} newLocations={[{id:9,source_id:99,x_mm:null,y_mm:null}]} initial={{...initial,links:[],unmatched_new:[9],complete:false}} toleranceMm={1} onConfirm={confirm} onCancel={()=>{}}/>);
+ fireEvent.change(screen.getByLabelText(i18n.t("pilePlanMatching.chooseProject",{id:99})),{target:{value:"1"}});
+ await waitFor(()=>expect(screen.getByRole("button",{name:t("confirm")}).hasAttribute("disabled")).toBe(false));
+ expect(evaluate).toHaveBeenCalledWith({links:[{old_id:1,new_id:9}],added:[],removed:[]},undefined,1);
+ expect(reconcileLocationsCore).not.toHaveBeenCalled();
+ fireEvent.click(screen.getByRole("button",{name:t("confirm")}));
+ expect(confirm).toHaveBeenCalledWith({links:[{old_id:1,new_id:9}],added:[],removed:[]},1);
+});
 test("hundreds of locations use one editor instead of a dropdown matrix",()=>{
   const oldLocations=Array.from({length:300},(_,i)=>({id:i+1,x_mm:i*1000,y_mm:0}));
   const newLocations=oldLocations.map(p=>({...p,id:p.id+1000}));
@@ -39,7 +60,7 @@ test("bulk decisions are shown and only confirmed through the explicit confirm a
   await waitFor(()=>expect((screen.getByRole("button",{name:t("confirm")}) as HTMLButtonElement).disabled).toBe(false));
   expect(confirm).not.toHaveBeenCalled();
   fireEvent.click(screen.getByRole("button",{name:t("confirm")}));
-  expect(confirm).toHaveBeenCalledWith({links:[],added:[9],removed:[1]});
+  expect(confirm).toHaveBeenCalledWith({links:[],added:[9],removed:[1]},99);
 });
 
 test("clicking a new pile and an old partner submits a validated link",async()=>{
@@ -52,7 +73,7 @@ test("clicking a new pile and an old partner submits a validated link",async()=>
   await waitFor(()=>expect((screen.getByRole("button",{name:t("confirm")}) as HTMLButtonElement).disabled).toBe(false));
   expect(confirm).not.toHaveBeenCalled();
   fireEvent.click(screen.getByRole("button",{name:t("confirm")}));
-  expect(confirm).toHaveBeenCalledWith({links:[{old_id:1,new_id:9}],added:[],removed:[]});
+  expect(confirm).toHaveBeenCalledWith({links:[{old_id:1,new_id:9}],added:[],removed:[]},99);
 });
 
 test("an occupied partner is reassigned and its previous owner becomes the next review location",async()=>{
@@ -196,4 +217,86 @@ test("the layer legend uses a transparent old outline and a filled new symbol th
   const view=render(<LocationMatchingWorkspace {...points} initial={initial} toleranceMm={99} onConfirm={()=>{}} onCancel={()=>{}}/>);
   expect(view.container.querySelector('.matching-old-key circle')?.getAttribute('fill')).toBe('none');
   expect(view.container.querySelector('.matching-new-key circle')?.getAttribute('fill')).toBe('currentColor');
+});
+
+
+test("nearest action explains why unresolved import locations remain",async()=>{
+ const remaining={...initial,links:[],unmatched_new:[9],complete:false};
+ const evaluate=vi.fn().mockResolvedValue(remaining);
+ render(<LocationMatchingWorkspace mode="import" evaluate={evaluate} {...points} initial={remaining} toleranceMm={1} onConfirm={()=>{}} onCancel={()=>{}}/>);
+ fireEvent.click(screen.getByRole("button",{name:t("bulkNearestShort")}));
+ await waitFor(()=>expect(screen.getByText(i18n.t("locationMatchingEntry.nearestUnresolved",{count:1}))).toBeTruthy());
+});
+
+
+test("local undo and redo restore a validated mapping without invoking the core again",async()=>{
+ const pending={...initial,links:[],unmatched_old:[1],unmatched_new:[9],complete:false};
+ vi.mocked(reconcileLocationsCore).mockResolvedValueOnce(initial);
+ render(<LocationMatchingWorkspace {...points} initial={pending} toleranceMm={1} onConfirm={()=>{}} onCancel={()=>{}}/>);
+ fireEvent.change(screen.getByLabelText(i18n.t("exportTools.oldChoice",{id:9})),{target:{value:"1"}});
+ await waitFor(()=>expect(screen.getByRole("button",{name:t("confirm")}).hasAttribute("disabled")).toBe(false));
+ fireEvent.keyDown(window,{key:"z",ctrlKey:true});
+ expect(screen.getByRole("button",{name:t("confirm")}).hasAttribute("disabled")).toBe(true);
+ expect(screen.getByLabelText(i18n.t("exportTools.oldChoice",{id:9}))).toBeTruthy();
+ fireEvent.keyDown(window,{key:"y",ctrlKey:true});
+ expect(screen.getByRole("button",{name:t("confirm")}).hasAttribute("disabled")).toBe(false);
+ expect(reconcileLocationsCore).toHaveBeenCalledOnce();
+});
+
+test("applying editor tolerance retains existing choices and confirms the new tolerance",async()=>{
+ const confirm=vi.fn();const pending={...initial,links:[],unmatched_old:[1],unmatched_new:[9],complete:false};
+ vi.mocked(reconcileLocationsCore).mockResolvedValueOnce(initial);
+ render(<LocationMatchingWorkspace {...points} initial={pending} toleranceMm={1} onConfirm={confirm} onCancel={()=>{}}/>);
+ fireEvent.change(screen.getByRole("spinbutton",{name:i18n.t("exportTools.matchTolerance")}),{target:{value:"50"}});
+ fireEvent.click(screen.getByRole("button",{name:i18n.t("matchingEditor.applyTolerance")}));
+ await waitFor(()=>expect(screen.getByRole("button",{name:t("confirm")}).hasAttribute("disabled")).toBe(false));
+ expect(reconcileLocationsCore).toHaveBeenCalledWith(expect.objectContaining({tolerance_mm:50,bulk_action:"automatic",decisions:{links:[],added:[],removed:[]}}));
+ fireEvent.click(screen.getByRole("button",{name:t("confirm")}));
+ expect(confirm).toHaveBeenCalledWith({links:[{old_id:1,new_id:9}],added:[],removed:[]},50);
+});
+
+test("review starts in Mark order and advances by that order instead of numeric IDs",async()=>{
+ const locs=[{id:9,x_mm:0,y_mm:0,mark:3},{id:3,x_mm:100,y_mm:0,mark:2},{id:50,x_mm:200,y_mm:0,mark:1}];
+ const pending={...initial,links:[],unmatched_old:[],unmatched_new:[3,9,50],complete:false};
+ const evaluate=vi.fn().mockResolvedValue({...pending,added:[50],unmatched_new:[3,9]});
+ render(<LocationMatchingWorkspace mode="import" evaluate={evaluate} oldLocations={[]} newLocations={locs} initial={pending} toleranceMm={1} onConfirm={()=>{}} onCancel={()=>{}}/>);
+ expect(screen.getByLabelText(i18n.t("pilePlanMatching.chooseProject",{id:50}))).toBeTruthy();
+ fireEvent.click(screen.getByRole("button",{name:i18n.t("pilePlanMatching.skip")}));
+ await waitFor(()=>expect(screen.getByLabelText(i18n.t("pilePlanMatching.chooseProject",{id:3}))).toBeTruthy());
+});
+
+
+test("manual map selection leaves the current viewport untouched",()=>{
+ const view=render(<LocationMatchingWorkspace {...points} initial={initial} toleranceMm={1} onConfirm={()=>{}} onCancel={()=>{}}/>);
+ const stage=view.container.querySelector<HTMLElement>('.matching-plan .viewer-content')!;
+ const before=stage.style.transform;
+ fireEvent.click(screen.getByRole("button",{name:t("selectNewTool")}));
+ fireEvent.click(screen.getByRole("button",{name:i18n.t("exportTools.pickNew",{id:9})}));
+ expect(stage.style.transform).toBe(before);
+});
+
+test("automatic continuation brings the next import location into view at the current zoom",async()=>{
+ const pending={...initial,links:[],unmatched_old:[],unmatched_new:[9,10],complete:false};
+ const evaluate=vi.fn().mockResolvedValue({...pending,added:[9],unmatched_new:[10]});
+ const view=render(<LocationMatchingWorkspace mode="import" evaluate={evaluate} oldLocations={[]} newLocations={[{id:9,x_mm:0,y_mm:0},{id:10,x_mm:1000,y_mm:1000}]} initial={pending} toleranceMm={1} onConfirm={()=>{}} onCancel={()=>{}}/>);
+ const stage=view.container.querySelector<HTMLElement>('.matching-plan .viewer-content')!,before=stage.style.transform;
+ fireEvent.click(screen.getByRole("button",{name:i18n.t("pilePlanMatching.skip")}));
+ await waitFor(()=>expect(stage.style.transform).not.toBe(before));
+ expect(stage.style.transform).toContain('scale(1)');
+});
+
+
+test("tolerance help shows the explanation immediately on hover or focus without a native tooltip",()=>{
+ render(<><ApplicationTooltip/><LocationMatchingWorkspace {...points} initial={initial} toleranceMm={1} onConfirm={()=>{}} onCancel={()=>{}}/></>);
+ const help=screen.getByRole("button",{name:i18n.t("matchingEditor.toleranceHelp")});
+ expect(help.hasAttribute("title")).toBe(false);
+ expect(screen.queryByRole("tooltip")).toBeNull();
+ fireEvent.mouseEnter(help);
+ expect(screen.getByRole("tooltip").textContent).toBe(i18n.t("matchingEditor.toleranceHelp"));
+ fireEvent.mouseLeave(help);
+ expect(screen.queryByRole("tooltip")).toBeNull();
+ fireEvent.focus(help);
+ expect(screen.getByRole("tooltip")).toBeTruthy();
+ fireEvent.blur(help);
+ expect(screen.queryByRole("tooltip")).toBeNull();
 });

@@ -9,6 +9,10 @@ use std::collections::HashMap;
 
 #[derive(Debug, Deserialize)]
 pub struct PileOptionAnalysisRequest {
+    #[serde(default)]
+    pub grouping_settings: Option<LoadPointGroupingSettings>,
+    #[serde(default)]
+    pub grouping_load_points: Option<Vec<ProjectLoadPoint>>,
     pub load_points: Vec<ProjectLoadPoint>,
     pub cpts: Vec<ProjectCpt>,
     pub bearing_capacities: Vec<ProjectBearingCapacity>,

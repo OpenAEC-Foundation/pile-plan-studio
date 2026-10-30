@@ -9,7 +9,7 @@ use pile_plan_core::{
     apply_load_point_group_ungroup_batch as apply_load_point_group_ungroup_batch_core,
     assess_load_point_group_assignments as assess_load_point_group_assignments_core,
     assess_technical_assignment as assess_technical_assignment_core,
-    build_load_point_topology as build_load_point_topology_core, build_pile_option_analysis,
+    build_load_point_topology as build_load_point_topology_core,
     build_tip_level_region_topology as build_tip_level_region_topology_core, calculate_pile_cost,
     choose_default_pile_options, derive_load_point_groups as derive_load_point_groups_core,
     evaluate_cpt_settings_edit as evaluate_cpt_settings_edit_core,
@@ -43,20 +43,7 @@ use wasm_bindgen::prelude::*;
 #[wasm_bindgen]
 pub fn calculate_pile_option_analysis(request: JsValue) -> Result<JsValue, JsValue> {
     let request: PileOptionAnalysisRequest = from_js_value(request)?;
-    let result = build_pile_option_analysis(
-        &request.load_points,
-        &request.cpts,
-        &request.bearing_capacities,
-        |load_point| {
-            request
-                .settings_by_load_point
-                .get(&load_point.id)
-                .cloned()
-                .unwrap_or_else(|| request.global_settings.clone())
-        },
-        &request.manual_cpt_ids_by_load_point,
-        request.include_cpt_frd_rows,
-    );
+    let result = pile_plan_core::calculate_pile_option_analysis(&request);
     match result {
         Ok(result) => to_js_value(&result),
         Err(error) => Err(to_js_value(&error)?),
@@ -144,6 +131,13 @@ pub fn refresh_project_from_files(request: JsValue) -> Result<JsValue, JsValue> 
         project,
         tip_level_keys,
     })
+}
+
+#[wasm_bindgen]
+pub fn inspect_foundation_advice(request:JsValue)->Result<JsValue,JsValue>{
+ let request:pile_plan_core::FoundationAdviceInspectionRequest=from_js_value(request)?;
+ let rows=pile_plan_core::inspect_foundation_advice(&request).map_err(|error|to_js_value(&error).unwrap_or_else(|_|to_error_value(error)))?;
+ to_js_value(&rows)
 }
 
 #[wasm_bindgen]
@@ -396,6 +390,8 @@ mod tests {
     #[test]
     fn pile_option_analysis_request_supports_optional_cpt_rows() {
         let request = PileOptionAnalysisRequest {
+            grouping_settings: None,
+            grouping_load_points: None,
             load_points: vec![],
             cpts: vec![],
             bearing_capacities: vec![],
@@ -480,6 +476,8 @@ mod tests {
 
     fn aggregation_option(utilization: f64, governing_cpt_id: u32) -> PileConfigurationOption {
         PileConfigurationOption {
+            compression: None,
+            tension: None,
             configuration: PileConfigurationKey {
                 pile_size_mm: 320,
                 pile_tip_level_mm: -18_500,
@@ -510,7 +508,7 @@ mod tests {
                 .expect("written project reads")
                 .project
                 .schema_version,
-            6
+            8
         );
         assert!(matches!(
             read_project_document_contents("{").unwrap_err(),
@@ -527,9 +525,11 @@ mod tests {
                 role: pile_plan_core::ImportRole::LoadPoints,
                 profile: pile_plan_core::ImportProfile::RfemExport,
                 profile_options: pile_plan_core::ImportProfileOptions {
+                    table:None,
                     advice_sheets: None,
                     coordinate_sheet: Some("Coordinates".to_string()),
                     reaction_sheet: Some("Reactions".to_string()),
+                    ..Default::default()
                 },
                 file_name: "Export RFEM.xlsx".to_string(),
                 format: pile_plan_core::SourceFormat::Xlsx,

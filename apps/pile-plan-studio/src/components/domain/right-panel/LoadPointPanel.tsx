@@ -1,3 +1,5 @@
+import {useDisplayOptions,useLoadDirection} from "../../../app/derived-state/LoadDirectionContext.tsx";
+import {directionalLoadPoint,directionalOption} from "../../../domain/pile-options/loadDirection.ts";
 import type { PileCapProposal, PileCapPreview } from "../../../core/pileCapProposalTypes.ts";
 import { pileConfigurationToken } from "../../../core/pileConfigurationKey.ts";
 import { useEffect, useState, type ReactNode } from "react";
@@ -20,6 +22,8 @@ import type { GroupAssignmentAssessmentSnapshot } from "../../../app/derived-sta
 import TechnicalAssignmentNotice from "./TechnicalAssignmentNotice.tsx";
 import MissingCptPopover from "./MissingCptPopover.tsx";
 import { InactiveLabel, ResistanceLabel, localizeCptName, localizeLoadPointName } from "./PanelControls.tsx";
+import {combinedOptionStatus} from "../../../domain/pile-options/combinedStatus.ts";
+import CombinedStatusPill from "./CombinedStatusPill.tsx";
 
 export default function LoadPointPanel({
   pileCapProposal=null,pileCapPreview=null,pileCapPending=false,pileCapError=false,onPileCapConfigurationChange=()=>{},
@@ -54,10 +58,13 @@ export default function LoadPointPanel({
   onColumnLayoutChange: (mode: keyof PileOptionColumnLayouts, layout: PileOptionColumnLayout) => void;
 }) {
   const { t, i18n } = useTranslation("rightPanel");
+  const {mode,setMode}=useLoadDirection();
+  const {t:common}=useTranslation("common");
+  const displayLoadPoints=selectedLoadPoints.map(p=>directionalLoadPoint(p,mode));
   const [openMissingCptKey, setOpenMissingCptKey] = useState<string | null>(null);
   const selectedLoadPointKey = selectedLoadPoints.map(({ id }) => id).join(",");
   useEffect(() => setOpenMissingCptKey(null), [selectedLoadPointKey]);
-  const pileOptionsByLoadPointId = getPileOptionsByLoadPointIdForPanel(state);
+  const pileOptionsByLoadPointId = useDisplayOptions(getPileOptionsByLoadPointIdForPanel(state));
   const active = getPilePlanActivation(getActivePilePlan(state));
   const aggregation = useAggregatedPileOptions({
     selectedLoadPointIds: selectedLoadPoints.map(({ id }) => id),
@@ -72,7 +79,7 @@ export default function LoadPointPanel({
   const retainedConfiguration = pileCapProposal?.configuration ?? getChosenPileOptionConfigurationForSelection(state, selectedLoadPoints);
   const proposalCosts = new Map((pileCapPreview?.options??[]).map(o=>[pileConfigurationToken(o.configuration),o.cost_per_pile]));
   const proposalRows = getRenderablePileOptionRows({activeConfigurations:active,cpts:state.cpts,costsByOptionKey:proposalCosts,
-    currencyCode:state.currencyCode,options:pileCapPreview?.options??[],loadPoint:selectedLoadPoints[0]&&pileCapPreview?.load_per_pile_kn!=null?{...selectedLoadPoints[0],design_load_kn:pileCapPreview.load_per_pile_kn}:null,
+    currencyCode:state.currencyCode,options:(pileCapPreview?.options??[]).map(o=>directionalOption(o,mode)),loadPoint:selectedLoadPoints[0]&&pileCapPreview?.load_per_pile_kn!=null?{...selectedLoadPoints[0],design_load_kn:mode==="compression"?pileCapPreview.load_per_pile_kn:pileCapPreview.tension_per_pile?.state==="known"?pileCapPreview.tension_per_pile.value_kn:NaN}:null,
     selectedLoadPointCount:pileCapProposal?.pile_count??0,legend:state.pileLegend,pileCostSettings:state.pileCostSettings,locale:i18n.language}).map((row,index)=>{
       const total=pileCapPreview!.options[index].total_cost;
       return {...row,totalCostValue:total,totalCostLabel:total===null?"-":new Intl.NumberFormat(i18n.language,{style:"currency",currency:state.currencyCode,maximumFractionDigits:0}).format(total)};
@@ -88,12 +95,12 @@ export default function LoadPointPanel({
         currencyCode: state.currencyCode,
         legend: state.pileLegend,
         pileCostSettings: state.pileCostSettings,
-        loadPoints: state.loadPoints,
+        loadPoints: state.loadPoints.map(p=>directionalLoadPoint(p,mode)),
         locale: i18n.language,
         selectedLoadPointCount: selectedCount,
       })
     : getRenderablePileOptionRows({
-        loadPoint: selectedLoadPoints[0] ?? null,
+        loadPoint: displayLoadPoints[0] ?? null,
         activeConfigurations: active,
         cpts: state.cpts,
         costsByOptionKey: state.pileCostByOptionKey,
@@ -111,10 +118,25 @@ export default function LoadPointPanel({
         selectedLoadPointCount: selectedCount,
       })).map((row) => ({
     ...row,
-    statusLabel: row.statusLabel === "Missing"
+    statusClassName: directionalRowStatus(row.key)==="not_assessed"?"is-not-assessed":directionalRowStatus(row.key)==="no_load"?"is-no-load":row.statusClassName,
+    statusLabel: directionalRowStatus(row.key) ? common(`loadDirection.status.${directionalRowStatus(row.key)}`)
+      : row.statusLabel === "Missing"
       ? t("status.missing")
       : row.statusLabel === "Insufficient capacity" ? t("status.insufficientCapacity") : t("status.ok"),
-  }));
+  })).map(row=>{
+    const facts=pileCapProposal?[pileCapPreview?.options.find(o=>optionKey(o)===row.key)]:selectedLoadPoints.map(p=>state.pileOptionsByLoadPointId.get(p.id)?.find(o=>optionKey(o)===row.key));
+    const combined=combinedOptionStatus(facts.filter((f):f is NonNullable<typeof f>=>!!f),mode);
+    return {...row,combined,statusLabel:combined?common(`loadDirection.combined.${combined.key}`):row.statusLabel,statusClassName:combined?.className??row.statusClassName};
+  });
+  function directionalRowStatus(key:string) {
+    const assessments=pileCapProposal
+      ? [pileCapPreview?.options.find(o=>optionKey(o)===key)?.[mode]]
+      : selectedLoadPoints.map(p=>pileOptionsByLoadPointId.get(p.id)?.find(o=>optionKey(o)===key)?.[mode]);
+    if(assessments.some(a=>a?.status==="missing_demand"))return "missing_demand";
+    if(assessments.length&&assessments.every(a=>a?.status==="not_assessed"))return "not_assessed";
+    if(assessments.length&&assessments.every(a=>a?.status==="no_load"))return "no_load";
+    return null;
+  }
   const visibleFilters = Object.fromEntries(
     columns.map(({ key }) => [key, state.pileOptionFilters[key] ?? []]),
   );
@@ -203,7 +225,7 @@ export default function LoadPointPanel({
                           column={column.key}
                           label={column.key === "frd"
                             ? <ResistanceLabel qualifier={t("columns.minimumQualifier")} />
-                            : column.key === "fed" ? <>F<sub>Ed</sub></>
+                            : column.key === "fed" ? <>F<sub>{mode==="tension"?"t;Ed":"Ed"}</sub></>
                             : t(`columns.${column.key}`)}
                           labelText={t(`columns.${column.key}`)}
                           rows={rows}
@@ -249,7 +271,7 @@ export default function LoadPointPanel({
                               </span>
                             ) : row.tipLabel}{!row.tipActive ? <InactiveLabel /> : null}</>
                             : key === "status" ? (
-                              row.statusClassName === "is-missing" && row.missingCptIds.length > 0
+                              row.combined?.switchTo ? <CombinedStatusPill status={row.combined} onSwitch={setMode}/> : row.statusClassName === "is-missing" && row.missingCptIds.length > 0
                                 ? <MissingCptPopover
                                     cptIds={row.missingCptIds}
                                     label={row.statusLabel}
@@ -262,7 +284,7 @@ export default function LoadPointPanel({
                                   />
                                 : <span
                                     className={`status-pill ${row.statusClassName}`}
-                                    title={row.statusClassName === "is-missing" ? t("pileOptions.missingNoCptIdsTitle") : undefined}
+                                    title={row.combined ? (["valid","insufficient_capacity","not_assessed"].includes(row.combined.key) ? undefined : common(`loadDirection.combinedHelp.${row.combined.key}`)) : row.statusClassName === "is-missing" ? t("pileOptions.missingNoCptIdsTitle") : undefined}
                                   >{row.statusLabel}</span>
                             )
                             : key === "cost" ? row.costLabel

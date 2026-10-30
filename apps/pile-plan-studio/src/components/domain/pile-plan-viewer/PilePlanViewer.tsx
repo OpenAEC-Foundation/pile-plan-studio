@@ -1,3 +1,5 @@
+import {useDisplayOptions,useLoadDirection} from "../../../app/derived-state/LoadDirectionContext.tsx";
+import {directionalLoad,directionalOption} from "../../../domain/pile-options/loadDirection.ts";
 import {projectPileCapPreviews} from "../../../viewer/pileCapProposalGeometry.ts";
 import {projectPointPixels} from "../../../viewer/viewerGeometry.ts";
 import type { PileCapPreview } from "../../../core/pileCapProposalTypes.ts";
@@ -50,7 +52,7 @@ import type { TechnicalAssignmentSnapshot } from "../../../app/derived-state/tec
 import type { GroupAssignmentAssessmentSnapshot } from "../../../app/derived-state/groupAssignmentAssessmentController.ts";
 import type { TipLevelRegionTopology } from "../../../core/tipLevelRegionContract.ts";
 import type { LoadPointTopology } from "../../../core/tipLevelRegionContract.ts";
-import { buildLoadPointGroupGeometry } from "../../../viewer/loadPointGroupGeometry.ts";
+import { createLoadPointGroupGeometrySelector } from "../../../viewer/loadPointGroupGeometry.ts";
 import {
   getCompleteSelectedGroupLoadPointIds,
   getLoadPointGroupSelection,
@@ -79,11 +81,12 @@ export type PilePlanViewerProps = {
   onStateChange: (nextState: ProjectState) => void;
   onSelectionChange?: (nextState: ProjectState) => void;
 };
+const EMPTY_CAP_PREVIEWS: PileCapPreview[] = [];
 
 export default function PilePlanViewer({
   focusRequest,
   onFocusHandled,
-  pileCapPreviews=[],
+  pileCapPreviews:sourceCapPreviews=EMPTY_CAP_PREVIEWS,
   state,
   loadPointGroups,
   loadPointGroupTopology,
@@ -95,29 +98,36 @@ export default function PilePlanViewer({
   onSelectionChange,
 }: PilePlanViewerProps) {
   const { t, i18n } = useTranslation("common");
+  const {mode}=useLoadDirection();
+  const pileCapPreviews=useMemo(()=>sourceCapPreviews.map(cap=>({...cap,options:cap.options.map(option=>({...option,...directionalOption(option,mode)}))})),[sourceCapPreviews,mode]);
   const legend = state.pileLegend;
-  const selectedLoadPointIds = new Set(state.selectedLoadPointIds);
-  const selectionContextLoadPointIds = new Set(getLoadPointSelectionContext(state, loadPointGroups));
+  const selectedLoadPointIds = useMemo(() => new Set(state.selectedLoadPointIds), [state.selectedLoadPointIds]);
+  const selectionContextLoadPointIds = useMemo(() => new Set(getLoadPointSelectionContext(state, loadPointGroups)),
+    [state.loadPoints, state.loadPointSelectionContext, state.selectedLoadPointIds, loadPointGroups]);
   const groupSelection = useMemo(() => getLoadPointGroupSelection({
     selectedLoadPointIds: state.selectedLoadPointIds,
     groups: loadPointGroups,
   }), [loadPointGroups, state.selectedLoadPointIds]);
-  const relatedLoadPointIds = new Set(groupSelection.relatedLoadPointIds);
+  const relatedLoadPointIds = useMemo(() => new Set(groupSelection.relatedLoadPointIds), [groupSelection]);
   const completeSelectedGroupLoadPointIds = useMemo(() => new Set(
     getCompleteSelectedGroupLoadPointIds(state.selectedLoadPointIds, loadPointGroups),
   ), [loadPointGroups, state.selectedLoadPointIds]);
   const activePilePlan = state.pilePlans.find(
     (plan) => plan.id === state.activePilePlanId,
   ) ?? state.pilePlans[0];
-  const activePileConfigurations = getPilePlanActivation(activePilePlan);
+  const activePileConfigurations = useMemo(() => getPilePlanActivation(activePilePlan), [activePilePlan]);
   const isEditingLoadPointLocks = state.loadPointLockDraft !== null;
-  const lockedLoadPointIds = new Set(
+  const lockedLoadPointIds = useMemo(() => new Set(
     state.loadPointLockDraft
       ?? getActiveLockedLoadPointIds(state.pilePlans, state.activePilePlanId),
-  );
-  const contextSelectedCptIds = new Set(getReactViewerContextCptIds(state));
-  const selectedCptIds = new Set(getReactViewerSelectedCptIds(state));
-  const pileOptionsByLoadPointId = getEffectivePileOptionsByLoadPointId(state);
+  ), [state.loadPointLockDraft, state.pilePlans, state.activePilePlanId]);
+  const contextSelectedCptIds = useMemo(() => new Set(getReactViewerContextCptIds(state)),
+    [state.selectedLoadPointIds, state.selectedCptsByLoadPointId, state.cptSelectionEditDraft, state.cptSelectionPreview]);
+  const selectedCptIds = useMemo(() => new Set(getReactViewerSelectedCptIds(state)),
+    [contextSelectedCptIds, state.selectedCptId]);
+  const effectivePileOptions = useMemo(() => getEffectivePileOptionsByLoadPointId(state),
+    [state.pileOptionsByLoadPointId, state.cptSelectionEditDraft, state.cptSelectionPreview]);
+  const pileOptionsByLoadPointId = useDisplayOptions(effectivePileOptions);
   const originalGoverningCptId = getHighlightedGoverningCptId({
     activeSelectedCptIds: [...contextSelectedCptIds],
     pileOptionsByLoadPointId,
@@ -126,11 +136,12 @@ export default function PilePlanViewer({
   });
   const selectedCap=pileCapPreviews.find(cap=>cap.proposal.load_point_ids.length===state.selectedLoadPointIds.length&&cap.proposal.load_point_ids.every(id=>selectedLoadPointIds.has(id)));
   const capConfiguration=selectedCap?.proposal.configuration;
-  const governingCptId=selectedCap?selectedCap.options.find(option=>option.configuration.pile_size_mm===capConfiguration?.pile_size_mm&&option.configuration.pile_tip_level_mm===capConfiguration?.pile_tip_level_mm)?.governing_cpt_id??null:originalGoverningCptId;
+  const governingCptId=selectedCap?selectedCap.options.map(o=>directionalOption(o,mode)).find(option=>option.configuration.pile_size_mm===capConfiguration?.pile_size_mm&&option.configuration.pile_tip_level_mm===capConfiguration?.pile_tip_level_mm)?.governing_cpt_id??null:originalGoverningCptId;
   const isEditingCptSelection = isReactViewerCptSelectionEditing(state);
   const interactionRef = useRef<ViewerInteraction | null>(null);
   const {
     canvasRef,
+    focusOnPoints,
     layoutAnchorRef,
     stageRef,
     gridRef,
@@ -171,9 +182,10 @@ export default function PilePlanViewer({
     () => new Set(groupAssignmentAssessment.conflicts.flatMap(({ load_point_ids }) => load_point_ids)),
     [groupAssignmentAssessment.conflicts],
   );
+  const selectGroupGeometry = useMemo(() => createLoadPointGroupGeometrySelector(), []);
   const loadPointGroupGeometry = useMemo(() => {
     if (!loadPointGroupTopology) return [];
-    return buildLoadPointGroupGeometry({
+    return selectGroupGeometry({
       groups: loadPointGroups,
       topology: loadPointGroupTopology,
       pointsByLoadPointId: tipLevelRegionPoints,
@@ -217,6 +229,14 @@ export default function PilePlanViewer({
       ...proposalLayouts.flatMap(cap=>cap.points.map(point=>({id:cap.sourceIds[0],...point}))),
     ]);
   };
+  const focusSelectionPoints=()=>{
+    const selected=new Set(state.selectedLoadPointIds),caps=proposalLayouts.filter(cap=>cap.sourceIds.some(id=>selected.has(id))),replaced=new Set(caps.flatMap(cap=>cap.sourceIds));
+    return [
+      ...state.loadPoints.filter(p=>selected.has(p.id)&&!replaced.has(p.id)).map(p=>projectPointPixels(p,projectTransform)),
+      ...caps.flatMap(cap=>cap.points),
+      ...state.cpts.filter(cpt=>selectedCptIds.has(cpt.id)).map(cpt=>projectPointPixels(cpt,projectTransform)),
+    ];
+  };
   const {
     lasso,
     hoverCandidates,
@@ -258,6 +278,9 @@ export default function PilePlanViewer({
         onWheel={(event) => handleViewportWheel(event, clearHoverCandidates)}
         ref={canvasRef}
       >
+        <button className="viewer-focus-selection" type="button" aria-label={t("viewer.focusSelection")} title={t("viewer.focusSelection")} onKeyDown={event=>event.stopPropagation()} disabled={!state.selectedLoadPointIds.length&&state.selectedCptId==null} onMouseDown={event=>event.stopPropagation()} onClick={event=>{event.stopPropagation();clearHoverCandidates();focusOnPoints(focusSelectionPoints());}}>
+          {t("viewer.focusSelectionLabel")}
+        </button>
         {state.showGrid ? (
           <canvas
             aria-hidden="true"
@@ -343,8 +366,8 @@ export default function PilePlanViewer({
           {loadPoint ? (
             <>
               <div className="viewer-hover-fact">
-                <span>F<sub>Ed</sub></span>
-                <strong>{formatHoverNumber(loadPoint.design_load_kn, " kN")}</strong>
+                <span>F<sub>{mode==="tension"?"t;Ed":"c;Ed"}</sub></span>
+                <strong>{formatHoverNumber(directionalLoad(loadPoint,mode)??NaN, " kN")}</strong>
               </div>
               <div className="viewer-hover-fact">
                 <span>{t("viewer.hover.utilization")}</span>
@@ -449,7 +472,7 @@ export default function PilePlanViewer({
   }
 
   function formatHoverNumber(value: number, suffix: string) {
-    return `${value.toLocaleString(i18n.language, { maximumFractionDigits: 1 })}${suffix}`;
+    return Number.isFinite(value)?`${value.toLocaleString(i18n.language, { maximumFractionDigits: 1 })}${suffix}`:"—";
   }
 
 }

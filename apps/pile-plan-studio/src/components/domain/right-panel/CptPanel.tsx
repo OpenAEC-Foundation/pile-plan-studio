@@ -1,7 +1,9 @@
+import {useFoundationAdviceInspection} from "../../../app/derived-state/useFoundationAdviceInspection.ts";
+import {useDisplayOptions,useLoadDirection} from "../../../app/derived-state/LoadDirectionContext.tsx";
 import CptEditScope from "./CptEditScope.tsx";
 import CptUsageButton from "./CptUsageButton.tsx";
 import type { CptEditCompletion, CptSelectionMethod } from "../../../app/project/manualCptEditController.ts";
-import type { ReactNode } from "react";
+import {useEffect,useRef,type ReactNode} from "react";
 import { useTranslation } from "react-i18next";
 import type { ProjectState } from "../../../domain/project/projectState.ts";
 import { openCpt } from "../../../domain/workspace/selectionState.ts";
@@ -20,7 +22,12 @@ export default function CptPanel({ state, onStateChange: publishState, selectedL
   selectedLoadPoints: ReturnType<typeof getSelectedLoadPoints>;
 }) {
   const { t, i18n } = useTranslation("rightPanel");
-  const selectedCpt = getCptFrdPanelModel(state, i18n.language);
+  const {t:common}=useTranslation("common");
+  const {mode}=useLoadDirection();
+  const displayOptions=useDisplayOptions(state.pileOptionsByLoadPointId);
+  const displayState={...state,pileOptionsByLoadPointId:displayOptions,bearingCapacities:state.bearingCapacities.filter(r=>(r.direction??"compression")===mode),cptFrdRowsByCptId:new Map([...state.cptFrdRowsByCptId].map(([id,rows])=>[id,rows.filter(r=>(r.direction??"compression")===mode)]))};
+  const inspection=useFoundationAdviceInspection(state);
+  const selectedCpt = getCptFrdPanelModel(displayState, i18n.language,inspection.rows);
   const draft = state.cptSelectionEditDraft;
   const isEditing = draft !== null;
   const onStateChange = (next: ProjectState) => publishState(synchronizeManualCptSelection(next));
@@ -42,9 +49,12 @@ export default function CptPanel({ state, onStateChange: publishState, selectedL
         </header>
         {actions}
         <CoordinateReadout points={[selectedCpt.cpt]} locale={i18n.language} />
+        {selectedCpt.rows.some(row=>row.highlighted)&&<p className="cpt-advice-selection-key">▶ {t("cpts.selectedPileAdvice")}</p>}
+        {inspection.failed&&<p className="cpt-advice-selection-key" role="status">{t("cpts.adviceHighlightFailed")}</p>}
         <CptTable
-          columns={[t("columns.size"), t("columns.tip"), <ResistanceLabel key="resistance" />]}
-          rows={selectedCpt.rows.map((row) => [row.sizeLabel, row.tipLabel, row.frdLabel])}
+          highlighted={selectedCpt.rows.map((row,i)=>row.highlighted?i:-1).filter(i=>i>=0)} highlightLabel={t("cpts.selectedPileAdvice")} scrollKey={`${selectedCpt.cpt.id}:${mode}`}
+          columns={[t("columns.size"), t("columns.tip"), ...(selectedCpt.rows.some(row=>row.pileCount!=null)?[common("tableImport.capPileCount")]:[]), <ResistanceLabel key="resistance" />]}
+          rows={selectedCpt.rows.map((row) => [row.sizeLabel, row.tipLabel, ...(selectedCpt.rows.some(v=>v.pileCount!=null)?[row.pileCount==null?common("tableImport.allPileCounts"):String(row.pileCount)]:[]), row.frdLabel])}
         />
       </div>
     );
@@ -78,7 +88,9 @@ function CptSelectionOverview({ state, onStateChange, selectedLoadPoints, action
 }) {
   const { t } = useTranslation("rightPanel");
   const editPending = saving || isManualCptSelectionPending(state);
-  const overview = getSelectedCptOverviewModel(state, selectedLoadPoints);
+  const {mode}=useLoadDirection();
+  const displayOptions=useDisplayOptions(state.pileOptionsByLoadPointId);
+  const overview = getSelectedCptOverviewModel({...state,pileOptionsByLoadPointId:displayOptions,bearingCapacities:state.bearingCapacities.filter(r=>(r.direction??"compression")===mode&&!r.missing)}, selectedLoadPoints, mode);
   const preview = state.cptSelectionPreview?.draft === state.cptSelectionEditDraft
     ? state.cptSelectionPreview
     : editing ? { status: "analyzing" as const } : null;
@@ -136,9 +148,9 @@ function CptSelectionOverview({ state, onStateChange, selectedLoadPoints, action
                     : undefined;
 
                   return (
-                    <td key={`${row.cpt.id}-${column}`} title={usageTitle}>
+                    <td key={`${row.cpt.id}-${column}`}>
                       {column === "Used by" ? (
-                        <CptUsageButton state={state} ids={row.usingLoadPointIds} onStateChange={onStateChange} disabled={saving}>
+                        <CptUsageButton state={state} ids={row.usingLoadPointIds} onStateChange={onStateChange} disabled={saving} tooltip={usageTitle}>
                           {localizeCptTableValue(column, value, t)}
                         </CptUsageButton>
                       ) : overview.columns[index] === "CPT" && !editing ? (
@@ -214,15 +226,21 @@ export function startCptSelectionEdit(state: ProjectState): ProjectState {
   return startManualCptSelectionEdit(state);
 }
 
-function CptTable({ columns, rows }: { columns: ReactNode[]; rows: string[][] }) {
+function CptTable({ columns, rows, highlighted=[],highlightLabel,scrollKey }: { columns: ReactNode[]; rows: string[][];highlighted?:number[];highlightLabel?:string;scrollKey?:string }) {
+  const wrapper=useRef<HTMLDivElement>(null),highlightKey=highlighted.join(",");
+  useEffect(()=>{
+    const host=wrapper.current,row=host?.querySelector<HTMLElement>("tr[data-advice-highlight]");if(!host||!row)return;
+    const rect=row.getBoundingClientRect(),bounds=host.getBoundingClientRect(),header=host.querySelector("thead")?.getBoundingClientRect().height??0;
+    if(rect.top<bounds.top+header||rect.bottom>bounds.bottom)host.scrollTop+=rect.top-bounds.top-header;
+  },[highlightKey,scrollKey]);
   return (
-    <div className="cpt-table-wrap">
+    <div className="cpt-table-wrap" ref={wrapper}>
       <table className="cpt-table">
         <thead><tr>{columns.map((column, index) => <th key={index}>{column}</th>)}</tr></thead>
         <tbody>
           {rows.map((row, rowIndex) => (
-            <tr key={`${row[0]}-${row[1]}-${rowIndex}`}>
-              {row.map((value, index) => <td key={index}>{value}</td>)}
+            <tr key={`${row[0]}-${row[1]}-${rowIndex}`} className={highlighted.includes(rowIndex)?"is-selected-advice":undefined} data-advice-highlight={highlighted.includes(rowIndex)?"true":undefined} aria-current={highlighted.includes(rowIndex)?"true":undefined} title={highlighted.includes(rowIndex)?highlightLabel:undefined}>
+              {row.map((value, index) => <td key={index}>{index===0&&highlighted.includes(rowIndex)&&<span className="cpt-advice-row-marker" aria-hidden="true">▶ </span>}{value}</td>)}
             </tr>
           ))}
         </tbody>

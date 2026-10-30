@@ -98,6 +98,7 @@ export function readPileTool(
     return { ...marker, data: page(state.loadPoints.map((point) => ({
       id: point.id, name: point.name, x_mm: point.x_mm, y_mm: point.y_mm,
       design_load_kn: point.design_load_kn,
+      tension:point.tension??{state:"not_imported"},
       assignment: assignments.get(point.id) ?? null,
       optimizer_unassigned_reason: plan.optimizationUnassignedByLoadPoint.get(point.id) ?? null,
     })).sort((a, b) => a.id - b.id), args) };
@@ -119,6 +120,7 @@ export function readPileTool(
   return { ...marker, data: {
     id: point.id, name: point.name, x_mm: point.x_mm, y_mm: point.y_mm,
     design_load_kn: point.design_load_kn,
+      tension:point.tension??{state:"not_imported"},
     assignment,
     locked: plan.lockedLoadPointIds.includes(id),
     optimizer_unassigned_reason: plan.optimizationUnassignedByLoadPoint.get(id) ?? null,

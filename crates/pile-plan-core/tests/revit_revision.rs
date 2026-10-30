@@ -23,6 +23,83 @@ fn choices() -> Value {
 }
 
 #[test]
+fn revision_coordinate_columns_default_to_old_within_tolerance_and_can_export_both() {
+    let mut value = serde_json::to_value(request(choices())).unwrap();
+    value["tolerance_mm"] = json!(100.);
+    value["new_plan"]["load_points"][1]["x_mm"] = json!(1060.);
+    value["new_plan"]["load_points"][1]["y_mm"] = json!(80.);
+    value["output_columns"] = json!([
+        {"key":"default-x","field":"x","header":"X default"},
+        {"key":"old-x","field":"x","header":"X old","coordinate_source":"old_within_tolerance"},
+        {"key":"new-x","field":"x","header":"X new [m]","coordinate_source":"new","unit":"m"},
+        {"key":"default-y","field":"y","header":"Y default"},
+        {"key":"new-y","field":"y","header":"Y new","coordinate_source":"new"}
+    ]);
+    let table = preview_revit_revision(&serde_json::from_value(value.clone()).unwrap())
+        .unwrap()
+        .table
+        .unwrap();
+    assert_eq!(
+        table.rows[1],
+        json!([1000., 1000., 1.06, 0., 80.])
+            .as_array()
+            .unwrap()
+            .to_vec()
+    );
+    assert_eq!(
+        table.rows[2],
+        json!([2000., 2000., 2., 0., 0.])
+            .as_array()
+            .unwrap()
+            .to_vec()
+    );
+    assert_eq!(
+        table.rows[3],
+        json!([5000., 5000., 5., 0., 0.])
+            .as_array()
+            .unwrap()
+            .to_vec()
+    );
+    value["tolerance_mm"] = json!(99.);
+    let table = preview_revit_revision(&serde_json::from_value(value).unwrap())
+        .unwrap()
+        .table
+        .unwrap();
+    assert_eq!(
+        table.rows[1],
+        json!([1060., 1060., 1.06, 80., 80.])
+            .as_array()
+            .unwrap()
+            .to_vec()
+    );
+}
+
+#[test]
+fn inherited_coordinate_columns_keep_source_units_while_selecting_old_or_new_values() {
+    let mut value = serde_json::to_value(request(choices())).unwrap();
+    value["old_source"]["bytes"]=json!(b"Mark,Load Point ID,Type,X [m],Y [m],Afhakcode,Inheicode,Level tov NAP,Kopwapeningcode,Notitie\n1,5,290x290,0,0,a,B,-19.5,K1,behouden\n2,6,290x290,1,0,a,B,-19.5,T1,anders\n9,77,290x290,2,0,a,A,-17,,vervallen\n".to_vec());
+    value["new_plan"]["load_points"][1]["x_mm"] = json!(1020.);
+    let table = preview_revit_revision(&serde_json::from_value(value.clone()).unwrap())
+        .unwrap()
+        .table
+        .unwrap();
+    assert_eq!(table.rows[1][3], json!(1.));
+    value["output_columns"] = json!([
+        {"key":"old","field":"x","header":"Old","source_index":3},
+        {"key":"new","field":"x","header":"New","source_index":3,"coordinate_source":"new"},
+        {"key":"new-mm","field":"x","header":"New mm","coordinate_source":"new","unit":"mm"}
+    ]);
+    let table = preview_revit_revision(&serde_json::from_value(value).unwrap())
+        .unwrap()
+        .table
+        .unwrap();
+    assert_eq!(
+        table.rows[1],
+        json!([1., 1.02, 1020.]).as_array().unwrap().to_vec()
+    );
+}
+
+#[test]
 fn a_default_pile_plan_export_without_marks_can_be_used_as_previous_table() {
     let mut req = request(
         json!({"links":[{"old_id":1,"new_id":77},{"old_id":2,"new_id":88}],"added":[99],"removed":[3]}),
@@ -244,15 +321,24 @@ fn custom_source_notation_and_shape_hint_round_trip_without_losing_metadata() {
 
 #[test]
 fn renumber_mode_numbers_the_new_plan_and_keeps_removed_old_marks() {
-    let mut value=serde_json::to_value(request(choices())).unwrap();
-    value["export_options"]["mark"]["revision_mode"]=json!("renumber");
-    value["export_options"]["mark"]["start"]=json!(9);
-    value["export_options"]["mark"]["rule"]["x_direction"]=json!("descending");
-    value["use_detected_numbering"]=json!(false);
-    let preview=preview_revit_revision(&serde_json::from_value(value).unwrap()).unwrap();
-    assert_eq!(preview.first_new_mark,9);
-    let table=preview.table.unwrap();
-    assert_eq!(table.rows.iter().map(|row|row[0].clone()).collect::<Vec<_>>(),vec![json!(11),json!(10),json!(9),json!(9)]);
-    assert_eq!(table.rows[2][1],77);assert_eq!(table.rows[2][10],"R");
-    assert_eq!(table.rows[0][9],"behouden");assert_eq!(table.rows[0][10],"S");
+    let mut value = serde_json::to_value(request(choices())).unwrap();
+    value["export_options"]["mark"]["revision_mode"] = json!("renumber");
+    value["export_options"]["mark"]["start"] = json!(9);
+    value["export_options"]["mark"]["rule"]["x_direction"] = json!("descending");
+    value["use_detected_numbering"] = json!(false);
+    let preview = preview_revit_revision(&serde_json::from_value(value).unwrap()).unwrap();
+    assert_eq!(preview.first_new_mark, 9);
+    let table = preview.table.unwrap();
+    assert_eq!(
+        table
+            .rows
+            .iter()
+            .map(|row| row[0].clone())
+            .collect::<Vec<_>>(),
+        vec![json!(11), json!(10), json!(9), json!(9)]
+    );
+    assert_eq!(table.rows[2][1], 77);
+    assert_eq!(table.rows[2][10], "R");
+    assert_eq!(table.rows[0][9], "behouden");
+    assert_eq!(table.rows[0][10], "S");
 }

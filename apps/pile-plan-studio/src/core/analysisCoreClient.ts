@@ -1,3 +1,4 @@
+import {groupingSettingsToCore} from "./loadPointGroupContract.ts";
 import initWasm, {
   aggregate_pile_options,
   assess_technical_assignment,
@@ -15,6 +16,7 @@ import {
 } from "./pileOptionAnalysisResult.ts";
 import type {
   BearingCapacity,
+  LoadPointGroupingSettings,
   Cpt,
   CptSelectionSettings,
   LoadPoint,
@@ -64,7 +66,7 @@ type CoreCptSelectionSettingsMapByLoadPoint = Map<number, CoreCptSelectionSettin
 type ManualCptIdsByLoadPoint = Map<number, number[]>;
 
 async function ensureWasm(): Promise<void> {
-  return initializeWasm(() => initWasm());
+  return initializeWasm(initWasm);
 }
 
 export async function buildLoadPointTopologyCore(
@@ -105,6 +107,8 @@ export async function calculatePileOptionAnalysisCore(input: {
   settingsByLoadPoint: Map<number, CptSelectionSettings>;
   manualCptIdsByLoadPoint: ManualCptIdsByLoadPoint;
   includeCptFrdRows: boolean;
+  groupingSettings?: LoadPointGroupingSettings;
+  groupingLoadPoints?: LoadPoint[];
 }): Promise<PileOptionAnalysisResult> {
   const wasmRequest = {
     load_points: input.loadPoints,
@@ -114,6 +118,7 @@ export async function calculatePileOptionAnalysisCore(input: {
     settings_by_load_point: toCoreSettingsMapByLoadPoint(input.settingsByLoadPoint),
     manual_cpt_ids_by_load_point: toWasmNumberKeyedMap(input.manualCptIdsByLoadPoint),
     include_cpt_frd_rows: input.includeCptFrdRows,
+    ...(input.groupingSettings?{grouping_settings:groupingSettingsToCore(input.groupingSettings),grouping_load_points:input.groupingLoadPoints??input.loadPoints}:{}),
   };
   let result: CorePileOptionAnalysisResult;
   if (!isTauriRuntime()) {
@@ -145,8 +150,8 @@ export async function calculatePileCostCore(input: {
       pile_tip_level_m: input.pileTipLevelM,
       pile_head_level_m: input.pileHeadLevelM,
       settings: input.settings,
-    }) as { cost: number | null };
-    return response.cost;
+    }) as { cost?: number | null };
+    return response.cost ?? null;
   }
 
   const response = await invokeDesktop<{ cost: number | null }>("calculate_pile_option_cost", {

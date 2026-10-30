@@ -6,7 +6,7 @@ export type LoadPointAction = RowAction<ProjectDocumentDraft["inputs"]["load_poi
 export type CptAction = RowAction<ProjectDocumentDraft["inputs"]["cpts"][number]>;
 export type BearingCapacityAction =
   | { action: "add" | "update"; item: ProjectDocumentDraft["inputs"]["bearing_capacities"][number] }
-  | { action: "remove"; cpt_id: number; pile_size_mm: number; pile_tip_level_mm: number };
+  | { action: "remove"; cpt_id: number; pile_size_mm: number; pile_tip_level_mm: number; pile_count?:number|null; direction?:"compression"|"tension" };
 
 export type ProjectDocumentEdit =
   | { kind: "optimization_settings"; settings: IlpOptimizationSettings }

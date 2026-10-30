@@ -17,10 +17,10 @@ export function useAdviceImportPreviews(drafts: ImportDrafts<File>, update: (f: 
   });
   const active = controller.current;
   const discoveryKey = drafts.advice?.sources.map(s => `${s.id}:${s.discovery.status}`).join("|");
-  useEffect(() => { for (const source of latest.current.drafts.advice?.sources ?? []) {
+  useEffect(() => { const timer=setTimeout(()=>{for (const source of latest.current.drafts.advice?.sources ?? []) {
     if (source.discovery.status === "empty") void active.discover(source.id);
-  } }, [active, discoveryKey]);
-  useEffect(() => { void active.preview(); }, [active, drafts.advice?.generation, drafts["load-points"], drafts.cpts, mode, context]);
+  }},120);return()=>clearTimeout(timer); }, [active, discoveryKey]);
+  useEffect(() => { const timer=setTimeout(()=>void active.preview(),120);return()=>clearTimeout(timer); }, [active, drafts.advice?.generation, drafts["load-points"], drafts.cpts, mode, context]);
   useEffect(() => () => active.invalidate(), [active]);
   return active;
 }

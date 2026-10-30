@@ -164,6 +164,8 @@ mod tests {
         governing_frd_kn: Option<f64>,
     ) -> PileConfigurationOption {
         PileConfigurationOption {
+            compression: None,
+            tension: None,
             configuration: PileConfigurationKey {
                 pile_size_mm,
                 pile_tip_level_mm,

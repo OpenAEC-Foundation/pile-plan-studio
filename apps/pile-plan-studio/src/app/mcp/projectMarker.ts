@@ -1,4 +1,4 @@
-import { projectStateSignature } from "../project/projectLifecycleController.ts";
+import { createProjectPersistenceSelector } from "../project/projectLifecycleController.ts";
 import type { ProjectState } from "../../domain/project/projectState.ts";
 
 export type ProjectMarkerValue = {
@@ -15,10 +15,11 @@ export function createProjectMarker(): ProjectMarker {
   let instanceId = crypto.randomUUID();
   let revision = 0;
   let signature: string | null = null;
+  const selectPersistence = createProjectPersistenceSelector();
 
   return {
     observe(state) {
-      const nextSignature = projectStateSignature(state);
+      const nextSignature = selectPersistence(state).signature;
       if (signature !== nextSignature) {
         signature = nextSignature;
         revision += 1;

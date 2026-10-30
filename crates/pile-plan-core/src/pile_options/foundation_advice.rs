@@ -15,6 +15,8 @@ pub(crate) struct AvailablePileConfiguration {
 
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]
 struct CapacityKey {
+    pile_count: Option<u32>,
+    direction: crate::ResistanceDirection,
     cpt_id: u32,
     pile_size_mm: u32,
     pile_tip_level_mm: i64,
@@ -58,6 +60,8 @@ impl<'a> FoundationAdviceIndex<'a> {
             .map(|(capacity, pile_tip_level_mm)| {
                 (
                     CapacityKey {
+                        pile_count: capacity.pile_count,
+                        direction: capacity.direction,
                         cpt_id: capacity.cpt_id,
                         pile_size_mm: capacity.pile_size_mm,
                         pile_tip_level_mm,
@@ -79,20 +83,30 @@ impl<'a> FoundationAdviceIndex<'a> {
     pub(crate) fn capacity(
         &self,
         cpt_id: u32,
+        direction: crate::ResistanceDirection,
         configuration: &PileConfigurationKey,
+        pile_count: u32,
     ) -> Option<&'a BearingCapacity> {
-        self.capacities
-            .get(&CapacityKey {
-                cpt_id,
-                pile_size_mm: configuration.pile_size_mm,
-                pile_tip_level_mm: configuration.pile_tip_level_mm,
-            })
+        self.capacity_record(cpt_id,direction,configuration,pile_count).filter(|value|!value.missing)
+    }
+
+    pub(crate) fn capacity_record(&self,cpt_id:u32,direction:crate::ResistanceDirection,configuration:&PileConfigurationKey,pile_count:u32)->Option<&'a BearingCapacity>{
+        let key = |pile_count| CapacityKey { pile_count, cpt_id, direction,
+            pile_size_mm: configuration.pile_size_mm, pile_tip_level_mm: configuration.pile_tip_level_mm };
+        self.capacities.get(&key(Some(pile_count)))
+            .or_else(|| self.capacities.get(&key(None)))
             .copied()
     }
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
 pub struct CptBearingCapacityRow {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub pile_count: Option<u32>,
+    #[serde(default)]
+    pub missing: bool,
+    #[serde(default)]
+    pub direction: crate::ResistanceDirection,
     pub pile_size_mm: u32,
     pub pile_tip_level_m: f64,
     pub frd_kn: f64,
@@ -107,9 +121,12 @@ pub(crate) fn grouped_bearing_capacity_rows(
             .entry(capacity.cpt_id)
             .or_default()
             .push(CptBearingCapacityRow {
+                pile_count: capacity.pile_count,
+                missing: capacity.missing,
                 pile_size_mm: capacity.pile_size_mm,
                 pile_tip_level_m: capacity.pile_tip_level_m,
                 frd_kn: capacity.frd_kn,
+                direction: capacity.direction,
             });
     }
     for rows in grouped.values_mut() {

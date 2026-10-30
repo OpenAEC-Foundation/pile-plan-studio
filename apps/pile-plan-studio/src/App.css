@@ -727,13 +727,11 @@ input[type="number"]:focus-visible,
 .pile-plan-warning {
   display: inline-flex;
   align-items: center;
-  gap: 2px;
-  color: #9a5a00;
-}
-
-.pile-plan-warning svg {
-  width: 11px;
-  height: 11px;
+  padding: 0 4px;
+  border: 1px solid var(--theme-border);
+  border-radius: 3px;
+  background: var(--theme-bg-lighter);
+  color: var(--theme-text);
 }
 
 .pile-plan-actions {

@@ -56,8 +56,8 @@ export function createTechnicalAssignmentController(
           generation += 1;
           activeSignature = null;
           activeUpdate = null;
-          publish(completedSnapshot);
         }
+        publish(completedSnapshot);
         return Promise.resolve();
       }
       if (signature === activeSignature && activeUpdate) return activeUpdate;

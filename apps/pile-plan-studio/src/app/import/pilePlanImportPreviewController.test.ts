@@ -72,16 +72,30 @@ for (const stage of ["read", "response"] as const) test(`invalidation during ${s
   if (stage === "read") assert.equal(f.calls.length, 0);
 });
 
-for (const invalid of ["no file", "invalid tolerance", "no categories"] as const) test(`${invalid} cancels the pending preview`, async () => {
+for (const invalid of ["no file", "invalid tolerance"] as const) test(`${invalid} cancels the pending preview`, async () => {
   const f = fixture(); const old = f.controller.preview(f.current()); await flush();
   let nextDraft = f.current();
   if (invalid === "no file") nextDraft = setPilePlanImportFile(nextDraft, null);
   if (invalid === "invalid tolerance") nextDraft = setPilePlanImportTolerance(nextDraft, "");
-  if (invalid === "no categories") nextDraft = setPilePlanImportCategory(setPilePlanImportCategory(nextDraft, "piles", false), "cpts", false);
   await f.controller.preview(nextDraft); const installed = f.current();
   assert.equal(installed.previewState.status, "empty");
   f.calls[0].response.resolve(result()); await old;
   assert.equal(f.current(), installed);
+});
+
+test("column inspection remains available when both import categories are disabled",async()=>{
+ const f=fixture();const next=setPilePlanImportCategory(setPilePlanImportCategory(f.current(),"piles",false),"cpts",false);
+ const pending=f.controller.preview(next);await flush();
+ assert.equal(f.calls.length,1);f.calls[0].response.resolve({...result(),canApply:false});await pending;
+ assert.equal(f.current().previewState.status,"ready");
+});
+
+test("unavailable categories are excluded before the final preview is installed",async()=>{
+ const f=fixture();const pending=f.controller.preview(f.current());await flush();
+ f.calls[0].response.resolve({...result(),supportsPileAssignments:false,canApply:false});await flush();
+ assert.equal(f.calls.length,2);assert.equal(f.calls[1].input.options.importPileAssignments,false);
+ f.calls[1].response.resolve({...result(),supportsPileAssignments:false});await pending;
+ assert.equal(f.current().importPileAssignments,false);assert.equal(f.current().previewState.status,"ready");
 });
 
 test("a changed project context cannot receive an old preview", async () => {

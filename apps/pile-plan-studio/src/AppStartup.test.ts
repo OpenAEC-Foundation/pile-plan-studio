@@ -4,6 +4,11 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
 describe("React app startup", () => {
+  it("assesses optimization preview conflicts from the displayed assignments for both panels",()=>{
+    const source=readFileSync(resolve(import.meta.dirname,"app/session/AppSession.tsx"),"utf8");
+    assert.match(source,/assignments:\s*ilp\.displayState\.selectedPileConfigurationsByLoadPoint/);
+    assert.equal([...source.matchAll(/groupAssignmentAssessment=\{displayedGroupAssignmentAssessment\}/g)].length,2);
+  });
   it("keeps App focused on bootstrap and delegates the working session", () => {
     const source = readFileSync(resolve(import.meta.dirname, "App.tsx"), "utf8");
 
@@ -41,7 +46,7 @@ describe("React app startup", () => {
     const source = readFileSync(resolve(import.meta.dirname, "app/session/AppSession.tsx"), "utf8");
 
     assert.match(source, /analysisPipeline\.run/);
-    assert.match(source, /\[analysisPipeline, projectState\.analysisRequest\]/);
+    assert.match(source, /\[analysisPipeline, projectState\.analysisRequest, projectState\.loadPointGroupingSettings\]/);
     assert.doesNotMatch(source, /Promise\.all\(analysisLoadPoints\.map/);
     assert.doesNotMatch(source, /Promise\.all\(projectState\.cpts\.map/);
   });

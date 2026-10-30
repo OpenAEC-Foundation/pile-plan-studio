@@ -1,3 +1,4 @@
+import SourceTableEditor from "./SourceTableEditor.tsx";
 import AdviceImportSources from "./AdviceImportSources.tsx";
 import AdviceImportDiagnostics from "./AdviceImportDiagnostics.tsx";
 import { SourceImportError, type ProjectImportPreview } from "../../../core/adviceImportContract.ts";
@@ -40,6 +41,7 @@ import {
 import "./projectImport.css";
 import {useLoadPointRefreshReview, type PrepareLoadPointRefresh} from "../../../app/import/useLoadPointRefreshReview.ts";
 import type {LoadPointRefreshSelection} from "../../../core/exportRevisionContract.ts";
+import LocationMatchingEntry from "../location-matching/LocationMatchingEntry.tsx";
 import LocationMatchingWorkspace from "../location-matching/LocationMatchingWorkspace.tsx";
 
 const ROLES: Array<{ role: ImportFileRole; labelKey: string; columnsKey: string }> = [
@@ -145,8 +147,19 @@ export default function ProjectImportPanel({
     if (draft.file) void previewFile(role, draft.file, draft.requestedProfile, options);
   };
 
+  const openLocationReview = async () => {
+    if (!canSubmit || busy) return;
+    setBusy(true);setError(null);
+    try {
+      const request=await prepareProjectImportRequest({drafts,mode,projectName,pileHeadLevelM:normalizedPileHeadLevel,currencyCode});
+      if(request)await refreshReview.prepare(request.sources);
+    } catch(reason) {
+      setError(reason instanceof Error && reason.message==="project_changed" ? t("exportTools.projectChanged") : reason instanceof Error ? reason.message : String(reason));
+    } finally {setBusy(false);}
+  };
+
   const importProject = async () => {
-    if (!canSubmit) return;
+    if (!canSubmit || (needsLocationReview && !refreshReview.selection)) return;
     setBusy(true);
     setError(null);
     setFinalFailure(null);
@@ -155,10 +168,6 @@ export default function ProjectImportPanel({
         drafts, mode, projectName, pileHeadLevelM: normalizedPileHeadLevel, currencyCode,
       });
       if (!request) return;
-      if (needsLocationReview && !refreshReview.selection) {
-        await refreshReview.prepare(request.sources);
-        return;
-      }
       const result = refreshReview.selection && needsLocationReview
         ? await onImportProject(request.mode, request.projectName, request.sources, request.properties, refreshReview.selection)
         : await onImportProject(request.mode, request.projectName, request.sources, request.properties);
@@ -249,7 +258,7 @@ export default function ProjectImportPanel({
             type="file"
             accept=".csv,.xlsx"
             multiple
-            onChange={(event) => assignFiles([...event.target.files ?? []])}
+            onChange={(event) => {assignFiles([...event.target.files ?? []]);event.target.value="";}}
           />
         </label>
       </div>
@@ -258,7 +267,7 @@ export default function ProjectImportPanel({
         {ROLES.map(({ role, labelKey, columnsKey }) => {
           if (role === "bearing-capacities") return <AdviceImportSources key={role} draft={drafts.advice!} onChange={updateAdvice} refresh={mode === "refresh"} />;
           const draft = drafts[role];
-          const preview = draft.previewState.status === "ready" ? draft.previewState.preview : null;
+          const preview = draft.previewState.status === "ready" || draft.previewState.status === "analyzing" ? draft.previewState.preview??draft.lastPreview??null : draft.lastPreview??null;
           return (
             <section className="project-import-source-card" key={role}>
               <div className="project-import-source-header">
@@ -266,18 +275,7 @@ export default function ProjectImportPanel({
                   <strong>{t(labelKey)}</strong>
                   <small>{t(columnsKey)}</small>
                 </div>
-                <label className="project-import-profile">
-                  <span>{t("importProject.profile.label")}</span>
-                  <ThemedSelect
-                    ariaLabel={t("importProject.profile.label")}
-                    value={draft.requestedProfile}
-                    options={importProfileChoices(draft.file?.name ?? null, role, preview).map((profile) => ({
-                      value: profile,
-                      label: t(`importProject.profile.${profileKey(profile)}`),
-                    }))}
-                    onChange={(value) => changeProfile(role, value as ImportProfile)}
-                  />
-                </label>
+
               </div>
 
               <div className="project-import-file-row">
@@ -291,7 +289,7 @@ export default function ProjectImportPanel({
                     className="project-import-native-file"
                     type="file"
                     accept=".csv,.xlsx"
-                    onChange={(event) => assignRoleFile(role, event.target.files?.[0] ?? null)}
+                    onChange={(event) => {assignRoleFile(role, event.target.files?.[0] ?? null);event.target.value="";}}
                   />
                 </label>
                 <button
@@ -305,14 +303,27 @@ export default function ProjectImportPanel({
               </div>
 
               <ImportStatus previewState={draft.previewState} t={t} />
-              {preview?.details?.kind === "rfem-export" && (
-                <RfemAnalysis
-                  preview={preview}
-                  options={draft.profileOptions}
-                  onChange={(options) => changeRfemOptions(role, options)}
-                  t={t}
-                />
-              )}
+              {draft.file&&<SourceTableEditor preview={preview?.table} diagnostics={preview?.diagnostics} settings={draft.profileOptions.table} role={role} csv={draft.file.name.toLowerCase().endsWith(".csv")} processed={preview?.detectedProfile==="rfem-export"||draft.requestedProfile==="rfem-export"}
+                onChange={table=>changeRfemOptions(role,{...draft.profileOptions,table})}>
+                <label className="project-import-profile">
+                  <span>{t("importProject.profile.label")}</span>
+                  <ThemedSelect
+                    ariaLabel={t("importProject.profile.label")}
+                    value={draft.requestedProfile}
+                    options={importProfileChoices(draft.file?.name ?? null, role, preview).map((profile) => ({
+                      value: profile,
+                      label: t(`importProject.profile.${profileKey(profile)}`),
+                    }))}
+                    onChange={(value) => changeProfile(role, value as ImportProfile)}
+                  />
+                </label>
+                {(preview?.detectedProfile==="rfem-export"||draft.requestedProfile==="rfem-export")&&<div className="project-import-tension-options">
+                  <label className="source-import-checkbox"><input type="checkbox" checked={draft.profileOptions.importTension??true} onChange={e=>changeRfemOptions(role,{...draft.profileOptions,importTension:e.target.checked,clearTension:false})}/>{t("loadDirection.importTension")}</label>
+                  <small>{t("tableImport.rfemHelp")}</small>
+                </div>}
+                {mode==="refresh"&&role==="load-points"&&!draft.profileOptions.importTension&&<label className="source-import-checkbox"><input type="checkbox" checked={draft.profileOptions.clearTension??false} onChange={e=>changeRfemOptions(role,{...draft.profileOptions,clearTension:e.target.checked})}/>{t("loadDirection.clearTension")}</label>}
+                {preview?.details?.kind==="rfem-export"&&<RfemAnalysis preview={preview} options={draft.profileOptions} onChange={options=>changeRfemOptions(role,options)} t={t}/>}
+              </SourceTableEditor>}
             </section>
           );
         })}
@@ -335,16 +346,11 @@ export default function ProjectImportPanel({
         </section>
       )}
       </fieldset>
-      {needsLocationReview && <label className="export-field"><span>{t("exportTools.matchTolerance")}</span>
-        <input type="number" min={0} step="any" value={refreshReview.tolerance} disabled={busy} onChange={e => refreshReview.setTolerance(Number(e.target.value))}/>
-      </label>}
-      {needsLocationReview && refreshReview.selection && <p className="export-help">{t("exportTools.refreshEffects", {added: refreshReview.selection.decisions.added.length, removed: refreshReview.selection.decisions.removed.length})}
-        <button type="button" disabled={busy} onClick={async () => {
-          setBusy(true);
-          try { const request = await prepareProjectImportRequest({drafts, mode, projectName, pileHeadLevelM: normalizedPileHeadLevel, currencyCode}); if (request) await refreshReview.prepare(request.sources); }
-          catch (reason) { setError(reason instanceof Error ? reason.message : String(reason)); }
-          finally { setBusy(false); }
-        }}>{t("exportTools.reviewAgain")}</button></p>}
+      {needsLocationReview && <LocationMatchingEntry
+        summary={refreshReview.selection ? t("locationMatchingEntry.refreshSummary",{linked:refreshReview.selection.decisions.links.length,added:refreshReview.selection.decisions.added.length,removed:refreshReview.selection.decisions.removed.length}) : undefined}
+        help={t("locationMatchingEntry.refreshHelp")} reviewed={!!refreshReview.selection}
+        disabled={busy||!canSubmit} onOpen={()=>void openLocationReview()}
+        tolerance={refreshReview.tolerance} onToleranceChange={value=>refreshReview.setTolerance(Number(value))}/>}
       {needsLocationReview && refreshReview.preview && <LocationMatchingWorkspace
         key={JSON.stringify([importPreviewContextKey, refreshReview.tolerance])}
         oldLocations={refreshReview.preview.old_locations} newLocations={refreshReview.preview.new_locations}
@@ -352,10 +358,10 @@ export default function ProjectImportPanel({
         onConfirm={refreshReview.confirm} onCancel={refreshReview.cancel} initialAutomatic={!refreshReview.selection}/>}
       {finalFailure && <AdviceImportDiagnostics preview={finalFailure} />}
       <div className="project-import-submit-area">
-        <button className="primary-action project-import-submit" type="button" disabled={busy || !canSubmit} onClick={importProject}>
+        <button className="primary-action project-import-submit" type="button" disabled={busy || !canSubmit || (needsLocationReview && !refreshReview.selection)} onClick={importProject}>
           {busy
             ? t(mode === "refresh" ? "importProject.refreshing" : "importProject.importing")
-            : t(needsLocationReview && !refreshReview.selection ? "exportTools.refreshReview" : mode === "refresh" ? "importProject.refreshSubmit" : "importProject.submit")}
+            : t(mode === "refresh" ? "importProject.refreshSubmit" : "importProject.submit")}
         </button>
         {showPileHeadLevelBlocker && (
           <p className="project-import-property-blocker" role="status">
@@ -439,7 +445,7 @@ function RfemAnalysis({ preview, options, onChange, t }: {
           placeholder={t("importProject.rfem.selectSheet")}
         />
         <span>{t("importProject.rfem.loadRule")}</span>
-        <span>{details.loadRule === "abs-min-pz-prime" && <>F<sub>Ed</sub> = |Min PZ'|</>}</span>
+        <span>{details.loadRule === "signed-vertical-envelope" ? t("loadDirection.rfemRule") : details.loadRule === "abs-min-pz-prime" && <>F<sub>Ed</sub> = |Min PZ'|</>}</span>
         <span>{t("importProject.rfem.result")}</span>
         <strong>{t("importProject.rfem.loadPointCount", { count: preview.itemCount })}</strong>
       </div>

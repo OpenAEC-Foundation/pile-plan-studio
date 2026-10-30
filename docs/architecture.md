@@ -25,9 +25,16 @@ be the source of truth for calculations.
 
 `AppSession` composes runtime features. Pile-option cost batching lives in
 `app/derived-state/pileOptionCosts.ts`, with its cancellable React effect in
-`usePileOptionCosts.ts`; only Rust calculates individual costs. MCP snapshot
+`usePileOptionCosts.ts`; only Rust calculates individual costs. The explorer
+labels missing costs explicitly with a theme-aware text badge. When costs are
+missing and the known subtotal is zero, it displays an unknown total (—), while
+a complete, genuinely zero-cost plan still displays zero. MCP snapshot
 freshness is coordinated by `app/mcp/useMcpDerivedState.ts`, which reuses the
 shared snapshot gate for groups, technical assignment, and group conflicts.
+Viewer and right-panel group conflicts use the displayed plan's assignments
+during optimization previews; MCP keeps using the stored project. Outdated
+conflicts are hidden while a different assignment set is assessed. Returning
+to a completed assessment invalidates any intervening in-flight assessment.
 `app/derived-state/useProjectTechnicalAssignment.ts` prepares the effective
 pile options and gates Rust assessment on completed upstream analysis and the
 current CPT preview. Its preparation and error precedence are isolated in
@@ -312,7 +319,12 @@ double-click restores four rows. The heading collapses/expands the overview.
 Row count and collapsed state are application preferences, independent of project
 history and dirty state. Members of the
 effective Rust-derived groups appear together with a clickable group label in
-the left rail; clicking that label selects the complete group. The list includes
+the left rail; clicking that label selects the complete group. Locations follow
+default Mark numbering order: descending Y rows bounded to 1 mm,
+then ascending X, with ID resolving coincident positions. A group occupies the
+position of its first member in that order; its members follow the same row
+order and remain contiguous. The presentation order is cached for the immutable
+load-point source and shared with Previous/Next navigation. The list includes
 unselected group members as context and highlights the actual selection. The
 group label is also accented when every member is selected. A row click inspects
 one location; pile options and CPT edits follow that same selection in both
@@ -523,16 +535,119 @@ its controls so users can correct the choice. The original
 unconfigured API/MCP writers retain their original seven-column contract.
 Configured dimension notation renders square sizes as `290x290` and round sizes
 as `Ø290`; unassigned values stay empty. Ordinary pile-plan import accepts numeric
-and equal square dimensions; customized captions/templates use the generic
-change-table source mapper rather than altering project pile shapes.
+and equal square dimensions; custom captions can be mapped through its shared
+source-column editor. This does not alter project pile shapes.
+
+Pile-plan import uses the same file-first, collapsed Preview/Import settings
+editor as project sources. `pile_plan_import/source.rs` inspects and parses mapped
+CSV/XLSX tables with original row/column diagnostics, while `matching.rs` resolves
+ID-only, X/Y-only and guarded combined matches. Optional table settings and
+location decisions extend the existing request without changing IFCPP content.
+Unmapped categories preserve values; mapped blank action cells retain explicit
+clear semantics. Preview includes source rows with optional geometry and matching
+results; unknown source positions and distances remain absent.
+
+The shared location editor has an import mode with file/project labels, skip
+rather than add/remove actions, and an importer-provided core evaluator. Its list
+retains unlocated rows; the canvas filters them out and can highlight a linked
+project partner. Review completion concerns source rows only. Ambiguous/conflicting
+rows require reassignment or explicit skipping before the UI enables Import.
+Legacy superseded rows become skipped rows in the same matching result. Confirming
+review remains transient; final import uses the existing core group/lock validation
+and creates one new plan in one undo step.
+
+Source refresh, pile-plan import and change-table export expose the editor through
+the same visible `LocationMatchingEntry` section: summary, review button and
+automatic matching tolerance. Source refresh requires confirmed associations
+before Apply. An explicit nearest bulk action uses `reconcile_locations` in all
+three workflows, considering free coordinate pairs beyond automatic tolerance
+while preserving confirmed links and skips. Import rows without coordinates
+remain available for manual association; no positions are inferred for them.
+
+The editor owns transient undo/redo snapshots of validated mappings, tolerance
+and selection. These are separate from project history and discarded on Cancel.
+Its automatic action applies the edited tolerance only to remaining free pairs,
+preserving existing links and explicit added/removed/skipped choices; confirmation
+passes mapping and tolerance to the destination together. Both layers use the
+terms import locations and project locations. Rust supplies review row order via
+the existing pile-numbering algorithm; presentation prefers available Marks and
+places unlocated rows last. Navigation follows this order and pans the existing
+viewport to the next selected location at its current scale. Explicit Show in
+plan retains zoom-to-selection behavior.
+
+Only automatic continuation or history restoration requests viewport focus;
+direct map/list picks leave pan and zoom untouched. The active editor registers
+its transient history with the matching surface so the existing title-bar
+Undo/Redo buttons operate on mapping snapshots, then return to project history
+when the editor closes. Tolerance and matching actions share a compact tool strip;
+its information icon shows help immediately on hover or keyboard focus.
+
+`ApplicationTooltip` is the shared application help layer. It adapts existing
+title text and explicit data-tooltip help to immediate hover/focus popups,
+temporarily suppresses native titles while preserving accessible names and
+descriptions, and dismisses on Escape, scrolling or resize. Popups use theme
+colors and the application layout scale and are rendered outside clipped panels.
+Source import previews use a separate scroll class from full source viewers;
+only import previews have a bounded height. Foundation-advice source views pair
+pressure and tension resistance columns by CPT/size/tip without a direction
+column. Load sources show tension demand in one column (known zero stays zero,
+missing values show a dash with import-state help). These are presentation views
+of the original core inputs, without changing their stored records.
+
+`export_context.rs` evaluates an optional validated project draft and explicit destination
+plan for configured exports. It reuses Rust pile-option and cost calculations for
+optional resistance, utilization (numeric percent), governing CPT, per-pile cost,
+length and technical-status columns. Incomplete capacity assessments leave
+resistance/utilization/governing CPT empty; costs and length have independent
+availability. Each technical-status column can retain localized standard text or map the five internal assessment states to user-defined text/codes; empty custom strings produce empty cells. These per-column preferences do not alter engineering facts. Historical source status cells without a known core state remain source values and are never decoded from their displayed text. Unconfigured seven-column writers keep their existing contract.
+
+Proposal inclusion is an export preference. Enabling it appends a missing Export-ID column; entering a non-empty proposal code appends its missing column. These actions preserve the existing column order and never add duplicates; column removal remains available. Export-ID and proposal-code output fields are available only with proposal inclusion enabled. Disabling inclusion removes both columns; original-location provenance remains independently available. Older preferences are normalized accordingly. The Export-ID editor explains its numbering and distinction from location IDs and Mark. Original members are replaced with
+fixed core-generated schematic positions and equal indicative demand per pile.
+A proposal row has no original location ID. Numeric Export IDs start above the
+maximum original project ID and follow sorted source-member sets and core pattern
+order; original IDs remain reserved. Original-locations and optional proposal-code
+columns retain provenance. Spatial Mark uses the exported positions independently
+of viewer symbol compression. The panel, preview and proposal filename suffix
+identify this as indicative, without RFEM recalculation.
+
+Change tables force replaced source rows to removed and proposal rows to added,
+even at coincident positions. When source IDs are unavailable, an ambiguous relationship to original project positions is resolved in a separate matching review before replacement is applied. These rows cannot be linked by automatic, manual
+or bulk matching; ordinary rows retain the existing workflow. Removed source
+metadata remains historical, while active project rows receive current facts.
+External new tables can use Export ID as row identity without treating it as an
+original project location.
 
 `export_rules.rs` owns optional spatial Mark ordering and tip-level code rules;
 `export_table.rs` writes the typed scalar table used by previews and CSV/XLSX.
+
+Revision X/Y columns accept `coordinate_source` (`old_within_tolerance` or `new`).
+The default preserves the previous coordinates of a linked location when its
+Euclidean matching distance is at or below the revision tolerance. Outside that
+range and for added rows, current coordinates are used; removed rows retain their
+existing location. Each column chooses independently, so old and new X/Y can be
+exported together. Formatting applies the column unit or the inherited source
+unit after choosing the coordinate. Matching, project geometry and change-code
+assessment are unaffected. Ordinary pile-plan exports use current coordinates.
+
 `location_matching.rs` owns reciprocal unique automatic matching, explicit
 one-to-one decisions, nearest/separate bulk actions and numbering-rule scoring.
 `revit_revision/` retains its transport name but implements generic change tables.
 Its inspector selects worksheets/header rows, suggests known column meanings
 and units and returns an editable source layout even before full row validation.
+Revision sources show a collapsed table preview followed by collapsed import
+settings. A shared source-column selector is used by ordinary source import,
+pile-plan import and revision-table import: select a source column, then choose
+its meaning and applicable units or size interpretation. Mapping a field to a
+new column replaces its previous assignment. The detected-numbering explanation
+and action live only in the Mark output-column settings.
+
+Changing the revision matching tolerance also sets the movement-code threshold.
+The threshold can then be edited independently without changing matching tolerance.
+Editor changes take effect on confirmation; cancel and confirmation without a
+tolerance change preserve a separately edited movement threshold. During a
+same-source tolerance recalculation, the previous preview stays mounted for
+stable editing; export still requires fresh results and confirmed matching.
+
 Explicit field mapping accepts customized captions. Only old X/Y are required;
 missing old size/shape/level remains optional and never produces false S/L codes.
 The new file requires IDs and complete configurations. Comparison preserves
@@ -663,8 +778,7 @@ so its minus and plus buttons stay in place across count and proposal changes.
 
 Effective cost/count summaries replace each active proposal's original members
 once. Missing proposal choices or costs remain incomplete. These are indicative
-pile costs, not a cap cost or structural cap check. Source-pile CSV/XLSX export
-rejects proposal-bearing plans; IFCPP save and recovery preserve them.
+pile costs, not a cap cost or structural cap check. Configured CSV/XLSX export can use original source piles or replace each proposal’s members with its fixed schematic core positions. IFCPP save and recovery preserve proposal definitions.
 
 `optimization/ilp/pile_caps.rs` prepares cap-aware unit domains from a captured
 project draft, validated against the run's source locations, groups and cost
@@ -727,7 +841,7 @@ configuration count. Target/save/boundary
 choices and in-flight results remain transient. Completed plan results are stored
 in optional `pile_plans[].ilp_result` (solution, diagnostics, settings, currency and
 a versioned content fingerprint). Older plans omit this field. The canonical
-project schema is version 5; versions 1–4 migrate on read.
+project schema is version 8; versions 1–7 migrate on read.
 The persisted coherence switch defaults to enabled for older projects. Disabling
 it runs only the cost phase; a zero transition objective also skips the spatial
 solve. A bounded local improvement of the reference supplies a validated fallback
@@ -806,6 +920,15 @@ settings omit the retired
 `both_milli` field; historical plan results preserve it only as read-only metadata
 alongside their original score. Older requests cannot override the additive rule.
 
+Import/export controls backed by numbers use `NumericValueInput` around the
+shared themed stepper. It keeps incomplete or empty text in local interface
+state, emits only finite values within the control bounds (and integral values
+for row numbers, pile sizes and Mark starts), and restores the latest applied
+value when an invalid or empty draft loses focus or Enter is pressed. External
+value changes synchronize the draft. Existing string-owned settings drafts keep
+their domain-specific commit rules. Typing an empty value never coerces it to0
+or mutates the project/import settings.
+
 Numeric optimization fields use the shared themed stepper, including decimal
 percentages and weights. Decimal drafts accept a point or comma; arrow buttons
 and up/down keys change the displayed value by one within its allowed bounds.
@@ -866,3 +989,217 @@ styling, translation, and view conventions. They complement behavioral tests;
 they do not establish that clicks, asynchronous guards, or history updates work.
 Session shortcut dispatch and symbol-scale gesture history have small shared
 controllers, tested through actual DOM events and the project history reducer.
+
+
+## Compression and tension
+
+IFCPP schema 7 stores optional `LoadPoint.tension` as `not_imported`,
+`missing`, or `known { value_kn }`. Explicit zero is known zero, never a substitute
+for missing input. Schemas 1–6 remain supported: FEd and historical resistances
+retain their compression meaning; historical optimizer results retain compression
+scope. Both new and old projects work entirely without tension input or advice.
+
+`BearingCapacity.direction` defaults to `compression`; tension advice uses the
+same CPT, size and tip keys with direction as an additional key. Import merging,
+conflict detection, ownership and replacement all include direction. Advice may
+use separate tables/sheets, including tension-only sources, or a standard table
+with an explicitly selected additional tension-resistance column. Values are
+already design resistances: no additional factors or self-weight corrections
+are applied. A pressure-only source refresh preserves prior matched tension
+values and provenance unless explicitly cleared. Replacing one resistance
+direction preserves owned values in the other direction.
+
+The Rust pile-option subsystem evaluates each direction independently against
+the shared effective CPT selection. Each positive demand requires complete
+capacity data at all selected CPTs and uses the minimum applicable resistance;
+governing CPTs may differ. Known zero needs no capacity proof, passes the
+directional check and has utilization 0 (also in maximum utilization). Joint technical suitability and default choices respect all
+applicable demands. Missing demand differs from missing capacity.
+
+The source import editor appears after choosing a file. Collapsed Preview comes
+before collapsed Import settings. Standard previews retain source row numbers;
+the chosen header row is shown only as column captions. The shared column
+list/detail editor assigns source columns to fields and units, supports explicit
+headers/data start, worksheet selection and CSV delimiters. Rust `import/table_mapping.rs`
+owns inference, whole-file validation and normalization into the existing role
+parsers. Header inference uses known captions and textual rows followed by numeric
+data. A numeric fifth load column is suggested as tension. Entirely empty columns
+cannot be mapped; optional partially empty tension remains missing. Original
+source rows/columns and serialized table settings are retained in diagnostics
+and provenance. Existing positional API requests remain supported.
+
+Standard advice may assign compression, tension or both resistance fields;
+matrix advice assigns CPT/tip columns and a size per resistance column, with one
+direction per worksheet. Combined matrix imports require separate worksheets.
+RFEM shows processed load points instead of its original reaction layout and
+does not expose a tension-column selector. The interface enables RFEM tension
+by default, with an explicit opt-out; legacy API requests retain their explicit
+`import_tension` scope. RFEM vertical envelopes produce
+compression `max(0, -minimum PZ)` and tension `max(0, maximum PZ)`. Missing maxima
+remain missing tension demand. RFEM 6 uses only structural Pz component pairs,
+not overall workbook summaries. Project source logs preserve original vertical
+row evidence, including row/column, signed reaction and original source cells
+containing available combination references.
+
+`LoadDirectionProvider` owns an application preference for compression/tension
+presentation. Components project core directional facts for loads, capacity,
+utilization, governing CPT and drawing color; source/project state, shared
+assignments, history, export and running optimization remain independent.
+Unimported tension is labelled not assessed, without utilization-error coloring.
+The display switch is in the Plan ribbon. Pile-option rows show one combined
+status: selected-direction failures take precedence; other-direction failures
+name that direction and offer a mode-switch action without assigning the row.
+Missing demand/resistance and known zero remain distinct in the core; known zero
+uses the same compact OK label and green styling as a passing check. Status
+tooltips explain the abbreviated labels. This uses the core's
+directional facts for single/multiple selections and pile-cap proposals.
+Viewer status halos first inspect both directional core assessments, independent
+of display mode: missing demand/capacity is yellow (the joint core priority), then
+insufficient capacity is red. The selected mode still determines displayed loads,
+utilization and preferred-range coloring when no technical warning is present.
+Known zero utilization participates in the viewer's preferred-range coloring:
+it receives the same green below-range halo as any other utilization below the
+configured minimum. Unimported demand remains neutral.
+
+Initial assignments and new pile plans choose the cheapest common valid
+configuration per effective group from the joint compression/tension assessment.
+Present tension therefore constrains this default independently of display mode
+or the optimizer's separate include-tension setting. Missing imported tension
+prevents a default choice; unimported tension preserves pressure-only defaults.
+
+The optimizer's project-owned `include_tension` defaults true and is separate
+from the view preference. Core scope projection occurs before both ordinary and
+pile-cap candidate preparation; result validation and cost reference use that
+same prepared problem. Maximum utilization applies to each included demand.
+Settings snapshots and directional count diagnostics record the actual scope;
+compression-only optimization does not suppress the general tension assessment.
+Poer proposals sum compression and tension separately, then divide each by the
+proposed count. Mixed known/unimported or missing source tension stays incomplete.
+The distribution is indicative and does not reconstruct combinations or moments.
+
+Configured exports add optional tension demand/resistance/utilization/governing
+CPT, separate direction statuses, and assessment scope. Existing numeric FEd and
+capacity field keys remain compression fields and the seven-column legacy export
+stays unchanged. Custom per-column status strings support no load, not assessed
+and missing demand without overwriting historical five-state mappings. Current
+facts always belong to the explicitly chosen export plan, regardless of view.
+
+
+### Foundation advice applicability
+
+IFCPP schema8 adds optional `BearingCapacity.pile_count` (`null`/absent means
+explicitly valid for all cap counts) and a `missing` marker for scoped empty
+source cells. Supported schemas1–7 normalize to universal, available rows.
+Writers emit8 so older applications cannot silently treat specific advice as
+universal. Application/release versions are independent of the document schema.
+
+Resistance identity is CPT, pile size, tip level, direction and optional cap count.
+The core index first looks for the exact count, then universal data for the same
+key. An explicit missing exact entry blocks universal fallback; a genuine zero
+remains an insufficient resistance for a positive demand. Advice for another
+count, including1, is never reused or interpolated. Existing zero-demand and
+unimported-tension assessment rules still apply. Count is part of conflict,
+deduplication, provenance ownership, refresh and MCP add/update/remove identity.
+Replacing a source replaces its imported directions, including obsolete scopes,
+while unrelated sources and unimported directions are preserved.
+
+A derived location group represents a physical cap: ordinary per-location demand
+is assessed using that group's member count. A proposal redistributes demand as
+before and uses its proposed count. Core analysis requests carry grouping settings
+and complete source geometry, so a partial CPT preview retains the actual cap
+count. Group edits and Undo/Redo invalidate analysis. Optimizer preparation,
+default assignment, direction statuses and project-context export use these same
+core evaluations. Resolved per-CPT directional resistance facts supply the CPT
+inspection view without a second frontend engineering lookup.
+
+Foundation-advice import supports a fixed pile size per selected worksheet,
+suggested from an unambiguous `prefab <size>` worksheet name when there is no
+size column. Ordinary and matrix advice can declare universal or exact-count
+applicability per sheet. The mapper recognizes `Naam Sondering`, `PPN` and
+`Rt;d Indicatief` and proposes the latter as tension resistance, ignoring the
+separate soil-block/weight/cohesive-contribution columns. Values are imported
+unchanged; the app applies no extra factors, weight addition or soil-block formula.
+The stored import log preserves source headers, selected table settings and
+scoped ownership keys. Input/CPT viewers keep counts separate and display
+explicit missing entries as empty values. Geometry/spacing applicability remains
+a requirement of the supplied advice, not something count matching establishes.
+
+
+Import previews run in a persistent browser worker so XLSX inspection and joint
+validation do not block form interactions. Desktop previews continue to invoke
+the same Rust functions. Advice setting changes coalesce for 120 ms; draft
+changes invalidate submission immediately and existing generation/request guards
+reject stale responses. The core keeps a process-local LRU of raw XLSX cells,
+keyed by exact source bytes and filename, limited to eight workbooks and a
+64 MiB estimated payload budget. Returned tables are independent copies; column
+mapping, scope, diagnostics and engineering validation always rerun. This cache
+and all preview state are transient and never enter project history or IFCPP.
+
+Foundation-advice column recognition includes `Kenmerk` (pile size) and `Waarde`
+(resistance) only for advice sources. Clearly named standard advice headers can
+be reordered; ambiguous legacy/matrix layouts retain their existing validation.
+
+The CPT advice panel requests read-only `inspect_foundation_advice` core facts
+for the current assigned configurations and CPT. The Rust operation derives cap
+counts from full project grouping context, uses proposed counts/configurations
+when present, and shares the engineering index's exact-count/general/missing
+lookup. Its result identifies source rows, including explicit missing overrides,
+without changing load-point CPT selection or project history. The UI highlights
+matching rows with a marker and row emphasis, and scrolls only the advice table.
+Browser inspection shares the background worker; Tauri has a thin native wrapper.
+
+Application tooltips dismiss on pointer press, drag, click, window blur and
+removal of their anchor. Clicked controls remain suppressed until pointer leave;
+open missing-data popovers omit their trigger tooltip. Other-direction status
+pills are direct mode-switch buttons with action help. Ribbon buttons omit
+native titles that merely repeat visible labels; icon-only help is retained.
+
+
+The drawing's top-right **Focus selection** control fits the currently selected
+load points (including displayed proposal positions) together with their selected
+CPTs and any individually inspected CPT. During CPT editing, it follows the same
+draft/preview selection shown on the drawing. It uses the existing fixed project projection,
+layout compensation and scale limits; the overlay control is outside the zoomed
+stage. It changes only the transient viewport. **Only this location** beside
+selection navigation replaces the earlier inspection context with an exclusive
+single-location context. Source grouping and assignment validation are unchanged.
+
+Selection and viewport updates reuse the session's persistence draft/signature
+while immutable project-content references, the active plan and its assignment
+map are unchanged. MCP revision observation uses the same selector contract.
+Technical-assignment signatures follow the memoized technical input, so transient
+UI updates do not traverse all pile options again. Content edits, plan changes
+and undo/redo invalidate these snapshots through their normal immutable updates.
+
+The viewer memoizes individual marker graphics, status halos and hit targets;
+cached hit targets call the latest committed interaction handlers. Group contour
+shapes retain their projected circles, Gabriel edges and faces when selection
+styling changes. Their SVG definitions and unchanged tip-level regions are
+retained, while selection/conflict styling and CPT connections can update.
+These are presentation caches only; the existing projection, stacking order,
+engineering status and single-stage viewport transform remain authoritative.
+
+Utilization halo fills use a radius of 1.5 times the ordinary pile-symbol radius.
+Their outer glow uses three shared radial gradients, rather than a Gaussian
+filter per location, to avoid many offscreen filter surfaces during pan/zoom.
+The central status gradients, opacity/intensity and theme-independent colors
+remain viewer-owned. Geometry remains centred on the same project coordinates.
+
+The preferred-utilization slider has one pointer track and two keyboard-accessible
+range inputs. When the handles overlap, dragging left chooses the minimum and
+dragging right the maximum, including the 0–0 and 100–100 endpoints. Symbol size
+uses a local ribbon draft while dragging or repeating adjustment keys; it applies
+to the drawing on release/cancel, key release or blur as one undoable gesture,
+like the preferred-utilization range.
+
+The displayed symbol-size percentage and each preferred-range endpoint can be
+edited in place. Compact numeric drafts allow empty typing; Enter or blur applies
+one rounded value within the existing slider bounds, while Escape cancels.
+The range endpoints cannot cross, and successful edits use the same project
+operations and undo grouping as their sliders.
+
+The shared tooltip layer suppresses help that merely repeats an unclipped visible
+label, including labels inside a larger control. It also suppresses native title
+fallbacks during hover. Additional explanations, shortcuts, icon-only labels and
+the full text of clipped labels remain available. Explicit duplicate tooltips
+are omitted from location inspection rows and other text-labelled controls.

@@ -2,15 +2,21 @@ import {createContext, useCallback, useContext, useLayoutEffect, useMemo, useSta
 import {createPortal} from "react-dom";
 import type {LegendItems} from "../../core/projectTypes.ts";
 
-type Surface = {element: HTMLElement | null; activate: () => () => void; legend: LegendItems | null};
-export const LocationMatchingSurfaceContext = createContext<Surface>({element: null, activate: () => () => {}, legend: null});
+export type MatchingHistoryControls = {canUndo:boolean;canRedo:boolean;undo:()=>void;redo:()=>void};
+type Surface = {element: HTMLElement | null; activate: () => () => void; legend: LegendItems | null;registerHistory:(controls:MatchingHistoryControls)=>()=>void};
+export const LocationMatchingSurfaceContext = createContext<Surface>({element: null, activate: () => () => {}, legend: null,registerHistory:()=>()=>{}});
 
 export function useLocationMatchingSurface(legend: LegendItems) {
   const [element, setElement] = useState<HTMLDivElement | null>(null);
   const [active, setActive] = useState(false);
+  const [history,setHistory]=useState<MatchingHistoryControls|null>(null);
+  const registerHistory=useCallback((controls:MatchingHistoryControls)=>{
+    setHistory(controls);
+    return()=>setHistory(current=>current===controls?null:current);
+  },[]);
   const activate = useCallback(() => {setActive(true); return () => setActive(false);}, []);
-  const value = useMemo(() => ({element, activate, legend}), [element, activate, legend]);
-  return {active, setElement, value};
+  const value = useMemo(() => ({element, activate, legend,registerHistory}), [element, activate, legend,registerHistory]);
+  return {active, history,setElement, value};
 }
 
 export function LocationMatchingSurface({children}: {children: ReactNode}) {

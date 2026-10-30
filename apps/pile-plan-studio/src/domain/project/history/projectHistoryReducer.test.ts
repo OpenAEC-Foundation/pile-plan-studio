@@ -378,3 +378,13 @@ describe("project history reducer", () => {
 function state() {
   return createTestProjectState(sampleProjectText, { initializeDefaultPiles: false });
 }
+
+
+it("reassesses pile options after changing cap grouping and when undoing it",()=>{
+ const initial=state();let managed=createManagedProjectState(initial);
+ managed=projectHistoryReducer(managed,{type:"commit",update:current=>({...current,loadPointGroupingSettings:{...current.loadPointGroupingSettings,automatic:!current.loadPointGroupingSettings.automatic}})});
+ assert.equal(managed.present.analysisRequest.revision,initial.analysisRequest.revision+1);
+ assert.equal(managed.present.analysisRequest.loadPointIds,null);assert.equal(managed.present.pileOptionsByLoadPointId.size,0);
+ managed=projectHistoryReducer(managed,{type:"undo"});assert.equal(managed.present.analysisRequest.revision,initial.analysisRequest.revision+2);
+ assert.equal(managed.present.loadPointGroupingSettings,initial.loadPointGroupingSettings);
+});

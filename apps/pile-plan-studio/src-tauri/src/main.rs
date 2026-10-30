@@ -8,7 +8,7 @@ use pile_plan_core::{
     apply_load_point_group_ungroup_batch as apply_load_point_group_ungroup_batch_core,
     assess_load_point_group_assignments as assess_load_point_group_assignments_core,
     assess_technical_assignment as assess_technical_assignment_core,
-    build_load_point_topology as build_load_point_topology_core, build_pile_option_analysis,
+    build_load_point_topology as build_load_point_topology_core,
     build_tip_level_region_topology as build_tip_level_region_topology_core, calculate_pile_cost,
     choose_default_pile_options, derive_load_point_groups as derive_load_point_groups_core,
     evaluate_cpt_settings_edit as evaluate_cpt_settings_edit_core,
@@ -114,20 +114,7 @@ where
 fn calculate_pile_option_analysis(
     request: PileOptionAnalysisRequest,
 ) -> Result<PileOptionAnalysisResult, InvalidPileTipLevels> {
-    build_pile_option_analysis(
-        &request.load_points,
-        &request.cpts,
-        &request.bearing_capacities,
-        |load_point| {
-            request
-                .settings_by_load_point
-                .get(&load_point.id)
-                .cloned()
-                .unwrap_or_else(|| request.global_settings.clone())
-        },
-        &request.manual_cpt_ids_by_load_point,
-        request.include_cpt_frd_rows,
-    )
+    pile_plan_core::calculate_pile_option_analysis(&request)
 }
 
 #[tauri::command(rename_all = "snake_case")]
@@ -179,8 +166,15 @@ fn import_project_from_files(
         &request.currency_code,
     )
     .map_err(|error| error.to_source_import_failure())?;
-    let tip_level_keys =
-        validate_project_tip_levels(&project).map_err(|error| pile_plan_core::SourceImportFailure{unique_value_count:0,exact_duplicate_count:0,message:error.to_string(),diagnostics:vec![],conflicts:vec![]})?;
+    let tip_level_keys = validate_project_tip_levels(&project).map_err(|error| {
+        pile_plan_core::SourceImportFailure {
+            unique_value_count: 0,
+            exact_duplicate_count: 0,
+            message: error.to_string(),
+            diagnostics: vec![],
+            conflicts: vec![],
+        }
+    })?;
     Ok(ValidatedPilePlanProject {
         project,
         tip_level_keys,
@@ -191,14 +185,30 @@ fn import_project_from_files(
 fn refresh_project_from_files(
     request: RefreshProjectRequest,
 ) -> Result<ValidatedPilePlanProject, pile_plan_core::SourceImportFailure> {
-    let project = pile_plan_core::refresh_project_with_location_decisions(&request.current_project, &request.sources, request.location_decisions.as_ref())
-        .map_err(|error| error.to_source_import_failure())?;
-    let tip_level_keys =
-        validate_project_tip_levels(&project).map_err(|error| pile_plan_core::SourceImportFailure{unique_value_count:0,exact_duplicate_count:0,message:error.to_string(),diagnostics:vec![],conflicts:vec![]})?;
+    let project = pile_plan_core::refresh_project_with_location_decisions(
+        &request.current_project,
+        &request.sources,
+        request.location_decisions.as_ref(),
+    )
+    .map_err(|error| error.to_source_import_failure())?;
+    let tip_level_keys = validate_project_tip_levels(&project).map_err(|error| {
+        pile_plan_core::SourceImportFailure {
+            unique_value_count: 0,
+            exact_duplicate_count: 0,
+            message: error.to_string(),
+            diagnostics: vec![],
+            conflicts: vec![],
+        }
+    })?;
     Ok(ValidatedPilePlanProject {
         project,
         tip_level_keys,
     })
+}
+
+#[tauri::command(rename_all = "snake_case")]
+fn inspect_foundation_advice(request:pile_plan_core::FoundationAdviceInspectionRequest)->Result<Vec<pile_plan_core::CptBearingCapacityRow>,pile_plan_core::InvalidPileTipLevels>{
+ pile_plan_core::inspect_foundation_advice(&request)
 }
 
 #[tauri::command(rename_all = "snake_case")]
@@ -232,40 +242,58 @@ fn export_pile_plan_xlsx(request: PilePlanExportRequest) -> Result<Vec<u8>, Stri
 }
 
 #[tauri::command]
-fn preview_configured_pile_plan_export(request: pile_plan_core::ConfiguredPilePlanExportRequest) -> Result<pile_plan_core::PilePlanExportPreview, String> {
-    pile_plan_core::preview_configured_pile_plan_export(&request).map_err(|e|e.to_string())
+fn preview_configured_pile_plan_export(
+    request: pile_plan_core::ConfiguredPilePlanExportRequest,
+) -> Result<pile_plan_core::PilePlanExportPreview, String> {
+    pile_plan_core::preview_configured_pile_plan_export(&request).map_err(|e| e.to_string())
 }
 #[tauri::command]
-fn export_configured_pile_plan_csv(request: pile_plan_core::ConfiguredPilePlanExportRequest) -> Result<Vec<u8>, String> {
-    pile_plan_core::write_configured_pile_plan_csv(&request).map_err(|e|e.to_string())
+fn export_configured_pile_plan_csv(
+    request: pile_plan_core::ConfiguredPilePlanExportRequest,
+) -> Result<Vec<u8>, String> {
+    pile_plan_core::write_configured_pile_plan_csv(&request).map_err(|e| e.to_string())
 }
 #[tauri::command]
-fn export_configured_pile_plan_xlsx(request: pile_plan_core::ConfiguredPilePlanExportRequest) -> Result<Vec<u8>, String> {
-    pile_plan_core::write_configured_pile_plan_xlsx(&request).map_err(|e|e.to_string())
+fn export_configured_pile_plan_xlsx(
+    request: pile_plan_core::ConfiguredPilePlanExportRequest,
+) -> Result<Vec<u8>, String> {
+    pile_plan_core::write_configured_pile_plan_xlsx(&request).map_err(|e| e.to_string())
 }
 #[tauri::command]
-fn preview_revit_revision(request: pile_plan_core::RevitRevisionRequest) -> Result<pile_plan_core::RevitRevisionPreview, String> {
-    pile_plan_core::preview_revit_revision(&request).map_err(|e|e.to_string())
+fn preview_revit_revision(
+    request: pile_plan_core::RevitRevisionRequest,
+) -> Result<pile_plan_core::RevitRevisionPreview, String> {
+    pile_plan_core::preview_revit_revision(&request).map_err(|e| e.to_string())
 }
 #[tauri::command]
-fn inspect_pile_table(request: pile_plan_core::InspectPileTableRequest) -> Result<pile_plan_core::PileTableInspection, String> {
-    pile_plan_core::inspect_pile_table(&request).map_err(|e|e.to_string())
+fn inspect_pile_table(
+    request: pile_plan_core::InspectPileTableRequest,
+) -> Result<pile_plan_core::PileTableInspection, String> {
+    pile_plan_core::inspect_pile_table(&request).map_err(|e| e.to_string())
 }
 #[tauri::command]
-fn export_revit_revision_csv(request: pile_plan_core::RevitRevisionRequest) -> Result<Vec<u8>, String> {
-    pile_plan_core::write_revit_revision_csv(&request).map_err(|e|e.to_string())
+fn export_revit_revision_csv(
+    request: pile_plan_core::RevitRevisionRequest,
+) -> Result<Vec<u8>, String> {
+    pile_plan_core::write_revit_revision_csv(&request).map_err(|e| e.to_string())
 }
 #[tauri::command]
-fn export_revit_revision_xlsx(request: pile_plan_core::RevitRevisionRequest) -> Result<Vec<u8>, String> {
-    pile_plan_core::write_revit_revision_xlsx(&request).map_err(|e|e.to_string())
+fn export_revit_revision_xlsx(
+    request: pile_plan_core::RevitRevisionRequest,
+) -> Result<Vec<u8>, String> {
+    pile_plan_core::write_revit_revision_xlsx(&request).map_err(|e| e.to_string())
 }
 #[tauri::command]
-fn reconcile_locations(request: pile_plan_core::LocationMatchingRequest) -> Result<pile_plan_core::LocationMatchingResult, String> {
-    pile_plan_core::reconcile_locations(&request).map_err(|e|e.to_string())
+fn reconcile_locations(
+    request: pile_plan_core::LocationMatchingRequest,
+) -> Result<pile_plan_core::LocationMatchingResult, String> {
+    pile_plan_core::reconcile_locations(&request).map_err(|e| e.to_string())
 }
 #[tauri::command]
-fn prepare_load_point_refresh(request: pile_plan_core::LoadPointRefreshRequest) -> Result<pile_plan_core::LoadPointRefreshPreview, String> {
-    pile_plan_core::prepare_load_point_refresh(&request).map_err(|e|e.to_string())
+fn prepare_load_point_refresh(
+    request: pile_plan_core::LoadPointRefreshRequest,
+) -> Result<pile_plan_core::LoadPointRefreshPreview, String> {
+    pile_plan_core::prepare_load_point_refresh(&request).map_err(|e| e.to_string())
 }
 
 #[tauri::command(rename_all = "snake_case")]
@@ -319,7 +347,9 @@ fn build_tip_level_region_topology(
 }
 
 #[tauri::command(rename_all = "snake_case")]
-fn evaluate_pile_cap_proposals(request: pile_plan_core::PileCapProposalRequest) -> Result<pile_plan_core::PileCapProposalResult, String> {
+fn evaluate_pile_cap_proposals(
+    request: pile_plan_core::PileCapProposalRequest,
+) -> Result<pile_plan_core::PileCapProposalResult, String> {
     pile_plan_core::evaluate_pile_cap_proposals(request)
 }
 
@@ -465,6 +495,7 @@ fn main() {
             import_project_from_files,
             refresh_project_from_files,
             preview_import_file,
+            inspect_foundation_advice,
             preview_project_import_files,
             get_standard_csv_requirements,
             get_pile_plan_import_requirements,
@@ -546,22 +577,68 @@ mod tests {
 
     #[test]
     fn pile_cap_proposal_survives_native_file_save_and_reopen() {
-        let validated=read_project_document(ReadProjectDocumentRequest{contents:include_str!("../../../../sample_project/sample_project.ifcpp").to_string()}).unwrap();
-        let mut draft=ProjectDocumentDraft::from_project(&validated.project);
-        let plan_id=draft.user_state.active_pile_plan_id.clone();
-        let result=evaluate_pile_cap_proposals(pile_plan_core::PileCapProposalRequest{draft:draft.clone(),edit:Some(pile_plan_core::PileCapProposalEdit{
-            plan_id:plan_id.clone(),proposal:pile_plan_core::PileCapProposal{load_point_ids:vec![15,43],pile_count:3,quarter_turns:1,configuration:None},remove:false,
-        })}).unwrap();
-        draft.user_state.pile_plans.iter_mut().find(|p|p.id==plan_id).unwrap().pile_cap_proposals=result.plans.iter().find(|p|p.plan_id==plan_id).unwrap().proposals.clone();
-        let contents=write_project_document(WriteProjectDocumentRequest{draft}).unwrap();
-        let name=format!("pile-cap-proposal-{}-{}.ifcpp",std::process::id(),std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos());
-        let path=std::env::temp_dir().join(name).to_string_lossy().into_owned();
-        write_project_file(path.clone(),contents).unwrap();
-        let reopened=read_project_document(ReadProjectDocumentRequest{contents:read_project_file(path.clone()).unwrap()}).unwrap();
+        let validated = read_project_document(ReadProjectDocumentRequest {
+            contents: include_str!("../../../../sample_project/sample_project.ifcpp").to_string(),
+        })
+        .unwrap();
+        let mut draft = ProjectDocumentDraft::from_project(&validated.project);
+        let plan_id = draft.user_state.active_pile_plan_id.clone();
+        let result = evaluate_pile_cap_proposals(pile_plan_core::PileCapProposalRequest {
+            draft: draft.clone(),
+            edit: Some(pile_plan_core::PileCapProposalEdit {
+                plan_id: plan_id.clone(),
+                proposal: pile_plan_core::PileCapProposal {
+                    load_point_ids: vec![15, 43],
+                    pile_count: 3,
+                    quarter_turns: 1,
+                    configuration: None,
+                },
+                remove: false,
+            }),
+        })
+        .unwrap();
+        draft
+            .user_state
+            .pile_plans
+            .iter_mut()
+            .find(|p| p.id == plan_id)
+            .unwrap()
+            .pile_cap_proposals = result
+            .plans
+            .iter()
+            .find(|p| p.plan_id == plan_id)
+            .unwrap()
+            .proposals
+            .clone();
+        let contents = write_project_document(WriteProjectDocumentRequest { draft }).unwrap();
+        let name = format!(
+            "pile-cap-proposal-{}-{}.ifcpp",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        );
+        let path = std::env::temp_dir()
+            .join(name)
+            .to_string_lossy()
+            .into_owned();
+        write_project_file(path.clone(), contents).unwrap();
+        let reopened = read_project_document(ReadProjectDocumentRequest {
+            contents: read_project_file(path.clone()).unwrap(),
+        })
+        .unwrap();
         std::fs::remove_file(path).unwrap();
-        let proposal=&reopened.project.user_state.active_pile_plan().unwrap().pile_cap_proposals[0];
-        assert_eq!(proposal.load_point_ids,vec![15,43]);assert_eq!(proposal.pile_count,3);assert_eq!(proposal.quarter_turns,1);
-        assert_eq!(reopened.project.inputs,validated.project.inputs);
+        let proposal = &reopened
+            .project
+            .user_state
+            .active_pile_plan()
+            .unwrap()
+            .pile_cap_proposals[0];
+        assert_eq!(proposal.load_point_ids, vec![15, 43]);
+        assert_eq!(proposal.pile_count, 3);
+        assert_eq!(proposal.quarter_turns, 1);
+        assert_eq!(reopened.project.inputs, validated.project.inputs);
     }
 
     #[test]
@@ -580,7 +657,7 @@ mod tests {
                 .expect("written project reads")
                 .project
                 .schema_version,
-            6
+            8
         );
         assert!(matches!(
             read_project_document(ReadProjectDocumentRequest {
@@ -594,6 +671,8 @@ mod tests {
     #[test]
     fn aggregate_command_returns_authoritative_core_facts() {
         let option = PileConfigurationOption {
+            compression: None,
+            tension: None,
             configuration: PileConfigurationKey {
                 pile_size_mm: 320,
                 pile_tip_level_mm: -18_500,
@@ -619,6 +698,8 @@ mod tests {
     #[test]
     fn technical_assignment_command_returns_grouped_missing_result() {
         let mut valid = PileConfigurationOption {
+            compression: None,
+            tension: None,
             configuration: PileConfigurationKey {
                 pile_size_mm: 320,
                 pile_tip_level_mm: -18_500,
@@ -685,7 +766,9 @@ mod tests {
     }
 }
 
-#[tauri::command(rename_all="snake_case")]
-fn preview_project_import_files(request: pile_plan_core::PreviewProjectImportRequest) -> pile_plan_core::ProjectImportPreview {
+#[tauri::command(rename_all = "snake_case")]
+fn preview_project_import_files(
+    request: pile_plan_core::PreviewProjectImportRequest,
+) -> pile_plan_core::ProjectImportPreview {
     pile_plan_core::preview_project_import(&request)
 }

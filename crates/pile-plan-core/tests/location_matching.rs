@@ -3,6 +3,43 @@ use pile_plan_core::{
 };
 use serde_json::json;
 
+#[test]
+fn automatic_remaining_preserves_choices_and_requires_reciprocal_unique_matches() {
+    let req = request(
+        json!([{"id":1,"x_mm":0.,"y_mm":0.},{"id":2,"x_mm":1000.,"y_mm":0.},{"id":3,"x_mm":2000.,"y_mm":0.},{"id":4,"x_mm":3000.,"y_mm":0.}]),
+        json!([{"id":10,"x_mm":9000.,"y_mm":0.},{"id":20,"x_mm":1020.,"y_mm":0.},{"id":30,"x_mm":2000.,"y_mm":0.},{"id":40,"x_mm":2990.,"y_mm":0.},{"id":50,"x_mm":3010.,"y_mm":0.}]),
+        json!({"links":[{"old_id":1,"new_id":10}],"added":[30],"removed":[3]}),
+        json!("automatic"),
+    );
+    let result = reconcile_locations(&req).unwrap();
+    assert_eq!(
+        result
+            .links
+            .iter()
+            .map(|l| (l.old_id, l.new_id))
+            .collect::<Vec<_>>(),
+        [(1, 10), (2, 20)]
+    );
+    assert_eq!(result.added, [30]);
+    assert_eq!(result.removed, [3]);
+    assert_eq!(result.unmatched_new, [40, 50]);
+}
+
+#[test]
+fn review_order_follows_numbering_rows_instead_of_location_ids() {
+    let req = request(
+        json!([]),
+        json!([
+            {"id":40,"x_mm":1000.,"y_mm":1000.},{"id":9,"x_mm":0.,"y_mm":0.},
+            {"id":70,"x_mm":0.,"y_mm":1000.},{"id":1,"x_mm":1000.,"y_mm":0.}
+        ]),
+        json!(null),
+        json!(null),
+    );
+    let result = serde_json::to_value(reconcile_locations(&req).unwrap()).unwrap();
+    assert_eq!(result["new_order"], json!([70, 40, 9, 1]));
+}
+
 fn request(
     old: serde_json::Value,
     new: serde_json::Value,

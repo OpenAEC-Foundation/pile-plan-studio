@@ -1,5 +1,5 @@
 import { buildPileCapMarkerGraphics } from "./pileCapMarkerPresentation.ts";
-import { useMemo } from "react";
+import { memo, useCallback, useLayoutEffect, useMemo, useRef } from "react";
 import type { PileCapPreview } from "../../../core/pileCapProposalTypes.ts";
 import { projectPileCapPreviews } from "../../../viewer/pileCapProposalGeometry.ts";
 import { sortMarkerGraphics } from "./viewerMarkerPresentation.ts";
@@ -18,7 +18,7 @@ import { getViewportTransform } from "../../../viewer/viewport.ts";
 import { getForegroundLayerClass } from "../../../viewer/mapMarkerLayer.ts";
 import ViewerDrawingSvg from "./ViewerDrawingSvg.tsx";
 import ViewerMarkerGraphics from "./ViewerMarkerGraphics.tsx";
-import { buildViewerMarkerPresentation } from "./viewerMarkerPresentation.ts";
+import { buildViewerMarkerPresentation, type ViewerMarkerHitTarget } from "./viewerMarkerPresentation.ts";
 
 type ViewerStageProps = {
   pileCapPreviews?: PileCapPreview[];
@@ -45,9 +45,10 @@ type ViewerStageProps = {
   onCptClick: (event: MouseEvent<HTMLButtonElement>, cptId: number) => void;
   onLoadPointClick: (event: MouseEvent<HTMLButtonElement>, loadPointId: number) => void;
 };
+const EMPTY_PREVIEWS: PileCapPreview[] = [];
 
 export default function ViewerStage({
-  pileCapPreviews=[],onPileCapClick,
+  pileCapPreviews=EMPTY_PREVIEWS,onPileCapClick,
   state,
   technicalAssignment,
   projectTransform,
@@ -70,7 +71,13 @@ export default function ViewerStage({
   onLoadPointClick,
 }: ViewerStageProps) {
   const { t } = useTranslation("common");
-  const markerPresentation = buildViewerMarkerPresentation({
+  const handlers = useRef({onCptClick, onLoadPointClick});
+  useLayoutEffect(() => {handlers.current = {onCptClick, onLoadPointClick};});
+  const handleMarkerClick = useCallback((event:MouseEvent<HTMLButtonElement>,target:ViewerMarkerHitTarget) => {
+    if(target.kind === "cpt") handlers.current.onCptClick(event,target.id);
+    else handlers.current.onLoadPointClick(event,target.id);
+  }, []);
+  const markerPresentation = useMemo(() => buildViewerMarkerPresentation({
     state,
     technicalAssignment,
     projectTransform,
@@ -86,10 +93,22 @@ export default function ViewerStage({
     isEditingCptSelection,
     activeHoverCandidateKey,
     translate: t,
-  });
+  }), [technicalAssignment, projectTransform, pileOptionsByLoadPointId, selectedLoadPointIds,
+    selectionContextLoadPointIds, completeSelectedGroupLoadPointIds, relatedLoadPointIds,
+    lockedLoadPointIds, contextSelectedCptIds, governingCptId, isEditingLoadPointLocks,
+    isEditingCptSelection, activeHoverCandidateKey, t, state.cpts, state.loadPoints,
+    state.symbolScalePercent, state.pilePlans, state.activePilePlanId, state.selectedCptId,
+    state.foregroundLayer, state.selectedPileConfigurationsByLoadPoint, state.pileLegend,
+    state.pileCostSettings, state.viewerUtilizationSettings, state.cptSelectionEditDraft,
+    state.cptSelectionEditLoadPointId]);
 
   const capLayouts=useMemo(()=>isEditingCptSelection||isEditingLoadPointLocks?[]:projectPileCapPreviews(pileCapPreviews,state.loadPoints,projectTransform,state.symbolScalePercent),[pileCapPreviews,state.loadPoints,projectTransform,state.symbolScalePercent,isEditingCptSelection,isEditingLoadPointLocks]);
   const replaced=new Set(capLayouts.flatMap(cap=>cap.sourceIds));
+  const visibleGroupGeometry = useMemo(() => {
+    if(!capLayouts.length)return loadPointGroupGeometry;
+    const hidden=new Set(capLayouts.flatMap(cap=>cap.sourceIds));
+    return loadPointGroupGeometry.filter(g=>!g.loadPointIds.some(id=>hidden.has(id)));
+  }, [capLayouts,loadPointGroupGeometry]);
   const visibleGraphics=markerPresentation.graphics.filter(g=>g.kind!=="load-point"||!replaced.has(g.id));
   const capGraphics=buildPileCapMarkerGraphics(capLayouts,state,selectedLoadPointIds);
   return (
@@ -101,7 +120,7 @@ export default function ViewerStage({
       <ViewerDrawingSvg
         height={projectTransform.canvasSize.height}
         tipLevelRegionPresentation={tipLevelRegionPresentation}
-        loadPointGroupGeometry={loadPointGroupGeometry.filter(g=>!g.loadPointIds.some(id=>replaced.has(id)))}
+        loadPointGroupGeometry={visibleGroupGeometry}
         cptConnectionSegments={cptConnectionSegments}
         conflictLabel={t("viewer.loadPointGroups.assignmentConflict")}
         width={projectTransform.canvasSize.width}
@@ -115,17 +134,7 @@ export default function ViewerStage({
         <ViewerMarkerGraphics graphics={sortMarkerGraphics([...visibleGraphics,...capGraphics])} />
       </ViewerDrawingSvg>
       {markerPresentation.hitTargets.filter(target=>target.kind!=="load-point"||!replaced.has(target.id)).map((target) => (
-        <button
-          aria-label={target.ariaLabel}
-          className={`${target.className} viewer-marker-hit-target`}
-          data-map-marker-key={target.key}
-          key={target.key}
-          style={getProjectMarkerStyle(target)}
-          type="button"
-          onClick={(event) => target.kind === "cpt"
-            ? onCptClick(event, target.id)
-            : onLoadPointClick(event, target.id)}
-        />
+        <MarkerHitTarget key={target.key} target={target} onClick={handleMarkerClick}/>
       ))}
       {capLayouts.flatMap(cap=>cap.points.map((point,index)=><button
         type="button" className="load-point-marker viewer-marker-hit-target" key={`cap-hit:${cap.sourceIds.join("-")}:${index}`}
@@ -135,6 +144,18 @@ export default function ViewerStage({
     </div>
   );
 }
+
+const MarkerHitTarget = memo(function MarkerHitTarget({target,onClick}:{
+  target:ViewerMarkerHitTarget;
+  onClick:(event:MouseEvent<HTMLButtonElement>,target:ViewerMarkerHitTarget)=>void;
+}) {
+  return <button aria-label={target.ariaLabel} className={`${target.className} viewer-marker-hit-target`}
+    data-map-marker-key={target.key} style={getProjectMarkerStyle(target)} type="button"
+    onClick={event=>onClick(event,target)}/>;
+}, (a,b) => a.onClick===b.onClick && a.target.key===b.target.key && a.target.kind===b.target.kind
+  && a.target.id===b.target.id && a.target.x===b.target.x && a.target.y===b.target.y
+  && a.target.hitDiameter===b.target.hitDiameter && a.target.className===b.target.className
+  && a.target.ariaLabel===b.target.ariaLabel);
 
 function getProjectMarkerStyle(target: { x: number; y: number; hitDiameter: number }): CSSProperties {
   return {

@@ -28,8 +28,9 @@ describe("shared marker SVG graphics", () => {
       assert.match(html, /translate\(100\.25 200\.5\)/);
       assert.match(html, /<circle[^>]*cx="0"[^>]*cy="0"[^>]*r="7\.75"/);
       assert.match(html, /id="viewer-pile-15"/);
-      assert.match(html, /<feGaussianBlur/);
-      assert.match(html, /<circle r="5\.25" fill="none" stroke="rgba\(194, 130, 0, 0\.72\)" stroke-width="1\.5"/);
+      assert.doesNotMatch(html, /<feGaussianBlur|filter="/);
+      assert.match(html, /id="viewer-status-glow-missing"/);
+      assert.match(html, /<circle r="7\.5" fill="none" stroke="rgba\(194, 130, 0, 0\.72\)" stroke-width="1\.5"/);
       assert.match(html, /translate\(105\.25 205\.5\)/);
       assert.match(html, />35<\/text>/);
     } finally {

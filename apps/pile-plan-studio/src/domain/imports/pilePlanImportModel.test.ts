@@ -11,6 +11,7 @@ import {
   setPilePlanImportFile,
   setPilePlanImportProfile,
   setPilePlanImportTolerance,
+  setPilePlanImportTable,
 } from "./pilePlanImportModel.ts";
 
 const readyPreview: PilePlanImportPreview = {
@@ -24,6 +25,12 @@ const readyPreview: PilePlanImportPreview = {
 };
 
 describe("pilePlanImportModel", () => {
+  it("resets manual links when source interpretation changes and keeps the last table available",()=>{
+    const state={...createPilePlanImportDraft<File>(),lastPreview:readyPreview,locationDecisions:{links:[{old_id:1,new_id:2}],added:[],removed:[]}};
+    const next=setPilePlanImportTable(state,{has_headers:false});
+    assert.equal(next.locationDecisions,null);assert.equal(next.lastPreview,readyPreview);
+    assert.equal(next.previewState.status,"empty");assert.equal(canApplyPilePlanImport(next),false);
+  });
   it("starts with the approved defaults", () => {
     const draft = createPilePlanImportDraft<File>();
     assert.equal(draft.file, null);

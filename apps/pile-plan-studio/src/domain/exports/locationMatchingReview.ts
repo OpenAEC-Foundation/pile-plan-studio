@@ -14,14 +14,21 @@ export function withLocationChoice(decisions:LocationDecisions,newId:number,oldI
   return next;
 }
 
-export function nextPendingSelection(result:MatchingResult,after?:ReviewSelection|null):ReviewSelection|null {
-  if(result.unmatched_new.length){
-    const id=after?.side==="new"?result.unmatched_new.find(id=>id>after.id)??result.unmatched_new[0]:result.unmatched_new[0];
-    return {side:"new",id};
-  }
-  if(result.unmatched_old.length){
-    const id=after?.side==="old"?result.unmatched_old.find(id=>id>after.id)??result.unmatched_old[0]:result.unmatched_old[0];
-    return {side:"old",id};
+export function nextPendingSelection(result:MatchingResult,after?:ReviewSelection|null,order?:{new:number[];old:number[]}):ReviewSelection|null {
+  for(const side of ["new","old"] as const){
+    const pending=side==="new"?result.unmatched_new:result.unmatched_old;
+    if(!pending.length)continue;
+    const sorted=order?.[side]??(side==="new"?result.new_order:result.old_order)??pending;
+    const ids=[...sorted.filter(id=>pending.includes(id)),...pending.filter(id=>!sorted.includes(id))];
+    const start=after?.side===side?sorted.indexOf(after.id):-1;
+    const id=start>=0?sorted.slice(start+1).find(id=>pending.includes(id))??ids[0]:after?.side===side&&!order&&!result.new_order?pending.find(id=>id>after.id)??ids[0]:ids[0];
+    return {side,id};
   }
   return null;
+}
+
+// Ordering is presentation only; spatial row order comes from the Rust core.
+export function orderedReviewLocations<T extends {id:number;mark?:number|null}>(points:T[],ids?:number[]):T[]{
+  const rank=new Map((ids??points.map(p=>p.id)).map((id,i)=>[id,i]));
+  return [...points].sort((a,b)=>a.mark!=null&&b.mark!=null?a.mark-b.mark||(rank.get(a.id)??0)-(rank.get(b.id)??0):a.mark!=null?-1:b.mark!=null?1:(rank.get(a.id)??Number.MAX_SAFE_INTEGER)-(rank.get(b.id)??Number.MAX_SAFE_INTEGER));
 }

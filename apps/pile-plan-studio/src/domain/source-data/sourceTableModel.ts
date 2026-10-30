@@ -72,6 +72,7 @@ export function buildSourceTable(
   kind: InputSourceKind,
   data: { loadPoints: LoadPoint[]; cpts: Cpt[]; bearingCapacities: BearingCapacity[] },
 ): SourceTableData {
+  const hasTension=data.loadPoints.some(p=>p.tension&&p.tension.state!=="not_imported");
   if (kind === "load_points") {
     return {
       columns: [
@@ -79,12 +80,14 @@ export function buildSourceTable(
         { key: "x", labelKey: "x", unit: "mm" },
         { key: "y", labelKey: "y", unit: "mm" },
         { key: "fed", labelKey: "fed", unit: "kN" },
+        ...hasTension?[{key:"tension",labelKey:"tension",unit:"kN"}]:[],
       ],
       rows: data.loadPoints.map((item) => ({
         id: item.id,
         x: item.x_mm,
         y: item.y_mm,
         fed: item.design_load_kn,
+        ...hasTension?{tension:item.tension?.state==="known"?item.tension.value_kn:"",tension_state:item.tension?.state??"not_imported"}:{},
       })),
     };
   }
@@ -98,19 +101,18 @@ export function buildSourceTable(
       rows: data.cpts.map((item) => ({ id: item.id, x: item.x_mm, y: item.y_mm })),
     };
   }
+  const hasScopes=data.bearingCapacities.some(v=>v.pile_count!=null);
+  const paired=new Map<string,SourceTableRow>();
+  for(const item of data.bearingCapacities){
+    const key=JSON.stringify([item.cpt_id,item.pile_size_mm,item.pile_tip_level_m,item.pile_count??null]);
+    const row=paired.get(key)??{cpt:item.cpt_id,size:item.pile_size_mm,tip:item.pile_tip_level_m,capacity:"",tension_capacity:"",...(hasScopes?{pile_count:item.pile_count??"all"}:{})};
+    row[item.direction==="tension"?"tension_capacity":"capacity"]=item.missing?"":item.frd_kn;
+    paired.set(key,row);
+  }
   return {
-    columns: [
-      { key: "cpt", labelKey: "cpt" },
-      { key: "size", labelKey: "size", unit: "mm" },
-      { key: "tip", labelKey: "tip", unit: "m" },
-      { key: "capacity", labelKey: "capacity", unit: "kN" },
-    ],
-    rows: data.bearingCapacities.map((item) => ({
-      cpt: item.cpt_id,
-      size: item.pile_size_mm,
-      tip: item.pile_tip_level_m,
-      capacity: item.frd_kn,
-    })),
+    columns:[{key:"cpt",labelKey:"cpt"},{key:"size",labelKey:"size",unit:"mm"},{key:"tip",labelKey:"tip",unit:"m"},
+      ...hasScopes?[{key:"pile_count",labelKey:"pile_count"}]:[],{key:"capacity",labelKey:"capacity",unit:"kN"},{key:"tension_capacity",labelKey:"tension_capacity",unit:"kN"}],
+    rows:[...paired.values()],
   };
 }
 

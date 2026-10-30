@@ -79,6 +79,7 @@ const nullablePositiveInteger = { oneOf: [{ type: "integer", minimum: 1 }, { typ
 const sourceLoadPoint = { type: "object", properties: {
   id: integer, name: { type: "string" }, x_mm: { type: "number" }, y_mm: { type: "number" },
   design_load_kn: { type: "number" },
+  tension: {oneOf:[{type:"object",properties:{state:{type:"string",enum:["not_imported","missing"]}},required:["state"],additionalProperties:false},{type:"object",properties:{state:{type:"string",enum:["known"]},value_kn:{type:"number",minimum:0}},required:["state","value_kn"],additionalProperties:false}]},
 }, required: ["id", "name", "x_mm", "y_mm", "design_load_kn"], additionalProperties: false };
 const sourceCpt = { type: "object", properties: {
   id: integer, name: { type: "string" }, x_mm: { type: "number" }, y_mm: { type: "number" },
@@ -86,6 +87,7 @@ const sourceCpt = { type: "object", properties: {
 const sourceAdvice = { type: "object", properties: {
   cpt_id: integer, pile_size_mm: { type: "integer", minimum: 1 },
   pile_tip_level_m: { type: "number" }, frd_kn: { type: "number" },
+  direction:{type:"string",enum:["compression","tension"]},pile_count:{type:["integer","null"],minimum:1},missing:{type:"boolean"},
 }, required: ["cpt_id", "pile_size_mm", "pile_tip_level_m", "frd_kn"], additionalProperties: false };
 const sourceActions = (item: Record<string, unknown>, removal: Record<string, unknown>, required: string[]) => ({
   type: "array", minItems: 1, maxItems: 500, items: { oneOf: [
@@ -186,7 +188,9 @@ PILE_TOOL_SCHEMAS.push(
     ["mode", ...expectedFields], false),
   definition("pile_append_import_source", "Append one UTF-8 standard-table CSV text chunk (at most 128 KiB), in order. Use a display .csv basename; do not pass a file path.",
     { ...transactionId, role: { type: "string", enum: ["load-points", "cpts", "bearing-capacities"] },
-      file_name: { type: "string" }, chunk_index: integer, text: { type: "string" }, final: { type: "boolean" } },
+      file_name: { type: "string" }, chunk_index: integer, text: { type: "string" }, final: { type: "boolean" },
+        import_tension:{type:"boolean"},clear_tension:{type:"boolean"},tension_column:{type:"integer",minimum:5},resistance_direction:{type:"string",enum:["compression","tension"]},
+        table:{type:"object",properties:{pile_count:{type:["integer","null"],minimum:1},fixed_pile_size_mm:{type:["integer","null"],minimum:1},has_headers:{type:"boolean"},header_row:{type:"integer",minimum:1},first_data_row:{type:"integer",minimum:1},delimiter:{type:"string",enum:[",",";","tab"]},columns:{type:"array",items:{type:"object",properties:{column:{type:"integer",minimum:1},field:{type:"string",enum:["ignore","id","x","y","compression","tension","tip-level","pile-size","resistance"]},unit:{type:"string",enum:["m","mm"]},pile_size_mm:{type:"integer",minimum:1}},required:["column","field"],additionalProperties:false}}},additionalProperties:false} },
     ["transaction_id", "role", "file_name", "chunk_index", "text", "final"], false),
   definition("pile_validate_source_import", "Validate all staged sources through the Rust importer without changing the project. Poll status with the returned validation ID.",
     transactionId, ["transaction_id"], false),
@@ -273,7 +277,8 @@ PILE_TOOL_SCHEMAS.push(
     settings: { type: "object", minProperties: 1, properties: {
       max_piles_per_cap: { type: "integer", minimum: 1, maximum: 20 },
       allowed_pile_counts: { type: "array", minItems: 1, maxItems: 20, uniqueItems: true, items: { type: "integer", minimum: 1, maximum: 20 } },
-      allow_pile_count_changes: { type: "boolean" }, skip_unsolvable_units: { type: "boolean" }, optimize_coherence: { type: "boolean" },
+      include_tension: { type:"boolean" },
+  allow_pile_count_changes: { type: "boolean" }, skip_unsolvable_units: { type: "boolean" }, optimize_coherence: { type: "boolean" },
       max_pile_tip_levels: nullablePositiveInteger, max_pile_sizes: nullablePositiveInteger,
       max_pile_configurations: nullablePositiveInteger,
       max_utilization: { type: "number", minimum: 0, maximum: 1 },
@@ -303,7 +308,7 @@ PILE_TOOL_SCHEMAS.push(
   }, ["actions", ...expectedFields], false),
   definition("pile_edit_foundation_advice_bulk", "Add, replace, or remove up to 500 foundation-advice rows atomically. A row key is CPT ID, pile size in mm, and tip level in mm; updates supply the complete row. One Undo step.", {
     actions: sourceActions(sourceAdvice, { cpt_id: integer, pile_size_mm: { type: "integer", minimum: 1 },
-      pile_tip_level_mm: { type: "integer", minimum: -1000000 } }, ["cpt_id", "pile_size_mm", "pile_tip_level_mm"]), ...expected,
+      pile_tip_level_mm: { type: "integer", minimum: -1000000 }, pile_count:{type:["integer","null"],minimum:1}, direction:{type:"string",enum:["compression","tension"]} }, ["cpt_id", "pile_size_mm", "pile_tip_level_mm"]), ...expected,
   }, ["actions", ...expectedFields], false),
 );
 

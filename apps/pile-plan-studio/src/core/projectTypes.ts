@@ -1,9 +1,14 @@
+export type ResistanceDirection = "compression" | "tension";
+export type TensionDemand = {state:"not_imported"}|{state:"missing"}|{state:"known";value_kn:number};
+export type DirectionStatus = "valid"|"insufficient_capacity"|"missing_capacity_data"|"missing_demand"|"not_assessed"|"no_load";
+export type DirectionAssessment = {cpt_resistances?:Array<{cpt_id:number;frd_kn:number|null}>;demand_kn:number|null;governing_cpt_id:number|null;governing_frd_kn:number|null;utilization:number|null;missing_cpt_ids:number[];status:DirectionStatus};
 export type LoadPoint = {
   id: number;
   name: string;
   x_mm: number;
   y_mm: number;
   design_load_kn: number;
+  tension?: TensionDemand;
 };
 
 export type Cpt = {
@@ -14,11 +19,14 @@ export type Cpt = {
 };
 
 export type BearingCapacity = {
+  pile_count?:number|null;
+  missing?:boolean;
   cpt_id: number;
   pile_tip_level_m: number;
   pile_tip_level_mm: number;
   pile_size_mm: number;
   frd_kn: number;
+  direction?: ResistanceDirection;
 };
 
 export type ProjectBounds = {
@@ -34,9 +42,12 @@ export type ViewPoint = {
 };
 
 export type CptBearingCapacityRow = {
+  pile_count?:number|null;
+  missing?:boolean;
   pile_size_mm: number;
   pile_tip_level_m: number;
   frd_kn: number;
+  direction?: ResistanceDirection;
 };
 
 export type CptQuadrant = "upper right" | "lower right" | "upper left" | "lower left";
@@ -83,6 +94,9 @@ export type PileConfigurationOption = {
   utilization: number | null;
   missing_cpt_ids: number[];
   technicalStatus: PileOptionTechnicalStatus;
+  displayDirectionStatus?: DirectionStatus;
+  compression?: DirectionAssessment|null;
+  tension?: DirectionAssessment|null;
 };
 
 export type PileOptionAnalysisResult = {
@@ -111,6 +125,8 @@ export type IfcppPileConfigurationKey = {
 export type PileSizeExportFormat = "numeric" | "dimensions";
 
 export type PilePlanExportInput = {
+  projectContext?: {draft: import("./projectDocumentContract.ts").ProjectDocumentDraft; plan_id: string};
+  hasProposals?: boolean;
   loadPoints: LoadPoint[];
   selectedPiles: Map<number, PileConfigurationKey>;
   selectedCpts: Map<number, number[]>;

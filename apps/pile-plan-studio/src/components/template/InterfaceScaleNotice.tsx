@@ -80,7 +80,6 @@ export default function InterfaceScaleNotice({
       <button
         className="interface-scale-reset-button"
         onClick={onReset}
-        title={t("reset")}
         type="button"
       >
         {t("reset")}

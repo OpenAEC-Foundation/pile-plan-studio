@@ -68,7 +68,7 @@ export async function evaluateCptSettingsEditCore(input: CptSettingsEditInput): 
   let result: CoreCptResult;
   if (isTauriRuntime()) result = await invokeDesktop<CoreCptResult>("evaluate_cpt_settings_edit", { request });
   else {
-    await initializeWasm(() => initWasm());
+    await initializeWasm(initWasm);
     result = evaluate_cpt_settings_edit(request) as CoreCptResult;
   }
   if (result.status === "blocked") return result;
@@ -97,7 +97,7 @@ export async function evaluateLoadPointGroupingSettingsCore(input: {
   let result: CoreResult;
   if (isTauriRuntime()) result = await invokeDesktop<CoreResult>("evaluate_load_point_grouping_settings", { request });
   else {
-    await initializeWasm(() => initWasm());
+    await initializeWasm(initWasm);
     result = evaluate_load_point_grouping_settings(request) as CoreResult;
   }
   return result.status === "blocked" ? result : { status: "applied",
@@ -118,6 +118,6 @@ export async function evaluatePileCostCatalogEditCore(input: {
 }): Promise<CostCatalogEditResult> {
   const request = { settings: input.settings, used_pile_sizes_mm: input.usedPileSizesMm, actions: input.actions };
   if (isTauriRuntime()) return invokeDesktop<CostCatalogEditResult>("evaluate_pile_cost_catalog_edit", { request });
-  await initializeWasm(() => initWasm());
+  await initializeWasm(initWasm);
   return evaluate_pile_cost_catalog_edit(request) as CostCatalogEditResult;
 }

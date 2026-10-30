@@ -66,7 +66,17 @@ pub(super) fn role_header(value: &str, column: usize) -> bool {
         .contains(&base),
         2 => ["tip", "ppn", "puntniveau", "paalpuntniveau"].contains(&base),
         3 => ["size", "afmeting", "paalafmeting"].contains(&base),
-        4 => ["frd", "rc;net;d", "draagvermogen"].contains(&base),
+        4 => [
+            "frd",
+            "rc;net;d",
+            "rc;d",
+            "rt;d",
+            "rt;net;d",
+            "drukweerstand",
+            "trekweerstand",
+            "draagvermogen",
+        ]
+        .contains(&base),
         _ => false,
     }
 }

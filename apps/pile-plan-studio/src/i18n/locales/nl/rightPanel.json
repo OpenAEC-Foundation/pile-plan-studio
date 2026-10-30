@@ -321,7 +321,12 @@
       "invalid_pile_cap_source": "De brongegevens van deze poer zijn ongeldig.",
       "pile_cap_group_changed": "De groepsindeling van een poervoorstel is gewijzigd. Verwijder het voorstel of herstel de groep.",
       "missing_pile_cap_context": "Projectgegevens voor poervoorstellen ontbreken.",
-      "invalid_pile_cap_context": "Projectgegevens voor poervoorstellen sluiten niet aan op deze optimalisatie."
+      "invalid_pile_cap_context": "Projectgegevens voor poervoorstellen sluiten niet aan op deze optimalisatie.",
+      "missing_tension_demand": "Trekbelasting ontbreekt voor een of meer bronlocaties.",
+      "assessed_compression": "Beoordeeld op druk",
+      "assessed_tension": "Beoordeeld op trek",
+      "no_tension_load": "Bekend geen trekbelasting",
+      "tension_not_assessed": "Trek niet beoordeeld"
     },
     "extraCost": "Meerkostenbudget",
     "limitScope": "Bereik configuratielimieten",
@@ -422,5 +427,8 @@
     "sourceEditing": "Bronlocaties bewerken; het voorstel volgt na het afronden van deze bewerking.",
     "reset": "Poervoorstel herstellen naar origineel",
     "resetLabel": "Reset"
-  }
+  },
+  "cpts.selectedPileAdvice": "Advies voor geselecteerde paal",
+  "cpts.adviceHighlightFailed": "De adviesmarkering kon niet worden bepaald.",
+  "cpts.selectOnlyLocation": "Alleen deze locatie"
 }

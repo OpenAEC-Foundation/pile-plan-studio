@@ -151,3 +151,8 @@ describe("core import contract", () => {
     }]);
   });
 });
+
+it("keeps optional tension import and per-sheet resistance mappings in transport",()=>{
+ const result=toCoreImportSource({role:"bearing-capacities",profile:"standard-table",profileOptions:{coordinateSheet:null,reactionSheet:null,importTension:true,tensionColumn:5,adviceSheets:[{sheetName:"T",profile:"standard-table",direction:"tension"},{sheetName:"Both",profile:"standard-table",direction:"compression",tensionColumn:6}]},fileName:"a.xlsx",format:"xlsx",bytes:new Uint8Array()});
+ assert.equal(result.profile_options.import_tension,true);assert.deepEqual(result.profile_options.advice_sheets,[{sheet_name:"T",profile:"standard-table",direction:"tension"},{sheet_name:"Both",profile:"standard-table",direction:"compression",tension_column:6}]);
+});

@@ -27,6 +27,21 @@ function option(input: {
 }
 
 describe("load point marker invalid visual", () => {
+  it("shows missing and failing tension in compression display and compression warnings in tension display", () => {
+    const facts=(status: "valid"|"missing_capacity_data"|"insufficient_capacity"|"not_assessed",utilization:number|null=.5)=>({status,demand_kn:100,utilization,governing_cpt_id:null,governing_frd_kn:null,missing_cpt_ids:[]});
+    const pressure=option({isOption:true,utilization:.5});
+    assert.equal(getLoadPointMarkerInvalidVisual({...pressure,compression:facts("valid"),tension:facts("missing_capacity_data",null)}).className," is-missing");
+    assert.equal(getLoadPointMarkerInvalidVisual({...pressure,compression:facts("valid"),tension:facts("insufficient_capacity",1.2)}).className," is-above-range");
+    assert.equal(getLoadPointMarkerInvalidVisual({...pressure,displayDirectionStatus:"not_assessed",compression:facts("insufficient_capacity",1.2),tension:facts("not_assessed",null)}).className," is-above-range");
+    assert.equal(getLoadPointMarkerInvalidVisual({...pressure,compression:facts("valid"),tension:facts("not_assessed",null)}).className,"");
+  });
+  it("marks known zero load below the preferred minimum but leaves unimported demand neutral", () => {
+    const range={minimum:0.05,maximum:1};
+    const zero={...option({isOption:true,utilization:0}),displayDirectionStatus:"no_load" as const};
+    assert.equal(getLoadPointMarkerInvalidVisual(zero,range).className," is-below-range");
+    assert.deepEqual(getLoadPointMarkerInvalidVisual({...zero,displayDirectionStatus:"not_assessed"},range),{className:"",style:""});
+    assert.deepEqual(getLoadPointMarkerInvalidVisual(zero,{minimum:0,maximum:1}),{className:"",style:""});
+  });
   it("does not mark valid pile options as invalid", () => {
     assert.deepEqual(
       getLoadPointMarkerInvalidVisual(option({ isOption: true, utilization: 0.5 })),

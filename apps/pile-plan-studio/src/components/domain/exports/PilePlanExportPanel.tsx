@@ -2,11 +2,12 @@ import {useState} from "react";
 import {useTranslation} from "react-i18next";
 import {usePilePlanExportPreview} from "../../../app/exports/usePilePlanExportPreview.ts";
 import {DEFAULT_CHANGE_CODES,DEFAULT_EXPORT_OPTIONS,type ExportOptions,type RevitRevisionInput} from "../../../core/exportRevisionContract.ts";
-import {defaultExportColumns,optionsWithColumns,DEFAULT_COLUMN_HEADERS} from "../../../domain/exports/exportColumns.ts";
+import {defaultExportColumns,optionsWithColumns,ensureExportColumn,withoutProposalExportColumns,DEFAULT_COLUMN_HEADERS} from "../../../domain/exports/exportColumns.ts";
 import type {PilePlanExportInput,PileSizeExportFormat} from "../../../core/projectTypes.ts";
 import ExportColumnsEditor from "./ExportColumnsEditor.tsx";
 import ExportTablePreview from "./ExportTablePreview.tsx";
 import PileTableSourceEditor from "./PileTableSourceEditor.tsx";
+import LocationMatchingEntry from "../location-matching/LocationMatchingEntry.tsx";
 import LocationMatchingWorkspace from "../location-matching/LocationMatchingWorkspace.tsx";
 import {exportErrorText} from "./exportErrorText.ts";
 import "./exports.css";
@@ -22,14 +23,17 @@ type Props=ExportFeatureProps&{activePilePlanName:string;pileSizeFormat:PileSize
   running:boolean;runExport:(run:()=>Promise<void>)=>void};
 
 export default function PilePlanExportPanel({activePilePlanName,pileSizeFormat,onExportPilePlanXlsx,onExportPilePlanCsv,exportPlan,exportContextKey="",exportOptions,onExportOptionsChange,onExportRevision,exportPlans,exportPlanId,onExportPlanChange,running,runExport}:Props){
-  const {t}=useTranslation("common");const {t:tb}=useTranslation("backstage");
+  const {t,i18n}=useTranslation("common");const {t:tb}=useTranslation("backstage");
   const [mode,setMode]=useState<"normal"|"revision">("normal"),[localOptions,setLocalOptions]=useState(DEFAULT_EXPORT_OPTIONS);
   const headers=Object.fromEntries(Object.keys(DEFAULT_COLUMN_HEADERS).map(field=>[field,t(`exportTools.headers.${field}`)]));
-  const options=exportOptions??localOptions,normalColumns=defaultExportColumns(options,pileSizeFormat,headers);
-  const normalOptions={...options,columns:normalColumns};
+  const options=exportOptions??localOptions;
+  const effectiveOptions={...options,include_proposals:!!exportPlan?.hasProposals&&options.include_proposals===true,language:i18n.language.startsWith("en")?"en":"nl"};
+  const normalColumns=defaultExportColumns(effectiveOptions,pileSizeFormat,headers);
+  const normalOptions={...effectiveOptions,columns:normalColumns};
   const input=exportPlan?{...exportPlan,pileSizeFormat}:null;
-  const state=usePilePlanExportPreview(input,mode==="normal"?normalOptions:options,exportContextKey,mode,headers);
+  const state=usePilePlanExportPreview(input,mode==="normal"?normalOptions:effectiveOptions,exportContextKey,mode,headers);
   const revision=state.revisionDisplay,disabled=running||state.reading;
+  const reviewMatching=revision?.source_matching&&!revision.source_matching.complete?revision.source_matching:revision?.matching;
   const error=state.fileError??(mode==="normal"?state.normal.error:state.oldInspection.error??state.newInspection.error??state.revision.error);
   const changeOptions=(next:ExportOptions)=>{
     if(mode==="revision"){
@@ -37,6 +41,22 @@ export default function PilePlanExportPanel({activePilePlanName,pileSizeFormat,o
       else next={...next,mark:{...next.mark,rule:options.mark.rule}};
     }
     setLocalOptions(next);onExportOptionsChange?.(next);
+  };
+  const changeTolerance=(value:number)=>{
+    if(value!==state.tolerance&&Number.isFinite(value)&&value>=0){
+      changeOptions({...state.displayOptions,change_codes:{...options.change_codes??DEFAULT_CHANGE_CODES,movement_threshold_mm:value}});
+    }
+    state.setTolerance(value);
+  };
+  const changeProposalSetting=(patch:Pick<ExportOptions,"include_proposals"|"proposal_code">,field?:"export_id"|"proposal_code")=>{
+    const updateColumns=(columns:typeof normalColumns)=>{
+      if(patch.include_proposals===false)return withoutProposalExportColumns(columns);
+      let next=field?ensureExportColumn(columns,field,headers):columns;
+      if(patch.include_proposals===true&&options.proposal_code?.trim())next=ensureExportColumn(next,"proposal_code",headers);
+      return next;
+    };
+    if(mode==="revision"&&state.outputColumns.length)state.setOutputColumns(updateColumns(state.outputColumns));
+    changeOptions({...optionsWithColumns(options,updateColumns(normalColumns)),...patch});
   };
   const selectedPlanName=exportPlans?.find(plan=>plan.id===exportPlanId)?.name??activePilePlanName;
   const normalExport=(format:"csv"|"xlsx")=>runExport(()=>(format==="xlsx"?onExportPilePlanXlsx:onExportPilePlanCsv)(pileSizeFormat,normalOptions));
@@ -48,6 +68,11 @@ export default function PilePlanExportPanel({activePilePlanName,pileSizeFormat,o
     <header className="bs-export-card-heading"><h3>{t("exportTools.exportTitle")}</h3><span className="bs-export-format">XLSX / CSV</span></header>
     {exportPlans&&exportPlans.length>0&&(mode==="normal"||!state.useFile)&&<label className="export-field export-plan-choice"><span>{t("exportTools.exportPilePlan")}</span>
       <select value={exportPlanId} disabled={disabled} onChange={e=>onExportPlanChange?.(e.target.value)}>{exportPlans.map(plan=><option key={plan.id} value={plan.id}>{plan.name}</option>)}</select></label>}
+    {exportPlan?.hasProposals&&(mode==="normal"||!state.useFile)&&<section className="export-proposal-options">
+      <label><input type="checkbox" disabled={disabled} checked={options.include_proposals===true} onChange={e=>changeProposalSetting({include_proposals:e.target.checked},e.target.checked?"export_id":undefined)}/>{t("exportTools.includeProposals")}</label>
+      <p className="export-help">{t(options.include_proposals?"exportTools.proposalHelp":"exportTools.originalHelp")}</p>
+      {options.include_proposals&&<label className="export-field"><span>{t("exportTools.proposalCode")}</span><input disabled={disabled} value={options.proposal_code??""} onChange={e=>changeProposalSetting({proposal_code:e.target.value},e.target.value.trim()?"proposal_code":undefined)}/></label>}
+    </section>}
     <div className="export-mode" role="group" aria-label={t("exportTools.exportMode")}>
       <button type="button" aria-pressed={mode==="normal"} disabled={disabled} onClick={()=>setMode("normal")}>{t("exportTools.normalMode")}</button>
       <button type="button" aria-pressed={mode==="revision"} disabled={disabled} onClick={()=>setMode("revision")}>{t("exportTools.revisionMode")}</button>
@@ -59,25 +84,28 @@ export default function PilePlanExportPanel({activePilePlanName,pileSizeFormat,o
         onMapping={state.setOldMapping} onSource={patch=>state.changeSource("old",patch)} disabled={disabled}/>}
       <div className="export-controls-grid"><label className="export-field"><span>{t("exportTools.newSource")}</span><select aria-label={t("exportTools.newSource")} disabled={disabled} value={state.useFile?"file":"active"} onChange={e=>state.setUseFile(e.target.value==="file")}>
         <option value="active">{t("exportTools.selectedPlan")}: {selectedPlanName}</option><option value="file">{t("exportTools.exportFile")}</option></select></label>
-        <label className="export-field"><span>{t("exportTools.matchTolerance")}</span><input type="number" min={0} step="any" disabled={disabled} value={state.tolerance} onChange={e=>state.setTolerance(Number(e.target.value))}/></label></div>
+      </div>
       {state.useFile&&<><FilePicker label={t("exportTools.newFile")} fileName={state.newSource?.file_name} disabled={disabled} onChange={state.readNew}/>
         {state.newSource&&state.newInspectionForEditor&&state.newMapping&&<PileTableSourceEditor source={state.newSource} inspection={state.newInspectionForEditor!} mapping={state.newMapping}
           onMapping={state.setNewMapping} onSource={patch=>state.changeSource("new",patch)} disabled={disabled} newPlan/>}</>}
-      {revision&&<div className="export-comparison-summary">
-        {revision.numbering.total_positions>0?<><p>{t("exportTools.detection",{matched:revision.numbering.matching_positions,total:revision.numbering.total_positions})}</p>
-          {revision.numbering.equally_matching_rules>1&&<p>{t("exportTools.detectionAmbiguous")}</p>}
-          <button type="button" className="export-quiet-button" onClick={state.useDetected} disabled={disabled}>{t("exportTools.useDetected")}</button></>:<p>{t("exportTools.noSourceMarks")}</p>}
+      {revision&&((revision.source_matching&&!revision.source_matching.complete)||!!revision.missing_comparisons?.length)&&<div className="export-comparison-summary">
+        {revision.source_matching&&!revision.source_matching.complete&&<p>{t("exportTools.reviewProposalSources")}</p>}
         {!!revision.missing_comparisons?.length&&<p>{t("exportTools.missingComparisonFields",{fields:revision.missing_comparisons.map(field=>t(`exportTools.fields.${field}`)).join(", ")})}</p>}
-        <div className="export-review-row"><p>{t("exportTools.pendingSummary",{newCount:revision.matching.unmatched_new.length,oldCount:revision.matching.unmatched_old.length})}</p>
-          <button type="button" className="export-primary" disabled={disabled||state.revision.pending} onClick={state.openReview}>{t(state.reviewed?"exportTools.reviewAgain":"exportTools.review")}</button></div>
       </div>}
     </section>}
+    {mode==="revision"&&revision&&<LocationMatchingEntry
+      summary={reviewMatching?t("locationMatchingEntry.comparisonSummary",{linked:reviewMatching.links.length,pending:reviewMatching.unmatched_new.length+reviewMatching.unmatched_old.length,added:reviewMatching.added.length,removed:reviewMatching.removed.length}):undefined}
+      help={t("locationMatchingEntry.revisionHelp")} reviewed={state.reviewed}
+      disabled={disabled||state.revision.pending} onOpen={state.openReview}
+      tolerance={state.tolerance} onToleranceChange={value=>changeTolerance(Number(value))}/>}
     {(mode==="normal"||state.outputColumns.length>0)&&<details className="export-disclosure export-columns-disclosure"><summary>{t("exportTools.columnSettings")}</summary><ExportColumnsEditor columns={mode==="normal"?normalColumns:state.outputColumns}
       onChange={columns=>mode==="normal"?changeOptions(optionsWithColumns(options,columns)):state.setOutputColumns(columns)}
+      numberingDetection={mode==="revision"?revision?.numbering:undefined} onUseDetectedNumbering={state.useDetected}
       defaultHeaders={headers} options={state.displayOptions} onOptionsChange={changeOptions} disabled={disabled} revision={mode==="revision"} firstNewMark={revision?.first_new_mark}
       preserveMarks={(revision?.numbering.total_positions??0)>0} sourceHeaders={mode==="revision"?state.oldInspectionForEditor?.headers:[]}
       changeCodes={options.change_codes??DEFAULT_CHANGE_CODES} onChangeCodes={codes=>changeOptions({...state.displayOptions,change_codes:codes})}
       onReset={()=>mode==="normal"?changeOptions({...options,columns:undefined}):state.resetOutputColumns()}/></details>}
+    {mode==="normal"&&!!state.normalDisplay?.proposed_count&&<p className="export-help">{t("exportTools.proposalSummary",{oldCount:state.normalDisplay.replaced_count,newCount:state.normalDisplay.proposed_count})}</p>}
     {error!=null&&<p role="alert" className="export-error">{exportErrorText(error,t)}</p>}
     {exportPlan===null&&(mode==="normal"||!state.useFile)&&<p className="export-help">{t("exportTools.noNewPlan")}</p>}
     <p role="status" className="export-help export-preview-status">{(state.normal.pending||state.revision.pending||state.reading||state.oldInspection.pending||state.newInspection.pending)?t("exportTools.preparing"):""}</p>
@@ -93,8 +121,9 @@ export default function PilePlanExportPanel({activePilePlanName,pileSizeFormat,o
         :state.reviewed&&<><button type="button" className="export-primary" disabled={disabled||!revision?.table||state.revision.pending||!onExportRevision} onClick={()=>revisionExport("xlsx")}>{t("exportTools.revisionExport")}</button>
           <button type="button" className="export-secondary" disabled={disabled||!revision?.table||state.revision.pending||!onExportRevision} onClick={()=>revisionExport("csv")}>{t("exportTools.revisionCsv")}</button></>}
     </div>
-    {state.reviewOpen&&revision&&<LocationMatchingWorkspace key={state.identity} oldLocations={revision.old_locations} newLocations={revision.new_locations} initial={revision.matching}
-      toleranceMm={state.tolerance} onConfirm={state.confirm} onCancel={state.closeReview} initialAutomatic={!state.reviewed}/>}
+    {state.reviewOpen&&revision?.source_matching&&!revision.source_matching.complete&&<LocationMatchingWorkspace key={`${state.identity}:sources`} oldLocations={revision.old_locations} newLocations={revision.source_locations??[]} initial={revision.source_matching} toleranceMm={state.tolerance} onConfirm={(decisions,tolerance)=>{changeTolerance(tolerance);state.confirmSources(decisions,tolerance);}} onCancel={state.closeReview}/>}
+    {state.reviewOpen&&revision&&(!revision.source_matching||revision.source_matching.complete)&&<LocationMatchingWorkspace key={state.identity} oldLocations={revision.old_locations.filter(p=>!revision.forced_removed?.includes(p.id))} newLocations={revision.new_locations.filter(p=>!revision.forced_added?.includes(p.id))} initial={{...revision.matching,added:revision.matching.added.filter(id=>!revision.forced_added?.includes(id)),removed:revision.matching.removed.filter(id=>!revision.forced_removed?.includes(id))}}
+      toleranceMm={state.tolerance} onConfirm={(decisions,tolerance)=>{changeTolerance(tolerance);state.confirm({...decisions,added:[...decisions.added,...revision.forced_added??[]],removed:[...decisions.removed,...revision.forced_removed??[]]},tolerance);}} onCancel={state.closeReview} initialAutomatic={!state.reviewed}/>}
   </section>;
 }
 

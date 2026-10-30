@@ -3,7 +3,7 @@ import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { canonicalProjectForTest, projectTipLevelKeysForTest } from "../../core/projectTestSupport.ts";
 import { createInitialProjectState } from "../../domain/project/projectState.ts";
-import { createMcpDispatcher } from "./protocol.ts";
+import { createMcpDispatcher,writeOperation } from "./protocol.ts";
 import { prepareMcpWrite } from "./writeModel.ts";
 import { McpReadError } from "./readModel.ts";
 import { createSourceImportSession } from "./sourceImportSession.ts";
@@ -387,4 +387,12 @@ describe("MCP protocol", () => {
     assert.equal(mutations, 1);
     assert.deepEqual(current.state.pilePlans[0].lockedLoadPointIds, [state.loadPoints[0].id]);
   });
+});
+
+it("accepts directional source edits and rejects invalid tension values before writing",()=>{
+ const point=state.loadPoints[0];
+ const load=writeOperation("pile_edit_load_points_bulk",{actions:[{action:"update",item:{...point,tension:{state:"known",value_kn:90}}}]});assert.equal(load.name,"pile_edit_load_points_bulk");
+ assert.throws(()=>writeOperation("pile_edit_load_points_bulk",{actions:[{action:"update",item:{...point,tension:{state:"known",value_kn:-1}}}]}));
+ const advice=writeOperation("pile_edit_foundation_advice_bulk",{actions:[{action:"remove",cpt_id:1,pile_size_mm:320,pile_tip_level_mm:-18000,direction:"tension"}]});assert.equal(advice.name,"pile_edit_foundation_advice_bulk");
+ const optimizer=writeOperation("pile_set_optimization_settings",{settings:{include_tension:false}});assert.equal(optimizer.name,"pile_set_optimization_settings");
 });

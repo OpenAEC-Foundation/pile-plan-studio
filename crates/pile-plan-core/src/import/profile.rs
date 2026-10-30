@@ -16,6 +16,14 @@ pub enum ImportProfile {
 
 #[derive(Clone, Debug, Default, Deserialize, Eq, PartialEq, Serialize)]
 pub struct ImportProfileOptions {
+    pub table: Option<super::TableImportSettings>,
+    #[serde(default)]
+    pub import_tension: bool,
+    #[serde(default)]
+    pub clear_tension: bool,
+    pub tension_column: Option<usize>,
+    #[serde(default)]
+    pub resistance_direction: crate::ResistanceDirection,
     #[serde(default)]
     pub advice_sheets: Option<Vec<super::AdviceSheetSelection>>,
     pub coordinate_sheet: Option<String>,
@@ -38,6 +46,7 @@ pub enum ImportDiagnosticCode {
     MissingReactionSheet,
     AmbiguousCoordinateSheet,
     AmbiguousReactionSheet,
+    MissingTensionDemand,
     MissingRequiredColumn,
     InvalidRequiredValue,
     InvalidPileTipLevelPrecision,
@@ -132,6 +141,8 @@ pub struct RfemPreviewDetails {
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
 pub struct ImportSourcePreview {
+    #[serde(default,skip_serializing_if="Option::is_none")]
+    pub table: Option<super::SourceTablePreview>,
     pub role: ImportRole,
     pub requested_profile: ImportProfile,
     pub detected_profile: ImportProfile,

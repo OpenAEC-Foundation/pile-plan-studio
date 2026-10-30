@@ -1,3 +1,4 @@
+import {LoadDirectionProvider} from "../derived-state/LoadDirectionContext.tsx";
 import {LocationMatchingSurfaceContext, useLocationMatchingSurface} from "../exports/locationMatchingSurface.tsx";
 import { usePileCapProposals } from "../derived-state/usePileCapProposals.ts";
 import {exportConfiguredPilePlanCore,exportRevitRevisionCore,prepareLoadPointRefreshCore} from "../../core/exportRevisionCoreClient.ts";
@@ -46,6 +47,7 @@ import { useGroupAssignmentAssessment } from "../derived-state/useGroupAssignmen
 import ProjectInformationDialog from "../../components/domain/project/ProjectInformationDialog";
 import UnsavedChangesDialog from "../../components/domain/project/UnsavedChangesDialog.tsx";
 import PilePlanExplorer from "../../components/domain/pile-plans/PilePlanExplorer.tsx";
+import ApplicationTooltip from "../../components/template/ApplicationTooltip.tsx";
 import SourceDataViewer from "../../components/domain/source-data/SourceDataViewer.tsx";
 import type { InputSourceKind } from "../../domain/project/projectState.ts";
 import type { SourceLoadPointSelection } from "../../domain/source-data/sourceTableModel.ts";
@@ -118,6 +120,7 @@ import {
 import {
   openedProjectLifecycleState,
   projectDraftFromState,
+  createProjectPersistenceSelector,
   projectStateSignature,
 } from "../project/projectLifecycleController.ts";
 import { createPileOptionAnalysisController } from "../derived-state/pileOptionAnalysisController.ts";
@@ -428,7 +431,7 @@ export default function AppSession({
   const defaultSelectionRequestRef = useRef<typeof projectState.analysisRequest | null>(null);
   const defaultSelectionKeepsDirtyRef = useRef(false);
   const replacementResolverRef = useRef<((proceed: boolean) => void) | null>(null);
-  const initialProjectSignature = projectStateSignature(projectState);
+  const [initialProjectSignature] = useState(() => projectStateSignature(projectState));
   const [savedProjectSignature, setSavedProjectSignature] = useState(
     initialWasDirty
       ? (initialSavedProjectSignature ?? "")
@@ -499,8 +502,8 @@ export default function AppSession({
     () => getAvailablePileConfigurationCatalog(projectState.pileOptionsByLoadPointId),
     [projectState.pileOptionsByLoadPointId],
   );
-  const persistedProjectDraft = projectDraftFromState(projectState);
-  const persistedProjectSignature = JSON.stringify(persistedProjectDraft);
+  const [selectPersistence] = useState(() => createProjectPersistenceSelector());
+  const {draft: persistedProjectDraft, signature: persistedProjectSignature} = selectPersistence(projectState);
   useEffect(() => {
     if (recoveredDirtySignatureRef.current === persistedProjectSignature) {
       setIsDirty(true);
@@ -642,20 +645,19 @@ export default function AppSession({
   const exportPilePlanName=projectState.pilePlans.find(plan=>plan.id===exportPlanId)?.name??activePilePlanName;
   const exportContextKey=JSON.stringify([exportMarker,exportPlanId]);
   const exportPlanForPanel = useMemo(() => {
-    try { return buildPilePlanExportInputForPlan(projectState, exportPlanId, userSettings.preferences.pileSizeExportFormat); }
+    try { return buildPilePlanExportInputForPlan(projectState, exportPlanId, userSettings.preferences.pileSizeExportFormat, true); }
     catch { return null; }
   }, [projectState, exportPlanId, userSettings.preferences.pileSizeExportFormat]);
 
   const exportPilePlan = async (format: "xlsx" | "csv", pileSizeFormat: PileSizeExportFormat = "numeric", options?: ExportOptions): Promise<void> => {
-    if(projectState.pilePlans.find(p=>p.id===exportPlanId)?.pileCapProposals?.length){showActionNotice(t("rightPanel:pileCap.exportUnsupported"),"error");return;}
-    const input = buildPilePlanExportInputForPlan(projectState, exportPlanId, pileSizeFormat);
+    const input = buildPilePlanExportInputForPlan(projectState, exportPlanId, pileSizeFormat, !!options);
     const bytes = options ? await exportConfiguredPilePlanCore(format, input, options) : format === "xlsx"
       ? await exportPilePlanXlsxCore(input)
       : await exportPilePlanCsvCore(input);
     if(exportContextKey!==JSON.stringify([mcpProjectMarkerRef.current!.observe(projectStateRef.current),exportPlanIdRef.current]))throw new Error(t("exportTools.projectChanged"));
     await saveBinaryExport(
       {
-        fileName: pilePlanExportFileName(exportPilePlanName, format),
+        fileName: pilePlanExportFileName(`${exportPilePlanName}${options?.include_proposals && input.hasProposals ? "-proposals" : ""}`, format),
         mimeType: format === "xlsx"
           ? "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
           : "text/csv",
@@ -670,7 +672,7 @@ export default function AppSession({
     if (currentContext() !== capturedContext) throw new Error(t("exportTools.projectChanged"));
     const bytes = await exportRevitRevisionCore(format, request);
     if (currentContext() !== capturedContext) throw new Error(t("exportTools.projectChanged"));
-    await saveBinaryExport({fileName:pilePlanExportFileName(`${exportPilePlanName}-changes`,format),
+    await saveBinaryExport({fileName:pilePlanExportFileName(`${exportPilePlanName}-changes${request.options.include_proposals && request.newPlan.hasProposals && !request.newSource ? "-proposals" : ""}`,format),
       mimeType:format === "xlsx" ? "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" : "text/csv", extensions:[`.${format}`]},bytes);
   };
 
@@ -888,6 +890,8 @@ export default function AppSession({
       manualCptIdsByLoadPoint: projectState.manualCptIdsByLoadPoint,
       settingsByLoadPoint: projectState.cptSelectionSettingsByLoadPoint,
       includeCptFrdRows: projectState.cptFrdRowsByCptId.size === 0,
+      groupingSettings: projectState.loadPointGroupingSettings,
+      groupingLoadPoints: projectState.loadPoints,
     }).then((outcome) => {
       if (outcome.status === "applied") {
         const analysis = outcome.result;
@@ -920,7 +924,7 @@ export default function AppSession({
     return () => {
       analysisPipeline.invalidate();
     };
-  }, [analysisPipeline, projectState.analysisRequest]);
+  }, [analysisPipeline, projectState.analysisRequest, projectState.loadPointGroupingSettings]);
 
   useEffect(() => {
     if (
@@ -997,6 +1001,15 @@ export default function AppSession({
     commitProjectState, pilePlanLanguage(),userSettings.preferences.optimizationTimeLimitSeconds);
   const mcpOptimizationRef=useRef(ilp);
   mcpOptimizationRef.current=ilp;
+  const showingOptimizationPreview=ilp.displayState!==projectState;
+  const displayedGroupAssignmentInput=useMemo(()=>!showingOptimizationPreview||!hasCompletedLoadPointGroups?null:{
+    groups:loadPointGroups.groups,
+    assignments:ilp.displayState.selectedPileConfigurationsByLoadPoint,
+    lockedLoadPointIds:getActiveLockedLoadPointIds(ilp.displayState.pilePlans,ilp.displayState.activePilePlanId),
+  },[showingOptimizationPreview,hasCompletedLoadPointGroups,loadPointGroups.groups,
+    ilp.displayState.selectedPileConfigurationsByLoadPoint,ilp.displayState.pilePlans,ilp.displayState.activePilePlanId]);
+  const previewGroupAssignmentAssessment=useGroupAssignmentAssessment(displayedGroupAssignmentInput);
+  const displayedGroupAssignmentAssessment=showingOptimizationPreview?previewGroupAssignmentAssessment:groupAssignmentAssessment;
   const { groups: mcpGroups, technicalAssignment: mcpTechnical, groupAssignmentAssessment: mcpConflicts } =
     useMcpDerivedState(projectState, loadPointGroups, technicalAssignment, groupAssignmentAssessment,
       technicalAssignmentInput, groupAssignmentAssessmentInput);
@@ -1209,7 +1222,8 @@ export default function AppSession({
   }
 
   return (
-    <LocationMatchingSurfaceContext.Provider value={matchingSurface.value}>
+    <LoadDirectionProvider><LocationMatchingSurfaceContext.Provider value={matchingSurface.value}>
+      <ApplicationTooltip/>
       <div className="app-shell"
         data-testid="openaec-shell"
         onPointerUpCapture={releasePointerActivatedControlFocus}
@@ -1217,12 +1231,12 @@ export default function AppSession({
         <TitleBar
           projectAction={() => void (isDesktop ? saveProject() : downloadProject())}
           projectActionKind={isDesktop ? "save" : "download"}
-          canUndo={canUndo && !matchingSurface.active}
-          canRedo={canRedo && !matchingSurface.active}
-          undoLabel={undoLabel}
-          redoLabel={redoLabel}
-          onUndo={() => dispatchProject({ type: "undo" })}
-          onRedo={() => dispatchProject({ type: "redo" })}
+          canUndo={matchingSurface.active ? matchingSurface.history?.canUndo??false : canUndo}
+          canRedo={matchingSurface.active ? matchingSurface.history?.canRedo??false : canRedo}
+          undoLabel={matchingSurface.active ? t("matchingEditor.undo") : undoLabel}
+          redoLabel={matchingSurface.active ? t("matchingEditor.redo") : redoLabel}
+          onUndo={() => matchingSurface.active ? matchingSurface.history?.undo() : dispatchProject({ type: "undo" })}
+          onRedo={() => matchingSurface.active ? matchingSurface.history?.redo() : dispatchProject({ type: "redo" })}
           onSettingsClick={() => setSettingsOpen(true)}
           onFeedbackClick={() => setFeedbackOpen(true)}
           interfaceScaleControl={isDesktop ? (
@@ -1359,7 +1373,7 @@ export default function AppSession({
                 readOnly={ilp.running}
                 loadPointGroups={loadPointGroups.groups}
                 loadPointGroupTopology={loadPointGroups.topology}
-                groupAssignmentAssessment={groupAssignmentAssessment}
+                groupAssignmentAssessment={displayedGroupAssignmentAssessment}
                 technicalAssignment={technicalAssignment}
                 lassoSelectionActive={lassoSelectionActive}
                 onStateChange={handleDisplayedStateChange}
@@ -1422,6 +1436,7 @@ export default function AppSession({
             })}
             onSplitRatioChange={propertiesSplitRatio => updateWorkspaceLayout({ propertiesSplitRatio })}
             ilpResult={<IlpOptimizationSettingsPanel
+              groups={loadPointGroups.groups}
               newPlanName={ilp.newPlanName} onNewPlanNameChange={ilp.setNewPlanName}
               sections={userSettings.preferences.ilpSections}
               onToggleSection={section => commitUserSettings(patchUserSettings(userSettingsRef.current, {
@@ -1459,7 +1474,7 @@ export default function AppSession({
             onSaveCptSelection={saveCptSelection}
             onApplyCptMethod={applyCptSelectionMethod}
             loadPointGroups={loadPointGroups.groups}
-            groupAssignmentAssessment={groupAssignmentAssessment}
+            groupAssignmentAssessment={displayedGroupAssignmentAssessment}
             groupEditPending={groupEditPending || loadPointGroups.pending}
             onPreviewLoadPointGroupEdit={previewGroupEdit}
             onApplyLoadPointGroupEdit={applyGroupEdit}
@@ -1656,7 +1671,7 @@ export default function AppSession({
         })}
       />
       <FeedbackDialog open={feedbackOpen} onClose={() => setFeedbackOpen(false)} />
-    </LocationMatchingSurfaceContext.Provider>
+    </LocationMatchingSurfaceContext.Provider></LoadDirectionProvider>
   );
 
   function beginExplorerResize(event: ReactPointerEvent<HTMLDivElement>) {

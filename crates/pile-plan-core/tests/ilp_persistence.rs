@@ -24,6 +24,10 @@ fn joint_weight_is_retired_for_new_runs() {
 fn legacy_optimizer_settings_are_read_but_no_longer_written() {
     let source = include_str!("../../../sample_project/sample_project.ifcpp");
     let mut legacy: serde_json::Value = serde_json::from_str(source).unwrap();
+    legacy["settings"]
+        .as_object_mut()
+        .unwrap()
+        .remove("ilp_optimization");
     legacy["settings"]["optimization"]["max_pile_sizes"] = 2.into();
     legacy["settings"]["optimization"]["max_pile_tip_levels"] = 3.into();
     let project = read_ifcpp_str(&legacy.to_string()).unwrap();
@@ -64,11 +68,11 @@ fn legacy_projects_receive_independent_ilp_settings_with_five_percent_budget() {
                 &write_ifcpp_string(&read_ifcpp_str(source).unwrap()).unwrap(),
             )
             .unwrap();
-            json["settings"]
-                .as_object_mut()
-                .unwrap()
-                .remove("ilp_optimization");
         }
+        json["settings"]
+            .as_object_mut()
+            .unwrap()
+            .remove("ilp_optimization");
         json["schema_version"] = version.into();
         json["settings"]["optimization"] = serde_json::json!({
             "max_pile_sizes": 4, "max_pile_tip_levels": 16, "max_utilization": 1.0,
@@ -186,6 +190,29 @@ fn plan_result_roundtrips_and_is_optional_for_legacy_plans() {
     let saved: serde_json::Value =
         serde_json::from_str(&write_ifcpp_string(&loaded).unwrap()).unwrap();
     assert_eq!(saved["user_state"]["pile_plans"][0]["ilp_result"], result);
+    let mut legacy = saved.clone();
+    legacy["schema_version"] = 6.into();
+    legacy["user_state"]["pile_plans"][0]["ilp_result"]["settings"]
+        .as_object_mut()
+        .unwrap()
+        .remove("include_tension");
+    let restored = read_ifcpp_str(&legacy.to_string()).unwrap();
+    assert!(
+        !restored.user_state.pile_plans[0]
+            .ilp_result
+            .as_ref()
+            .unwrap()
+            .settings
+            .include_tension
+    );
+    assert!(
+        restored
+            .settings
+            .ilp_optimization
+            .as_ref()
+            .unwrap()
+            .include_tension
+    );
 }
 
 #[test]

@@ -86,6 +86,8 @@ pub struct PileCapPreview {
     pub positions: Vec<PileCapPoint>,
     pub total_load_kn: Option<f64>,
     pub load_per_pile_kn: Option<f64>,
+    pub total_tension: crate::TensionDemand,
+    pub tension_per_pile: crate::TensionDemand,
     pub cpt_ids: Vec<u32>,
     pub missing_selection_load_point_ids: Vec<u32>,
     pub options: Vec<PileCapOption>,
@@ -252,6 +254,8 @@ pub fn evaluate_pile_cap_proposals(
                 positions: vec![],
                 total_load_kn: None,
                 load_per_pile_kn: None,
+                total_tension: Default::default(),
+                tension_per_pile: Default::default(),
                 cpt_ids: vec![],
                 missing_selection_load_point_ids: vec![],
                 options: vec![],
@@ -262,6 +266,8 @@ pub fn evaluate_pile_cap_proposals(
                 preview.center.y_mm =
                     members.iter().map(|p| p.y_mm).sum::<f64>() / members.len() as f64;
             }
+            preview.total_tension = crate::TensionDemand::sum(members.iter().map(|p| &p.tension));
+            preview.tension_per_pile = preview.total_tension.divided(proposal.pile_count);
             let valid_group = groups.groups.iter().any(|g| {
                 let mut ids = g.load_point_ids.clone();
                 ids.sort_unstable();
@@ -460,10 +466,16 @@ impl<'a> PileCapAnalysis<'a> {
         }
         let cpt_ids = selected.keys().copied().collect();
         let options = if missing.is_empty() {
-            crate::pile_options::pile_configuration_options(
+            crate::pile_options::pile_configuration_options_with_tension(
                 total / f64::from(count),
+                &crate::TensionDemand::sum(
+                    ids.iter()
+                        .filter_map(|id| self.members.get(id).map(|p| &p.tension)),
+                )
+                .divided(count),
                 &selected.into_values().collect::<Vec<_>>(),
                 &self.advice,
+                u32::from(count),
             )
         } else {
             vec![]

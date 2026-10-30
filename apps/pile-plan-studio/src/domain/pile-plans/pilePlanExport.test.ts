@@ -37,3 +37,12 @@ it("does not export a proposal-bearing plan as if its source piles were the effe
  const state={...base,pilePlans:base.pilePlans.map(plan=>({...plan,pileCapProposals:[{load_point_ids:[15,43],pile_count:3,quarter_turns:0,configuration:null}]}))};
  assert.throws(()=>buildPilePlanExportInputForPlan(state,state.activePilePlanId),/pile_cap_proposals_not_exportable/);
 });
+
+it("configured exports carry the selected plan context and allow proposal rows",()=>{
+ const base=createInitialProjectState(project,{initializeDefaultPiles:false},projectTipLevelKeysForTest(project));
+ const state={...base,pilePlans:base.pilePlans.map(plan=>({...plan,pileCapProposals:[{load_point_ids:[15,43],pile_count:3,quarter_turns:0,configuration:null}]}))};
+ const result=buildPilePlanExportInputForPlan(state,state.activePilePlanId,"numeric",true);
+ assert.equal(result.projectContext?.plan_id,state.activePilePlanId);
+ assert.equal(result.hasProposals,true);
+ assert.equal(result.projectContext?.draft.user_state.pile_plans[0].pile_cap_proposals?.length,1);
+});

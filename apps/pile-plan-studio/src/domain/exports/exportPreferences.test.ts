@@ -1,6 +1,6 @@
 import {test} from "node:test";
 import assert from "node:assert/strict";
-import {defaultExportColumns,localizeExportColumns,DEFAULT_COLUMN_HEADERS,nextExportColumnCaption} from "./exportColumns.ts";
+import {defaultExportColumns,localizeExportColumns,DEFAULT_COLUMN_HEADERS,nextExportColumnCaption,ensureExportColumn,withoutProposalExportColumns} from "./exportColumns.ts";
 import {normalizeExportOptions} from "./exportPreferences.ts";
 test("export preferences restore rules and normalize invalid or absent values",()=>{
   const result=normalizeExportOptions({mark:{enabled:true,start:13,rule:{axis:"x",x_direction:"descending",y_direction:"ascending",tolerance_mm:20}},tip_code:{enabled:true,sequence:"numbers",direction:"ascending"}});
@@ -55,4 +55,42 @@ test("a free column caption needs no numeric suffix and still follows the langua
 test("a colliding caption gets a free suffix regardless of field, casing or whitespace",()=>{
   const existing={key:"source:0",field:"source" as const,header:" mark ",enabled:true};
   assert.deepEqual(nextExportColumnCaption("Mark",[existing]),{header:"Mark 1",header_number:1});
+});
+
+test("proposal preferences and calculated columns survive normalization",()=>{
+ const result=normalizeExportOptions({include_proposals:true,proposal_code:"P",columns:[{key:"r",field:"compression_resistance",header:"R",enabled:true}]});
+ assert.equal(result.include_proposals,true);assert.equal(result.proposal_code,"P");assert.equal(result.columns?.[0].field,"compression_resistance");
+});
+
+test("automatic proposal columns append once and preserve custom layouts",()=>{
+ const columns=[{key:"x",field:"x" as const,header:"Oost",enabled:true}];
+ const added=ensureExportColumn(columns,"export_id",DEFAULT_COLUMN_HEADERS);
+ assert.deepEqual(added[0],columns[0]);assert.equal(added[1].field,"export_id");
+ assert.deepEqual(ensureExportColumn(added,"export_id",DEFAULT_COLUMN_HEADERS),added);
+ assert.equal(ensureExportColumn(added,"proposal_code",DEFAULT_COLUMN_HEADERS)[2].field,"proposal_code");
+});
+
+test("disabling proposals removes only their two conditional columns",()=>{
+ const columns=[{key:"id",field:"export_id" as const,header:"ID",enabled:true},{key:"p",field:"proposal_code" as const,header:"P",enabled:true},{key:"o",field:"original_locations" as const,header:"Origins",enabled:true}];
+ assert.deepEqual(withoutProposalExportColumns(columns),[columns[2]]);
+ assert.deepEqual(normalizeExportOptions({include_proposals:false,columns}).columns,[columns[2]]);
+});
+
+test("disabled proposal fields are absent even in a stale saved column layout",()=>{
+ const options={...normalizeExportOptions(undefined),include_proposals:false,columns:[{key:"id",field:"export_id" as const,header:"ID",enabled:true},{key:"x",field:"x" as const,header:"X",enabled:true}]};
+ assert.deepEqual(defaultExportColumns(options,"numeric").map(c=>c.field),["x"]);
+});
+
+test("status custom values preserve blanks, sanitize invalid values and stay per column",()=>{
+ const columns=[{key:"a",field:"technical_status",header:"A",enabled:true,status_values:{valid:"OK",insufficient:"NOK",missing:"?",no_cpts:"CPT?",unassigned:""}},{key:"b",field:"technical_status",header:"B",enabled:true}];
+ assert.deepEqual(normalizeExportOptions({columns}).columns,columns);
+ const result=normalizeExportOptions({columns:[{...columns[0],status_values:{valid:42,unassigned:"",unknown:"x"}}]}).columns![0];
+ assert.deepEqual(result.status_values,{valid:"",insufficient:"",missing:"",no_cpts:"",unassigned:""});
+});
+
+
+test("coordinate source preferences survive normalization independently for duplicate axes",()=>{
+ const columns=[{key:"old-x",field:"x",header:"Old X",enabled:true,coordinate_source:"old_within_tolerance"},{key:"new-x",field:"x",header:"New X",enabled:true,coordinate_source:"new"},{key:"size",field:"pile_size",header:"Size",enabled:true,coordinate_source:"new"}];
+ const result=normalizeExportOptions({columns}).columns!;
+ assert.equal(result[0].coordinate_source,"old_within_tolerance");assert.equal(result[1].coordinate_source,"new");assert.equal(result[2].coordinate_source,undefined);
 });

@@ -32,10 +32,20 @@ function Harness({ state, request, changed, handled }: {
 }) {
   const view = useViewerViewport({ state, focusRequest: request, onFocusHandled: handled,
     onStateChange: changed, interactionRef: useRef(null) });
-  return <div ref={view.canvasRef} data-testid="canvas" onWheel={e => view.handleWheel(e, () => {})}>
+  return <div ref={view.canvasRef} data-testid="canvas" data-projection-scale={view.projectTransform.pixelsPerMillimeter} onWheel={e => view.handleWheel(e, () => {})}>
+    <button type="button" onClick={()=>view.focusOnPoints(state.loadPoints.filter(p=>state.selectedLoadPointIds.includes(p.id)).map(p=>projectPointPixels(p,view.projectTransform)))}>Focus selected</button>
     <div ref={view.layoutAnchorRef}><div ref={view.stageRef} /></div>
   </div>;
 }
+test("a collapsed initial canvas recovers its projection without changing project coordinates or history",()=>{
+ const state=fixture(),changed=vi.fn(),handled=vi.fn();rect={left:20,top:40,width:800,height:2};
+ const view=render(<Harness state={state} request={null} changed={changed} handled={handled}/>);
+ rect={left:20,top:40,width:800,height:600};
+ view.rerender(<Harness state={state} request={null} changed={changed} handled={handled}/>);
+ const expected=createProjectViewTransform(state.bounds,{width:800,height:600}).pixelsPerMillimeter;
+ expect(Number(screen.getByTestId("canvas").getAttribute("data-projection-scale"))).toBeCloseTo(expected);
+ expect(changed).not.toHaveBeenCalled();
+});
 
 test("focus is handled once, uses the current compensated canvas and preserves project content", () => {
   const state = fixture(), changed = vi.fn(), handled = vi.fn();
@@ -81,4 +91,16 @@ test("centering retains the latest wheel zoom and cancels its delayed stale pan 
   expect(changed.mock.calls[0][0].viewport.scale).toBeCloseTo(2.52);
   act(() => { vi.advanceTimersByTime(200); });
   expect(changed).toHaveBeenCalledOnce();
+});
+
+
+test("focus-selection fits the selection and changes only the transient viewport",()=>{
+ const state=fixture(),changed=vi.fn(),handled=vi.fn();
+ render(<Harness state={state} request={null} changed={changed} handled={handled}/>);
+ fireEvent.click(screen.getByRole("button",{name:"Focus selected"}));
+ expect(changed).toHaveBeenCalledOnce();const next=changed.mock.calls[0][0] as ProjectState;
+ expect(captureProjectContent(next)).toEqual(captureProjectContent(state));
+ expect(next.selectedLoadPointIds).toBe(state.selectedLoadPointIds);
+ expect(next.viewport.offsetX).not.toBe(state.viewport.offsetX);
+ expect(next.viewport.scale).toBeGreaterThanOrEqual(.8);expect(next.viewport.scale).toBeLessThanOrEqual(10);
 });

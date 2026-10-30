@@ -22,6 +22,7 @@ pub struct RevisionSource {
 pub struct RevisionLocation {
     pub id: u32,
     pub source_id: Option<u32>,
+    pub export_id: Option<u32>,
     pub mark: Option<u32>,
     pub x_mm: f64,
     pub y_mm: f64,
@@ -149,11 +150,12 @@ pub(super) fn parse_pile_table(
         }
     }
     if new_plan {
-        for field in [
-            ExportField::LoadPointId,
-            ExportField::PileSize,
-            ExportField::TipLevel,
-        ] {
+        if !mapping.columns.contains_key(&ExportField::LoadPointId)
+            && !mapping.columns.contains_key(&ExportField::ExportId)
+        {
+            return Err(error("revision_incomplete_plan"));
+        }
+        for field in [ExportField::PileSize, ExportField::TipLevel] {
             if !mapping.columns.contains_key(&field) {
                 return Err(error("revision_incomplete_plan"));
             }
@@ -182,10 +184,16 @@ pub(super) fn parse_pile_table(
         if mark.is_some_and(|n| !marks.insert(n)) {
             return Err(error("revision_duplicate_mark"));
         }
+        let export_id = text(ExportField::ExportId)
+            .map(|s| integer(&s, false))
+            .transpose()?;
         let source_id = text(ExportField::LoadPointId)
             .map(|s| integer(&s, false))
             .transpose()?;
-        if new_plan && (source_id.is_none() || !new_ids.insert(source_id.unwrap())) {
+        if new_plan
+            && (export_id.or(source_id).is_none()
+                || !new_ids.insert(export_id.or(source_id).unwrap()))
+        {
             return Err(error("revision_duplicate_id"));
         }
         let x_mm = mapping.coordinate_unit.to_mm(number(
@@ -248,6 +256,7 @@ pub(super) fn parse_pile_table(
         locations.push(RevisionLocation {
             id: 0,
             source_id,
+            export_id,
             mark,
             x_mm,
             y_mm,
@@ -265,7 +274,7 @@ pub(super) fn parse_pile_table(
     let mut next = marks.iter().max().copied().unwrap_or(0);
     for location in &mut locations {
         location.id = if new_plan {
-            location.source_id.unwrap()
+            location.export_id.or(location.source_id).unwrap()
         } else if let Some(mark) = location.mark {
             mark
         } else {
@@ -308,6 +317,7 @@ pub(super) fn new_locations(
             Ok(RevisionLocation {
                 id: point.id,
                 source_id: Some(point.id),
+                export_id: Some(point.id),
                 mark: None,
                 x_mm: point.x_mm,
                 y_mm: point.y_mm,

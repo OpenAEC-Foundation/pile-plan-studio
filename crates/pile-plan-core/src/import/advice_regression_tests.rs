@@ -47,6 +47,9 @@ fn select(s: &mut ImportSource, sheets: &[(&str, ImportProfile)]) {
         sheets
             .iter()
             .map(|(n, p)| AdviceSheetSelection {
+                    table:None,
+                direction: Default::default(),
+                tension_column: None,
                 sheet_name: (*n).into(),
                 profile: *p,
             })
@@ -380,4 +383,16 @@ fn cached_zero_and_blank_resistance_are_distinct_from_missing_formula_cache() {
         ImportDiagnosticCode::MissingAdviceFormulaResult
     );
     assert_eq!(f.diagnostics[0].location.as_ref().unwrap().row, Some(9));
+}
+
+#[test]
+fn one_worksheet_per_pile_size_recognizes_indicative_tension_and_ignores_other_quantities(){
+ let s=source(&[("prefab 320",vec![cells(&["Naam Sondering","PPN [m R.N.]","Rt;d Indicatief [kN]","Rt;kluit;d [kN]","Paal gewicht [kN]","Trekkracht van cohesieve lagen [%]"]),cells(&["1","-23","317.8","5983.09","24.57","0"])]),("Prefab 350",vec![cells(&["Naam Sondering","PPN [m R.N.]","Rt;d Indicatief [kN]"]),cells(&["1","-23","340.08"])])]);
+ let p=preview_advice_source(&s);assert_eq!(p.sheets.len(),2);
+ for (sheet,size) in p.sheets.iter().zip([320,350]){
+  assert_eq!(sheet.status,AdviceSheetStatus::Ready,"{:?}",sheet.diagnostics);
+  let table=sheet.table.as_ref().unwrap();assert_eq!(table.settings.fixed_pile_size_mm,Some(size));
+  let columns=table.settings.columns.as_ref().unwrap();assert_eq!(columns[0].field,"id");assert_eq!(columns[1].field,"tip-level");assert_eq!(columns[2].field,"tension");
+  assert!(columns.iter().skip(3).all(|c|c.field=="ignore"));
+ }
 }

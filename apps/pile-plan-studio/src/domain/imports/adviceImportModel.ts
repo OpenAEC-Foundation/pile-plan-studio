@@ -6,7 +6,7 @@ export type AdviceDiscoveryState = { status: "empty" } | { status: "analyzing"; 
   | { status: "ready"; requestId: number; preview: AdviceSourcePreview } | { status: "failed"; requestId: number; message: string };
 export type AdvicePreviewState = { status: "empty" } | { status: "analyzing"; requestId: number }
   | { status: "ready"; requestId: number; preview: ProjectImportPreview } | { status: "failed"; requestId: number; message: string };
-export type AdviceSourceDraft<TFile extends NamedImportFile> = { id: string; replacementId?: string; file: TFile; selected: boolean;
+export type AdviceSourceDraft<TFile extends NamedImportFile> = { id: string; replacementId?: string; file: TFile; selected: boolean;lastPreview?:AdviceSourcePreview;
   requestedProfile: ImportProfile; sheetSelection: AdviceSheetSelection[] | null; discovery: AdviceDiscoveryState };
 export type AdviceDraft<TFile extends NamedImportFile> = { existingSources?: StoredAdviceSource[]; sources: AdviceSourceDraft<TFile>[]; generation: number; previewState: AdvicePreviewState };
 
@@ -29,19 +29,19 @@ export function setAdviceSourceSelected<T extends NamedImportFile>(draft: Advice
 export function setAdviceSheetSelection<T extends NamedImportFile>(draft: AdviceDraft<T>, id: string, selection: AdviceSheetSelection[]): AdviceDraft<T> {
   return change(draft, draft.sources.map(s => {
     if (s.id !== id) return s;
-    const profileChanged = selection.some(v => v.profile !== (s.sheetSelection?.find(old => old.sheetName === v.sheetName)?.profile ?? s.requestedProfile));
-    return { ...s, sheetSelection: selection.map(v => ({ ...v })),
+    const profileChanged = selection.some(v => {const previous=s.sheetSelection?.find(old=>old.sheetName===v.sheetName);return v.profile!==(previous?.profile??s.requestedProfile) || v.direction!==previous?.direction || v.tensionColumn!==previous?.tensionColumn||JSON.stringify(v.table)!==JSON.stringify(previous?.table);});
+    return { ...s,lastPreview:s.discovery.status==="ready"?s.discovery.preview:s.lastPreview, sheetSelection: selection.map(v => ({ ...v })),
       discovery: profileChanged || s.discovery.status === "analyzing" ? {status: "empty" as const} : s.discovery };
   }));
 }
 export function beginAdviceDiscovery<T extends NamedImportFile>(draft: AdviceDraft<T>, id: string, requestId: number): AdviceDraft<T> {
-  return { ...draft, sources: draft.sources.map(s => s.id === id ? { ...s, discovery: { status: "analyzing", requestId } } : s) };
+  return { ...draft, sources: draft.sources.map(s => s.id === id ? { ...s,lastPreview:s.discovery.status==="ready"?s.discovery.preview:s.lastPreview, discovery: { status: "analyzing", requestId } } : s) };
 }
 export function applyAdviceDiscovery<T extends NamedImportFile>(draft: AdviceDraft<T>, id: string, requestId: number, preview: AdviceSourcePreview): AdviceDraft<T> {
   const source = draft.sources.find(s => s.id === id);
   if (source?.discovery.status !== "analyzing" || source.discovery.requestId !== requestId) return draft;
   return change(draft, draft.sources.map(s => s.id === id ? { ...s,
-    sheetSelection: s.sheetSelection ?? (preview.suggestedSelection.length ? preview.suggestedSelection : preview.sheets.length === 1 ? [{sheetName:preview.sheets[0].sheetName,profile:s.requestedProfile}] : []).map(v => ({ ...v })),
+    sheetSelection: (s.sheetSelection ?? (preview.suggestedSelection.length ? preview.suggestedSelection : preview.sheets.length === 1 ? [{sheetName:preview.sheets[0].sheetName,profile:s.requestedProfile}] : [])).map(v => ({ ...v,table:v.table??preview.sheets.find(sheet=>sheet.sheetName===v.sheetName)?.table?.settings })),
     discovery: { status: "ready", requestId, preview } } : s));
 }
 export function failAdviceDiscovery<T extends NamedImportFile>(draft: AdviceDraft<T>, id: string, requestId: number, message: string): AdviceDraft<T> {

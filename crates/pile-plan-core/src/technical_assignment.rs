@@ -217,6 +217,8 @@ mod tests {
         missing_cpt_ids: &[u32],
     ) -> PileConfigurationOption {
         PileConfigurationOption {
+            compression: None,
+            tension: None,
             configuration: PileConfigurationKey {
                 pile_size_mm,
                 pile_tip_level_mm,

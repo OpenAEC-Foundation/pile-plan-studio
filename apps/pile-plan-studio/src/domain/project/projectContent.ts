@@ -282,6 +282,7 @@ function analysisInvalidation(
     || before.cpts !== after.cpts
     || before.bearingCapacities !== after.bearingCapacities
     || before.globalCptSelectionSettings !== after.globalCptSelectionSettings
+    || before.loadPointGroupingSettings !== after.loadPointGroupingSettings
   ) {
     return "all";
   }

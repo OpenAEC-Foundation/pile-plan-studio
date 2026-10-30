@@ -1042,6 +1042,7 @@ mod tests {
                     x_mm: 1000.0,
                     y_mm: 2000.0,
                     design_load_kn: 250.0,
+                    tension: Default::default(),
                 }],
                 cpts: vec![Cpt {
                     id: 10,
@@ -1050,10 +1051,13 @@ mod tests {
                     y_mm: 0.0,
                 }],
                 bearing_capacities: vec![BearingCapacity {
+                pile_count: None,
+                missing: false,
                     cpt_id: 10,
                     pile_tip_level_m: -18.0,
                     pile_size_mm: 290,
                     frd_kn: 750.0,
+                    direction: Default::default(),
                 }],
             },
             settings: ProjectSettings {

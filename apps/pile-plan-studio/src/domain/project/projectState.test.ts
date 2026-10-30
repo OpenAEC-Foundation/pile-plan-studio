@@ -63,7 +63,9 @@ describe("createInitialProjectState", () => {
   });
 
   it("uses an explicitly supplied localized label for a newly created base plan", () => {
-    const state = createTestProjectState(canonicalProject(), {
+    const project=canonicalProject();
+    project.user_state.pile_plans=[{...project.user_state.pile_plans[0],name:"Pile plan 1",selected_piles:{}}];
+    const state = createTestProjectState(project, {
       initializeDefaultPiles: true,
       defaultPilePlanName: "Basisplan",
     });

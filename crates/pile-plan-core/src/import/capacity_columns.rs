@@ -390,10 +390,13 @@ pub(super) fn parse_capacity_columns(
                 .map_err(|_| bad(table, row.number, col, text, super::AdviceField::Resistance))?;
             result.values.push(LocatedCapacity {
                 capacity: ProjectBearingCapacity {
+                pile_count: None,
+                missing: false,
                     cpt_id: id,
                     pile_size_mm: size,
                     pile_tip_level_m: tip,
                     frd_kn: frd,
+                    direction: Default::default(),
                 },
                 row: row.number,
                 column: col,

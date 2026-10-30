@@ -24,7 +24,7 @@ export async function validateManualCptSelectionBatchCore(input: {
   if (isTauriRuntime()) {
     result = await invokeDesktop("validate_manual_cpt_selection_batch", { request });
   } else {
-    await initializeWasm(() => initWasm());
+    await initializeWasm(initWasm);
     result = validate_manual_cpt_selection_batch(request) as CoreManualCptSelectionBatchResult;
   }
   // WASM represents Rust None as undefined; automatic must stay distinct from manual [].
@@ -38,6 +38,6 @@ export async function validateLoadPointLockBatchCore(input: {
 }): Promise<LoadPointLockBatchResult> {
   const request = { load_point_ids: input.loadPointIds, changes: input.changes };
   if (isTauriRuntime()) return invokeDesktop("validate_load_point_lock_batch", { request });
-  await initializeWasm(() => initWasm());
+  await initializeWasm(initWasm);
   return validate_load_point_lock_batch(request) as LoadPointLockBatchResult;
 }

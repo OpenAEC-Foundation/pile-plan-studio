@@ -21,8 +21,9 @@ for (const language of ["en", "nl"]) {
     const region = screen.getByRole("region", { name: i18n.t("loadPoints.selectedCount", { ns: "rightPanel", count: 5 }) });
     const displayedGroups = within(region).getAllByRole("group");
     expect(displayedGroups).toHaveLength(2);
-    expect(within(displayedGroups[0]).getByRole("button", { name: /1.*79/ })).toBeTruthy();
-    expect(within(displayedGroups[0]).getByRole("button", { name: /3.*1[.,]234[.,]5/ })).toBeTruthy();
+    expect(within(displayedGroups[1]).getByRole("button", { name: /1.*79/ })).toBeTruthy();
+    expect(within(displayedGroups[1]).getByRole("button", { name: /3.*1[.,]234[.,]5/ })).toBeTruthy();
+    expect([...region.querySelectorAll('.load-point-selection-name')].map(el=>el.textContent?.match(/\d+/)?.[0])).toEqual(["4","2","5","3","1"]);
     expect(within(region).getByText(language === "nl" ? "1.234,5 kN" : "1,234.5 kN")).toBeTruthy();
     expect(within(region).getByText("215 kN")).toBeTruthy();
     expect(screen.queryByRole("columnheader")).toBeNull();
@@ -53,5 +54,5 @@ test("selects only the clicked group from a selection containing several groups"
   render(<LoadPointSelectionList loadPoints={points} selectedLoadPointIds={[1, 2, 3, 4, 5]} groups={groups} onInspect={() => {}}
     onSelectGroup={ids => { selection = ids; }} />);
   fireEvent.click(screen.getAllByRole("button", { name: "Select group of 2 load points" })[1]);
-  expect(selection).toEqual([2, 4]);
+  expect(selection).toEqual([1, 3]);
 });

@@ -81,6 +81,13 @@ pub(super) fn prepare_caps(
         current_proposals: vec![],
         alternatives: HashMap::new(),
     };
+    for options in result.input.options_by_load_point.values_mut() {
+        for option in options {
+            option.apply_scope(input.settings.include_tension);
+        }
+    }
+    let scoped_input = result.input.clone();
+    let input = &scoped_input;
     let Some(draft) = &input.pile_cap_context else {
         return if input.settings.allow_pile_count_changes {
             Err(blocked("missing_pile_cap_context", vec![]))
@@ -97,6 +104,14 @@ pub(super) fn prepare_caps(
         &project.settings.load_point_grouping,
     )
     .groups;
+    if project.inputs.bearing_capacities.iter().any(|v|v.pile_count.is_some()) {
+        let mut base=crate::build_pile_option_analysis_for_groups(&project.inputs.load_points,&project.inputs.cpts,
+            &project.inputs.bearing_capacities,|p|project.settings.cpt_selection_by_load_point.get(&p.id).unwrap_or(&project.settings.global_cpt_selection).clone(),
+            &project.user_state.manual_cpt_selections,false,&groups)
+            .map_err(|_|blocked("invalid_pile_cap_context",vec![]))?;
+        for options in base.pile_options_by_load_point.values_mut(){for option in options{option.apply_scope(input.settings.include_tension);}}
+        result.input.options_by_load_point=base.pile_options_by_load_point;
+    }
     let keys = |groups: &[crate::LoadPointGroup]| {
         groups
             .iter()
@@ -201,7 +216,7 @@ pub(super) fn prepare_caps(
             } else {
                 None
             };
-            let members: HashMap<_, _> = if proposal.is_some() {
+            let mut members: HashMap<_, _> = if proposal.is_some() {
                 let Some(demand) = analysis.evaluate(&ids, count as u8) else {
                     return Err(blocked("invalid_pile_cap_source", ids));
                 };
@@ -226,6 +241,11 @@ pub(super) fn prepare_caps(
                     })
                     .collect()
             };
+            for options in members.values_mut() {
+                for option in options {
+                    option.apply_scope(input.settings.include_tension);
+                }
+            }
             let configurations: BTreeSet<_> = members
                 .values()
                 .flatten()

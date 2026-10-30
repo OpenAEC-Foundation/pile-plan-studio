@@ -9,7 +9,9 @@ import { prepareMcpWrite } from "./writeModel.ts";
 
 const source = readFileSync("../../sample_project/sample_project.ifcpp", "utf8");
 const project = canonicalProjectForTest(source);
-const base = createInitialProjectState(project, { initializeDefaultPiles: false }, projectTipLevelKeysForTest(project));
+const loaded = createInitialProjectState(project, { initializeDefaultPiles: false }, projectTipLevelKeysForTest(project));
+// This scenario specifically exercises protection of the final remaining plan.
+const base = {...loaded,pilePlans:[loaded.pilePlans[0]]};
 const pointId = base.loadPoints[0].id;
 const otherId = base.loadPoints[1].id;
 const duplicate = duplicatePilePlan({ ...base, sourcePilePlanId: base.activePilePlanId, language: "nl" });

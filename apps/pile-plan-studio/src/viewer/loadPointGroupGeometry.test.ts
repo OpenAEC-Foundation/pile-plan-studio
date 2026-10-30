@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 
 import type { LoadPointGroup } from "../core/loadPointGroupContract.ts";
 import type { LoadPointTopology } from "../core/tipLevelRegionContract.ts";
-import { buildLoadPointGroupGeometry } from "./loadPointGroupGeometry.ts";
+import { buildLoadPointGroupGeometry, createLoadPointGroupGeometrySelector } from "./loadPointGroupGeometry.ts";
 
 const groups: LoadPointGroup[] = [{ load_point_ids: [1, 2, 3] }];
 const topology: LoadPointTopology = {
@@ -20,6 +20,26 @@ const topology: LoadPointTopology = {
 };
 
 describe("load-point group geometry", () => {
+  it("retains contour shapes during selection and refreshes geometry when projection changes", () => {
+    const input={groups:[...groups,{load_point_ids:[4,5]}],topology,
+      pointsByLoadPointId:new Map([1,2,3,4,5].map(id=>[id,{x:id*20,y:10}])),
+      symbolScalePercent:100,selectedLoadPointIds:new Set<number>(),conflictingLoadPointIds:new Set<number>()};
+    const select=createLoadPointGroupGeometrySelector();
+    const first=select(input);
+    assert.deepEqual(first,buildLoadPointGroupGeometry(input));
+    const next=select({...input,selectedLoadPointIds:new Set([1,2,3])});
+    assert.equal(next[0].state,"selected");
+    assert.equal(next[0].circles,first[0].circles);
+    assert.equal(next[0].segments,first[0].segments);
+    assert.equal(next[0].faces,first[0].faces);
+    assert.equal(next[1],first[1]);
+    for(const patch of [{showDefaultGroups:false,selectedLoadPointIds:new Set([2])},
+      {conflictingLoadPointIds:new Set([4])},{symbolScalePercent:125},
+      {pointsByLoadPointId:new Map([[1,{x:99,y:20}]])},{topology:{...topology,edges:[]}}]){
+      const changed={...input,...patch};
+      assert.deepEqual(select(changed),buildLoadPointGroupGeometry(changed));
+    }
+  });
   it("uses only group members, internal Gabriel edges, and fully owned faces", () => {
     const geometry = buildLoadPointGroupGeometry({
       groups,

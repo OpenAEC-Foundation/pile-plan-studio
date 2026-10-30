@@ -55,3 +55,48 @@ for(const revision of [false,true])test(`${revision?"change table":"pile-plan ex
   expect(result[result.length-1]).toMatchObject({field:"mark",header:"Mark 1",header_number:1});
   expect(new Set(result.map(c=>c.header)).size).toBe(result.length);
 });
+
+test("status display settings belong to the selected column and preserve empty codes",()=>{
+ let result:ExportColumn[]=[];
+ function Harness(){const [columns,set]=useState<ExportColumn[]>([{key:"a",field:"technical_status",header:"Status",enabled:true},{key:"b",field:"technical_status",header:"Other",enabled:true}]);return <ExportColumnsEditor columns={columns} onChange={next=>{set(next);result=next;}} options={DEFAULT_EXPORT_OPTIONS} onOptionsChange={()=>{}}/>;}
+ render(<Harness/>);
+ fireEvent.change(screen.getByLabelText(i18n.t("exportTools.statusDisplay")),{target:{value:"custom"}});
+ expect(result[0].status_values?.valid).toBe(i18n.t("exportTools.statusLabels.valid"));
+ fireEvent.change(screen.getByLabelText(i18n.t("exportTools.statusLabels.valid")),{target:{value:"OK"}});
+ fireEvent.change(screen.getByLabelText(i18n.t("exportTools.statusLabels.unassigned")),{target:{value:""}});
+ expect(result[0].status_values?.valid).toBe("OK");expect(result[0].status_values?.unassigned).toBe("");
+ expect(result[1].status_values).toBeUndefined();
+ fireEvent.click(screen.getByRole("button",{name:i18n.t("exportTools.selectColumn",{name:"Other"})}));
+ expect((screen.getByLabelText(i18n.t("exportTools.statusDisplay")) as HTMLSelectElement).value).toBe("standard");
+ fireEvent.click(screen.getByRole("button",{name:i18n.t("exportTools.selectColumn",{name:"Status"})}));
+ expect((screen.getByLabelText(i18n.t("exportTools.statusLabels.valid")) as HTMLInputElement).value).toBe("OK");
+ fireEvent.change(screen.getByLabelText(i18n.t("exportTools.statusDisplay")),{target:{value:"standard"}});
+ expect(result[0].status_values).toBeUndefined();
+});
+
+
+test("revision coordinate columns independently select old-within-tolerance or new coordinates",()=>{
+ let result:ExportColumn[]=[];
+ function Harness(){const [columns,set]=useState<ExportColumn[]>([{key:"x",field:"x",header:"X",enabled:true}]);return <ExportColumnsEditor revision columns={columns} onChange={next=>{set(next);result=next;}} options={DEFAULT_EXPORT_OPTIONS} onOptionsChange={()=>{}}/>;}
+ render(<Harness/>);
+ expect((screen.getByLabelText(i18n.t("exportTools.coordinateSource")) as HTMLSelectElement).value).toBe("old_within_tolerance");
+ fireEvent.change(screen.getByLabelText(i18n.t("exportTools.coordinateSource")),{target:{value:"new"}});
+ fireEvent.change(screen.getByLabelText(i18n.t("exportTools.addColumn")),{target:{value:"x"}});
+ expect(result.filter(c=>c.field==="x")).toHaveLength(2);
+ expect(result[0].coordinate_source).toBe("new");
+ expect((screen.getByLabelText(i18n.t("exportTools.coordinateSource")) as HTMLSelectElement).value).toBe("old_within_tolerance");
+ fireEvent.change(screen.getByLabelText(i18n.t("exportTools.columnContent")),{target:{value:"pile_size"}});
+ expect(screen.queryByLabelText(i18n.t("exportTools.coordinateSource"))).toBeNull();
+ expect(result[1].coordinate_source).toBeUndefined();
+});
+
+
+test("detected numbering is available only in the Mark column settings",()=>{
+ const detected={rule:{...DEFAULT_EXPORT_OPTIONS.mark.rule,axis:"x" as const},matching_positions:8,total_positions:10,equally_matching_rules:1};
+ function Harness(){const [options,set]=useState(DEFAULT_EXPORT_OPTIONS);return <ExportColumnsEditor revision columns={[{key:"x",field:"x",header:"X",enabled:true},{key:"mark",field:"mark",header:"Mark",enabled:true}]} onChange={()=>{}} options={options} onOptionsChange={set} numberingDetection={detected} onUseDetectedNumbering={()=>set({...options,mark:{...options.mark,rule:detected.rule}})}/>;}
+ render(<Harness/>);
+ expect(screen.queryByRole("button",{name:i18n.t("exportTools.useDetected")})).toBeNull();
+ fireEvent.click(screen.getByRole("button",{name:i18n.t("exportTools.selectColumn",{name:"Mark"})}));
+ fireEvent.click(screen.getByRole("button",{name:i18n.t("exportTools.useDetected")}));
+ expect((screen.getByLabelText(i18n.t("exportTools.axis")) as HTMLSelectElement).value).toBe("x");
+});

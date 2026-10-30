@@ -8,7 +8,8 @@ import RightPanel from "./RightPanel.tsx";
 
 test("shares inspected members and grouped navigation context across the load-point and CPT tabs", () => {
   const project = projectFixture();
-  const points = project.loadPoints.slice(0, 4);
+  const positions=[[20,100],[0,0],[0,100],[20,0]];
+  const points = project.loadPoints.slice(0, 4).map((p,i)=>({...p,x_mm:positions[i][0],y_mm:positions[i][1]}));
   const groups = [{ load_point_ids: [points[0]!.id, points[2]!.id] }, { load_point_ids: [points[1]!.id, points[3]!.id] }];
   let current: ProjectState;
   function Panel() {
@@ -20,20 +21,20 @@ test("shares inspected members and grouped navigation context across the load-po
   const { container } = render(<Panel />);
   const rows = () => container.querySelectorAll<HTMLButtonElement>(".load-point-selection-row");
   fireEvent.click(rows()[0]!);
-  expect(current!.selectedLoadPointIds).toEqual([points[0]!.id]);
-  expect(current!.loadPointSelectionContext?.ids).toEqual([points[0]!.id, points[2]!.id, points[1]!.id, points[3]!.id]);
+  expect(current!.selectedLoadPointIds).toEqual([points[2]!.id]);
+  expect(current!.loadPointSelectionContext?.ids).toEqual([points[2]!.id, points[0]!.id, points[1]!.id, points[3]!.id]);
   expect(container.querySelector(".selection-overview-count")!.textContent).toBe("1 of 4 selected");
   fireEvent.click(screen.getByRole("button", { name: i18n.t("tabs.loadPoint", { ns: "rightPanel" }) }));
   expect(rows()).toHaveLength(4);
   expect(rows()[0]!.getAttribute("aria-pressed")).toBe("true");
   fireEvent.click(rows()[1]!);
-  expect(current!.selectedLoadPointIds).toEqual([points[2]!.id]);
+  expect(current!.selectedLoadPointIds).toEqual([points[0]!.id]);
   fireEvent.click(screen.getByRole("button", { name: i18n.t("tabs.cpts", { ns: "rightPanel" }) }));
   expect(rows()).toHaveLength(4);
   fireEvent.click(screen.getByRole("button", { name: i18n.t("cpts.nextLocation", { ns: "rightPanel" }) }));
   expect(current!.selectedLoadPointIds).toEqual([points[1]!.id]);
   fireEvent.click(screen.getByRole("button", { name: i18n.t("cpts.selectEntireContext", { ns: "rightPanel" }) }));
-  expect(current!.selectedLoadPointIds).toEqual([points[0]!.id, points[2]!.id, points[1]!.id, points[3]!.id]);
+  expect(current!.selectedLoadPointIds).toEqual([points[2]!.id, points[0]!.id, points[1]!.id, points[3]!.id]);
   expect(container.querySelector(".selection-overview-count")!.textContent).toBe("4 selected");
 });
 
@@ -89,4 +90,18 @@ test("restoring four rows keeps that preference even when the current group has 
   render(<Panel />);
   fireEvent.doubleClick(screen.getByRole("separator", { name: i18n.t("selectionOverview.resize", { ns: "rightPanel" }) }));
   expect(rows).toBe(4);
+});
+
+
+test("only this location drops the earlier inspection context without changing its physical group",()=>{
+ const project=projectFixture(),points=project.loadPoints.slice(0,4),groups=[{load_point_ids:points.slice(0,2).map(p=>p.id)}];
+ let current!:ProjectState;
+ function Panel(){const [state,setState]=useState<ProjectState>({...project,loadPoints:points,selectedLoadPointIds:points.map(p=>p.id),selectedLoadPointId:points[0]!.id});current=state;return <RightPanel state={state} onStateChange={setState} loadPointGroups={groups}/>;}
+ const view=render(<Panel/>);fireEvent.click([...view.container.querySelectorAll<HTMLButtonElement>(".load-point-selection-row")].find(row=>row.textContent?.includes(` ${points[0]!.id}`))!);
+ fireEvent.click(screen.getByRole("button",{name:i18n.t("cpts.selectOnlyLocation",{ns:"rightPanel"})}));
+ expect(current.selectedLoadPointIds).toEqual([points[0]!.id]);
+ expect(current.loadPointSelectionContext?.ids).toEqual([points[0]!.id]);
+ expect(view.container.querySelectorAll(".load-point-selection-row")).toHaveLength(1);
+ expect(groups[0].load_point_ids).toEqual(points.slice(0,2).map(p=>p.id));
+ expect(current.loadPointGroupingSettings).toBe(project.loadPointGroupingSettings);
 });

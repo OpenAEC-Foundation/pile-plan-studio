@@ -1,8 +1,8 @@
 import {useEffect, useMemo, useRef, useState} from "react";
-import {useTranslation} from "react-i18next";
+import {useMatchingText} from "./matchingText.tsx";
 import type {MatchingResult} from "../../../core/exportRevisionContract.ts";
 import {exportErrorText} from "../exports/exportErrorText.ts";
-import {locationLabel, type MatchingLocation, type MatchingSelection} from "./locationMatchingTypes.ts";
+import {hasMatchingCoordinates,locationLabel, type MatchingLocation, type MatchingSelection} from "./locationMatchingTypes.ts";
 
 type Props = {
   oldLocations: MatchingLocation[]; newLocations: MatchingLocation[]; initial: MatchingResult; initialAutomatic: boolean;
@@ -14,7 +14,7 @@ type Props = {
 
 export default function LocationMatchingPanel(props: Props) {
   const {oldLocations, newLocations, result, initial, initialAutomatic, selection, busy, error, pendingOnly, onPendingOnlyChange, onSelect, onChoose, onRemoved, onFocus, onChooseOnPlan, onContinue} = props;
-  const {t} = useTranslation("common");
+  const {t,mode,baseT} = useMatchingText();
   const [side, setSide] = useState<"new" | "old">(selection?.side ?? "new");
   const [query, setQuery] = useState("");
   const listRef=useRef<HTMLDivElement>(null);
@@ -55,10 +55,10 @@ export default function LocationMatchingPanel(props: Props) {
     <section className="matching-selected-location">
       {selected && selection ? <>
         <div className="matching-selection-heading"><div><small>{t(selection.side === "new" ? "exportTools.newLocation" : "exportTools.oldLocation")}</small><h2>{locationLabel(selected)}</h2></div>
-          <button type="button" onClick={onFocus}>{t("exportTools.focusSelection")}</button></div>
-        <p>{status(selection.side, selection.id)}{link ? ` · ${link.distance_mm.toLocaleString(undefined, {maximumFractionDigits: 1})} mm` : ""}
+          <button type="button" disabled={!hasMatchingCoordinates(selected)&&(!partner||!hasMatchingCoordinates(partner))} onClick={onFocus}>{t("exportTools.focusSelection")}</button></div>
+        <p>{status(selection.side, selection.id)}{link?.distance_mm!=null ? ` · ${link.distance_mm.toLocaleString(undefined, {maximumFractionDigits: 1})} mm` : ""}
           {link && initialAutomatic && initial.links.some(l => l.new_id === link.new_id && l.old_id === link.old_id) ? ` · ${t("exportTools.automatic")}` : ""}</p>
-        <dl className="matching-location-facts"><div><dt>X / Y [mm]</dt><dd>{selected.x_mm.toLocaleString()} / {selected.y_mm.toLocaleString()}</dd></div>
+        <dl className="matching-location-facts"><div><dt>X / Y [mm]</dt><dd>{selected.x_mm?.toLocaleString()??"—"} / {selected.y_mm?.toLocaleString()??"—"}</dd></div>
           {selected.pile_size_mm != null && <div><dt>{t("exportTools.pileSize")}</dt><dd>{selected.pile_size_mm} mm</dd></div>}
           {selected.tip_level_mm != null && <div><dt>{t("exportTools.tipLevel")}</dt><dd>{(selected.tip_level_mm / 1000).toLocaleString()} m</dd></div>}
         </dl>
@@ -75,12 +75,12 @@ export default function LocationMatchingPanel(props: Props) {
           {partner && <p className="matching-partner">{t("exportTools.oldLocation")}: {locationLabel(partner)}</p>}
         </> : link ? <div className="matching-selection-actions"><button type="button" onClick={() => onSelect("new", link.new_id,true)}>{t("exportTools.inspectPartner", {id: link.new_id})}</button>
           <button type="button" disabled={busy} onClick={() => void onChoose(link.new_id, null)}>{t("exportTools.releaseLink")}</button></div>
-          : <button type="button" disabled={busy} onClick={() => onRemoved(selection.id)}>{t(removed.has(selection.id) ? "exportTools.reconsider" : "exportTools.markRemoved")}</button>}
+          : mode==="import"?<p>{t("pilePlanMatching.unchanged")}</p>:<button type="button" disabled={busy} onClick={() => onRemoved(selection.id)}>{t(removed.has(selection.id) ? "exportTools.reconsider" : "exportTools.markRemoved")}</button>}
       </> : <div className="matching-selection-empty"><strong>{t(result.complete?"exportTools.reviewComplete":"exportTools.noReviewSelection")}</strong>
         <p>{t(result.complete?"exportTools.reviewCompleteHelp":"exportTools.pickNewInstruction")}</p>
         {result.complete?<button type="button" onClick={()=>{onPendingOnlyChange(false);setQuery("");}}>{t("exportTools.showAllLocations")}</button>:
           <button type="button" disabled={busy} onClick={onContinue}>{t("exportTools.continueReview")}</button>}</div>}
-      {error != null && <p className="export-error" role="alert">{exportErrorText(error, t)}</p>}
+      {error != null && <p className="export-error" role="alert">{exportErrorText(error, baseT)}</p>}
       {busy && <p role="status">{t("exportTools.preparing")}</p>}
     </section>
     <section className="matching-location-browser">

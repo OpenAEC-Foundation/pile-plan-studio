@@ -5,7 +5,7 @@
 </p>
 
 <p align="center">
-  <a href="RELEASE_NOTES.md"><img src="https://img.shields.io/badge/release-v2026.44.3-D97706?style=flat-square" alt="Release v2026.44.3"></a>
+  <a href="RELEASE_NOTES.md"><img src="https://img.shields.io/badge/release-v2026.44.4-D97706?style=flat-square" alt="Release v2026.44.4"></a>
   <img src="https://img.shields.io/badge/status-Alpha-D97706?style=flat-square" alt="Status: Alpha">
   <a href="https://github.com/OpenAEC-Foundation/pile-plan-studio/releases"><img src="https://img.shields.io/github/downloads/OpenAEC-Foundation/pile-plan-studio/total?style=flat-square" alt="Total downloads"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-LGPL--3.0-blue?style=flat-square" alt="LGPL-3.0 license"></a>
@@ -42,6 +42,11 @@ browser.
 
 ## Highlights
 
+- Check supplied compression and optional tension design loads independently,
+  switch their display under **Plan**, and include both in default assignment
+  and optimization. Inspect general foundation advice with overrides for
+  specific pile counts. The [bundled sample](sample_project/README.md) includes
+  explicitly fictional tension resistances for testing.
 - Review valid, insufficient, and missing pile options, compare utilization,
   resistance, and cost, and assign configurations to one or many load points.
 - Select CPTs automatically using quadrant or maximum-angle rules, override the
@@ -68,8 +73,9 @@ browser.
   remain available to preserve.
 - Customize the plan legend, visible configurations, marker presentation,
   panels, and pile-option columns for compact inspection workflows.
-- Save projects as IFCPP with undo, redo, and browser recovery; import existing
-  pile plans and export assignments and CPT identifiers to Excel or CSV.
+- Save projects as IFCPP with undo, redo, and browser recovery; preview and map
+  import columns, review location links, and export assignments, proposed pile
+  positions and CPT identifiers to Excel or CSV.
 - Keep project costs separate from application preferences while using the same
   Rust calculation core in the browser and Windows desktop application.
 - Connect a local AI client to the Windows desktop app through MCP to inspect
@@ -201,7 +207,15 @@ locations instead of being rounded. The interface omits unnecessary trailing
 decimals while retaining enough digits to distinguish every valid level.
 
 The source files may be selected together and assigned to their roles before
-import. Load points can use either the standard tabular profile or the
+import. The general source picker retains every recognized foundation-advice
+file as a separate source, including mixed selections with load points and CPTs.
+Filename recognition includes advice/resistance names and pile-specific
+compression/tension names such as the VEGA `prefab ... trek diep/ondiep`
+workbooks. Explicit load names such as `Trekbelastingen`, `Trekkrachten` and
+RFEM remain load-point sources. Each advice still has its own worksheet
+selection and import settings; filenames do not determine cap-count validity.
+Unrecognized filenames can be selected through the corresponding source card.
+Load points can use either the standard tabular profile or the
 automatically detected RFEM Excel export profile. The RFEM profile joins node
 coordinates and reactions by node number and currently interprets the design
 load as the absolute value of the minimum PZ envelope (`Min PZ'`, `Min PZ`, or

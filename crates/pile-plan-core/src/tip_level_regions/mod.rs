@@ -183,6 +183,7 @@ mod tests {
             x_mm,
             y_mm,
             design_load_kn: 100.0,
+            tension: Default::default(),
         }
     }
 
@@ -361,6 +362,8 @@ mod tests {
             is_option: bool,
         ) -> PileConfigurationOption {
             PileConfigurationOption {
+                compression: None,
+                tension: None,
                 configuration: PileConfigurationKey::from_metres(pile_size_mm, pile_tip_level_m),
                 pile_size_mm,
                 pile_tip_level_m,

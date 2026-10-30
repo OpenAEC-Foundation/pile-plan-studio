@@ -12,6 +12,7 @@ import ThemedNumberInput from "../../../template/ThemedNumberInput.tsx";
 import "./ilpOptimization.css";
 
 type Props = {
+  groups?:import("../../../../core/loadPointGroupContract.ts").LoadPointGroup[];
   newPlanName: string;
   onNewPlanNameChange: (name: string | null) => void;
   sections: IlpSections;
@@ -35,8 +36,13 @@ type Props = {
   children: ReactNode;
 };
 
-export default function IlpOptimizationSettingsPanel({ newPlanName, onNewPlanNameChange, sections, onToggleSection, state, onChange, onRun, onRunLocal, onStop, onCancel, timeLimitSeconds, onTimeLimitChange, hasBestSolution, onClose, running, stopping, cancelling, runningPlanName, onViewRunningPlan, disabled, children }: Props) {
+export default function IlpOptimizationSettingsPanel({ groups=[],newPlanName, onNewPlanNameChange, sections, onToggleSection, state, onChange, onRun, onRunLocal, onStop, onCancel, timeLimitSeconds, onTimeLimitChange, hasBestSolution, onClose, running, stopping, cancelling, runningPlanName, onViewRunningPlan, disabled, children }: Props) {
   const { t, i18n } = useTranslation("ribbon");
+  const {t:common}=useTranslation("common");
+  const targetIds=new Set(state.ilpOptimizationTargetScope==="all"?state.loadPoints.map(p=>p.id):[...state.selectedLoadPointIds,...groups.filter(g=>g.load_point_ids.some(id=>state.selectedLoadPointIds.includes(id))).flatMap(g=>g.load_point_ids)]);
+  const targets=state.loadPoints.filter(p=>targetIds.has(p.id));
+  const hasTension=targets.some(p=>p.tension&&p.tension.state!=="not_imported");
+  const tensionCounts={pressure:targets.length,tension:targets.filter(p=>p.tension?.state==="known"&&p.tension.value_kn>0).length,zero:targets.filter(p=>p.tension?.state==="known"&&p.tension.value_kn===0).length,absent:targets.filter(p=>!p.tension||p.tension.state==="not_imported").length,missing:targets.filter(p=>p.tension?.state==="missing").length};
   const { t: panel } = useTranslation("rightPanel");
   const s = state.ilpOptimizationSettings;
   const catalog=useMemo(()=>ilpCandidateCatalog(state.pileOptionsByLoadPointId),[state.pileOptionsByLoadPointId]);
@@ -87,6 +93,9 @@ export default function IlpOptimizationSettingsPanel({ newPlanName, onNewPlanNam
       {children}
       <div className="ilp-settings">
         <IlpDisclosure title={t("ilp.runSettings")} {...disclosure("optimize", [selected ? panel("optimization.selected", { count: state.selectedLoadPointIds.length }) : panel("optimization.allLoadPoints"), timeLimitSeconds===null?t("ilp.noTimeLimit"):t("ilp.timeLimitSummary",{count:Math.round(timeLimitSeconds/60)}), ...(s.skip_unsolvable_units ? [t("ilp.skipUnsolvable")] : []), ...(s.allow_pile_count_changes ? [t("ilp.allowPileCountChanges")] : [])].join(" · "))}>
+          <label className="settings-checkbox"><input type="checkbox" checked={hasTension&&(s.include_tension??true)} disabled={running||!hasTension} onChange={e=>update({include_tension:e.target.checked})}/><span>{common("loadDirection.includeTension")}</span></label>
+          <p className="supporting-text">{common("loadDirection.scopeCounts",tensionCounts)}</p>
+          <p className="supporting-text">{common(hasTension?"loadDirection.optimizerHelp":"loadDirection.noTensionImported")}</p>
           <p className="ilp-run-setting-label">{t("ilp.targetLocations")}</p>
           <div className="segmented-control">
             <button className={!selected ? "is-selected" : ""} type="button" onClick={() => onChange({ ...state, ilpOptimizationTargetScope: "all" })}>{panel("optimization.allLoadPoints")}</button>

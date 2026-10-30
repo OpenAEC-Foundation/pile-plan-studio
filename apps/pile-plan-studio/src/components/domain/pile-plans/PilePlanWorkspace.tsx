@@ -30,7 +30,8 @@ type Props = {
   onLegendApply: (draft: LegendEditorDraft, enableTipLevelRegions: boolean) => Promise<boolean>;
 };
 
-export default function PilePlanWorkspace({ focusRequest, onFocusHandled, pileCapPreviews=[], readOnly = false, state, loadPointGroups, loadPointGroupTopology, technicalAssignment, groupAssignmentAssessment, lassoSelectionActive, onStateChange, onSelectionChange, onLegendApply }: Props) {
+const EMPTY_CAP_PREVIEWS: PileCapPreview[] = [];
+export default function PilePlanWorkspace({ focusRequest, onFocusHandled, pileCapPreviews=EMPTY_CAP_PREVIEWS, readOnly = false, state, loadPointGroups, loadPointGroupTopology, technicalAssignment, groupAssignmentAssessment, lassoSelectionActive, onStateChange, onSelectionChange, onLegendApply }: Props) {
   const [legendEditorOpen, setLegendEditorOpen] = useState(false);
   const effectiveRegions=useMemo(()=>{
     const assignments=new Map(state.selectedPileConfigurationsByLoadPoint),options=new Map(state.pileOptionsByLoadPointId);

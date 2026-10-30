@@ -594,6 +594,7 @@ mod tests {
             x_mm: 0.0,
             y_mm: 0.0,
             design_load_kn: 600.0,
+            tension: Default::default(),
         }
     }
 

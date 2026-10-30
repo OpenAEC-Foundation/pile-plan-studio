@@ -28,10 +28,10 @@ function AdviceHarness({ initial = createEmptyAdviceDraft<File>(), refresh = fal
 
 test("advice starts with one matching import card and adds another empty card", () => {
   render(<AdviceHarness />);
-  expect(screen.getAllByText(i18n.t("importProject.profile.label"))).toHaveLength(1);
+  expect(screen.queryByText(i18n.t("importProject.profile.label"))).toBeNull();
   expect(screen.getAllByText(i18n.t("importProject.choose"))).toHaveLength(1);
   fireEvent.click(screen.getByRole("button", { name: i18n.t("importProject.advice.addAdvice") }));
-  expect(screen.getAllByText(i18n.t("importProject.profile.label"))).toHaveLength(2);
+  expect(screen.queryByText(i18n.t("importProject.profile.label"))).toBeNull();
 });
 
 test("a single worksheet is automatic; multiple worksheets expose explicit selection", () => {
@@ -47,7 +47,7 @@ test("a single worksheet is automatic; multiple worksheets expose explicit selec
   expect(screen.getAllByRole("checkbox")).toHaveLength(2);
 });
 
-test('a matrix profile action is visible without opening import details',()=>{
+test('matrix profile settings are collapsed while actionable errors stay visible',()=>{
  let initial=addAdviceSource(createEmptyAdviceDraft<File>(),'file',new File([],'advies.xlsx'));
  const d={severity:'error' as const,code:'advice-profile-required',count:1,nodeIds:[],loadPointNames:[],xMm:null,yMm:null,location:null,tipLevelValues:[],fallbackMessage:'Choose capacity profile',
    advice:{field:null,value:null,expectedUnit:null,pileSizesMm:[250,290],columnCount:null,requiredProfile:'capacity-columns' as const}};
@@ -58,10 +58,11 @@ test('a matrix profile action is visible without opening import details',()=>{
    {sheetName:'other',status:'unsupported',detectedProfile:null,resolvedProfile:null,summary,diagnostics:[d]}]}};
  const {container}=render(<AdviceHarness initial={initial}/>);
  const control=screen.getByRole('button',{name:`${i18n.t('importProject.profile.label')} Blad1`});
- expect(control.closest('details')).toBeNull();
+ expect((control.closest('details') as HTMLDetailsElement).open).toBe(false);
  const message=container.querySelector('.advice-import-primary-diagnostics');
  expect(message?.textContent).toContain('250');expect(message?.closest('details')).toBeNull();
  expect(screen.getByRole('checkbox',{name:'Blad1'}).hasAttribute('disabled')).toBe(false);
+ expect(screen.getByRole('checkbox',{name:'other'}).hasAttribute('disabled')).toBe(false);
  expect(container.querySelector('details')?.textContent).not.toContain(i18n.t('importProject.advice.sheetSummary',{count:0,cpts:0,sizes:'',min:'—',max:'—',missing:0}));
  expect(container.querySelectorAll('.advice-import-primary-diagnostics')).toHaveLength(1);
  fireEvent.click(screen.getByRole('checkbox',{name:'Blad1'}));

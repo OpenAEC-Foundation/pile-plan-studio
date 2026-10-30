@@ -355,6 +355,8 @@ mod tests {
         governing_cpt_id: u32,
     ) -> PileConfigurationOption {
         PileConfigurationOption {
+            compression: None,
+            tension: None,
             configuration: configuration(pile_size_mm, pile_tip_level_mm),
             pile_size_mm,
             pile_tip_level_m: pile_tip_level_mm as f64 / 1000.0,

@@ -1,3 +1,4 @@
+import {requestImportPreview} from "./importPreviewWorkerClient.ts";
 import { fromCoreProjectImportPreview, sourceImportErrorFromUnknown, type CoreProjectImportPreview, type ProjectImportPreview } from "./adviceImportContract.ts";
 import initWasm, {
   import_project_from_files,
@@ -28,7 +29,7 @@ import {
 import { initializeWasm, invokeDesktop, isTauriRuntime } from "./coreTransport.ts";
 
 async function ensureWasm(): Promise<void> {
-  return initializeWasm(() => initWasm());
+  return initializeWasm(initWasm);
 }
 
 export async function importProjectFromFilesCore(input: {
@@ -119,6 +120,7 @@ export async function writeProjectDocumentCore(draft: ProjectDocumentDraft): Pro
 export async function previewImportSourceCore(source: ImportSourceInput): Promise<ImportSourcePreview> {
   const request = { source: toCoreImportSource(source) };
   if (!isTauriRuntime()) {
+    if(typeof Worker!=="undefined")return fromCoreImportSourcePreview(await requestImportPreview("source",request));
     await ensureWasm();
     return fromCoreImportSourcePreview(preview_import_file(request));
   }
@@ -165,6 +167,6 @@ export function toWasmIfcppProject(project: IfcppProject) {
 
 export async function previewProjectImportCore(input: {sources: ImportSourceInput[];currentProject: IfcppProject | null}): Promise<ProjectImportPreview> {
     const request={sources:input.sources.map(toCoreImportSource),current_project:input.currentProject ? (isTauriRuntime() ? input.currentProject : toWasmIfcppProject(input.currentProject)) : null};
-    if (!isTauriRuntime()) {await ensureWasm();return fromCoreProjectImportPreview(preview_project_import_files(request) as CoreProjectImportPreview);}
+    if (!isTauriRuntime()) {if(typeof Worker!=="undefined")return fromCoreProjectImportPreview(await requestImportPreview<CoreProjectImportPreview>("project",request));await ensureWasm();return fromCoreProjectImportPreview(preview_project_import_files(request) as CoreProjectImportPreview);}
     return fromCoreProjectImportPreview(await invokeDesktop<CoreProjectImportPreview>("preview_project_import_files",{request}));
 }

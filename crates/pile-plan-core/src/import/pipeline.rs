@@ -4,7 +4,7 @@ use crate::{PilePlanProject, ProjectImportLogEntry, ProjectLoadPoint};
 
 use super::{
     available_profiles, build_imported_project, parse_bearing_capacities_with_diagnostics,
-    parse_cpts, parse_load_points, provenance_entry, read_source_table,
+    parse_cpts, provenance_entry,
     rfem::{analyze_rfem_load_points, detect_rfem_sheets},
     source_for_role,
     table::read_xlsx_tables,
@@ -14,6 +14,35 @@ use super::{
 };
 
 pub fn preview_import_source(source: &ImportSource) -> ImportSourcePreview {
+    let mut preview=preview_import_source_raw(source);
+    if source.role==ImportRole::BearingCapacities{return preview;}
+    if preview.detected_profile==ImportProfile::RfemExport{
+        let mut resolved=source.clone();resolved.profile_options=preview.resolved_options.clone();
+        if let Ok(analysis)=analyze_rfem_load_points(&resolved){
+            let show_tension=resolved.profile_options.import_tension;
+            let headers=if show_tension{vec!["ID","X [mm]","Y [mm]","FEd [kN]","FtEd [kN]"]}else{vec!["ID","X [mm]","Y [mm]","FEd [kN]"]};
+            preview.table=Some(super::SourceTablePreview{
+                sheets:vec![],settings:Default::default(),processed:true,row_count:analysis.load_points.len(),
+                columns:headers.iter().enumerate().map(|(i,h)|super::SourceColumnPreview{column:i+1,header:h.to_string(),nonempty_count:analysis.load_points.len(),numeric_count:analysis.load_points.len()}).collect(),
+                rows:analysis.load_points.iter().take(25).enumerate().map(|(i,p)|{let mut cells=vec![p.id.to_string(),p.x_mm.to_string(),p.y_mm.to_string(),p.design_load_kn.to_string()];if show_tension{cells.push(match p.tension{crate::TensionDemand::Known{value_kn}=>value_kn.to_string(),_=>String::new()});}super::SourcePreviewRow{number:i+1,cells}}).collect(),
+            });
+        }
+        return preview;
+    }
+    match super::table_mapping::read_import_table(source){
+        Ok((table,sheets))=>{
+            let mut inspection=super::table_mapping::inspect_table(&table,source.role,source.profile_options.table.as_ref(),sheets);
+            let mut resolved=source.clone();resolved.profile_options.table=Some(inspection.settings.clone());
+            resolved.profile_options.import_tension=inspection.settings.columns.as_ref().is_some_and(|cols|cols.iter().any(|c|c.field=="tension"));
+            resolved.profile_options.tension_column=resolved.profile_options.import_tension.then_some(5);
+            preview=preview_import_source_raw(&resolved);
+            super::table_mapping::include_diagnostic_rows(&table,&mut inspection,&preview.diagnostics);
+            preview.table=Some(inspection);preview
+        },
+        Err(_)=>preview,
+    }
+}
+fn preview_import_source_raw(source: &ImportSource) -> ImportSourcePreview {
     if source.role == ImportRole::BearingCapacities {
         let mut discovery = super::preview_advice_source(source);
         if source.format == SourceFormat::Csv {
@@ -23,6 +52,7 @@ pub fn preview_import_source(source: &ImportSource) -> ImportSourcePreview {
         }
         let requested = source.profile;
         return ImportSourcePreview {
+            table:None,
             role: source.role,
             requested_profile: requested,
             detected_profile: discovery
@@ -51,6 +81,7 @@ pub fn preview_import_source(source: &ImportSource) -> ImportSourcePreview {
         }
         Ok(ImportProfile::Auto) => unreachable!("automatic profile must resolve"),
         Err(message) => ImportSourcePreview {
+            table:None,
             role: source.role,
             requested_profile: source.profile,
             detected_profile: fallback_detected_profile(source),
@@ -93,8 +124,8 @@ pub fn import_project_from_sources(
     }
 
     let (load_points, load_log) = parse_load_source(load_source)?;
-    let cpt_table = read_source_table(&cpt_source.file_name, cpt_source.format, &cpt_source.bytes)?;
-    let cpts = parse_cpts(&cpt_table)?;
+    let cpt_table = super::table_mapping::mapped_table(cpt_source)?;
+    let cpts = parse_cpts(&cpt_table).map_err(|e|if let Some(s)=&cpt_source.profile_options.table{super::table_mapping::map_error(e,s,cpt_source.role)}else{e})?;
     let reconciliation = super::reconcile_imported_inputs(&load_points, &cpts, advice.values)?;
     let mut cpt_log = provenance_entry(cpt_source, cpt_table.sheet_name, super::cpt_columns());
     cpt_log.source_profile = Some(ImportProfile::StandardTable);
@@ -120,12 +151,27 @@ pub(crate) fn parse_load_source(
 ) -> Result<(Vec<ProjectLoadPoint>, ProjectImportLogEntry), ImportError> {
     match resolve_profile(source).map_err(ImportError::Validation)? {
         ImportProfile::StandardTable => {
-            let table = read_source_table(&source.file_name, source.format, &source.bytes)?;
-            let load_points = parse_load_points(&table)?;
+            let table = super::table_mapping::mapped_table(source)?;
+            let mut options=source.profile_options.clone();
+            if let Some(settings)=&options.table{options.import_tension=settings.columns.as_ref().is_some_and(|cols|cols.iter().any(|c|c.field=="tension"));options.tension_column=Some(5);}
+            let load_points = super::roles::parse_load_points_with_options(&table, &options).map_err(|e|if let Some(s)=&options.table{super::table_mapping::map_error(e,s,source.role)}else{e})?;
             crate::validate_unique_load_point_positions(&load_points)
                 .map_err(ImportError::DuplicateLoadPointPositions)?;
             let mut log = provenance_entry(source, table.sheet_name, super::load_point_columns());
             log.source_profile = Some(ImportProfile::StandardTable);
+            log.profile_details.insert(
+                "import_tension".into(),
+                source.profile_options.import_tension.to_string(),
+            );
+            if source.profile_options.import_tension {
+                log.mapped_columns.insert(
+                    format!(
+                        "Column {}",
+                        source.profile_options.tension_column.unwrap_or(5)
+                    ),
+                    "tension".into(),
+                );
+            }
             Ok((load_points, log))
         }
         ImportProfile::RfemExport => {
@@ -138,6 +184,9 @@ pub(crate) fn parse_load_source(
             mapped_columns.insert("RFEM X [m]".to_string(), "x_mm".to_string());
             mapped_columns.insert("RFEM Y [m]".to_string(), "y_mm".to_string());
             mapped_columns.insert("RFEM Min PZ'".to_string(), "design_load_kn".to_string());
+            if source.profile_options.import_tension {
+                mapped_columns.insert("RFEM Max PZ'".into(), "tension".into());
+            }
             Ok((
                 analysis.load_points,
                 ProjectImportLogEntry {
@@ -152,8 +201,19 @@ pub(crate) fn parse_load_source(
                     source_profile: Some(ImportProfile::RfemExport),
                     profile_details: HashMap::from([
                         ("coordinate_sheet".to_string(), analysis.coordinate_sheet),
+                        (
+                            "vertical_reaction_evidence".into(),
+                            serde_json::to_string(&analysis.reaction_evidence).unwrap(),
+                        ),
+                        (
+                            "import_tension".into(),
+                            source.profile_options.import_tension.to_string(),
+                        ),
                         ("reaction_sheet".to_string(), analysis.reaction_sheet),
-                        ("load_rule".to_string(), "abs-min-pz-prime".to_string()),
+                        (
+                            "load_rule".to_string(),
+                            "signed-vertical-envelope".to_string(),
+                        ),
                     ]),
                 },
             ))
@@ -170,14 +230,18 @@ fn preview_standard_source(
     available_profiles: Vec<ImportProfile>,
 ) -> ImportSourcePreview {
     let result =
-        read_source_table(&source.file_name, source.format, &source.bytes).and_then(|table| {
+        super::table_mapping::mapped_table(source).and_then(|table| {
             let (item_count, diagnostics) = match source.role {
                 ImportRole::LoadPoints => {
-                    let load_points = parse_load_points(&table)?;
-                    (
-                        load_points.len(),
-                        duplicate_position_diagnostics(&load_points),
-                    )
+                    let load_points = super::roles::parse_load_points_with_options(
+                        &table,
+                        &source.profile_options,
+                    )?;
+                    (load_points.len(), {
+                        let mut diagnostics = duplicate_position_diagnostics(&load_points);
+                        diagnostics.extend(tension_diagnostics(&load_points));
+                        diagnostics
+                    })
                 }
                 ImportRole::Cpts => (parse_cpts(&table)?.len(), Vec::new()),
                 ImportRole::BearingCapacities => (
@@ -188,15 +252,16 @@ fn preview_standard_source(
                 ),
             };
             Ok((item_count, table.sheet_name, diagnostics))
-        });
+        }).map_err(|e|if let Some(settings)=&source.profile_options.table{super::table_mapping::map_error(e,settings,source.role)}else{e});
     match result {
         Ok((item_count, sheet_name, diagnostics)) => ImportSourcePreview {
+            table:None,
             role: source.role,
             requested_profile: source.profile,
             detected_profile: ImportProfile::StandardTable,
             resolved_profile: Some(ImportProfile::StandardTable),
             available_profiles,
-            resolved_options: ImportProfileOptions::default(),
+            resolved_options: source.profile_options.clone(),
             item_count,
             diagnostics,
             details: Some(ImportPreviewDetails::StandardTable { sheet_name }),
@@ -230,6 +295,11 @@ fn preview_rfem_source(
         source.profile_options.reaction_sheet.as_deref(),
     );
     let resolved_options = ImportProfileOptions {
+        table:None,
+        import_tension: source.profile_options.import_tension,
+        clear_tension: source.profile_options.clear_tension,
+        tension_column: source.profile_options.tension_column,
+        resistance_direction: source.profile_options.resistance_direction,
         advice_sheets: None,
         coordinate_sheet: selected_coordinate_sheet.clone(),
         reaction_sheet: selected_reaction_sheet.clone(),
@@ -239,7 +309,7 @@ fn preview_rfem_source(
         reaction_sheet_candidates: detection.reaction_candidates.clone(),
         selected_coordinate_sheet,
         selected_reaction_sheet,
-        load_rule: "abs-min-pz-prime".to_string(),
+        load_rule: "signed-vertical-envelope".to_string(),
     }));
     let mut diagnostics = sheet_diagnostics(&detection, &resolved_options);
     if diagnostics
@@ -247,6 +317,7 @@ fn preview_rfem_source(
         .any(|item| item.severity == ImportDiagnosticSeverity::Error)
     {
         return ImportSourcePreview {
+            table:None,
             role: source.role,
             requested_profile: source.profile,
             detected_profile: ImportProfile::RfemExport,
@@ -266,6 +337,7 @@ fn preview_rfem_source(
         Ok(analysis) => {
             diagnostics.extend(rfem_diagnostics(&analysis));
             ImportSourcePreview {
+                table:None,
                 role: source.role,
                 requested_profile: source.profile,
                 detected_profile: ImportProfile::RfemExport,
@@ -394,10 +466,26 @@ fn rfem_diagnostics(analysis: &super::rfem::AnalyzedRfemLoadPoints) -> Vec<Impor
         &analysis.exact_reaction_duplicates,
         "Identical RFEM reaction rows were deduplicated.",
     );
+    diagnostics.extend(tension_diagnostics(&analysis.load_points));
     diagnostics.extend(duplicate_position_diagnostics(&analysis.load_points));
     diagnostics
 }
 
+fn tension_diagnostics(points: &[ProjectLoadPoint]) -> Vec<ImportDiagnostic> {
+    let ids = points
+        .iter()
+        .filter(|p| p.tension == crate::TensionDemand::Missing)
+        .map(|p| p.id)
+        .collect::<Vec<_>>();
+    let mut result = vec![];
+    push_warning(
+        &mut result,
+        ImportDiagnosticCode::MissingTensionDemand,
+        &ids,
+        "Tension import selected, but tension demand is missing for these locations.",
+    );
+    result
+}
 fn duplicate_position_diagnostics(load_points: &[ProjectLoadPoint]) -> Vec<ImportDiagnostic> {
     crate::duplicate_load_point_positions(load_points)
         .into_iter()
@@ -490,6 +578,7 @@ fn invalid_preview_with_details(
     error: ImportError,
 ) -> ImportSourcePreview {
     ImportSourcePreview {
+        table:None,
         role: source.role,
         requested_profile: source.profile,
         detected_profile,
@@ -525,7 +614,12 @@ fn import_error_diagnostic(error: ImportError) -> ImportDiagnostic {
                 .collect(),
             fallback_message,
         },
-        _ => error_diagnostic(ImportDiagnosticCode::InvalidRequiredValue, fallback_message),
+        error => {
+            let location=match &error{
+                ImportError::InvalidValue{location,..}|ImportError::MissingCell{location}|ImportError::InvalidConstraint{location,..}|ImportError::InvalidRow{location,..}=>Some(location.into()),_=>None
+            };
+            let mut diagnostic=error_diagnostic(ImportDiagnosticCode::InvalidRequiredValue,fallback_message);diagnostic.location=location;diagnostic
+        },
     }
 }
 
@@ -626,6 +720,7 @@ mod tests {
     #[test]
     fn rfem_diagnostics_distinguish_position_conflicts_from_repeated_rows() {
         let analysis = super::super::rfem::AnalyzedRfemLoadPoints {
+            reaction_evidence: vec![],
             load_points: vec![
                 ProjectLoadPoint {
                     id: 8,
@@ -633,6 +728,7 @@ mod tests {
                     x_mm: 10_000.0,
                     y_mm: 20_000.0,
                     design_load_kn: 100.0,
+                    tension: Default::default(),
                 },
                 ProjectLoadPoint {
                     id: 2,
@@ -640,6 +736,7 @@ mod tests {
                     x_mm: 10_000.0,
                     y_mm: 20_000.0,
                     design_load_kn: 200.0,
+                    tension: Default::default(),
                 },
             ],
             coordinate_sheet: "Coordinates".to_string(),
@@ -721,7 +818,7 @@ mod tests {
         assert_eq!(log.source_profile, Some(ImportProfile::RfemExport));
         assert_eq!(
             log.profile_details.get("load_rule").map(String::as_str),
-            Some("abs-min-pz-prime")
+            Some("signed-vertical-envelope")
         );
         assert!(log.profile_details.contains_key("coordinate_sheet"));
         assert!(log.profile_details.contains_key("reaction_sheet"));
@@ -760,7 +857,7 @@ mod tests {
         assert_eq!(log.source_profile, Some(ImportProfile::RfemExport));
         assert_eq!(
             log.profile_details.get("load_rule").map(String::as_str),
-            Some("abs-min-pz-prime")
+            Some("signed-vertical-envelope")
         );
         assert_eq!(
             log.profile_details.get("coordinate_sheet"),

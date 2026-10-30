@@ -59,6 +59,18 @@ export function getLoadPointMarkerInvalidVisual(
     return { className: "", style: "" };
   }
 
+  const directions = [chosenOption.compression, chosenOption.tension].filter(a => a != null);
+  if (directions.some(a => a.status === "missing_capacity_data" || a.status === "missing_demand")) {
+    return { className: " is-missing", style: "" };
+  }
+  const failures = directions.filter(a => a.status === "insufficient_capacity");
+  if (failures.length) {
+    const utilization = Math.max(...failures.map(a => a.utilization ?? 1.25));
+    return utilizationRangeVisual("above", Math.max(0.25, utilization - preferredRange.maximum));
+  }
+
+  if(chosenOption.displayDirectionStatus==="not_assessed")return {className:"",style:""};
+  if(chosenOption.displayDirectionStatus==="missing_demand")return {className:" is-missing",style:""};
   if (chosenOption.missing_cpt_ids.length > 0) {
     return { className: " is-missing", style: "" };
   }

@@ -27,6 +27,9 @@ mod refresh;
 mod rfem;
 mod roles;
 mod table;
+mod workbook_cache;
+pub(crate) mod table_mapping;
+pub use table_mapping::{TableImportSettings,ImportColumnMapping,SourceTablePreview,SourceColumnPreview,SourcePreviewRow};
 
 pub(crate) use numeric::{parse_finite_number, parse_nonnegative_u32, NumericParseError};
 
@@ -41,10 +44,10 @@ pub use refresh::{
     refresh_project_with_location_decisions, LoadPointRefreshPreview,
 };
 #[cfg(test)]
-use roles::parse_bearing_capacities;
+use roles::{parse_bearing_capacities, parse_load_points};
 use roles::{
-    parse_bearing_capacities_with_diagnostics, parse_cpts, parse_load_points,
-    reconcile_imported_inputs, ImportReconciliation,
+    parse_bearing_capacities_with_diagnostics, parse_cpts, reconcile_imported_inputs,
+    ImportReconciliation,
 };
 pub(crate) use table::read_xlsx_tables;
 pub use table::{
@@ -60,7 +63,8 @@ pub fn standard_csv_requirements() -> serde_json::Value {
         "delimiter": ",",
         "decimal_separator": ".",
         "header": "optional first row; detected when first cell is not numeric; column names are ignored",
-        "column_mapping": "positional; extra trailing columns are ignored",
+        "column_mapping": "positional by default; optional table settings select headers, first data row, delimiter and arbitrary columns with field/unit mappings; extra unused columns are ignored",
+        "tension_options":{"import_tension":"optional false; load-points only","tension_column":"1-based >=5; default 5 when importing tension; also enables combined advice when supplied for bearing-capacities","resistance_direction":"compression (default) or tension per advice table/sheet","clear_tension":"optional false; explicitly clear retained tension on pressure-only refresh","resistance_values":"design values including required factors; no extra factors applied","empty_tension_cell":"missing; distinct from explicit 0 and not imported"},
         "roles": [
             {"role":"load-points","columns":[
                 {"position":1,"name":"ID","type":"unsigned integer"},
@@ -82,7 +86,7 @@ pub fn standard_csv_requirements() -> serde_json::Value {
         ],
         "new_project_required_roles": ["load-points","cpts","bearing-capacities"],
         "refresh_required_roles": "one or more of the three roles",
-        "notes": ["IDs must be unique within load points and CPTs", "An empty FRD cell skips that advice row with a warning", "The importer validates engineering relationships after parsing", "Bearing capacities use (CPT ID, Size, Tip in whole mm) as a key; identical values deduplicate and different values block the entire import before unknown CPTs are filtered"]
+        "notes": ["IDs must be unique within load points and CPTs", "An empty FRD cell skips that advice row with a warning", "The importer validates engineering relationships after parsing", "Bearing capacities use (CPT ID, Size, Tip in whole mm, Direction) as a key; identical values deduplicate and different values block the entire import before unknown CPTs are filtered"]
     })
 }
 
@@ -409,7 +413,7 @@ fn provenance_entry(
         source_format: Some(source.format),
         schema_version: Some("fixed-1".to_string()),
         source_profile: Some(source.profile),
-        profile_details: HashMap::new(),
+        profile_details: source.profile_options.table.as_ref().map(|settings|HashMap::from([("table_settings".into(),serde_json::to_string(settings).unwrap())])).unwrap_or_default(),
     }
 }
 
@@ -563,12 +567,18 @@ mod tests {
     #[test]
     fn import_preview_contract_round_trips_rfem_details() {
         let preview = ImportSourcePreview {
+            table:None,
             role: ImportRole::LoadPoints,
             requested_profile: ImportProfile::Auto,
             detected_profile: ImportProfile::RfemExport,
             resolved_profile: Some(ImportProfile::RfemExport),
             available_profiles: vec![ImportProfile::StandardTable, ImportProfile::RfemExport],
             resolved_options: ImportProfileOptions {
+                table:None,
+                import_tension: false,
+                clear_tension: false,
+                tension_column: None,
+                resistance_direction: Default::default(),
                 advice_sheets: None,
                 coordinate_sheet: Some("1.1 Knopen".to_string()),
                 reaction_sheet: Some("RC1".to_string()),
@@ -924,6 +934,7 @@ mod tests {
             x_mm: 0.0,
             y_mm: 0.0,
             design_load_kn: 100.0,
+            tension: Default::default(),
         }];
         let cpts = vec![ProjectCpt {
             id: 61,
@@ -933,16 +944,22 @@ mod tests {
         }];
         let capacities = vec![
             ProjectBearingCapacity {
+                pile_count: None,
+                missing: false,
                 cpt_id: 61,
                 pile_tip_level_m: -17.5,
                 pile_size_mm: 290,
                 frd_kn: 672.0,
+                direction: Default::default(),
             },
             ProjectBearingCapacity {
+                pile_count: None,
+                missing: false,
                 cpt_id: 61,
                 pile_tip_level_m: -17.5,
                 pile_size_mm: 290,
                 frd_kn: 700.0,
+                direction: Default::default(),
             },
         ];
 
@@ -958,6 +975,7 @@ mod tests {
             x_mm: 0.0,
             y_mm: 0.0,
             design_load_kn: 100.0,
+            tension: Default::default(),
         }];
         let cpts = vec![ProjectCpt {
             id: 50,
@@ -966,10 +984,13 @@ mod tests {
             y_mm: 0.0,
         }];
         let capacities = vec![ProjectBearingCapacity {
+                pile_count: None,
+                missing: false,
             cpt_id: 50,
             pile_tip_level_m: -17.5,
             pile_size_mm: 290,
             frd_kn: -42.0,
+            direction: Default::default(),
         }];
 
         let result = reconcile_imported_inputs(&loads, &cpts, capacities).unwrap();

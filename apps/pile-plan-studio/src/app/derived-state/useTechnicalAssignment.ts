@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import { assessTechnicalAssignmentCore } from "../../core/coreClient.ts";
 import type { TechnicalAssignmentContractInput } from "../../core/technicalAssignmentContract.ts";
@@ -26,7 +26,7 @@ const LOADING_SNAPSHOT: TechnicalAssignmentSnapshot = {
 export function useTechnicalAssignment(input: TechnicalAssignmentContractInput | null): TechnicalAssignmentSnapshot {
   const controllerRef = useRef<TechnicalAssignmentController | null>(null);
   const requestedSignatureRef = useRef<string | null | undefined>(undefined);
-  const inputSignature = input === null ? null : buildTechnicalAssignmentSignature(input);
+  const inputSignature = useMemo(() => input === null ? null : buildTechnicalAssignmentSignature(input), [input]);
   const [rendered, setRendered] = useState<{
     inputSignature: string | null | undefined;
     snapshot: TechnicalAssignmentSnapshot;

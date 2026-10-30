@@ -162,7 +162,15 @@ pub(crate) fn prepare(
             .iter()
             .filter(|o| o.status == AggregatedPileConfigurationStatus::Valid)
             .collect();
-        let code = if group
+        let missing_tension = input.settings.include_tension
+            && member_options.values().flatten().any(|o| {
+                o.tension
+                    .as_ref()
+                    .is_some_and(|a| a.status == crate::DirectionStatus::MissingDemand)
+            });
+        let code = if missing_tension {
+            "missing_tension_demand"
+        } else if group
             .load_point_ids
             .iter()
             .any(|id| !input.options_by_load_point.contains_key(id))
@@ -193,6 +201,18 @@ pub(crate) fn prepare(
         };
         diagnostics.push(diagnostic(code, group.load_point_ids.clone(), true));
     }
+    if input
+        .load_points
+        .iter()
+        .any(|p| p.tension != crate::TensionDemand::NotImported)
+    {
+        for (code,ids) in [
+        ("assessed_compression",target_ids.iter().copied().collect::<Vec<_>>()),
+        ("assessed_tension",input.load_points.iter().filter(|p|target_ids.contains(&p.id)&&input.settings.include_tension&&matches!(p.tension,crate::TensionDemand::Known{value_kn} if value_kn>0.)).map(|p|p.id).collect()),
+        ("no_tension_load",input.load_points.iter().filter(|p|target_ids.contains(&p.id)&&matches!(p.tension,crate::TensionDemand::Known{value_kn} if value_kn==0.)).map(|p|p.id).collect()),
+        ("tension_not_assessed",input.load_points.iter().filter(|p|target_ids.contains(&p.id)&&(!input.settings.include_tension||matches!(p.tension,crate::TensionDemand::NotImported))).map(|p|p.id).collect()),
+    ] {if !ids.is_empty(){diagnostics.push(diagnostic(code,ids,false));}}
+    }
     if input.settings.skip_unsolvable_units {
         // Only empty per-unit domains may be skipped. Cost/input errors and
         // globally incompatible configuration limits must still block the run.
@@ -200,7 +220,8 @@ pub(crate) fn prepare(
             if !d.load_point_ids.is_empty()
                 && matches!(
                     d.code.as_str(),
-                    "missing_cpt_selection"
+                    "missing_tension_demand"
+                        | "missing_cpt_selection"
                         | "missing_analysis_data"
                         | "missing_capacity_data"
                         | "insufficient_capacity"

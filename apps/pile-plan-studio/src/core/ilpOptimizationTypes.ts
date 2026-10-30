@@ -5,6 +5,7 @@ import type { LoadPoint, PileConfigurationKey, PileConfigurationOption, PileCost
 
 export type IlpTransitionWeights = { tip_only_milli: number; size_only_milli: number; pile_count_milli?: number; /** Historical result metadata only; ignored for new optimizations. */ both_milli?: number };
 export type IlpOptimizationSettings = {
+  include_tension?: boolean;
   allow_pile_count_changes?: boolean;
   max_piles_per_cap?: number;
   allowed_pile_counts?: number[];

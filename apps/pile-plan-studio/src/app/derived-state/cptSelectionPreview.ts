@@ -20,7 +20,8 @@ export function runCptSelectionPreview(state: ProjectState, dependencies: Depend
     && current.bearingCapacities === state.bearingCapacities
     && current.globalCptSelectionSettings === state.globalCptSelectionSettings
     && current.cptSelectionSettingsByLoadPoint === state.cptSelectionSettingsByLoadPoint
-    && current.manualCptIdsByLoadPoint === state.manualCptIdsByLoadPoint;
+    && current.manualCptIdsByLoadPoint === state.manualCptIdsByLoadPoint
+    && current.loadPointGroupingSettings === state.loadPointGroupingSettings;
   dependencies.update(current => beginCptSelectionPreview(current, draft));
   const finished = dependencies.analyze({
     bearingCapacities: state.bearingCapacities,
@@ -30,6 +31,8 @@ export function runCptSelectionPreview(state: ProjectState, dependencies: Depend
     manualCptIdsByLoadPoint: input.manualCptIdsByLoadPoint,
     settingsByLoadPoint: state.cptSelectionSettingsByLoadPoint,
     includeCptFrdRows: false,
+    groupingSettings: state.loadPointGroupingSettings,
+    groupingLoadPoints: state.loadPoints,
   }).then(analysis => {
     if (!cancelled) dependencies.update(current =>
       !isCurrent(current) ? current : applyCptSelectionPreviewResult(current, draft, analysis));

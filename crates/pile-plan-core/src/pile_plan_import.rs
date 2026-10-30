@@ -1,10 +1,12 @@
+mod matching;
+mod source;
 use crate::import::{parse_finite_number, parse_nonnegative_u32, NumericParseError};
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
 
 use crate::{
-    import::read_source_table, import::read_xlsx_tables, import::SourceTable, import::TableCell,
-    PileConfigurationKey, ProjectCpt, ProjectLoadPoint, SourceFormat,
+    import::read_xlsx_tables, import::SourceTable, import::TableCell, PileConfigurationKey,
+    ProjectCpt, ProjectLoadPoint, SourceFormat,
 };
 
 #[derive(Clone, Copy, Debug, Default, Deserialize, Eq, PartialEq, Serialize)]
@@ -18,6 +20,9 @@ pub enum PilePlanImportProfile {
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
 pub struct PilePlanImportOptions {
+    pub table: Option<crate::TableImportSettings>,
+    pub location_decisions: Option<crate::LocationDecisions>,
+    pub bulk_action: Option<crate::LocationBulkAction>,
     pub import_pile_assignments: bool,
     pub import_cpt_selections: bool,
     pub coordinate_tolerance_mm: f64,
@@ -26,6 +31,9 @@ pub struct PilePlanImportOptions {
 impl Default for PilePlanImportOptions {
     fn default() -> Self {
         Self {
+            table: None,
+            location_decisions: None,
+            bulk_action: None,
             import_pile_assignments: true,
             import_cpt_selections: true,
             coordinate_tolerance_mm: 1.0,
@@ -78,6 +86,8 @@ pub enum PilePlanImportDiagnosticSeverity {
 #[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize)]
 #[serde(rename_all = "kebab-case")]
 pub enum PilePlanImportDiagnosticCode {
+    InvalidColumnMapping,
+    InvalidLocationMapping,
     InvalidSource,
     UnknownProfile,
     InvalidTolerance,
@@ -117,6 +127,14 @@ pub struct PilePlanImportSummary {
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
 pub struct PilePlanImportPreview {
+    #[serde(default)]
+    pub table: Option<crate::SourceTablePreview>,
+    #[serde(default)]
+    pub source_locations: Vec<matching::ImportLocation>,
+    #[serde(default)]
+    pub matching: Option<matching::ImportMatching>,
+    #[serde(default)]
+    pub supports_pile_assignments: bool,
     pub requested_profile: PilePlanImportProfile,
     pub detected_profile: Option<PilePlanImportProfile>,
     pub supports_cpt_selections: bool,
@@ -128,9 +146,9 @@ pub struct PilePlanImportPreview {
 
 #[derive(Clone, Debug, PartialEq)]
 struct ParsedPilePlanRow {
-    source_id: u32,
-    x_mm: f64,
-    y_mm: f64,
+    source_id: Option<u32>,
+    x_mm: Option<f64>,
+    y_mm: Option<f64>,
     pile: PilePlanImportedValue<PileConfigurationKey>,
     manual_cpt_ids: PilePlanImportedValue<Vec<u32>>,
     sheet_name: Option<String>,
@@ -165,18 +183,62 @@ pub fn pile_plan_import_requirements() -> serde_json::Value {
         ],
         "example": "Load Point ID,X [mm],Y [mm],FEd [kN],Pile Size [mm],Pile Tip Level [m],Selected CPTs\n1,1000,1500,80,320,-18.5,\n",
         "notes": [
-            "The named header is required; columns may be reordered.",
+            "Named export headers are recognized automatically. Optional table settings support custom columns, headers, worksheets, units and delimiters.",
             "Square pile sizes may use equal dimensions such as 290x290; x, X and × are accepted. This notation does not change project pile shapes.",
             "Pile Size and Pile Tip Level both empty clear the pile assignment when that category is enabled.",
             "An empty Selected CPTs cell clears the manual CPT choice when that category is enabled.",
             "Manual CPT choices are project-wide and shared by all pile plans.",
-            "Load points match by ID when coordinates agree, otherwise by one unique coordinate within the chosen tolerance.",
+            "Files may identify locations by ID only, X/Y only, or both. When both are present, ID matches require agreeing coordinates; otherwise one unique coordinate match is used.",
             "Decimals use a point, not a comma."
         ]
     })
 }
 
 pub fn preview_pile_plan_import(request: &PilePlanImportRequest) -> PilePlanImportPreview {
+    let (table, mut inspection, profile) = match source::inspect(request) {
+        Ok(value) => value,
+        Err(error) => return failed_preview(request.profile, error),
+    };
+    let mut result = preview_with_source(request, &table, &inspection.settings, profile);
+    for number in result
+        .diagnostics
+        .iter()
+        .filter(|d| d.severity == PilePlanImportDiagnosticSeverity::Error)
+        .filter_map(|d| d.location.as_ref().and_then(|l| l.row))
+        .take(5)
+    {
+        if !inspection.rows.iter().any(|r| r.number == number) {
+            if let Some(row) = table.rows.iter().find(|r| r.number == number) {
+                inspection.rows.push(crate::import::SourcePreviewRow {
+                    number,
+                    cells: (0..inspection.columns.len())
+                        .map(|i| row.cells.get(i).map(TableCell::as_text).unwrap_or_default())
+                        .collect(),
+                });
+            }
+        }
+    }
+    inspection.rows.sort_by_key(|r| r.number);
+    result.supports_pile_assignments =
+        inspection.settings.columns.as_ref().is_some_and(|columns| {
+            columns.iter().any(|c| c.field == "pile-size")
+                && columns.iter().any(|c| c.field == "tip-level")
+        });
+    result.supports_cpt_selections = profile != PilePlanImportProfile::Legacy
+        && inspection
+            .settings
+            .columns
+            .as_ref()
+            .is_some_and(|columns| columns.iter().any(|c| c.field == "selected-cpts"));
+    result.table = Some(inspection);
+    result
+}
+fn preview_with_source(
+    request: &PilePlanImportRequest,
+    table: &SourceTable,
+    settings: &crate::TableImportSettings,
+    profile: PilePlanImportProfile,
+) -> PilePlanImportPreview {
     if !request.options.coordinate_tolerance_mm.is_finite()
         || request.options.coordinate_tolerance_mm < 0.0
     {
@@ -191,16 +253,19 @@ pub fn preview_pile_plan_import(request: &PilePlanImportRequest) -> PilePlanImpo
         );
     }
 
-    let parsed = match parse_pile_plan_source(
-        &request.file_name,
-        request.format,
-        &request.bytes,
-        request.profile,
-    ) {
+    let parsed = match source::parse(table, settings, profile, &request.options) {
         Ok(parsed) => parsed,
         Err(diagnostic) => return failed_preview(request.profile, diagnostic),
     };
-
+    let mut matching = match matching::evaluate(request, &parsed.rows) {
+        Ok(value) => value,
+        Err(diagnostic) => return failed_preview(request.profile, diagnostic),
+    };
+    let source_locations = parsed
+        .rows
+        .iter()
+        .map(matching::ImportLocation::from)
+        .collect();
     let load_points_by_id: HashMap<u32, &ProjectLoadPoint> = request
         .load_points
         .iter()
@@ -223,52 +288,31 @@ pub fn preview_pile_plan_import(request: &PilePlanImportRequest) -> PilePlanImpo
     let mut candidates = Vec::new();
 
     for row in parsed.rows {
-        let id_match = load_points_by_id
-            .get(&row.source_id)
-            .copied()
-            .filter(|load_point| {
-                coordinate_distance(load_point.x_mm, load_point.y_mm, row.x_mm, row.y_mm)
-                    <= request.options.coordinate_tolerance_mm
-            });
-        let (load_point, used_fallback) = if let Some(load_point) = id_match {
-            (load_point, false)
-        } else {
-            let coordinate_matches: Vec<_> = request
-                .load_points
-                .iter()
-                .filter(|load_point| {
-                    coordinate_distance(load_point.x_mm, load_point.y_mm, row.x_mm, row.y_mm)
-                        <= request.options.coordinate_tolerance_mm
-                })
-                .collect();
-            match coordinate_matches.as_slice() {
-                [load_point] => (*load_point, true),
-                [] => {
-                    summary.skipped_rows += 1;
-                    diagnostics.push(row_diagnostic(
-                        &row,
-                        PilePlanImportDiagnosticCode::UnmatchedLoadPoint,
-                        format!(
-                            "Load point {} could not be matched by ID and coordinates.",
-                            row.source_id
-                        ),
-                    ));
-                    continue;
-                }
-                _ => {
-                    summary.skipped_rows += 1;
-                    diagnostics.push(row_diagnostic(
-                        &row,
-                        PilePlanImportDiagnosticCode::AmbiguousLoadPoint,
-                        format!(
-                            "Load point {} matches multiple project locations within the coordinate tolerance.",
-                            row.source_id
-                        ),
-                    ));
-                    continue;
-                }
+        let key = row.row as u32;
+        let link = matching.links.iter().find(|link| link.new_id == key);
+        let Some(link) = link else {
+            summary.skipped_rows += 1;
+            if !matching.added.contains(&key) {
+                let ambiguous = matching
+                    .proposals
+                    .iter()
+                    .any(|p| p.new_id == key && p.candidates.len() > 1);
+                diagnostics.push(row_diagnostic(
+                    &row,
+                    if ambiguous {
+                        PilePlanImportDiagnosticCode::AmbiguousLoadPoint
+                    } else {
+                        PilePlanImportDiagnosticCode::UnmatchedLoadPoint
+                    },
+                    format!("Source row {} could not be uniquely matched.", row.row),
+                ));
             }
+            continue;
         };
+        let load_point = load_points_by_id[&link.old_id];
+        let used_fallback = request.options.location_decisions.is_none()
+            && row.x_mm.is_some()
+            && row.source_id != Some(load_point.id);
 
         let pile = if request.options.import_pile_assignments {
             match &row.pile {
@@ -359,6 +403,8 @@ pub fn preview_pile_plan_import(request: &PilePlanImportRequest) -> PilePlanImpo
             if let Some(winner_index) = winner_index {
                 let winner = target_candidates.swap_remove(winner_index);
                 for (_, row, _) in target_candidates {
+                    matching.links.retain(|link| link.new_id != row.row as u32);
+                    matching.added.push(row.row as u32);
                     summary.skipped_rows += 1;
                     diagnostics.push(row_diagnostic(
                         &row,
@@ -377,6 +423,8 @@ pub fn preview_pile_plan_import(request: &PilePlanImportRequest) -> PilePlanImpo
 
         if target_candidates.len() > 1 {
             for (_, row, _) in target_candidates {
+                matching.links.retain(|link| link.new_id != row.row as u32);
+                matching.unmatched_new.push(row.row as u32);
                 summary.skipped_rows += 1;
                 summary.conflicts += 1;
                 diagnostics.push(row_diagnostic(
@@ -396,6 +444,11 @@ pub fn preview_pile_plan_import(request: &PilePlanImportRequest) -> PilePlanImpo
         changes.push(change);
     }
     changes.sort_by_key(|change| change.load_point_id);
+    matching.added.sort_unstable();
+    matching.added.dedup();
+    matching.unmatched_new.sort_unstable();
+    matching.unmatched_new.dedup();
+    matching.complete = matching.unmatched_new.is_empty();
 
     let has_actionable_change = changes.iter().any(|change| {
         !matches!(change.pile, PilePlanImportedValue::Preserve)
@@ -405,6 +458,10 @@ pub fn preview_pile_plan_import(request: &PilePlanImportRequest) -> PilePlanImpo
         || (request.options.import_cpt_selections && parsed.supports_cpt_selections);
 
     PilePlanImportPreview {
+        table: None,
+        source_locations,
+        matching: Some(matching),
+        supports_pile_assignments: true,
         requested_profile: request.profile,
         detected_profile: Some(parsed.profile),
         supports_cpt_selections: parsed.supports_cpt_selections,
@@ -420,6 +477,10 @@ fn failed_preview(
     diagnostic: PilePlanImportDiagnostic,
 ) -> PilePlanImportPreview {
     PilePlanImportPreview {
+        table: None,
+        source_locations: vec![],
+        matching: None,
+        supports_pile_assignments: false,
         requested_profile,
         detected_profile: None,
         supports_cpt_selections: false,
@@ -451,221 +512,25 @@ fn row_diagnostic(
     }
 }
 
+#[cfg(test)]
 fn parse_pile_plan_source(
     file_name: &str,
     format: SourceFormat,
     bytes: &[u8],
-    requested_profile: PilePlanImportProfile,
+    profile: PilePlanImportProfile,
 ) -> Result<ParsedPilePlanSource, PilePlanImportDiagnostic> {
-    let tables = match format {
-        SourceFormat::Csv => vec![read_source_table(file_name, format, bytes)
-            .map_err(|error| fatal_source(error.to_string()))?],
-        SourceFormat::Xlsx => {
-            read_xlsx_tables(file_name, bytes).map_err(|error| fatal_source(error.to_string()))?
-        }
+    let request = PilePlanImportRequest {
+        file_name: file_name.into(),
+        format,
+        bytes: bytes.to_vec(),
+        profile,
+        options: Default::default(),
+        load_points: vec![],
+        cpts: vec![],
+        available_pile_configurations: vec![],
     };
-
-    let standard_table = tables
-        .iter()
-        .find(|table| standard_columns(table).is_some());
-    let legacy_table = tables.iter().find(|table| {
-        table
-            .sheet_name
-            .as_deref()
-            .is_some_and(|name| name.eq_ignore_ascii_case("Vergrendeld"))
-    });
-
-    let profile = match requested_profile {
-        PilePlanImportProfile::StandardTable if standard_table.is_some() => {
-            PilePlanImportProfile::StandardTable
-        }
-        PilePlanImportProfile::Legacy if format == SourceFormat::Xlsx && legacy_table.is_some() => {
-            PilePlanImportProfile::Legacy
-        }
-        PilePlanImportProfile::Automatic => {
-            match (standard_table, legacy_table) {
-                (Some(_), None) => PilePlanImportProfile::StandardTable,
-                (None, Some(_)) if format == SourceFormat::Xlsx => PilePlanImportProfile::Legacy,
-                (Some(_), Some(_)) => return Err(profile_error(
-                    "The file matches both Standard table and Legacy profiles; choose one profile.",
-                )),
-                _ => {
-                    return Err(profile_error(
-                        "The pile plan import profile could not be detected.",
-                    ))
-                }
-            }
-        }
-        PilePlanImportProfile::Legacy => {
-            return Err(profile_error(
-                "The Legacy profile requires an XLSX workbook with a Vergrendeld worksheet.",
-            ))
-        }
-        PilePlanImportProfile::StandardTable => {
-            return Err(profile_error(
-                "The Standard table profile requires the Open Pile Plan Studio export headers.",
-            ))
-        }
-    };
-
-    match profile {
-        PilePlanImportProfile::StandardTable => {
-            parse_standard_table(standard_table.expect("profile checked"))
-        }
-        PilePlanImportProfile::Legacy => parse_legacy_table(legacy_table.expect("profile checked")),
-        PilePlanImportProfile::Automatic => unreachable!("automatic profile must resolve"),
-    }
-}
-
-#[derive(Clone, Copy)]
-struct StandardColumns {
-    id: usize,
-    x: usize,
-    y: usize,
-    pile_size: usize,
-    pile_tip: usize,
-    selected_cpts: usize,
-}
-
-fn standard_columns(table: &SourceTable) -> Option<StandardColumns> {
-    let header = table.rows.first()?;
-    let columns: HashMap<String, usize> = header
-        .cells
-        .iter()
-        .enumerate()
-        .map(|(index, cell)| (normalize_header(&cell.as_text()), index))
-        .collect();
-
-    Some(StandardColumns {
-        id: *columns.get("loadpointid")?,
-        x: *columns.get("xmm")?,
-        y: *columns.get("ymm")?,
-        pile_size: *columns.get("pilesizemm")?,
-        pile_tip: *columns.get("piletiplevelm")?,
-        selected_cpts: *columns.get("selectedcpts")?,
-    })
-}
-
-fn normalize_header(value: &str) -> String {
-    value
-        .chars()
-        .filter(|character| character.is_alphanumeric())
-        .flat_map(char::to_lowercase)
-        .collect()
-}
-
-fn parse_standard_table(
-    table: &SourceTable,
-) -> Result<ParsedPilePlanSource, PilePlanImportDiagnostic> {
-    let columns = standard_columns(table).ok_or_else(|| {
-        profile_error(
-            "The Standard table profile requires the Open Pile Plan Studio export headers.",
-        )
-    })?;
-    let mut rows = Vec::new();
-    let mut diagnostics = Vec::new();
-
-    for source_row in table.rows.iter().skip(1) {
-        let source_id = parse_u32_cell(table, source_row.number, columns.id)?;
-        let x_mm = parse_f64_cell(table, source_row.number, columns.x)?;
-        let y_mm = parse_f64_cell(table, source_row.number, columns.y)?;
-        let size = cell(table, source_row.number, columns.pile_size)?;
-        let tip = cell(table, source_row.number, columns.pile_tip)?;
-        let pile = match (size.is_empty(), tip.is_empty()) {
-            (true, true) => PilePlanImportedValue::Clear,
-            (false, false) => PilePlanImportedValue::Set(PileConfigurationKey {
-                pile_size_mm: parse_standard_pile_size(size).map_err(|message| {
-                    invalid_cell(table, source_row.number, columns.pile_size, message)
-                })?,
-                pile_tip_level_mm: parse_tip_level_key(tip).map_err(|message| {
-                    invalid_cell(table, source_row.number, columns.pile_tip, message)
-                })?,
-            }),
-            _ => {
-                diagnostics.push(PilePlanImportDiagnostic {
-                    severity: PilePlanImportDiagnosticSeverity::Warning,
-                    code: PilePlanImportDiagnosticCode::InvalidRow,
-                    message: "Pile size and pile tip level must both be filled or both be empty; the pile assignment is preserved.".to_string(),
-                    location: Some(location(table, source_row.number, None)),
-                });
-                PilePlanImportedValue::Preserve
-            }
-        };
-        let selected_cpts_cell = cell(table, source_row.number, columns.selected_cpts)?;
-        let manual_cpt_ids = if selected_cpts_cell.is_empty() {
-            PilePlanImportedValue::Clear
-        } else {
-            PilePlanImportedValue::Set(parse_cpt_ids(&selected_cpts_cell.as_text()).map_err(
-                |message| invalid_cell(table, source_row.number, columns.selected_cpts, message),
-            )?)
-        };
-
-        rows.push(ParsedPilePlanRow {
-            source_id,
-            x_mm,
-            y_mm,
-            pile,
-            manual_cpt_ids,
-            sheet_name: table.sheet_name.clone(),
-            row: source_row.number,
-        });
-    }
-
-    Ok(ParsedPilePlanSource {
-        profile: PilePlanImportProfile::StandardTable,
-        supports_cpt_selections: true,
-        source_rows: table.rows.len().saturating_sub(1),
-        rows,
-        diagnostics,
-    })
-}
-
-fn parse_legacy_table(
-    table: &SourceTable,
-) -> Result<ParsedPilePlanSource, PilePlanImportDiagnostic> {
-    let mut rows = Vec::new();
-    let mut diagnostics = Vec::new();
-    for source_row in &table.rows {
-        if source_row.cells.len() < 7 {
-            return Err(invalid_cell(
-                table,
-                source_row.number,
-                source_row.cells.len(),
-                "Legacy rows require seven columns.".to_string(),
-            ));
-        }
-        let pile_count = parse_u32_cell(table, source_row.number, 1)?;
-        if pile_count != 1 {
-            diagnostics.push(PilePlanImportDiagnostic {
-                severity: PilePlanImportDiagnosticSeverity::Warning,
-                code: PilePlanImportDiagnosticCode::UnsupportedPileCount,
-                message: format!(
-                    "Pile count {pile_count} is not supported; the current application supports one pile per load point."
-                ),
-                location: Some(location(table, source_row.number, Some(2))),
-            });
-            continue;
-        }
-        rows.push(ParsedPilePlanRow {
-            source_id: parse_legacy_load_point_id_cell(table, source_row.number, 0)?,
-            x_mm: parse_f64_cell(table, source_row.number, 5)?,
-            y_mm: parse_f64_cell(table, source_row.number, 6)?,
-            pile: PilePlanImportedValue::Set(PileConfigurationKey {
-                pile_size_mm: parse_positive_u32_cell(table, source_row.number, 3)?,
-                pile_tip_level_mm: parse_tip_level_key_cell(table, source_row.number, 2)?,
-            }),
-            manual_cpt_ids: PilePlanImportedValue::Preserve,
-            sheet_name: table.sheet_name.clone(),
-            row: source_row.number,
-        });
-    }
-    Ok(ParsedPilePlanSource {
-        profile: PilePlanImportProfile::Legacy,
-        supports_cpt_selections: false,
-        source_rows: table.rows.len(),
-        rows,
-        diagnostics,
-    })
+    let (table, preview, resolved) = source::inspect(&request)?;
+    source::parse(&table, &preview.settings, resolved, &request.options)
 }
 
 fn parse_cpt_ids(value: &str) -> Result<Vec<u32>, String> {
@@ -703,15 +568,6 @@ fn cell(
         })
 }
 
-fn parse_u32_cell(
-    table: &SourceTable,
-    row: usize,
-    column: usize,
-) -> Result<u32, PilePlanImportDiagnostic> {
-    let value = cell(table, row, column)?;
-    parse_u32(value).map_err(|message| invalid_cell(table, row, column, message))
-}
-
 fn parse_legacy_load_point_id_cell(
     table: &SourceTable,
     row: usize,
@@ -740,24 +596,7 @@ fn parse_legacy_load_point_id_cell(
     ))
 }
 
-fn parse_positive_u32_cell(
-    table: &SourceTable,
-    row: usize,
-    column: usize,
-) -> Result<u32, PilePlanImportDiagnostic> {
-    let value = cell(table, row, column)?;
-    parse_positive_u32(value).map_err(|message| invalid_cell(table, row, column, message))
-}
-
-fn parse_tip_level_key_cell(
-    table: &SourceTable,
-    row: usize,
-    column: usize,
-) -> Result<i64, PilePlanImportDiagnostic> {
-    let value = cell(table, row, column)?;
-    parse_tip_level_key(value).map_err(|message| invalid_cell(table, row, column, message))
-}
-
+#[cfg(test)]
 fn parse_f64_cell(
     table: &SourceTable,
     row: usize,
@@ -803,17 +642,6 @@ fn parse_standard_pile_size(value: &TableCell) -> Result<u32, String> {
     Ok(width)
 }
 
-fn parse_tip_level_key(value: &TableCell) -> Result<i64, String> {
-    let scaled = parse_f64(value)? * 1000.0;
-    if scaled < i64::MIN as f64 || scaled > i64::MAX as f64 {
-        return Err(format!(
-            "Pile tip level '{}' is outside the supported range.",
-            value.as_text()
-        ));
-    }
-    Ok(scaled.round() as i64)
-}
-
 fn parse_f64(value: &TableCell) -> Result<f64, String> {
     let text = value.as_text();
     parse_finite_number(&text).map_err(|error| {
@@ -844,6 +672,12 @@ fn fatal_source(message: String) -> PilePlanImportDiagnostic {
         message,
         location: None,
     }
+}
+
+fn mapping_error(message: &str) -> PilePlanImportDiagnostic {
+    let mut error = profile_error(message);
+    error.code = PilePlanImportDiagnosticCode::InvalidColumnMapping;
+    error
 }
 
 fn profile_error(message: &str) -> PilePlanImportDiagnostic {
@@ -939,7 +773,7 @@ mod tests {
         assert_eq!(parsed.profile, PilePlanImportProfile::StandardTable);
         assert!(parsed.supports_cpt_selections);
         assert_eq!(parsed.rows.len(), 2);
-        assert_eq!(parsed.rows[0].source_id, 3);
+        assert_eq!(parsed.rows[0].source_id, Some(3));
         assert_eq!(parsed.rows[0].pile, PilePlanImportedValue::Clear);
         assert_eq!(parsed.rows[0].manual_cpt_ids, PilePlanImportedValue::Clear);
         assert_eq!(
@@ -1023,6 +857,7 @@ mod tests {
             crate::PileSizeExportFormat::Dimensions,
         ] {
             let input = crate::PilePlanExportRequest {
+                project_context: None,
                 load_points: vec![
                     load_point(1, 1000.0, 1500.0),
                     load_point(2, 2000.0, 2500.0),
@@ -1066,7 +901,10 @@ mod tests {
                     PilePlanImportedValue::Set(vec![2, 11])
                 );
                 assert_eq!(parsed.rows[2].manual_cpt_ids, PilePlanImportedValue::Clear);
-                assert_eq!((parsed.rows[0].x_mm, parsed.rows[0].y_mm), (1000.0, 1500.0));
+                assert_eq!(
+                    (parsed.rows[0].x_mm, parsed.rows[0].y_mm),
+                    (Some(1000.0), Some(1500.0))
+                );
             }
         }
     }
@@ -1078,6 +916,7 @@ mod tests {
             pile_tip_level_mm: -18_500,
         };
         let bytes = crate::write_pile_plan_xlsx(&crate::PilePlanExportRequest {
+            project_context: None,
             load_points: vec![load_point(7, 1000.0, 1500.0)],
             selected_piles: HashMap::from([(7, pile.clone())]),
             selected_cpts: HashMap::from([(7, vec![61, 64])]),
@@ -1114,8 +953,8 @@ mod tests {
         )
         .expect("reordered standard source");
 
-        assert_eq!(parsed.rows[0].source_id, 15);
-        assert_eq!(parsed.rows[0].x_mm, 9450.0);
+        assert_eq!(parsed.rows[0].source_id, Some(15));
+        assert_eq!(parsed.rows[0].x_mm, Some(9450.0));
         assert_eq!(
             parsed.rows[0].manual_cpt_ids,
             PilePlanImportedValue::Set(vec![61])
@@ -1140,7 +979,7 @@ mod tests {
         assert_eq!(parsed.profile, PilePlanImportProfile::Legacy);
         assert!(!parsed.supports_cpt_selections);
         assert_eq!(parsed.rows.len(), 1);
-        assert_eq!(parsed.rows[0].source_id, 15);
+        assert_eq!(parsed.rows[0].source_id, Some(15));
         assert_eq!(
             parsed.rows[0].manual_cpt_ids,
             PilePlanImportedValue::Preserve
@@ -1175,7 +1014,7 @@ mod tests {
 
         assert_eq!(parsed.profile, PilePlanImportProfile::Legacy);
         assert_eq!(parsed.rows.len(), 1);
-        assert_eq!(parsed.rows[0].source_id, 1603);
+        assert_eq!(parsed.rows[0].source_id, Some(1603));
     }
 
     #[test]
@@ -1235,6 +1074,8 @@ mod tests {
         assert!(!preview.can_apply);
         assert!(preview.patch.changes.is_empty());
         assert_eq!(preview.summary.conflicts, 2);
+        assert!(!preview.matching.as_ref().unwrap().complete);
+        assert!(preview.matching.as_ref().unwrap().links.is_empty());
     }
 
     #[test]
@@ -1278,6 +1119,8 @@ mod tests {
         assert_eq!(preview.summary.coordinate_fallbacks, 1);
         assert_eq!(preview.summary.skipped_rows, 1);
         assert_eq!(preview.summary.conflicts, 0);
+        assert_eq!(preview.matching.as_ref().unwrap().links.len(), 1);
+        assert_eq!(preview.matching.as_ref().unwrap().added.len(), 1);
     }
 
     #[test]
@@ -1452,6 +1295,7 @@ mod tests {
             x_mm,
             y_mm,
             design_load_kn: 80.0,
+            tension: Default::default(),
         }
     }
 

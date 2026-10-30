@@ -50,7 +50,13 @@ export function createGroupAssignmentAssessmentController(
       }
 
       const signature = buildGroupAssignmentAssessmentSignature(input);
-      if (signature === completedSignature) return Promise.resolve();
+      if (signature === completedSignature) {
+        generation += 1;
+        activeSignature = null;
+        activeUpdate = null;
+        publish(snapshotFor(completedConflicts, false, null));
+        return Promise.resolve();
+      }
       if (signature === activeSignature && activeUpdate) return activeUpdate;
 
       const requestGeneration = ++generation;

@@ -430,6 +430,10 @@ sends converted UTF-8 CSV text; an attachment does not automatically become a
 file inside Pile Plan Studio. Pile sizes accept numeric values such as `290` or
 equal square dimensions such as `290x290` (also `X` and `×`). Unequal dimensions
 are rejected, and this notation does not change project pile-shape settings.
+The interface additionally offers configurable file columns and the shared
+location-review editor, including ID-only and coordinate-only files. The MCP
+transaction below retains its standard CSV workflow and explicit partial-import
+approval; it does not open the visual review workspace.
 To add an existing plan:
 
 1. Read `pile_project_overview` and begin with `pile_begin_pile_plan_import`,
@@ -493,3 +497,28 @@ in the same optimization settings edit. Values are nonnegative integers in
 thousandths (1000 means weight 1; zero disables the term). Every mismatching
 neighbor pair contributes once, independently of the difference magnitude and
 the tip/size terms. Solved result metadata exposes `transitions.pile_count`.
+
+
+Compression/tension source edits use the same Rust model as the interface.
+Load-point reads include the three-state `tension` value; advice rows include
+`direction` (compression by default). Bulk advice removal accepts optional
+`direction`, defaulting to compression. `include_tension` is a project optimizer
+setting, independent of the application view. For staged standard CSV imports,
+the first chunk may set `import_tension`, `tension_column` (one-based, >=5),
+`resistance_direction`, and `clear_tension`. The optional `table` object supports
+`has_headers`, `header_row`, `first_data_row`, `delimiter` and `columns` mappings
+with one-based `column`, `field`, optional `unit` (`m`/`mm`) and `pile_size_mm`.
+Mapped column order is free; completely empty mapped columns are invalid.
+These mappings are part of the
+validation digest and cannot be changed on later chunks. Existing permission,
+project-instance/revision and atomic-apply guards remain in force.
+
+Advice rows and bulk removal accept optional `pile_count` (`null`/omitted = all
+cap counts; positive integer = that exact count). Source identity includes this
+field, so edits to 4-pile advice do not target universal or 2-pile data. An explicit
+`missing: true` resistance row uses `frd_kn: 0` as a storage placeholder, displays
+as missing, and blocks universal fallback; it is never evaluated as zero
+resistance. Staged CSV `table` settings also accept `pile_count` and
+`fixed_pile_size_mm`. These pass through the same core import/validation and
+transaction guards. New project writes use IFCPP schema 8; older schemas remain
+readable with universal advice semantics.

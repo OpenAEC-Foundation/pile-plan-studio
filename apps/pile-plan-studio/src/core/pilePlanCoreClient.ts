@@ -54,7 +54,7 @@ import {
 import { initializeWasm, invokeDesktop, isTauriRuntime } from "./coreTransport.ts";
 
 async function ensureWasm(): Promise<void> {
-  return initializeWasm(() => initWasm());
+  return initializeWasm(initWasm);
 }
 
 export async function deriveLoadPointGroupsCore(

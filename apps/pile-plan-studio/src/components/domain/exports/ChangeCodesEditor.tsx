@@ -1,3 +1,4 @@
+import NumericValueInput from "../../template/NumericValueInput.tsx";
 import {useTranslation} from "react-i18next";
 import type {ChangeCodeOptions} from "../../../core/exportRevisionContract.ts";
 type Kind="moved"|"size"|"level"|"added"|"removed";
@@ -11,7 +12,7 @@ export default function ChangeCodesEditor({value,onChange,disabled=false}:{value
       <input type="text" aria-label={t("exportTools.changeCodeFor",{name:t(`exportTools.changeKinds.${kind}`)})} disabled={!value[kind].enabled} value={value[kind].text}
         onChange={e=>onChange({...value,[kind]:{...value[kind],text:e.target.value}})}/>
     </div>)}
-    <div className="export-controls-grid"><label className="export-field"><span>{t("exportTools.movementThreshold")}</span><input type="number" min={0} step="any" value={value.movement_threshold_mm} onChange={e=>onChange({...value,movement_threshold_mm:Number(e.target.value)})}/></label>
+    <div className="export-controls-grid"><label className="export-field"><span title={t("exportTools.movementThresholdHelp")}>{t("exportTools.movementThreshold")}</span><NumericValueInput min={0} step="any" value={value.movement_threshold_mm} onNumberChange={movement_threshold_mm=>onChange({...value,movement_threshold_mm})}/></label>
       <label className="export-field"><span>{t("exportTools.codeSeparator")}</span><input type="text" value={value.separator} onChange={e=>onChange({...value,separator:e.target.value})}/></label></div>
   </fieldset>;
 }

@@ -3,7 +3,7 @@ import { expect, test, vi } from "vitest";
 import i18n from "../../../i18n/config.ts";
 import Ribbon from "./Ribbon.tsx";
 
-const t = (key: string) => i18n.t(key, { ns: "ribbon" });
+const t = (key: string, values:Record<string,unknown>={}) => i18n.t(key, { ns: "ribbon",...values });
 function props() {
   return { isLassoSelectionActive: false, lassoSelectionDisabled: false, isLockEditing: false,
     symbolScalePercent: 100, viewerUtilizationMinimum: 0.5, viewerUtilizationMaximum: 0.9,
@@ -42,10 +42,94 @@ test("symbol scale gestures have one keyboard start and finish on key release, p
   const slider = screen.getAllByRole("slider")[0];
   fireEvent.keyDown(slider, { key: "ArrowRight" }); fireEvent.keyDown(slider, { key: "ArrowRight", repeat: true });
   fireEvent.change(slider, { target: { value: "120" } });
-  expect(p.onSymbolScaleChangeStart).toHaveBeenCalledOnce(); expect(p.onSymbolScaleChange).toHaveBeenCalledWith(120);
+  expect(p.onSymbolScaleChangeStart).toHaveBeenCalledOnce(); expect(p.onSymbolScaleChange).not.toHaveBeenCalled();
+  expect(slider).toHaveProperty("value","120");
   fireEvent.keyUp(slider, { key: "ArrowRight" }); expect(p.onSymbolScaleChangeEnd).toHaveBeenCalledOnce();
+  expect(p.onSymbolScaleChange).toHaveBeenCalledExactlyOnceWith(120);
   fireEvent.pointerDown(slider); fireEvent.pointerCancel(slider); expect(p.onSymbolScaleChangeEnd).toHaveBeenCalledTimes(2);
   fireEvent.keyDown(slider, { key: "ArrowLeft" }); fireEvent.blur(slider); expect(p.onSymbolScaleChangeEnd).toHaveBeenCalledTimes(3);
+});
+
+test("overlapping range handles can separate in both directions, including 100–100 and 0–0",()=>{
+  const p=props();
+  const view=render(<Ribbon {...p} viewerUtilizationMinimum={1} viewerUtilizationMaximum={1}/>);
+  openView();
+  const track=view.container.querySelector('.ribbon-dual-range')!;
+  vi.spyOn(track,"getBoundingClientRect").mockReturnValue({left:0,width:115,top:0,height:18,right:115,bottom:18,x:0,y:0,toJSON:()=>({})});
+  fireEvent.pointerDown(track,{clientX:107.5,pointerId:1,button:0});
+  fireEvent.pointerMove(track,{clientX:67.5,pointerId:1,buttons:1});
+  fireEvent.pointerUp(track,{clientX:67.5,pointerId:1});
+  expect(p.onViewerUtilizationRangeChange).toHaveBeenLastCalledWith(0.6,1);
+  view.rerender(<Ribbon {...p} viewerUtilizationMinimum={0} viewerUtilizationMaximum={0}/>);
+  fireEvent.pointerDown(track,{clientX:7.5,pointerId:2,button:0});
+  fireEvent.pointerMove(track,{clientX:47.5,pointerId:2,buttons:1});
+  fireEvent.pointerUp(track,{clientX:47.5,pointerId:2});
+  expect(p.onViewerUtilizationRangeChange).toHaveBeenLastCalledWith(0,0.4);
+  view.rerender(<Ribbon {...p} viewerUtilizationMinimum={0.66} viewerUtilizationMaximum={0.66}/>);
+  fireEvent.pointerDown(track,{clientX:73.5,pointerId:3,button:0});
+  fireEvent.pointerMove(track,{clientX:57.5,pointerId:3,buttons:1});
+  fireEvent.pointerUp(track,{clientX:57.5,pointerId:3});
+  expect(p.onViewerUtilizationRangeChange).toHaveBeenLastCalledWith(0.5,0.66);
+});
+
+test("symbol scale drag keeps the control responsive and commits only its final value",()=>{
+  const p=props(); render(<Ribbon {...p}/>); openView();
+  const slider=screen.getByRole("slider",{name:t("view.symbolSize")});
+  fireEvent.pointerDown(slider);
+  for(const value of [110,130,150])fireEvent.change(slider,{target:{value:String(value)}});
+  expect(slider).toHaveProperty("value","150");
+  expect(p.onSymbolScaleChange).not.toHaveBeenCalled();
+  fireEvent.pointerUp(slider);
+  expect(p.onSymbolScaleChange).toHaveBeenCalledExactlyOnceWith(150);
+  fireEvent.blur(slider);
+  expect(p.onSymbolScaleChange).toHaveBeenCalledTimes(1);
+});
+
+test("clicking the numeric symbol size supports empty drafts and commits one gesture",()=>{
+  const p=props(); render(<Ribbon {...p}/>); openView();
+  fireEvent.click(screen.getByRole("button",{name:t("view.editValue",{label:t("view.symbolSize")})}));
+  const field=screen.getByRole("spinbutton",{name:t("view.symbolSize")});
+  fireEvent.change(field,{target:{value:""}}); expect(field).toHaveProperty("value","");
+  expect(p.onSymbolScaleChange).not.toHaveBeenCalled();
+  fireEvent.change(field,{target:{value:"135"}});
+  fireEvent.keyDown(field,{key:"Enter"});
+  expect(p.onSymbolScaleChange).toHaveBeenCalledExactlyOnceWith(135);
+  expect(p.onSymbolScaleChangeStart).toHaveBeenCalledOnce();
+  expect(p.onSymbolScaleChangeEnd).toHaveBeenCalledOnce();
+  expect(screen.getByRole("slider",{name:t("view.symbolSize")})).toHaveProperty("value","135");
+  expect(screen.queryByRole("spinbutton",{name:t("view.symbolSize")})).toBeNull();
+  expect(document.activeElement).not.toBe(screen.getByRole("button",{name:t("view.editValue",{label:t("view.symbolSize")})}));
+});
+
+test("range numbers can be typed, clamp to the other endpoint and cancel with Escape",()=>{
+  const p=props(); render(<Ribbon {...p}/>); openView();
+  const edit=(label:string)=>fireEvent.click(screen.getByRole("button",{name:t("view.editValue",{label:t(label)})}));
+  edit("view.minimumUtilization");
+  let field=screen.getByRole("spinbutton",{name:t("view.minimumUtilization")});
+  fireEvent.change(field,{target:{value:"65"}}); fireEvent.blur(field);
+  expect(p.onViewerUtilizationRangeChange).toHaveBeenCalledExactlyOnceWith(0.65,0.9);
+  edit("view.maximumUtilization");
+  field=screen.getByRole("spinbutton",{name:t("view.maximumUtilization")});
+  fireEvent.change(field,{target:{value:"10"}}); fireEvent.keyDown(field,{key:"Enter"});
+  expect(p.onViewerUtilizationRangeChange).toHaveBeenLastCalledWith(0.65,0.65);
+  edit("view.minimumUtilization");
+  field=screen.getByRole("spinbutton",{name:t("view.minimumUtilization")});
+  fireEvent.change(field,{target:{value:"0"}}); fireEvent.keyDown(field,{key:"Escape"});
+  expect(p.onViewerUtilizationRangeChange).toHaveBeenCalledTimes(2);
+  expect(screen.getByRole("slider",{name:t("view.minimumUtilization")})).toHaveProperty("value","65");
+});
+
+test.each(["view.symbolSize","view.minimumUtilization","view.maximumUtilization"])("Escape cancels %s without retaining focus",key=>{
+  const p=props(); render(<Ribbon {...p}/>); openView();
+  const label=t(key),buttonName=t("view.editValue",{label});
+  fireEvent.click(screen.getByRole("button",{name:buttonName}));
+  const field=screen.getByRole("spinbutton",{name:label});
+  fireEvent.change(field,{target:{value:"75"}});
+  fireEvent.keyDown(field,{key:"Escape"});
+  expect(screen.queryByRole("spinbutton",{name:label})).toBeNull();
+  expect(document.activeElement).not.toBe(screen.getByRole("button",{name:buttonName}));
+  expect(p.onSymbolScaleChange).not.toHaveBeenCalled();
+  expect(p.onViewerUtilizationRangeChange).not.toHaveBeenCalled();
 });
 
 test("optimization and lock draft controls route to their callbacks", () => {
@@ -56,4 +140,14 @@ test("optimization and lock draft controls route to their callbacks", () => {
   for (const [key, callback] of [["plan.applyLocks", p.onApplyLockEditing], ["plan.cancelLocks", p.onCancelLockEditing], ["plan.unlockAll", p.onUnlockAll]] as const) {
     fireEvent.click(screen.getByRole("button", { name: t(key) })); expect(callback).toHaveBeenCalledOnce();
   }
+});
+
+import RibbonButton from "./RibbonButton.tsx";
+test("ribbon buttons omit help that merely repeats their visible label",()=>{
+ const view=render(<RibbonButton icon="" label="Projectinformatie"/>);
+ expect(screen.getByRole("button").hasAttribute("title")).toBe(false);
+ view.rerender(<RibbonButton icon="" label="Projectinformatie" title="Projectinformatie"/>);
+ expect(screen.getByRole("button").hasAttribute("title")).toBe(false);
+ view.rerender(<RibbonButton icon="" label="Kaderselectie" title="Shift+slepen"/>);
+ expect(screen.getByRole("button").getAttribute("title")).toBe("Shift+slepen");
 });

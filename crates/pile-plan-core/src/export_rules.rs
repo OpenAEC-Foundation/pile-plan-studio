@@ -104,6 +104,9 @@ pub struct TipCodeRule {
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
 #[serde(default)]
 pub struct PilePlanExportOptions {
+    pub include_proposals: bool,
+    pub proposal_code: String,
+    pub language: String,
     pub mark: PileMarkOptions,
     pub tip_code: TipCodeRule,
     pub columns: Option<Vec<crate::ExportColumn>>,
@@ -139,6 +142,8 @@ pub struct TipLevelCode {
 
 #[derive(Clone, Debug, PartialEq, Serialize)]
 pub struct PilePlanExportPreview {
+    pub replaced_count: usize,
+    pub proposed_count: usize,
     pub table: ExportTable,
     pub annotations: Vec<PileExportAnnotation>,
     pub tip_codes: Vec<TipLevelCode>,
@@ -234,6 +239,11 @@ fn letter_code(mut index: usize) -> String {
 pub fn preview_configured_pile_plan_export(
     request: &ConfiguredPilePlanExportRequest,
 ) -> Result<PilePlanExportPreview, ExportError> {
+    let prepared = crate::export_context::prepare(&request.plan, &request.export_options)?;
+    let request = &ConfiguredPilePlanExportRequest {
+        plan: prepared.plan.clone(),
+        export_options: request.export_options.clone(),
+    };
     let options = &request.export_options;
     if options.mark.start == 0 {
         return Err(ExportError("invalid_mark_start".into()));
@@ -362,8 +372,14 @@ pub fn preview_configured_pile_plan_export(
             (crate::ExportField::TipCode, json!(tip_code)),
             (crate::ExportField::SelectedCpts, json!(row.selected_cpts)),
         ];
+        let mut fields: HashMap<_, _> = fields.into_iter().collect();
+        if let Some(facts) = prepared.facts.get(&row.load_point_id) {
+            fields.extend(facts.clone());
+        }
         records.push(crate::export_columns::ColumnRecord {
-            values: fields.into_iter().collect(),
+            previous_coordinates: None,
+            source_coordinate_unit: None,
+            values: fields,
             pile_size: row
                 .pile_size_mm
                 .map(|size| (size, request.plan.pile_shapes.get(&size).cloned())),
@@ -380,6 +396,8 @@ pub fn preview_configured_pile_plan_export(
         table = crate::export_columns::project_columns(columns, &records)?;
     }
     Ok(PilePlanExportPreview {
+        replaced_count: prepared.replaced.len(),
+        proposed_count: prepared.proposed.len(),
         table,
         annotations,
         tip_codes,

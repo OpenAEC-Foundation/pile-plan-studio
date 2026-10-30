@@ -19,3 +19,19 @@ test("desktop export serializes map keys as JSON records without altering source
     assert.deepEqual(request.export_options.tip_code,{enabled:true,sequence:"numbers",direction:"ascending"});
     assert.equal(input.selectedPiles.size,1);
 });
+
+test("configured project context preserves numeric keys in browser and native transport",async()=>{
+ const {readFileSync}=await import("node:fs");
+ const {canonicalProjectForTest,projectTipLevelKeysForTest}=await import("./projectTestSupport.ts");
+ const {createInitialProjectState}=await import("../domain/project/projectState.ts");
+ const {buildPilePlanExportInputForPlan}=await import("../domain/pile-plans/pilePlanExport.ts");
+ const project=canonicalProjectForTest(readFileSync("../../sample_project/sample_project.ifcpp","utf8"));
+ const state=createInitialProjectState(project,{initializeDefaultPiles:false},projectTipLevelKeysForTest(project));
+ const plan=buildPilePlanExportInputForPlan(state,state.activePilePlanId,"numeric",true);
+ const browser=toConfiguredExportRequest(plan,DEFAULT_EXPORT_OPTIONS,false).plan.project_context!;
+ const native=toConfiguredExportRequest(plan,DEFAULT_EXPORT_OPTIONS,true).plan.project_context!;
+ assert.equal(browser.plan_id,state.activePilePlanId);assert.equal(native.plan_id,state.activePilePlanId);
+ assert.ok(browser.draft.active_selected_piles instanceof Map);
+ assert.ok(!(native.draft.active_selected_piles instanceof Map));
+ assert.deepEqual([...browser.draft.active_selected_piles.keys()].map(String).sort(),Object.keys(native.draft.active_selected_piles).sort());
+});

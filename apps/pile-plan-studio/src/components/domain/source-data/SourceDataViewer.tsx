@@ -171,6 +171,8 @@ export default function SourceDataViewer({
   };
 
   const formatValue = (value: string | number, columnKey: string) => {
+    if(columnKey==="pile_count"&&value==="all")return t("tableImport.allPileCounts");
+    if(value==="")return "—";
     if (typeof value !== "number") return value;
     if (source.kind === "bearing_capacities" && columnKey === "tip") {
       return formatPileTipLevelMetres(value, i18n.language).replace(/ m$/, "");
@@ -212,7 +214,7 @@ export default function SourceDataViewer({
           <p>
             {source.fileName ?? t("sourceViewer.snapshot")}
             {source.profile ? ` · ${source.profile}` : ""}
-            {` · ${t("projectExplorer.rows", { count: source.itemCount })}`}
+            {` · ${t("projectExplorer.rows", { count: table.rows.length })}`}
           </p>
           {source.warnings.length > 0 && (
             <p className="source-data-warning">{t("sourceViewer.warnings", { count: source.warnings.length })}</p>
@@ -341,7 +343,7 @@ export default function SourceDataViewer({
                 tabIndex={isSelectable && !isDisabled ? 0 : undefined}
               >
                 {table.columns.map((column) => (
-                  <span key={column.key}>{formatValue(row[column.key], column.key)}</span>
+                  <span key={column.key} title={column.key==="tension"&&row.tension===""?t(`common:loadDirection.importStates.${row.tension_state}`):undefined}>{formatValue(row[column.key], column.key)}</span>
                 ))}
               </div>
             );

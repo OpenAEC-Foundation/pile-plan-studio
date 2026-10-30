@@ -55,6 +55,8 @@ export type SelectedCptOverviewModel = {
 export type CptFrdPanelModel = {
   cpt: Cpt;
   rows: Array<{
+    pileCount: number|null;
+    highlighted?:boolean;
     sizeLabel: string;
     tipLabel: string;
     frdLabel: string;
@@ -96,6 +98,7 @@ export function getChosenPileOptionConfigurationForSelection(
 export function getSelectedCptOverviewModel(
   state: ProjectState,
   selectedLoadPoints: LoadPoint[],
+  mode:"compression"|"tension"="compression",
 ): SelectedCptOverviewModel {
   const draft = state.cptSelectionEditDraft ?? null;
   const loadPoints = draft
@@ -132,13 +135,16 @@ export function getSelectedCptOverviewModel(
         return findOptionByConfiguration(pileOptionsByLoadPointId.get(loadPoint.id) ?? [], configuration)
           ?.governing_cpt_id === row.cpt.id;
       }).length;
-      const chosenPileCapacity = chosenConfiguration
-        ? state.bearingCapacities.find((capacity) => (
-            capacity.cpt_id === row.cpt.id
-            && capacity.pile_size_mm === chosenConfiguration.pile_size_mm
-            && capacity.pile_tip_level_mm === chosenConfiguration.pile_tip_level_mm
-          ))?.frd_kn ?? null
-        : null;
+      const values=chosenConfiguration?loadPoints.map(point=>{
+        const assessment=findOptionByConfiguration(pileOptionsByLoadPointId.get(point.id)??[],chosenConfiguration)?.[mode];
+        if(assessment?.cpt_resistances)return assessment.cpt_resistances.find(v=>v.cpt_id===row.cpt.id)?.frd_kn??null;
+        // Compatibility with legacy presentation fixtures: only declared universal data is eligible.
+        return state.bearingCapacities.find(v=>v.cpt_id===row.cpt.id&&v.pile_size_mm===chosenConfiguration.pile_size_mm&&v.pile_tip_level_mm===chosenConfiguration.pile_tip_level_mm&&v.pile_count==null&&!v.missing)?.frd_kn??null;
+      }):[];
+      const capacities=values.filter((v):v is number=>v!=null);
+      const chosenCapacityLabel=values.length===0||capacities.length!==values.length?"-":
+        capacities.every(v=>v===capacities[0])?formatOptionalNumber(capacities[0]," kN"):
+        `${formatNumber(Math.min(...capacities))}–${formatNumber(Math.max(...capacities))} kN`;
       return {
         cpt: row.cpt,
         governingLoadPointCount,
@@ -149,7 +155,7 @@ export function getSelectedCptOverviewModel(
         values: [
           ...row.values,
           showChosenPileCapacity
-            ? formatOptionalNumber(chosenPileCapacity, " kN")
+            ? chosenCapacityLabel
             : `${governingLoadPointCount} / ${loadPoints.length} load points`,
         ],
       };
@@ -208,7 +214,7 @@ function isManualSelectionLabel(label: string): boolean {
   return /^manual(?:\s*\d+)?$/i.test(label);
 }
 
-export function getCptFrdPanelModel(state: ProjectState, locale = "en-US"): CptFrdPanelModel | null {
+export function getCptFrdPanelModel(state: ProjectState, locale = "en-US", highlightedAdvice: import("../../../core/projectTypes.ts").CptBearingCapacityRow[] = []): CptFrdPanelModel | null {
   const cpt = state.cpts.find((item) => item.id === state.selectedCptId) ?? null;
   if (!cpt) {
     return null;
@@ -217,9 +223,11 @@ export function getCptFrdPanelModel(state: ProjectState, locale = "en-US"): CptF
   return {
     cpt,
     rows: (state.cptFrdRowsByCptId.get(cpt.id) ?? []).map((row) => ({
+      pileCount:row.pile_count??null,
+      ...(highlightedAdvice.some(v=>v.frd_kn===row.frd_kn&&(v.missing??false)===(row.missing??false)&&v.pile_size_mm===row.pile_size_mm&&v.pile_tip_level_m===row.pile_tip_level_m&&(v.pile_count??null)===(row.pile_count??null)&&(v.direction??"compression")===(row.direction??"compression"))?{highlighted:true}:{}),
       sizeLabel: `${formatNumber(row.pile_size_mm)} mm`,
       tipLabel: formatPileTipLevelMetres(row.pile_tip_level_m, locale),
-      frdLabel: `${formatNumber(row.frd_kn)} kN`,
+      frdLabel: row.missing?"—":`${formatNumber(row.frd_kn)} kN`,
     })),
   };
 }

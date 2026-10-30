@@ -106,3 +106,24 @@ describe("MCP source import session", () => {
     await assert.rejects(session.call("pile_get_source_import_status", { transaction_id }, marker), /import_expired/);
   });
 });
+
+it("stages explicit tension mappings immutably with the validated source content",async()=>{
+ let received:import("../../core/coreImportContract.ts").ImportSourceInput[]=[];
+ const session=createSourceImportSession({requirements:async()=>({}),validate:async input=>{received=input.sources;return {};},apply:async()=>({})});
+ const begun=await session.call("pile_begin_source_import",{mode:"refresh",expected_project_instance_id:"one",expected_project_revision:3},marker);
+ const transaction_id=begun.data.transaction_id as string;
+ await session.call("pile_append_import_source",{transaction_id,...source,import_tension:true,tension_column:5},marker);
+ await session.call("pile_validate_source_import",{transaction_id},marker);await settledStatus(session,transaction_id);
+ assert.equal(received[0].profileOptions.importTension,true);assert.equal(received[0].profileOptions.tensionColumn,5);
+});
+it("stages flexible column and header settings as an independent immutable source option",async()=>{
+ let received:import("../../core/coreImportContract.ts").ImportSourceInput[]=[];
+ const session=createSourceImportSession({requirements:async()=>({}),validate:async input=>{received=input.sources;return {};},apply:async()=>({})});
+ const begun=await session.call("pile_begin_source_import",{mode:"refresh",expected_project_instance_id:"one",expected_project_revision:3},marker);
+ const transaction_id=begun.data.transaction_id as string;
+ const table={has_headers:true,header_row:1,first_data_row:2,columns:[{column:1,field:"id"}]};
+ await session.call("pile_append_import_source",{transaction_id,...source,table},marker);
+ table.columns[0].field="ignore";
+ await session.call("pile_validate_source_import",{transaction_id},marker);await settledStatus(session,transaction_id);
+ assert.equal(received[0].profileOptions.table?.columns?.[0].field,"id");
+});

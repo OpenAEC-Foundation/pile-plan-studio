@@ -15,26 +15,28 @@ pub(super) struct AdviceMergeResult {
 pub(super) fn merge_advice_values(
     values: &[SourcedCapacity],
 ) -> Result<AdviceMergeResult, ImportError> {
-    let mut groups: BTreeMap<(u32, u32, i64), Vec<&SourcedCapacity>> = BTreeMap::new();
+    let mut groups: BTreeMap<(u32, u32, i64, crate::ResistanceDirection, Option<u32>), Vec<&SourcedCapacity>> =
+        BTreeMap::new();
     for item in values {
         let c = &item.capacity;
-        if !c.frd_kn.is_finite() || c.pile_size_mm == 0 {
+        if !c.frd_kn.is_finite() || c.pile_size_mm == 0 || c.pile_count == Some(0) || (c.missing && c.frd_kn != 0.) {
             return Err(ImportError::Validation("Invalid bearing capacity".into()));
         }
         let tip = try_pile_tip_level_mm(c.pile_tip_level_m)
             .map_err(|e| ImportError::Validation(e.to_string()))?;
         groups
-            .entry((c.cpt_id, c.pile_size_mm, tip))
+            .entry((c.cpt_id, c.pile_size_mm, tip, c.direction, c.pile_count))
             .or_default()
             .push(item);
     }
     let mut result = AdviceMergeResult::default();
-    for ((cpt_id, pile_size_mm, pile_tip_level_mm), mut items) in groups {
+    for ((cpt_id, pile_size_mm, pile_tip_level_mm, direction, pile_count), mut items) in groups {
         items.sort_by(|a, b| {
             a.capacity
                 .frd_kn
                 .partial_cmp(&b.capacity.frd_kn)
                 .unwrap()
+                .then(a.capacity.missing.cmp(&b.capacity.missing))
                 .then(a.location.cmp(&b.location))
         });
         let mut values: Vec<AdviceConflictValue> = Vec::new();
@@ -44,11 +46,12 @@ pub(super) fn merge_advice_values(
             } else {
                 item.capacity.frd_kn
             };
-            if let Some(group) = values.last_mut().filter(|g| g.frd_kn == frd) {
+            if let Some(group) = values.last_mut().filter(|g| g.frd_kn == frd && g.missing == item.capacity.missing) {
                 group.locations.push(item.location.clone());
                 result.exact_duplicate_count += 1;
             } else {
                 values.push(AdviceConflictValue {
+                    missing: item.capacity.missing,
                     frd_kn: frd,
                     locations: vec![item.location.clone()],
                 });
@@ -56,6 +59,8 @@ pub(super) fn merge_advice_values(
         }
         if values.len() > 1 {
             result.conflicts.push(AdviceConflict {
+                pile_count,
+                direction,
                 cpt_id,
                 pile_size_mm,
                 pile_tip_level_mm,
@@ -63,10 +68,13 @@ pub(super) fn merge_advice_values(
             });
         } else {
             result.unique_values.push(ProjectBearingCapacity {
+                pile_count,
+                missing: values[0].missing,
                 cpt_id,
                 pile_size_mm,
                 pile_tip_level_m: pile_tip_level_mm as f64 / 1000.,
                 frd_kn: values[0].frd_kn,
+                direction,
             });
         }
     }
@@ -79,10 +87,13 @@ mod tests {
     fn item(id: &str, value: f64) -> SourcedCapacity {
         SourcedCapacity {
             capacity: crate::ProjectBearingCapacity {
+                pile_count: None,
+                missing: false,
                 cpt_id: 1,
                 pile_size_mm: 290,
                 pile_tip_level_m: -15.0,
                 frd_kn: value,
+                direction: Default::default(),
             },
             location: AdviceValueLocation {
                 source_id: id.into(),

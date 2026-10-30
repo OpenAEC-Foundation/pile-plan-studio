@@ -92,7 +92,7 @@ describe("normalized source tables", () => {
 
     assert.deepEqual(loadPoints.columns.map(({ key }) => key), ["id", "x", "y", "fed"]);
     assert.deepEqual(cpts.columns.map(({ key }) => key), ["id", "x", "y"]);
-    assert.deepEqual(advice.columns.map(({ key }) => key), ["cpt", "size", "tip", "capacity"]);
+    assert.deepEqual(advice.columns.map(({ key }) => key), ["cpt", "size", "tip", "capacity", "tension_capacity"]);
   });
 
   it("combines exact column filters by default and sorts numeric values numerically", () => {
@@ -124,4 +124,34 @@ describe("normalized source tables", () => {
       rows,
     );
   });
+});
+
+
+it("foundation advice presents paired pressure and tension columns without direction rows",()=>{
+ const table=buildSourceTable("bearing_capacities",{loadPoints:[],cpts:[],bearingCapacities:[
+  {cpt_id:7,pile_size_mm:320,pile_tip_level_m:-18,frd_kn:900},
+  {cpt_id:7,pile_size_mm:320,pile_tip_level_m:-18,frd_kn:0,direction:"tension"},
+  {cpt_id:8,pile_size_mm:320,pile_tip_level_m:-18,frd_kn:120,direction:"tension"}
+ ]});
+ assert.deepEqual(table.columns.map(c=>c.key),["cpt","size","tip","capacity","tension_capacity"]);
+ assert.deepEqual(table.rows,[{cpt:7,size:320,tip:-18,capacity:900,tension_capacity:0},{cpt:8,size:320,tip:-18,capacity:"",tension_capacity:120}]);
+});
+
+
+it("load sources keep known zero and unknown tension in one load column",()=>{
+ const table=buildSourceTable("load_points",{loadPoints:[
+  {id:1,name:"A",x_mm:0,y_mm:0,design_load_kn:100,tension:{state:"known",value_kn:0}},
+  {id:2,name:"B",x_mm:1,y_mm:0,design_load_kn:100,tension:{state:"missing"}}
+ ],cpts:[],bearingCapacities:[]});
+ assert.deepEqual(table.columns.map(c=>c.key),["id","x","y","fed","tension"]);
+ assert.equal(table.rows[0].tension,0);assert.equal(table.rows[1].tension,"");
+});
+
+
+it("keeps general and scoped advice separate and shows explicit missing cells as empty",()=>{
+ const base={cpt_id:1,pile_size_mm:320,pile_tip_level_m:-18,pile_tip_level_mm:-18000,frd_kn:80};
+ const table=buildSourceTable("bearing_capacities",{loadPoints:[],cpts:[],bearingCapacities:[base,{...base,pile_count:4,frd_kn:40},{...base,pile_count:4,direction:"tension",frd_kn:0,missing:true}]});
+ assert.equal(table.rows.length,2);assert.equal(table.rows[0].pile_count,"all");
+ assert.equal(table.rows[1].pile_count,4);assert.equal(table.rows[1].capacity,40);assert.equal(table.rows[1].tension_capacity,"");
+ assert.ok(table.columns.some(c=>c.key==="pile_count"));
 });

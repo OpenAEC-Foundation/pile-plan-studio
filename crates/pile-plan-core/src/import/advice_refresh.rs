@@ -6,12 +6,14 @@ use crate::{
 };
 use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 
-type CapacityKey = (u32, u32, i64);
+type CapacityKey = (u32, u32, i64, crate::ResistanceDirection, Option<u32>);
 pub(super) fn capacity_key(value: &ProjectBearingCapacity) -> CapacityKey {
     (
         value.cpt_id,
         value.pile_size_mm,
         try_pile_tip_level_mm(value.pile_tip_level_m).expect("validated capacity tip"),
+        value.direction,
+        value.pile_count,
     )
 }
 struct StoredGroup {
@@ -21,7 +23,19 @@ struct StoredGroup {
     legacy: bool,
 }
 fn read_keys(log: &ProjectImportLogEntry) -> Option<Vec<CapacityKey>> {
-    serde_json::from_str(log.profile_details.get("capacity_keys")?).ok()
+    let text = log.profile_details.get("capacity_keys")?;
+    serde_json::from_str(text).ok().or_else(|| {
+        serde_json::from_str::<Vec<(u32,u32,i64,crate::ResistanceDirection)>>(text).ok()
+            .map(|keys|keys.into_iter().map(|(c,s,t,d)|(c,s,t,d,None)).collect())
+    }).or_else(|| {
+        serde_json::from_str::<Vec<(u32, u32, i64)>>(text)
+            .ok()
+            .map(|keys| {
+                keys.into_iter()
+                    .map(|(c, s, t)| (c, s, t, crate::ResistanceDirection::Compression, None))
+                    .collect()
+            })
+    })
 }
 fn groups(project: &PilePlanProject) -> Vec<StoredGroup> {
     let logs: Vec<_> = project
@@ -99,7 +113,7 @@ pub(super) fn remap_advice_ownership(
         if let Some(keys) = read_keys(log) {
             let keys: Vec<_> = keys
                 .into_iter()
-                .filter_map(|(c, s, t)| mapping.get(&c).map(|id| (*id, s, t)))
+                .filter_map(|(c, s, t, d, count)| mapping.get(&c).map(|id| (*id, s, t, d, count)))
                 .collect();
             log.profile_details.insert(
                 "capacity_keys".into(),
@@ -171,8 +185,13 @@ pub(super) fn combine_advice_refresh(
     let stored = groups(current);
     let ids: HashSet<_> = stored.iter().map(|g| g.id.clone()).collect();
     let mut replaced = HashSet::new();
+    let mut replacement_directions = HashMap::<String, HashSet<crate::ResistanceDirection>>::new();
     for source in supplied {
         if let Some(AdviceImportOperation::Replace { advice_id }) = &source.advice_operation {
+            let source_id = source.source_id.clone().unwrap_or_else(|| format!("legacy-source-{}", sources.iter().position(|s|std::ptr::eq(s,source)).unwrap()));
+            let directions = new.sourced_values.iter().filter(|v|v.location.source_id==source_id)
+                .map(|v|v.capacity.direction).collect();
+            replacement_directions.insert(advice_id.clone(), directions);
             if !ids.contains(advice_id) || !replaced.insert(advice_id.clone()) {
                 return Err(ImportError::Validation(
                     "Unknown or duplicate advice replacement target".into(),
@@ -200,7 +219,13 @@ pub(super) fn combine_advice_refresh(
     }
     let mut values = new.sourced_values.clone();
     let mut retained_logs = Vec::new();
-    for group in stored.into_iter().filter(|g| !replaced.contains(&g.id)) {
+    for mut group in stored {
+        if let Some(directions) = replacement_directions.get(&group.id) {
+            group.keys.retain(|key| !directions.contains(&key.3));
+        }
+        if group.keys.is_empty() {
+            continue;
+        }
         for value in current
             .inputs
             .bearing_capacities
@@ -230,11 +255,15 @@ pub(super) fn combine_advice_refresh(
                     vec![]
                 }
             } else {
-                read_keys(&log).unwrap()
+                read_keys(&log)
+                    .unwrap()
+                    .into_iter()
+                    .filter(|key| group.keys.contains(key))
+                    .collect()
             };
             let keys: Vec<_> = old_keys
                 .into_iter()
-                .filter_map(|(c, s, t)| mapping.get(&c).map(|id| (*id, s, t)))
+                .filter_map(|(c, s, t, d, count)| mapping.get(&c).map(|id| (*id, s, t, d, count)))
                 .collect();
             log.profile_details
                 .insert("advice_id".into(), group.id.clone());
@@ -296,6 +325,49 @@ mod tests {
             "EUR",
         )
         .unwrap()
+    }
+    #[test]
+    fn replacing_tension_preserves_compression_even_in_a_combined_owned_source() {
+        let mut source = csv(
+            ImportRole::BearingCapacities,
+            "both.csv",
+            "1,-15,290,500,80",
+        );
+        source.profile_options.tension_column = Some(5);
+        let current = super::super::import_project_from_sources(
+            "T",
+            &[
+                csv(ImportRole::LoadPoints, "loads.csv", "1,0,0,100"),
+                csv(ImportRole::Cpts, "cpts.csv", "1,0,0"),
+                source,
+            ],
+            Some(0.),
+            "EUR",
+        )
+        .unwrap();
+        let mut replacement = csv(ImportRole::BearingCapacities, "tension.csv", "1,-15,290,90");
+        replacement.profile_options.resistance_direction = crate::ResistanceDirection::Tension;
+        replacement.advice_operation = Some(AdviceImportOperation::Replace {
+            advice_id: stored_advice_sources(&current)[0].id.clone(),
+        });
+        let refreshed =
+            super::super::refresh_project_from_profiled_sources(&current, &[replacement]).unwrap();
+        assert_eq!(refreshed.inputs.bearing_capacities.len(), 2);
+        assert!(refreshed
+            .inputs
+            .bearing_capacities
+            .iter()
+            .any(|r| r.direction == crate::ResistanceDirection::Compression && r.frd_kn == 500.));
+        assert!(refreshed
+            .inputs
+            .bearing_capacities
+            .iter()
+            .any(|r| r.direction == crate::ResistanceDirection::Tension && r.frd_kn == 90.));
+        assert!(stored_advice_sources(
+            &crate::read_ifcpp_str(&crate::write_ifcpp_string(&refreshed).unwrap()).unwrap()
+        )
+        .iter()
+        .all(|s| !s.combined_legacy));
     }
     #[test]
     fn adding_advice_preserves_existing_values_and_sources() {
@@ -424,4 +496,36 @@ mod tests {
             .iter()
             .any(|c| c.pile_tip_level_m == -15.));
     }
+    #[test]
+    fn general_and_specific_advice_coexist_and_replacement_preserves_other_scopes(){
+        let general=csv(ImportRole::BearingCapacities,"general.csv","1,-15,290,500");
+        let mut specific=csv(ImportRole::BearingCapacities,"four.csv","1,-15,290,300");
+        specific.profile_options.table=Some(serde_json::from_value(serde_json::json!({"pile_count":4,"has_headers":false})).unwrap());
+        let current=super::super::import_project_from_sources("Scoped",&[csv(ImportRole::LoadPoints,"loads.csv","1,0,0,100"),csv(ImportRole::Cpts,"cpts.csv","1,0,0"),general,specific],Some(0.),"EUR").unwrap();
+        assert_eq!(current.inputs.bearing_capacities.len(),2);
+        let owned=stored_advice_sources(&current).into_iter().find(|v|v.file_names==vec!["four.csv"]).unwrap();
+        let mut replacement=csv(ImportRole::BearingCapacities,"four-new.csv","1,-15,290,250");
+        replacement.profile_options.table=Some(serde_json::from_value(serde_json::json!({"pile_count":4,"has_headers":false})).unwrap());
+        replacement.advice_operation=Some(AdviceImportOperation::Replace{advice_id:owned.id});
+        let refreshed=super::super::refresh_project_from_profiled_sources(&current,&[replacement]).unwrap();
+        assert_eq!(refreshed.inputs.bearing_capacities.len(),2);
+        assert!(refreshed.inputs.bearing_capacities.iter().any(|v|v.pile_count.is_none()&&v.frd_kn==500.));
+        assert!(refreshed.inputs.bearing_capacities.iter().any(|v|v.pile_count==Some(4)&&v.frd_kn==250.));
+        let roundtrip=crate::read_ifcpp_str(&crate::write_ifcpp_string(&refreshed).unwrap()).unwrap();
+        assert!(stored_advice_sources(&roundtrip).iter().all(|v|!v.combined_legacy));
+    }
+
+    #[test]
+    fn changing_a_replacement_scope_does_not_leave_the_previous_count_behind(){
+        let current=project();
+        let target=stored_advice_sources(&current).into_iter().find(|s|s.file_names==vec!["a.csv"]).unwrap();
+        let mut replacement=csv(ImportRole::BearingCapacities,"specific.csv","1,-15,290,250");
+        replacement.profile_options.table=Some(serde_json::from_value(serde_json::json!({"pile_count":4,"has_headers":false})).unwrap());
+        replacement.advice_operation=Some(AdviceImportOperation::Replace{advice_id:target.id});
+        let refreshed=super::super::refresh_project_from_profiled_sources(&current,&[replacement]).unwrap();
+        assert_eq!(refreshed.inputs.bearing_capacities.len(),2);
+        assert!(!refreshed.inputs.bearing_capacities.iter().any(|v|v.pile_tip_level_m== -15.&&v.pile_count.is_none()));
+        assert!(refreshed.inputs.bearing_capacities.iter().any(|v|v.pile_count==Some(4)));
+    }
+
 }

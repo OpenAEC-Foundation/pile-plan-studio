@@ -29,6 +29,7 @@ test("enabling skip from a blocked result preserves target scope, selection and 
   const project=canonicalProjectForTest(readFileSync("../../sample_project/sample_project.ifcpp","utf8"));
   for(const scope of ["all","selected"] as const) {
     const state=createInitialProjectState(project,{initializeDefaultPiles:false},projectTipLevelKeysForTest(project));
+    state.ilpOptimizationSettings={...state.ilpOptimizationSettings,skip_unsolvable_units:false};
     state.ilpOptimizationTargetScope=scope;state.selectedLoadPointIds=[1,2,3];state.selectedLoadPointId=2;
     const outcome={status:"blocked" as const,diagnostics:[{code:"insufficient_capacity",load_point_ids:[2],blocking:true}],solvable_load_point_ids:[1,3]};
     assert.equal(canSkipUnsolvableIlpTargets(outcome),true);

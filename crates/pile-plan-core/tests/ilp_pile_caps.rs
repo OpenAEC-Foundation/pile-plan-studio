@@ -316,6 +316,7 @@ fn selected_targets_and_boundary_limits_keep_outside_cap_counts_fixed() {
         x_mm: 5000.,
         y_mm: 0.,
         design_load_kn: 50.,
+        tension: Default::default(),
     });
     draft.user_state.manual_cpt_selections.insert(3, vec![11]);
     draft.user_state.pile_plans[0].pile_cap_proposals = vec![PileCapProposal {
@@ -393,6 +394,7 @@ fn count_neighbor_input(weight: u32, budget: u32) -> IlpOptimizationInput {
         x_mm: 5000.,
         y_mm: 0.,
         design_load_kn: 600.,
+        tension: Default::default(),
     });
     draft.user_state.manual_cpt_selections.insert(2, vec![11]);
     request.load_points = draft.inputs.load_points.clone();
@@ -501,6 +503,7 @@ fn count_objective_solver_can_improve_beyond_single_unit_local_moves() {
         x_mm: 10000.,
         y_mm: 0.,
         design_load_kn: 1800.,
+        tension: Default::default(),
     });
     draft.user_state.manual_cpt_selections.insert(3, vec![11]);
     request.load_points = draft.inputs.load_points.clone();
@@ -566,4 +569,15 @@ fn older_weight_and_result_metadata_defaults_to_no_count_penalty() {
             .pile_count_milli,
         2750
     );
+}
+
+#[test]
+fn optimizer_uses_the_candidate_count_advice_with_general_values_as_background(){
+ let mut request=input(true,false,false);
+ request.settings.allowed_pile_counts=vec![2,3];
+ let draft=request.pile_cap_context.as_mut().unwrap();
+ let base=draft.inputs.bearing_capacities[0].clone();
+ for (count,resistance) in [(2,300.),(3,500.)]{let mut row=base.clone();row.pile_count=Some(count);row.frd_kn=resistance;draft.inputs.bearing_capacities.push(row);}
+ let result=run(request);
+ assert_eq!(result["solution"]["pile_cap_proposals"][0]["pile_count"],3,"{result}");
 }

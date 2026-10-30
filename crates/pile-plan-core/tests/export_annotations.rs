@@ -186,3 +186,20 @@ fn csv_and_xlsx_export_the_same_annotations() {
     assert_eq!(values[1][7], Data::Float(2.0));
     assert_eq!(values[1][8], Data::String("B".into()));
 }
+
+#[test]
+fn calculated_columns_without_context_are_empty_not_zero() {
+    let req = request(json!({"columns":[
+        {"key":"r","field":"compression_resistance","header":"R"},
+        {"key":"u","field":"compression_utilization","header":"U"},
+        {"key":"c","field":"pile_cost","header":"Cost"},
+        {"key":"l","field":"pile_length","header":"Length"},
+        {"key":"s","field":"technical_status","header":"Status"},
+        {"key":"id","field":"export_id","header":"Export ID"},
+        {"key":"origin","field":"original_locations","header":"Origin"}
+    ]}));
+    let result = preview_configured_pile_plan_export(&req).unwrap();
+    assert_eq!(&result.table.rows[0][..4], &vec![Value::Null; 4]);
+    assert_eq!(result.table.rows[0][5], json!(10));
+    assert_eq!(result.table.rows[0][6], json!("10"));
+}

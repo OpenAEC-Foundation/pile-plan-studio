@@ -183,6 +183,8 @@ export default function RightPanel({
         </button>
       </div>
       {taskPanel === null ? <SelectionOverview loadPoints={state.loadPoints} selectedIds={state.selectedLoadPointIds}
+        restrictToContext={state.loadPointSelectionContext?.exclusive??false}
+        onSelectOnly={id=>onStateChange({...state,...setLoadPointSelection(state,[id],{context:{loadPoints:state.loadPoints,ids:[id],exclusive:true}})})}
         contextIds={selectionContextIds} groups={loadPointGroups} rows={selectionRows} collapsed={selectionCollapsed}
         onLayoutChange={onSelectionLayoutChange} disabled={cptEditPending}
         onSelect={ids => onStateChange({ ...state, ...setLoadPointSelection(state, ids,

@@ -45,6 +45,17 @@ pub(super) fn suggested_field(header: &str) -> Option<ExportField> {
     Some(match k.as_str() {
         "loadpointid" | "locationid" | "locatieid" | "node" | "nodeid" | "knoop"
         | "knoopnummer" => ExportField::LoadPointId,
+        "exportid" => ExportField::ExportId,
+        "originallocations" | "oorspronkelijkelocaties" => ExportField::OriginalLocations,
+        "proposalcode" | "voorstelcode" => ExportField::ProposalCode,
+        "governingresistance[kn]" | "maatgevendeweerstand[kn]" => {
+            ExportField::CompressionResistance
+        }
+        "utilization[%]" | "benutting[%]" => ExportField::CompressionUtilization,
+        "governingcpt" | "maatgevendesondering" => ExportField::GoverningCpt,
+        "pilecost[€]" | "paalkosten[€]" => ExportField::PileCost,
+        "pilelength[m]" | "paallengte[m]" => ExportField::PileLength,
+        "technicalstatus" | "technischestatus" => ExportField::TechnicalStatus,
         "mark" | "paalnummer" | "paalnr" | "pilenumber" | "pilenr" => ExportField::Mark,
         "x" | "x[mm]" | "x[m]" | "x(mm)" | "x(m)" | "xcoördinaat" | "xcoordinate" => {
             ExportField::X

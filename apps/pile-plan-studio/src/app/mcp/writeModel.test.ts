@@ -23,7 +23,7 @@ describe("MCP project writes", () => {
     assert.equal(prepared.changed, true);
     assert.equal(next.pilePlans.length, state.pilePlans.length + 1);
     assert.equal(next.activePilePlanId, prepared.data.plan_id);
-    assert.equal(state.pilePlans.length, 1);
+    assert.equal(state.pilePlans.length, project.user_state.pile_plans.length);
   });
 
   it("renames a known plan and rejects an unknown one", async () => {
@@ -53,6 +53,7 @@ describe("MCP project writes", () => {
   it("uses Rust group changes and preserves the original assignment map", async () => {
     const configuration = { pile_size_mm: 300, pile_tip_level_mm: -12000 };
     const withOptions = { ...state, pileOptionsByLoadPointId: new Map([[pointId, [{ configuration }]]]), selectedCptsByLoadPointId: new Map([[pointId, []]]) };
+    const originalChoices=new Map(withOptions.selectedPileConfigurationsByLoadPoint);
     const prepared = await prepareMcpWrite({ ...snapshot, state: withOptions }, "pile_assign_configuration", {
       plan_id: state.activePilePlanId, load_point_id: pointId, ...configuration,
     }, { applyAssignment: async (input) => {
@@ -61,7 +62,7 @@ describe("MCP project writes", () => {
     } });
     const next = prepared.update(withOptions);
     assert.deepEqual(next.selectedPileConfigurationsByLoadPoint.get(pointId), configuration);
-    assert.equal(withOptions.selectedPileConfigurationsByLoadPoint.has(pointId), false);
+    assert.deepEqual(withOptions.selectedPileConfigurationsByLoadPoint, originalChoices);
     assert.deepEqual(prepared.data.changed_load_point_ids, [pointId]);
   });
 

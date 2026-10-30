@@ -1,11 +1,12 @@
 import type { PresentedTipLevelRegionLayer } from "../../../../viewer/tipLevelRegionPresentation.ts";
 import { buildTipLevelRegionSvgModel } from "./tipLevelRegionSvgModel.ts";
+import { memo } from "react";
 
 type Props = {
   layers: PresentedTipLevelRegionLayer[];
 };
 
-export default function TipLevelRegionOverlay({ layers }: Props) {
+export default memo(function TipLevelRegionOverlay({ layers }: Props) {
   const model = buildTipLevelRegionSvgModel(layers);
   if (model.groups.length === 0) return null;
 
@@ -35,4 +36,4 @@ export default function TipLevelRegionOverlay({ layers }: Props) {
       ))}
     </g>
   );
-}
+});

@@ -76,6 +76,10 @@ pub enum BearingCapacityAction {
         cpt_id: u32,
         pile_size_mm: u32,
         pile_tip_level_mm: i64,
+        #[serde(default)]
+        direction: crate::ResistanceDirection,
+        #[serde(default)]
+        pile_count: Option<u32>,
     },
 }
 
@@ -116,7 +120,7 @@ pub fn evaluate_mcp_project_edit(input: &McpProjectEditInput) -> McpProjectEditR
                 .inputs
                 .bearing_capacities
                 .iter()
-                .filter_map(|v| advice_key(v).map(|(_, size, tip)| (size, tip)))
+                .filter_map(|v| advice_key(v).map(|(_, size, tip, _, _)| (size, tip)))
                 .collect();
             let custom: Vec<(u32, i64)> = settings
                 .custom_configurations
@@ -325,7 +329,9 @@ pub fn evaluate_mcp_project_edit(input: &McpProjectEditInput) -> McpProjectEditR
                         cpt_id,
                         pile_size_mm,
                         pile_tip_level_mm,
-                    } => Some((*cpt_id, *pile_size_mm, *pile_tip_level_mm)),
+                        direction,
+                        pile_count,
+                    } => Some((*cpt_id, *pile_size_mm, *pile_tip_level_mm, *direction, *pile_count)),
                 };
                 let Some(key) = key else {
                     return blocked("invalid_tip_level", Some(index));
@@ -403,18 +409,23 @@ fn valid_load_point(value: &ProjectLoadPoint) -> bool {
         && value.x_mm.is_finite()
         && value.y_mm.is_finite()
         && value.design_load_kn.is_finite()
+        && value.tension.is_valid()
 }
 fn valid_cpt(value: &ProjectCpt) -> bool {
     !value.name.trim().is_empty() && value.x_mm.is_finite() && value.y_mm.is_finite()
 }
-fn advice_key(value: &ProjectBearingCapacity) -> Option<(u32, u32, i64)> {
+fn advice_key(
+    value: &ProjectBearingCapacity,
+) -> Option<(u32, u32, i64, crate::ResistanceDirection, Option<u32>)> {
     try_pile_tip_level_mm(value.pile_tip_level_m)
         .ok()
-        .map(|tip| (value.cpt_id, value.pile_size_mm, tip))
+        .map(|tip| (value.cpt_id, value.pile_size_mm, tip, value.direction, value.pile_count))
 }
 fn valid_advice(value: &ProjectBearingCapacity, draft: &ProjectDocumentDraft) -> bool {
     value.pile_size_mm > 0
         && value.frd_kn.is_finite()
+        && value.pile_count != Some(0)
+        && (!value.missing || value.frd_kn == 0.)
         && advice_key(value).is_some()
         && draft.inputs.cpts.iter().any(|cpt| cpt.id == value.cpt_id)
 }
@@ -493,7 +504,7 @@ fn valid_legend(value: &ProjectLegendSettings, draft: &ProjectDocumentDraft) -> 
         .collect();
     if draft.inputs.bearing_capacities.iter().any(|v| {
         !sizes.contains(&v.pile_size_mm)
-            || advice_key(v).is_none_or(|(_, _, tip)| !tips.contains(&tip))
+            || advice_key(v).is_none_or(|(_, _, tip, _, _)| !tips.contains(&tip))
     }) {
         return false;
     }

@@ -175,6 +175,7 @@
   display: grid;
   width: 170px;
   align-content: center;
+  align-items: center;
   gap: 3px;
   padding: 4px 6px;
   grid-template-columns: 1fr auto;
@@ -185,6 +186,66 @@
 .ribbon-slider-control strong {
   font-size: 10px;
   font-variant-numeric: tabular-nums;
+}
+
+.ribbon-numeric-range,
+.ribbon-numeric-editor {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  font-size: 10px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.ribbon-numeric-value {
+  min-height: 18px;
+  padding: 0 3px;
+  border: 1px solid transparent;
+  border-radius: 3px;
+  background: transparent;
+  color: var(--theme-text);
+  font: inherit;
+  font-size: 10px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+  cursor: text;
+}
+
+.ribbon-numeric-value:hover {
+  background: var(--theme-bg-lighter);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.ribbon-numeric-value:focus-visible {
+  border-color: var(--theme-accent);
+  background: var(--theme-bg-lighter);
+  outline: none;
+}
+
+.ribbon-numeric-editor input {
+  box-sizing: border-box;
+  width: 5.3ch;
+  height: 18px;
+  padding: 0 3px;
+  border: 1px solid var(--theme-accent);
+  border-radius: 3px;
+  background: var(--theme-bg);
+  color: var(--theme-text);
+  font: inherit;
+  text-align: right;
+  outline: none;
+  appearance: textfield;
+  -moz-appearance: textfield;
+}
+
+.ribbon-numeric-editor input::-webkit-inner-spin-button,
+.ribbon-numeric-editor input::-webkit-outer-spin-button {
+  margin: 0;
+  -webkit-appearance: none;
 }
 
 .ribbon-slider-control > input[type="range"] {
@@ -198,6 +259,8 @@
   position: relative;
   height: 18px;
   grid-column: 1 / -1;
+  touch-action: none;
+  cursor: ew-resize;
 }
 
 .ribbon-dual-range::before,
@@ -242,7 +305,7 @@
   border-radius: 50%;
   appearance: none;
   background: var(--theme-accent);
-  pointer-events: auto;
+  pointer-events: none;
 }
 
 .ribbon-dual-range input[type="range"]::-moz-range-track {
@@ -257,7 +320,7 @@
   border: 0;
   border-radius: 50%;
   background: var(--theme-accent);
-  pointer-events: auto;
+  pointer-events: none;
 }
 
 .ribbon-foreground-control {
@@ -455,3 +518,5 @@
   max-width: none;
   white-space: nowrap;
 }
+.ribbon-load-direction {display:flex;align-items:flex-start;justify-content:center;width:100%;gap:2px}
+.ribbon-load-direction .ribbon-btn {height:auto;min-height:50px;padding-bottom:4px}

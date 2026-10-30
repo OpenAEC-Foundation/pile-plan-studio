@@ -36,3 +36,21 @@ test("a different export plan can be chosen without changing the active plan",as
   fireEvent.click(screen.getByRole("button",{name:i18n.t("exportTools.revisionMode")}));
   expect((screen.getByLabelText(i18n.t("exportTools.exportPilePlan")) as HTMLSelectElement).value).toBe("other");
 });
+
+test("proposal toggle and code add their columns once with explanatory help",async()=>{
+ render(<PilePlanExportPanel activePilePlanName="Plan" pileSizeFormat="numeric" exportPlan={{...input,hasProposals:true}} exportContextKey="proposal-test" running={false} runExport={run=>void run()} onExportPilePlanXlsx={async()=>{}} onExportPilePlanCsv={async()=>{}}/>);
+ fireEvent.click(screen.getByRole("checkbox",{name:i18n.t("exportTools.includeProposals")}));
+ fireEvent.click(screen.getAllByText(i18n.t("exportTools.columnSettings"))[0]);
+ expect(screen.getByRole("button",{name:i18n.t("exportTools.selectColumn",{name:i18n.t("exportTools.headers.export_id")})})).toBeTruthy();
+ fireEvent.click(screen.getByRole("button",{name:i18n.t("exportTools.selectColumn",{name:i18n.t("exportTools.headers.export_id")})}));
+ expect(screen.getByText(i18n.t("exportTools.exportIdHelp"))).toBeTruthy();
+ fireEvent.change(screen.getByLabelText(i18n.t("exportTools.proposalCode")),{target:{value:"P"}});
+ fireEvent.change(screen.getByLabelText(i18n.t("exportTools.proposalCode")),{target:{value:"PV"}});
+ expect(screen.getAllByRole("button",{name:i18n.t("exportTools.selectColumn",{name:i18n.t("exportTools.headers.proposal_code")})})).toHaveLength(1);
+ fireEvent.click(screen.getByRole("checkbox",{name:i18n.t("exportTools.includeProposals")}));
+ expect(screen.queryByRole("button",{name:i18n.t("exportTools.selectColumn",{name:i18n.t("exportTools.headers.export_id")})})).toBeNull();
+ expect(screen.queryByRole("button",{name:i18n.t("exportTools.selectColumn",{name:i18n.t("exportTools.headers.proposal_code")})})).toBeNull();
+ expect(screen.queryByRole("option",{name:i18n.t("exportTools.fields.export_id")})).toBeNull();
+ fireEvent.click(screen.getByRole("checkbox",{name:i18n.t("exportTools.includeProposals")}));
+ expect(screen.getAllByRole("button",{name:i18n.t("exportTools.selectColumn",{name:i18n.t("exportTools.headers.proposal_code")})})).toHaveLength(1);
+});

@@ -66,3 +66,14 @@ export function projectViewPointToScreen(
 export function getViewportTransform(viewport: Viewport): string {
   return `translate(${viewport.offsetX}px, ${viewport.offsetY}px) scale(${viewport.scale})`;
 }
+
+/** Fit already-projected points; project geometry and layout compensation stay independent. */
+export function fitViewportToPoints(viewport:Viewport,points:readonly {x:number;y:number}[],size:{width:number;height:number},compensation:{x:number;y:number}):Viewport {
+ if(!points.length||size.width<=0||size.height<=0)return viewport;
+ const xs=points.map(p=>p.x),ys=points.map(p=>p.y),minX=Math.min(...xs),maxX=Math.max(...xs),minY=Math.min(...ys),maxY=Math.max(...ys);
+ const padding=Math.min(64,size.width/4,size.height/4);
+ const raw=Math.min((size.width-2*padding)/Math.max(1,maxX-minX),(size.height-2*padding)/Math.max(1,maxY-minY));
+ // Round down so scale rounding cannot push an extremity outside the padding.
+ const scale=clampScale(Math.floor(raw*100)/100);
+ return centerViewportAtPoint({...viewport,scale},{x:(minX+maxX)/2,y:(minY+maxY)/2},size,compensation);
+}

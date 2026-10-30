@@ -1,3 +1,4 @@
+import {captureProjectContent, projectDocumentDraftFromContent} from "../project/projectContent.ts";
 import type { PilePlanExportInput, PileSizeExportFormat } from "../../core/projectTypes.ts";
 import type { ProjectState } from "../project/projectState.ts";
 
@@ -21,15 +22,18 @@ export function buildPilePlanExportInput(state: PilePlanExportState, pileSizeFor
   };
 }
 
-export function buildPilePlanExportInputForPlan(state: ProjectState, planId: string, pileSizeFormat: PileSizeExportFormat = "numeric"): PilePlanExportInput {
+export function buildPilePlanExportInputForPlan(state: ProjectState, planId: string, pileSizeFormat: PileSizeExportFormat = "numeric", configured = false): PilePlanExportInput {
   const plan = state.pilePlans.find((candidate) => candidate.id === planId);
   if (!plan) throw new Error("unknown_plan");
-  if (plan.pileCapProposals?.length) throw new Error("pile_cap_proposals_not_exportable");
-  return buildPilePlanExportInput({
+  if (!configured && plan.pileCapProposals?.length) throw new Error("pile_cap_proposals_not_exportable");
+  return {
+    ...buildPilePlanExportInput({
     loadPoints: state.loadPoints,
     pileCostSettings: state.pileCostSettings,
     selectedPileConfigurationsByLoadPoint: planId === state.activePilePlanId
       ? state.selectedPileConfigurationsByLoadPoint : plan.selectedPileConfigurationsByLoadPoint,
     selectedCptsByLoadPointId: state.selectedCptsByLoadPointId,
-  }, pileSizeFormat);
+  }, pileSizeFormat),
+    ...(configured ? {projectContext: {draft: projectDocumentDraftFromContent(captureProjectContent(state), state.activePilePlanId), plan_id: planId}, hasProposals: !!plan.pileCapProposals?.length} : {}),
+  };
 }

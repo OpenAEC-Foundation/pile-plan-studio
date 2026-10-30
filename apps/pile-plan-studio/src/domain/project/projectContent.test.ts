@@ -44,9 +44,9 @@ describe("project content", () => {
     assert.equal("application" in draft, false);
     assert.equal("viewport" in draft, false);
     assert.equal(draft.metadata.name, state.name);
-    assert.equal(draft.user_state.pile_plans.length, 2);
+    assert.equal(draft.user_state.pile_plans.length, state.pilePlans.length + 1);
     assert.equal(
-      draft.user_state.pile_plans[1].selected_piles[String(state.loadPoints[0].id)]
+      draft.user_state.pile_plans.find(plan=>plan.id==="inactive")!.selected_piles[String(state.loadPoints[0].id)]
         .pile?.pile_tip_level_m_key,
       -18_500,
     );

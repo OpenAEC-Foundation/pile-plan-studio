@@ -70,7 +70,9 @@
       "conflicting-rows": "Multiple source rows resolve to the same load point.",
       "superseded-legacy-row": "This historical or duplicate Legacy row was ignored in favour of a more reliable row.",
       "unknown-cpt": "The imported CPT selection contains an unknown CPT; the current selection is preserved.",
-      "unknown-pile-configuration": "The imported pile configuration is not available in this project; the current assignment is preserved."
+      "unknown-pile-configuration": "The imported pile configuration is not available in this project; the current assignment is preserved.",
+      "invalid-column-mapping": "Check column assignments: map a location ID or X and Y, and both size and tip level for pile assignments.",
+      "invalid-location-mapping": "The selected location links are invalid. Check duplicate links and skipped rows."
     },
     "import": "Import as new pile plan"
   },

@@ -12,7 +12,8 @@ test("confirmed links survive column and code edits but source mapping changes r
   const {result,rerender}=renderHook(({options}:{options:ExportOptions})=>usePilePlanExportPreview(input,options,"project","revision"),{initialProps:{options:DEFAULT_EXPORT_OPTIONS}});
   await act(()=>result.current.readOld(file));
   await waitFor(()=>expect(result.current.revision.result).toBeTruthy());
-  act(()=>result.current.confirm({links:[],added:[],removed:[]}));
+  act(()=>result.current.confirm({links:[],added:[],removed:[]},50));
+  expect(result.current.tolerance).toBe(50);
   expect(result.current.reviewed).toBe(true);
   act(()=>result.current.setOutputColumns([{key:"id",field:"load_point_id",header:"Knoop",enabled:true}]));
   rerender({options:{...DEFAULT_EXPORT_OPTIONS,change_codes:{...DEFAULT_CHANGE_CODES,separator:" / "}}});
@@ -70,4 +71,13 @@ test("an unconfirmed change-table summary stays visible during column changes",a
   expect(result.current.revisionDisplay?.numbering).toEqual(unconfirmed.numbering);
   expect(result.current.hasRevisionTable).toBe(false);
   await act(async()=>resolve(unconfirmed));
+});
+
+test("changing proposal inclusion invalidates confirmed revision matching",async()=>{
+ const {result,rerender}=renderHook(({options}:{options:ExportOptions})=>usePilePlanExportPreview(input,options,"project","revision"),{initialProps:{options:DEFAULT_EXPORT_OPTIONS}});
+ await act(()=>result.current.readOld(file));await waitFor(()=>expect(result.current.revision.result).toBeTruthy());
+ act(()=>result.current.confirm({links:[],added:[],removed:[]}));
+ rerender({options:{...DEFAULT_EXPORT_OPTIONS,include_proposals:true}});
+ expect(result.current.reviewed).toBe(false);
+ expect(result.current.request?.decisions).toBeNull();
 });

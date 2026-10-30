@@ -20,6 +20,8 @@ export type PileCapOption = PileConfigurationOption & {
   total_cost: number | null;
 };
 export type PileCapPreview = {
+  total_tension?:import("./projectTypes.ts").TensionDemand;
+  tension_per_pile?:import("./projectTypes.ts").TensionDemand;
   proposal: PileCapProposal;
   status:
     | "active"

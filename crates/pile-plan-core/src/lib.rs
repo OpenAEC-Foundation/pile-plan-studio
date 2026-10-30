@@ -1,8 +1,12 @@
 mod cpt_selection;
 mod export;
-mod export_rules;
+mod export_context;
+pub use export_context::ExportProjectContext;
 mod export_columns;
-pub use export_columns::{ExportColumn, ExportField, ExportLengthUnit, PileSizeNotation};
+mod export_rules;
+pub use export_columns::{
+    ExportColumn, ExportCoordinateSource, ExportField, ExportLengthUnit, ExportStatusValues, PileSizeNotation,
+};
 mod export_table;
 mod ifcpp;
 mod import;
@@ -20,6 +24,8 @@ mod pile_tip_levels;
 mod project;
 mod revit_revision;
 mod source_data;
+pub use pile_options::{DirectionAssessment, DirectionStatus};
+pub use source_data::{ResistanceDirection, TensionDemand};
 mod technical_assignment;
 mod tip_level_regions;
 mod transport_requests;
@@ -48,7 +54,7 @@ pub use import::{
     standard_csv_requirements, ImportDiagnostic, ImportDiagnosticCode, ImportDiagnosticLocation,
     ImportDiagnosticSeverity, ImportError, ImportPreviewDetails, ImportProfile,
     ImportProfileOptions, ImportRole, ImportSource, ImportSourcePreview, RfemPreviewDetails,
-    SourceFormat,
+    SourceFormat,TableImportSettings,ImportColumnMapping,SourceTablePreview,SourceColumnPreview,SourcePreviewRow,
 };
 pub use import::{
     prepare_load_point_refresh, refresh_project_with_location_decisions, LoadPointRefreshPreview,
@@ -99,7 +105,8 @@ pub use pile_cap_proposals::{
 };
 pub use pile_configuration::PileConfigurationKey;
 pub use pile_options::{
-    aggregate_pile_options_for_load_points, build_pile_option_analysis, calculate_pile_cost,
+    inspect_foundation_advice,FoundationAdviceInspectionRequest,
+    aggregate_pile_options_for_load_points, build_pile_option_analysis, build_pile_option_analysis_for_groups, calculate_pile_option_analysis, calculate_pile_cost,
     choose_default_pile_options, evaluate_pile_cost_catalog_edit, pile_option_technical_status,
     validate_pile_cost_settings, AggregatedPileConfiguration, AggregatedPileConfigurationStatus,
     CptBearingCapacityRow, InvalidPileCostSettings, InvalidPileCostSettingsItem,

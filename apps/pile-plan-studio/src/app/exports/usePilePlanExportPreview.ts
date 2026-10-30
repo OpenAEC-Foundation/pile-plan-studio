@@ -2,7 +2,7 @@ import {useEffect,useRef,useState} from "react";
 import {inspectPileTableCore,previewPilePlanExportCore,previewRevitRevisionCore} from "../../core/exportRevisionCoreClient.ts";
 import {DEFAULT_CHANGE_CODES,toCoreExportPlan,type ExportColumn,type ExportOptions,type RevisionSource,type LocationDecisions,type RevitRevisionInput,type PileNumberingRule,type PileTableMapping,type PileTableInspection,type ExportPreview,type RevisionPreview} from "../../core/exportRevisionContract.ts";
 import type {PilePlanExportInput} from "../../core/projectTypes.ts";
-import {localizeExportColumns,DEFAULT_COLUMN_HEADERS} from "../../domain/exports/exportColumns.ts";
+import {localizeExportColumns,ensureExportColumn,withoutProposalExportColumns,DEFAULT_COLUMN_HEADERS} from "../../domain/exports/exportColumns.ts";
 import {getImportFileFormat} from "../../core/importFiles.ts";
 import {useCorePreview} from "./useCorePreview.ts";
 
@@ -13,6 +13,7 @@ export function usePilePlanExportPreview(input:PilePlanExportInput|null,options:
   const [layout,setLayout]=useState<{key:string;columns:ExportColumn[]}|null>(null);
   const [useFile,setUseFile]=useState(false),[fileError,setFileError]=useState<unknown>(null),[reading,setReading]=useState(0);
   const [tolerance,setTolerance]=useState(99);
+  const [sourceReview,setSourceReview]=useState<{identity:string;decisions:LocationDecisions}|null>(null);
   const [review,setReview]=useState<{identity:string;decisions:LocationDecisions}|null>(null);
   const [ruleOverride,setRuleOverride]=useState<{identity:string;rule:PileNumberingRule}|null>(null);
   const [openIdentity,setOpenIdentity]=useState<string|null>(null);
@@ -32,14 +33,21 @@ export function usePilePlanExportPreview(input:PilePlanExportInput|null,options:
   const newInspectionForEditor=newInspection.result??(newSource&&editorCache.current.new?.token===fileTokens.current.new?editorCache.current.new.inspection:null);
   const effectiveOldMapping=oldMapping??oldInspection.result?.mapping??null;
   const effectiveNewMapping=newMapping??newInspection.result?.mapping??null;
-  const identity=JSON.stringify([contextKey,inputKey,oldKey,effectiveOldMapping,useFile?newKey:null,useFile?effectiveNewMapping:null,useFile,tolerance]);
+  const comparisonIdentity=JSON.stringify([contextKey,inputKey,oldKey,effectiveOldMapping,useFile?newKey:null,useFile?effectiveNewMapping:null,useFile,options.include_proposals===true]);
+  const identityAtTolerance=(value:number)=>JSON.stringify([contextKey,inputKey,oldKey,effectiveOldMapping,useFile?newKey:null,useFile?effectiveNewMapping:null,useFile,value,options.include_proposals===true]);
+  const identity=identityAtTolerance(tolerance);
   const layoutKey=JSON.stringify([oldKey,effectiveOldMapping]);
-  const inherited=oldInspection.result?.source_columns.map(column=>{
+  let inherited=oldInspection.result?.source_columns.map(column=>{
     if(column.key==="change")return column;
     const field=Object.entries(effectiveOldMapping?.columns??{}).find(([,index])=>index===column.source_index)?.[0] as ExportColumn["field"]|undefined;
     return {...column,field:field??"source"};
   })??[];
-  const outputColumns=localizeExportColumns(layout?.key===layoutKey?layout.columns:inherited,headers);
+  if(inherited.length&&options.include_proposals&&!useFile){
+    inherited=ensureExportColumn(inherited,"export_id",headers);
+    if(options.proposal_code?.trim())inherited=ensureExportColumn(inherited,"proposal_code",headers);
+  }
+  const chosenColumns=layout?.key===layoutKey?layout.columns:inherited;
+  const outputColumns=localizeExportColumns(options.include_proposals?chosenColumns:withoutProposalExportColumns(chosenColumns),headers);
   const normal=useCorePreview(mode==="normal"&&input?JSON.stringify([contextKey,inputKey,options]):null,()=>previewPilePlanExportCore(input!,options));
   const normalDisplayKey=JSON.stringify([contextKey,inputKey]);
   const normalCache=useRef<{key:string;preview:ExportPreview}|null>(null);
@@ -47,15 +55,16 @@ export function usePilePlanExportPreview(input:PilePlanExportInput|null,options:
   const normalDisplay=normal.result??(normal.pending&&normalCache.current?.key===normalDisplayKey?normalCache.current.preview:null);
   const request:RevitRevisionInput|null=mode==="revision"&&oldSource&&oldInspection.result&&(!useFile?input:!!newSource&&!!newInspection.result)?{
     oldSource,newPlan:input??EMPTY_PLAN,newSource:useFile?newSource:null,oldMapping:effectiveOldMapping,newMapping:effectiveNewMapping,
+    sourceDecisions:sourceReview?.identity===identity?sourceReview.decisions:null,
     outputColumns,changeCodes:options.change_codes??DEFAULT_CHANGE_CODES,
     options:ruleOverride?.identity===identity?{...options,mark:{...options.mark,rule:ruleOverride.rule}}:options,
     toleranceMm:tolerance,decisions:review?.identity===identity?review.decisions:null,useDetectedNumbering:ruleOverride?.identity!==identity,
   }:null;
-  const revision=useCorePreview(request?JSON.stringify([identity,request.options,request.decisions,request.useDetectedNumbering,request.outputColumns,request.changeCodes]):null,()=>previewRevitRevisionCore(request!));
+  const revision=useCorePreview(request?JSON.stringify([identity,request.options,request.sourceDecisions,request.decisions,request.useDetectedNumbering,request.outputColumns,request.changeCodes]):null,()=>previewRevitRevisionCore(request!));
   const revisionCache=useRef<{key:string;preview:RevisionPreview}|null>(null);
-  if(revision.result)revisionCache.current={key:identity,preview:revision.result};
-  const revisionDisplay=revision.result??(revision.pending&&revisionCache.current?.key===identity?revisionCache.current.preview:null);
-  const hasRevisionTable=revisionCache.current?.key===identity&&revisionCache.current.preview.table!=null;
+  if(revision.result)revisionCache.current={key:comparisonIdentity,preview:revision.result};
+  const revisionDisplay=revision.result??(revision.pending&&revisionCache.current?.key===comparisonIdentity?revisionCache.current.preview:null);
+  const hasRevisionTable=revisionCache.current?.key===comparisonIdentity&&revisionCache.current.preview.table!=null;
   const readFile=async(file:File|null,side:"old"|"new")=>{
     const token=++fileTokens.current[side];const setter=side==="old"?setOldSource:setNewSource;
     setter(null);(side==="old"?setOldMapping:setNewMapping)(null);setFileError(null);setOpenIdentity(null);
@@ -81,6 +90,7 @@ export function usePilePlanExportPreview(input:PilePlanExportInput|null,options:
     overrideRule:(rule:PileNumberingRule)=>setRuleOverride({identity,rule}),useDetected:()=>setRuleOverride(null),
     reviewed:review?.identity===identity,
     reviewOpen:openIdentity===identity,openReview:()=>setOpenIdentity(identity),closeReview:()=>setOpenIdentity(null),
-    confirm:(decisions:LocationDecisions)=>{setReview({identity,decisions});setOpenIdentity(null);},
+    confirmSources:(decisions:LocationDecisions,value=tolerance)=>{setTolerance(value);setSourceReview({identity:identityAtTolerance(value),decisions});setReview(null);setOpenIdentity(null);},
+    confirm:(decisions:LocationDecisions,value=tolerance)=>{setTolerance(value);setReview({identity:identityAtTolerance(value),decisions});setOpenIdentity(null);},
   };
 }

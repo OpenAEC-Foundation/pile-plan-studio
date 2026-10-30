@@ -7,6 +7,22 @@ use std::collections::{HashMap, HashSet};
 #[serde(rename_all = "snake_case")]
 pub enum ExportField {
     LoadPointId,
+    ExportId,
+    OriginalLocations,
+    ProposalCode,
+    TensionLoad,
+    TensionResistance,
+    TensionUtilization,
+    GoverningTensionCpt,
+    CompressionStatus,
+    TensionStatus,
+    AssessmentScope,
+    CompressionResistance,
+    CompressionUtilization,
+    GoverningCpt,
+    PileCost,
+    PileLength,
+    TechnicalStatus,
     Mark,
     X,
     Y,
@@ -52,11 +68,49 @@ pub enum PileSizeNotation {
     Custom,
 }
 
+/// Presentation values only; engineering status is supplied by the core analysis.
+#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
+#[serde(default)]
+pub struct ExportStatusValues {
+    pub valid: String,
+    pub insufficient: String,
+    pub missing: String,
+    pub no_cpts: String,
+    pub unassigned: String,
+    pub no_load: Option<String>,
+    pub not_assessed: Option<String>,
+    pub missing_demand: Option<String>,
+}
+impl ExportStatusValues {
+    fn value(&self, code: &str) -> Option<&str> {
+        Some(match code {
+            "no_load" => return self.no_load.as_deref(),
+            "not_assessed" => return self.not_assessed.as_deref(),
+            "missing_demand" => return self.missing_demand.as_deref(),
+            "valid" => &self.valid,
+            "insufficient" => &self.insufficient,
+            "missing" => &self.missing,
+            "no_cpts" => &self.no_cpts,
+            "unassigned" => &self.unassigned,
+            _ => return None,
+        })
+    }
+}
+
 fn enabled() -> bool {
     true
 }
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ExportCoordinateSource {
+    #[default]
+    OldWithinTolerance,
+    New,
+}
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct ExportColumn {
+    #[serde(default)]
+    pub coordinate_source: Option<ExportCoordinateSource>,
     pub key: String,
     pub field: ExportField,
     pub header: String,
@@ -74,6 +128,8 @@ pub struct ExportColumn {
     pub unit: Option<ExportLengthUnit>,
     #[serde(default)]
     pub value: String,
+    #[serde(default)]
+    pub status_values: Option<ExportStatusValues>,
 }
 
 impl ExportColumn {
@@ -83,6 +139,7 @@ impl ExportColumn {
         key: impl Into<String>,
     ) -> Self {
         Self {
+            coordinate_source: None,
             key: key.into(),
             field,
             header: header.into(),
@@ -93,11 +150,14 @@ impl ExportColumn {
             template: None,
             unit: None,
             value: String::new(),
+            status_values: None,
         }
     }
 }
 
 pub(crate) struct ColumnRecord {
+    pub previous_coordinates: Option<(f64, f64)>,
+    pub source_coordinate_unit: Option<ExportLengthUnit>,
     /// Coordinates and tip levels are canonical millimetres; IDs/loads retain their own units.
     pub values: HashMap<ExportField, Value>,
     pub pile_size: Option<(u32, Option<PileCostShape>)>,
@@ -115,6 +175,11 @@ pub(crate) fn validate_columns(columns: &[ExportColumn]) -> Result<(), ExportErr
         if !column.enabled {
             continue;
         }
+        if column.coordinate_source.is_some()
+            && !matches!(column.field, ExportField::X | ExportField::Y)
+        {
+            return Err(error("invalid_export_columns"));
+        }
         count += 1;
         if column.header.trim().is_empty() || !headers.insert(column.header.trim().to_lowercase()) {
             return Err(error("invalid_export_headers"));
@@ -123,6 +188,16 @@ pub(crate) fn validate_columns(columns: &[ExportColumn]) -> Result<(), ExportErr
             && !matches!(
                 column.field,
                 ExportField::X | ExportField::Y | ExportField::TipLevel
+            )
+        {
+            return Err(error("invalid_export_columns"));
+        }
+        if column.status_values.is_some()
+            && !matches!(
+                column.field,
+                ExportField::TechnicalStatus
+                    | ExportField::CompressionStatus
+                    | ExportField::TensionStatus
             )
         {
             return Err(error("invalid_export_columns"));
@@ -165,8 +240,72 @@ pub(crate) fn project_columns(
 }
 
 fn column_value(column: &ExportColumn, record: &ColumnRecord) -> Result<Value, ExportError> {
+    if matches!(column.field, ExportField::X | ExportField::Y) {
+        let previous = if column.coordinate_source.unwrap_or_default()
+            == ExportCoordinateSource::OldWithinTolerance
+        {
+            record
+                .previous_coordinates
+                .map(|(x, y)| if column.field == ExportField::X { x } else { y })
+        } else {
+            None
+        };
+        let value = previous.or_else(|| record.values.get(&column.field).and_then(Value::as_f64));
+        let unit = column
+            .unit
+            .or_else(|| column.source_index.and(record.source_coordinate_unit))
+            .unwrap_or(ExportLengthUnit::Mm);
+        return Ok(value.map(|n| json!(unit.from_mm(n))).unwrap_or(Value::Null));
+    }
+    if matches!(
+        column.field,
+        ExportField::TechnicalStatus | ExportField::CompressionStatus | ExportField::TensionStatus
+    ) {
+        if let Some(status) = record
+            .values
+            .get(&column.field)
+            .filter(|value| value.is_object())
+        {
+            let code = status
+                .get("code")
+                .and_then(Value::as_str)
+                .ok_or_else(|| error("invalid_export_status"))?;
+            return match &column.status_values {
+                Some(values) => values
+                    .value(code)
+                    .map(|value| json!(value))
+                    .or_else(|| status.get("label").cloned().map(|v| v))
+                    .ok_or_else(|| error("invalid_export_status")),
+                None => Ok(status.get("label").cloned().unwrap_or(Value::Null)),
+            };
+        }
+    }
     if column.field == ExportField::Literal {
         return Ok(json!(column.value));
+    }
+    if matches!(
+        column.field,
+        ExportField::LoadPointId
+            | ExportField::ExportId
+            | ExportField::OriginalLocations
+            | ExportField::ProposalCode
+            | ExportField::TensionLoad
+            | ExportField::TensionResistance
+            | ExportField::TensionUtilization
+            | ExportField::GoverningTensionCpt
+            | ExportField::CompressionStatus
+            | ExportField::TensionStatus
+            | ExportField::AssessmentScope
+            | ExportField::CompressionResistance
+            | ExportField::CompressionUtilization
+            | ExportField::GoverningCpt
+            | ExportField::PileCost
+            | ExportField::PileLength
+            | ExportField::TechnicalStatus
+    ) {
+        if let Some(value) = record.values.get(&column.field) {
+            return Ok(value.clone());
+        }
     }
     if let Some(index) = column.source_index {
         if column.field != ExportField::ChangeCode

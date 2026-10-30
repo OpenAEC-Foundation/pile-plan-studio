@@ -1,5 +1,5 @@
 import {DEFAULT_EXPORT_OPTIONS,DEFAULT_CHANGE_CODES,type ChangeCodeOptions,type ExportOptions,type NumberingDirection} from "../../core/exportRevisionContract.ts";
-import {normalizeExportColumns} from "./exportColumns.ts";
+import {normalizeExportColumns,withoutProposalExportColumns} from "./exportColumns.ts";
 
 function record(value:unknown):Record<string,unknown>{return value!==null&&typeof value==="object"&&!Array.isArray(value)?value as Record<string,unknown>:{};}
 function direction(value:unknown,fallback:NumberingDirection):NumberingDirection{return value==="ascending"||value==="descending"?value:fallback;}
@@ -8,7 +8,9 @@ export function normalizeExportOptions(value:unknown):ExportOptions{
   const root=record(value),mark=record(root.mark),rule=record(mark.rule),code=record(root.tip_code);
   const start=mark.start,tolerance=rule.tolerance_mm;
   return {
-    ...(Array.isArray(root.columns)?{columns:normalizeExportColumns(root.columns)}:{}),
+    ...(root.include_proposals === true ? {include_proposals:true} : {}),
+    ...(typeof root.proposal_code === "string" ? {proposal_code:root.proposal_code} : {}),
+    ...(Array.isArray(root.columns)?{columns:root.include_proposals===true?normalizeExportColumns(root.columns):withoutProposalExportColumns(normalizeExportColumns(root.columns)??[])}:{}),
     ...(root.change_codes?{change_codes:normalizeChangeCodes(root.change_codes)}:{}),
     mark:{...(mark.revision_mode==="renumber"?{revision_mode:"renumber" as const}:{}),enabled:mark.enabled===true,start:typeof start==="number"&&Number.isInteger(start)&&start>=1&&start<=4294967295?start:1,
       rule:{axis:rule.axis==="x"?"x":"y",x_direction:direction(rule.x_direction,"ascending"),y_direction:direction(rule.y_direction,"descending"),

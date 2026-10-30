@@ -560,6 +560,7 @@ describe("React right panel model", () => {
 
     assert.equal(model?.cpt.name, "CPT 64");
     assert.deepEqual(model?.rows[0], {
+      pileCount: null,
       frdLabel: "693 kN",
       sizeLabel: "290 mm",
       tipLabel: "-17.5 m",
@@ -620,3 +621,19 @@ function minimalState(overrides: Partial<ProjectState> = {}): ProjectState {
     ...overrides,
   };
 }
+
+
+it("marks only core-resolved advice rows, including explicit missing overrides",()=>{
+ const general={pile_size_mm:320,pile_tip_level_m:-18,frd_kn:90,direction:"tension" as const};
+ const exact={...general,pile_count:4,frd_kn:0,missing:true};
+ const state=minimalState({selectedCptId:64,cptFrdRowsByCptId:new Map([[64,[general,{...general,pile_count:2,frd_kn:40},exact]]])});
+ const model=getCptFrdPanelModel(state,"en-US",[exact]);
+ assert.deepEqual(model?.rows.map(row=>row.highlighted??false),[false,false,true]);
+ assert.equal(model?.rows[2].frdLabel,"—");
+});
+
+it("a legacy duplicate key with another value is not marked as the resolved source row",()=>{
+ const first={pile_size_mm:320,pile_tip_level_m:-18,frd_kn:100},last={...first,frd_kn:120};
+ const state=minimalState({selectedCptId:64,cptFrdRowsByCptId:new Map([[64,[first,last]]])});
+ assert.deepEqual(getCptFrdPanelModel(state,"en-US",[last])?.rows.map(row=>row.highlighted??false),[false,true]);
+});

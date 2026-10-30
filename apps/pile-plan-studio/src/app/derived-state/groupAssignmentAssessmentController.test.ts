@@ -95,4 +95,19 @@ describe("group assignment assessment controller", () => {
       error: null,
     });
   });
+
+  it("restores a completed assessment and cancels another in-flight plan when switching back",async()=>{
+    let finishOther!:(value:GroupAssignmentConflict[])=>void,calls=0;
+    const controller=createGroupAssignmentAssessmentController(async()=>++calls===1?[conflict()]:new Promise(resolve=>{finishOther=resolve;}));
+    let latest!:import("./groupAssignmentAssessmentController.ts").GroupAssignmentAssessmentSnapshot;
+    controller.subscribe(value=>{latest=value;});
+    await controller.update(input(290));
+    const other=controller.update(input(320));
+    await controller.update(input(290));
+    assert.equal(latest.pending,false);
+    assert.deepEqual(latest.conflicts,[conflict()]);
+    finishOther([]);await other;
+    assert.deepEqual(latest.conflicts,[conflict()]);
+    assert.equal(calls,2);
+  });
 });

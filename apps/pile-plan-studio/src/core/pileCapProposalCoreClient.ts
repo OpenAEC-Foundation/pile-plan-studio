@@ -33,7 +33,7 @@ export async function evaluatePileCapProposalsCore(
       { request },
     );
   else {
-    await initializeWasm(() => initWasm());
+    await initializeWasm(initWasm);
     raw = evaluate_pile_cap_proposals(request) as PileCapProposalResult;
   }
   return pileCapProposalResultFromCore(raw);

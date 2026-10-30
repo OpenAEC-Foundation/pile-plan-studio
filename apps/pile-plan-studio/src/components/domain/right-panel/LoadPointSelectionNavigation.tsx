@@ -1,7 +1,7 @@
 import { useTranslation } from "react-i18next";
 
-export default function LoadPointSelectionNavigation({ ids, selectedIds, onSelect, disabled }: {
-  ids: number[]; selectedIds: number[]; onSelect: (ids: number[]) => void; disabled: boolean;
+export default function LoadPointSelectionNavigation({ ids, selectedIds, onSelect,onSelectOnly, disabled }: {
+  onSelectOnly?:(id:number)=>void;ids: number[]; selectedIds: number[]; onSelect: (ids: number[]) => void; disabled: boolean;
 }) {
   const { t } = useTranslation("rightPanel");
   const index = selectedIds.length === 1 ? ids.indexOf(selectedIds[0]!) : -1;
@@ -22,5 +22,6 @@ export default function LoadPointSelectionNavigation({ ids, selectedIds, onSelec
     </div>
     {ids.length > 1 ? <button type="button" className="cpt-select-context" disabled={disabled || entireContextSelected}
       onClick={() => onSelect([...ids])}>{t("cpts.selectEntireContext")}</button> : null}
+    {ids.length>1&&onSelectOnly?<button type="button" className="cpt-select-context" disabled={disabled||index<0} onClick={()=>onSelectOnly(selectedIds[0]!)}>{t("cpts.selectOnlyLocation")}</button>:null}
   </>;
 }

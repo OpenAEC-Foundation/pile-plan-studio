@@ -1,3 +1,4 @@
+import NumericValueInput from "../../template/NumericValueInput.tsx";
 import {useTranslation} from "react-i18next";
 import type {ExportOptions,PileNumberingRule,NumberingDirection} from "../../../core/exportRevisionContract.ts";
 import "./exports.css";
@@ -17,11 +18,11 @@ export default function ExportSettings({options,onChange,disabled=false,revision
         <option value="preserve">{t("exportTools.preserveNumbering")}</option><option value="renumber">{t("exportTools.renumberPlan")}</option></select>)}
       {revision&&options.mark.revision_mode==="renumber"&&only!=="tip_code"&&<p className="export-help">{t("exportTools.renumberHelp")}</p>}
       {(only==="mark"||(!only&&(revision||options.mark.enabled)))&&<div className="export-controls-grid">
-        {!preserving&&field("firstMark",<input type="number" min={1} max={4294967295} value={options.mark.start} onChange={e=>onChange({...options,mark:{...options.mark,start:Number(e.target.value)}})}/>)}
+        {!preserving&&field("firstMark",<NumericValueInput integer min={1} max={4294967295} step={1} value={options.mark.start} onNumberChange={start=>onChange({...options,mark:{...options.mark,start}})}/>)}
         {field("axis",<select value={rule.axis} onChange={e=>setRule({axis:e.target.value as "x"|"y"})}><option value="y">{t("exportTools.rows")}</option><option value="x">{t("exportTools.columns")}</option></select>)}
         {field("xDirection",<select value={rule.x_direction} onChange={e=>setRule({x_direction:e.target.value as NumberingDirection})}><option value="ascending">{t("exportTools.leftRight")}</option><option value="descending">{t("exportTools.rightLeft")}</option></select>)}
         {field("yDirection",<select value={rule.y_direction} onChange={e=>setRule({y_direction:e.target.value as NumberingDirection})}><option value="descending">{t("exportTools.topBottom")}</option><option value="ascending">{t("exportTools.bottomTop")}</option></select>)}
-        {field(rule.axis==="y"?"rowTolerance":"columnTolerance",<input type="number" min={0} step="any" value={rule.tolerance_mm} onChange={e=>setRule({tolerance_mm:Number(e.target.value)})}/>)}
+        {field(rule.axis==="y"?"rowTolerance":"columnTolerance",<NumericValueInput min={0} step="any" value={rule.tolerance_mm} onNumberChange={tolerance_mm=>setRule({tolerance_mm})}/>)}
       </div>}
       {!only&&!revision&&<label className="export-check"><input type="checkbox" checked={options.tip_code.enabled} onChange={e=>onChange({...options,tip_code:{...options.tip_code,enabled:e.target.checked}})}/>{t("exportTools.codeEnabled")}</label>}
       {(only==="tip_code"||(!only&&(revision||options.tip_code.enabled)))&&<div className="export-controls-grid">

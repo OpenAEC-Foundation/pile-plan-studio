@@ -3,6 +3,8 @@ use std::collections::{HashMap, HashSet};
 use serde::{Deserialize, Serialize};
 
 mod aggregation;
+mod advice_inspection;
+pub use advice_inspection::{inspect_foundation_advice,FoundationAdviceInspectionRequest};
 mod analysis;
 mod costs;
 mod foundation_advice;
@@ -12,7 +14,7 @@ pub use aggregation::{
     aggregate_pile_options_for_load_points, AggregatedPileConfiguration,
     AggregatedPileConfigurationStatus,
 };
-pub use analysis::{build_pile_option_analysis, PileOptionAnalysisResult};
+pub use analysis::{build_pile_option_analysis, build_pile_option_analysis_for_groups, calculate_pile_option_analysis, PileOptionAnalysisResult};
 pub use costs::{
     calculate_pile_cost, evaluate_pile_cost_catalog_edit, validate_pile_cost_settings,
     InvalidPileCostSettings, InvalidPileCostSettingsItem, PileCostCatalogAction,
@@ -36,64 +38,211 @@ pub struct PileConfigurationOption {
     pub utilization: Option<f64>,
     pub missing_cpt_ids: Vec<u32>,
     pub technical_status: PileOptionTechnicalStatus,
+    #[serde(default)]
+    pub compression: Option<DirectionAssessment>,
+    #[serde(default)]
+    pub tension: Option<DirectionAssessment>,
 }
 
+#[cfg(test)]
+/// Compatibility helper for pressure-only tests.
 pub(crate) fn pile_configuration_options(
     design_load_kn: f64,
     selected_cpts: &[SelectedCpt],
     advice: &FoundationAdviceIndex<'_>,
 ) -> Vec<PileConfigurationOption> {
+    pile_configuration_options_with_tension(
+        design_load_kn,
+        &crate::TensionDemand::NotImported,
+        selected_cpts,
+        advice,
+        1,
+    )
+}
+pub(crate) fn pile_configuration_options_with_tension(
+    design_load_kn: f64,
+    tension: &crate::TensionDemand,
+    selected_cpts: &[SelectedCpt],
+    advice: &FoundationAdviceIndex<'_>,
+    pile_count: u32,
+) -> Vec<PileConfigurationOption> {
     advice
         .configurations()
         .iter()
         .map(|available| {
-            let matching = selected_cpts
-                .iter()
-                .map(|selection| {
-                    (
-                        selection.cpt.id,
-                        advice.capacity(selection.cpt.id, &available.key),
-                    )
-                })
-                .collect::<Vec<_>>();
-            let missing_cpt_ids = matching
-                .iter()
-                .filter_map(|(cpt_id, capacity)| capacity.is_none().then_some(*cpt_id))
-                .collect::<Vec<_>>();
-            let governing = matching
-                .iter()
-                .filter_map(|(_, capacity)| *capacity)
-                .min_by(|left, right| left.frd_kn.total_cmp(&right.frd_kn));
-            let governing_frd_kn = governing.map(|capacity| capacity.frd_kn);
-            // A nonpositive resistance is present data, but cannot carry the load.
-            // Do not turn it into a negative (or infinite) utilization ratio.
-            let utilization = governing_frd_kn
-                .filter(|frd_kn| frd_kn.is_finite() && *frd_kn > 0.0)
-                .map(|frd_kn| design_load_kn / frd_kn)
-                .filter(|value| value.is_finite());
-            let is_option =
-                missing_cpt_ids.is_empty() && utilization.is_some_and(|value| value <= 1.0);
-            let technical_status = if !missing_cpt_ids.is_empty() || governing_frd_kn.is_none() {
-                PileOptionTechnicalStatus::MissingCapacityData
-            } else if is_option {
-                PileOptionTechnicalStatus::Valid
-            } else {
-                PileOptionTechnicalStatus::InsufficientCapacity
-            };
-
-            PileConfigurationOption {
+            let compression = assess_direction(
+                &crate::TensionDemand::Known {
+                    value_kn: design_load_kn,
+                },
+                crate::ResistanceDirection::Compression,
+                selected_cpts,
+                advice,
+                &available.key,
+                pile_count,
+            );
+            let tension = assess_direction(
+                tension,
+                crate::ResistanceDirection::Tension,
+                selected_cpts,
+                advice,
+                &available.key,
+                pile_count,
+            );
+            let mut option = PileConfigurationOption {
                 configuration: available.key.clone(),
                 pile_size_mm: available.key.pile_size_mm,
                 pile_tip_level_m: available.pile_tip_level_m,
-                is_option,
-                governing_cpt_id: governing.map(|capacity| capacity.cpt_id),
-                governing_frd_kn,
-                utilization,
-                technical_status,
-                missing_cpt_ids,
-            }
+                is_option: false,
+                governing_cpt_id: compression.governing_cpt_id,
+                governing_frd_kn: compression.governing_frd_kn,
+                utilization: compression.utilization,
+                missing_cpt_ids: compression.missing_cpt_ids.clone(),
+                technical_status: PileOptionTechnicalStatus::Valid,
+                compression: Some(compression),
+                tension: Some(tension),
+            };
+            option.apply_scope(true);
+            option.utilization = option.compression.as_ref().and_then(|a| a.utilization);
+            option.governing_cpt_id = option.compression.as_ref().and_then(|a| a.governing_cpt_id);
+            option.governing_frd_kn = option.compression.as_ref().and_then(|a| a.governing_frd_kn);
+            option
         })
         .collect()
+}
+#[derive(Clone, Copy, Debug, Deserialize, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum DirectionStatus {
+    Valid,
+    InsufficientCapacity,
+    MissingCapacityData,
+    MissingDemand,
+    NotAssessed,
+    NoLoad,
+}
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+pub struct DirectionAssessment {
+    #[serde(default)]
+    pub cpt_resistances: Vec<CptResistanceFact>,
+    pub demand_kn: Option<f64>,
+    pub governing_cpt_id: Option<u32>,
+    pub governing_frd_kn: Option<f64>,
+    pub utilization: Option<f64>,
+    pub missing_cpt_ids: Vec<u32>,
+    pub status: DirectionStatus,
+}
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+pub struct CptResistanceFact { pub cpt_id: u32, pub frd_kn: Option<f64> }
+impl DirectionAssessment {
+    pub fn passes(&self) -> bool {
+        matches!(
+            self.status,
+            DirectionStatus::Valid | DirectionStatus::NoLoad | DirectionStatus::NotAssessed
+        )
+    }
+}
+impl PileConfigurationOption {
+    /// Project an immutable core evaluation to the requested optimizer scope.
+    /// Display code must use the original directional facts instead.
+    pub fn apply_scope(&mut self, include_tension: bool) {
+        let Some(pressure) = &self.compression else {
+            return;
+        };
+        let checks = std::iter::once(pressure)
+            .chain(self.tension.iter().filter(|_| include_tension))
+            .collect::<Vec<_>>();
+        self.is_option = checks.iter().all(|a| a.passes());
+        self.technical_status = if checks.iter().any(|a| {
+            matches!(
+                a.status,
+                DirectionStatus::MissingCapacityData | DirectionStatus::MissingDemand
+            )
+        }) {
+            PileOptionTechnicalStatus::MissingCapacityData
+        } else if self.is_option {
+            PileOptionTechnicalStatus::Valid
+        } else {
+            PileOptionTechnicalStatus::InsufficientCapacity
+        };
+        // Unassessed directions have no utilization; a known zero contributes 0.
+        self.utilization = checks
+            .iter()
+            .filter_map(|a| a.utilization)
+            .max_by(f64::total_cmp)
+            .or_else(|| self.is_option.then_some(0.));
+        let critical = checks
+            .iter()
+            .filter(|a| a.utilization.is_some())
+            .max_by(|a, b| a.utilization.unwrap().total_cmp(&b.utilization.unwrap()))
+            .copied()
+            .unwrap_or(pressure);
+        self.governing_cpt_id = critical.governing_cpt_id;
+        self.governing_frd_kn = critical.governing_frd_kn;
+        self.missing_cpt_ids = checks
+            .iter()
+            .flat_map(|a| a.missing_cpt_ids.iter().copied())
+            .collect();
+    }
+}
+fn assess_direction(
+    demand: &crate::TensionDemand,
+    direction: crate::ResistanceDirection,
+    cpts: &[SelectedCpt],
+    advice: &FoundationAdviceIndex<'_>,
+    key: &PileConfigurationKey,
+    pile_count: u32,
+) -> DirectionAssessment {
+    let matches = cpts
+        .iter()
+        .map(|c| (c.cpt.id, advice.capacity(c.cpt.id, direction, key, pile_count)))
+        .collect::<Vec<_>>();
+    let governing = matches
+        .iter()
+        .filter_map(|(_, r)| *r)
+        .min_by(|a, b| a.frd_kn.total_cmp(&b.frd_kn));
+    let mut assessment = DirectionAssessment {
+        cpt_resistances: matches.iter().map(|(id,value)|CptResistanceFact{cpt_id:*id,frd_kn:value.map(|v|v.frd_kn)}).collect(),
+        demand_kn: None,
+        governing_cpt_id: governing.map(|r| r.cpt_id),
+        governing_frd_kn: governing.map(|r| r.frd_kn),
+        utilization: None,
+        missing_cpt_ids: vec![],
+        status: DirectionStatus::NotAssessed,
+    };
+    let value = match demand {
+        crate::TensionDemand::NotImported => return assessment,
+        crate::TensionDemand::Missing => {
+            assessment.status = DirectionStatus::MissingDemand;
+            return assessment;
+        }
+        crate::TensionDemand::Known { value_kn } => *value_kn,
+    };
+    if !value.is_finite() || value < 0. {
+        assessment.status = DirectionStatus::MissingDemand;
+        return assessment;
+    }
+    assessment.demand_kn = Some(value);
+    if value == 0. {
+        assessment.status = DirectionStatus::NoLoad;
+        assessment.utilization = Some(0.);
+        return assessment;
+    }
+    assessment.missing_cpt_ids = matches
+        .iter()
+        .filter_map(|(id, r)| r.is_none().then_some(*id))
+        .collect();
+    assessment.utilization = assessment
+        .governing_frd_kn
+        .filter(|r| r.is_finite() && *r > 0.)
+        .map(|r| value / r)
+        .filter(|r| r.is_finite());
+    assessment.status = if !assessment.missing_cpt_ids.is_empty() || governing.is_none() {
+        DirectionStatus::MissingCapacityData
+    } else if assessment.utilization.is_some_and(|u| u <= 1.) {
+        DirectionStatus::Valid
+    } else {
+        DirectionStatus::InsufficientCapacity
+    };
+    assessment
 }
 
 pub(crate) fn choose_default_pile_option<'a>(
@@ -220,10 +369,13 @@ mod tests {
 
     fn row(cpt_id: u32, tip: f64, size: u32, frd: f64) -> BearingCapacity {
         BearingCapacity {
+                pile_count: None,
+                missing: false,
             cpt_id,
             pile_tip_level_m: tip,
             pile_size_mm: size,
             frd_kn: frd,
+            direction: Default::default(),
         }
     }
 
@@ -268,7 +420,7 @@ mod tests {
     #[test]
     fn nonpositive_capacity_is_insufficient_without_a_utilization_ratio() {
         for capacity in [-100.0, 0.0] {
-            for load in [0.0, 600.0] {
+            for load in [600.0] {
                 let rows = vec![row(11, -18.0, 320, 700.0), row(12, -18.0, 320, capacity)];
                 let advice = FoundationAdviceIndex::new(&rows).unwrap();
                 let options =

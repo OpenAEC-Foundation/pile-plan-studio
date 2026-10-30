@@ -1,5 +1,84 @@
 # Open Pile Plan Studio Release Notes
 
+## 2026.44.4
+
+This alpha adds compression and tension checks, flexible source and pile-plan
+imports, and foundation advice for specific pile counts. It also improves
+large-project interaction and makes location review consistent across workflows.
+
+### Added
+
+- Import optional design tension loads from standard tables or RFEM envelopes.
+  Switch between compression and tension under **Plan**. Combined option statuses
+  and drawing markers expose failures or missing data in either direction;
+  status buttons switch directly to the affected direction. Zero demand passes
+  its check with zero utilization.
+- Include imported tension in cheapest default assignments and optimizer checks,
+  with an explicit optimizer setting for compression-only runs. Pile-cap
+  proposals redistribute compression and tension separately without netting.
+- Preview selected files before assigning columns, with automatic recognition,
+  editable header/data rows, worksheets and units. RFEM previews show processed
+  locations rather than the original envelope layout. Completely empty selected
+  force or resistance columns are rejected.
+- Add several foundation-advice files at once. Import a worksheet per pile size,
+  and advice applying to all cap counts or one exact count. Specific advice
+  overrides general advice for matching CPT/size/tip/direction keys; explicitly
+  missing specific values remain missing. Inspect the applicable advice for a
+  selected pile and CPT directly in the highlighted advice table.
+- Configure pile-plan import columns and identify locations by ID, coordinates,
+  or both. Reuse the visual location editor for source refreshes, pile-plan
+  imports and change tables, with editable tolerance, undo/redo and clear
+  import-location/project-location terminology.
+- Export proposed pile positions through configured CSV/XLSX exports, with
+  deterministic export IDs, original-location provenance and an optional
+  proposal code. Change tables treat replaced original positions as removed
+  and proposed positions as added, without automatically linking them.
+- Add optional governing-CPT, pile-length and technical-status export columns,
+  with configurable status text/codes. Configure each change-table coordinate
+  column to use old coordinates within the matching tolerance or new coordinates;
+  X/Y default to retaining the old coordinates for stable downstream matching.
+
+### Improved and fixed
+
+- Speed up pan, zoom and selection on large projects by reusing calculation
+  signatures, persistence snapshots and unchanged marker/group geometry. Replace
+  per-marker blur filters with shared status glows and enlarge the status halos.
+- Type symbol size and desired utilization limits directly by clicking their
+  values. Enter confirms, Escape cancels, and both close the editor. Overlapping
+  range handles can be separated again, including 0–0% and 100–100%.
+- Focus selected locations and their selected CPTs, or reduce a multiselection
+  to the inspected location. Sort the selection overview in spatial row order,
+  keeping groups together and sorting members within each group the same way.
+- Use one immediate tooltip layer, dismiss obsolete help after clicking,
+  dragging or expanding, and omit help that merely repeats visible text.
+  Source-data viewers now use the available panel height.
+- Keep location review stationary after manual selection and bring automatically
+  selected pending locations into view. Use the application undo/redo controls
+  for matching edits and support bulk nearest-location matching consistently.
+- Show optimizer-preview group conflicts for the displayed plan instead of the
+  original plan. Reject late assessments after switching back to a previous plan,
+  and restore completed technical assessments after a temporary pause.
+- Label missing costs explicitly in both themes; show an unknown total rather
+  than a zero subtotal when costs are missing. Correct Dutch CPT usage counts.
+
+### Compatibility and limitations
+
+- New saves use IFCPP schema 8. Supported older projects remain readable and
+  usable without tension data; absent tension import remains distinct from zero
+  demand and missing imported demand. Loads and resistances are supplied design
+  values; the application applies no additional factors.
+- Cap-specific resistance is a supplied per-pile design value. A one-pile advice
+  table is not an automatic fallback for larger caps. Cap geometry, moments,
+  eccentricity, soil-block effects and structural adequacy are not recalculated.
+- Compression and tension can share columns in a standard advice table. Matrix
+  layouts require separate worksheets for each direction.
+- The bundled sample retains its geometry and RFEM tension loads and includes
+  explicitly fictional tension resistances for software testing only. These
+  values must not be used for foundation design.
+- Proposed positions and export IDs are export representations, not new source
+  locations. Existing unconfigured API/MCP export contracts remain unchanged.
+- The application remains Alpha; engineering results require professional review.
+
 ## 2026.44.3
 
 This alpha adds configurable pile-plan exports and change tables, with a large

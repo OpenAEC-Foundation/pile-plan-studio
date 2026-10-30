@@ -91,11 +91,15 @@ pub fn read_source_table(
 }
 
 fn read_csv(file_name: &str, bytes: &[u8]) -> Result<SourceTable, ImportError> {
+    read_csv_delimited(file_name, bytes, b',')
+}
+pub(crate) fn read_csv_delimited(file_name: &str, bytes: &[u8],delimiter:u8) -> Result<SourceTable, ImportError> {
     if bytes.is_empty() {
         return Err(ImportError::EmptySource(file_name.to_string()));
     }
 
     let mut reader = csv::ReaderBuilder::new()
+        .delimiter(delimiter)
         .has_headers(false)
         .flexible(true)
         .from_reader(bytes);
@@ -147,6 +151,12 @@ fn read_xlsx(file_name: &str, bytes: &[u8]) -> Result<SourceTable, ImportError> 
 }
 
 pub fn read_xlsx_tables(file_name: &str, bytes: &[u8]) -> Result<Vec<SourceTable>, ImportError> {
+    if let Some(tables)=super::workbook_cache::cache().lock().unwrap_or_else(|e|e.into_inner()).get(file_name,bytes){return Ok(tables.as_ref().clone());}
+    let tables=std::sync::Arc::new(read_xlsx_tables_uncached(file_name,bytes)?);
+    super::workbook_cache::cache().lock().unwrap_or_else(|e|e.into_inner()).insert(file_name,bytes,std::sync::Arc::clone(&tables));
+    Ok(tables.as_ref().clone())
+}
+fn read_xlsx_tables_uncached(file_name: &str, bytes: &[u8]) -> Result<Vec<SourceTable>, ImportError> {
     if bytes.is_empty() {
         return Err(ImportError::EmptySource(file_name.to_string()));
     }

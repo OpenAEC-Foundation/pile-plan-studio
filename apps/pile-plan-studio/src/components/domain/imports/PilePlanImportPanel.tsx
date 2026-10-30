@@ -1,4 +1,6 @@
-import { useState } from "react";
+import SourceTableEditor from "./SourceTableEditor.tsx";
+import PilePlanImportMatching from "./PilePlanImportMatching.tsx";
+import { useState,useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { usePilePlanImportPreview } from "../../../app/import/usePilePlanImportPreview.ts";
 import type {
@@ -6,7 +8,7 @@ import type {
   PilePlanImportProfile,
 } from "../../../core/pilePlanImportContract.ts";
 import type { Cpt, LoadPoint, PileConfigurationKey } from "../../../core/projectTypes.ts";
-import ThemedNumberInput from "../../template/ThemedNumberInput.tsx";
+import LocationMatchingEntry from "../location-matching/LocationMatchingEntry.tsx";
 import ThemedSelect from "../../template/ThemedSelect.tsx";
 import "../../template/ThemedSelect.css";
 import { ifcImportIcon } from "../../template/ribbon/icons.ts";
@@ -18,6 +20,8 @@ import {
   setPilePlanImportFile,
   setPilePlanImportProfile,
   setPilePlanImportTolerance,
+  setPilePlanImportTable,
+  setPilePlanImportDecisions,
   type PilePlanImportDraft,
 } from "../../../domain/imports/pilePlanImportModel.ts";
 import "./projectImport.css";
@@ -35,6 +39,9 @@ export default function PilePlanImportPanel({
   onImportPilePlan: (patch: PilePlanImportPatch, fileName: string) => void;
 }) {
   const { t } = useTranslation("backstage");
+  const {t:common}=useTranslation("common");
+  const [matchingOpen,setMatchingOpen]=useState(false);
+  useEffect(()=>setMatchingOpen(false),[loadPoints,cpts,availablePileConfigurations]);
   const [draft, setDraft] = useState(() => createPilePlanImportDraft<File>());
   const { preview } = usePilePlanImportPreview({ loadPoints, cpts, availablePileConfigurations }, setDraft);
 
@@ -52,6 +59,7 @@ export default function PilePlanImportPanel({
   };
 
   const result = draft.previewState.status === "ready" ? draft.previewState.preview : null;
+  const shown=result??draft.lastPreview;
   const cptImportAvailable = canImportCptSelections(draft);
 
   return (
@@ -67,19 +75,7 @@ export default function PilePlanImportPanel({
             <strong>{t("pilePlanImport.fileTitle")}</strong>
             <small>{t("pilePlanImport.fileDescription")}</small>
           </div>
-          <label className="project-import-profile">
-            <span>{t("pilePlanImport.profile")}</span>
-            <ThemedSelect
-              ariaLabel={t("pilePlanImport.profile")}
-              value={draft.requestedProfile}
-              options={[
-                { value: "automatic", label: t("pilePlanImport.profiles.automatic") },
-                { value: "standard-table", label: t("pilePlanImport.profiles.standard") },
-                { value: "legacy", label: t("pilePlanImport.profiles.legacy") },
-              ]}
-              onChange={(value) => changeProfile(value as PilePlanImportProfile)}
-            />
-          </label>
+
         </div>
 
         <div className="project-import-file-row">
@@ -97,7 +93,7 @@ export default function PilePlanImportPanel({
               className="project-import-native-file"
               type="file"
               accept=".csv,.xlsx"
-              onChange={(event) => changeFile(event.target.files?.[0] ?? null)}
+              onChange={(event) => {changeFile(event.target.files?.[0] ?? null);event.target.value="";setMatchingOpen(false);}}
             />
           </label>
           <button className="project-import-button" type="button" disabled={!draft.file} onClick={() => changeFile(null)}>
@@ -105,26 +101,30 @@ export default function PilePlanImportPanel({
           </button>
         </div>
 
-        <div className="pile-plan-import-controls">
-          <label className="pile-plan-import-tolerance">
-            <span>{t("pilePlanImport.tolerance")}</span>
-            <span className="pile-plan-import-number">
-              <ThemedNumberInput
-                className="project-import-field"
-                min="0"
-                step="0.1"
-                value={draft.coordinateToleranceMm}
-                onValueChange={changeTolerance}
-              />
-              <span>mm</span>
-            </span>
+        {draft.file&&<SourceTableEditor role="pile-plan" preview={shown?.table} settings={draft.table} csv={draft.file.name.toLowerCase().endsWith(".csv")}
+          sourceErrors={shown?.diagnostics.filter(d=>d.severity==="error"&&d.location?.row!=null).map(d=>({row:d.location!.row!,column:d.location!.column,message:diagnosticLabel(d.code,t)}))}
+          onChange={table=>void preview(setPilePlanImportTable(draft,table))}>
+          <label className="project-import-profile">
+            <span>{t("pilePlanImport.profile")}</span>
+            <ThemedSelect
+              ariaLabel={t("pilePlanImport.profile")}
+              value={draft.requestedProfile}
+              options={[
+                { value: "automatic", label: t("pilePlanImport.profiles.automatic") },
+                { value: "standard-table", label: t("pilePlanImport.profiles.standard") },
+                { value: "legacy", label: t("pilePlanImport.profiles.legacy") },
+              ]}
+              onChange={(value) => changeProfile(value as PilePlanImportProfile)}
+            />
           </label>
+        <div className="pile-plan-import-controls">
           <fieldset className="pile-plan-import-categories">
             <legend>{t("pilePlanImport.apply")}</legend>
             <label>
               <input
                 type="checkbox"
                 checked={draft.importPileAssignments}
+                disabled={shown?.supportsPileAssignments===false}
                 onChange={(event) => changeCategory("piles", event.target.checked)}
               />
               <span>{t("pilePlanImport.pileAssignments")}</span>
@@ -140,9 +140,19 @@ export default function PilePlanImportPanel({
             </label>
           </fieldset>
         </div>
-        {!cptImportAvailable && <p className="pile-plan-import-note">{t("pilePlanImport.legacyCptNote")}</p>}
+        {!cptImportAvailable && <p className="pile-plan-import-note">{shown?.detectedProfile==="legacy"?t("pilePlanImport.legacyCptNote"):common("pilePlanMatching.mapCpts")}</p>}
+          <p className="source-import-help">{common("pilePlanMatching.clearHelp")}</p>
+          <p className="source-import-help">{common("pilePlanMatching.cptHelp")}</p>
+        </SourceTableEditor>}
         <PreviewStatus draft={draft} />
       </section>
+
+      {shown?.matching&&<LocationMatchingEntry
+        summary={common("pilePlanMatching.summary",{linked:shown.matching.links.length,pending:shown.matching.unmatched_new.length,skipped:shown.matching.added.length})}
+        help={common("pilePlanMatching.matchHelp")} reviewed={!!draft.locationDecisions&&!!result?.matching?.complete}
+        disabled={!result?.matching} tolerance={draft.coordinateToleranceMm} onToleranceChange={changeTolerance} onOpen={()=>setMatchingOpen(true)}/>}
+      {matchingOpen&&result?.matching&&draft.file&&<PilePlanImportMatching draft={draft} result={result} loadPoints={loadPoints} cpts={cpts} availablePileConfigurations={availablePileConfigurations}
+        onCancel={()=>setMatchingOpen(false)} onConfirm={(decisions,tolerance)=>{setMatchingOpen(false);void preview(setPilePlanImportDecisions(setPilePlanImportTolerance(draft,String(tolerance)),decisions));}}/>}
 
       {result && (
         <section className="pile-plan-import-results">
@@ -152,7 +162,7 @@ export default function PilePlanImportPanel({
             <span>{t("pilePlanImport.summary", {
               matched: result.summary.matchedRows,
               total: result.summary.sourceRows,
-              skipped: result.summary.skippedRows,
+              skipped: Math.max(0,result.summary.skippedRows-(result.matching?.unmatched_new.length??0)),
               fallbacks: result.summary.coordinateFallbacks,
               conflicts: result.summary.conflicts,
             })}</span>
@@ -187,6 +197,7 @@ export default function PilePlanImportPanel({
 
 function PreviewStatus({ draft }: { draft: PilePlanImportDraft<File> }) {
   const { t } = useTranslation("backstage");
+  const {t:common}=useTranslation("common");
   if (draft.previewState.status === "empty") return null;
   if (draft.previewState.status === "analyzing") {
     return <div className="project-import-status analyzing"><span className="project-import-status-dot" />{t("pilePlanImport.analyzing")}</div>;
@@ -194,7 +205,7 @@ function PreviewStatus({ draft }: { draft: PilePlanImportDraft<File> }) {
   if (draft.previewState.status === "failed") {
     return <p className="project-import-error" role="alert">{draft.previewState.message}</p>;
   }
-  return <div className={`project-import-status ${draft.previewState.preview.canApply ? "valid" : "error"}`}><span className="project-import-status-dot" />{t(draft.previewState.preview.canApply ? "pilePlanImport.ready" : "pilePlanImport.invalid")}</div>;
+  return <div className={`project-import-status ${canApplyPilePlanImport(draft) ? "valid" : "error"}`}><span className="project-import-status-dot" />{draft.previewState.preview.matching?.unmatched_new.length?common("pilePlanMatching.reviewNeeded"):t(canApplyPilePlanImport(draft) ? "pilePlanImport.ready" : "pilePlanImport.invalid")}</div>;
 }
 
 function profileLabel(profile: PilePlanImportProfile | null, t: (key: string) => string): string {

@@ -1,3 +1,4 @@
+import {useLoadDirection} from "../../../app/derived-state/LoadDirectionContext.tsx";
 import { useEffect, useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import type { ProjectState } from "../../../domain/project/projectState.ts";
@@ -157,7 +158,8 @@ export function PanelTab({ active, label, mode, state, onActivate, onStateChange
 
 
 export function ResistanceLabel({ qualifier }: { qualifier?: string }) {
-  return <span className="resistance-label"><i>R</i><sub>c;net;d</sub>{qualifier ? " " + qualifier : ""}</span>;
+  const {mode}=useLoadDirection();
+  return <span className="resistance-label"><i>R</i><sub>{mode==="tension"?"t;d":"c;net;d"}</sub>{qualifier ? " " + qualifier : ""}</span>;
 }
 
 export function InactiveLabel() {
@@ -176,6 +178,10 @@ export function localizeCptName(name: string, t: ReturnType<typeof useTranslatio
 }
 
 export function localizeCptTableValue(column: string, value: string, t: ReturnType<typeof useTranslation>["t"]): string {
+  if(column==="Used by"||column==="Governing for"){
+    const count=value.match(/^(\d+)\s*\/\s*(\d+)\s+load points$/i);
+    if(count)return t(column==="Used by"?"cpts.usedByValue":"cpts.governingForValue",{used:Number(count[1]),total:Number(count[2])});
+  }
   if (column === "Selection") {
     const selectionKeys: Record<string, string> = {
       "upper right": "selection.upperRight", "lower right": "selection.lowerRight",

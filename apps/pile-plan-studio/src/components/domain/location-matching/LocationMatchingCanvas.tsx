@@ -1,5 +1,5 @@
 import {memo, useContext, useEffect, useMemo, useRef, useState, type CSSProperties, type PointerEvent, type MouseEvent} from "react";
-import {useTranslation} from "react-i18next";
+import {useMatchingText} from "./matchingText.tsx";
 import {LocationMatchingSurfaceContext} from "../../../app/exports/locationMatchingSurface.tsx";
 import type {MatchingResult} from "../../../core/exportRevisionContract.ts";
 import {useViewerViewport} from "../pile-plan-viewer/useViewerViewport.ts";
@@ -11,20 +11,22 @@ import {getConfigurationStyle} from "../../../viewer/legend.ts";
 import {renderPileSymbolSvgChildren} from "../../../viewer/pileSymbols.ts";
 import {createHoverMarkerIndex, findHoverCandidates} from "../../../viewer/hoverCandidates.ts";
 import type {LegendItems} from "../../../core/projectTypes.ts";
-import {locationLabel, type MatchingLines, type MatchingLocation, type MatchingSelection, type MatchingTool} from "./locationMatchingTypes.ts";
+import {hasMatchingCoordinates,locationLabel, type MatchingLines, type MatchingLocation, type MatchingSelection, type MatchingTool} from "./locationMatchingTypes.ts";
 import "../pile-plan-viewer/viewer.css";
 
 type Props = {
   oldLocations: MatchingLocation[]; newLocations: MatchingLocation[]; result: MatchingResult;
   selection: MatchingSelection | null; tool: MatchingTool; lines: MatchingLines;
-  showOld: boolean; showNew: boolean; showLabels: boolean;showGrid:boolean; focusSerial: number;
+  showOld: boolean; showNew: boolean; showLabels: boolean;showGrid:boolean; focusSerial: number; zoomSerial?:number;
   onPick: (side: "old" | "new", id: number) => void;
   onClearSelection:()=>void;
 };
 
 export default function LocationMatchingCanvas(props: Props) {
-  const {oldLocations, newLocations, result, selection, tool, lines, showOld, showNew, showLabels, showGrid, focusSerial, onPick, onClearSelection} = props;
-  const {t} = useTranslation("common");
+  const {oldLocations:allOldLocations, newLocations:allNewLocations, result, selection, tool, lines, showOld, showNew, showLabels, showGrid, focusSerial, zoomSerial=0, onPick, onClearSelection} = props;
+  const {t} = useMatchingText();
+  const oldLocations=useMemo(()=>allOldLocations.filter(hasMatchingCoordinates),[allOldLocations]);
+  const newLocations=useMemo(()=>allNewLocations.filter(hasMatchingCoordinates),[allNewLocations]);
   const {legend} = useContext(LocationMatchingSurfaceContext);
   const [viewport, setViewport] = useState<Viewport>({scale: 1, offsetX: 0, offsetY: 0});
   const interactionRef = useRef<{last: {x: number; y: number}} | null>(null);
@@ -64,7 +66,8 @@ export default function LocationMatchingCanvas(props: Props) {
     setViewport(next);
   }
 
-  function focus(points: MatchingLocation[]) {
+  function focus(input: MatchingLocation[],preserveScale=false) {
+    const points=input.filter(hasMatchingCoordinates);
     const canvas = view.canvasRef.current;
     if (!canvas || !points.length) return;
     const screen = canvas.getBoundingClientRect(), rect = getLocalCanvasRect(canvas);
@@ -72,7 +75,7 @@ export default function LocationMatchingCanvas(props: Props) {
     const pixels = points.map(p => projectPointPixels(p, view.projectTransformRef.current));
     const minX = Math.min(...pixels.map(p => p.x)), maxX = Math.max(...pixels.map(p => p.x));
     const minY = Math.min(...pixels.map(p => p.y)), maxY = Math.max(...pixels.map(p => p.y));
-    const scale = clampScale(Math.min(rect.width * .8 / Math.max(maxX - minX, 1), rect.height * .8 / Math.max(maxY - minY, 1), points.length > 2 ? 10 : 5));
+    const scale = preserveScale?view.viewportRef.current.scale:clampScale(Math.min(rect.width * .8 / Math.max(maxX - minX, 1), rect.height * .8 / Math.max(maxY - minY, 1), points.length > 2 ? 10 : 5));
     commitViewport({scale, offsetX: center.x - (minX + maxX) / 2 * scale, offsetY: center.y - (minY + maxY) / 2 * scale});
   }
 
@@ -80,8 +83,15 @@ export default function LocationMatchingCanvas(props: Props) {
     if (!focusSerial || !selection) return;
     const point = (selection.side === "new" ? newById : oldById).get(selection.id);
     const partner = activeLink ? (selection.side === "new" ? oldById.get(activeLink.old_id) : newById.get(activeLink.new_id)) : undefined;
-    focus([point, partner].filter((p): p is MatchingLocation => !!p));
+    focus([point, partner].filter((p): p is NonNullable<typeof p> => !!p), true);
   }, [focusSerial]);
+
+  useEffect(()=>{
+    if(!zoomSerial||!selection)return;
+    const point=(selection.side==="new"?newById:oldById).get(selection.id);
+    const partner=activeLink?(selection.side==="new"?oldById.get(activeLink.old_id):newById.get(activeLink.new_id)):undefined;
+    focus([point,partner].filter((p):p is NonNullable<typeof p>=>!!p));
+  },[zoomSerial]);
 
   function pointerDown(event: PointerEvent<HTMLDivElement>) {
     if (event.button !== 1 && (event.button !== 0 || (event.target as Element).closest("button"))) return;
@@ -163,7 +173,7 @@ export default function LocationMatchingCanvas(props: Props) {
   </section>;
 }
 
-function projectLocations(points: MatchingLocation[], transform: ReturnType<typeof createProjectViewTransform>) {
+function projectLocations(points: (MatchingLocation & {x_mm:number;y_mm:number})[], transform: ReturnType<typeof createProjectViewTransform>) {
   return new Map(points.map(point => [point.id, projectPointPixels(point, transform)]));
 }
 

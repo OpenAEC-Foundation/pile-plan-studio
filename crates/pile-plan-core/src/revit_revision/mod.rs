@@ -110,12 +110,18 @@ pub struct RevitRevisionRequest {
     #[serde(default)]
     pub decisions: Option<LocationDecisions>,
     #[serde(default)]
+    pub source_decisions: Option<LocationDecisions>,
+    #[serde(default)]
     pub bulk_action: Option<LocationBulkAction>,
     #[serde(default = "truth")]
     pub use_detected_numbering: bool,
 }
 #[derive(Clone, Debug, Serialize)]
 pub struct RevitRevisionPreview {
+    pub source_matching: Option<LocationMatchingResult>,
+    pub source_locations: Vec<NumberingPoint>,
+    pub forced_added: Vec<u32>,
+    pub forced_removed: Vec<u32>,
     pub old_locations: Vec<RevisionLocation>,
     pub new_locations: Vec<RevisionLocation>,
     pub matching: LocationMatchingResult,
@@ -142,6 +148,7 @@ fn values(
 ) -> HashMap<ExportField, Value> {
     [
         (ExportField::LoadPointId, json!(p.source_id)),
+        (ExportField::ExportId, json!(p.export_id.or(p.source_id))),
         (ExportField::Mark, json!(mark)),
         (ExportField::X, json!(p.x_mm)),
         (ExportField::Y, json!(p.y_mm)),
@@ -167,6 +174,14 @@ pub fn preview_revit_revision(
     if request.export_options.mark.start == 0 {
         return Err(error("invalid_mark_start"));
     }
+    let mut plan_input = request.new_plan.clone();
+    if request.new_source.is_some() {
+        plan_input.project_context = None;
+    }
+    let prepared = crate::export_context::prepare(&plan_input, &request.export_options)?;
+    let mut effective = request.clone();
+    effective.new_plan = prepared.plan.clone();
+    let request = &effective;
     let old = parse_pile_table(
         &request.old_source,
         request.old_mapping.as_ref(),
@@ -231,13 +246,83 @@ pub fn preview_revit_revision(
                 .ok_or_else(|| error("mark_overflow"))?;
         }
     }
-    let matching = reconcile_locations(&LocationMatchingRequest {
-        old_locations: old_points,
-        new_locations: new_points.clone(),
+    let forced_new = &prepared.proposed;
+    let source_ids: std::collections::HashSet<_> = prepared.replaced.iter().map(|p| p.id).collect();
+    let mut forced_old = std::collections::HashSet::new();
+    let source_locations: Vec<_> = request
+        .new_plan
+        .load_points
+        .iter()
+        .filter(|p| !forced_new.contains(&p.id))
+        .chain(prepared.replaced.iter())
+        .map(|p| NumberingPoint {
+            id: p.id,
+            x_mm: p.x_mm,
+            y_mm: p.y_mm,
+        })
+        .collect();
+    let needs_source_review =
+        !prepared.replaced.is_empty() && old.locations.iter().any(|p| p.source_id.is_none());
+    let source_matching = if needs_source_review {
+        Some(reconcile_locations(&LocationMatchingRequest {
+            old_locations: old_points.clone(),
+            new_locations: source_locations.clone(),
+            tolerance_mm: request.tolerance_mm,
+            decisions: request.source_decisions.clone(),
+            bulk_action: None,
+        })?)
+    } else {
+        None
+    };
+    for previous in &old.locations {
+        let original_id = previous.source_id.or_else(|| {
+            source_matching
+                .as_ref()?
+                .links
+                .iter()
+                .find(|l| l.old_id == previous.id)
+                .map(|l| l.new_id)
+        });
+        if original_id.is_some_and(|id| source_ids.contains(&id)) {
+            forced_old.insert(previous.id);
+        }
+    }
+    let source_pending = source_matching.as_ref().is_some_and(|m| !m.complete);
+    let mut decisions = request.decisions.clone().unwrap_or_default();
+    if decisions
+        .links
+        .iter()
+        .any(|l| forced_old.contains(&l.old_id) || forced_new.contains(&l.new_id))
+    {
+        return Err(error("invalid_location_mapping"));
+    }
+    decisions.added.retain(|id| !forced_new.contains(id));
+    decisions.removed.retain(|id| !forced_old.contains(id));
+    let mut matching = reconcile_locations(&LocationMatchingRequest {
+        old_locations: old_points
+            .into_iter()
+            .filter(|p| !forced_old.contains(&p.id))
+            .collect(),
+        new_locations: new_points
+            .iter()
+            .filter(|p| !forced_new.contains(&p.id))
+            .cloned()
+            .collect(),
         tolerance_mm: request.tolerance_mm,
-        decisions: request.decisions.clone(),
+        decisions: if request.decisions.is_some() {
+            Some(decisions)
+        } else {
+            None
+        },
         bulk_action: request.bulk_action,
     })?;
+    if source_pending {
+        matching.complete = false;
+    }
+    matching.added.extend(forced_new.iter().copied());
+    matching.removed.extend(forced_old.iter().copied());
+    matching.added.sort_unstable();
+    matching.removed.sort_unstable();
     let mut active_marks = HashMap::new();
     if !renumber {
         for link in &matching.links {
@@ -402,7 +487,20 @@ pub fn preview_revit_revision(
             };
             row[change_index] = json!(change);
             records.push(ColumnRecord {
-                values: values(p, mark, code, &change),
+                previous_coordinates: links
+                    .get(&previous.id)
+                    .filter(|link| link.distance_mm <= request.tolerance_mm)
+                    .map(|_| (previous.x_mm, previous.y_mm)),
+                source_coordinate_unit: Some(old.mapping.coordinate_unit),
+                values: {
+                    let mut v = values(p, mark, code, &change);
+                    if links.contains_key(&previous.id) {
+                        if let Some(facts) = prepared.facts.get(&p.id) {
+                            v.extend(facts.clone());
+                        }
+                    }
+                    v
+                },
                 pile_size: p.pile_size_mm.map(|n| (n, p.shape.clone())),
                 source: row,
             });
@@ -424,7 +522,15 @@ pub fn preview_revit_revision(
                 .and_then(|level| codes.get(&level).cloned())
                 .unwrap_or_default();
             records.push(ColumnRecord {
-                values: values(p, Some(mark), code, &change),
+                previous_coordinates: None,
+                source_coordinate_unit: Some(old.mapping.coordinate_unit),
+                values: {
+                    let mut v = values(p, Some(mark), code, &change);
+                    if let Some(facts) = prepared.facts.get(&p.id) {
+                        v.extend(facts.clone());
+                    }
+                    v
+                },
                 pile_size: p.pile_size_mm.map(|n| (n, p.shape.clone())),
                 source: row,
             });
@@ -437,6 +543,18 @@ pub fn preview_revit_revision(
         None
     };
     Ok(RevitRevisionPreview {
+        source_matching,
+        source_locations,
+        forced_added: {
+            let mut v: Vec<_> = forced_new.iter().copied().collect();
+            v.sort_unstable();
+            v
+        },
+        forced_removed: {
+            let mut v: Vec<_> = forced_old.iter().copied().collect();
+            v.sort_unstable();
+            v
+        },
         old_locations: old.locations,
         new_locations: new,
         matching,

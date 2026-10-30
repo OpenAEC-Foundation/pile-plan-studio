@@ -7,7 +7,7 @@ use crate::{
 };
 
 use super::{
-    cpt_columns, parse_cpts, pipeline::parse_load_source, provenance_entry, read_source_table,
+    cpt_columns, parse_cpts, pipeline::parse_load_source, provenance_entry,
     reconcile_imported_inputs, ImportError, ImportProfile, ImportRole, ImportSource,
     InvalidSourcePileTipLevel, SourceLocation,
 };
@@ -153,7 +153,7 @@ pub fn refresh_project_with_location_decisions(
     let refresh_advice = !advice.logs.is_empty();
     let mut replacement_logs = Vec::new();
 
-    let new_load_points = if let Some(source) = load_source {
+    let mut new_load_points = if let Some(source) = load_source {
         let (load_points, log) = parse_load_source(source)?;
         replacement_logs.push(log);
         load_points
@@ -191,9 +191,49 @@ pub fn refresh_project_with_location_decisions(
         identity_mapping(current.inputs.load_points.iter().map(|item| item.id))
     };
 
+    if let Some(source) = load_source {
+        if !source.profile_options.import_tension && !source.profile_options.clear_tension {
+            for (old_id, new_id) in &load_point_mapping {
+                if let (Some(old), Some(new)) = (
+                    current.inputs.load_points.iter().find(|p| p.id == *old_id),
+                    new_load_points.iter_mut().find(|p| p.id == *new_id),
+                ) {
+                    new.tension = old.tension.clone();
+                }
+            }
+            if current
+                .inputs
+                .load_points
+                .iter()
+                .any(|p| p.tension != crate::TensionDemand::NotImported)
+            {
+                if let Some(log) = replacement_logs.last_mut() {
+                    log.warnings.push(
+                        "Existing tension data retained from the previous load source".into(),
+                    );
+                }
+                replacement_logs.extend(
+                    current
+                        .import_log
+                        .iter()
+                        .filter(|l| {
+                            l.source_role == Some(ImportRole::LoadPoints)
+                                && (l.mapped_columns.values().any(|value| value == "tension")
+                                    || l.profile_details
+                                        .get("import_tension")
+                                        .is_some_and(|value| value == "true"))
+                        })
+                        .cloned(),
+                );
+            }
+        }
+    }
     let new_cpts = if let Some(source) = cpt_source {
-        let table = read_source_table(&source.file_name, source.format, &source.bytes)?;
-        let cpts = parse_cpts(&table)?;
+        let table = super::table_mapping::mapped_table(source)?;
+        let cpts = parse_cpts(&table).map_err(|error| match &source.profile_options.table {
+            Some(settings) => super::table_mapping::map_error(error, settings, ImportRole::Cpts),
+            None => error,
+        })?;
         let mut log = provenance_entry(source, table.sheet_name, cpt_columns());
         log.source_profile = Some(ImportProfile::StandardTable);
         replacement_logs.push(log);
@@ -1220,6 +1260,7 @@ mod tests {
             x_mm,
             y_mm,
             design_load_kn: 100.0,
+            tension: Default::default(),
         }
     }
 

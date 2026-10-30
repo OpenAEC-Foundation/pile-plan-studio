@@ -52,7 +52,8 @@ test("load-point refresh requires a reviewed mapping and passes the confirmed pr
     matching: {links: [{old_id: 10, new_id: 20, distance_mm: 0}], added: [], removed: [], unmatched_old: [], unmatched_new: [], proposals: [], complete: true},
   });
   render(<ProjectImportPanel initialSource={{role: "load-points", file: file("load-points.csv")}} defaultCurrencyCode="EUR" onImportProject={apply} onPrepareLoadPointRefresh={prepare} importPreviewContextKey="revision-1" />);
-  const review = await screen.findByRole("button", {name: t("exportTools.refreshReview")});
+  const review = await screen.findByRole("button", {name: t("locationMatchingEntry.open")});
+  expect((screen.getAllByRole("button", {name: t("importProject.refreshSubmit")})[1] as HTMLButtonElement).disabled).toBe(true);
   await waitFor(() => expect((review as HTMLButtonElement).disabled).toBe(false));
   fireEvent.click(review);
   await screen.findByRole("region", {name: t("exportTools.matchingTitle")});
@@ -126,7 +127,7 @@ test("pile and CPT categories independently alter the next preview request; lega
   fireEvent.click(boxes[0]);
   await waitFor(() => expect(core.plan).toHaveBeenCalledTimes(2));
   expect((core.plan.mock.calls[1][0] as PilePlanImportRequest).options).toMatchObject({ importPileAssignments: false, importCptSelections: true });
-  core.plan.mockResolvedValueOnce({ ...planPreview, detectedProfile: "legacy", supportsCptSelections: false });
+  core.plan.mockResolvedValue({ ...planPreview, detectedProfile: "legacy", supportsCptSelections: false });
   fireEvent.change(view.container.querySelector('input[type="file"]')!, { target: { files: [file("legacy.csv")] } });
   await waitFor(() => expect((boxes[1] as HTMLInputElement).disabled).toBe(true));
 });
@@ -150,4 +151,37 @@ test("advice-only new-project selection explains missing files without reporting
   expect(screen.getByText(t("importProject.advice.requiresLoadPointsAndCpts"))).toBeTruthy();
   expect(view.container.querySelector(".advice-import-diagnostics")).toBeNull();
   expect((screen.getByRole("button",{name:t("importProject.submit")}) as HTMLButtonElement).disabled).toBe(true);
+});
+
+
+test("pile import exposes location review directly, with tolerance outside collapsed settings",async()=>{
+  core.plan.mockResolvedValue({...planPreview,matching:{links:[],added:[],removed:[],unmatched_new:[2],unmatched_old:[],proposals:[],complete:false}});
+  const view=render(<PilePlanImportPanel loadPoints={[]} cpts={[]} availablePileConfigurations={[]} onImportPilePlan={()=>{}}/>);
+  fireEvent.change(view.container.querySelector('input[type="file"]')!,{target:{files:[file("plan.csv")]}});
+  const review=await screen.findByRole("button",{name:t("locationMatchingEntry.open")});
+  expect(review.closest("details")).toBeNull();
+  expect(screen.getByRole("spinbutton",{name:t("exportTools.matchTolerance")})).toBeTruthy();
+});
+
+
+test("the general source picker stages and submits every advice in a mixed multi-file batch", async () => {
+  const apply=vi.fn().mockResolvedValue(null);
+  const view=render(<ProjectImportPanel defaultCurrencyCode="EUR" onImportProject={apply}/>);
+  const names=["120488 Amsterdam prefab betonpalen 70 cm ophoging trek diep 2paalspoer.xlsx", "120488 Amsterdam prefab betonpalen 70 cm ophoging trek diep 4paalspoer.xlsx", "120488 Amsterdam prefab betonpalen 70 cm ophoging trek ondiep.xlsx"];
+  const input=view.container.querySelector('input[type="file"][multiple]') as HTMLInputElement;
+  fireEvent.change(input,{target:{files:[file("Export RFEM.xlsx"),file("Sonderingen.xlsx"),...names.map(file)]}});
+  await waitFor(()=>{
+    const adviceRequests=core.project.mock.calls.map(call=>call[0] as ImportSourceInput).filter(s=>s.role==="bearing-capacities");
+    expect(adviceRequests.map(s=>s.fileName).sort()).toEqual([...names].sort());
+  });
+  for(const name of names)expect(screen.getByTitle(name)).toBeTruthy();
+  fireEvent.change(screen.getByLabelText(t("importProject.pileHeadLevel"),{exact:false}),{target:{value:"0"}});
+  const submit=screen.getByRole("button",{name:t("importProject.submit")});
+  await waitFor(()=>expect((submit as HTMLButtonElement).disabled).toBe(false));
+  fireEvent.click(submit);
+  await waitFor(()=>expect(apply).toHaveBeenCalledOnce());
+  const sources=apply.mock.calls[0][2] as ImportSourceInput[];
+  expect(sources).toHaveLength(5);
+  expect(sources.filter(s=>s.role==="bearing-capacities").map(s=>s.fileName).sort()).toEqual([...names].sort());
+  expect(new Set(sources.filter(s=>s.role==="bearing-capacities").map(s=>s.sourceId)).size).toBe(3);
 });

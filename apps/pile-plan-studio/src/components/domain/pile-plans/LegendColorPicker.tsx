@@ -88,7 +88,6 @@ export default function LegendColorPicker({
             <label className="legend-native-color-control">
               <input
                 aria-label={openColorPickerLabel}
-                title={openColorPickerLabel}
                 type="color"
                 value={value}
                 onChange={(event) => onChange(event.currentTarget.value.toUpperCase())}

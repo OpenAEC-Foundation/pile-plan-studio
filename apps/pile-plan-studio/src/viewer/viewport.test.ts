@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 
 import {
   clampScale,
+  fitViewportToPoints,
   centerViewportAtPoint,
   getViewportTransform,
   panViewport,
@@ -74,4 +75,15 @@ describe("viewport interaction helpers", () => {
       "translate(-120px, 45px) scale(1.75)",
     );
   });
+});
+
+
+it("fits selected projected points with padding and layout compensation using one scale",()=>{
+ const original={scale:2,offsetX:-100,offsetY:50},size={width:800,height:600},comp={x:43,y:-17};
+ const points=[{x:100,y:100},{x:700,y:400}];
+ const fitted=fitViewportToPoints(original,points,size,comp);
+ for(const p of points){const x=p.x*fitted.scale+fitted.offsetX+comp.x,y=p.y*fitted.scale+fitted.offsetY+comp.y;assert.ok(x>=63&&x<=737);assert.ok(y>=63&&y<=537);}
+ assert.equal(fitViewportToPoints(original,[],size,comp),original);
+ assert.equal(fitViewportToPoints(original,[{x:100,y:100}],size,comp).scale,10);
+ assert.deepEqual(original,{scale:2,offsetX:-100,offsetY:50});
 });

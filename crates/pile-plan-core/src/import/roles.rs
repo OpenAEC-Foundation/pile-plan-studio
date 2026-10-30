@@ -58,9 +58,47 @@ pub(super) fn parse_load_points(table: &SourceTable) -> Result<Vec<ProjectLoadPo
             x_mm: cell_f64(table, row, X)?,
             y_mm: cell_f64(table, row, Y)?,
             design_load_kn: cell_f64(table, row, FED)?,
+            tension: Default::default(),
         });
     }
     Ok(result)
+}
+
+pub(super) fn parse_load_points_with_options(
+    table: &SourceTable,
+    options: &super::ImportProfileOptions,
+) -> Result<Vec<ProjectLoadPoint>, ImportError> {
+    let mut points = parse_load_points(table)?;
+    if options.import_tension {
+        let column = Column {
+            number: options.tension_column.unwrap_or(5),
+            name: "Tension FEd",
+        };
+        if column.number < 5 {
+            return Err(ImportError::Validation(
+                "Tension column must follow the four compression input columns".into(),
+            ));
+        }
+        for (point, row) in points.iter_mut().zip(data_rows(table, 4, "load points")?) {
+            point.tension = if row
+                .cells
+                .get(column.number - 1)
+                .is_none_or(TableCell::is_empty)
+            {
+                crate::TensionDemand::Missing
+            } else {
+                let value_kn = cell_f64(table, row, column)?;
+                if value_kn < 0. {
+                    return Err(ImportError::InvalidConstraint {
+                        location: cell_location(table, row, column),
+                        message: "value must be nonnegative",
+                    });
+                }
+                crate::TensionDemand::Known { value_kn }
+            };
+        }
+    }
+    Ok(points)
 }
 
 pub(super) fn parse_cpts(table: &SourceTable) -> Result<Vec<ProjectCpt>, ImportError> {
@@ -124,10 +162,13 @@ pub(super) fn parse_bearing_capacities_with_diagnostics(
             continue;
         }
         result.push(ProjectBearingCapacity {
+                pile_count: None,
+                missing: false,
             cpt_id,
             pile_tip_level_m,
             pile_size_mm,
             frd_kn: cell_f64(table, row, FRD)?,
+            direction: Default::default(),
         });
     }
     if !invalid_pile_tip_levels.is_empty() {
@@ -217,7 +258,8 @@ pub(super) fn reconcile_imported_inputs(
     let mut orphan_ids = BTreeSet::new();
     let mut ignored_orphan_rows = 0;
     let mut deduplicated_rows = 0;
-    let mut key_indexes: HashMap<(u32, u32, i64), usize> = HashMap::new();
+    let mut key_indexes: HashMap<(u32, u32, i64, crate::ResistanceDirection, Option<u32>), usize> =
+        HashMap::new();
     let mut bearing_capacities: Vec<ProjectBearingCapacity> = Vec::new();
 
     for (source_index, capacity) in capacities.into_iter().enumerate() {
@@ -236,6 +278,8 @@ pub(super) fn reconcile_imported_inputs(
                     error,
                 )])
             })?,
+            capacity.direction,
+            capacity.pile_count,
         );
         if key_indexes.contains_key(&key) {
             deduplicated_rows += 1;
@@ -268,6 +312,9 @@ fn validate_capacity_values(capacities: &[ProjectBearingCapacity]) -> Result<(),
             return Err(ImportError::Validation(
                 "Pile size must be greater than zero".to_string(),
             ));
+        }
+        if capacity.pile_count == Some(0) || (capacity.missing && capacity.frd_kn != 0.) {
+            return Err(ImportError::Validation("Invalid advice applicability or missing value".into()));
         }
         if !capacity.frd_kn.is_finite() {
             return Err(ImportError::Validation(format!(

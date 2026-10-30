@@ -3,6 +3,10 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
 pub struct AdviceSheetSelection {
+    pub table: Option<super::TableImportSettings>,
+    #[serde(default)]
+    pub direction: crate::ResistanceDirection,
+    pub tension_column: Option<usize>,
     pub sheet_name: String,
     pub profile: ImportProfile,
 }
@@ -16,11 +20,17 @@ pub struct AdviceValueLocation {
 }
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq)]
 pub struct AdviceConflictValue {
+    #[serde(default)]
+    pub missing: bool,
     pub frd_kn: f64,
     pub locations: Vec<AdviceValueLocation>,
 }
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq)]
 pub struct AdviceConflict {
+    #[serde(default)]
+    pub pile_count: Option<u32>,
+    #[serde(default)]
+    pub direction: crate::ResistanceDirection,
     pub cpt_id: u32,
     pub pile_size_mm: u32,
     pub pile_tip_level_mm: i64,
@@ -45,6 +55,8 @@ pub enum AdviceSheetStatus {
 }
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq)]
 pub struct AdviceSheetPreview {
+    #[serde(default,skip_serializing_if="Option::is_none")]
+    pub table: Option<super::SourceTablePreview>,
     pub sheet_name: String,
     pub status: AdviceSheetStatus,
     pub detected_profile: Option<ImportProfile>,

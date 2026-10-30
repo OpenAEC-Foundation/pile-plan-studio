@@ -14,7 +14,7 @@ use crate::{
     SelectedPileChoice, ValidatedPilePlanProject, APPLICATION_NAME,
 };
 
-const CURRENT_SCHEMA_VERSION: u32 = 6;
+const CURRENT_SCHEMA_VERSION: u32 = 8;
 
 #[derive(Debug)]
 pub enum IfcppError {
@@ -353,6 +353,11 @@ pub fn write_ifcpp_string(project: &PilePlanProject) -> Result<String, IfcppErro
     let mut canonical = project.clone();
     migrate_optimizer_settings(&mut canonical);
     if canonical.schema_version < CURRENT_SCHEMA_VERSION {
+        for plan in &mut canonical.user_state.pile_plans {
+            if let Some(result) = &mut plan.ilp_result {
+                result.settings.include_tension = false;
+            }
+        }
         canonical.schema_version = CURRENT_SCHEMA_VERSION;
     }
     validate_ifcpp_project(&canonical)?;
@@ -399,10 +404,23 @@ fn validate_ifcpp_project_with_keys(
         return Err(IfcppError::InvalidSchema(project.schema.clone()));
     }
 
-    if !matches!(project.schema_version, 1 | 2 | 3 | 4 | 5 | 6) {
+    if !matches!(project.schema_version, 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8) {
         return Err(IfcppError::UnsupportedSchemaVersion(project.schema_version));
     }
 
+    if project
+        .inputs
+        .load_points
+        .iter()
+        .any(|p| !p.tension.is_valid())
+    {
+        return Err(IfcppError::Json(<JsonError as serde::de::Error>::custom(
+            "Invalid tension demand",
+        )));
+    }
+    if project.inputs.bearing_capacities.iter().any(|v| v.pile_count == Some(0) || (v.missing && v.frd_kn != 0.)) {
+        return Err(IfcppError::Json(<JsonError as serde::de::Error>::custom("Invalid advice applicability or missing value")));
+    }
     for plan in &project.user_state.pile_plans {
         crate::pile_cap_proposals::validate_proposals(&plan.pile_cap_proposals).map_err(
             |message| IfcppError::Json(<JsonError as serde::de::Error>::custom(message)),
@@ -436,7 +454,22 @@ fn migrate_legacy_project_value(value: &mut Value) {
         .get("schema_version")
         .and_then(Value::as_u64)
         .unwrap_or(0);
-    if original_schema_version == 5 {
+    if (1..=6).contains(&original_schema_version) {
+        if let Some(plans) = value
+            .pointer_mut("/user_state/pile_plans")
+            .and_then(Value::as_array_mut)
+        {
+            for plan in plans {
+                if let Some(settings) = plan
+                    .pointer_mut("/ilp_result/settings")
+                    .and_then(Value::as_object_mut)
+                {
+                    settings.insert("include_tension".into(), Value::Bool(false));
+                }
+            }
+        }
+    }
+    if matches!(original_schema_version, 5 | 6 | 7) {
         value["schema_version"] = Value::from(CURRENT_SCHEMA_VERSION);
         return;
     }
@@ -620,6 +653,7 @@ mod tests {
                 x_mm: 0.0,
                 y_mm: 0.0,
                 design_load_kn: 100.0,
+                tension: Default::default(),
             },
             crate::ProjectLoadPoint {
                 id: 2,
@@ -627,6 +661,7 @@ mod tests {
                 x_mm: 500.0,
                 y_mm: 0.0,
                 design_load_kn: 100.0,
+                tension: Default::default(),
             },
             crate::ProjectLoadPoint {
                 id: 3,
@@ -634,6 +669,7 @@ mod tests {
                 x_mm: 1_000.0,
                 y_mm: 0.0,
                 design_load_kn: 100.0,
+                tension: Default::default(),
             },
         ];
         project.settings.load_point_grouping.automatic = false;
@@ -677,7 +713,7 @@ mod tests {
 
         let restored = read_ifcpp_str(&value.to_string()).expect("schema four migrates");
 
-        assert_eq!(restored.schema_version, 6);
+        assert_eq!(restored.schema_version, CURRENT_SCHEMA_VERSION);
         assert!(restored
             .settings
             .load_point_grouping
@@ -759,6 +795,7 @@ mod tests {
                     x_mm: 0.0,
                     y_mm: 0.0,
                     design_load_kn: 100.0,
+                    tension: Default::default(),
                 },
                 crate::ProjectLoadPoint {
                     id: 2,
@@ -766,6 +803,7 @@ mod tests {
                     x_mm: 500.0,
                     y_mm: 0.0,
                     design_load_kn: 100.0,
+                    tension: Default::default(),
                 },
                 crate::ProjectLoadPoint {
                     id: 3,
@@ -773,6 +811,7 @@ mod tests {
                     x_mm: 1_000.0,
                     y_mm: 0.0,
                     design_load_kn: 100.0,
+                    tension: Default::default(),
                 },
             ];
             project.settings.load_point_grouping.manual_groups = manual_groups;
@@ -834,6 +873,7 @@ mod tests {
                 x_mm: 10.0,
                 y_mm: 20.0,
                 design_load_kn: 100.0,
+                tension: Default::default(),
             },
             crate::ProjectLoadPoint {
                 id: 99,
@@ -841,6 +881,7 @@ mod tests {
                 x_mm: 10.0,
                 y_mm: 20.0,
                 design_load_kn: 200.0,
+                tension: Default::default(),
             },
         ];
 
@@ -873,10 +914,13 @@ mod tests {
             .inputs
             .bearing_capacities
             .push(crate::ProjectBearingCapacity {
+                pile_count: None,
+                missing: false,
                 cpt_id: 61,
                 pile_tip_level_m: -18.5004,
                 pile_size_mm: 290,
                 frd_kn: 700.0,
+                direction: Default::default(),
             });
         assert_invalid_tip_context(
             &bearing_capacity_project,
@@ -974,7 +1018,7 @@ mod tests {
 
     #[test]
     fn supported_schema_versions_keep_quarter_metre_tip_levels() {
-        for schema_version in 1..=5 {
+        for schema_version in 1..=6 {
             let mut project = project_fixture();
             project.schema_version = schema_version;
             project.user_state.pile_plans[0].active_pile_tip_levels = vec![-18.25];
@@ -986,7 +1030,7 @@ mod tests {
             let json = serde_json::to_string(&value).unwrap();
             let restored = read_ifcpp_str(&json).unwrap();
 
-            assert_eq!(restored.schema_version, 6);
+            assert_eq!(restored.schema_version, CURRENT_SCHEMA_VERSION);
             assert_eq!(
                 restored.user_state.pile_plans[0].active_pile_tip_levels,
                 vec![-18.25]
@@ -996,7 +1040,7 @@ mod tests {
 
     #[test]
     fn supported_versions_produce_canonical_schema_six_semantics() {
-        for schema_version in 1..=5 {
+        for schema_version in 1..=6 {
             let mut value = serde_json::to_value(project_fixture()).expect("fixture serializes");
             value["schema_version"] = serde_json::json!(schema_version);
             value["settings"]
@@ -1059,7 +1103,7 @@ mod tests {
             .expect("supported project reads")
             .project;
 
-            assert_eq!(restored.schema_version, 6, "schema {schema_version}");
+            assert_eq!(restored.schema_version, CURRENT_SCHEMA_VERSION, "schema {schema_version}");
             assert_eq!(
                 restored.settings.load_point_grouping,
                 crate::LoadPointGroupingSettings::default(),
@@ -1129,6 +1173,7 @@ mod tests {
                 x_mm: 10.0,
                 y_mm: 20.0,
                 design_load_kn: 100.0,
+                tension: Default::default(),
             },
             crate::ProjectLoadPoint {
                 id: 2,
@@ -1136,6 +1181,7 @@ mod tests {
                 x_mm: 10.0,
                 y_mm: 20.0,
                 design_load_kn: 200.0,
+                tension: Default::default(),
             },
         ];
         let duplicate_positions = read_project_document(
@@ -1247,7 +1293,7 @@ mod tests {
         let value: Value = serde_json::from_str(&text).expect("written document parses");
 
         assert_eq!(value["schema"], "IFCPP");
-        assert_eq!(value["schema_version"], 6);
+        assert_eq!(value["schema_version"], CURRENT_SCHEMA_VERSION);
         assert_eq!(value["application"]["name"], "Open Pile Plan Studio");
         assert_eq!(value["application"]["version"], env!("CARGO_PKG_VERSION"));
         assert_eq!(value["user_state"]["active_pile_plan_id"], "pile-plan-1");
@@ -1407,6 +1453,7 @@ mod tests {
                 x_mm: 10.0,
                 y_mm: 20.0,
                 design_load_kn: 100.0,
+                tension: Default::default(),
             },
             crate::ProjectLoadPoint {
                 id: 2,
@@ -1414,6 +1461,7 @@ mod tests {
                 x_mm: 10.0,
                 y_mm: 20.0,
                 design_load_kn: 200.0,
+                tension: Default::default(),
             },
         ];
         let duplicate_positions =
@@ -1481,7 +1529,7 @@ mod tests {
         let json = write_ifcpp_string(&project).expect("legacy project writes canonically");
         let value: serde_json::Value = serde_json::from_str(&json).expect("written JSON parses");
 
-        assert_eq!(value["schema_version"], 6);
+        assert_eq!(value["schema_version"], CURRENT_SCHEMA_VERSION);
         assert!(value["user_state"].get("selected_piles").is_none());
     }
 
@@ -1493,7 +1541,11 @@ mod tests {
         assert_eq!(project.metadata.name, "Sample Project");
         assert_eq!(project.inputs.load_points.len(), 328);
         assert_eq!(project.inputs.cpts.len(), 77);
-        assert_eq!(project.inputs.bearing_capacities.len(), 2340);
+        assert_eq!(project.inputs.bearing_capacities.len(), 4548);
+        assert_eq!(project.inputs.bearing_capacities.iter().filter(|r|r.direction==crate::ResistanceDirection::Compression).count(),2340);
+        assert_eq!(project.inputs.bearing_capacities.iter().filter(|r|r.direction==crate::ResistanceDirection::Tension).count(),2208);
+        assert_eq!(project.inputs.load_points.iter().filter(|p|matches!(p.tension,crate::TensionDemand::Known{value_kn} if value_kn>0.)).count(),33);
+        assert_eq!(project.user_state.pile_plans.len(),1);
         assert_eq!(project.settings.pile_costs.items.len(), 10);
     }
 
@@ -1520,7 +1572,7 @@ mod tests {
         let json = serde_json::to_string(&value).expect("legacy JSON writes");
         let project = read_ifcpp_str(&json).expect("schema two migrates");
 
-        assert_eq!(project.schema_version, 6);
+        assert_eq!(project.schema_version, CURRENT_SCHEMA_VERSION);
         assert_eq!(project.settings.pile_head_level_m, Some(-1.25));
         assert_eq!(project.settings.pile_costs.items[0].cost_per_m3, 190.0);
         assert_eq!(project.units.costs, "GBP");
@@ -1547,7 +1599,7 @@ mod tests {
             .expect("schema three migrates");
         let migrated = serde_json::to_value(project).expect("migrated project serializes");
 
-        assert_eq!(migrated["schema_version"], 6);
+        assert_eq!(migrated["schema_version"], CURRENT_SCHEMA_VERSION);
         for plan in migrated["user_state"]["pile_plans"]
             .as_array()
             .expect("pile plans remain an array")
@@ -1588,9 +1640,10 @@ mod tests {
         let json = write_ifcpp_string(&project).expect("schema five writes");
         let restored = read_ifcpp_str(&json).expect("schema five reads");
 
+        project.schema_version = CURRENT_SCHEMA_VERSION;
         assert_eq!(restored, project);
         let written: serde_json::Value = serde_json::from_str(&json).expect("JSON parses");
-        assert_eq!(written["schema_version"], 6);
+        assert_eq!(written["schema_version"], CURRENT_SCHEMA_VERSION);
         assert!(written["settings"].get("active_pile_sizes").is_none());
         assert_eq!(
             written["user_state"]["pile_plans"][1]["active_pile_sizes"],
@@ -1612,7 +1665,7 @@ mod tests {
     fn project_fixture() -> PilePlanProject {
         PilePlanProject {
             schema: "IFCPP".to_string(),
-            schema_version: 6,
+            schema_version: CURRENT_SCHEMA_VERSION,
             application: ProjectApplication {
                 name: APPLICATION_NAME.to_string(),
                 version: "0.1.0-alpha".to_string(),

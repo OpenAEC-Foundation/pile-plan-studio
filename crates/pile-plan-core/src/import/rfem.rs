@@ -16,6 +16,7 @@ pub(crate) struct RfemSheetDetection {
 #[derive(Clone, Debug, PartialEq)]
 pub(crate) struct AnalyzedRfemLoadPoints {
     pub load_points: Vec<ProjectLoadPoint>,
+    pub reaction_evidence: Vec<serde_json::Value>,
     pub coordinate_sheet: String,
     pub reaction_sheet: String,
     pub coordinate_nodes_without_reactions: Vec<u32>,
@@ -30,6 +31,8 @@ struct ParsedCoordinates {
 }
 
 struct ParsedReactions {
+    evidence: Vec<serde_json::Value>,
+    maxima: BTreeMap<u32, f64>,
     values: BTreeMap<u32, f64>,
     exact_duplicates: Vec<u32>,
 }
@@ -96,7 +99,7 @@ pub(crate) fn analyze_tables(
     let coordinate_table = table_by_name(tables, coordinate_sheet)?;
     let reaction_table = table_by_name(tables, reaction_sheet)?;
     let coordinates = parse_coordinates(coordinate_table)?;
-    let reactions = parse_reactions(reaction_table)?;
+    let reactions = parse_reactions_scoped(reaction_table, options.import_tension)?;
 
     let coordinate_ids: BTreeSet<_> = coordinates.values.keys().copied().collect();
     let reaction_ids: BTreeSet<_> = reactions.values.keys().copied().collect();
@@ -109,12 +112,24 @@ pub(crate) fn analyze_tables(
                 name: format!("Load point {id}"),
                 x_mm: (x_m * 1000.0).round(),
                 y_mm: (y_m * 1000.0).round(),
-                design_load_kn: reactions.values[id].abs(),
+                design_load_kn: (-reactions.values[id]).max(0.),
+                tension: if options.import_tension {
+                    reactions
+                        .maxima
+                        .get(id)
+                        .map(|value| crate::TensionDemand::Known {
+                            value_kn: value.max(0.),
+                        })
+                        .unwrap_or(crate::TensionDemand::Missing)
+                } else {
+                    crate::TensionDemand::NotImported
+                },
             }
         })
         .collect();
 
     Ok(AnalyzedRfemLoadPoints {
+        reaction_evidence: reactions.evidence,
         load_points,
         coordinate_sheet: coordinate_sheet.to_string(),
         reaction_sheet: reaction_sheet.to_string(),
@@ -171,7 +186,14 @@ fn parse_coordinates(table: &SourceTable) -> Result<ParsedCoordinates, ImportErr
     })
 }
 
+#[cfg(test)]
 fn parse_reactions(table: &SourceTable) -> Result<ParsedReactions, ImportError> {
+    parse_reactions_scoped(table, true)
+}
+fn parse_reactions_scoped(
+    table: &SourceTable,
+    import_maxima: bool,
+) -> Result<ParsedReactions, ImportError> {
     if let Some(columns) = component_reaction_columns(table) {
         return parse_component_reactions(table, columns);
     }
@@ -184,6 +206,8 @@ fn parse_reactions(table: &SourceTable) -> Result<ParsedReactions, ImportError> 
             ))
         })?;
     let mut result: BTreeMap<u32, f64> = BTreeMap::new();
+    let mut evidence = vec![];
+    let mut maxima = BTreeMap::<u32, f64>::new();
     let mut exact_duplicates = BTreeSet::new();
     let mut current_node = None;
     for row in table.rows.iter().filter(|row| row.number > header_row) {
@@ -195,7 +219,12 @@ fn parse_reactions(table: &SourceTable) -> Result<ParsedReactions, ImportError> 
             .get(label_column)
             .map(TableCell::as_text)
             .unwrap_or_default();
-        if !matches!(normalize(&label).as_str(), "min pz'" | "min pz" | "min") {
+        let normalized = normalize(&label);
+        let is_max = matches!(normalized.as_str(), "max pz'" | "max pz" | "max");
+        if !is_max && !matches!(normalized.as_str(), "min pz'" | "min pz" | "min") {
+            continue;
+        }
+        if is_max && (!import_maxima || row.cells.get(pz_column).is_none_or(TableCell::is_empty)) {
             continue;
         }
         let id = current_node.ok_or_else(|| {
@@ -205,7 +234,9 @@ fn parse_reactions(table: &SourceTable) -> Result<ParsedReactions, ImportError> 
             ))
         })?;
         let value = required_f64(row.cells.get(pz_column), table, row.number, pz_column)?;
-        if let Some(existing) = result.get(&id) {
+        evidence.push(serde_json::json!({"node_id":id,"row":row.number,"column":pz_column+1,"value_kn":value,"kind":if is_max{"maximum"}else{"minimum"},"source_cells":row.cells.iter().map(TableCell::as_text).collect::<Vec<_>>()}));
+        let target = if is_max { &mut maxima } else { &mut result };
+        if let Some(existing) = target.get(&id) {
             if (*existing - value).abs() <= f64::EPSILON {
                 exact_duplicates.insert(id);
                 continue;
@@ -215,9 +246,11 @@ fn parse_reactions(table: &SourceTable) -> Result<ParsedReactions, ImportError> 
                 table.file_name
             )));
         }
-        result.insert(id, value);
+        target.insert(id, value);
     }
     Ok(ParsedReactions {
+        evidence,
+        maxima,
         values: result,
         exact_duplicates: exact_duplicates.into_iter().collect(),
     })
@@ -230,7 +263,8 @@ fn parse_component_reactions(
     table: &SourceTable,
     (header_row, id_column, label_column, pz_column): (usize, usize, usize, usize),
 ) -> Result<ParsedReactions, ImportError> {
-    let mut envelopes = BTreeMap::<u32, (f64, usize)>::new();
+    let mut evidence = vec![];
+    let mut envelopes = BTreeMap::<u32, (f64, f64, usize)>::new();
     let summary_start = unlabelled_component_summary_start(table, id_column, label_column);
     for row in table.rows.iter().filter(|row| row.number > header_row) {
         if summary_start.is_some_and(|start| row.number >= start) {
@@ -258,16 +292,20 @@ fn parse_component_reactions(
             ))
         })?;
         let value = required_f64(row.cells.get(pz_column), table, row.number, pz_column)?;
+        evidence.push(serde_json::json!({"node_id":id,"row":row.number,"column":pz_column+1,"value_kn":value,"kind":"component_pair","source_cells":row.cells.iter().map(TableCell::as_text).collect::<Vec<_>>()}));
         envelopes
             .entry(id)
-            .and_modify(|(minimum, count)| {
+            .and_modify(|(minimum, maximum, count)| {
+                *maximum = maximum.max(value);
                 *minimum = minimum.min(value);
                 *count += 1;
             })
-            .or_insert((value, 1));
+            .or_insert((value, value, 1));
     }
     let mut values = BTreeMap::new();
-    for (id, (minimum, count)) in envelopes {
+    let mut maxima = BTreeMap::new();
+    for (id, (minimum, maximum, count)) in envelopes {
+        maxima.insert(id, maximum);
         if count != 2 {
             return Err(ImportError::Validation(format!(
                 "{} contains {count} PZ component rows for RFEM node {id}; expected a maximum/minimum pair.",
@@ -277,6 +315,8 @@ fn parse_component_reactions(
         values.insert(id, minimum);
     }
     Ok(ParsedReactions {
+        evidence,
+        maxima,
         values,
         exact_duplicates: vec![],
     })
@@ -525,6 +565,45 @@ mod tests {
         ImportProfile, ImportProfileOptions, ImportRole, ImportSource, SourceFormat, SourceRow,
         SourceTable, TableCell,
     };
+
+    #[test]
+    fn signed_pressure_tension_envelopes_and_optional_import() {
+        for (minimum, maximum, pressure, tension) in [
+            (-79., -17., 79., 0.),
+            (-399., 81., 399., 81.),
+            (20., 81., 0., 81.),
+        ] {
+            let mut reactions = rfem_reaction_table("R", &[(1, minimum)]);
+            reactions.rows[2].cells[4] = TableCell::Number(maximum);
+            let tables = [
+                rfem_coordinate_table("C", &[(1, 0., 0.)]),
+                reactions.clone(),
+            ];
+            let options = ImportProfileOptions {
+                import_tension: true,
+                ..Default::default()
+            };
+            let result = analyze_tables(&tables, &options).unwrap();
+            assert_eq!(result.load_points[0].design_load_kn, pressure);
+            assert_eq!(
+                result.load_points[0].tension,
+                crate::TensionDemand::Known { value_kn: tension }
+            );
+            assert_eq!(
+                analyze_tables(&tables, &Default::default())
+                    .unwrap()
+                    .load_points[0]
+                    .tension,
+                crate::TensionDemand::NotImported
+            );
+            reactions.rows.remove(2);
+            reactions.rows[2].cells[0] = TableCell::Number(1.);
+            let result = analyze_tables(&[tables[0].clone(), reactions], &options).unwrap();
+            assert_eq!(result.load_points[0].tension, crate::TensionDemand::Missing);
+        }
+        let pair = parse_reactions(&rfem6_reaction_table("R")).unwrap();
+        assert_eq!(pair.maxima[&1], 80.518501);
+    }
 
     #[test]
     fn detects_rfem_coordinate_and_reaction_sheets_by_structure() {

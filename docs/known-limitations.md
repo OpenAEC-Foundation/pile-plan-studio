@@ -39,11 +39,12 @@ intentional and should be considered when evaluating its results.
   the schematic layout 90 degrees. Returning to the original count removes
   the proposal; Reset restores the original cap too. Selecting another group or
   closing the control retains it.
-- Proposals belong to individual pile plans and are saved in IFCPP schema 6,
+- Proposals belong to individual pile plans and are saved in IFCPP schema 7,
   recovery and undo/redo. Existing source locations and assignments are retained.
   Ordinary new plans start without proposals; duplicates and optimization
   destinations inherit independent copies of existing proposals.
-- The total of the original FEd values is redistributed equally. This does not
+- The original compression and imported tension envelopes are each summed and
+  redistributed equally, without netting. This does not
   preserve moments or reconstruct load combinations or eccentricity. Cap
   stiffness, pile-group effects, cap footprint, edge distances and structural
   adequacy are not checked. Negative/uplift loads are not supported by this
@@ -73,10 +74,13 @@ intentional and should be considered when evaluating its results.
   with the optimization summary. Alternative counts share the manual proposal's
   equal-force/CPT-union assumptions. No structural cap checks or cap costs enter
   the objective, so the lowest pile cost need not be the lowest foundation cost.
-- CSV/XLSX pile export is unavailable for plans containing proposals. Save those
-  variants as IFCPP, or use a separate plan without proposals for export.
-  Conversion to real source locations and dedicated MCP proposal editing are
-  deferred. The Plan ribbon's proposal overview supports selection, centering,
+- Configured CSV/XLSX exports can include proposed pile positions with export
+  IDs and original-location provenance. These are export representations, not
+  new project source locations. Change tables mark replaced originals removed
+  and proposals added; they do not automatically link them. Unconfigured export
+  contracts still reject plans containing proposals. Conversion to real source
+  locations and dedicated MCP proposal editing are deferred.
+  The Plan ribbon's proposal overview supports selection, centering,
   count/rotation edits, individual Reset and a single undoable Reset all.
   MCP optimization settings expose the same explicit
   count-change flag as the interface.
@@ -106,14 +110,29 @@ intentional and should be considered when evaluating its results.
   Selecting another force component or result rule is not yet supported.
 - Empty foundation-advice values are imported as missing data and produce
   warnings.
+- Source previews show a bounded sample, while validation covers the entire
+  selected table. Automatic headers and column assignments are suggestions;
+  review ambiguous headings and units before importing. A completely empty
+  selected resistance column is rejected. Matrix pressure/tension advice needs
+  separate worksheets; a standard table may map both resistance columns.
+- The bundled sample contains fictional tension resistances for testing only;
+  its original geometry/compression data and RFEM tension loads are retained.
+  These synthetic resistances must not be used for actual foundation design.
 - CPTs without coordinates are ignored when reconciling foundation advice.
 - CPTs with coordinates but no capacities remain available and can cause pile
   options to have status Missing.
 - Standard pile-plan tables can update pile assignments and manual CPT
   selections. Legacy `Vergrendeld.xlsx` tables contain pile assignments only;
   rows representing more than one pile are skipped with a warning.
-- Pile-plan import matches a validated ID first and then falls back to one
-  unique coordinate match within the configured tolerance (1 mm by default).
+- Pile-plan CSV/XLSX import supports configurable columns, headers/data rows,
+  worksheets, delimiters and length units. Files may identify locations by ID
+  alone, a complete X/Y pair, or both. With both present, the validated ID match
+  precedes a unique coordinate fallback (1 mm tolerance by default).
+- The shared location editor can review, reassign or skip import rows. Source
+  rows without coordinates remain in its list and have no invented map position.
+  Unmentioned project locations are retained. Importing manual CPT choices
+  affects the whole project. An absent action column preserves existing data;
+  an explicitly mapped empty action cell can clear it for an enabled category.
 - Historical Legacy rows are ignored when a more reliable current ID match is
   available. Conflicting equally reliable rows remain skipped with warnings.
 - Individual project sources can be refreshed while matched pile assignments
@@ -146,3 +165,25 @@ intentional and should be considered when evaluating its results.
   generate false change codes. Verify source units and coordinate systems.
 - Removed rows retain their old location IDs and Marks. Full active-plan
   renumbering can therefore reuse a number present on a removed row.
+
+
+## Tension assessment
+
+- Tension loads and resistances are optional design values. Without an explicit
+  tension import, projects remain usable for compression and tension is labelled
+  not assessed. Missing values in a selected tension import are not zero.
+- The application checks supplied design resistances against demand; it does not
+  derive tension resistance from soil parameters or check reinforcement/material
+  capacity. No extra factors or self-weight corrections are applied.
+- Compression and tension can govern from different combinations. Separate
+  envelope redistribution in a pile-cap proposal does not reconstruct concurrent
+  combinations, moments, eccentricity or physical cap behavior.
+- The display switch only changes presentation. Turning off tension in the
+  optimizer yields a compression-only result; current tension failures remain
+  visible when inspecting the plan.
+
+- Advice may apply to all cap counts or one exact count. Matching the count does
+  not verify the source calculation's spacing, geometry, rigidity or soil-block
+  assumptions. Import accepts the supplied per-pile design resistance unchanged.
+  Missing applicable advice remains missing; single-pile advice is not a fallback
+  for larger caps.

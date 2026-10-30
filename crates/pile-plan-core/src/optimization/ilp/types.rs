@@ -15,6 +15,8 @@ pub enum IlpCandidateSource {
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
 pub struct IlpOptimizationSettings {
+    #[serde(default = "coherence_enabled_by_default")]
+    pub include_tension: bool,
     #[serde(default)]
     pub allow_pile_count_changes: bool,
     #[serde(default = "default_max_piles_per_cap")]
@@ -38,6 +40,7 @@ pub struct IlpOptimizationSettings {
 impl Default for IlpOptimizationSettings {
     fn default() -> Self {
         Self {
+            include_tension: true,
             allow_pile_count_changes: false,
             max_piles_per_cap: default_max_piles_per_cap(),
             allowed_pile_counts: default_allowed_pile_counts(),

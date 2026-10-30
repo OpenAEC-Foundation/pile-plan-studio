@@ -12,7 +12,7 @@ import {toWasmIfcppProject} from "./projectCoreClient.ts";
 
 async function command<T>(name:string,request:unknown,browser:(request:unknown)=>unknown):Promise<T>{
   if(isTauriRuntime())return invokeDesktop<T>(name,{request});
-  await initializeWasm(()=>initWasm());
+  await initializeWasm(initWasm);
   return browser(request) as T;
 }
 
@@ -26,7 +26,7 @@ export async function exportConfiguredPilePlanCore(format:"csv"|"xlsx",input:Pil
 
 function revisionRequest(input:RevitRevisionInput){
   return {old_source:input.oldSource,new_plan:toCoreExportPlan(input.newPlan,isTauriRuntime()),new_source:input.newSource??null,
-    export_options:input.options,tolerance_mm:input.toleranceMm,decisions:input.decisions,use_detected_numbering:input.useDetectedNumbering,
+    source_decisions:input.sourceDecisions??null,export_options:input.options,tolerance_mm:input.toleranceMm,decisions:input.decisions,use_detected_numbering:input.useDetectedNumbering,
     old_mapping:mappingRequest(input.oldMapping),new_mapping:mappingRequest(input.newMapping),output_columns:input.outputColumns??null,change_codes:input.changeCodes};
 }
 

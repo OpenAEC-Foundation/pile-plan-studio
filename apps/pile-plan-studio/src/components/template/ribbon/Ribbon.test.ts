@@ -4,6 +4,12 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
 describe("Plan and View ribbon", () => {
+  it("provides translated labels for editing numeric ribbon values",()=>{
+    for(const [language,expected] of [["nl","{{label}} aanpassen"],["en","Edit {{label}}"]]){
+      const messages=JSON.parse(readFileSync(resolve(import.meta.dirname,`../../../i18n/locales/${language}/ribbon.json`),"utf8"));
+      assert.equal(messages.view.editValue,expected);
+    }
+  });
   it("exposes direct view controls for symbol size, utilization range, and foreground", () => {
     const source = readFileSync(resolve(import.meta.dirname, "Ribbon.tsx"), "utf8");
     const styles = readFileSync(resolve(import.meta.dirname, "Ribbon.css"), "utf8");
@@ -53,12 +59,12 @@ describe("Plan and View ribbon", () => {
   });
 
   it("draws the preferred utilization track only between its two handles", () => {
-    const source = readFileSync(resolve(import.meta.dirname, "Ribbon.tsx"), "utf8");
+    const source = readFileSync(resolve(import.meta.dirname, "UtilizationRangeSlider.tsx"), "utf8");
     const css = readFileSync(resolve(import.meta.dirname, "Ribbon.css"), "utf8");
 
     assert.match(source, /ribbon-dual-range-selection/);
-    assert.match(source, /left:\s*`\$\{utilizationDraft\.minimum \* 100\}%`/);
-    assert.match(source, /width:\s*`\$\{\(utilizationDraft\.maximum - utilizationDraft\.minimum\) \* 100\}%`/);
+    assert.match(source, /left:\s*`\$\{minimum\*100\}%`/);
+    assert.match(source, /width:\s*`\$\{\(maximum-minimum\)\*100\}%`/);
     assert.match(css, /\.ribbon-dual-range-selection\s*{[\s\S]*?background:\s*var\(--theme-accent\)/);
     assert.match(css, /::-webkit-slider-runnable-track\s*{[\s\S]*?background:\s*transparent/);
     assert.match(css, /::-moz-range-track\s*{[\s\S]*?background:\s*transparent/);

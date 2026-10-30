@@ -349,6 +349,18 @@ export function import_project_from_files(request) {
  * @param {any} request
  * @returns {any}
  */
+export function inspect_foundation_advice(request) {
+    const ret = wasm.inspect_foundation_advice(request);
+    if (ret[2]) {
+        throw takeFromExternrefTable0(ret[1]);
+    }
+    return takeFromExternrefTable0(ret[0]);
+}
+
+/**
+ * @param {any} request
+ * @returns {any}
+ */
 export function inspect_pile_table(request) {
     const ret = wasm.inspect_pile_table(request);
     if (ret[2]) {
@@ -783,7 +795,7 @@ function __wbg_get_imports() {
                 }
             };
             cb0._wbg_cb_unref = () => state0.a = 0;
-            // Cast intrinsic for `Closure(Closure { owned: false, function: Function { arguments: [Externref], shim_idx: 249, ret: Unit, inner_ret: Some(Unit) }, mutable: true }) -> Externref`.
+            // Cast intrinsic for `Closure(Closure { owned: false, function: Function { arguments: [Externref], shim_idx: 244, ret: Unit, inner_ret: Some(Unit) }, mutable: true }) -> Externref`.
             const ret = cb0;
             return ret;
         },

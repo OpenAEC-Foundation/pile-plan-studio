@@ -8,6 +8,8 @@ import type { RightPanelMode } from "../../../domain/workspace/selectionState.ts
 import type { ForegroundLayer } from "../../../domain/settings/viewerPreferences.ts";
 import {
   cptIcon,
+  compressionIcon,
+  tensionIcon,
   applyIcon,
   gridIcon,
   groupsIcon,
@@ -25,6 +27,9 @@ import {
 } from "./icons";
 import { getTipLevelRegionToggle } from "./tipLevelRegionToggle.ts";
 import "./Ribbon.css";
+import {useLoadDirection} from "../../../app/derived-state/LoadDirectionContext.tsx";
+import UtilizationRangeSlider from "./UtilizationRangeSlider.tsx";
+import RibbonNumericValue from "./RibbonNumericValue.tsx";
 
 type TabId = "plan" | "view";
 type TaskPanel = "cpt-settings" | "cost-settings" | "grouping-settings" | "ilp-optimization" | "pile-cap-changes";
@@ -99,6 +104,8 @@ export default function Ribbon({
   onPropertiesVisibilityChange,
 }: RibbonProps) {
   const { t } = useTranslation("ribbon");
+  const {t:common}=useTranslation("common");
+  const {mode,setMode}=useLoadDirection();
   const tipLevelRegionToggle = getTipLevelRegionToggle(showTipLevelRegions);
   const [activeTab, setActiveTab] = useState<TabId>("plan");
   const [utilizationDraft, setUtilizationDraft] = useState({
@@ -108,6 +115,21 @@ export default function Ribbon({
   const utilizationDraftRef = useRef(utilizationDraft);
   const committedUtilizationRef = useRef(utilizationDraft);
   const symbolScaleKeyActiveRef = useRef(false);
+  const [symbolScaleDraft,setSymbolScaleDraft]=useState(symbolScalePercent);
+  const symbolScaleDraftRef=useRef(symbolScalePercent),committedSymbolScaleRef=useRef(symbolScalePercent);
+  useEffect(()=>{
+    symbolScaleDraftRef.current=symbolScalePercent;
+    committedSymbolScaleRef.current=symbolScalePercent;
+    setSymbolScaleDraft(symbolScalePercent);
+  },[symbolScalePercent]);
+  const finishSymbolScale=()=>{
+    const value=symbolScaleDraftRef.current;
+    if(value!==committedSymbolScaleRef.current){
+      committedSymbolScaleRef.current=value;
+      onSymbolScaleChange(value);
+    }
+    onSymbolScaleChangeEnd();
+  };
   useEffect(() => {
     const range = {
       minimum: viewerUtilizationMinimum,
@@ -141,12 +163,12 @@ export default function Ribbon({
   const handleSymbolScaleKeyUp = (event: ReactKeyboardEvent<HTMLInputElement>) => {
     if (!symbolScaleKeyActiveRef.current || !isRangeAdjustmentKey(event.key)) return;
     symbolScaleKeyActiveRef.current = false;
-    onSymbolScaleChangeEnd();
+    finishSymbolScale();
   };
 
   const handleSymbolScaleBlur = () => {
     symbolScaleKeyActiveRef.current = false;
-    onSymbolScaleChangeEnd();
+    finishSymbolScale();
   };
 
   const renderContent = () => {
@@ -162,6 +184,11 @@ export default function Ribbon({
                 <RibbonButton icon={loadPointIcon} label={t("plan.loadPoints")} wide onClick={() => onOpenRightPanel?.("load-point")} />
                 <RibbonButton icon={cptIcon} label={t("plan.cpts")} onClick={() => onOpenRightPanel?.("cpts")} />
                 <RibbonButton icon={groupsIcon} label={t("plan.pileCapChanges")} wide onClick={() => onOpenTaskPanel?.("pile-cap-changes")} />
+              </RibbonGroup>
+              <RibbonGroup label={common("loadDirection.view")}>
+                <div className="ribbon-load-direction" role="group" aria-label={common("loadDirection.view")}>
+                  {(["compression","tension"] as const).map(value=><RibbonButton key={value} icon={value==="compression"?compressionIcon:tensionIcon} active={mode===value} label={common(`loadDirection.${value}`)} title={common("loadDirection.displayOnly")} onClick={()=>setMode(value)}/>)}
+                </div>
               </RibbonGroup>
               <RibbonGroup label={t("plan.selection")}>
                 <RibbonButton
@@ -205,70 +232,41 @@ export default function Ribbon({
           <div className="ribbon-content">
             <div className="ribbon-groups">
               <RibbonGroup label={t("view.symbols")}>
-                <label className="ribbon-slider-control">
+                <div className="ribbon-slider-control">
                   <span>{t("view.symbolSize")}</span>
-                  <strong>{symbolScalePercent}%</strong>
+                  <RibbonNumericValue label={t("view.symbolSize")} value={symbolScaleDraft} min={10} max={200}
+                    onCommit={value=>{onSymbolScaleChangeStart();symbolScaleDraftRef.current=value;setSymbolScaleDraft(value);finishSymbolScale();}}/>
                   <input
                     aria-label={t("view.symbolSize")}
                     max="200"
                     min="10"
                     step="1"
                     type="range"
-                    value={symbolScalePercent}
-                    onChange={(event) => onSymbolScaleChange(Number(event.currentTarget.value))}
+                    value={symbolScaleDraft}
+                    onChange={(event) => {const value=Number(event.currentTarget.value);symbolScaleDraftRef.current=value;setSymbolScaleDraft(value);}}
                     onPointerDown={onSymbolScaleChangeStart}
-                    onPointerUp={onSymbolScaleChangeEnd}
-                    onPointerCancel={onSymbolScaleChangeEnd}
+                    onPointerUp={finishSymbolScale}
+                    onPointerCancel={finishSymbolScale}
                     onKeyDown={handleSymbolScaleKeyDown}
                     onKeyUp={handleSymbolScaleKeyUp}
                     onBlur={handleSymbolScaleBlur}
                   />
-                </label>
+                </div>
               </RibbonGroup>
               <RibbonGroup label={t("view.utilization")}>
                 <div className="ribbon-slider-control ribbon-range-control">
                   <span>{t("view.preferredRange")}</span>
-                  <strong>{Math.round(utilizationDraft.minimum * 100)}-{Math.round(utilizationDraft.maximum * 100)}%</strong>
-                  <div className="ribbon-dual-range">
-                    <span
-                      aria-hidden="true"
-                      className="ribbon-dual-range-selection"
-                      style={{
-                        left: `${utilizationDraft.minimum * 100}%`,
-                        width: `${(utilizationDraft.maximum - utilizationDraft.minimum) * 100}%`,
-                      }}
-                    />
-                    <input
-                      aria-label={t("view.minimumUtilization")}
-                      max="100"
-                      min="0"
-                      step="1"
-                      type="range"
-                      value={Math.round(utilizationDraft.minimum * 100)}
-                      onChange={(event) => updateUtilizationDraft(
-                        Math.min(Number(event.currentTarget.value) / 100, utilizationDraft.maximum),
-                        utilizationDraft.maximum,
-                      )}
-                      onPointerUp={commitUtilizationRange}
-                      onKeyUp={commitUtilizationRange}
-                      onBlur={commitUtilizationRange}
-                    />
-                    <input
-                      aria-label={t("view.maximumUtilization")}
-                      max="100"
-                      min="0"
-                      step="1"
-                      type="range"
-                      value={Math.round(utilizationDraft.maximum * 100)}
-                      onChange={(event) => updateUtilizationDraft(
-                        utilizationDraft.minimum,
-                        Math.max(Number(event.currentTarget.value) / 100, utilizationDraft.minimum),
-                      )}
-                      onPointerUp={commitUtilizationRange}
-                      onKeyUp={commitUtilizationRange}
-                      onBlur={commitUtilizationRange}
-                    />
-                  </div>
+                  <span className="ribbon-numeric-range">
+                    <RibbonNumericValue label={t("view.minimumUtilization")} value={Math.round(utilizationDraft.minimum*100)}
+                      min={0} max={Math.round(utilizationDraft.maximum*100)} suffix=""
+                      onCommit={value=>{updateUtilizationDraft(value/100,utilizationDraftRef.current.maximum);commitUtilizationRange();}}/>
+                    <span aria-hidden="true">–</span>
+                    <RibbonNumericValue label={t("view.maximumUtilization")} value={Math.round(utilizationDraft.maximum*100)}
+                      min={Math.round(utilizationDraft.minimum*100)} max={100}
+                      onCommit={value=>{updateUtilizationDraft(utilizationDraftRef.current.minimum,value/100);commitUtilizationRange();}}/>
+                  </span>
+                  <UtilizationRangeSlider minimum={utilizationDraft.minimum} maximum={utilizationDraft.maximum}
+                    onChange={updateUtilizationDraft} onCommit={commitUtilizationRange}/>
                 </div>
               </RibbonGroup>
               <RibbonGroup label={t("view.foreground")}>

@@ -1,6 +1,6 @@
 import type { LoadPoint } from "../../core/projectTypes.ts";
 
-export type LoadPointSelectionContext = { loadPoints: readonly LoadPoint[]; ids: number[] };
+export type LoadPointSelectionContext = { loadPoints: readonly LoadPoint[]; ids: number[]; exclusive?:boolean };
 
 export type RightPanelMode = "load-point" | "cpts" | "combined" | "cpt-settings" | "cost-settings";
 

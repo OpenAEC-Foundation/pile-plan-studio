@@ -70,7 +70,9 @@
       "conflicting-rows": "Meerdere bronrijen verwijzen naar dezelfde belastinglocatie.",
       "superseded-legacy-row": "Deze historische of dubbele Legacy-rij is genegeerd ten gunste van een betrouwbaardere rij.",
       "unknown-cpt": "De geïmporteerde sonderingselectie bevat een onbekende sondering; de huidige selectie blijft behouden.",
-      "unknown-pile-configuration": "De geïmporteerde paalconfiguratie is niet beschikbaar in dit project; de huidige toewijzing blijft behouden."
+      "unknown-pile-configuration": "De geïmporteerde paalconfiguratie is niet beschikbaar in dit project; de huidige toewijzing blijft behouden.",
+      "invalid-column-mapping": "Controleer de kolomkeuze: koppel een locatie-ID of X en Y, en bij paaltoewijzingen zowel afmeting als puntniveau.",
+      "invalid-location-mapping": "De gekozen locatiekoppelingen zijn ongeldig. Controleer dubbele koppelingen en overgeslagen rijen."
     },
     "import": "Als nieuw palenplan importeren"
   },

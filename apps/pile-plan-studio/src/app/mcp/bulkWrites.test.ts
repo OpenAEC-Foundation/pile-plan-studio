@@ -33,7 +33,7 @@ describe("MCP bulk writes", () => {
     assert.equal(ids.filter((id) => after.present.selectedPileConfigurationsByLoadPoint.has(id)).length, 80);
     assert.deepEqual(after.present.selectedPileConfigurationsByLoadPoint.get(ids[1]), otherConfiguration);
     const undone = projectHistoryReducer(after, { type: "undo" });
-    assert.equal(ids.filter((id) => undone.present.selectedPileConfigurationsByLoadPoint.has(id)).length, 0);
+    assert.deepEqual(undone.present.selectedPileConfigurationsByLoadPoint, state.selectedPileConfigurationsByLoadPoint);
     const redone = projectHistoryReducer(undone, { type: "redo" });
     assert.equal(ids.filter((id) => redone.present.selectedPileConfigurationsByLoadPoint.has(id)).length, 80);
   });

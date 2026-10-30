@@ -24,19 +24,25 @@ export function createPilePlanImportPreviewController(dependencies: Dependencies
     const tolerance = pilePlanImportTolerance(next);
     const file = next.file;
     const format = file ? getImportFileFormat(file.name) : null;
-    if (!file || !format || tolerance === null || (!next.importPileAssignments && !next.importCptSelections)) {
+    if (!file || !format || tolerance === null) {
       dependencies.update(draft => current() ? next : draft);
       return;
     }
     dependencies.update(draft => current() ? beginPilePlanImportPreview(next, requestId) : draft);
     const options = { importPileAssignments: next.importPileAssignments,
-      importCptSelections: next.importCptSelections, coordinateToleranceMm: tolerance };
+      importCptSelections: next.importCptSelections, coordinateToleranceMm: tolerance,table:next.table,locationDecisions:next.locationDecisions };
     try {
       const bytes = new Uint8Array(await file.arrayBuffer());
       if (!current()) return;
-      const result = await dependencies.evaluate({ fileName: file.name, format, bytes,
+      let result = await dependencies.evaluate({ fileName: file.name, format, bytes,
         profile: next.requestedProfile, options, ...context });
       if (!current()) return;
+      if ((options.importPileAssignments&&result.supportsPileAssignments===false)||(options.importCptSelections&&!result.supportsCptSelections)) {
+        result=await dependencies.evaluate({fileName:file.name,format,bytes,profile:next.requestedProfile,...context,options:{...options,
+          importPileAssignments:options.importPileAssignments&&result.supportsPileAssignments!==false,
+          importCptSelections:options.importCptSelections&&result.supportsCptSelections,table:result.table?.settings??options.table}});
+        if(!current())return;
+      }
       dependencies.update(draft => current() ? applyPilePlanImportPreview(draft, requestId, result) : draft);
     } catch (reason) {
       if (!current()) return;

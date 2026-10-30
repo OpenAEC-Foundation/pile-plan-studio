@@ -25,7 +25,7 @@ export default function RibbonButton({
     <button
       aria-pressed={active}
       className={`ribbon-btn${size === "small" ? " small" : ""}${size === "medium" ? " medium" : ""}${wide ? " wide" : ""}${active ? " active" : ""}${className ? ` ${className}` : ""}`}
-      title={title || label}
+      title={title?.trim() && title.trim() !== label.trim() ? title : undefined}
       disabled={disabled}
       onClick={onClick}
     >

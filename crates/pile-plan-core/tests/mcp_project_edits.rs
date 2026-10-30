@@ -32,6 +32,7 @@ fn invalid_second_source_action_rejects_the_whole_batch() {
                         x_mm: 2_000_000.0,
                         y_mm: 2_000_000.0,
                         design_load_kn: 100.0,
+                        tension: Default::default(),
                     },
                 },
                 LoadPointAction::Remove { id: u32::MAX },

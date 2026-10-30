@@ -164,7 +164,7 @@ describe("PilePlanViewer inputs", () => {
 
     assert.match(source, /className="viewer-status-halos"/);
     assert.match(source, /<StatusHalo graphic=\{graphic\}/);
-    assert.ok(source.indexOf('className="viewer-status-halos"') < source.indexOf('className={`viewer-marker-graphic'));
+    assert.ok(source.indexOf('className="viewer-status-halos"') < source.indexOf('<MarkerGraphic graphic={graphic}'));
     assert.match(source, /radialGradient id=\{gradientId\}/);
     assert.match(source, /kind === "missing"/);
     assert.match(source, /kind === "above"/);
@@ -283,7 +283,8 @@ describe("PilePlanViewer inputs", () => {
     const source = readViewerSource();
 
     assert.match(source, /getEffectivePileOptionsByLoadPointId/);
-    assert.match(source, /const pileOptionsByLoadPointId = getEffectivePileOptionsByLoadPointId\(state\)/);
+    assert.match(source, /const effectivePileOptions = useMemo\(\(\) => getEffectivePileOptionsByLoadPointId\(state\)/);
+    assert.match(source, /const pileOptionsByLoadPointId = useDisplayOptions\(effectivePileOptions\)/);
     assert.match(source, /technicalAssignment\.issuesByLoadPointId\.get\(loadPoint\.id\)/);
     assert.match(source, /getSelectedPileOption\(state, loadPoint\.id, pileOptionsByLoadPointId\)/);
   });

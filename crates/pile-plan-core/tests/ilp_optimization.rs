@@ -313,6 +313,8 @@ fn config(size: u32, tip: i64) -> PileConfigurationKey {
 }
 fn option(c: PileConfigurationKey) -> PileConfigurationOption {
     PileConfigurationOption {
+        compression: None,
+        tension: None,
         pile_size_mm: c.pile_size_mm,
         pile_tip_level_m: c.pile_tip_level_m(),
         configuration: c,
@@ -336,6 +338,7 @@ fn input() -> IlpOptimizationInput {
                 x_mm: id as f64 * 2000.0,
                 y_mm: 0.0,
                 design_load_kn: 50.0,
+                tension: Default::default(),
             })
             .collect(),
         groups: (1..=3)

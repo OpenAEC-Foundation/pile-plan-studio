@@ -9,6 +9,7 @@ fn point(id: u32, name: &str, x_mm: f64, y_mm: f64) -> ProjectLoadPoint {
         x_mm,
         y_mm,
         design_load_kn: 100.0,
+        tension: Default::default(),
     }
 }
 

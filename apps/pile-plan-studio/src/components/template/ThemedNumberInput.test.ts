@@ -9,7 +9,7 @@ describe("ThemedNumberInput integration", () => {
     const files = [
       "../domain/right-panel/CostCatalogEditor.tsx",
       "../domain/pile-plans/ilp-optimization/IlpOptimizationSettingsPanel.tsx",
-      "../domain/imports/PilePlanImportPanel.tsx",
+      "../domain/location-matching/LocationMatchingEntry.tsx",
       "../domain/right-panel/PanelControls.tsx",
     ];
 

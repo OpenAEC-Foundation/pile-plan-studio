@@ -48,8 +48,36 @@ describe("selected load point display blocks", () => {
       [{ ids: [1, 2, 3], group: [1, 2, 3] }]);
   });
 
-  it("preserves ungrouped project order and handles an empty selection", () => {
-    assert.deepEqual(buildLoadPointSelectionBlocks([point(4), point(1)], [1, 4], []).map(block => block.loadPoints[0].id), [4, 1]);
+  it("breaks identical-coordinate ties by ID and handles an empty selection", () => {
+    assert.deepEqual(buildLoadPointSelectionBlocks([point(4), point(1)], [1, 4], []).map(block => block.loadPoints[0].id), [1, 4]);
     assert.deepEqual(buildLoadPointSelectionBlocks([], [], [{ load_point_ids: [1, 2] }]), []);
+  });
+
+  it("orders rows from top to bottom and members left to right while keeping groups together", () => {
+    const at=(id:number,x_mm:number,y_mm:number)=>({...point(id),x_mm,y_mm});
+    const points=[at(9,20,0),at(7,20,100),at(2,10,0),at(8,0,100),at(4,10,100),at(6,0,0)];
+    const groups=[{load_point_ids:[7,8,2]}];
+    const before=structuredClone({points,groups});
+    const blocks=buildLoadPointSelectionBlocks(points,points.map(p=>p.id),groups);
+    assert.deepEqual(blocks.map(b=>b.loadPoints.map(p=>p.id)),[[8,7,2],[4],[6],[9]]);
+    const order=blocks.flatMap(b=>b.loadPoints.map(p=>p.id));
+    assert.deepEqual(resolveLoadPointSelectionContext(points,[8],groups,order),order);
+    assert.deepEqual({points,groups},before);
+  });
+
+  it("uses bounded one-millimetre rows like default export numbering, without chaining rows",()=>{
+    const points=[{...point(1),x_mm:30,y_mm:100},{...point(2),x_mm:20,y_mm:99.5},
+      {...point(3),x_mm:10,y_mm:99},{...point(4),x_mm:0,y_mm:98.5}];
+    assert.deepEqual(buildLoadPointSelectionBlocks(points,[1,2,3,4],[]).map(b=>b.loadPoints[0].id),[3,2,1,4]);
+  });
+
+  it("matches the Rust export row order for staggered rows and coincident locations",async()=>{
+    const {readFileSync}=await import("node:fs");
+    const {initSync,reconcile_locations}=await import("../../core/wasm/pile-plan-wasm/pile_plan_wasm.js");
+    initSync({module:readFileSync(new URL("../../core/wasm/pile-plan-wasm/pile_plan_wasm_bg.wasm",import.meta.url))});
+    const points=[1,8,3,6,5,2,7,4].map(id=>({...point(id),x_mm:id%3*100,y_mm:Math.floor(id/3)*100+(id%3)*0.6}));
+    points.push({...point(9),x_mm:points[0].x_mm,y_mm:points[0].y_mm});
+    const core=reconcile_locations({old_locations:points,new_locations:[],tolerance_mm:1,decisions:null});
+    assert.deepEqual(buildLoadPointSelectionBlocks(points,points.map(p=>p.id),[]).map(b=>b.loadPoints[0].id),core.old_order);
   });
 });

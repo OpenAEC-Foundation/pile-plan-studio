@@ -3,8 +3,13 @@ import type { ImportFileRole } from "./importFiles.ts";
 import type { PileTipLevelPrecisionReason } from "./projectDocumentContract.ts";
 
 export type ImportProfile = "auto" | "standard-table" | "rfem-export" | "capacity-columns";
+export type ImportColumnMapping={column:number;field:string;unit?:string|null;pile_size_mm?:number|null};
+export type TableImportSettings={fixed_pile_size_mm?:number|null;pile_count?:number|null;sheet_name?:string|null;has_headers?:boolean|null;header_row?:number|null;first_data_row?:number|null;delimiter?:string|null;columns?:ImportColumnMapping[]|null};
+export type SourceTablePreview={sheets:string[];settings:TableImportSettings;columns:Array<{column:number;header:string;nonempty_count:number;numeric_count:number}>;rows:Array<{number:number;cells:string[]}>;row_count:number;processed:boolean};
 
 export type ImportProfileOptions = {
+  table?:TableImportSettings|null;
+  importTension?: boolean; clearTension?: boolean; tensionColumn?: number|null; resistanceDirection?: "compression"|"tension";
   adviceSheets?: AdviceSheetSelection[] | null;
   coordinateSheet: string | null;
   reactionSheet: string | null;
@@ -28,7 +33,12 @@ export function toCoreImportSource(source: ImportSourceInput) {
     role: source.role,
     profile: source.profile,
     profile_options: {
-      ...(source.profileOptions.adviceSheets === undefined ? {} : { advice_sheets: source.profileOptions.adviceSheets?.map(s => ({ sheet_name: s.sheetName, profile: s.profile })) ?? null }),
+      ...(source.profileOptions.table===undefined?{}:{table:source.profileOptions.table}),
+      ...(source.profileOptions.importTension === undefined ? {} : {import_tension:source.profileOptions.importTension}),
+      ...(source.profileOptions.clearTension === undefined ? {} : {clear_tension:source.profileOptions.clearTension}),
+      ...(source.profileOptions.tensionColumn === undefined ? {} : {tension_column:source.profileOptions.tensionColumn}),
+      ...(source.profileOptions.resistanceDirection === undefined ? {} : {resistance_direction:source.profileOptions.resistanceDirection}),
+      ...(source.profileOptions.adviceSheets === undefined ? {} : { advice_sheets: source.profileOptions.adviceSheets?.map(s => ({ sheet_name: s.sheetName, profile: s.profile, ...(s.table?{table:s.table}:{}),...(s.direction ? {direction:s.direction}:{}), ...(s.tensionColumn != null ? {tension_column:s.tensionColumn}:{}) })) ?? null }),
       coordinate_sheet: source.profileOptions.coordinateSheet,
       reaction_sheet: source.profileOptions.reactionSheet,
     },
@@ -90,6 +100,7 @@ export type ImportPreviewDetails =
     };
 
 export type ImportSourcePreview = {
+  table?:SourceTablePreview|null;
   role: ImportFileRole;
   requestedProfile: ImportProfile;
   detectedProfile: ImportProfile;
@@ -102,13 +113,16 @@ export type ImportSourcePreview = {
 };
 
 export type CoreImportSourcePreview = {
+  table?:SourceTablePreview|null;
   role: ImportFileRole;
   requested_profile: ImportProfile;
   detected_profile: ImportProfile;
   resolved_profile: ImportProfile | null;
   available_profiles: ImportProfile[];
   resolved_options: {
-    advice_sheets?: Array<{ sheet_name: string; profile: ImportProfile }> | null;
+    table?:TableImportSettings|null;
+    import_tension?: boolean;clear_tension?:boolean;tension_column?:number|null;resistance_direction?:"compression"|"tension";
+    advice_sheets?: Array<{ sheet_name: string; profile: ImportProfile;direction?:"compression"|"tension";tension_column?:number|null;table?:TableImportSettings|null }> | null;
     coordinate_sheet: string | null;
     reaction_sheet: string | null;
   };
@@ -151,8 +165,14 @@ export function fromCoreImportSourcePreview(preview: CoreImportSourcePreview): I
     detectedProfile: preview.detected_profile,
     resolvedProfile: preview.resolved_profile,
     availableProfiles: preview.available_profiles,
+    ...(preview.table?{table:preview.table}:{}),
     resolvedOptions: {
-      ...(preview.resolved_options.advice_sheets === undefined ? {} : { adviceSheets: preview.resolved_options.advice_sheets?.map(s => ({ sheetName: s.sheet_name, profile: s.profile })) ?? null }),
+      ...(preview.resolved_options.table?{table:preview.resolved_options.table}:{}),
+      ...(preview.resolved_options.import_tension===undefined?{}:{importTension:preview.resolved_options.import_tension}),
+      ...(preview.resolved_options.clear_tension===undefined?{}:{clearTension:preview.resolved_options.clear_tension}),
+      ...(preview.resolved_options.tension_column==null?{}:{tensionColumn:preview.resolved_options.tension_column}),
+      ...(preview.resolved_options.resistance_direction===undefined?{}:{resistanceDirection:preview.resolved_options.resistance_direction}),
+      ...(preview.resolved_options.advice_sheets === undefined ? {} : { adviceSheets: preview.resolved_options.advice_sheets?.map(s => ({ sheetName: s.sheet_name, profile: s.profile,...(s.table?{table:s.table}:{}), ...(s.direction?{direction:s.direction}:{}),...(s.tension_column!=null?{tensionColumn:s.tension_column}:{}) })) ?? null }),
       coordinateSheet: preview.resolved_options.coordinate_sheet,
       reactionSheet: preview.resolved_options.reaction_sheet,
     },

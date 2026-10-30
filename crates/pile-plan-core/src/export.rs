@@ -21,6 +21,8 @@ pub const PILE_PLAN_EXPORT_HEADERS: [&str; 7] = [
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct PilePlanExportRequest {
+    #[serde(default)]
+    pub project_context: Option<crate::export_context::ExportProjectContext>,
     pub load_points: Vec<ProjectLoadPoint>,
     pub selected_piles: HashMap<u32, PileConfigurationKey>,
     pub selected_cpts: HashMap<u32, Vec<u32>>,
@@ -253,8 +255,10 @@ mod tests {
 
     fn request() -> PilePlanExportRequest {
         PilePlanExportRequest {
+            project_context: None,
             load_points: vec![
                 ProjectLoadPoint {
+                    tension: Default::default(),
                     id: 20,
                     name: "Load point 20".to_string(),
                     x_mm: 2000.0,
@@ -262,6 +266,7 @@ mod tests {
                     design_load_kn: 120.0,
                 },
                 ProjectLoadPoint {
+                    tension: Default::default(),
                     id: 3,
                     name: "Load point 3".to_string(),
                     x_mm: 1000.0,
@@ -312,6 +317,7 @@ mod tests {
     #[test]
     fn writes_csv_headers_for_an_empty_project() {
         let bytes = write_pile_plan_csv(&PilePlanExportRequest {
+            project_context: None,
             load_points: vec![],
             selected_piles: HashMap::new(),
             selected_cpts: HashMap::new(),

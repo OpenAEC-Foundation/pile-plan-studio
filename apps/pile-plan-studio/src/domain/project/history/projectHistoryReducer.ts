@@ -95,7 +95,8 @@ export function projectHistoryReducer(
     if (projectContentEquals(before, after)) return { ...managed, present: afterState };
     return {
       ...managed,
-      present: afterState,
+      present: before.loadPointGroupingSettings !== after.loadPointGroupingSettings
+        ? applyAnalysisInvalidation(afterState,"all") : afterState,
       history: recordProjectChange(
         managed.history,
         before,

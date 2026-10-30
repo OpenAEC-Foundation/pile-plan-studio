@@ -1,3 +1,5 @@
+import type {TableImportSettings} from "../../core/coreImportContract.ts";
+import type {LocationDecisions} from "../../core/exportRevisionContract.ts";
 import type {
   PilePlanImportPreview,
   PilePlanImportProfile,
@@ -10,6 +12,9 @@ export type PilePlanImportPreviewState =
   | { status: "failed"; requestId: number; message: string };
 
 export type PilePlanImportDraft<TFile> = {
+  table?:TableImportSettings|null;
+  locationDecisions?:LocationDecisions|null;
+  lastPreview?:PilePlanImportPreview|null;
   file: TFile | null;
   requestedProfile: PilePlanImportProfile;
   coordinateToleranceMm: string;
@@ -20,7 +25,7 @@ export type PilePlanImportDraft<TFile> = {
 
 export function createPilePlanImportDraft<TFile>(): PilePlanImportDraft<TFile> {
   return {
-    file: null,
+    file: null, table:null,locationDecisions:null,lastPreview:null,
     requestedProfile: "automatic",
     coordinateToleranceMm: "1",
     importPileAssignments: true,
@@ -33,7 +38,7 @@ export function setPilePlanImportFile<TFile>(
   draft: PilePlanImportDraft<TFile>,
   file: TFile | null,
 ): PilePlanImportDraft<TFile> {
-  return { ...draft, file, previewState: { status: "empty" } };
+  return { ...draft, file, table:null,locationDecisions:null,lastPreview:null, previewState: { status: "empty" } };
 }
 
 export function setPilePlanImportProfile<TFile>(
@@ -43,7 +48,7 @@ export function setPilePlanImportProfile<TFile>(
   const cptSelectionsWereUnavailable = !canImportCptSelections(draft);
   return {
     ...draft,
-    requestedProfile,
+    requestedProfile, table:null,locationDecisions:null,
     importCptSelections: requestedProfile === "legacy"
       ? false
       : cptSelectionsWereUnavailable
@@ -57,7 +62,7 @@ export function setPilePlanImportTolerance<TFile>(
   draft: PilePlanImportDraft<TFile>,
   coordinateToleranceMm: string,
 ): PilePlanImportDraft<TFile> {
-  return { ...draft, coordinateToleranceMm, previewState: { status: "empty" } };
+  return { ...draft, coordinateToleranceMm, locationDecisions:null, previewState: { status: "empty" } };
 }
 
 export function setPilePlanImportCategory<TFile>(
@@ -77,7 +82,7 @@ export function beginPilePlanImportPreview<TFile>(
   draft: PilePlanImportDraft<TFile>,
   requestId: number,
 ): PilePlanImportDraft<TFile> {
-  return { ...draft, previewState: { status: "analyzing", requestId } };
+  return { ...draft, lastPreview:draft.previewState.status==="ready"?draft.previewState.preview:draft.lastPreview, previewState: { status: "analyzing", requestId } };
 }
 
 export function applyPilePlanImportPreview<TFile>(
@@ -90,6 +95,8 @@ export function applyPilePlanImportPreview<TFile>(
   }
   return {
     ...draft,
+    table:preview.table?.settings??draft.table,lastPreview:preview,
+    importPileAssignments:preview.supportsPileAssignments===false?false:draft.importPileAssignments,
     importCptSelections: preview.supportsCptSelections ? draft.importCptSelections : false,
     previewState: { status: "ready", requestId, preview },
   };
@@ -122,5 +129,8 @@ export function canApplyPilePlanImport<TFile>(draft: PilePlanImportDraft<TFile>)
     pilePlanImportTolerance(draft) !== null &&
     (draft.importPileAssignments || draft.importCptSelections) &&
     draft.previewState.status === "ready" &&
-    draft.previewState.preview.canApply;
+    draft.previewState.preview.canApply && (draft.previewState.preview.matching?.complete??true);
 }
+
+export function setPilePlanImportTable<TFile>(draft:PilePlanImportDraft<TFile>,table:TableImportSettings):PilePlanImportDraft<TFile>{return {...draft,table,locationDecisions:null,previewState:{status:"empty"}};}
+export function setPilePlanImportDecisions<TFile>(draft:PilePlanImportDraft<TFile>,locationDecisions:LocationDecisions):PilePlanImportDraft<TFile>{return {...draft,locationDecisions,previewState:{status:"empty"}};}

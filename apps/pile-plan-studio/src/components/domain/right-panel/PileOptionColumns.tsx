@@ -40,7 +40,7 @@ export default function PileOptionColumns({ layout, selectedCount, onChange }: {
   const visibleCount = layout.filter(column => column.visible).length;
   return <>
     <button className="pile-option-columns-button" type="button" onClick={() => setOpen(true)}
-      aria-haspopup="dialog" title={t("columnSettings.title")}>
+      aria-haspopup="dialog">
       <svg viewBox="0 0 16 16" aria-hidden="true"><rect x="1.5" y="2.5" width="13" height="11" rx="1" /><path d="M6 3v10M10 3v10" /></svg>
       {t("columnSettings.button")}
     </button>

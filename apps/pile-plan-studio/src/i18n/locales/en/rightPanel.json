@@ -321,7 +321,12 @@
       "invalid_pile_cap_source": "This cap has invalid source data.",
       "pile_cap_group_changed": "The source group of a cap proposal has changed. Remove the proposal or restore the group.",
       "missing_pile_cap_context": "Project data required for cap proposals is missing.",
-      "invalid_pile_cap_context": "Project data for cap proposals does not match this optimization."
+      "invalid_pile_cap_context": "Project data for cap proposals does not match this optimization.",
+      "missing_tension_demand": "Tension demand is missing for one or more source locations.",
+      "assessed_compression": "Assessed in compression",
+      "assessed_tension": "Assessed in tension",
+      "no_tension_load": "Known zero tension load",
+      "tension_not_assessed": "Tension not assessed"
     },
     "extraCost": "Additional cost budget",
     "limitScope": "Configuration limit scope",
@@ -422,5 +427,8 @@
     "sourceEditing": "Editing source locations; the proposal updates after this edit is completed.",
     "reset": "Reset pile-cap proposal to original",
     "resetLabel": "Reset"
-  }
+  },
+  "cpts.selectedPileAdvice": "Advice for selected pile",
+  "cpts.adviceHighlightFailed": "Could not determine the matching advice row.",
+  "cpts.selectOnlyLocation": "Only this location"
 }

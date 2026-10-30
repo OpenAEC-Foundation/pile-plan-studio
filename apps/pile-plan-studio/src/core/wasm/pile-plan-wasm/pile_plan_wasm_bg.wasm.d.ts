@@ -27,6 +27,7 @@ export const export_pile_plan_xlsx: (a: any) => [number, number, number, number]
 export const export_revit_revision_csv: (a: any) => [number, number, number, number];
 export const export_revit_revision_xlsx: (a: any) => [number, number, number, number];
 export const import_project_from_files: (a: any) => [number, number, number];
+export const inspect_foundation_advice: (a: any) => [number, number, number];
 export const inspect_pile_table: (a: any) => [number, number, number];
 export const prepare_load_point_refresh: (a: any) => [number, number, number];
 export const preview_configured_pile_plan_export: (a: any) => [number, number, number];

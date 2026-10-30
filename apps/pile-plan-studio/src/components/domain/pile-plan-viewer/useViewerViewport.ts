@@ -18,6 +18,7 @@ import {
 } from "../../../viewer/viewerGeometry.ts";
 import {
   clampScale,
+  fitViewportToPoints,
   centerViewportAtPoint,
   getViewportTransform,
   zoomViewportAtPoint,
@@ -84,7 +85,20 @@ export function useViewerViewport<State extends ViewerViewportState>({
     const previous = layoutSnapshotRef.current;
     if (!canvas || !previous) return;
 
-    const next = nextViewerLayoutSnapshot(previous, getLocalCanvasRect(canvas), metrics, kind);
+    const measured=getLocalCanvasRect(canvas);
+    const fixedSize=projectTransformRef.current.canvasSize;
+    // A hidden/collapsed canvas is not a usable initial projection. Recover once
+    // it becomes visible; ordinary panel/window resizing keeps the fixed scale.
+    if ((fixedSize.width<16||fixedSize.height<16)&&measured.width>=16&&measured.height>=16){
+      const initial=createProjectViewTransform(state.bounds,{width:measured.width,height:measured.height});
+      projectTransformRef.current=initial;
+      layoutSnapshotRef.current={rect:measured,metrics,compensation:{x:0,y:0},anchor:{left:measured.left,top:measured.top}};
+      canvasRectRef.current=measured;layoutCompensationRef.current={x:0,y:0};
+      applyLayoutCompensation({x:0,y:0});setProjectTransform(initial);scheduleCoordinateGridDraw();
+      return;
+    }
+
+    const next = nextViewerLayoutSnapshot(previous, measured, metrics, kind);
     layoutSnapshotRef.current = next;
     canvasRectRef.current = next.rect;
     layoutCompensationRef.current = next.compensation;
@@ -351,8 +365,17 @@ export function useViewerViewport<State extends ViewerViewportState>({
     });
   }
 
+  function focusOnPoints(points:readonly {x:number;y:number}[]){
+    const canvas=canvasRef.current;if(!canvas||!points.length)return;
+    const rect=getLocalCanvasRect(canvas),style=getComputedStyle(canvas),border=(value:string)=>parseFloat(value)||0;
+    const next=fitViewportToPoints(viewportRef.current,points,{width:rect.width-border(style.borderLeftWidth)-border(style.borderRightWidth),height:rect.height-border(style.borderTopWidth)-border(style.borderBottomWidth)},layoutCompensationRef.current);
+    if(zoomCommitTimerRef.current){clearTimeout(zoomCommitTimerRef.current);zoomCommitTimerRef.current=null;}
+    viewportRef.current=next;applyViewportDisplay(next);onStateChange({...state,viewport:next});
+  }
+
   return {
     canvasRef,
+    focusOnPoints,
     layoutAnchorRef,
     stageRef,
     gridRef,

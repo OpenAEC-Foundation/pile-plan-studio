@@ -427,7 +427,7 @@ describe("Workspace translations", () => {
       .join("\n");
 
     assert.match(panel, /ResistanceLabel/);
-    assert.match(panel, /<sub>c;net;d<\/sub>/);
+    assert.match(panel, /mode===\"tension\"\?\"t;d\":\"c;net;d\"/);
     assert.doesNotMatch(panel, />FRD</);
   });
 });
@@ -507,4 +507,22 @@ it("translates guided matching, reassignment, remaining actions and completion",
     for(const key of ["matchingGrid","reviewProgress","newPending","oldPending","reviewComplete","reviewCompleteHelp","continueReview","showAllLocations","occupiedBy","linkReassigned","pendingMarkerHelp","bulkNearestShort","bulkSeparateShort"])assert.ok(copy[key]?.trim(),`${language}: ${key}`);
     assert.match(copy.occupiedBy,/{{id}}/);assert.match(copy.linkReassigned,/{{id}}/);
   }
+});
+
+
+it("labels both advice resistance columns and value counts in Dutch and English",()=>{
+ for(const language of ["nl","en"]){
+  const copy=JSON.parse(readFileSync(resolve(import.meta.dirname,`../i18n/locales/${language}/common.json`),"utf8"));
+  assert.equal(copy.sourceViewer.columns.capacity,"R_c;net;d");
+  assert.equal(copy.sourceViewer.columns.tension_capacity,"R_t;net;d");
+  assert.match(copy.projectExplorer.resistanceValues,/{{count}}/);
+ }
+});
+
+it("labels missing costs explicitly in both explorer languages",()=>{
+ for(const language of ["nl","en"]){
+  const copy=JSON.parse(readFileSync(resolve(import.meta.dirname,`../i18n/locales/${language}/common.json`),"utf8")).projectExplorer;
+  assert.match(copy.missingCostsLabel,/{{count}}/);
+  assert.ok(copy.costsUnavailable?.trim());
+ }
 });

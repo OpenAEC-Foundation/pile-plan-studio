@@ -11,6 +11,8 @@ describe("pile plan import core contract", () => {
       bytes: new Uint8Array([1, 2]),
       profile: "automatic",
       options: {
+        table: {has_headers:false,columns:[{column:1,field:"id"}]},
+        locationDecisions: {links:[{old_id:1,new_id:2}],added:[],removed:[]},
         importPileAssignments: true,
         importCptSelections: false,
         coordinateToleranceMm: 1,
@@ -23,6 +25,8 @@ describe("pile plan import core contract", () => {
     assert.equal(request.file_name, "plan.csv");
     assert.equal(request.options.coordinate_tolerance_mm, 1);
     assert.equal(request.options.import_cpt_selections, false);
+    assert.equal(request.options.table?.columns?.[0].field,"id");
+    assert.equal(request.options.location_decisions?.links[0].new_id,2);
     assert.deepEqual(request.available_pile_configurations, [
       { pile_size_mm: 320, pile_tip_level_mm: -18_500 },
     ]);

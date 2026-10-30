@@ -46,7 +46,7 @@ export default function MissingCptPopover({ cptIds, label, open, onOpenChange, s
         aria-haspopup="dialog"
         className="status-pill is-missing missing-cpt-trigger"
         ref={triggerRef}
-        title={t("pileOptions.missingCptsTitle")}
+        title={open ? undefined : t("pileOptions.missingCptsTitle")}
         type="button"
         onPointerDown={(event) => event.stopPropagation()}
         onClick={(event) => {

@@ -7,6 +7,7 @@ import IlpDisclosure from "./IlpDisclosure.tsx";
 import "./ilpOptimization.css";
 type Props={planName?:string;stale?:boolean;settings?:IlpOptimizationSettings;skipUnsolvableEnabled:boolean;detailsOpen:boolean;onToggleDetails:()=>void;run:IlpRunState;currency:string;onEnableSkipUnsolvable:()=>void;onApplyProposal:()=>void;actionsEnabled:boolean};
 export default function IlpOptimizationResultPanel({planName,stale,settings,skipUnsolvableEnabled,detailsOpen,onToggleDetails,run,currency,onEnableSkipUnsolvable,onApplyProposal,actionsEnabled}:Props){
+  const {t:common}=useTranslation("common");
   const {t,i18n}=useTranslation("rightPanel");const o=run.outcome;
   const [expandedDiagnostics,setExpandedDiagnostics]=useState<IlpOptimizationOutcome|null>(null);
   const skipped = o && "diagnostics" in o ? o.diagnostics.find(d=>d.code==="skipped_unsolvable_units") : undefined;
@@ -56,7 +57,9 @@ export default function IlpOptimizationResultPanel({planName,stale,settings,skip
     </div> : <p>{t(`ilp.proof.${o.solution.proof}`)}</p>}
       {o.solution.termination==="time_limit" && !fallbackNotice && <p className="panel-message">{t("ilp.timeLimitBest")}</p>}
       {fallbackNotice && <p className="panel-message">{t(`ilp.diagnostics.${fallbackNotice.code}`)}</p>}
+      {o.diagnostics.some(d=>d.code==="assessed_compression")&&<p className="supporting-text">{common("loadDirection.resultCounts",{pressure:o.diagnostics.find(d=>d.code==="assessed_compression")?.load_point_ids.length??0,tension:o.diagnostics.find(d=>d.code==="assessed_tension")?.load_point_ids.length??0,zero:o.diagnostics.find(d=>d.code==="no_tension_load")?.load_point_ids.length??0,absent:o.diagnostics.find(d=>d.code==="tension_not_assessed")?.load_point_ids.length??0})}</p>}
       <dl className="ilp-result-overview">
+        <dt>{common("loadDirection.assessmentScope")}</dt><dd>{common(settings?.include_tension&&o.diagnostics.some(d=>d.code==="assessed_tension")?"loadDirection.pressureAndTension":"loadDirection.pressureOnly")}</dd>
         <dt>{t("ilp.cost")}</dt><dd>{money(o.solution.cost)}</dd>
         <dt>{t("ilp.targets")}</dt><dd>{o.solution.assignments.length}</dd>
         {(settings?.allow_pile_count_changes || o.solution.pile_cap_proposals?.length) ? <>

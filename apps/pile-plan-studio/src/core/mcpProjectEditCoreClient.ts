@@ -24,7 +24,7 @@ export async function evaluateProjectDocumentEditCore(
       request: { draft: toDesktopProjectDocumentDraft(draft), edit },
     });
   } else {
-    await initializeWasm(() => initWasm());
+    await initializeWasm(initWasm);
     result = evaluate_mcp_project_edit({ draft: toBrowserProjectDocumentDraft(draft), edit }) as CoreResult;
   }
   if (result.status === "blocked") return result;

@@ -38,6 +38,7 @@
   "view": {
     "symbols": "Symbolen",
     "symbolSize": "Symboolgrootte",
+    "editValue": "{{label}} aanpassen",
     "utilization": "Benutting",
     "preferredRange": "Gewenst bereik",
     "minimumUtilization": "Minimale benuttingsgraad",

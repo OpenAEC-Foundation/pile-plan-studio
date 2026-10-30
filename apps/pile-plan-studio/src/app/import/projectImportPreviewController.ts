@@ -23,7 +23,10 @@ export function createProjectImportPreviewController(dependencies: Dependencies)
     try {
       const bytes = new Uint8Array(await file.arrayBuffer());
       if (!current()) return;
-      const result = await dependencies.evaluate({ role, profile, profileOptions, fileName: file.name, format, bytes });
+      let result = await dependencies.evaluate({ role, profile, profileOptions, fileName: file.name, format, bytes });
+      if(current()&&role==="load-points"&&result.detectedProfile==="rfem-export"&&options.importTension===undefined){
+        result=await dependencies.evaluate({role,profile,profileOptions:{...result.resolvedOptions,importTension:true},fileName:file.name,format,bytes});
+      }
       if (!current()) return;
       dependencies.update(drafts => current() ? applyImportPreview(drafts, role, requestId, result) : drafts);
     } catch (reason) {

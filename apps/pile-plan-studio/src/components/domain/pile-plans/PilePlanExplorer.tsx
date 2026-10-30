@@ -104,7 +104,7 @@ export default function PilePlanExplorer({
               type="button"
             >
               <span>{t(`projectExplorer.sources.${source.kind}`)}</span>
-              <small>{t("projectExplorer.rows", { count: source.itemCount })}</small>
+              <small>{t(source.kind === "bearing_capacities" ? "projectExplorer.resistanceValues" : "projectExplorer.rows", { count: source.itemCount })}</small>
             </button>
           ))}
         </section>
@@ -121,6 +121,8 @@ export default function PilePlanExplorer({
               const active = plan.id === activePilePlanId;
               const proposalCount = plan.pileCapProposals?.length ?? 0;
               const summary = costSummaries.get(plan.id) ?? { missingCount: 0, totalCost: 0 };
+              const costsUnavailable = summary.missingCount > 0 && summary.totalCost === 0
+                && !summary.proposalPending && !summary.proposalError;
               return (
                 <div className={`pile-plan-row${active ? " active" : ""}`} key={plan.id}>
                   {renamingId === plan.id && !managementDisabled ? (
@@ -145,15 +147,17 @@ export default function PilePlanExplorer({
                       <strong>{plan.name}</strong>
                       {plan.id === optimizingPlanId && <small>{t("projectExplorer.optimizing")}</small>}
                       <span className="pile-plan-meta">
-                        <span>{summary.proposalPending ? t("rightPanel:pileCap.calculating") : summary.proposalError ? t("rightPanel:pileCap.failed") : formatCurrency(summary.totalCost)}</span>
+                        <span aria-label={costsUnavailable ? t("projectExplorer.costsUnavailable") : undefined}>
+                          {summary.proposalPending ? t("rightPanel:pileCap.calculating") : summary.proposalError ? t("rightPanel:pileCap.failed") : costsUnavailable ? "—" : formatCurrency(summary.totalCost)}
+                        </span>
                         {proposalCount > 0 ? (
                           <span title={t("rightPanel:pileCap.costsIndicative")}>
                             {t("projectExplorer.proposalCount", { count: proposalCount })}
                           </span>
                         ) : null}
                         {summary.missingCount > 0 ? (
-                          <span className="pile-plan-warning" title={t("projectExplorer.missingCosts", { count: summary.missingCount })}>
-                            <Icon kind="warning" /> {summary.missingCount}
+                          <span className="pile-plan-warning" aria-label={t("projectExplorer.missingCosts", { count: summary.missingCount })}>
+                            {t("projectExplorer.missingCostsLabel",{count:summary.missingCount})}
                           </span>
                         ) : null}
                         {plan.lockedLoadPointIds.length > 0 ? (
@@ -233,10 +237,9 @@ function ActionButton({
   );
 }
 
-function Icon({ kind }: { kind: "edit" | "copy" | "delete" | "plus" | "warning" }) {
+function Icon({ kind }: { kind: "edit" | "copy" | "delete" | "plus" }) {
   if (kind === "edit") return <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>;
   if (kind === "copy") return <svg aria-hidden="true" viewBox="0 0 24 24"><rect height="13" rx="2" width="13" x="9" y="9"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>;
   if (kind === "delete") return <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M19 6l-1 14H6L5 6"/></svg>;
-  if (kind === "warning") return <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M12 3 2 21h20Z"/><path d="M12 9v5"/><path d="M12 18h.01"/></svg>;
   return <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>;
 }

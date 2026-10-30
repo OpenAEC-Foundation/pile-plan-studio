@@ -103,6 +103,7 @@ fn grouping_settings_edit_derives_new_groups_and_preserves_assignments_outside_c
             x_mm,
             y_mm: 0.0,
             design_load_kn: 500.0,
+            tension: Default::default(),
         })
         .collect();
     let input = LoadPointGroupingSettingsEditInput {
