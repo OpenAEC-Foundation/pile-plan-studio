@@ -362,7 +362,9 @@ contains detached Linux package signatures, its public key/fingerprint and
 
 Draft assembly refuses a published/non-alpha release and never replaces an
 existing asset. A retry skips identical assets and uploads only missing files;
-a different digest stops the job. Retry failed jobs from the same tag/run;
+a different digest stops the job. Existing drafts are found through the complete
+authenticated release list; GitHub's tag endpoint omits unpublished drafts.
+Retry failed jobs from the same tag/run;
 do not move a tag or replace published files. Manual proof dispatches never
 reach this draft-creation job. Publishing the GitHub draft, integrating into
 `main` (which deploys the browser), and deploying the separate product website

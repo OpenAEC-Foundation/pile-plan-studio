@@ -4,9 +4,24 @@ import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, rmSync, existsSync
 import { tmpdir } from 'node:os';
 import { join, resolve, sep } from 'node:path';
 import { createHash } from 'node:crypto';
-import { normalizePackages, assembleReleaseAssets, draftUploadPlan } from './release-assets.mjs';
+import { normalizePackages, assembleReleaseAssets, draftUploadPlan, existingReleaseForTag } from './release-assets.mjs';
 const version='2026.45.0';
 const prefix='Open.Pile.Plan.Studio_'+version;
+test('finds an unpublished draft through all release-list pages', ()=>{
+  const draft={tag_name:'v'+version,draft:true,prerelease:true,assets:[{name:'signed.exe'}]};
+  assert.deepEqual(existingReleaseForTag([[{tag_name:'older'}],[draft]],'v'+version),
+    {tagName:'v'+version,isDraft:true,isPrerelease:true,assets:draft.assets});
+  assert.equal(existingReleaseForTag([[draft]],'v2026.45.2'),null);
+});
+test('published releases remain visible to the mutation refusal guard', ()=>{
+  const release=existingReleaseForTag([[{tag_name:'v'+version,draft:false,prerelease:true,assets:[]}]],'v'+version);
+  assert.throws(()=>draftUploadPlan(release,'v'+version,[]),/published/);
+});
+test('ambiguous releases and malformed list responses fail before creating a draft', ()=>{
+  const draft={tag_name:'v'+version,draft:true,prerelease:true,assets:[]};
+  assert.throws(()=>existingReleaseForTag([[draft],[draft]],'v'+version),/Multiple/);
+  assert.throws(()=>existingReleaseForTag([{message:'request failed'}],'v'+version),/release list/);
+});
 function fixture(t) {
   const path=mkdtempSync(join(tmpdir(),'pile-release-'));
   t.after(()=>{assert(resolve(path).startsWith(resolve(tmpdir())+sep));rmSync(path,{recursive:true,force:true});});

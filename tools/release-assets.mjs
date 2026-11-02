@@ -60,6 +60,14 @@ export function draftUploadPlan(release, tag, assets) {
   }
   return [...planned.values()];
 }
+export function existingReleaseForTag(pages, tag) {
+  if(!Array.isArray(pages) || !pages.every(Array.isArray))throw new Error('Invalid release list response.');
+  const matches=pages.flat().filter(release=>release.tag_name===tag);
+  if(matches.length>1)throw new Error('Multiple releases use this tag; refusing an ambiguous draft.');
+  if(!matches.length)return null;
+  const release=matches[0];
+  return {tagName:release.tag_name,isDraft:release.draft,isPrerelease:release.prerelease,assets:release.assets};
+}
 if(process.argv[1] && resolve(process.argv[1])===fileURLToPath(import.meta.url)) {
   if(process.argv[2]!=='normalize' || !process.argv[3])throw new Error('Usage: release-assets.mjs normalize DIRECTORY');
   normalizePackages(process.argv[3]);

@@ -4,16 +4,15 @@ import { join } from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { checkProject } from './release-project.mjs';
 import { amsterdamDate } from './release-version.mjs';
-import { assembleReleaseAssets, draftUploadPlan } from './release-assets.mjs';
+import { assembleReleaseAssets, draftUploadPlan, existingReleaseForTag } from './release-assets.mjs';
 
 const root=process.cwd();
 const {GITHUB_EVENT_NAME:event,GITHUB_REF:ref,GITHUB_SHA:sha,GITHUB_REPOSITORY:repo,RUNNER_TEMP:temp,GITHUB_RUN_ID:runId}=process.env;
 if(event!=='push' || !ref?.startsWith('refs/tags/') || !/^[a-f0-9]{40}$/.test(sha??'') || !repo || !temp || !runId)
   throw new Error('Draft creation requires a release-tag workflow with an exact source commit.');
-function gh(args, allow404=false) {
+function gh(args) {
   const result=spawnSync('gh',args,{encoding:'utf8',windowsHide:true});
   if(result.status!==0) {
-    if(allow404 && /HTTP 404/.test(result.stderr))return null;
     throw new Error('GitHub operation failed: '+result.stderr);
   }
   return result.stdout;
@@ -34,11 +33,11 @@ if(start<0)throw new Error('Prepared release notes missing for '+info.version);
 const end=normalized.indexOf('\n## ',start+heading.length);
 const body=normalized.slice(start+heading.length,end<0?undefined:end).trim()+'\n\nBuild source: `'+sha+'`.\n';
 const notesPath=join(temp,'prepared-release-notes.md');writeFileSync(notesPath,body);
-const api=gh(['api',`repos/${repo}/releases/tags/${tag}`],true);
-let release;
-if(api) {
-  const value=JSON.parse(api);
-  release={tagName:value.tag_name,isDraft:value.draft,isPrerelease:value.prerelease,assets:value.assets};
+// GitHub's tag endpoint omits unpublished drafts. The authenticated release
+// list includes them, so retries must search every page before any mutation.
+const pages=JSON.parse(gh(['api','--paginate','--slurp',`repos/${repo}/releases?per_page=100`]));
+let release=existingReleaseForTag(pages,tag);
+if(release) {
   draftUploadPlan(release,tag,assets);
 } else {
   gh(['release','create',tag,'--draft','--prerelease','--verify-tag','--title',info.title,'--notes-file',notesPath]);
