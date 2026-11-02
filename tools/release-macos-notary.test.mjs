@@ -6,8 +6,8 @@ import { tmpdir } from 'node:os';
 import { join, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 const bash = process.platform === 'win32' ? 'C:/Program Files/Git/bin/bash.exe' : 'bash';
-for (const succeeds of [true, false]) {
-  test('DMG stapling ' + (succeeds ? 'recovers from transient failures' : 'fails after bounded retries'), {
+for (const operation of ['staple', 'validate']) for (const succeeds of [true, false]) {
+  test('Apple ticket ' + operation + ' ' + (succeeds ? 'recovers from transient failures' : 'fails after bounded retries'), {
     skip: process.platform === 'win32' && !existsSync(bash) ? 'Git Bash unavailable' : false,
   }, t => {
     const directory = mkdtempSync(join(tmpdir(), 'pile-stapler-'));
@@ -29,9 +29,14 @@ for (const succeeds of [true, false]) {
         return 68
       }
       export -f codesign python3 sleep xcrun
-      bash tools/notarize_macos_dmg.sh test.dmg
+      if [[ "$OPERATION" == staple ]]; then
+        bash tools/notarize_macos_dmg.sh test.dmg
+      else
+        source tools/apple_ticket.sh
+        apple_ticket validate test.app
+      fi
     `], {cwd:fileURLToPath(new URL('../', import.meta.url)), encoding:'utf8', windowsHide:true,
-      env:{...process.env, RUNNER_TEMP:directory.replaceAll('\\','/'), RECOVER:String(succeeds),
+      env:{...process.env, RUNNER_TEMP:directory.replaceAll('\\','/'), RECOVER:String(succeeds), OPERATION:operation,
         APPLE_SIGNING_IDENTITY:'fixture', APPLE_API_KEY_PATH:'fixture', APPLE_API_KEY:'fixture', APPLE_API_ISSUER:'fixture'}});
     assert.equal(result.status, succeeds ? 0 : 68, result.stdout + result.stderr);
     assert.equal(readFileSync(join(directory,'count'),'utf8').trim(), '3');

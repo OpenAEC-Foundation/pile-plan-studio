@@ -434,7 +434,7 @@ jobs:
         run: |
           mkdir -p "$RUNNER_TEMP/macos-proof"
           cp "$RUNNER_TEMP/macos-package-source.json" "$RUNNER_TEMP/macos-proof/package-source.json"
-          if [[ -n '${{ inputs.macos_proof_run_id }}' ]]; then cp "$RUNNER_TEMP/macos-package-tests.json" "$RUNNER_TEMP/macos-proof/source-tests.json"; fi
+          if [[ -f "$RUNNER_TEMP/macos-package-tests.json" ]]; then cp "$RUNNER_TEMP/macos-package-tests.json" "$RUNNER_TEMP/macos-proof/source-tests.json"; fi
           bash tools/check_macos_package.sh macos-packages/*.dmg "$EXPECTED_VERSION" "$SIGNING_MODE" "$RUNNER_TEMP/macos-proof"
           sw_vers > "$RUNNER_TEMP/macos-proof/os.txt"
           uname -m >> "$RUNNER_TEMP/macos-proof/os.txt"
