@@ -259,10 +259,31 @@ optimization stop/cancel/apply and undo, plus session-gated MCP access on each
 OS. Check Finder/open-with both cold and with the app already running. Test
 additional distributions or older macOS releases before making compatibility claims.
 
-The proof routes have not yet established Linux/macOS support or public downloads.
-No release is created by dispatch. Release integration, a new version/tag, public
-download links and the separate product website remain subsequent work after
-reviewing platform evidence.
+Automated proof results verified on 2 November 2026:
+
+- [Linux signed proof](https://github.com/OpenAEC-Foundation/pile-plan-studio/actions/runs/41428425085):
+  AppImage and Debian package signed with the existing OpenAEC GPG signing subkey;
+  both formats started on Ubuntu 22.04 and 24.04 x64. Downloaded checksums and
+  detached signatures were independently verified against the known organization
+  fingerprint `13F6D414ADEE4ED4CD09AC60601D86C93C504D29`.
+- [macOS package verification](https://github.com/OpenAEC-Foundation/pile-plan-studio/actions/runs/41436989346):
+  the same universal DMG was verified and started on macOS 15.8.2 arm64 and
+  macOS 15.7.9 Intel. Both the app and DMG passed Developer ID/Gatekeeper and
+  stapled-ticket checks. The [source build and notarization job](https://github.com/OpenAEC-Foundation/pile-plan-studio/actions/runs/41431616378/job/125231363662)
+  produced that DMG; the verification run records its source commit and reuses
+  successful native/frontend tests only after confirming identical application
+  source. The DMG SHA-256 is
+  `c0f353db601300ff2df4b3a852433c4051842d6e4e87390141739e1c3ae43731`.
+
+Apple ticket delivery briefly lost its CloudKit connection during these proofs.
+The helpers retry ticket stapling/validation at most three times for delivery
+errors 65/68; other errors and exhausted attempts still fail. Rejected notarization
+is never accepted by this retry path.
+
+These remain workflow proof artifacts. Interactive acceptance listed above and
+public Linux/macOS downloads remain pending. No release is created by dispatch.
+Release integration, a new version/tag, public download links and the separate
+product website remain subsequent work after reviewing platform evidence.
 
 ## Tagging and publication
 
