@@ -4,7 +4,7 @@ import { fileURLToPath } from 'node:url';
 
 // This acceptance series intentionally tests the previously verified signed bytes.
 const sources = {
-  linux: {id:41428425085, sha:'e1a1491b4182c55b285bb677cd6b0b107fc4ae7a'},
+  linux: {id:41445723226, sha:'db3350ef649bdf107b5ff9d3939201532b4ebac8'},
   macos: {id:41431616378, sha:'bb34fd753b56e126b8e77949a5a53c04ee11e63d'},
 };
 export function proofSource(run, platform, repository, branch) {

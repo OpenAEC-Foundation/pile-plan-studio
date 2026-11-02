@@ -110,7 +110,14 @@ def start_app():
 record()
 try:
     start_app()
-    markers=[n for n in ui.snapshot() if ui.label(n).startswith("Load point ") and ui.button(n)]
+    tree=ui.snapshot()
+    by_id={n["id"]:n for n in tree}
+    def in_viewer(node):
+        while node["parent"]!=-1:
+            node=by_id[node["parent"]]
+            if ui.label(node)=="Pile plan viewer": return True
+        return False
+    markers=[n for n in tree if ui.label(n).startswith("Load point ") and ui.button(n) and in_viewer(n)]
     assert len(markers)==328, f"Expected all 328 drawing hit targets, got {len(markers)}"
     chosen=markers[50]
     ui.press(chosen, physical=True)

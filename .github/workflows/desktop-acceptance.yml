@@ -7,6 +7,9 @@ on:
 permissions:
   contents: read
   actions: read
+concurrency:
+  group: desktop-acceptance-${{ github.ref }}
+  cancel-in-progress: true
 jobs:
   inspect:
     name: Packaged desktop acceptance (${{ matrix.os }})
@@ -14,12 +17,12 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - {os: ubuntu-22.04, platform: linux, run: '41428425085'}
-          - {os: ubuntu-24.04, platform: linux, run: '41428425085'}
+          - {os: ubuntu-22.04, platform: linux, run: '41445723226'}
+          - {os: ubuntu-24.04, platform: linux, run: '41445723226'}
           - {os: macos-15, platform: macos, run: '41431616378'}
           - {os: macos-15-intel, platform: macos, run: '41431616378'}
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 20
+    timeout-minutes: 40
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -43,9 +46,17 @@ jobs:
           # icon configuration and every Linux application source stay identical.
           if [[ "$PROOF_PLATFORM" == linux ]]; then
             paths+=(':(exclude)apps/pile-plan-studio/src-tauri/tauri.macos.conf.json' ':(exclude)apps/pile-plan-studio/src-tauri/icons/icon.png')
+          else
+            paths+=(':(exclude)apps/pile-plan-studio/src-tauri/tauri.linux.conf.json' ':(exclude)apps/pile-plan-studio/src-tauri/linux')
           fi
           git diff --exit-code "$source_sha" HEAD -- "${paths[@]}"
           git rev-parse HEAD > "$RUNNER_TEMP/desktop-acceptance/controller-source.txt"
+      - name: Wait for corrected signed Linux package
+        if: runner.os == 'Linux'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PROOF_RUN: ${{ matrix.run }}
+        run: gh run watch "$PROOF_RUN" --exit-status --interval 30
       - uses: actions/download-artifact@v4
         with:
           name: ${{ matrix.platform }}-packages-${{ steps.source.outputs.sha }}
@@ -57,7 +68,7 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y xvfb dbus-x11 python3-pyatspi at-spi2-core xdotool xclip imagemagick openbox
-          printf '%s  %s\n' e8b824e53ff16139e74d59cb5de71a6390fb3aeeffb0570cd15c78a6c9347a09 proof-packages/*.deb | sha256sum -c -
+          bash tools/desktop-acceptance/verify_linux.sh proof-packages "$RUNNER_TEMP/desktop-acceptance"
           sudo apt-get install -y "$(realpath proof-packages/*.deb)"
           package=$(dpkg-deb -f proof-packages/*.deb Package)
           dpkg-query -W "$package" > "$RUNNER_TEMP/desktop-acceptance/version.txt"
