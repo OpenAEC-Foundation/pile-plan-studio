@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 # Only the disposable CI controller receives AX permission; never the product.
-[[ "${GITHUB_ACTIONS:-}" == true && "${RUNNER_OS:-}" == macOS ]]
+[[ "${GITHUB_ACTIONS:-}" == true && "${RUNNER_OS:-}" == macOS && "${RUNNER_ENVIRONMENT:-}" == github-hosted ]]
 controller="$RUNNER_TEMP/pile-plan-ax-controller"
 swiftc tools/desktop-acceptance/mac_ax.swift -o "$controller"
 if ! printf '{"op":"trusted"}\n' | "$controller" | grep -q '"result":true'; then

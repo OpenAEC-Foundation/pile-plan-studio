@@ -1,19 +1,20 @@
 """The four agreed #47 scenarios, against a real uninstrumented desktop package."""
 import copy
 import csv
-import hashlib
 import io
 import json
 import os
 from pathlib import Path
 import subprocess
 import sys
+import tempfile
 import time
 import traceback
 import zipfile
 from ui import UI
 
 binary, output_arg = sys.argv[1:3]
+portable = len(sys.argv)>3 and sys.argv[3]=="portable"
 output = Path(output_arg).resolve()
 output.mkdir(parents=True, exist_ok=True)
 files = output / "Bestanden met spaties é"
@@ -28,8 +29,13 @@ other = files / "Ander project β.ifcpp"
 source.write_text(json.dumps(first, ensure_ascii=False), encoding="utf-8")
 other.write_text(json.dumps(second, ensure_ascii=False), encoding="utf-8")
 saved = files / "Opgeslagen één α.ifcpp"
-report = {"package":binary, "scenarios":{name:{"status":"NOT RUN"} for name in
-    ("screen-and-drawing", "native-files", "os-association", "optimization")}}
+association_stage = "file-argument-delivery" if portable else "os-association"
+report = {"package":binary, "format":"AppImage" if portable else "installed", "scenarios":{name:{"status":"NOT RUN"} for name in
+    ("screen-and-drawing", "native-files", association_stage, "optimization")}}
+user_directory = tempfile.TemporaryDirectory(prefix="pile-plan-acceptance-user-")
+if sys.platform!="darwin":
+    for kind in ("CONFIG","DATA","CACHE"):
+        os.environ[f"XDG_{kind}_HOME"]=str(Path(user_directory.name)/kind.lower())
 ui = None
 app = None
 stage = "screen-and-drawing"
@@ -88,6 +94,11 @@ def save_as(path, cancel=False):
 def save_current():
     ui.shortcut("s")
     time.sleep(1)
+def close_backstage():
+    buttons=ui.find("File",button=True)
+    assert len(buttons)==2, buttons
+    ui.press(max(buttons,key=lambda n:n["rect"][2]),physical=True)
+    ui.wait(lambda _: len(ui.find("File",button=True,refresh=False))==1)
 def stop_app():
     global app, ui
     if ui: ui.close(); ui=None
@@ -106,6 +117,11 @@ def start_app():
     ui.wait_name("Load points 328 rows", timeout=45)
     with (output / "processes.txt").open("a") as f:
         f.write(subprocess.check_output(["ps","-p",str(app.pid),"-o","pid=,command="],text=True))
+    if sys.platform!="darwin":
+        executable=os.readlink(f"/proc/{app.pid}/exe")
+        if portable: assert executable.startswith("/tmp/.mount_") and executable.endswith("/usr/bin/pile-plan-studio"), executable
+        else: assert executable=="/usr/bin/pile-plan-studio", executable
+        report["executable"]=executable
 
 record()
 try:
@@ -138,7 +154,6 @@ try:
     actual=project(saved)
     assert actual["metadata"]["name"] == first["metadata"]["name"]
     assert actual["inputs"]==first["inputs"], "Native round trip changed source data"
-    stable=content(actual)
     # An existing valid project is deliberately overwritten through the real dialog.
     overwritten=files / "Bestaand bestand é.ifcpp"
     overwritten.write_text(json.dumps(second),encoding="utf-8")
@@ -161,7 +176,7 @@ try:
         assert archive.testzip() is None and "xl/workbook.xml" in archive.namelist()
         sheets=[n for n in archive.namelist() if n.startswith("xl/worksheets/sheet") and n.endswith(".xml")]
         assert sheets and any(archive.read(n).count(b"<row")>=329 for n in sheets), "Export omitted load point rows"
-    ui.key("escape")
+    close_backstage()
     passed(stage, unicode_and_spaces=True, cancelled_open=True,cancelled_save=True, overwritten=True,
         reopened=True,csv_data_rows=len(rows)-1,xlsx_valid=True)
 
@@ -200,7 +215,9 @@ try:
     assert len(solved["user_state"]["pile_plans"])==len(baseline["user_state"]["pile_plans"])+1
     assert any(p.get("ilp_result") for p in solved["user_state"]["pile_plans"]), "No persisted native solver result"
     ui.evidence(output,"optimization-applied")
-    ui.click("Undo (Ctrl+Z)")
+    undo=[n for n in ui.snapshot() if ui.button(n) and ui.label(n).startswith("Undo: ") and ui.label(n).endswith("(Ctrl+Z)")]
+    assert len(undo)==1, undo
+    ui.press(undo[0],physical=True)
     save_current()
     undone=project(saved)
     assert undone["user_state"]["pile_plans"]==baseline["user_state"]["pile_plans"], "One undo failed to restore pre-run plans"
@@ -208,9 +225,12 @@ try:
     passed(stage, native_run=True,progress_visible=True,cancel_acknowledged=True,cancel_preserves_plans=True,
         result_committed=True,atomic_undo=True)
 
-    stage="os-association"
+    stage=association_stage
     stop_app()
-    if sys.platform=="darwin":
+    if portable:
+        log=(output/"application.log").open("a")
+        app=subprocess.Popen([binary,str(other)],stdout=log,stderr=log)
+    elif sys.platform=="darwin":
         bundle=Path(binary).parents[2]
         subprocess.run(["/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister","-f",str(bundle)],check=True)
         subprocess.run(["open",str(other)],check=True)
@@ -232,7 +252,7 @@ try:
     ui=UI(pid)
     ui.wait_name(second["metadata"]["name"],timeout=45)
     ui.evidence(output,"association-cold")
-    command=["open",str(source)] if ui.mac else ["gio","open",str(source)]
+    command=[binary,str(source)] if portable else (["open",str(source)] if ui.mac else ["gio","open",str(source)])
     subprocess.Popen(command,stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL)
     ui.wait_name(first["metadata"]["name"],timeout=30)
     os.kill(pid,0)
@@ -249,3 +269,4 @@ except Exception as error:
 finally:
     stop_app()
     record()
+    user_directory.cleanup()

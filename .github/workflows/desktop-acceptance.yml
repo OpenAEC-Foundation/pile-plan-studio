@@ -67,7 +67,7 @@ jobs:
         if: runner.os == 'Linux'
         run: |
           sudo apt-get update
-          sudo apt-get install -y xvfb dbus-x11 python3-pyatspi at-spi2-core xdotool xclip imagemagick openbox
+          sudo apt-get install -y xvfb dbus-x11 python3-pyatspi at-spi2-core xdotool xclip imagemagick openbox ${{ matrix.os == 'ubuntu-24.04' && 'libfuse2t64' || 'libfuse2' }}
           bash tools/desktop-acceptance/verify_linux.sh proof-packages "$RUNNER_TEMP/desktop-acceptance"
           sudo apt-get install -y "$(realpath proof-packages/*.deb)"
           package=$(dpkg-deb -f proof-packages/*.deb Package)
@@ -77,7 +77,16 @@ jobs:
         env:
           NO_AT_BRIDGE: '0'
         run: |
-          dbus-run-session -- xvfb-run -a -s '-screen 0 1600x1000x24' bash -c 'openbox > "$RUNNER_TEMP/openbox.log" 2>&1 & /usr/bin/python3 tools/desktop-acceptance/scenarios.py /usr/bin/pile-plan-studio "$RUNNER_TEMP/desktop-acceptance"'
+          dbus-run-session -- xvfb-run -a -s '-screen 0 1600x1000x24' bash -c 'openbox > "$RUNNER_TEMP/openbox.log" 2>&1 & /usr/bin/python3 tools/desktop-acceptance/scenarios.py /usr/bin/pile-plan-studio "$RUNNER_TEMP/desktop-acceptance/deb"'
+      - name: Exercise normal FUSE AppImage UI
+        if: ${{ !cancelled() && runner.os == 'Linux' && steps.source.outcome == 'success' }}
+        env:
+          NO_AT_BRIDGE: '0'
+        run: |
+          image=$(realpath proof-packages/*.AppImage)
+          chmod +x "$image"
+          export ACCEPTANCE_APPIMAGE="$image"
+          dbus-run-session -- xvfb-run -a -s '-screen 0 1600x1000x24' bash -c 'openbox > "$RUNNER_TEMP/openbox-appimage.log" 2>&1 & /usr/bin/python3 tools/desktop-acceptance/scenarios.py "$ACCEPTANCE_APPIMAGE" "$RUNNER_TEMP/desktop-acceptance/appimage" portable'
       - name: Prepare macOS native UI inspection
         if: runner.os == 'macOS'
         run: |
