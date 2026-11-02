@@ -280,10 +280,73 @@ The helpers retry ticket stapling/validation at most three times for delivery
 errors 65/68; other errors and exhausted attempts still fail. Rejected notarization
 is never accepted by this retry path.
 
-These remain workflow proof artifacts. Interactive acceptance listed above and
-public Linux/macOS downloads remain pending. No release is created by dispatch.
+These remain workflow proof artifacts. GUI acceptance is recorded separately
+below; public Linux/macOS downloads remain pending. No release is created by dispatch.
 Release integration, a new version/tag, public download links and the separate
 product website remain subsequent work after reviewing platform evidence.
+
+### Packaged desktop acceptance
+
+`.github/workflows/desktop-acceptance.yml` exercises the signed proof packages
+through the operating system's accessibility APIs, with native keyboard and
+pointer input. The controller is external to the application: the delivered
+app has no test plugin, test HTTP listener or modified signature. The workflow
+has read-only repository/Actions permissions and publishes no release.
+
+The four scenarios cover the rendered drawing and desktop scale; native
+open/save/save-as/cancel/overwrite/reopen with Unicode and space-containing
+paths; CSV/XLSX export with source-data checks; installed OS file association
+both cold and warm; and an ILP run through the interface, visible progress,
+cancellation without persisting previews, a committed new plan and one-step
+undo. The 328-point sample is software-test data; its fictional tension advice
+is not foundation design guidance.
+
+Linux runs deb and normal FUSE AppImage scenarios separately on Ubuntu 22.04
+and 24.04 x64. Debian installs the IFCPP MIME definition and desktop entry with
+file-argument forwarding. A portable AppImage does not install host-wide file
+associations; its corresponding scenario checks cold/warm file arguments.
+Linux file-type checks use GIO, matching the tested graphical file opener;
+headless `xdg-mime query filetype` reported generic JSON on these runners while
+GIO recognized the installed IFCPP type. macOS runs the
+same signed universal DMG on both ARM and Intel runners.
+
+Each acceptance artifact includes `results.json`, screenshots, accessible UI
+trees, actual executable path/version/OS/source evidence, and IFCPP snapshots
+before and after cancellation, optimization and undo. Review screenshots as
+well as assertions. A startup helper's `interactive-acceptance.txt` describes
+only that helper; the separate scenario report records GUI acceptance.
+See `tools/desktop-acceptance/README.md` for controller setup and coverage.
+MCP client acceptance remains separate under issue #48; these four desktop
+scenarios concern issue #47 and do not complete its publication work.
+
+The Linux acceptance checks exposed a missing file association in the first
+proof package. The corrected [Linux build/signing job](https://github.com/OpenAEC-Foundation/pile-plan-studio/actions/runs/41445723226/job/125278295151)
+adds the MIME definition and file forwarding in the desktop entry. Native
+workspace, Tauri and frontend tests passed before packaging. The new deb and
+AppImage checksums and all three detached GPG signatures were independently
+verified against the organization fingerprint above. The revised SHA-256 values
+are `24a3918307340958c6dce7ff6dff553502cc036da1abc5177336168a8df09354`
+(deb) and `8be834c555b0cb570b96b823dccbaceb2c9897bbc1ed8fc4e1a51e854b11a99f`
+(AppImage). The macOS DMG is unchanged from the notarized source proof above.
+
+The [final packaged GUI acceptance run](https://github.com/OpenAEC-Foundation/pile-plan-studio/actions/runs/41452190108)
+passed all four scenarios in each of these six configurations on 2 November 2026:
+
+| System | Delivered package | Result |
+| --- | --- | --- |
+| Ubuntu 22.04 x64 | deb | 4 / 4 passed |
+| Ubuntu 22.04 x64 | AppImage, normal FUSE launch | 4 / 4 passed |
+| Ubuntu 24.04 x64 | deb | 4 / 4 passed |
+| Ubuntu 24.04 x64 | AppImage, normal FUSE launch | 4 / 4 passed |
+| macOS 15.8.2 ARM | universal DMG/app | 4 / 4 passed |
+| macOS 15.7.9 Intel | same universal DMG/app | 4 / 4 passed |
+
+The downloaded GUI evidence was also checked independently: cancellation and
+one undo restore the entire persisted project content, and all six platform /
+package combinations return 303 optimized locations and a cost of EUR 207,941 for
+the same sample. Screenshots show the drawing, native dialogs, solver result
+and the correct project after a warm file-open request. This records the agreed
+four-scenario acceptance for the tested OS versions. Public downloads remain pending.
 
 ## Tagging and publication
 
