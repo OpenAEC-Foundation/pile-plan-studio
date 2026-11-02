@@ -17,8 +17,8 @@ gio info -a standard::content-type "$output/Proef met spaties é.ifcpp" > "$outp
 filetype=$(awk '$1=="standard::content-type:" {print $2}' "$output/association-file-info.txt")
 handler=$(xdg-mime query default application/x-ifcpp)
 printf 'type=%s\nhandler=%s\n' "$filetype" "$handler" | tee "$output/association.txt"
-# Headless xdg-mime may fall back to file(1) content sniffing, which intentionally
-# ignores our extension database. GIO is the API used by the tested file opener.
+# Headless xdg-mime reported generic JSON while GIO recognized the installed
+# IFCPP extension. Use the same API as the graphical file opener under test.
 xdg-mime query filetype "$output/Proef met spaties é.ifcpp" > "$output/headless-xdg-type.txt"
 test "$filetype" = application/x-ifcpp
 test "$handler" = 'Open Pile Plan Studio.desktop'

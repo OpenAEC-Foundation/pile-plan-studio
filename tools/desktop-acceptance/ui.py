@@ -23,8 +23,8 @@ class UI:
             from gi.repository import GLib
             self.atspi = pyatspi
             self.GLib = GLib
-            subprocess.run(["xdotool", "search", "--pid", str(pid), "--onlyvisible", "--name",
-                "Open Pile Plan Studio", "windowactivate", "--sync"], check=True)
+            subprocess.run(["xdotool", "search", "--sync", "--pid", str(pid), "--onlyvisible", "--name",
+                "Open Pile Plan Studio", "windowactivate", "--sync"], check=True,timeout=30)
 
     def rpc(self, **data):
         self.helper.stdin.write(json.dumps(data) + "\n")
