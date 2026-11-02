@@ -1,0 +1,90 @@
+name: Desktop acceptance of unpublished signed packages
+on:
+  push:
+    branches: [linux-macos-distribution]
+    paths: ['tools/desktop-acceptance/**', '.github/workflows/desktop-acceptance.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  inspect:
+    name: Native UI discovery (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - {os: ubuntu-22.04, platform: linux, run: '41428425085'}
+          - {os: ubuntu-24.04, platform: linux, run: '41428425085'}
+          - {os: macos-15, platform: macos, run: '41431616378'}
+          - {os: macos-15-intel, platform: macos, run: '41431616378'}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: {node-version: '22'}
+      - name: Test acceptance source guard
+        run: node --test tools/desktop-acceptance/*.test.mjs
+      - name: Verify unchanged application source and proof provenance
+        id: source
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PROOF_RUN: ${{ matrix.run }}
+          PROOF_PLATFORM: ${{ matrix.platform }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/desktop-acceptance"
+          gh api "repos/$GITHUB_REPOSITORY/actions/runs/$PROOF_RUN" > "$RUNNER_TEMP/desktop-acceptance/package-source.json"
+          node tools/desktop-acceptance/source.mjs "$RUNNER_TEMP/desktop-acceptance/package-source.json" "$PROOF_PLATFORM" >> "$GITHUB_OUTPUT"
+          source_sha=$(node -p 'JSON.parse(require("fs").readFileSync(process.env.RUNNER_TEMP+"/desktop-acceptance/package-source.json")).head_sha')
+          git fetch --depth=1 origin "$source_sha"
+          paths=(apps crates Cargo.toml Cargo.lock sample_project)
+          # These two later additions are macOS-only packaging inputs. The Linux
+          # icon configuration and every Linux application source stay identical.
+          if [[ "$PROOF_PLATFORM" == linux ]]; then
+            paths+=(':(exclude)apps/pile-plan-studio/src-tauri/tauri.macos.conf.json' ':(exclude)apps/pile-plan-studio/src-tauri/icons/icon.png')
+          fi
+          git diff --exit-code "$source_sha" HEAD -- "${paths[@]}"
+          git rev-parse HEAD > "$RUNNER_TEMP/desktop-acceptance/controller-source.txt"
+      - uses: actions/download-artifact@v4
+        with:
+          name: ${{ matrix.platform }}-packages-${{ steps.source.outputs.sha }}
+          run-id: ${{ matrix.run }}
+          github-token: ${{ github.token }}
+          path: proof-packages
+      - name: Prepare Linux native UI inspection
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y xvfb dbus-x11 python3-pyatspi at-spi2-core xdotool xclip imagemagick openbox
+          printf '%s  %s\n' e8b824e53ff16139e74d59cb5de71a6390fb3aeeffb0570cd15c78a6c9347a09 proof-packages/*.deb | sha256sum -c -
+          sudo apt-get install -y "$(realpath proof-packages/*.deb)"
+          package=$(dpkg-deb -f proof-packages/*.deb Package)
+          dpkg-query -W "$package" > "$RUNNER_TEMP/desktop-acceptance/version.txt"
+      - name: Inspect Linux packaged UI
+        if: runner.os == 'Linux'
+        env:
+          NO_AT_BRIDGE: '0'
+        run: |
+          dbus-run-session -- xvfb-run -a -s '-screen 0 1600x1000x24' bash -c 'openbox > "$RUNNER_TEMP/openbox.log" 2>&1 & /usr/bin/python3 tools/desktop-acceptance/discover.py /usr/bin/pile-plan-studio "$RUNNER_TEMP/desktop-acceptance"'
+      - name: Prepare macOS native UI inspection
+        if: runner.os == 'macOS'
+        run: |
+          printf '%s  %s\n' c0f353db601300ff2df4b3a852433c4051842d6e4e87390141739e1c3ae43731 proof-packages/*.dmg | shasum -a 256 -c -
+          bash tools/desktop-acceptance/macos-controller.sh
+          mkdir "$RUNNER_TEMP/acceptance-mount"
+          hdiutil attach -readonly -nobrowse -mountpoint "$RUNNER_TEMP/acceptance-mount" proof-packages/*.dmg
+          ditto "$RUNNER_TEMP/acceptance-mount/Open Pile Plan Studio.app" "$RUNNER_TEMP/Open Pile Plan Studio.app"
+          hdiutil detach "$RUNNER_TEMP/acceptance-mount"
+          codesign --verify --deep --strict --verbose=2 "$RUNNER_TEMP/Open Pile Plan Studio.app"
+          spctl --assess --type execute --verbose=4 "$RUNNER_TEMP/Open Pile Plan Studio.app"
+          /usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$RUNNER_TEMP/Open Pile Plan Studio.app/Contents/Info.plist" > "$RUNNER_TEMP/desktop-acceptance/version.txt"
+      - name: Inspect macOS packaged UI
+        if: runner.os == 'macOS'
+        run: python3 tools/desktop-acceptance/discover.py "$RUNNER_TEMP/Open Pile Plan Studio.app/Contents/MacOS/pile-plan-studio" "$RUNNER_TEMP/desktop-acceptance"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: desktop-acceptance-${{ matrix.os }}-${{ github.sha }}
+          path: ${{ runner.temp }}/desktop-acceptance/
+          if-no-files-found: error
