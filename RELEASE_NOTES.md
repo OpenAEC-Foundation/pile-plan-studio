@@ -1,6 +1,6 @@
 # Open Pile Plan Studio Release Notes
 
-## 2026.45.0
+## 2026.45.1
 
 This alpha adds signed Linux and macOS desktop packages alongside Windows,
 using the same Rust engineering core and IFCPP project format.

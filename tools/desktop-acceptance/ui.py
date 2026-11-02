@@ -2,6 +2,7 @@
 import json
 import os
 from pathlib import Path
+import re
 import select
 import subprocess
 import sys
@@ -93,6 +94,14 @@ class UI:
 
     def wait_name(self, name, timeout=30):
         return self.wait(lambda _: self.find(name, refresh=False), timeout)
+
+    def verify_version(self, expected):
+        # WebKit does not expose the decorative titlebar version on Linux.
+        # The About panel provides the product version as ordinary text.
+        self.click("File")
+        self.click("About")
+        version = re.compile(r"(?<![\d.])" + re.escape(expected) + r"(?![\d.])")
+        self.wait(lambda tree: any(version.search(self.label(node)) for node in tree))
 
     def press(self, node, physical=False):
         assert node.get("enabled", True), f"Disabled control: {node}"

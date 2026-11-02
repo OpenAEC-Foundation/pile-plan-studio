@@ -123,7 +123,9 @@ def start_app():
     assert app.poll() is None, "Packaged process exited"
     ui=UI(app.pid)
     ui.wait_name("Load points 328 rows", timeout=45)
-    ui.wait(lambda tree:any(expected_version in ui.label(n) and len(ui.label(n))<40 for n in tree))
+    ui.verify_version(expected_version)
+    ui.evidence(output,"product-version")
+    close_backstage()
     with (output / "processes.txt").open("a") as f:
         f.write(subprocess.check_output(["ps","-p",str(app.pid),"-o","pid=,command="],text=True))
     if sys.platform!="darwin":

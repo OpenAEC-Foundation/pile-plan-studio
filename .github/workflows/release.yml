@@ -47,6 +47,8 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
+      - name: Test native UI version verifier
+        run: python3 -m unittest discover -s tools/desktop-acceptance -p test_ui.py
       - id: route
         env:
           INPUT_RELEASE_TAG: ${{ inputs.release_tag }}
