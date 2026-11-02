@@ -10,6 +10,7 @@ import sys
 import tempfile
 import time
 import traceback
+import xml.etree.ElementTree as ET
 import zipfile
 from ui import UI
 
@@ -54,8 +55,10 @@ def wait_file(path):
             return path.read_bytes()
         time.sleep(0.2)
     raise AssertionError(f"App did not write {path}")
-def project(path):
-    return json.loads(wait_file(path))
+def project(path, evidence=None):
+    contents=wait_file(path)
+    if evidence: (output/evidence).write_bytes(contents)
+    return json.loads(contents)
 def content(p):
     # Version/timestamps are serialization metadata, not user project content.
     return {k:v for k,v in p.items() if k not in ("application", "metadata")}
@@ -122,6 +125,10 @@ def start_app():
         if portable: assert executable.startswith("/tmp/.mount_") and executable.endswith("/usr/bin/pile-plan-studio"), executable
         else: assert executable=="/usr/bin/pile-plan-studio", executable
         report["executable"]=executable
+    else:
+        identity=ui.rpc(op="identity",pid=app.pid)
+        assert identity["executable"]==binary, identity
+        report["executable"]=identity["executable"]
 
 record()
 try:
@@ -151,9 +158,13 @@ try:
     save_as(saved, cancel=True)
     assert not saved.exists(), "Cancelling Save As created a file"
     save_as(saved)
-    actual=project(saved)
+    actual=project(saved,"native-roundtrip.ifcpp")
     assert actual["metadata"]["name"] == first["metadata"]["name"]
     assert actual["inputs"]==first["inputs"], "Native round trip changed source data"
+    for original_plan in first["user_state"]["pile_plans"]:
+        round_trip=next(p for p in actual["user_state"]["pile_plans"] if p["id"]==original_plan["id"])
+        for field in ("selected_piles","locked_load_point_ids","active_pile_sizes","active_pile_tip_levels"):
+            assert round_trip[field]==original_plan[field], f"Native save changed {field}"
     # An existing valid project is deliberately overwritten through the real dialog.
     overwritten=files / "Bestaand bestand é.ifcpp"
     overwritten.write_text(json.dumps(second),encoding="utf-8")
@@ -170,12 +181,26 @@ try:
     rows=list(csv.reader(io.StringIO(csv_bytes.decode("utf-8-sig")),delimiter=";"))
     if len(rows[0])==1: rows=list(csv.reader(io.StringIO(csv_bytes.decode("utf-8-sig")),delimiter=","))
     assert len(rows)==329 and len(rows[0])>=5, f"Unexpected CSV dimensions: {len(rows)}"
+    expected_points={p["id"]:p for p in first["inputs"]["load_points"]}
+    assert {int(row[0]) for row in rows[1:]}==set(expected_points), "CSV lost or duplicated load point IDs"
+    for row in rows[1:]:
+        point=expected_points[int(row[0])]
+        assert [float(v) for v in row[1:4]]==[point["x_mm"],point["y_mm"],point["design_load_kn"]], "CSV changed source coordinates/loads"
     xlsx_file=files / "Palenplan é β.xlsx"
     ui.click("Export Excel"); choose_path(xlsx_file,save=True)
     with zipfile.ZipFile(io.BytesIO(wait_file(xlsx_file))) as archive:
         assert archive.testzip() is None and "xl/workbook.xml" in archive.namelist()
         sheets=[n for n in archive.namelist() if n.startswith("xl/worksheets/sheet") and n.endswith(".xml")]
         assert sheets and any(archive.read(n).count(b"<row")>=329 for n in sheets), "Export omitted load point rows"
+        ns={"s":"http://schemas.openxmlformats.org/spreadsheetml/2006/main"}
+        shared=["".join(e.itertext()) for e in ET.fromstring(archive.read("xl/sharedStrings.xml")).findall("s:si",ns)]
+        sheet=ET.fromstring(archive.read(sheets[0]))
+        ids=[]
+        for row in sheet.findall("s:sheetData/s:row",ns)[1:]:
+            cell=row.find("s:c",ns)
+            value=cell.findtext("s:v",namespaces=ns)
+            ids.append(int(shared[int(value)] if cell.get("t")=="s" else value))
+        assert len(ids)==328 and set(ids)==set(expected_points), "Excel changed exported load point IDs"
     close_backstage()
     passed(stage, unicode_and_spaces=True, cancelled_open=True,cancelled_save=True, overwritten=True,
         reopened=True,csv_data_rows=len(rows)-1,xlsx_valid=True)
@@ -195,8 +220,8 @@ try:
     ui.click("Cancel")
     ui.wait(lambda _: not ui.find("Cancel",button=True,refresh=False),timeout=30)
     save_current()
-    after_cancel=project(saved)
-    assert after_cancel["user_state"]["pile_plans"]==actual["user_state"]["pile_plans"], "Cancellation committed a result"
+    after_cancel=project(saved,"optimization-cancelled.ifcpp")
+    assert content(after_cancel)==content(actual), "Cancellation persisted transient project content"
     ui.evidence(output,"optimization-cancelled")
     # A fresh run saves as a new plan so one atomic result/undo is observable.
     if not ui.find("Save as new pile plan",button=True):
@@ -206,12 +231,12 @@ try:
     ui.check("Save as new pile plan", True)
     ui.check("Optimize coherence", False)
     save_current()
-    baseline=project(saved)
+    baseline=project(saved,"optimization-baseline.ifcpp")
     optimize_buttons=ui.find("Optimize",button=True)
     ui.press(optimize_buttons[-1])
     ui.wait_name("Last calculated result:",timeout=180)
     save_current()
-    solved=project(saved)
+    solved=project(saved,"optimization-result.ifcpp")
     assert len(solved["user_state"]["pile_plans"])==len(baseline["user_state"]["pile_plans"])+1
     assert any(p.get("ilp_result") for p in solved["user_state"]["pile_plans"]), "No persisted native solver result"
     ui.evidence(output,"optimization-applied")
@@ -219,7 +244,7 @@ try:
     assert len(undo)==1, undo
     ui.press(undo[0],physical=True)
     save_current()
-    undone=project(saved)
+    undone=project(saved,"optimization-undone.ifcpp")
     assert undone["user_state"]["pile_plans"]==baseline["user_state"]["pile_plans"], "One undo failed to restore pre-run plans"
     ui.evidence(output,"optimization-undone")
     passed(stage, native_run=True,progress_visible=True,cancel_acknowledged=True,cancel_preserves_plans=True,
@@ -250,6 +275,11 @@ try:
         time.sleep(0.5)
     assert pid, "OS association did not launch the installed application"
     ui=UI(pid)
+    associated_executable=ui.rpc(op="identity",pid=pid)["executable"] if ui.mac else os.readlink(f"/proc/{pid}/exe")
+    if portable: assert associated_executable.startswith("/tmp/.mount_") and associated_executable.endswith("/usr/bin/pile-plan-studio")
+    else: assert associated_executable==binary, associated_executable
+    with (output/"processes.txt").open("a") as f:
+        f.write(subprocess.check_output(["ps","-p",str(pid),"-o","pid=,command="],text=True))
     ui.wait_name(second["metadata"]["name"],timeout=45)
     ui.evidence(output,"association-cold")
     command=[binary,str(source)] if portable else (["open",str(source)] if ui.mac else ["gio","open",str(source)])
@@ -257,7 +287,7 @@ try:
     ui.wait_name(first["metadata"]["name"],timeout=30)
     os.kill(pid,0)
     ui.evidence(output,"association-warm")
-    passed(stage,cold=True,warm_same_process=True,pid=pid)
+    passed(stage,cold=True,warm_same_process=True,pid=pid,executable=associated_executable)
     os.kill(pid,15)
 except Exception as error:
     report["scenarios"][stage]=dict(status="FAIL",error=str(error),traceback=traceback.format_exc())

@@ -40,6 +40,9 @@ func key(_ code: CGKeyCode, _ flags: CGEventFlags = []) {
 func request(_ data: [String:Any]) throws -> Any {
     switch data["op"] as? String {
     case "trusted": return AXIsProcessTrusted()
+    case "identity":
+        guard let app=NSRunningApplication(processIdentifier:pid_t(data["pid"] as! Int)) else { return [:] }
+        return ["executable":app.executableURL?.path ?? "", "bundle":app.bundleURL?.path ?? ""]
     case "snapshot":
         elements = []
         return snapshot(AXUIElementCreateApplication(pid_t(data["pid"] as! Int)))

@@ -51,12 +51,26 @@ jobs:
           fi
           git diff --exit-code "$source_sha" HEAD -- "${paths[@]}"
           git rev-parse HEAD > "$RUNNER_TEMP/desktop-acceptance/controller-source.txt"
+          uname -a > "$RUNNER_TEMP/desktop-acceptance/os.txt"
+          if [[ "$RUNNER_OS" == macOS ]]; then sw_vers >> "$RUNNER_TEMP/desktop-acceptance/os.txt"; else cat /etc/os-release >> "$RUNNER_TEMP/desktop-acceptance/os.txt"; fi
       - name: Wait for corrected signed Linux package
         if: runner.os == 'Linux'
         env:
           GH_TOKEN: ${{ github.token }}
           PROOF_RUN: ${{ matrix.run }}
-        run: gh run watch "$PROOF_RUN" --exit-status --interval 30
+        run: |
+          for attempt in {1..120}; do
+            state=$(gh run view "$PROOF_RUN" --json jobs --jq '.jobs[] | select(.name == "linux") | .conclusion')
+            if [[ "$state" == success ]]; then
+              gh api "repos/$GITHUB_REPOSITORY/actions/runs/$PROOF_RUN/jobs?per_page=100" > "$RUNNER_TEMP/desktop-acceptance/source-tests.json"
+              exit 0
+            fi
+            if [[ -n "$state" ]]; then echo "Signed Linux build failed: $state"; exit 1; fi
+            echo "Waiting for signed Linux build ($attempt/120)"
+            sleep 15
+          done
+          echo 'Signed Linux build did not finish within 30 minutes'
+          exit 1
       - uses: actions/download-artifact@v4
         with:
           name: ${{ matrix.platform }}-packages-${{ steps.source.outputs.sha }}
