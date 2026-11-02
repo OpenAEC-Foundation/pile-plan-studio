@@ -6,6 +6,15 @@ test "$(dpkg-deb -f "$deb" Version)" = "$version"
 test "$(dpkg-deb -f "$deb" Architecture)" = amd64
 dpkg-deb -I "$deb" > "$output/package.txt"
 sudo apt-get install -y "$deb"
+desktop='/usr/share/applications/Open Pile Plan Studio.desktop'
+desktop-file-validate "$desktop"
+grep -Fxq 'Exec=pile-plan-studio %F' "$desktop"
+grep -Fxq 'MimeType=application/x-ifcpp;' "$desktop"
+cp "$desktop" "$output/installed.desktop"
+cp /usr/share/mime/packages/pile-plan-studio.xml "$output/installed-mime.xml"
+touch "$output/Proef met spaties é.ifcpp"
+test "$(xdg-mime query filetype "$output/Proef met spaties é.ifcpp")" = application/x-ifcpp
+test "$(xdg-mime query default application/x-ifcpp)" = 'Open Pile Plan Studio.desktop'
 binary=/usr/bin/pile-plan-studio
 test -x "$binary"
 ldd "$binary" > "$output/dependencies.txt"
