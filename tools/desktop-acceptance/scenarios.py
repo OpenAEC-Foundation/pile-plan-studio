@@ -275,8 +275,19 @@ try:
     deadline=time.monotonic()+30
     pid=None
     while time.monotonic()<deadline:
-        entries=subprocess.check_output(["ps","-axo","pid=,comm="],text=True)
-        candidates=[int(line.split(None,1)[0]) for line in entries.splitlines() if line.strip().endswith("/pile-plan-studio") or line.strip().endswith(" pile-plan-studio")]
+        if sys.platform=="darwin":
+            entries=subprocess.check_output(["ps","-axo","pid=,comm="],text=True)
+            candidates=[int(line.split(None,1)[0]) for line in entries.splitlines() if line.strip().endswith("/pile-plan-studio")]
+        else:
+            # Linux comm is truncated to 15 characters. Match the actual delivered
+            # executable, as in the package probe, rather than a display name.
+            candidates=[]
+            for process in Path("/proc").iterdir():
+                if not process.name.isdigit(): continue
+                try: executable=os.readlink(process/"exe")
+                except (FileNotFoundError,PermissionError,ProcessLookupError): continue
+                matches=(executable.startswith("/tmp/.mount_") and executable.endswith("/usr/bin/pile-plan-studio")) if portable else executable==binary
+                if matches: candidates.append(int(process.name))
         if len(candidates)==1: pid=candidates[0]; break
         time.sleep(0.5)
     assert pid, "OS association did not launch the installed application"
