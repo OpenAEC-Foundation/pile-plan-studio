@@ -9,7 +9,7 @@ permissions:
   actions: read
 jobs:
   inspect:
-    name: Native UI discovery (${{ matrix.os }})
+    name: Packaged desktop acceptance (${{ matrix.os }})
     strategy:
       fail-fast: false
       matrix:
@@ -66,7 +66,7 @@ jobs:
         env:
           NO_AT_BRIDGE: '0'
         run: |
-          dbus-run-session -- xvfb-run -a -s '-screen 0 1600x1000x24' bash -c 'openbox > "$RUNNER_TEMP/openbox.log" 2>&1 & /usr/bin/python3 tools/desktop-acceptance/discover.py /usr/bin/pile-plan-studio "$RUNNER_TEMP/desktop-acceptance"'
+          dbus-run-session -- xvfb-run -a -s '-screen 0 1600x1000x24' bash -c 'openbox > "$RUNNER_TEMP/openbox.log" 2>&1 & /usr/bin/python3 tools/desktop-acceptance/scenarios.py /usr/bin/pile-plan-studio "$RUNNER_TEMP/desktop-acceptance"'
       - name: Prepare macOS native UI inspection
         if: runner.os == 'macOS'
         run: |
@@ -81,7 +81,7 @@ jobs:
           /usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$RUNNER_TEMP/Open Pile Plan Studio.app/Contents/Info.plist" > "$RUNNER_TEMP/desktop-acceptance/version.txt"
       - name: Inspect macOS packaged UI
         if: runner.os == 'macOS'
-        run: python3 tools/desktop-acceptance/discover.py "$RUNNER_TEMP/Open Pile Plan Studio.app/Contents/MacOS/pile-plan-studio" "$RUNNER_TEMP/desktop-acceptance"
+        run: python3 tools/desktop-acceptance/scenarios.py "$RUNNER_TEMP/Open Pile Plan Studio.app/Contents/MacOS/pile-plan-studio" "$RUNNER_TEMP/desktop-acceptance"
       - uses: actions/upload-artifact@v4
         if: always()
         with:
