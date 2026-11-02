@@ -25,6 +25,11 @@ func snapshot(_ e: AXUIElement, _ depth: Int = 0, _ parent: Int = -1) -> [[Strin
     if string(e,kAXRoleAttribute) == "AXCheckBox" {
         node["checked"] = (attr(e,kAXValueAttribute) as? NSNumber)?.intValue == 1
     }
+    if string(e,kAXRoleAttribute) == "AXTextField" {
+        var editable = DarwinBoolean(false)
+        AXUIElementIsAttributeSettable(e,kAXValueAttribute as CFString,&editable)
+        node["editable"] = editable.boolValue
+    }
     var result = [node]
     for child in (attr(e, kAXChildrenAttribute) as? [AXUIElement]) ?? [] {
         result += snapshot(child, depth + 1, id)

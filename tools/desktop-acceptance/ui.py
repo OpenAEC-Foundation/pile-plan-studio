@@ -20,7 +20,9 @@ class UI:
             self.rpc(op="activate", pid=pid)
         else:
             import pyatspi
+            from gi.repository import GLib
             self.atspi = pyatspi
+            self.GLib = GLib
             subprocess.run(["xdotool", "search", "--pid", str(pid), "--onlyvisible", "--name",
                 "Open Pile Plan Studio", "windowactivate", "--sync"], check=True)
 
@@ -36,6 +38,15 @@ class UI:
         if self.mac:
             self.tree = self.rpc(op="snapshot", pid=self.pid)
             return self.tree
+        # GTK/WebKit may retire an accessible object while a dialog is opening.
+        # Retry a complete observation; never use a partially collected tree.
+        for attempt in range(4):
+            try: return self.linux_snapshot()
+            except self.GLib.GError as error:
+                if "does not exist" not in str(error) or attempt==3: raise
+                time.sleep(0.2)
+
+    def linux_snapshot(self):
         desktop = self.atspi.Registry.getDesktop(0)
         apps = [a for a in desktop if a.get_process_id() == self.pid]
         assert len(apps) == 1, "Packaged app missing from AT-SPI desktop"

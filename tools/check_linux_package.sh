@@ -12,9 +12,12 @@ grep -Fxq 'Exec=pile-plan-studio %F' "$desktop"
 grep -Fxq 'MimeType=application/x-ifcpp;' "$desktop"
 cp "$desktop" "$output/installed.desktop"
 cp /usr/share/mime/packages/pile-plan-studio.xml "$output/installed-mime.xml"
-touch "$output/Proef met spaties é.ifcpp"
-test "$(xdg-mime query filetype "$output/Proef met spaties é.ifcpp")" = application/x-ifcpp
-test "$(xdg-mime query default application/x-ifcpp)" = 'Open Pile Plan Studio.desktop'
+cp sample_project/sample_project.ifcpp "$output/Proef met spaties é.ifcpp"
+filetype=$(xdg-mime query filetype "$output/Proef met spaties é.ifcpp")
+handler=$(xdg-mime query default application/x-ifcpp)
+printf 'type=%s\nhandler=%s\n' "$filetype" "$handler" | tee "$output/association.txt"
+test "$filetype" = application/x-ifcpp
+test "$handler" = 'Open Pile Plan Studio.desktop'
 binary=/usr/bin/pile-plan-studio
 test -x "$binary"
 ldd "$binary" > "$output/dependencies.txt"

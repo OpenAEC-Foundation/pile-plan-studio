@@ -78,6 +78,7 @@ jobs:
           github-token: ${{ github.token }}
           path: proof-packages
       - name: Prepare Linux native UI inspection
+        id: linux_setup
         if: runner.os == 'Linux'
         run: |
           sudo apt-get update
@@ -101,6 +102,13 @@ jobs:
           chmod +x "$image"
           export ACCEPTANCE_APPIMAGE="$image"
           dbus-run-session -- xvfb-run -a -s '-screen 0 1600x1000x24' bash -c 'openbox > "$RUNNER_TEMP/openbox-appimage.log" 2>&1 & /usr/bin/python3 tools/desktop-acceptance/scenarios.py "$ACCEPTANCE_APPIMAGE" "$RUNNER_TEMP/desktop-acceptance/appimage" portable'
+      - name: Recheck Linux package metadata dependencies and startup
+        if: ${{ !cancelled() && runner.os == 'Linux' && steps.linux_setup.outcome == 'success' }}
+        run: |
+          deb=$(realpath proof-packages/*.deb)
+          dbus-run-session -- xvfb-run -a bash tools/check_linux_package.sh "$deb" 2026.44.4 "$RUNNER_TEMP/desktop-acceptance/package-check"
+          image=$(realpath proof-packages/*.AppImage)
+          dbus-run-session -- xvfb-run -a bash tools/check_linux_appimage.sh "$image" "$RUNNER_TEMP/desktop-acceptance/package-check"
       - name: Prepare macOS native UI inspection
         if: runner.os == 'macOS'
         run: |

@@ -67,20 +67,24 @@ def native_dialog():
 def choose_path(path, save=False):
     native_dialog()
     if ui.mac:
+        sheets=sum(n["role"]=="AXSheet" for n in ui.snapshot())
         ui.key("g", "meta", "shift")
-        time.sleep(0.5)
+        ui.wait(lambda tree:sum(n["role"]=="AXSheet" for n in tree)>sheets)
+        ui.shortcut("a")
         ui.text(str(path.parent if save else path))
         ui.key("return")
-        time.sleep(0.8)
+        ui.wait(lambda tree:sum(n["role"]=="AXSheet" for n in tree)==sheets)
         if save:
-            fields = [n for n in ui.snapshot() if n["role"]=="AXTextField" and n.get("enabled",True)]
-            assert fields, "Native Save As field missing"
-            field = next((n for n in fields if "Save" in ui.label(n)), fields[0])
-            ui.rpc(op="set", id=field["id"], value=path.name)
+            fields = [n for n in ui.snapshot() if n["role"]=="AXTextField" and n.get("editable") and n.get("description")!="tag editor"]
+            assert len(fields)==1, f"Native Save As field ambiguous: {fields}"
+            ui.rpc(op="set", id=fields[0]["id"], value=path.name)
             time.sleep(0.3)
-        ui.key("return")
+        action="Save" if save else "Open"
+        controls=ui.wait(lambda _: [n for n in ui.find(action,button=True,refresh=False) if n.get("enabled",True)])
+        ui.press(controls[-1],physical=True)
     else:
         ui.key("l", "ctrl")
+        ui.shortcut("a")
         ui.text(str(path))
         ui.key("return")
     time.sleep(1)
