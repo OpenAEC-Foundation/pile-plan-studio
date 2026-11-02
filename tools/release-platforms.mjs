@@ -5,7 +5,7 @@ export function proofPlatforms(value = 'windows') {
 }
 export function platformJobs(event, value) {
   if (!['push', 'workflow_dispatch'].includes(event)) throw new Error('Unsupported platform event.');
-  const selected = event === 'push' ? ['windows'] : proofPlatforms(value);
+  const selected = event === 'push' ? ['windows', 'linux', 'macos'] : proofPlatforms(value);
   return Object.fromEntries(['windows', 'linux', 'macos'].map(name => [name, selected.includes(name)]));
 }
 export function macosProofRun({event, platform, signProof, runId = ''}) {

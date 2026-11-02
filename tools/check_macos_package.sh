@@ -38,7 +38,7 @@ fi
 # An exact binary launch only; never claim this proves webview/UI readiness.
 "$binary" > "$output/launch.log" 2>&1 &
 pid=$!
-trap 'kill "$pid" 2>/dev/null || true; hdiutil detach "$mount" >/dev/null 2>&1 || true; rmdir "$mount" || true' EXIT
+trap 'kill "$pid" 2>/dev/null || true; wait "$pid" 2>/dev/null || true; hdiutil detach "$mount" >/dev/null 2>&1 || true; rmdir "$mount" || true' EXIT
 sleep 10
 kill -0 "$pid"
 ps -p "$pid" -o pid=,command= > "$output/process.txt"

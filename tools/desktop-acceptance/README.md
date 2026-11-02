@@ -4,14 +4,15 @@ This external controller exercises uninstrumented, signed proof packages for
 the four desktop scenarios in issue #47. It does not expose an automation port
 or add a test plugin to the product. MCP acceptance belongs to issue #48.
 
-`.github/workflows/desktop-acceptance.yml` runs on the distribution feature
-branch and can be dispatched manually once present on the default branch. It
-has read-only repository/Actions access and cannot create releases. The source
-guard pins reviewed package build runs and rejects changed application/core
-source. Platform-specific packaging inputs for the other OS are excluded from
-that comparison. Linux detached signatures must match the known OpenAEC primary
-fingerprint; macOS uses a pinned DMG checksum and rechecks its code signature
-and Gatekeeper assessment.
+The Linux/macOS runtime jobs in `.github/workflows/release.yml` run these
+scenarios for signed packages. They download immutable artifacts from the same
+source commit and workflow run. An explicitly reused macOS proof retains its
+source/architecture test gates and must have identical application source.
+Linux detached signatures must match the known OpenAEC primary fingerprint;
+macOS checks Developer ID signing, Gatekeeper and notarization tickets.
+The runtime jobs have read-only permissions. Only a separate final job can
+assemble a draft, after every release build and runtime job succeeds; it never
+publishes. Manual proof dispatches create no release.
 
 The scenarios drive native accessibility and keyboard/pointer input:
 
@@ -38,7 +39,7 @@ already support unattended accessibility setup does the setup script grant
 that controller Accessibility access. It never disables SIP, grants the
 product permissions, or changes a developer's computer.
 
-Each artifact contains `results.json`, native process/version/source evidence,
+Each runtime artifact contains `gui/results.json`, native process/version/source evidence,
 UI trees, screenshots and saved project/export files. An unfinished scenario
 remains `NOT RUN`; a failing assertion fails the job. Discovery output alone
 does not count as acceptance. Screenshots still require visual review, and

@@ -21,6 +21,7 @@ output.mkdir(parents=True, exist_ok=True)
 files = output / "Bestanden met spaties é"
 files.mkdir(exist_ok=True)
 sample = json.loads(Path("sample_project/sample_project.ifcpp").read_text(encoding="utf-8"))
+expected_version=json.loads(Path("apps/pile-plan-studio/package.json").read_text(encoding="utf-8"))["version"]
 first = copy.deepcopy(sample)
 first["metadata"]["name"] = "Proef één α"
 second = copy.deepcopy(sample)
@@ -31,7 +32,7 @@ source.write_text(json.dumps(first, ensure_ascii=False), encoding="utf-8")
 other.write_text(json.dumps(second, ensure_ascii=False), encoding="utf-8")
 saved = files / "Opgeslagen één α.ifcpp"
 association_stage = "file-argument-delivery" if portable else "os-association"
-report = {"package":binary, "format":"AppImage" if portable else "installed", "scenarios":{name:{"status":"NOT RUN"} for name in
+report = {"package":binary, "version":expected_version, "format":"AppImage" if portable else "installed", "scenarios":{name:{"status":"NOT RUN"} for name in
     ("screen-and-drawing", "native-files", association_stage, "optimization")}}
 user_directory = tempfile.TemporaryDirectory(prefix="pile-plan-acceptance-user-")
 if sys.platform!="darwin":
@@ -122,6 +123,7 @@ def start_app():
     assert app.poll() is None, "Packaged process exited"
     ui=UI(app.pid)
     ui.wait_name("Load points 328 rows", timeout=45)
+    ui.wait(lambda tree:any(expected_version in ui.label(n) and len(ui.label(n))<40 for n in tree))
     with (output / "processes.txt").open("a") as f:
         f.write(subprocess.check_output(["ps","-p",str(app.pid),"-o","pid=,command="],text=True))
     if sys.platform!="darwin":

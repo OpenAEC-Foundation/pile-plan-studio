@@ -1,6 +1,15 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { validateMacosProofSource, validateMacosProofTests } from './verify_macos_proof_source.mjs';
+test('a tag-built DMG is accepted only from the exact current run and commit', () => {
+  const run={id:123,head_sha:'a'.repeat(40),head_branch:'v2026.45.0',event:'push',path:'.github/workflows/release.yml',
+    repository:{full_name:'owner/repo'},head_repository:{full_name:'owner/repo'}};
+  const current={id:'123',sha:run.head_sha};
+  assert.equal(validateMacosProofSource(run,'owner/repo','v2026.45.0',current),run.head_sha);
+  for (const context of [undefined,{id:'124',sha:run.head_sha},{id:'123',sha:'b'.repeat(40)}]) {
+    assert.throws(()=>validateMacosProofSource(run,'owner/repo','v2026.45.0',context));
+  }
+});
 test('rechecking a DMG requires completed native and frontend tests on the same architecture', () => {
   const names=['Run cargo test --workspace --locked',
     'Run cargo test --locked --manifest-path apps/pile-plan-studio/src-tauri/Cargo.toml','Run npm test'];

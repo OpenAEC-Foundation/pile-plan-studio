@@ -40,6 +40,8 @@ jobs:
       linux: ${{ steps.route.outputs.build_linux }}
       macos: ${{ steps.route.outputs.build_macos }}
       version: ${{ steps.route.outputs.version }}
+      sign: ${{ steps.route.outputs.sign }}
+      create_draft: ${{ steps.route.outputs.create_draft }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -55,8 +57,6 @@ jobs:
   windows:
     needs: route
     if: needs.route.outputs.windows == 'true'
-    permissions:
-      contents: write
     name: Test and build Windows installer
     runs-on: windows-latest
 
@@ -185,27 +185,29 @@ jobs:
           ./tools/test_windows_installer.ps1 -InstallerPath $env:INSTALLER_PATH -ExpectedVersion $env:EXPECTED_VERSION -UnsignedProof:($env:UNSIGNED_PROOF -eq 'true')
 
       - name: Upload proof binaries and signature report
-        if: steps.release.outputs.create_draft == 'false'
         uses: actions/upload-artifact@v4
         with:
           name: windows-${{ steps.release.outputs.mode }}-${{ steps.release.outputs.version }}
           path: ${{ runner.temp }}/pile-plan-windows-proof
           if-no-files-found: error
 
-      - name: Create draft GitHub release
-        if: steps.release.outputs.create_draft == 'true'
-        uses: softprops/action-gh-release@v2
+      - name: Collect Windows installer
+        shell: pwsh
+        env:
+          INSTALLER_PATH: ${{ steps.installer.outputs.path }}
+        run: |
+          New-Item -ItemType Directory -Path windows-packages | Out-Null
+          Copy-Item -LiteralPath $env:INSTALLER_PATH -Destination windows-packages
+          node tools/release-assets.mjs normalize windows-packages
+      - uses: actions/upload-artifact@v4
         with:
-          draft: true
-          prerelease: ${{ steps.release.outputs.prerelease == 'true' }}
-          generate_release_notes: true
-          name: ${{ steps.release.outputs.title }}
-          files: ${{ steps.installer.outputs.path }}
-          fail_on_unmatched_files: true
+          name: windows-packages-${{ github.sha }}
+          path: windows-packages/
+          if-no-files-found: error
 
   linux:
     needs: route
-    if: github.event_name == 'workflow_dispatch' && needs.route.outputs.linux == 'true'
+    if: needs.route.outputs.linux == 'true'
     runs-on: ubuntu-22.04
     timeout-minutes: 60
     steps:
@@ -243,8 +245,9 @@ jobs:
           cp apps/pile-plan-studio/src-tauri/target/release/bundle/deb/*.deb linux-packages/
           cp apps/pile-plan-studio/src-tauri/target/release/bundle/appimage/*.AppImage linux-packages/
           test "$(find linux-packages -type f | wc -l)" -eq 2
+          node tools/release-assets.mjs normalize linux-packages
       - name: Sign Linux downloads
-        if: inputs.sign_proof
+        if: needs.route.outputs.sign == 'true'
         env:
           OPENAEC_GPG_PRIVATE_KEY: ${{ secrets.OPENAEC_GPG_PRIVATE_KEY }}
           OPENAEC_GPG_PASSPHRASE: ${{ secrets.OPENAEC_GPG_PASSPHRASE }}
@@ -263,33 +266,69 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-22.04, ubuntu-24.04]
+        format: [deb, appimage]
+    timeout-minutes: 40
     steps:
       - uses: actions/checkout@v4
       - uses: actions/download-artifact@v4
         with:
           name: linux-packages-${{ github.sha }}
           path: linux-packages
-      - run: sudo apt-get update && sudo apt-get install -y xvfb dbus-x11 ${{ matrix.os == 'ubuntu-24.04' && 'libfuse2t64' || 'libfuse2' }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Prepare native Linux GUI checks
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y xvfb dbus-x11 python3-pyatspi at-spi2-core xdotool xclip imagemagick openbox ${{ matrix.os == 'ubuntu-24.04' && 'libfuse2t64' || 'libfuse2' }}
+          mkdir -p "$RUNNER_TEMP/linux-proof"
+          if [[ '${{ needs.route.outputs.sign }}' == true ]]; then
+            bash tools/desktop-acceptance/verify_linux.sh linux-packages "$RUNNER_TEMP/linux-proof"
+          fi
+          sudo apt-get install -y "$(realpath linux-packages/*.deb)"
       - name: Check installed Linux package
+        if: matrix.format == 'deb'
         env:
           EXPECTED_VERSION: ${{ needs.route.outputs.version }}
         run: |
           deb=$(realpath linux-packages/*.deb)
           dbus-run-session -- xvfb-run -a bash tools/check_linux_package.sh "$deb" "$EXPECTED_VERSION" "$RUNNER_TEMP/linux-proof"
+      - name: Check normal FUSE AppImage launch
+        if: matrix.format == 'appimage'
+        run: |
           image=$(realpath linux-packages/*.AppImage)
           dbus-run-session -- xvfb-run -a bash tools/check_linux_appimage.sh "$image" "$RUNNER_TEMP/linux-proof"
+      - name: Exercise signed Linux package through the native interface
+        if: needs.route.outputs.sign == 'true'
+        env:
+          NO_AT_BRIDGE: '0'
+          PACKAGE_FORMAT: ${{ matrix.format }}
+        run: |
+          if [[ "$PACKAGE_FORMAT" == appimage ]]; then
+            binary=$(realpath linux-packages/*.AppImage)
+            chmod +x "$binary"
+            export ACCEPTANCE_BINARY="$binary"
+            dbus-run-session -- xvfb-run -a -s '-screen 0 1600x1000x24' bash -c 'openbox > "$RUNNER_TEMP/openbox.log" 2>&1 & /usr/bin/python3 tools/desktop-acceptance/scenarios.py "$ACCEPTANCE_BINARY" "$RUNNER_TEMP/linux-proof/gui" portable'
+          else
+            dbus-run-session -- xvfb-run -a -s '-screen 0 1600x1000x24' bash -c 'openbox > "$RUNNER_TEMP/openbox.log" 2>&1 & /usr/bin/python3 tools/desktop-acceptance/scenarios.py /usr/bin/pile-plan-studio "$RUNNER_TEMP/linux-proof/gui"'
+          fi
+      - name: Record Linux runtime identity
+        if: always()
+        run: |
+          mkdir -p "$RUNNER_TEMP/linux-proof"
           uname -a > "$RUNNER_TEMP/linux-proof/os.txt"
+          cat /etc/os-release >> "$RUNNER_TEMP/linux-proof/os.txt"
           node tools/release.mjs info > "$RUNNER_TEMP/linux-proof/version.json"
           git rev-parse HEAD > "$RUNNER_TEMP/linux-proof/source-sha.txt"
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: linux-runtime-${{ matrix.os }}-${{ github.sha }}
+          name: linux-runtime-${{ matrix.os }}-${{ matrix.format }}-${{ github.sha }}
           path: ${{ runner.temp }}/linux-proof/
 
   macos:
     needs: route
-    if: github.event_name == 'workflow_dispatch' && needs.route.outputs.macos == 'true' && !inputs.macos_proof_run_id
+    if: needs.route.outputs.macos == 'true' && !inputs.macos_proof_run_id
     runs-on: macos-15
     timeout-minutes: 90
     env:
@@ -318,7 +357,7 @@ jobs:
       - run: npm test
         working-directory: apps/pile-plan-studio
       - name: Prepare existing Apple identity
-        if: inputs.sign_proof
+        if: needs.route.outputs.sign == 'true'
         env:
           APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
           APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
@@ -330,12 +369,12 @@ jobs:
       - name: Build universal app and DMG
         working-directory: apps/pile-plan-studio
         env:
-          APPLE_SIGNING_IDENTITY: ${{ inputs.sign_proof && secrets.APPLE_SIGNING_IDENTITY || '' }}
+          APPLE_SIGNING_IDENTITY: ${{ needs.route.outputs.sign == 'true' && secrets.APPLE_SIGNING_IDENTITY || '' }}
           APPLE_API_KEY: ${{ secrets.APPLE_API_KEY }}
           APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
         run: |
           args=()
-          if [[ '${{ inputs.sign_proof }}' != true ]]; then args+=(--no-sign); fi
+          if [[ '${{ needs.route.outputs.sign }}' != true ]]; then args+=(--no-sign); fi
           npm run tauri -- build --target universal-apple-darwin --bundles app,dmg "${args[@]}"
       - name: Collect and notarize DMG
         env:
@@ -346,7 +385,8 @@ jobs:
           mkdir macos-packages
           cp apps/pile-plan-studio/src-tauri/target/universal-apple-darwin/release/bundle/dmg/*.dmg macos-packages/
           test "$(find macos-packages -type f | wc -l)" -eq 1
-          if [[ '${{ inputs.sign_proof }}' == true ]]; then bash tools/notarize_macos_dmg.sh macos-packages/*.dmg; fi
+          node tools/release-assets.mjs normalize macos-packages
+          if [[ '${{ needs.route.outputs.sign }}' == true ]]; then bash tools/notarize_macos_dmg.sh macos-packages/*.dmg; fi
       - uses: actions/upload-artifact@v4
         with:
           name: macos-packages-${{ github.sha }}
@@ -429,7 +469,7 @@ jobs:
       - name: Inspect and launch same universal package
         env:
           EXPECTED_VERSION: ${{ needs.route.outputs.version }}
-          SIGNING_MODE: ${{ inputs.sign_proof && 'signed' || 'unsigned' }}
+          SIGNING_MODE: ${{ needs.route.outputs.sign == 'true' && 'signed' || 'unsigned' }}
           APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
         run: |
           mkdir -p "$RUNNER_TEMP/macos-proof"
@@ -440,8 +480,50 @@ jobs:
           uname -m >> "$RUNNER_TEMP/macos-proof/os.txt"
           node tools/release.mjs info > "$RUNNER_TEMP/macos-proof/version.json"
           git rev-parse HEAD > "$RUNNER_TEMP/macos-proof/source-sha.txt"
+      - name: Prepare macOS accessibility controller
+        if: needs.route.outputs.sign == 'true'
+        run: bash tools/desktop-acceptance/macos-controller.sh
+      - name: Exercise signed macOS app through the native interface
+        if: needs.route.outputs.sign == 'true'
+        run: python3 tools/desktop-acceptance/scenarios.py "$RUNNER_TEMP/macos-proof/Open Pile Plan Studio.app/Contents/MacOS/pile-plan-studio" "$RUNNER_TEMP/macos-proof/gui"
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: macos-runtime-${{ matrix.os }}-${{ github.sha }}
           path: ${{ runner.temp }}/macos-proof/
+
+  release-draft:
+    needs: [route, windows, linux, linux-runtime, macos, macos-runtime]
+    if: >-
+      always() && needs.route.outputs.create_draft == 'true' &&
+      needs.windows.result == 'success' && needs.linux.result == 'success' &&
+      needs['linux-runtime'].result == 'success' && needs.macos.result == 'success' &&
+      needs['macos-runtime'].result == 'success'
+    name: Assemble verified draft release (never publish)
+    runs-on: ubuntu-22.04
+    permissions:
+      contents: write
+      actions: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - uses: actions/download-artifact@v4
+        with:
+          name: windows-packages-${{ github.sha }}
+          path: ${{ runner.temp }}/release-input/windows
+      - uses: actions/download-artifact@v4
+        with:
+          name: linux-packages-${{ github.sha }}
+          path: ${{ runner.temp }}/release-input/linux
+      - uses: actions/download-artifact@v4
+        with:
+          name: macos-packages-${{ github.sha }}
+          path: ${{ runner.temp }}/release-input/macos
+      - name: Recheck Linux signatures before assembling public assets
+        run: bash tools/desktop-acceptance/verify_linux.sh "$RUNNER_TEMP/release-input/linux" "$RUNNER_TEMP/release-verification"
+      - name: Create or complete an unpublished draft with matching assets
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: node tools/create_release_draft.mjs

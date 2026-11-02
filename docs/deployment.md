@@ -48,17 +48,17 @@ apps/pile-plan-studio/dist/
 ```
 
 Deploy the complete contents of this directory from one commit or release tag.
-For the 2026.44.4 alpha source, use release tag `v2026.44.4` once published.
+For the 2026.45.0 alpha source, use release tag `v2026.45.0` once published.
 This includes the Rust core WASM, HiGHS WASM and Worker assets; the browser solver
 does not load its executable code from a CDN.
 
 The [site workflow](../.github/workflows/live.yml) builds and deploys on every
 push to `main`, or through manual workflow dispatch. Browser publication is
-independent of the Windows release tag and draft publication.
+independent of the desktop release tag and draft publication.
 
 The [OpenAEC product page](https://open-aec.com/open-pile-plan-studio/) is
 maintained in the separate `OpenAEC-Foundation/website` repository. Its download
-block links directly to a published Windows installer asset, while its release
+block selects actual published Windows/macOS/Linux assets, while its release
 notes come from that website's generated release data. Publishing an app build
 or release does not itself update the product page: let the website data update
 and deploy, then verify the displayed version, direct installer link, and release
@@ -155,8 +155,8 @@ npm run tauri build -- --bundles nsis
 ```
 
 MSI requires a separately designed version mapping: its major version cannot
-exceed 255, so the year cannot be used directly. macOS and Linux packaging are
-separate work. See the [Tauri configuration reference](https://v2.tauri.app/reference/config/#wixconfig).
+exceed 255, so the year cannot be used directly. macOS uses a universal DMG;
+Linux uses deb and AppImage. See the [Tauri configuration reference](https://v2.tauri.app/reference/config/#wixconfig).
 
 Before tagging, run the Rust and separate Tauri tests above, then `npm test` and
 `npm run build`. Check both About views in the browser and desktop. Verify the
@@ -165,12 +165,13 @@ update current-release references such as the README badge at release time.
 
 The [release workflow](../.github/workflows/release.yml) has two routes:
 
-- A new `vYYYY.W.N` tag validates the prepared commit, runs tests, builds NSIS,
-  signs the app, NSIS uninstaller and installer through Azure Artifact Signing,
-  verifies their publisher and timestamps, installs and
-  launches the app, then creates a draft GitHub prerelease. Version/tag
-  mismatches fail before building; generated package versions are checked again
-  after the build.
+- A new `vYYYY.W.N` tag validates the prepared commit and builds all three desktop
+  platforms. Windows uses Azure signing for the app, NSIS uninstaller and
+  installer; Linux signs its downloads with OpenPGP; macOS signs/notarizes/staples
+  a universal app and DMG. Native tests and package checks run before the signed
+  Linux/macOS GUI scenarios. Only after every build and runtime job succeeds
+  does the final job assemble a draft GitHub prerelease. Version/tag mismatches
+  fail before building; package versions are checked again after the build.
 - Manual dispatch takes a `release_tag` in the same format and checks it against
   the selected prepared source. By default it builds an **unsigned proof** and performs the
   version, installation, executable-path and launch checks on the disposable
@@ -208,11 +209,11 @@ Local route/validator tests do not prove that GitHub actually received a tag
 push. An actual CI proof requires a separately authorized push/run; do not push
 to `main` merely to enable it, because that also deploys the browser application.
 
-## Linux and macOS proof builds (not published platforms)
+## Linux and macOS packages and proof builds
 
 Manual dispatch of the existing `release.yml` accepts `proof_platform`:
-`windows` (default), `linux`, `macos`, or `all`. New platform jobs run only
-on manual dispatch. Tag releases still use the existing Windows route.
+`windows` (default), `linux`, `macos`, or `all`. Tag releases always build all
+platforms; manual dispatches retain their selected proof platforms.
 Push and workflow execution require separate authorization.
 Independent platform selections use separate workflow concurrency groups, so a
 Linux proof does not hold a macOS proof in the queue.
@@ -287,11 +288,12 @@ product website remain subsequent work after reviewing platform evidence.
 
 ### Packaged desktop acceptance
 
-`.github/workflows/desktop-acceptance.yml` exercises the signed proof packages
+The Linux/macOS runtime jobs in `.github/workflows/release.yml` exercise signed packages
 through the operating system's accessibility APIs, with native keyboard and
 pointer input. The controller is external to the application: the delivered
-app has no test plugin, test HTTP listener or modified signature. The workflow
-has read-only repository/Actions permissions and publishes no release.
+app has no test plugin, test HTTP listener or modified signature. The runtime
+jobs have read-only repository/Actions permissions. A separate final job has
+permission to assemble an unpublished draft after all checks succeed.
 
 The four scenarios cover the rendered drawing and desktop scale; native
 open/save/save-as/cancel/overwrite/reopen with Unicode and space-containing
@@ -349,6 +351,22 @@ and the correct project after a warm file-open request. This records the agreed
 four-scenario acceptance for the tested OS versions. Public downloads remain pending.
 
 ## Tagging and publication
+
+Tag builds now collect one Windows installer, one universal macOS DMG and two
+Linux packages from the same source commit. Producer filenames are normalized
+before Linux signing so GitHub download names match the signed checksum file.
+The final job preserves that file and signature as `SHA256SUMS-linux` and
+`SHA256SUMS-linux.asc`; `SHA256SUMS` covers all four installers. The draft also
+contains detached Linux package signatures, its public key/fingerprint and
+`release-manifest.json` recording package digests, source commit and build run.
+
+Draft assembly refuses a published/non-alpha release and never replaces an
+existing asset. A retry skips identical assets and uploads only missing files;
+a different digest stops the job. Retry failed jobs from the same tag/run;
+do not move a tag or replace published files. Manual proof dispatches never
+reach this draft-creation job. Publishing the GitHub draft, integrating into
+`main` (which deploys the browser), and deploying the separate product website
+remain explicit release actions.
 
 Only tag, push or publish when requested. Use a reviewed source commit with a
 clean working tree; integration into `main` is a separate decision. From the

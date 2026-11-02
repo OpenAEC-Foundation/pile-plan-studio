@@ -29,7 +29,7 @@ ldd "$binary" > "$output/dependencies.txt"
 readelf --version-info "$binary" > "$output/elf-versions.txt"
 "$binary" > "$output/launch.log" 2>&1 &
 pid=$!
-trap 'kill "$pid" 2>/dev/null || true' EXIT
+trap 'kill "$pid" 2>/dev/null || true; wait "$pid" 2>/dev/null || true' EXIT
 sleep 10
 kill -0 "$pid"
 test "$(readlink -f "/proc/$pid/exe")" = "$binary"

@@ -19,8 +19,9 @@ test('proof selection defaults to Windows and expands only supported names', () 
   assert.deepEqual(proofPlatforms('all'), ['windows', 'linux', 'macos']);
   for (const bad of ['', 'Linux', 'linux,macos', null]) assert.throws(() => proofPlatforms(bad));
 });
-test('new platforms are proof-only; tag releases retain Windows', () => {
-  assert.deepEqual(platformJobs('push', 'all'), {windows:true,linux:false,macos:false});
+test('tags build all three platforms while manual proofs retain explicit selection', () => {
+  assert.deepEqual(platformJobs('push'), {windows:true,linux:true,macos:true});
+  assert.deepEqual(platformJobs('push', 'windows'), {windows:true,linux:true,macos:true});
   assert.deepEqual(platformJobs('workflow_dispatch', 'linux'), {windows:false,linux:true,macos:false});
   assert.throws(() => platformJobs('pull_request', 'all'));
 });
