@@ -217,6 +217,15 @@ Push and workflow execution require separate authorization.
 Independent platform selections use separate workflow concurrency groups, so a
 Linux proof does not hold a macOS proof in the queue.
 
+A signed macOS dispatch may set `macos_proof_run_id` to recheck an existing DMG
+after a change to verification tools, without rebuilding or notarizing it.
+The source must be a dispatch of this workflow in the same repository and branch.
+CI fetches its source commit and requires identical `apps/`, `crates/` and root
+Cargo manifests/lockfile before downloading the artifact named for that commit.
+The runtime jobs still run all native/frontend tests and signing/startup gates;
+their report records the package's source separately from the verifier's commit.
+Tag releases and unsigned or other-platform proofs cannot use this input.
+
 Linux builds AppImage and Debian packages on Ubuntu 22.04 x64; runtime jobs
 install the Debian package and launch both formats on Ubuntu 22.04 and 24.04.
 AppImage uses its normal FUSE route. macOS builds a universal Apple Silicon/Intel

@@ -15,6 +15,10 @@ on:
         type: choice
         default: windows
         options: [windows, linux, macos, all]
+      macos_proof_run_id:
+        description: "Optional existing signed DMG run to recheck; signed macOS proofs only"
+        type: string
+        default: ""
       sign_proof:
         description: "Sign selected proof packages with existing organisation credentials; never create a release"
         required: false
@@ -46,6 +50,7 @@ jobs:
           INPUT_RELEASE_TAG: ${{ inputs.release_tag }}
           INPUT_SIGN_PROOF: ${{ inputs.sign_proof }}
           INPUT_PROOF_PLATFORM: ${{ inputs.proof_platform }}
+          INPUT_MACOS_PROOF_RUN_ID: ${{ inputs.macos_proof_run_id }}
         run: node tools/release.mjs workflow --github-output
   windows:
     needs: route
@@ -284,7 +289,7 @@ jobs:
 
   macos:
     needs: route
-    if: github.event_name == 'workflow_dispatch' && needs.route.outputs.macos == 'true'
+    if: github.event_name == 'workflow_dispatch' && needs.route.outputs.macos == 'true' && !inputs.macos_proof_run_id
     runs-on: macos-15
     timeout-minutes: 90
     env:
@@ -355,6 +360,10 @@ jobs:
 
   macos-runtime:
     needs: [route, macos]
+    if: always() && needs.route.result == 'success' && needs.route.outputs.macos == 'true' && (needs.macos.result == 'success' || inputs.macos_proof_run_id != '')
+    permissions:
+      contents: read
+      actions: read
     runs-on: ${{ matrix.os }}
     timeout-minutes: 60
     strategy:
@@ -385,9 +394,22 @@ jobs:
       - run: cargo test --locked --manifest-path apps/pile-plan-studio/src-tauri/Cargo.toml
       - run: npm test
         working-directory: apps/pile-plan-studio
+      - name: Verify package provenance and matching application source
+        id: package_source
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PACKAGE_RUN_ID: ${{ inputs.macos_proof_run_id || github.run_id }}
+        run: |
+          gh api "repos/$GITHUB_REPOSITORY/actions/runs/$PACKAGE_RUN_ID" > "$RUNNER_TEMP/macos-package-source.json"
+          node tools/verify_macos_proof_source.mjs "$RUNNER_TEMP/macos-package-source.json" >> "$GITHUB_OUTPUT"
+          source_sha=$(node -p 'JSON.parse(require("fs").readFileSync(process.env.RUNNER_TEMP+"/macos-package-source.json")).head_sha')
+          git fetch --depth=1 origin "$source_sha"
+          git diff --exit-code "$source_sha" HEAD -- apps crates Cargo.toml Cargo.lock
       - uses: actions/download-artifact@v4
         with:
-          name: macos-packages-${{ github.sha }}
+          name: macos-packages-${{ steps.package_source.outputs.sha }}
+          run-id: ${{ inputs.macos_proof_run_id || github.run_id }}
+          github-token: ${{ github.token }}
           path: macos-packages
       - name: Inspect and launch same universal package
         env:
@@ -395,6 +417,8 @@ jobs:
           SIGNING_MODE: ${{ inputs.sign_proof && 'signed' || 'unsigned' }}
           APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
         run: |
+          mkdir -p "$RUNNER_TEMP/macos-proof"
+          cp "$RUNNER_TEMP/macos-package-source.json" "$RUNNER_TEMP/macos-proof/package-source.json"
           bash tools/check_macos_package.sh macos-packages/*.dmg "$EXPECTED_VERSION" "$SIGNING_MODE" "$RUNNER_TEMP/macos-proof"
           sw_vers > "$RUNNER_TEMP/macos-proof/os.txt"
           uname -m >> "$RUNNER_TEMP/macos-proof/os.txt"

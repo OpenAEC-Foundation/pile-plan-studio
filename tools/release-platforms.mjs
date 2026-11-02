@@ -8,3 +8,11 @@ export function platformJobs(event, value) {
   const selected = event === 'push' ? ['windows'] : proofPlatforms(value);
   return Object.fromEntries(['windows', 'linux', 'macos'].map(name => [name, selected.includes(name)]));
 }
+export function macosProofRun({event, platform, signProof, runId = ''}) {
+  if (runId === '') return '';
+  if (event !== 'workflow_dispatch' || platform !== 'macos' || signProof !== true ||
+      !/^[1-9][0-9]*$/.test(runId) || !Number.isSafeInteger(Number(runId))) {
+    throw new Error('Existing macOS proof run requires a numeric run ID and an explicit signed macOS dispatch.');
+  }
+  return runId;
+}

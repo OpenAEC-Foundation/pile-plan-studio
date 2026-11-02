@@ -1,9 +1,18 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { proofPlatforms, platformJobs } from './release-platforms.mjs';
+import { proofPlatforms, platformJobs, macosProofRun } from './release-platforms.mjs';
 import { spawnSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
+test('existing macOS packages can only be rechecked in explicit signed macOS dispatches', () => {
+  assert.equal(macosProofRun({}), '');
+  const input={event:'workflow_dispatch',platform:'macos',signProof:true,runId:'41431616378'};
+  assert.equal(macosProofRun(input), '41431616378');
+  for (const change of [{event:'push'}, {platform:'linux'}, {signProof:false},
+    {runId:'../other'}, {runId:'0'}, {runId:'1\n2'}]) {
+    assert.throws(() => macosProofRun({...input,...change}));
+  }
+});
 test('proof selection defaults to Windows and expands only supported names', () => {
   assert.deepEqual(proofPlatforms(), ['windows']);
   for (const name of ['windows', 'linux', 'macos']) assert.deepEqual(proofPlatforms(name), [name]);

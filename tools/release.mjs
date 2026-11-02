@@ -4,7 +4,7 @@ import { fileURLToPath } from 'node:url';
 import { appendFileSync, existsSync, readFileSync } from 'node:fs';
 import { amsterdamDate, isoWeek, nextVersion, releaseInfo } from './release-version.mjs';
 import { checkProject, prepareProject, readPackage, run, versionFiles } from './release-project.mjs';
-import { platformJobs } from './release-platforms.mjs';
+import { platformJobs, macosProofRun } from './release-platforms.mjs';
 import { workflowPlan } from './release-workflow.mjs';
 
 export function readGitTags(root, execute = run) {
@@ -70,6 +70,10 @@ export function main(args, {
       signProof: process.env.INPUT_SIGN_PROOF === 'true',
     }, info.version) } : info;
     if (command === 'workflow') {
+      details.macos_proof_run_id = macosProofRun({
+        event: process.env.GITHUB_EVENT_NAME, platform: process.env.INPUT_PROOF_PLATFORM,
+        signProof: details.sign, runId: process.env.INPUT_MACOS_PROOF_RUN_ID || '',
+      });
       const jobs = platformJobs(process.env.GITHUB_EVENT_NAME, process.env.INPUT_PROOF_PLATFORM || undefined);
       for (const [platform, enabled] of Object.entries(jobs)) details['build_' + platform] = enabled;
     }
