@@ -208,6 +208,48 @@ Local route/validator tests do not prove that GitHub actually received a tag
 push. An actual CI proof requires a separately authorized push/run; do not push
 to `main` merely to enable it, because that also deploys the browser application.
 
+## Linux and macOS proof builds (not published platforms)
+
+Manual dispatch of the existing `release.yml` accepts `proof_platform`:
+`windows` (default), `linux`, `macos`, or `all`. New platform jobs run only
+on manual dispatch. Tag releases still use the existing Windows route.
+Push and workflow execution require separate authorization.
+
+Linux builds AppImage and Debian packages on Ubuntu 22.04 x64; runtime jobs
+install the Debian package and launch both formats on Ubuntu 22.04 and 24.04.
+AppImage uses its normal FUSE route. macOS builds a universal Apple Silicon/Intel
+DMG with a configured minimum of macOS 15.0, then inspects and launches the same
+DMG on native `macos-15` and `macos-15-intel` runners. Both Mac architectures
+also run the native Rust/Tauri and frontend tests. Linux and macOS retain native
+HiGHS; they do not substitute a different solver.
+
+`sign_proof=false` produces unsigned proofs. `sign_proof=true` requires existing
+organization credentials and fails if they are unavailable. macOS reuses
+`APPLE_CERTIFICATE`, `APPLE_CERTIFICATE_PASSWORD`, `APPLE_SIGNING_IDENTITY`,
+`APPLE_API_KEY_CONTENT`, `APPLE_API_KEY`, and `APPLE_API_ISSUER`. The certificate
+and temporary keychain are removed in an always-run cleanup step. Both the app
+and the DMG require Developer ID signing, notarization and stapled tickets.
+Linux reuses secrets `OPENAEC_GPG_PRIVATE_KEY`, `OPENAEC_GPG_PASSPHRASE` and
+variable `OPENAEC_GPG_FINGERPRINT`. It signs the AppImage, Debian package and
+`SHA256SUMS`, exports the public key and checks the signatures again in a fresh
+public keyring. Compare the full fingerprint with the organization's trusted
+source before importing a downloaded public key. These are download signatures;
+they do not configure apt repository trust or the Tauri updater.
+
+Proof artifacts contain package metadata, dependencies, source SHA, version and
+process paths. Their `interactive-acceptance.txt` explicitly records GUI checks
+as **NOT RUN**: a surviving process does not prove webview readiness. Before
+claiming platform support, verify native open/save/save-as, Unicode paths,
+CSV/XLSX import/export, IFCPP reopening, the shared native/browser ILP fixture,
+optimization stop/cancel/apply and undo, plus session-gated MCP access on each
+OS. Check Finder/open-with both cold and with the app already running. Test
+additional distributions or older macOS releases before making compatibility claims.
+
+The proof routes have not yet established Linux/macOS support or public downloads.
+No release is created by dispatch. Release integration, a new version/tag, public
+download links and the separate product website remain subsequent work after
+reviewing platform evidence.
+
 ## Tagging and publication
 
 Only tag, push or publish when requested. Use a reviewed source commit with a

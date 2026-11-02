@@ -1,4 +1,4 @@
-name: Build Windows release
+name: Desktop release and platform proofs
 
 on:
   push:
@@ -10,21 +10,48 @@ on:
         description: "Prepared tag to validate (vYYYY.W.N); proof only, no release creation"
         required: true
         type: string
+      proof_platform:
+        description: "Platforms to test; new platforms are proof-only"
+        type: choice
+        default: windows
+        options: [windows, linux, macos, all]
       sign_proof:
-        description: "Sign the proof app, uninstaller and installer with the existing Azure identity; never create a release"
+        description: "Sign selected proof packages with existing organisation credentials; never create a release"
         required: false
         default: false
         type: boolean
 
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
   group: release-${{ github.ref }}
   cancel-in-progress: false
 
 jobs:
+  route:
+    runs-on: ubuntu-22.04
+    outputs:
+      windows: ${{ steps.route.outputs.build_windows }}
+      linux: ${{ steps.route.outputs.build_linux }}
+      macos: ${{ steps.route.outputs.build_macos }}
+      version: ${{ steps.route.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - id: route
+        env:
+          INPUT_RELEASE_TAG: ${{ inputs.release_tag }}
+          INPUT_SIGN_PROOF: ${{ inputs.sign_proof }}
+          INPUT_PROOF_PLATFORM: ${{ inputs.proof_platform }}
+        run: node tools/release.mjs workflow --github-output
   windows:
+    needs: route
+    if: needs.route.outputs.windows == 'true'
+    permissions:
+      contents: write
     name: Test and build Windows installer
     runs-on: windows-latest
 
@@ -170,3 +197,211 @@ jobs:
           name: ${{ steps.release.outputs.title }}
           files: ${{ steps.installer.outputs.path }}
           fail_on_unmatched_files: true
+
+  linux:
+    needs: route
+    if: github.event_name == 'workflow_dispatch' && needs.route.outputs.linux == 'true'
+    runs-on: ubuntu-22.04
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: apps/pile-plan-studio/package-lock.json
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: wasm-pack
+      - name: Install Linux build tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential cmake clang libclang-dev pkg-config libwebkit2gtk-4.1-dev libxdo-dev libssl-dev libayatana-appindicator3-dev librsvg2-dev curl wget file patchelf gnupg libfuse2 xvfb dbus-x11 xdotool
+      - run: npm ci
+        working-directory: apps/pile-plan-studio
+      - run: cargo test --workspace --locked
+      - run: cargo test --locked --manifest-path apps/pile-plan-studio/src-tauri/Cargo.toml
+      - run: npm test
+        working-directory: apps/pile-plan-studio
+      - name: Test Linux signing with disposable key
+        run: bash tools/tests/linux-signing.test.sh
+      - name: Build Linux packages
+        working-directory: apps/pile-plan-studio
+        run: npm run tauri -- build --bundles deb,appimage
+      - name: Collect exact package pair
+        shell: bash
+        run: |
+          mkdir linux-packages
+          cp apps/pile-plan-studio/src-tauri/target/release/bundle/deb/*.deb linux-packages/
+          cp apps/pile-plan-studio/src-tauri/target/release/bundle/appimage/*.AppImage linux-packages/
+          test "$(find linux-packages -type f | wc -l)" -eq 2
+      - name: Sign Linux downloads
+        if: inputs.sign_proof
+        env:
+          OPENAEC_GPG_PRIVATE_KEY: ${{ secrets.OPENAEC_GPG_PRIVATE_KEY }}
+          OPENAEC_GPG_PASSPHRASE: ${{ secrets.OPENAEC_GPG_PASSPHRASE }}
+          OPENAEC_GPG_FINGERPRINT: ${{ vars.OPENAEC_GPG_FINGERPRINT }}
+        run: bash tools/sign_linux_artifacts.sh linux-packages
+      - uses: actions/upload-artifact@v4
+        with:
+          name: linux-packages-${{ github.sha }}
+          path: linux-packages/
+          if-no-files-found: error
+
+  linux-runtime:
+    needs: [route, linux]
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-22.04, ubuntu-24.04]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: linux-packages-${{ github.sha }}
+          path: linux-packages
+      - run: sudo apt-get update && sudo apt-get install -y xvfb dbus-x11 ${{ matrix.os == 'ubuntu-24.04' && 'libfuse2t64' || 'libfuse2' }}
+      - name: Check installed Linux package
+        env:
+          EXPECTED_VERSION: ${{ needs.route.outputs.version }}
+        run: |
+          deb=$(realpath linux-packages/*.deb)
+          dbus-run-session -- xvfb-run -a bash tools/check_linux_package.sh "$deb" "$EXPECTED_VERSION" "$RUNNER_TEMP/linux-proof"
+          image=$(realpath linux-packages/*.AppImage)
+          dbus-run-session -- xvfb-run -a bash tools/check_linux_appimage.sh "$image" "$RUNNER_TEMP/linux-proof"
+          uname -a > "$RUNNER_TEMP/linux-proof/os.txt"
+          node tools/release.mjs info > "$RUNNER_TEMP/linux-proof/version.json"
+          git rev-parse HEAD > "$RUNNER_TEMP/linux-proof/source-sha.txt"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: linux-runtime-${{ matrix.os }}-${{ github.sha }}
+          path: ${{ runner.temp }}/linux-proof/
+
+  macos:
+    needs: route
+    if: github.event_name == 'workflow_dispatch' && needs.route.outputs.macos == 'true'
+    runs-on: macos-15
+    timeout-minutes: 90
+    env:
+      MACOSX_DEPLOYMENT_TARGET: "15.0"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: apps/pile-plan-studio/package-lock.json
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown,aarch64-apple-darwin,x86_64-apple-darwin
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: wasm-pack
+      - name: Prepare CMake and libclang
+        run: |
+          brew install cmake llvm
+          echo "LIBCLANG_PATH=$(brew --prefix llvm)/lib" >> "$GITHUB_ENV"
+      - run: npm ci
+        working-directory: apps/pile-plan-studio
+      - run: cargo test --workspace --locked
+      - run: cargo test --locked --manifest-path apps/pile-plan-studio/src-tauri/Cargo.toml
+      - run: npm test
+        working-directory: apps/pile-plan-studio
+      - name: Prepare existing Apple identity
+        if: inputs.sign_proof
+        env:
+          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+          APPLE_API_KEY_CONTENT: ${{ secrets.APPLE_API_KEY_CONTENT }}
+          APPLE_API_KEY: ${{ secrets.APPLE_API_KEY }}
+          APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
+        run: bash tools/prepare_macos_signing.sh
+      - name: Build universal app and DMG
+        working-directory: apps/pile-plan-studio
+        env:
+          APPLE_SIGNING_IDENTITY: ${{ inputs.sign_proof && secrets.APPLE_SIGNING_IDENTITY || '' }}
+          APPLE_API_KEY: ${{ secrets.APPLE_API_KEY }}
+          APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
+        run: |
+          args=()
+          if [[ '${{ inputs.sign_proof }}' != true ]]; then args+=(--no-sign); fi
+          npm run tauri -- build --target universal-apple-darwin --bundles app,dmg "${args[@]}"
+      - name: Collect and notarize DMG
+        env:
+          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+          APPLE_API_KEY: ${{ secrets.APPLE_API_KEY }}
+          APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
+        run: |
+          mkdir macos-packages
+          cp apps/pile-plan-studio/src-tauri/target/universal-apple-darwin/release/bundle/dmg/*.dmg macos-packages/
+          test "$(find macos-packages -type f | wc -l)" -eq 1
+          if [[ '${{ inputs.sign_proof }}' == true ]]; then bash tools/notarize_macos_dmg.sh macos-packages/*.dmg; fi
+      - uses: actions/upload-artifact@v4
+        with:
+          name: macos-packages-${{ github.sha }}
+          path: macos-packages/
+          if-no-files-found: error
+      - name: Remove temporary Apple credentials
+        if: always()
+        run: |
+          security delete-keychain "$RUNNER_TEMP/pile-plan-signing.keychain-db" || true
+          rm -f "$RUNNER_TEMP/pile-plan-signing.p12" "$RUNNER_TEMP/pile-plan-notary.p8"
+
+  macos-runtime:
+    needs: [route, macos]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-15, macos-15-intel]
+    env:
+      MACOSX_DEPLOYMENT_TARGET: "15.0"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: apps/pile-plan-studio/package-lock.json
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: wasm-pack
+      - run: |
+          brew install cmake llvm
+          echo "LIBCLANG_PATH=$(brew --prefix llvm)/lib" >> "$GITHUB_ENV"
+      - run: npm ci
+        working-directory: apps/pile-plan-studio
+      - run: cargo test --workspace --locked
+      - run: cargo test --locked --manifest-path apps/pile-plan-studio/src-tauri/Cargo.toml
+      - run: npm test
+        working-directory: apps/pile-plan-studio
+      - uses: actions/download-artifact@v4
+        with:
+          name: macos-packages-${{ github.sha }}
+          path: macos-packages
+      - name: Inspect and launch same universal package
+        env:
+          EXPECTED_VERSION: ${{ needs.route.outputs.version }}
+          SIGNING_MODE: ${{ inputs.sign_proof && 'signed' || 'unsigned' }}
+          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+        run: |
+          bash tools/check_macos_package.sh macos-packages/*.dmg "$EXPECTED_VERSION" "$SIGNING_MODE" "$RUNNER_TEMP/macos-proof"
+          sw_vers > "$RUNNER_TEMP/macos-proof/os.txt"
+          uname -m >> "$RUNNER_TEMP/macos-proof/os.txt"
+          node tools/release.mjs info > "$RUNNER_TEMP/macos-proof/version.json"
+          git rev-parse HEAD > "$RUNNER_TEMP/macos-proof/source-sha.txt"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: macos-runtime-${{ matrix.os }}-${{ github.sha }}
+          path: ${{ runner.temp }}/macos-proof/
