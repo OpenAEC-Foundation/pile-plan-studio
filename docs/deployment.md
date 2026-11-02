@@ -214,6 +214,8 @@ Manual dispatch of the existing `release.yml` accepts `proof_platform`:
 `windows` (default), `linux`, `macos`, or `all`. New platform jobs run only
 on manual dispatch. Tag releases still use the existing Windows route.
 Push and workflow execution require separate authorization.
+Independent platform selections use separate workflow concurrency groups, so a
+Linux proof does not hold a macOS proof in the queue.
 
 Linux builds AppImage and Debian packages on Ubuntu 22.04 x64; runtime jobs
 install the Debian package and launch both formats on Ubuntu 22.04 and 24.04.
