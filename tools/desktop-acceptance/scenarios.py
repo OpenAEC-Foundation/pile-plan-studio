@@ -264,7 +264,9 @@ try:
         subprocess.run(["/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister","-f",str(bundle)],check=True)
         subprocess.run(["open",str(other)],check=True)
     else:
-        mime=subprocess.check_output(["xdg-mime","query","filetype",str(other)],text=True).strip()
+        info=subprocess.check_output(["gio","info","-a","standard::content-type",str(other)],text=True)
+        (output/"association-file-info.txt").write_text(info)
+        mime=next(line.split(": ",1)[1].strip() for line in info.splitlines() if line.strip().startswith("standard::content-type:"))
         assert mime=="application/x-ifcpp", f"IFCPP MIME type missing from package: {mime}"
         handler=subprocess.check_output(["xdg-mime","query","default",mime],text=True).strip()
         assert handler=="Open Pile Plan Studio.desktop", f"Wrong installed handler: {handler}"

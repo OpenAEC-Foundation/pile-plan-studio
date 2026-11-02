@@ -117,7 +117,7 @@ class UI:
     def check(self, name, checked):
         nodes=self.find(name,button=True)
         assert len(nodes)==1 and "checked" in nodes[0], nodes
-        if nodes[0]["checked"] != checked: self.press(nodes[0])
+        if nodes[0]["checked"] != checked: self.press(nodes[0],physical=not self.mac)
         assert self.find(name,button=True)[0]["checked"] == checked
 
     def key(self, key, *modifiers):

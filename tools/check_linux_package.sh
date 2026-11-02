@@ -13,9 +13,13 @@ grep -Fxq 'MimeType=application/x-ifcpp;' "$desktop"
 cp "$desktop" "$output/installed.desktop"
 cp /usr/share/mime/packages/pile-plan-studio.xml "$output/installed-mime.xml"
 cp sample_project/sample_project.ifcpp "$output/Proef met spaties é.ifcpp"
-filetype=$(xdg-mime query filetype "$output/Proef met spaties é.ifcpp")
+gio info -a standard::content-type "$output/Proef met spaties é.ifcpp" > "$output/association-file-info.txt"
+filetype=$(awk '$1=="standard::content-type:" {print $2}' "$output/association-file-info.txt")
 handler=$(xdg-mime query default application/x-ifcpp)
 printf 'type=%s\nhandler=%s\n' "$filetype" "$handler" | tee "$output/association.txt"
+# Headless xdg-mime may fall back to file(1) content sniffing, which intentionally
+# ignores our extension database. GIO is the API used by the tested file opener.
+xdg-mime query filetype "$output/Proef met spaties é.ifcpp" > "$output/headless-xdg-type.txt"
 test "$filetype" = application/x-ifcpp
 test "$handler" = 'Open Pile Plan Studio.desktop'
 binary=/usr/bin/pile-plan-studio
