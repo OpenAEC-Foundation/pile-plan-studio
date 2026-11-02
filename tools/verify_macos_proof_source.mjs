@@ -11,9 +11,20 @@ export function validateMacosProofSource(run, repository, branch) {
   }
   return run.head_sha;
 }
+export function validateMacosProofTests(result, runner) {
+  if (!['macos-15','macos-15-intel'].includes(runner)) throw new Error('Unknown Mac architecture runner.');
+  const jobs = result.jobs?.filter(job => job.name === 'macos-runtime (' + runner + ')') ?? [];
+  const required = ['Run cargo test --workspace --locked',
+    'Run cargo test --locked --manifest-path apps/pile-plan-studio/src-tauri/Cargo.toml', 'Run npm test'];
+  if (jobs.length !== 1 || required.some(name => !jobs[0].steps?.some(step =>
+    step.name === name && step.status === 'completed' && step.conclusion === 'success'))) {
+    throw new Error('Source DMG requires successful native and frontend tests on ' + runner + '.');
+  }
+}
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   try {
     const run = JSON.parse(readFileSync(process.argv[2], 'utf8'));
+    if (process.argv[3]) validateMacosProofTests(JSON.parse(readFileSync(process.argv[3], 'utf8')), process.argv[4]);
     console.log('sha=' + validateMacosProofSource(run, process.env.GITHUB_REPOSITORY, process.env.GITHUB_REF_NAME));
   } catch (error) {
     console.error(error.message);

@@ -222,8 +222,11 @@ after a change to verification tools, without rebuilding or notarizing it.
 The source must be a dispatch of this workflow in the same repository and branch.
 CI fetches its source commit and requires identical `apps/`, `crates/` and root
 Cargo manifests/lockfile before downloading the artifact named for that commit.
-The runtime jobs still run all native/frontend tests and signing/startup gates;
-their report records the package's source separately from the verifier's commit.
+For an existing package, CI requires the source run's native workspace, Tauri and
+frontend tests to have completed successfully on the same architecture. It runs
+the current verifier tests and repeats all package signing/startup gates. The
+report records the source tests and package commit separately from the verifier.
+Fresh builds continue to run the complete native/frontend suites.
 Tag releases and unsigned or other-platform proofs cannot use this input.
 
 Linux builds AppImage and Debian packages on Ubuntu 22.04 x64; runtime jobs
