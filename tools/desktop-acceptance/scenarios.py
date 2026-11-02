@@ -161,7 +161,7 @@ try:
         assert archive.testzip() is None and "xl/workbook.xml" in archive.namelist()
         sheets=[n for n in archive.namelist() if n.startswith("xl/worksheets/sheet") and n.endswith(".xml")]
         assert sheets and any(archive.read(n).count(b"<row")>=329 for n in sheets), "Export omitted load point rows"
-    ui.click("File")
+    ui.key("escape")
     passed(stage, unicode_and_spaces=True, cancelled_open=True,cancelled_save=True, overwritten=True,
         reopened=True,csv_data_rows=len(rows)-1,xlsx_valid=True)
 
@@ -175,6 +175,7 @@ try:
     assert len(optimize_buttons)==2, optimize_buttons
     ui.press(optimize_buttons[-1])
     ui.wait_name("Cancel",timeout=30)
+    ui.wait(lambda tree: any(ui.label(n).startswith("Elapsed:") for n in tree))
     ui.evidence(output,"optimization-running")
     ui.click("Cancel")
     ui.wait(lambda _: not ui.find("Cancel",button=True,refresh=False),timeout=30)
@@ -183,11 +184,12 @@ try:
     assert after_cancel["user_state"]["pile_plans"]==actual["user_state"]["pile_plans"], "Cancellation committed a result"
     ui.evidence(output,"optimization-cancelled")
     # A fresh run saves as a new plan so one atomic result/undo is observable.
-    disclosures=[n for n in ui.snapshot() if ui.button(n) and ui.label(n).startswith("Save as")]
-    assert len(disclosures)==1, disclosures
-    ui.press(disclosures[0])
-    ui.click("Save as new pile plan")
-    ui.click("Optimize coherence")
+    if not ui.find("Save as new pile plan",button=True):
+        disclosures=[n for n in ui.snapshot() if ui.button(n) and ui.label(n).startswith("Save as")]
+        assert len(disclosures)==1, disclosures
+        ui.press(disclosures[0])
+    ui.check("Save as new pile plan", True)
+    ui.check("Optimize coherence", False)
     save_current()
     baseline=project(saved)
     optimize_buttons=ui.find("Optimize",button=True)
@@ -217,7 +219,7 @@ try:
         assert mime=="application/x-ifcpp", f"IFCPP MIME type missing from package: {mime}"
         handler=subprocess.check_output(["xdg-mime","query","default",mime],text=True).strip()
         assert handler=="Open Pile Plan Studio.desktop", f"Wrong installed handler: {handler}"
-        subprocess.run(["xdg-open",str(other)],check=True,timeout=15)
+        subprocess.run(["gio","open",str(other)],check=True,timeout=15)
     # Locate only this product's native process, not the controller or launcher.
     deadline=time.monotonic()+30
     pid=None
@@ -230,7 +232,8 @@ try:
     ui=UI(pid)
     ui.wait_name(second["metadata"]["name"],timeout=45)
     ui.evidence(output,"association-cold")
-    subprocess.Popen(["open" if ui.mac else "xdg-open",str(source)],stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL)
+    command=["open",str(source)] if ui.mac else ["gio","open",str(source)]
+    subprocess.Popen(command,stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL)
     ui.wait_name(first["metadata"]["name"],timeout=30)
     os.kill(pid,0)
     ui.evidence(output,"association-warm")

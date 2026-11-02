@@ -22,6 +22,9 @@ func snapshot(_ e: AXUIElement, _ depth: Int = 0, _ parent: Int = -1) -> [[Strin
         AXValueGetValue(v as! AXValue, .cgSize, &s)
     }
     node["rect"] = [p.x,p.y,s.width,s.height]
+    if string(e,kAXRoleAttribute) == "AXCheckBox" {
+        node["checked"] = (attr(e,kAXValueAttribute) as? NSNumber)?.intValue == 1
+    }
     var result = [node]
     for child in (attr(e, kAXChildrenAttribute) as? [AXUIElement]) ?? [] {
         result += snapshot(child, depth + 1, id)

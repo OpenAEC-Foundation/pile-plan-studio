@@ -46,7 +46,8 @@ class UI:
             ident = len(self.tree)
             self.elements.append(e)
             node = dict(id=ident, parent=parent, role=e.getRoleName(), name=e.name,
-                description=e.description, enabled=e.getState().contains(self.atspi.STATE_ENABLED))
+                description=e.description, enabled=e.getState().contains(self.atspi.STATE_ENABLED),
+                checked=e.getState().contains(self.atspi.STATE_CHECKED))
             try: node["rect"] = list(e.queryComponent().getExtents(self.atspi.DESKTOP_COORDS))
             except NotImplementedError: pass
             try: node["value"] = e.queryText().getText(0, -1)
@@ -101,6 +102,12 @@ class UI:
         candidates = self.find(name, button=True)
         assert len(candidates) == 1, f"Expected one control {name!r}: {candidates}"
         self.press(candidates[0])
+
+    def check(self, name, checked):
+        nodes=self.find(name,button=True)
+        assert len(nodes)==1 and "checked" in nodes[0], nodes
+        if nodes[0]["checked"] != checked: self.press(nodes[0])
+        assert self.find(name,button=True)[0]["checked"] == checked
 
     def key(self, key, *modifiers):
         if self.mac:
