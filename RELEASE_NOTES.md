@@ -1,5 +1,42 @@
 # Open Pile Plan Studio Release Notes
 
+## 2026.45.1
+
+This alpha adds signed Linux and macOS desktop packages alongside Windows,
+using the same Rust engineering core and IFCPP project format.
+
+### Added
+
+- A universal macOS DMG for Apple Silicon and Intel, requiring macOS 15 or newer.
+  The app and DMG use Developer ID signing, Apple notarization and stapled tickets.
+- Linux x64 Debian and AppImage packages, tested on Ubuntu 22.04 and 24.04.
+  Detached OpenPGP signatures and a signed Linux checksum manifest are included.
+- An all-platform release build that waits for native tests, package inspection
+  and signed Linux/macOS interface acceptance before assembling a draft release.
+  Installer checksums and a source/build manifest accompany the downloads.
+
+### Improved and fixed
+
+- Open IFCPP projects from Finder both at startup and in an existing macOS app
+  window, including paths with spaces and Unicode characters.
+- Register the IFCPP file type and pass selected files to the installed Linux
+  app. The portable AppImage supports project arguments without installing a
+  system-wide file association.
+- Exercise the actual packaged drawing, native file dialogs, save/reopen,
+  CSV/XLSX exports and optimization progress/cancel/commit/undo on Linux and
+  both macOS architectures. The app contains no test automation plugin.
+
+### Compatibility and limitations
+
+- Engineering calculations, source-import rules and IFCPP schema 8 are unchanged
+  from 2026.44.4. Supported older IFCPP projects remain readable.
+- Linux coverage is Ubuntu 22.04/24.04 x64; AppImage execution uses FUSE.
+  macOS coverage is macOS 15 on Apple Silicon and Intel.
+- Existing Windows Authenticode signing remains in place. Linux download
+  signatures do not configure an apt repository or an application updater.
+- MCP client readiness is tracked separately in issue #48.
+- The application remains Alpha; engineering results require professional review.
+
 ## 2026.44.4
 
 This alpha adds compression and tension checks, flexible source and pile-plan

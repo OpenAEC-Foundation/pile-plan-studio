@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mime-info xmlns="http://www.freedesktop.org/standards/shared-mime-info">
+  <mime-type type="application/x-ifcpp">
+    <comment>IFCPP project</comment>
+    <comment xml:lang="nl">IFCPP-project</comment>
+    <sub-class-of type="application/json"/>
+    <glob pattern="*.ifcpp"/>
+  </mime-type>
+</mime-info>

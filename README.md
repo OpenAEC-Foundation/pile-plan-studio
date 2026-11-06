@@ -5,11 +5,11 @@
 </p>
 
 <p align="center">
-  <a href="RELEASE_NOTES.md"><img src="https://img.shields.io/badge/release-v2026.44.4-D97706?style=flat-square" alt="Release v2026.44.4"></a>
+  <a href="RELEASE_NOTES.md"><img src="https://img.shields.io/badge/release-v2026.45.1-D97706?style=flat-square" alt="Release v2026.45.1"></a>
   <img src="https://img.shields.io/badge/status-Alpha-D97706?style=flat-square" alt="Status: Alpha">
   <a href="https://github.com/OpenAEC-Foundation/pile-plan-studio/releases"><img src="https://img.shields.io/github/downloads/OpenAEC-Foundation/pile-plan-studio/total?style=flat-square" alt="Total downloads"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-LGPL--3.0-blue?style=flat-square" alt="LGPL-3.0 license"></a>
-  <a href="https://pile-plan-studio.open-aec.com/"><img src="https://img.shields.io/badge/platform-Web%20%7C%20Windows-lightgrey?style=flat-square" alt="Web and Windows"></a>
+  <a href="https://pile-plan-studio.open-aec.com/"><img src="https://img.shields.io/badge/platform-Web%20%7C%20Windows%20%7C%20macOS%20%7C%20Linux-lightgrey?style=flat-square" alt="Web, Windows, macOS and Linux"></a>
   <img src="https://img.shields.io/badge/core-Rust-black?style=flat-square&logo=rust" alt="Rust calculation core">
   <img src="https://img.shields.io/badge/desktop-Tauri%202-24C8DB?style=flat-square&logo=tauri" alt="Tauri 2 desktop application">
 </p>
@@ -17,7 +17,7 @@
 <p align="center">
   <a href="https://pile-plan-studio.open-aec.com/"><strong>Try Open Pile Plan Studio in your browser</strong></a>
   &nbsp;&middot;&nbsp;
-  <a href="https://open-aec.com/open-pile-plan-studio/#download"><strong>Download the Windows installer</strong></a>
+  <a href="https://github.com/OpenAEC-Foundation/pile-plan-studio/releases/tag/v2026.45.1"><strong>Desktop downloads: Windows, macOS and Linux</strong></a>
 </p>
 
 ---
@@ -77,7 +77,7 @@ browser.
   import columns, review location links, and export assignments, proposed pile
   positions and CPT identifiers to Excel or CSV.
 - Keep project costs separate from application preferences while using the same
-  Rust calculation core in the browser and Windows desktop application.
+  Rust calculation core in the browser and desktop applications.
 - Connect a local AI client to the Windows desktop app through MCP to inspect
   and, when explicitly enabled, edit the open project using the Rust core.
 
@@ -110,13 +110,24 @@ for the model and solver details.
 The [live browser demo](https://pile-plan-studio.open-aec.com/) opens directly
 with the sample project and is the quickest way to explore the application.
 
-The [OpenAEC download page](https://open-aec.com/open-pile-plan-studio/#download)
-links directly to the latest published signed Windows x64 installer. Release
-history and installer assets remain available on
+The 2026.45.1 alpha provides the following desktop packages when published:
+
+| System | Download | Signing and tested baseline |
+| --- | --- | --- |
+| Windows x64 | [NSIS installer](https://github.com/OpenAEC-Foundation/pile-plan-studio/releases/download/v2026.45.1/Open.Pile.Plan.Studio_2026.45.1_x64-setup.exe) | Azure Authenticode signing |
+| macOS 15+ | [Universal DMG](https://github.com/OpenAEC-Foundation/pile-plan-studio/releases/download/v2026.45.1/Open.Pile.Plan.Studio_2026.45.1_universal.dmg) | Apple Silicon and Intel; Developer ID signed, notarized and stapled |
+| Linux x64 | [Debian package](https://github.com/OpenAEC-Foundation/pile-plan-studio/releases/download/v2026.45.1/Open.Pile.Plan.Studio_2026.45.1_amd64.deb) · [AppImage](https://github.com/OpenAEC-Foundation/pile-plan-studio/releases/download/v2026.45.1/Open.Pile.Plan.Studio_2026.45.1_amd64.AppImage) | Ubuntu 22.04/24.04; detached OpenPGP signatures |
+
+Release history, checksums and Linux signature/public-key files are on
 [GitHub Releases](https://github.com/OpenAEC-Foundation/pile-plan-studio/releases).
-After installation, `.ifcpp` project files can be opened directly from Windows
-Explorer. If Open Pile Plan Studio is already running, the project opens in the
-existing application window.
+`SHA256SUMS` covers all four installers; `SHA256SUMS-linux` and its detached
+signature cover the Linux packages. The trusted OpenAEC primary fingerprint is
+`13F6D414ADEE4ED4CD09AC60601D86C93C504D29`.
+
+Installed Windows/macOS apps and the Linux Debian package register `.ifcpp`
+project files with the operating system. Opening another project while the app
+is running uses its existing window. The portable AppImage accepts a project
+file argument; launching it does not install host-wide file associations.
 The browser and desktop editions use the same Rust calculation core.
 
 See the [release notes](RELEASE_NOTES.md) for the changes in each alpha.
@@ -345,7 +356,7 @@ See [Known Alpha Limitations](docs/known-limitations.md) for the complete scope.
 | Engineering core | Rust | Project model, import, CPT selection, pile options, costing, optimization |
 | Browser core | WebAssembly | Thin interface to the same Rust engineering core |
 | Interface | React + TypeScript | Application state, interaction, rendering, and presentation |
-| Desktop | Tauri 2 | Native window, file access, and Windows packaging |
+| Desktop | Tauri 2 | Native window, file access, and Windows/macOS/Linux packaging |
 
 Repository layout:
 
@@ -387,7 +398,7 @@ cd apps\pile-plan-studio
 npm test
 ```
 
-Create the browser and Windows desktop builds:
+Create the browser build and the desktop package for the current host OS:
 
 ```powershell
 cd apps\pile-plan-studio

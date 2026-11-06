@@ -1509,3 +1509,12 @@ label, including labels inside a larger control. It also suppresses native title
 fallbacks during hover. Additional explanations, shortcuts, icon-only labels and
 the full text of clipped labels remain available. Explicit duplicate tooltips
 are omitted from location inspection rows and other text-labelled controls.
+
+### macOS document-open events
+
+The native shell routes macOS Finder file URLs from Tauri's `RunEvent::Opened`
+into the same pending IFCPP-path queue used by command-line and single-instance
+launches. Local file URLs are decoded by Tauri's URL type, filtered by the shared
+case-insensitive IFCPP extension check, and consumed by the existing frontend
+project-open flow. The event does not bypass dirty-project prompts, project
+validation or history. Cold opens remain queued until the frontend consumes them.

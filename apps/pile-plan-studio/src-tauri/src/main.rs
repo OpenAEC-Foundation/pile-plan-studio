@@ -93,11 +93,7 @@ where
         .skip(1)
         .filter_map(|argument| {
             let path = PathBuf::from(argument.as_ref());
-            let is_ifcpp = path
-                .extension()
-                .and_then(OsStr::to_str)
-                .is_some_and(|extension| extension.eq_ignore_ascii_case("ifcpp"));
-            if !is_ifcpp {
+            if !is_ifcpp_path(&path) {
                 return None;
             }
             let path = if path.is_absolute() {
@@ -107,6 +103,21 @@ where
             };
             Some(path.to_string_lossy().into_owned())
         })
+        .collect()
+}
+
+fn is_ifcpp_path(path: &Path) -> bool {
+    path.extension()
+        .and_then(OsStr::to_str)
+        .is_some_and(|extension| extension.eq_ignore_ascii_case("ifcpp"))
+}
+
+#[cfg(any(test, target_os = "macos"))]
+fn project_paths_from_urls(urls: &[tauri::Url]) -> Vec<String> {
+    urls.iter()
+        .filter_map(|url| url.to_file_path().ok())
+        .filter(|path| is_ifcpp_path(path))
+        .map(|path| path.to_string_lossy().into_owned())
         .collect()
 }
 
@@ -518,8 +529,18 @@ fn main() {
             mcp_bridge_start,
             mcp_bridge_stop,
         ])
-        .run(tauri::generate_context!())
-        .expect("failed to run Open Pile Plan Studio");
+        .build(tauri::generate_context!())
+        .expect("failed to build Open Pile Plan Studio")
+        .run(|_app, _event| {
+            #[cfg(target_os = "macos")]
+            if let tauri::RunEvent::Opened { urls } = _event {
+                let paths = project_paths_from_urls(&urls);
+                if !paths.is_empty() {
+                    _app.state::<PendingProjectPaths>().extend(paths);
+                    let _ = _app.emit(PROJECT_OPEN_REQUESTED_EVENT, ());
+                }
+            }
+        });
 }
 
 #[cfg(test)]
@@ -550,6 +571,20 @@ mod tests {
                 .join("project.IFCPP")
                 .to_string_lossy()
                 .into_owned()]
+        );
+    }
+
+    #[test]
+    fn file_urls_preserve_local_unicode_paths_and_filter_other_resources() {
+        let path = std::env::temp_dir().join("project space α.IFCPP");
+        let urls = vec![
+            tauri::Url::from_file_path(&path).unwrap(),
+            tauri::Url::parse("https://example.com/project.ifcpp").unwrap(),
+            tauri::Url::from_file_path(path.with_extension("txt")).unwrap(),
+        ];
+        assert_eq!(
+            project_paths_from_urls(&urls),
+            vec![path.to_string_lossy().into_owned()]
         );
     }
 
