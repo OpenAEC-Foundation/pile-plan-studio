@@ -84,7 +84,13 @@ class UI:
     def find(self, name, button=False, refresh=True):
         if refresh: self.snapshot()
         names = name if isinstance(name, tuple) else (name,)
-        return [n for n in self.tree if self.label(n) in names and (not button or self.button(n))]
+        def matches(node):
+            label = self.label(node)
+            # WebKit's native AX checkbox name may repeat its associated label.
+            # Accept only that exact whole-label alias, never a partial match.
+            return label in names or (self.mac and node["role"] == "AXCheckBox" and
+                any(label == f"{expected} {expected}" for expected in names))
+        return [n for n in self.tree if matches(n) and (not button or self.button(n))]
 
     def wait(self, predicate, timeout=30):
         deadline = time.monotonic()+timeout

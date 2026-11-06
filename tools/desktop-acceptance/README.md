@@ -62,3 +62,9 @@ platform's UI before updating selectors; its report explicitly says the
 acceptance scenarios have not been run.
 
 Linux snapshots retry a retired AT-SPI object or Text interface at most four times, collecting a fresh complete tree each time. Other accessibility errors remain failures.
+
+Native Mac checkboxes may expose their associated label twice through WebKit.
+The controller accepts that exact whole-label alias only for `AXCheckBox`; it
+still rejects partial names and ambiguous matches. Process discovery excludes
+the isolated optimizer worker, uses the launched AppImage PID, and retains the
+observed executable identity instead of rereading a potentially retired process.

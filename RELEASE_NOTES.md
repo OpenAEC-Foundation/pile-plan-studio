@@ -1,6 +1,6 @@
 # Open Pile Plan Studio Release Notes
 
-## 2026.45.3
+## 2026.45.4
 
 This alpha brings the application interface onto the shared OpenAEC Blueprint
 components, with consistent controls and themes across the browser and desktop.

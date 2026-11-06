@@ -2,6 +2,73 @@ import unittest
 from unittest.mock import Mock, patch
 from types import SimpleNamespace
 from ui import UI
+from process_identity import is_application_process
+
+
+class NativeCheckboxTests(unittest.TestCase):
+    def controller(self, name, mac=True, role="AXCheckBox"):
+        ui = UI.__new__(UI)
+        ui.mac = mac
+        node = {"name": name, "role": role, "checked": False, "enabled": True}
+        ui.tree = [node]
+        ui.snapshot = lambda: ui.tree
+        def press(found, physical=False):
+            found["checked"] = not found["checked"]
+        ui.press = press
+        return ui, node
+
+    def test_mac_checkbox_accepts_the_full_label_repeated_by_webkit(self):
+        ui, node = self.controller("Save as new pile plan Save as new pile plan")
+        ui.check("Save as new pile plan", True)
+        self.assertTrue(node["checked"])
+
+    def test_mac_checkbox_still_accepts_a_single_accessible_label(self):
+        ui, node = self.controller("Save as new pile plan")
+        ui.check("Save as new pile plan", True)
+        self.assertTrue(node["checked"])
+
+    def test_checkbox_alias_does_not_match_a_partial_or_unrelated_label(self):
+        for name in ["Save as new pile plan details", "Save as new pile plan Save as new pile plan details"]:
+            with self.subTest(name=name):
+                ui, node = self.controller(name)
+                with self.assertRaises(AssertionError):
+                    ui.check("Save as new pile plan", True)
+                self.assertFalse(node["checked"])
+
+    def test_repeated_label_alias_is_limited_to_mac_checkboxes(self):
+        for mac, role in [(False, "check box"), (True, "AXButton")]:
+            with self.subTest(mac=mac, role=role):
+                ui, node = self.controller("Save as new pile plan Save as new pile plan", mac, role)
+                with self.assertRaises(AssertionError):
+                    ui.check("Save as new pile plan", True)
+                self.assertFalse(node["checked"])
+
+    def test_two_matching_controls_are_still_rejected_as_ambiguous(self):
+        ui, node = self.controller("Save as new pile plan")
+        ui.tree.append({**node, "name": "Save as new pile plan Save as new pile plan"})
+        with self.assertRaises(AssertionError):
+            ui.check("Save as new pile plan", True)
+        self.assertFalse(node["checked"])
+
+
+class ApplicationIdentityTests(unittest.TestCase):
+    def test_process_selection_excludes_workers_and_respects_the_launched_pid(self):
+        binary = "/usr/bin/pile-plan-studio"
+        mount = "/tmp/.mount_package/usr/bin/pile-plan-studio"
+        cases = [
+            (binary, [binary], False, 10, None, True),
+            (binary, [binary, "--opps-ilp-worker"], False, 10, None, False),
+            (mount, [mount], True, 20, 20, True),
+            (mount, [mount], True, 19, 20, False),
+            (mount, [mount, "--opps-ilp-worker"], True, 20, 20, False),
+            ("/tmp/another-application", [binary], True, 20, 20, False),
+            ("/usr/bin/another-application", [binary], False, 10, None, False),
+            (binary, [], False, 10, None, False),
+        ]
+        for executable, arguments, portable, pid, launched, expected in cases:
+            with self.subTest(executable=executable, arguments=arguments, pid=pid):
+                self.assertEqual(is_application_process(executable, arguments, binary,
+                    portable=portable, pid=pid, launched_pid=launched), expected)
 
 
 class SnapshotRetryTests(unittest.TestCase):

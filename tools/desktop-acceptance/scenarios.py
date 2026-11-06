@@ -13,6 +13,7 @@ import traceback
 import xml.etree.ElementTree as ET
 import zipfile
 from ui import UI
+from process_identity import is_application_process
 
 binary, output_arg = sys.argv[1:3]
 portable = len(sys.argv)>3 and sys.argv[3]=="portable"
@@ -281,22 +282,34 @@ try:
     while time.monotonic()<deadline:
         if sys.platform=="darwin":
             entries=subprocess.check_output(["ps","-axo","pid=,comm="],text=True)
-            candidates=[int(line.split(None,1)[0]) for line in entries.splitlines() if line.strip().endswith("/pile-plan-studio")]
+            candidates=[]
+            for line in entries.splitlines():
+                if not line.strip().endswith("/pile-plan-studio"): continue
+                process_id, executable = line.strip().split(None,1)
+                process_id = int(process_id)
+                arguments = subprocess.run(["ps","-ww","-p",str(process_id),"-o","args="],capture_output=True,text=True)
+                if arguments.returncode == 0 and is_application_process(
+                        executable, arguments.stdout.split(), binary, pid=process_id):
+                    candidates.append((process_id, executable))
         else:
             # Linux comm is truncated to 15 characters. Match the actual delivered
             # executable, as in the package probe, rather than a display name.
             candidates=[]
             for process in Path("/proc").iterdir():
                 if not process.name.isdigit(): continue
-                try: executable=os.readlink(process/"exe")
+                try:
+                    executable=os.readlink(process/"exe")
+                    arguments=[os.fsdecode(value) for value in (process/"cmdline").read_bytes().split(b"\0") if value]
                 except (FileNotFoundError,PermissionError,ProcessLookupError): continue
-                matches=(executable.startswith("/tmp/.mount_") and executable.endswith("/usr/bin/pile-plan-studio")) if portable else executable==binary
-                if matches: candidates.append(int(process.name))
-        if len(candidates)==1: pid=candidates[0]; break
+                process_id=int(process.name)
+                if is_application_process(executable, arguments, binary, portable=portable,
+                        pid=process_id, launched_pid=app.pid if portable else None):
+                    candidates.append((process_id, executable))
+        if len(candidates)==1: pid, associated_executable=candidates[0]; break
         time.sleep(0.5)
     assert pid, "OS association did not launch the installed application"
     ui=UI(pid)
-    associated_executable=ui.rpc(op="identity",pid=pid)["executable"] if ui.mac else os.readlink(f"/proc/{pid}/exe")
+    if ui.mac: associated_executable=ui.rpc(op="identity",pid=pid)["executable"]
     if portable: assert associated_executable.startswith("/tmp/.mount_") and associated_executable.endswith("/usr/bin/pile-plan-studio")
     else: assert associated_executable==binary, associated_executable
     with (output/"processes.txt").open("a") as f:
