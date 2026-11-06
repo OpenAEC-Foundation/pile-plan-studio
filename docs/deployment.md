@@ -17,6 +17,15 @@ version, set `CMAKE_GENERATOR` to the installed generator, for example
 `Visual Studio 17 2022`. These are build-time dependencies; desktop users do not
 need to install HiGHS separately.
 
+Desktop optimization starts an isolated worker from the same application
+executable using the internal `--opps-ilp-worker` argument. It communicates only
+through parent-owned pipes and creates no window, MCP listener or project-file
+writes. No sidecar executable or additional runtime installation is required.
+Desktop acceptance must exercise Stop during spatial optimization, verify that
+the worker has exited before the UI leaves its stopping state, and then start
+another run. Also verify Cancel discards the preview and closing the app leaves
+no optimizer worker behind.
+
 The Tauri crate is outside the root Rust workspace. From the repository root,
 verify both independently:
 
@@ -48,7 +57,7 @@ apps/pile-plan-studio/dist/
 ```
 
 Deploy the complete contents of this directory from one commit or release tag.
-For the 2026.45.2 alpha source, use release tag `v2026.45.2` once published.
+For the 2026.45.3 alpha source, use release tag `v2026.45.3` once published.
 This includes the Rust core WASM, HiGHS WASM and Worker assets; the browser solver
 does not load its executable code from a CDN.
 

@@ -1,0 +1,14 @@
+{
+  "source": "branding/open-pile-plan-studio-logo-afgerond.png",
+  "sourceSha256": "ba4f607965cd00c2bd16a062ea54d84846e38ad9c4dbfc44cfab4666f2116b00",
+  "files": {
+    "src-tauri/icons/32x32.png": "3b812609e8825e348a44fa6d3854836df3031f6f49364044f078e312b0775894",
+    "src-tauri/icons/128x128.png": "03ae7ce403155207035b4a736b70c62fdb7f00bcf0415be2b349d48af50601ed",
+    "src-tauri/icons/128x128@2x.png": "11db931e0cbcb8c53dcf1f0f1a4b5deb5773fa63331da18d6d15eb6843fb2c2c",
+    "src-tauri/icons/icon.png": "bc27a5b1152f74d53ebeeecf80e5c17ff44f5c783c67955a036e2eb82713f297",
+    "src-tauri/icons/icon.ico": "9e23c7e5cebd67bee65eaeebc452ecfd3c45c6bf1cdb31ebc05df204397ed69f",
+    "src-tauri/icons/icon.icns": "04d1805c003ee0dd079e11832628fcbe8f1cc45890aefb0d3ceccc2e1d7a8aad",
+    "public/pile-plan-studio-icon.png": "ba4f607965cd00c2bd16a062ea54d84846e38ad9c4dbfc44cfab4666f2116b00",
+    "public/favicon.png": "3b812609e8825e348a44fa6d3854836df3031f6f49364044f078e312b0775894"
+  }
+}

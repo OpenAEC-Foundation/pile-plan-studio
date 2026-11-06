@@ -1,5 +1,6 @@
 import { invoke, type InvokeArgs } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
+import { invokeCompressedAnalysis, supportsCompressedAnalysis } from "./compressedAnalysisTransport.ts";
 
 const wasmInitializations = new WeakMap<() => Promise<unknown>, Promise<void>>();
 
@@ -20,7 +21,8 @@ export function initializeWasm(initialize: () => Promise<unknown>): Promise<void
 }
 
 export async function invokeDesktop<T>(command: string, args: InvokeArgs): Promise<T> {
-  return invoke<T>(command, args);
+  return supportsCompressedAnalysis(command)
+    ? invokeCompressedAnalysis<T>(command, args) : invoke<T>(command, args);
 }
 
 export function listenDesktop(event: string, handler: () => void): Promise<() => void> {

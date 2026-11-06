@@ -1,9 +1,16 @@
 # Open Pile Plan Studio Release Notes
 
-## 2026.45.2
+## 2026.45.3
 
 This alpha brings the application interface onto the shared OpenAEC Blueprint
 components, with consistent controls and themes across the browser and desktop.
+It also adopts the approved white pile cap with three amber piles as its app logo.
+
+### Added
+
+- Apply the approved app logo consistently to the title bar, About page, browser
+  favicon, Windows app/installer icons, macOS Dock icon and Linux package icons.
+  Keep the original artwork and reproducible icon-generation checks in the source.
 
 ### Improved
 
@@ -23,6 +30,18 @@ components, with consistent controls and themes across the browser and desktop.
 
 ### Fixed
 
+- Run native project calculations and file processing off the desktop event
+  thread. Limit tip-level-region requests to assigned configuration candidates
+  instead of repeatedly transferring the full pile-option catalogue. Transfer
+  bulk desktop analyses as compressed bytes while retaining all result facts
+  and the original command route for older WebViews.
+- Stop or cancel desktop optimization even during solver phases that cannot
+  service interruption callbacks. Confirm that the isolated solver process has
+  exited before finishing; Stop retains the latest validated solution, while
+  Cancel discards it. A new optimization can then start normally.
+- Finish lasso selection when releasing outside the viewer in browser and desktop.
+  Clear unfinished rectangles on focus loss or leaving selection/lock editing,
+  preventing stale lock gestures from surviving their editing mode.
 - Recognize standard foundation-advice column order when generic spreadsheet
   headings omit CPT and tip-level names, without overriding explicit mappings.
 - Clarify pile-assignment import choices after columns are linked manually and

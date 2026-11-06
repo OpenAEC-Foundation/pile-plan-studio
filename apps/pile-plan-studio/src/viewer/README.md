@@ -75,6 +75,14 @@ effective priority clears the transient hover cycle. Outside editing, the
 stored foreground preference applies again. Space can still explicitly cycle
 through all overlapping candidates, including load points.
 
+Active mouse drags continue through window-level movement and release listeners,
+so a lasso or pan can finish outside the canvas, even over controls that stop
+bubbling events. In-canvas movement is handled once by the viewer. Lasso release
+uses the final pointer position and commits selection or the current lock draft
+once. Escape, window blur, a missing pressed button, changing editing modes/plans
+or replacing project geometry discard an unfinished gesture. Leaving lock editing
+must clear the transient rectangle before any later release can touch that draft.
+
 ## Panel and legend resizing
 
 Panel dragging dispatches `VIEWER_LAYOUT_CHANGE_EVENT` synchronously so the

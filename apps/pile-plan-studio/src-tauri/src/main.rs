@@ -48,7 +48,12 @@ use std::ffi::OsStr;
 use std::path::{Path, PathBuf};
 use std::sync::Mutex;
 use tauri::{Emitter, Manager, State};
+mod analysis_transport;
+use analysis_transport::run_analysis_payload;
+#[cfg(test)]
+mod dispatch_tests;
 mod ilp_optimization;
+mod ilp_worker;
 mod mcp_bridge;
 use ilp_optimization::{cancel_ilp_optimization, ilp_optimize, IlpJobs};
 use mcp_bridge::{mcp_bridge_start, mcp_bridge_stop, McpBridgeState};
@@ -121,7 +126,9 @@ fn project_paths_from_urls(urls: &[tauri::Url]) -> Vec<String> {
         .collect()
 }
 
-#[tauri::command(rename_all = "snake_case")]
+// Owned, potentially expensive core/IO requests run off the native event thread.
+// Tauri keeps their argument parsing and response serialization in the async task.
+#[tauri::command(async, rename_all = "snake_case")]
 fn calculate_pile_option_analysis(
     request: PileOptionAnalysisRequest,
 ) -> Result<PileOptionAnalysisResult, InvalidPileTipLevels> {
@@ -140,7 +147,7 @@ fn calculate_pile_option_cost(request: PileCostRequest) -> PileCostResponse {
     }
 }
 
-#[tauri::command(rename_all = "snake_case")]
+#[tauri::command(async, rename_all = "snake_case")]
 fn choose_default_options(
     request: DefaultPileOptionsRequest,
 ) -> HashMap<u32, PileConfigurationKey> {
@@ -152,21 +159,21 @@ fn choose_default_options(
     )
 }
 
-#[tauri::command(rename_all = "snake_case")]
+#[tauri::command(async, rename_all = "snake_case")]
 fn aggregate_pile_options(
     request: AggregatePileOptionsRequest,
 ) -> Vec<AggregatedPileConfiguration> {
     aggregate_pile_options_for_load_points(&request.options_by_load_point)
 }
 
-#[tauri::command(rename_all = "snake_case")]
+#[tauri::command(async, rename_all = "snake_case")]
 fn assess_technical_assignment(
     request: TechnicalAssignmentRequest,
 ) -> Result<TechnicalAssignmentAssessment, TechnicalAssignmentAssessmentError> {
     assess_technical_assignment_core(&request.groups, &request.options_by_load_point)
 }
 
-#[tauri::command(rename_all = "snake_case")]
+#[tauri::command(async, rename_all = "snake_case")]
 fn import_project_from_files(
     request: ImportProjectRequest,
 ) -> Result<ValidatedPilePlanProject, pile_plan_core::SourceImportFailure> {
@@ -192,7 +199,7 @@ fn import_project_from_files(
     })
 }
 
-#[tauri::command(rename_all = "snake_case")]
+#[tauri::command(async, rename_all = "snake_case")]
 fn refresh_project_from_files(
     request: RefreshProjectRequest,
 ) -> Result<ValidatedPilePlanProject, pile_plan_core::SourceImportFailure> {
@@ -217,12 +224,12 @@ fn refresh_project_from_files(
     })
 }
 
-#[tauri::command(rename_all = "snake_case")]
+#[tauri::command(async, rename_all = "snake_case")]
 fn inspect_foundation_advice(request:pile_plan_core::FoundationAdviceInspectionRequest)->Result<Vec<pile_plan_core::CptBearingCapacityRow>,pile_plan_core::InvalidPileTipLevels>{
  pile_plan_core::inspect_foundation_advice(&request)
 }
 
-#[tauri::command(rename_all = "snake_case")]
+#[tauri::command(async, rename_all = "snake_case")]
 fn preview_import_file(request: PreviewImportRequest) -> ImportSourcePreview {
     preview_import_source(&request.source)
 }
@@ -237,77 +244,77 @@ fn get_pile_plan_import_requirements() -> serde_json::Value {
     pile_plan_core::pile_plan_import_requirements()
 }
 
-#[tauri::command(rename_all = "snake_case")]
+#[tauri::command(async, rename_all = "snake_case")]
 fn preview_pile_plan_import_file(request: PilePlanImportRequest) -> PilePlanImportPreview {
     preview_pile_plan_import(&request)
 }
 
-#[tauri::command(rename_all = "snake_case")]
+#[tauri::command(async, rename_all = "snake_case")]
 fn export_pile_plan_csv(request: PilePlanExportRequest) -> Result<Vec<u8>, String> {
     write_pile_plan_csv_bytes(&request).map_err(|error| error.to_string())
 }
 
-#[tauri::command(rename_all = "snake_case")]
+#[tauri::command(async, rename_all = "snake_case")]
 fn export_pile_plan_xlsx(request: PilePlanExportRequest) -> Result<Vec<u8>, String> {
     write_pile_plan_xlsx_bytes(&request).map_err(|error| error.to_string())
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 fn preview_configured_pile_plan_export(
     request: pile_plan_core::ConfiguredPilePlanExportRequest,
 ) -> Result<pile_plan_core::PilePlanExportPreview, String> {
     pile_plan_core::preview_configured_pile_plan_export(&request).map_err(|e| e.to_string())
 }
-#[tauri::command]
+#[tauri::command(async)]
 fn export_configured_pile_plan_csv(
     request: pile_plan_core::ConfiguredPilePlanExportRequest,
 ) -> Result<Vec<u8>, String> {
     pile_plan_core::write_configured_pile_plan_csv(&request).map_err(|e| e.to_string())
 }
-#[tauri::command]
+#[tauri::command(async)]
 fn export_configured_pile_plan_xlsx(
     request: pile_plan_core::ConfiguredPilePlanExportRequest,
 ) -> Result<Vec<u8>, String> {
     pile_plan_core::write_configured_pile_plan_xlsx(&request).map_err(|e| e.to_string())
 }
-#[tauri::command]
+#[tauri::command(async)]
 fn preview_revit_revision(
     request: pile_plan_core::RevitRevisionRequest,
 ) -> Result<pile_plan_core::RevitRevisionPreview, String> {
     pile_plan_core::preview_revit_revision(&request).map_err(|e| e.to_string())
 }
-#[tauri::command]
+#[tauri::command(async)]
 fn inspect_pile_table(
     request: pile_plan_core::InspectPileTableRequest,
 ) -> Result<pile_plan_core::PileTableInspection, String> {
     pile_plan_core::inspect_pile_table(&request).map_err(|e| e.to_string())
 }
-#[tauri::command]
+#[tauri::command(async)]
 fn export_revit_revision_csv(
     request: pile_plan_core::RevitRevisionRequest,
 ) -> Result<Vec<u8>, String> {
     pile_plan_core::write_revit_revision_csv(&request).map_err(|e| e.to_string())
 }
-#[tauri::command]
+#[tauri::command(async)]
 fn export_revit_revision_xlsx(
     request: pile_plan_core::RevitRevisionRequest,
 ) -> Result<Vec<u8>, String> {
     pile_plan_core::write_revit_revision_xlsx(&request).map_err(|e| e.to_string())
 }
-#[tauri::command]
+#[tauri::command(async)]
 fn reconcile_locations(
     request: pile_plan_core::LocationMatchingRequest,
 ) -> Result<pile_plan_core::LocationMatchingResult, String> {
     pile_plan_core::reconcile_locations(&request).map_err(|e| e.to_string())
 }
-#[tauri::command]
+#[tauri::command(async)]
 fn prepare_load_point_refresh(
     request: pile_plan_core::LoadPointRefreshRequest,
 ) -> Result<pile_plan_core::LoadPointRefreshPreview, String> {
     pile_plan_core::prepare_load_point_refresh(&request).map_err(|e| e.to_string())
 }
 
-#[tauri::command(rename_all = "snake_case")]
+#[tauri::command(async, rename_all = "snake_case")]
 fn read_project_file(path: String) -> Result<String, String> {
     std::fs::read_to_string(path).map_err(|error| error.to_string())
 }
@@ -317,36 +324,36 @@ fn take_pending_project_paths(state: State<'_, PendingProjectPaths>) -> Vec<Stri
     state.take()
 }
 
-#[tauri::command(rename_all = "snake_case")]
+#[tauri::command(async, rename_all = "snake_case")]
 fn write_project_file(path: String, contents: String) -> Result<(), String> {
     std::fs::write(path, contents).map_err(|error| error.to_string())
 }
 
-#[tauri::command(rename_all = "snake_case")]
+#[tauri::command(async, rename_all = "snake_case")]
 fn write_binary_file(path: String, contents: Vec<u8>) -> Result<(), String> {
     std::fs::write(path, contents).map_err(|error| error.to_string())
 }
 
-#[tauri::command(rename_all = "snake_case")]
+#[tauri::command(async, rename_all = "snake_case")]
 fn build_load_point_topology(request: LoadPointTopologyRequest) -> LoadPointTopology {
     build_load_point_topology_core(&request.load_points)
 }
 
-#[tauri::command(rename_all = "snake_case")]
+#[tauri::command(async, rename_all = "snake_case")]
 fn read_project_document(
     request: ReadProjectDocumentRequest,
 ) -> Result<ValidatedPilePlanProject, ProjectDocumentError> {
     read_project_document_core(&request.contents)
 }
 
-#[tauri::command(rename_all = "snake_case")]
+#[tauri::command(async, rename_all = "snake_case")]
 fn write_project_document(
     request: WriteProjectDocumentRequest,
 ) -> Result<String, ProjectDocumentError> {
     write_project_document_core(request.draft)
 }
 
-#[tauri::command(rename_all = "snake_case")]
+#[tauri::command(async, rename_all = "snake_case")]
 fn build_tip_level_region_topology(
     request: TipLevelRegionTopologyRequest,
 ) -> TipLevelRegionTopology {
@@ -357,29 +364,29 @@ fn build_tip_level_region_topology(
     )
 }
 
-#[tauri::command(rename_all = "snake_case")]
+#[tauri::command(async, rename_all = "snake_case")]
 fn evaluate_pile_cap_proposals(
     request: pile_plan_core::PileCapProposalRequest,
 ) -> Result<pile_plan_core::PileCapProposalResult, String> {
     pile_plan_core::evaluate_pile_cap_proposals(request)
 }
 
-#[tauri::command(rename_all = "snake_case")]
+#[tauri::command(async, rename_all = "snake_case")]
 fn derive_load_point_groups(request: DeriveLoadPointGroupsRequest) -> DerivedLoadPointGroups {
     derive_load_point_groups_core(&request.load_points, &request.settings)
 }
 
-#[tauri::command(rename_all = "snake_case")]
+#[tauri::command(async, rename_all = "snake_case")]
 fn preview_load_point_group_edit(request: LoadPointGroupEditInput) -> LoadPointGroupEditPreview {
     preview_load_point_group_edit_core(&request)
 }
 
-#[tauri::command(rename_all = "snake_case")]
+#[tauri::command(async, rename_all = "snake_case")]
 fn apply_load_point_group_edit(request: LoadPointGroupEditInput) -> LoadPointGroupEditResult {
     apply_load_point_group_edit_core(&request)
 }
 
-#[tauri::command(rename_all = "snake_case")]
+#[tauri::command(async, rename_all = "snake_case")]
 fn assess_load_point_group_assignments(
     request: AssessLoadPointGroupAssignmentsRequest,
 ) -> Vec<GroupAssignmentConflict> {
@@ -390,62 +397,66 @@ fn assess_load_point_group_assignments(
     )
 }
 
-#[tauri::command(rename_all = "snake_case")]
+#[tauri::command(async, rename_all = "snake_case")]
 fn apply_load_point_group_assignment(
     request: ApplyLoadPointGroupAssignmentInput,
 ) -> ApplyLoadPointGroupAssignmentResult {
     apply_load_point_group_assignment_core(&request)
 }
 
-#[tauri::command(rename_all = "snake_case")]
+#[tauri::command(async, rename_all = "snake_case")]
 fn apply_load_point_group_assignment_batch(
     request: ApplyLoadPointGroupAssignmentBatchInput,
 ) -> ApplyLoadPointGroupAssignmentBatchResult {
     apply_load_point_group_assignment_batch_core(&request)
 }
 
-#[tauri::command(rename_all = "snake_case")]
+#[tauri::command(async, rename_all = "snake_case")]
 fn apply_load_point_group_ungroup_batch(
     request: LoadPointGroupUngroupBatchInput,
 ) -> LoadPointGroupEditResult {
     apply_load_point_group_ungroup_batch_core(&request)
 }
 
-#[tauri::command(rename_all = "snake_case")]
+#[tauri::command(async, rename_all = "snake_case")]
 fn validate_manual_cpt_selection_batch(
     request: ManualCptSelectionBatchInput,
 ) -> ManualCptSelectionBatchResult {
     validate_manual_cpt_selection_batch_core(&request)
 }
 
-#[tauri::command(rename_all = "snake_case")]
+#[tauri::command(async, rename_all = "snake_case")]
 fn evaluate_cpt_settings_edit(request: CptSettingsEditInput) -> CptSettingsEditResult {
     evaluate_cpt_settings_edit_core(&request)
 }
 
-#[tauri::command(rename_all = "snake_case")]
+#[tauri::command(async, rename_all = "snake_case")]
 fn evaluate_load_point_grouping_settings(
     request: LoadPointGroupingSettingsEditInput,
 ) -> LoadPointGroupingSettingsEditResult {
     evaluate_load_point_grouping_settings_core(&request)
 }
 
-#[tauri::command(rename_all = "snake_case")]
+#[tauri::command(async, rename_all = "snake_case")]
 fn evaluate_pile_cost_catalog_edit(request: PileCostCatalogEditInput) -> PileCostCatalogEditResult {
     evaluate_pile_cost_catalog_edit_core(&request)
 }
 
-#[tauri::command(rename_all = "snake_case")]
+#[tauri::command(async, rename_all = "snake_case")]
 fn evaluate_mcp_project_edit(request: McpProjectEditInput) -> McpProjectEditResult {
     evaluate_mcp_project_edit_core(&request)
 }
 
-#[tauri::command(rename_all = "snake_case")]
+#[tauri::command(async, rename_all = "snake_case")]
 fn validate_load_point_lock_batch(request: LoadPointLockBatchInput) -> LoadPointLockBatchResult {
     validate_load_point_lock_batch_core(&request)
 }
 
 fn main() {
+    if ilp_worker::is_worker_process() {
+        ilp_worker::worker_main();
+        return;
+    }
     let launch_cwd = std::env::current_dir().unwrap_or_default();
     let launch_paths = project_paths_from_args(std::env::args_os(), &launch_cwd);
     tauri::Builder::default()
@@ -478,6 +489,7 @@ fn main() {
         })
         .plugin(tauri_plugin_store::Builder::default().build())
         .invoke_handler(tauri::generate_handler![
+            run_analysis_payload,
             aggregate_pile_options,
             assess_technical_assignment,
             apply_load_point_group_assignment,
@@ -801,7 +813,7 @@ mod tests {
     }
 }
 
-#[tauri::command(rename_all = "snake_case")]
+#[tauri::command(async, rename_all = "snake_case")]
 fn preview_project_import_files(
     request: pile_plan_core::PreviewProjectImportRequest,
 ) -> pile_plan_core::ProjectImportPreview {

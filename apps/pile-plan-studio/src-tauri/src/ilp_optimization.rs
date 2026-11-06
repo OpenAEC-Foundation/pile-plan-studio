@@ -1,4 +1,5 @@
-use pile_plan_core::{IlpOptimizationOutcome, IlpOptimizationSession, IlpProgress, IlpRunRequest};
+use crate::ilp_worker::NativeIlpWorker;
+use pile_plan_core::{IlpOptimizationOutcome, IlpProgress, IlpRunRequest};
 use std::collections::VecDeque;
 use std::sync::{
     atomic::{AtomicBool, Ordering},
@@ -8,12 +9,12 @@ use tauri::{ipc::Channel, State};
 
 #[derive(Default)]
 struct JobState {
-    session: Option<IlpOptimizationSession>,
+    worker: Option<NativeIlpWorker>,
     active: Option<(String, Arc<AtomicBool>)>,
     cancelled_before_start: VecDeque<String>,
 }
 impl JobState {
-    fn begin(&mut self, id: String) -> Result<(IlpOptimizationSession, Arc<AtomicBool>), String> {
+    fn begin(&mut self, id: String) -> Result<(Option<NativeIlpWorker>, Arc<AtomicBool>), String> {
         if self.active.is_some() {
             return Err("ilp_already_running".into());
         }
@@ -25,7 +26,7 @@ impl JobState {
             .is_some();
         let cancel = Arc::new(AtomicBool::new(already_cancelled));
         self.active = Some((id, cancel.clone()));
-        Ok((self.session.take().unwrap_or_default(), cancel))
+        Ok((self.worker.take(), cancel))
     }
     fn cancel_run(&mut self, id: String) {
         if let Some((active, cancel)) = &self.active {
@@ -50,28 +51,46 @@ pub async fn ilp_optimize(
     progress: Channel<IlpProgress>,
     jobs: State<'_, IlpJobs>,
 ) -> Result<IlpOptimizationOutcome, String> {
-    let (mut session, cancel) = {
+    let (worker, cancel) = {
         let mut state = jobs.0.lock().map_err(|_| "ilp_state_error")?;
         state.begin(request.run_id.clone())?
     };
     let finished = tauri::async_runtime::spawn_blocking(move || {
-        let outcome = session.run(
+        // A cancellation that arrived before start must not launch a solver.
+        if cancel.load(Ordering::Relaxed) {
+            return Ok((worker, IlpOptimizationOutcome::Cancelled));
+        }
+        let mut worker = if let Some(mut worker) = worker {
+            if worker.is_reusable() {
+                worker
+            } else {
+                drop(worker);
+                NativeIlpWorker::spawn()?
+            }
+        } else {
+            NativeIlpWorker::spawn()?
+        };
+        let outcome = worker.run(
             request,
             &mut |update| {
                 let _ = progress.send(update);
             },
             &|| cancel.load(Ordering::Relaxed),
-        );
-        (session, outcome)
+        )?;
+        // Stopping has killed and reaped this run's process. Completed runs
+        // retain the core's prepared-model cache in the idle worker.
+        let reusable = worker.is_reusable().then_some(worker);
+        Ok::<_, String>((reusable, outcome))
     })
     .await;
     let mut state = jobs.0.lock().map_err(|_| "ilp_state_error")?;
     state.active = None;
     match finished {
-        Ok((session, outcome)) => {
-            state.session = Some(session);
+        Ok(Ok((worker, outcome))) => {
+            state.worker = worker;
             Ok(outcome)
         }
+        Ok(Err(error)) => Err(error),
         Err(_) => Err("ilp_worker_failed".into()),
     }
 }

@@ -7,7 +7,7 @@ describe("title bar history controls", () => {
   const source = readFileSync(resolve(import.meta.dirname, "TitleBar.tsx"), "utf8");
 
   it("uses the shared Pile Plan Studio app icon without temporary text", () => {
-    assert.match(source, /src="\/pile-plan-studio-icon\.svg"/);
+    assert.match(source, /src="\/pile-plan-studio-icon\.png"/);
     assert.match(source, /alt=""/);
     assert.match(source, /aria-hidden="true"/);
     assert.doesNotMatch(source, />\s*tmp\s*</i);

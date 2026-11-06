@@ -39,12 +39,15 @@ class UI:
         if self.mac:
             self.tree = self.rpc(op="snapshot", pid=self.pid)
             return self.tree
-        # GTK/WebKit may retire an accessible object while a dialog is opening.
+        # GTK/WebKit may retire an accessible object or its Text interface.
         # Retry a complete observation; never use a partially collected tree.
         for attempt in range(4):
             try: return self.linux_snapshot()
             except self.GLib.GError as error:
-                if "does not exist" not in str(error) or attempt==3: raise
+                message = str(error).lower()
+                retired = "does not exist" in message or (
+                    "no such interface" in message and "org.a11y.atspi.text" in message)
+                if not retired or attempt==3: raise
                 time.sleep(0.2)
 
     def linux_snapshot(self):

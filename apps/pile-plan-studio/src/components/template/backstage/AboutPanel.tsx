@@ -10,7 +10,7 @@ export default function AboutPanel(){
   };
   return <section className="bs-about-panel" aria-label={t("aboutPanel.title")}>
     <header className="bs-about-heading">
-      <img src="/pile-plan-studio-icon.svg" width="48" height="48" alt=""/>
+      <img src="/pile-plan-studio-icon.png" width="48" height="48" alt=""/>
       <Heading level="page">{t("aboutPanel.title")}</Heading>
     </header>
     <p className="bs-about-tagline">{t("aboutPanel.tagline")}</p>

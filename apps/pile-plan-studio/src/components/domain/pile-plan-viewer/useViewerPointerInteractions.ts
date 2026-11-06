@@ -1,5 +1,6 @@
 import {
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -100,6 +101,7 @@ export function useViewerPointerInteractions({
   const preferredMarkerType = isEditingCptSelection || state.foregroundLayer === "cpts" ? "cpt" : "load-point";
   const hoverFrameRef = useRef<number | null>(null);
   const hoverPointerRef = useRef<{ x: number; y: number } | null>(null);
+  const dragTargetRef = useRef<HTMLDivElement | null>(null);
   const [lasso, setLasso] = useState<LassoRectangle | null>(null);
   const [hoverCandidates, setHoverCandidates] = useState<HoverCandidateState | null>(null);
   const activeHoverCandidateKey = getActiveHoverCandidateKey(hoverCandidates);
@@ -119,6 +121,40 @@ export function useViewerPointerInteractions({
   ], [projectTransform, state.cpts, state.loadPoints, state.symbolScalePercent, isEditingLoadPointLocks, state.loadPointLockDraft, state.pilePlans, state.activePilePlanId]);
   const hoverMarkerIndex = useMemo(() => createHoverMarkerIndex(hoverMarkers), [hoverMarkers]);
 
+  // Keep one set of window listeners while using the current project/draft.
+  const dragHandlersRef = useRef({ move: handleMouseMove, finish: handleMouseUp, cancel: cancelInteraction });
+  useLayoutEffect(() => {
+    dragHandlersRef.current = { move: handleMouseMove, finish: handleMouseUp, cancel: cancelInteraction };
+  });
+  useEffect(() => {
+    function move(event: globalThis.MouseEvent) {
+      if (!interactionRef.current) return;
+      if ((event.buttons & 1) === 0) {
+        dragHandlersRef.current.cancel();
+      } else if (!(event.target instanceof Node && dragTargetRef.current?.contains(event.target))) {
+        // Inside moves are handled by React; do not pan or draw twice.
+        dragHandlersRef.current.move(event);
+      }
+    }
+    const finish = (event: globalThis.MouseEvent) => dragHandlersRef.current.finish(event);
+    const cancel = () => dragHandlersRef.current.cancel();
+    window.addEventListener("mousemove", move, true);
+    window.addEventListener("mouseup", finish, true);
+    window.addEventListener("blur", cancel);
+    return () => {
+      window.removeEventListener("mousemove", move, true);
+      window.removeEventListener("mouseup", finish, true);
+      window.removeEventListener("blur", cancel);
+      interactionRef.current = null;
+      dragTargetRef.current = null;
+    };
+  }, [interactionRef]);
+
+  useLayoutEffect(() => {
+    // A lock gesture must never survive into selection mode or another plan.
+    cancelInteraction();
+  }, [isEditingLoadPointLocks, isEditingCptSelection, lassoSelectionActive, state.activePilePlanId, state.loadPoints]);
+
   useEffect(() => {
     function handleKeyDown(event: KeyboardEvent) {
       if (event.code === "Space" && isNonTextEntryTarget(event.target)) {
@@ -134,8 +170,10 @@ export function useViewerPointerInteractions({
         return;
       }
       if (event.key === "Escape") {
+        const wasInteracting = interactionRef.current !== null;
+        cancelInteraction();
         clearHoverCandidates();
-        if (shouldClearViewerSelectionOnEscape({
+        if (!wasInteracting && shouldClearViewerSelectionOnEscape({
           lassoSelectionActive,
           isEditingLoadPointLocks,
           selectionAllowed: true,
@@ -146,7 +184,7 @@ export function useViewerPointerInteractions({
     }
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [hoverCandidates, onStateChange, state]);
+  }, [hoverCandidates, onStateChange, onSelectionChange, state, lassoSelectionActive, isEditingLoadPointLocks]);
 
   useEffect(() => () => {
     if (hoverFrameRef.current !== null) cancelAnimationFrame(hoverFrameRef.current);
@@ -157,6 +195,7 @@ export function useViewerPointerInteractions({
   }, [preferredMarkerType]);
 
   function handleMouseDown(event: MouseEvent<HTMLDivElement>) {
+    if (event.button !== 0) return;
     const target = event.target as HTMLElement;
     const targetIsInteractive = Boolean(target.closest("button"));
     const layoutScale = canvasRectRef.current?.scale ?? elementLayoutScale(document.documentElement);
@@ -170,6 +209,7 @@ export function useViewerPointerInteractions({
     })) {
       event.preventDefault();
       clearHoverCandidates();
+      dragTargetRef.current = event.currentTarget;
       interactionRef.current = {
         type: "lasso",
         start,
@@ -185,10 +225,11 @@ export function useViewerPointerInteractions({
     if (!shouldStartMapPan({ button: event.button, targetIsInteractive })) return;
     event.preventDefault();
     clearHoverCandidates();
+    dragTargetRef.current = event.currentTarget;
     interactionRef.current = { type: "pan", start, last: start, moved: false };
   }
 
-  function handleMouseMove(event: MouseEvent<HTMLDivElement>) {
+  function handleMouseMove(event: MouseEvent<HTMLDivElement> | globalThis.MouseEvent) {
     const interaction = interactionRef.current;
     if (!interaction) {
       const markerTarget = (event.target as HTMLElement).closest("[data-map-marker-key]");
@@ -221,9 +262,11 @@ export function useViewerPointerInteractions({
     applyViewportDisplay(nextViewport);
   }
 
-  function handleMouseUp(event: MouseEvent<HTMLDivElement>) {
+  function handleMouseUp(event: MouseEvent<HTMLDivElement> | globalThis.MouseEvent) {
+    if (event.button !== 0) return;
     const interaction = interactionRef.current;
     interactionRef.current = null;
+    dragTargetRef.current = null;
     if (!interaction) return;
     if (interaction.type === "lasso") {
       const layoutScale = canvasRectRef.current?.scale ?? elementLayoutScale(document.documentElement);
@@ -261,7 +304,20 @@ export function useViewerPointerInteractions({
     onStateChange({ ...state, viewport: viewportRef.current });
   }
 
-  function scheduleHoverCandidateUpdate(event: MouseEvent<HTMLDivElement>) {
+  function cancelInteraction() {
+    const interaction = interactionRef.current;
+    if (!interaction) return;
+    interactionRef.current = null;
+    dragTargetRef.current = null;
+    setLasso(null);
+    clearHoverCandidates();
+    if (interaction.type === "pan") {
+      viewportRef.current = state.viewport;
+      applyViewportDisplay(state.viewport);
+    }
+  }
+
+  function scheduleHoverCandidateUpdate(event: Pick<globalThis.MouseEvent, "clientX" | "clientY">) {
     const rect = canvasRectRef.current;
     if (!rect) return;
     hoverPointerRef.current = getProjectViewportPointer(event.clientX, event.clientY, rect);

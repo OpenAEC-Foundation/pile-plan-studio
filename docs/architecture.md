@@ -1175,6 +1175,20 @@ are disposed even when a callback fails; the Worker retains its Rust cache betwe
 completed runs. Browser stop/cancel terminates the Worker, retaining or discarding
 the last validated snapshot respectively.
 
+The desktop shell also isolates optimization in a persistent worker process,
+started from the same executable with `--opps-ilp-worker` before Tauri, window,
+single-instance and MCP initialization. Length-framed MessagePack named maps
+carry the existing run/progress/outcome DTOs over private stdin/stdout pipes,
+preserving floating-point values and optional fields. Completed runs reuse the
+worker's `IlpOptimizationSession` cache. Stop and cancel terminate and reap only
+that worker before acknowledging completion, including solver presolve phases
+that do not service cooperative callbacks. The frontend retains the last
+validated solution for Stop and discards it for Cancel. A subsequent run starts
+a fresh worker after interruption. Closing the parent pipe also makes the worker
+exit during non-cooperative solving; it owns no project files or preferences.
+Windows workers create no console or additional application window. This is an
+internal process route, not an external service or a separately installed solver.
+
 The UI retains validated snapshots for stop-and-use-best; normal cancellation and
 stale-context rejection remain separate. Local-only is a transient run parameter,
 not an IFCPP schema change. Live previews project the best validated spatial
@@ -1518,3 +1532,11 @@ launches. Local file URLs are decoded by Tauri's URL type, filtered by the share
 case-insensitive IFCPP extension check, and consumed by the existing frontend
 project-open flow. The event does not bypass dirty-project prompts, project
 validation or history. Cold opens remain queued until the frontend consumes them.
+
+### Native command scheduling
+
+Potentially expensive owned core/IO requests in the Tauri shell use `tauri::command(async)` so command argument conversion, calculation and result serialization run on the async executor instead of the native event thread. Tauri's initial IPC JSON decoding still precedes command dispatch; moving a handler alone does not remove the cost of large payloads. The Rust core and request/response/error contracts stay unchanged. Tiny cost arithmetic, pending launch-path drains, native state and window callbacks retain their existing scheduling. Frontend generation/signature checks continue rejecting stale analysis results. Test-only MockRuntime IPC tests exercise the real registered commands and verify that their responders complete outside the invoking thread; mock support is a dev-dependency, not a shipped automation plugin.
+
+Tip-level region requests in both runtimes carry only candidates matching each assigned pile size and canonical tip-level key, instead of the whole option catalogue. Invalid and duplicate matching candidates and their raw presentation levels are retained: the Rust core still determines usability and builds the region topology. This reduces desktop serialization and IPC work without changing engineering decisions or drawing geometry. Regression checks compare full and reduced requests through the actual WASM core.
+
+Desktop WebViews with Compression Streams send bulk pile analysis, technical assessment, aggregation, default-choice and region-topology requests through `run_analysis_payload`. The allowlisted command accepts gzip JSON bytes and decodes directly into the existing typed requests on the async executor; complete results return as gzip bytes. This avoids the usual large intermediate IPC JSON tree and repeated property conversion. Structured core errors retain their existing objects. WebViews without the stream APIs use the original commands; Tauri postMessage byte-array fallbacks are supported in both directions. Browser analysis continues using WASM directly. This transport owns no project state, persistent cache or engineering decisions; frontend stale-request guards continue to apply. Temporary performance observers and logging commands are not part of the application.

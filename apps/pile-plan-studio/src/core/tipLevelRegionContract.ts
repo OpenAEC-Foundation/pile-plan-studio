@@ -68,7 +68,7 @@ export function toBrowserTipLevelRegionTopologyRequest(
   return {
     load_point_topology: input.loadPointTopology,
     selected_assignments: toWasmNumberKeyedMap(input.selectedAssignments),
-    options_by_load_point: toWasmNumberKeyedMap(toCoreOptionsByLoadPoint(input.optionsByLoadPoint)),
+    options_by_load_point: toWasmNumberKeyedMap(toCoreOptionsByLoadPoint(input)),
   };
 }
 
@@ -78,17 +78,23 @@ export function toDesktopTipLevelRegionTopologyRequest(
   return {
     load_point_topology: input.loadPointTopology,
     selected_assignments: toStringKeyedRecord(input.selectedAssignments),
-    options_by_load_point: toStringKeyedRecord(toCoreOptionsByLoadPoint(input.optionsByLoadPoint)),
+    options_by_load_point: toStringKeyedRecord(toCoreOptionsByLoadPoint(input)),
   };
 }
 
 function toCoreOptionsByLoadPoint(
-  optionsByLoadPoint: Map<number, PileConfigurationOption[]>,
+  { optionsByLoadPoint, selectedAssignments }: TipLevelRegionTopologyInput,
 ): Map<number, CorePileConfigurationOption[]> {
+  // Regions concern assigned configurations only. Retain every matching candidate,
+  // including invalid/duplicate rows, so Rust still decides whether it is usable.
+  // Sending the whole option catalogue repeats tens of MB through desktop IPC.
   return new Map(
-    [...optionsByLoadPoint].map(([loadPointId, options]) => [
+    [...selectedAssignments].map(([loadPointId, assignment]) => [
       loadPointId,
-      options.map(({ isOption, technicalStatus, ...option }) => ({
+      (optionsByLoadPoint.get(loadPointId) ?? []).filter(option => (
+        option.pile_size_mm === assignment.pile_size_mm
+        && option.configuration.pile_tip_level_mm === assignment.pile_tip_level_mm
+      )).map(({ isOption, technicalStatus, ...option }) => ({
         ...option,
         is_option: isOption,
         technical_status: technicalStatus,

@@ -44,7 +44,7 @@ export default function TitleBar({
       if (event.key === " " || event.key === "Enter") event.stopPropagation();
     }}>
       <div className="titlebar-left">
-        <div className="titlebar-icon"><img src="/pile-plan-studio-icon.svg" alt="" aria-hidden="true" /></div>
+        <div className="titlebar-icon"><img src="/pile-plan-studio-icon.png" alt="" aria-hidden="true" /></div>
         <div className="titlebar-quick-access">
           <IconButton className="titlebar-quick-btn" icon="file.save" label={projectActionLabel} keys="Ctrl+S"
             data-oa-tip={undefined} data-tooltip={shortcutTip(projectActionLabel, "Ctrl+S")} onClick={projectAction} />
