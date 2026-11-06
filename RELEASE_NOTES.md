@@ -1,5 +1,42 @@
 # Open Pile Plan Studio Release Notes
 
+## 2026.45.2
+
+This alpha brings the application interface onto the shared OpenAEC Blueprint
+components, with consistent controls and themes across the browser and desktop.
+
+### Improved
+
+- Migrate settings, inspection and optimization panels, imports/exports, source
+  viewers, explorer, legend editor, ribbon, File menu, title and status bars to
+  shared Blueprint controls. Retain compact layouts and Dutch/English labels.
+- Improve icon clarity, table headings, ordinary-button readability, numeric
+  stepping and alignment, and tooltips outside scrolling panels.
+- Let the plan workspace follow the theme or use a separate light/dark background.
+  Improve CPT labels and selection contrast, including high-contrast themes.
+- Reopen recent IFCPP files on desktop. In the browser, retain up to ten local
+  copies and offer **Save locally and continue** when switching projects with
+  edits. Downloading an IFCPP remains a separate action; edits are not saved
+  automatically into recent copies.
+- Send public feedback through Open Feedback Studio without requiring a GitHub
+  account, with optional images and private contact details for the maintainers.
+
+### Fixed
+
+- Recognize standard foundation-advice column order when generic spreadsheet
+  headings omit CPT and tip-level names, without overriding explicit mappings.
+- Clarify pile-assignment import choices after columns are linked manually and
+  improve import-column row spacing.
+- Keep current edits available when local project storage fails and show the
+  error inside the project-switch warning.
+
+### Compatibility
+
+- Retain the signed Windows, Linux and universal macOS package routes introduced
+  in 2026.45.1. Engineering calculations and IFCPP schema 8 are unchanged;
+  supported older IFCPP projects remain readable.
+- The application remains Alpha; engineering results require professional review.
+
 ## 2026.45.1
 
 This alpha adds signed Linux and macOS desktop packages alongside Windows,
