@@ -49,14 +49,4 @@ describe("Cost settings panel", () => {
     assert.match(nl["cost.builtInSourceDescription"], /vaste projectkosten zijn niet inbegrepen/i);
   });
 
-  it("uses theme-aware controls for the catalog editor", () => {
-    const styles = readFileSync(resolve(import.meta.dirname, "costSettings.css"), "utf8");
-    assert.match(source, /<ThemedSelect/);
-    assert.doesNotMatch(source, /<select/);
-    assert.match(styles, /\.cost-add-grid input/);
-    assert.match(styles, /var\(--theme-dialog-input-bg\)/);
-    assert.match(styles, /\.cost-default-actions button/);
-    assert.match(styles, /\.cost-add-grid\s*{[\s\S]*?font-size:\s*11px/);
-    assert.match(styles, /\.cost-settings-panel \.cost-settings-table \.themed-select\s*{[\s\S]*?width:\s*100%/);
-  });
 });

@@ -1,0 +1,278 @@
+{
+  "repository": "OpenAEC-Foundation/OpenAEC-Blueprint",
+  "revision": "436f3d78f02b3097000a6374c0dcdaf6854fc56b",
+  "files": [
+    {
+      "source": "web/openaec-tokens.css",
+      "path": "openaec-tokens.css",
+      "sha256": "a555d2c3b45e3d568015abe245758c9ca2c23b30b1bd3b9387a8b499e7d29946"
+    },
+    {
+      "source": "web/openaec-fonts.css",
+      "path": "openaec-fonts.css",
+      "sha256": "f059ace7e2e8bc8e966b941fb58f2813c13e333e517c000310458a2f17a69eb9"
+    },
+    {
+      "source": "web/openaec-components.css",
+      "path": "openaec-components.css",
+      "sha256": "ef23aa1fd8abe3451c231bb5953592306ae89368b617244eb1137b1c631a4a0d"
+    },
+    {
+      "source": "web/react/package.json",
+      "path": "react/package.json",
+      "sha256": "c6e16056b95d01b756069172b2c9e2ce9f44f8163cdd9af23c3a8d3241dc09e7"
+    },
+    {
+      "source": "web/react/README.md",
+      "path": "react/README.md",
+      "sha256": "8bc560c5539b35c0e04e5ad0058048004e2ab34053114f4edff5d15647bafa63"
+    },
+    {
+      "source": "web/react/src/index.ts",
+      "path": "react/src/index.ts",
+      "sha256": "08f80384058cf0de51378c7ee2cee16b566026e00edfa5a8b88855a7f19c474c"
+    },
+    {
+      "source": "web/react/src/base.tsx",
+      "path": "react/src/base.tsx",
+      "sha256": "0bf5497d3fba38cef6ec869b956a1f1429fc194a8734473e2a07ee21a1b01188"
+    },
+    {
+      "source": "web/react/src/controls.tsx",
+      "path": "react/src/controls.tsx",
+      "sha256": "8566d0518027148ca11e565bade5b51ff3b48b446e7895759f3d9147db1bee62"
+    },
+    {
+      "source": "web/react/src/feedback.tsx",
+      "path": "react/src/feedback.tsx",
+      "sha256": "854c24e1dbfbe085ede4c2e5382198dbafdf46d8c8f8de08e4ca077bcf7340ab"
+    },
+    {
+      "source": "web/react/src/shell.tsx",
+      "path": "react/src/shell.tsx",
+      "sha256": "aafeace1b091a8f180a94fab2045931c3753a5060492ab2adb4a3f93743e67e2"
+    },
+    {
+      "source": "web/react/src/tiles.tsx",
+      "path": "react/src/tiles.tsx",
+      "sha256": "d8c9c096b4259e1c5c63b21795d479c8c84f97c2054dc481e0f3e9163268f0d7"
+    },
+    {
+      "source": "LICENSE",
+      "path": "LICENSE",
+      "sha256": "b18be8239a52746e855b70199d77f181124300c2373ca7a49bf89ec77e1157d2"
+    },
+    {
+      "source": "web/icons/manifest.json",
+      "path": "icons/upstream-manifest.json",
+      "sha256": "598bf085458bff4240449602eafa254d724f591cb110aa0d76c12adf6b488e94"
+    },
+    {
+      "source": "crates/openaec-icons/LICENSE.md",
+      "path": "icons/LICENSE.md",
+      "sha256": "a66cc080f0bbdf2c47c356b7b0b4f93502d549348374d7ae4503a226cc3ff29a"
+    },
+    {
+      "source": "web/fonts/Inter-Regular.woff2",
+      "path": "fonts/Inter-Regular.woff2",
+      "sha256": "338239f6b590b8ced3bf857654d32da3fd3663294cd3003651ed57aa3abd7aa1"
+    },
+    {
+      "source": "web/fonts/Inter-Regular.ttf",
+      "path": "fonts/Inter-Regular.ttf",
+      "sha256": "40d692fce188e4471e2b3cba937be967878f631ad3ebbbdcd587687c7ebe0c82"
+    },
+    {
+      "source": "web/fonts/Inter-Medium.woff2",
+      "path": "fonts/Inter-Medium.woff2",
+      "sha256": "7e80d9f65861ee6836a0081d4e75d88fb8789e5651d05edbc49640442a9610ee"
+    },
+    {
+      "source": "web/fonts/Inter-Medium.ttf",
+      "path": "fonts/Inter-Medium.ttf",
+      "sha256": "97ad806f526e41546d46365bb3a393145f75b7b1568913db74549ad8b8dba872"
+    },
+    {
+      "source": "web/fonts/Inter-SemiBold.woff2",
+      "path": "fonts/Inter-SemiBold.woff2",
+      "sha256": "5013f48d77ab627b1db7c2415914284ef09abc3f60a8e0d0d8f3cd1bfebefb5e"
+    },
+    {
+      "source": "web/fonts/Inter-SemiBold.ttf",
+      "path": "fonts/Inter-SemiBold.ttf",
+      "sha256": "78a843fade9d4612a5567302fb595b56976eb5fcebf4fea5a5912d638bafcde3"
+    },
+    {
+      "source": "web/fonts/SpaceGrotesk-Medium.woff2",
+      "path": "fonts/SpaceGrotesk-Medium.woff2",
+      "sha256": "f20a85be4c8a74ddad94d46fcce503666498855e5a87755d75cd728d801bbe58"
+    },
+    {
+      "source": "web/fonts/SpaceGrotesk-Medium.ttf",
+      "path": "fonts/SpaceGrotesk-Medium.ttf",
+      "sha256": "3183b7eb0b4241476360e2cd8e527868616cc16d3ce332c4376505989b772b44"
+    },
+    {
+      "source": "web/fonts/SpaceGrotesk-Bold.woff2",
+      "path": "fonts/SpaceGrotesk-Bold.woff2",
+      "sha256": "06d705cebbab916f0c0fe82b6c6f4cae06aa07fd6f5ee078421206040326ef63"
+    },
+    {
+      "source": "web/fonts/SpaceGrotesk-Bold.ttf",
+      "path": "fonts/SpaceGrotesk-Bold.ttf",
+      "sha256": "7209bbb75fc0f5c546a5f5773b0db74ffc6abf04c2148c1105cace5765a96bdb"
+    },
+    {
+      "source": "web/fonts/JetBrainsMono-Regular.woff2",
+      "path": "fonts/JetBrainsMono-Regular.woff2",
+      "sha256": "a9cb1cd82332b23a47e3a1239d25d13c86d16c4220695e34b243effa999f45f2"
+    },
+    {
+      "source": "web/fonts/JetBrainsMono-Regular.ttf",
+      "path": "fonts/JetBrainsMono-Regular.ttf",
+      "sha256": "a0bf60ef0f83c5ed4d7a75d45838548b1f6873372dfac88f71804491898d138f"
+    },
+    {
+      "source": "web/fonts/InterAEC-Regular.woff2",
+      "path": "fonts/InterAEC-Regular.woff2",
+      "sha256": "1dd0a73cff64f7827e7d1660a61b374b3a95ce15d46a814d41b09addaeebdb68"
+    },
+    {
+      "source": "web/fonts/InterAEC-Regular.ttf",
+      "path": "fonts/InterAEC-Regular.ttf",
+      "sha256": "45c6c8912815bb6d297ba02bf89b3c6ad9987f98290723c25ab2189975173c6b"
+    },
+    {
+      "source": "web/fonts/InterAEC-Medium.woff2",
+      "path": "fonts/InterAEC-Medium.woff2",
+      "sha256": "88bbf03403ab7acbdba1335a9e70ffe065a769f3bef2cdb0017fa3164f941bba"
+    },
+    {
+      "source": "web/fonts/InterAEC-Medium.ttf",
+      "path": "fonts/InterAEC-Medium.ttf",
+      "sha256": "3a5f3b738aff99f81e9b5b38b584b1dc8be00656c0118f94250418101233efd0"
+    },
+    {
+      "source": "web/fonts/InterAEC-SemiBold.woff2",
+      "path": "fonts/InterAEC-SemiBold.woff2",
+      "sha256": "8639dd107f1b8f64d84b1c0b180e6c4a91f753b7a282906d93bc0832aedb9201"
+    },
+    {
+      "source": "web/fonts/InterAEC-SemiBold.ttf",
+      "path": "fonts/InterAEC-SemiBold.ttf",
+      "sha256": "b049e34771d31d30e04f976e51f50b99c908a4fe76706fa66251d1c9716280cb"
+    },
+    {
+      "source": "web/fonts/NotoSans-Regular.woff2",
+      "path": "fonts/NotoSans-Regular.woff2",
+      "sha256": "b74ff0c1dc0c06d780b96350f2454d6e398320cb8066bc7afdf654b57021701b"
+    },
+    {
+      "source": "web/fonts/NotoSans-Regular.ttf",
+      "path": "fonts/NotoSans-Regular.ttf",
+      "sha256": "478c558ea716033cd60c03438f628dfa75694dcf6b5f6d505a2f05fd2b4f3823"
+    },
+    {
+      "source": "web/fonts/NotoSansSymbols-Regular.woff2",
+      "path": "fonts/NotoSansSymbols-Regular.woff2",
+      "sha256": "7a43d3d8f05dac82408d885a7a4212e857f36ee288e9b4a36237d19c3a1773b8"
+    },
+    {
+      "source": "web/fonts/NotoSansSymbols-Regular.ttf",
+      "path": "fonts/NotoSansSymbols-Regular.ttf",
+      "sha256": "d0e98e9a2c046594c5021437273943be7e79e0fd980fde125279e22302212595"
+    },
+    {
+      "source": "web/fonts/Inter-OFL.txt",
+      "path": "fonts/Inter-OFL.txt",
+      "sha256": "262481e844521b326f5ecd053e59b98c8b2da78c8ee1bdbb6e8174305e54935a"
+    },
+    {
+      "source": "web/fonts/SpaceGrotesk-OFL.txt",
+      "path": "fonts/SpaceGrotesk-OFL.txt",
+      "sha256": "18a4de52385f6b988782639d5d0cc1326e5a8c2de9a7f01d7b20d9aedcc60943"
+    },
+    {
+      "source": "web/fonts/JetBrainsMono-OFL.txt",
+      "path": "fonts/JetBrainsMono-OFL.txt",
+      "sha256": "c1ab7c666206842a02b35b30770dac0d7a10156ed401c9defc3f02a754d89e90"
+    },
+    {
+      "source": "web/fonts/NotoSans-OFL.txt",
+      "path": "fonts/NotoSans-OFL.txt",
+      "sha256": "d650261136c7f9b650d6a9ba13e8545b0249e384ed330d18673dbb48d66d463c"
+    }
+  ],
+  "iconSources": [
+    {
+      "source": "web/icons/reports.svg",
+      "sha256": "4df0fd45c51e174414041834499249f3b2d1e1a95552f12c1bd478611ecc2f19"
+    },
+    {
+      "source": "web/icons/composer.svg",
+      "sha256": "baf811717531495a05266018faf5598e941fdd2ed6290a5f989abe8b3d0f3211"
+    },
+    {
+      "source": "web/icons/standard.svg",
+      "sha256": "d26974f236338f9306d010d23b97f1039e0443686ebf5be6689da2222895608f"
+    },
+    {
+      "source": "web/icons/pile-plan.svg",
+      "sha256": "81c5002c0bcc744bb79f0653a07655c89953a95e620fae11401ab407f03b8418"
+    }
+  ],
+  "iconIds": [
+    "file.save",
+    "edit.undo",
+    "edit.redo",
+    "ui.settings",
+    "ui.feedback",
+    "project.properties",
+    "data.apply",
+    "ui.close",
+    "object.unlock",
+    "pile.cpt-settings",
+    "pile.cost-settings",
+    "pile.group-settings",
+    "pile.load-points",
+    "pile.cpts",
+    "pile.load-groups",
+    "edit.select",
+    "pile.lock-edit",
+    "pile.optimization",
+    "view.grid",
+    "panel.left",
+    "panel.right",
+    "file.open",
+    "file.save-as",
+    "file.import",
+    "file.export",
+    "file.type-ifc",
+    "file.type-project",
+    "file.type-other",
+    "nav.back",
+    "ui.about",
+    "status.error",
+    "status.warning",
+    "status.success",
+    "status.info",
+    "object.rename",
+    "edit.copy",
+    "edit.delete",
+    "pile.new",
+    "table.column-filter",
+    "pile.legend-used",
+    "pile.legend-edit",
+    "status.hidden"
+  ],
+  "generated": [
+    {
+      "path": "icons/studio.svg",
+      "sha256": "66a57ffa955eea9bea6b907def74a3263996fa4552766b26ed81f9c8c7a6ba97"
+    },
+    {
+      "path": "icons/studioIcons.ts",
+      "sha256": "69b9f292ee01336c7eab2d78ba38824d21f1c3c4b3fc91a8f9aa0caac16fc07f"
+    }
+  ]
+}

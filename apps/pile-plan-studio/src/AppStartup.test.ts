@@ -79,7 +79,8 @@ describe("React app startup", () => {
     assert.match(source, /createInitialProjectState\(sample\.project, \{[\s\S]*?initializeDefaultPiles: true[\s\S]*?\}, sample\.keys\)/);
     assert.match(source, /createInitialProjectState\(project, \{[\s\S]*?initializeDefaultPiles: true[\s\S]*?\}, imported\.keys\)/);
     assert.match(source, /createInitialProjectState\(refreshed\.project, \{[\s\S]*?initializeDefaultPiles: false[\s\S]*?\}, refreshed\.keys\)/);
-    assert.match(source, /prepareOpenedProject\(\s*await file\.text\(\),\s*\{ initializeDefaultPiles: false \},\s*\{/);
+    assert.match(source, /openBrowserProjectContents\(await file\.text\(\), file\.name\)/);
+    assert.match(source, /const openBrowserProjectContents[\s\S]*?prepareOpenedProject\(contents, \{ initializeDefaultPiles: false \}/);
     assert.match(source, /readProjectDocument:\s*readProjectDocumentCore/);
     assert.doesNotMatch(source, /validatePositions:\s*validateLoadPointPositionsCore/);
   });

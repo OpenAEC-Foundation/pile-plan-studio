@@ -1,81 +1,17 @@
-/* Status Bar */
-.status-bar {
-  background: var(--theme-status-bg);
-  border-top: 1px solid var(--theme-status-border);
-  padding: 0 12px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  height: 22px;
-  font-size: 12px;
-  color: var(--theme-status-text);
-  flex-shrink: 0;
-  user-select: none;
-  cursor: default;
-}
-
-.status-bar-left {
-  display: flex;
-  align-items: center;
+/* Shared StatusBar owns colours, typography and the live status role. */
+.status-bar { flex: none; min-width: 0; user-select: none; }
+.status-bar > .oa-statusbar {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  width: 100%;
+  min-width: 0;
+  height: var(--oa-shell-statusbar);
   gap: 12px;
-  flex: 1;
+  padding-inline: 12px;
 }
-
-.status-bar-center {
-  display: flex;
-  align-items: center;
-  gap: 2px;
-  justify-content: center;
-}
-
-.status-bar-right {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  flex: 1;
-  justify-content: flex-end;
-}
-
-.status-item {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  padding: 0 6px;
-  height: 22px;
-  cursor: default;
-  transition: background 0.1s;
-}
-
-.status-item:hover {
-  background: var(--theme-status-hover);
-}
-
-.status-separator {
-  width: 1px;
-  height: 14px;
-  background: var(--theme-status-separator);
-}
-
-.status-item-label {
-  color: var(--theme-status-text-label);
-  font-size: 12px;
-}
-
-.status-item-value {
-  color: var(--theme-status-text);
-  font-weight: 500;
-  font-size: 12px;
-}
-
-.status-warning {
-  color: #9a5a00;
-  font-size: 11px;
-}
-
-.status-message {
-  color: var(--theme-status-text);
-  font-size: 11px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
+.status-bar > .oa-statusbar > .oa-spacer { display: none; }
+.status-bar > .oa-statusbar > span:first-child { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.status-bar > .oa-statusbar > span:last-child { min-width: 0; justify-self: end; }
+.status-bar-center { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.status-item { display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; }
+.status-item-value { font-weight: var(--oa-weight-medium); }

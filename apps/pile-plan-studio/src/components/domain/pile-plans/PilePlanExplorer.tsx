@@ -1,5 +1,10 @@
 import { useState, type KeyboardEvent } from "react";
 import { useTranslation } from "react-i18next";
+import { Button, IconButton, MonoLabel, OpenAECProvider, Panel, Status, TextField } from "../../../openaec/react/src/index";
+import spriteUrl from "../../../openaec/studioSprite.ts";
+import "../../../openaec/openaec-components.css";
+import "./PilePlanExplorer.css";
+import { SimpleIconAction, SimpleIconButton } from "../../template/SimpleIconControls.tsx";
 
 import type { PilePlanData } from "../../../core/projectFile.ts";
 import type { ProjectCostSummary } from "../../../domain/pile-plans/projectCostSummary.ts";
@@ -79,11 +84,11 @@ export default function PilePlanExplorer({
   };
 
   return (
-    <aside className="project-explorer" aria-label={t("projectExplorer.aria")}>
-      <div className="panel-heading">{t("explorer")}</div>
+    <OpenAECProvider sprite={spriteUrl}><aside className="oa-app project-explorer explorer-blueprint" aria-label={t("projectExplorer.aria")}>
+      <Panel title={t("explorer")} className="explorer-panel">
       <div className="project-tree">
         <section className="project-tree-section">
-          <div className="project-tree-label">{t("projectExplorer.project")}</div>
+          <div className="project-tree-label"><MonoLabel>{t("projectExplorer.project")}</MonoLabel></div>
           <div className="project-summary">
             <strong>{projectName}{isDirty ? " *" : ""}</strong>
             <small>IFCPP</small>
@@ -97,7 +102,9 @@ export default function PilePlanExplorer({
             onToggle={() => onExpansionChange("inputSources", !inputSourcesExpanded)}
           />
           {inputSourcesExpanded && inputSources.map((source) => (
-            <button
+            <Button
+              kind="quiet"
+              aria-pressed={activeSourceKind === source.kind}
               className={`project-tree-item${activeSourceKind === source.kind ? " active" : ""}`}
               key={source.kind}
               onClick={() => onSourceActivate(source.kind)}
@@ -105,7 +112,7 @@ export default function PilePlanExplorer({
             >
               <span>{t(`projectExplorer.sources.${source.kind}`)}</span>
               <small>{t(source.kind === "bearing_capacities" ? "projectExplorer.resistanceValues" : "projectExplorer.rows", { count: source.itemCount })}</small>
-            </button>
+            </Button>
           ))}
         </section>
 
@@ -126,9 +133,9 @@ export default function PilePlanExplorer({
               return (
                 <div className={`pile-plan-row${active ? " active" : ""}`} key={plan.id}>
                   {renamingId === plan.id && !managementDisabled ? (
-                    <div className="pile-plan-select">
-                      <input
-                        aria-label={t("projectExplorer.rename")}
+                    <div className="pile-plan-select pile-plan-rename">
+                      <TextField
+                        label={t("projectExplorer.rename")}
                         autoFocus
                         onBlur={() => finishRename(plan)}
                         onChange={(event) => setRenameValue(event.currentTarget.value)}
@@ -137,7 +144,8 @@ export default function PilePlanExplorer({
                       />
                     </div>
                   ) : (
-                    <button
+                    <Button
+                      kind="quiet"
                       aria-selected={active}
                       className="pile-plan-select"
                       onClick={() => onActivate(plan.id)}
@@ -157,14 +165,14 @@ export default function PilePlanExplorer({
                         ) : null}
                         {summary.missingCount > 0 ? (
                           <span className="pile-plan-warning" aria-label={t("projectExplorer.missingCosts", { count: summary.missingCount })}>
-                            {t("projectExplorer.missingCostsLabel",{count:summary.missingCount})}
+                            <Status>{t("projectExplorer.missingCostsLabel",{count:summary.missingCount})}</Status>
                           </span>
                         ) : null}
                         {plan.lockedLoadPointIds.length > 0 ? (
                           <span>{t("projectExplorer.locked", { count: plan.lockedLoadPointIds.length })}</span>
                         ) : null}
                       </span>
-                    </button>
+                    </Button>
                   )}
                   <div className="pile-plan-actions">
                     <ActionButton disabled={managementDisabled} label={t("projectExplorer.rename")} kind="edit" onClick={() => startRename(plan)} />
@@ -180,14 +188,13 @@ export default function PilePlanExplorer({
               );
             })}
           </div>
-          <button className="new-pile-plan" disabled={creating || createDisabled} onClick={onCreate} type="button">
-            <Icon kind="plus" />
+          <SimpleIconAction kind="quiet" icon="local.add" className="new-pile-plan" disabled={creating || createDisabled} onClick={onCreate} type="button">
             <span>{creating ? t("projectExplorer.creating") : t("projectExplorer.newPilePlan")}</span>
-          </button>
+          </SimpleIconAction>
           </>}
         </section>
       </div>
-    </aside>
+    </Panel></aside></OpenAECProvider>
   );
 }
 
@@ -201,7 +208,8 @@ function GroupHeading({
   onToggle: () => void;
 }) {
   return (
-    <button
+    <Button
+      kind="quiet"
       aria-expanded={expanded}
       className="project-tree-group-heading"
       onClick={onToggle}
@@ -209,7 +217,7 @@ function GroupHeading({
     >
       <svg aria-hidden="true" viewBox="0 0 16 16"><path d={expanded ? "m4 6 4 4 4-4" : "m6 4 4 4-4 4"} /></svg>
       <span>{label}</span>
-    </button>
+    </Button>
   );
 }
 
@@ -224,22 +232,9 @@ function ActionButton({
   label: string;
   onClick: () => void;
 }) {
-  return (
-    <button
-      aria-label={label}
-      disabled={disabled}
-      onClick={onClick}
-      title={label}
-      type="button"
-    >
-      <Icon kind={kind} />
-    </button>
-  );
-}
-
-function Icon({ kind }: { kind: "edit" | "copy" | "delete" | "plus" }) {
-  if (kind === "edit") return <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>;
-  if (kind === "copy") return <svg aria-hidden="true" viewBox="0 0 24 24"><rect height="13" rx="2" width="13" x="9" y="9"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>;
-  if (kind === "delete") return <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M19 6l-1 14H6L5 6"/></svg>;
-  return <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>;
+  if (kind === "edit") return <SimpleIconButton small icon="local.edit" disabled={disabled} label={label} onClick={onClick}
+    data-oa-tip={undefined} data-tooltip={disabled?undefined:label} />;
+  return <IconButton small icon={kind === "copy" ? "edit.copy" : "edit.delete"}
+    disabled={disabled} label={label} onClick={onClick}
+    data-oa-tip={undefined} data-tooltip={disabled?undefined:label} />;
 }

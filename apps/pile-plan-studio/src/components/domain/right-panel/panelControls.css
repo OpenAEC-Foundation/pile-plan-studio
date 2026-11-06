@@ -1,0 +1,21 @@
+/* App-owned composition of shared Blueprint settings controls. */
+.blueprint-settings-group {
+  display: grid;
+  gap: 12px;
+  padding: 16px 12px;
+  border-bottom: 1px solid var(--oa-border);
+}
+.blueprint-settings-number { display: grid; grid-template-columns: minmax(0, 1fr) 24px; column-gap: 6px; }
+.blueprint-settings-number .oa-label {
+  grid-template-columns: minmax(0, 1fr) 80px;
+  align-items: center;
+  column-gap: 12px;
+}
+.blueprint-settings-number .oa-field { text-align: left; }
+.blueprint-number-unit { display: flex; align-items: center; min-height: var(--oa-row); align-self: start; }
+.blueprint-settings-number .oa-label > .oa-secondary {
+  grid-column: 1 / -1;
+  font-size: var(--oa-size-label);
+  font-weight: var(--oa-weight-regular);
+  line-height: 1.45;
+}

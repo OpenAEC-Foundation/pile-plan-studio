@@ -6,8 +6,8 @@ import { addAdviceSource, removeAdviceSource, replaceAdviceFile, replaceStoredAd
 import type { StoredAdviceSource } from "../../../core/adviceImportContract.ts";
 import type { ImportProfile } from "../../../core/coreImportContract.ts";
 import { importDiagnosticText } from "../../../core/importDiagnosticText.ts";
-import ThemedSelect from "../../template/ThemedSelect.tsx";
-import { ifcImportIcon } from "../../template/ribbon/icons.ts";
+import { Banner, Button, Checkbox, Heading, Select, Status } from "../../../openaec/react/src/index";
+import ImportFileButton from "./ImportFileButton.tsx";
 import AdviceImportDiagnostics from "./AdviceImportDiagnostics.tsx";
 
 type Props = { draft: AdviceDraft<File>; onChange: (fn: (d: AdviceDraft<File>) => AdviceDraft<File>) => void;
@@ -46,60 +46,55 @@ export default function AdviceImportSources({ draft, onChange, refresh }: Props)
     };
     return <section key={key} className="project-import-source-card">
       <div className="project-import-source-header">
-        <div><strong>{t("importProject.roles.foundationAdvice")}{sourceOrder.length>1 && (source || existing) ? ` (${sourceLabels[source?.id ?? `stored:${existing!.id}`]})` : ""}</strong><small>{refresh
+        <div><Heading>{t("importProject.roles.foundationAdvice")}{sourceOrder.length>1 && (source || existing) ? ` (${sourceLabels[source?.id ?? `stored:${existing!.id}`]})` : ""}</Heading><small>{refresh
           ? t(existing ? "importProject.advice.existing" : "importProject.advice.additional")
           : t("importProject.columns.foundationAdvice")}</small></div>
 
       </div>
       <div className="project-import-file-row">
         <span className="project-import-file-name" title={fileName}>{fileName}</span>
-        <label className="project-import-file-button"><span className="project-import-file-icon" aria-hidden="true" dangerouslySetInnerHTML={{__html:ifcImportIcon}} />
-          <span>{t(source || existing ? "importProject.replace" : "importProject.choose")}</span>
-          <input type="file" accept=".csv,.xlsx" className="project-import-native-file" onChange={e => {
-            const file=e.target.files?.[0]; if(file) choose(file); e.target.value="";
-          }} />
-        </label>
-        <button type="button" className="project-import-button project-import-remove" disabled={!source && (Boolean(existing) || key === "default")}
-          onClick={() => source ? onChange(d => removeAdviceSource(d,source.id)) : setEmptyCards(cards => cards.filter(v => v!==key))}>{t("importProject.remove")}</button>
+        <ImportFileButton label={t(source || existing ? "importProject.replace" : "importProject.choose")} onFiles={files => choose(files[0])} />
+        <Button className="project-import-remove" disabled={!source && (Boolean(existing) || key === "default")}
+          onClick={() => source ? onChange(d => removeAdviceSource(d,source.id)) : setEmptyCards(cards => cards.filter(v => v!==key))}>{t("importProject.remove")}</Button>
       </div>
       {refresh && <small className="advice-import-operation">{t(existing?.combinedLegacy ? "importProject.advice.legacyHelp" : existing ? "importProject.advice.replaceHelp" : "importProject.advice.appendHelp")}</small>}
-      {(source || existing) && !(preview && multiple && !selected.length) && <div className={`project-import-status ${invalid ? "error" : source && source.discovery.status !== "ready" ? "analyzing" : "valid"}`}>
-        <span className="project-import-status-dot" />{invalid ? source?.discovery.status === "failed" ? source.discovery.message : t("importProject.advice.status.invalid")
+      {(source || existing) && !(preview && multiple && !selected.length) && <div className="project-import-status" role="status"><Status tone={invalid ? "error" : source && source.discovery.status !== "ready" ? "info" : "success"}>
+        {invalid ? source?.discovery.status === "failed" ? source.discovery.message : t("importProject.advice.status.invalid")
           : source && source.discovery.status !== "ready" ? t("importProject.status.analyzing")
           : multiple && !selected.length ? t("importProject.advice.chooseSheets")
           : t("importProject.status.validCount",{count:source ? count : existing!.itemCount})}
-      </div>}
-      {source&&!preview&&<SourceTableEditor role="bearing-capacities" onChange={()=>{}}>
-        <label className="project-import-profile"><span>{t("importProject.profile.label")}</span>
-          <ThemedSelect value={profile} options={source?.file.name.toLowerCase().endsWith(".csv") ? profiles.filter(p => p.value !== "capacity-columns") : profiles}
-            ariaLabel={`${t("importProject.profile.label")} ${fileName}`} onChange={value => source
-              ? onChange(d => setAdviceProfile(d, source.id, value as ImportProfile))
-              : setEmptyProfiles(p => ({...p,[key]:value as ImportProfile}))} />
-        </label>
+      </Status></div>}
+      {source&&!preview&&<SourceTableEditor variant="blueprint" role="bearing-capacities" onChange={()=>{}}>
+          <Select label={t("importProject.profile.label")} value={profile} options={source?.file.name.toLowerCase().endsWith(".csv") ? profiles.filter(p => p.value !== "capacity-columns") : profiles}
+            aria-label={`${t("importProject.profile.label")} ${fileName}`} onChange={event => {
+              const value = event.currentTarget.value as ImportProfile;
+              if (source) onChange(d => setAdviceProfile(d, source.id, value));
+              else setEmptyProfiles(p => ({...p,[key]:value}));
+            }} />
       </SourceTableEditor>}
-      {preview?.diagnostics.map((d,i) => <p className="project-import-error" key={i}>{importDiagnosticText(d,t)}</p>)}
+      {preview?.diagnostics.map((d,i) => <Banner tone={d.severity === "error" ? "error" : "warning"} word="" key={i}>{importDiagnosticText(d,t)}</Banner>)}
       {preview && <div className="advice-import-sheet-choice">
         {multiple && <small>{t("importProject.advice.chooseSheets")}</small>}
         {sheets.map(sheet => {
           const selection = source!.sheetSelection?.find(v => v.sheetName===sheet.sheetName);
           return <div className={multiple ? "advice-import-sheet" : "advice-import-single-sheet"} key={sheet.sheetName}>
             {multiple && <>
-              <label><input type="checkbox" checked={!!selection} onChange={e => onChange(d => setAdviceSheetSelection(d,source!.id,
+              <Checkbox label={sheet.sheetName} checked={!!selection} onChange={e => onChange(d => setAdviceSheetSelection(d,source!.id,
                 e.target.checked ? [...source!.sheetSelection ?? [],{sheetName:sheet.sheetName,profile:sheet.resolvedProfile ?? profile,table:sheet.table?.settings}]
-                  : (source!.sheetSelection ?? []).filter(v => v.sheetName!==sheet.sheetName)))} />{sheet.sheetName}</label>
-              <span>{t(`importProject.advice.status.${sheet.status}`)}</span>
+                  : (source!.sheetSelection ?? []).filter(v => v.sheetName!==sheet.sheetName)))} />
+              <Status tone={sheet.status === "ready" ? "success" : "warning"}>{t(`importProject.advice.status.${sheet.status}`)}</Status>
             </>}
-            {(!multiple||selection)&&<SourceTableEditor key={`${source!.id}:${sheet.sheetName}`} preview={sheet.table} diagnostics={sheet.diagnostics} settings={selection?.table} role="bearing-capacities" matrix={(selection?.profile==="auto"||!selection)?sheet.resolvedProfile==="capacity-columns"||sheet.detectedProfile==="capacity-columns":selection.profile==="capacity-columns"}
+            {(!multiple||selection)&&<SourceTableEditor variant="blueprint" key={`${source!.id}:${sheet.sheetName}`} preview={sheet.table} diagnostics={sheet.diagnostics} settings={selection?.table} role="bearing-capacities" matrix={(selection?.profile==="auto"||!selection)?sheet.resolvedProfile==="capacity-columns"||sheet.detectedProfile==="capacity-columns":selection.profile==="capacity-columns"}
               csv={source!.file.name.toLowerCase().endsWith(".csv")}
               onChange={table=>onChange(d=>setAdviceSheetSelection(d,source!.id,(source!.sheetSelection??[{sheetName:sheet.sheetName,profile:sheet.resolvedProfile??profile}]).map(v=>v.sheetName===sheet.sheetName?{...v,table,tensionColumn:null}:v)))}>
-              <label className="project-import-profile"><span>{t("importProject.profile.label")}</span><ThemedSelect value={selection?.profile??profile} options={source!.file.name.toLowerCase().endsWith(".csv")?profiles.filter(p=>p.value!=="capacity-columns"):profiles} ariaLabel={`${t("importProject.profile.label")} ${sheet.sheetName||fileName}`}
-                onChange={value=>onChange(d=>setAdviceSheetSelection(d,source!.id,(source!.sheetSelection??[{sheetName:sheet.sheetName,profile}]).map(v=>v.sheetName===sheet.sheetName?{...v,profile:value as ImportProfile,table:v.table?{pile_count:v.table.pile_count,fixed_pile_size_mm:value==="capacity-columns"?null:(v.table.fixed_pile_size_mm||null)}:null,tensionColumn:null}:v)))}/></label>
-              {(selection?.profile==="capacity-columns"||(selection?.profile!=="standard-table"&&sheet.detectedProfile==="capacity-columns"))&&<label><span>{t("loadDirection.resistanceType")}</span><ThemedSelect value={selection?.direction??"compression"} ariaLabel={`${t("loadDirection.resistanceType")} ${sheet.sheetName||fileName}`}
+              <Select label={t("importProject.profile.label")} value={selection?.profile??profile} options={source!.file.name.toLowerCase().endsWith(".csv")?profiles.filter(p=>p.value!=="capacity-columns"):profiles} aria-label={`${t("importProject.profile.label")} ${sheet.sheetName||fileName}`}
+                onChange={event=>{const value=event.currentTarget.value;onChange(d=>setAdviceSheetSelection(d,source!.id,(source!.sheetSelection??[{sheetName:sheet.sheetName,profile}]).map(v=>v.sheetName===sheet.sheetName?{...v,profile:value as ImportProfile,table:v.table?{pile_count:v.table.pile_count,fixed_pile_size_mm:value==="capacity-columns"?null:(v.table.fixed_pile_size_mm||null)}:null,tensionColumn:null}:v)));}}/>
+              {(selection?.profile==="capacity-columns"||(selection?.profile!=="standard-table"&&sheet.detectedProfile==="capacity-columns"))&&<div><Select label={t("loadDirection.resistanceType")} value={selection?.direction??"compression"} aria-label={`${t("loadDirection.resistanceType")} ${sheet.sheetName||fileName}`}
                 options={[{value:"compression",label:t("loadDirection.compressionResistance")},{value:"tension",label:t("loadDirection.tensionResistance")}]}
-                onChange={value=>onChange(d=>setAdviceSheetSelection(d,source!.id,(source!.sheetSelection??[{sheetName:sheet.sheetName,profile:sheet.resolvedProfile??profile}]).map(v=>v.sheetName===sheet.sheetName?{...v,direction:value as "compression"|"tension",tensionColumn:null}:v)))}/><small>{t("tableImport.matrixHelp")}</small></label>}
+                onChange={event=>{const value=event.currentTarget.value;onChange(d=>setAdviceSheetSelection(d,source!.id,(source!.sheetSelection??[{sheetName:sheet.sheetName,profile:sheet.resolvedProfile??profile}]).map(v=>v.sheetName===sheet.sheetName?{...v,direction:value as "compression"|"tension",tensionColumn:null}:v)));}}/><small>{t("tableImport.matrixHelp")}</small></div>}
               <small className="source-import-help">{t("loadDirection.designResistanceHelp")}</small>
             </SourceTableEditor>}
-            {(!multiple || selection) && sheet.diagnostics[0] && <p className="advice-import-primary-diagnostics project-import-error">{importDiagnosticText(sheet.diagnostics[0],t)}</p>}
+            {(!multiple || selection) && sheet.diagnostics[0] && <div className="advice-import-primary-diagnostics"><Banner tone={sheet.diagnostics[0].severity === "error" ? "error" : "warning"} word="">{importDiagnosticText(sheet.diagnostics[0],t)}</Banner></div>}
           </div>;
         })}
       </div>}
@@ -118,9 +113,9 @@ export default function AdviceImportSources({ draft, onChange, refresh }: Props)
     {draft.sources.filter(s => !refresh || !s.replacementId).map(s => card(s.id,s))}
     {!stored.length && !draft.sources.length && card("default")}
     {emptyCards.map(key => card(key))}
-    <button type="button" className="project-import-button advice-import-add" onClick={() => setEmptyCards(cards => [...cards,crypto.randomUUID()])}>{t("importProject.advice.addAdvice")}</button>
+    <Button className="advice-import-add" onClick={() => setEmptyCards(cards => [...cards,crypto.randomUUID()])}>{t("importProject.advice.addAdvice")}</Button>
     <small>{t("importProject.advice.assumptions")}</small>
-    {draft.previewState.status==="failed" && <p className="project-import-error">{draft.previewState.message}</p>}
+    {draft.previewState.status==="failed" && <Banner tone="error" word="">{draft.previewState.message}</Banner>}
     {draft.previewState.status==="ready" && (draft.sources.length>0 || draft.previewState.preview.conflicts.length>0) && <AdviceImportDiagnostics preview={draft.previewState.preview} sourceLabels={sourceLabels} alreadyShownDiagnostics={alreadyShownDiagnostics} />}
   </div>;
 }

@@ -24,8 +24,9 @@ describe("Plan and View ribbon", () => {
     assert.match(source, /foregroundLayer/);
     assert.match(source, /showGrid/);
     assert.match(source, /onGridVisibilityChange/);
-    assert.match(source, /type="range"/);
-    assert.match(styles, /\.ribbon-foreground-control button:hover\s*{[\s\S]*?background:\s*var\(--theme-ribbon-btn-hover\)/);
+    assert.match(source, /<Slider/);
+    assert.match(source, /active=\{foregroundLayer === "load-points"\}/);
+    assert.match(source, /active=\{foregroundLayer === "cpts"\}/);
   });
 
   it("offers a project-backed group visibility toggle under View", () => {
@@ -44,18 +45,41 @@ describe("Plan and View ribbon", () => {
     const styles = readFileSync(resolve(import.meta.dirname, "Ribbon.css"), "utf8");
 
     assert.match(source, /className="tip-level-regions-toggle"/);
-    assert.match(styles, /\.ribbon-btn\.tip-level-regions-toggle\s*{[\s\S]*?width:\s*104px/);
-    assert.match(styles, /\.ribbon-btn\.tip-level-regions-toggle \.ribbon-btn-label\s*{[\s\S]*?max-width:\s*100px/);
+    assert.match(styles, /\.ribbon-btn\.tip-level-regions-toggle\s*{[\s\S]*?width:\s*min-content/);
+    assert.match(styles, /\.ribbon-btn\.tip-level-regions-toggle\s*{[\s\S]*?min-width:\s*104px/);
   });
 
-  it("uses a scale-independent active tab border and separates ribbon content", () => {
+  it("uses shared tabs for selection and separates ribbon content", () => {
     const source = readFileSync(resolve(import.meta.dirname, "Ribbon.tsx"), "utf8");
     const css = readFileSync(resolve(import.meta.dirname, "Ribbon.css"), "utf8");
 
     assert.doesNotMatch(source, /ribbon-tab-border|ribbon-tab-gap|updateHighlight/);
-    assert.match(css, /\.ribbon-tab\.active\s*{[\s\S]*?border-color:\s*var\(--theme-accent\)/);
-    assert.match(css, /\.ribbon-tab\.active\s*{[\s\S]*?border-bottom-color:\s*var\(--theme-bg\)/);
+    assert.match(source, /<Tabs label=\{t\("tabs.label"\)\}/);
+    assert.doesNotMatch(source, /RibbonTab/);
+    assert.doesNotMatch(css, /\.ribbon-tab\.active/);
     assert.match(css, /\.ribbon-content-wrapper\s*{[\s\S]*?border-bottom:\s*1px solid var\(--theme-border\)/);
+  });
+
+  it("provides stable visibility-toggle names in both languages", () => {
+    const expected = {
+      nl: ["Grid", "Puntniveaugebieden", "Groepen", "Verkenner", "Eigenschappen"],
+      en: ["Grid", "Tip-level regions", "Groups", "Explorer", "Properties"],
+    };
+    for (const language of ["nl", "en"] as const) {
+      const {view} = JSON.parse(readFileSync(resolve(import.meta.dirname, `../../../i18n/locales/${language}/ribbon.json`), "utf8"));
+      assert.deepEqual([view.grid, view.tipLevelRegions, view.groups, view.explorer, view.properties], expected[language]);
+      const panel = JSON.parse(readFileSync(resolve(import.meta.dirname, `../../../i18n/locales/${language}/rightPanel.json`), "utf8"));
+      assert.ok(panel["groupingSettings.viewHelp"].includes(language === "nl" ? "Weergave > Groepen" : "View > Groups"));
+      assert.doesNotMatch(panel["groupingSettings.viewHelp"], /Groepen tonen|Show groups/);
+
+    }
+  });
+
+  it("names the ribbon tablist in both languages", () => {
+    for (const [language, label] of [["nl", "Linttabbladen"], ["en", "Ribbon tabs"]]) {
+      const messages = JSON.parse(readFileSync(resolve(import.meta.dirname, `../../../i18n/locales/${language}/ribbon.json`), "utf8"));
+      assert.equal(messages.tabs.label, label);
+    }
   });
 
   it("draws the preferred utilization track only between its two handles", () => {
@@ -102,38 +126,11 @@ describe("Plan and View ribbon", () => {
     assert.doesNotMatch(source, /label=\{t\("view\.help"\)\}/);
   });
 
-  it("uses domain icons for load points and CPTs", () => {
-    const source = readFileSync(resolve(import.meta.dirname, "Ribbon.tsx"), "utf8");
+  it("depicts tip-level regions as a split map with three location points", () => {
+    const icons = readFileSync(resolve(import.meta.dirname, "../icons/pile-plan-proposals.svg"), "utf8");
+    const tipLevelRegionsIcon = icons.match(/<symbol id="i24-pile.tip-regions"[^>]*>([\s\S]*?)<\/symbol>/)?.[1] ?? "";
 
-    assert.match(source, /loadPointIcon/);
-    assert.match(source, /cptIcon/);
-    assert.match(source, /icon=\{loadPointIcon\} label=\{t\("plan\.loadPoints"\)\}/);
-    assert.match(source, /icon=\{cptIcon\} label=\{t\("plan\.cpts"\)\}/);
-  });
-
-  it("uses a domain optimization icon for the panel button", () => {
-    const source = readFileSync(resolve(import.meta.dirname, "Ribbon.tsx"), "utf8");
-    const icons = readFileSync(resolve(import.meta.dirname, "icons.ts"), "utf8");
-
-    assert.match(source, /optimizeIcon/);
-    assert.match(source, /icon=\{optimizeIcon\} label=\{t\("ilp\.run"\)\}/);
-    const optimizeIcon = icons.slice(
-      icons.indexOf("export const optimizeIcon"),
-      icons.indexOf("export const lockIcon"),
-    );
-    assert.equal((optimizeIcon.match(/<circle/g) ?? []).length, 4);
-    assert.match(optimizeIcon, /fill="currentColor"/);
-    assert.match(optimizeIcon, /stroke-linecap="round"/);
-  });
-
-  it("depicts tip-level regions as three mapped areas with location points", () => {
-    const icons = readFileSync(resolve(import.meta.dirname, "icons.ts"), "utf8");
-    const tipLevelRegionsIcon = icons.slice(
-      icons.indexOf("export const tipLevelRegionsIcon"),
-      icons.indexOf("export const explorerPanelIcon"),
-    );
-
-    assert.equal((tipLevelRegionsIcon.match(/<path/g) ?? []).length, 3);
+    assert.equal((tipLevelRegionsIcon.match(/<path/g) ?? []).length, 2);
     assert.equal((tipLevelRegionsIcon.match(/<circle/g) ?? []).length, 3);
     assert.match(tipLevelRegionsIcon, /stroke-linejoin="round"/);
     assert.doesNotMatch(tipLevelRegionsIcon, /stroke-width="6"/);
@@ -145,5 +142,10 @@ describe("Plan and View ribbon", () => {
     assert.equal(translations.plan.cptSettings, "Sonderingsinstellingen");
     assert.equal(translations.plan.costSettings, "Kosteninstellingen");
     assert.equal(translations.plan.groupingSettings, "Groeperingsinstellingen");
+    assert.equal(translations.plan.costs, "Kosten");
+    assert.equal(translations.plan.groups, "Groepen");
+    const english = JSON.parse(readFileSync(resolve(import.meta.dirname, "../../../i18n/locales/en/ribbon.json"), "utf8"));
+    assert.equal(english.plan.costs, "Costs");
+    assert.equal(english.plan.groups, "Groups");
   });
 });

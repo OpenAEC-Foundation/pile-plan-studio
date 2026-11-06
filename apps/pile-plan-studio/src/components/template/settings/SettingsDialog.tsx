@@ -1,9 +1,11 @@
-import { useState, useEffect, useRef, type CSSProperties } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { LANGUAGES, changeLanguage } from "../../../i18n/config";
 import { PRODUCT_INFO } from "../../../productInfo.ts";
 import type { UserLanguage } from "../../../domain/settings/userSettings.ts";
 import type { McpConnection } from "../../../app/mcp/desktopBridge.ts";
+import { applyTheme } from "../../../app/appearance/applyAppearance.ts";
+import type { WorkspaceAppearance } from "../../../domain/settings/appearance.ts";
 import {
   DEFAULT_INTERFACE_SCALE,
   INTERFACE_SCALE_STEP,
@@ -11,41 +13,32 @@ import {
   MIN_INTERFACE_SCALE,
   normalizeInterfaceScale,
 } from "../../../domain/settings/interfaceScale.ts";
-import Modal from "../Modal";
-import ThemedSelect from "../ThemedSelect";
-import "../ThemedSelect.css";
+import { Button, Checkbox, Dialog, Heading, IconButton, OpenAECProvider, Select, Slider, Tabs } from "../../../openaec/react/src/index";
+import spriteUrl from "../../../openaec/studioSprite.ts";
+import "../../../openaec/openaec-components.css";
 import "./SettingsDialog.css";
 
 const THEME_OPTIONS = [
-  { value: "light",     labelKey: "appearance.light",     swatches: ["#FAFAF9", "#FFFFFF", "#D97706", "#36363E"] },
-  { value: "forge",     labelKey: "appearance.forge",     swatches: ["#36363E", "#44444C", "#D97706", "#FAFAF9"] },
-  { value: "openaec",   labelKey: "appearance.dark",      swatches: ["#27272A", "#1C1917", "#D97706", "#FAFAF9"] },
-  { value: "blueprint", labelKey: "appearance.blueprint", swatches: ["#0F1B2D", "#1A2C45", "#60A5FA", "#E0E7FF"] },
-  { value: "contrast",  labelKey: "appearance.contrast",  swatches: ["#000000", "#0A0A0A", "#FFD700", "#FFFFFF"] },
+  { value: "light",     labelKey: "appearance.light" },
+  { value: "dark",      labelKey: "appearance.dark" },
+  { value: "blueprint", labelKey: "appearance.blueprint" },
+  { value: "high-contrast-dark", labelKey: "appearance.contrastDark" },
+  { value: "high-contrast-light", labelKey: "appearance.contrastLight" },
 ];
 
-/* ─── Tab configuratie ──────────────────────────────────────
-   Pas deze array aan voor jouw project.
-   Voeg domein-specifieke tabs toe, verwijder wat je niet nodig hebt.
-
-   Voorbeeld met domein-tab:
-     const TAB_IDS = ["general", "appearance", "calculation", "about"] as const;
-   ─────────────────────────────────────────────────────────── */
 const TAB_IDS = ["general", "appearance", "about"] as const;
 const CURRENCY_OPTIONS = ["EUR", "GBP", "USD"];
-
-export function applyTheme(theme?: string) {
-  document.documentElement.setAttribute("data-theme", theme || "light");
-}
 
 interface SettingsDialogProps {
   open: boolean;
   onClose: () => void;
   theme: string;
+  workspaceAppearance: WorkspaceAppearance;
   language: UserLanguage;
   defaultCurrencyCode: string;
   onPreferencesChange: (preferences: {
     theme: string;
+    workspaceAppearance: WorkspaceAppearance;
     language: UserLanguage;
     interfaceScalePercent: number;
     defaultCurrencyCode: string;
@@ -65,6 +58,7 @@ export default function SettingsDialog({
   open,
   onClose,
   theme,
+  workspaceAppearance,
   language,
   defaultCurrencyCode,
   onPreferencesChange,
@@ -84,6 +78,7 @@ export default function SettingsDialog({
 
   // Draft state — only committed on Save
   const [draftTheme, setDraftTheme] = useState(theme);
+  const [draftWorkspace, setDraftWorkspace] = useState(workspaceAppearance);
   const [draftLang, setDraftLang] = useState<UserLanguage>(language);
   const [draftCurrencyCode, setDraftCurrencyCode] = useState(defaultCurrencyCode);
   const [draftInterfaceScale, setDraftInterfaceScale] = useState(interfaceScalePercent);
@@ -91,6 +86,7 @@ export default function SettingsDialog({
 
   // Snapshot of original values when dialog opens, for reverting on Cancel
   const originalTheme = useRef(theme);
+  const originalWorkspace = useRef(workspaceAppearance);
   const originalLang = useRef<UserLanguage>(language);
   const originalInterfaceScale = useRef(interfaceScalePercent);
 
@@ -99,19 +95,26 @@ export default function SettingsDialog({
     if (open) {
       originalTheme.current = theme;
       setDraftTheme(theme);
+      originalWorkspace.current = workspaceAppearance;
+      setDraftWorkspace(workspaceAppearance);
       originalLang.current = language;
       setDraftLang(language);
       setDraftCurrencyCode(defaultCurrencyCode);
       originalInterfaceScale.current = interfaceScalePercent;
       setDraftInterfaceScale(interfaceScalePercent);
     }
-  }, [defaultCurrencyCode, interfaceScalePercent, language, open, theme]);
+  }, [defaultCurrencyCode, interfaceScalePercent, language, open, theme, workspaceAppearance]);
 
   // Live theme preview — apply immediately when the user picks one in the dropdown.
   // Saved only on Save; reverted on Cancel.
   const handleThemePreview = (value: string) => {
     setDraftTheme(value);
-    applyTheme(value);
+    applyTheme(value, draftWorkspace);
+  };
+
+  const handleWorkspacePreview = (value: WorkspaceAppearance) => {
+    setDraftWorkspace(value);
+    applyTheme(draftTheme, value);
   };
 
   // Live language preview — switch i18n immediately on selection.
@@ -130,7 +133,8 @@ export default function SettingsDialog({
   // Cancel — discard all draft changes, revert live preview
   const handleCancel = () => {
     setDraftTheme(originalTheme.current);
-    applyTheme(originalTheme.current);
+    setDraftWorkspace(originalWorkspace.current);
+    applyTheme(originalTheme.current, originalWorkspace.current);
     setDraftLang(originalLang.current);
     changeLanguage(originalLang.current);
     onInterfaceScalePreview(originalInterfaceScale.current);
@@ -139,10 +143,11 @@ export default function SettingsDialog({
 
   // Save — commit all draft changes
   const handleSave = () => {
-    applyTheme(draftTheme);
+    applyTheme(draftTheme, draftWorkspace);
     changeLanguage(draftLang);
     onPreferencesChange({
       theme: draftTheme,
+      workspaceAppearance: draftWorkspace,
       language: draftLang,
       interfaceScalePercent: draftInterfaceScale,
       defaultCurrencyCode: draftCurrencyCode,
@@ -158,7 +163,8 @@ export default function SettingsDialog({
 
   const handleConfirmReset = () => {
     setDraftTheme("light");
-    applyTheme("light");
+    setDraftWorkspace("theme");
+    applyTheme("light", "theme");
     setDraftLang("auto");
     changeLanguage("auto");
     setDraftCurrencyCode("EUR");
@@ -169,86 +175,82 @@ export default function SettingsDialog({
 
   const footer = (
     <>
-      <button className="settings-btn settings-btn-secondary" onClick={handleReset}>
+      <Button className="settings-reset-action" onClick={handleReset}>
         {t("resetToDefaults")}
-      </button>
+      </Button>
       <div className="settings-footer-right">
-        <button className="settings-btn settings-btn-secondary" onClick={handleCancel}>
+        <Button onClick={handleCancel}>
           {tCommon("cancel")}
-        </button>
-        <button className="settings-btn settings-btn-primary" onClick={handleSave}>
+        </Button>
+        <Button kind="primary" onClick={handleSave}>
           {tCommon("save")}
-        </button>
+        </Button>
       </div>
     </>
   );
 
   return (
-    <>
-    <Modal open={open} onClose={handleCancel} title={t("title")} width={560} height={500} className="settings-dialog" footer={footer}>
-      <div className="settings-body">
-        <div className="settings-sidebar">
-          {TAB_IDS.map((id) => (
-            <button
-              key={id}
-              className={`settings-tab${activeTab === id ? " active" : ""}`}
-              onClick={() => setActiveTab(id)}
-            >
-              {t(`tabs.${id}`)}
-            </button>
-          ))}
-        </div>
-
-        <div className="settings-content">
-          {activeTab === "general" && (<>
-            <GeneralTabContent
-              lang={draftLang}
-              onLangChange={handleLangPreview}
-              defaultCurrencyCode={draftCurrencyCode}
-              onDefaultCurrencyCodeChange={setDraftCurrencyCode}
-            />
-            {isDesktop && <McpConnectionSection
-              status={mcpStatus}
-              connection={mcpConnection}
-              error={mcpError}
-              onToggle={onMcpToggle}
-              writeEnabled={mcpWriteEnabled}
-              onWriteToggle={onMcpWriteToggle}
-            />}
-          </>)}
-          {activeTab === "appearance" && (
-            <AppearanceTabContent
-              theme={draftTheme}
-              onThemeSelect={handleThemePreview}
-              isDesktop={isDesktop}
-              interfaceScalePercent={draftInterfaceScale}
-              onInterfaceScalePreview={handleInterfaceScalePreview}
-            />
-          )}
-          {activeTab === "about" && <AboutTabContent />}
-        </div>
+    <OpenAECProvider sprite={spriteUrl}>
+      {/* Keep modal keys away from workspace shortcuts; preserve native defaults,
+          including Escape dispatching the Blueprint Dialog's cancel event. */}
+      <div className="oa-app settings-blueprint" onKeyDown={event => event.stopPropagation()}>
+        <Dialog open={open} onClose={handleCancel} title={t("title")} actions={footer}>
+          <IconButton icon="ui.close" label={tCommon("close")} className="settings-close" onClick={handleCancel} />
+          <Tabs label={t("title")} tabs={TAB_IDS.map(id => ({ id, label: t(`tabs.${id}`) }))}
+            active={activeTab} onSelect={setActiveTab} />
+          <div className="settings-content" role="tabpanel" aria-label={t(`tabs.${activeTab}`)}>
+            {activeTab === "general" && (<>
+              <GeneralTabContent
+                lang={draftLang}
+                onLangChange={handleLangPreview}
+                defaultCurrencyCode={draftCurrencyCode}
+                onDefaultCurrencyCodeChange={setDraftCurrencyCode}
+              />
+              {isDesktop && <McpConnectionSection
+                status={mcpStatus}
+                connection={mcpConnection}
+                error={mcpError}
+                onToggle={onMcpToggle}
+                writeEnabled={mcpWriteEnabled}
+                onWriteToggle={onMcpWriteToggle}
+              />}
+            </>)}
+            {activeTab === "appearance" && (
+              <AppearanceTabContent
+                theme={draftTheme}
+                workspaceAppearance={draftWorkspace}
+                onWorkspaceSelect={handleWorkspacePreview}
+                onThemeSelect={handleThemePreview}
+                isDesktop={isDesktop}
+                interfaceScalePercent={draftInterfaceScale}
+                onInterfaceScalePreview={handleInterfaceScalePreview}
+              />
+            )}
+            {activeTab === "about" && <AboutTabContent />}
+          </div>
+        </Dialog>
       </div>
-    </Modal>
 
-    <Modal
-      open={confirmResetOpen}
-      onClose={() => setConfirmResetOpen(false)}
-      title={t("resetToDefaults")}
-      width={340}
-      footer={
-        <>
-          <button className="settings-btn settings-btn-secondary" onClick={() => setConfirmResetOpen(false)}>
-            {tCommon("cancel")}
-          </button>
-          <button className="settings-btn settings-btn-primary" onClick={handleConfirmReset}>
-            {t("resetToDefaults")}
-          </button>
-        </>
-      }
-    >
-      <div style={{ padding: 12, fontSize: 12 }}>{t("resetConfirm")}</div>
-    </Modal>
-    </>
+      <div className="oa-app settings-reset" onKeyDown={event => event.stopPropagation()}>
+        <Dialog
+          open={open && confirmResetOpen}
+          onClose={() => setConfirmResetOpen(false)}
+          title={t("resetToDefaults")}
+          actions={
+            <>
+              <Button onClick={() => setConfirmResetOpen(false)}>
+                {tCommon("cancel")}
+              </Button>
+              <Button kind="primary" onClick={handleConfirmReset}>
+                {t("resetToDefaults")}
+              </Button>
+            </>
+          }
+        >
+          <p>{t("resetConfirm")}</p>
+        </Dialog>
+      </div>
+    </OpenAECProvider>
   );
 }
 
@@ -271,30 +273,22 @@ function McpConnectionSection({ status, connection, error, onToggle, writeEnable
   };
   return (
     <div className="settings-section settings-mcp-section">
-      <h3>{t("mcp.title")}</h3>
+      <Heading>{t("mcp.title")}</Heading>
       <p className="settings-description">{t("mcp.description")}</p>
-      <label className="settings-checkbox-row">
-        <input type="checkbox" checked={status === "on" || status === "starting"}
+      <Checkbox label={t("mcp.enable")} checked={status === "on" || status === "starting"}
           disabled={status === "starting" || status === "stopping"}
           onChange={(event) => onToggle(event.currentTarget.checked)} />
-        <span>{t("mcp.enable")}</span>
-      </label>
-      <label className="settings-checkbox-row">
-        <input type="checkbox" checked={writeEnabled} disabled={status !== "on"}
+      <Checkbox label={t("mcp.allowEdits")} checked={writeEnabled} disabled={status !== "on"}
           onChange={(event) => onWriteToggle(event.currentTarget.checked)} />
-        <span>{t("mcp.allowEdits")}</span>
-      </label>
       <div className="settings-mcp-status" role="status">{t(`mcp.status_${status}`)}</div>
       {connection && status === "on" && <>
         <div className="settings-mcp-connection">
           <span>{t("mcp.endpoint")}</span>
           <code>{connection.endpoint}</code>
-          <button type="button" className="settings-btn settings-btn-secondary"
-            onClick={() => void copy(connection.endpoint)}>{t("mcp.copyEndpoint")}</button>
+          <Button compact onClick={() => void copy(connection.endpoint)}>{t("mcp.copyEndpoint")}</Button>
         </div>
         <div className="settings-mcp-token-action">
-          <button type="button" className="settings-btn settings-btn-secondary"
-            onClick={() => void copy(connection.token)}>{t("mcp.copyToken")}</button>
+          <Button compact onClick={() => void copy(connection.token)}>{t("mcp.copyToken")}</Button>
         </div>
       </>}
       {error && status === "error" && <p className="settings-mcp-error">{t("mcp.connectionError")}: {error}</p>}
@@ -303,10 +297,6 @@ function McpConnectionSection({ status, connection, error, onToggle, writeEnable
   );
 }
 
-/* ─── General Tab ───────────────────────────────────────────
-   Taalselectie werkt out-of-the-box.
-   Pas de overige secties aan of verwijder ze naar behoefte.
-   ─────────────────────────────────────────────────────────── */
 function GeneralTabContent({
   lang,
   onLangChange,
@@ -322,40 +312,37 @@ function GeneralTabContent({
 
   return (
     <div className="settings-section">
-      <h3>{t("general.application")}</h3>
+      <Heading>{t("general.application")}</Heading>
       <div className="settings-row">
-        <span className="settings-label">{t("general.language")}</span>
-        <ThemedSelect
+        <Select label={t("general.language")}
           value={lang}
           options={LANGUAGES.map((l) => ({ value: l.code, label: l.name }))}
-          onChange={onLangChange}
-          style={{ width: 180 }}
+          onChange={event => onLangChange(event.currentTarget.value)}
         />
       </div>
       <div className="settings-row">
-        <span className="settings-label">{t("general.defaultCurrency")}</span>
-        <ThemedSelect
+        <Select label={t("general.defaultCurrency")}
           value={defaultCurrencyCode}
           options={CURRENCY_OPTIONS.map((currency) => ({ value: currency, label: currency }))}
-          onChange={onDefaultCurrencyCodeChange}
-          style={{ width: 180 }}
+          onChange={event => onDefaultCurrencyCodeChange(event.currentTarget.value)}
         />
       </div>
     </div>
   );
 }
 
-/* ─── Appearance Tab ────────────────────────────────────────
-   Themaselectie werkt out-of-the-box.
-   ─────────────────────────────────────────────────────────── */
 function AppearanceTabContent({
   theme,
+  workspaceAppearance,
+  onWorkspaceSelect,
   onThemeSelect,
   isDesktop,
   interfaceScalePercent,
   onInterfaceScalePreview,
 }: {
   theme: string;
+  workspaceAppearance: WorkspaceAppearance;
+  onWorkspaceSelect: (value: WorkspaceAppearance) => void;
   onThemeSelect: (value: string) => void;
   isDesktop: boolean;
   interfaceScalePercent: number;
@@ -364,81 +351,38 @@ function AppearanceTabContent({
   const { t } = useTranslation("settings");
   return (
     <div className="settings-section">
-      <h3>{t("appearance.theme")}</h3>
-      <ThemeDropdown theme={theme} onThemeSelect={onThemeSelect} />
+      <Heading>{t("tabs.appearance")}</Heading>
+      <div className="settings-row">
+        <Select label={t("appearance.theme")} value={theme}
+          options={THEME_OPTIONS.map(option => ({ value: option.value, label: t(option.labelKey) }))}
+          onChange={event => onThemeSelect(event.currentTarget.value)} />
+      </div>
+      <div className="settings-row">
+        <Select label={t("appearance.planBackground")}
+          value={workspaceAppearance}
+          options={[
+            { value: "theme", label: t("appearance.followTheme") },
+            { value: "light", label: t("appearance.light") },
+            { value: "dark", label: t("appearance.dark") },
+          ]}
+          onChange={event => onWorkspaceSelect(event.currentTarget.value as WorkspaceAppearance)}
+        />
+      </div>
       {isDesktop && (
         <div className="settings-interface-scale">
           <div className="settings-interface-scale-heading">
             <span>{t("appearance.interfaceScale")}</span>
             <output>{interfaceScalePercent}%</output>
           </div>
-          <input
-            type="range"
+          <Slider
             min={MIN_INTERFACE_SCALE}
             max={MAX_INTERFACE_SCALE}
             step={INTERFACE_SCALE_STEP}
             value={interfaceScalePercent}
-            aria-label={t("appearance.interfaceScale")}
+            label={t("appearance.interfaceScale")}
             onChange={(event) => onInterfaceScalePreview(Number(event.currentTarget.value))}
           />
           <p>{t("appearance.interfaceScaleDescription")}</p>
-        </div>
-      )}
-    </div>
-  );
-}
-
-function ThemeDropdown({
-  theme,
-  onThemeSelect,
-}: {
-  theme: string;
-  onThemeSelect: (value: string) => void;
-}) {
-  const { t } = useTranslation("settings");
-  const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (!open) return;
-    const handleClick = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
-    };
-    document.addEventListener("mousedown", handleClick);
-    return () => document.removeEventListener("mousedown", handleClick);
-  }, [open]);
-
-  const selected = THEME_OPTIONS.find((o) => o.value === theme) || THEME_OPTIONS[0];
-
-  const swatchRow = (swatches: string[]) => (
-    <div className="theme-dropdown-swatches">
-      {swatches.map((color, i) => (
-        <span key={i} className="theme-dropdown-swatch" style={{ backgroundColor: color } as CSSProperties} />
-      ))}
-    </div>
-  );
-
-  return (
-    <div className="theme-dropdown" ref={ref}>
-      <button className="theme-dropdown-trigger" onClick={() => setOpen(!open)}>
-        {swatchRow(selected.swatches)}
-        <span className="theme-dropdown-label">{t(selected.labelKey)}</span>
-        <svg className="theme-dropdown-chevron" width="10" height="10" viewBox="0 0 10 10" fill="none">
-          <path d="M2.5 4L5 6.5L7.5 4" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
-        </svg>
-      </button>
-      {open && (
-        <div className="theme-dropdown-menu">
-          {THEME_OPTIONS.map((opt) => (
-            <button
-              key={opt.value}
-              className={`theme-dropdown-item${theme === opt.value ? " active" : ""}`}
-              onClick={() => { onThemeSelect(opt.value); setOpen(false); }}
-            >
-              {swatchRow(opt.swatches)}
-              <span className="theme-dropdown-label">{t(opt.labelKey)}</span>
-            </button>
-          ))}
         </div>
       )}
     </div>
@@ -449,9 +393,9 @@ function AboutTabContent() {
   const { t } = useTranslation("settings");
   return (
     <div className="settings-section">
-      <h3>{PRODUCT_INFO.name}</h3>
-      <div style={{ fontSize: 11, lineHeight: 1.8 }}>
-        <p style={{ marginBottom: 8, color: "var(--theme-dialog-content-secondary)" }}>
+      <Heading>{PRODUCT_INFO.name}</Heading>
+      <div className="settings-about">
+        <p className="oa-secondary">
           {t("about.description")}
         </p>
         <p><strong>{t("about.version")}:</strong> {PRODUCT_INFO.version}</p>

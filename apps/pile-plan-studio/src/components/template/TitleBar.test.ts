@@ -22,15 +22,19 @@ describe("title bar history controls", () => {
     assert.match(source, /onRedo: \(\) => void/);
     assert.match(source, /disabled=\{!canUndo\}/);
     assert.match(source, /disabled=\{!canRedo\}/);
-    assert.match(source, /title=\{undoLabel\}/);
-    assert.match(source, /title=\{redoLabel\}/);
+    assert.match(source, /label=\{undoLabel\}/);
+    assert.match(source, /label=\{redoLabel\}/);
   });
 
-  it("joins the Undo and Redo arrowheads to the ends of their shafts", () => {
-    assert.match(source, /<path d="M9 14 4 9l5-5" \/>/);
-    assert.match(source, /<path d="M4 9h10\.5a5\.5 5\.5 0 0 1 0 11H11" \/>/);
-    assert.match(source, /<path d="m15 4 5 5-5 5" \/>/);
-    assert.match(source, /<path d="M20 9H9\.5a5\.5 5\.5 0 0 0 0 11H13" \/>/);
+  it("uses shared Blueprint actions and a local general-settings gear", () => {
+    assert.match(source, /icon="edit\.undo"/);
+    assert.match(source, /icon="edit\.redo"/);
+    assert.match(source, /<ApplicationSettingsIcon/);
+    assert.match(source, /icon="ui\.feedback"/);
+    assert.match(source, /icon="file\.save"/);
+    assert.match(source, /<IconButton/);
+    assert.match(source, /<Status tone="warning"/);
+    assert.doesNotMatch(source, /<path|<polyline|<circle/);
   });
 
   it("leaves window management to the browser or native desktop frame", () => {

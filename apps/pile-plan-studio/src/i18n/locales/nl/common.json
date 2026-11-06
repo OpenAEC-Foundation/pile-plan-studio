@@ -1,4 +1,6 @@
 {
+  "recentProjects.storageFailed": "Recente projecten konden niet worden bijgewerkt. Het project zelf blijft beschikbaar.",
+  "recentProjects.copyMissing": "De lokale projectkopie is niet meer beschikbaar. Kies het IFCPP-bestand opnieuw.",
   "numberInput": {
     "increment": "Waarde verhogen",
     "decrement": "Waarde verlagen"
@@ -15,6 +17,7 @@
   "no": "Nee",
   "export": "Exporteren",
   "downloadIfcpp": "IFCPP downloaden",
+  "saveProjectDownload": "Project opslaan (IFCPP downloaden)",
   "import": "Importeren",
   "print": "Afdrukken",
   "copy": "Kopiëren",
@@ -446,6 +449,7 @@
     "title": "Projectinformatie",
     "projectName": "Projectnaam",
     "pileHeadLevel": "Peil t.o.v. NAP (m)",
+    "pileHeadLevelInfo": "Uitleg bij het peil",
     "pileHeadLevelHelp": "Het referentieniveau van het gebouw ten opzichte van NAP. Open Pile Plan Studio gebruikt dit peil als afhakniveau: het niveau van de afgewerkte paalkop. Samen met het paalpuntniveau bepaalt dit de berekende paallengte en paalkosten. Eventuele productie- of uitvoeringsmarge is niet inbegrepen.",
     "currency": "Projectvaluta"
   },
@@ -478,9 +482,10 @@
   "unsaved": {
     "title": "Onopgeslagen wijzigingen",
     "desktopMessage": "Dit project bevat wijzigingen die nog niet zijn opgeslagen. Wil je deze eerst opslaan?",
-    "browserMessage": "Dit project bevat wijzigingen die nog niet zijn gedownload. Wil je deze eerst downloaden?",
+    "browserMessage": "Dit project bevat wijzigingen die nog niet lokaal zijn opgeslagen. Wil je deze bewaren bij recente projecten in deze browser?",
     "saveAndContinue": "Opslaan en doorgaan",
-    "downloadAndContinue": "Downloaden en doorgaan",
+    "localSaveAndContinue": "Lokaal opslaan en doorgaan",
+    "saveFailed": "Opslaan is niet gelukt. Je wijzigingen zijn nog beschikbaar. Probeer het opnieuw of annuleer.",
     "discard": "Doorgaan zonder opslaan"
   },
   "welcome": {

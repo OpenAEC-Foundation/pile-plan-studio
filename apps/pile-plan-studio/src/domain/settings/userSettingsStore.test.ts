@@ -34,7 +34,7 @@ describe("user settings store", () => {
       ...DEFAULT_USER_SETTINGS,
       preferences: {
         ...DEFAULT_USER_SETTINGS.preferences,
-        theme: "openaec",
+        theme: "dark",
         defaultCurrencyCode: "USD",
       },
     });
@@ -84,7 +84,7 @@ describe("user settings store", () => {
     );
 
     assert.equal(settings.preferences.language, "nl");
-    assert.equal(settings.preferences.theme, "forge");
+    assert.equal(settings.preferences.theme, "dark");
     assert.equal(settings.preferences.interfaceScalePercent, 80);
 
     const stored = createMemoryStore({

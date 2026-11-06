@@ -1,3 +1,4 @@
+import { Button } from "../../../openaec/react/src/index";
 import { useEffect, useLayoutEffect, useRef, useState, type KeyboardEvent } from "react";
 import type { LegendColorScheme, PileSymbol } from "../../../core/projectTypes.ts";
 import { renderPileSymbol } from "../../../viewer/pileSymbols.ts";
@@ -59,7 +60,7 @@ export default function LegendColorPicker({
 
   return (
     <div className="legend-appearance-picker" onKeyDown={handleKeyDown} ref={rootRef}>
-      <button
+      <Button compact
         aria-expanded={open}
         aria-haspopup="dialog"
         aria-label={label}
@@ -75,7 +76,7 @@ export default function LegendColorPicker({
           />
         ) : <span className="legend-color-preview" style={{ backgroundColor: value }} />}
         <span aria-hidden="true" className="legend-picker-chevron" />
-      </button>
+      </Button>
       {open ? (
         <div
           aria-label={label}
@@ -97,7 +98,7 @@ export default function LegendColorPicker({
           </div>
           <div aria-label={schemeLabel} className="legend-color-scheme-grid" role="listbox">
             {palette.map(({ color, selected }) => (
-              <button
+              <Button compact
                 aria-label={color}
                 aria-selected={selected}
                 className="legend-color-scheme-choice"
@@ -123,6 +124,7 @@ export default function LegendColorPicker({
       event.preventDefault();
       event.stopPropagation();
       setOpen(false);
+      rootRef.current?.querySelector<HTMLButtonElement>(".legend-appearance-trigger")?.focus();
     }
   }
 }

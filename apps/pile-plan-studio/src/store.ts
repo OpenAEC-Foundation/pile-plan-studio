@@ -25,14 +25,17 @@ export async function getSetting<T>(key: string, fallback: T): Promise<T> {
   }
 }
 
-export async function setSetting<T>(key: string, value: T): Promise<void> {
+export async function setSetting<T>(key: string, value: T, options?: { requirePersistence?: boolean }): Promise<void> {
   try {
     const store = await getStore();
     await store.set(key, value);
   } catch {
     try {
-      globalThis.localStorage?.setItem(`${BROWSER_STORE_PREFIX}${key}`, JSON.stringify(value));
-    } catch {
+      const storage = globalThis.localStorage;
+      if (!storage) throw new Error("Persistent storage unavailable");
+      storage.setItem(`${BROWSER_STORE_PREFIX}${key}`, JSON.stringify(value));
+    } catch (error) {
+      if (options?.requirePersistence) throw error;
       // Preferences are optional when no persistent store is available.
     }
   }

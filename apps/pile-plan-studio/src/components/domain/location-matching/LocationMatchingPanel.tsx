@@ -1,4 +1,5 @@
 import {useEffect, useMemo, useRef, useState} from "react";
+import {Banner, Button, Checkbox, Heading, Panel, Select, Status, TextField} from "../../../openaec/react/src/index";
 import {useMatchingText} from "./matchingText.tsx";
 import type {MatchingResult} from "../../../core/exportRevisionContract.ts";
 import {exportErrorText} from "../exports/exportErrorText.ts";
@@ -51,52 +52,51 @@ export default function LocationMatchingPanel(props: Props) {
     if (point) onSelect(side, point.id, side === "new");
   }
 
-  return <aside className="matching-side-panel" aria-label={t("exportTools.locationDetails")}>
+  return <aside className="matching-side-panel" aria-label={t("exportTools.locationDetails")}><Panel title={t("exportTools.locationDetails")} className="matching-panel-content">
     <section className="matching-selected-location">
       {selected && selection ? <>
-        <div className="matching-selection-heading"><div><small>{t(selection.side === "new" ? "exportTools.newLocation" : "exportTools.oldLocation")}</small><h2>{locationLabel(selected)}</h2></div>
-          <button type="button" disabled={!hasMatchingCoordinates(selected)&&(!partner||!hasMatchingCoordinates(partner))} onClick={onFocus}>{t("exportTools.focusSelection")}</button></div>
-        <p>{status(selection.side, selection.id)}{link?.distance_mm!=null ? ` · ${link.distance_mm.toLocaleString(undefined, {maximumFractionDigits: 1})} mm` : ""}
+        <div className="matching-selection-heading"><div><small>{t(selection.side === "new" ? "exportTools.newLocation" : "exportTools.oldLocation")}</small><Heading level="page">{locationLabel(selected)}</Heading></div>
+          <Button type="button" disabled={!hasMatchingCoordinates(selected)&&(!partner||!hasMatchingCoordinates(partner))} onClick={onFocus}>{t("exportTools.focusSelection")}</Button></div>
+        <p><Status tone={link?"success":(selection.side==="new"?unmatchedNew:unmatchedOld).has(selection.id)?"warning":undefined}>{status(selection.side, selection.id)}</Status>{link?.distance_mm!=null ? ` · ${link.distance_mm.toLocaleString(undefined, {maximumFractionDigits: 1})} mm` : ""}
           {link && initialAutomatic && initial.links.some(l => l.new_id === link.new_id && l.old_id === link.old_id) ? ` · ${t("exportTools.automatic")}` : ""}</p>
         <dl className="matching-location-facts"><div><dt>X / Y [mm]</dt><dd>{selected.x_mm?.toLocaleString()??"—"} / {selected.y_mm?.toLocaleString()??"—"}</dd></div>
           {selected.pile_size_mm != null && <div><dt>{t("exportTools.pileSize")}</dt><dd>{selected.pile_size_mm} mm</dd></div>}
           {selected.tip_level_mm != null && <div><dt>{t("exportTools.tipLevel")}</dt><dd>{(selected.tip_level_mm / 1000).toLocaleString()} m</dd></div>}
         </dl>
         {selection.side === "new" ? <>
-          <label className="matching-old-choice"><span>{t("exportTools.oldLocation")}</span><select disabled={busy} aria-label={t("exportTools.oldChoice", {id: selected.source_id ?? selected.id})}
-            value={link ? String(link.old_id) : added.has(selection.id) ? "added" : ""} onChange={e => void onChoose(selection.id, e.target.value === "added" ? "added" : e.target.value === "" ? null : Number(e.target.value))}>
-            <option value="">{t("exportTools.unresolved")}</option><option value="added">{t("exportTools.newPile")}</option>
-            {editorOldIds.map(id => {const owner = linksByOld.get(id), candidate = candidates.get(id); return <option key={id} value={id} >
-              {locationLabel(oldById.get(id)!)}{owner&&owner.new_id!==selection.id?` · ${t("exportTools.occupiedBy",{id:owner.new_id})}`:""}{candidate ? ` — ${candidate.distance_mm.toLocaleString(undefined, {maximumFractionDigits: 1})} mm` : ""}</option>;})}
-          </select></label>
-          <div className="matching-selection-actions"><button type="button" disabled={busy} onClick={onChooseOnPlan}>{t("exportTools.chooseOnPlan")}</button>
-            <button type="button" disabled={busy} onClick={()=>void onChoose(selection.id,"added")}>{t("exportTools.newPile")}</button>
-            <button type="button" disabled={busy || (!link && !added.has(selection.id))} onClick={() => void onChoose(selection.id, null)}>{t("exportTools.releaseLink")}</button></div>
+          <div className="matching-old-choice"><Select label={t("exportTools.oldLocation")} disabled={busy} aria-label={t("exportTools.oldChoice", {id: selected.source_id ?? selected.id})}
+            value={link ? String(link.old_id) : added.has(selection.id) ? "added" : ""} onChange={e => void onChoose(selection.id, e.target.value === "added" ? "added" : e.target.value === "" ? null : Number(e.target.value))}
+            options={[{value:"",label:t("exportTools.unresolved")},{value:"added",label:t("exportTools.newPile")},
+              ...editorOldIds.map(id=>{const owner=linksByOld.get(id),candidate=candidates.get(id);return {value:String(id),
+                label:`${locationLabel(oldById.get(id)!)}${owner&&owner.new_id!==selection.id?` · ${t("exportTools.occupiedBy",{id:owner.new_id})}`:""}${candidate?` — ${candidate.distance_mm.toLocaleString(undefined,{maximumFractionDigits:1})} mm`:""}`};})]} /></div>
+          <div className="matching-selection-actions"><Button type="button" disabled={busy} onClick={onChooseOnPlan}>{t("exportTools.chooseOnPlan")}</Button>
+            <Button type="button" disabled={busy} onClick={()=>void onChoose(selection.id,"added")}>{t("exportTools.newPile")}</Button>
+            <Button type="button" disabled={busy || (!link && !added.has(selection.id))} onClick={() => void onChoose(selection.id, null)}>{t("exportTools.releaseLink")}</Button></div>
           {partner && <p className="matching-partner">{t("exportTools.oldLocation")}: {locationLabel(partner)}</p>}
-        </> : link ? <div className="matching-selection-actions"><button type="button" onClick={() => onSelect("new", link.new_id,true)}>{t("exportTools.inspectPartner", {id: link.new_id})}</button>
-          <button type="button" disabled={busy} onClick={() => void onChoose(link.new_id, null)}>{t("exportTools.releaseLink")}</button></div>
-          : mode==="import"?<p>{t("pilePlanMatching.unchanged")}</p>:<button type="button" disabled={busy} onClick={() => onRemoved(selection.id)}>{t(removed.has(selection.id) ? "exportTools.reconsider" : "exportTools.markRemoved")}</button>}
-      </> : <div className="matching-selection-empty"><strong>{t(result.complete?"exportTools.reviewComplete":"exportTools.noReviewSelection")}</strong>
+        </> : link ? <div className="matching-selection-actions"><Button type="button" onClick={() => onSelect("new", link.new_id,true)}>{t("exportTools.inspectPartner", {id: link.new_id})}</Button>
+          <Button type="button" disabled={busy} onClick={() => void onChoose(link.new_id, null)}>{t("exportTools.releaseLink")}</Button></div>
+          : mode==="import"?<p>{t("pilePlanMatching.unchanged")}</p>:<Button type="button" disabled={busy} onClick={() => onRemoved(selection.id)}>{t(removed.has(selection.id) ? "exportTools.reconsider" : "exportTools.markRemoved")}</Button>}
+      </> : <div className="matching-selection-empty"><Heading>{t(result.complete?"exportTools.reviewComplete":"exportTools.noReviewSelection")}</Heading>
         <p>{t(result.complete?"exportTools.reviewCompleteHelp":"exportTools.pickNewInstruction")}</p>
-        {result.complete?<button type="button" onClick={()=>{onPendingOnlyChange(false);setQuery("");}}>{t("exportTools.showAllLocations")}</button>:
-          <button type="button" disabled={busy} onClick={onContinue}>{t("exportTools.continueReview")}</button>}</div>}
-      {error != null && <p className="export-error" role="alert">{exportErrorText(error, baseT)}</p>}
-      {busy && <p role="status">{t("exportTools.preparing")}</p>}
+        {result.complete?<Button type="button" onClick={()=>{onPendingOnlyChange(false);setQuery("");}}>{t("exportTools.showAllLocations")}</Button>:
+          <Button type="button" disabled={busy} onClick={onContinue}>{t("exportTools.continueReview")}</Button>}</div>}
+      {error != null && <Banner tone="error" word="">{exportErrorText(error, baseT)}</Banner>}
+      {busy && <div role="status" className="matching-preparing"><Status tone="info">{t("exportTools.preparing")}</Status></div>}
     </section>
     <section className="matching-location-browser">
       <div className="matching-list-tabs" role="group" aria-label={t("exportTools.locationList")}>
-        <button type="button" aria-pressed={side === "new"} onClick={() => setSide("new")}>{t("exportTools.new")} ({newLocations.length})</button>
-        <button type="button" aria-pressed={side === "old"} onClick={() => setSide("old")}>{t("exportTools.old")} ({oldLocations.length})</button>
+        <Button type="button" aria-pressed={side === "new"} onClick={() => setSide("new")}>{t("exportTools.new")} ({newLocations.length})</Button>
+        <Button type="button" aria-pressed={side === "old"} onClick={() => setSide("old")}>{t("exportTools.old")} ({oldLocations.length})</Button>
       </div>
-      <input className="matching-search" type="search" aria-label={t("exportTools.searchLocations")} placeholder={t("exportTools.searchLocations")} value={query} onChange={e => setQuery(e.target.value)}/>
-      <label className="matching-pending-filter"><input type="checkbox" checked={pendingOnly} onChange={e => onPendingOnlyChange(e.target.checked)}/>{t("exportTools.pendingFilter")}</label>
-      <div className="matching-location-list" ref={listRef} aria-label={t("exportTools.locationList")}>{list.map(point => <button type="button" key={`${side}:${point.id}`}
+      <TextField className="matching-search" type="search" label={t("exportTools.searchLocations")} placeholder={t("exportTools.searchLocations")} value={query} onChange={e => setQuery(e.target.value)}/>
+      <Checkbox className="matching-pending-filter" checked={pendingOnly} onChange={e => onPendingOnlyChange(e.target.checked)} label={t("exportTools.pendingFilter")}/>
+      <div className="matching-location-list" ref={listRef} aria-label={t("exportTools.locationList")}>{list.map(point => <Button type="button" key={`${side}:${point.id}`}
         data-pending={(side==="new"?unmatchedNew:unmatchedOld).has(point.id)} aria-pressed={selection?.side === side && selection.id === point.id} onClick={() => onSelect(side, point.id, side === "new")}>
         <strong>{(side==="new"?unmatchedNew:unmatchedOld).has(point.id)&&<i aria-hidden="true">?</i>}{locationLabel(point)}</strong><span>{status(side, point.id)}</span>
-      </button>)}</div>
+      </Button>)}</div>
       {!list.length&&<p className="export-help">{t("exportTools.noLocationsInFilter")}</p>}
-      <div className="matching-list-navigation"><button type="button" disabled={selectedIndex <= 0} onClick={() => navigate(-1)}>{t("exportTools.previousLocation")}</button>
-        <span>{list.length} / {source.length}</span><button type="button" disabled={list.length === 0 || selectedIndex >= list.length - 1} onClick={() => navigate(1)}>{t("exportTools.nextLocation")}</button></div>
+      <div className="matching-list-navigation"><Button type="button" disabled={selectedIndex <= 0} onClick={() => navigate(-1)}>{t("exportTools.previousLocation")}</Button>
+        <span>{list.length} / {source.length}</span><Button type="button" disabled={list.length === 0 || selectedIndex >= list.length - 1} onClick={() => navigate(1)}>{t("exportTools.nextLocation")}</Button></div>
     </section>
-  </aside>;
+  </Panel></aside>;
 }

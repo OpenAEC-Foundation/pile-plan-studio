@@ -1,0 +1,60 @@
+/* Layout around shared controls; drawing geometry and marker colours stay local. */
+.location-matching-workspace.matching-blueprint {
+  background: var(--oa-frame); color: var(--oa-text);
+  font-family: var(--oa-font-body); font-size: var(--oa-size-body);
+}
+.matching-blueprint .oa-button:where(:not(.oa-number-stepper > .oa-button)) { height: auto; min-height: var(--oa-row); white-space: normal; max-width: 100%; }
+.matching-blueprint .oa-field { min-width: 0; width: 100%; }
+.matching-blueprint .oa-label { min-width: 0; }
+.matching-blueprint .oa-status { white-space: normal; font-family: var(--oa-font-body); }
+.matching-blueprint .oa-banner { margin-top: 12px; }
+.matching-blueprint .oa-banner > b:empty { display: none; }
+.matching-blueprint .oa-banner > span { min-width: 0; overflow-wrap: anywhere; }
+.matching-blueprint .oa-button[aria-pressed="true"] { background: var(--oa-selected); border-color: var(--oa-selected-bar); color: var(--oa-text); }
+.matching-blueprint .matching-workspace-header { flex-wrap: wrap; background: var(--oa-panel); gap: 10px; }
+.matching-blueprint .matching-workspace-header > div { flex: 1 1 240px; }
+.matching-blueprint .matching-workspace-header .oa-heading { margin-bottom: 4px; }
+.matching-blueprint .matching-workspace-header .oa-status { font-size: var(--oa-size-label); }
+.matching-blueprint .matching-workspace-toolbar { gap: 10px 16px; align-items: center; background: var(--oa-panel); }
+.matching-blueprint .matching-workspace-toolbar > .oa-label { display: flex; align-items: center; gap: 8px; }
+.matching-blueprint .matching-workspace-toolbar .oa-label > label { white-space: normal; }
+.matching-blueprint .matching-workspace-toolbar .oa-field { width: auto; max-width: 180px; }
+.matching-blueprint .matching-workspace-toolbar .oa-check { white-space: normal; }
+.matching-blueprint .matching-workspace-toolbar > div[role="group"] { flex-wrap: wrap; gap: 6px; }
+.matching-blueprint .matching-editor-settings { flex-wrap: wrap; }
+.matching-blueprint .matching-editor-settings > label { white-space: normal; }
+.matching-blueprint .matching-editor-settings .oa-number-input { width: 88px; flex: 0 0 88px; }
+.matching-blueprint .matching-editor-settings .themed-number-input { width: 100%; }
+.matching-blueprint .matching-review-actions { flex-shrink: 0; }
+.matching-blueprint .matching-instruction { flex-shrink: 0; line-height: 1.4; }
+.matching-blueprint .matching-side-panel { background: var(--oa-panel); }
+.matching-blueprint .matching-panel-content { flex: 1; min-height: 0; border: 0; box-shadow: none; }
+.matching-blueprint .matching-panel-content > .oa-panel-header { flex-shrink: 0; }
+.matching-blueprint .matching-selected-location { min-height: 0; }
+.matching-blueprint .matching-selection-heading { flex-wrap: wrap; gap: 8px; }
+.matching-blueprint .matching-selection-heading .oa-heading { margin: 4px 0; font-size: var(--oa-size-page-heading); }
+.matching-blueprint .matching-selection-empty .oa-heading { margin-bottom: 8px; }
+.matching-blueprint .matching-location-facts > div { display: grid; grid-template-columns: minmax(100px, .9fr) minmax(0, 1.1fr); }
+.matching-blueprint .matching-location-facts dd { text-align: left; overflow-wrap: anywhere; }
+.matching-blueprint .matching-selection-actions { gap: 6px; }
+.matching-blueprint .matching-old-choice { font-weight: var(--oa-weight-regular); }
+.matching-blueprint .matching-location-browser { gap: 8px; padding-bottom: 8px; }
+.matching-blueprint .matching-list-tabs { flex-wrap: wrap; margin: 0; }
+.matching-blueprint .matching-pending-filter { margin: 0; }
+.matching-blueprint .matching-location-list { flex: 1 0 100px; }
+.matching-blueprint .matching-location-list > .oa-button { align-items: center; padding: 8px; min-height: 40px; gap: 8px; }
+.matching-blueprint .matching-location-list > .oa-button strong { min-width: 0; text-align: left; }
+.matching-blueprint .matching-location-list > .oa-button span { text-align: left; flex-shrink: 0; }
+.matching-blueprint .matching-list-navigation { flex-wrap: wrap; padding: 0; }
+.matching-blueprint .matching-list-navigation > span { white-space: nowrap; }
+.matching-blueprint .matching-preparing { margin-top: 8px; }
+@media (max-width: 1000px) {
+  .matching-blueprint .matching-review-actions { gap: 8px; padding: 8px 12px; }
+  .matching-blueprint .matching-bulk { margin-left: 0; }
+  .matching-blueprint .matching-workspace-toolbar { padding: 8px 12px; gap: 8px 12px; }
+}
+@media (max-width: 700px) {
+  .matching-blueprint .matching-editor-settings,
+  .matching-blueprint .matching-bulk { padding-left: 0; border-left: 0; }
+  .matching-blueprint .matching-workspace-header { padding: 10px 12px; }
+}

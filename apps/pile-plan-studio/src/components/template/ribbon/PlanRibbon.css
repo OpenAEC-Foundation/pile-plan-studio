@@ -1,0 +1,109 @@
+/* Plan and View share the pinned Blueprint ribbon metrics and colour roles. */
+.ribbon-content--blueprint {
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: thin;
+  scrollbar-color: var(--oa-border-strong) transparent;
+}
+
+.ribbon-content--blueprint .ribbon-groups {
+  flex: none;
+  min-width: max-content;
+}
+
+.ribbon-content--blueprint .ribbon-group {
+  flex: none;
+}
+
+.ribbon-content--blueprint .ribbon-group-content {
+  justify-content: center;
+}
+
+.ribbon-settings-actions {
+  display: flex;
+  gap: 2px 6px;
+}
+
+.ribbon-content--blueprint .ribbon-settings-actions .ribbon-btn {
+  width: 78px;
+  min-width: 78px;
+  padding: 3px 4px 1px;
+}
+
+.ribbon-content--blueprint .ribbon-btn {
+  box-sizing: border-box;
+  flex: none;
+  color: var(--oa-text);
+  transition: background-color 0.15s, border-color 0.15s, color 0.15s;
+}
+
+.ribbon-content--blueprint .ribbon-btn:hover:not(:disabled) {
+  background: var(--oa-hover);
+  border-color: var(--oa-border-strong);
+}
+
+.ribbon-content--blueprint .ribbon-btn.active:not(:disabled) {
+  background: var(--oa-selected);
+  border-color: var(--oa-accent);
+  color: var(--oa-accent-text);
+}
+
+.ribbon-content--blueprint .ribbon-btn:active:not(:disabled) {
+  background: var(--oa-pressed);
+  border-color: var(--oa-accent);
+}
+
+.ribbon-content--blueprint .ribbon-btn:focus-visible {
+  outline: 2px solid var(--oa-focus);
+  outline-offset: -2px;
+}
+
+.ribbon-content--blueprint .ribbon-btn:disabled {
+  opacity: 1;
+  color: var(--oa-text-disabled);
+  border-color: transparent;
+  background: transparent;
+}
+
+.ribbon-content--blueprint .ribbon-btn .ribbon-btn-icon svg {
+  color: inherit;
+  stroke: currentColor;
+}
+
+/* B2 shapes are filled paths; inherited stroke would thicken their details. */
+.ribbon-content--blueprint .ribbon-btn .ribbon-btn-icon svg.blueprint-icon {
+  stroke: none;
+}
+
+.ribbon-content--blueprint .ribbon-btn.active .blueprint-icon,
+.ribbon-content--blueprint .ribbon-btn:disabled .blueprint-icon {
+  --icon-accent: currentColor;
+}
+
+[data-oa-theme^="high-contrast"] .ribbon-content--blueprint .ribbon-btn:hover:not(:disabled) {
+  outline: 2px solid var(--oa-text);
+  outline-offset: -2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ribbon-content--blueprint .ribbon-btn {
+    transition: none;
+  }
+}
+
+/* Leave room for the native horizontal scrollbar inside the fixed shell height. */
+@media (max-width: 1100px) {
+  .ribbon-content--blueprint .ribbon-btn:not(.small):not(.medium) {
+    height: 62px;
+  }
+
+  .ribbon-content--blueprint .ribbon-btn.small {
+    height: 20px;
+    padding: 1px 6px;
+  }
+
+  .ribbon-content--blueprint .ribbon-group-label {
+    padding-top: 1px;
+    padding-bottom: 1px;
+  }
+}

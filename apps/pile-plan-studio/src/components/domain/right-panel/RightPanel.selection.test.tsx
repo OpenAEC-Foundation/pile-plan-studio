@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { fireEvent, render, screen } from "@testing-library/react";
-import { expect, test } from "vitest";
+import { expect, test, vi } from "vitest";
 import i18n from "../../../i18n/config.ts";
 import { projectFixture } from "../../../test/projectFixture.ts";
 import type { ProjectState } from "../../../domain/project/projectState.ts";
@@ -104,4 +104,34 @@ test("only this location drops the earlier inspection context without changing i
  expect(view.container.querySelectorAll(".load-point-selection-row")).toHaveLength(1);
  expect(groups[0].load_point_ids).toEqual(points.slice(0,2).map(p=>p.id));
  expect(current.loadPointGroupingSettings).toBe(project.loadPointGroupingSettings);
+});
+
+
+test("shared header buttons expose exactly one selected view and return from task panels without changing selection", () => {
+  const original = projectFixture();
+  const state = {...original, rightPanelMode: "load-point" as const};
+  const close = vi.fn(), change = vi.fn();
+  const view = render(<RightPanel state={state} taskPanel="ilp-optimization" onCloseTaskPanel={close} onStateChange={change} />);
+  const names = ["loadPoint", "cpts", "combined"].map(key => i18n.t(`tabs.${key}`, {ns:"rightPanel"}));
+  for (const name of names) {
+    const button = screen.getByRole("button", {name});
+    expect(button.classList.contains("oa-button")).toBe(true);
+    expect(button.getAttribute("aria-pressed")).toBe("false");
+  }
+  fireEvent.click(screen.getByRole("button", {name:names[2]}));
+  expect(close).toHaveBeenCalledOnce();
+  const combined = change.mock.calls[0][0];
+  expect(combined.rightPanelMode).toBe("combined");
+  expect(combined.selectedLoadPointIds).toEqual(state.selectedLoadPointIds);
+  view.rerender(<RightPanel state={combined} onStateChange={change} />);
+  expect(screen.getByRole("button", {name:names[2]}).getAttribute("aria-pressed")).toBe("true");
+  for (const [index,mode] of [[0,"load-point"],[1,"cpts"]] as const) {
+    fireEvent.click(screen.getByRole("button", {name:names[index]}));
+    const next = change.mock.calls[change.mock.calls.length - 1][0];
+    expect(next.rightPanelMode).toBe(mode);
+    expect(next.selectedLoadPointIds).toEqual(state.selectedLoadPointIds);
+    view.rerender(<RightPanel state={next} onStateChange={change} />);
+    expect(screen.getByRole("button", {name:names[index]}).getAttribute("aria-pressed")).toBe("true");
+    expect(screen.getByRole("button", {name:names[2]}).getAttribute("aria-pressed")).toBe("false");
+  }
 });

@@ -2,6 +2,7 @@ import { clampRightPanelSplit, DEFAULT_RIGHT_PANEL_SPLIT } from "../workspace/ri
 import type { PileCostSettings, PileSizeExportFormat } from "../../core/projectTypes.ts";
 import { normalizePileOptionColumnLayouts, type PileOptionColumnLayouts } from "../pile-options/pileOptionColumnLayout.ts";
 import { normalizeInterfaceScale } from "./interfaceScale.ts";
+import { normalizeTheme, normalizeWorkspaceAppearance, type WorkspaceAppearance } from "./appearance.ts";
 import {normalizeExportOptions} from "../exports/exportPreferences.ts";
 import {DEFAULT_EXPORT_OPTIONS,type ExportOptions} from "../../core/exportRevisionContract.ts";
 import { clampSelectionOverviewRows, DEFAULT_SELECTION_OVERVIEW_ROWS } from "../workspace/selectionOverviewLayout.ts";
@@ -37,6 +38,7 @@ export type UserSettings = {
   preferences: {
     language: UserLanguage;
     theme: string;
+    workspaceAppearance: WorkspaceAppearance;
     interfaceScalePercent: number;
     defaultCurrencyCode: string;
     optimizationTimeLimitSeconds: number | null;
@@ -56,6 +58,7 @@ export const DEFAULT_USER_SETTINGS: UserSettings = {
   preferences: {
     language: "auto",
     theme: "light",
+    workspaceAppearance: "theme",
     interfaceScalePercent: 100,
     defaultCurrencyCode: "EUR",
     optimizationTimeLimitSeconds: 600,
@@ -89,9 +92,8 @@ export function normalizeUserSettings(value: unknown): UserSettings {
       language: preferences.language === "en" || preferences.language === "nl"
         ? preferences.language
         : "auto",
-      theme: typeof preferences.theme === "string" && preferences.theme.trim()
-        ? preferences.theme
-        : DEFAULT_USER_SETTINGS.preferences.theme,
+      theme: normalizeTheme(preferences.theme),
+      workspaceAppearance: normalizeWorkspaceAppearance(preferences.workspaceAppearance),
       interfaceScalePercent: normalizeInterfaceScale(
         typeof preferences.interfaceScalePercent === "number"
           ? preferences.interfaceScalePercent

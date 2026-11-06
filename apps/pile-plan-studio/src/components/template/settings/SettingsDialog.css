@@ -1,400 +1,45 @@
-/* Settings uses Modal for overlay/header/footer — only content styles here */
-
-/* Body layout (sidebar + content) */
-.settings-body {
-  display: flex;
-  flex: 1;
-  min-height: 0;
-  overflow: hidden;
-}
-
-/* Settings footer override — space-between for reset + save/cancel */
-.settings-dialog .modal-footer {
-  justify-content: space-between;
-}
-
-/* Sidebar (vertical tabs) */
-.settings-sidebar {
-  width: 120px;
-  background: var(--theme-dialog-sidebar-bg);
-  border-right: 1px solid var(--theme-dialog-sidebar-border);
+/* App composition only; controls and dialog decoration come from Blueprint. */
+.settings-blueprint > .oa-dialog[open] {
   display: flex;
   flex-direction: column;
-  padding: 8px 0;
-  gap: 2px;
-  flex-shrink: 0;
-  overflow-y: auto;
+  width: min(600px, calc(100vw - 32px));
+  height: min(500px, calc(100vh - 32px));
+  max-height: calc(100vh - 32px);
 }
-
-.settings-tab {
-  padding: 8px 12px;
-  font-size: 11px;
-  background: transparent;
-  border: none;
-  color: var(--theme-dialog-tab-text);
-  font-weight: 500;
-  cursor: default;
-  transition: all 0.15s ease;
-  text-align: left;
-  border-radius: 0;
-}
-
-.settings-tab:hover {
-  background: var(--theme-dialog-tab-hover);
-  color: var(--theme-dialog-tab-hover-text);
-}
-
-.settings-tab.active {
-  background: var(--theme-dialog-tab-active-bg);
-  color: var(--theme-dialog-tab-active-text);
-}
-
-/* Content */
-.settings-content {
-  flex: 1;
-  padding: 12px;
-  overflow-y: auto;
-  background: var(--theme-dialog-content-bg);
-  color: var(--theme-dialog-content-text);
-}
-
-.settings-section {
-  margin-bottom: 14px;
-}
-
-.settings-section:last-child {
-  margin-bottom: 0;
-}
-
-.settings-section h3 {
-  font-size: 11px;
-  font-weight: 600;
-  color: var(--theme-dialog-content-text);
-  margin: 0 0 8px 0;
-  padding-bottom: 4px;
-  border-bottom: 1px solid var(--theme-dialog-section-border);
-}
-
-.settings-row {
-  display: flex;
+.settings-blueprint > .oa-dialog > .oa-heading { padding-right: 32px; margin-bottom: 16px; }
+.settings-blueprint .settings-close { position: absolute; top: 16px; right: 16px; }
+.settings-blueprint .oa-tabs { flex-shrink: 0; }
+.settings-content { flex: 1; min-height: 0; overflow: auto; padding: 16px 0; }
+.settings-section > .oa-heading { margin-bottom: 16px; }
+.settings-row { margin-bottom: 12px; }
+.settings-row > .oa-label {
+  grid-template-columns: minmax(0, 1fr) minmax(180px, 240px);
   align-items: center;
-  justify-content: space-between;
-  margin-bottom: 8px;
-  gap: 12px;
+  gap: 16px;
 }
-
-.settings-row:last-child {
-  margin-bottom: 0;
+.settings-blueprint .oa-dialog-actions { flex-shrink: 0; flex-wrap: wrap; }
+.settings-reset-action { margin-right: auto; }
+.settings-footer-right { display: flex; gap: 8px; margin-left: auto; }
+.settings-reset > .oa-dialog { max-height: calc(100vh - 32px); overflow: auto; }
+.settings-reset p { margin: 16px 0 0; }
+.settings-interface-scale, .settings-mcp-section {
+  margin-top: 24px;
+  padding-top: 16px;
+  border-top: 1px solid var(--oa-border);
 }
-
-.settings-label {
-  font-size: 11px;
-  color: var(--theme-dialog-content-text);
-  flex-shrink: 0;
-}
-
-.settings-interface-scale {
-  display: grid;
-  gap: 7px;
-  margin-top: 20px;
-  padding-top: 14px;
-  border-top: 1px solid var(--theme-dialog-section-border);
-}
-
-.settings-interface-scale-heading {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  color: var(--theme-dialog-content-text);
-  font-size: 12px;
-  font-weight: 600;
-}
-
-.settings-interface-scale output {
-  color: var(--theme-dialog-content-secondary);
-  font-variant-numeric: tabular-nums;
-}
-
-.settings-interface-scale input {
-  width: 100%;
-  accent-color: var(--theme-accent);
-}
-
-.settings-interface-scale p {
-  margin: 0;
-  color: var(--theme-dialog-content-secondary);
-  font-size: 10px;
-  line-height: 1.4;
-}
-
-.settings-description {
-  font-size: 11px;
-  color: var(--theme-dialog-content-secondary);
-  margin-top: 2px;
-}
-
-.settings-mcp-section {
-  border-top: 1px solid var(--theme-dialog-section-border);
-  padding-top: 12px;
-}
-
-.settings-mcp-section .settings-checkbox-row {
-  margin-top: 10px;
-  font-size: 11px;
-  color: var(--theme-dialog-content-text);
-}
-
-.settings-mcp-status,
-.settings-mcp-connection,
-.settings-mcp-error {
-  font-size: 11px;
-  line-height: 1.4;
-}
-
-.settings-mcp-status {
-  margin: -4px 0 8px 19px;
-  color: var(--theme-dialog-content-secondary);
-}
-
-.settings-mcp-connection {
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
-  align-items: center;
-  gap: 8px;
-  margin-bottom: 8px;
-}
-
-.settings-mcp-connection code {
-  overflow-wrap: anywhere;
-  min-width: 0;
-  font-size: 11px;
-}
-
-.settings-mcp-token-action {
-  display: flex;
-  justify-content: flex-end;
-}
-
-.settings-mcp-error {
-  color: var(--theme-dialog-content-text);
-}
-
-.settings-select {
-  padding: 3px 6px;
-  font-size: 11px;
-  font-family: inherit;
-  border: 1px solid var(--theme-dialog-input-border);
-  border-radius: 0;
-  background: var(--theme-dialog-input-bg);
-  color: var(--theme-dialog-input-text);
-  outline: none;
-  min-width: 100px;
-  cursor: default;
-}
-
-.settings-select:focus {
-  border-color: var(--theme-focus-color);
-}
-
-.settings-select option {
-  background: var(--theme-bg);
-  color: var(--theme-text);
-}
-
-.settings-input {
-  padding: 3px 6px;
-  font-size: 11px;
-  font-family: inherit;
-  border: 1px solid var(--theme-dialog-input-border);
-  border-radius: 0;
-  background: var(--theme-dialog-input-bg);
-  color: var(--theme-dialog-input-text);
-  outline: none;
-  width: 100px;
-}
-
-.settings-input:focus {
-  border-color: var(--theme-focus-color);
-}
-
-.settings-checkbox-row {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  margin-bottom: 8px;
-}
-
-.settings-checkbox-row:last-child {
-  margin-bottom: 0;
-}
-
-.settings-checkbox-row input[type="checkbox"] {
-  width: 13px;
-  height: 13px;
-  accent-color: var(--theme-focus-color);
-  cursor: default;
-}
-
-.settings-checkbox-row label {
-  font-size: 11px;
-  color: var(--theme-dialog-content-text);
-  cursor: default;
-}
-
-.settings-footer-right {
-  display: flex;
-  gap: 6px;
-}
-
-.settings-btn {
-  padding: 5px 20px;
-  border: 1px solid var(--theme-dialog-input-border);
-  border-radius: 2px;
-  font-size: 11px;
-  font-weight: 400;
-  font-family: inherit;
-  cursor: default;
-  transition: background 0.1s, border-color 0.1s;
-  min-width: 75px;
-}
-
-.settings-btn-primary {
-  background: var(--theme-btn-primary-bg);
-  color: var(--theme-btn-primary-text);
-  border-color: var(--theme-btn-primary-border);
-  box-shadow: inset 0 0 0 1px var(--theme-btn-primary-border);
-}
-
-.settings-btn-primary:hover {
-  background: var(--theme-btn-primary-hover-bg);
-  color: var(--theme-btn-primary-hover-text);
-  border-color: var(--theme-btn-primary-border);
-}
-
-.settings-btn-secondary {
-  background: var(--theme-btn-secondary-bg);
-  color: var(--theme-btn-secondary-text);
-}
-
-.settings-btn-secondary:hover {
-  background: var(--theme-btn-secondary-hover-bg);
-  border-color: var(--theme-btn-secondary-hover-border);
-}
-
-/* Theme Dropdown */
-.theme-dropdown {
-  position: relative;
-  margin-top: 6px;
-  width: 200px;
-  margin-left: auto;
-}
-
-.theme-dropdown-trigger {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  width: 100%;
-  padding: 5px 8px;
-  border: 1px solid var(--theme-dialog-input-border);
-  border-radius: 0;
-  background: var(--theme-dialog-input-bg);
-  color: var(--theme-dialog-content-text);
-  font-size: 11px;
-  font-family: inherit;
-  cursor: default;
-  transition: border-color 0.1s;
-}
-
-.theme-dropdown-trigger:hover {
-  border-color: var(--theme-dialog-content-secondary);
-}
-
-.theme-dropdown-trigger:focus {
-  border-color: var(--theme-focus-color);
-  outline: none;
-}
-
-.theme-dropdown-chevron {
-  margin-left: auto;
-  flex-shrink: 0;
-  opacity: 0.6;
-}
-
-.theme-dropdown-menu {
-  position: absolute;
-  top: 100%;
-  left: 0;
-  right: 0;
-  margin-top: 1px;
-  background: var(--theme-dialog-input-bg);
-  border: 1px solid var(--theme-dialog-input-border);
-  z-index: 10;
-  max-height: 200px;
-  overflow-y: auto;
-}
-
-.theme-dropdown-item {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  width: 100%;
-  padding: 5px 8px;
-  border: none;
-  background: transparent;
-  color: var(--theme-dialog-content-text);
-  font-size: 11px;
-  font-family: inherit;
-  cursor: default;
-  text-align: left;
-}
-
-.theme-dropdown-item:hover {
-  background: var(--theme-dialog-tab-hover);
-}
-
-.theme-dropdown-item.active {
-  background: var(--theme-dialog-tab-active-bg);
-  color: var(--theme-dialog-tab-active-text);
-}
-
-.theme-dropdown-swatches {
-  display: flex;
-  gap: 2px;
-  flex-shrink: 0;
-}
-
-.theme-dropdown-swatch {
-  display: block;
-  width: 14px;
-  height: 14px;
-  border: 1px solid rgba(128, 128, 128, 0.3);
-}
-
-.theme-dropdown-label {
-  font-weight: 500;
-}
-
-/* Placeholder content for template tabs */
-.settings-placeholder {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  height: 100%;
-  color: var(--theme-dialog-content-secondary);
-  text-align: center;
-  gap: 8px;
-}
-
-.settings-placeholder svg {
-  width: 32px;
-  height: 32px;
-  stroke: var(--theme-dialog-content-secondary);
-  opacity: 0.5;
-}
-
-.settings-placeholder p {
-  font-size: 11px;
-  margin: 0;
+.settings-interface-scale-heading { display: flex; justify-content: space-between; gap: 12px; }
+.settings-interface-scale output { font-family: var(--oa-font-numbers); }
+.settings-interface-scale .oa-slider { width: 100%; margin: 12px 0 0; }
+.settings-interface-scale p, .settings-description { color: var(--oa-text-secondary); }
+.settings-interface-scale p { margin: 8px 0 0; }
+.settings-mcp-section > .oa-check { display: flex; margin: 12px 0; }
+.settings-mcp-status { margin: 12px 0; color: var(--oa-text-secondary); }
+.settings-mcp-connection { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
+.settings-mcp-connection code { font-family: var(--oa-font-mono); overflow-wrap: anywhere; min-width: 0; }
+.settings-mcp-token-action { margin-top: 8px; }
+.settings-mcp-error { color: var(--oa-error); overflow-wrap: anywhere; }
+.settings-about { line-height: 1.8; }
+.settings-about p { margin: 0 0 8px; }
+@media (max-width: 480px) {
+  .settings-row > .oa-label { grid-template-columns: minmax(0, 1fr); gap: 4px; }
 }

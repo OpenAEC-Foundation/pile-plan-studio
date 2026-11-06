@@ -6,6 +6,8 @@ import type {
 } from "../../../core/pileCapProposalTypes.ts";
 import type { ProjectState } from "../../../domain/project/projectState.ts";
 import { pileConfigurationToken } from "../../../core/pileConfigurationKey.ts";
+import { Button } from "../../../openaec/react/src/index";
+import "../../../openaec/openaec-components.css";
 import "./pileCapProposalControl.css";
 
 export default function PileCapProposalControl({
@@ -50,34 +52,33 @@ export default function PileCapProposalControl({
       ? "—"
       : value.toLocaleString(i18n.language, { maximumFractionDigits: 1 });
   return (
-    <div className="pile-cap-proposal-control" aria-label={t("pileCap.title")}>
+    <div className="oa-app pile-cap-proposal-control" aria-label={t("pileCap.title")} onKeyDown={event => {
+      if ((event.key === " " || event.key === "Enter") && event.target instanceof Element && event.target.closest("button")) event.stopPropagation();
+    }}>
       <div className="pile-cap-proposal-bar">
         <span className="pile-cap-mode" data-proposal-label={t("pileCap.proposal")}>
           <span>{t(proposal ? "pileCap.proposal" : "pileCap.title")}</span>
         </span>
         <div className="pile-cap-adjustment">
-          <button
-            type="button"
+          <Button compact
             disabled={pending || count <= 1}
             aria-label={t("pileCap.decrease")}
             onClick={() => change(Math.min(MAX_PILE_CAP_COUNT, count - 1))}
           >
             −
-          </button>
+          </Button>
           <span className="pile-cap-count" data-count-label={t("pileCap.count", { count: Math.max(MAX_PILE_CAP_COUNT, ids.length) })} aria-live="polite">
             <span>{t("pileCap.count", { count })}</span>
           </span>
-          <button
-            type="button"
+          <Button compact
             disabled={pending || count >= MAX_PILE_CAP_COUNT}
             aria-label={t("pileCap.increase")}
             onClick={() => change(count + 1)}
           >
             +
-          </button>
+          </Button>
         </div>
-        <button
-          type="button"
+        <Button compact
           disabled={pending || !proposal}
           aria-label={t("pileCap.rotate")}
           title={t("pileCap.rotate")}
@@ -90,16 +91,15 @@ export default function PileCapProposalControl({
           }
         >
           ↻ 90°
-        </button>
-        <button
-          type="button"
+        </Button>
+        <Button compact
           disabled={pending || !proposal}
           aria-label={t("pileCap.reset")}
           title={t("pileCap.reset")}
           onClick={() => proposal && onEdit(proposal, true)}
         >
           {t("pileCap.resetLabel")}
-        </button>
+        </Button>
         {proposal ? (
           <span className="pile-cap-original">
             {t("pileCap.original", { count: ids.length })}

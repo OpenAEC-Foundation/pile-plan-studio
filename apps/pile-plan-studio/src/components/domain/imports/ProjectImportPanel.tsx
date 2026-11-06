@@ -1,4 +1,5 @@
 import SourceTableEditor from "./SourceTableEditor.tsx";
+import SourceMeaningSelect from "./SourceMeaningSelect.tsx";
 import AdviceImportSources from "./AdviceImportSources.tsx";
 import AdviceImportDiagnostics from "./AdviceImportDiagnostics.tsx";
 import { SourceImportError, type ProjectImportPreview } from "../../../core/adviceImportContract.ts";
@@ -6,7 +7,7 @@ import { previewProjectImportCore } from "../../../core/coreClient.ts";
 import { useAdviceImportPreviews } from "../../../app/import/useAdviceImportPreviews.ts";
 import { addAdviceSource, createEmptyAdviceDraft, type AdviceDraft } from "../../../domain/imports/adviceImportModel.ts";
 import type { ImportDrafts } from "../../../domain/imports/projectImportModel.ts";
-import { useEffect, useState } from "react";
+import { useEffect, useId, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { prepareProjectImportRequest } from "../../../app/import/projectImportRequest.ts";
 import { useProjectImportPreviews } from "../../../app/import/useProjectImportPreviews.ts";
@@ -22,9 +23,11 @@ import {
   type ImportFileRole,
 } from "../../../core/importFiles.ts";
 import type { ImportSummary } from "../../../core/projectFile.ts";
-import ThemedSelect from "../../template/ThemedSelect.tsx";
-import "../../template/ThemedSelect.css";
-import { ifcImportIcon, infoIcon } from "../../template/ribbon/icons.ts";
+import { Banner, Button, Checkbox, Heading, IconButton, OpenAECProvider, Select, Status, TextField } from "../../../openaec/react/src/index";
+import spriteUrl from "../../../openaec/studioSprite.ts";
+import "../../../openaec/openaec-components.css";
+import ImportFileButton from "./ImportFileButton.tsx";
+import { NumberField } from "../../template/NumberInput.tsx";
 import { importProfileChoices } from "./importProfileChoices.ts";
 import { normalizePileHeadLevel } from "../project/projectInformationModel.ts";
 import {
@@ -39,6 +42,7 @@ import {
   type ProjectImportProperties,
 } from "../../../domain/imports/projectImportModel.ts";
 import "./projectImport.css";
+import "./projectImportBlueprint.css";
 import {useLoadPointRefreshReview, type PrepareLoadPointRefresh} from "../../../app/import/useLoadPointRefreshReview.ts";
 import type {LoadPointRefreshSelection} from "../../../core/exportRevisionContract.ts";
 import LocationMatchingEntry from "../location-matching/LocationMatchingEntry.tsx";
@@ -81,6 +85,7 @@ export default function ProjectImportPanel({
   onPrepareLoadPointRefresh?: PrepareLoadPointRefresh;
 }) {
   const { t } = useTranslation("common");
+  const levelHelpId = useId();
   const [mode, setMode] = useState<ProjectImportMode>("new-project");
   const [projectName, setProjectName] = useState(() => t("importProject.defaultName"));
   const [pileHeadLevel, setPileHeadLevel] = useState("");
@@ -184,17 +189,18 @@ export default function ProjectImportPanel({
   };
 
   return (
-    <div className="project-import-panel">
+    <OpenAECProvider sprite={spriteUrl}><div className="oa-app project-import-panel project-import-blueprint">
       <header className="project-import-heading">
-        <h2 className="backstage-panel-title">{t("importProject.title")}</h2>
+        <Heading level="page">{t("importProject.title")}</Heading>
       </header>
       <fieldset className="project-import-controls" disabled={busy}>
       <div className="project-import-mode" role="group" aria-label={t("importProject.modes.label")}>
         {(["new-project", "refresh"] as const).map((value) => (
-          <button
+          <Button
             className={mode === value ? "is-active" : ""}
             type="button"
             key={value}
+            aria-pressed={mode === value}
             onClick={() => {
               setMode(value);
               setError(null);
@@ -202,7 +208,7 @@ export default function ProjectImportPanel({
             }}
           >
             {t(value === "new-project" ? "importProject.modes.newProject" : "importProject.modes.refresh")}
-          </button>
+          </Button>
         ))}
       </div>
       <p className="project-import-mode-description">
@@ -210,57 +216,32 @@ export default function ProjectImportPanel({
       </p>
       {mode === "new-project" && (
         <section className="project-import-properties-section">
-          <h3>{t("importProject.projectProperties")}</h3>
+          <Heading>{t("importProject.projectProperties")}</Heading>
           <div className="project-import-properties">
-            <label className="project-import-name">
-              <span>{t("importProject.projectName")}</span>
-              <input className="project-import-field" value={projectName} onChange={(event) => setProjectName(event.target.value)} />
-            </label>
-            <label className="project-import-name">
-              <span className="project-import-label-with-help">
-                {t("importProject.pileHeadLevel")} <b className="project-import-required" aria-hidden="true">*</b>
-                <span
-                  aria-label={t("importProject.pileHeadLevelHelp")}
-                  className="project-import-help"
-                  role="img"
-                  title={t("importProject.pileHeadLevelHelp")}
-                  dangerouslySetInnerHTML={{ __html: infoIcon }}
-                />
-              </span>
-              <input
+            <TextField label={t("importProject.projectName")} value={projectName} onChange={(event) => setProjectName(event.target.value)} />
+            <div className="project-import-reference">
+              <NumberField label={<>{t("importProject.pileHeadLevel")} <span aria-hidden="true">*</span></>} type="text" step={0.1}
+                aria-describedby={levelHelpId}
                 aria-invalid={showPileHeadLevelBlocker}
-                className={`project-import-field${showPileHeadLevelBlocker ? " is-invalid" : ""}`}
                 inputMode="decimal"
                 required
                 value={pileHeadLevel}
-                onChange={(event) => setPileHeadLevel(event.target.value)}
+                onValueChange={setPileHeadLevel}
               />
-            </label>
-            <label className="project-import-name">
-              <span>{t("importProject.currency")}</span>
-              <ThemedSelect
-                ariaLabel={t("importProject.currency")}
-                className="project-import-currency-select"
+              <IconButton small icon="ui.about" label={t("importProject.pileHeadLevelHelp")}
+                className="project-import-reference-help" aria-describedby={levelHelpId} />
+              <span id={levelHelpId} hidden>{t("importProject.pileHeadLevelHelp")}</span>
+            </div>
+              <Select label={t("importProject.currency")}
                 value={currencyCode}
                 options={CURRENCY_OPTIONS}
-                onChange={setCurrencyCode}
+                onChange={event => setCurrencyCode(event.currentTarget.value)}
               />
-            </label>
           </div>
         </section>
       )}
       <div className="project-import-file-actions">
-        <label className="project-import-file-button project-import-bulk">
-          <FileActionIcon />
-          <span>{t("importProject.chooseFiles")}</span>
-          <input
-            className="project-import-native-file"
-            type="file"
-            accept=".csv,.xlsx"
-            multiple
-            onChange={(event) => {assignFiles([...event.target.files ?? []]);event.target.value="";}}
-          />
-        </label>
+        <ImportFileButton label={t("importProject.chooseFiles")} multiple onFiles={assignFiles} />
       </div>
 
       <div className="project-import-sources">
@@ -272,7 +253,7 @@ export default function ProjectImportPanel({
             <section className="project-import-source-card" key={role}>
               <div className="project-import-source-header">
                 <div>
-                  <strong>{t(labelKey)}</strong>
+                  <Heading>{t(labelKey)}</Heading>
                   <small>{t(columnsKey)}</small>
                 </div>
 
@@ -282,46 +263,34 @@ export default function ProjectImportPanel({
                 <span className="project-import-file-name" title={draft.file?.name}>
                   {draft.file?.name ?? t("importProject.noFile")}
                 </span>
-                <label className="project-import-file-button">
-                  <FileActionIcon />
-                  <span>{draft.file ? t("importProject.replace") : t("importProject.choose")}</span>
-                  <input
-                    className="project-import-native-file"
-                    type="file"
-                    accept=".csv,.xlsx"
-                    onChange={(event) => {assignRoleFile(role, event.target.files?.[0] ?? null);event.target.value="";}}
-                  />
-                </label>
-                <button
-                  className="project-import-button project-import-remove"
+                <ImportFileButton label={draft.file ? t("importProject.replace") : t("importProject.choose")}
+                  onFiles={files => assignRoleFile(role, files[0])} />
+                <Button
+                  className="project-import-remove"
                   type="button"
                   disabled={!draft.file}
                   onClick={() => assignRoleFile(role, null)}
                 >
                   {t("importProject.remove")}
-                </button>
+                </Button>
               </div>
 
               <ImportStatus previewState={draft.previewState} t={t} />
-              {draft.file&&<SourceTableEditor preview={preview?.table} diagnostics={preview?.diagnostics} settings={draft.profileOptions.table} role={role} csv={draft.file.name.toLowerCase().endsWith(".csv")} processed={preview?.detectedProfile==="rfem-export"||draft.requestedProfile==="rfem-export"}
+              {draft.file&&<SourceTableEditor variant="blueprint" preview={preview?.table} diagnostics={preview?.diagnostics} settings={draft.profileOptions.table} role={role} csv={draft.file.name.toLowerCase().endsWith(".csv")} processed={preview?.detectedProfile==="rfem-export"||draft.requestedProfile==="rfem-export"}
                 onChange={table=>changeRfemOptions(role,{...draft.profileOptions,table})}>
-                <label className="project-import-profile">
-                  <span>{t("importProject.profile.label")}</span>
-                  <ThemedSelect
-                    ariaLabel={t("importProject.profile.label")}
+                  <Select label={t("importProject.profile.label")}
                     value={draft.requestedProfile}
                     options={importProfileChoices(draft.file?.name ?? null, role, preview).map((profile) => ({
                       value: profile,
                       label: t(`importProject.profile.${profileKey(profile)}`),
                     }))}
-                    onChange={(value) => changeProfile(role, value as ImportProfile)}
+                    onChange={event => changeProfile(role, event.currentTarget.value as ImportProfile)}
                   />
-                </label>
                 {(preview?.detectedProfile==="rfem-export"||draft.requestedProfile==="rfem-export")&&<div className="project-import-tension-options">
-                  <label className="source-import-checkbox"><input type="checkbox" checked={draft.profileOptions.importTension??true} onChange={e=>changeRfemOptions(role,{...draft.profileOptions,importTension:e.target.checked,clearTension:false})}/>{t("loadDirection.importTension")}</label>
+                  <Checkbox label={t("loadDirection.importTension")} checked={draft.profileOptions.importTension??true} onChange={e=>changeRfemOptions(role,{...draft.profileOptions,importTension:e.target.checked,clearTension:false})}/>
                   <small>{t("tableImport.rfemHelp")}</small>
                 </div>}
-                {mode==="refresh"&&role==="load-points"&&!draft.profileOptions.importTension&&<label className="source-import-checkbox"><input type="checkbox" checked={draft.profileOptions.clearTension??false} onChange={e=>changeRfemOptions(role,{...draft.profileOptions,clearTension:e.target.checked})}/>{t("loadDirection.clearTension")}</label>}
+                {mode==="refresh"&&role==="load-points"&&!draft.profileOptions.importTension&&<Checkbox label={t("loadDirection.clearTension")} checked={draft.profileOptions.clearTension??false} onChange={e=>changeRfemOptions(role,{...draft.profileOptions,clearTension:e.target.checked})}/>}
                 {preview?.details?.kind==="rfem-export"&&<RfemAnalysis preview={preview} options={draft.profileOptions} onChange={options=>changeRfemOptions(role,options)} t={t}/>}
               </SourceTableEditor>}
             </section>
@@ -333,17 +302,18 @@ export default function ProjectImportPanel({
         {t(`importProject.advice.${missingProjectSources}`)}
       </p>}
       {shouldWarnAboutMissingFoundationAdvice(drafts, mode) && (
-        <p className="project-import-warning" role="status">
+        <Banner tone="warning" word="">
           {t("importProject.warnings.cptsWithoutFoundationAdvice")}
-        </p>
+        </Banner>
       )}
-      {error && <p className="project-import-error" role="alert">{error}</p>}
+      {error && <Banner tone="error" word="">{error}</Banner>}
       {summary && (
-        <section className="project-import-summary" aria-label={t("importProject.summaryAria")}>
-          <strong>{t("importProject.completed")}</strong>
+        <section aria-label={t("importProject.summaryAria")}><Banner tone="success" word={t("importProject.completed")}>
+          <div className="project-import-summary-content">
           <span>{t("importProject.summary", { loadPoints: summary.loadPointCount.toLocaleString(), cpts: summary.cptCount.toLocaleString(), advice: summary.bearingCapacityCount.toLocaleString() })}</span>
           {summary.warnings.length > 0 && <ul>{summary.warnings.map((warning) => <li key={warning}>{warning === "load_refresh_removed_cap_proposals" ? t("exportTools.removedCapProposals") : warning}</li>)}</ul>}
-        </section>
+          </div>
+        </Banner></section>
       )}
       </fieldset>
       {needsLocationReview && <LocationMatchingEntry
@@ -358,18 +328,18 @@ export default function ProjectImportPanel({
         onConfirm={refreshReview.confirm} onCancel={refreshReview.cancel} initialAutomatic={!refreshReview.selection}/>}
       {finalFailure && <AdviceImportDiagnostics preview={finalFailure} />}
       <div className="project-import-submit-area">
-        <button className="primary-action project-import-submit" type="button" disabled={busy || !canSubmit || (needsLocationReview && !refreshReview.selection)} onClick={importProject}>
+        <Button kind="primary" className="project-import-submit" disabled={busy || !canSubmit || (needsLocationReview && !refreshReview.selection)} onClick={importProject}>
           {busy
             ? t(mode === "refresh" ? "importProject.refreshing" : "importProject.importing")
             : t(mode === "refresh" ? "importProject.refreshSubmit" : "importProject.submit")}
-        </button>
+        </Button>
         {showPileHeadLevelBlocker && (
           <p className="project-import-property-blocker" role="status">
             {t("importProject.pileHeadLevelRequired")}
           </p>
         )}
       </div>
-    </div>
+    </div></OpenAECProvider>
   );
 }
 function ImportStatus({ previewState, t }: {
@@ -379,18 +349,16 @@ function ImportStatus({ previewState, t }: {
   if (previewState.status === "empty") return null;
   if (previewState.status === "analyzing") {
     return (
-      <div className="project-import-status analyzing">
-        <span className="project-import-status-dot" />
+      <div className="project-import-status" role="status"><Status tone="info">
         {t("importProject.status.analyzing")}
-      </div>
+      </Status></div>
     );
   }
   if (previewState.status === "failed") {
     return (
-      <div className="project-import-status error">
-        <span className="project-import-status-dot" />
+      <Banner tone="error" word="">
         {previewState.message}
-      </div>
+      </Banner>
     );
   }
   const { preview } = previewState;
@@ -398,17 +366,15 @@ function ImportStatus({ previewState, t }: {
   const errors = preview.diagnostics.filter((item) => item.severity === "error");
   if (errors.length > 0) {
     return (
-      <div className="project-import-status error">
-        <span className="project-import-status-dot" />
+      <Banner tone="error" word="">
         {errors.map((item) => importDiagnosticText(item, t)).join(" ")}
-      </div>
+      </Banner>
     );
   }
   return (
-    <div className="project-import-status valid">
-      <span className="project-import-status-dot" />
+    <div className="project-import-status" role="status"><Status tone="success">
       {t("importProject.status.validCount", { count: preview.itemCount })}
-    </div>
+    </Status></div>
   );
 }
 
@@ -423,30 +389,29 @@ function RfemAnalysis({ preview, options, onChange, t }: {
   return (
     <div className="project-import-rfem">
       <div className="project-import-rfem-heading">
-        <strong>{t("importProject.rfem.analysis")}</strong>
-        <span className={`project-import-status ${preview.resolvedProfile ? "valid" : "error"}`}>
-          <span className="project-import-status-dot" />
+        <Heading>{t("importProject.rfem.analysis")}</Heading>
+        <Status tone={preview.resolvedProfile ? "success" : "warning"}>
           {preview.resolvedProfile ? t("importProject.status.valid") : t("importProject.status.needsInput")}
-        </span>
+        </Status>
       </div>
       <div className="project-import-rfem-grid">
-        <span>{t("importProject.rfem.coordinateSheet")}</span>
         <SheetValue
+          label={t("importProject.rfem.coordinateSheet")}
           candidates={details.coordinateSheetCandidates}
           value={options.coordinateSheet}
           onChange={(coordinateSheet) => onChange({ ...options, coordinateSheet })}
           placeholder={t("importProject.rfem.selectSheet")}
         />
-        <span>{t("importProject.rfem.reactionSheet")}</span>
         <SheetValue
+          label={t("importProject.rfem.reactionSheet")}
           candidates={details.reactionSheetCandidates}
           value={options.reactionSheet}
           onChange={(reactionSheet) => onChange({ ...options, reactionSheet })}
           placeholder={t("importProject.rfem.selectSheet")}
         />
-        <span>{t("importProject.rfem.loadRule")}</span>
+        <span className="project-import-sheet-label">{t("importProject.rfem.loadRule")}</span>
         <span>{details.loadRule === "signed-vertical-envelope" ? t("loadDirection.rfemRule") : details.loadRule === "abs-min-pz-prime" && <>F<sub>Ed</sub> = |Min PZ'|</>}</span>
-        <span>{t("importProject.rfem.result")}</span>
+        <span className="project-import-sheet-label">{t("importProject.rfem.result")}</span>
         <strong>{t("importProject.rfem.loadPointCount", { count: preview.itemCount })}</strong>
       </div>
       {preview.diagnostics.length > 0 && (
@@ -462,36 +427,19 @@ function RfemAnalysis({ preview, options, onChange, t }: {
   );
 }
 
-function SheetValue({ candidates, value, onChange, placeholder }: {
+export function SheetValue({ candidates, value, onChange, placeholder, label }: {
   candidates: string[];
   value: string | null;
   onChange: (value: string) => void;
   placeholder: string;
+  label: string;
 }) {
-  if (candidates.length <= 1) return <span>{value ?? candidates[0] ?? "-"}</span>;
-  return (
-    <ThemedSelect
-      ariaLabel={placeholder}
-      value={value ?? ""}
-      options={[
-        { value: "", label: placeholder, disabled: true },
-        ...candidates.map((candidate) => ({ value: candidate, label: candidate })),
-      ]}
-      onChange={onChange}
-    />
-  );
+  if (candidates.length <= 1) return <><span className="project-import-sheet-label">{label}</span><span>{value ?? candidates[0] ?? "-"}</span></>;
+  return <SourceMeaningSelect compact label={label} value={value ?? ""}
+    options={[{value:"",label:placeholder,disabled:true},...candidates.map(candidate=>({value:candidate,label:candidate}))]}
+    onChange={event=>onChange(event.currentTarget.value)}/>;
 }
 
 function profileKey(profile: ImportProfile): string {
   return profile === "auto" ? "automatic" : profile === "standard-table" ? "standardTable" : "rfemExport";
-}
-
-function FileActionIcon() {
-  return (
-    <span
-      className="project-import-file-icon"
-      aria-hidden="true"
-      dangerouslySetInnerHTML={{ __html: ifcImportIcon }}
-    />
-  );
 }

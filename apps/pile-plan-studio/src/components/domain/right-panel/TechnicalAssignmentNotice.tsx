@@ -10,6 +10,7 @@ import {
   getTechnicalAssignmentNotice,
 } from "../../../domain/pile-options/technicalAssignmentNotice.ts";
 import type { TechnicalAssignmentSnapshot } from "../../../app/derived-state/technicalAssignmentController.ts";
+import { Button } from "../../../openaec/react/src/index";
 
 type Props = {
   state: ProjectState;
@@ -150,11 +151,11 @@ export default function TechnicalAssignmentNotice({ state, assessment, onStateCh
     return ids.map((loadPointId, index) => (
       <span key={loadPointId}>
         {index > 0 ? (index === ids.length - 1 ? ` ${t("technicalNotice.and")} ` : ", ") : null}
-        <button
+        <Button compact kind="quiet"
           className="optimization-load-point-link"
           type="button"
           onClick={() => onStateChange({ ...state, ...selectLoadPoint(state, loadPointId) })}
-        >{loadPointId}</button>
+        >{loadPointId}</Button>
       </span>
     ));
   }

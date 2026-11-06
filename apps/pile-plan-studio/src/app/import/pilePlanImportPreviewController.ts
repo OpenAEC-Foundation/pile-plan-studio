@@ -29,8 +29,8 @@ export function createPilePlanImportPreviewController(dependencies: Dependencies
       return;
     }
     dependencies.update(draft => current() ? beginPilePlanImportPreview(next, requestId) : draft);
-    const options = { importPileAssignments: next.importPileAssignments,
-      importCptSelections: next.importCptSelections, coordinateToleranceMm: tolerance,table:next.table,locationDecisions:next.locationDecisions };
+    const options = { importPileAssignments: next.categoryChoices.piles,
+      importCptSelections: next.requestedProfile!=="legacy"&&next.categoryChoices.cpts, coordinateToleranceMm: tolerance,table:next.table,locationDecisions:next.locationDecisions };
     try {
       const bytes = new Uint8Array(await file.arrayBuffer());
       if (!current()) return;

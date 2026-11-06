@@ -1,0 +1,13 @@
+/* Numeric stepper (issue #77). Inset keeps both arrows inside the field contour. */
+.oa-number-input { position: relative; display: block; min-width: 0; width: 100%; }
+.oa-number-input > .oa-field { box-sizing: border-box; width: 100%; padding-right: 26px; appearance: textfield; -moz-appearance: textfield; }
+.oa-number-input > .oa-field:focus { padding-right: 25px; }
+.oa-number-input input::-webkit-inner-spin-button, .oa-number-input input::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+.oa-number-stepper { position: absolute; top: 2px; right: 2px; bottom: 2px; z-index: 1; display: grid; grid-template-rows: repeat(2, minmax(0, 1fr)); width: 20px; overflow: hidden; border-radius: 0 4px 4px 0; background: var(--oa-field); visibility: hidden; }
+.oa-number-input:hover > .oa-number-stepper, .oa-number-input:focus-within > .oa-number-stepper { visibility: visible; }
+.oa-number-stepper > .oa-button { display: grid; place-items: center; width: 100%; height: auto; min-height: 0; padding: 0; border: 0; border-radius: 0; }
+.oa-number-arrow { width: 0; height: 0; border-left: 3px solid transparent; border-right: 3px solid transparent; }
+.oa-number-arrow--up { border-bottom: 4px solid currentColor; }
+.oa-number-arrow--down { border-top: 4px solid currentColor; }
+@media (hover: none) { .oa-number-input > .oa-number-stepper { visibility: visible; } }
+/* End numeric stepper. */

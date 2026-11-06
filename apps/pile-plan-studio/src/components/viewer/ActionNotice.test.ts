@@ -9,12 +9,12 @@ describe("viewer action notice", () => {
     const source = readFileSync(resolve(import.meta.dirname, "ActionNotice.tsx"), "utf8");
     const css = readFileSync(resolve(import.meta.dirname, "ActionNotice.css"), "utf8");
 
-    assert.match(source, /is-error/);
+    assert.match(source, /<Banner tone=\{tone === "error" \? "error" : "info"\}/);
     assert.match(css, /position:\s*absolute/);
     assert.match(css, /left:\s*50%/);
     assert.match(css, /bottom:/);
     assert.match(css, /pointer-events:\s*none/);
-    assert.match(css, /\.action-notice\.is-error/);
+    assert.doesNotMatch(css, /#[0-9a-f]{3,8}\b|rgba?\(/i);
     assert.match(css, /action-notice-fade/);
     assert.match(css, /prefers-reduced-motion:\s*reduce/);
   });

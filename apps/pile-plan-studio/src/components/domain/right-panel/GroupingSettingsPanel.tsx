@@ -4,6 +4,10 @@ import { DraftNumberField, SettingsGroup } from "./PanelControls.tsx";
 import type { LoadPointGroupEditAction } from "../../../core/loadPointGroupContract.ts";
 import type { LoadPointGroup, LoadPointGroupEditPreview } from "../../../core/loadPointGroupContract.ts";
 import LoadPointGroupEditButton from "./LoadPointGroupEditButton.tsx";
+import { Button, Checkbox, IconButton, OpenAECProvider, Panel } from "../../../openaec/react/src/index";
+import spriteUrl from "../../../openaec/studioSprite.ts";
+import "../../../openaec/openaec-components.css";
+import "./groupingSettings.css";
 
 export type GroupingSettingsPanelProps = {
   state: ProjectState;
@@ -26,97 +30,72 @@ export default function GroupingSettingsPanel({ state, loadPointGroups, groupEdi
   const settings = state.loadPointGroupingSettings;
 
   return (
-    <div className="grouping-settings-panel">
-      <header className="right-panel-header">
-        <div>
-          <h2>{t("groupingSettings.title")}</h2>
-          <span>{t("groupingSettings.subtitle")}</span>
-        </div>
-        <button className="right-panel-task-close" type="button" aria-label={t("actions.close")} onClick={onClose}>&times;</button>
-      </header>
+    <OpenAECProvider sprite={spriteUrl}>
+      <div className="grouping-settings-shell" onKeyDown={event => {
+        // Keep native control activation separate from the viewer's shortcuts.
+        if ((event.key === " " || event.key === "Enter") && event.target instanceof Element
+          && event.target.closest("button, input[type='checkbox']")) event.stopPropagation();
+      }}>
+        <Panel className="oa-app grouping-settings-panel grouping-settings-blueprint" title={t("groupingSettings.title")}
+          actions={<IconButton small icon="ui.close" label={t("actions.close")} onClick={onClose} />}>
+          <div className="grouping-settings-scroll">
+            <p className="grouping-settings-subtitle oa-secondary">{t("groupingSettings.subtitle")}</p>
+            <SettingsGroup title={t("groupingSettings.automaticGroup")} variant="blueprint">
+              <Checkbox label={t("groupingSettings.automatic")} checked={settings.automatic}
+                onChange={event => onStateChange({
+                  ...state,
+                  loadPointGroupingSettings: { ...settings, automatic: event.currentTarget.checked },
+                })} />
+              <p className="grouping-settings-help oa-secondary">{t("groupingSettings.automaticHelp")}</p>
+            </SettingsGroup>
 
-      <div className="settings-scroll">
-        <SettingsGroup title={t("groupingSettings.automaticGroup")}>
-          <label className="settings-checkbox">
-            <input
-              checked={settings.automatic}
-              type="checkbox"
-              onChange={(event) => onStateChange({
-                ...state,
-                loadPointGroupingSettings: {
-                  ...settings,
-                  automatic: event.currentTarget.checked,
-                },
-              })}
-            />
-            <span>{t("groupingSettings.automatic")}</span>
-          </label>
-          <p className="supporting-text">{t("groupingSettings.automaticHelp")}</p>
-        </SettingsGroup>
+            <SettingsGroup title={t("groupingSettings.distanceGroup")} muted={!settings.automatic} variant="blueprint">
+              <DraftNumberField variant="blueprint"
+                ariaLabel={t("groupingSettings.maxDistance")}
+                disabled={!settings.automatic}
+                emptyValue={0}
+                helpText={t("groupingSettings.maxDistanceHelp")}
+                label={t("groupingSettings.maxDistance")}
+                min={0}
+                step={0.1}
+                suffix="m"
+                value={settings.maxEdgeDistanceM}
+                onCommit={value => onStateChange({
+                  ...state,
+                  loadPointGroupingSettings: { ...settings, maxEdgeDistanceM: value },
+                })} />
+            </SettingsGroup>
 
-        <SettingsGroup title={t("groupingSettings.distanceGroup")} muted={!settings.automatic}>
-          <DraftNumberField
-            ariaLabel={t("groupingSettings.maxDistance")}
-            disabled={!settings.automatic}
-            emptyValue={0}
-            helpText={t("groupingSettings.maxDistanceHelp")}
-            label={t("groupingSettings.maxDistance")}
-            min={0}
-            step={0.1}
-            suffix="m"
-            value={settings.maxEdgeDistanceM}
-            onCommit={(value) => onStateChange({
-              ...state,
-              loadPointGroupingSettings: {
-                ...settings,
-                maxEdgeDistanceM: value,
-              },
-            })}
-          />
-        </SettingsGroup>
+            <SettingsGroup title={t("groupingSettings.manualChangesGroup")} variant="blueprint">
+              <p className="grouping-settings-help oa-secondary">
+                {t("groupingSettings.manualChangesSummary", {
+                  manual: settings.manualGroups.length,
+                  ungrouped: settings.ungroupedGroups.length,
+                })}
+              </p>
+              <div className="grouping-settings-actions">
+                <LoadPointGroupEditButton variant="blueprint"
+                  editPending={groupEditPending}
+                  groups={loadPointGroups}
+                  selectedLoadPointIds={state.selectedLoadPointIds}
+                  onApply={onApplyLoadPointGroupEdit}
+                  onPreview={onPreviewLoadPointGroupEdit} />
+                <Button
+                  disabled={groupEditPending || (settings.manualGroups.length === 0 && settings.ungroupedGroups.length === 0)}
+                  onClick={() => void onApplyLoadPointGroupEdit("reset_overrides")}>
+                  {t("groupingSettings.reset")}
+                </Button>
+              </div>
+            </SettingsGroup>
 
-        <SettingsGroup title={t("groupingSettings.manualChangesGroup")}>
-          <p className="supporting-text">
-            {t("groupingSettings.manualChangesSummary", {
-              manual: settings.manualGroups.length,
-              ungrouped: settings.ungroupedGroups.length,
-            })}
-          </p>
-          <div className="grouping-settings-actions">
-            <LoadPointGroupEditButton
-              editPending={groupEditPending}
-              groups={loadPointGroups}
-              selectedLoadPointIds={state.selectedLoadPointIds}
-              onApply={onApplyLoadPointGroupEdit}
-              onPreview={onPreviewLoadPointGroupEdit}
-            />
-            <button
-              className="settings-secondary-button"
-              disabled={groupEditPending || (settings.manualGroups.length === 0 && settings.ungroupedGroups.length === 0)}
-              type="button"
-              onClick={() => void onApplyLoadPointGroupEdit("reset_overrides")}
-            >
-              {t("groupingSettings.reset")}
-            </button>
+            <SettingsGroup title={t("groupingSettings.visibilityGroup")} variant="blueprint">
+              <Checkbox label={t("groupingSettings.showGroups")} checked={state.showLoadPointGroups}
+                onChange={event => onStateChange({ ...state, showLoadPointGroups: event.currentTarget.checked })} />
+              <p className="grouping-settings-help oa-secondary">{t("groupingSettings.viewHelp")}</p>
+            </SettingsGroup>
           </div>
-        </SettingsGroup>
-
-        <SettingsGroup title={t("groupingSettings.visibilityGroup")}>
-          <label className="settings-checkbox">
-            <input
-              checked={state.showLoadPointGroups}
-              type="checkbox"
-              onChange={(event) => onStateChange({
-                ...state,
-                showLoadPointGroups: event.currentTarget.checked,
-              })}
-            />
-            <span>{t("groupingSettings.showGroups")}</span>
-          </label>
-          <p className="supporting-text">{t("groupingSettings.viewHelp")}</p>
-        </SettingsGroup>
+        </Panel>
       </div>
-    </div>
+    </OpenAECProvider>
   );
 }
-

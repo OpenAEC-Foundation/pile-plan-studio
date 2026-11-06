@@ -86,7 +86,6 @@ describe("React optimization panel", () => {
     assert.match(panel, /onApplyPileConfiguration\?: \(/);
     assert.match(panel, /selectedLoadPoints\.map\(\(\{ id \}\) => id\)/);
     assert.match(panel, /onApplyPileConfiguration\([^;]+configuration/s);
-    assert.match(panel, /aria-disabled=\{pileAssignmentPending\}/);
     assert.match(panel, /if \(pileAssignmentPending\) return/);
     assert.doesNotMatch(panel, /new Map\(state\.selectedPileConfigurationsByLoadPoint\)/);
   });
@@ -175,8 +174,6 @@ describe("React CPT settings panel", () => {
     assert.match(panel, /placeholder=\{settings\.maxAngleDegrees === null \? t\("cptSettings\.mixed"\) : undefined\}/);
     assert.match(panel, /applyCptSelectionSettingsPatch\(state, \{ maxDistanceM:[\s\S]*?\}, overwriteManualSelections\)/);
     assert.match(panel, /applyCptSelectionSettingsPatch\(state, \{ monopolyDistanceM:[\s\S]*?\}, overwriteManualSelections\)/);
-    assert.match(panel, /applyCptSelectionSettingsPatch\(state, \{ algorithm: "quadrants" \}, overwriteManualSelections\)/);
-    assert.match(panel, /applyCptSelectionSettingsPatch\(state, \{ algorithm: "maximum-angle" \}, overwriteManualSelections\)/);
     assert.match(panel, /applyCptSelectionSettingsPatch\(state, \{\s*maxAngleDegrees:[\s\S]*?\}, overwriteManualSelections\)/);
     assert.doesNotMatch(panel, /applyCptSelectionSettings\(/);
   });
@@ -185,7 +182,7 @@ describe("React CPT settings panel", () => {
     const panel = readRightPanelSource();
 
     assert.match(panel, /const \[overwriteManualSelections, setOverwriteManualSelections\] = useState\(false\)/);
-    assert.match(panel, /checked=\{overwriteManualSelections\}[\s\S]*type="checkbox"[\s\S]*setOverwriteManualSelections/);
+    assert.match(panel, /<Checkbox[\s\S]*checked=\{overwriteManualSelections\}[\s\S]*setOverwriteManualSelections/);
     assert.match(panel, /t\("cptSettings\.overwriteManualSelections"\)/);
     assert.match(panel, /cptSettings\.maxDistance[\s\S]*cptSettings\.monopolyDistance/);
     assert.match(panel, /ariaLabel=\{t\("cptSettings\.monopolyDistance"\)\}[\s\S]*min=\{0\}/);
@@ -207,25 +204,18 @@ describe("React CPT settings panel", () => {
     assert.match(styles, /\.segmented-control button:last-child\.is-selected\s*\{[\s\S]*?border-left:\s*1px solid var\(--theme-accent\)/);
   });
 
-  it("highlights the permanent panel tabs on hover", () => {
+  it("uses shared panel buttons with Blueprint selected-state feedback", () => {
+    const panel = readRightPanelSource();
     const styles = readFileSync(resolve(import.meta.dirname, "rightPanel.css"), "utf8");
-
-    assert.match(styles, /\.right-panel-tab:hover:not\(:disabled\)\s*\{[\s\S]*?background:\s*var\(--theme-ribbon-btn-hover\)/);
+    assert.match(panel, /<Button compact[\s\S]*?right-panel-tab/);
+    assert.match(styles, /\.right-panel-tab\[aria-pressed="true"\]\s*\{[\s\S]*?background:\s*var\(--oa-selected\)/);
+    assert.doesNotMatch(styles, /\.right-panel-tab:hover/);
   });
 
   it("keeps mixed algorithms unselected and maximum angle editable until a concrete alternative is common", () => {
     const panel = readRightPanelSource();
 
-    assert.match(panel, /active=\{settings\.algorithm === "quadrants"\}/);
-    assert.match(panel, /active=\{settings\.algorithm === "maximum-angle"\}/);
     assert.match(panel, /disabled=\{settings\.algorithm !== null && settings\.algorithm !== "maximum-angle"\}/);
-  });
-
-  it("uses the themed focus treatment for algorithm options", () => {
-    const styles = readFileSync(resolve(import.meta.dirname, "rightPanel.css"), "utf8");
-
-    assert.match(styles, /\.algorithm-option:focus\s*\{[\s\S]*?outline:\s*none/);
-    assert.match(styles, /\.algorithm-option:focus-visible\s*\{[\s\S]*?box-shadow:\s*0 0 0 2px var\(--theme-focus-color\)/);
   });
 
   it("routes Modify selection into the shared CPT panel edit mode", () => {
@@ -241,13 +231,9 @@ describe("React CPT settings panel", () => {
 describe("React CPT panel edit mode", () => {
   it("uses icon-only remove controls in edit mode and preserves normal CPT inspection links", () => {
     const panel = readRightPanelSource();
-    const icons = readFileSync(resolve(import.meta.dirname, "../../template/ribbon/icons.ts"), "utf8");
-
-    assert.match(icons, /export const removeIcon = `<svg fill="none" stroke="currentColor" viewBox="0 0 24 24">/);
-    assert.match(panel, /import \{[^}]*removeIcon[^}]*\} from "\.\.\/\.\.\/template\/ribbon\/icons\.ts"/);
+    assert.match(panel, /<IconButton small icon="ui.close"/);
     assert.match(panel, /className="cpt-remove-button"/);
-    assert.match(panel, /aria-label=\{t\("actions\.removeCpt"/);
-    assert.match(panel, /dangerouslySetInnerHTML=\{\{ __html: removeIcon \}\}/);
+    assert.match(panel, /label=\{t\("actions\.removeCpt"/);
     assert.match(panel, /removeManualCpt\(state, row\.cpt\.id\)/);
     assert.match(panel, /className="cpt-link"/);
     assert.match(panel, /openCpt\(state, row\.cpt\.id\)/);

@@ -1,0 +1,5 @@
+.blueprint-icon {
+  display: block;
+  flex: none;
+  --icon-accent: var(--oa-accent-text);
+}

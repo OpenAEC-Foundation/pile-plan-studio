@@ -13,6 +13,10 @@ const backstage = readFileSync(
   resolve(import.meta.dirname, "components/template/backstage/Backstage.tsx"),
   "utf8",
 );
+const backstageAbout = readFileSync(
+  resolve(import.meta.dirname, "components/template/backstage/AboutPanel.tsx"),
+  "utf8",
+);
 const englishSettings = readFileSync(
   resolve(import.meta.dirname, "i18n/locales/en/settings.json"),
   "utf8",
@@ -62,9 +66,10 @@ describe("product information", () => {
 
   it("uses the shared identity in both About views", () => {
     assert.match(settings, /PRODUCT_INFO/);
-    assert.match(backstage, /PRODUCT_INFO/);
+    assert.match(backstage, /<AboutPanel/);
+    assert.match(backstageAbout, /PRODUCT_INFO/);
     assert.doesNotMatch(settings, /Open Template|0\.1\.7|template application/i);
-    assert.doesNotMatch(backstage, /0\.1\.7/);
+    assert.doesNotMatch(backstageAbout, /0\.1\.7/);
   });
 
   it("provides localized product-facing About copy", () => {

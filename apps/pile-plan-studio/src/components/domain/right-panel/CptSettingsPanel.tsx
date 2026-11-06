@@ -1,15 +1,21 @@
-import { useState } from "react";
+import { useId, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { ProjectState } from "../../../domain/project/projectState.ts";
 import { getSelectedLoadPoints } from "./rightPanelModel.ts";
 import { applyCptSelectionSettingsPatch, clearManualCptSelection, getCptSelectionSettingsAggregate } from "../../../domain/cpt-selection/cptSettingsModel.ts";
-import { AlgorithmOption, DraftNumberField, SettingsGroup } from "./PanelControls.tsx";
+import { DraftNumberField, SettingsGroup } from "./PanelControls.tsx";
+import CptAlgorithmChoice from "./CptAlgorithmChoice.tsx";
 import { startCptSelectionEdit } from "./CptPanel.tsx";
+import { Button, Checkbox, IconButton, OpenAECProvider, Panel, Radio } from "../../../openaec/react/src/index";
+import spriteUrl from "../../../openaec/studioSprite.ts";
+import "../../../openaec/openaec-components.css";
+import "./cptSettings.css";
 
 export type CptSettingsPanelProps = { state: ProjectState; onStateChange: (state: ProjectState) => void; onClose: () => void };
 
 export default function CptSettingsPanel({ state, onStateChange, onClose }: CptSettingsPanelProps) {
   const { t } = useTranslation("rightPanel");
+  const scopeName = useId();
   const [overwriteManualSelections, setOverwriteManualSelections] = useState(false);
   const selectedLoadPoints = getSelectedLoadPoints(state);
   const settingsScope = selectedLoadPoints.length === 0 ? "all" : state.cptSettingsScope;
@@ -29,42 +35,30 @@ export default function CptSettingsPanel({ state, onStateChange, onClose }: CptS
       : t("cptSettings.selected");
 
   return (
-    <div className="cpt-settings-panel">
-      <header className="right-panel-header">
-        <div><h2>{t("cptSettings.title")}</h2><span>{settingsSubtitle}</span></div>
-        <button className="right-panel-task-close" type="button" aria-label={t("actions.close")} onClick={onClose}>&times;</button>
-      </header>
-
-      <div className="settings-scroll">
-        <SettingsGroup title={t("cptSettings.applyTo")}>
-          <div className="segmented-control" role="group" aria-label={t("cptSettings.applyTo")}>
-            <button
-              className={settingsScope === "all" ? "is-selected" : ""}
-              type="button"
-              onClick={() => onStateChange({ ...state, cptSettingsScope: "all" })}
-            >{t("cptSettings.allLoadPoints")}</button>
-            <button
-              className={settingsScope === "selected" ? "is-selected" : ""}
+    <OpenAECProvider sprite={spriteUrl}>
+    <Panel className="oa-app cpt-settings-panel cpt-settings-blueprint" title={t("cptSettings.title")}
+      actions={<IconButton small icon="ui.close" label={t("actions.close")} onClick={onClose} />}>
+      <div className="cpt-settings-scroll">
+        <p className="cpt-settings-subtitle oa-secondary">{settingsSubtitle}</p>
+        <SettingsGroup title={t("cptSettings.applyTo")} variant="blueprint">
+          <div className="cpt-scope-options" role="radiogroup" aria-label={t("cptSettings.applyTo")}>
+            <Radio name={scopeName} checked={settingsScope === "all"} label={t("cptSettings.allLoadPoints")}
+              onChange={() => onStateChange({ ...state, cptSettingsScope: "all" })} />
+            <Radio name={scopeName} checked={settingsScope === "selected"} label={t("cptSettings.selectedLoadPoints")}
               disabled={selectedLoadPoints.length === 0}
-              type="button"
-              onClick={() => onStateChange({ ...state, cptSettingsScope: "selected" })}
-            >{t("cptSettings.selectedLoadPoints")}</button>
+              onChange={() => onStateChange({ ...state, cptSettingsScope: "selected" })} />
           </div>
-          <label className="settings-checkbox">
-            <input
+          <Checkbox label={t("cptSettings.overwriteManualSelections")}
               checked={overwriteManualSelections}
-              type="checkbox"
               onChange={(event) => setOverwriteManualSelections(event.currentTarget.checked)}
             />
-            <span>{t("cptSettings.overwriteManualSelections")}</span>
-          </label>
-          <p className="supporting-text">
+          <p className="oa-secondary cpt-settings-help">
             {scopeDescription}
           </p>
         </SettingsGroup>
 
-        <SettingsGroup title={t("cptSettings.distances")}>
-          <DraftNumberField
+        <SettingsGroup title={t("cptSettings.distances")} variant="blueprint">
+          <DraftNumberField variant="blueprint"
             ariaLabel={t("cptSettings.maxDistance")}
             emptyValue={0}
             helpText={t("cptSettings.maxDistanceHelp")}
@@ -76,7 +70,7 @@ export default function CptSettingsPanel({ state, onStateChange, onClose }: CptS
             value={settings.maxDistanceM}
             onCommit={(value) => onStateChange(applyCptSelectionSettingsPatch(state, { maxDistanceM: value }, overwriteManualSelections))}
           />
-          <DraftNumberField
+          <DraftNumberField variant="blueprint"
             ariaLabel={t("cptSettings.monopolyDistance")}
             emptyValue={0}
             helpText={t("cptSettings.monopolyDistanceHelp")}
@@ -90,23 +84,11 @@ export default function CptSettingsPanel({ state, onStateChange, onClose }: CptS
           />
         </SettingsGroup>
 
-        <SettingsGroup title={t("cptSettings.algorithm")}>
-          <div className="algorithm-grid" role="radiogroup" aria-label={t("cptSettings.algorithm")}>
-            <AlgorithmOption
-              active={settings.algorithm === "quadrants"}
-              label={t("cptSettings.quadrants")}
-              sketch="quadrants"
-              onClick={() => onStateChange(applyCptSelectionSettingsPatch(state, { algorithm: "quadrants" }, overwriteManualSelections))}
-            />
-            <AlgorithmOption
-              active={settings.algorithm === "maximum-angle"}
-              label={t("cptSettings.maximumAngle")}
-              sketch="maximum-angle"
-              onClick={() => onStateChange(applyCptSelectionSettingsPatch(state, { algorithm: "maximum-angle" }, overwriteManualSelections))}
-            />
-          </div>
+        <SettingsGroup title={t("cptSettings.algorithm")} variant="blueprint">
+          <CptAlgorithmChoice value={settings.algorithm}
+            onChange={algorithm => onStateChange(applyCptSelectionSettingsPatch(state, { algorithm }, overwriteManualSelections))} />
           <div>
-            <DraftNumberField
+            <DraftNumberField variant="blueprint"
               ariaLabel={t("cptSettings.maximumAngle")}
               disabled={settings.algorithm !== null && settings.algorithm !== "maximum-angle"}
               emptyValue={1}
@@ -115,36 +97,36 @@ export default function CptSettingsPanel({ state, onStateChange, onClose }: CptS
               min={1}
               placeholder={settings.maxAngleDegrees === null ? t("cptSettings.mixed") : undefined}
               step={1}
-              suffix="deg"
+              suffix="°"
               value={settings.maxAngleDegrees}
               onCommit={(value) => onStateChange(applyCptSelectionSettingsPatch(state, { maxAngleDegrees: value }, overwriteManualSelections))}
             />
           </div>
         </SettingsGroup>
 
-        <SettingsGroup title={t("cptSettings.manual")}>
-          <p className="supporting-text">
+        <SettingsGroup title={t("cptSettings.manual")} variant="blueprint">
+          <p className="oa-secondary cpt-settings-help">
             {manualCptCount > 0
                 ? t("cptSettings.manualCount", { count: manualCptCount })
                 : t("cptSettings.algorithmic")}
           </p>
-          <div className="selection-actions">
-            <button
+          <div className="cpt-selection-actions">
+            <Button
               className="settings-modify-button"
               disabled={selectedLoadPoints.length === 0}
-              type="button"
               onClick={() => {
                 onStateChange(startCptSelectionEdit(state));
                 onClose();
               }}
-            >{t("actions.modifySelection")}</button>
+            >{t("actions.modifySelection")}</Button>
             {manualCptCount > 0 && state.selectedLoadPointId !== null ? (
-              <button type="button" onClick={() => { onStateChange(clearManualCptSelection(startCptSelectionEdit(state))); onClose(); }}>{t("actions.useAlgorithm")}</button>
+              <Button onClick={() => { onStateChange(clearManualCptSelection(startCptSelectionEdit(state))); onClose(); }}>{t("actions.useAlgorithm")}</Button>
             ) : null}
           </div>
         </SettingsGroup>
       </div>
-    </div>
+    </Panel>
+    </OpenAECProvider>
   );
 }
 

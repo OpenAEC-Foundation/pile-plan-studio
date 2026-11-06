@@ -1,0 +1,42 @@
+/* Application-owned layout around shared Blueprint controls. */
+.backstage-blueprint { background: transparent; }
+.backstage-blueprint .backstage-sidebar { background: var(--oa-panel); border-color: var(--oa-border); }
+.backstage-blueprint .backstage-content { background: var(--oa-frame); color: var(--oa-text); border-color: var(--oa-border); }
+.backstage-blueprint .backstage-back {
+  height: auto; min-height: 44px; flex: none; justify-content: flex-start;
+  gap: 10px; padding: 10px 16px; border-radius: 0;
+}
+.backstage-blueprint .backstage-item {
+  height: auto; min-height: 40px; flex: none; width: 100%; padding: 8px 10px;
+  gap: 10px; text-align: left;
+}
+.backstage-blueprint .backstage-item[aria-current="page"] {
+  background: var(--oa-selected); color: var(--oa-accent-text);
+  box-shadow: inset 3px 0 var(--oa-selected-bar);
+}
+.backstage-blueprint .backstage-item[aria-current="page"] .blueprint-icon { --icon-accent: currentColor; }
+.backstage-blueprint .backstage-back .blueprint-icon { --icon-accent: currentColor; }
+.bs-open-panel, .bs-about-panel { min-width: 0; }
+.bs-open-project-options { display: grid; gap: 12px; margin: 20px 0; }
+.bs-open-project-options .oa-tile > span:last-child { min-width: 0; }
+.bs-open-recent-heading { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 8px; }
+.bs-recent-list { display: grid; list-style: none; margin: 0; padding: 0; }
+.bs-recent-item { display: flex; align-items: center; gap: 6px; padding: 4px 0; border-bottom: 1px solid var(--oa-border-subtle); }
+.bs-recent-open.oa-button { height: auto; min-height: 52px; flex: 1; min-width: 0; padding: 8px; gap: 10px; }
+.bs-recent-info { display: grid; flex: 1; min-width: 0; gap: 3px; text-align: left; }
+.bs-recent-name, .bs-recent-path { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.bs-recent-path, .bs-recent-date { color: var(--oa-text-secondary); font-size: var(--oa-size-label); }
+.bs-recent-date { flex: none; }
+.bs-recent-item > .oa-icon-button { flex: none; }
+.bs-about-heading { display: flex; align-items: center; gap: 16px; margin-bottom: 16px; }
+.bs-about-heading img { flex: none; }
+.bs-about-tagline { font-style: italic; }
+.bs-about-panel p { line-height: 1.6; }
+.bs-about-company { margin: 24px 0; }
+.bs-about-links { display: flex; flex-wrap: wrap; gap: 8px; }
+.bs-about-copyright { margin-top: 24px; padding-top: 12px; border-top: 1px solid var(--oa-border); font-size: var(--oa-size-label); }
+@media (max-width: 760px) {
+  .backstage-content:has(.bs-open-panel, .bs-about-panel) { max-width: calc(100vw - 260px); padding: 20px; }
+  .bs-recent-open.oa-button { flex-wrap: wrap; }
+  .bs-recent-date { margin-left: 26px; }
+}

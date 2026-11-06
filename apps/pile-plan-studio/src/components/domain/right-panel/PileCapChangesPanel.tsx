@@ -3,6 +3,9 @@ import { useTranslation } from "react-i18next";
 import type { ProjectState } from "../../../domain/project/projectState.ts";
 import type { PileCapPreview } from "../../../core/pileCapProposalTypes.ts";
 import { pileCapGroupKey } from "../../../domain/pile-plans/pileCapProposals.ts";
+import { Button, IconButton, OpenAECProvider, Panel, Status } from "../../../openaec/react/src/index";
+import spriteUrl from "../../../openaec/studioSprite.ts";
+import "../../../openaec/openaec-components.css";
 import "./pileCapChangesPanel.css";
 
 type Props = {
@@ -28,21 +31,18 @@ export default function PileCapChangesPanel({ state, previews, selectionPending,
   const selectedKey = pileCapGroupKey(state.selectedLoadPointIds);
 
   return (
-    <section className="pile-cap-changes-panel" aria-label={t("pileCapOverview.title")}>
-      <header className="right-panel-header">
-        <div>
-          <h2>{t("pileCapOverview.title")}</h2>
-          <span className="pile-cap-changes-plan">{plan?.name}</span>
-        </div>
-        <button className="right-panel-task-close" type="button" aria-label={t("pileCapOverview.close")} onClick={onClose}>&times;</button>
-      </header>
+    <OpenAECProvider sprite={spriteUrl}><div className="pile-cap-changes-shell" onKeyDown={event => {
+      if ((event.key === " " || event.key === "Enter") && event.target instanceof Element && event.target.closest("button")) event.stopPropagation();
+    }}><Panel className="oa-app pile-cap-changes-panel" title={t("pileCapOverview.title")}
+      actions={<IconButton small icon="ui.close" label={t("pileCapOverview.close")} onClick={onClose} />}>
+      <p className="pile-cap-changes-plan oa-secondary">{plan?.name}</p>
       {selectionControls}
       <div className="pile-cap-changes-intro">
         <div className="pile-cap-changes-summary">
           <strong>{t("pileCapOverview.count", { count: proposals.length })}</strong>
-          <button type="button" disabled={resetDisabled || proposals.length === 0}
+          <Button compact disabled={resetDisabled || proposals.length === 0}
             aria-label={t("pileCapOverview.resetAllHelp")} title={t("pileCapOverview.resetAllHelp")}
-            onClick={onResetAll}>{t("pileCapOverview.resetAll")}</button>
+            onClick={onResetAll}>{t("pileCapOverview.resetAll")}</Button>
         </div>
         {proposals.length > 0 && <p>{t("pileCapOverview.help")}</p>}
       </div>
@@ -70,7 +70,7 @@ export default function PileCapChangesPanel({ state, previews, selectionPending,
                 const label = t("pileCapOverview.select", { locations: ids.join(", "), original: ids.length, proposed: proposal.pile_count });
                 return (
                   <li key={key}>
-                    <button type="button" className="pile-cap-changes-row"
+                    <Button kind="quiet" className="pile-cap-changes-row"
                       aria-label={statusText ? `${label}. ${statusText}` : label}
                       aria-pressed={availableIds.length > 0 && selectedKey === pileCapGroupKey(availableIds)}
                       title={ids.map(id => points.get(id)?.name || String(id)).join(", ")}
@@ -79,8 +79,8 @@ export default function PileCapChangesPanel({ state, previews, selectionPending,
                       <span className="pile-cap-changes-locations">{ids.join(", ")}</span>
                       <span className="pile-cap-changes-number">{ids.length}</span>
                       <strong className="pile-cap-changes-number">{proposal.pile_count}</strong>
-                      {statusText && <span className="pile-cap-changes-status">{statusText}</span>}
-                    </button>
+                      {statusText && <span className="pile-cap-changes-status"><Status tone="warning">{statusText}</Status></span>}
+                    </Button>
                   </li>
                 );
               })}
@@ -88,6 +88,6 @@ export default function PileCapChangesPanel({ state, previews, selectionPending,
           </div>
         </div>
       )}
-    </section>
+    </Panel></div></OpenAECProvider>
   );
 }

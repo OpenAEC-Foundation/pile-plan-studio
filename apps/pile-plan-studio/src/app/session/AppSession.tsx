@@ -1,3 +1,6 @@
+import { useRecentFiles } from "../../hooks/useRecentFiles.ts";
+import { browserRecentProjectKey } from "../../domain/project/browserRecentProjects.ts";
+import { saveBrowserProjectLocally } from "../project/browserLocalSave.ts";
 import {LoadDirectionProvider} from "../derived-state/LoadDirectionContext.tsx";
 import {LocationMatchingSurfaceContext, useLocationMatchingSurface} from "../exports/locationMatchingSurface.tsx";
 import { usePileCapProposals } from "../derived-state/usePileCapProposals.ts";
@@ -31,7 +34,8 @@ import type { LegendEditorDraft } from "../../domain/legend/legendEditorModel.ts
 import IlpOptimizationSettingsPanel from "../../components/domain/pile-plans/ilp-optimization/IlpOptimizationSettingsPanel.tsx";
 import IlpOptimizationResultPanel from "../../components/domain/pile-plans/ilp-optimization/IlpOptimizationResultPanel.tsx";
 import Backstage from "../../components/template/backstage/Backstage";
-import SettingsDialog, { applyTheme } from "../../components/template/settings/SettingsDialog";
+import SettingsDialog from "../../components/template/settings/SettingsDialog";
+import { applyTheme } from "../appearance/applyAppearance.ts";
 import FeedbackDialog from "../../components/template/feedback/FeedbackDialog";
 import StatusBar from "../../components/template/StatusBar";
 import InterfaceScaleNotice, { type InterfaceScaleNoticeValue } from "../../components/template/InterfaceScaleNotice";
@@ -181,6 +185,7 @@ export type AppSessionProps = {
   initializeDefaultPiles: boolean;
   initialSavedProjectSignature?: string;
   initialWasDirty?: boolean;
+  initialRecentProjectKey?: string;
   initialStatusKey?: string;
   recoveryStore?: BrowserRecoveryStore;
 };
@@ -196,6 +201,7 @@ export default function AppSession({
   initializeDefaultPiles,
   initialSavedProjectSignature,
   initialWasDirty = false,
+  initialRecentProjectKey,
   initialStatusKey,
   recoveryStore,
 }: AppSessionProps) {
@@ -342,9 +348,22 @@ export default function AppSession({
   const isDirtyRef = useRef(isDirty);
   isDirtyRef.current = isDirty;
   const [projectPath, setProjectPath] = useState<string | null>(null);
+  const recentProjects = useRecentFiles();
+  const [browserRecentPath, setBrowserRecentPathState] = useState<string | null>(initialRecentProjectKey ?? null);
+  const browserRecentPathRef = useRef(browserRecentPath);
+  const setBrowserRecentPath = (path: string | null) => {
+    browserRecentPathRef.current = path;
+    setBrowserRecentPathState(path);
+  };
+  const recentStorageError = () => showActionNotice(t("recentProjects.storageFailed"), "error");
+  const rememberDesktopProject = (path: string) => { void recentProjects.addRecentFile(path).catch(recentStorageError); };
+
   const projectPathRef = useRef(projectPath);
   projectPathRef.current = projectPath;
   const [unsavedChangesOpen, setUnsavedChangesOpen] = useState(false);
+  const [replacementSaving, setReplacementSaving] = useState(false);
+  const replacementSavingRef = useRef(false);
+  const [replacementSaveError, setReplacementSaveError] = useState<string | null>(null);
   const appContentRef = useRef<HTMLDivElement | null>(null);
   const explorerWidthRef = useRef(DEFAULT_EXPLORER_WIDTH);
   const rightPanelWidthRef = useRef(DEFAULT_RIGHT_PANEL_WIDTH);
@@ -557,8 +576,9 @@ export default function AppSession({
       savedProjectSignature,
       isDirty,
       updatedAt: new Date().toISOString(),
+      recentProjectKey: browserRecentPath ?? undefined,
     }));
-  }, [isDirty, persistedProjectSignature, projectState.defaultPileSelectionPending, recoveryWriter, savedProjectSignature]);
+  }, [browserRecentPath, isDirty, persistedProjectSignature, projectState.defaultPileSelectionPending, recoveryWriter, savedProjectSignature]);
 
   useEffect(() => {
     const result = managedProject.lastResult;
@@ -581,18 +601,36 @@ export default function AppSession({
   };
 
   const downloadProject = async (): Promise<boolean> => {
+    const recentKeyAtStart = browserRecentPathRef.current;
+    const savedInstance = mcpProjectMarkerRef.current!.observe(projectState).project_instance_id;
+    const savedSignature = projectStateSignature(projectState);
+    const sameInstance = () => mcpProjectMarkerRef.current!.observe(projectStateRef.current).project_instance_id === savedInstance;
     const options = {
       fileName: projectFileName(projectState.name),
       mimeType: "application/json",
       extensions: [".ifcpp"],
     };
     const prepared = preparedProjectRef.current;
-    const saved = prepared?.signature === persistedProjectSignature
-      ? await savePreparedFile(options, prepared.blob)
-      : await saveGeneratedFile(options, async () => new Blob([await serializeProject()], { type: "application/json" }));
+    const readyBlob = prepared?.signature === persistedProjectSignature ? prepared.blob : null;
+    let generated: Blob | null = null;
+    const saved = readyBlob ? await savePreparedFile(options, readyBlob)
+      : await saveGeneratedFile(options, async () => {
+        generated = new Blob([await serializeProject()], { type: "application/json" });
+        return generated;
+      });
     if (!saved) return false;
-    updateSavedProjectSignature(projectStateSignature(projectState));
-    setIsDirty(false);
+    if (sameInstance()) {
+      updateSavedProjectSignature(savedSignature);
+      setIsDirty(projectStateSignature(projectStateRef.current) !== savedSignature);
+    }
+    if (!isDesktop) {
+      try {
+        const contents = await ((readyBlob ?? generated) as Blob).text();
+        const key = recentKeyAtStart ?? await browserRecentProjectKey(options.fileName, contents);
+        await recentProjects.rememberBrowser(key, options.fileName, contents);
+        if (sameInstance()) setBrowserRecentPath(key);
+      } catch { recentStorageError(); }
+    }
     return true;
   };
 
@@ -606,6 +644,7 @@ export default function AppSession({
     if (!path) return false;
     await invokeDesktop("write_project_file", { path, contents: await serializeProject() });
     setProjectPath(path);
+    rememberDesktopProject(path);
     updateSavedProjectSignature(projectStateSignature(projectState));
     setIsDirty(false);
     return true;
@@ -615,6 +654,7 @@ export default function AppSession({
     if (!isDesktop) return downloadProject();
     if (!projectPath) return saveProjectAs();
     await invokeDesktop("write_project_file", { path: projectPath, contents: await serializeProject() });
+    rememberDesktopProject(projectPath);
     updateSavedProjectSignature(projectStateSignature(projectState));
     setIsDirty(false);
     return true;
@@ -678,6 +718,7 @@ export default function AppSession({
 
   const confirmProjectReplacement = useCallback((): Promise<boolean> => {
     if (!isDirtyRef.current) return Promise.resolve(true);
+    setReplacementSaveError(null);
     setUnsavedChangesOpen(true);
     return new Promise((resolve) => {
       replacementResolverRef.current = resolve;
@@ -689,6 +730,43 @@ export default function AppSession({
     const resolve = replacementResolverRef.current;
     replacementResolverRef.current = null;
     resolve?.(proceed);
+  };
+
+  const saveBeforeProjectReplacement = async () => {
+    if (replacementSavingRef.current) return;
+    replacementSavingRef.current = true;
+    setReplacementSaving(true);
+    setReplacementSaveError(null);
+    try {
+      let saved: boolean;
+      if (isDesktop) {
+        saved = await saveProject();
+      } else {
+        const captured = projectStateRef.current;
+        const signature = projectStateSignature(captured);
+        const instance = mcpProjectMarkerRef.current!.observe(captured).project_instance_id;
+        saved = await saveBrowserProjectLocally({
+          state: captured,
+          recentKey: browserRecentPathRef.current,
+          serialize: writeProjectDocumentCore,
+          remember: recentProjects.rememberBrowser,
+          isCurrent: () => mcpProjectMarkerRef.current!.observe(projectStateRef.current).project_instance_id === instance
+            && projectStateSignature(projectStateRef.current) === signature,
+          didSave: (key, savedSignature) => {
+            setBrowserRecentPath(key);
+            updateSavedProjectSignature(savedSignature);
+            isDirtyRef.current = false;
+            setIsDirty(false);
+          },
+        });
+      }
+      if (saved) resolveProjectReplacement(true);
+    } catch {
+      setReplacementSaveError(t("unsaved.saveFailed"));
+    } finally {
+      replacementSavingRef.current = false;
+      setReplacementSaving(false);
+    }
   };
 
   const handleProjectStateChange = (nextState: typeof projectState) => {
@@ -832,7 +910,7 @@ export default function AppSession({
           (key, fallback) => getSetting(key, fallback),
         );
         if (cancelled) return;
-        applyTheme(settings.preferences.theme);
+        applyTheme(settings.preferences.theme, settings.preferences.workspaceAppearance);
         await changeLanguage(settings.preferences.language);
         if (isDesktop) {
           await applyDesktopInterfaceScale(settings.preferences.interfaceScalePercent);
@@ -1055,6 +1133,7 @@ export default function AppSession({
       defaultSelectionKeepsDirtyRef.current = false;
       flushSync(() => replaceProjectState(state));
       setProjectPath(null);
+      setBrowserRecentPath(null);
       updateSavedProjectSignature("");
       isDirtyRef.current = true;
       setIsDirty(true);
@@ -1065,6 +1144,7 @@ export default function AppSession({
       projectPathRef.current = path;
     },
     didSave: (path) => {
+      rememberDesktopProject(path);
       projectPathRef.current = path;
       setProjectPath(path);
       updateSavedProjectSignature(projectStateSignature(projectStateRef.current));
@@ -1128,13 +1208,15 @@ export default function AppSession({
     }));
   };
 
-  const installOpenedProject = (project: ProjectState, path: string | null) => {
+  const installOpenedProject = (project: ProjectState, path: string | null, browserKey: string | null = null) => {
     const lifecycle = openedProjectLifecycleState(project, path);
     setLassoSelectionActive((active) => transitionLassoSelectionMode(active, { type: "dismiss" }));
     replaceProjectState(project);
     setProjectPath(lifecycle.projectPath);
     updateSavedProjectSignature(lifecycle.savedSignature);
     setIsDirty(lifecycle.isDirty);
+    setBrowserRecentPath(browserKey);
+    if (path) rememberDesktopProject(path);
     if (project.legendImportWarnings.length > 0) {
       showStatusMessage(t("legend.importWarnings", { count: project.legendImportWarnings.length }));
     }
@@ -1169,6 +1251,30 @@ export default function AppSession({
     }
   };
   openDesktopProjectPathRef.current = openDesktopProjectPath;
+
+  const openBrowserProjectContents = async (contents: string, name: string, existingKey?: string) => {
+    const project = await prepareOpenedProject(contents, { initializeDefaultPiles: false }, { readProjectDocument: readProjectDocumentCore });
+    let key: string | null = existingKey ?? null;
+    try { key ??= await browserRecentProjectKey(name, contents); } catch { recentStorageError(); }
+    installOpenedProject(project, null, key);
+    if (key) {
+      try { await recentProjects.rememberBrowser(key, name, contents); } catch { recentStorageError(); }
+    }
+  };
+  const openRecentProject = async (path: string) => {
+    const file = recentProjects.recentFiles.find(item => item.path === path);
+    if (file?.storage !== "browser") {
+      if (isDesktop) return openDesktopProjectPath(path);
+      showActionNotice(t("recentProjects.copyMissing"), "error");
+      return;
+    }
+    if (!await confirmProjectReplacement()) return;
+    try {
+      const contents = await recentProjects.readBrowser(path);
+      if (contents === null) { showActionNotice(t("recentProjects.copyMissing"), "error"); return; }
+      await openBrowserProjectContents(contents, file.name, path);
+    } catch (error) { showActionNotice(describeProjectOpenError(error, t), "error"); }
+  };
 
   const chooseDesktopProject = async () => {
     const { open } = await import("@tauri-apps/plugin-dialog");
@@ -1583,27 +1689,21 @@ export default function AppSession({
           defaultSelectionKeepsDirtyRef.current = false;
           replaceProjectState(costs.update(importedState));
           setProjectPath(null);
+          setBrowserRecentPath(null);
           updateSavedProjectSignature("");
           setIsDirty(true);
           return getImportSummary(project);
         }}
         onOpenProjectFile={async (file: File) => {
           if (!await confirmProjectReplacement()) return;
-          try {
-            const project = await prepareOpenedProject(
-              await file.text(),
-              { initializeDefaultPiles: false },
-              {
-                readProjectDocument: readProjectDocumentCore,
-              },
-            );
-            installOpenedProject(project, null);
-          } catch (error) {
-            showActionNotice(describeProjectOpenError(error, t), "error");
-          }
+          try { await openBrowserProjectContents(await file.text(), file.name); }
+          catch (error) { showActionNotice(describeProjectOpenError(error, t), "error"); }
         }}
         onOpenSampleProject={openSampleProject}
-        onOpenFile={(path) => void openDesktopProjectPath(path)}
+        recentFiles={recentProjects.recentFiles}
+        onRemoveRecentFile={path => { void recentProjects.removeRecentFile(path).catch(recentStorageError); }}
+        onClearRecentFiles={() => { void recentProjects.clearRecentFiles().catch(recentStorageError); }}
+        onOpenFile={(path) => void openRecentProject(path)}
         onChooseDesktopProject={chooseDesktopProject}
         onDownloadProject={async () => { await downloadProject(); }}
         onExportPilePlanXlsx={(pileSizeFormat,options) => exportPilePlan("xlsx", pileSizeFormat,options)}
@@ -1633,6 +1733,7 @@ export default function AppSession({
         open={settingsOpen}
         onClose={() => setSettingsOpen(false)}
         theme={userSettings.preferences.theme}
+        workspaceAppearance={userSettings.preferences.workspaceAppearance}
         language={userSettings.preferences.language}
         defaultCurrencyCode={userSettings.preferences.defaultCurrencyCode}
         onPreferencesChange={(preferences) => commitUserSettings(patchUserSettings(userSettings, preferences))}
@@ -1664,11 +1765,11 @@ export default function AppSession({
       <UnsavedChangesDialog
         open={unsavedChangesOpen}
         isDesktop={isDesktop}
+        saving={replacementSaving}
+        saveError={replacementSaveError}
         onCancel={() => resolveProjectReplacement(false)}
         onDiscard={() => resolveProjectReplacement(true)}
-        onSave={() => void (isDesktop ? saveProject() : downloadProject()).then((saved) => {
-          if (saved) resolveProjectReplacement(true);
-        })}
+        onSave={() => void saveBeforeProjectReplacement()}
       />
       <FeedbackDialog open={feedbackOpen} onClose={() => setFeedbackOpen(false)} />
     </LocationMatchingSurfaceContext.Provider></LoadDirectionProvider>

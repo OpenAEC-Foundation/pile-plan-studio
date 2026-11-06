@@ -1,0 +1,35 @@
+/* Explorer composition around shared controls and domain-specific list metadata. */
+.project-explorer.explorer-blueprint { color: var(--oa-text); font-family: var(--oa-font-body); font-size: var(--oa-size-body); }
+.explorer-blueprint .explorer-panel { flex: 1; min-height: 0; min-width: 0; border: 0; box-shadow: none; }
+.explorer-blueprint .explorer-panel > .oa-panel-header { flex-shrink: 0; }
+.explorer-blueprint .project-tree { overflow-y: auto; min-height: 0; min-width: 0; align-content: start; padding: 12px; gap: 16px; }
+.explorer-blueprint .project-tree-section { min-width: 0; }
+.explorer-blueprint .project-tree-label { font-weight: var(--oa-weight-regular); }
+.explorer-blueprint .project-summary { background: var(--oa-raised); border-color: var(--oa-border); border-left-color: var(--oa-selected-bar); border-radius: var(--oa-radius-medium); }
+.explorer-blueprint .project-summary strong { font-size: var(--oa-size-body); font-weight: var(--oa-weight-medium); }
+.explorer-blueprint .project-summary small { font-size: var(--oa-size-label); color: var(--oa-text-secondary); }
+.explorer-blueprint .project-tree-group-heading.oa-button { height: auto; min-height: var(--oa-row); white-space: normal; padding: 4px; border: 1px solid transparent; border-radius: var(--oa-radius-medium); font-size: var(--oa-size-label); text-align: left; }
+.explorer-blueprint .project-tree-group-heading > span { min-width: 0; overflow-wrap: anywhere; }
+.explorer-blueprint .project-tree-group-heading > svg { flex: 0 0 12px; }
+.explorer-blueprint .project-tree-item.oa-button { display: grid; height: auto; min-height: 44px; white-space: normal; padding: 7px 8px; gap: 4px; }
+.explorer-blueprint .project-tree-item > span { font-size: var(--oa-size-body); font-weight: var(--oa-weight-bold); }
+.explorer-blueprint .project-tree-item > small { font-size: var(--oa-size-label); }
+.explorer-blueprint .project-tree-item[aria-pressed="true"] { background: var(--oa-selected); border-color: var(--oa-border); box-shadow: inset 3px 0 var(--oa-selected-bar); }
+.explorer-blueprint .pile-plan-list { grid-auto-rows: max-content; overflow: visible; }
+.explorer-blueprint .pile-plan-row { border: 1px solid transparent; border-radius: var(--oa-radius-medium); }
+.explorer-blueprint .pile-plan-row.active { background: var(--oa-selected); border-color: var(--oa-border); box-shadow: inset 3px 0 var(--oa-selected-bar); }
+.explorer-blueprint .pile-plan-select.oa-button { display: grid; height: auto; min-height: 48px; padding: 8px; border: 0; white-space: normal; gap: 4px; }
+.explorer-blueprint .pile-plan-select strong { padding-right: 64px; font-size: var(--oa-size-body); font-weight: var(--oa-weight-medium); }
+.explorer-blueprint .pile-plan-meta { color: var(--oa-text-secondary); font-size: var(--oa-size-label); gap: 4px 8px; }
+.explorer-blueprint .pile-plan-meta > span { max-width: 100%; white-space: normal; overflow-wrap: anywhere; }
+.explorer-blueprint .pile-plan-warning { padding: 0; border: 0; background: transparent; }
+.explorer-blueprint .pile-plan-warning .oa-status { max-width: 100%; font-family: var(--oa-font-body); white-space: normal; line-height: 1.35; }
+.explorer-blueprint .pile-plan-actions { right: 4px; top: 4px; gap: 2px; padding: 0; }
+.explorer-blueprint .pile-plan-actions .oa-icon-button { flex: 0 0 20px; }
+.explorer-blueprint .pile-plan-rename { padding: 8px 72px 8px 8px; }
+.explorer-blueprint .pile-plan-rename > .oa-label { min-width: 0; }
+.explorer-blueprint .pile-plan-rename .oa-label > label { position: absolute; width: 1px; height: 1px; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+.explorer-blueprint .pile-plan-rename .oa-field { min-width: 0; width: 100%; }
+.explorer-blueprint .new-pile-plan.oa-button { width: 100%; height: auto; min-height: var(--oa-row); border-radius: var(--oa-radius-medium); padding: 6px 8px; white-space: normal; }
+.explorer-blueprint .new-pile-plan .oa-icon { flex: 0 0 16px; }
+.explorer-blueprint .new-pile-plan > span { min-width: 0; text-align: left; }

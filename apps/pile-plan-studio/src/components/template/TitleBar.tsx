@@ -1,5 +1,9 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
+import { Button, IconButton, OpenAECProvider, Status } from "../../openaec/react/src/index";
+import spriteUrl from "../../openaec/studioSprite.ts";
+import ApplicationSettingsIcon from "./ApplicationSettingsIcon.tsx";
+import "../../openaec/openaec-components.css";
 import "./TitleBar.css";
 
 interface TitleBarProps {
@@ -16,119 +20,60 @@ interface TitleBarProps {
   interfaceScaleControl?: ReactNode;
 }
 
-function TitleBar({
-  projectAction,
-  projectActionKind,
-  canUndo,
-  canRedo,
-  undoLabel,
-  redoLabel,
-  onUndo,
-  onRedo,
-  onSettingsClick,
-  onFeedbackClick,
-  interfaceScaleControl,
+function shortcutTip(label: string, keys: string) {
+  return label.includes(keys) ? label : label + " (" + keys + ")";
+}
+
+export default function TitleBar({
+  projectAction, projectActionKind, canUndo, canRedo, undoLabel, redoLabel,
+  onUndo, onRedo, onSettingsClick, onFeedbackClick, interfaceScaleControl,
 }: TitleBarProps) {
   const { t } = useTranslation();
   const [appVersion, setAppVersion] = useState("");
-
+  const projectActionLabel = t(projectActionKind === "save" ? "save" : "saveProjectDownload");
   useEffect(() => {
-    import("@tauri-apps/api/app")
-      .then(({ getVersion }) => getVersion())
-      .then(setAppVersion)
-      .catch(() => setAppVersion(""));
+    let active = true;
+    import("@tauri-apps/api/app").then(api => api.getVersion())
+      .then(version => { if (active) setAppVersion(version); })
+      .catch(() => { if (active) setAppVersion(""); });
+    return () => { active = false; };
   }, []);
 
-  return (
-    <div className="titlebar">
+  return <OpenAECProvider sprite={spriteUrl}>
+    <header className="oa-app titlebar titlebar-blueprint" role="banner" onKeyDown={event => {
+      if (event.key === " " || event.key === "Enter") event.stopPropagation();
+    }}>
       <div className="titlebar-left">
-        <div className="titlebar-icon">
-          <img src="/pile-plan-studio-icon.svg" alt="" aria-hidden="true" />
-        </div>
-
+        <div className="titlebar-icon"><img src="/pile-plan-studio-icon.svg" alt="" aria-hidden="true" /></div>
         <div className="titlebar-quick-access">
-          <button
-            className="titlebar-quick-btn"
-            title={`${t(projectActionKind === "save" ? "save" : "downloadIfcpp")} (Ctrl+S)`}
-            aria-label={t(projectActionKind === "save" ? "save" : "downloadIfcpp")}
-            tabIndex={-1}
-            onClick={projectAction}
-          >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              {projectActionKind === "save" ? (
-                <><path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z" /><polyline points="17 21 17 13 7 13 7 21" /><polyline points="7 3 7 8 15 8" /></>
-              ) : (
-                <><path d="M12 3v12" /><polyline points="7 10 12 15 17 10" /><path d="M5 21h14" /></>
-              )}
-            </svg>
-          </button>
-          <button
-            className="titlebar-quick-btn"
-            disabled={!canUndo}
-            title={undoLabel}
-            aria-label={undoLabel}
-            tabIndex={-1}
-            onClick={onUndo}
-          >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M9 14 4 9l5-5" />
-              <path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11" />
-            </svg>
-          </button>
-          <button
-            className="titlebar-quick-btn"
-            disabled={!canRedo}
-            title={redoLabel}
-            aria-label={redoLabel}
-            tabIndex={-1}
-            onClick={onRedo}
-          >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="m15 4 5 5-5 5" />
-              <path d="M20 9H9.5a5.5 5.5 0 0 0 0 11H13" />
-            </svg>
-          </button>
-          <button
-            className="titlebar-quick-btn"
-            title={t("preferences")}
-            aria-label={t("preferences")}
-            tabIndex={-1}
-            onClick={onSettingsClick}
-          >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <circle cx="12" cy="12" r="3" />
-              <path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z" />
-            </svg>
-          </button>
+          <IconButton className="titlebar-quick-btn" icon="file.save" label={projectActionLabel} keys="Ctrl+S"
+            data-oa-tip={undefined} data-tooltip={shortcutTip(projectActionLabel, "Ctrl+S")} onClick={projectAction} />
+          <IconButton className="titlebar-quick-btn" icon="edit.undo" label={undoLabel} keys="Ctrl+Z"
+            disabled={!canUndo} onClick={onUndo} data-oa-tip={undefined}
+            data-tooltip={canUndo ? shortcutTip(undoLabel, "Ctrl+Z") : undefined} />
+          <IconButton className="titlebar-quick-btn" icon="edit.redo" label={redoLabel} keys="Ctrl+Y"
+            disabled={!canRedo} onClick={onRedo} data-oa-tip={undefined}
+            data-tooltip={canRedo ? shortcutTip(redoLabel, "Ctrl+Y") : undefined} />
+          <Button kind="quiet" className="titlebar-quick-btn titlebar-settings-button" aria-label={t("preferences")}
+            aria-keyshortcuts="Control+," data-tooltip={shortcutTip(t("preferences"), "Ctrl+,")} onClick={onSettingsClick}>
+            <ApplicationSettingsIcon />
+          </Button>
         </div>
       </div>
-
-      <span className="titlebar-title">
-        {t("appName")}
-        <span
-          className="titlebar-alpha-badge"
-          title={t("engineeringDisclaimer")}
-          aria-label={`${t("alphaLabel")}: ${t("engineeringDisclaimer")}`}
-        >
-          {t("alphaLabel")}
+      <div className="titlebar-title">
+        <span className="titlebar-name">{t("appName")}</span>
+        <span className="titlebar-alpha-badge" data-tooltip={t("engineeringDisclaimer")}
+          aria-label={t("alphaLabel") + ": " + t("engineeringDisclaimer")} tabIndex={0}>
+          <Status tone="warning">{t("alphaLabel")}</Status>
         </span>
         {appVersion && <span className="titlebar-version">v{appVersion}</span>}
-      </span>
-
-      <div className="titlebar-actions">
-        <div className="titlebar-scale-anchor">
-          {interfaceScaleControl}
-        </div>
-        <button
-          className="send-feedback-btn"
-          onClick={onFeedbackClick}
-          tabIndex={-1}
-        >
-          {t("sendFeedback")}
-        </button>
       </div>
-    </div>
-  );
+      <div className="titlebar-actions">
+        <div className="titlebar-scale-anchor">{interfaceScaleControl}</div>
+        <Button kind="quiet" icon="ui.feedback" className="send-feedback-btn" onClick={onFeedbackClick}>
+          <span>{t("sendFeedback")}</span>
+        </Button>
+      </div>
+    </header>
+  </OpenAECProvider>;
 }
-
-export default TitleBar;

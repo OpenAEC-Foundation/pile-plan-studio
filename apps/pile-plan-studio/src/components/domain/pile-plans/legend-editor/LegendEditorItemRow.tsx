@@ -9,6 +9,7 @@ import LegendColorPicker from "../LegendColorPicker.tsx";
 import LegendSymbolPicker from "../LegendSymbolPicker.tsx";
 import LegendPlanUsageSection from "./LegendPlanUsageSection.tsx";
 import type { LegendEditorItem } from "./LegendEditor.tsx";
+import { Button, Heading, Icon, Status } from "../../../../openaec/react/src/index";
 
 const NEUTRAL_SYMBOL_PREVIEW_COLOR = "#6F7B82";
 
@@ -33,7 +34,7 @@ export default function EditorSection(props: EditorSectionProps) {
   return (
     <section className="legend-editor-section">
       <div className="legend-editor-section-heading">
-        <h3>{props.title}</h3>
+        <Heading>{props.title}</Heading>
         {props.encodingMode === "size-color-tip-region" && props.items[0]?.kind === "size" ? (
           <span>{t("legend.shapeFromCostTable")}</span>
         ) : null}
@@ -52,7 +53,7 @@ function EditorBlock({ className, items, title, ...itemProps }: EditorBlockProps
   const { t } = useTranslation("common");
   return (
     <div className={`legend-editor-block ${className}`}>
-      <h4>{title}</h4>
+      <Heading>{title}</Heading>
       <div className="legend-editor-items">
         {items.length > 0 ? items.map((item) => (
           <LegendEditorItemRow {...itemProps} item={item} key={item.value} />
@@ -104,7 +105,7 @@ export function LegendEditorItemRow({
       {isDisabledUsed ? (
         <span className="legend-editor-warning" title={t("legend.usedWarning")} aria-label={t("legend.usedWarning")}>!</span>
       ) : null}
-      <button
+      <Button compact kind="quiet"
         aria-label={isDisabled ? t("legend.enableItem", { item: label }) : t("legend.disableItem", { item: label })}
         className="legend-editor-activation-button"
         title={isDisabled ? t("legend.enableItem", { item: label }) : t("legend.disableItem", { item: label })}
@@ -112,7 +113,7 @@ export function LegendEditorItemRow({
         onClick={() => onDraftChange(setLegendEditorItemEnabled(draft, item.kind, item.value, isDisabled))}
       >
         <span aria-hidden="true">{isDisabled ? "+" : "−"}</span>
-      </button>
+      </Button>
     </div>
   );
 }
@@ -146,7 +147,6 @@ function LegendItemPlanInfo({
 }) {
   const { t } = useTranslation("common");
   const rootRef = useRef<HTMLSpanElement>(null);
-  const triggerRef = useRef<HTMLButtonElement>(null);
   const popoverId = useId();
 
   useEffect(() => {
@@ -154,28 +154,24 @@ function LegendItemPlanInfo({
     const closeOutside = (event: PointerEvent) => {
       if (!rootRef.current?.contains(event.target as Node)) onOpenChange(false);
     };
-    const closeOnEscape = (event: KeyboardEvent) => {
-      if (event.key !== "Escape") return;
-      event.preventDefault();
-      onOpenChange(false);
-      triggerRef.current?.focus();
-    };
     document.addEventListener("pointerdown", closeOutside);
-    document.addEventListener("keydown", closeOnEscape);
     return () => {
       document.removeEventListener("pointerdown", closeOutside);
-      document.removeEventListener("keydown", closeOnEscape);
     };
   }, [onOpenChange, open]);
 
   return (
-    <span className="legend-editor-item-info" ref={rootRef}>
-      <button
+    <span className="legend-editor-item-info" ref={rootRef} onKeyDown={event => {
+      if (event.key === "Escape" && open) {
+        event.preventDefault(); event.stopPropagation(); onOpenChange(false);
+        rootRef.current?.querySelector<HTMLButtonElement>(".legend-editor-item-info-trigger")?.focus();
+      }
+    }}>
+      <Button compact kind="quiet"
         aria-controls={popoverId}
         aria-expanded={open}
         aria-haspopup="dialog"
         className="legend-editor-item-info-trigger"
-        ref={triggerRef}
         type="button"
         onClick={() => onOpenChange(!open)}
       >
@@ -185,14 +181,12 @@ function LegendItemPlanInfo({
             className="legend-editor-outside-scope-chip"
             title={t("legend.activeOutsideScopeTitle", { count: usage.activeOutsideScopeCount })}
           >
-            <svg aria-hidden="true" className="legend-editor-info-icon" viewBox="0 0 16 16">
-              <circle cx="8" cy="8" r="6.25" />
-              <path d="M8 7.25v4M8 4.75h.01" />
-            </svg>
+            <Status tone="info"><Icon id="ui.about" />
             {t("legend.activeOutsideScope", { count: usage.activeOutsideScopeCount })}
+            </Status>
           </span>
         ) : null}
-      </button>
+      </Button>
       {open ? (
         <span
           aria-label={t("legend.planUsageTitle", { item: label })}

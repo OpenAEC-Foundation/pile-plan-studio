@@ -1,3 +1,4 @@
+import { Button } from "../../../openaec/react/src/index";
 import { useEffect, useId, useRef, useState, type KeyboardEvent } from "react";
 import {
   getLegendColorSchemePreview,
@@ -29,7 +30,7 @@ export default function LegendColorSchemeSelect({ value, label, getSchemeLabel, 
 
   return (
     <div className="legend-scheme-select" ref={rootRef}>
-      <button
+      <Button compact
         aria-controls={listboxId}
         aria-expanded={open}
         aria-haspopup="listbox"
@@ -44,7 +45,7 @@ export default function LegendColorSchemeSelect({ value, label, getSchemeLabel, 
         <span>{getSchemeLabel(value)}</span>
         <PalettePreview scheme={value} />
         <span aria-hidden="true" className="legend-picker-chevron" />
-      </button>
+      </Button>
       {open ? (
         <div
           aria-activedescendant={`${listboxId}-${activeIndex}`}
@@ -56,7 +57,7 @@ export default function LegendColorSchemeSelect({ value, label, getSchemeLabel, 
           onKeyDown={handleListKeyDown}
         >
           {LEGEND_COLOR_SCHEMES.map((scheme, index) => (
-            <button
+            <Button compact
               aria-selected={value === scheme}
               className={index === activeIndex ? "is-active" : ""}
               id={`${listboxId}-${index}`}
@@ -68,7 +69,7 @@ export default function LegendColorSchemeSelect({ value, label, getSchemeLabel, 
             >
               <span>{getSchemeLabel(scheme)}</span>
               <PalettePreview scheme={scheme} />
-            </button>
+            </Button>
           ))}
         </div>
       ) : null}
@@ -96,6 +97,7 @@ export default function LegendColorSchemeSelect({ value, label, getSchemeLabel, 
       event.preventDefault();
       event.stopPropagation();
       setOpen(false);
+      rootRef.current?.querySelector<HTMLButtonElement>(".legend-scheme-trigger")?.focus();
     }
   }
 

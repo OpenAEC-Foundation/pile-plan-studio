@@ -1,5 +1,6 @@
 {
   "tabs": {
+    "label": "Linttabbladen",
     "file": "Bestand",
     "plan": "Plan",
     "view": "Weergave"
@@ -21,6 +22,8 @@
     "cpts": "Sonderingen",
     "pileCapChanges": "Poerwijzigingen",
     "settings": "Instellingen",
+    "costs": "Kosten",
+    "groups": "Groepen",
     "cptSettings": "Sonderingsinstellingen",
     "costSettings": "Kosteninstellingen",
     "groupingSettings": "Groeperingsinstellingen",
@@ -49,6 +52,10 @@
     "grid": "Grid",
     "showGrid": "Grid tonen",
     "hideGrid": "Grid verbergen",
+    "tipLevelRegions": "Puntniveaugebieden",
+    "groups": "Groepen",
+    "explorer": "Verkenner",
+    "properties": "Eigenschappen",
     "regions": "Gebieden",
     "showTipLevelRegions": "Puntniveaugebieden tonen",
     "hideTipLevelRegions": "Puntniveaugebieden verbergen",

@@ -5,10 +5,8 @@ import { describe, it } from "node:test";
 import { stepNumericDraft } from "./themedNumberInputModel.ts";
 
 describe("ThemedNumberInput integration", () => {
-  it("is used by every numeric editor", () => {
+  it("is retained by numeric editors that have not migrated to Blueprint", () => {
     const files = [
-      "../domain/right-panel/CostCatalogEditor.tsx",
-      "../domain/pile-plans/ilp-optimization/IlpOptimizationSettingsPanel.tsx",
       "../domain/location-matching/LocationMatchingEntry.tsx",
       "../domain/right-panel/PanelControls.tsx",
     ];
@@ -41,9 +39,10 @@ describe("ThemedNumberInput integration", () => {
     assert.equal(stepNumericDraft("", 1, { min: 1, max: 64, step: 1 }), "1");
   });
 
-  it("shows the stepper on pointer hover without keeping it visible after focus", () => {
-    const styles = readFileSync(resolve(import.meta.dirname, "ThemedNumberInput.css"), "utf8");
-    assert.match(styles, /\.themed-number-input:hover \.themed-number-stepper/);
-    assert.doesNotMatch(styles, /focus-within[^{]*\.themed-number-stepper/);
+  it("uses the same stepper on hover, keyboard focus and touch", () => {
+    const styles = readFileSync(resolve(import.meta.dirname, "../../openaec/number-field-preview/number-field.css"), "utf8");
+    assert.match(styles, /\.oa-number-input:hover > \.oa-number-stepper/);
+    assert.match(styles, /\.oa-number-input:focus-within > \.oa-number-stepper/);
+    assert.match(styles, /@media \(hover: none\)/);
   });
 });

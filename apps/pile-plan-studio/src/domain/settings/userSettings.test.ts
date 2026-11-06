@@ -3,6 +3,29 @@ import assert from "node:assert/strict";
 import { DEFAULT_USER_SETTINGS, normalizeUserSettings, patchPileCostDefaults, patchUserSettings, patchWorkspaceLayout } from "./userSettings.ts";
 
 describe("user settings", () => {
+  it("remembers the plan background independently of the theme", () => {
+    for (const workspaceAppearance of ["theme", "light", "dark"]) {
+      const settings = normalizeUserSettings({ preferences: { theme: "dark", workspaceAppearance } });
+      assert.equal(settings.preferences.workspaceAppearance, workspaceAppearance);
+      assert.equal(normalizeUserSettings(JSON.parse(JSON.stringify(settings))).preferences.workspaceAppearance, workspaceAppearance);
+    }
+    for (const value of [undefined, null, "unknown", 42]) {
+      assert.equal(normalizeUserSettings({ preferences: { workspaceAppearance: value } }).preferences.workspaceAppearance, "theme");
+    }
+  });
+  it("migrates legacy themes and preserves current Blueprint themes without changing other preferences", () => {
+    for (const [saved, expected] of [
+      ["forge", "dark"], ["openaec", "dark"], ["contrast", "high-contrast-dark"],
+      ["light", "light"], ["dark", "dark"], ["blueprint", "blueprint"],
+      ["high-contrast-dark", "high-contrast-dark"], ["high-contrast-light", "high-contrast-light"],
+      ["unknown", "light"], ["", "light"], [null, "light"],
+    ]) {
+      const result = normalizeUserSettings({ preferences: { theme: saved, interfaceScalePercent: 120 } });
+      assert.equal(result.preferences.theme, expected, String(saved));
+      assert.equal(result.preferences.interfaceScalePercent, 120);
+      assert.deepEqual(result.defaults, DEFAULT_USER_SETTINGS.defaults);
+    }
+  });
   it("remembers export notation independently and normalizes missing or invalid preferences", () => {
     for (const format of ["numeric", "dimensions"] as const) {
       const saved = patchUserSettings(DEFAULT_USER_SETTINGS, { pileSizeExportFormat: format });
@@ -51,6 +74,7 @@ describe("user settings", () => {
       preferences: {
         language: "auto",
         theme: "light",
+        workspaceAppearance: "theme",
         interfaceScalePercent: 100,
         defaultCurrencyCode: "EUR",
         optimizationTimeLimitSeconds: 600,
@@ -108,7 +132,7 @@ describe("user settings", () => {
       ...DEFAULT_USER_SETTINGS,
       preferences: {
         ...DEFAULT_USER_SETTINGS.preferences,
-        theme: "forge",
+        theme: "dark",
         defaultCurrencyCode: "GBP",
         interfaceScalePercent: 150,
         workspaceLayout: {

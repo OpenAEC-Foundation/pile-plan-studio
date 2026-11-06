@@ -57,7 +57,7 @@ test('matrix profile settings are collapsed while actionable errors stay visible
    {sheetName:'Blad1',status:'needs-profile',detectedProfile:'capacity-columns',resolvedProfile:null,summary,diagnostics:[d]},
    {sheetName:'other',status:'unsupported',detectedProfile:null,resolvedProfile:null,summary,diagnostics:[d]}]}};
  const {container}=render(<AdviceHarness initial={initial}/>);
- const control=screen.getByRole('button',{name:`${i18n.t('importProject.profile.label')} Blad1`});
+ const control=screen.getByRole('combobox',{name:`${i18n.t('importProject.profile.label')} Blad1`,hidden:true});
  expect((control.closest('details') as HTMLDetailsElement).open).toBe(false);
  const message=container.querySelector('.advice-import-primary-diagnostics');
  expect(message?.textContent).toContain('250');expect(message?.closest('details')).toBeNull();

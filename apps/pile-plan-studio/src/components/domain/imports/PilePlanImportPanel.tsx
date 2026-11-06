@@ -1,6 +1,6 @@
 import SourceTableEditor from "./SourceTableEditor.tsx";
 import PilePlanImportMatching from "./PilePlanImportMatching.tsx";
-import { useState,useEffect } from "react";
+import { useState,useEffect,useId } from "react";
 import { useTranslation } from "react-i18next";
 import { usePilePlanImportPreview } from "../../../app/import/usePilePlanImportPreview.ts";
 import type {
@@ -9,9 +9,10 @@ import type {
 } from "../../../core/pilePlanImportContract.ts";
 import type { Cpt, LoadPoint, PileConfigurationKey } from "../../../core/projectTypes.ts";
 import LocationMatchingEntry from "../location-matching/LocationMatchingEntry.tsx";
-import ThemedSelect from "../../template/ThemedSelect.tsx";
-import "../../template/ThemedSelect.css";
-import { ifcImportIcon } from "../../template/ribbon/icons.ts";
+import { Banner, Button, Checkbox, Heading, OpenAECProvider, Select, Status } from "../../../openaec/react/src/index";
+import spriteUrl from "../../../openaec/studioSprite.ts";
+import "../../../openaec/openaec-components.css";
+import SourceFileButton from "../shared/SourceFileButton.tsx";
 import {
   canApplyPilePlanImport,
   canImportCptSelections,
@@ -26,6 +27,7 @@ import {
 } from "../../../domain/imports/pilePlanImportModel.ts";
 import "./projectImport.css";
 import "./pilePlanImport.css";
+import "./projectImportBlueprint.css";
 
 export default function PilePlanImportPanel({
   loadPoints,
@@ -41,6 +43,7 @@ export default function PilePlanImportPanel({
   const { t } = useTranslation("backstage");
   const {t:common}=useTranslation("common");
   const [matchingOpen,setMatchingOpen]=useState(false);
+  const pileColumnsHelpId=useId();
   useEffect(()=>setMatchingOpen(false),[loadPoints,cpts,availablePileConfigurations]);
   const [draft, setDraft] = useState(() => createPilePlanImportDraft<File>());
   const { preview } = usePilePlanImportPreview({ loadPoints, cpts, availablePileConfigurations }, setDraft);
@@ -63,16 +66,16 @@ export default function PilePlanImportPanel({
   const cptImportAvailable = canImportCptSelections(draft);
 
   return (
-    <div className="project-import-panel pile-plan-import-panel">
+    <OpenAECProvider sprite={spriteUrl}><div className="oa-app project-import-panel project-import-blueprint pile-plan-import-panel">
       <header className="project-import-heading">
-        <h2 className="backstage-panel-title">{t("pilePlanImport.title")}</h2>
+        <Heading level="page">{t("pilePlanImport.title")}</Heading>
         <p className="backstage-panel-intro">{t("pilePlanImport.intro")}</p>
       </header>
 
       <section className="project-import-source-card">
         <div className="project-import-source-header pile-plan-import-header">
           <div>
-            <strong>{t("pilePlanImport.fileTitle")}</strong>
+            <Heading>{t("pilePlanImport.fileTitle")}</Heading>
             <small>{t("pilePlanImport.fileDescription")}</small>
           </div>
 
@@ -82,64 +85,42 @@ export default function PilePlanImportPanel({
           <span className="project-import-file-name" title={draft.file?.name}>
             {draft.file?.name ?? t("pilePlanImport.noFile")}
           </span>
-          <label className="project-import-file-button">
-            <span
-              className="project-import-file-icon"
-              aria-hidden="true"
-              dangerouslySetInnerHTML={{ __html: ifcImportIcon }}
-            />
-            <span>{draft.file ? t("pilePlanImport.replace") : t("pilePlanImport.choose")}</span>
-            <input
-              className="project-import-native-file"
-              type="file"
-              accept=".csv,.xlsx"
-              onChange={(event) => {changeFile(event.target.files?.[0] ?? null);event.target.value="";setMatchingOpen(false);}}
-            />
-          </label>
-          <button className="project-import-button" type="button" disabled={!draft.file} onClick={() => changeFile(null)}>
+          <SourceFileButton label={draft.file ? t("pilePlanImport.replace") : t("pilePlanImport.choose")}
+            onFiles={files => { changeFile(files[0]); setMatchingOpen(false); }} />
+          <Button disabled={!draft.file} onClick={() => changeFile(null)}>
             {t("pilePlanImport.remove")}
-          </button>
+          </Button>
         </div>
 
-        {draft.file&&<SourceTableEditor role="pile-plan" preview={shown?.table} settings={draft.table} csv={draft.file.name.toLowerCase().endsWith(".csv")}
+        {draft.file&&<SourceTableEditor variant="blueprint" role="pile-plan" preview={shown?.table} settings={draft.table} csv={draft.file.name.toLowerCase().endsWith(".csv")}
           sourceErrors={shown?.diagnostics.filter(d=>d.severity==="error"&&d.location?.row!=null).map(d=>({row:d.location!.row!,column:d.location!.column,message:diagnosticLabel(d.code,t)}))}
           onChange={table=>void preview(setPilePlanImportTable(draft,table))}>
-          <label className="project-import-profile">
-            <span>{t("pilePlanImport.profile")}</span>
-            <ThemedSelect
-              ariaLabel={t("pilePlanImport.profile")}
+            <Select label={t("pilePlanImport.profile")}
               value={draft.requestedProfile}
               options={[
                 { value: "automatic", label: t("pilePlanImport.profiles.automatic") },
                 { value: "standard-table", label: t("pilePlanImport.profiles.standard") },
                 { value: "legacy", label: t("pilePlanImport.profiles.legacy") },
               ]}
-              onChange={(value) => changeProfile(value as PilePlanImportProfile)}
+              onChange={event => changeProfile(event.currentTarget.value as PilePlanImportProfile)}
             />
-          </label>
         <div className="pile-plan-import-controls">
           <fieldset className="pile-plan-import-categories">
             <legend>{t("pilePlanImport.apply")}</legend>
-            <label>
-              <input
-                type="checkbox"
+              <Checkbox label={t("pilePlanImport.pileAssignments")}
                 checked={draft.importPileAssignments}
                 disabled={shown?.supportsPileAssignments===false}
+                aria-describedby={shown?.supportsPileAssignments===false?pileColumnsHelpId:undefined}
                 onChange={(event) => changeCategory("piles", event.target.checked)}
               />
-              <span>{t("pilePlanImport.pileAssignments")}</span>
-            </label>
-            <label>
-              <input
-                type="checkbox"
+              <Checkbox label={t("pilePlanImport.cptSelections")}
                 checked={draft.importCptSelections}
                 disabled={!canImportCptSelections(draft)}
                 onChange={(event) => changeCategory("cpts", event.target.checked)}
               />
-              <span>{t("pilePlanImport.cptSelections")}</span>
-            </label>
           </fieldset>
         </div>
+        {shown?.supportsPileAssignments===false&&<p id={pileColumnsHelpId} className="pile-plan-import-note">{t("pilePlanImport.pileColumnsRequired")}</p>}
         {!cptImportAvailable && <p className="pile-plan-import-note">{shown?.detectedProfile==="legacy"?t("pilePlanImport.legacyCptNote"):common("pilePlanMatching.mapCpts")}</p>}
           <p className="source-import-help">{common("pilePlanMatching.clearHelp")}</p>
           <p className="source-import-help">{common("pilePlanMatching.cptHelp")}</p>
@@ -157,7 +138,7 @@ export default function PilePlanImportPanel({
       {result && (
         <section className="pile-plan-import-results">
           <div className="pile-plan-import-summary">
-            <strong>{t("pilePlanImport.previewTitle")}</strong>
+            <Heading>{t("pilePlanImport.previewTitle")}</Heading>
             <span>{t("pilePlanImport.detected", { profile: profileLabel(result.detectedProfile, t) })}</span>
             <span>{t("pilePlanImport.summary", {
               matched: result.summary.matchedRows,
@@ -171,7 +152,7 @@ export default function PilePlanImportPanel({
             <ul className="pile-plan-import-diagnostics">
               {result.diagnostics.map((diagnostic, index) => (
                 <li className={diagnostic.severity} key={`${diagnostic.code}-${index}`}>
-                  {diagnosticLabel(diagnostic.code, t)}{formatDiagnosticLocation(diagnostic.location, t)}
+                  <Banner tone={diagnostic.severity === "error" ? "error" : "warning"} word="">{diagnosticLabel(diagnostic.code, t)}{formatDiagnosticLocation(diagnostic.location, t)}</Banner>
                 </li>
               ))}
             </ul>
@@ -179,9 +160,8 @@ export default function PilePlanImportPanel({
         </section>
       )}
 
-      <button
-        className="primary-action project-import-submit"
-        type="button"
+      <Button kind="primary"
+        className="project-import-submit"
         disabled={!canApplyPilePlanImport(draft)}
         onClick={() => {
           if (result && draft.file && canApplyPilePlanImport(draft)) {
@@ -190,8 +170,8 @@ export default function PilePlanImportPanel({
         }}
       >
         {t("pilePlanImport.import")}
-      </button>
-    </div>
+      </Button>
+    </div></OpenAECProvider>
   );
 }
 
@@ -200,12 +180,22 @@ function PreviewStatus({ draft }: { draft: PilePlanImportDraft<File> }) {
   const {t:common}=useTranslation("common");
   if (draft.previewState.status === "empty") return null;
   if (draft.previewState.status === "analyzing") {
-    return <div className="project-import-status analyzing"><span className="project-import-status-dot" />{t("pilePlanImport.analyzing")}</div>;
+    return <div className="project-import-status" role="status"><Status tone="info">{t("pilePlanImport.analyzing")}</Status></div>;
   }
   if (draft.previewState.status === "failed") {
-    return <p className="project-import-error" role="alert">{draft.previewState.message}</p>;
+    return <Banner tone="error" word="">{draft.previewState.message}</Banner>;
   }
-  return <div className={`project-import-status ${canApplyPilePlanImport(draft) ? "valid" : "error"}`}><span className="project-import-status-dot" />{draft.previewState.preview.matching?.unmatched_new.length?common("pilePlanMatching.reviewNeeded"):t(canApplyPilePlanImport(draft) ? "pilePlanImport.ready" : "pilePlanImport.invalid")}</div>;
+  const preview=draft.previewState.preview;
+  const ready=canApplyPilePlanImport(draft);
+  const hasErrors=preview.diagnostics.some(diagnostic=>diagnostic.severity==="error");
+  let message=t("pilePlanImport.ready");
+  if(!ready){
+    if(hasErrors)message=t("pilePlanImport.invalid");
+    else if(!draft.importPileAssignments&&!draft.importCptSelections)message=t(preview.supportsPileAssignments===false&&!canImportCptSelections(draft)?"pilePlanImport.mapImportColumns":"pilePlanImport.chooseCategory");
+    else if(preview.matching&&!preview.matching.complete)message=common("pilePlanMatching.reviewNeeded");
+    else message=t("pilePlanImport.noChanges");
+  }
+  return <div className="project-import-status" role="status"><Status tone={ready ? "success" : "warning"}>{message}</Status></div>;
 }
 
 function profileLabel(profile: PilePlanImportProfile | null, t: (key: string) => string): string {

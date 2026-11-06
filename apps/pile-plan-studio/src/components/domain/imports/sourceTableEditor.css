@@ -10,7 +10,7 @@
 .source-preview-table th,.source-preview-table td {padding:5px 8px;border-right:1px solid var(--theme-border);border-bottom:1px solid var(--theme-border);text-align:left}
 .source-preview-table thead th {position:sticky;top:0;background:var(--theme-bg);z-index:1}
 .source-preview-table th:first-child {width:30px;color:var(--theme-text-muted);text-align:right}
-.source-preview-table th button {display:grid;gap:3px;background:none;border:0;color:inherit;text-align:left;cursor:pointer;padding:0;min-width:75px;font:inherit}
+.source-preview-table th button:not(.oa-button) {display:grid;gap:3px;background:none;border:0;color:inherit;text-align:left;cursor:pointer;padding:0;min-width:75px;font:inherit}
 .source-preview-table th small {font-size:9px;color:var(--theme-text-muted);font-weight:400}
 .source-preview-table .is-header {font-weight:600}.source-preview-table .is-skipped {opacity:.5}
 .source-preview-table .is-selected {box-shadow:inset 2px 0 var(--theme-accent)}
@@ -18,8 +18,8 @@
 .source-import-settings {display:grid;gap:10px;padding:4px 10px 10px}
 .source-import-file-settings {display:flex;flex-wrap:wrap;gap:10px;align-items:end}
 .source-table-editor .source-import-settings label {display:grid;gap:4px;font-size:10px;min-width:0;align-items:start;overflow-wrap:normal}
-.source-import-settings input:not([type=checkbox]),.source-import-settings select {width:100%;min-width:0;box-sizing:border-box;border:1px solid var(--theme-border);background:var(--theme-bg);color:var(--theme-text);border-radius:4px;padding:5px;font:inherit}
-.source-import-file-settings input[type=number] {width:90px}
+.source-import-settings input:not([type=checkbox]):not(.oa-field),.source-import-settings select:not(.oa-field) {width:100%;min-width:0;box-sizing:border-box;border:1px solid var(--theme-border);background:var(--theme-bg);color:var(--theme-text);border-radius:4px;padding:5px;font:inherit}
+.source-import-file-settings input[type=number]:not(.oa-field) {width:90px}
 .source-table-editor .source-import-settings .source-import-checkbox {display:flex;gap:5px;align-items:center;align-self:auto;justify-content:flex-start}
 .source-import-file-settings .source-import-checkbox {align-self:center}
 .source-table-editor .source-import-checkbox input[type=checkbox] {flex:0 0 auto;margin:0}

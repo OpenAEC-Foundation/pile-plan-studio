@@ -1,5 +1,7 @@
 {
   "title": "Instellingen",
+  "resetToDefaults": "Standaardwaarden herstellen",
+  "resetConfirm": "Wil je alle instellingen terugzetten naar de standaardwaarden?",
   "tabs": {
     "general": "Algemeen",
     "appearance": "Uiterlijk",
@@ -23,14 +25,16 @@
     "theme": "Thema",
     "themeDescription": "Kies een kleurthema voor de applicatie.",
     "light": "Licht",
-    "forge": "Forge (donker)",
-    "dark": "OpenAEC (donker)",
+    "dark": "Donker",
     "blueprint": "Blueprint",
-    "contrast": "Hoog contrast",
     "font": "Lettertype",
     "uiFontSize": "UI-lettergrootte",
     "interfaceScale": "Interfaceschaal",
-    "interfaceScaleDescription": "Gebruik Ctrl+= en Ctrl+- om de desktopinterface aan te passen. Ctrl+0 herstelt 100%."
+    "interfaceScaleDescription": "Gebruik Ctrl+= en Ctrl+- om de desktopinterface aan te passen. Ctrl+0 herstelt 100%.",
+    "contrastDark": "Hoog contrast donker",
+    "contrastLight": "Hoog contrast licht",
+    "planBackground": "Achtergrond palenplan",
+    "followTheme": "Volgt thema"
   },
   "editor": {
     "general": "Algemeen",

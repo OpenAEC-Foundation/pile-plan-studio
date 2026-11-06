@@ -17,16 +17,16 @@ describe("Alpha command surfaces", () => {
     assert.match(nlCommon, /deskundige/);
   });
 
-  it("uses one shared visual language for backstage content panels", () => {
+  it("keeps backstage sizing and composes shared Blueprint headings in migrated import", () => {
     const backstage = readFileSync(resolve(import.meta.dirname, "backstage/Backstage.tsx"), "utf8");
     const importPanel = readFileSync(resolve(import.meta.dirname, "../domain/imports/ProjectImportPanel.tsx"), "utf8");
     const styles = readFileSync(resolve(import.meta.dirname, "backstage/Backstage.css"), "utf8");
 
-    assert.match(backstage, /backstage-panel-title/);
-    assert.match(backstage, /bs-open-project-option/);
-    assert.match(backstage, /bs-recent-item/);
-    assert.match(importPanel, /backstage-panel-title/);
-    assert.match(styles, /\.backstage-panel-title/);
+    const openPanel = readFileSync(resolve(import.meta.dirname, "backstage/OpenProjectPanel.tsx"), "utf8");
+    assert.match(backstage, /<OpenProjectPanel/);
+    assert.match(openPanel, /<Tile/);
+    assert.match(openPanel, /bs-recent-item/);
+    assert.match(importPanel, /<Heading level="page">/);
     assert.match(styles, /\.backstage-content\s*{[\s\S]*?box-sizing:\s*border-box/);
     assert.match(styles, /\.backstage-content\s*{[\s\S]*?min-height:\s*0/);
     assert.doesNotMatch(backstage, /onMouseEnter=/);

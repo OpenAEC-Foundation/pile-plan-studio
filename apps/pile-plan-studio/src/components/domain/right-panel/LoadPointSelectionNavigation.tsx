@@ -1,4 +1,5 @@
 import { useTranslation } from "react-i18next";
+import { Button } from "../../../openaec/react/src/index";
 
 export default function LoadPointSelectionNavigation({ ids, selectedIds, onSelect,onSelectOnly, disabled }: {
   onSelectOnly?:(id:number)=>void;ids: number[]; selectedIds: number[]; onSelect: (ids: number[]) => void; disabled: boolean;
@@ -8,20 +9,20 @@ export default function LoadPointSelectionNavigation({ ids, selectedIds, onSelec
   const entireContextSelected = ids.length === selectedIds.length && ids.every(id => selectedIds.includes(id));
   return <>
     <div className="cpt-location-navigation" role="group" aria-label={t("cpts.navigation")}>
-      <button type="button" aria-label={t("cpts.previousLocation")} title={t("cpts.previousLocation")}
+      <Button compact kind="quiet" aria-label={t("cpts.previousLocation")} title={t("cpts.previousLocation")}
         disabled={disabled || index <= 0} onClick={() => onSelect([ids[index - 1]!])}>
         <svg viewBox="0 0 16 16" aria-hidden="true"><path d="m10 4-4 4 4 4" /></svg>
-      </button>
+      </Button>
       <span className="cpt-location-position">{index < 0
         ? t("cpts.contextCount", { count: ids.length })
         : t("cpts.locationPosition", { current: index + 1, total: ids.length })}</span>
-      <button type="button" aria-label={t("cpts.nextLocation")} title={t("cpts.nextLocation")}
+      <Button compact kind="quiet" aria-label={t("cpts.nextLocation")} title={t("cpts.nextLocation")}
         disabled={disabled || index >= ids.length - 1} onClick={() => onSelect([ids[index + 1]!])}>
         <svg viewBox="0 0 16 16" aria-hidden="true"><path d="m6 4 4 4-4 4" /></svg>
-      </button>
+      </Button>
     </div>
-    {ids.length > 1 ? <button type="button" className="cpt-select-context" disabled={disabled || entireContextSelected}
-      onClick={() => onSelect([...ids])}>{t("cpts.selectEntireContext")}</button> : null}
-    {ids.length>1&&onSelectOnly?<button type="button" className="cpt-select-context" disabled={disabled||index<0} onClick={()=>onSelectOnly(selectedIds[0]!)}>{t("cpts.selectOnlyLocation")}</button>:null}
+    {ids.length > 1 ? <Button compact className="cpt-select-context" disabled={disabled || entireContextSelected}
+      onClick={() => onSelect([...ids])}>{t("cpts.selectEntireContext")}</Button> : null}
+    {ids.length>1&&onSelectOnly?<Button compact className="cpt-select-context" disabled={disabled||index<0} onClick={()=>onSelectOnly(selectedIds[0]!)}>{t("cpts.selectOnlyLocation")}</Button>:null}
   </>;
 }

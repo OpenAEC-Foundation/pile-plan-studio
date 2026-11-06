@@ -1,0 +1,52 @@
+/* Export composition; shared Blueprint controls supply decoration and states. */
+.export-blueprint.oa-app { color: var(--oa-text); background: transparent; font-family: var(--oa-font-body); font-size: var(--oa-size-body); }
+.bs-export-panel.export-blueprint { display: grid; gap: 16px; }
+.bs-export-panel.export-blueprint > .backstage-panel-intro { margin: 0; max-width: none; }
+.export-blueprint .bs-export-card,
+.pile-plan-export-card.export-blueprint { padding: 16px; border-color: var(--oa-border); border-radius: var(--oa-radius-medium); background: var(--oa-panel); }
+.export-blueprint .bs-export-card-heading { align-items: baseline; }
+.export-blueprint .bs-export-format { font-family: var(--oa-font-body); font-weight: var(--oa-weight-medium); }
+.export-blueprint .oa-label { min-width: 0; }
+.export-blueprint .oa-field { width: 100%; min-width: 0; }
+.export-blueprint .oa-button { height: auto; min-height: var(--oa-row); max-width: 100%; white-space: normal; }
+.export-blueprint .oa-banner > b:empty { display: none; }
+.export-blueprint .oa-banner > span { min-width: 0; overflow-wrap: anywhere; }
+.export-blueprint .oa-status { white-space: normal; font-family: var(--oa-font-body); }
+.export-blueprint .export-help { font-size: var(--oa-size-label); color: var(--oa-text-secondary); }
+.export-blueprint .export-mode { gap: 8px; }
+.export-blueprint .export-mode .oa-button[aria-pressed="true"] { color: var(--oa-accent-text); border-color: var(--oa-selected-bar); background: var(--oa-selected); }
+.export-blueprint .export-disclosure { border-color: var(--oa-border); border-radius: var(--oa-radius-medium); }
+.export-blueprint .export-disclosure > summary { font-weight: var(--oa-weight-medium); }
+.export-blueprint .export-column-list { border-color: var(--oa-border); }
+.export-blueprint .export-column-list li.is-selected { background: var(--oa-selected); box-shadow: inset 3px 0 var(--oa-selected-bar); }
+.export-blueprint .export-column-grip.oa-button { display: grid; place-items: center; flex: 0 0 28px; width: 28px; height: 28px; min-height: 0; padding: 5px; cursor: grab; }
+.export-blueprint .export-column-select.oa-button { display: block; flex: 1; height: auto; padding: 2px 0; border: 0; border-radius: 0; background: transparent; color: var(--oa-text); text-align: left; }
+.export-blueprint .export-column-delete.oa-button { display: grid; place-items: center; flex: 0 0 28px; width: 28px; height: 28px; min-height: 0; padding: 5px; }
+.export-blueprint .export-column-details { padding: 16px; border-color: var(--oa-border); background: var(--oa-raised); }
+.export-blueprint .export-column-details > .oa-label { margin-bottom: 12px; }
+.export-blueprint .export-controls-grid { gap: 12px; }
+.export-blueprint .export-file-picker { cursor: default; flex-wrap: wrap; background: var(--oa-raised); border-color: var(--oa-border); }
+.export-blueprint .export-file-picker > .source-file-picker > input { width: 1px; height: 1px; inset: auto; }
+.export-blueprint .export-file-picker > span:first-child { flex: 1 1 180px; }
+.export-blueprint .export-file-picker strong { font-weight: var(--oa-weight-medium); }
+.export-blueprint .export-table-overflow .oa-table :is(th, td) { height: auto; padding: 7px 9px; font-family: var(--oa-font-body); font-size: var(--oa-size-body); letter-spacing: normal; text-transform: none; text-align: left; }
+.export-blueprint .export-table-overflow .oa-table th { font-weight: var(--oa-weight-medium); background: var(--oa-panel); }
+.export-blueprint .source-column-list > .oa-button { height: auto; text-align: left; white-space: normal; font-size: var(--oa-size-body); }
+.export-blueprint .source-column-details label { font-size: var(--oa-size-body); }
+.export-blueprint .change-code-row .oa-label { flex: 0 1 140px; gap: 0; }
+.export-blueprint .change-code-row .oa-label > label { position: absolute; width: 1px; height: 1px; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+.export-blueprint .change-code-row .oa-check { flex: 1; }
+.export-blueprint .change-code-row .oa-field { width: 100%; }
+@media (max-width: 1000px) {
+  .export-blueprint .export-column-layout { grid-template-columns: minmax(0, 1fr); }
+  .export-blueprint .export-column-details { height: auto; max-height: 430px; }
+}
+@media (max-width: 700px) {
+  .export-blueprint .export-controls-grid { grid-template-columns: minmax(0, 1fr); }
+  .export-blueprint .bs-export-card { padding: 12px; }
+  .export-blueprint .export-section-heading { flex-wrap: wrap; }
+}
+/* Grid/flex children must shrink before their internal table can scroll. */
+.export-blueprint .bs-export-cards,
+.export-blueprint .bs-export-card,
+.export-blueprint .export-section-heading > div { min-width: 0; }

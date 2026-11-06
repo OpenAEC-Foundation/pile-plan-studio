@@ -1,7 +1,11 @@
+import type { ReactNode } from "react";
+import { Button } from "../../../openaec/react/src/index";
+
 interface RibbonButtonProps {
-  icon: string;
+  icon: ReactNode;
   label: string;
   title?: string;
+  ariaLabel?: string;
   className?: string;
   size?: "large" | "small" | "medium";
   active?: boolean;
@@ -14,6 +18,7 @@ export default function RibbonButton({
   icon,
   label,
   title,
+  ariaLabel,
   className,
   size = "large",
   active,
@@ -22,18 +27,16 @@ export default function RibbonButton({
   onClick,
 }: RibbonButtonProps) {
   return (
-    <button
+    <Button kind="quiet"
       aria-pressed={active}
       className={`ribbon-btn${size === "small" ? " small" : ""}${size === "medium" ? " medium" : ""}${wide ? " wide" : ""}${active ? " active" : ""}${className ? ` ${className}` : ""}`}
-      title={title?.trim() && title.trim() !== label.trim() ? title : undefined}
+      aria-label={ariaLabel}
+      data-tooltip={title?.trim() && title.trim() !== label.trim() ? title : undefined}
       disabled={disabled}
       onClick={onClick}
     >
-      <div
-        className="ribbon-btn-icon"
-        dangerouslySetInnerHTML={{ __html: icon }}
-      />
+      <span className="ribbon-btn-icon" aria-hidden="true">{icon}</span>
       <span className="ribbon-btn-label">{label}</span>
-    </button>
+    </Button>
   );
 }

@@ -4,6 +4,7 @@ import { groupLegendConflictsByProperty, type LegendConflict } from "../../../..
 import type { LegendEditorItemKind } from "../../../../domain/legend/legendEditorModel.ts";
 import { formatPileTipLevelMillimetres } from "../../../../domain/formatting.ts";
 import { getRightAlignedLegendPopoverMaxWidth } from "../legendPickerPlacement.ts";
+import { Button, Icon, Status } from "../../../../openaec/react/src/index";
 
 export default function LegendConflictNotice({
   conflicts,
@@ -16,7 +17,6 @@ export default function LegendConflictNotice({
   const [open, setOpen] = useState(false);
   const [popoverMaxWidth, setPopoverMaxWidth] = useState<number>();
   const rootRef = useRef<HTMLSpanElement>(null);
-  const triggerRef = useRef<HTMLButtonElement>(null);
   const popoverId = useId();
   const groups = groupLegendConflictsByProperty(conflicts);
 
@@ -49,38 +49,32 @@ export default function LegendConflictNotice({
     const closeOutside = (event: PointerEvent) => {
       if (!rootRef.current?.contains(event.target as Node)) setOpen(false);
     };
-    const closeOnEscape = (event: KeyboardEvent) => {
-      if (event.key !== "Escape") return;
-      event.preventDefault();
-      setOpen(false);
-      triggerRef.current?.focus();
-    };
     document.addEventListener("pointerdown", closeOutside);
-    document.addEventListener("keydown", closeOnEscape);
     return () => {
       document.removeEventListener("pointerdown", closeOutside);
-      document.removeEventListener("keydown", closeOnEscape);
     };
   }, [open]);
 
   return (
-    <span className="legend-editor-conflict-notice" ref={rootRef}>
-      <button
+    <span className="legend-editor-conflict-notice" ref={rootRef} onKeyDown={event => {
+      if (event.key === "Escape" && open) {
+        event.preventDefault(); event.stopPropagation(); setOpen(false);
+        rootRef.current?.querySelector<HTMLButtonElement>(".legend-editor-conflict-trigger")?.focus();
+      }
+    }}>
+      <Button compact kind="quiet"
         aria-controls={popoverId}
         aria-expanded={open}
         aria-haspopup="dialog"
         className="legend-editor-outside-scope-chip legend-editor-conflict-trigger"
-        ref={triggerRef}
         title={t("legend.duplicateEncodingTitle")}
         type="button"
         onClick={() => setOpen((current) => !current)}
       >
-        <svg aria-hidden="true" className="legend-editor-info-icon" viewBox="0 0 16 16">
-          <circle cx="8" cy="8" r="6.25" />
-          <path d="M8 7.25v4M8 4.75h.01" />
-        </svg>
+        <Status tone="warning"><Icon id="ui.about" />
         {t("legend.duplicateEncoding", { count: conflicts.length })}
-      </button>
+        </Status>
+      </Button>
       {open ? (
         <span
           aria-label={t("legend.duplicateEncodingDetails")}

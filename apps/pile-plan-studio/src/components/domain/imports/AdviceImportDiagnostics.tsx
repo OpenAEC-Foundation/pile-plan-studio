@@ -4,6 +4,7 @@ import type { ProjectImportPreview } from "../../../core/adviceImportContract.ts
 import { importDiagnosticText } from "../../../core/importDiagnosticText.ts";
 import type { ImportDiagnostic } from "../../../core/coreImportContract.ts";
 import { remainingAdviceDiagnostics } from "../../../domain/imports/adviceImportPresentation.ts";
+import { Banner, Button, Heading } from "../../../openaec/react/src/index";
 
 function cellLabel(column: number, row: number): string {
   let col = column, label = "";
@@ -19,9 +20,9 @@ export default function AdviceImportDiagnostics({ preview, sourceLabels = {}, al
     .filter(d => d.code !== "conflicting-bearing-capacities" || preview.conflicts.length === 0);
   return <section className="advice-import-diagnostics" aria-live="polite">
     {preview.countsAvailable && <p>{t("importProject.advice.totals", { count: preview.importedValueCount, duplicates: preview.exactDuplicateCount, orphans: preview.orphanValueCount })}</p>}
-    {diagnostics.map((d, i) => <p className={d.severity === "error" ? "project-import-error" : ""} key={i}>{importDiagnosticText(d, t)}</p>)}
+    {diagnostics.map((d, i) => <Banner tone={d.severity === "error" ? "error" : "warning"} word="" key={i}>{importDiagnosticText(d, t)}</Banner>)}
     {preview.conflicts.length > 0 && <>
-      <h4>{t("importProject.advice.conflicts", { count: preview.conflicts.length })}</h4>
+      <Heading>{t("importProject.advice.conflicts", { count: preview.conflicts.length })}</Heading>
       <p>{t("importProject.advice.conflictHelp")}</p>
       <ol className="advice-conflict-list" start={current * 50 + 1}>
         {preview.conflicts.slice(current * 50, (current + 1) * 50).map(c => <li key={`${c.cptId}/${c.pileSizeMm}/${c.pileTipLevelMm}/${c.direction}/${c.pileCount}`}>
@@ -32,9 +33,9 @@ export default function AdviceImportDiagnostics({ preview, sourceLabels = {}, al
         </li>)}
       </ol>
       {pages > 1 && <nav className="advice-conflict-pages" aria-label={t("importProject.advice.conflictPages")}>
-        <button type="button" onClick={() => setPage(current - 1)} disabled={current === 0}>{t("importProject.advice.previous")}</button>
+        <Button onClick={() => setPage(current - 1)} disabled={current === 0}>{t("importProject.advice.previous")}</Button>
         <span>{t("importProject.advice.page", { page: current + 1, pages })}</span>
-        <button type="button" onClick={() => setPage(current + 1)} disabled={current + 1 === pages}>{t("importProject.advice.next")}</button>
+        <Button onClick={() => setPage(current + 1)} disabled={current + 1 === pages}>{t("importProject.advice.next")}</Button>
       </nav>}
     </>}
   </section>;

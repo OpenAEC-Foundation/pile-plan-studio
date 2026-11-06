@@ -1,3 +1,4 @@
+import { Button, Heading } from "../../../../openaec/react/src/index";
 import {useTranslation} from "react-i18next";
 import {useEffect,useState} from "react";
 import type {IlpOptimizationOutcome,IlpOptimizationSettings} from "../../../../core/ilpOptimizationTypes.ts";
@@ -38,7 +39,7 @@ export default function IlpOptimizationResultPanel({planName,stale,settings,skip
       <strong>{t(`ilp.diagnostics.${d.code}`,{count:d.load_point_ids.length,defaultValue:t("ilp.diagnostics.unknown")})}</strong>
       {d.load_point_ids.length>0&&<div>{t("ilp.locations",{ids:d.load_point_ids.join(", ")})}</div>}
     </div>);
-  return <section className="ilp-result" aria-live="polite"><h3>{planName?t("ilp.planResult",{name:planName}):t("ilp.title")}</h3>
+  return <section className="ilp-result" aria-live="polite"><Heading>{planName?t("ilp.planResult",{name:planName}):t("ilp.title")}</Heading>
     {stale && <p className="panel-message">{t("ilp.resultStale")}</p>}
     {run.running?<p>{t(run.stopping?"ilp.stopping":spatial&&run.context?.localOnly?"ilp.localSearch":`ilp.phases.${run.progress?.phase??"preparation"}`)}</p>:!o?<p>{t("ilp.ready")}</p>:<p>{t(`ilp.status.${o.status}`)}</p>}
     {run.running && run.previewSolution && <p className="panel-message">{t("ilp.livePreview",{score:number(run.previewSolution.score_milli/1000)})}</p>}
@@ -48,7 +49,7 @@ export default function IlpOptimizationResultPanel({planName,stale,settings,skip
         <dt>{t("ilp.lowerBound")}</dt><dd>{bound!=null?objectiveValue(bound):"—"}</dd>
         <dt>{t("ilp.remainingGap")}</dt><dd>{run.progress.relative_gap!=null?`${number(run.progress.relative_gap*100)}%`:"—"}</dd>
       </dl>}
-      <p className="supporting-text">{t(run.context?.localOnly?"ilp.localHelp":"ilp.searchHelp")}</p></>}
+      <p className="ilp-help oa-secondary">{t(run.context?.localOnly?"ilp.localHelp":"ilp.searchHelp")}</p></>}
     {o?.status==="solved" && <>{coherence ? <div className="ilp-result-score" role="group" aria-label={t("ilp.score")}>
       <p className="ilp-result-score-label">{t("ilp.score")}</p>
       <strong className="ilp-result-score-value">{number(o.solution.score_milli/1000)}</strong>
@@ -57,7 +58,7 @@ export default function IlpOptimizationResultPanel({planName,stale,settings,skip
     </div> : <p>{t(`ilp.proof.${o.solution.proof}`)}</p>}
       {o.solution.termination==="time_limit" && !fallbackNotice && <p className="panel-message">{t("ilp.timeLimitBest")}</p>}
       {fallbackNotice && <p className="panel-message">{t(`ilp.diagnostics.${fallbackNotice.code}`)}</p>}
-      {o.diagnostics.some(d=>d.code==="assessed_compression")&&<p className="supporting-text">{common("loadDirection.resultCounts",{pressure:o.diagnostics.find(d=>d.code==="assessed_compression")?.load_point_ids.length??0,tension:o.diagnostics.find(d=>d.code==="assessed_tension")?.load_point_ids.length??0,zero:o.diagnostics.find(d=>d.code==="no_tension_load")?.load_point_ids.length??0,absent:o.diagnostics.find(d=>d.code==="tension_not_assessed")?.load_point_ids.length??0})}</p>}
+      {o.diagnostics.some(d=>d.code==="assessed_compression")&&<p className="ilp-help oa-secondary">{common("loadDirection.resultCounts",{pressure:o.diagnostics.find(d=>d.code==="assessed_compression")?.load_point_ids.length??0,tension:o.diagnostics.find(d=>d.code==="assessed_tension")?.load_point_ids.length??0,zero:o.diagnostics.find(d=>d.code==="no_tension_load")?.load_point_ids.length??0,absent:o.diagnostics.find(d=>d.code==="tension_not_assessed")?.load_point_ids.length??0})}</p>}
       <dl className="ilp-result-overview">
         <dt>{common("loadDirection.assessmentScope")}</dt><dd>{common(settings?.include_tension&&o.diagnostics.some(d=>d.code==="assessed_tension")?"loadDirection.pressureAndTension":"loadDirection.pressureOnly")}</dd>
         <dt>{t("ilp.cost")}</dt><dd>{money(o.solution.cost)}</dd>
@@ -91,7 +92,7 @@ export default function IlpOptimizationResultPanel({planName,stale,settings,skip
       <dt>{t("ilp.both")}</dt><dd>{o.solution.transitions.both}</dd>
     </dl></IlpDisclosure></>}
     {blockedLocationCount>0 && <p className="panel-message">{t("ilp.unsolvableSummary",{count:blockedLocationCount})}</p>}
-    {o&&canSkipUnsolvableIlpTargets(o)&&<button className="primary-action" type="button" disabled={!actionsEnabled || skipUnsolvableEnabled} onClick={onEnableSkipUnsolvable}>{t(skipUnsolvableEnabled ? "ilp.skipUnsolvableEnabled" : "ilp.enableSkipUnsolvable")}</button>}
+    {o&&canSkipUnsolvableIlpTargets(o)&&<Button kind="primary" disabled={!actionsEnabled || skipUnsolvableEnabled} onClick={onEnableSkipUnsolvable}>{t(skipUnsolvableEnabled ? "ilp.skipUnsolvableEnabled" : "ilp.enableSkipUnsolvable")}</Button>}
     {diagnosticItems.length>0 && <IlpDisclosure
       title={t("ilp.messages",{count:diagnosticItems.length})}
       summary={diagnosticLocationCount>0 ? t("ilp.messageLocations",{count:diagnosticLocationCount}) : undefined}
@@ -101,7 +102,7 @@ export default function IlpOptimizationResultPanel({planName,stale,settings,skip
     {o?.status==="infeasible"&&o.proposal&&<><p>{t(o.proposal.minimality_proven?"ilp.minimalProposal":"ilp.possibleProposal")}</p>
       <dl>{(["tip_levels","pile_sizes","configurations"] as const).filter(k=>o.proposal!.increases[k]>0).map(k=><div key={k}>
         <dt>{t(`ilp.limitLabels.${k}`)}</dt><dd>{o.proposal!.required_limits[k]} (+{o.proposal!.increases[k]})</dd></div>)}</dl>
-      <button className="primary-action" type="button" disabled={!actionsEnabled} onClick={onApplyProposal}>{t("ilp.applyProposal")}</button><p>{t("ilp.runAgain")}</p></>}
+      <Button kind="primary" disabled={!actionsEnabled} onClick={onApplyProposal}>{t("ilp.applyProposal")}</Button><p>{t("ilp.runAgain")}</p></>}
     {o?.status==="failed"&&<p>{t(`ilp.diagnostics.${o.code}`,{defaultValue:t("ilp.diagnostics.solver_error")})}</p>}
   </section>;
 }

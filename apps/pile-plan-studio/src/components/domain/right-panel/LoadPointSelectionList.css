@@ -16,7 +16,7 @@
 
 .load-point-selection-list.has-groups { grid-template-columns: 76px minmax(0, 1fr) max-content max-content; }
 .load-point-selection-block { display: grid; grid-template-columns: subgrid; grid-column: 1 / -1; }
-.load-point-selection-block + .load-point-selection-block { box-shadow: inset 0 1px var(--theme-border-subtle); }
+.load-point-selection-block + .load-point-selection-block { box-shadow: inset 0 1px var(--oa-border-subtle); }
 
 .load-point-selection-group {
   grid-column: 1;
@@ -26,7 +26,7 @@
   padding: 0 4px 0 12px;
   border: 0;
   background: transparent;
-  color: var(--theme-text-secondary);
+  color: var(--oa-text-secondary);
   font: inherit;
   font-size: 11px;
   text-align: left;
@@ -49,7 +49,7 @@
   position: absolute;
   inset: 5px auto 5px 0;
   width: 5px;
-  border: 1px solid var(--theme-border);
+  border: 1px solid var(--oa-border);
   border-right: 0;
   border-radius: 3px 0 0 3px;
 }
@@ -65,22 +65,41 @@
   padding: 0 4px;
   border: 0;
   border-radius: 3px;
-  color: var(--theme-text-secondary);
+  color: var(--oa-text-secondary);
   background: transparent;
   font: inherit;
   text-align: left;
   cursor: pointer;
 }
 
-.load-point-selection-row[aria-pressed="true"] { color: var(--theme-text); background: var(--theme-accent-soft); }
-.load-point-selection-group[aria-pressed="true"] { color: var(--theme-text); background: var(--theme-accent-soft); font-weight: 700; border-radius: 3px; }
-.load-point-selection-group[aria-pressed="true"]::before { border-color: var(--theme-accent); border-width: 2px; }
+.load-point-selection-row[aria-pressed="true"] { color: var(--oa-text); background: var(--oa-selected); }
+.load-point-selection-group[aria-pressed="true"] { color: var(--oa-text); background: var(--oa-selected); font-weight: 700; border-radius: 3px; }
+.load-point-selection-group[aria-pressed="true"]::before { border-color: var(--oa-accent); border-width: 2px; }
 .load-point-selection-row:disabled, .load-point-selection-group:disabled { cursor: default; opacity: 0.6; }
 .load-point-selection-row[aria-pressed="true"] .load-point-selection-name { font-weight: 700; }
 .load-point-selection-row:hover,
-.load-point-selection-group:hover { background: var(--theme-ribbon-btn-hover); }
+.load-point-selection-group:hover { background: var(--oa-hover); }
 .load-point-selection-row:focus-visible,
-.load-point-selection-group:focus-visible { outline: 1px solid var(--theme-accent); outline-offset: -1px; }
+.load-point-selection-group:focus-visible { outline: 1px solid var(--oa-accent); outline-offset: -1px; }
 .load-point-selection-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.load-point-selection-force-label { color: var(--theme-text-secondary); font-size: 11px; }
+.load-point-selection-force-label { color: var(--oa-text-secondary); font-size: 11px; }
 .load-point-selection-force { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; font-size: 11px; }
+
+/* Shared Button decoration with the application's grouped-row layout. */
+.load-point-selection-row.oa-button { display: grid; min-height: 0; height: var(--selection-row-height); padding: 0 4px; gap: normal; font-weight: var(--oa-weight-regular); }
+.load-point-selection-group.oa-button { display: block; height: auto; min-height: var(--selection-row-height); align-self: stretch; white-space: normal; border-radius: var(--oa-radius-small); font-weight: var(--oa-weight-regular); }
+.load-point-selection-group.oa-button[aria-pressed="true"] { font-weight: var(--oa-weight-semibold); }
+.load-point-selection-force { font-family: var(--oa-font-body); }
+
+/* High-contrast selection uses the panel background, so retain a structural marker. */
+[data-oa-theme^="high-contrast"] .load-point-selection-row[aria-pressed="true"] {
+  position: relative;
+}
+[data-oa-theme^="high-contrast"] .load-point-selection-row[aria-pressed="true"]::before {
+  content: "";
+  position: absolute;
+  inset: 3px auto 3px 0;
+  border-inline-start: 3px solid var(--oa-selected-bar);
+  border-radius: 2px;
+  pointer-events: none;
+}

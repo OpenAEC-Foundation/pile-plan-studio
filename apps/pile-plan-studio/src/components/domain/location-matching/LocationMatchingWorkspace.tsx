@@ -12,7 +12,11 @@ import MatchingToleranceHelp from "./MatchingToleranceHelp.tsx";
 import {hasMatchingCoordinates,type MatchingLines,type MatchingLocation,type MatchingSelection,type MatchingTool} from "./locationMatchingTypes.ts";
 import ThemedNumberInput from "../../template/ThemedNumberInput.tsx";
 import {dispatchHistoryShortcut} from "../../../app/session/sessionShortcuts.ts";
+import {Button, Checkbox, Heading, OpenAECProvider, Select, Status} from "../../../openaec/react/src/index";
+import spriteUrl from "../../../openaec/studioSprite.ts";
+import "../../../openaec/openaec-components.css";
 import "./locationMatching.css";
+import "./locationMatchingBlueprint.css";
 
 export type MatchingWorkspaceProps={
   mode?:"revision"|"import";evaluate?:(decisions:LocationDecisions,bulkAction?:LocationBulkAction,toleranceMm?:number)=>Promise<MatchingResult>;
@@ -21,7 +25,7 @@ export type MatchingWorkspaceProps={
 };
 
 export default function LocationMatchingWorkspace(props:MatchingWorkspaceProps){
-  return <MatchingModeContext.Provider value={props.mode??"revision"}><LocationMatchingSurface><MatchingWorkspace {...props}/></LocationMatchingSurface></MatchingModeContext.Provider>;
+  return <OpenAECProvider sprite={spriteUrl}><MatchingModeContext.Provider value={props.mode??"revision"}><LocationMatchingSurface><MatchingWorkspace {...props}/></LocationMatchingSurface></MatchingModeContext.Provider></OpenAECProvider>;
 }
 
 function MatchingWorkspace({oldLocations,newLocations,initial,toleranceMm,onConfirm,onCancel,initialAutomatic=true,mode="revision",evaluate:customEvaluate}:MatchingWorkspaceProps){
@@ -136,41 +140,40 @@ function MatchingWorkspace({oldLocations,newLocations,initial,toleranceMm,onConf
     window.addEventListener("pointermove",move);window.addEventListener("pointerup",finish,{once:true});
   }
 
-  return <section ref={workspaceRef} className="location-matching-workspace" aria-label={t("exportTools.matchingTitle")}>
-    <header className="matching-workspace-header"><div><h1>{t("exportTools.matchingTitle")}</h1>
-      <span aria-live="polite">{t(pendingCount?"exportTools.pendingSummary":"exportTools.reviewComplete",{newCount:result.unmatched_new.length,oldCount:result.unmatched_old.length})}</span></div>
-      <button type="button" onClick={onCancel}>{t("exportTools.cancel")}</button>
-      <button type="button" className="matching-primary" disabled={busy||!result.complete||toleranceUnapplied} onClick={()=>onConfirm(decisions,history.tolerance)}>{t("exportTools.confirm")}</button>
+  return <section ref={workspaceRef} className="oa-app location-matching-workspace matching-blueprint" aria-label={t("exportTools.matchingTitle")}>
+    <header className="matching-workspace-header"><div><Heading level="page">{t("exportTools.matchingTitle")}</Heading>
+      <span aria-live="polite"><Status tone={pendingCount?"warning":"success"}>{t(pendingCount?"exportTools.pendingSummary":"exportTools.reviewComplete",{newCount:result.unmatched_new.length,oldCount:result.unmatched_old.length})}</Status></span></div>
+      <Button type="button" onClick={onCancel}>{t("exportTools.cancel")}</Button>
+      <Button type="button" kind="primary" className="matching-primary" disabled={busy||!result.complete||toleranceUnapplied} onClick={()=>onConfirm(decisions,history.tolerance)}>{t("exportTools.confirm")}</Button>
     </header>
     <div className="matching-review-actions">
       <div className="matching-progress" role="group" aria-label={t("exportTools.reviewProgress")}>
-        <button type="button" className="matching-pending-count" disabled={busy||!result.unmatched_new.length} onClick={()=>reviewSide("new")}><strong>{result.unmatched_new.length}</strong>{t("exportTools.newPending")}</button>
-        {mode!=="import"&&<button type="button" className="matching-pending-count" disabled={busy||!result.unmatched_old.length} onClick={()=>reviewSide("old")}><strong>{result.unmatched_old.length}</strong>{t("exportTools.oldPending")}</button>}
-        <button type="button" onClick={()=>{setPendingOnly(false);if(result.links[0])select("new",result.links[0].new_id);}}><strong>{result.links.length}</strong>{t("exportTools.linked")}</button>
+        <Button type="button" className="matching-pending-count" disabled={busy||!result.unmatched_new.length} onClick={()=>reviewSide("new")}><strong>{result.unmatched_new.length}</strong>{t("exportTools.newPending")}</Button>
+        {mode!=="import"&&<Button type="button" className="matching-pending-count" disabled={busy||!result.unmatched_old.length} onClick={()=>reviewSide("old")}><strong>{result.unmatched_old.length}</strong>{t("exportTools.oldPending")}</Button>}
+        <Button type="button" onClick={()=>{setPendingOnly(false);if(result.links[0])select("new",result.links[0].new_id);}}><strong>{result.links.length}</strong>{t("exportTools.linked")}</Button>
       </div>
       <div className="matching-editor-settings" role="group" aria-label={t("matchingEditor.applyTolerance")}>
         <label><span>{t("matchingEditor.tolerance")}</span><ThemedNumberInput aria-label={t("exportTools.matchTolerance")} min="0" step="0.1" value={toleranceDraft} disabled={busy} onValueChange={setToleranceDraft}/></label>
-        <button type="button" disabled={busy||!toleranceValid||(!toleranceUnapplied&&!pendingCount)} onClick={()=>void bulk("automatic",numericTolerance)}>{t("matchingEditor.applyTolerance")}</button>
+        <Button type="button" disabled={busy||!toleranceValid||(!toleranceUnapplied&&!pendingCount)} onClick={()=>void bulk("automatic",numericTolerance)}>{t("matchingEditor.applyTolerance")}</Button>
         <MatchingToleranceHelp/>
       </div>
       <div className="matching-bulk" role="group" aria-label={t("exportTools.bulkActions")}>
-        <button type="button" disabled={busy||!pendingCount||mode==="import"&&!newLocations.some(p=>result.unmatched_new.includes(p.id)&&hasMatchingCoordinates(p))} onClick={()=>void bulk("nearest")}>{t("exportTools.bulkNearestShort")}</button>
-        <button type="button" disabled={busy||!pendingCount} onClick={()=>void bulk("separate")}>{t("exportTools.bulkSeparateShort")}</button>
+        <Button type="button" disabled={busy||!pendingCount||mode==="import"&&!newLocations.some(p=>result.unmatched_new.includes(p.id)&&hasMatchingCoordinates(p))} onClick={()=>void bulk("nearest")}>{t("exportTools.bulkNearestShort")}</Button>
+        <Button type="button" disabled={busy||!pendingCount} onClick={()=>void bulk("separate")}>{t("exportTools.bulkSeparateShort")}</Button>
       </div>
     </div>
     <div className="matching-workspace-toolbar">
       <div role="group" aria-label={t("exportTools.pickTool")}>
-        <button type="button" aria-pressed={tool==="new"} onClick={()=>{setTool("new");setShowNew(true);}}>{t("exportTools.selectNewTool")}</button>
-        <button type="button" aria-pressed={tool==="link"} disabled={selection?.side!=="new"} onClick={()=>{setTool("link");setShowOld(true);}}>{t("exportTools.linkOldTool")}</button>
-        <button type="button" aria-pressed={tool==="old"} onClick={()=>{setTool("old");setShowOld(true);}}>{t("exportTools.inspectOldTool")}</button>
+        <Button type="button" aria-pressed={tool==="new"} onClick={()=>{setTool("new");setShowNew(true);}}>{t("exportTools.selectNewTool")}</Button>
+        <Button type="button" aria-pressed={tool==="link"} disabled={selection?.side!=="new"} onClick={()=>{setTool("link");setShowOld(true);}}>{t("exportTools.linkOldTool")}</Button>
+        <Button type="button" aria-pressed={tool==="old"} onClick={()=>{setTool("old");setShowOld(true);}}>{t("exportTools.inspectOldTool")}</Button>
       </div>
-      <label><input type="checkbox" checked={showOld} onChange={e=>setShowOld(e.target.checked)}/><svg className="matching-layer-key matching-old-key" viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="5" fill="none" stroke="currentColor" strokeWidth="1.5"/></svg>{t("exportTools.oldLayer")}</label>
-      <label><input type="checkbox" checked={showNew} onChange={e=>setShowNew(e.target.checked)}/><svg className="matching-layer-key matching-new-key" viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="5" fill="currentColor" stroke="currentColor" strokeWidth="1.5"/></svg>{t("exportTools.newLayer")}</label>
-      <label><input type="checkbox" checked={showGrid} onChange={e=>setShowGrid(e.target.checked)}/>{t("exportTools.matchingGrid")}</label>
-      <label><input type="checkbox" checked={showLabels} onChange={e=>setShowLabels(e.target.checked)}/>{t("exportTools.showNumbers")}</label>
-      <label>{t("exportTools.connectionLines")}<select aria-label={t("exportTools.connectionLines")} value={lines} onChange={e=>setLines(e.target.value as MatchingLines)}>
-        <option value="none">{t("exportTools.linesNone")}</option><option value="selected">{t("exportTools.linesSelected")}</option><option value="all">{t("exportTools.linesAll")}</option>
-      </select></label>
+      <Checkbox checked={showOld} onChange={e=>setShowOld(e.target.checked)} label={<><svg className="matching-layer-key matching-old-key" viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="5" fill="none" stroke="currentColor" strokeWidth="1.5"/></svg>{t("exportTools.oldLayer")}</>}/>
+      <Checkbox checked={showNew} onChange={e=>setShowNew(e.target.checked)} label={<><svg className="matching-layer-key matching-new-key" viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="5" fill="currentColor" stroke="currentColor" strokeWidth="1.5"/></svg>{t("exportTools.newLayer")}</>}/>
+      <Checkbox checked={showGrid} onChange={e=>setShowGrid(e.target.checked)} label={t("exportTools.matchingGrid")}/>
+      <Checkbox checked={showLabels} onChange={e=>setShowLabels(e.target.checked)} label={t("exportTools.showNumbers")}/>
+      <Select label={t("exportTools.connectionLines")} value={lines} onChange={e=>setLines(e.target.value as MatchingLines)}
+        options={[{value:"none",label:t("exportTools.linesNone")},{value:"selected",label:t("exportTools.linesSelected")},{value:"all",label:t("exportTools.linesAll")}]} />
     </div>
     <p className="matching-instruction" role="status">{t(tool==="link"?"exportTools.pickOldInstruction":tool==="old"?"exportTools.inspectOldInstruction":"exportTools.pickNewInstruction")}
       <span>{notice||t("exportTools.pendingMarkerHelp")}</span></p>

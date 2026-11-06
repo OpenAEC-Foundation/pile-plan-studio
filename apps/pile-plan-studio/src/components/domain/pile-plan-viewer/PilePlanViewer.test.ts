@@ -68,7 +68,8 @@ describe("PilePlanViewer inputs", () => {
     assert.match(css, /\.load-point-symbol\.is-small-dot \.pile-symbol-svg/);
     assert.match(legend, /INACTIVE_LEGEND_COLOR/);
     assert.match(legend, /SMALL_DOT_SYMBOL/);
-    assert.match(css, /\.legend-symbol\.is-small-dot \.pile-symbol-svg/);
+    const legendCss = readFileSync(resolve(import.meta.dirname, "../pile-plans/Legend.css"), "utf8");
+    assert.match(legendCss, /\.legend-symbol\.is-small-dot \.pile-symbol-svg/);
   });
 
   it("dims and excludes locked load points outside lock editing", () => {
@@ -122,7 +123,7 @@ describe("PilePlanViewer inputs", () => {
     assert.match(css, /--cpt-marker-width-base:\s*15px;/);
     assert.match(css, /--cpt-marker-height-base:\s*13px;/);
     assert.doesNotMatch(css, /--load-point-symbol-base:\s*calc\(/);
-    assert.match(css, /--cpt-default-fill:\s*#d4dade/);
+    assert.match(css, /--cpt-default-fill:\s*color-mix\([^;]*--oa-workspace/);
     assert.match(css, /\.cpt-marker\s*{[\s\S]*?--cpt-fill:\s*var\(--cpt-default-fill\)/);
     assert.match(css, /\.cpt-label\s*{[\s\S]*?dominant-baseline:\s*middle;/);
   });
@@ -246,12 +247,12 @@ describe("PilePlanViewer inputs", () => {
     assert.match(source, /inspected && !contextSelected/);
     assert.match(source, /is-governing-cpt/);
     assert.match(source, /selectedStyle: \(selected \|\| governing\) && !\(inspected && !contextSelected\)/);
-    assert.match(css, /--cpt-default-fill:\s*#d4dade/);
-    assert.match(css, /--cpt-default-stroke:\s*#a2adb3/);
-    assert.match(selectedRule, /fill:\s*color-mix\(in srgb,\s*var\(--theme-accent\) 8%,\s*#fff\)/);
+    assert.match(css, /--cpt-default-fill:\s*color-mix\([^;]*--oa-workspace/);
+    assert.match(css, /--cpt-default-stroke:\s*color-mix\([^;]*--oa-workspace/);
+    assert.match(selectedRule, /fill:\s*var\(--cpt-selected-fill\)/);
     assert.doesNotMatch(selectedRule, /--theme-surface/);
     assert.doesNotMatch(selectedRule, /--theme-accent-soft/);
-    assert.match(selectedRule, /stroke:\s*var\(--theme-accent\)/);
+    assert.match(selectedRule, /stroke:\s*var\(--cpt-selected-stroke\)/);
     assert.doesNotMatch(css, /#fff7c2/);
   });
 
@@ -337,12 +338,13 @@ describe("PilePlanViewer inputs", () => {
     assert.match(css, /\.viewer-cpt-label\s*\{/);
   });
 
-  it("does not show focus rectangles on map markers or legend items", () => {
+  it("keeps map focus styling separate from shared legend keyboard focus", () => {
     const css = readFileSync(resolve(import.meta.dirname, "viewer.css"), "utf8");
 
     assert.match(css, /\.load-point-marker:focus,\s*\.cpt-marker:focus\s*{\s*outline:\s*none;/);
     assert.match(css, /\.load-point-marker:focus-visible,\s*\.cpt-marker:focus-visible\s*{\s*outline:\s*none;/);
-    assert.match(css, /\.legend-item:focus,\s*\.legend-item:focus-visible\s*{\s*outline:\s*none;/);
+    const legendCss = readFileSync(resolve(import.meta.dirname, "../pile-plans/Legend.css"), "utf8");
+    assert.doesNotMatch(legendCss, /outline:\s*none/);
   });
 
   it("uses a single transformed stage instead of recalculating marker pixels while panning", () => {

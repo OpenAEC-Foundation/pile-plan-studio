@@ -299,6 +299,10 @@ pub(crate) fn inspect_table(
             .iter()
             .filter(|c| header_field(&c.header, role).is_some())
             .count();
+        let named_fields: HashSet<_> = columns
+            .iter()
+            .filter_map(|c| header_field(&c.header, role))
+            .collect();
         let mut used = HashSet::new();
         settings.columns = Some(
             columns
@@ -314,8 +318,14 @@ pub(crate) fn inspect_table(
                     };
                     let field = if header_matches >= 2 {
                         header_field(&column.header, role).unwrap_or_else(|| {
-                            if column.header.trim().is_empty() {
-                                expected.get(column.column - 1).copied().unwrap_or(fifth)
+                            let positional = expected.get(column.column - 1).copied().unwrap_or(fifth);
+                            // Generic advice headings carry no meaning; keep the standard
+                            // order, but never displace an explicitly named column.
+                            let generic_advice = role == ImportRole::BearingCapacities
+                                && super::advice_layout::generic_header(&column.header, column.column)
+                                && !named_fields.contains(positional);
+                            if column.header.trim().is_empty() || generic_advice {
+                                positional
                             } else {
                                 fifth
                             }

@@ -3,6 +3,8 @@ import { useTranslation } from "react-i18next";
 
 import type { ProjectState } from "../../../domain/project/projectState.ts";
 import { openCpt } from "../../../domain/workspace/selectionState.ts";
+import { Button } from "../../../openaec/react/src/index";
+import PileOptionStatus from "./PileOptionStatus.tsx";
 
 type Props = {
   cptIds: number[];
@@ -15,7 +17,6 @@ type Props = {
 
 export default function MissingCptPopover({ cptIds, label, open, onOpenChange, state, onStateChange }: Props) {
   const { t } = useTranslation("rightPanel");
-  const triggerRef = useRef<HTMLButtonElement>(null);
   const rootRef = useRef<HTMLSpanElement>(null);
   const popoverId = useId();
 
@@ -28,7 +29,7 @@ export default function MissingCptPopover({ cptIds, label, open, onOpenChange, s
       if (event.key !== "Escape") return;
       event.preventDefault();
       onOpenChange(false);
-      triggerRef.current?.focus();
+      rootRef.current?.querySelector<HTMLButtonElement>(".missing-cpt-trigger")?.focus();
     };
     document.addEventListener("pointerdown", handlePointerDown);
     document.addEventListener("keydown", handleKeyDown);
@@ -40,12 +41,11 @@ export default function MissingCptPopover({ cptIds, label, open, onOpenChange, s
 
   return (
     <span className="missing-cpt-popover" ref={rootRef} onClick={(event) => event.stopPropagation()}>
-      <button
+      <Button compact kind="quiet"
         aria-controls={popoverId}
         aria-expanded={open}
         aria-haspopup="dialog"
         className="status-pill is-missing missing-cpt-trigger"
-        ref={triggerRef}
         title={open ? undefined : t("pileOptions.missingCptsTitle")}
         type="button"
         onPointerDown={(event) => event.stopPropagation()}
@@ -53,7 +53,7 @@ export default function MissingCptPopover({ cptIds, label, open, onOpenChange, s
           event.stopPropagation();
           onOpenChange(!open);
         }}
-      >{label}</button>
+      ><PileOptionStatus className="is-missing">{label}</PileOptionStatus></Button>
       {open ? (
         <span
           aria-label={t("pileOptions.missingCptsList")}
@@ -65,7 +65,7 @@ export default function MissingCptPopover({ cptIds, label, open, onOpenChange, s
           <strong>{t("pileOptions.missingCptsList")}</strong>
           <span className="missing-cpt-list">
             {cptIds.map((cptId) => (
-              <button
+              <Button compact kind="quiet"
                 className="cpt-link"
                 key={cptId}
                 type="button"
@@ -74,7 +74,7 @@ export default function MissingCptPopover({ cptIds, label, open, onOpenChange, s
                   onOpenChange(false);
                   onStateChange({ ...state, ...openCpt(state, cptId) });
                 }}
-              >{cptId}</button>
+              >{cptId}</Button>
             ))}
           </span>
         </span>

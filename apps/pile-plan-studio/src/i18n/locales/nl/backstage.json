@@ -55,6 +55,10 @@
     "analyzing": "Palenplan analyseren...",
     "ready": "Gereed om te importeren",
     "invalid": "Los de gemelde fouten op voordat je importeert",
+    "pileColumnsRequired": "Koppel kolommen voor paalafmeting én paalpuntniveau om paaltoewijzingen te importeren.",
+    "mapImportColumns": "Koppel eerst de kolommen voor paaltoewijzingen of sonderingselecties om te kunnen importeren.",
+    "chooseCategory": "Vink Paaltoewijzingen of Sonderingselecties aan om te importeren.",
+    "noChanges": "Geen importeerbare wijzigingen gevonden. Controleer de kolomkoppeling en het importvoorbeeld.",
     "previewTitle": "Importvoorbeeld",
     "detected": "Herkend profiel: {{profile}}",
     "summary": "{{matched}} van {{total}} rijen gekoppeld · {{fallbacks}} via coördinaten · {{conflicts}} conflicten · {{skipped}} overgeslagen",
@@ -77,6 +81,11 @@
     "import": "Als nieuw palenplan importeren"
   },
   "openPanel": {
+    "localCopy": "Lokale kopie",
+    "localCopiesHelp": "In de browser openen recente projecten een lokale kopie van de laatst geopende, lokaal opgeslagen of gedownloade IFCPP-versie op dit apparaat. Niet-opgeslagen wijzigingen horen niet bij die kopie.",
+    "justNow": "Zojuist",
+    "openRecent": "{{name}} openen",
+    "removeFile": "{{name}} uit recente projecten verwijderen",
     "title": "Project openen",
     "intro": "Open een IFCPP-project vanaf dit apparaat of ga verder met een recent project.",
     "chooseProject": "IFCPP-project kiezen",

@@ -19,8 +19,9 @@ describe("status bar", () => {
     const source = readFileSync(resolve(import.meta.dirname, "StatusBar.tsx"), "utf8");
 
     assert.match(source, /message\?: string/);
-    assert.match(source, /aria-live="polite"/);
-    assert.match(source, /\{message &&/);
+    assert.match(source, /StatusBar as BlueprintStatusBar/);
+    assert.match(source, /<BlueprintStatusBar message=/);
+    assert.match(source, /\{message\}/);
     assert.doesNotMatch(source, /historyMessage/);
     assert.doesNotMatch(source, /status-history-message/);
   });

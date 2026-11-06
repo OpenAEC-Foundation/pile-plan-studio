@@ -13,6 +13,7 @@ import {createHoverMarkerIndex, findHoverCandidates} from "../../../viewer/hover
 import type {LegendItems} from "../../../core/projectTypes.ts";
 import {hasMatchingCoordinates,locationLabel, type MatchingLines, type MatchingLocation, type MatchingSelection, type MatchingTool} from "./locationMatchingTypes.ts";
 import "../pile-plan-viewer/viewer.css";
+import {Button} from "../../../openaec/react/src/index";
 
 type Props = {
   oldLocations: MatchingLocation[]; newLocations: MatchingLocation[]; result: MatchingResult;
@@ -141,7 +142,7 @@ export default function LocationMatchingCanvas(props: Props) {
   }
 
   return <section className="matching-plan" aria-label={t("exportTools.matchingCanvas")}>
-    <div className="matching-canvas-tools"><button type="button" onClick={() => focus(allPoints)}>{t("exportTools.fitPlan")}</button>
+    <div className="matching-canvas-tools"><Button onClick={() => focus(allPoints)}>{t("exportTools.fitPlan")}</Button>
       <span>{t("exportTools.canvasHelp")}</span><output>{Math.round(viewport.scale * 100)}%</output></div>
     <div className="viewer-canvas matching-canvas" ref={view.canvasRef} tabIndex={0}
       onWheel={e => view.handleWheel(e, () => setHoveredId(null))} onPointerDown={pointerDown} onPointerMove={pointerMove} onPointerUp={pointerUp} onPointerCancel={pointerUp}

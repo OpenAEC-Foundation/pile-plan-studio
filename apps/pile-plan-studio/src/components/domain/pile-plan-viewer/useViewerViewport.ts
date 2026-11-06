@@ -9,6 +9,7 @@ import {
 import type { ProjectState } from "../../../domain/project/projectState.ts";
 import type { ViewerFocusRequest } from "../../../domain/workspace/viewerFocus.ts";
 import { elementLayoutScale } from "../../../domain/settings/uiBaseline.ts";
+import { APPEARANCE_CHANGE_EVENT } from "../../../app/appearance/applyAppearance.ts";
 import { getCoordinateGridPattern } from "../../../viewer/coordinateGrid.ts";
 import { getCoordinateGridCanvasFrame } from "../../../viewer/coordinateGridCanvas.ts";
 import {
@@ -72,6 +73,11 @@ export function useViewerViewport<State extends ViewerViewportState>({
   const pendingGlobalResizeRef = useRef(false);
   const gridDrawFrameRef = useRef<number | null>(null);
   const handledFocusRef = useRef<ViewerFocusRequest | null>(null);
+
+  useEffect(() => {
+    window.addEventListener(APPEARANCE_CHANGE_EVENT, scheduleCoordinateGridDraw);
+    return () => window.removeEventListener(APPEARANCE_CHANGE_EVENT, scheduleCoordinateGridDraw);
+  }, []);
 
   useEffect(() => {
     if (!interactionRef.current && !zoomCommitTimerRef.current) {
@@ -300,7 +306,7 @@ export function useViewerViewport<State extends ViewerViewportState>({
     const context = grid.getContext("2d");
     if (!context) return;
     context.clearRect(0, 0, frame.bitmapWidth, frame.bitmapHeight);
-    context.fillStyle = "rgba(163, 174, 181, 0.28)";
+    context.fillStyle = getComputedStyle(grid).color;
     for (const x of frame.verticalX) {
       context.fillRect(x, 0, frame.strokePx, frame.bitmapHeight);
     }

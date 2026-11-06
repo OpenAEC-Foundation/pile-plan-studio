@@ -1,0 +1,33 @@
+/* CPT-specific layout around the unchanged shared Blueprint components. */
+.cpt-inspection-shell { display: contents; }
+.cpt-blueprint.oa-panel { min-width: 0; }
+.cpt-blueprint > .oa-panel-header { flex: none; height: auto; min-height: var(--oa-shell-panel-header); padding-block: 4px; }
+.cpt-blueprint > .oa-panel-header > .oa-mono-label { overflow-wrap: anywhere; }
+.cpt-blueprint .cpt-panel-subtitle { margin: 8px 12px 0; font-size: var(--oa-size-label); }
+.cpt-blueprint .cpt-edit-actions { padding: 8px 12px; gap: 8px; border-bottom-color: var(--oa-border-subtle); }
+.cpt-blueprint :is(.cpt-edit-methods, .cpt-edit-commit-actions) { gap: 8px; min-width: 0; }
+.cpt-blueprint .cpt-edit-actions .oa-button { height: auto; min-height: calc(var(--oa-row) - 4px); max-width: 100%; padding-block: 5px; white-space: normal; text-align: left; }
+.cpt-blueprint .cpt-panel-help { margin: 8px 0; font-size: var(--oa-size-label); line-height: 1.45; overflow-wrap: anywhere; }
+.cpt-blueprint .cpt-edit-scope { color: var(--oa-text-secondary); }
+.cpt-blueprint .cpt-table-wrap { min-width: 0; }
+.cpt-blueprint .cpt-table { font-size: var(--oa-size-body); }
+.cpt-blueprint .cpt-table :is(th, td) { border-bottom-color: var(--oa-border-subtle); text-align: left; }
+.cpt-blueprint .cpt-table th { font-family: var(--oa-font-body); font-size: var(--oa-size-body); font-weight: var(--oa-weight-bold); letter-spacing: normal; text-transform: none; color: var(--oa-text-secondary); background: var(--oa-panel); box-shadow: 0 1px 0 var(--oa-border); }
+.cpt-blueprint .cpt-table td { font-family: var(--oa-font-body); font-variant-numeric: tabular-nums; }
+.cpt-blueprint .cpt-link.oa-button { height: auto; min-height: calc(var(--oa-row) - 4px); padding: 0 2px; color: var(--oa-text); text-decoration: underline; }
+.cpt-blueprint .cpt-table tr:is(.is-governing, .is-selected-advice) { background: var(--oa-selected); box-shadow: inset 3px 0 var(--oa-selected-bar); }
+.cpt-blueprint .cpt-table tr.is-selected-advice { font-weight: var(--oa-weight-semibold); }
+.cpt-blueprint .cpt-advice-row-marker { color: var(--oa-selected-bar); }
+.cpt-blueprint .cpt-advice-selection-key { margin: 8px 12px; color: var(--oa-text-secondary); font-size: var(--oa-size-label); }
+.cpt-blueprint .cpt-remove-button:hover:not(:disabled) { color: var(--oa-error); }
+.cpt-blueprint .cpt-usage-members .oa-button { min-width: var(--oa-row); justify-content: center; }
+.cpt-blueprint :is(.cpt-usage-details, .cpt-edit-summary) > summary { color: var(--oa-text); }
+.cpt-blueprint :is(.cpt-usage-details, .cpt-edit-summary) > summary:focus-visible { outline: 2px solid var(--oa-accent); outline-offset: 2px; }
+.cpt-blueprint .cpt-preview-status { padding: 8px 12px; border-color: var(--oa-border); color: var(--oa-text-secondary); }
+.cpt-blueprint .oa-status { font-family: var(--oa-font-body); }
+.cpt-blueprint .cpt-preview-status .oa-status { max-width: 100%; white-space: normal; }
+.cpt-blueprint .oa-banner { flex-wrap: wrap; font-size: var(--oa-size-label); }
+.cpt-blueprint .oa-banner > b:empty { display: none; }
+.cpt-blueprint .oa-banner > span { min-width: 0; line-height: 1.45; overflow-wrap: anywhere; }
+.cpt-blueprint .oa-banner > .oa-button { height: auto; min-height: calc(var(--oa-row) - 4px); padding-block: 5px; white-space: normal; }
+.cpt-blueprint .right-panel-empty { color: var(--oa-text-secondary); font-size: var(--oa-size-body); }

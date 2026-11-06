@@ -22,7 +22,12 @@ import {
   type SourceTableSort,
 } from "../../../domain/source-data/sourceTableModel.ts";
 import { getAdditiveSelectionModifier } from "../../../viewer/lassoSelection.ts";
-import { searchIcon } from "../../template/ribbon/icons.ts";
+import {Button, Heading, IconButton, OpenAECProvider, Status, TextField} from "../../../openaec/react/src/index";
+import spriteUrl from "../../../openaec/studioSprite.ts";
+import { SimpleIconButton } from "../../template/SimpleIconControls.tsx";
+import "../../../openaec/openaec-components.css";
+import SourceFileButton from "../shared/SourceFileButton.tsx";
+import "./SourceDataViewer.css";
 
 const ROW_HEIGHT = 30;
 const OVERSCAN_ROWS = 8;
@@ -44,7 +49,11 @@ type Props = {
   onReplaceSource?: (file: File) => void;
 };
 
-export default function SourceDataViewer({
+export default function SourceDataViewer(props: Props) {
+  return <SourceDataView key={props.source.kind} {...props}/>;
+}
+
+function SourceDataView({
   onClose,
   source,
   loadPoints,
@@ -67,7 +76,6 @@ export default function SourceDataViewer({
   const [scrollTop, setScrollTop] = useState(0);
   const [viewportHeight, setViewportHeight] = useState(0);
   const selectedLoadPointIdSet = useMemo(() => new Set(selectedLoadPointIds), [selectedLoadPointIds]);
-  const replacementInputRef = useRef<HTMLInputElement>(null);
   const activeFilterMenuRef = useRef<HTMLDivElement>(null);
   const tableScrollRef = useRef<HTMLDivElement>(null);
   const selectionAnchorIdRef = useRef<number | null>(
@@ -207,71 +215,51 @@ export default function SourceDataViewer({
   };
 
   return (
-    <section className="source-data-viewer" aria-label={t(`projectExplorer.sources.${source.kind}`)}>
+    <OpenAECProvider sprite={spriteUrl}><section className="oa-app source-data-viewer source-viewer-blueprint" aria-label={t(`projectExplorer.sources.${source.kind}`)}>
       <header className="source-data-header" onPointerDown={handleHeaderPointerDown}>
         <div>
-          <h2>{t(`projectExplorer.sources.${source.kind}`)}</h2>
+          <Heading level="page">{t(`projectExplorer.sources.${source.kind}`)}</Heading>
           <p>
             {source.fileName ?? t("sourceViewer.snapshot")}
             {source.profile ? ` · ${source.profile}` : ""}
             {` · ${t("projectExplorer.rows", { count: table.rows.length })}`}
           </p>
           {source.warnings.length > 0 && (
-            <p className="source-data-warning">{t("sourceViewer.warnings", { count: source.warnings.length })}</p>
+            <p className="source-data-warning"><Status tone="warning">{t("sourceViewer.warnings", { count: source.warnings.length })}</Status></p>
           )}
         </div>
         {onReplaceSource && (
-          <>
-            <button
-              className="source-replace-button"
-              onClick={() => replacementInputRef.current?.click()}
-              type="button"
-            >
-              {t("sourceViewer.replace")}
-            </button>
-            <input
-              accept=".csv,.xlsx"
-              hidden
-              ref={replacementInputRef}
-              type="file"
-              onChange={(event) => {
-                const file = event.currentTarget.files?.[0];
-                if (file) onReplaceSource(file);
-                event.currentTarget.value = "";
-              }}
-            />
-          </>
+          <SourceFileButton label={t("sourceViewer.replace")} onFiles={files=>onReplaceSource(files[0])}/>
         )}
-        <button className="source-close-button" type="button" onClick={onClose}
-          aria-label={t("sourceViewer.backToPlan")} title={t("sourceViewer.backToPlan")}>
-          <svg viewBox="0 0 16 16" aria-hidden="true"><path d="m4 4 8 8m0-8-8 8" /></svg>
-        </button>
+        <IconButton className="source-close-button" icon="ui.close" onClick={onClose} label={t("sourceViewer.backToPlan")}
+          data-oa-tip={undefined} data-tooltip={t("sourceViewer.backToPlan")}/>
       </header>
 
-      <div className="source-table-scroll" onScroll={handleScroll} ref={tableScrollRef}>
-        <div className="source-table-heading" style={gridStyle}>
+      <div className="source-table-scroll" onScroll={handleScroll} ref={tableScrollRef} role="table"
+        aria-label={t(`projectExplorer.sources.${source.kind}`)} aria-rowcount={rows.length+1} aria-colcount={table.columns.length}>
+        <div className="source-table-heading" style={gridStyle} role="row">
         {table.columns.map((column, columnIndex) => (
-          <div className={`source-table-column${columnIndex === 0 ? " is-first" : ""}`} key={column.key}>
-            <button className="source-sort-button" onClick={() => cycleSort(column.key)} type="button">
+          <div className={`source-table-column${columnIndex === 0 ? " is-first" : ""}`} key={column.key} role="columnheader"
+            aria-sort={sort?.key===column.key?(sort.direction==="asc"?"ascending":"descending"):undefined}>
+            <Button kind="quiet" className="source-sort-button" onClick={() => cycleSort(column.key)}>
               <span>{t(`sourceViewer.columns.${column.labelKey}`)}{column.unit ? ` (${column.unit})` : ""}</span>
               <span aria-hidden="true">{sort?.key === column.key ? (sort.direction === "asc" ? "▲" : "▼") : ""}</span>
-            </button>
+            </Button>
             <div
               className={`source-filter-menu${filters[column.key]?.value ? " is-active" : ""}${activeFilterKey === column.key ? " is-open" : ""}`}
               ref={activeFilterKey === column.key ? activeFilterMenuRef : undefined}
             >
-              <button
+              <SimpleIconButton small icon="local.filter"
                 aria-expanded={activeFilterKey === column.key}
-                aria-label={t("sourceViewer.filter", { column: t(`sourceViewer.columns.${column.labelKey}`) })}
+                label={t("sourceViewer.filter", { column: t(`sourceViewer.columns.${column.labelKey}`) })}
                 className="source-filter-trigger"
-                dangerouslySetInnerHTML={{ __html: searchIcon }}
+                pressed={Boolean(filters[column.key]?.value)} data-oa-tip={undefined}
+                data-tooltip={t("sourceViewer.filter", { column: t(`sourceViewer.columns.${column.labelKey}`) })}
                 onClick={() => setActiveFilterKey((current) => current === column.key ? null : column.key)}
                 type="button"
               />
               {activeFilterKey === column.key && <div className="source-filter-popover">
-                <label>
-                  <span>{t("sourceViewer.searchValue")}</span>
-                  <input
+                  <TextField label={t("sourceViewer.searchValue")}
                     autoFocus
                     onChange={(event) => {
                       const value = event.currentTarget.value;
@@ -282,12 +270,12 @@ export default function SourceDataViewer({
                     }}
                     value={filters[column.key]?.value ?? ""}
                   />
-                </label>
                 <div className="source-filter-modes" role="group" aria-label={t("sourceViewer.matchMode")}>
                   {(["exact", "contains"] as const).map((mode) => (
-                    <button
+                    <Button
                       className={(filters[column.key]?.mode ?? "exact") === mode ? "is-active" : ""}
                       key={mode}
+                      aria-pressed={(filters[column.key]?.mode ?? "exact") === mode}
                       type="button"
                       onClick={() => setFilters((current) => ({
                         ...current,
@@ -295,10 +283,10 @@ export default function SourceDataViewer({
                       }))}
                     >
                       {t(`sourceViewer.${mode}`)}
-                    </button>
+                    </Button>
                   ))}
                 </div>
-                <button
+                <Button
                   className="source-filter-clear"
                   disabled={!filters[column.key]?.value}
                   type="button"
@@ -308,13 +296,13 @@ export default function SourceDataViewer({
                   }))}
                 >
                   {t("sourceViewer.clear")}
-                </button>
+                </Button>
               </div>}
             </div>
           </div>
         ))}
         </div>
-        <div className="source-table-body">
+        <div className="source-table-body" role="rowgroup">
           <div aria-hidden="true" style={{ height: paddingTop }} />
           {visibleRows.map((row, visibleIndex) => {
             const rowId = typeof row.id === "number" ? row.id : null;
@@ -339,11 +327,12 @@ export default function SourceDataViewer({
                   if (!isDisabled && rowId !== null) activateRow(rowId, event);
                 }}
                 role="row"
+                aria-rowindex={startIndex+visibleIndex+2}
                 style={gridStyle}
                 tabIndex={isSelectable && !isDisabled ? 0 : undefined}
               >
                 {table.columns.map((column) => (
-                  <span key={column.key} title={column.key==="tension"&&row.tension===""?t(`common:loadDirection.importStates.${row.tension_state}`):undefined}>{formatValue(row[column.key], column.key)}</span>
+                  <span role="cell" key={column.key} title={column.key==="tension"&&row.tension===""?t(`common:loadDirection.importStates.${row.tension_state}`):undefined}>{formatValue(row[column.key], column.key)}</span>
                 ))}
               </div>
             );
@@ -351,6 +340,6 @@ export default function SourceDataViewer({
           <div aria-hidden="true" style={{ height: paddingBottom }} />
         </div>
       </div>
-    </section>
+    </section></OpenAECProvider>
   );
 }

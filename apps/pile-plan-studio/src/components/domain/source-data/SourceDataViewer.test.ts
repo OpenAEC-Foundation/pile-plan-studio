@@ -5,7 +5,7 @@ import { resolve } from "node:path";
 
 describe("source data viewer", () => {
   const source = readFileSync(resolve(import.meta.dirname, "SourceDataViewer.tsx"), "utf8");
-  const styles = readFileSync(resolve(import.meta.dirname, "../../../App.css"), "utf8");
+  const styles = readFileSync(resolve(import.meta.dirname, "SourceDataViewer.css"), "utf8");
 
   it("keeps source provenance visible", () => {
     assert.match(source, /source\.fileName/);
@@ -48,14 +48,15 @@ describe("source data viewer", () => {
     assert.match(source, /closest\("\.source-filter-trigger"\)/);
   });
 
-  it("preserves the shared border for the selected right match mode", () => {
-    assert.match(styles, /\.source-filter-modes button:last-child\.is-active\s*\{[\s\S]*?border-left:\s*1px solid var\(--theme-accent\)/);
+  it("exposes the selected filter mode through shared controls", () => {
+    assert.match(source, /aria-pressed=\{\(filters\[column.key\]\?\.mode \?\? "exact"\) === mode\}/);
+    assert.match(styles, /\.source-filter-modes > \.oa-button\[aria-pressed="true"\]/);
   });
 
-  it("uses a compact replacement action in the source header", () => {
-    assert.match(styles, /\.source-replace-button\s*\{[\s\S]*?min-height:\s*28px/);
-    assert.match(styles, /\.source-replace-button\s*\{[\s\S]*?padding:\s*4px 8px/);
-    assert.match(styles, /\.source-replace-button\s*\{[\s\S]*?font-size:\s*12px/);
-    assert.match(styles, /\.source-replace-button:hover\s*\{[\s\S]*?background:\s*var\(--theme-accent-soft\)/);
+  it("uses the shared file action, close control and normal table font", () => {
+    assert.match(source, /<SourceFileButton label=\{t\("sourceViewer.replace"\)\}/);
+    assert.match(source, /<IconButton className="source-close-button"/);
+    assert.match(styles, /\.source-table-row > span\s*\{[^}]*font-family: var\(--oa-font-body\)/);
+    assert.match(styles, /\.source-table-row\s*\{\s*height: 30px/);
   });
 });

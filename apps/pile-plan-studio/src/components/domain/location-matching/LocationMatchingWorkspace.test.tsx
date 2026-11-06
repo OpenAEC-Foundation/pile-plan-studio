@@ -300,3 +300,16 @@ test("tolerance help shows the explanation immediately on hover or focus without
  fireEvent.blur(help);
  expect(screen.queryByRole("tooltip")).toBeNull();
 });
+
+test("matching chrome uses shared Blueprint controls and leaves drawing hit targets transparent",()=>{
+ const view=render(<LocationMatchingWorkspace {...points} initial={initial} toleranceMm={1} onConfirm={()=>{}} onCancel={()=>{}}/>);
+ expect(screen.getByRole("button",{name:t("confirm")}).classList.contains("oa-button--primary")).toBe(true);
+ expect(screen.getByRole("button",{name:t("fitPlan")}).classList.contains("oa-button")).toBe(true);
+ expect(screen.getByLabelText(t("connectionLines")).classList.contains("oa-field")).toBe(true);
+ expect(screen.getByLabelText(t("searchLocations")).classList.contains("oa-field")).toBe(true);
+ expect(screen.getByLabelText(t("pendingFilter")).closest(".oa-check")).not.toBeNull();
+ expect(view.container.querySelector('.matching-side-panel .oa-panel')).not.toBeNull();
+ const targets=[...view.container.querySelectorAll('.matching-hit-target')];
+ expect(targets.length).toBeGreaterThan(0);
+ expect(targets.every(target=>!target.classList.contains('oa-button'))).toBe(true);
+});

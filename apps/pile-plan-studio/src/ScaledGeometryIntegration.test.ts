@@ -11,7 +11,6 @@ const viewer = [
   "viewerDomCoordinates.ts",
 ].map((file) => read(`components/domain/pile-plan-viewer/${file}`)).join("\n");
 const ribbon = read("components/template/ribbon/Ribbon.tsx");
-const modal = read("components/template/Modal.tsx");
 const app = read("app/session/AppSession.tsx");
 const appStyles = read("App.css");
 const titleBarStyles = read("components/template/TitleBar.css");
@@ -27,9 +26,8 @@ describe("compact browser geometry integration", () => {
     assert.match(viewer, /getLocalCanvasRect/);
   });
 
-  it("avoids measuring ribbon tabs and normalizes modal and splitter geometry", () => {
+  it("avoids measuring ribbon tabs and normalizes splitter geometry", () => {
     assert.doesNotMatch(ribbon, /getBoundingClientRect|elementLayoutScale|screenToLocal/);
-    assert.match(modal, /elementLayoutScale/);
     assert.match(app, /elementLayoutScale\(appContentRef\.current\)/);
     assert.match(app, /screenToLocal/);
   });
@@ -45,7 +43,9 @@ describe("compact browser geometry integration", () => {
     const titleBarRule = titleBarStyles.match(/\.titlebar\s*\{([\s\S]*?)\}/)?.[1] ?? "";
     const ribbonRule = ribbonStyles.match(/\.ribbon-container\s*\{([\s\S]*?)\}/)?.[1] ?? "";
 
-    assert.match(shellRule, /--titlebar-height:\s*32px/);
+    assert.match(shellRule, /--titlebar-height:\s*var\(--oa-shell-titlebar\)/);
+    const tokens = readFileSync(resolve(import.meta.dirname, "openaec/openaec-tokens.css"), "utf8");
+    assert.match(tokens, /--oa-shell-titlebar:\s*32px/);
     assert.match(titleBarRule, /box-sizing:\s*border-box/);
     assert.match(titleBarRule, /height:\s*var\(--titlebar-height\)/);
     assert.match(ribbonRule, /margin-top:\s*var\(--titlebar-height\)/);

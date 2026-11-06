@@ -71,3 +71,13 @@ describe("browser recovery record", () => {
     assert.deepEqual(parseBrowserRecoveryRecord(legacy), legacy);
   });
 });
+
+
+it("preserves an optional recent-copy identity without invalidating older recovery records",()=>{
+ const input={appVersion:"test",ifcppText,projectName:"Recent project",savedProjectSignature:"saved",isDirty:false,updatedAt:"2026-11-06T09:00:00.000Z"};
+ const record=createBrowserRecoveryRecord({...input,recentProjectKey:"browser:copy-a"});
+ assert.equal(parseBrowserRecoveryRecord(record)?.recentProjectKey,"browser:copy-a");
+ assert.equal(parseBrowserRecoveryRecord(createBrowserRecoveryRecord(input))?.recentProjectKey,undefined);
+ const malformed=parseBrowserRecoveryRecord({...record,recentProjectKey:42});
+ assert.ok(malformed);assert.equal(malformed.recentProjectKey,undefined);assert.equal(malformed.ifcppText,ifcppText);
+});

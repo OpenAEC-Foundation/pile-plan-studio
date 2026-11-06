@@ -1,2 +1,11 @@
 # Auto detect text files and perform LF normalization
 * text=auto
+
+# Preserve the exact upstream bytes checked by the Blueprint asset manifest.
+apps/pile-plan-studio/src/openaec/*.css text eol=lf
+apps/pile-plan-studio/src/openaec/fonts/*.txt text eol=lf
+apps/pile-plan-studio/src/openaec/LICENSE text eol=lf
+apps/pile-plan-studio/src/openaec/icons/*.svg text eol=lf
+apps/pile-plan-studio/src/openaec/icons/*.json text eol=lf
+apps/pile-plan-studio/src/openaec/icons/*.ts text eol=lf
+apps/pile-plan-studio/src/openaec/icons/LICENSE.md text eol=lf

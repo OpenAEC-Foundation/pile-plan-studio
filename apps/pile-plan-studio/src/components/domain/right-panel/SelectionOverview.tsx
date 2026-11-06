@@ -7,6 +7,7 @@ import { clampSelectionOverviewRows, DEFAULT_SELECTION_OVERVIEW_ROWS, MAX_SELECT
 import LoadPointSelectionList from "./LoadPointSelectionList.tsx";
 import LoadPointSelectionNavigation from "./LoadPointSelectionNavigation.tsx";
 import "./SelectionOverview.css";
+import { Button, Heading } from "../../../openaec/react/src/index";
 
 export type SelectionOverviewLayout = { rows: number; collapsed: boolean };
 
@@ -29,16 +30,18 @@ export default function SelectionOverview({ onSelectOnly,restrictToContext=false
     const next = Math.min(maxRows, clampSelectionOverviewRows(value));
     setHeightRows(next); onLayoutChange({ rows: next });
   };
-  return <section className="selection-overview" aria-label={t("selectionOverview.title")}>
+  return <section className="oa-app selection-overview" aria-label={t("selectionOverview.title")} onKeyDown={event => {
+    if ((event.key === " " || event.key === "Enter") && event.target instanceof Element && event.target.closest("button")) event.stopPropagation();
+  }}>
     <header className="selection-overview-header">
-      <h2><button type="button" aria-label={t(collapsed ? "selectionOverview.expand" : "selectionOverview.collapse")}
+      <Heading><Button kind="quiet" compact aria-label={t(collapsed ? "selectionOverview.expand" : "selectionOverview.collapse")}
         aria-expanded={!collapsed} aria-controls={contentId} onClick={() => onLayoutChange({ collapsed: !collapsed })}>
         <svg viewBox="0 0 16 16" aria-hidden="true" className={collapsed ? "is-collapsed" : ""}><path d="m4 6 4 4 4-4" /></svg>
         <span>{t("selectionOverview.title")}</span>
         <span className="selection-overview-count">{contextIds.length > selectedIds.length
           ? t("selectionOverview.inspectionCount", { selected: selectedIds.length, total: contextIds.length })
           : t("loadPoints.selectedCount", { count: selectedIds.length })}</span>
-      </button></h2>
+      </Button></Heading>
       {groupControl}
     </header>
     {extraContent}

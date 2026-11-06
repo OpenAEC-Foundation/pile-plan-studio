@@ -1,3 +1,6 @@
+import { Banner, OpenAECProvider } from "../../openaec/react/src/index";
+import spriteUrl from "../../openaec/studioSprite";
+import "../../openaec/openaec-components.css";
 import "./ActionNotice.css";
 
 export type ActionNoticeTone = "neutral" | "error";
@@ -10,18 +13,16 @@ type Props = {
 
 export default function ActionNotice({ message, noticeId, tone = "neutral" }: Props) {
   return (
-    <div className="action-notice-region">
+    <OpenAECProvider sprite={spriteUrl}><div className="action-notice-region">
       {message && (
         <div
           key={noticeId}
-          className={`action-notice${tone === "error" ? " is-error" : ""}`}
-          role={tone === "error" ? "alert" : "status"}
-          aria-live={tone === "error" ? "assertive" : "polite"}
+          className="action-notice"
           aria-atomic="true"
         >
-          {message}
+          <Banner tone={tone === "error" ? "error" : "info"} word="">{message}</Banner>
         </div>
       )}
-    </div>
+    </div></OpenAECProvider>
   );
 }

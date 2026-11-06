@@ -6,15 +6,20 @@ import { switchRightPanelMode, type RightPanelMode } from "../../../domain/works
 import { infoIcon } from "../../template/ribbon/icons.ts";
 import ThemedNumberInput from "../../template/ThemedNumberInput.tsx";
 import { commitNumberDraft } from "./numberInputModel.ts";
+import { Button, Heading } from "../../../openaec/react/src/index";
+import { NumberField } from "../../template/NumberInput.tsx";
 
-export function SettingsGroup({ title, muted = false, children }: {
+import "./panelControls.css";
+
+export function SettingsGroup({ title, muted = false, variant, children }: {
   title: string;
   muted?: boolean;
+  variant?: "blueprint";
   children: ReactNode;
 }) {
   return (
-    <section className={`settings-group${muted ? " is-muted" : ""}`}>
-      <h3>{title}</h3>
+    <section className={`${variant === "blueprint" ? "blueprint-settings-group" : "settings-group"}${muted ? " is-muted" : ""}`}>
+      {variant === "blueprint" ? <Heading>{title}</Heading> : <h3>{title}</h3>}
       {children}
     </section>
   );
@@ -33,6 +38,7 @@ export function DraftNumberField({
   step,
   suffix,
   value,
+  variant,
 }: {
   ariaLabel: string;
   disabled?: boolean;
@@ -46,6 +52,7 @@ export function DraftNumberField({
   step: number;
   suffix: string;
   value: number | null;
+  variant?: "blueprint";
 }) {
   const [draft, setDraft] = useState(value === null ? "" : String(value));
 
@@ -62,6 +69,30 @@ export function DraftNumberField({
 
     setDraft(String(committed));
     if (committed !== value) onCommit(committed);
+  }
+
+  if (variant === "blueprint") {
+    return (
+      <div className="blueprint-settings-number">
+        <NumberField
+          label={label}
+          aria-label={ariaLabel}
+          type="number"
+          className="oa-number"
+          disabled={disabled}
+          min={min}
+          max={max}
+          step={step}
+          placeholder={placeholder}
+          value={draft}
+          help={helpText}
+          onValueChange={setDraft}
+          onBlur={commit}
+          onKeyDown={event => { if (event.key === "Enter") event.currentTarget.blur(); }}
+        />
+        <span className="blueprint-number-unit oa-secondary">{suffix}</span>
+      </div>
+    );
   }
 
   return (
@@ -97,42 +128,6 @@ export function DraftNumberField({
   );
 }
 
-export function AlgorithmOption({ active, label, sketch, onClick }: {
-  active: boolean;
-  label: string;
-  sketch: "quadrants" | "maximum-angle";
-  onClick: () => void;
-}) {
-  return (
-    <button className={`algorithm-option${active ? " is-selected" : ""}`} type="button" aria-pressed={active} onClick={onClick}>
-      {sketch === "quadrants" ? <QuadrantSketch /> : <MaximumAngleSketch />}
-      <span>{label}</span>
-    </button>
-  );
-}
-
-function QuadrantSketch() {
-  return (
-    <svg className="algorithm-sketch" viewBox="0 0 120 80" aria-hidden="true">
-      <line x1="60" y1="8" x2="60" y2="72" /><line x1="18" y1="40" x2="102" y2="40" />
-      <circle className="sketch-load" cx="60" cy="40" r="4" />
-      <circle cx="84" cy="18" r="5" /><circle cx="88" cy="62" r="5" />
-      <circle cx="34" cy="20" r="5" /><circle cx="30" cy="60" r="5" />
-    </svg>
-  );
-}
-
-function MaximumAngleSketch() {
-  return (
-    <svg className="algorithm-sketch" viewBox="0 0 120 80" aria-hidden="true">
-      <path className="sketch-arc" d="M 76 24 A 24 24 0 0 1 76 56" />
-      <line x1="60" y1="40" x2="96" y2="40" /><line x1="60" y1="40" x2="78" y2="15" />
-      <line x1="60" y1="40" x2="78" y2="65" /><circle className="sketch-load" cx="60" cy="40" r="4" />
-      <circle cx="96" cy="40" r="5" /><circle cx="78" cy="15" r="5" /><circle cx="78" cy="65" r="5" />
-    </svg>
-  );
-}
-
 export function PanelTab({ active, label, mode, state, onActivate, onStateChange }: {
   active: boolean;
   label: string;
@@ -142,16 +137,16 @@ export function PanelTab({ active, label, mode, state, onActivate, onStateChange
   onStateChange: (nextState: ProjectState) => void;
 }) {
   return (
-    <button
+    <Button compact
       className={`right-panel-tab${active && state.rightPanelMode === mode ? " is-active" : ""}`}
-      type="button"
+      aria-pressed={active && state.rightPanelMode === mode}
       onClick={() => {
         onActivate();
         onStateChange({ ...state, ...switchRightPanelMode(state, mode) });
       }}
     >
       {label}
-    </button>
+    </Button>
   );
 }
 

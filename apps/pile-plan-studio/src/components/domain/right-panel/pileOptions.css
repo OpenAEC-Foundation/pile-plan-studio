@@ -1,0 +1,39 @@
+/* App-owned table composition; shared controls own decoration and interaction states. */
+.pile-options-shell { display: contents; }
+.pile-options-blueprint.oa-panel { flex: 1; min-width: 0; min-height: 0; }
+.pile-options-blueprint > .oa-panel-header { flex: none; flex-wrap: wrap; height: auto; min-height: var(--oa-shell-panel-header); padding-block: 6px; gap: 8px; }
+.pile-options-blueprint > .oa-panel-header > .oa-mono-label { min-width: 80px; }
+.pile-options-toolbar { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 8px; min-width: 0; }
+.pile-options-toolbar .oa-button { max-width: 100%; height: auto; min-height: calc(var(--oa-row) - 4px); padding-block: 4px; white-space: normal; }
+.pile-options-toolbar > .oa-secondary { font-size: var(--oa-size-label); }
+.pile-options-blueprint .pile-options-section { display: flex; flex-direction: column; padding: 0; }
+.pile-options-blueprint .pile-options-table-wrap { flex: 1; border: 0; min-width: 0; }
+.pile-options-blueprint .pile-options-table { font-size: var(--oa-size-body); }
+.pile-options-blueprint .pile-options-table :is(th, td) { padding: 4px 6px; border-bottom-color: var(--oa-border-subtle); }
+.pile-options-blueprint .pile-options-table th { font-family: var(--oa-font-body); font-size: var(--oa-size-body); font-weight: var(--oa-weight-bold); letter-spacing: normal; text-transform: none; background: var(--oa-panel); box-shadow: 0 1px 0 var(--oa-border); }
+.pile-options-blueprint .pile-option-number { text-align: left; font-family: var(--oa-font-body); font-variant-numeric: tabular-nums; }
+.pile-options-blueprint .pile-option-tip-label { justify-content: flex-start; }
+.pile-options-blueprint .pile-option-row:hover { background: var(--oa-hover); }
+.pile-options-blueprint .pile-option-row[aria-selected="true"] { background: var(--oa-selected); box-shadow: inset 3px 0 var(--oa-selected-bar); }
+.pile-options-blueprint .pile-option-row[aria-disabled="true"] { opacity: 1; color: var(--oa-text-disabled); }
+.pile-options-blueprint .pile-option-row:focus-visible { outline: 2px solid var(--oa-accent); outline-offset: -2px; }
+.pile-options-blueprint .pile-options-table .column-sort-button.oa-button { gap: 4px; padding: 0 2px; font-weight: inherit; }
+.pile-options-blueprint .column-header { gap: 4px; }
+.pile-options-blueprint .column-filter-menu summary { color: var(--oa-text-secondary); border: 1px solid transparent; }
+.pile-options-blueprint .column-filter-menu summary:hover, .pile-options-blueprint .column-filter-menu[open] summary { background: var(--oa-hover); color: var(--oa-text); }
+.pile-options-blueprint .column-filter-menu summary:focus-visible { outline: 2px solid var(--oa-accent); outline-offset: -1px; }
+.pile-options-blueprint .filter-menu-content { padding: 8px; gap: 8px; border-color: var(--oa-border); border-radius: var(--oa-radius-medium); background: var(--oa-panel); color: var(--oa-text); box-shadow: var(--oa-shadow-panel); }
+.pile-options-blueprint :is(.pile-option-column-size, .pile-option-column-tip) .filter-menu-content { left: 0; right: auto; }
+.pile-options-blueprint .filter-menu-actions .oa-button { padding: 0 8px; border-color: var(--oa-border); }
+.pile-options-blueprint .filter-menu-actions .oa-button:hover { background: var(--oa-hover); }
+.pile-options-blueprint .filter-value { font-family: var(--oa-font-body); font-weight: var(--oa-weight-regular); }
+.pile-options-blueprint .pile-options-table .status-pill { padding: 0; border: 0; border-radius: 0; background: transparent; color: inherit; font: inherit; }
+.pile-options-blueprint button.status-pill { height: auto; min-height: calc(var(--oa-row) - 4px); }
+.pile-options-blueprint button.status-pill:hover { background: var(--oa-hover); }
+.pile-options-blueprint .oa-status { font-family: var(--oa-font-body); }
+.pile-options-blueprint .cpt-link.oa-button, .pile-options-blueprint .optimization-load-point-link.oa-button { height: auto; min-height: calc(var(--oa-row) - 4px); padding: 0 2px; color: var(--oa-text); text-decoration: underline; }
+.pile-options-blueprint .missing-cpt-dialog { border-color: var(--oa-border); border-radius: var(--oa-radius-medium); background: var(--oa-panel); color: var(--oa-text); box-shadow: var(--oa-shadow-panel); font-size: var(--oa-size-body); }
+.pile-options-blueprint .panel-message { flex: none; font-size: var(--oa-size-label); color: var(--oa-text-secondary); background: var(--oa-raised); border-color: var(--oa-border); line-height: 1.45; }
+.pile-options-blueprint .panel-message.is-error { color: var(--oa-error); background: var(--oa-error-tint); border-color: var(--oa-error); }
+.pile-options-blueprint .panel-message.is-warning { color: var(--oa-warning); background: var(--oa-warning-tint); border-color: var(--oa-warning); }
+.pile-options-blueprint .empty-table-cell { color: var(--oa-text-secondary); }

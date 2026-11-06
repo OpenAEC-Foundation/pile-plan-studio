@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg">
+  <!-- Existing explanatory algorithm diagrams; not registered B2 function icons.
+       Symbol IDs serve the shared ChoiceTiles visual-slot lookup. -->
+  <symbol id="i24-cpt.algorithm-quadrants" viewBox="0 0 120 80" fill="none" stroke="currentColor" stroke-width="1.5">
+    <line x1="60" y1="8" x2="60" y2="72"/><line x1="18" y1="40" x2="102" y2="40"/>
+    <circle cx="60" cy="40" r="4" fill="var(--icon-accent,currentColor)" stroke="var(--icon-accent,currentColor)"/>
+    <g fill="var(--diagram-node-fill,transparent)">
+      <circle cx="84" cy="18" r="5"/><circle cx="88" cy="62" r="5"/>
+      <circle cx="34" cy="20" r="5"/><circle cx="30" cy="60" r="5"/>
+    </g>
+  </symbol>
+  <symbol id="i24-cpt.algorithm-maximum-angle" viewBox="0 0 120 80" fill="none" stroke="currentColor" stroke-width="1.5">
+    <path d="M 76 24 A 24 24 0 0 1 76 56" stroke="var(--icon-accent,currentColor)" stroke-width="2"/>
+    <line x1="60" y1="40" x2="96" y2="40"/><line x1="60" y1="40" x2="78" y2="15"/>
+    <line x1="60" y1="40" x2="78" y2="65"/>
+    <circle cx="60" cy="40" r="4" fill="var(--icon-accent,currentColor)" stroke="var(--icon-accent,currentColor)"/>
+    <g fill="var(--diagram-node-fill,transparent)">
+      <circle cx="96" cy="40" r="5"/><circle cx="78" cy="15" r="5"/><circle cx="78" cy="65" r="5"/>
+    </g>
+  </symbol>
+</svg>

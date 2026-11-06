@@ -475,18 +475,301 @@ outside the transformed marker stage; each world line is snapped independently
 to the global physical-pixel lattice after projection, including the active CSS
 scale and device-pixel ratio.
 
-UI typography is defined on the document body so menus and dialogs outside the
-main app shell inherit the same bundled Inter font. Native form controls inherit
-that font as well. Secondary and muted text colors are opaque theme tokens with
-at least 4.5:1 contrast against the base, raised, and surface backgrounds in every
-theme. Text sizes and the shared application scale remain independent of these
-typography and contrast choices.
+Pile-option inspection uses the pinned Blueprint Panel, Button, Checkbox and
+Status components and a native shared Dialog for column preferences. The
+selection summary/list/navigation shared with CPT inspection uses shared
+Heading/Button composition. Its grouped selection context and resize preferences
+remain app-owned. The interactive semantic pile-option table uses Blueprint
+styles with body-font labels and left-aligned values; its headers,
+filters, engineering subscripts and row pending guards remain app-owned because
+the shared Table cannot express those headers. Sort indicators point down for
+ascending and up for descending; aria-sort reports the numeric direction.
+Rows support Enter/Space through the existing assignment callback. Embedded
+inspection actions keep their independent behavior. Column visibility/order
+remain application preferences, separate for single/multiple selection, and
+native dialog cancellation closes without reverting those immediate preferences.
+No engineering assessment or project-operation paths are duplicated in these
+components.
+
+CPT inspection uses the same shared Panel and controls for overview/detail
+views, including removal, usage-member navigation and preview retry. Status and
+Banner compose translated preview messages. Native details retain their member
+expansion and tooltip behavior. The app-owned `.oa-table` markup preserves
+engineering subscript headers, optional pile counts, governing/advice row
+metadata and scroll-to-highlight behavior; values use the body font and align
+left. Existing manual-selection draft/save/method/preview operations and pending
+guards remain the sole edit paths. Control activation is isolated from viewer
+shortcuts while Undo stays available.
+
+The pile-cap changes overview uses the shared Panel, IconButton, Button and
+Status, with an app-owned selectable list and stable active-plan ordering.
+Inactive reason text, selection of remaining source locations and orphaned
+proposal visibility are retained. The shared count/rotation/reset controls also
+serve the ordinary selection block. Their width-reserved live readout, original
+count, source-edit precedence and force formatting stay unchanged. Overview
+values use the body font and align left; warning labels wrap. Edit/reset
+callbacks, pending guards and core preview/validation paths remain unchanged.
+Control activation keys are isolated from the viewer while Undo remains
+available.
+
+The compact legend strip uses shared quiet Buttons for selection and IconButtons
+for used-only activation and editing, with a wrapping feature-owned layout.
+Its three encoding modes reuse the existing symbol renderer and project colors;
+inactive used configurations retain their warning/strike-through cues. Shift
+selection, lock filtering and read-only edit guards retain their existing paths.
+Tooltips use the application overlay; chrome/focus use Blueprint tokens.
+
+The legend editor uses the shared native Dialog and Blueprint controls,
+including real encoding Radio controls and plan-scope Checkboxes. Specialized
+color/symbol/scheme pickers retain app-owned preview/popover composition with
+shared Buttons, the labelled native color input and existing renderer/model
+functions. Usage/conflict details handle focused Escape locally and restore
+their trigger before native dialog cancellation; other modal keys stay out of
+viewer shortcuts. Dialog content unmounts while closed to discard picker state,
+and reopening resets the local draft/scope from the current project. Apply's
+pending guard, rejection behavior and external close ownership stay unchanged.
+Native modal focus behavior replaces the legacy draggable modal/focus trap.
+Scoped Blueprint tokens/responsive layout supply chrome styling while sample
+symbol geometry and plan-owned colors remain unchanged.
+
+Pile-plan import and the normal/revision export screens compose shared Blueprint
+controls and feedback. The import source editor uses its Blueprint variant;
+export column/source metadata retains semantic native fields with Blueprint web
+classes, and previews use semantic `.oa-table` tables. A shared source-file
+Button activates a labelled native CSV/XLSX picker and resets it after selection.
+The existing import/export hooks, Rust previews, category and confirmation gates,
+column ordering, numbering, change codes and export callbacks remain responsible
+for behavior. The location-matching entry and full-screen review workspace use shared controls.
+The workspace composes Blueprint Button, Checkbox, Select, TextField, Heading,
+Panel, Banner and Status around its existing resizable aside and canvas. The
+scoped stylesheet supplies wrapping and scrolling while excluding numeric
+steppers and transparent canvas hit targets from ordinary action styling.
+Location projection, marker layers, picking, scoped undo/redo, evaluation guards
+and explicit confirmation retain their existing ownership and behavior.
+
+The project explorer uses Blueprint Panel, MonoLabel, Button, IconButton,
+TextField and Status while retaining its domain source list and plan listbox.
+The surrounding aside remains the layout/resizer boundary. Source and plan
+activation, independent expansion preferences, inline rename lifecycle, cost
+summaries, cap-change and lock metadata and management guards keep their existing
+callbacks. The shared Sidebar does not expose the metadata or sibling management
+actions needed here, so the row composition remains feature-owned.
+
+The feedback window composes shared native Dialog/form/feedback components.
+Its `app/feedback/` client posts multipart data to Open Feedback Studio's public
+`/api/feedback` route for `open-pile-plan-studio`; no user GitHub account or token
+is involved. Contact details remain separate from public text; images are
+explicit and previewed, with the service's three-image/1 MiB/type limits. A
+confirmed receipt distinguishes issue creation from storage without an issue
+link. Pending guards prevent duplicate submission and dismissal; failed requests
+retain the draft and have no automatic retry. Screenshot capture uses browser
+foreign-object rendering to support modern theme colors, excludes the feedback
+window and shares the normal attachment path. Only this transient draft owns
+attachment blob URLs; project state/history and saved IFCPP content are untouched.
+
+The application titlebar composes Blueprint IconButton/Button/Status controls
+around its local logo, settings gear, version lookup and responsive layout.
+Existing save/download, history, settings and feedback callbacks remain the
+runtime boundary. Portal help and accessible shortcut metadata accompany the
+controls; their Enter/Space activation stays out of drawing shortcuts. The
+desktop scale notice uses shared Buttons with unchanged transient expiry and
+callbacks. The footer uses the shared semantic StatusBar with app-owned slots
+for message, centered product label and live rounded plan zoom. Shell height
+aliases and native-frame ownership remain unchanged.
+
+The appearance foundation comes from the pinned OpenAEC Blueprint web package
+in `src/openaec/`: shared design 0.4 tokens, offline fonts and their licences.
+`tools/sync-blueprint.mjs --check` verifies its source manifest during frontend
+tests and builds. `themes.css` maps the existing `--theme-*` names onto shared
+`--oa-*` roles, allowing components to migrate incrementally. Inter remains the
+body font, including menus and dialogs outside the shell; numeric inputs use
+Inter AEC. Existing sizes and the compact application baseline are preserved.
+
+The application settings window imports the pinned Blueprint React components
+and component stylesheet without modifying their source. It composes native
+modal Dialogs (settings and reset confirmation), horizontal Tabs, labelled
+Selects, Buttons, IconButton, Checkbox, Slider and Heading. App-owned CSS supplies
+window geometry and content layout. The browser handles modal focus containment
+and restoration; Escape follows the same rollback path as Cancel and Close.
+Other dialogs migrate separately. Desktop scale previews and session-scoped MCP
+controls retain their existing preference and permission routes.
+
+All numeric editors compose the NumberInput/NumberField proposal from Blueprint
+PR 81 (issue 77), kept separately in `openaec/number-field-preview` while the
+pinned package stays unchanged. The translated template adapter supplies the
+same inset CSS-triangle steppers in settings, costs, project reference levels,
+import/export, location matching, optimization and ribbon percentages. Domain
+draft parsing and commit boundaries remain with existing controllers. Native
+spinners and duplicate stepper implementations are removed; OPPS's left alignment
+is a separate app style. The proposal source and CSS match upstream commit c30233c.
+
+Project information also composes the pinned native Dialog, IconButton,
+TextField, Select and Button, with NumberField for the reference level.
+App-owned CSS provides compact responsive layout;
+reference-level help uses the shared information IconButton and tooltip styling.
+App-owned layout wraps the long tooltip and associates its text with the input
+and button. Keyboard focus reveals it; Escape dismisses it before closing the
+dialog on a subsequent press. Existing name
+normalization, decimal comma/point parsing and currency drafts still feed the
+same project-save callback. Pending saves disable submission, rejected saves
+retain drafts, and cancellation does not edit the project. Native dialog keys
+are isolated from viewer shortcuts, with browser focus containment/restoration.
+
+The unsaved-project replacement warning uses the pinned Dialog, IconButton and
+Button components. Cancel, close and native Escape follow the same cancellation
+route; the discard and save callbacks remain distinct. For the save action, AppSession still
+requires a successful result before proceeding; continuing without saving remains
+a separate explicit action. Browser and desktop retain their translated wording. App-owned CSS wraps longer
+action labels; modal keys do not propagate to viewer shortcuts.
+
+The CPT settings sidebar also composes the pinned Panel, Radio, Checkbox,
+Button, IconButton and ChoiceTiles. Its application-owned algorithm diagrams are
+retained in a separate SVG sprite for the tile visual slot. The app adapter
+keeps one tab stop for mixed/unselected values and isolates tile navigation and
+activation from viewer shortcuts; the shared component source stays unchanged.
+Opt-in Blueprint variants of the shared sidebar section and numeric draft
+controls use Heading and the NumberField preview; the numeric commit/clamp logic is shared
+with the legacy rendering available to unmigrated controls. Field help is visible and
+programmatically associated. This presentation migration does not change
+settings scope, manual-overwrite semantics, validation or project history.
+
+The cost settings sidebar uses the same pinned Panel, Table, Select,
+Button, IconButton, Heading and Status components. App-owned composition supplies
+compact form/table layout, NumberField controls and section styles with CPT settings. Native
+row controls have size-specific labels and currency-labelled price fields.
+The existing core cost-edit path, draft commit/rollback, pending guard, protected
+used sizes and default actions remain unchanged; accepted edits still use
+project history. Other sizes remain a native collapsed disclosure.
+
+The grouping sidebar composes the same shared Panel, IconButton, Checkbox,
+Heading and Button controls plus the NumberField preview. Its app-owned number-draft adapter keeps
+the existing blur/Enter commit and non-negative clamp. A Blueprint variant of
+`LoadPointGroupEditButton` shares the existing pending/stale-preview and core
+validation/apply flow with the selection toolbar's legacy variant. Automatic
+settings, manual-override reset and group visibility remain project operations;
+no assignment, topology or grouping rules are computed in the new controls.
+App-owned layout wraps long labels and isolates control activation keys from
+viewer shortcuts while leaving history shortcuts available.
+
+The optimization sidebar and its count dialog use the pinned Blueprint Panel,
+Dialog, Heading, Button, IconButton, Checkbox and Radio with the NumberField preview. App-owned
+composition retains disclosure preferences and a semantic candidate matrix
+(shared Table headers cannot contain matrix selection controls). Its numeric
+adapter reuses the existing scaled-draft parsers and step model while composing
+shared fields/buttons, preserving decimal comma/point input, blank unlimited
+limits, error handling and pointer/key stepping. Standalone values align left;
+whole result-value columns keep their layout alignment. Native indeterminate matrix state,
+count-dialog apply/cancel, run destination, pending/stopping gates and all result
+proof/status distinctions remain on their existing paths. Modal/activation keys
+are isolated from viewer shortcuts; history shortcuts remain available.
+
+The title bar, File menu and both ribbon tabs use a generated subset of the shared B2 icon set
+through `BlueprintIcon`, with exact 16/24 px drawings for their general actions.
+The sprite is a local hashed build asset, with pinned source and generated
+checksums in the same appearance manifest. Desktop Save and browser download
+share the Save icon. The browser tooltip and accessible name explain that saving
+downloads an IFCPP file; the actions remain distinct. Native window management remains in the
+platform frame. The quick actions are keyboard reachable, and visible focus,
+hover, pressed and disabled states use Blueprint colour roles. The nominal
+title-bar height comes from the shared 32 px shell token.
+
+Plan and View use shared Blueprint React `Tabs`, `Button`, `Slider` and
+`MonoLabel` components. File is a primary command button outside the tablist;
+Plan/View use the shared roving keyboard selection and underline. App-owned
+adapters retain the stacked icon/caption layout and numeric percentage editing.
+The two-handle utilization slider remains local because the shared slider models
+one value. Both sliders preserve their existing draft/commit boundaries.
+Space and Enter activation stay inside the ribbon rather than reaching the
+viewer keyboard handlers; application shortcuts continue to bubble. Additional
+button help uses the application's portal tooltip layer.
+Plan and View share a scoped Blueprint ribbon stylesheet using
+shared label typography, primary/accent icon roles and explicit hover, pressed,
+selected, disabled and keyboard-focus states. It preserves group order,
+translated line breaks and command callbacks. Project information, lock editing,
+optimization, grid and side-panel symbols use the pinned Blueprint artwork.
+Reviewed local domain candidates are kept separately in
+`components/template/icons/pile-plan-proposals.svg` and rendered by `PilePlanIcon`
+for evaluation before the upstream icon PR. These include pile variants, CPTs,
+pile-cap changes, compression/tension, rectangular selection, confirmation,
+domain settings, regions and groups. The three settings buttons sit horizontally
+with short CPT/Costs/Groups labels, full translated tooltips and accessible names; their group caption remains below.
+The generic application settings gear is local to `ApplicationSettingsIcon`,
+separate from those candidates and tracked by Blueprint issue 73.
+The shared shell tokens preserve the existing 28 px tab strip and 94 px content
+height. Ribbon groups scroll horizontally at narrow widths. The File menu uses
+the shared open/save/save-as/import/export and file-type icons while preserving
+the native/browser command capabilities and routes. Its navigation uses shared
+Blueprint buttons with an accessible current-page marker. Extracted
+`backstage/OpenProjectPanel` composes shared task tiles, an empty state and
+separate keyboard-accessible open/remove controls for recent projects; relative
+dates follow the interface language. `backstage/AboutPanel` uses the shared
+heading, information-card and button components with existing product metadata.
+The browser file tile activates its file input directly from a user event;
+desktop retains the native picker callback. Navigation keyboard activation is
+isolated from drawing handlers, and handled Escape closes the menu without
+clearing the drawing selection.
+
+Recent projects are application preferences owned by `AppSession`, rather than
+menu-local state. `useRecentFiles` wraps the serialized recent-project controller;
+validated opens, successful native save/save-as (including MCP saves), browser local saves, and completed
+browser downloads refresh a maximum of ten entries. Windows path spelling is
+normalized for deduplication; Unix case is preserved. The menu receives the list
+and remove/clear callbacks, so it updates immediately without remounting.
+
+Desktop entries reopen their original path. Browser entries explicitly represent
+local IFCPP copies: opaque text is stored in the separate
+`pile-plan-studio-recent-projects` IndexedDB database, while names/timestamps and
+copy identities remain in preferences. Each download stores the exact completed
+output blob, not later edits. Initial browser file identities include a digest of
+filename and contents, preventing different same-name files from overwriting each
+other; subsequent local saves and downloads update the active copy identity. Recovery metadata may
+carry that identity across reloads as an optional version-one field; it never enters
+the IFCPP document. Unsaved-session recovery remains separate from these copies.
+
+Opening a recent copy still uses the ordinary unsaved-changes confirmation and Rust
+project reader. In the browser its primary action saves the current Rust-serialized
+IFCPP directly to the local recent copy before continuing; it does not download a
+file. The original copy identity is reused (or created for a new project). The
+warning blocks duplicate submissions and dismissal during persistence. Storage
+failure keeps the current project dirty and the warning open with an inline error;
+a stale project snapshot cannot mark a newer state clean or permit replacement.
+The toolbar download remains a separate action. Recent copies are not updated
+automatically by every edit. Invalid opens and cancelled saves do not refresh recents. A missing
+copy has an actionable message; cache failure does not undo a successful file open
+or download. Removing/clearing recent browser entries deletes their cached copies;
+ordinary ten-entry eviction also prunes obsolete copies. Original disk files and
+recovery records are unaffected.
+
+Column settings in the source-import editor, export-column editor and revision
+source-mapping editor use shared Blueprint TextField/Select components, retaining
+their existing mapping callbacks and draft values. Template help is associated
+with its input through the shared field frame. The import meaning selector adds
+native per-option disabled metadata through a local adapter because the pinned
+Select API does not yet expose that property; the existing empty-column rules
+and explicit pile-plan clearing choices are retained.
+
+The viewer's Focus control uses a shared Blueprint button without changing the
+existing selected-point fitting or event isolation. Transient action messages
+compose shared Banner components, with info/error icons and matching live-region
+roles. Their bottom-center, pointer-inert presentation and AppSession-owned
+3500ms lifetime are unchanged; this adapter intentionally does not use Toast's
+different dismissal policy.
+
+Application preferences offer Light, Dark, Blueprint, High contrast dark and
+High contrast light. Loading older preferences maps Forge/OpenAEC to Dark and
+Contrast to High contrast dark. The independent plan-background preference is
+Theme (default), Light or Dark; Blueprint high-contrast themes enforce their own
+workspace contrast. Appearance previews revert on Cancel and only Save writes
+application preferences. They never change project history or dirty state.
 
 The viewer also separates application theming from project drawing semantics.
 Panels, controls, and other application chrome use the active `--theme-*`
-palette. The plan itself remains a white engineering canvas, so annotations
-whose meaning must not change with the application theme use viewer-owned
-colors. Load-point groups of at least two members are drawn from the union of
+palette. The plan background uses the shared workspace role. Neutral CPT fills,
+outlines and number text adapt to that workspace, including explicit Light/Dark
+overrides. Number text has a thin backing stroke for overlapping graphics.
+Technical annotation colours retain their meaning independently of background
+and theme. Selected CPTs use the same fixed orange as selected load-point groups,
+rather than the theme-dependent text-accent colour. Load-point groups of at least two members are drawn from the union of
 member circles, internal Gabriel edges, and fully enclosed topology faces. An
 outside-only SVG morphology ring preserves concave and L-shaped silhouettes;
 it is not a convex hull. Default contours are gray, the selected group contour
@@ -587,6 +870,16 @@ title text and explicit data-tooltip help to immediate hover/focus popups,
 temporarily suppresses native titles while preserving accessible names and
 descriptions, and dismisses on Escape, scrolling or resize. Popups use theme
 colors and the application layout scale and are rendered outside clipped panels.
+Full source viewers compose shared Blueprint heading, file-action, icon-button,
+filter-field, ordinary button and status components around a virtualized grid.
+Feature-owned SourceDataViewer.css preserves the 30 px row metric used by window
+calculations, the sticky header and the shared horizontal/vertical scroll area.
+The view exposes table/cell/header semantics, sort state and virtual row indices;
+selection, locks and source formatting continue through their existing models.
+A source-kind key resets transient filters, sorting, popup and scroll state when
+switching between load points, CPTs and advice, preventing a stale invisible
+column filter from making another source appear empty.
+
 Source import previews use a separate scroll class from full source viewers;
 only import previews have a bounded height. Foundation-advice source views pair
 pressure and tension resistance columns by CPT/size/tip without a direction
@@ -640,6 +933,14 @@ pile-plan import and revision-table import: select a source column, then choose
 its meaning and applicable units or size interpretation. Mapping a field to a
 new column replaces its previous assignment. The detected-numbering explanation
 and action live only in the Mark output-column settings.
+Pile-plan import keeps the user's category choices separate from their effective
+availability. Missing column mappings temporarily disable a category without
+forgetting its requested state; mapping both pile size and tip level restores
+pile assignments automatically. A deliberate opt-out remains off. The preview
+controller evaluates requested categories through the Rust core and excludes
+unsupported categories before installing the final preview and matching patch.
+Guidance distinguishes missing mappings, no selected categories, unresolved
+matching, actual source errors and a preview with no importable changes.
 
 Changing the revision matching tolerance also sets the movement-code threshold.
 The threshold can then be edited independently without changing matching tolerance.
@@ -1137,7 +1438,12 @@ and all preview state are transient and never enter project history or IFCPP.
 
 Foundation-advice column recognition includes `Kenmerk` (pile size) and `Waarde`
 (resistance) only for advice sources. Clearly named standard advice headers can
-be reordered; ambiguous legacy/matrix layouts retain their existing validation.
+be reordered. Without meaningful headings, the standard order is CPT ID, tip
+level (m), pile size (mm), resistance (kN). Position-matching `KolomN`/`ColumnN`
+placeholders retain that default even alongside recognized names such as
+`Kenmerk` and `Waarde`; explicitly named columns and user mappings take precedence.
+The suggested preview settings use the same mapping for the subsequent import.
+Ambiguous legacy/matrix layouts retain their existing validation.
 
 The CPT advice panel requests read-only `inspect_foundation_advice` core facts
 for the current assigned configurations and CPT. The Rust operation derives cap

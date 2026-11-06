@@ -64,6 +64,7 @@ export default function App() {
           initialSavedProjectSignature: result.record.savedProjectSignature,
           initialWasDirty: result.record.isDirty,
           initialStatusKey: "recovery.restored",
+          initialRecentProjectKey: result.record.recentProjectKey,
           recoveryStore,
         });
       } else {

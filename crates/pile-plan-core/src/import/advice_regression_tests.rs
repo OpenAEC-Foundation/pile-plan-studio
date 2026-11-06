@@ -177,6 +177,44 @@ fn headerless_numeric_rows_remain_standard_and_spaces_do_not_erase_the_first_row
         Some(1)
     );
 }
+
+#[test]
+fn partly_generic_standard_headers_keep_all_four_default_mappings() {
+    for generic in ["Kolom", "Column"] {
+        for format in [SourceFormat::Xlsx, SourceFormat::Csv] {
+            let first = format!("{generic}1");
+            let second = format!("{generic}2");
+            let mut s = source(&[("data", vec![
+                cells(&[&first, &second, "Kenmerk", "Waarde"]),
+                cells(&["1", "-15", "250", "10"]),
+                cells(&["2", "-16", "290", "20"]),
+            ])]);
+            if format == SourceFormat::Csv {
+                s.format = format;
+                s.file_name = "advice.csv".into();
+                s.bytes = format!("{first},{second},Kenmerk,Waarde\n1,-15,250,10\n2,-16,290,20").into_bytes();
+            }
+            let preview = preview_advice_source(&s);
+            let sheet = &preview.sheets[0];
+            assert_eq!(sheet.status, AdviceSheetStatus::Ready, "{:?}", sheet.diagnostics);
+            let settings = &sheet.table.as_ref().unwrap().settings;
+            assert_eq!(settings.has_headers, Some(true));
+            assert_eq!(settings.first_data_row, Some(2));
+            let mappings = settings.columns.as_ref().unwrap();
+            assert_eq!(mappings.iter().map(|c| c.field.as_str()).collect::<Vec<_>>(),
+                vec!["id", "tip-level", "pile-size", "resistance"]);
+            assert_eq!(mappings[1].unit.as_deref(), Some("m"));
+            assert_eq!(preview.suggested_selection.len(), 1);
+            s.profile_options.advice_sheets = Some(preview.suggested_selection);
+            let parsed = advice::analyze_advice_sources(&[s]).unwrap();
+            assert_eq!(parsed.values.len(), 2);
+            assert_eq!(parsed.values[0].cpt_id, 1);
+            assert_eq!(parsed.values[0].pile_tip_level_m, -15.);
+            assert_eq!(parsed.values[0].pile_size_mm, 250);
+            assert_eq!(parsed.values[0].frd_kn, 10.);
+        }
+    }
+}
 #[test]
 fn extra_standard_columns_require_semantic_headers_but_empty_columns_do_not() {
     for (header, expected) in [

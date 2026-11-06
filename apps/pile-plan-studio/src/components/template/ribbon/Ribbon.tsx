@@ -3,30 +3,15 @@ import { useTranslation } from "react-i18next";
 import RibbonButton from "./RibbonButton";
 import RibbonButtonStack from "./RibbonButtonStack";
 import RibbonGroup from "./RibbonGroup";
-import RibbonTab from "./RibbonTab";
+import { Button, Slider, Tabs } from "../../../openaec/react/src/index";
+import "../../../openaec/openaec-components.css";
+import BlueprintIcon from "../BlueprintIcon.tsx";
 import type { RightPanelMode } from "../../../domain/workspace/selectionState.ts";
 import type { ForegroundLayer } from "../../../domain/settings/viewerPreferences.ts";
-import {
-  cptIcon,
-  compressionIcon,
-  tensionIcon,
-  applyIcon,
-  gridIcon,
-  groupsIcon,
-  explorerPanelIcon,
-  lassoIcon,
-  loadPointIcon,
-  lockIcon,
-  optimizeIcon,
-  projectIcon,
-  propertiesPanelIcon,
-  removeIcon,
-  settingsIcon,
-  tipLevelRegionsIcon,
-  unlockIcon,
-} from "./icons";
+import PilePlanIcon from "../PilePlanIcon.tsx";
 import { getTipLevelRegionToggle } from "./tipLevelRegionToggle.ts";
 import "./Ribbon.css";
+import "./PlanRibbon.css";
 import {useLoadDirection} from "../../../app/derived-state/LoadDirectionContext.tsx";
 import UtilizationRangeSlider from "./UtilizationRangeSlider.tsx";
 import RibbonNumericValue from "./RibbonNumericValue.tsx";
@@ -175,26 +160,26 @@ export default function Ribbon({
     switch (activeTab) {
       case "plan":
         return (
-          <div className="ribbon-content">
+          <div className="ribbon-content ribbon-content--blueprint">
             <div className="ribbon-groups">
               <RibbonGroup label={t("project.overview")}>
-                <RibbonButton icon={projectIcon} label={t("project.information")} wide onClick={onOpenProjectInformation} />
+                <RibbonButton icon={<BlueprintIcon id="project.properties" size={24} />} label={t("project.information")} wide onClick={onOpenProjectInformation} />
               </RibbonGroup>
               <RibbonGroup label={t("plan.inspect")}>
-                <RibbonButton icon={loadPointIcon} label={t("plan.loadPoints")} wide onClick={() => onOpenRightPanel?.("load-point")} />
-                <RibbonButton icon={cptIcon} label={t("plan.cpts")} onClick={() => onOpenRightPanel?.("cpts")} />
-                <RibbonButton icon={groupsIcon} label={t("plan.pileCapChanges")} wide onClick={() => onOpenTaskPanel?.("pile-cap-changes")} />
+                <RibbonButton icon={<PilePlanIcon id="pile.options" size={24} />} label={t("plan.loadPoints")} wide onClick={() => onOpenRightPanel?.("load-point")} />
+                <RibbonButton icon={<PilePlanIcon id="pile.cpts" size={24} />} label={t("plan.cpts")} onClick={() => onOpenRightPanel?.("cpts")} />
+                <RibbonButton icon={<PilePlanIcon id="pile.cap-changes" size={24} />} label={t("plan.pileCapChanges")} wide onClick={() => onOpenTaskPanel?.("pile-cap-changes")} />
               </RibbonGroup>
               <RibbonGroup label={common("loadDirection.view")}>
-                <div className="ribbon-load-direction" role="group" aria-label={common("loadDirection.view")}>
-                  {(["compression","tension"] as const).map(value=><RibbonButton key={value} icon={value==="compression"?compressionIcon:tensionIcon} active={mode===value} label={common(`loadDirection.${value}`)} title={common("loadDirection.displayOnly")} onClick={()=>setMode(value)}/>)}
+                <div className="ribbon-load-direction">
+                  {(["compression","tension"] as const).map(value=><RibbonButton key={value} icon={<PilePlanIcon id={value==="compression"?"pile.compression":"pile.tension"} />} active={mode===value} label={common(`loadDirection.${value}`)} title={common("loadDirection.displayOnly")} onClick={()=>setMode(value)}/>)}
                 </div>
               </RibbonGroup>
               <RibbonGroup label={t("plan.selection")}>
                 <RibbonButton
                   active={isLassoSelectionActive}
                   disabled={lassoSelectionDisabled}
-                  icon={lassoIcon}
+                  icon={<PilePlanIcon id="edit.select-rectangle" size={24} />}
                   label={t("plan.lassoSelection")}
                   title={t("plan.lassoSelectionTooltip")}
                   wide
@@ -202,46 +187,45 @@ export default function Ribbon({
                 />
               </RibbonGroup>
               <RibbonGroup label={t("plan.settings")}>
-                <RibbonButtonStack>
-                  <RibbonButton icon={settingsIcon} label={t("plan.cptSettings")} size="small" onClick={() => onOpenTaskPanel?.("cpt-settings")} />
-                  <RibbonButton icon={settingsIcon} label={t("plan.costSettings")} size="small" onClick={() => onOpenTaskPanel?.("cost-settings")} />
-                  <RibbonButton icon={settingsIcon} label={t("plan.groupingSettings")} size="small" onClick={() => onOpenTaskPanel?.("grouping-settings")} />
-                </RibbonButtonStack>
+                <div className="ribbon-settings-actions">
+                  <RibbonButton icon={<PilePlanIcon id="pile.cpt-settings" />} label={t("plan.cpts")} title={t("plan.cptSettings")} ariaLabel={t("plan.cptSettings")} onClick={() => onOpenTaskPanel?.("cpt-settings")} />
+                  <RibbonButton icon={<PilePlanIcon id="pile.cost-settings" />} label={t("plan.costs")} title={t("plan.costSettings")} ariaLabel={t("plan.costSettings")} onClick={() => onOpenTaskPanel?.("cost-settings")} />
+                  <RibbonButton icon={<PilePlanIcon id="pile.group-settings" />} label={t("plan.groups")} title={t("plan.groupingSettings")} ariaLabel={t("plan.groupingSettings")} onClick={() => onOpenTaskPanel?.("grouping-settings")} />
+                </div>
               </RibbonGroup>
               <RibbonGroup label={t("plan.locking")}>
                 {isLockEditing ? (
                   <>
-                    <RibbonButton icon={applyIcon} label={t("plan.applyLocks")} onClick={onApplyLockEditing} />
+                    <RibbonButton icon={<PilePlanIcon id="data.apply" size={24} />} label={t("plan.applyLocks")} onClick={onApplyLockEditing} />
                     <RibbonButtonStack>
-                      <RibbonButton icon={removeIcon} label={t("plan.cancelLocks")} size="small" onClick={onCancelLockEditing} />
-                      <RibbonButton icon={unlockIcon} label={t("plan.unlockAll")} size="small" onClick={onUnlockAll} />
+                      <RibbonButton icon={<BlueprintIcon id="ui.close" />} label={t("plan.cancelLocks")} size="small" onClick={onCancelLockEditing} />
+                      <RibbonButton icon={<BlueprintIcon id="object.unlock" />} label={t("plan.unlockAll")} size="small" onClick={onUnlockAll} />
                     </RibbonButtonStack>
                   </>
                 ) : (
-                  <RibbonButton icon={lockIcon} label={t("plan.editLocks")} onClick={onStartLockEditing} />
+                  <RibbonButton icon={<BlueprintIcon id="object.unlock" size={24} />} label={t("plan.editLocks")} onClick={onStartLockEditing} />
                 )}
               </RibbonGroup>
               <RibbonGroup label={t("optimize.ilp")}>
-                <RibbonButton icon={optimizeIcon} label={t("ilp.run")} onClick={() => onOpenTaskPanel?.("ilp-optimization")} />
+                <RibbonButton icon={<BlueprintIcon id="pile.optimization" size={24} />} label={t("ilp.run")} onClick={() => onOpenTaskPanel?.("ilp-optimization")} />
               </RibbonGroup>
             </div>
           </div>
         );
       case "view":
         return (
-          <div className="ribbon-content">
+          <div className="ribbon-content ribbon-content--blueprint">
             <div className="ribbon-groups">
               <RibbonGroup label={t("view.symbols")}>
                 <div className="ribbon-slider-control">
                   <span>{t("view.symbolSize")}</span>
                   <RibbonNumericValue label={t("view.symbolSize")} value={symbolScaleDraft} min={10} max={200}
                     onCommit={value=>{onSymbolScaleChangeStart();symbolScaleDraftRef.current=value;setSymbolScaleDraft(value);finishSymbolScale();}}/>
-                  <input
-                    aria-label={t("view.symbolSize")}
+                  <Slider
+                    label={t("view.symbolSize")}
                     max="200"
                     min="10"
                     step="1"
-                    type="range"
                     value={symbolScaleDraft}
                     onChange={(event) => {const value=Number(event.currentTarget.value);symbolScaleDraftRef.current=value;setSymbolScaleDraft(value);}}
                     onPointerDown={onSymbolScaleChangeStart}
@@ -270,49 +254,63 @@ export default function Ribbon({
                 </div>
               </RibbonGroup>
               <RibbonGroup label={t("view.foreground")}>
-                <div className="ribbon-foreground-control" role="group" aria-label={t("view.foreground")}>
-                  <button
-                    className={foregroundLayer === "load-points" ? "is-selected" : ""}
-                    type="button"
+                <div className="ribbon-foreground-control">
+                  <RibbonButton
+                    active={foregroundLayer === "load-points"}
+                    label={t("view.loadPoints")}
                     onClick={() => onForegroundLayerChange("load-points")}
-                  >{t("view.loadPoints")}</button>
-                  <button
-                    className={foregroundLayer === "cpts" ? "is-selected" : ""}
-                    type="button"
+                    icon={<svg className="blueprint-icon" width="24" height="24" viewBox="0 0 16 16" aria-hidden="true" focusable="false">
+                      <circle cx="8" cy="8" r="5" fill="none" stroke="currentColor" strokeWidth="1.25" />
+                      <circle cx="8" cy="8" r="2.5" fill="var(--icon-accent,currentColor)" />
+                    </svg>}
+                  />
+                  <RibbonButton
+                    active={foregroundLayer === "cpts"}
+                    label={t("view.cpts")}
+                    icon={<PilePlanIcon id="pile.cpts" size={24} />}
                     onClick={() => onForegroundLayerChange("cpts")}
-                  >{t("view.cpts")}</button>
+                  />
                 </div>
               </RibbonGroup>
               <RibbonGroup label={t("view.grid")}>
                 <RibbonButton
-                  icon={gridIcon}
-                  label={showGrid ? t("view.hideGrid") : t("view.showGrid")}
+                  active={showGrid}
+                  icon={<BlueprintIcon id="view.grid" size={24} />}
+                  label={t("view.grid")}
+                  title={showGrid ? t("view.hideGrid") : t("view.showGrid")}
                   onClick={() => onGridVisibilityChange(!showGrid)}
                 />
               </RibbonGroup>
               <RibbonGroup label={t("view.regions")}>
                 <RibbonButton
                   className="tip-level-regions-toggle"
-                  icon={tipLevelRegionsIcon}
-                  label={t(tipLevelRegionToggle.labelKey)}
+                  active={showTipLevelRegions}
+                  icon={<PilePlanIcon id="pile.tip-regions" />}
+                  label={t("view.tipLevelRegions")}
+                  title={t(tipLevelRegionToggle.labelKey)}
                   onClick={() => onTipLevelRegionVisibilityChange(tipLevelRegionToggle.nextVisible)}
                 />
                 <RibbonButton
                   active={showLoadPointGroups}
-                  icon={groupsIcon}
-                  label={showLoadPointGroups ? t("view.hideGroups") : t("view.showGroups")}
+                  icon={<PilePlanIcon id="pile.load-groups" />}
+                  label={t("view.groups")}
+                  title={showLoadPointGroups ? t("view.hideGroups") : t("view.showGroups")}
                   onClick={() => onLoadPointGroupVisibilityChange(!showLoadPointGroups)}
                 />
               </RibbonGroup>
               <RibbonGroup label={t("view.windows")}>
                 <RibbonButton
-                  icon={explorerPanelIcon}
-                  label={explorerVisible ? t("view.hideExplorer") : t("view.showExplorer")}
+                  icon={<BlueprintIcon id="panel.left" size={24} />}
+                  active={explorerVisible}
+                  label={t("view.explorer")}
+                  title={explorerVisible ? t("view.hideExplorer") : t("view.showExplorer")}
                   onClick={() => onExplorerVisibilityChange(!explorerVisible)}
                 />
                 <RibbonButton
-                  icon={propertiesPanelIcon}
-                  label={propertiesVisible ? t("view.hideProperties") : t("view.showProperties")}
+                  icon={<BlueprintIcon id="panel.right" size={24} />}
+                  active={propertiesVisible}
+                  label={t("view.properties")}
+                  title={propertiesVisible ? t("view.hideProperties") : t("view.showProperties")}
                   onClick={() => onPropertiesVisibilityChange(!propertiesVisible)}
                 />
               </RibbonGroup>
@@ -323,21 +321,18 @@ export default function Ribbon({
   };
 
   return (
-    <div className="ribbon-container">
+    <div className="oa-app ribbon-container" onKeyDown={event => {
+      // Keep native control activation available when the plan viewer listens globally.
+      if (event.key === " " || event.key === "Enter") event.stopPropagation();
+    }}>
       <div className="ribbon-tabs">
-        <RibbonTab label={t("tabs.file")} isFileTab onClick={() => onFileTabClick?.()} />
-        {TABS.map((tab) => (
-          <RibbonTab
-            key={tab}
-            label={t(`tabs.${tab}`)}
-            isActive={activeTab === tab}
-            onClick={() => setActiveTab(tab)}
-          />
-        ))}
+        <Button kind="primary" className="ribbon-file-button" onClick={onFileTabClick}>{t("tabs.file")}</Button>
+        <Tabs label={t("tabs.label")} tabs={TABS.map(id => ({ id, label: t(`tabs.${id}`) }))}
+          active={activeTab} onSelect={id => setActiveTab(id as TabId)} />
       </div>
 
       <div className="ribbon-content-wrapper">
-        <div className="ribbon-content-panel">{renderContent()}</div>
+        <div className="ribbon-content-panel" role="tabpanel" aria-label={t(`tabs.${activeTab}`)}>{renderContent()}</div>
       </div>
     </div>
   );

@@ -1,6 +1,7 @@
 import { act, fireEvent, render, screen } from "@testing-library/react";
 import { beforeEach, expect, test, vi } from "vitest";
 import SourceDataViewer from "./SourceDataViewer.tsx";
+import i18n from "../../../i18n/config.ts";
 import { projectFixture } from "../../../test/projectFixture.ts";
 
 let resizeCallbacks: Array<() => void> = [];
@@ -91,4 +92,40 @@ test("replacement passes the selected file and allows choosing the same file aga
   fireEvent.change(input, { target: { files: [file] } });
   expect(replace).toHaveBeenCalledWith(file); expect((input as HTMLInputElement).value).toBe("");
   fireEvent.change(input, { target: { files: [file] } }); expect(replace).toHaveBeenCalledTimes(2);
+});
+
+test("source viewer shares Blueprint controls and preserves filter choices and close behavior",()=>{
+  const p=props(),replace=vi.fn();const view=render(<SourceDataViewer {...p} onReplaceSource={replace}/>);
+  expect(view.container.querySelector('.source-sort-button')!.classList.contains('oa-button')).toBe(true);
+  const close=screen.getByRole('button',{name:i18n.t('sourceViewer.backToPlan')});
+  expect(close.classList.contains('oa-icon-button')).toBe(true);
+  expect(screen.getByRole('button',{name:i18n.t('sourceViewer.replace')}).classList.contains('oa-button')).toBe(true);
+  const filter=view.container.querySelector('.source-filter-trigger')!;
+  expect(filter.classList.contains('oa-icon-button')).toBe(true);
+  fireEvent.click(filter);
+  const input=screen.getByRole('textbox');expect(input.classList.contains('oa-field')).toBe(true);
+  const exact=screen.getByRole('button',{name:i18n.t('sourceViewer.exact')});
+  const contains=screen.getByRole('button',{name:i18n.t('sourceViewer.contains')});
+  expect(exact.getAttribute('aria-pressed')).toBe('true');fireEvent.click(contains);
+  expect(contains.getAttribute('aria-pressed')).toBe('true');
+  fireEvent.change(input,{target:{value:String(p.loadPoints[1].id)}});
+  expect(view.container.querySelectorAll('.source-table-row').length).toBeGreaterThan(0);
+  fireEvent.click(screen.getByRole('button',{name:i18n.t('sourceViewer.clear')}));
+  expect((input as HTMLInputElement).value).toBe('');
+  fireEvent.click(close);expect(p.onClose).toHaveBeenCalledOnce();
+});
+
+test("switching source kind clears filters, sorting and an open filter from the previous table",()=>{
+  const p=props(),state=projectFixture();const view=render(<SourceDataViewer {...p}/>);
+  fireEvent.click(view.container.querySelector('.source-sort-button')!);
+  fireEvent.click(view.container.querySelector('.source-filter-trigger')!);
+  fireEvent.change(screen.getByRole('textbox'),{target:{value:String(p.loadPoints[1].id)}});
+  expect(view.container.querySelectorAll('.source-table-row')).toHaveLength(1);
+  view.rerender(<SourceDataViewer {...p} source={state.inputSources.find(s=>s.kind==='cpts')!}/>);
+  expect(screen.queryByRole('textbox')).toBeNull();
+  expect(view.container.querySelectorAll('.source-table-row')).toHaveLength(p.cpts.length);
+  expect(view.container.querySelector('[aria-sort]')).toBeNull();
+  view.rerender(<SourceDataViewer {...p} source={state.inputSources.find(s=>s.kind==='bearing_capacities')!}/>);
+  expect(view.container.querySelectorAll('.source-table-row').length).toBeGreaterThan(0);
+  expect(view.container.querySelectorAll('.source-table-row.is-selectable')).toHaveLength(0);
 });

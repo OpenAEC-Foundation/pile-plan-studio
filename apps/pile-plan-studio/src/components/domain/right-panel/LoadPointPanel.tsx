@@ -24,6 +24,11 @@ import MissingCptPopover from "./MissingCptPopover.tsx";
 import { InactiveLabel, ResistanceLabel, localizeCptName, localizeLoadPointName } from "./PanelControls.tsx";
 import {combinedOptionStatus} from "../../../domain/pile-options/combinedStatus.ts";
 import CombinedStatusPill from "./CombinedStatusPill.tsx";
+import { Button, Checkbox, OpenAECProvider, Panel } from "../../../openaec/react/src/index";
+import spriteUrl from "../../../openaec/studioSprite.ts";
+import PileOptionStatus from "./PileOptionStatus.tsx";
+import "../../../openaec/openaec-components.css";
+import "./pileOptions.css";
 
 export default function LoadPointPanel({
   pileCapProposal=null,pileCapPreview=null,pileCapPending=false,pileCapError=false,onPileCapConfigurationChange=()=>{},
@@ -160,8 +165,20 @@ export default function LoadPointPanel({
   const tableError = pileCapProposal ? (pileCapError?t("pileCap.failed"):null) : selectedCount > 1 && aggregation.status === "error"
     ? aggregation.error
     : state.analysisError;
+  const rowAssignmentPending = pileAssignmentPending || (pileCapProposal ? pileCapPending : false);
   return (
-    <div className="load-point-panel">
+    <OpenAECProvider sprite={spriteUrl}><div className="pile-options-shell" onKeyDown={event => {
+      if ((event.key === " " || event.key === "Enter") && event.target instanceof Element
+        && event.target.closest("button, summary, input[type='checkbox'], .pile-option-row")) event.stopPropagation();
+    }}><Panel className="oa-app load-point-panel pile-options-blueprint" title={t(pileCapProposal ? "pileCap.optionsTitle" : "pileOptions.title")}
+      actions={technicalAssignment.status !== "error" || pileCapProposal ? <div className="pile-options-toolbar">
+        <span className="oa-secondary">{isLoading ? t("pileOptions.loading") : t("pileOptions.shown", { count: tableRows.length })}</span>
+        <PileOptionColumns layout={columnLayout} selectedCount={columnCount} onChange={layout => onColumnLayoutChange(columnMode, layout)} />
+        {hasAssignedSelection ? <Button compact disabled={pileAssignmentPending}
+          onClick={() => pileCapProposal ? onPileCapConfigurationChange(null) : onApplyPileConfiguration(selectedLoadPoints.map(({ id }) => id), null)}>
+          {t("pileOptions.clearAssignment")}
+        </Button> : null}
+      </div> : undefined}>
       {getSelectedGroupConflict(groupAssignmentAssessment, selectedIds) ? (
         <div className="panel-message is-error load-point-group-conflict" role="alert">
           <strong>{t("groupConflict.title")}</strong>
@@ -179,26 +196,6 @@ export default function LoadPointPanel({
 
       {technicalAssignment.status !== "error" || pileCapProposal ? (
       <section className="pile-options-section">
-        <div className="pile-options-heading-stack">
-          <div className="section-heading">
-            <h3>{t(pileCapProposal?"pileCap.optionsTitle":"pileOptions.title")}</h3>
-            <div className="section-heading-actions">
-              <span>{isLoading ? t("pileOptions.loading") : t("pileOptions.shown", { count: tableRows.length })}</span>
-              <PileOptionColumns layout={columnLayout} selectedCount={columnCount}
-                onChange={layout => onColumnLayoutChange(columnMode, layout)} />
-              {hasAssignedSelection ? (
-                <button
-                  className="clear-pile-assignment"
-                  disabled={pileAssignmentPending}
-                  type="button"
-                  onClick={() => pileCapProposal ? onPileCapConfigurationChange(null) : onApplyPileConfiguration(selectedLoadPoints.map(({ id }) => id), null)}
-                >
-                  {t("pileOptions.clearAssignment")}
-                </button>
-              ) : null}
-            </div>
-          </div>
-        </div>
         {pileCapPreview&&pileCapPreview.status!=="active"?<div className="panel-message" role="status">{t(pileCapPreview.status==="missing_cpt_selection"?"pileCap.missingSelection":"pileCap.invalidSource")}</div>:null}
         {!isLoading && tableError ? (
           <div className="right-panel-empty is-inline" role="alert">
@@ -213,11 +210,12 @@ export default function LoadPointPanel({
           </div>
         ) : (
           <div className="pile-options-table-wrap">
-            <table className="pile-options-table">
+            <table className="oa-table pile-options-table" aria-label={t(pileCapProposal ? "pileCap.optionsTitle" : "pileOptions.title")}>
               <thead>
                 <tr>
                   {columns.map((column) => (
-                    <th className={`pile-option-column-${column.key}`} key={column.key}>
+                    <th className={`pile-option-column-${column.key}`} key={column.key} scope="col"
+                      aria-sort={state.pileOptionSort?.column === column.key ? state.pileOptionSort.direction === "asc" ? "ascending" : "descending" : undefined}>
                       {column.key === "symbol" ? (
                         <span className="sr-only">{t("columns.symbol", "Symbol")}</span>
                       ) : (
@@ -251,7 +249,14 @@ export default function LoadPointPanel({
                     <tr
                       className={`pile-option-row${row.key === chosenKey ? " is-chosen" : ""}`}
                       key={row.key}
-                      aria-disabled={pileAssignmentPending}
+                      tabIndex={rowAssignmentPending ? -1 : 0}
+                      aria-selected={row.key === chosenKey}
+                      aria-disabled={rowAssignmentPending}
+                      onKeyDown={event => {
+                        if (event.target === event.currentTarget && (event.key === "Enter" || event.key === " ")) {
+                          event.preventDefault(); event.currentTarget.click();
+                        }
+                      }}
                       onClick={() => pileCapProposal ? (!pileAssignmentPending&&!pileCapPending&&onPileCapConfigurationChange(pileCapPreview?.options.find(o=>pileConfigurationToken(o.configuration)===row.key)?.configuration??null)) : applyPileOption(
                         state,
                         onApplyPileConfiguration,
@@ -261,7 +266,7 @@ export default function LoadPointPanel({
                       )}
                     >
                       {columns.map(({ key }) => (
-                        <td className={key === "symbol" ? "pile-option-symbol-cell" : undefined} key={key}>
+                        <td className={key === "symbol" ? "pile-option-symbol-cell" : ["size", "tip", "cost", "totalCost", "use", "maxUse", "frd", "fed"].includes(key) ? "pile-option-number" : undefined} key={key}>
                           {key === "symbol" ? <span className={row.smallDot ? "is-small-dot" : undefined} dangerouslySetInnerHTML={{ __html: row.symbolHtml }} />
                             : key === "size" ? <>{row.sizeLabel}{!row.sizeActive ? <InactiveLabel /> : null}</>
                             : key === "tip" ? <>{row.tipRegionColor ? (
@@ -285,14 +290,14 @@ export default function LoadPointPanel({
                                 : <span
                                     className={`status-pill ${row.statusClassName}`}
                                     title={row.combined ? (["valid","insufficient_capacity","not_assessed"].includes(row.combined.key) ? undefined : common(`loadDirection.combinedHelp.${row.combined.key}`)) : row.statusClassName === "is-missing" ? t("pileOptions.missingNoCptIdsTitle") : undefined}
-                                  >{row.statusLabel}</span>
+                                  ><PileOptionStatus className={row.statusClassName}>{row.statusLabel}</PileOptionStatus></span>
                             )
                             : key === "cost" ? row.costLabel
                             : key === "totalCost" ? row.totalCostLabel
                             : key === "use" ? row.useLabel
                             : key === "maxUse" ? row.maxUseLabel
                             : key === "governing" ? (row.governingCptId === null ? row.governingLabel : (
-                              <button
+                              <Button compact kind="quiet"
                                 className="cpt-link"
                                 type="button"
                                 onClick={(event) => {
@@ -301,12 +306,12 @@ export default function LoadPointPanel({
                                 }}
                               >
                                 {localizeCptName(row.governingLabel, t)}
-                              </button>
+                              </Button>
                             ))
                             : key === "frd" ? row.frdLabel
                             : key === "fed" ? row.fedLabel
                             : row.criticalLoadPointId === null ? row.criticalLoadPointLabel : (
-                              <button
+                              <Button compact kind="quiet"
                                 className="cpt-link"
                                 type="button"
                                 onClick={(event) => {
@@ -315,7 +320,7 @@ export default function LoadPointPanel({
                                 }}
                               >
                                 {localizeLoadPointName(row.criticalLoadPointLabel, t)}
-                              </button>
+                              </Button>
                             )}
                         </td>
                       ))}
@@ -328,7 +333,7 @@ export default function LoadPointPanel({
         )}
       </section>
       ) : null}
-    </div>
+    </Panel></div></OpenAECProvider>
   );
 }
 
@@ -356,50 +361,47 @@ function ColumnHeader({ column, label, labelText, rows, state, onStateChange }: 
   const filterValues = getPileOptionFilterValues(rows, sortColumn);
   const selectedValues = new Set(state.pileOptionFilters[column] ?? []);
   const sortMark = state.pileOptionSort?.column === column
-    ? state.pileOptionSort.direction === "asc" ? "↑" : "↓"
+    ? state.pileOptionSort.direction === "asc" ? "↓" : "↑"
     : "";
 
   return (
     <div className="column-header">
-      <button
+      <Button compact kind="quiet"
         className="column-sort-button"
         type="button"
+        aria-label={labelText}
         onClick={() => onStateChange({
           ...state,
           pileOptionSort: getNextPileOptionSortState(state.pileOptionSort, sortColumn),
         })}
       >
-        {label} {sortMark}
-      </button>
+        <span>{label}</span><span aria-hidden="true">{sortMark}</span>
+      </Button>
       {filterValues.length > 0 ? (
         <details className="column-filter-menu">
           <summary aria-label={t("filter.label", { label: labelText })}>▾</summary>
           <div className="filter-menu-content">
             <div className="filter-menu-actions">
-              <button
-                type="button"
+              <Button compact
                 onClick={() => onStateChange({
                   ...state,
                   pileOptionFilters: { ...state.pileOptionFilters, [column]: [] },
                 })}
               >
                 {t("actions.clear")}
-              </button>
-              <button
-                type="button"
+              </Button>
+              <Button compact
                 onClick={() => onStateChange({
                   ...state,
                   pileOptionFilters: { ...state.pileOptionFilters, [column]: filterValues },
                 })}
               >
                 {t("actions.all")}
-              </button>
+              </Button>
             </div>
             {filterValues.map((value) => (
-              <label className="filter-value" key={value}>
-                <input
+              <Checkbox className="filter-value" key={value} label={value}
                   checked={selectedValues.has(value)}
-                  type="checkbox"
                   onChange={(event) => {
                     const nextValues = new Set(selectedValues);
                     if (event.currentTarget.checked) {
@@ -413,8 +415,6 @@ function ColumnHeader({ column, label, labelText, rows, state, onStateChange }: 
                     });
                   }}
                 />
-                <span>{value}</span>
-              </label>
             ))}
           </div>
         </details>

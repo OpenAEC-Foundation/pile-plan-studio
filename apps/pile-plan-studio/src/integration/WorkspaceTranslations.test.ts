@@ -4,6 +4,21 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
 describe("Workspace translations", () => {
+  it("names recent-project actions and immediate timestamps in both languages", () => {
+    for (const language of ["nl", "en"]) {
+      const copy = JSON.parse(readFileSync(resolve(import.meta.dirname, `../i18n/locales/${language}/backstage.json`), "utf8")).openPanel;
+      for (const key of ["openRecent", "removeFile"]) assert.ok(copy[key].includes("{{name}}"));
+      assert.equal(copy.justNow, language === "nl" ? "Zojuist" : "Just now");
+    }
+  });
+  it("explains that saving a browser project downloads IFCPP in both languages", () => {
+    for (const language of ["nl", "en"]) {
+      const common = JSON.parse(readFileSync(resolve(import.meta.dirname,
+        `../i18n/locales/${language}/common.json`), "utf8"));
+      assert.match(common.saveProjectDownload ?? "", language === "nl"
+        ? /opslaan.*IFCPP downloaden/i : /save.*download IFCPP/i);
+    }
+  });
   it("labels the per-plan pile cap overview and its selection action in both languages", () => {
     for (const language of ["en", "nl"]) {
       const panel = JSON.parse(readFileSync(resolve(import.meta.dirname, `../i18n/locales/${language}/rightPanel.json`), "utf8")).pileCapOverview;
@@ -354,11 +369,15 @@ describe("Workspace translations", () => {
 
   it("keeps clickable CPT names readable on the light table background", () => {
     const styles = readFileSync(resolve(import.meta.dirname, "../components/domain/right-panel/rightPanel.css"), "utf8");
-    const cptLinkRule = styles.match(/\.cpt-link\s*\{(?<body>[^}]*)\}/s)?.groups?.body ?? "";
+    const cptLinkRule = styles.match(/\.cpt-link:not\(\.oa-button\)\s*\{(?<body>[^}]*)\}/s)?.groups?.body ?? "";
 
     assert.match(cptLinkRule, /color:\s*var\(--theme-text\)/);
     assert.match(cptLinkRule, /text-decoration:\s*underline/);
     assert.doesNotMatch(cptLinkRule, /--theme-accent-text/);
+    const blueprintStyles = readFileSync(resolve(import.meta.dirname, "../components/domain/right-panel/pileOptions.css"), "utf8");
+    const sharedLinkRule = blueprintStyles.match(/\.pile-options-blueprint \.cpt-link\.oa-button[^{}]*\{(?<body>[^}]*)\}/s)?.groups?.body ?? "";
+    assert.match(sharedLinkRule, /color:\s*var\(--oa-text\)/);
+    assert.match(sharedLinkRule, /text-decoration:\s*underline/);
   });
 
   it("translates project import copy and uses foundation advice terminology", () => {
@@ -387,10 +406,12 @@ describe("Workspace translations", () => {
     assert.match(nl.importProject.pileHeadLevelHelp, /afhakniveau/);
     assert.equal(nl.projectInformation.pileHeadLevel, "Peil t.o.v. NAP (m)");
     assert.match(nl.projectInformation.pileHeadLevelHelp, /afhakniveau/);
+    assert.equal(nl.projectInformation.pileHeadLevelInfo, "Uitleg bij het peil");
     assert.equal(en.importProject.pileHeadLevel, "Reference level (m)");
     assert.match(en.importProject.pileHeadLevelHelp, /pile cut-off level/);
     assert.equal(en.projectInformation.pileHeadLevel, "Reference level (m)");
     assert.match(en.projectInformation.pileHeadLevelHelp, /pile cut-off level/);
+    assert.equal(en.projectInformation.pileHeadLevelInfo, "About the reference level");
   });
 
   it("translates the pile plan import workflow consistently", () => {
@@ -525,4 +546,13 @@ it("labels missing costs explicitly in both explorer languages",()=>{
   assert.match(copy.missingCostsLabel,/{{count}}/);
   assert.ok(copy.costsUnavailable?.trim());
  }
+});
+
+it("provides actionable pile-plan import guidance in Dutch and English", () => {
+  for(const language of ["nl","en"]){
+    const copy=JSON.parse(readFileSync(resolve(import.meta.dirname,`../i18n/locales/${language}/backstage.json`),"utf8")).pilePlanImport;
+    for(const key of ["pileColumnsRequired","mapImportColumns","chooseCategory","noChanges"])assert.ok(copy[key]?.trim(),`${language}: ${key}`);
+    assert.match(copy.chooseCategory,language==="nl"?/Paaltoewijzingen.*Sonderingselecties/:/Pile assignments.*CPT selections/);
+    assert.match(copy.pileColumnsRequired,language==="nl"?/paalafmeting.*paalpuntniveau/:/pile size.*pile tip level/);
+  }
 });

@@ -1,0 +1,38 @@
+/* App-owned dialog geometry; Blueprint supplies field and button styling. */
+.project-information-blueprint { display: contents; }
+.project-information-blueprint > .oa-dialog {
+  width: min(480px, calc(100vw - 32px));
+  max-height: calc(100vh - 32px);
+  overflow: visible;
+}
+.project-information-blueprint > .oa-dialog > .oa-heading { margin-bottom: 20px; padding-right: 32px; }
+.project-information-close { position: absolute; top: 16px; right: 16px; }
+.project-information-form { display: grid; gap: 16px; }
+.project-information-form .oa-label,
+.project-information-reference {
+  grid-template-columns: minmax(125px, 0.75fr) minmax(0, 1.25fr);
+  align-items: center;
+  gap: 8px 12px;
+  min-width: 0;
+}
+.project-information-form .oa-field { width: 100%; min-width: 0; text-align: left; }
+/* The trigger sits beside the shared field label, outside the label element. */
+.project-information-reference { display: grid; position: relative; }
+.project-information-reference > .oa-label { grid-column: 1 / -1; grid-row: 1; }
+.project-information-reference > .oa-label > label { padding-right: 24px; }
+.project-information-reference > .project-information-help-button {
+  grid-column: 1; grid-row: 1; justify-self: end; align-self: start; margin-top: 4px;
+  position: static;
+}
+/* Keep Blueprint's tooltip decoration, wrap the long help across the field row. */
+.project-information-help-button[data-oa-tip]::after {
+  left: 0; right: 0; transform: none; white-space: normal; text-align: left;
+  max-height: 180px; overflow: auto; pointer-events: auto;
+}
+.project-information-blueprint .oa-dialog-actions { flex-wrap: wrap; }
+@media (max-width: 480px) {
+  .project-information-form .oa-label,
+  .project-information-reference { grid-template-columns: minmax(0, 1fr); gap: 4px; }
+  .project-information-reference > .oa-label > label { min-height: 20px; }
+  .project-information-reference > .project-information-help-button { margin-top: 0; }
+}

@@ -9,31 +9,27 @@
 }
 
 .action-notice {
-  display: -webkit-box;
   max-width: 100%;
   margin: 0 auto;
   overflow: hidden;
-  padding: 7px 12px;
-  color: #ffffff;
-  background: rgba(34, 34, 38, 0.94);
-  border: 1px solid rgba(255, 255, 255, 0.16);
-  border-radius: 4px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.24);
-  font-size: 12px;
-  line-height: 1.35;
-  text-align: center;
+  border-radius: var(--oa-radius-medium);
+  box-shadow: var(--oa-shadow-popup);
   pointer-events: none;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
   animation:
     action-notice-enter 120ms ease-out,
     action-notice-fade 180ms ease-in 3.2s forwards;
 }
 
-.action-notice.is-error {
-  border-color: #c94343;
-  background: rgba(92, 28, 28, 0.96);
+.action-notice .oa-banner > b:empty { display: none; }
+.action-notice .oa-banner > span {
+  min-width: 0;
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
 }
+/* The pinned generic Banner icon rule otherwise overrides its error colour. */
+.action-notice .oa-banner--error > .oa-icon { color: var(--oa-error); }
 
 @keyframes action-notice-enter {
   from {

@@ -20,6 +20,8 @@ export type PilePlanImportDraft<TFile> = {
   coordinateToleranceMm: string;
   importPileAssignments: boolean;
   importCptSelections: boolean;
+  /** User intent survives temporary unavailability while columns are mapped. */
+  categoryChoices: { piles: boolean; cpts: boolean };
   previewState: PilePlanImportPreviewState;
 };
 
@@ -30,6 +32,7 @@ export function createPilePlanImportDraft<TFile>(): PilePlanImportDraft<TFile> {
     coordinateToleranceMm: "1",
     importPileAssignments: true,
     importCptSelections: true,
+    categoryChoices: { piles: true, cpts: true },
     previewState: { status: "empty" },
   };
 }
@@ -45,15 +48,12 @@ export function setPilePlanImportProfile<TFile>(
   draft: PilePlanImportDraft<TFile>,
   requestedProfile: PilePlanImportProfile,
 ): PilePlanImportDraft<TFile> {
-  const cptSelectionsWereUnavailable = !canImportCptSelections(draft);
   return {
     ...draft,
     requestedProfile, table:null,locationDecisions:null,
     importCptSelections: requestedProfile === "legacy"
       ? false
-      : cptSelectionsWereUnavailable
-        ? true
-        : draft.importCptSelections,
+      : draft.categoryChoices.cpts,
     previewState: { status: "empty" },
   };
 }
@@ -72,6 +72,7 @@ export function setPilePlanImportCategory<TFile>(
 ): PilePlanImportDraft<TFile> {
   return {
     ...draft,
+    categoryChoices: { ...draft.categoryChoices, [category]: enabled },
     importPileAssignments: category === "piles" ? enabled : draft.importPileAssignments,
     importCptSelections: category === "cpts" ? enabled : draft.importCptSelections,
     previewState: { status: "empty" },
@@ -96,8 +97,8 @@ export function applyPilePlanImportPreview<TFile>(
   return {
     ...draft,
     table:preview.table?.settings??draft.table,lastPreview:preview,
-    importPileAssignments:preview.supportsPileAssignments===false?false:draft.importPileAssignments,
-    importCptSelections: preview.supportsCptSelections ? draft.importCptSelections : false,
+    importPileAssignments:preview.supportsPileAssignments!==false&&draft.categoryChoices.piles,
+    importCptSelections: preview.supportsCptSelections&&draft.requestedProfile!=="legacy"&&draft.categoryChoices.cpts,
     previewState: { status: "ready", requestId, preview },
   };
 }

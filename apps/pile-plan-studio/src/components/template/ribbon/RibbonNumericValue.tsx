@@ -1,5 +1,7 @@
 import {useLayoutEffect,useRef,useState} from "react";
 import {useTranslation} from "react-i18next";
+import { NumberInput } from "../NumberInput.tsx";
+import { Button } from "../../../openaec/react/src/index";
 
 type Props={label:string;value:number;min:number;max:number;suffix?:string;onCommit:(value:number)=>void};
 
@@ -21,16 +23,16 @@ export default function RibbonNumericValue({label,value,min,max,suffix="%",onCom
     }
   };
   if(editing)return <span className="ribbon-numeric-editor">
-    <input ref={input} type="number" inputMode="numeric" aria-label={label} min={min} max={max} step="1"
-      value={draft} onChange={event=>setDraft(event.currentTarget.value)} onBlur={()=>finish(true)}
+    <NumberInput inputRef={input} compact type="number" inputMode="numeric" aria-label={label} min={min} max={max} step="1"
+      value={draft} onValueChange={setDraft} onBlur={()=>finish(true)}
       onKeyDown={event=>{
         event.stopPropagation();
         if(event.key==="Enter"||event.key==="Escape"){event.preventDefault();finish(event.key==="Enter");}
       }}/>
     {suffix&&<span aria-hidden="true">{suffix}</span>}
   </span>;
-  return <button type="button" className="ribbon-numeric-value"
+  return <Button kind="quiet" className="ribbon-numeric-value"
     aria-label={t("view.editValue",{label})} onClick={()=>{setDraft(String(value));active.current=true;setEditing(true);}}>
     {value}{suffix}
-  </button>;
+  </Button>;
 }

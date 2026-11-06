@@ -1,0 +1,125 @@
+/* Application chrome; swatch colors and symbol markup remain project-owned. */
+.pile-plan-legend {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  align-content: flex-start;
+  gap: 4px 14px;
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--oa-border);
+  overflow: visible;
+  flex-wrap: wrap;
+  background: var(--oa-frame);
+  color: var(--oa-text);
+  font-size: var(--oa-size-body);
+}
+
+.legend-group {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+
+.legend-group.is-size {
+  flex: 0 0 auto;
+  max-width: 100%;
+}
+
+.legend-group.is-tip {
+  flex: 1 1 420px;
+  min-width: min(260px, 100%);
+}
+
+.legend-title {
+  font-weight: var(--oa-weight-medium);
+}
+
+.legend-region-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  color: var(--oa-text-secondary);
+  font-size: var(--oa-size-label);
+  white-space: nowrap;
+}
+
+.legend-region-status.is-unavailable {
+  color: var(--oa-accent-text);
+}
+
+.legend-item.oa-button {
+  height: 24px;
+  min-width: 0;
+  gap: 4px;
+  padding: 1px 3px;
+  font-weight: var(--oa-weight-regular);
+  white-space: nowrap;
+}
+
+.legend-item.oa-button.is-selected {
+  border-color: var(--oa-selected-bar);
+  background: var(--oa-selected);
+}
+
+.legend-item.is-unused {
+  opacity: 0.35;
+}
+
+.legend-item.is-disabled-used .legend-item-label {
+  text-decoration: line-through;
+}
+
+.legend-warning {
+  display: inline-grid;
+  width: 14px;
+  height: 14px;
+  place-items: center;
+  border: 1px solid currentColor;
+  border-radius: 50%;
+  color: var(--oa-accent-text);
+  font-size: 9px;
+  font-weight: var(--oa-weight-medium);
+  line-height: 1;
+}
+
+.legend-actions {
+  display: inline-flex;
+  margin-left: auto;
+  gap: 2px;
+  flex: 0 0 auto;
+}
+
+.legend-control-button.oa-icon-button {
+  width: 24px;
+  height: 24px;
+}
+
+.legend-symbol,
+.legend-color {
+  display: inline-grid;
+  width: 14px;
+  height: 14px;
+  place-items: center;
+  flex: 0 0 auto;
+}
+
+.legend-symbol .pile-symbol-svg {
+  width: 14px;
+  height: 14px;
+}
+
+.legend-symbol.is-small-dot .pile-symbol-svg {
+  width: 6px;
+  height: 6px;
+}
+
+.legend-color {
+  border: 1px solid var(--oa-border-strong);
+  border-radius: 3px;
+}
+
+.legend-color.is-region {
+  border-radius: 0;
+}
+

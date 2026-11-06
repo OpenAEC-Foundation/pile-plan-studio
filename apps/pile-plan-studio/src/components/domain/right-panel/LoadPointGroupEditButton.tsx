@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { Button } from "../../../openaec/react/src/index";
 
 import type {
   LoadPointGroup,
@@ -23,7 +24,9 @@ export default function LoadPointGroupEditButton({
   editPending,
   onPreview,
   onApply,
+  variant,
 }: {
+  variant?: "blueprint";
   selectedLoadPointIds: number[];
   groups: LoadPointGroup[];
   editPending: boolean;
@@ -66,6 +69,8 @@ export default function LoadPointGroupEditButton({
     ? t(`groupActions.blocked.${buttonModel.tooltipReason}`)
     : undefined;
 
+  const EditButton = variant === "blueprint" ? Button : "button";
+
   return (
     <span
       aria-label={tooltip}
@@ -73,14 +78,14 @@ export default function LoadPointGroupEditButton({
       tabIndex={tooltip ? 0 : undefined}
       title={tooltip}
     >
-      <button
-        className="load-point-group-edit-button"
+      <EditButton
+        className={variant === "blueprint" ? undefined : "load-point-group-edit-button"}
         disabled={buttonModel.disabled}
         type="button"
         onClick={() => void onApply(action, selectedIds)}
       >
         {t(action === "group" ? "groupActions.group" : "groupActions.ungroup")}
-      </button>
+      </EditButton>
     </span>
   );
 }

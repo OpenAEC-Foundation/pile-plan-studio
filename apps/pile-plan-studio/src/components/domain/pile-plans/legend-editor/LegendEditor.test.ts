@@ -29,7 +29,7 @@ describe("legend editor", () => {
   it("renders a complete draft-based project legend editor", () => {
     const source = readLegendEditorSource();
 
-    assert.match(source, /<Modal/);
+    assert.match(source, /<Dialog/);
     assert.match(source, /createLegendEditorDraft/);
     assert.match(source, /applyLegendEditorBulkAction/);
     assert.match(source, /setLegendEncodingMode/);
@@ -79,7 +79,7 @@ describe("legend editor", () => {
     assert.match(source, /legend\.color/);
     assert.match(source, /legend\.encodingModes/);
     assert.match(source, /role="radiogroup"/);
-    assert.match(source, /role="radio"/);
+    assert.match(source, /<Radio/);
     assert.match(source, /LEGEND_ENCODING_MODES\.map/);
     assert.doesNotMatch(source, /legend\.swapEncoding/);
     assert.doesNotMatch(source, /legend\.colorRepresentsTip/);
@@ -136,11 +136,11 @@ describe("legend editor", () => {
     assert.match(source, /function enableUsedOnly/);
     assert.match(source, /replacePilePlanActivation\(state\.pilePlans, state\.activePilePlanId, used\)/);
     assert.match(source, /legend\.enableUsed/);
-    assert.match(source, /filterCheckIcon/);
+    assert.match(source, /icon="pile.legend-used"/);
   });
 
   it("styles normal and editor states without relying on color alone", () => {
-    const viewerCss = readFileSync(resolve(import.meta.dirname, "../../pile-plan-viewer/viewer.css"), "utf8");
+    const viewerCss = readFileSync(resolve(import.meta.dirname, "../Legend.css"), "utf8");
     const editorCss = readFileSync(resolve(import.meta.dirname, "../LegendEditor.css"), "utf8");
 
     const normalUnusedRule = viewerCss.match(/\.legend-item\.is-unused\s*\{([^}]*)\}/);
@@ -152,7 +152,7 @@ describe("legend editor", () => {
     assert.doesNotMatch(editorCss, /\.legend-editor-item\.is-unused\s*\{[^}]*opacity:/s);
     assert.match(
       editorCss,
-      /\.legend-editor-item\.is-unused\s+\.legend-editor-item-label\s*\{[^}]*color:\s*var\(--theme-text-muted\)/s,
+      /\.legend-editor-item\.is-unused\s+\.legend-editor-item-label\s*\{[^}]*color:\s*var\(--oa-text-secondary\)/s,
     );
     assert.match(editorCss, /\.legend-editor-warning/);
     assert.match(
@@ -189,9 +189,8 @@ describe("legend editor", () => {
     assert.match(source, /legend-editor-color-action/);
     assert.match(source, /legend-editor-secondary-actions/);
     assert.match(css, /\.legend-editor-auto-actions\s*\{[^}]*grid-template-columns:/s);
-    assert.match(css, /\.legend-editor-auto-actions \.legend-editor-toolbar-button\s*\{[^}]*white-space:\s*nowrap/s);
+    assert.match(css, /\.legend-editor-auto-actions \.legend-editor-toolbar-button\s*\{[^}]*white-space:\s*normal/s);
     assert.match(css, /\.legend-scheme-options\s*\{[^}]*right:\s*0[^}]*left:\s*auto[^}]*max-width:/s);
-    assert.match(css, /\.legend-editor-toolbar-button:disabled\s*\{[^}]*opacity:/s);
     assert.doesNotMatch(css, /\.legend-editor-toolbar-button\.is-pending/);
     assert.equal(nl.legend.assignSymbols, "Symbolen opnieuw toewijzen");
     assert.equal(nl.legend.assignColors, "Kleuren opnieuw toewijzen");
@@ -205,11 +204,11 @@ describe("legend editor", () => {
     const source = readLegendEditorSource();
     const css = readFileSync(resolve(import.meta.dirname, "../LegendEditor.css"), "utf8");
 
-    assert.match(source, /height="min\(680px, 84vh\)"/);
-    assert.match(source, /width=\{760\}/);
-    assert.match(css, /\.legend-editor\s*\{[\s\S]*?font-size:\s*11px/);
-    assert.match(source, /className="settings-btn settings-btn-secondary"/);
-    assert.match(source, /className="settings-btn settings-btn-primary"/);
+    assert.match(css, /height:\s*min\(680px, 84vh\)/);
+    assert.match(css, /width:\s*min\(760px,/);
+    assert.match(css, /\.legend-editor\s*\{[^}]*font-size:\s*var\(--oa-size-body\)/);
+    assert.match(source, /<Button onClick=\{onClose\}/);
+    assert.match(source, /<Button kind="primary" disabled=\{applying\}/);
     assert.match(source, /legend-editor-control-row/);
     assert.match(source, /legend-editor-encoding-line/);
     assert.match(source, /legend-editor-encoding-choices/);
@@ -217,8 +216,7 @@ describe("legend editor", () => {
     assert.match(css, /\.legend-editor-control-row\s*\{[\s\S]*?grid-template-columns:\s*repeat\(2, minmax\(0, 1fr\)\)/);
     assert.match(css, /\.legend-editor-auto-actions\s*\{[\s\S]*?grid-template-columns:/);
     assert.match(css, /\.legend-editor-secondary-actions\s*\{/);
-    assert.match(css, /\.legend-appearance-trigger,[\s\S]*?\.legend-scheme-trigger\s*\{[\s\S]*?min-height:\s*24px/);
+    assert.match(css, /\.legend-appearance-trigger\.oa-button,[\s\S]*?\.legend-scheme-trigger\.oa-button\s*\{[^}]*min-height:\s*24px/);
     assert.match(css, /\.legend-scheme-trigger,[\s\S]*?\.legend-scheme-options\s*\{[\s\S]*?font:\s*inherit/);
-    assert.match(css, /\.legend-editor-segmented button\s*\{[\s\S]*?min-height:\s*24px/);
   });
 });

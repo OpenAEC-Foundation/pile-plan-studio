@@ -110,11 +110,23 @@ positions or thickness alternate between physical pixels after layout changes.
 
 The plan viewer distinguishes application chrome from the engineering drawing.
 Panels, controls, and text outside the canvas follow the selected application
-theme. The drawing canvas remains white in every theme.
+theme. The drawing canvas follows the saved application preference for plan
+background: Theme (default), Light or Dark. The Blueprint workspace tokens own
+the background, and high-contrast themes enforce their own workspace palette.
+This preference is outside project content and does not change drawing geometry.
+
+Neutral CPT fills, outlines and number text use workspace-specific contrast
+roles. Numbers use Inter AEC and a thin backing stroke to remain legible against
+both the triangle and overlapping geometry. Resolve their contrast from the
+workspace, not from application text: an explicit light plan may accompany a
+dark interface. Palette changes repaint the canvas grid without committing a
+viewport or recalculating the project transform.
+Selected CPT outlines use the same fixed orange as selected load-point groups,
+not the theme's text-accent role (which is brown in Light and gold in Dark).
 
 Use theme variables for viewer controls and surfaces that belong to the
 application chrome. Use explicit viewer-owned colors for project annotations
-that must retain the same meaning and appearance on the drawing canvas.
+that must retain the same meaning and appearance on either drawing background.
 Load-point group contours are such annotations: their gray, orange-selection,
 and red-conflict strokes must remain fixed across light and dark themes and must
 not use themed text-color variables. The overlay unions marker-radius circles,

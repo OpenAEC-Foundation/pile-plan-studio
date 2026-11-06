@@ -8,6 +8,7 @@ export type BrowserRecoveryRecord = {
   ifcppText: string;
   savedProjectSignature: string;
   isDirty: boolean;
+  recentProjectKey?: string;
 };
 
 type CreateBrowserRecoveryRecordInput = {
@@ -17,6 +18,7 @@ type CreateBrowserRecoveryRecordInput = {
   ifcppText: string;
   savedProjectSignature: string;
   isDirty: boolean;
+  recentProjectKey?: string;
 };
 
 export function createBrowserRecoveryRecord(
@@ -30,6 +32,7 @@ export function createBrowserRecoveryRecord(
     ifcppText: input.ifcppText,
     savedProjectSignature: input.savedProjectSignature,
     isDirty: input.isDirty,
+    ...(input.recentProjectKey ? { recentProjectKey: input.recentProjectKey } : {}),
   };
 }
 
@@ -43,6 +46,11 @@ export function parseBrowserRecoveryRecord(value: unknown): BrowserRecoveryRecor
   if (typeof value.savedProjectSignature !== "string") return null;
   if (typeof value.isDirty !== "boolean") return null;
 
+  if (value.recentProjectKey !== undefined
+    && (typeof value.recentProjectKey !== "string" || !value.recentProjectKey.startsWith("browser:"))) {
+    const { recentProjectKey: _ignored, ...record } = value;
+    return record as BrowserRecoveryRecord;
+  }
   return value as BrowserRecoveryRecord;
 }
 

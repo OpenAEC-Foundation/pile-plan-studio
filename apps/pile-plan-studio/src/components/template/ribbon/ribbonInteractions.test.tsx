@@ -15,15 +15,55 @@ function props() {
     onTipLevelRegionVisibilityChange: vi.fn(), onLoadPointGroupVisibilityChange: vi.fn(),
     onExplorerVisibilityChange: vi.fn(), onPropertiesVisibilityChange: vi.fn(), onOpenTaskPanel: vi.fn() };
 }
-function openView() { fireEvent.click(screen.getByRole("button", { name: t("tabs.view") })); }
+function openView() { fireEvent.click(screen.getByRole("tab", { name: t("tabs.view") })); }
 
-test("view toggles send independent visibility changes", () => {
-  const p = props(); render(<Ribbon {...p} />); openView();
-  for (const [key, callback, value] of [
-    ["view.showGrid", p.onGridVisibilityChange, true], ["view.showGroups", p.onLoadPointGroupVisibilityChange, true],
-    ["view.hideExplorer", p.onExplorerVisibilityChange, false], ["view.showProperties", p.onPropertiesVisibilityChange, true],
-  ] as const) {
-    fireEvent.click(screen.getByRole("button", { name: t(key) })); expect(callback).toHaveBeenCalledWith(value);
+test("ribbon tabs have roving keyboard selection and keep activation out of the viewer", () => {
+  const p = { ...props(), onFileTabClick: vi.fn() };
+  const viewerKey = vi.fn();
+  render(<div onKeyDown={viewerKey}><Ribbon {...p} /></div>);
+  const plan = screen.getByRole("tab", { name: t("tabs.plan") });
+  const view = screen.getByRole("tab", { name: t("tabs.view") });
+  expect(plan.tabIndex).toBe(0);
+  expect(view.tabIndex).toBe(-1);
+  plan.focus();
+  fireEvent.keyDown(plan, { key: "ArrowRight" });
+  expect(document.activeElement).toBe(view);
+  expect(view.getAttribute("aria-selected")).toBe("true");
+  expect(screen.getByRole("tabpanel", { name: t("tabs.view") })).toBeTruthy();
+  fireEvent.keyDown(view, { key: "Home" });
+  expect(document.activeElement).toBe(plan);
+  viewerKey.mockClear();
+  fireEvent.keyDown(plan, { key: " " });
+  fireEvent.keyDown(plan, { key: "Enter" });
+  expect(viewerKey).not.toHaveBeenCalled();
+  fireEvent.keyDown(plan, { key: "z", ctrlKey: true });
+  expect(viewerKey).toHaveBeenCalledOnce();
+  fireEvent.click(screen.getByRole("button", { name: t("tabs.file") }));
+  expect(p.onFileTabClick).toHaveBeenCalledOnce();
+  expect(plan.getAttribute("aria-selected")).toBe("true");
+});
+
+test("view toggles retain their names while pressed states, action tips and callbacks follow visibility", () => {
+  const p = props(); const view = render(<Ribbon {...p} />); openView();
+  const toggles = [
+    ["grid", "Grid", p.onGridVisibilityChange, false],
+    ["tipLevelRegions", "TipLevelRegions", p.onTipLevelRegionVisibilityChange, false],
+    ["groups", "Groups", p.onLoadPointGroupVisibilityChange, false],
+    ["explorer", "Explorer", p.onExplorerVisibilityChange, true],
+    ["properties", "Properties", p.onPropertiesVisibilityChange, false],
+  ] as const;
+  for (const [key, action, callback, visible] of toggles) {
+    const button = screen.getByRole("button", { name: t(`view.${key}`) });
+    expect(button.getAttribute("aria-pressed")).toBe(String(visible));
+    expect(button.getAttribute("data-tooltip")).toBe(t(`view.${visible ? "hide" : "show"}${action}`));
+    fireEvent.click(button); expect(callback).toHaveBeenCalledExactlyOnceWith(!visible);
+  }
+  view.rerender(<Ribbon {...p} showGrid showTipLevelRegions showLoadPointGroups explorerVisible={false} propertiesVisible />);
+  for (const [key, action, callback, wasVisible] of toggles) {
+    const button = screen.getByRole("button", { name: t(`view.${key}`) });
+    expect(button.getAttribute("aria-pressed")).toBe(String(!wasVisible));
+    expect(button.getAttribute("data-tooltip")).toBe(t(`view.${wasVisible ? "show" : "hide"}${action}`));
+    fireEvent.click(button); expect(callback).toHaveBeenLastCalledWith(wasVisible);
   }
 });
 
@@ -134,12 +174,53 @@ test.each(["view.symbolSize","view.minimumUtilization","view.maximumUtilization"
 
 test("optimization and lock draft controls route to their callbacks", () => {
   const p = props(); const view = render(<Ribbon {...p} />);
+  expect(screen.getByRole("button", { name: t("plan.editLocks") }).querySelector("use")?.getAttribute("href") ?? "")
+    .toMatch(/#i24-object\.unlock$/);
+  expect(screen.getByRole("button", { name: t("ilp.run") }).querySelector("use")?.getAttribute("href") ?? "")
+    .toMatch(/#i24-pile\.optimization$/);
   fireEvent.click(screen.getByRole("button", { name: t("ilp.run") })); expect(p.onOpenTaskPanel).toHaveBeenCalledWith("ilp-optimization");
   fireEvent.click(screen.getByRole("button", { name: t("plan.editLocks") })); expect(p.onStartLockEditing).toHaveBeenCalledOnce();
   view.rerender(<Ribbon {...p} isLockEditing />);
+  for (const [key, id, size] of [["plan.applyLocks", "data.apply", 24], ["plan.cancelLocks", "ui.close", 16], ["plan.unlockAll", "object.unlock", 16]] as const) {
+    expect(screen.getByRole("button", { name: t(key) }).querySelector("use")?.getAttribute("href") ?? "")
+      .toContain(`#i${size}-${id}`);
+  }
   for (const [key, callback] of [["plan.applyLocks", p.onApplyLockEditing], ["plan.cancelLocks", p.onCancelLockEditing], ["plan.unlockAll", p.onUnlockAll]] as const) {
     fireEvent.click(screen.getByRole("button", { name: t(key) })); expect(callback).toHaveBeenCalledOnce();
   }
+});
+
+test("Plan shared artwork preserves named actions and the disabled selection toggle", () => {
+  const p = { ...props(), onOpenProjectInformation: vi.fn(), onOpenRightPanel: vi.fn() };
+  const view = render(<Ribbon {...p} />);
+  const project = screen.getByRole("button", { name: t("project.information") });
+  expect(project.querySelector("use")?.getAttribute("href") ?? "").toMatch(/#i24-project\.properties$/);
+  fireEvent.click(project); expect(p.onOpenProjectInformation).toHaveBeenCalledOnce();
+  for (const [key, panel, icon] of [["plan.cptSettings", "cpt-settings", "pile.cpt-settings"], ["plan.costSettings", "cost-settings", "pile.cost-settings"], ["plan.groupingSettings", "grouping-settings", "pile.group-settings"]] as const) {
+    const button = screen.getByRole("button", { name: t(key) });
+    expect(button.querySelector("use")?.getAttribute("href") ?? "").toContain(`#i24-${icon}`);
+    expect(button.getAttribute("data-tooltip")).toBe(t(key));
+    expect(button.querySelector(".ribbon-btn-label")?.textContent).not.toBe(t(key));
+    expect(button.querySelector(".ribbon-btn-label")?.textContent).toBeTruthy();
+    fireEvent.click(button); expect(p.onOpenTaskPanel).toHaveBeenCalledWith(panel);
+  }
+  for (const [key, mode, icon] of [["plan.loadPoints", "load-point", "pile.options"], ["plan.cpts", "cpts", "pile.cpts"]] as const) {
+    const button = screen.getByRole("button", { name: t(key) });
+    expect(button.querySelector("use")?.getAttribute("href") ?? "").toContain(`#i24-${icon}`);
+    fireEvent.click(button);
+    expect(p.onOpenRightPanel).toHaveBeenCalledWith(mode);
+  }
+  const pileCaps = screen.getByRole("button", { name: t("plan.pileCapChanges") });
+  expect(pileCaps.querySelector("use")?.getAttribute("href") ?? "").toMatch(/#i24-pile\.cap-changes$/);
+  fireEvent.click(pileCaps); expect(p.onOpenTaskPanel).toHaveBeenCalledWith("pile-cap-changes");
+  view.rerender(<Ribbon {...p} isLassoSelectionActive lassoSelectionDisabled />);
+  const selection = screen.getByRole("button", { name: t("plan.lassoSelection") });
+  expect(selection.querySelector("use")?.getAttribute("href") ?? "").toMatch(/#i24-edit\.select-rectangle$/);
+  expect(selection.getAttribute("aria-pressed")).toBe("true");
+  expect((selection as HTMLButtonElement).disabled).toBe(true);
+  fireEvent.click(selection); expect(p.onToggleLassoSelection).not.toHaveBeenCalled();
+  openView();
+  expect(screen.queryByRole("button", { name: t("project.information") })).toBeNull();
 });
 
 import RibbonButton from "./RibbonButton.tsx";
@@ -149,5 +230,5 @@ test("ribbon buttons omit help that merely repeats their visible label",()=>{
  view.rerender(<RibbonButton icon="" label="Projectinformatie" title="Projectinformatie"/>);
  expect(screen.getByRole("button").hasAttribute("title")).toBe(false);
  view.rerender(<RibbonButton icon="" label="Kaderselectie" title="Shift+slepen"/>);
- expect(screen.getByRole("button").getAttribute("title")).toBe("Shift+slepen");
+ expect(screen.getByRole("button").getAttribute("data-tooltip")).toBe("Shift+slepen");
 });

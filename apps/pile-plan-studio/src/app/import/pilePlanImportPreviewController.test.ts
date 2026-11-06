@@ -2,7 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { createPilePlanImportPreviewController } from "./pilePlanImportPreviewController.ts";
 import { createPilePlanImportDraft, setPilePlanImportFile, setPilePlanImportProfile,
-  setPilePlanImportTolerance, setPilePlanImportCategory } from "../../domain/imports/pilePlanImportModel.ts";
+  setPilePlanImportTolerance, setPilePlanImportCategory, setPilePlanImportTable } from "../../domain/imports/pilePlanImportModel.ts";
 import type { PilePlanImportPreview, PilePlanImportRequest } from "../../core/pilePlanImportContract.ts";
 
 function deferred<T>() {
@@ -126,4 +126,37 @@ test("invalidation also guards a result update queued by React", async () => {
   controller.invalidate(); const before = draft;
   for (const update of queued) draft = update(draft);
   assert.equal(draft, before);
+});
+
+test("mapping missing pile columns restores the requested import and evaluates the enabled patch", async () => {
+  let draft = setPilePlanImportFile(createPilePlanImportDraft<File>(), file());
+  const context = { loadPoints: [], cpts: [], availablePileConfigurations: [] };
+  const requests: PilePlanImportRequest[] = [];
+  const controller = createPilePlanImportPreviewController({ currentContext: () => context,
+    update: change => { draft = change(draft); },
+    evaluate: async request => {
+      requests.push(request);
+      const mapped = request.options.table?.columns?.length === 2;
+      return { ...result(), supportsPileAssignments: mapped, supportsCptSelections: false,
+        canApply: mapped && request.options.importPileAssignments,
+        patch: { changes: mapped && request.options.importPileAssignments ? [{ load_point_id: 1,
+          pile: { action: "set", value: { pile_size_mm: 320, pile_tip_level_mm: -18500 } }, manual_cpt_ids: { action: "preserve" } }] : [] } };
+    },
+  });
+  await controller.preview(draft);
+  assert.equal(draft.importPileAssignments, false);
+  const columns = [{ column: 1, field: "pile-size" }, { column: 2, field: "tip-level" }];
+  await controller.preview(setPilePlanImportTable(draft, { columns }));
+  assert.equal(draft.importPileAssignments, true);
+  assert.equal(draft.previewState.status, "ready");
+  if (draft.previewState.status === "ready") {
+    assert.equal(draft.previewState.preview.canApply, true);
+    assert.equal(draft.previewState.preview.patch.changes[0].pile.action, "set");
+  }
+  assert.equal(requests.at(-1)?.options.importPileAssignments, true);
+  await controller.preview(setPilePlanImportCategory(draft, "piles", false));
+  await controller.preview(setPilePlanImportTable(draft, { columns: [] }));
+  await controller.preview(setPilePlanImportTable(draft, { columns }));
+  assert.equal(draft.importPileAssignments, false, "a deliberate opt-out survives remapping");
+  assert.equal(requests.at(-1)?.options.importPileAssignments, false);
 });

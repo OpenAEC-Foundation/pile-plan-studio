@@ -1,5 +1,5 @@
 .pile-plan-import-panel {
-  max-width: 720px;
+  max-width: none;
 }
 
 .pile-plan-import-header {
@@ -120,3 +120,7 @@
     flex-wrap: wrap;
   }
 }
+.project-import-blueprint .pile-plan-import-summary { border-color: var(--oa-border); background: var(--oa-raised); }
+.project-import-blueprint .pile-plan-import-diagnostics { display: grid; gap: 8px; padding: 0; border: 0; list-style: none; background: transparent; }
+.project-import-blueprint .pile-plan-import-categories .oa-check { align-items: center; }
+.project-import-blueprint .pile-plan-import-controls { grid-template-columns: minmax(0, 1fr); }

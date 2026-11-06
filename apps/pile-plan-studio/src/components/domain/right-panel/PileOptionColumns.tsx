@@ -1,6 +1,6 @@
 import { useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import Modal from "../../template/Modal.tsx";
+import { Button, Checkbox, Dialog, IconButton } from "../../../openaec/react/src/index";
 import type { PileOptionTableColumn } from "../../../domain/pile-options/pileOptionTable.ts";
 import {
   defaultPileOptionColumnLayout, movePileOptionColumn, setPileOptionColumnVisible,
@@ -39,19 +39,20 @@ export default function PileOptionColumns({ layout, selectedCount, onChange }: {
   const clearDrag = () => { dragKey.current = null; setDragged(null); setDropTarget(null); };
   const visibleCount = layout.filter(column => column.visible).length;
   return <>
-    <button className="pile-option-columns-button" type="button" onClick={() => setOpen(true)}
+    <Button compact className="pile-option-columns-button" onClick={() => setOpen(true)}
       aria-haspopup="dialog">
       <svg viewBox="0 0 16 16" aria-hidden="true"><rect x="1.5" y="2.5" width="13" height="11" rx="1" /><path d="M6 3v10M10 3v10" /></svg>
       {t("columnSettings.button")}
-    </button>
-    <Modal open={open} onClose={() => setOpen(false)} title={t("columnSettings.title")}
-      closeLabel={t("columnSettings.close")} width={380} className="pile-option-columns-dialog"
-      footer={<>
-        <button className="pile-option-columns-reset" type="button" onClick={() => onChange(defaultPileOptionColumnLayout(selectedCount))}>
+    </Button>
+    <div className="oa-app pile-option-columns-dialog" onKeyDown={event => event.stopPropagation()}>
+    <Dialog open={open} onClose={() => { clearDrag(); setOpen(false); }} title={t("columnSettings.title")}
+      actions={<>
+        <Button className="pile-option-columns-reset" onClick={() => onChange(defaultPileOptionColumnLayout(selectedCount))}>
           {t("columnSettings.reset")}
-        </button>
-        <button type="button" onClick={() => setOpen(false)}>{t("columnSettings.close")}</button>
+        </Button>
+        <Button onClick={() => { clearDrag(); setOpen(false); }}>{t("columnSettings.close")}</Button>
       </>}>
+      <IconButton icon="ui.close" label={t("columnSettings.close")} className="pile-option-columns-close" onClick={() => { clearDrag(); setOpen(false); }} />
       <div className="pile-option-columns-content">
         <p>{t(selectedCount > 1 ? "columnSettings.multiple" : "columnSettings.single")}</p>
         <p>{t("columnSettings.dragHelp")}</p>
@@ -61,7 +62,7 @@ export default function PileOptionColumns({ layout, selectedCount, onChange }: {
             const dropAfter = dragged !== null && layout.findIndex(item => item.key === dragged) < index;
             return <li key={column.key}
               className={`${dragged === column.key ? "is-dragging" : ""}${dropTarget === column.key && dragged !== column.key ? (dropAfter ? " drop-after" : " drop-before") : ""}`}>
-              <button className="pile-option-column-grip" type="button"
+              <Button compact kind="quiet" className="pile-option-column-grip"
                 aria-label={t("columnSettings.drag", { column: label })} title={t("columnSettings.drag", { column: label })}
                 onPointerDown={event => {
                   if (event.button !== 0 || !event.isPrimary) return;
@@ -97,18 +98,15 @@ export default function PileOptionColumns({ layout, selectedCount, onChange }: {
                 <svg viewBox="0 0 16 16" aria-hidden="true">
                   <path d="M5 3h1m4 0h1M5 8h1m4 0h1M5 13h1m4 0h1" strokeWidth="2.5" strokeLinecap="round" />
                 </svg>
-              </button>
-              <label>
-                <input type="checkbox" checked={column.visible} disabled={column.visible && visibleCount === 1}
+              </Button>
+              <Checkbox label={label} checked={column.visible} disabled={column.visible && visibleCount === 1}
                   onChange={event => onChange(setPileOptionColumnVisible(layout, column.key, event.currentTarget.checked))} />
-                <span>{label}</span>
-              </label>
             </li>;
           })}
         </ul>
         <span className="sr-only" role="status">{announcement}</span>
         <p className="pile-option-columns-help">{t("columnSettings.help")}</p>
       </div>
-    </Modal>
+    </Dialog></div>
   </>;
 }

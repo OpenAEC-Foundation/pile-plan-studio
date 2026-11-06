@@ -1,4 +1,6 @@
 {
+  "recentProjects.storageFailed": "Recent projects could not be updated. The project itself remains available.",
+  "recentProjects.copyMissing": "The local project copy is no longer available. Choose the IFCPP file again.",
   "numberInput": {
     "increment": "Increase value",
     "decrement": "Decrease value"
@@ -15,6 +17,7 @@
   "no": "No",
   "export": "Export",
   "downloadIfcpp": "Download IFCPP",
+  "saveProjectDownload": "Save project (download IFCPP)",
   "import": "Import",
   "print": "Print",
   "copy": "Copy",
@@ -446,6 +449,7 @@
     "title": "Project information",
     "projectName": "Project name",
     "pileHeadLevel": "Reference level (m)",
+    "pileHeadLevelInfo": "About the reference level",
     "pileHeadLevelHelp": "The building reference level, expressed in the same vertical reference system as the pile tip levels. Open Pile Plan Studio uses this reference as the pile cut-off level: the level of the finished pile head. Together with the pile tip level, it determines the calculated pile length and pile costs. Any production or installation allowance is not included.",
     "currency": "Project currency"
   },
@@ -478,9 +482,10 @@
   "unsaved": {
     "title": "Unsaved changes",
     "desktopMessage": "This project has changes that have not been saved. Save them before continuing?",
-    "browserMessage": "This project has changes that have not been downloaded. Download them before continuing?",
+    "browserMessage": "This project has changes that have not been saved locally. Save them to recent projects in this browser before continuing?",
     "saveAndContinue": "Save and continue",
-    "downloadAndContinue": "Download and continue",
+    "localSaveAndContinue": "Save locally and continue",
+    "saveFailed": "Saving failed. Your changes are still available. Try again or cancel.",
     "discard": "Continue without saving"
   },
   "welcome": {

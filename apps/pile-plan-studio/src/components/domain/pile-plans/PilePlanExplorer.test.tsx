@@ -1,8 +1,9 @@
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { expect, test, vi } from "vitest";
 import i18n from "../../../i18n/config.ts";
 import { projectFixture } from "../../../test/projectFixture.ts";
 import PilePlanExplorer from "./PilePlanExplorer.tsx";
+import ApplicationTooltip from "../../template/ApplicationTooltip.tsx";
 
 test.each(["nl","en"])("missing costs have a readable label and do not appear as a zero total (%s)",async language=>{
   await i18n.changeLanguage(language);
@@ -39,4 +40,45 @@ test.each(["nl", "en"])("explorer counts cap changes rather than hypothetical pi
   expect(row.textContent).toContain(language === "nl" ? "2 poerwijzigingen" : "2 cap changes");
   expect(row.textContent).toContain(language === "nl" ? "2 vergrendeld" : "2 locked");
   expect(row.textContent).not.toContain("329");
+});
+
+test("explorer uses shared controls while retaining source selection and inline rename",()=>{
+  const state=projectFixture(),plan=state.pilePlans[0],rename=vi.fn(),source=vi.fn();
+  const view=render(<PilePlanExplorer projectName="Project" isDirty pilePlans={[plan]} activePilePlanId={plan.id}
+    costSummaries={new Map()} currencyCode="EUR" inputSources={state.inputSources} activeSourceKind={state.inputSources[0].kind}
+    inputSourcesExpanded pilePlansExpanded onActivate={vi.fn()} onCreate={vi.fn()} onRename={rename} onDuplicate={vi.fn()}
+    onDelete={vi.fn()} onSourceActivate={source} onExpansionChange={vi.fn()}/>);
+  expect(view.container.querySelector('.project-explorer .oa-panel')).not.toBeNull();
+  const row=view.container.querySelector('.project-tree-item')!;
+  expect(row.classList.contains('oa-button')).toBe(true);
+  expect(row.getAttribute('aria-pressed')).toBe('true');
+  fireEvent.click(row);expect(source).toHaveBeenCalledWith(state.inputSources[0].kind);
+  const edit=screen.getByRole('button',{name:i18n.t('projectExplorer.rename')});
+  expect(edit.classList.contains('oa-icon-button')).toBe(true);
+  fireEvent.click(edit);const field=screen.getByRole('textbox');
+  expect(field.classList.contains('oa-field')).toBe(true);
+  fireEvent.change(field,{target:{value:'Blueprint plan'}});fireEvent.keyDown(field,{key:'Enter'});
+  expect(rename).toHaveBeenCalledWith(plan.id,'Blueprint plan');
+  expect((screen.getByRole('button',{name:i18n.t('projectExplorer.delete')}) as HTMLButtonElement).disabled).toBe(true);
+});
+
+test("explorer action help is portaled outside the scroll area on hover and keyboard focus",()=>{
+  const state=projectFixture(),plan=state.pilePlans[0];
+  const view=render(<><ApplicationTooltip/><PilePlanExplorer projectName="Project" isDirty={false}
+    pilePlans={[plan,{...plan,id:'other',name:'Other'}]} activePilePlanId={plan.id} costSummaries={new Map()} currencyCode="EUR"
+    inputSources={[]} activeSourceKind={null} inputSourcesExpanded pilePlansExpanded onActivate={vi.fn()} onCreate={vi.fn()}
+    onRename={vi.fn()} onDuplicate={vi.fn()} onDelete={vi.fn()} onSourceActivate={vi.fn()} onExpansionChange={vi.fn()}/></>);
+  const edit=screen.getAllByRole('button',{name:i18n.t('projectExplorer.rename')})[0];
+  fireEvent.mouseEnter(edit);
+  const tooltip=screen.getByRole('tooltip');
+  expect(tooltip.textContent).toBe(i18n.t('projectExplorer.rename'));
+  expect(view.container.querySelector('.project-explorer')!.contains(tooltip)).toBe(false);
+  expect(edit.getAttribute('data-oa-tip')).toBeNull();
+  expect(edit.getAttribute('aria-describedby')).toContain(tooltip.id);
+  fireEvent.mouseLeave(edit);
+  expect(screen.queryByRole('tooltip')).toBeNull();
+  fireEvent.focus(screen.getAllByRole('button',{name:i18n.t('projectExplorer.duplicate')})[0]);
+  expect(screen.getByRole('tooltip').textContent).toBe(i18n.t('projectExplorer.duplicate'));
+  fireEvent.keyDown(document,{key:'Escape'});
+  expect(screen.queryByRole('tooltip')).toBeNull();
 });

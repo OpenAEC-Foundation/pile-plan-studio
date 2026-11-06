@@ -1,0 +1,12 @@
+/* App-owned layout; Blueprint supplies modal behavior and control decoration. */
+.unsaved-changes-blueprint { display: contents; }
+.unsaved-changes-blueprint > .oa-dialog {
+  width: min(520px, calc(100vw - 32px));
+  max-height: calc(100vh - 32px);
+  overflow: auto;
+}
+.unsaved-changes-blueprint > .oa-dialog > .oa-heading { margin-bottom: 16px; padding-right: 32px; }
+.unsaved-changes-close { position: absolute; top: 16px; right: 16px; }
+.unsaved-changes-message { margin: 0; line-height: 1.5; }
+.unsaved-changes-blueprint .oa-dialog-actions { flex-wrap: wrap; }
+.unsaved-changes-blueprint .oa-dialog-actions .oa-button { max-width: 100%; height: auto; min-height: var(--oa-row); padding-block: 6px; white-space: normal; }

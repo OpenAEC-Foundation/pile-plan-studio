@@ -8,67 +8,29 @@
   margin-top: var(--titlebar-height);
 }
 
-/* Ribbon Tabs */
+/* Shared Tabs own selection, underline and keyboard focus. */
 .ribbon-tabs {
-  background: var(--theme-bg-lighter);
-  border-bottom: 1px solid var(--theme-accent);
   display: flex;
-  padding: 0 8px;
+  align-items: center;
   gap: 2px;
-  height: 28px;
-  align-items: flex-end;
-  position: relative;
-  overflow: visible;
+  height: var(--oa-shell-ribbon-tabs);
+  padding: 0 8px;
+  background: var(--oa-panel);
+  border-bottom: 1px solid var(--oa-border);
 }
 
-.ribbon-tab {
-  position: relative;
-  z-index: 1;
-  box-sizing: border-box;
-  height: 28px;
-  padding: 6px 16px;
-  font-size: 12px;
-  background: transparent;
-  border: 1px solid transparent;
-  border-bottom: 1px solid transparent;
-  color: var(--theme-text);
-  font-weight: 500;
-  border-radius: 4px 4px 0 0;
-  cursor: default;
-  transition: background 0.15s ease, color 0.15s ease;
-  box-shadow: none;
-  margin-bottom: -1px;
+.ribbon-tabs .oa-tabs {
+  border-bottom: none;
 }
 
-.ribbon-tab:hover {
-  background: var(--theme-ribbon-btn-hover);
-  color: var(--theme-accent);
-}
-
-.ribbon-tab.active {
-  background: var(--theme-bg);
-  color: var(--theme-accent);
-  border-color: var(--theme-accent);
-  border-bottom-color: var(--theme-bg);
-}
-
-.ribbon-tab.file-tab {
-  background: var(--theme-file-tab-bg);
-  color: var(--theme-file-tab-text);
-  font-weight: 600;
-  border-color: var(--theme-file-tab-bg);
-}
-
-.ribbon-tab.file-tab:hover {
-  background: var(--theme-file-tab-hover);
-  color: var(--theme-file-tab-text);
-  border-color: var(--theme-file-tab-hover);
+.ribbon-file-button {
+  flex: none;
 }
 
 /* Ribbon Content */
 .ribbon-content-wrapper {
   position: relative;
-  height: 94px;
+  height: var(--oa-shell-ribbon);
   overflow: hidden;
   border-bottom: 1px solid var(--theme-border);
   background: var(--theme-bg);
@@ -89,46 +51,6 @@
   width: 100%;
 }
 
-/* Enter from right */
-.ribbon-panel-enter-right {
-  animation: slideInRight 0.25s cubic-bezier(0.4, 0, 0.2, 1) forwards;
-}
-
-/* Enter from left */
-.ribbon-panel-enter-left {
-  animation: slideInLeft 0.25s cubic-bezier(0.4, 0, 0.2, 1) forwards;
-}
-
-/* Exit to left */
-.ribbon-panel-exit-right {
-  animation: slideOutLeft 0.25s cubic-bezier(0.4, 0, 0.2, 1) forwards;
-}
-
-/* Exit to right */
-.ribbon-panel-exit-left {
-  animation: slideOutRight 0.25s cubic-bezier(0.4, 0, 0.2, 1) forwards;
-}
-
-@keyframes slideInRight {
-  from { transform: translateX(40px); opacity: 0; }
-  to   { transform: translateX(0); opacity: 1; }
-}
-
-@keyframes slideInLeft {
-  from { transform: translateX(-40px); opacity: 0; }
-  to   { transform: translateX(0); opacity: 1; }
-}
-
-@keyframes slideOutLeft {
-  from { transform: translateX(0); opacity: 1; }
-  to   { transform: translateX(-40px); opacity: 0; }
-}
-
-@keyframes slideOutRight {
-  from { transform: translateX(0); opacity: 1; }
-  to   { transform: translateX(40px); opacity: 0; }
-}
-
 .ribbon-groups {
   display: flex;
   gap: 0;
@@ -140,8 +62,8 @@
 .ribbon-group {
   display: flex;
   flex-direction: column;
-  padding: 0 8px;
-  border-right: 1px solid var(--theme-ribbon-group-separator);
+  padding: 0 12px;
+  border-right: 1px solid var(--oa-border-strong);
   min-width: 50px;
   height: 100%;
 }
@@ -152,15 +74,16 @@
 
 .ribbon-group-content {
   display: flex;
-  gap: 1px;
+  gap: 1px 6px;
   align-items: flex-start;
   flex: 1;
-  padding: 1px 0;
+  padding: 0;
 }
 
 .ribbon-group-label {
-  font-size: 9px;
-  color: var(--theme-ribbon-group-label);
+  font-size: var(--oa-size-label);
+  line-height: 12px;
+  color: var(--oa-text-secondary);
   text-align: center;
   font-weight: 500;
   padding: 2px 0;
@@ -168,7 +91,7 @@
   white-space: nowrap;
   text-transform: uppercase;
   letter-spacing: 0.3px;
-  border-top: 1px solid var(--theme-border-subtle);
+  border-top: 1px solid var(--oa-border);
 }
 
 .ribbon-slider-control {
@@ -183,11 +106,6 @@
   font-size: 10px;
 }
 
-.ribbon-slider-control strong {
-  font-size: 10px;
-  font-variant-numeric: tabular-nums;
-}
-
 .ribbon-numeric-range,
 .ribbon-numeric-editor {
   display: inline-flex;
@@ -199,54 +117,16 @@
   white-space: nowrap;
 }
 
-.ribbon-numeric-value {
+.ribbon-numeric-value.oa-button {
+  height: 18px;
   min-height: 18px;
   padding: 0 3px;
-  border: 1px solid transparent;
-  border-radius: 3px;
-  background: transparent;
-  color: var(--theme-text);
-  font: inherit;
   font-size: 10px;
-  font-weight: 600;
   font-variant-numeric: tabular-nums;
-  line-height: 1;
   cursor: text;
 }
 
-.ribbon-numeric-value:hover {
-  background: var(--theme-bg-lighter);
-  text-decoration: underline;
-  text-underline-offset: 2px;
-}
-
-.ribbon-numeric-value:focus-visible {
-  border-color: var(--theme-accent);
-  background: var(--theme-bg-lighter);
-  outline: none;
-}
-
-.ribbon-numeric-editor input {
-  box-sizing: border-box;
-  width: 5.3ch;
-  height: 18px;
-  padding: 0 3px;
-  border: 1px solid var(--theme-accent);
-  border-radius: 3px;
-  background: var(--theme-bg);
-  color: var(--theme-text);
-  font: inherit;
-  text-align: right;
-  outline: none;
-  appearance: textfield;
-  -moz-appearance: textfield;
-}
-
-.ribbon-numeric-editor input::-webkit-inner-spin-button,
-.ribbon-numeric-editor input::-webkit-outer-spin-button {
-  margin: 0;
-  -webkit-appearance: none;
-}
+.ribbon-numeric-editor .oa-number-input { width: 80px; }
 
 .ribbon-slider-control > input[type="range"] {
   width: 100%;
@@ -324,32 +204,10 @@
 }
 
 .ribbon-foreground-control {
-  display: grid;
-  width: 170px;
-  align-content: center;
-  gap: 3px;
-  padding: 4px 6px;
-  grid-template-columns: 1fr 1fr;
-}
-
-.ribbon-foreground-control button {
-  min-height: 28px;
-  padding: 3px 6px;
-  border: 1px solid var(--theme-border);
-  background: var(--theme-surface);
-  color: var(--theme-text);
-  font: inherit;
-  font-size: 10px;
-}
-
-.ribbon-foreground-control button:hover {
-  background: var(--theme-ribbon-btn-hover);
-  border-color: var(--theme-ribbon-btn-hover-border);
-}
-
-.ribbon-foreground-control button.is-selected {
-  border-color: var(--theme-accent);
-  background: var(--theme-accent-soft);
+  display: flex;
+  width: max-content;
+  align-items: flex-start;
+  gap: 1px 6px;
 }
 
 /* Button Stack */
@@ -363,40 +221,12 @@
 
 /* Ribbon Buttons - Large (default) */
 .ribbon-btn {
-  display: flex;
   flex-direction: column;
-  align-items: center;
   justify-content: flex-start;
-  padding: 3px 3px 1px 3px;
-  background: transparent;
-  border: 1px solid transparent;
-  border-radius: 2px;
-  cursor: default;
-  transition: all 0.15s ease;
   min-width: 44px;
-  gap: 1px;
   height: 66px;
-  box-shadow: none;
-  color: var(--theme-text);
-}
-
-.ribbon-btn:hover {
-  background: var(--theme-ribbon-btn-hover);
-  border-color: var(--theme-ribbon-btn-hover-border);
-}
-
-.ribbon-btn.active {
-  background: var(--theme-ribbon-btn-active-bg);
-  border-color: var(--theme-ribbon-btn-active-border);
-}
-
-.ribbon-btn:active {
-  background: var(--theme-ribbon-btn-hover);
-}
-
-.ribbon-btn:disabled {
-  opacity: 0.4;
-  pointer-events: none;
+  padding: 3px 3px 1px;
+  gap: 1px;
 }
 
 .ribbon-btn-icon {
@@ -411,28 +241,17 @@
 .ribbon-btn-icon svg {
   width: 24px;
   height: 24px;
-  stroke: var(--theme-text);
   shape-rendering: geometricPrecision;
 }
 
-.ribbon-btn:hover .ribbon-btn-icon svg {
-  stroke: var(--theme-accent);
-}
-
-.ribbon-btn.active .ribbon-btn-icon svg {
-  stroke: var(--theme-ribbon-icon-active);
-}
-
 .ribbon-btn-label {
-  font-size: 10px;
-  color: var(--theme-text);
+  font-size: var(--oa-size-label);
+  color: inherit;
   text-align: center;
   line-height: 1.15;
-  max-width: 72px;
-  overflow: hidden;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
+  max-width: none;
+  overflow: visible;
+  display: block;
   white-space: pre-line;
   word-break: normal;
 }
@@ -441,26 +260,9 @@
   min-width: 92px;
 }
 
-.ribbon-btn.wide .ribbon-btn-label {
-  max-width: 88px;
-  white-space: nowrap;
-}
-
 .ribbon-btn.tip-level-regions-toggle {
-  width: 104px;
-}
-
-.ribbon-btn.tip-level-regions-toggle .ribbon-btn-label {
-  max-width: 100px;
-}
-
-.ribbon-btn:hover .ribbon-btn-label {
-  color: var(--theme-accent);
-}
-
-.ribbon-btn.active .ribbon-btn-label {
-  color: var(--theme-ribbon-btn-active-text);
-  font-weight: 500;
+  width: min-content;
+  min-width: 104px;
 }
 
 /* Small ribbon buttons */
@@ -485,10 +287,7 @@
 }
 
 .ribbon-btn.small .ribbon-btn-label {
-  font-size: 11px;
   text-align: left;
-  max-width: none;
-  white-space: nowrap;
 }
 
 /* Medium ribbon buttons */
@@ -513,10 +312,7 @@
 }
 
 .ribbon-btn.medium .ribbon-btn-label {
-  font-size: 11px;
   text-align: left;
-  max-width: none;
-  white-space: nowrap;
 }
-.ribbon-load-direction {display:flex;align-items:flex-start;justify-content:center;width:100%;gap:2px}
+.ribbon-load-direction {display:flex;align-items:flex-start;justify-content:center;width:100%;gap:2px 6px}
 .ribbon-load-direction .ribbon-btn {height:auto;min-height:50px;padding-bottom:4px}

@@ -75,7 +75,7 @@
   "groupingSettings.reset": "Alle handmatige wijzigingen herstellen",
   "groupingSettings.visibilityGroup": "Weergave",
   "groupingSettings.showGroups": "Groepen tonen",
-  "groupingSettings.viewHelp": "Groepscontouren zijn ook zichtbaar te maken via Weergave > Groepen tonen in het lint.",
+  "groupingSettings.viewHelp": "Groepscontouren zijn ook zichtbaar te maken via Weergave > Groepen in het lint.",
   "cptSettings.title": "Sonderingsinstellingen",
   "cptSettings.applyTo": "Instellingen toepassen op",
   "cptSettings.allLoadPoints": "Alle belastinglocaties",

@@ -1,3 +1,4 @@
+import { Button } from "../../../openaec/react/src/index";
 import { useEffect, useRef, useState, type KeyboardEvent } from "react";
 import type { PileBaseShape, PileFillPattern, PileSymbol } from "../../../core/projectTypes.ts";
 import { PILE_BASE_SHAPES, PILE_FILL_PATTERNS } from "../../../viewer/legendSymbols.ts";
@@ -36,7 +37,7 @@ export default function LegendSymbolPicker({
 
   return (
     <div className="legend-appearance-picker" onKeyDown={handleKeyDown} ref={rootRef}>
-      <button
+      <Button compact
         aria-expanded={open}
         aria-haspopup="dialog"
         aria-label={label}
@@ -47,13 +48,13 @@ export default function LegendSymbolPicker({
       >
         <span dangerouslySetInnerHTML={{ __html: renderPileSymbol(value, color) }} />
         <span aria-hidden="true" className="legend-picker-chevron" />
-      </button>
+      </Button>
       {open ? (
         <div aria-label={label} className="legend-picker-popover legend-symbol-picker" role="dialog">
           <div className="legend-symbol-large-preview" dangerouslySetInnerHTML={{ __html: renderPileSymbol(value, color) }} />
           <div className="legend-base-shape-grid">
             {PILE_BASE_SHAPES.map((baseShape) => (
-              <button
+              <Button compact
                 aria-pressed={value.baseShape === baseShape}
                 aria-label={getShapeLabel(baseShape)}
                 className="legend-symbol-choice"
@@ -63,12 +64,12 @@ export default function LegendSymbolPicker({
                 onClick={() => onChange({ ...value, baseShape })}
               >
                 <span dangerouslySetInnerHTML={{ __html: renderPileSymbol({ ...value, baseShape }, color) }} />
-              </button>
+              </Button>
             ))}
           </div>
           <div aria-label={fillLabel} className="legend-fill-patterns" role="radiogroup">
             {PILE_FILL_PATTERNS.map((fillPattern) => (
-              <button
+              <Button compact
                 aria-checked={value.fillPattern === fillPattern}
                 aria-label={getFillLabel(fillPattern)}
                 className="legend-fill-choice"
@@ -79,7 +80,7 @@ export default function LegendSymbolPicker({
                 onClick={() => onChange({ ...value, fillPattern })}
               >
                 <span dangerouslySetInnerHTML={{ __html: renderPileSymbol({ ...value, fillPattern }, color) }} />
-              </button>
+              </Button>
             ))}
           </div>
         </div>
@@ -92,6 +93,7 @@ export default function LegendSymbolPicker({
       event.preventDefault();
       event.stopPropagation();
       setOpen(false);
+      rootRef.current?.querySelector<HTMLButtonElement>(".legend-appearance-trigger")?.focus();
     }
   }
 }

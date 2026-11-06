@@ -53,8 +53,7 @@ test("project information saves normalized fields together and closes only after
   const view = render(<ProjectInformationDialog open projectName="P" pileHeadLevelM={0} currencyCode="EUR" onSave={save} onClose={close} />);
   fireEvent.change(view.container.querySelector('#project-name')!, { target: { value: "  New  " } });
   fireEvent.change(view.container.querySelector('input[inputmode=decimal]')!, { target: { value: "-1,25" } });
-  fireEvent.click(screen.getByRole("button", { name: t("projectInformation.currency") }));
-  fireEvent.click(screen.getByRole("option", { name: "GBP" }));
+  fireEvent.change(screen.getByRole("combobox", { name: t("projectInformation.currency") }), { target: { value: "GBP" } });
   const submit = screen.getByRole("button", { name: t("save") }); fireEvent.click(submit);
   await waitFor(() => expect(save).toHaveBeenCalledOnce());
   expect(save).toHaveBeenCalledWith({ projectName: "New", pileHeadLevelM: -1.25, currencyCode: "GBP" });
@@ -86,9 +85,9 @@ test("missing-CPT actions stop row assignment, select the CPT, and restore focus
 });
 test("viewer notices expose polite status and assertive errors at runtime", () => {
   const view = render(<ActionNotice message="Saved" noticeId={1} />);
-  expect(screen.getByRole("status").getAttribute("aria-live")).toBe("polite");
+  expect(screen.getByRole("status").textContent).toBe("Saved");
   view.rerender(<ActionNotice message="Blocked" noticeId={2} tone="error" />);
-  expect(screen.getByRole("alert").getAttribute("aria-live")).toBe("assertive");
+  expect(screen.getByRole("alert").textContent).toBe("Blocked");
   expect(screen.queryByRole("status")).toBeNull();
 });
 

@@ -1,6 +1,11 @@
 import type { ProjectState } from "../../../domain/project/projectState";
 import type { PileConfigurationKey } from "../../../core/projectTypes.ts";
 import { useTranslation } from "react-i18next";
+import { Button, Icon, IconButton, OpenAECProvider } from "../../../openaec/react/src/index";
+import spriteUrl from "../../../openaec/studioSprite.ts";
+import "../../../openaec/openaec-components.css";
+import "./Legend.css";
+import { SimpleIconButton } from "../../template/SimpleIconControls.tsx";
 import { buildLegendPresentation, deriveUsedPileConfigurations } from "../../../domain/legend/legendState.ts";
 import {
   getLoadPointIdsForLegendSelection,
@@ -8,7 +13,6 @@ import {
   toggleLegendSelectionFilter,
 } from "../../../viewer/legendSelection.ts";
 import { renderPileSymbol } from "../../../viewer/pileSymbols.ts";
-import { filterCheckIcon, pencilIcon } from "../../template/ribbon/icons.ts";
 import { getActiveLockedLoadPointIds } from "../../../domain/pile-plans/loadPointLocking.ts";
 import {
   getActivePilePlan,
@@ -63,14 +67,15 @@ export default function Legend({ readOnly = false, state, onStateChange, onEdit,
   }
 
   return (
-    <div className="pile-plan-legend" aria-label={t("legend.aria")}>
-      <div className="legend-group is-size">
+    <OpenAECProvider sprite={spriteUrl}>
+    <div className="oa-app pile-plan-legend" role="region" aria-label={t("legend.aria")}>
+      <div className="legend-group is-size" role="group" aria-label={t("legend.size")}>
         <span className="legend-title">{t("legend.size")}</span>
         {presentation.pileSizes.map((item) => {
           if (item.state === "disabled-unused") return null;
           const isSelected = state.legendSelectionFilter.pileSizes.includes(item.value);
           return (
-            <button
+            <Button kind="quiet" compact
               aria-pressed={isSelected}
               className={legendItemClass(item.state, isSelected)}
               key={item.value}
@@ -95,11 +100,11 @@ export default function Legend({ readOnly = false, state, onStateChange, onEdit,
               }} />}
               <span className="legend-item-label">{item.value} mm</span>
               {item.state === "disabled-used" ? <LegendWarning /> : null}
-            </button>
+            </Button>
           );
         })}
       </div>
-      <div className="legend-group is-tip">
+      <div className="legend-group is-tip" role="group" aria-label={t("legend.tip")}>
         <span className="legend-title">{t("legend.tip")}</span>
         {presentation.encodingMode === "size-color-tip-region" && !state.showTipLevelRegions ? (
           <LegendRegionStatus kind="hidden" />
@@ -110,7 +115,7 @@ export default function Legend({ readOnly = false, state, onStateChange, onEdit,
           if (item.state === "disabled-unused") return null;
           const isSelected = state.legendSelectionFilter.pileTipLevels.includes(item.value);
           return (
-            <button
+            <Button kind="quiet" compact
               aria-pressed={isSelected}
               className={legendItemClass(item.state, isSelected)}
               key={item.value}
@@ -129,38 +134,37 @@ export default function Legend({ readOnly = false, state, onStateChange, onEdit,
               }} />}
               <span className="legend-item-label">{formatPileTipLevelMillimetres(item.value, i18n.language)}</span>
               {item.state === "disabled-used" ? <LegendWarning /> : null}
-            </button>
+            </Button>
           );
         })}
       </div>
       <div className="legend-actions">
-        <button
-          aria-label={t("legend.enableUsed")}
+        <IconButton
+          icon="pile.legend-used"
+          label={t("legend.enableUsed")}
           className="legend-control-button legend-control"
-          title={t("legend.enableUsed")}
-          type="button"
+          data-oa-tip={undefined}
+          data-tooltip={readOnly ? undefined : t("legend.enableUsed")}
           disabled={readOnly}
           onClick={enableUsedOnly}
-        >
-          <span aria-hidden="true" dangerouslySetInnerHTML={{ __html: filterCheckIcon }} />
-        </button>
-        <button
-          aria-label={t("legend.edit")}
+        />
+        <SimpleIconButton
+          icon="local.edit"
+          label={t("legend.edit")}
           className="legend-control-button legend-control"
-          title={t("legend.edit")}
-          type="button"
+          data-oa-tip={undefined}
+          data-tooltip={readOnly ? undefined : t("legend.edit")}
           disabled={readOnly}
           onClick={onEdit}
-        >
-          <span aria-hidden="true" dangerouslySetInnerHTML={{ __html: pencilIcon }} />
-        </button>
+        />
       </div>
     </div>
+    </OpenAECProvider>
   );
 
   function LegendWarning() {
     return (
-      <span className="legend-warning" title={t("legend.usedWarning")} aria-label={t("legend.usedWarning")}>
+      <span className="legend-warning" data-tooltip={t("legend.usedWarning")} aria-label={t("legend.usedWarning")}>
         !
       </span>
     );
@@ -171,12 +175,8 @@ export default function Legend({ readOnly = false, state, onStateChange, onEdit,
     const label = t(unavailable ? "legend.regionsUnavailable" : "legend.regionsHidden");
     const title = t(unavailable ? "legend.regionsUnavailableTitle" : "legend.regionsHiddenTitle");
     return (
-      <span aria-label={title} className={`legend-region-status is-${kind}`} title={title}>
-        {unavailable ? (
-          <svg aria-hidden="true" viewBox="0 0 16 16"><path d="M8 2 14 14H2L8 2Zm0 4v4m0 2h.01" /></svg>
-        ) : (
-          <svg aria-hidden="true" viewBox="0 0 16 16"><path d="M2 3l12 10M2 8s2.2-4 6-4c1.2 0 2.2.4 3.1.9M14 8s-2.2 4-6 4c-1.2 0-2.2-.4-3.1-.9" /></svg>
-        )}
+      <span aria-label={title} className={`legend-region-status is-${kind}`} data-tooltip={title}>
+        <Icon id={unavailable ? "status.warning" : "status.hidden"} />
         {label}
       </span>
     );

@@ -32,6 +32,7 @@ import SelectionOverview, { type SelectionOverviewLayout } from "./SelectionOver
 import LoadPointGroupEditButton from "./LoadPointGroupEditButton.tsx";
 import { setLoadPointSelection } from "../../../domain/workspace/selectionState.ts";
 import type { CptEditCompletion, CptSelectionMethod } from "../../../app/project/manualCptEditController.ts";
+import { Button, Heading, Status } from "../../../openaec/react/src/index";
 
 export type RightTaskPanel = "cpt-settings" | "cost-settings" | "grouping-settings" | "ilp-optimization" | "pile-cap-changes";
 
@@ -170,17 +171,18 @@ export default function RightPanel({
 
   return (
     <aside className="properties-panel" aria-label={t("aria.properties")}>
-      <div className="right-panel-tabs" aria-label={t("aria.views")}>
+      <div className="right-panel-tabs oa-app" role="group" aria-label={t("aria.views")}
+        onKeyDown={event => { if (event.key === " " || event.key === "Enter") event.stopPropagation(); }}>
         <PanelTab active={taskPanel === null} label={t("tabs.loadPoint")} mode="load-point" state={state} onActivate={onCloseTaskPanel} onStateChange={changePanelView} />
         <PanelTab active={taskPanel === null} label={t("tabs.cpts")} mode="cpts" state={state} onActivate={onCloseTaskPanel} onStateChange={onStateChange} />
-        <button className={`right-panel-tab right-panel-combined-toggle${taskPanel === null && state.rightPanelMode === "combined" ? " is-active" : ""}`}
-          type="button" title={t("tabs.combined")} aria-label={t("tabs.combined")}
+        <Button compact className={`right-panel-tab right-panel-combined-toggle${taskPanel === null && state.rightPanelMode === "combined" ? " is-active" : ""}`}
+          data-tooltip={t("tabs.combined")} aria-label={t("tabs.combined")}
           aria-pressed={taskPanel === null && state.rightPanelMode === "combined"}
           onClick={() => { onCloseTaskPanel(); onStateChange({ ...state, ...switchRightPanelMode(state, "combined") }); }}>
           <svg viewBox="0 0 20 20" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="1.5">
             <rect x="2.5" y="2.5" width="15" height="15" rx="1.5" /><path d="M3 12h14" />
           </svg>
-        </button>
+        </Button>
       </div>
       {taskPanel === null ? <SelectionOverview loadPoints={state.loadPoints} selectedIds={state.selectedLoadPointIds}
         restrictToContext={state.loadPointSelectionContext?.exclusive??false}
@@ -189,12 +191,12 @@ export default function RightPanel({
         onLayoutChange={onSelectionLayoutChange} disabled={cptEditPending}
         onSelect={ids => onStateChange({ ...state, ...setLoadPointSelection(state, ids,
           { context: { loadPoints: state.loadPoints, ids: selectionContextIds } }) })}
-        groupControl={<span className="selection-overview-actions">{selectedLoadPoints.length > 1 ? <LoadPointGroupEditButton editPending={groupEditPending || cptEditPending}
+        groupControl={<span className="selection-overview-actions">{selectedLoadPoints.length > 1 ? <LoadPointGroupEditButton variant="blueprint" editPending={groupEditPending || cptEditPending}
           groups={loadPointGroups} selectedLoadPointIds={state.selectedLoadPointIds}
           onApply={onApplyLoadPointGroupEdit} onPreview={onPreviewLoadPointGroupEdit} /> : null}
-          {capIds?<button className="pile-cap-toggle" type="button" aria-expanded={pileCapOpen} onClick={()=>setPileCapOpen(!pileCapOpen)}>{t("pileCap.title")}</button>:null}</span>}
+          {capIds?<Button compact className="pile-cap-toggle" aria-expanded={pileCapOpen} onClick={()=>setPileCapOpen(!pileCapOpen)}>{t("pileCap.title")}</Button>:null}</span>}
         extraContent={<>{pileCapOpen&&capIds?<PileCapProposalControl state={state} ids={capIds} proposal={capProposal} preview={capPreview} pending={capDisabled} onEdit={onEditPileCap}/>:null}
-          {invalidCaps.map(cap=><div className="pile-cap-invalid" role="status" key={pileCapGroupKey(cap.proposal.load_point_ids)}><span>{t("pileCap.groupChanged")}</span><button type="button" disabled={capDisabled} onClick={()=>onEditPileCap(cap.proposal,true)}>{t("pileCap.remove")}</button></div>)}</>}/>:null}
+          {invalidCaps.map(cap=><div className="oa-app pile-cap-invalid" role="status" key={pileCapGroupKey(cap.proposal.load_point_ids)}><Status tone="warning">{t("pileCap.groupChanged")}</Status><Button compact disabled={capDisabled} onClick={()=>onEditPileCap(cap.proposal,true)}>{t("pileCap.remove")}</Button></div>)}</>}/>:null}
       {taskPanel === "pile-cap-changes" ? <PileCapChangesPanel
         state={state}
         previews={pileCapResult?.plans.find(plan => plan.plan_id === state.activePilePlanId)?.previews ?? []}
@@ -202,7 +204,7 @@ export default function RightPanel({
         resetDisabled={capDisabled}
         onResetAll={onResetAllPileCaps}
         selectionControls={capIds ? <section className="pile-cap-changes-selection" aria-label={t("selectionOverview.title")}>
-          <h3>{t("selectionOverview.title")} <span>{capIds.join(", ")}</span></h3>
+          <Heading>{t("selectionOverview.title")} <span>{capIds.join(", ")}</span></Heading>
           <PileCapProposalControl state={state} ids={capIds} proposal={capProposal} preview={capPreview}
             pending={capDisabled} onEdit={onEditPileCap} />
         </section> : null}

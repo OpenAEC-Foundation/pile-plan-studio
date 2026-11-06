@@ -7,6 +7,7 @@ import type { LoadPoint } from "../../../core/projectTypes.ts";
 import { buildLoadPointSelectionBlocks } from "../../../domain/workspace/loadPointSelectionList.ts";
 import { localizeLoadPointName } from "./PanelControls.tsx";
 import "./LoadPointSelectionList.css";
+import { Button } from "../../../openaec/react/src/index";
 
 export default function LoadPointSelectionList({ restrictToContext=false,loadPoints, selectedLoadPointIds, contextLoadPointIds = selectedLoadPointIds, groups, onInspect, onSelectGroup, disabled = false, visibleRows = 4 }: {
   restrictToContext?:boolean;
@@ -46,7 +47,7 @@ export default function LoadPointSelectionList({ restrictToContext=false,loadPoi
         return (
           <div className={`load-point-selection-block${groupIds ? " is-grouped" : ""}`} key={block.key}
             role={groupIds ? "group" : undefined} aria-label={groupLabel}>
-            {groupIds ? <button type="button" className="load-point-selection-group" aria-label={groupLabel}
+            {groupIds ? <Button kind="quiet" className="load-point-selection-group" aria-label={groupLabel}
               aria-pressed={selectedCount === groupIds.length} disabled={disabled}
               style={{ gridRow: `1 / span ${block.loadPoints.length}` }} onClick={() => onSelectGroup([...groupIds])}>
               <span className="load-point-selection-group-label">
@@ -55,19 +56,19 @@ export default function LoadPointSelectionList({ restrictToContext=false,loadPoi
                   ? t("loadPoints.groupMembers", { count: groupIds.length })
                   : t("loadPoints.groupSelected", { selected: selectedCount, total: groupIds.length })}</span>
               </span>
-            </button> : null}
+            </Button> : null}
             {block.loadPoints.map(point => {
               const name = localizeLoadPointName(point.name, t);
               const load=directionalLoadPoint(point,mode).design_load_kn;
               const force = Number.isFinite(load)?load.toLocaleString(i18n.language, { maximumFractionDigits: 1 }):"—";
-              return <button type="button" className="load-point-selection-row" key={point.id}
+              return <Button kind="quiet" className="load-point-selection-row" key={point.id}
                 disabled={disabled}
                 aria-pressed={selected.has(point.id)} aria-label={t("loadPoints.inspectMember", { name, force })}
                 onClick={() => onInspect(point.id)}>
                 <span className="load-point-selection-name">{name}</span>
                 <span className="load-point-selection-force-label">F<sub>{mode==="tension"?"t;Ed":"Ed"}</sub></span>
                 <strong className="load-point-selection-force">{force} kN</strong>
-              </button>;
+              </Button>;
             })}
           </div>
         );

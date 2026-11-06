@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { PileSymbol, LegendEncodingMode } from "../../../../core/projectTypes.ts";
 import type { ProjectState } from "../../../../domain/project/projectState.ts";
@@ -36,7 +36,9 @@ import {
   type LegendPresentationState,
 } from "../../../../domain/legend/legendState.ts";
 import type { LegendColorScheme } from "../../../../viewer/legendColors.ts";
-import Modal from "../../../template/Modal.tsx";
+import { Banner, Button, Checkbox, Dialog, IconButton, OpenAECProvider, Radio } from "../../../../openaec/react/src/index";
+import spriteUrl from "../../../../openaec/studioSprite.ts";
+import "../../../../openaec/openaec-components.css";
 import LegendColorSchemeSelect from "../LegendColorSchemeSelect.tsx";
 import {
   chooseLegendEncodingMode,
@@ -72,6 +74,7 @@ export default function LegendEditor({ open, state, onApply, onClose }: LegendEd
   const [applying, setApplying] = useState(false);
   const openedPlanId = useRef(state.activePilePlanId);
   const encodingDisclosure = useRef<HTMLDetailsElement>(null);
+  const encodingName = useId();
   const used = deriveUsedPileConfigurations(state.selectedPileConfigurationsByLoadPoint.values());
   const scopeActivation = unionActivationForPlans(state.pilePlans, scopePlanIds, {
     pilePlanId: state.activePilePlanId,
@@ -146,26 +149,24 @@ export default function LegendEditor({ open, state, onApply, onClose }: LegendEd
 
   const footer = (
     <>
-      <button className="settings-btn settings-btn-secondary" type="button" onClick={onClose}>
+      <Button onClick={onClose}>
         {t("cancel")}
-      </button>
-      <button className="settings-btn settings-btn-primary" type="button" disabled={applying} onClick={() => void applyDraft()}>
+      </Button>
+      <Button kind="primary" disabled={applying} onClick={() => void applyDraft()}>
         {t("apply")}
-      </button>
+      </Button>
     </>
   );
 
   return (
-    <Modal
-      className="legend-editor-dialog"
-      closeLabel={t("close")}
-      footer={footer}
-      height="min(680px, 84vh)"
+    <OpenAECProvider sprite={spriteUrl}><div className="oa-app legend-editor-dialog" onKeyDown={event => event.stopPropagation()}>
+    <Dialog
+      actions={open ? footer : undefined}
       onClose={onClose}
       open={open}
       title={t("legend.editorTitle")}
-      width={760}
     >
+      {open && <><IconButton icon="ui.close" label={t("close")} className="legend-editor-close" onClick={onClose} />
       <div className="legend-editor">
         <div className="legend-editor-configuration">
           <div className="legend-editor-control-row">
@@ -180,35 +181,26 @@ export default function LegendEditor({ open, state, onApply, onClose }: LegendEd
                   {LEGEND_ENCODING_MODES.map((mode) => {
                     const selected = draft.legend.encodingMode === mode;
                     return (
-                      <button
-                        aria-checked={selected}
+                      <Radio
+                        checked={selected}
+                        name={encodingName}
+                        label={encodingModeLabel(mode)}
                         className={`legend-editor-encoding-choice${selected ? " is-selected" : ""}`}
                         key={mode}
-                        role="radio"
-                        type="button"
-                        onClick={() => {
-                          setEnableTipLevelRegions(chooseLegendEncodingMode({
-                            disclosure: encodingDisclosure.current,
-                            currentMode: draft.legend.encodingMode,
-                            nextMode: mode,
-                            enableTipLevelRegions,
-                          }));
-                          applyEditorActionResult(setLegendEncodingMode(draft, mode, scopeActivation));
-                        }}
-                      >
-                        {encodingModeLabel(mode)}
-                      </button>
+                        onChange={() => chooseEncoding(mode)}
+                        onClick={() => { if (selected) chooseEncoding(mode); }}
+                      />
                     );
                   })}
                 </div>
                 {dualColorMode && !state.showTipLevelRegions && !enableTipLevelRegions ? (
-                  <button
+                  <Button compact
                     className="legend-editor-toolbar-button legend-editor-show-regions"
                     type="button"
                     onClick={() => setEnableTipLevelRegions(true)}
                   >
                     {t("legend.showTipLevelRegions")}
-                  </button>
+                  </Button>
                 ) : null}
               </div>
             </details>
@@ -225,7 +217,7 @@ export default function LegendEditor({ open, state, onApply, onClose }: LegendEd
               </summary>
               <div className="legend-editor-plan-scope-content">
                 {state.pilePlans.length > 1 ? (
-                  <button
+                  <Button compact
                     className="legend-editor-toolbar-button legend-editor-plan-scope-toggle"
                     type="button"
                     onClick={() => setScopePlanIds((current) => togglePilePlanScope(
@@ -235,15 +227,13 @@ export default function LegendEditor({ open, state, onApply, onClose }: LegendEd
                     ))}
                   >
                     {t(allPlansInScope ? "legend.selectCurrentPlanOnly" : "legend.selectAllPlans")}
-                  </button>
+                  </Button>
                 ) : null}
                 <div className="legend-editor-plan-scope" role="group" aria-label={t("legend.pilePlansInScope")}>
                   {state.pilePlans.map((plan) => (
-                    <label key={plan.id}>
-                      <input
+                    <Checkbox key={plan.id} label={<span>{plan.name}</span>}
                         checked={scopePlanIds.has(plan.id)}
                         disabled={plan.id === state.activePilePlanId}
-                        type="checkbox"
                         onChange={(event) => setScopePlanIds((current) => {
                           const next = new Set(current);
                           if (event.target.checked) next.add(plan.id);
@@ -251,8 +241,6 @@ export default function LegendEditor({ open, state, onApply, onClose }: LegendEd
                           return next;
                         })}
                       />
-                      <span>{plan.name}</span>
-                    </label>
                   ))}
                 </div>
               </div>
@@ -260,7 +248,7 @@ export default function LegendEditor({ open, state, onApply, onClose }: LegendEd
           </div>
           <div className={`legend-editor-auto-actions${dualColorMode ? " is-dual" : ""}`}>
             {!dualColorMode ? (
-              <button
+              <Button compact
                 className="legend-editor-toolbar-button"
                 disabled={!canReassignSymbols}
                 title={!canReassignSymbols ? t("legend.noSymbolsToReassign") : undefined}
@@ -268,7 +256,7 @@ export default function LegendEditor({ open, state, onApply, onClose }: LegendEd
                 onClick={assignSymbols}
               >
                 {t("legend.assignSymbols")}
-              </button>
+              </Button>
             ) : null}
             {dualColorMode ? (
               <>
@@ -278,7 +266,7 @@ export default function LegendEditor({ open, state, onApply, onClose }: LegendEd
             ) : <ColorAction kind={colorKind} disabled={!canReassignColors} label={t("legend.assignColors")} />}
           </div>
           <div className="legend-editor-secondary-actions">
-            <button
+            <Button compact
               className="legend-editor-toolbar-button is-secondary"
               type="button"
               onClick={() => {
@@ -287,7 +275,7 @@ export default function LegendEditor({ open, state, onApply, onClose }: LegendEd
               }}
             >
               {t("legend.resetAppearance")}
-            </button>
+            </Button>
             {conflicts.length > 0 ? (
               <LegendConflictNotice conflicts={conflicts} pilePlans={state.pilePlans} />
             ) : null}
@@ -296,22 +284,22 @@ export default function LegendEditor({ open, state, onApply, onClose }: LegendEd
             <p className="legend-editor-aid">{t("legend.colorblindAid")}</p>
           ) : null}
           {missingShapeSizes.length > 0 ? (
-            <p className="legend-editor-error" role="alert">{t("legend.missingCostShape", {
+            <Banner tone="error" word="">{t("legend.missingCostShape", {
               items: missingShapeSizes.map(({ value }) => `${value} mm`).join(", "),
-            })}</p>
+            })}</Banner>
           ) : null}
           {symbolLimitError ? (
-            <p className="legend-editor-error" role="alert">{t("legend.symbolLimit", { count: 54 })}</p>
+            <Banner tone="error" word="">{t("legend.symbolLimit", { count: 54 })}</Banner>
           ) : null}
         </div>
 
         {state.legendImportWarnings.length > 0 ? (
-          <p className="legend-editor-import-warning">
+          <Banner tone="warning" word="">
             {t("legend.importWarnings", { count: state.legendImportWarnings.length })}
-          </p>
+          </Banner>
         ) : null}
 
-        <div className="legend-editor-toolbar" aria-label={t("legend.bulkActions")}>
+        <div className="legend-editor-toolbar" role="group" aria-label={t("legend.bulkActions")}>
           <BulkButton action="enable-all" label={t("legend.enableAll")} />
           <BulkButton action="enable-used" label={t("legend.enableUsed")} />
           <BulkButton action="disable-all" label={t("legend.disableAll")} />
@@ -342,13 +330,13 @@ export default function LegendEditor({ open, state, onApply, onClose }: LegendEd
             onInfoOpenChange={setOpenInfoKey}
           />
         </div>
-      </div>
-    </Modal>
+      </div></>}
+    </Dialog></div></OpenAECProvider>
   );
 
   function BulkButton({ action, label }: { action: LegendEditorBulkAction; label: string }) {
     return (
-      <button
+      <Button compact
         className="legend-editor-toolbar-button"
         type="button"
         onClick={() => setDraft(applyLegendEditorBulkAction(
@@ -359,7 +347,7 @@ export default function LegendEditor({ open, state, onApply, onClose }: LegendEd
         ))}
       >
         {label}
-      </button>
+      </Button>
     );
   }
 
@@ -370,6 +358,16 @@ export default function LegendEditor({ open, state, onApply, onClose }: LegendEd
       scopeActivation[symbolKind === "size" ? "pileSizes" : "pileTipLevelMms"],
     );
     applyEditorActionResult(result);
+  }
+
+  function chooseEncoding(mode: LegendEncodingMode) {
+    setEnableTipLevelRegions(chooseLegendEncodingMode({
+      disclosure: encodingDisclosure.current,
+      currentMode: draft.legend.encodingMode,
+      nextMode: mode,
+      enableTipLevelRegions,
+    }));
+    applyEditorActionResult(setLegendEncodingMode(draft, mode, scopeActivation));
   }
 
   function applyEditorActionResult(result: LegendEditorActionResult) {
@@ -392,7 +390,7 @@ export default function LegendEditor({ open, state, onApply, onClose }: LegendEd
   }) {
     return (
       <div className="legend-editor-color-action">
-        <button
+        <Button compact
           className="legend-editor-toolbar-button"
           disabled={disabled}
           title={disabled ? t("legend.noColorsToReassign") : undefined}
@@ -402,7 +400,7 @@ export default function LegendEditor({ open, state, onApply, onClose }: LegendEd
           ))}
         >
           {label}
-        </button>
+        </Button>
         <LegendColorSchemeSelect
           value={kind === "size"
             ? draft.legend.pileSizeColorScheme

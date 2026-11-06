@@ -5,10 +5,11 @@ import { partitionPileCostItems } from "../../../domain/pile-plans/pileCostCatal
 import type { CostCatalogAction } from "../../../core/settingsEditCoreClient.ts";
 import { formatNumber } from "../../../domain/formatting.ts";
 import { commitCostInput, costEditErrorKey } from "./costSettingsModel.ts";
-import ThemedNumberInput from "../../template/ThemedNumberInput.tsx";
-import ThemedSelect from "../../template/ThemedSelect.tsx";
-import "../../template/ThemedSelect.css";
-import { removeIcon } from "../../template/ribbon/icons.ts";
+import { Button, Heading, IconButton, OpenAECProvider, Panel, Select, Status, Table } from "../../../openaec/react/src/index";
+import { NumberField } from "../../template/NumberInput.tsx";
+import spriteUrl from "../../../openaec/studioSprite.ts";
+import { SettingsGroup } from "./PanelControls.tsx";
+import "../../../openaec/openaec-components.css";
 import "./costSettings.css";
 
 type Props = {
@@ -85,123 +86,124 @@ export default function CostCatalogEditor({
   }
 
   return (
-    <div className="cost-settings-panel">
-      <header className="right-panel-header">
-        <div><h2>{t("cost.title")}</h2><span>{t("cost.subtitle")}</span></div>
-        <button className="right-panel-task-close" type="button" aria-label={t("actions.close")} onClick={onClose}>&times;</button>
-      </header>
-      <fieldset className="settings-scroll cost-catalog-scroll" disabled={pending}>
-        <section className="settings-group cost-size-settings">
-          <h3>{t("cost.projectSizes")}</h3>
-          {missingSizes.length > 0 && (
-            <div className="cost-missing-sizes" role="status">
-              <strong>{t("cost.missingCosts")}</strong>
-              <span>{missingSizes.map((size) => `${formatNumber(size)} mm`).join(", ")}</span>
-            </div>
-          )}
-          <CostTable
-            currencyCode={currencyCode}
-            items={used}
-            usedPileSizes={usedPileSizes}
-            onEditCosts={editCosts}
-          />
-        </section>
+    <OpenAECProvider sprite={spriteUrl}>
+      <div className="cost-settings-shell" onKeyDown={event => {
+        // Native button activation must not trigger the viewer's Space shortcut.
+        if ((event.key === " " || event.key === "Enter") && event.target instanceof Element && event.target.closest("button, summary")) {
+          event.stopPropagation();
+        }
+      }}>
+        <Panel className="oa-app cost-settings-panel cost-settings-blueprint" title={t("cost.title")}
+          actions={<IconButton small icon="ui.close" label={t("actions.close")} onClick={onClose} />}>
+          <fieldset className="cost-catalog-scroll" disabled={pending}>
+            <p className="cost-settings-subtitle oa-secondary">{t("cost.subtitle")}</p>
+            {error && <p className="cost-settings-error" role="alert">{error}</p>}
+            <SettingsGroup title={t("cost.projectSizes")} variant="blueprint">
+              {missingSizes.length > 0 && (
+                <div className="cost-missing-sizes" role="status">
+                  <Status tone="warning">{t("cost.missingCosts")}</Status>
+                  <span>{missingSizes.map((size) => `${formatNumber(size)} mm`).join(", ")}</span>
+                </div>
+              )}
+              <CostTable label={t("cost.projectSizes")} currencyCode={currencyCode} items={used}
+                usedPileSizes={usedPileSizes} onEditCosts={editCosts} />
+            </SettingsGroup>
 
-        <details className="settings-group cost-other-sizes">
-          <summary>{t("cost.otherSizes", { count: other.length })}</summary>
-          <CostTable
-            currencyCode={currencyCode}
-            items={other}
-            usedPileSizes={usedPileSizes}
-            onEditCosts={editCosts}
-          />
-        </details>
+            <details className="blueprint-settings-group cost-other-sizes">
+              <summary>{t("cost.otherSizes", { count: other.length })}</summary>
+              <CostTable label={t("cost.otherSizes", { count: other.length })} currencyCode={currencyCode} items={other}
+                usedPileSizes={usedPileSizes} onEditCosts={editCosts} />
+            </details>
 
-        <section className="settings-group cost-add-size">
-          <h3>{t("cost.addSize")}</h3>
-          <div className="cost-add-grid">
-            <input aria-label={t("cost.size")} inputMode="numeric" placeholder="350" value={newSizeDraft} onChange={(event) => setNewSizeDraft(event.currentTarget.value)} />
-            <ThemedSelect
-              ariaLabel={t("cost.shape")}
-              value={newShape}
-              options={shapeOptions(t)}
-              onChange={(value) => setNewShape(value === "square" ? "square" : "round")}
-            />
-            <input aria-label={t("cost.costPerM3")} inputMode="decimal" placeholder="0" value={newCostDraft} onChange={(event) => setNewCostDraft(event.currentTarget.value)} />
-            <button type="button" onClick={addSize}>{t("cost.add")}</button>
-          </div>
-          {error && <p className="cost-settings-error" role="alert">{error}</p>}
-        </section>
+            <SettingsGroup title={t("cost.addSize")} variant="blueprint">
+              <div className="cost-add-grid">
+                <div className="cost-field-with-unit">
+                  <NumberField label={t("cost.size")} type="text" inputMode="numeric" min={1} step={1} placeholder="350" value={newSizeDraft}
+                    onValueChange={setNewSizeDraft} />
+                  <span className="oa-secondary">mm</span>
+                </div>
+                <Select label={t("cost.shape")} value={newShape} options={shapeOptions(t)}
+                  onChange={event => setNewShape(event.currentTarget.value === "square" ? "square" : "round")} />
+                <div className="cost-field-with-unit">
+                  <NumberField label={t("cost.costPerM3")} type="text" inputMode="decimal" min={0} step={1} placeholder="0" value={newCostDraft}
+                    onValueChange={setNewCostDraft} />
+                  <span className="oa-secondary">{currencyCode}</span>
+                </div>
+                <Button onClick={addSize}>{t("cost.add")}</Button>
+              </div>
+            </SettingsGroup>
 
-        <section className="settings-group cost-default-actions">
-          <h3>{t("cost.defaults")}</h3>
-          <button type="button" onClick={() => {
-            if (hasPersonalDefault && !window.confirm(t("cost.replacePersonalDefaultConfirm"))) return;
-            onSavePersonalDefault(settings);
-          }}>{t("cost.savePersonalDefault")}</button>
-          <button type="button" disabled={!hasPersonalDefault} onClick={onLoadPersonalDefault}>{t("cost.loadPersonalDefault")}</button>
-          <button type="button" disabled={!hasPersonalDefault} onClick={onRemovePersonalDefault}>{t("cost.removePersonalDefault")}</button>
-          <button type="button" onClick={onLoadBuiltInDefault}>{t("cost.loadBuiltInDefault")}</button>
-          <div className="cost-built-in-source">
-            <strong>{t("cost.builtInSourceTitle")}</strong>
-            <p>{t("cost.builtInSourceDescription")}</p>
-          </div>
-        </section>
-      </fieldset>
-    </div>
+            <SettingsGroup title={t("cost.defaults")} variant="blueprint">
+              <div className="cost-default-actions">
+                <Button onClick={() => {
+                  if (hasPersonalDefault && !window.confirm(t("cost.replacePersonalDefaultConfirm"))) return;
+                  onSavePersonalDefault(settings);
+                }}>{t("cost.savePersonalDefault")}</Button>
+                <Button disabled={!hasPersonalDefault} onClick={onLoadPersonalDefault}>{t("cost.loadPersonalDefault")}</Button>
+                <Button disabled={!hasPersonalDefault} onClick={onRemovePersonalDefault}>{t("cost.removePersonalDefault")}</Button>
+                <Button onClick={onLoadBuiltInDefault}>{t("cost.loadBuiltInDefault")}</Button>
+              </div>
+              <div className="cost-built-in-source">
+                <Heading>{t("cost.builtInSourceTitle")}</Heading>
+                <p className="oa-secondary">{t("cost.builtInSourceDescription")}</p>
+              </div>
+            </SettingsGroup>
+          </fieldset>
+        </Panel>
+      </div>
+    </OpenAECProvider>
   );
 }
 
-function CostTable({ currencyCode, items, usedPileSizes, onEditCosts }: {
+function CostTable({ label, currencyCode, items, usedPileSizes, onEditCosts }: {
+  label: string;
   currencyCode: string;
   items: PileCostSettingsItem[];
   usedPileSizes: ReadonlySet<number>;
   onEditCosts: (actions: CostCatalogAction[]) => Promise<boolean>;
 }) {
   const { t } = useTranslation("rightPanel");
-  if (items.length === 0) return <p className="supporting-text">{t("cost.noRows")}</p>;
+  if (items.length === 0) return <p className="oa-secondary cost-no-rows">{t("cost.noRows")}</p>;
+  const rows = items.map(item => {
+    const size = `${formatNumber(item.pile_size_mm)} mm`;
+    const used = usedPileSizes.has(item.pile_size_mm);
+    return {
+      size,
+      shape: <Select label={`${t("cost.shape")}, ${size}`} value={item.shape} options={shapeOptions(t)}
+        onChange={event => { void onEditCosts([{ action: "update", pile_size_mm: item.pile_size_mm,
+          shape: event.currentTarget.value === "round" ? "round" : "square" }]); }} />,
+      cost: <CostValueField item={item} currencyCode={currencyCode} onEditCosts={onEditCosts} />,
+      remove: <IconButton small className="cost-remove-button" icon="ui.close"
+        label={`${t("cost.removeSize")}, ${size}`} disabled={used}
+        title={used ? t("cost.inUse") : t("cost.removeSize")}
+        onClick={() => { void onEditCosts([{ action: "remove", pile_size_mm: item.pile_size_mm }]); }} />,
+    };
+  });
   return (
     <div className="cost-settings-table-wrap">
-      <table className="cost-settings-table">
-        <thead><tr><th>{t("cost.size")}</th><th>{t("cost.shape")}</th><th>{t("cost.costPerM3")}</th><th /></tr></thead>
-        <tbody>{items.map((item) => (
-          <CostSettingsRow
-            currencyCode={currencyCode}
-            item={item}
-            key={item.pile_size_mm}
-            used={usedPileSizes.has(item.pile_size_mm)}
-            onEditCosts={onEditCosts}
-            onRemove={() => { void onEditCosts([{ action: "remove", pile_size_mm: item.pile_size_mm }]); }}
-          />
-        ))}</tbody>
-      </table>
+      <Table label={label} columns={[
+        { key: "size", label: t("cost.size") },
+        { key: "shape", label: t("cost.shape") },
+        { key: "cost", label: t("cost.costPerM3") },
+        { key: "remove", label: "" },
+      ]} rows={rows} rowKey={row => row.size} />
     </div>
   );
 }
 
-function CostSettingsRow({ currencyCode, item, used, onEditCosts, onRemove }: {
+function CostValueField({ currencyCode, item, onEditCosts }: {
   currencyCode: string;
   item: PileCostSettingsItem;
-  used: boolean;
   onEditCosts: (actions: CostCatalogAction[]) => Promise<boolean>;
-  onRemove: () => void;
 }) {
   const { t } = useTranslation("rightPanel");
   const [costDraft, setCostDraft] = useState(String(item.cost_per_m3));
   useEffect(() => setCostDraft(String(item.cost_per_m3)), [item.cost_per_m3]);
   return (
-    <tr>
-      <td>{formatNumber(item.pile_size_mm)} mm</td>
-      <td><ThemedSelect
-        ariaLabel={t("cost.shape")}
-        value={item.shape}
-        options={shapeOptions(t)}
-        onChange={(value) => { void onEditCosts([{ action: "update", pile_size_mm: item.pile_size_mm, shape: value === "round" ? "round" : "square" }]); }}
-      /></td>
-      <td><label className="table-number-field"><span>{currencyCode}</span><ThemedNumberInput
-        min="0"
-        step="1"
-        value={costDraft}
+    <div className="cost-table-value">
+      <span className="oa-secondary">{currencyCode}</span>
+      <NumberField label={`${t("cost.costPerM3")}, ${formatNumber(item.pile_size_mm)} mm (${currencyCode})`}
+        type="number" className="oa-number" min="0" step="1" value={costDraft}
         onValueChange={setCostDraft}
         onBlur={async () => {
           const cost = commitCostInput(costDraft);
@@ -209,10 +211,8 @@ function CostSettingsRow({ currencyCode, item, used, onEditCosts, onRemove }: {
           const applied = await onEditCosts([{ action: "update", pile_size_mm: item.pile_size_mm, cost_per_m3: cost }]);
           setCostDraft(String(applied ? cost : item.cost_per_m3));
         }}
-        onKeyDown={(event) => { if (event.key === "Enter") event.currentTarget.blur(); }}
-      /></label></td>
-      <td><button className="cost-remove-button" type="button" disabled={used} title={used ? t("cost.inUse") : t("cost.removeSize")} onClick={onRemove} dangerouslySetInnerHTML={{ __html: removeIcon }} /></td>
-    </tr>
+        onKeyDown={event => { if (event.key === "Enter") event.currentTarget.blur(); }} />
+    </div>
   );
 }
 

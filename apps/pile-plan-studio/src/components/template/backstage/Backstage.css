@@ -1,7 +1,7 @@
 /* Backstage Overlay — transparent click-catcher behind the menu */
 .backstage-overlay {
   position: fixed;
-  top: 32px; /* titlebar height */
+  top: var(--oa-shell-titlebar);
   left: 0;
   right: 0;
   bottom: 0;
@@ -29,104 +29,12 @@ body:has(.bs-export-panel.is-exporting) * {
   height: 100%;
 }
 
-/* Back button */
-.backstage-back {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 14px 20px;
-  background: var(--theme-accent);
-  border: none;
-  color: var(--theme-accent-text);
-  font-size: 15px;
-  font-weight: 600;
-  cursor: default;
-  transition: background 0.15s;
-}
-
-.backstage-back:hover {
-  background: var(--theme-accent-hover);
-}
-
-.backstage-back svg {
-  flex-shrink: 0;
-}
-
-/* Menu items */
-.backstage-items {
-  display: flex;
-  flex-direction: column;
-  padding: 8px 0;
-  overflow-y: auto;
-  flex: 1;
-}
-
-.backstage-item {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 10px 20px;
-  background: transparent;
-  border: none;
-  color: var(--theme-text);
-  font-size: 13px;
-  cursor: default;
-  transition: background 0.1s;
-  text-align: left;
-  width: 100%;
-  border-left: 3px solid transparent;
-}
-
-.backstage-item:hover {
-  background: var(--theme-hover);
-  color: var(--theme-accent);
-}
-
-.backstage-item.active {
-  background: var(--theme-hover-strong);
-  border-left-color: var(--theme-accent);
-  padding-left: 17px;
-  color: var(--theme-accent);
-}
-
-.backstage-item-icon {
-  width: 24px;
-  height: 24px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-}
-
-.backstage-item-icon svg {
-  stroke: var(--theme-text);
-}
-
-.backstage-item:hover .backstage-item-icon svg,
-.backstage-item.active .backstage-item-icon svg {
-  stroke: var(--theme-accent);
-}
-
-.backstage-item-label {
-  flex: 1;
-}
-
-.backstage-item-shortcut {
-  font-size: 11px;
-  color: var(--theme-backstage-item-shortcut);
-  margin-left: auto;
-}
-
-.backstage-item:hover .backstage-item-shortcut {
-  color: var(--theme-backstage-item-shortcut-hover);
-}
-
-/* Divider */
-.backstage-divider {
-  height: 1px;
-  background: var(--theme-border-subtle);
-  margin: 4px 16px;
-}
+/* File navigation layout; appearance and interaction states use shared controls. */
+.backstage-items { display: flex; flex-direction: column; padding: 8px; gap: 2px; overflow-y: auto; flex: 1; }
+.backstage-item-icon { width: 24px; height: 24px; display: grid; place-items: center; flex: none; }
+.backstage-item-label { flex: 1; text-align: left; white-space: normal; }
+.backstage-item-shortcut { font-size: var(--oa-size-label); color: var(--oa-text-secondary); margin-left: auto; }
+.backstage-divider { margin: 6px 8px; flex: none; }
 
 /* Content area — only shown when a panel is active. Width is constrained,
    not full-screen, and the rest of the underlying app stays visible. */
@@ -151,371 +59,13 @@ body:has(.bs-export-panel.is-exporting) * {
   cursor: default;
 }
 
-/* About Panel */
-.bs-about-panel {
-  max-width: 500px;
-}
-
-.bs-about-title {
-  font-size: 22px;
-  font-weight: 300;
-  color: var(--theme-accent);
-  margin: 0 0 24px 0;
-}
-
-.bs-about-app {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  margin-bottom: 20px;
-}
-
-.bs-about-logo {
-  width: 56px;
-  height: 56px;
-  flex-shrink: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.bs-about-logo svg {
-  width: 48px;
-  height: 48px;
-}
-
-.bs-about-app-info {
-  display: flex;
-  flex-direction: column;
-}
-
-.bs-about-app-name {
-  font-size: 20px;
-  font-weight: 600;
-  color: var(--theme-accent);
-  margin: 0 0 2px 0;
-}
-
-.bs-about-version {
-  font-size: 12px;
-  color: var(--theme-text);
-  margin: 0;
-}
-
-.bs-about-tagline {
-  font-size: 13px;
-  color: var(--theme-text);
-  margin: 0 0 12px 0;
-  font-style: italic;
-}
-
-.bs-about-description {
-  font-size: 12px;
-  line-height: 1.6;
-  color: var(--theme-text);
-  margin: 0 0 20px 0;
-}
-
-.bs-about-company {
-  background: var(--theme-accent-soft);
-  border: 1px solid var(--theme-border);
-  padding: 14px 16px;
-  margin-bottom: 20px;
-}
-
-.bs-about-company-name {
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--theme-accent);
-  margin: 0 0 6px 0;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.bs-about-company-name::before {
-  content: '';
-  width: 3px;
-  height: 14px;
-  background: var(--theme-accent);
-}
-
-.bs-about-company-desc {
-  font-size: 11px;
-  color: var(--theme-text);
-  margin: 0;
-  line-height: 1.5;
-}
-
-.bs-about-company-meta {
-  font-size: 10px;
-  color: var(--theme-text-secondary);
-  margin: 8px 0 0;
-  font-style: italic;
-  letter-spacing: 0.3px;
-}
-
-.bs-about-links {
-  display: flex;
-  gap: 10px;
-  margin-bottom: 20px;
-}
-
-.bs-about-link {
-  background: var(--theme-accent-soft);
-  border: 1px solid var(--theme-border);
-  color: var(--theme-text);
-  padding: 8px 16px;
-  font-size: 12px;
-  cursor: default;
-  transition: background 0.1s, border-color 0.1s, color 0.1s;
-  text-decoration: none;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.bs-about-link:hover {
-  background: var(--theme-hover-strong);
-  border-color: var(--theme-accent);
-  color: var(--theme-accent);
-}
-
-.bs-about-link svg {
-  width: 14px;
-  height: 14px;
-}
-
-.bs-about-footer {
-  padding-top: 12px;
-  border-top: 1px solid var(--theme-border-subtle);
-}
-
-.bs-about-copyright {
-  font-size: 10px;
-  color: var(--theme-text-secondary);
-  margin: 0;
-}
-
 /* Shared content panel hierarchy */
-.backstage-panel-title {
-  font-size: 22px;
-  font-weight: 300;
-  font-family: var(--theme-font-heading, "Space Grotesk", system-ui, sans-serif);
-  color: var(--theme-accent);
-  margin: 0 0 8px 0;
-  letter-spacing: 0;
-}
-
 .backstage-panel-intro {
   max-width: 580px;
   margin: 0 0 24px;
   color: var(--theme-text-muted);
   font-size: 12px;
   line-height: 1.5;
-}
-
-/* Open project panel */
-.bs-open-panel,
-.bs-export-panel {
-  max-width: 720px;
-}
-
-.bs-open-heading {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 20px;
-}
-
-.bs-open-clear {
-  flex-shrink: 0;
-  margin-top: 6px;
-  padding: 2px 0;
-  color: var(--theme-text-muted);
-  background: none;
-  border: 0;
-  font: inherit;
-  font-size: 11px;
-  text-decoration: underline;
-  cursor: pointer;
-}
-
-.bs-open-clear:hover {
-  color: var(--theme-accent);
-}
-
-.bs-open-project-options {
-  display: grid;
-  gap: 8px;
-  margin-bottom: 24px;
-}
-
-.bs-open-project-option {
-  width: 100%;
-  min-height: 74px;
-  box-sizing: border-box;
-  display: flex;
-  align-items: center;
-  gap: 14px;
-  margin: 0;
-  padding: 14px;
-  color: var(--theme-text);
-  background: var(--theme-bg-lighter);
-  border: 1px solid var(--theme-border);
-  border-radius: 4px;
-  font: inherit;
-  text-align: left;
-  cursor: pointer;
-}
-
-.bs-open-project-option:hover {
-  border-color: var(--theme-accent);
-  background: var(--theme-hover);
-}
-
-.bs-open-project-icon {
-  width: 42px;
-  height: 42px;
-  flex-shrink: 0;
-  display: grid;
-  place-items: center;
-  color: var(--theme-accent);
-  background: var(--theme-accent-soft);
-  border: 1px solid var(--theme-border);
-  border-radius: 4px;
-}
-
-.bs-open-project-icon svg {
-  width: 24px;
-  height: 24px;
-}
-
-.bs-open-project-info {
-  min-width: 0;
-  flex: 1;
-  display: grid;
-  gap: 4px;
-  color: var(--theme-text-muted);
-  font-size: 11px;
-  line-height: 1.45;
-}
-
-.bs-open-project-heading {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  color: var(--theme-text);
-  font-size: 13px;
-}
-
-.bs-open-project-action {
-  min-width: 108px;
-  height: 30px;
-  flex-shrink: 0;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  box-sizing: border-box;
-  padding: 0 12px;
-  color: var(--theme-accent-text);
-  background: var(--theme-accent);
-  border: 1px solid var(--theme-accent);
-  border-radius: 3px;
-  font-size: 11px;
-  font-weight: 600;
-}
-
-.bs-open-native-file {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  overflow: hidden;
-  clip: rect(0 0 0 0);
-  white-space: nowrap;
-}
-
-.bs-open-recent-heading {
-  margin-bottom: 8px;
-  color: var(--theme-text-secondary);
-  font-size: 11px;
-  font-weight: 600;
-  text-transform: uppercase;
-}
-
-.bs-open-empty {
-  margin: 0;
-  padding: 16px 0;
-  color: var(--theme-text-muted);
-  font-size: 11px;
-}
-
-.bs-recent-list {
-  display: grid;
-  gap: 6px;
-}
-
-.bs-recent-item {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 10px 12px;
-  background: var(--theme-bg-lighter);
-  border: 1px solid var(--theme-border);
-  border-radius: 4px;
-  cursor: pointer;
-}
-
-.bs-recent-item:hover {
-  border-color: var(--theme-text-faint);
-  background: var(--theme-hover);
-}
-
-.bs-recent-icon {
-  flex-shrink: 0;
-  color: var(--theme-accent);
-}
-
-.bs-recent-info {
-  min-width: 0;
-  flex: 1;
-}
-
-.bs-recent-name,
-.bs-recent-path {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.bs-recent-name {
-  color: var(--theme-text);
-  font-size: 12px;
-  font-weight: 600;
-}
-
-.bs-recent-path,
-.bs-recent-date {
-  color: var(--theme-text-muted);
-  font-size: 10px;
-}
-
-.bs-recent-date {
-  flex-shrink: 0;
-}
-
-.bs-recent-remove {
-  flex-shrink: 0;
-  padding: 4px;
-  color: var(--theme-text-muted);
-  background: none;
-  border: 0;
-  cursor: pointer;
-}
-
-.bs-recent-remove:hover {
-  color: var(--theme-danger-color);
 }
 
 /* Export panel */
@@ -539,15 +89,12 @@ body:has(.bs-export-panel.is-exporting) * {
 
 .bs-export-card-icon {
   flex-shrink: 0;
-  width: 42px;
-  height: 42px;
+  width: 24px;
+  height: 24px;
   display: flex;
   align-items: center;
   justify-content: center;
-  color: var(--theme-accent);
-  background: var(--theme-accent-soft);
-  border: 1px solid var(--theme-border);
-  border-radius: 4px;
+  color: var(--theme-text);
 }
 
 .bs-export-card.has-options {
@@ -697,15 +244,9 @@ body:has(.bs-export-panel.is-exporting) * {
 }
 
 @media (max-width: 760px) {
-  .bs-open-project-option,
   .bs-export-card {
     align-items: flex-start;
     flex-wrap: wrap;
-  }
-
-  .bs-open-project-action {
-    width: 100%;
-    margin-left: 56px;
   }
 
   .bs-export-card-actions {

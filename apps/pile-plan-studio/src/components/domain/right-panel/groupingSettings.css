@@ -1,0 +1,14 @@
+/* App-owned sidebar layout; Blueprint supplies controls and visual states. */
+.grouping-settings-shell { display: contents; }
+.grouping-settings-blueprint.oa-panel { display: flex; flex-direction: column; min-width: 0; }
+.grouping-settings-blueprint > .oa-panel-header { flex-shrink: 0; }
+.grouping-settings-blueprint > .oa-panel-header > .oa-mono-label { min-width: 0; overflow-wrap: anywhere; }
+.grouping-settings-scroll { flex: 1; min-height: 0; overflow: auto; }
+.grouping-settings-subtitle { margin: 0; padding: 12px 12px 0; }
+.grouping-settings-help { margin: 0; line-height: 1.45; }
+.grouping-settings-blueprint .oa-check { align-items: flex-start; }
+.grouping-settings-blueprint .oa-check > input { flex-shrink: 0; margin-top: 1px; }
+.grouping-settings-blueprint .blueprint-settings-group.is-muted > .oa-heading { color: var(--oa-text-secondary); }
+.grouping-settings-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.grouping-settings-actions .load-point-group-edit-control { max-width: 100%; }
+.grouping-settings-actions .oa-button { max-width: 100%; height: auto; min-height: var(--oa-row); padding-block: 6px; white-space: normal; text-align: left; }

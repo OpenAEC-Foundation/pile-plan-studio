@@ -1,6 +1,14 @@
+.backstage-content:has(.project-import-panel) {
+  width: 1100px;
+  max-width: calc(100vw - 260px);
+  padding: 24px 28px;
+}
+
 .project-import-panel {
   display: grid;
-  max-width: 780px;
+  width: 100%;
+  max-width: none;
+  min-width: 0;
   gap: 14px;
   color: var(--theme-text);
   font-family: var(--theme-font-body, Inter, system-ui, sans-serif);
@@ -20,23 +28,23 @@
   background: var(--theme-bg);
 }
 
-.project-import-mode button {
+.project-import-mode button:not(.oa-button) {
   min-height: 30px;
   border: 0;
   border-radius: 3px;
   color: var(--theme-text-secondary);
   background: transparent;
   font: inherit;
-  font-weight: 600;
+  font-weight: var(--oa-weight-regular);
   cursor: pointer;
 }
 
-.project-import-mode button:hover {
+.project-import-mode button:not(.oa-button):hover {
   color: var(--theme-text);
   background: var(--theme-hover);
 }
 
-.project-import-mode button.is-active {
+.project-import-mode button:not(.oa-button).is-active {
   color: var(--theme-accent);
   background: var(--theme-accent-soft);
   box-shadow: inset 0 0 0 1px var(--theme-accent);
@@ -134,18 +142,6 @@
   border-color: var(--theme-focus-color);
   outline: 1px solid var(--theme-focus-color);
   outline-offset: 0;
-}
-
-.project-import-panel .themed-select {
-  width: 100%;
-  min-width: 0;
-}
-
-.project-import-panel .themed-select-trigger {
-  min-height: 30px;
-  border-radius: 4px;
-  padding: 5px 8px;
-  font-size: inherit;
 }
 
 .project-import-field.is-invalid {
@@ -247,7 +243,7 @@
   color: var(--theme-text);
   background: var(--theme-surface);
   font: inherit;
-  font-weight: 600;
+  font-weight: var(--oa-weight-regular);
   cursor: pointer;
   transition: background 0.1s, border-color 0.1s, color 0.1s;
 }
@@ -384,7 +380,7 @@
   gap: 6px 12px;
 }
 
-.project-import-rfem-grid > span:nth-child(odd) {
+.project-import-rfem-grid > .project-import-sheet-label {
   color: var(--theme-text-secondary);
   font-size: 11px;
 }
@@ -419,7 +415,7 @@
   color: var(--theme-text-secondary);
 }
 
-.project-import-submit {
+.project-import-submit:not(.oa-button) {
   min-height: 32px;
   justify-self: start;
   margin: 0;
@@ -429,16 +425,16 @@
   color: var(--theme-accent-text);
   background: var(--theme-accent);
   font: inherit;
-  font-weight: 700;
+  font-weight: var(--oa-weight-semibold);
   cursor: pointer;
 }
 
-.project-import-submit:disabled {
+.project-import-submit:not(.oa-button):disabled {
   cursor: default;
   opacity: 0.5;
 }
 
-.project-import-submit:hover:not(:disabled) {
+.project-import-submit:not(.oa-button):hover:not(:disabled) {
   border-color: var(--theme-accent-hover);
   background: var(--theme-accent-hover);
 }

@@ -1,5 +1,6 @@
 {
   "tabs": {
+    "label": "Ribbon tabs",
     "file": "File",
     "plan": "Plan",
     "view": "View"
@@ -21,6 +22,8 @@
     "cpts": "CPTs",
     "pileCapChanges": "Pile cap changes",
     "settings": "Settings",
+    "costs": "Costs",
+    "groups": "Groups",
     "cptSettings": "CPT settings",
     "costSettings": "Cost settings",
     "groupingSettings": "Grouping settings",
@@ -49,6 +52,10 @@
     "grid": "Grid",
     "showGrid": "Show grid",
     "hideGrid": "Hide grid",
+    "tipLevelRegions": "Tip-level regions",
+    "groups": "Groups",
+    "explorer": "Explorer",
+    "properties": "Properties",
     "regions": "Regions",
     "showTipLevelRegions": "Show tip-level regions",
     "hideTipLevelRegions": "Hide tip-level regions",

@@ -1,0 +1,39 @@
+/* Sidebar composition; Blueprint supplies the controls, surfaces and focus. */
+.cpt-settings-blueprint.oa-panel {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.cpt-settings-blueprint > .oa-panel-header { flex-shrink: 0; }
+.cpt-settings-blueprint > .oa-panel-header > .oa-mono-label {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.cpt-settings-scroll { flex: 1; min-height: 0; overflow: auto; }
+.cpt-settings-subtitle { margin: 0; padding: 12px 12px 0; }
+.cpt-scope-options { display: grid; gap: 8px; }
+.cpt-settings-blueprint .oa-check { align-items: flex-start; }
+.cpt-settings-blueprint .oa-check > input { flex-shrink: 0; margin-top: 1px; }
+.cpt-settings-help { margin: 0; line-height: 1.45; }
+.cpt-algorithm-options {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+.cpt-algorithm-options > .oa-tile { min-width: 0; align-items: center; gap: 8px; }
+.cpt-algorithm-options .oa-icon-tile {
+  width: 100%;
+  height: 64px;
+  border: 0;
+  background: transparent;
+  color: var(--oa-text-secondary);
+}
+.cpt-algorithm-options .oa-icon-tile .oa-icon {
+  width: 100%;
+  height: 64px;
+  --icon-accent: var(--oa-accent);
+  --diagram-node-fill: var(--oa-field);
+}
+.cpt-algorithm-options .oa-tile-title { width: 100%; text-align: center; }
+.cpt-selection-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.cpt-selection-actions .oa-button { max-width: 100%; height: auto; min-height: var(--oa-row); white-space: normal; padding-block: 6px; text-align: left; }

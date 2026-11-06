@@ -238,3 +238,27 @@ fn advice_recognizes_kenmerk_and_waarde_without_changing_other_roles() {
  assert_ne!(other["table"]["settings"]["columns"][3]["field"],"pile-size");
  assert_ne!(other["table"]["settings"]["columns"][4]["field"],"resistance");
 }
+
+#[test]
+fn advice_generic_defaults_do_not_override_semantic_or_explicit_mappings() {
+    let p = preview(&source("bearing-capacities",
+        "Kolom1,PPN,Sondering,Waarde,Afmeting\n777,-18,1,700,320\n", Value::Null));
+    let sheet = &p["details"]["sheets"][0];
+    let columns = sheet["table"]["settings"]["columns"].as_array().unwrap();
+    assert_eq!(columns.iter().map(|c| c["field"].as_str().unwrap()).collect::<Vec<_>>(),
+        vec!["ignore", "tip-level", "id", "resistance", "pile-size"]);
+    assert_eq!(sheet["status"], "ready");
+
+    let settings = json!({"columns":[{"column":1,"field":"id"},
+        {"column":2,"field":"tip-level","unit":"m"},
+        {"column":3,"field":"resistance"},{"column":4,"field":"pile-size"}]});
+    let s = source("bearing-capacities", "Kolom1,Kolom2,Kenmerk,Waarde\n1,-18,700,320\n", settings);
+    let p = preview_advice_source(&s);
+    assert_eq!(p.sheets[0].status, AdviceSheetStatus::Ready);
+    assert_eq!(p.sheets[0].summary.pile_sizes_mm, vec![320]);
+    assert_eq!(p.sheets[0].table.as_ref().unwrap().settings.columns.as_ref().unwrap()[2].field, "resistance");
+
+    let unknown = preview(&source("bearing-capacities",
+        "Notitie,PPN,Afmeting,Waarde\n1,-18,320,700\n", Value::Null));
+    assert_eq!(unknown["details"]["sheets"][0]["table"]["settings"]["columns"][0]["field"], "ignore");
+}

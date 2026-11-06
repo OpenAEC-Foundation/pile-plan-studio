@@ -12,8 +12,8 @@ describe("desktop interface scale control", () => {
     assert.match(css, /top:/);
     assert.match(css, /right:/);
     assert.match(css, /pointer-events:\s*auto/);
-    assert.match(css, /var\(--theme-surface\)/);
-    assert.match(css, /var\(--theme-border\)/);
-    assert.match(css, /var\(--theme-text\)/);
+    assert.match(css, /var\(--oa-panel\)/);
+    assert.match(css, /var\(--oa-border\)/);
+    assert.match(css, /var\(--oa-text\)/);
   });
 });

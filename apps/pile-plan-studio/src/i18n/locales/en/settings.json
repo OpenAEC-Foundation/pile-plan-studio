@@ -25,14 +25,16 @@
     "theme": "Theme",
     "themeDescription": "Choose a color theme for the application.",
     "light": "Light",
-    "forge": "Forge (dark)",
-    "dark": "OpenAEC (dark)",
+    "dark": "Dark",
     "blueprint": "Blueprint",
-    "contrast": "High contrast",
     "font": "Font",
     "uiFontSize": "UI Font Size",
     "interfaceScale": "Interface scale",
-    "interfaceScaleDescription": "Use Ctrl+= and Ctrl+- to adjust the desktop interface. Ctrl+0 restores 100%."
+    "interfaceScaleDescription": "Use Ctrl+= and Ctrl+- to adjust the desktop interface. Ctrl+0 restores 100%.",
+    "contrastDark": "High contrast dark",
+    "contrastLight": "High contrast light",
+    "planBackground": "Plan background",
+    "followTheme": "Follow theme"
   },
   "editor": {
     "general": "General",

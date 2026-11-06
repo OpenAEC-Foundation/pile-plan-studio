@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useRef, type FocusEvent } from "react";
 import { useTranslation } from "react-i18next";
+import { Button } from "../../openaec/react/src/index";
+import "../../openaec/openaec-components.css";
 import "./InterfaceScaleNotice.css";
 
 export type InterfaceScaleNoticeValue = {
@@ -50,7 +52,7 @@ export default function InterfaceScaleNotice({
 
   return (
     <div
-      className="interface-scale-notice"
+      className="oa-app interface-scale-notice"
       onBlurCapture={handleBlur}
       onFocusCapture={pauseExpiry}
       onPointerEnter={pauseExpiry}
@@ -59,31 +61,31 @@ export default function InterfaceScaleNotice({
       <span aria-live="polite" className="interface-scale-value" role="status">
         {notice.percent}%
       </span>
-      <button
+      <Button kind="quiet"
         aria-label={`${t("zoom")} -`}
         className="interface-scale-icon-button"
         onClick={onDecrease}
-        title={`${t("zoom")} -`}
+        data-tooltip={`${t("zoom")} -`}
         type="button"
       >
         &minus;
-      </button>
-      <button
+      </Button>
+      <Button kind="quiet"
         aria-label={`${t("zoom")} +`}
         className="interface-scale-icon-button"
         onClick={onIncrease}
-        title={`${t("zoom")} +`}
+        data-tooltip={`${t("zoom")} +`}
         type="button"
       >
         +
-      </button>
-      <button
+      </Button>
+      <Button kind="quiet"
         className="interface-scale-reset-button"
         onClick={onReset}
         type="button"
       >
         {t("reset")}
-      </button>
+      </Button>
     </div>
   );
 }

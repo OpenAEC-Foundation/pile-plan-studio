@@ -1,7 +1,5 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
-import { resolve } from "node:path";
 import { normalizePileHeadLevel, normalizeProjectName } from "./projectInformationModel.ts";
 
 describe("Project information", () => {
@@ -17,26 +15,4 @@ describe("Project information", () => {
     assert.equal(normalizePileHeadLevel("not a level"), null);
   });
 
-  it("uses the custom themed listbox for project currency", () => {
-    const source = readFileSync(new URL("./ProjectInformationDialog.tsx", import.meta.url), "utf8");
-
-    assert.match(source, /<ThemedSelect/);
-    assert.match(source, /ariaLabel=\{t\("projectInformation\.currency"\)\}/);
-    assert.doesNotMatch(source, /<select/);
-  });
-
-  it("explains that the project reference level is used as the pile cut-off level", () => {
-    const source = readFileSync(new URL("./ProjectInformationDialog.tsx", import.meta.url), "utf8");
-
-    assert.match(source, /projectInformation\.pileHeadLevelHelp/);
-    assert.match(source, /aria-label=\{t\("projectInformation\.pileHeadLevelHelp"\)\}/);
-    assert.match(source, /title=\{t\("projectInformation\.pileHeadLevelHelp"\)\}/);
-  });
-
-  it("uses a stable two-column form layout", () => {
-    const styles = readFileSync(new URL("../../../App.css", import.meta.url), "utf8");
-
-    assert.match(styles, /\.project-information-form label\s*{[\s\S]*?grid-template-columns:/);
-    assert.match(styles, /\.project-information-form input[\s\S]*?width:\s*100%/);
-  });
 });

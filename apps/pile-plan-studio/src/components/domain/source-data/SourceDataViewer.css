@@ -1,0 +1,40 @@
+/* Source table composition; shared controls own their interaction states. */
+.source-data-viewer.oa-app { display: flex; flex: 1; flex-direction: column; width: 100%; height: 100%; min-width: 0; min-height: 0; max-height: 100%; overflow: hidden; background: var(--oa-panel); color: var(--oa-text); font-family: var(--oa-font-body); font-size: var(--oa-size-body); }
+.source-data-header { display: flex; align-items: flex-start; gap: 12px; padding: 12px 16px; border-bottom: 1px solid var(--oa-border); }
+.source-data-header > div:first-child { flex: 1; min-width: 0; }
+.source-data-header .oa-heading { margin: 0; }
+.source-data-header p { margin: 4px 0 0; color: var(--oa-text-secondary); font-size: var(--oa-size-label); line-height: 1.4; overflow-wrap: anywhere; }
+.source-viewer-blueprint .oa-status { font-family: var(--oa-font-body); white-space: normal; }
+.source-data-header .oa-button { height: auto; min-height: var(--oa-row); white-space: normal; }
+.source-data-header .source-file-picker { flex: 0 1 auto; max-width: 42%; }
+.source-data-header .source-close-button { flex: 0 0 var(--oa-row); }
+.source-table-heading,
+.source-table-row { display: grid; grid-template-columns: repeat(var(--source-column-count), minmax(110px, 1fr)); min-width: calc(var(--source-column-count) * 110px); }
+.source-table-heading { position: sticky; top: 0; z-index: 1; border-bottom: 1px solid var(--oa-border); background: var(--oa-panel); font-weight: var(--oa-weight-bold); }
+.source-table-column { position: relative; display: flex; min-width: 0; align-items: center; gap: 4px; padding: 5px 6px; border-right: 1px solid var(--oa-border-subtle); }
+.source-viewer-blueprint .source-table-heading .source-sort-button.oa-button { display: flex; flex: 1; min-width: 0; height: auto; min-height: var(--oa-row); padding: 4px 2px; gap: 4px; justify-content: space-between; text-align: left; white-space: normal; font-family: var(--oa-font-body); font-weight: inherit; }
+.source-sort-button > span:first-child { min-width: 0; overflow-wrap: anywhere; }
+.source-sort-button > span:last-child { flex-shrink: 0; }
+.source-filter-menu { position: relative; flex: 0 0 auto; }
+.source-filter-menu.is-open > .oa-icon-button { background: var(--oa-selected); border-color: var(--oa-selected-bar); }
+.source-filter-popover { position: absolute; z-index: 5; top: calc(100% + 5px); right: 0; display: grid; width: 220px; gap: 12px; padding: 12px; border: 1px solid var(--oa-border); border-radius: var(--oa-radius-medium); background: var(--oa-panel); color: var(--oa-text); box-shadow: var(--oa-shadow-panel); }
+.source-table-column.is-first .source-filter-popover { right: auto; left: 0; }
+.source-filter-popover .oa-label,
+.source-filter-popover .oa-field { min-width: 0; width: 100%; }
+.source-filter-popover .oa-button { height: auto; min-height: var(--oa-row); white-space: normal; }
+.source-filter-modes { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 6px; }
+.source-filter-modes > .oa-button[aria-pressed="true"] { border-color: var(--oa-selected-bar); background: var(--oa-selected); color: var(--oa-text); }
+.source-table-scroll { min-height: 0; min-width: 0; flex: 1; overflow: auto; }
+/* Keep in sync with ROW_HEIGHT: virtual offsets use 30 layout pixels. */
+.source-table-row { height: 30px; border-bottom: 1px solid var(--oa-border-subtle); }
+.source-table-row:hover { background: var(--oa-hover); }
+.source-table-row.is-selectable { cursor: pointer; user-select: none; }
+.source-table-row.is-selected { background: var(--oa-selected); box-shadow: inset 3px 0 var(--oa-selected-bar); }
+.source-table-row.is-selected:hover { background: var(--oa-selected); }
+.source-table-row.is-disabled { color: var(--oa-text-disabled); cursor: default; }
+.source-table-row > span { min-width: 0; overflow: hidden; padding: 5px 8px; border-right: 1px solid var(--oa-border-subtle); font-family: var(--oa-font-body); font-size: var(--oa-size-body); line-height: 18px; text-align: left; text-overflow: ellipsis; white-space: nowrap; }
+@media (max-width: 700px) {
+  .source-data-header { flex-wrap: wrap; padding: 10px 12px; gap: 8px; }
+  .source-data-header > div:first-child { flex-basis: calc(100% - 40px); }
+  .source-data-header > .source-file-picker { order: 1; max-width: 100%; }
+}

@@ -55,6 +55,10 @@
     "analyzing": "Analyzing pile plan...",
     "ready": "Ready to import",
     "invalid": "Resolve the reported errors before importing",
+    "pileColumnsRequired": "Map both pile size and pile tip level columns to import pile assignments.",
+    "mapImportColumns": "First map the columns for pile assignments or CPT selections to enable import.",
+    "chooseCategory": "Select Pile assignments or CPT selections to import.",
+    "noChanges": "No importable changes found. Check the column mapping and import preview.",
     "previewTitle": "Import preview",
     "detected": "Detected profile: {{profile}}",
     "summary": "{{matched}} of {{total}} rows matched · {{fallbacks}} by coordinates · {{conflicts}} conflicts · {{skipped}} skipped",
@@ -77,6 +81,11 @@
     "import": "Import as new pile plan"
   },
   "openPanel": {
+    "localCopy": "Local copy",
+    "localCopiesHelp": "In the browser, recent projects open a local copy of the last opened, locally saved or downloaded IFCPP version on this device. Unsaved changes are not part of that copy.",
+    "justNow": "Just now",
+    "openRecent": "Open {{name}}",
+    "removeFile": "Remove {{name}} from recent projects",
     "title": "Open project",
     "intro": "Open an IFCPP project from this device or continue with a recent project.",
     "chooseProject": "Choose IFCPP project",

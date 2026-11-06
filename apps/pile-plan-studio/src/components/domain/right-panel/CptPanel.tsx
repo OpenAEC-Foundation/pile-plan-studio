@@ -9,7 +9,10 @@ import type { ProjectState } from "../../../domain/project/projectState.ts";
 import { openCpt } from "../../../domain/workspace/selectionState.ts";
 import { getCptFrdPanelModel, getSelectedCptOverviewModel, getSelectedLoadPoints } from "./rightPanelModel.ts";
 import { cancelManualCptSelection, clearManualCptSelection, removeManualCpt, isManualCptSelectionPending, selectOnlyNearestCpts, startManualCptSelectionEdit, synchronizeManualCptSelection } from "../../../domain/cpt-selection/cptSettingsModel.ts";
-import { removeIcon } from "../../template/ribbon/icons.ts";
+import { Banner, Button, IconButton, OpenAECProvider, Panel, Status } from "../../../openaec/react/src/index";
+import spriteUrl from "../../../openaec/studioSprite.ts";
+import "../../../openaec/openaec-components.css";
+import "./cptPanel.css";
 import { CoordinateReadout } from "../shared/CoordinateReadout.ts";
 import { ResistanceLabel, localizeCptName, localizeCptTableValue } from "./PanelControls.tsx";
 
@@ -40,38 +43,31 @@ export default function CptPanel({ state, onStateChange: publishState, selectedL
 
   if (selectedCpt) {
     return (
-      <div className="cpt-panel">
-        <header className="right-panel-header">
-          <div>
-            <h2>{localizeCptName(selectedCpt.cpt.name, t)}</h2>
-            <span>{t("cpts.selected")}</span>
-          </div>
-        </header>
+      <CptFrame title={localizeCptName(selectedCpt.cpt.name, t)}>
+        <p className="cpt-panel-subtitle oa-secondary">{t("cpts.selected")}</p>
         {actions}
         <CoordinateReadout points={[selectedCpt.cpt]} locale={i18n.language} />
         {selectedCpt.rows.some(row=>row.highlighted)&&<p className="cpt-advice-selection-key">▶ {t("cpts.selectedPileAdvice")}</p>}
-        {inspection.failed&&<p className="cpt-advice-selection-key" role="status">{t("cpts.adviceHighlightFailed")}</p>}
+        {inspection.failed&&<Banner tone="warning" word="">{t("cpts.adviceHighlightFailed")}</Banner>}
         <CptTable
+          label={t("cpts.selected")}
           highlighted={selectedCpt.rows.map((row,i)=>row.highlighted?i:-1).filter(i=>i>=0)} highlightLabel={t("cpts.selectedPileAdvice")} scrollKey={`${selectedCpt.cpt.id}:${mode}`}
           columns={[t("columns.size"), t("columns.tip"), ...(selectedCpt.rows.some(row=>row.pileCount!=null)?[common("tableImport.capPileCount")]:[]), <ResistanceLabel key="resistance" />]}
           rows={selectedCpt.rows.map((row) => [row.sizeLabel, row.tipLabel, ...(selectedCpt.rows.some(v=>v.pileCount!=null)?[row.pileCount==null?common("tableImport.allPileCounts"):String(row.pileCount)]:[]), row.frdLabel])}
         />
-      </div>
+      </CptFrame>
     );
   }
 
   if (selectedLoadPoints.length === 0) {
     return (
-      <div className="cpt-panel">
-        <header className="right-panel-header">
-          <div><h2>{t("tabs.cpts")}</h2></div>
-        </header>
+      <CptFrame title={t("tabs.cpts")}>
         {actions}
         <div className="right-panel-empty">
           <strong>{t("empty.noCpts")}</strong>
           <span>{t("empty.selectCpt")}</span>
         </div>
-      </div>
+      </CptFrame>
     );
   }
 
@@ -106,28 +102,24 @@ function CptSelectionOverview({ state, onStateChange, selectedLoadPoints, action
   };
 
   return (
-    <div className="cpt-panel">
-      <header className="right-panel-header">
-        <div><h2>{heading}</h2></div>
-      </header>
+    <CptFrame title={heading}>
       {actions}
       {editing && preview?.status === "analyzing" ? (
-        <div className="cpt-preview-status" role="status">{t("cpts.previewCalculating")}</div>
+        <div className="cpt-preview-status" role="status"><Status tone="info">{t("cpts.previewCalculating")}</Status></div>
       ) : null}
       {editing && preview?.status === "failed" ? (
-        <div className="cpt-preview-status is-error" role="alert">
-          <span>{t("cpts.previewFailed", { error: preview.error })}</span>
-          <button type="button" disabled={saving} onClick={() => onStateChange({
+        <Banner tone="error" word="" action={<Button compact disabled={saving} onClick={() => onStateChange({
             ...state, cptSelectionEditDraft: { ...state.cptSelectionEditDraft! }, cptSelectionPreview: null,
-          })}>{t("cpts.retryPreview")}</button>
-        </div>
+          })}>{t("cpts.retryPreview")}</Button>}>
+          {t("cpts.previewFailed", { error: preview.error })}
+        </Banner>
       ) : null}
       <div className="cpt-table-wrap">
-        <table className="cpt-table">
+        <table className="oa-table cpt-table" aria-label={heading}>
           <thead>
             <tr>
-              {overview.columns.map((column) => <th key={column}>{columnLabels[column] ?? column}</th>)}
-              {editing ? <th className="cpt-remove-cell"><span className="sr-only">{t("actions.remove")}</span></th> : null}
+              {overview.columns.map((column) => <th key={column} scope="col">{columnLabels[column] ?? column}</th>)}
+              {editing ? <th className="cpt-remove-cell" scope="col"><span className="sr-only">{t("actions.remove")}</span></th> : null}
             </tr>
           </thead>
           <tbody>
@@ -154,13 +146,13 @@ function CptSelectionOverview({ state, onStateChange, selectedLoadPoints, action
                           {localizeCptTableValue(column, value, t)}
                         </CptUsageButton>
                       ) : overview.columns[index] === "CPT" && !editing ? (
-                        <button
+                        <Button compact kind="quiet"
                           className="cpt-link"
                           type="button"
                           onClick={() => onStateChange({ ...state, ...openCpt(state, row.cpt.id) })}
                         >
                           {localizeCptName(value, t)}
-                        </button>
+                        </Button>
                       ) : overview.columns[index] === "CPT"
                         ? localizeCptName(value, t)
                         : localizeCptTableValue(overview.columns[index], value, t)}
@@ -169,16 +161,14 @@ function CptSelectionOverview({ state, onStateChange, selectedLoadPoints, action
                 })}
                 {editing ? (
                   <td className="cpt-remove-cell">
-                    <button
-                      aria-label={t("actions.removeCpt", { cpt: localizeCptName(row.cpt.name, t) })}
+                    <IconButton small icon="ui.close"
+                      label={t("actions.removeCpt", { cpt: localizeCptName(row.cpt.name, t) })}
                       title={t("cpts.removeFromLocations", { cpt: localizeCptName(row.cpt.name, t), count: selectedLoadPoints.length })}
                       disabled={editPending}
                       className="cpt-remove-button"
                       type="button"
                       onClick={() => onStateChange(removeManualCpt(state, row.cpt.id))}
-                    >
-                      <span aria-hidden="true" dangerouslySetInnerHTML={{ __html: removeIcon }} />
-                    </button>
+                    />
                   </td>
                 ) : null}
               </tr>
@@ -186,7 +176,7 @@ function CptSelectionOverview({ state, onStateChange, selectedLoadPoints, action
           </tbody>
         </table>
       </div>
-    </div>
+    </CptFrame>
   );
 }
 
@@ -209,14 +199,14 @@ function CptSelectionActions({ state, onStateChange, selectedLoadPoints, saving,
   return <>
     <div className="cpt-edit-actions" aria-busy={saving}>
       <div className="cpt-edit-methods">
-        <button type="button" disabled={pending || noTargets || (!editing && !onApplyMethod)} onClick={() => method("automatic")}>{t("actions.useAlgorithm")}</button>
-        <button type="button" disabled={pending || noTargets || (!editing && !onApplyMethod)} onClick={() => method("nearest")}>{t("actions.onlyNearest")}</button>
+        <Button compact disabled={pending || noTargets || (!editing && !onApplyMethod)} onClick={() => method("automatic")}>{t("actions.useAlgorithm")}</Button>
+        <Button compact disabled={pending || noTargets || (!editing && !onApplyMethod)} onClick={() => method("nearest")}>{t("actions.onlyNearest")}</Button>
       </div>
       <div className="cpt-edit-commit-actions">{editing ? <>
-        <button type="button" disabled={pending || !onSave} onClick={() => void onSave?.()}>{t(saving ? "cpts.saving" : "actions.save")}</button>
-        <button type="button" disabled={saving} onClick={() => onStateChange(cancelManualCptSelection(state))}>{t("actions.cancel")}</button>
-      </> : <button className="cpt-modify-button" type="button" disabled={pending || noTargets}
-        onClick={() => onStateChange(startCptSelectionEdit(state))}>{t("actions.modify")}</button>}</div>
+        <Button compact kind="primary" disabled={pending || !onSave} onClick={() => void onSave?.()}>{t(saving ? "cpts.saving" : "actions.save")}</Button>
+        <Button compact disabled={saving} onClick={() => onStateChange(cancelManualCptSelection(state))}>{t("actions.cancel")}</Button>
+      </> : <Button compact className="cpt-modify-button" disabled={pending || noTargets}
+        onClick={() => onStateChange(startCptSelectionEdit(state))}>{t("actions.modify")}</Button>}</div>
     </div>
     {editing ? <CptEditScope state={state} onStateChange={onStateChange} disabled={saving} /> : null}
   </>;
@@ -226,7 +216,7 @@ export function startCptSelectionEdit(state: ProjectState): ProjectState {
   return startManualCptSelectionEdit(state);
 }
 
-function CptTable({ columns, rows, highlighted=[],highlightLabel,scrollKey }: { columns: ReactNode[]; rows: string[][];highlighted?:number[];highlightLabel?:string;scrollKey?:string }) {
+function CptTable({ label, columns, rows, highlighted=[],highlightLabel,scrollKey }: { label: string; columns: ReactNode[]; rows: string[][];highlighted?:number[];highlightLabel?:string;scrollKey?:string }) {
   const wrapper=useRef<HTMLDivElement>(null),highlightKey=highlighted.join(",");
   useEffect(()=>{
     const host=wrapper.current,row=host?.querySelector<HTMLElement>("tr[data-advice-highlight]");if(!host||!row)return;
@@ -235,8 +225,8 @@ function CptTable({ columns, rows, highlighted=[],highlightLabel,scrollKey }: { 
   },[highlightKey,scrollKey]);
   return (
     <div className="cpt-table-wrap" ref={wrapper}>
-      <table className="cpt-table">
-        <thead><tr>{columns.map((column, index) => <th key={index}>{column}</th>)}</tr></thead>
+      <table className="oa-table cpt-table" aria-label={label}>
+        <thead><tr>{columns.map((column, index) => <th key={index} scope="col">{column}</th>)}</tr></thead>
         <tbody>
           {rows.map((row, rowIndex) => (
             <tr key={`${row[0]}-${row[1]}-${rowIndex}`} className={highlighted.includes(rowIndex)?"is-selected-advice":undefined} data-advice-highlight={highlighted.includes(rowIndex)?"true":undefined} aria-current={highlighted.includes(rowIndex)?"true":undefined} title={highlighted.includes(rowIndex)?highlightLabel:undefined}>
@@ -247,5 +237,12 @@ function CptTable({ columns, rows, highlighted=[],highlightLabel,scrollKey }: { 
       </table>
     </div>
   );
+}
+
+function CptFrame({ title, children }: { title: string; children: ReactNode }) {
+  return <OpenAECProvider sprite={spriteUrl}><div className="cpt-inspection-shell" onKeyDown={event => {
+    if ((event.key === " " || event.key === "Enter") && event.target instanceof Element
+      && event.target.closest("button, summary")) event.stopPropagation();
+  }}><Panel title={title} className="oa-app cpt-panel cpt-blueprint">{children}</Panel></div></OpenAECProvider>;
 }
 

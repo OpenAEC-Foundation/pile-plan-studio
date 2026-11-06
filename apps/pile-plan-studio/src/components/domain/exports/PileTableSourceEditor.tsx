@@ -1,3 +1,4 @@
+import { Select, TextField } from "../../../openaec/react/src/index";
 import NumericValueInput from "../../template/NumericValueInput.tsx";
 import {useState} from "react";
 import SourceColumnEditor from "../shared/SourceColumnEditor.tsx";
@@ -28,24 +29,20 @@ export default function PileTableSourceEditor({source,inspection,mapping,onMappi
       <fieldset disabled={disabled}>
         <p className="export-help">{t(newPlan?"exportTools.sourceMappingNewHelp":"exportTools.sourceMappingOldHelp")}</p>
         <div className="export-controls-grid">
-          {inspection.sheet_names.length>0&&<label className="export-field"><span>{t("exportTools.sourceSheet")}</span><select value={source.sheet_name??(inspection.ambiguous_sheet?"":inspection.sheet_name??"")} onChange={e=>onSource({sheet_name:e.target.value,header_row:undefined})}>
-            {inspection.ambiguous_sheet&&<option value="">{t("exportTools.chooseSheet")}</option>}{inspection.sheet_names.map(name=><option key={name} value={name}>{name}</option>)}</select></label>}
-          <label className="export-field"><span>{t("exportTools.headerRow")}</span><NumericValueInput integer min={1} step={1} value={source.header_row??inspection.header_row} onNumberChange={row=>onSource({header_row:row})}/></label>
+          {inspection.sheet_names.length>0&&<div className="export-field"><Select label={t("exportTools.sourceSheet")} value={source.sheet_name??(inspection.ambiguous_sheet?"":inspection.sheet_name??"")} onChange={e=>onSource({sheet_name:e.target.value,header_row:undefined})} options={[...(inspection.ambiguous_sheet?[{value:"",label:t("exportTools.chooseSheet")}]:[]),...inspection.sheet_names.map(name=>({value:name,label:name}))]}/></div>}
+          <label className="oa-label export-field"><span>{t("exportTools.headerRow")}</span><NumericValueInput integer min={1} step={1} value={source.header_row??inspection.header_row} onNumberChange={row=>onSource({header_row:row})}/></label>
         </div>
-        <SourceColumnEditor selected={chosen} onSelect={setSelected} columns={inspection.headers.map((_,index)=>{
+        <SourceColumnEditor variant="blueprint" selected={chosen} onSelect={setSelected} columns={inspection.headers.map((_,index)=>{
           const assigned=Object.entries(mapping.columns).find(([,column])=>column===index)?.[0];
           return {column:index+1,header:caption(index),meaning:assigned?t(`exportTools.fields.${assigned}`):t("tableImport.fields.ignore")};
         })}>
           <fieldset className="source-column-details"><legend>{caption(chosen-1)}</legend>
-            <label><span>{t("tableImport.meaning")}</span><select value={field??""} onChange={e=>setField(e.target.value)}>
-              <option value="">{t("tableImport.fields.ignore")}</option>{fields.map(value=><option key={value} value={value}>{t(`exportTools.fields.${value}`)}{required.includes(value)?" *":""}</option>)}
-            </select></label>
-            {(field==="x"||field==="y")&&<label><span>{t("exportTools.coordinateUnit")}</span><select value={mapping.coordinate_unit} onChange={e=>onMapping({...mapping,coordinate_unit:e.target.value as "mm"|"m"})}><option value="mm">mm</option><option value="m">m</option></select></label>}
-            {field==="tip_level"&&<label><span>{t("tableImport.unit")}</span><select value={mapping.tip_unit} onChange={e=>onMapping({...mapping,tip_unit:e.target.value as "mm"|"m"})}><option value="m">m</option><option value="mm">mm</option></select></label>}
+            <Select label={t("tableImport.meaning")} value={field??""} onChange={e=>setField(e.target.value)} options={[{value:"",label:t("tableImport.fields.ignore")},...fields.map(value=>({value,label:t(`exportTools.fields.${value}`)+(required.includes(value)?" *":"")}))]}/>
+            {(field==="x"||field==="y")&&<Select label={t("exportTools.coordinateUnit")} value={mapping.coordinate_unit} onChange={e=>onMapping({...mapping,coordinate_unit:e.target.value as "mm"|"m"})} options={[{value:"mm",label:"mm"},{value:"m",label:"m"}]}/>}
+            {field==="tip_level"&&<Select label={t("tableImport.unit")} value={mapping.tip_unit} onChange={e=>onMapping({...mapping,tip_unit:e.target.value as "mm"|"m"})} options={[{value:"m",label:"m"},{value:"mm",label:"mm"}]}/>}
             {field==="pile_size"&&<>
-              <label><span>{t("exportTools.sourceShape")}</span><select value={mapping.size_shape??""} onChange={e=>onMapping({...mapping,size_shape:e.target.value===""?null:e.target.value as "square"|"round"})}>
-                <option value="">{t("exportTools.shapeAutomatic")}</option><option value="square">{t("exportTools.shapeSquare")}</option><option value="round">{t("exportTools.shapeRound")}</option></select></label>
-              <label><span>{t("exportTools.sourceSizeTemplate")}</span><input placeholder="{size}x{size}" value={mapping.size_template??""} onChange={e=>onMapping({...mapping,size_template:e.target.value||null})}/><small>{t("exportTools.sourceSizeTemplateHelp")}</small></label>
+              <Select label={t("exportTools.sourceShape")} value={mapping.size_shape??""} onChange={e=>onMapping({...mapping,size_shape:e.target.value===""?null:e.target.value as "square"|"round"})} options={[{value:"",label:t("exportTools.shapeAutomatic")},{value:"square",label:t("exportTools.shapeSquare")},{value:"round",label:t("exportTools.shapeRound")}]}/>
+              <TextField label={t("exportTools.sourceSizeTemplate")} placeholder="{size}x{size}" value={mapping.size_template??""} onChange={e=>onMapping({...mapping,size_template:e.target.value||null})} help={t("exportTools.sourceSizeTemplateHelp")}/>
             </>}
           </fieldset>
         </SourceColumnEditor>

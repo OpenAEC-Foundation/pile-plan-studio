@@ -4,6 +4,16 @@ import i18n from "../../../i18n/config.ts";
 import SourceTableEditor from "./SourceTableEditor.tsx";
 import type {SourceTablePreview} from "../../../core/coreImportContract.ts";
 const preview:SourceTablePreview={processed:false,sheets:[],row_count:2,settings:{has_headers:true,header_row:1,first_data_row:2,columns:[{column:1,field:"id"},{column:2,field:"ignore"}]},columns:[{column:1,header:"Nummer",numeric_count:2,nonempty_count:2},{column:2,header:"Leeg",numeric_count:0,nonempty_count:0}],rows:[{number:1,cells:["Nummer","Leeg"]},{number:2,cells:["1",""]}]};
+test("meaning choices are enabled again when switching from an empty to a populated column",()=>{
+ render(<SourceTableEditor variant="blueprint" preview={preview} role="load-points" onChange={()=>{}}/>);
+ const choose=(name:string)=>fireEvent.click(screen.getByRole("button",{name:i18n.t("tableImport.selectColumn",{name}),hidden:true}));
+ choose("Leeg");
+ let field=screen.getByLabelText(i18n.t("tableImport.meaning")) as HTMLSelectElement;
+ expect((field.querySelector('option[value="id"]') as HTMLOptionElement).disabled).toBe(true);
+ choose("Nummer");
+ field=screen.getByLabelText(i18n.t("tableImport.meaning")) as HTMLSelectElement;
+ expect((field.querySelector('option[value="id"]') as HTMLOptionElement).disabled).toBe(false);
+});
 test("the source header moves to the table head and original data row numbers remain",()=>{
  const view=render(<SourceTableEditor preview={preview} role="load-points" onChange={()=>{}}/>);
  const rows=view.container.querySelectorAll("tbody tr");expect(rows).toHaveLength(1);

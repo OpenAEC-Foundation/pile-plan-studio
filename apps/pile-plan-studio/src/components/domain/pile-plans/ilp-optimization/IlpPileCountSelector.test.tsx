@@ -1,9 +1,10 @@
 import type { ProjectState } from "../../../../domain/project/projectState.ts";
 import { useState } from "react";
 import { fireEvent, render, screen, within } from "@testing-library/react";
-import { expect, test } from "vitest";
+import { expect, test, vi } from "vitest";
 import { projectFixture } from "../../../../test/projectFixture.ts";
 import IlpOptimizationSettingsPanel from "./IlpOptimizationSettingsPanel.tsx";
+import IlpPileCountSelector from "./IlpPileCountSelector.tsx";
 
 function Harness() {
   const [state, setState] = useState<ProjectState>(() => {
@@ -52,4 +53,20 @@ test("an empty effective selection or an invalid maximum cannot be applied", () 
   expect(apply().disabled).toBe(false);
   fireEvent.change(dialog.getByRole("spinbutton", { name: "Maximum piles per cap" }), { target: { value: "21" } });
   expect(apply().disabled).toBe(true);
+});
+
+
+test("native count dialog cancellation discards drafts and disabling its launcher closes it", () => {
+  const settings = projectFixture().ilpOptimizationSettings, onChange = vi.fn();
+  const view = render(<IlpPileCountSelector settings={settings} disabled={false} onChange={onChange} />);
+  fireEvent.click(screen.getByRole("button", { name: "Choose pile counts" }));
+  const dialog = screen.getByRole("dialog", { name: "Allowed pile counts" });
+  expect(dialog.tagName).toBe("DIALOG");
+  fireEvent.change(within(dialog).getByRole("spinbutton", { name: "Maximum piles per cap" }), { target: { value: "12" } });
+  fireEvent(dialog, new Event("cancel", { cancelable: true }));
+  expect(screen.queryByRole("dialog")).toBeNull(); expect(onChange).not.toHaveBeenCalled();
+  fireEvent.click(screen.getByRole("button", { name: "Choose pile counts" }));
+  expect((screen.getByRole("spinbutton", { name: "Maximum piles per cap" }) as HTMLInputElement).value).toBe(String(settings.max_piles_per_cap ?? 6));
+  view.rerender(<IlpPileCountSelector settings={settings} disabled onChange={onChange} />);
+  expect(screen.queryByRole("dialog")).toBeNull(); expect(onChange).not.toHaveBeenCalled();
 });

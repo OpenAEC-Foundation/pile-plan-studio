@@ -90,3 +90,20 @@ describe("pilePlanImportModel", () => {
     assert.equal(draft.importCptSelections, true);
   });
 });
+
+it("restores CPT selection after mapping becomes available without overriding an explicit opt-out", () => {
+  let draft=beginPilePlanImportPreview(createPilePlanImportDraft<File>(),1);
+  draft=applyPilePlanImportPreview(draft,1,{...readyPreview,supportsCptSelections:false});
+  assert.equal(draft.importCptSelections,false);
+  draft=applyPilePlanImportPreview(beginPilePlanImportPreview(setPilePlanImportTable(draft,{}),2),2,readyPreview);
+  assert.equal(draft.importCptSelections,true);
+  draft=setPilePlanImportCategory(draft,"cpts",false);
+  draft=applyPilePlanImportPreview(beginPilePlanImportPreview(draft,3),3,{...readyPreview,supportsCptSelections:false});
+  draft=applyPilePlanImportPreview(beginPilePlanImportPreview(setPilePlanImportTable(draft,{}),4),4,readyPreview);
+  assert.equal(draft.importCptSelections,false);
+});
+
+it("keeps a deliberate CPT opt-out when switching through the legacy profile", () => {
+  const draft=setPilePlanImportCategory(createPilePlanImportDraft<File>(),"cpts",false);
+  assert.equal(setPilePlanImportProfile(setPilePlanImportProfile(draft,"legacy"),"standard-table").importCptSelections,false);
+});

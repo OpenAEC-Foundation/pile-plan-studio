@@ -41,6 +41,7 @@ import {
   getActiveLockedLoadPointIds,
 } from "../../../domain/pile-plans/loadPointLocking.ts";
 import OptimizerUnresolvedMarker from "../../viewer/OptimizerUnresolvedMarker.tsx";
+import ViewerFocusButton from "./ViewerFocusButton";
 import { CoordinateReadout } from "../shared/CoordinateReadout.ts";
 import {
   buildTipLevelRegionGeometry,
@@ -278,9 +279,8 @@ export default function PilePlanViewer({
         onWheel={(event) => handleViewportWheel(event, clearHoverCandidates)}
         ref={canvasRef}
       >
-        <button className="viewer-focus-selection" type="button" aria-label={t("viewer.focusSelection")} title={t("viewer.focusSelection")} onKeyDown={event=>event.stopPropagation()} disabled={!state.selectedLoadPointIds.length&&state.selectedCptId==null} onMouseDown={event=>event.stopPropagation()} onClick={event=>{event.stopPropagation();clearHoverCandidates();focusOnPoints(focusSelectionPoints());}}>
-          {t("viewer.focusSelectionLabel")}
-        </button>
+        <ViewerFocusButton disabled={!state.selectedLoadPointIds.length&&state.selectedCptId==null}
+          onFocusSelection={()=>{clearHoverCandidates();focusOnPoints(focusSelectionPoints());}}/>
         {state.showGrid ? (
           <canvas
             aria-hidden="true"
