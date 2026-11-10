@@ -6,7 +6,8 @@ const source = readFileSync(new URL("./AppSession.tsx", import.meta.url), "utf8"
 
 describe("App group editing and assessment wiring", () => {
   it("delegates MCP construction to the connection-scoped project factory", () => {
-    assert.match(source, /createProjectMcpSession\(\{/);
+    assert.match(source, /createProjectMcpSession\(dependencies,/);
+    assert.match(source, /installSiteMcp\(isActive => createMcpSessionRef\.current\(isActive\)\)/);
     assert.match(source, /useMcpConnection\(isDesktop, createMcpSession/);
     assert.doesNotMatch(source, /createSourceImportSession|createPilePlanImportSession|createSessionMcpDispatcher/);
   });

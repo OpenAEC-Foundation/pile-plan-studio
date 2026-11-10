@@ -19,6 +19,7 @@
     "test:release": "node --test ../../tools/release-*.test.mjs",
     "test": "npm run test:release && npm run release:check && npm run check:blueprint && npm run check:icons && npm run test:unit && npm run test:ui",
     "build": "npm run check:blueprint && npm run check:icons && npm run release:check && npm run build:wasm && npm run release:check && tsc -p tsconfig.json && vite build --config vite.config.ts",
+    "build:platform": "npm run check:blueprint && npm run check:icons && npm run release:check && npm run build:wasm && tsc -p tsconfig.json && vite build --mode platform",
     "tauri": "tauri",
     "test:unit": "node --test src/**/*.test.ts src-primary-entry.test.ts",
     "test:ui": "vitest run --config vitest.config.ts",

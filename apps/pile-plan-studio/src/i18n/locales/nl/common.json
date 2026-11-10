@@ -1,4 +1,20 @@
 {
+  "supercloud": {
+    "open": "Openen uit Docs",
+    "loading": "Docs-bestanden laden…",
+    "empty": "Geen palenplannen in deze map",
+    "listFailed": "De bestanden in Docs konden niet worden geladen.",
+    "unavailable": "De verbinding met Docs is nog niet beschikbaar.",
+    "openFailed": "Openen uit Docs mislukt. {{error}}",
+    "saveFailed": "Opslaan in Docs is mislukt.",
+    "saved": "Opgeslagen in Docs als {{name}}.",
+    "currentFile": "Docs · {{name}}",
+    "readOnly": "Alleen-lezen · {{name}}",
+    "saveAs": "Opslaan als in Docs",
+    "fileName": "Bestandsnaam",
+    "unsaved": "Er zijn wijzigingen. Sla het palenplan op in Docs om ze te behouden.",
+    "assistant": "SuperCloud-assistent"
+  },
   "recentProjects.storageFailed": "Recente projecten konden niet worden bijgewerkt. Het project zelf blijft beschikbaar.",
   "recentProjects.copyMissing": "De lokale projectkopie is niet meer beschikbaar. Kies het IFCPP-bestand opnieuw.",
   "numberInput": {

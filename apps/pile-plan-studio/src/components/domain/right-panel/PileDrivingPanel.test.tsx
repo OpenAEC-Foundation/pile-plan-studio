@@ -16,6 +16,19 @@ function drivingWith(result: PileDrivingFileResult) {
   };
 }
 
+test("read-only projects can inspect driving records with file editing disabled", () => {
+  const driving = { ...drivingWith({ status: "ready", preview: { columns: ["paalnummer"], records: [{
+    pile_number: "45", rows: [["45"]], matching: { status: "matched", load_point_id: 45 }, checks: [],
+  }] } }), selectedId: "day-1" };
+  const { container } = render(<PileDrivingPanel driving={driving} readOnly selectionDisabled={false}
+    selectedLoadPointIds={NO_SELECTION} neighborhoodRecord={null}
+    onNeighborhoodChange={vi.fn()} onSelect={vi.fn()} onClose={vi.fn()} />);
+  expect(container.querySelector<HTMLButtonElement>(".source-file-picker button")?.disabled).toBe(true);
+  expect(screen.getByRole<HTMLButtonElement>("button", { name: "Remove selected driving record from project" }).disabled).toBe(true);
+  fireEvent.click(screen.getByRole("button", { name: "Location 45" }));
+  expect(screen.getByRole("heading", { name: "Pile 45" })).toBeTruthy();
+});
+
 test("clicking a warning or the location button selects the pile and opens its details", () => {
   const result: PileDrivingFileResult = {
     status: "ready",

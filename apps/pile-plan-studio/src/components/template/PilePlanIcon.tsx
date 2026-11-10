@@ -7,8 +7,9 @@ export type PilePlanIconId = "pile.options" | "pile.cpts" | "pile.cap-changes" |
 
 /** Reviewed local candidates; kept separate from the pinned Blueprint assets. */
 export default function PilePlanIcon({ id, size = 24 }: { id: PilePlanIconId; size?: 16 | 24 }) {
+  const sprite = import.meta.env.MODE === "platform" ? "#proposal-" : spriteUrl + "#";
   return <svg className="blueprint-icon pile-plan-icon" width={size} height={size}
     viewBox={`0 0 ${size} ${size}`} aria-hidden="true" focusable="false" stroke="none">
-    <use href={`${spriteUrl}#i${size}-${id}`} />
+    <use href={`${sprite}i${size}-${id}`} />
   </svg>;
 }

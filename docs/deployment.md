@@ -40,6 +40,30 @@ root `target` directory works for typical checkouts; use a shorter absolute
 path if needed. This override also moves locally built installers beneath that
 target directory. CI uses the default Tauri target path shown in the workflow.
 
+## SuperCloud browser build
+
+Run `npm run build:platform` from `apps/pile-plan-studio`. The separate
+`dist-platform/` bundle uses relative asset URLs for a path such as
+`/werkplek/app/pile-plan-studio/`. It omits analytics, feedback and external
+links, includes local fonts and WASM, and publishes `mcp-tools.json`.
+The ordinary browser and desktop build commands keep their own output.
+
+The platform expects the Blueprint host to inject `window.openaecHost`
+before startup or signal `openaec-host-ready` after injection. Files use the
+existing IFCPP format. Open lists the documents in the current Docs folder.
+Save sends the opened ID and expected version. Save As creates and binds a new
+file. The returned name is shown when Docs saves a conflict copy. A read-only
+document can be inspected and saved as a separate copy. CSV and XLSX exports
+use the host's download interception. The host also supplies language, theme
+and optional persistent settings.
+
+For local acceptance, serve the bundle under a nested path and frame it with
+`sandbox="allow-scripts allow-modals"`. Serve module, worker, font and WASM
+assets with the cross-origin headers required by the opaque frame, and use the
+SuperCloud module-worker and download shims. Inject a test host and exercise
+launch from Docs, Open, Save, Save As, a read-only file, and the assistant
+bridge. See [the Blueprint contract](https://github.com/OpenAEC-Foundation/OpenAEC-Blueprint/blob/main/docs/supercloud-koppeling.md).
+
 ## Browser build
 
 From the repository root:

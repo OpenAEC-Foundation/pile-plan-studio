@@ -20,9 +20,10 @@ const ENERGY_LIMITS: readonly Limit[] = [
   { key: "peer_energy_spread_kj" },
 ];
 
-export function PileDrivingSettings({ settings, pileSizes, onApply }: {
+export function PileDrivingSettings({ settings, pileSizes, readOnly, onApply }: {
   settings: PileDrivingCheckSettings;
   pileSizes: number[];
+  readOnly: boolean;
   onApply: (settings: PileDrivingCheckSettings) => void;
 }) {
   const { t } = useTranslation("rightPanel", { keyPrefix: "pileDriving.checks" });
@@ -30,13 +31,14 @@ export function PileDrivingSettings({ settings, pileSizes, onApply }: {
   const sizes = [...new Set([...pileSizes, ...energy.keys()])].sort((a, b) => a - b);
   const renderLimit = ({ key, min = 0, step, max }: Limit) => <label key={key}>
     <span>{t(`limits.${key}`)}</span>
-    <input className="oa-field oa-field--compact" name={key} type="number" required min={min}
+    <input className="oa-field oa-field--compact" name={key} type="number" readOnly={readOnly} required min={min}
       step={step ?? "any"} max={max} defaultValue={settings[key]} />
   </label>;
   return <details className="pile-driving-disclosure pile-driving-settings">
     <summary>{t("settings")}</summary>
     <form key={JSON.stringify(settings)} onSubmit={event => {
       event.preventDefault();
+      if (readOnly) return;
       const fields = new FormData(event.currentTarget);
       const limits = { ...settings };
       for (const { key } of [...PLAN_LIMITS, ...CALENDAR_LIMITS, ...ENERGY_LIMITS]) limits[key] = Number(fields.get(key));
@@ -58,13 +60,13 @@ export function PileDrivingSettings({ settings, pileSizes, onApply }: {
         <legend>{t("energyLimits")}</legend>
         {sizes.map(size => <label key={size}>
           <span>{t("targetEnergy", { size })}</span>
-          <input className="oa-field oa-field--compact" name={`energy-${size}`} type="number" step="any" min={0.000001}
+          <input className="oa-field oa-field--compact" name={`energy-${size}`} type="number" readOnly={readOnly} step="any" min={0.000001}
             defaultValue={energy.get(size)} />
         </label>)}
         {ENERGY_LIMITS.map(renderLimit)}
       </fieldset>
       <p className="oa-secondary">{t("settingsHelp")}</p>
-      <Button type="submit" compact>{t("apply")}</Button>
+      <Button type="submit" compact disabled={readOnly}>{t("apply")}</Button>
     </form>
   </details>;
 }

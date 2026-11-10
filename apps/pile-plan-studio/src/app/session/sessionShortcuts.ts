@@ -4,6 +4,7 @@ import { DEFAULT_INTERFACE_SCALE, stepInterfaceScale } from "../../domain/settin
 
 type Dependencies = {
   isDesktop: boolean;
+  canOpen?: boolean;
   saveInFlight: { current: boolean };
   save: () => (() => Promise<unknown>) | null;
   open: () => (() => Promise<unknown>) | null;
@@ -13,7 +14,7 @@ type Dependencies = {
 
 export function createAppShortcutHandler(dependencies: Dependencies) {
   return (event: KeyboardEvent) => {
-    const action = classifyAppShortcut(event, dependencies.isDesktop);
+    const action = classifyAppShortcut(event, dependencies.isDesktop, dependencies.canOpen);
     if (!action) return;
     event.preventDefault();
     if (action === "save") {

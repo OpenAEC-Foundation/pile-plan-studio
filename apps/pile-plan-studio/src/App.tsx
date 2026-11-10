@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import sampleProjectText from "../../../sample_project/sample_project.ifcpp?raw";
 
 import AppSession, { type AppSessionProps } from "./app/session/AppSession.tsx";
+import { PLATFORM_BUILD } from "./app/supercloud/siteRuntime.ts";
 import { readProjectDocumentCore } from "./core/coreClient.ts";
 import { ProjectDocumentReadError, type ProjectDocumentOutcome } from "./core/projectDocumentContract.ts";
 import { isDesktopRuntime } from "./domain/project/projectPersistence.ts";
@@ -28,12 +29,12 @@ export default function App() {
       const loadSampleProject = async () => (
         requireValidProjectDocument(await readProjectDocumentCore(sampleProjectText))
       );
-      if (isDesktop) {
+      if (isDesktop || PLATFORM_BUILD) {
         const initialProject = await loadSampleProject();
         if (!cancelled) setBootstrap({
           kind: "ready",
           initialProject,
-          initializeDefaultPiles: true,
+          initializeDefaultPiles: !PLATFORM_BUILD,
         });
         return;
       }

@@ -1,4 +1,20 @@
 {
+  "supercloud": {
+    "open": "Open from Docs",
+    "loading": "Loading Docs files…",
+    "empty": "No pile plans in this folder",
+    "listFailed": "Could not load files from Docs.",
+    "unavailable": "The connection to Docs is not available yet.",
+    "openFailed": "Could not open the file from Docs. {{error}}",
+    "saveFailed": "Could not save the project to Docs.",
+    "saved": "Saved to Docs as {{name}}.",
+    "currentFile": "Docs · {{name}}",
+    "readOnly": "Read-only · {{name}}",
+    "saveAs": "Save as in Docs",
+    "fileName": "File name",
+    "unsaved": "The project has changes. Save it to Docs to keep them.",
+    "assistant": "SuperCloud assistant"
+  },
   "recentProjects.storageFailed": "Recent projects could not be updated. The project itself remains available.",
   "recentProjects.copyMissing": "The local project copy is no longer available. Choose the IFCPP file again.",
   "numberInput": {

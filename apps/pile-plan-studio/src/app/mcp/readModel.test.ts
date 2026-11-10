@@ -45,6 +45,15 @@ describe("MCP project read model", () => {
     assert.equal(JSON.stringify(overview).includes("fileName"), false);
   });
 
+  it("reports a bounded live selection in the overview", () => {
+    const ids = base.loadPoints.slice(0, 120).map(point => point.id);
+    const state = { ...base, selectedLoadPointIds: ids, selectedCptId: base.cpts[0].id };
+    const overview = readPileTool(state, marker, "pile_project_overview", {});
+    assert.deepEqual(overview.data.selection, {
+      load_point_ids: ids.slice(0, 100), load_point_count: 120, cpt_id: base.cpts[0].id,
+    });
+  });
+
   it("shows effective CPT rules for one load point", () => {
     const id = base.loadPoints[0].id;
     const override = { ...base.globalCptSelectionSettings, maxDistanceM: 18 };

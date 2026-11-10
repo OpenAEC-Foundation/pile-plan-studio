@@ -29,7 +29,7 @@ export default function CptAlgorithmChoice({ value, onChange }: {
         event.stopPropagation();
       }
     }}>
-      <OpenAECProvider sprite={diagramsUrl}>
+      <OpenAECProvider sprite={import.meta.env.MODE === "platform" ? "" : diagramsUrl}>
         <ChoiceTiles label={t("cptSettings.algorithm")} className="cpt-algorithm-options"
           value={value ?? ""}
           options={[

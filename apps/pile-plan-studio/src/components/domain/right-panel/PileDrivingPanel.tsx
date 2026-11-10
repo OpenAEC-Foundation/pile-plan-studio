@@ -13,6 +13,7 @@ import "./pileDrivingPanel.css";
 type Props = {
   planName?: string;
   driving: ReturnType<typeof usePileDrivingPreview>;
+  readOnly?: boolean;
   selectedLoadPointIds: readonly number[];
   selectionDisabled: boolean;
   neighborhoodRecord: PileDrivingRecord | null;
@@ -27,7 +28,7 @@ type PickedRecord = { fileId: string; index: number; locationId: number | null; 
 const MEASUREMENT_FIELDS = ["tochtnummer", "ppn_nap", "slagen", "energie_per_slag_kj"];
 const SUMMARY_FIELDS = ["datum", "starttijd", "stelling", "dikte_cm", "lengte_cm", "ppd_gewenst", "opmerkingen"];
 
-export default function PileDrivingPanel({ planName, driving, selectedLoadPointIds, selectionDisabled, neighborhoodRecord, onNeighborhoodChange, onSelect, onClose }: Props) {
+export default function PileDrivingPanel({ planName, driving, readOnly = false, selectedLoadPointIds, selectionDisabled, neighborhoodRecord, onNeighborhoodChange, onSelect, onClose }: Props) {
   const { t, i18n } = useTranslation("rightPanel", { keyPrefix: "pileDriving" });
   const [picked, setPicked] = useState<PickedRecord | null>(null);
   const [warningsOnly, setWarningsOnly] = useState(false);
@@ -84,16 +85,16 @@ export default function PileDrivingPanel({ planName, driving, selectedLoadPointI
                   <option value="all">{t("allFiles")}</option>
                   {fileOptions.map(({ value, label }) => <option key={value} value={value}>{label}</option>)}
                 </select>
-                {!allFiles && <IconButton small icon="edit.delete" label={t("removeFile")} onClick={driving.removeFile} />}
+                {!allFiles && <IconButton small icon="edit.delete" label={t("removeFile")} disabled={readOnly} onClick={driving.removeFile} />}
               </div>}
-              <SourceFileButton multiple label={t("addFiles")} disabled={driving.pending} onFiles={driving.addFiles} />
+              <SourceFileButton multiple label={t("addFiles")} disabled={readOnly || driving.pending} onFiles={driving.addFiles} />
             </div>
           </div>
           {files.length === 0 && !driving.pending && <p className="pile-driving-empty oa-secondary">{t("empty")}</p>}
           {((example && files.length > 0) || driving.settings) && <details className="pile-driving-disclosure">
             <summary>{t("settings")}</summary>
             <div className="pile-driving-disclosure-body">
-              {example && files.length > 0 && <fieldset className="pile-driving-import" aria-label={t("importSettings")} disabled={driving.pending}>
+              {example && files.length > 0 && <fieldset className="pile-driving-import" aria-label={t("importSettings")} disabled={readOnly || driving.pending}>
                 <SourceTableEditor role="pile-driving" variant="blueprint" csv={example.csv}
                   preview={example.table} onChange={table => { setPicked(null); driving.setTable(table); }}>
                   {allFiles && files.length > 1 && <Select label={t("exampleFile")} value={example.id}
@@ -113,7 +114,7 @@ export default function PileDrivingPanel({ planName, driving, selectedLoadPointI
                 </SourceTableEditor>
               </fieldset>}
               {driving.settings && <PileDrivingSettings settings={driving.settings}
-                pileSizes={driving.pileSizes} onApply={driving.setSettings} />}
+                pileSizes={driving.pileSizes} readOnly={readOnly} onApply={driving.setSettings} />}
             </div>
           </details>}
           {driving.pending && <Status tone="info">{t("pending")}</Status>}

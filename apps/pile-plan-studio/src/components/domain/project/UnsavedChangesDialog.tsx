@@ -7,6 +7,7 @@ import "./UnsavedChangesDialog.css";
 type Props = {
   open: boolean;
   isDesktop: boolean;
+  isPlatform?: boolean;
   saving?: boolean;
   saveError?: string | null;
   onSave: () => void;
@@ -14,7 +15,7 @@ type Props = {
   onCancel: () => void;
 };
 
-export default function UnsavedChangesDialog({ open, isDesktop, saving = false, saveError, onSave, onDiscard, onCancel }: Props) {
+export default function UnsavedChangesDialog({ open, isDesktop, isPlatform = false, saving = false, saveError, onSave, onDiscard, onCancel }: Props) {
   const { t } = useTranslation("common");
   return (
     <OpenAECProvider sprite={spriteUrl}>
@@ -24,12 +25,12 @@ export default function UnsavedChangesDialog({ open, isDesktop, saving = false, 
             <Button disabled={saving} onClick={onCancel}>{t("cancel")}</Button>
             <Button kind="danger" disabled={saving} onClick={onDiscard}>{t("unsaved.discard")}</Button>
             <Button kind="primary" disabled={saving} aria-busy={saving} onClick={onSave}>
-              {isDesktop ? t("unsaved.saveAndContinue") : t("unsaved.localSaveAndContinue")}
+              {isDesktop || isPlatform ? t("unsaved.saveAndContinue") : t("unsaved.localSaveAndContinue")}
             </Button>
           </>
         )}>
           <IconButton icon="ui.close" label={t("close")} className="unsaved-changes-close" disabled={saving} onClick={onCancel} />
-          <p className="unsaved-changes-message">{isDesktop ? t("unsaved.desktopMessage") : t("unsaved.browserMessage")}</p>
+          <p className="unsaved-changes-message">{isPlatform ? t("supercloud.unsaved") : isDesktop ? t("unsaved.desktopMessage") : t("unsaved.browserMessage")}</p>
           {saveError && <Banner tone="error" word="">{saveError}</Banner>}
         </Dialog>
       </div>

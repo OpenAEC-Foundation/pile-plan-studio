@@ -9,12 +9,12 @@ export type ShortcutEvent = {
   repeat?: boolean;
 };
 
-export function classifyAppShortcut(event: ShortcutEvent, isDesktop: boolean): AppShortcut | null {
+export function classifyAppShortcut(event: ShortcutEvent, isDesktop: boolean, canOpen = isDesktop): AppShortcut | null {
   if (!(event.ctrlKey || event.metaKey) || event.altKey || event.repeat) return null;
 
   const key = event.key.toLowerCase();
   if (key === "s") return "save";
-  if (key === "o") return isDesktop ? "open" : null;
+  if (key === "o") return canOpen ? "open" : null;
   if (!isDesktop) return null;
 
   if (key === "+" || key === "=") return "zoom-in";

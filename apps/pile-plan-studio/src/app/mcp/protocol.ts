@@ -125,7 +125,7 @@ function definition(name: PileMcpToolName | OptimizationControlToolName | FileOp
 }
 
 export const PILE_TOOL_SCHEMAS: ToolDefinition[] = [
-  definition("pile_project_overview", "Read the open pile project's name, counts, and analysis status."),
+  definition("pile_project_overview", "Read the open pile project's name, counts, current selection, and analysis status."),
   definition("pile_get_project_settings", "Read project properties, CPT selection, grouping, cost, complete visual legend, and optimization settings. The optimization budget_basis_points is extra cost above the cost-only reference solution (500 means 5%), not above the current plan cost.", {
     ...paged("manual_groups"), ...paged("separated_groups"), ...paged("cost_catalog"),
     ...paged("custom_configurations"), ...paged("selected_target_ids"),

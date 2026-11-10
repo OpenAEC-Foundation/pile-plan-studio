@@ -1,5 +1,21 @@
 # MCP connection
 
+## SuperCloud assistant
+
+The SuperCloud build exposes the shared project session through
+`window.__OPDS_APP__`. Its tool names start with `pileplan_`, and
+`mcp-tools.json` contains the same definitions as the running bridge. Start
+with `pileplan_project_overview`. Use the returned project instance and
+revision for writes. To permit changes, enable **Allow editing through MCP**
+in the app settings for the current session. Docs read-only projects
+remain read-only for the assistant.
+
+Open, Save, Save As and exports are user actions in the workplek. Calls to
+their desktop-only MCP tools return `niet_in_browser`. The desktop HTTP
+server continues to use the `pile_` tool names described below.
+
+## Desktop connection
+
 Open Pile Plan Studio can share the project currently open in its desktop app
 with a local AI client. In **Settings → General → AI connection**, enable
 MCP access for this session. Copy the endpoint and access token into an MCP

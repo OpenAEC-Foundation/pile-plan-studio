@@ -12,7 +12,13 @@ import type { PileDrivingRecord } from "../../core/pileDrivingCoreClient.ts";
 import { previewProjectImportCore } from "../../core/projectCoreClient.ts";
 import { useManualCptSelectionEdit } from "../project/useManualCptSelectionEdit.ts";
 import { synchronizeManualCptSelection, toggleManualCpt } from "../../domain/cpt-selection/cptSettingsModel.ts";
-import { createProjectMcpSession } from "../mcp/projectSession.ts";
+import type { McpSession } from "../mcp/connectionController.ts";
+import type { ProjectMcpSessionDependencies } from "../mcp/projectSession.ts";
+import { createDocsSession, type DocsFile, type SiteHost } from "../supercloud/docsSession.ts";
+import { createSiteSettingsStore, getSiteHost, installSiteMcp, PLATFORM_BUILD, sitePreferences } from "../supercloud/siteRuntime.ts";
+import DocsOpenPanel from "../supercloud/DocsOpenPanel.tsx";
+import DocsSaveAsDialog from "../supercloud/DocsSaveAsDialog.tsx";
+import { captureProjectContent, normalizeProjectContentState, projectContentEquals } from "../../domain/project/projectContent.ts";
 import { createSymbolScaleHistory } from "../project/symbolScaleHistory.ts";
 import { useCptSelectionPreview } from "../derived-state/useCptSelectionPreview.ts";
 import { useNewPilePlan } from "../project/useNewPilePlan.ts";
@@ -89,6 +95,7 @@ import {
   pilePlanExportFileName,
   projectFileName,
   saveBinaryExport,
+  downloadBlob,
   saveGeneratedFile,
   savePreparedFile,
 } from "../../domain/project/projectPersistence.ts";
@@ -209,6 +216,36 @@ export default function AppSession({
   recoveryStore,
 }: AppSessionProps) {
   const { t, i18n } = useTranslation();
+  const [hostSnapshot, setHostSnapshot] = useState(() => ({ host: getSiteHost() }));
+  const { host: siteHost } = hostSnapshot;
+  const initialDocsFileId = siteHost?.initialFileId;
+  const hostPreferences = sitePreferences(siteHost);
+  const [docsSession] = useState(createDocsSession);
+  const [docsFile, setDocsFile] = useState<DocsFile | null>(null);
+  const docsOpening = useRef(false);
+  const docsSaving = useRef(false);
+  const [docsSaveAsOpen, setDocsSaveAsOpen] = useState(false);
+  const [docsOpenRequested, setDocsOpenRequested] = useState(false);
+  const initialDocsOpen = useRef<{ host: SiteHost; id: string } | null>(null);
+  const openDocsRef = useRef<((id: string) => Promise<boolean>) | null>(null);
+  const readOnly = docsFile?.readOnly ?? false;
+  const bindDocsFile = useCallback((file: DocsFile | null) => {
+    docsSession.install(file);
+    setDocsFile(file);
+  }, [docsSession]);
+
+  useEffect(() => {
+    if (!PLATFORM_BUILD) return;
+    const refresh = () => setHostSnapshot({ host: getSiteHost() });
+    window.addEventListener("openaec-host-ready", refresh);
+    window.addEventListener("openaec-host-preferences", refresh);
+    refresh();
+    return () => {
+      window.removeEventListener("openaec-host-ready", refresh);
+      window.removeEventListener("openaec-host-preferences", refresh);
+    };
+  }, []);
+
   const [managedProject, dispatchProject] = useReducer(
     projectHistoryReducer,
     initialProject,
@@ -309,8 +346,15 @@ export default function AppSession({
     update: SetStateAction<ProjectState>,
     action?: HistoryAction,
   ) => {
+    if (docsSession.file?.readOnly) {
+      dispatchProject({ type: "runtime", update: current => {
+        const next = normalizeProjectContentState(typeof update === "function" ? update(current) : update);
+        return projectContentEquals(captureProjectContent(current), captureProjectContent(next)) ? next : current;
+      } });
+      return;
+    }
     dispatchProject({ type: "commit", update, action });
-  }, []);
+  }, [docsSession]);
   const { pending: cptEditPending, save: saveCptSelection, applyMethod: applyCptSelectionMethod } = useManualCptSelectionEdit({
     currentState: () => projectStateRef.current,
     commit: update => commitProjectState(update),
@@ -318,13 +362,14 @@ export default function AppSession({
     failed: () => showActionNotice(t("rightPanel:cpts.saveFailed"), "error"),
   });
   const amendProjectState = useCallback((update: SetStateAction<ProjectState>) => {
-    dispatchProject({ type: "amend", update });
-  }, []);
+    if (!docsSession.file?.readOnly) dispatchProject({ type: "amend", update });
+  }, [docsSession]);
   const [symbolScaleHistory] = useState(() => createSymbolScaleHistory({
     commit: commitProjectState,
     amend: amendProjectState,
   }));
   const replaceProjectState = useCallback((state: ProjectState) => {
+    if (PLATFORM_BUILD) bindDocsFile(null);
     mcpProjectMarkerRef.current!.reset();
     projectStateRef.current = state;
     initialGroupSelectionRef.current = {
@@ -334,7 +379,7 @@ export default function AppSession({
     };
     invalidatePileAssignmentRequests();
     dispatchProject({ type: "replace", state });
-  }, [invalidatePileAssignmentRequests]);
+  }, [bindDocsFile, invalidatePileAssignmentRequests]);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [mcpWriteEnabled, setMcpWriteEnabled] = useState(false);
   const mcpWriteEnabledRef = useRef(false);
@@ -352,7 +397,7 @@ export default function AppSession({
   const isDirtyRef = useRef(isDirty);
   isDirtyRef.current = isDirty;
   const [projectPath, setProjectPath] = useState<string | null>(null);
-  const recentProjects = useRecentFiles();
+  const recentProjects = useRecentFiles(!PLATFORM_BUILD);
   const [browserRecentPath, setBrowserRecentPathState] = useState<string | null>(initialRecentProjectKey ?? null);
   const browserRecentPathRef = useRef(browserRecentPath);
   const setBrowserRecentPath = (path: string | null) => {
@@ -507,7 +552,7 @@ export default function AppSession({
       return next;
     });
   }, []);
-  const projectFileCommands = getProjectFileCommands(isDesktop);
+  const projectFileCommands = getProjectFileCommands(isDesktop, PLATFORM_BUILD);
   const canUndo = managedProject.history.past.length > 0;
   const canRedo = managedProject.history.future.length > 0;
   const undoEntry = managedProject.history.past[managedProject.history.past.length - 1];
@@ -528,13 +573,17 @@ export default function AppSession({
   const [selectPersistence] = useState(() => createProjectPersistenceSelector());
   const {draft: persistedProjectDraft, signature: persistedProjectSignature} = selectPersistence(projectState);
   useEffect(() => {
+    if (readOnly) {
+      setIsDirty(false);
+      return;
+    }
     if (recoveredDirtySignatureRef.current === persistedProjectSignature) {
       setIsDirty(true);
       return;
     }
     recoveredDirtySignatureRef.current = null;
     setIsDirty(persistedProjectSignature !== savedProjectSignature);
-  }, [persistedProjectSignature, savedProjectSignature]);
+  }, [persistedProjectSignature, readOnly, savedProjectSignature]);
 
   const recoveryWriter = useMemo(() => recoveryStore ? createBrowserRecoveryWriter({
     store: recoveryStore,
@@ -638,7 +687,44 @@ export default function AppSession({
     return true;
   };
 
+  const saveDocsProject = async (newName?: string): Promise<boolean> => {
+    const host = getSiteHost();
+    if (!host) {
+      showActionNotice(t("supercloud.unavailable"), "error");
+      return false;
+    }
+    if (docsSaving.current || (docsSession.file?.readOnly && !newName)) return false;
+    docsSaving.current = true;
+    const captured = projectStateRef.current;
+    const marker = mcpProjectMarkerRef.current!.observe(captured);
+    const { draft, signature } = selectPersistence(captured);
+    const sameProject = () => marker.project_instance_id
+      === mcpProjectMarkerRef.current!.observe(projectStateRef.current).project_instance_id;
+    try {
+      const contents = await writeProjectDocumentCore(draft);
+      if (!sameProject() || host !== getSiteHost()) return false;
+      const saved = await docsSession.save(host, contents, newName ?? projectFileName(captured.name), !!newName);
+      if (!saved || !sameProject() || host !== getSiteHost()) return false;
+      setDocsFile(saved);
+      updateSavedProjectSignature(signature);
+      const dirty = projectStateSignature(projectStateRef.current) !== signature;
+      isDirtyRef.current = dirty;
+      setIsDirty(dirty);
+      showStatusMessage(t("supercloud.saved", { name: saved.name }));
+      return true;
+    } catch {
+      showActionNotice(t("supercloud.saveFailed"), "error");
+      return false;
+    } finally {
+      docsSaving.current = false;
+    }
+  };
+
   const saveProjectAs = async (): Promise<boolean> => {
+    if (PLATFORM_BUILD) {
+      setDocsSaveAsOpen(true);
+      return false;
+    }
     if (!isDesktop) return downloadProject();
     const { save } = await import("@tauri-apps/plugin-dialog");
     const path = await save({
@@ -655,6 +741,7 @@ export default function AppSession({
   };
 
   const saveProject = async (): Promise<boolean> => {
+    if (PLATFORM_BUILD) return saveDocsProject();
     if (!isDesktop) return downloadProject();
     if (!projectPath) return saveProjectAs();
     await invokeDesktop("write_project_file", { path: projectPath, contents: await serializeProject() });
@@ -664,11 +751,11 @@ export default function AppSession({
     return true;
   };
 
-  projectActionRef.current = isDesktop ? saveProject : downloadProject;
+  projectActionRef.current = isDesktop || PLATFORM_BUILD ? saveProject : downloadProject;
 
   useEffect(() => {
     const handleAppShortcut = createAppShortcutHandler({
-      isDesktop, saveInFlight: saveShortcutInFlightRef,
+      isDesktop, canOpen: isDesktop || PLATFORM_BUILD, saveInFlight: saveShortcutInFlightRef,
       save: () => projectActionRef.current, open: () => openProjectActionRef.current,
       currentScale: () => userSettingsRef.current.preferences.interfaceScalePercent,
       applyScale: applyInterfaceScale,
@@ -693,6 +780,8 @@ export default function AppSession({
     catch { return null; }
   }, [projectState, exportPlanId, userSettings.preferences.pileSizeExportFormat]);
 
+  const exportDestination = PLATFORM_BUILD ? { isDesktop: false, browser: { downloadFile: downloadBlob } } : undefined;
+
   const exportPilePlan = async (format: "xlsx" | "csv", pileSizeFormat: PileSizeExportFormat = "numeric", options?: ExportOptions): Promise<void> => {
     const input = buildPilePlanExportInputForPlan(projectState, exportPlanId, pileSizeFormat, !!options);
     const bytes = options ? await exportConfiguredPilePlanCore(format, input, options) : format === "xlsx"
@@ -708,6 +797,7 @@ export default function AppSession({
         extensions: [`.${format}`],
       },
       bytes,
+      exportDestination,
     );
   };
 
@@ -717,7 +807,7 @@ export default function AppSession({
     const bytes = await exportRevitRevisionCore(format, request);
     if (currentContext() !== capturedContext) throw new Error(t("exportTools.projectChanged"));
     await saveBinaryExport({fileName:pilePlanExportFileName(`${exportPilePlanName}-changes${request.options.include_proposals && request.newPlan.hasProposals && !request.newSource ? "-proposals" : ""}`,format),
-      mimeType:format === "xlsx" ? "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" : "text/csv", extensions:[`.${format}`]},bytes);
+      mimeType:format === "xlsx" ? "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" : "text/csv", extensions:[`.${format}`]},bytes,exportDestination);
   };
 
   const confirmProjectReplacement = useCallback((): Promise<boolean> => {
@@ -743,7 +833,10 @@ export default function AppSession({
     setReplacementSaveError(null);
     try {
       let saved: boolean;
-      if (isDesktop) {
+      if (PLATFORM_BUILD) {
+        saved = await saveProject() && !isDirtyRef.current;
+        if (!saved) setReplacementSaveError(t("unsaved.saveFailed"));
+      } else if (isDesktop) {
         saved = await saveProject();
       } else {
         const captured = projectStateRef.current;
@@ -781,6 +874,7 @@ export default function AppSession({
     prepare: (state: ProjectState) => Promise<PreparedProjectDocumentEdit>,
     reportFailure = true,
   ): Promise<boolean> => {
+    if (docsSession.file?.readOnly) return false;
     const captured = projectStateRef.current;
     const signature = projectStateSignature(captured);
     try {
@@ -905,17 +999,18 @@ export default function AppSession({
     let cancelled = false;
     void (async () => {
       try {
-        const store = await createPlatformUserSettingsStore({
+        const store = PLATFORM_BUILD ? createSiteSettingsStore(siteHost) : await createPlatformUserSettingsStore({
           isTauri: isDesktop,
           indexedDb: window.indexedDB,
         });
         const settings = await loadUserSettings(
           store,
-          (key, fallback) => getSetting(key, fallback),
+          PLATFORM_BUILD ? undefined : (key, fallback) => getSetting(key, fallback),
         );
         if (cancelled) return;
-        applyTheme(settings.preferences.theme, settings.preferences.workspaceAppearance);
-        await changeLanguage(settings.preferences.language);
+        const managed = sitePreferences(getSiteHost());
+        applyTheme(managed.theme ?? settings.preferences.theme, settings.preferences.workspaceAppearance);
+        await changeLanguage(managed.language ?? settings.preferences.language);
         if (isDesktop) {
           await applyDesktopInterfaceScale(settings.preferences.interfaceScalePercent);
           appliedInterfaceScaleRef.current = settings.preferences.interfaceScalePercent;
@@ -925,7 +1020,7 @@ export default function AppSession({
         explorerWidthRef.current = settings.preferences.workspaceLayout.explorerWidth;
         rightPanelWidthRef.current = settings.preferences.workspaceLayout.propertiesWidth;
         setUserSettings(settings);
-        await saveUserSettings(store, settings);
+        if (!PLATFORM_BUILD) await saveUserSettings(store, settings);
       } catch (error) {
         console.error("Failed to initialize user settings", error);
       } finally {
@@ -933,7 +1028,16 @@ export default function AppSession({
       }
     })();
     return () => { cancelled = true; };
-  }, [applyInterfaceScale, isDesktop]);
+  }, [applyInterfaceScale, isDesktop, siteHost]);
+
+  useEffect(() => {
+    if (!PLATFORM_BUILD || !userSettingsReady) return;
+    const preferences = sitePreferences(hostSnapshot.host);
+    const current = userSettingsRef.current.preferences;
+    applyTheme(preferences.theme ?? current.theme, current.workspaceAppearance);
+    void changeLanguage(preferences.language ?? current.language);
+  }, [hostSnapshot, userSettings.preferences.language, userSettings.preferences.theme,
+    userSettings.preferences.workspaceAppearance, userSettingsReady]);
 
   useEffect(() => {
     if (!isDesktop) return;
@@ -943,6 +1047,7 @@ export default function AppSession({
   }, [interfaceScalePercent, isDesktop]);
 
   useEffect(() => {
+    if (PLATFORM_BUILD) return;
     let cancelled = false;
     writeProjectDocumentCore(persistedProjectDraft).then((text) => {
       if (!cancelled) {
@@ -1076,7 +1181,7 @@ export default function AppSession({
   usePileOptionCosts(projectState, setProjectState);
 
   const ilp = useIlpOptimization(projectState, loadPointGroups.groups,
-    hasCompletedLoadPointGroups && projectState.analysisError === null
+    !readOnly && hasCompletedLoadPointGroups && projectState.analysisError === null
       && !projectState.defaultPileSelectionPending && projectState.cptSelectionEditDraft === null
       && projectState.loadPointLockDraft === null && projectState.loadPoints.length > 0
       && projectState.pileOptionsByLoadPointId.size === projectState.loadPoints.length,
@@ -1113,55 +1218,80 @@ export default function AppSession({
       runId:ilp.currentRunId,timeLimitSeconds:ilp.currentRunTimeLimitSeconds,
       targetLoadPointIds:ilp.currentRunTargetLoadPointIds },
   };
-  const createMcpSession = (isActive: () => boolean) => createProjectMcpSession({
-    currentState: () => projectStateRef.current,
-    currentMarker: () => mcpProjectMarkerRef.current!.observe(projectStateRef.current),
-    currentPath: () => projectPathRef.current,
-    canWrite: () => mcpWriteEnabledRef.current,
-    derivedState: () => mcpDerivedRef.current,
-    language: () => i18n.language.startsWith("nl") ? "nl" : "en",
-    defaultTimeLimit: () => userSettingsRef.current.preferences.optimizationTimeLimitSeconds,
-    optimization: () => mcpOptimizationRef.current,
-    sourceImportRequirements: () => invokeDesktop<Record<string, unknown>>("get_standard_csv_requirements", {}),
-    pilePlanImportRequirements: () => invokeDesktop<Record<string, unknown>>("get_pile_plan_import_requirements", {}),
-    isDirty: () => isDirtyRef.current,
-    personalCostDefault: () => userSettingsRef.current.defaults.pileCostCatalog,
-    builtInCostDefault: BUILT_IN_PILE_COST_DEFAULTS,
-    installRefresh: (state) => {
-      defaultSelectionKeepsDirtyRef.current = true;
-      flushSync(() => commitProjectState(state));
-      isDirtyRef.current = true;
-      setIsDirty(true);
-    },
-    installNewProject: (state) => {
-      defaultSelectionKeepsDirtyRef.current = false;
-      flushSync(() => replaceProjectState(state));
-      setProjectPath(null);
-      setBrowserRecentPath(null);
-      updateSavedProjectSignature("");
-      isDirtyRef.current = true;
-      setIsDirty(true);
-    },
-    confirmReplacement: confirmProjectReplacement,
-    installOpened: (state, path) => {
-      flushSync(() => installOpenedProject(state, path));
-      projectPathRef.current = path;
-    },
-    didSave: (path) => {
-      rememberDesktopProject(path);
-      projectPathRef.current = path;
-      setProjectPath(path);
-      updateSavedProjectSignature(projectStateSignature(projectStateRef.current));
-      isDirtyRef.current = false;
-      setIsDirty(false);
-    },
-    navigate: (update) => {
-      setActiveSourceKind(null);
-      invalidatePileAssignmentRequests();
-      flushSync(() => setProjectState(update));
-    },
-    commit: (update, action) => { flushSync(() => commitProjectState(update, action)); },
-  }, isActive);
+  const createMcpSession = (isActive: () => boolean): McpSession => {
+    let disposed = false;
+    let pending: Promise<McpSession> | undefined;
+    const dependencies: ProjectMcpSessionDependencies = {
+      currentState: () => projectStateRef.current,
+      currentMarker: () => mcpProjectMarkerRef.current!.observe(projectStateRef.current),
+      currentPath: () => projectPathRef.current,
+      canWrite: () => mcpWriteEnabledRef.current && !docsSession.file?.readOnly,
+      derivedState: () => mcpDerivedRef.current,
+      language: () => i18n.language.startsWith("nl") ? "nl" : "en",
+      defaultTimeLimit: () => userSettingsRef.current.preferences.optimizationTimeLimitSeconds,
+      optimization: () => mcpOptimizationRef.current,
+      sourceImportRequirements: async () => (await import("../../core/importRequirementsClient.ts")).sourceImportRequirements(),
+      pilePlanImportRequirements: async () => (await import("../../core/importRequirementsClient.ts")).pilePlanImportRequirements(),
+      isDirty: () => isDirtyRef.current,
+      personalCostDefault: () => userSettingsRef.current.defaults.pileCostCatalog,
+      builtInCostDefault: BUILT_IN_PILE_COST_DEFAULTS,
+      installRefresh: (state) => {
+        defaultSelectionKeepsDirtyRef.current = true;
+        flushSync(() => commitProjectState(state));
+        isDirtyRef.current = true;
+        setIsDirty(true);
+      },
+      installNewProject: (state) => {
+        defaultSelectionKeepsDirtyRef.current = false;
+        flushSync(() => replaceProjectState(state));
+        setProjectPath(null);
+        setBrowserRecentPath(null);
+        updateSavedProjectSignature("");
+        isDirtyRef.current = true;
+        setIsDirty(true);
+      },
+      confirmReplacement: confirmProjectReplacement,
+      installOpened: (state, path) => {
+        flushSync(() => installOpenedProject(state, path));
+        projectPathRef.current = path;
+      },
+      didSave: (path) => {
+        rememberDesktopProject(path);
+        projectPathRef.current = path;
+        setProjectPath(path);
+        updateSavedProjectSignature(projectStateSignature(projectStateRef.current));
+        isDirtyRef.current = false;
+        setIsDirty(false);
+      },
+      navigate: (update) => {
+        setActiveSourceKind(null);
+        invalidatePileAssignmentRequests();
+        flushSync(() => setProjectState(update));
+      },
+      commit: (update, action) => { flushSync(() => commitProjectState(update, action)); },
+    };
+    return {
+      async dispatch(body) {
+        if (disposed) throw new Error("unavailable");
+        pending ??= import("../mcp/projectSession.ts").then(({ createProjectMcpSession }) =>
+          createProjectMcpSession(dependencies, () => !disposed && isActive()));
+        const session = await pending;
+        if (disposed) throw new Error("unavailable");
+        return session.dispatch(body);
+      },
+      dispose() {
+        disposed = true;
+        void pending?.then(session => session.dispose()).catch(() => {});
+      },
+    };
+  };
+  const createMcpSessionRef = useRef(createMcpSession);
+  createMcpSessionRef.current = createMcpSession;
+  useEffect(() => {
+    if (!PLATFORM_BUILD) return;
+    return installSiteMcp(isActive => createMcpSessionRef.current(isActive));
+  }, []);
+
   const { status: mcpStatus, connection: mcpConnection, error: mcpError, setEnabled: setMcpEnabled } =
     useMcpConnection(isDesktop, createMcpSession, () => {
       mcpWriteEnabledRef.current = false;
@@ -1206,7 +1336,7 @@ export default function AppSession({
     projectState.pileDriving,
     update => {
       const marker = mcpProjectMarkerRef.current!.observe(projectStateRef.current);
-      if (marker.project_instance_id !== exportMarker.project_instance_id) return false;
+      if (docsSession.file?.readOnly || marker.project_instance_id !== exportMarker.project_instance_id) return false;
       commitProjectState(current => {
         const previous = current.pileDriving ?? { files: [] };
         const next = update(previous);
@@ -1344,7 +1474,47 @@ export default function AppSession({
     if (typeof path === "string") await openDesktopProjectPath(path);
   };
 
-  openProjectActionRef.current = chooseDesktopProject;
+  const openDocsProject = async (id: string, reportError = (message: string) => showActionNotice(message, "error")): Promise<boolean> => {
+    const host = getSiteHost();
+    if (!host || docsOpening.current || docsSaving.current) return false;
+    docsOpening.current = true;
+    try {
+      if (!await confirmProjectReplacement()) return false;
+      const before = mcpProjectMarkerRef.current!.observe(projectStateRef.current);
+      const { file, contents } = await docsSession.read(host, id);
+      const project = await prepareOpenedProject(contents, { initializeDefaultPiles: false }, {
+        readProjectDocument: readProjectDocumentCore,
+      });
+      const current = mcpProjectMarkerRef.current!.observe(projectStateRef.current);
+      if (host !== getSiteHost() || before.project_instance_id !== current.project_instance_id
+        || before.project_revision !== current.project_revision) {
+        reportError(t("projectEdit.projectChanged"));
+        return false;
+      }
+      installOpenedProject(project, null);
+      bindDocsFile(file);
+      isDirtyRef.current = false;
+      return true;
+    } catch (error) {
+      reportError(t("supercloud.openFailed", { error: describeProjectOpenError(error, t) }));
+      return false;
+    } finally {
+      docsOpening.current = false;
+    }
+  };
+  openDocsRef.current = openDocsProject;
+
+  useEffect(() => {
+    if (!siteHost || !initialDocsFileId || !userSettingsReady) return;
+    if (initialDocsOpen.current?.host === siteHost && initialDocsOpen.current.id === initialDocsFileId) return;
+    initialDocsOpen.current = { host: siteHost, id: initialDocsFileId };
+    void openDocsRef.current?.(initialDocsFileId);
+  }, [initialDocsFileId, siteHost, userSettingsReady]);
+
+  openProjectActionRef.current = PLATFORM_BUILD ? async () => {
+    setDocsOpenRequested(true);
+    setBackstageOpen(true);
+  } : chooseDesktopProject;
 
   useEffect(() => {
     if (!isDesktop || !userSettingsReady) return;
@@ -1397,8 +1567,10 @@ export default function AppSession({
         onPointerUpCapture={releasePointerActivatedControlFocus}
       >
         <TitleBar
-          projectAction={() => void (isDesktop ? saveProject() : downloadProject())}
-          projectActionKind={isDesktop ? "save" : "download"}
+          projectAction={() => void projectActionRef.current?.()}
+          projectActionKind={isDesktop || PLATFORM_BUILD ? "save" : "download"}
+          projectActionDisabled={PLATFORM_BUILD && (!siteHost || readOnly)}
+          hideFeedback={PLATFORM_BUILD}
           canUndo={matchingSurface.active ? matchingSurface.history?.canUndo??false : canUndo}
           canRedo={matchingSurface.active ? matchingSurface.history?.canRedo??false : canRedo}
           undoLabel={matchingSurface.active ? t("matchingEditor.undo") : undoLabel}
@@ -1427,7 +1599,7 @@ export default function AppSession({
         {!matchingSurface.active && <>
         <Ribbon
           onFileTabClick={() => setBackstageOpen(true)}
-          onOpenProjectInformation={() => setProjectInformationOpen(true)}
+          onOpenProjectInformation={() => { if (!readOnly) setProjectInformationOpen(true); }}
           onOpenRightPanel={(mode) => {
             updateWorkspaceLayout({ propertiesVisible: true });
             setRightTaskPanel(null);
@@ -1446,7 +1618,7 @@ export default function AppSession({
             transitionLassoSelectionMode(active, { type: "toggle" })
           ))}
           isLockEditing={projectState.loadPointLockDraft !== null}
-          onStartLockEditing={startLockEditing}
+          onStartLockEditing={() => { if (!readOnly) startLockEditing(); }}
           onApplyLockEditing={applyLockEditing}
           onCancelLockEditing={cancelLockEditing}
           onUnlockAll={unlockAllInDraft}
@@ -1588,6 +1760,7 @@ export default function AppSession({
             pileDriving={rightTaskPanel === "pile-driving" ? <PileDrivingPanel
               planName={drivingPlan?.name}
               driving={pileDriving}
+              readOnly={readOnly}
               selectedLoadPointIds={ilp.displayState.selectedLoadPointIds}
               selectionDisabled={drivingSelectionDisabled}
               neighborhoodRecord={neighborhoodRecord}
@@ -1662,7 +1835,7 @@ export default function AppSession({
             technicalAssignment={technicalAssignment}
             onStateChange={handleDisplayedStateChange}
             onSelectLoadPoints={selectAndFocusLoadPoints}
-            pileAssignmentPending={ilp.running || pileAssignmentPending
+            pileAssignmentPending={readOnly || ilp.running || pileAssignmentPending
               || !hasCompletedLoadPointGroups
               || (projectState.loadPoints.length > 0 && loadPointGroups.groups.length === 0)}
             onApplyPileConfiguration={applyGroupedPileConfiguration}
@@ -1684,7 +1857,7 @@ export default function AppSession({
         </div>
         <StatusBar
           zoomPercent={projectState.viewport.scale * 100}
-          message={statusMessage}
+          message={statusMessage || (docsFile ? t(readOnly ? "supercloud.readOnly" : "supercloud.currentFile", { name: docsFile.name }) : "")}
         />
         </>}
       </div>
@@ -1693,11 +1866,20 @@ export default function AppSession({
         open={backstageOpen}
         onClose={() => {
           setBackstageOpen(false);
+          setDocsOpenRequested(false);
           setInitialImportSource(null);
         }}
         initialImportSource={initialImportSource}
         onOpenSettings={() => setSettingsOpen(true)}
         commands={projectFileCommands}
+        readOnly={readOnly}
+        initialPanel={docsOpenRequested ? "open" : undefined}
+        docsOpenPanel={PLATFORM_BUILD ? <DocsOpenPanel host={siteHost} onOpen={async (id, reportError) => {
+          if (await openDocsProject(id, reportError)) {
+            setBackstageOpen(false);
+            setDocsOpenRequested(false);
+          }
+        }} /> : undefined}
         loadPoints={projectState.loadPoints}
         cpts={projectState.cpts}
         availablePileConfigurations={availablePileConfigurations}
@@ -1722,6 +1904,7 @@ export default function AppSession({
           return result;
         }}
         onImportProject={async (mode, projectName: string | null, sources: ImportSourceInput[], properties: ProjectImportProperties | null, selection?: LoadPointRefreshSelection) => {
+          if (docsSession.file?.readOnly) return null;
           if (mode === "refresh") {
             return applyProjectRefresh({
               context: () => JSON.stringify(mcpProjectMarkerRef.current!.observe(projectStateRef.current)),
@@ -1800,19 +1983,21 @@ export default function AppSession({
       <SettingsDialog
         open={settingsOpen}
         onClose={() => setSettingsOpen(false)}
-        theme={userSettings.preferences.theme}
+        theme={hostPreferences.theme ?? userSettings.preferences.theme}
         workspaceAppearance={userSettings.preferences.workspaceAppearance}
-        language={userSettings.preferences.language}
+        language={hostPreferences.language ?? userSettings.preferences.language}
         defaultCurrencyCode={userSettings.preferences.defaultCurrencyCode}
         onPreferencesChange={(preferences) => commitUserSettings(patchUserSettings(userSettings, preferences))}
         isDesktop={isDesktop}
         interfaceScalePercent={interfaceScalePercent}
         onInterfaceScalePreview={(scale) => { void applyDesktopInterfaceScale(scale); }}
+        siteAssistant={PLATFORM_BUILD && !!siteHost}
+        siteAssistantReadOnly={readOnly}
         mcpStatus={mcpStatus}
         mcpConnection={mcpConnection}
         mcpError={mcpError}
         onMcpToggle={(enabled) => { void setMcpEnabled(enabled); }}
-        mcpWriteEnabled={mcpWriteEnabled}
+        mcpWriteEnabled={mcpWriteEnabled && !readOnly}
         onMcpWriteToggle={(enabled) => {
           mcpWriteEnabledRef.current = enabled;
           setMcpWriteEnabled(enabled);
@@ -1833,13 +2018,22 @@ export default function AppSession({
       <UnsavedChangesDialog
         open={unsavedChangesOpen}
         isDesktop={isDesktop}
+        isPlatform={PLATFORM_BUILD}
         saving={replacementSaving}
         saveError={replacementSaveError}
         onCancel={() => resolveProjectReplacement(false)}
         onDiscard={() => resolveProjectReplacement(true)}
         onSave={() => void saveBeforeProjectReplacement()}
       />
-      <FeedbackDialog open={feedbackOpen} onClose={() => setFeedbackOpen(false)} />
+      {docsSaveAsOpen && <DocsSaveAsDialog
+        suggestedName={docsFile?.name ?? projectFileName(projectState.name)}
+        onClose={() => setDocsSaveAsOpen(false)}
+        onSave={async name => {
+          if (await saveDocsProject(name)) setDocsSaveAsOpen(false);
+          else throw new Error(t("supercloud.saveFailed"));
+        }}
+      />}
+      {!PLATFORM_BUILD && <FeedbackDialog open={feedbackOpen} onClose={() => setFeedbackOpen(false)} />}
     </LocationMatchingSurfaceContext.Provider></LoadDirectionProvider>
   );
 

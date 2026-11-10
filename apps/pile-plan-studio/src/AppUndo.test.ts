@@ -50,7 +50,7 @@ describe("App Undo integration", () => {
     assert.match(source, /import ActionNotice/);
     assert.match(source, /showActionNotice\(describeHistoryResult/);
     assert.match(source, /<ActionNotice/);
-    assert.match(source, /message=\{statusMessage\}/);
+    assert.match(source, /message=\{statusMessage\s*\|\|/);
     assert.doesNotMatch(source, /historyMessage=\{historyMessage\}/);
   });
 });

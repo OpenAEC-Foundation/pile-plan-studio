@@ -9,6 +9,8 @@ import "./TitleBar.css";
 interface TitleBarProps {
   projectAction?: () => void;
   projectActionKind: "save" | "download";
+  projectActionDisabled?: boolean;
+  hideFeedback?: boolean;
   canUndo: boolean;
   canRedo: boolean;
   undoLabel: string;
@@ -25,7 +27,7 @@ function shortcutTip(label: string, keys: string) {
 }
 
 export default function TitleBar({
-  projectAction, projectActionKind, canUndo, canRedo, undoLabel, redoLabel,
+  projectAction, projectActionKind, projectActionDisabled, hideFeedback, canUndo, canRedo, undoLabel, redoLabel,
   onUndo, onRedo, onSettingsClick, onFeedbackClick, interfaceScaleControl,
 }: TitleBarProps) {
   const { t } = useTranslation();
@@ -44,10 +46,10 @@ export default function TitleBar({
       if (event.key === " " || event.key === "Enter") event.stopPropagation();
     }}>
       <div className="titlebar-left">
-        <div className="titlebar-icon"><img src="/pile-plan-studio-icon.png" alt="" aria-hidden="true" /></div>
+        <div className="titlebar-icon"><img src={`${import.meta.env.BASE_URL}pile-plan-studio-icon.png`} alt="" aria-hidden="true" /></div>
         <div className="titlebar-quick-access">
           <IconButton className="titlebar-quick-btn" icon="file.save" label={projectActionLabel} keys="Ctrl+S"
-            data-oa-tip={undefined} data-tooltip={shortcutTip(projectActionLabel, "Ctrl+S")} onClick={projectAction} />
+            data-oa-tip={undefined} data-tooltip={shortcutTip(projectActionLabel, "Ctrl+S")} onClick={projectAction} disabled={projectActionDisabled} />
           <IconButton className="titlebar-quick-btn" icon="edit.undo" label={undoLabel} keys="Ctrl+Z"
             disabled={!canUndo} onClick={onUndo} data-oa-tip={undefined}
             data-tooltip={canUndo ? shortcutTip(undoLabel, "Ctrl+Z") : undefined} />
@@ -70,9 +72,9 @@ export default function TitleBar({
       </div>
       <div className="titlebar-actions">
         <div className="titlebar-scale-anchor">{interfaceScaleControl}</div>
-        <Button kind="quiet" icon="ui.feedback" className="send-feedback-btn" onClick={onFeedbackClick}>
+        {!hideFeedback && <Button kind="quiet" icon="ui.feedback" className="send-feedback-btn" onClick={onFeedbackClick}>
           <span>{t("sendFeedback")}</span>
-        </Button>
+        </Button>}
       </div>
     </header>
   </OpenAECProvider>;

@@ -147,6 +147,20 @@ pub fn preview_import_file(request: JsValue) -> Result<JsValue, JsValue> {
 }
 
 #[wasm_bindgen]
+pub fn get_standard_csv_requirements() -> Result<JsValue, JsValue> {
+    pile_plan_core::standard_csv_requirements()
+        .serialize(&serde_wasm_bindgen::Serializer::json_compatible())
+        .map_err(to_error_value)
+}
+
+#[wasm_bindgen]
+pub fn get_pile_plan_import_requirements() -> Result<JsValue, JsValue> {
+    pile_plan_core::pile_plan_import_requirements()
+        .serialize(&serde_wasm_bindgen::Serializer::json_compatible())
+        .map_err(to_error_value)
+}
+
+#[wasm_bindgen]
 pub fn preview_pile_plan_import_file(request: JsValue) -> Result<JsValue, JsValue> {
     let request: PilePlanImportRequest = from_js_value(request)?;
     to_js_value(&preview_pile_plan_import(&request))

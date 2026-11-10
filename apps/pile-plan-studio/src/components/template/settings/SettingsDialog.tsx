@@ -44,6 +44,8 @@ interface SettingsDialogProps {
     defaultCurrencyCode: string;
   }) => void;
   isDesktop: boolean;
+  siteAssistant?: boolean;
+  siteAssistantReadOnly?: boolean;
   interfaceScalePercent: number;
   onInterfaceScalePreview: (scalePercent: number) => void;
   mcpStatus: "off" | "starting" | "on" | "stopping" | "error";
@@ -63,6 +65,8 @@ export default function SettingsDialog({
   defaultCurrencyCode,
   onPreferencesChange,
   isDesktop,
+  siteAssistant,
+  siteAssistantReadOnly,
   interfaceScalePercent,
   onInterfaceScalePreview,
   mcpStatus,
@@ -206,6 +210,11 @@ export default function SettingsDialog({
                 defaultCurrencyCode={draftCurrencyCode}
                 onDefaultCurrencyCodeChange={setDraftCurrencyCode}
               />
+              {siteAssistant && <div className="settings-section settings-mcp-section">
+                <Heading>{tCommon("supercloud.assistant")}</Heading>
+                <Checkbox label={t("mcp.allowEdits")} checked={mcpWriteEnabled} disabled={siteAssistantReadOnly}
+                  onChange={event => onMcpWriteToggle(event.currentTarget.checked)} />
+              </div>}
               {isDesktop && <McpConnectionSection
                 status={mcpStatus}
                 connection={mcpConnection}

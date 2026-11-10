@@ -29,8 +29,8 @@ export type BinarySaveEnvironment = {
   browser?: FileSaveEnvironment;
 };
 
-export function getProjectFileCommands(isDesktop: boolean): ProjectFileCommands {
-  return isDesktop
+export function getProjectFileCommands(isDesktop: boolean, isPlatform = false): ProjectFileCommands {
+  return isDesktop || isPlatform
     ? { save: true, saveAs: true, download: false }
     : { save: false, saveAs: false, download: true };
 }
@@ -174,7 +174,7 @@ function waitForBrowserPaint(): Promise<void> {
   });
 }
 
-function downloadBlob(blob: Blob, fileName: string): void {
+export function downloadBlob(blob: Blob, fileName: string): void {
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
   link.href = url;

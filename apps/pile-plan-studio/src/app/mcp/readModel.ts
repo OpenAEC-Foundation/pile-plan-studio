@@ -77,6 +77,11 @@ export function readPileTool(
       cpt_count: state.cpts.length,
       plan_count: state.pilePlans.length,
       active_plan_id: state.activePilePlanId,
+      selection: {
+        load_point_ids: state.selectedLoadPointIds.slice(0, 100),
+        load_point_count: state.selectedLoadPointIds.length,
+        cpt_id: state.selectedCptId,
+      },
       sources: state.inputSources.map(({ kind, status, itemCount, warnings }) => ({
         kind, status, item_count: itemCount, warning_count: warnings.length,
       })),
