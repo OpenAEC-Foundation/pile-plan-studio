@@ -1,5 +1,5 @@
 import { beginManualCptSelection, toggleManualCpt, saveManualCptSelection, setManualCptEditLoadPoint, clearManualCptSelection } from "../../cpt-selection/cptSettingsModel.ts";
-import { projectStateSignature } from "../../../app/project/projectLifecycleController.ts";
+import { projectDraftFromState, projectStateSignature } from "../../../app/project/projectLifecycleController.ts";
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
@@ -26,6 +26,24 @@ function createTestProjectState(
 }
 
 describe("project history reducer", () => {
+  it("saves embedded driving sources and restores them through undo and redo", () => {
+    const initial = state();
+    const driving = {
+      files: [{ id: "day-1", file_name: "day-1.csv", format: "csv" as const, data_base64: "MTU=" }],
+      shared_match_by: "location-id" as const,
+    };
+    let managed = projectHistoryReducer(createManagedProjectState(initial), {
+      type: "commit", update: current => ({ ...current, pileDriving: driving }),
+    });
+    assert.deepEqual(projectDraftFromState(managed.present).inputs.pile_driving, driving);
+    assert.notEqual(projectStateSignature(managed.present), projectStateSignature(initial));
+    assert.equal(managed.history.past.length, 1);
+    assert.equal(managed.history.past[0].action.kind, "pile-driving");
+    managed = projectHistoryReducer(managed, { type: "undo" });
+    assert.equal(projectStateSignature(managed.present), projectStateSignature(initial));
+    managed = projectHistoryReducer(managed, { type: "redo" });
+    assert.deepEqual(managed.present.pileDriving, driving);
+  });
   it("keeps selection inspection context out of saved content and undo history", () => {
     const initial = state();
     const ids = initial.loadPoints.slice(0, 3).map(point => point.id);

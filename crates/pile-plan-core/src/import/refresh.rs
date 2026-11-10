@@ -311,6 +311,10 @@ pub fn refresh_project_with_location_decisions(
                     .map(|new_id| (*new_id, choice))
             })
             .collect();
+        plan.revit_marks_by_load_point = std::mem::take(&mut plan.revit_marks_by_load_point)
+            .into_iter()
+            .filter_map(|(old_id, mark)| load_point_mapping.get(&old_id).map(|id| (*id, mark)))
+            .collect();
         plan.locked_load_point_ids = std::mem::take(&mut plan.locked_load_point_ids)
             .into_iter()
             .filter_map(|old_id| load_point_mapping.get(&old_id).copied())

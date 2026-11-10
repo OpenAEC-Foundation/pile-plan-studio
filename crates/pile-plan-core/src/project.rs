@@ -1,4 +1,4 @@
-use std::collections::{BTreeSet, HashMap};
+use std::collections::{BTreeMap, BTreeSet, HashMap};
 
 use serde::{de::Error as _, Deserialize, Deserializer, Serialize, Serializer};
 
@@ -310,6 +310,8 @@ pub struct ProjectInputs {
     pub load_points: Vec<LoadPoint>,
     pub cpts: Vec<Cpt>,
     pub bearing_capacities: Vec<BearingCapacity>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub pile_driving: Option<crate::pile_driving::ProjectPileDriving>,
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
@@ -445,6 +447,8 @@ pub struct ProjectUserState {
 pub struct PilePlan {
     pub id: String,
     pub name: String,
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub revit_marks_by_load_point: BTreeMap<u32, String>,
     #[serde(
         default,
         deserialize_with = "crate::pile_cap_proposals::deserialize_proposals"
@@ -490,6 +494,7 @@ impl PilePlan {
         Self {
             id: "pile-plan-1".to_string(),
             name: "Pile plan 1".to_string(),
+            revit_marks_by_load_point: BTreeMap::new(),
             pile_cap_proposals: Vec::new(),
             active_pile_sizes,
             active_pile_tip_levels,
@@ -1036,6 +1041,7 @@ mod tests {
                 costs: "EUR".to_string(),
             },
             inputs: ProjectInputs {
+                pile_driving: None,
                 load_points: vec![LoadPoint {
                     id: 1,
                     name: "Load point 1".to_string(),
@@ -1101,6 +1107,7 @@ mod tests {
                 pile_plans: vec![PilePlan {
                     id: "pile-plan-1".to_string(),
                     name: "Pile plan 1".to_string(),
+                    revit_marks_by_load_point: BTreeMap::new(),
                     pile_cap_proposals: Vec::new(),
                     active_pile_sizes: vec![290],
                     active_pile_tip_levels: vec![-18.0],

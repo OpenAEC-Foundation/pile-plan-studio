@@ -93,7 +93,11 @@ pub fn read_source_table(
 fn read_csv(file_name: &str, bytes: &[u8]) -> Result<SourceTable, ImportError> {
     read_csv_delimited(file_name, bytes, b',')
 }
-pub(crate) fn read_csv_delimited(file_name: &str, bytes: &[u8],delimiter:u8) -> Result<SourceTable, ImportError> {
+pub(crate) fn read_csv_delimited(
+    file_name: &str,
+    bytes: &[u8],
+    delimiter: u8,
+) -> Result<SourceTable, ImportError> {
     if bytes.is_empty() {
         return Err(ImportError::EmptySource(file_name.to_string()));
     }
@@ -151,12 +155,40 @@ fn read_xlsx(file_name: &str, bytes: &[u8]) -> Result<SourceTable, ImportError> 
 }
 
 pub fn read_xlsx_tables(file_name: &str, bytes: &[u8]) -> Result<Vec<SourceTable>, ImportError> {
-    if let Some(tables)=super::workbook_cache::cache().lock().unwrap_or_else(|e|e.into_inner()).get(file_name,bytes){return Ok(tables.as_ref().clone());}
-    let tables=std::sync::Arc::new(read_xlsx_tables_uncached(file_name,bytes)?);
-    super::workbook_cache::cache().lock().unwrap_or_else(|e|e.into_inner()).insert(file_name,bytes,std::sync::Arc::clone(&tables));
+    read_xlsx_tables_with_options(file_name, bytes, false)
+}
+
+pub(crate) fn read_xlsx_tables_with_iso_dates(
+    file_name: &str,
+    bytes: &[u8],
+) -> Result<Vec<SourceTable>, ImportError> {
+    read_xlsx_tables_with_options(file_name, bytes, true)
+}
+
+fn read_xlsx_tables_with_options(
+    file_name: &str,
+    bytes: &[u8],
+    iso_dates: bool,
+) -> Result<Vec<SourceTable>, ImportError> {
+    if let Some(tables) = super::workbook_cache::cache()
+        .lock()
+        .unwrap_or_else(|e| e.into_inner())
+        .get(file_name, bytes, iso_dates)
+    {
+        return Ok(tables.as_ref().clone());
+    }
+    let tables = std::sync::Arc::new(read_xlsx_tables_uncached(file_name, bytes, iso_dates)?);
+    super::workbook_cache::cache()
+        .lock()
+        .unwrap_or_else(|e| e.into_inner())
+        .insert(file_name, bytes, iso_dates, std::sync::Arc::clone(&tables));
     Ok(tables.as_ref().clone())
 }
-fn read_xlsx_tables_uncached(file_name: &str, bytes: &[u8]) -> Result<Vec<SourceTable>, ImportError> {
+fn read_xlsx_tables_uncached(
+    file_name: &str,
+    bytes: &[u8],
+    iso_dates: bool,
+) -> Result<Vec<SourceTable>, ImportError> {
     if bytes.is_empty() {
         return Err(ImportError::EmptySource(file_name.to_string()));
     }
@@ -205,7 +237,7 @@ fn read_xlsx_tables_uncached(file_name: &str, bytes: &[u8]) -> Result<Vec<Source
                 .map(|c| {
                     range
                         .get_value((r as u32, c as u32))
-                        .map(from_excel_cell)
+                        .map(|cell| from_excel_cell(cell, iso_dates))
                         .unwrap_or(TableCell::Empty)
                 })
                 .collect();
@@ -235,13 +267,23 @@ fn read_xlsx_tables_uncached(file_name: &str, bytes: &[u8]) -> Result<Vec<Source
     }
 }
 
-fn from_excel_cell(cell: &Data) -> TableCell {
+fn from_excel_cell(cell: &Data, iso_dates: bool) -> TableCell {
     match cell {
         Data::Empty => TableCell::Empty,
         Data::String(value) => TableCell::Text(value.clone()),
         Data::Float(value) => TableCell::Number(*value),
         Data::Int(value) => TableCell::Number(*value as f64),
         Data::Bool(value) => TableCell::Bool(*value),
+        Data::DateTime(value) if iso_dates && value.is_datetime() && value.as_f64() >= 1.0 => {
+            let (year, month, day, hour, minute, second, millisecond) = value.to_ymd_hms_milli();
+            let date = format!("{year:04}-{month:02}-{day:02}");
+            let text = if (hour, minute, second, millisecond) == (0, 0, 0, 0) {
+                date
+            } else {
+                format!("{date}T{hour:02}:{minute:02}:{second:02}.{millisecond:03}")
+            };
+            TableCell::Text(text)
+        }
         other => TableCell::Text(other.to_string()),
     }
 }

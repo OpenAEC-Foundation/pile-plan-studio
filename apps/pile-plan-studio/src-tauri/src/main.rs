@@ -250,6 +250,20 @@ fn preview_pile_plan_import_file(request: PilePlanImportRequest) -> PilePlanImpo
 }
 
 #[tauri::command(async, rename_all = "snake_case")]
+fn preview_pile_driving_file(
+    request: pile_plan_core::PileDrivingImportRequest,
+) -> Result<pile_plan_core::PileDrivingPreview, pile_plan_core::PileDrivingImportError> {
+    pile_plan_core::preview_pile_driving(&request)
+}
+
+#[tauri::command(async, rename_all = "snake_case")]
+fn preview_pile_driving_files(
+    request: pile_plan_core::PileDrivingBatchRequest,
+) -> Result<pile_plan_core::PileDrivingBatchPreview, pile_plan_core::PileDrivingImportError> {
+    pile_plan_core::preview_pile_driving_files(&request)
+}
+
+#[tauri::command(async, rename_all = "snake_case")]
 fn export_pile_plan_csv(request: PilePlanExportRequest) -> Result<Vec<u8>, String> {
     write_pile_plan_csv_bytes(&request).map_err(|error| error.to_string())
 }
@@ -523,6 +537,8 @@ fn main() {
             get_standard_csv_requirements,
             get_pile_plan_import_requirements,
             preview_pile_plan_import_file,
+            preview_pile_driving_file,
+            preview_pile_driving_files,
             export_pile_plan_csv,
             export_pile_plan_xlsx,
             preview_configured_pile_plan_export,

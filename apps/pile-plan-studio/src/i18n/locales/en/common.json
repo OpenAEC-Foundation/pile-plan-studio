@@ -61,6 +61,7 @@
       "pile-plan-renamed": "Renamed pile plan to {{pilePlanName}}",
       "project-name": "Changed the project name",
       "project-import": "Refreshed project data",
+      "pile-driving": "Changed driving records",
       "project-change": "Changed the project",
       "ilp-optimization-settings": "Optimization settings changed"
     }
@@ -956,6 +957,7 @@
       "tension": "Tension load",
       "tip-level": "Pile tip level",
       "pile-size": "Pile size",
+      "revit-mark": "Revit Mark",
       "resistance": "Compression resistance",
       "tensionResistance": "Tension resistance",
       "selected-cpts": "Selected CPTs",

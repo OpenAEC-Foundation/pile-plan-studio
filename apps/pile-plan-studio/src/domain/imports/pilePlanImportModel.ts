@@ -128,8 +128,9 @@ export function pilePlanImportTolerance(draft: PilePlanImportDraft<unknown>): nu
 export function canApplyPilePlanImport<TFile>(draft: PilePlanImportDraft<TFile>): boolean {
   return draft.file !== null &&
     pilePlanImportTolerance(draft) !== null &&
-    (draft.importPileAssignments || draft.importCptSelections) &&
     draft.previewState.status === "ready" &&
+    (draft.importPileAssignments || draft.importCptSelections ||
+      draft.previewState.preview.patch.changes.some(change => change.revit_mark)) &&
     draft.previewState.preview.canApply && (draft.previewState.preview.matching?.complete??true);
 }
 

@@ -301,6 +301,63 @@ The coordinate tolerance is configurable for this workflow and defaults to
 1 mm. Ambiguous, unmatched, or conflicting rows are skipped and reported in
 the import preview before the project is changed.
 
+The optional `Mark` or `Revit Mark` column is stored with each linked location
+in the imported plan. The location ID and coordinates still link the import
+to the project's locations.
+
+### Inspect driving records
+
+Open **Plan > Driving records** and add one or more CSV or Excel files. The
+panel recognizes the example format's headers, including `paalnummer` (pile
+number). Under **Settings**, expand the source preview and import settings to
+check the data, pick the header or data row, and assign column meanings. Changes apply to all open
+files by default. A file can use its own settings when its format differs.
+The displayed pile plan is the reference. The match defaults to **Revit Mark**
+when that plan has Marks and to **Location ID** otherwise.
+
+Choose **All driving records** to see the day number, matched location and
+warnings for every registration. The panel numbers distinct recorded dates
+in chronological order and shows warnings first. Use **Warnings only** to
+filter the table. With the filter off, it includes records with no match or
+multiple matches. Select a row's location or pile number to see its
+measurements and source file and locate the matched pile in the drawing.
+Selecting a single location in the drawing opens its first registration in
+the chosen file scope, even if the warnings filter hides that row. The overview
+uses a short scroll area while a registration's details are open. Saving the
+IFCPP project includes the original CSV and Excel files and their import and
+check settings. Open the saved project and choose **Driving records** to
+recalculate the checks against the current reference plan. To remove a file,
+select it and use the trash button beside the file picker. Undo restores it.
+
+The checks compare the recorded pile size, length and final measured NAP level
+with the reference plan. Plan length is the difference between the project
+pile head level and the assigned tip level. The final blow count defaults to
+a minimum of 15 blows per full 250 mm increment. The trend check compares
+the average blow count of the first half and the second half of the final
+consecutive full increments. The default is six increments, and the
+window can be set to any even number of at least two. The panel shows both
+averages and warns when the drop exceeds the configured tolerance.
+The neighborhood check compares the mean blow count of the last six full
+consecutive increments with the median of other piles of the same recorded
+size across all open logs. It uses identical CPT selections first, then allows
+one CPT replacement if needed to find at least three comparable piles.
+The default deviation limit is 10%. Whenever the comparison can be calculated,
+expand the neighborhood check under **Checks** to see the reference piles, their
+final measured tip level, mean blow energy over those six increments, and
+absolute deviation from the displayed median. The table identifies the shared
+recorded pile size. Every displayed pile contributes to the median, including
+those flagged for deviations outside the configured limit.
+The viewer frames the checked pile and its reference piles, with gray rings
+for the references.
+Set an optional target per recorded pile size and a shared ± kJ tolerance.
+For sizes with a target, the energy check compares all recorded readings to
+the target band. For sizes without a target, the comparison uses every
+usable reading from the open driving logs and checks the largest energy
+difference between two distinct piles of the same size against the allowed
+spread. The panel lists any open driving logs that could not be read.
+Check settings apply to all driving files in the project.
+Incomplete or inconsistent measurements are shown as unavailable checks.
+
 ## Selection and Inspection
 
 - Click a load point to select it, or its entire effective group when grouped.

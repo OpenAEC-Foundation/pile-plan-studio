@@ -61,6 +61,7 @@
       "pile-plan-renamed": "Palenplan hernoemd naar {{pilePlanName}}",
       "project-name": "Projectnaam gewijzigd",
       "project-import": "Projectgegevens ververst",
+      "pile-driving": "Heistaten gewijzigd",
       "project-change": "Project gewijzigd",
       "ilp-optimization-settings": "Optimalisatie-instellingen gewijzigd"
     }
@@ -956,6 +957,7 @@
       "tension": "Trekbelasting",
       "tip-level": "Paalpuntniveau",
       "pile-size": "Paalafmeting",
+      "revit-mark": "Revit Mark",
       "resistance": "Drukweerstand",
       "tensionResistance": "Trekweerstand",
       "selected-cpts": "Geselecteerde sonderingen",

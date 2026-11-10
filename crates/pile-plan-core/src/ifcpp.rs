@@ -14,7 +14,7 @@ use crate::{
     SelectedPileChoice, ValidatedPilePlanProject, APPLICATION_NAME,
 };
 
-const CURRENT_SCHEMA_VERSION: u32 = 8;
+const CURRENT_SCHEMA_VERSION: u32 = 9;
 
 #[derive(Debug)]
 pub enum IfcppError {
@@ -352,14 +352,14 @@ fn validate_project_value_pile_plan_ids(value: &Value) -> Result<(), IfcppError>
 pub fn write_ifcpp_string(project: &PilePlanProject) -> Result<String, IfcppError> {
     let mut canonical = project.clone();
     migrate_optimizer_settings(&mut canonical);
-    if canonical.schema_version < CURRENT_SCHEMA_VERSION {
+    if canonical.schema_version < 8 {
         for plan in &mut canonical.user_state.pile_plans {
             if let Some(result) = &mut plan.ilp_result {
                 result.settings.include_tension = false;
             }
         }
-        canonical.schema_version = CURRENT_SCHEMA_VERSION;
     }
+    canonical.schema_version = canonical.schema_version.max(CURRENT_SCHEMA_VERSION);
     validate_ifcpp_project(&canonical)?;
     canonicalize_load_point_grouping_settings(&mut canonical.settings.load_point_grouping);
 
@@ -404,8 +404,14 @@ fn validate_ifcpp_project_with_keys(
         return Err(IfcppError::InvalidSchema(project.schema.clone()));
     }
 
-    if !matches!(project.schema_version, 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8) {
+    if !(1..=CURRENT_SCHEMA_VERSION).contains(&project.schema_version) {
         return Err(IfcppError::UnsupportedSchemaVersion(project.schema_version));
+    }
+
+    if project.inputs.pile_driving.as_ref().is_some_and(|driving| !driving.is_valid()) {
+        return Err(IfcppError::Json(<JsonError as serde::de::Error>::custom(
+            "Invalid pile driving sources or check settings",
+        )));
     }
 
     if project
@@ -469,7 +475,7 @@ fn migrate_legacy_project_value(value: &mut Value) {
             }
         }
     }
-    if matches!(original_schema_version, 5 | 6 | 7) {
+    if (5..u64::from(CURRENT_SCHEMA_VERSION)).contains(&original_schema_version) {
         value["schema_version"] = Value::from(CURRENT_SCHEMA_VERSION);
         return;
     }
@@ -861,6 +867,37 @@ mod tests {
         let error = write_ifcpp_string(&project).expect_err("version is rejected");
 
         assert_eq!(error.to_string(), "Unsupported IFCPP schema version 99");
+    }
+
+    #[test]
+    fn preserves_embedded_driving_sources_and_settings_through_project_writes() {
+        let mut value = serde_json::to_value(project_fixture()).unwrap();
+        value["schema_version"] = serde_json::json!(8);
+        let legacy = read_project_document(&value.to_string()).unwrap().project;
+        assert_eq!(legacy.schema_version, CURRENT_SCHEMA_VERSION);
+        assert!(legacy.inputs.pile_driving.is_none());
+
+        value["schema_version"] = serde_json::json!(CURRENT_SCHEMA_VERSION);
+        value["inputs"]["pile_driving"] = serde_json::json!({
+            "files": [
+                {"id": "day-1", "file_name": "day-1.csv", "format": "csv", "data_base64": "cGFhbG51bW1lcgoxNQo="},
+                {"id": "day-2", "file_name": "day-2.xlsx", "format": "xlsx", "data_base64": "UEsDBA==",
+                 "overrides": {"match_by": "location-id", "table": {"sheet_name": "Daily records"}}}
+            ],
+            "shared_match_by": "revit-mark",
+            "shared_table": {"headers": ["Pile"], "settings": {"has_headers": true}},
+            "check_settings": {"neighborhood_tolerance_pct": 12.5}
+        });
+        let project = read_project_document(&value.to_string()).unwrap().project;
+        let written = write_project_document(ProjectDocumentDraft::from_project(&project)).unwrap();
+        let saved: Value = serde_json::from_str(&written).unwrap();
+        let driving = &saved["inputs"]["pile_driving"];
+        assert_eq!(driving["files"][0]["data_base64"], "cGFhbG51bW1lcgoxNQo=");
+        assert_eq!(driving["files"][1]["overrides"]["table"]["sheet_name"], "Daily records");
+        assert_eq!(driving["shared_match_by"], "revit-mark");
+        assert_eq!(driving["shared_table"]["settings"]["has_headers"], true);
+        assert_eq!(driving["check_settings"]["neighborhood_tolerance_pct"], 12.5);
+        assert_eq!(read_project_document(&written).unwrap().project.inputs, project.inputs);
     }
 
     #[test]
@@ -1652,6 +1689,35 @@ mod tests {
     }
 
     #[test]
+    fn project_document_round_trips_plan_marks_without_assignments() {
+        let mut project = project_fixture();
+        project.inputs.load_points.push(crate::ProjectLoadPoint {
+            id: 1,
+            name: "A".to_owned(),
+            x_mm: 0.0,
+            y_mm: 0.0,
+            design_load_kn: 100.0,
+            tension: Default::default(),
+        });
+        let plan = &mut project.user_state.pile_plans[0];
+        plan.revit_marks_by_load_point.insert(1, "001".to_owned());
+
+        let text = write_project_document(ProjectDocumentDraft::from_project(&project)).unwrap();
+        let restored = read_ifcpp_str(&text).unwrap();
+        let restored_plan = &restored.user_state.pile_plans[0];
+        assert!(restored_plan.selected_piles.is_empty());
+        assert_eq!(restored_plan.revit_marks_by_load_point[&1], "001");
+
+        let mut value: serde_json::Value = serde_json::from_str(&text).unwrap();
+        value["user_state"]["pile_plans"][0]
+            .as_object_mut()
+            .unwrap()
+            .remove("revit_marks_by_load_point");
+        let restored = read_ifcpp_str(&value.to_string()).unwrap();
+        assert!(restored.user_state.pile_plans[0].revit_marks_by_load_point.is_empty());
+    }
+
+    #[test]
     fn preserves_explicitly_hidden_tip_level_regions() {
         let mut project = project_fixture();
         project.settings.viewer.show_tip_level_regions = false;
@@ -1690,6 +1756,7 @@ mod tests {
                 load_points: vec![],
                 cpts: vec![],
                 bearing_capacities: vec![],
+                pile_driving: None,
             },
             settings: ProjectSettings {
                 ilp_optimization: Some(crate::IlpOptimizationSettings::default()),

@@ -67,6 +67,8 @@ pub enum PilePlanImportedValue<T> {
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
 pub struct PilePlanImportChange {
     pub load_point_id: u32,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub revit_mark: Option<String>,
     pub pile: PilePlanImportedValue<PileConfigurationKey>,
     pub manual_cpt_ids: PilePlanImportedValue<Vec<u32>>,
 }
@@ -147,6 +149,7 @@ pub struct PilePlanImportPreview {
 #[derive(Clone, Debug, PartialEq)]
 struct ParsedPilePlanRow {
     source_id: Option<u32>,
+    revit_mark: Option<String>,
     x_mm: Option<f64>,
     y_mm: Option<f64>,
     pile: PilePlanImportedValue<PileConfigurationKey>,
@@ -174,6 +177,7 @@ pub fn pile_plan_import_requirements() -> serde_json::Value {
         "decimal_separator": ".",
         "columns": [
             {"name": "Load Point ID", "type": "unsigned integer"},
+            {"name": "Mark", "type": "optional Revit identifier", "used_for_matching": false},
             {"name": "X [mm]", "type": "number", "unit": "mm"},
             {"name": "Y [mm]", "type": "number", "unit": "mm"},
             {"name": "FEd [kN]", "type": "number", "unit": "kN", "used_for_matching": false},
@@ -367,6 +371,7 @@ fn preview_with_source(
         candidates.push((
             PilePlanImportChange {
                 load_point_id: load_point.id,
+                revit_mark: row.revit_mark.clone(),
                 pile,
                 manual_cpt_ids,
             },
@@ -451,11 +456,10 @@ fn preview_with_source(
     matching.complete = matching.unmatched_new.is_empty();
 
     let has_actionable_change = changes.iter().any(|change| {
-        !matches!(change.pile, PilePlanImportedValue::Preserve)
+        change.revit_mark.is_some()
+            || !matches!(change.pile, PilePlanImportedValue::Preserve)
             || !matches!(change.manual_cpt_ids, PilePlanImportedValue::Preserve)
     });
-    let category_enabled = request.options.import_pile_assignments
-        || (request.options.import_cpt_selections && parsed.supports_cpt_selections);
 
     PilePlanImportPreview {
         table: None,
@@ -465,7 +469,7 @@ fn preview_with_source(
         requested_profile: request.profile,
         detected_profile: Some(parsed.profile),
         supports_cpt_selections: parsed.supports_cpt_selections,
-        can_apply: category_enabled && has_actionable_change,
+        can_apply: has_actionable_change,
         summary,
         diagnostics,
         patch: PilePlanImportPatch { changes },

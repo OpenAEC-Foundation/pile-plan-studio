@@ -22,7 +22,7 @@ function projectPreview(input: ImportSourceInput) {
 }
 const planPreview = { requestedProfile: "automatic", detectedProfile: "standard-table", supportsCptSelections: true,
   canApply: true, summary: { sourceRows: 1, matchedRows: 1, skippedRows: 0, coordinateFallbacks: 0, conflicts: 0 },
-  diagnostics: [], patch: { rows: [] } };
+  diagnostics: [], patch: { changes: [] } };
 beforeEach(() => {
   core.joint.mockReset().mockResolvedValue({ canApply: true, uniqueValueCount: 1, importedValueCount: 1, exactDuplicateCount: 0, orphanValueCount: 0, conflicts: [], diagnostics: [] });
   core.project.mockReset().mockImplementation(async input => projectPreview(input));

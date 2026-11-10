@@ -32,6 +32,7 @@ export type ProjectContent = Pick<ProjectState,
   | "pilePlans"
   | "manualCptIdsByLoadPoint"
   | "importLog"
+  | "pileDriving"
 >;
 
 export type AnalysisInvalidation = "none" | "all" | number[];
@@ -65,6 +66,7 @@ const PROJECT_CONTENT_KEYS = [
   "pilePlans",
   "manualCptIdsByLoadPoint",
   "importLog",
+  "pileDriving",
 ] as const satisfies readonly (keyof ProjectContent)[];
 
 export function normalizeProjectContentState(state: ProjectState): ProjectState {
@@ -156,6 +158,7 @@ export function projectDocumentDraftFromContent(
       bearing_capacities: content.bearingCapacities.map(
         ({ pile_tip_level_mm: _, ...capacity }) => ({ ...capacity }),
       ),
+      ...(content.pileDriving ? { pile_driving: content.pileDriving } : {}),
     },
     settings: {
       global_cpt_selection: cptSelectionSettingsToDocument(
@@ -221,6 +224,9 @@ function pilePlanToDocument(plan: ProjectContent["pilePlans"][number]): IfcppPil
     id: plan.id,
     name: plan.name,
     pile_cap_proposals: structuredClone(plan.pileCapProposals ?? []),
+    ...(plan.revitMarksByLoadPoint?.size ? {
+      revit_marks_by_load_point: Object.fromEntries(plan.revitMarksByLoadPoint),
+    } : {}),
     active_pile_sizes: [...plan.activePileSizes],
     active_pile_tip_levels: plan.activePileTipLevelMms.map((value) => value / 1_000),
     selected_piles: Object.fromEntries(

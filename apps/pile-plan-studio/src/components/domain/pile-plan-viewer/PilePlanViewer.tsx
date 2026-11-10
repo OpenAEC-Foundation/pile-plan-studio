@@ -70,6 +70,7 @@ import {
 
 export type PilePlanViewerProps = {
   focusRequest?: ViewerFocusRequest | null;
+  inspectionLoadPointIds?: readonly number[];
   onFocusHandled?: (request: ViewerFocusRequest) => void;
   pileCapPreviews?: PileCapPreview[];
   state: ProjectState;
@@ -86,6 +87,7 @@ const EMPTY_CAP_PREVIEWS: PileCapPreview[] = [];
 
 export default function PilePlanViewer({
   focusRequest,
+  inspectionLoadPointIds,
   onFocusHandled,
   pileCapPreviews:sourceCapPreviews=EMPTY_CAP_PREVIEWS,
   state,
@@ -103,8 +105,9 @@ export default function PilePlanViewer({
   const pileCapPreviews=useMemo(()=>sourceCapPreviews.map(cap=>({...cap,options:cap.options.map(option=>({...option,...directionalOption(option,mode)}))})),[sourceCapPreviews,mode]);
   const legend = state.pileLegend;
   const selectedLoadPointIds = useMemo(() => new Set(state.selectedLoadPointIds), [state.selectedLoadPointIds]);
-  const selectionContextLoadPointIds = useMemo(() => new Set(getLoadPointSelectionContext(state, loadPointGroups)),
-    [state.loadPoints, state.loadPointSelectionContext, state.selectedLoadPointIds, loadPointGroups]);
+  const selectionContextLoadPointIds = useMemo(
+    () => new Set(inspectionLoadPointIds ?? getLoadPointSelectionContext(state, loadPointGroups)),
+    [inspectionLoadPointIds, state.loadPoints, state.loadPointSelectionContext, state.selectedLoadPointIds, loadPointGroups]);
   const groupSelection = useMemo(() => getLoadPointGroupSelection({
     selectedLoadPointIds: state.selectedLoadPointIds,
     groups: loadPointGroups,

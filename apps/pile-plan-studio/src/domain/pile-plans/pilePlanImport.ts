@@ -27,6 +27,9 @@ export function applyPilePlanImportAsNewPlan(
   const created: PilePlanData = {
     id: nextPilePlanId(pilePlans),
     name: uniquePilePlanName(pilePlans, requestedName),
+    revitMarksByLoadPoint: new Map(patch.changes.flatMap(change => change.revit_mark
+      ? [[change.load_point_id, change.revit_mark] as const]
+      : [])),
     activePileSizes: [...source.activePileSizes],
     activePileTipLevelMms: [...source.activePileTipLevelMms],
     selectedPileConfigurationsByLoadPoint: choices,

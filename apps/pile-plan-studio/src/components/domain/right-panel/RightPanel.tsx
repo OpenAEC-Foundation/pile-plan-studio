@@ -34,7 +34,7 @@ import { setLoadPointSelection } from "../../../domain/workspace/selectionState.
 import type { CptEditCompletion, CptSelectionMethod } from "../../../app/project/manualCptEditController.ts";
 import { Button, Heading, Status } from "../../../openaec/react/src/index";
 
-export type RightTaskPanel = "cpt-settings" | "cost-settings" | "grouping-settings" | "ilp-optimization" | "pile-cap-changes";
+export type RightTaskPanel = "cpt-settings" | "cost-settings" | "grouping-settings" | "ilp-optimization" | "pile-cap-changes" | "pile-driving";
 
 export type RightPanelProps = {
   pileCapResult?: PileCapProposalResult | null;
@@ -51,6 +51,7 @@ export type RightPanelProps = {
   onSelectionLayoutChange?: (patch: Partial<SelectionOverviewLayout>) => void;
   onSplitRatioChange?: (ratio: number) => void;
   ilpResult?: ReactNode;
+  pileDriving?: ReactNode;
   state: ProjectState;
   cptEditPending?: boolean;
   onSaveCptSelection?: (afterSave?: CptEditCompletion) => Promise<void>;
@@ -90,6 +91,7 @@ export default function RightPanel({
   columnLayouts = normalizePileOptionColumnLayouts(undefined),
   onColumnLayoutChange = () => undefined,
   ilpResult,
+  pileDriving,
   splitRatio = DEFAULT_RIGHT_PANEL_SPLIT,
   selectionRows = 4,
   selectionCollapsed = false,
@@ -197,7 +199,7 @@ export default function RightPanel({
           {capIds?<Button compact className="pile-cap-toggle" aria-expanded={pileCapOpen} onClick={()=>setPileCapOpen(!pileCapOpen)}>{t("pileCap.title")}</Button>:null}</span>}
         extraContent={<>{pileCapOpen&&capIds?<PileCapProposalControl state={state} ids={capIds} proposal={capProposal} preview={capPreview} pending={capDisabled} onEdit={onEditPileCap}/>:null}
           {invalidCaps.map(cap=><div className="oa-app pile-cap-invalid" role="status" key={pileCapGroupKey(cap.proposal.load_point_ids)}><Status tone="warning">{t("pileCap.groupChanged")}</Status><Button compact disabled={capDisabled} onClick={()=>onEditPileCap(cap.proposal,true)}>{t("pileCap.remove")}</Button></div>)}</>}/>:null}
-      {taskPanel === "pile-cap-changes" ? <PileCapChangesPanel
+      {taskPanel === "pile-driving" ? pileDriving : taskPanel === "pile-cap-changes" ? <PileCapChangesPanel
         state={state}
         previews={pileCapResult?.plans.find(plan => plan.plan_id === state.activePilePlanId)?.previews ?? []}
         selectionPending={cptEditPending}

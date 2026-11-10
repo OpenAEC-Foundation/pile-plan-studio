@@ -86,12 +86,24 @@ pub(super) fn inspect(
     } else {
         PilePlanImportProfile::StandardTable
     };
-    let mut preview = table_mapping::inspect_table(
-        &table,
-        ImportRole::Cpts,
-        request.options.table.as_ref(),
-        sheets,
-    );
+    let requested = request.options.table.as_ref();
+    let mut preview = table_mapping::inspect_table(&table, ImportRole::Cpts, requested, sheets);
+    if !legacy
+        && preview.settings.has_headers == Some(false)
+        && requested.is_none_or(|settings| settings.has_headers.is_none() && settings.header_row.is_none())
+    {
+        // A Mark-and-ID table can have too few columns for the generic header detector.
+        if let Some(header) = table.rows.iter().take(30).find(|row| {
+            let fields = row.cells.iter().map(|cell| field(&cell.as_text())).collect::<HashSet<_>>();
+            fields.contains("revit-mark")
+                && (fields.contains("id") || fields.contains("x") && fields.contains("y"))
+        }) {
+            let mut settings = requested.cloned().unwrap_or_default();
+            settings.has_headers = Some(true);
+            settings.header_row = Some(header.number);
+            preview = table_mapping::inspect_table(&table, ImportRole::Cpts, Some(&settings), preview.sheets);
+        }
+    }
     if request
         .options
         .table
@@ -174,10 +186,11 @@ fn field(label: &str) -> &'static str {
     match token.as_str() {
         "id" | "locatieid" | "locationid" | "loadpointid" | "belastinglocatie"
         | "belastinglocatieid" | "knoop" | "knoopnummer" => "id",
+        "mark" | "revitmark" => "revit-mark",
         "x" | "xcoordinaat" | "xcoördinaat" | "xcoordinate" => "x",
         "y" | "ycoordinaat" | "ycoördinaat" | "ycoordinate" => "y",
         "afmeting" | "paalafmeting" | "pilesize" | "size" | "diameter" => "pile-size",
-        "puntniveau" | "paalpuntniveau" | "piletiplevel" | "tiplevel" | "tip" => "tip-level",
+        "puntniveau" | "paalpuntniveau" | "piletiplevel" | "tiplevel" | "tip" | "leveltovnap" => "tip-level",
         "selectedcpts" | "geselecteerdesonderingen" | "sonderingen" | "cpts" => "selected-cpts",
         "pilecount" | "aantalpalen" => "pile-count",
         _ => "ignore",
@@ -197,6 +210,7 @@ pub(super) fn parse(
                 c.field.as_str(),
                 "ignore"
                     | "id"
+                    | "revit-mark"
                     | "x"
                     | "y"
                     | "pile-size"
@@ -311,26 +325,20 @@ pub(super) fn parse(
                     PilePlanImportedValue::Clear
                 }
                 (Some(size), Some(tip)) if !size.is_empty() && !tip.is_empty() => {
-                    let tip_mm =
-                        if mapping("tip-level").and_then(|m| m.unit.as_deref()) == Some("mm") {
-                            parse_f64(tip).map_err(|e| err("tip-level", e))?
-                        } else {
-                            parse_f64(tip).map_err(|e| err("tip-level", e))? * 1000.
-                        };
-                    if !tip_mm.is_finite()
-                        || tip_mm.fract().abs() > 1e-6
-                        || tip_mm < i64::MIN as f64
-                        || tip_mm > i64::MAX as f64
-                    {
-                        return Err(err(
+                    let mut tip_m = parse_f64(tip).map_err(|e| err("tip-level", e))?;
+                    if mapping("tip-level").and_then(|m| m.unit.as_deref()) == Some("mm") {
+                        tip_m /= 1000.;
+                    }
+                    let tip_mm = crate::try_pile_tip_level_mm(tip_m).map_err(|_| {
+                        err(
                             "tip-level",
                             "Pile tip level must resolve to whole millimeters.".into(),
-                        ));
-                    }
+                        )
+                    })?;
                     PilePlanImportedValue::Set(PileConfigurationKey {
                         pile_size_mm: parse_standard_pile_size(size)
                             .map_err(|e| err("pile-size", e))?,
-                        pile_tip_level_mm: tip_mm.round() as i64,
+                        pile_tip_level_mm: tip_mm,
                     })
                 }
                 _ => {
@@ -353,6 +361,10 @@ pub(super) fn parse(
             };
         rows.push(ParsedPilePlanRow {
             source_id: id,
+            revit_mark: mapping("revit-mark")
+                .and_then(|column| row.cells.get(column.column - 1))
+                .filter(|cell| !cell.is_empty())
+                .map(|cell| cell.as_text().trim().to_owned()),
             x_mm: x,
             y_mm: y,
             pile,

@@ -20,6 +20,7 @@ mod pile_cap_proposals;
 mod pile_configuration;
 mod pile_options;
 mod pile_plan_import;
+mod pile_driving;
 mod pile_tip_levels;
 mod project;
 mod revit_revision;
@@ -113,6 +114,10 @@ pub use pile_options::{
     PileConfigurationOption, PileCostCatalogAction, PileCostCatalogBlockReason,
     PileCostCatalogEditInput, PileCostCatalogEditResult, PileCostSettings, PileCostSettingsItem,
     PileCostShape, PileCostValidationReason, PileOptionAnalysisResult, PileOptionTechnicalStatus,
+};
+pub use pile_driving::{
+    preview_pile_driving, preview_pile_driving_files, PileDrivingBatchPreview, PileDrivingBatchRequest,
+    PileDrivingImportError, PileDrivingImportRequest, PileDrivingPreview,
 };
 pub use pile_plan_import::{
     pile_plan_import_requirements, preview_pile_plan_import, PilePlanImportChange,

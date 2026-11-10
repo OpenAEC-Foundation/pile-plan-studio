@@ -253,6 +253,34 @@ group-expanded assignments outside the import patch and verifies the committed
 project before reporting success. The new plan and shared CPT edits remain one
 history entry.
 
+Pile-plan import treats Revit Mark as optional plan metadata keyed by the
+resolved load-point ID. IFCPP stores it independently of the pile assignment.
+Source refresh remaps Marks with other location references. The driving
+records panel holds open files and shared or per-file import settings in the
+session. The Rust batch preview exposes raw table previews even when a column
+assignment or worksheet needs correction. It detects known driving headers
+and resolves shared manual mappings by header, or by position for unnamed
+columns. Each file matches the displayed plan using its configured identifier.
+Missing or ambiguous matches remain visible. The all-files view combines
+registrations while retaining their source file and measurement details.
+The same Rust preview assesses the raw measurements against the committed
+reference plan and session check settings. Check results are derived and
+remain outside the project document, recovery data and undo history.
+The trend check compares average blow counts across equal halves of a
+configurable window of consecutive full final increments.
+For the neighborhood check, the session passes the effective CPT IDs for each
+load point. Rust compares the last six full increments across open files, with
+one contribution per matched location. Conflicting blow counts or recorded sizes
+across registrations exclude that location as a reference. The check prefers
+identical CPT sets and can accept one replacement when fewer than three exact
+matches are available.
+Energy checks use all recorded increments. A configured target and shared
+tolerance determine the check for that recorded size. For sizes without a
+target, the Rust batch preview combines the usable readings from the open
+driving logs. Each physical pile contributes its measured range. The
+largest difference between readings from two distinct piles of the same
+size determines the warning. A file error leaves other previews available.
+
 Both import transactions share an apply lock acquired before asynchronous
 content-digest checks. They recheck transaction lifetime and project identity
 after the digest, preventing concurrent or discarded transactions from applying.
@@ -1405,8 +1433,15 @@ facts always belong to the explicitly chosen export plan, regardless of view.
 IFCPP schema8 adds optional `BearingCapacity.pile_count` (`null`/absent means
 explicitly valid for all cap counts) and a `missing` marker for scoped empty
 source cells. Supported schemas1–7 normalize to universal, available rows.
-Writers emit8 so older applications cannot silently treat specific advice as
-universal. Application/release versions are independent of the document schema.
+Schema 8 prevents older applications from silently treating specific advice as
+universal. Application and release versions are independent of the document schema.
+
+IFCPP schema 9 stores optional driving records in `inputs.pile_driving`. Each
+file retains its original CSV or XLSX bytes as base64, its name and its own
+import overrides when present. The project also stores shared import and
+check settings. File and settings edits use project history and recovery.
+The selected file, derived preview, warnings and neighborhood inspection
+are transient. Opening an older project defaults to no embedded driving records.
 
 Resistance identity is CPT, pile size, tip level, direction and optional cap count.
 The core index first looks for the exact count, then universal data for the same

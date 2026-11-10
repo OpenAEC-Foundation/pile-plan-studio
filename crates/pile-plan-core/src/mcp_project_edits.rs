@@ -251,6 +251,7 @@ pub fn evaluate_mcp_project_edit(input: &McpProjectEditInput) -> McpProjectEditR
                         draft.active_selected_piles.remove(id);
                         for plan in &mut draft.user_state.pile_plans {
                             plan.selected_piles.remove(id);
+                            plan.revit_marks_by_load_point.remove(id);
                             plan.locked_load_point_ids.retain(|v| v != id);
                             plan.optimization_unassigned.remove(id);
                         }

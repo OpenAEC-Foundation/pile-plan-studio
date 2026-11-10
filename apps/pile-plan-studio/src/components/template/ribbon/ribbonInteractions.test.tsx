@@ -213,6 +213,8 @@ test("Plan shared artwork preserves named actions and the disabled selection tog
   const pileCaps = screen.getByRole("button", { name: t("plan.pileCapChanges") });
   expect(pileCaps.querySelector("use")?.getAttribute("href") ?? "").toMatch(/#i24-pile\.cap-changes$/);
   fireEvent.click(pileCaps); expect(p.onOpenTaskPanel).toHaveBeenCalledWith("pile-cap-changes");
+  fireEvent.click(screen.getByRole("button", { name: t("plan.pileDriving") }));
+  expect(p.onOpenTaskPanel).toHaveBeenCalledWith("pile-driving");
   view.rerender(<Ribbon {...p} isLassoSelectionActive lassoSelectionDisabled />);
   const selection = screen.getByRole("button", { name: t("plan.lassoSelection") });
   expect(selection.querySelector("use")?.getAttribute("href") ?? "").toMatch(/#i24-edit\.select-rectangle$/);

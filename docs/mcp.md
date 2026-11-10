@@ -520,5 +520,5 @@ field, so edits to 4-pile advice do not target universal or 2-pile data. An expl
 as missing, and blocks universal fallback; it is never evaluated as zero
 resistance. Staged CSV `table` settings also accept `pile_count` and
 `fixed_pile_size_mm`. These pass through the same core import/validation and
-transaction guards. New project writes use IFCPP schema 8; older schemas remain
+transaction guards. New project writes use IFCPP schema 9; older schemas remain
 readable with universal advice semantics.

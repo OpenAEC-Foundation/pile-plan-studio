@@ -32,6 +32,7 @@ pub(crate) mod table_mapping;
 pub use table_mapping::{TableImportSettings,ImportColumnMapping,SourceTablePreview,SourceColumnPreview,SourcePreviewRow};
 
 pub(crate) use numeric::{parse_finite_number, parse_nonnegative_u32, NumericParseError};
+pub(crate) use table::read_xlsx_tables_with_iso_dates;
 
 pub use pipeline::{import_project_from_sources, preview_import_source};
 pub use profile::{
@@ -345,6 +346,7 @@ fn build_imported_project(
             load_points,
             cpts,
             bearing_capacities,
+            pile_driving: None,
         },
         settings: ProjectSettings {
             ilp_optimization: Some(optimization),

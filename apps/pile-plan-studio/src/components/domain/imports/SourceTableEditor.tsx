@@ -9,10 +9,11 @@ import {importDiagnosticText} from "../../../core/importDiagnosticText.ts";
 import type {ImportFileRole} from "../../../core/importFiles.ts";
 import "./sourceTableEditor.css";
 
-type Props={variant?:"blueprint";preview?:SourceTablePreview|null;settings?:TableImportSettings|null;diagnostics?:ImportDiagnostic[];sourceErrors?:Array<{row:number;column:number|null;message:string}>;role:ImportFileRole|"pile-plan";matrix?:boolean;processed?:boolean;csv?:boolean;children?:ReactNode;onChange:(settings:TableImportSettings)=>void};
+const DRIVING_FIELDS=["ignore","paalnummer","dikte_cm","lengte_cm","referentieniveau","tochtnummer","ppn_nap","slagen","mm_zakking_per_tocht","energie_per_slag_kj","paal_id","datum","stelling","starttijd","projectnummer","bloknummer","kavelnummer","ppd_gewenst","opmerkingen"];
+type Props={variant?:"blueprint";preview?:SourceTablePreview|null;settings?:TableImportSettings|null;diagnostics?:ImportDiagnostic[];sourceErrors?:Array<{row:number;column:number|null;message:string}>;role:ImportFileRole|"pile-plan"|"pile-driving";matrix?:boolean;processed?:boolean;csv?:boolean;children?:ReactNode;onChange:(settings:TableImportSettings)=>void};
 export default function SourceTableEditor({preview,settings,diagnostics=[],sourceErrors=[],role,matrix=false,processed=false,csv=false,children,onChange,variant}:Props){
  const Action=variant==="blueprint"?Button:"button";
- const {t}=useTranslation("common");const [selected,setSelected]=useState(1);
+ const {t}=useTranslation(["common","rightPanel"]);const [selected,setSelected]=useState(1);
  const errors=[...diagnostics.filter(d=>d.location?.row!=null&&d.severity==="error").map(d=>({row:d.location!.row!,column:d.location!.column,message:importDiagnosticText(d,t)})),...sourceErrors];
  const settingsRef=useRef<HTMLDetailsElement>(null);
  const previewRef=useRef<HTMLDetailsElement>(null);
@@ -22,8 +23,8 @@ export default function SourceTableEditor({preview,settings,diagnostics=[],sourc
  const previewRows=preview?.rows.filter(row=>isProcessed||((!value.has_headers||row.number!==value.header_row)&&row.number>=(value.first_data_row??1)))??[];
  const chosen=preview?.columns.find(c=>c.column===selected)??preview?.columns[0];
  const mapping=columns.find(c=>c.column===chosen?.column);
- const fields=role==="pile-plan"?["ignore","id","x","y","pile-size","tip-level","selected-cpts","pile-count"]:role==="cpts"?["ignore","id","x","y"]:role==="load-points"?["ignore","id","x","y","compression","tension"]:matrix?["ignore","id","tip-level","resistance"]:["ignore","id","tip-level","pile-size","resistance","tension"];
- const label=(field:string)=>t(`tableImport.fields.${role==="bearing-capacities"&&field==="id"?"cpt":role==="bearing-capacities"&&field==="tension"?"tensionResistance":field}`);
+ const fields=role==="pile-driving"?DRIVING_FIELDS:role==="pile-plan"?["ignore","id","revit-mark","x","y","pile-size","tip-level","selected-cpts","pile-count"]:role==="cpts"?["ignore","id","x","y"]:role==="load-points"?["ignore","id","x","y","compression","tension"]:matrix?["ignore","id","tip-level","resistance"]:["ignore","id","tip-level","pile-size","resistance","tension"];
+ const label=(field:string)=>role==="pile-driving"&&field!=="ignore"?t(`pileDriving.columns.${field}`,{ns:"rightPanel"}):t(`tableImport.fields.${role==="bearing-capacities"&&field==="id"?"cpt":role==="bearing-capacities"&&field==="tension"?"tensionResistance":field}`);
  const caption=(column:{column:number;header:string})=>column.header||t("tableImport.column",{number:column.column});
  const update=(patch:Partial<TableImportSettings>)=>onChange({...value,...patch});
  const updateColumn=(patch:Partial<ImportColumnMapping>)=>{
@@ -69,8 +70,8 @@ export default function SourceTableEditor({preview,settings,diagnostics=[],sourc
       return {column:c.column,header:caption(c),meaning:label(assigned?.field??"ignore")+(matrix&&assigned?.pile_size_mm?` · ${assigned.pile_size_mm} mm`:""),empty:c.nonempty_count===0};
      })}>
       {chosen&&<fieldset className="source-column-details"><legend>{caption(chosen)}</legend>
-       <SourceMeaningSelect label={t("tableImport.meaning")} value={mapping?.field??"ignore"} onChange={e=>updateColumn({field:e.target.value})} options={fields.map(field=>({value:field,label:label(field),disabled:field!=="ignore"&&chosen.nonempty_count===0&&!(role==="pile-plan"&&["pile-size","tip-level","selected-cpts"].includes(field))}))}/>
-       {chosen.nonempty_count===0&&<p className="source-import-help">{t(role==="pile-plan"?"pilePlanMatching.emptyColumnHelp":"tableImport.emptyHelp")}</p>}
+       <SourceMeaningSelect label={t("tableImport.meaning")} value={mapping?.field??"ignore"} onChange={e=>updateColumn({field:e.target.value})} options={fields.map(field=>({value:field,label:label(field),disabled:field!=="ignore"&&chosen.nonempty_count===0&&role!=="pile-driving"&&!(role==="pile-plan"&&["pile-size","tip-level","selected-cpts"].includes(field))}))}/>
+       {chosen.nonempty_count===0&&role!=="pile-driving"&&<p className="source-import-help">{t(role==="pile-plan"?"pilePlanMatching.emptyColumnHelp":"tableImport.emptyHelp")}</p>}
        {["x","y","tip-level"].includes(mapping?.field??"")&&<Select label={t("tableImport.unit")} value={mapping?.unit??(mapping?.field==="tip-level"?"m":"mm")} onChange={e=>updateColumn({unit:e.target.value})} options={[{value:"mm",label:"mm"},{value:"m",label:"m"}]}/>}
        {matrix&&mapping?.field==="resistance"&&<label><span>{t("tableImport.pileSize")}</span><NumericValueInput variant={variant} key={chosen.column} integer min={1} step={1} value={mapping.pile_size_mm??""} onNumberChange={size=>updateColumn({pile_size_mm:size})}/><small>mm</small></label>}
        <p className="source-import-help">{t("tableImport.columnSummary",{filled:chosen.nonempty_count,numeric:chosen.numeric_count})}</p>

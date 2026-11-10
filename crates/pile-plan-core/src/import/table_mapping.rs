@@ -196,11 +196,12 @@ pub(crate) fn read_import_table(
         ))
     }
 }
-pub(crate) fn inspect_table(
+pub(crate) fn inspect_table_layout(
     table: &SourceTable,
-    role: ImportRole,
     requested: Option<&TableImportSettings>,
     sheets: Vec<String>,
+    recognizes: impl Fn(&str) -> bool,
+    minimum_recognized: usize,
 ) -> SourceTablePreview {
     let width = table.rows.iter().map(|r| r.cells.len()).max().unwrap_or(0);
     let mut settings = requested.cloned().unwrap_or_default();
@@ -214,7 +215,7 @@ pub(crate) fn inspect_table(
                 row,
                 row.cells
                     .iter()
-                    .filter(|c| header_field(&c.as_text(), role).is_some())
+                    .filter(|c| recognizes(&c.as_text()))
                     .count(),
             )
         })
@@ -254,7 +255,7 @@ pub(crate) fn inspect_table(
         table.rows.iter().find(|r| r.number == n)
     } else {
         recognized
-            .filter(|(_, n)| *n >= 2)
+            .filter(|(_, n)| *n >= minimum_recognized)
             .map(|(row, _)| row)
             .or(textual_header)
     };
@@ -293,6 +294,35 @@ pub(crate) fn inspect_table(
             }
         })
         .collect();
+    SourceTablePreview {
+        sheets,
+        settings,
+        columns,
+        rows: table
+            .rows
+            .iter()
+            .take(25)
+            .map(|r| SourcePreviewRow {
+                number: r.number,
+                cells: (0..width)
+                    .map(|i| r.cells.get(i).map(TableCell::as_text).unwrap_or_default())
+                    .collect(),
+            })
+            .collect(),
+        row_count: table.rows.iter().filter(|r| r.number >= first_data).count(),
+        processed: false,
+    }
+}
+pub(crate) fn inspect_table(
+    table: &SourceTable,
+    role: ImportRole,
+    requested: Option<&TableImportSettings>,
+    sheets: Vec<String>,
+) -> SourceTablePreview {
+    let mut preview = inspect_table_layout(
+        table, requested, sheets, |header| header_field(header, role).is_some(), 2,
+    );
+    let SourceTablePreview { settings, columns, .. } = &mut preview;
     if settings.columns.is_none() {
         let expected = fields(role, false);
         let header_matches = columns
@@ -375,24 +405,7 @@ pub(crate) fn inspect_table(
         settings.fixed_pile_size_mm = table.sheet_name.as_deref()
             .and_then(super::capacity_columns::size_from_header).and_then(Result::ok);
     }
-    SourceTablePreview {
-        sheets,
-        settings,
-        columns,
-        rows: table
-            .rows
-            .iter()
-            .take(25)
-            .map(|r| SourcePreviewRow {
-                number: r.number,
-                cells: (0..width)
-                    .map(|i| r.cells.get(i).map(TableCell::as_text).unwrap_or_default())
-                    .collect(),
-            })
-            .collect(),
-        row_count: table.rows.iter().filter(|r| r.number >= first_data).count(),
-        processed: false,
-    }
+    preview
 }
 pub(crate) fn fields(role: ImportRole, tension: bool) -> Vec<&'static str> {
     match role {

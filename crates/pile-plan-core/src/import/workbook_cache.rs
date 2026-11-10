@@ -11,6 +11,7 @@ pub(super) struct WorkbookCache {
 struct Entry {
     file_name: String,
     bytes: Vec<u8>,
+    iso_dates: bool,
     tables: Arc<Vec<SourceTable>>,
     weight: usize,
 }
@@ -22,17 +23,27 @@ impl WorkbookCache {
             used: 0,
         }
     }
-    pub(super) fn get(&mut self, file_name: &str, bytes: &[u8]) -> Option<Arc<Vec<SourceTable>>> {
-        let i = self
-            .entries
-            .iter()
-            .position(|e| e.file_name == file_name && e.bytes == bytes)?;
+    pub(super) fn get(
+        &mut self,
+        file_name: &str,
+        bytes: &[u8],
+        iso_dates: bool,
+    ) -> Option<Arc<Vec<SourceTable>>> {
+        let i = self.entries.iter().position(|e| {
+            e.file_name == file_name && e.bytes == bytes && e.iso_dates == iso_dates
+        })?;
         let entry = self.entries.remove(i)?;
         let tables = Arc::clone(&entry.tables);
         self.entries.push_back(entry);
         Some(tables)
     }
-    pub(super) fn insert(&mut self, file_name: &str, bytes: &[u8], tables: Arc<Vec<SourceTable>>) {
+    pub(super) fn insert(
+        &mut self,
+        file_name: &str,
+        bytes: &[u8],
+        iso_dates: bool,
+        tables: Arc<Vec<SourceTable>>,
+    ) {
         let weight = bytes.len()
             + tables
                 .iter()
@@ -62,7 +73,7 @@ impl WorkbookCache {
         if let Some(i) = self
             .entries
             .iter()
-            .position(|e| e.file_name == file_name && e.bytes == bytes)
+            .position(|e| e.file_name == file_name && e.bytes == bytes && e.iso_dates == iso_dates)
         {
             if let Some(e) = self.entries.remove(i) {
                 self.used -= e.weight;
@@ -78,6 +89,7 @@ impl WorkbookCache {
         self.entries.push_back(Entry {
             file_name: file_name.into(),
             bytes: bytes.to_vec(),
+            iso_dates,
             tables,
             weight,
         });
@@ -102,25 +114,26 @@ mod tests {
             }],
             formula_cells: Default::default(),
         };
-        c.insert("a", b"original", Arc::new(vec![table]));
-        assert!(c.get("a", b"changed").is_none());
-        assert!(c.get("renamed", b"original").is_none());
-        let mut result = c.get("a", b"original").unwrap().as_ref().clone();
+        c.insert("a", b"original", false, Arc::new(vec![table]));
+        assert!(c.get("a", b"changed", false).is_none());
+        assert!(c.get("renamed", b"original", false).is_none());
+        assert!(c.get("a", b"original", true).is_none());
+        let mut result = c.get("a", b"original", false).unwrap().as_ref().clone();
         result[0].rows.clear();
-        assert_eq!(c.get("a", b"original").unwrap()[0].rows.len(), 1);
+        assert_eq!(c.get("a", b"original", false).unwrap()[0].rows.len(), 1);
     }
     #[test]
     fn cache_is_bounded_and_a_hit_keeps_the_recent_entry() {
         let mut c = WorkbookCache::new(80);
         for i in 0..4 {
-            c.insert(&i.to_string(), &[i; 20], Arc::new(vec![]));
+            c.insert(&i.to_string(), &[i; 20], false, Arc::new(vec![]));
         }
-        assert!(c.get("0", &[0; 20]).is_some());
-        c.insert("4", &[4; 20], Arc::new(vec![]));
-        assert!(c.get("1", &[1; 20]).is_none());
-        assert!(c.get("0", &[0; 20]).is_some());
-        c.insert("large", &[9; 101], Arc::new(vec![]));
-        assert!(c.get("large", &[9; 101]).is_none());
+        assert!(c.get("0", &[0; 20], false).is_some());
+        c.insert("4", &[4; 20], false, Arc::new(vec![]));
+        assert!(c.get("1", &[1; 20], false).is_none());
+        assert!(c.get("0", &[0; 20], false).is_some());
+        c.insert("large", &[9; 101], false, Arc::new(vec![]));
+        assert!(c.get("large", &[9; 101], false).is_none());
         assert!(c.used <= 80);
     }
 }

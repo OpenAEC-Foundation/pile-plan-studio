@@ -21,6 +21,7 @@ export type HistoryActionKind =
   | "pile-plan-renamed"
   | "project-name"
   | "project-import"
+  | "pile-driving"
   | "project-change";
 
 export type HistoryAction = {
@@ -49,6 +50,7 @@ export function inferHistoryAction(
   if (deleted) return { kind: "pile-plan-deleted", pilePlanName: deleted.name };
 
   if (before.name !== after.name) return { kind: "project-name" };
+  if (before.pileDriving !== after.pileDriving) return { kind: "pile-driving" };
   if (before.globalCptSelectionSettings !== after.globalCptSelectionSettings
     || before.cptSelectionSettingsByLoadPoint !== after.cptSelectionSettingsByLoadPoint) {
     return { kind: "cpt-settings" };

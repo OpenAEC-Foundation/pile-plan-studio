@@ -153,6 +153,24 @@ pub fn preview_pile_plan_import_file(request: JsValue) -> Result<JsValue, JsValu
 }
 
 #[wasm_bindgen]
+pub fn preview_pile_driving_file(request: JsValue) -> Result<JsValue, JsValue> {
+    let request: pile_plan_core::PileDrivingImportRequest = from_js_value(request)?;
+    match pile_plan_core::preview_pile_driving(&request) {
+        Ok(preview) => to_js_value(&preview),
+        Err(error) => Err(to_js_value(&error)?),
+    }
+}
+
+#[wasm_bindgen]
+pub fn preview_pile_driving_files(request: JsValue) -> Result<JsValue, JsValue> {
+    let request: pile_plan_core::PileDrivingBatchRequest = from_js_value(request)?;
+    match pile_plan_core::preview_pile_driving_files(&request) {
+        Ok(preview) => to_js_value(&preview),
+        Err(error) => Err(to_js_value(&error)?),
+    }
+}
+
+#[wasm_bindgen]
 pub fn export_pile_plan_csv(request: JsValue) -> Result<Vec<u8>, JsValue> {
     let request: PilePlanExportRequest = from_js_value(request)?;
     write_pile_plan_csv(&request).map_err(to_error_value)

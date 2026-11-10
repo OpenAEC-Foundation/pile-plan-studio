@@ -31,6 +31,7 @@ export type PilePlanImportedValue<T> =
 
 export type PilePlanImportChange = {
   load_point_id: number;
+  revit_mark?: string;
   pile: PilePlanImportedValue<PileConfigurationKey>;
   manual_cpt_ids: PilePlanImportedValue<number[]>;
 };

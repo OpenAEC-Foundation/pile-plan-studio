@@ -212,23 +212,24 @@ export function useViewerViewport<State extends ViewerViewportState>({
     // Selection can still be waiting for an existing CPT edit to be saved.
     if (state.selectedLoadPointIds.length !== focusRequest.loadPointIds.length
       || !focusRequest.loadPointIds.every(id => state.selectedLoadPointIds.includes(id))) return;
-    const ids = new Set(focusRequest.loadPointIds);
+    const ids = new Set(focusRequest.fitLoadPointIds ?? focusRequest.loadPointIds);
     const points = state.loadPoints.filter(point => ids.has(point.id));
     const canvas = canvasRef.current;
     if (!canvas || points.length === 0) { finish(); return; }
+    const rect = getLocalCanvasRect(canvas);
+    const style = getComputedStyle(canvas);
+    const border = (value: string) => parseFloat(value) || 0;
+    const size = { width: rect.width - border(style.borderLeftWidth) - border(style.borderRightWidth),
+      height: rect.height - border(style.borderTopWidth) - border(style.borderBottomWidth) };
     const center = points.reduce((sum, point) => ({
       x_mm: sum.x_mm + point.x_mm / points.length,
       y_mm: sum.y_mm + point.y_mm / points.length,
     }), { x_mm: 0, y_mm: 0 });
-    const rect = getLocalCanvasRect(canvas);
-    const style = getComputedStyle(canvas);
-    const border = (value: string) => parseFloat(value) || 0;
-    const nextViewport = centerViewportAtPoint(
-      viewportRef.current, projectPointPixels(center, projectTransformRef.current),
-      { width: rect.width - border(style.borderLeftWidth) - border(style.borderRightWidth),
-        height: rect.height - border(style.borderTopWidth) - border(style.borderBottomWidth) },
-      layoutCompensationRef.current,
-    );
+    const nextViewport = focusRequest.fitLoadPointIds
+      ? fitViewportToPoints(viewportRef.current, points.map(point => projectPointPixels(point, projectTransformRef.current)),
+        size, layoutCompensationRef.current)
+      : centerViewportAtPoint(viewportRef.current, projectPointPixels(center, projectTransformRef.current),
+        size, layoutCompensationRef.current);
     if (zoomCommitTimerRef.current) {
       clearTimeout(zoomCommitTimerRef.current);
       zoomCommitTimerRef.current = null;

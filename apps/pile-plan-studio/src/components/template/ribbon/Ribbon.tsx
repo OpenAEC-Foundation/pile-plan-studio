@@ -15,9 +15,9 @@ import "./PlanRibbon.css";
 import {useLoadDirection} from "../../../app/derived-state/LoadDirectionContext.tsx";
 import UtilizationRangeSlider from "./UtilizationRangeSlider.tsx";
 import RibbonNumericValue from "./RibbonNumericValue.tsx";
+import type { RightTaskPanel } from "../../domain/right-panel/RightPanel.tsx";
 
 type TabId = "plan" | "view";
-type TaskPanel = "cpt-settings" | "cost-settings" | "grouping-settings" | "ilp-optimization" | "pile-cap-changes";
 
 const TABS: TabId[] = ["plan", "view"];
 
@@ -25,7 +25,7 @@ interface RibbonProps {
   onFileTabClick?: () => void;
   onOpenProjectInformation?: () => void;
   onOpenRightPanel?: (mode: RightPanelMode) => void;
-  onOpenTaskPanel?: (panel: TaskPanel) => void;
+  onOpenTaskPanel?: (panel: RightTaskPanel) => void;
   isLassoSelectionActive: boolean;
   lassoSelectionDisabled: boolean;
   onToggleLassoSelection: () => void;
@@ -169,6 +169,7 @@ export default function Ribbon({
                 <RibbonButton icon={<PilePlanIcon id="pile.options" size={24} />} label={t("plan.loadPoints")} wide onClick={() => onOpenRightPanel?.("load-point")} />
                 <RibbonButton icon={<PilePlanIcon id="pile.cpts" size={24} />} label={t("plan.cpts")} onClick={() => onOpenRightPanel?.("cpts")} />
                 <RibbonButton icon={<PilePlanIcon id="pile.cap-changes" size={24} />} label={t("plan.pileCapChanges")} wide onClick={() => onOpenTaskPanel?.("pile-cap-changes")} />
+                <RibbonButton icon={<BlueprintIcon id="file.open" size={24} />} label={t("plan.pileDriving")} wide onClick={() => onOpenTaskPanel?.("pile-driving")} />
               </RibbonGroup>
               <RibbonGroup label={common("loadDirection.view")}>
                 <div className="ribbon-load-direction">

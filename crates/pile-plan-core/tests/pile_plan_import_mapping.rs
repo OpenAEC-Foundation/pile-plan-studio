@@ -94,6 +94,30 @@ fn id_only_and_optional_missing_columns() {
     assert!(p["source_locations"][0]["x_mm"].is_null());
     assert!(p["matching"]["links"][0]["distance_mm"].is_null());
 }
+
+#[test]
+fn revit_marks_are_imported_alongside_coordinate_matched_location_ids() {
+    let result = preview(
+        "Mark,Load Point ID,Size,X,Y,Level tov NAP\n001,,320x320,999.5,2000,-17.9999999999999\nB-02,,320x320,1001.5,2000,-18\n",
+        Value::Null,
+        Value::Null,
+    );
+    assert_eq!(result["can_apply"], true);
+    let changes = result["patch"]["changes"].as_array().unwrap();
+    assert_eq!(changes[0]["load_point_id"], 1);
+    assert_eq!(changes[0]["revit_mark"], "001");
+    assert_eq!(changes[0]["pile"]["value"]["pile_tip_level_mm"], -18000);
+    assert_eq!(changes[1]["load_point_id"], 2);
+    assert_eq!(changes[1]["revit_mark"], "B-02");
+}
+
+#[test]
+fn marks_can_be_imported_without_pile_assignments() {
+    let result = preview("ID,Revit Mark\n1,VEGA-01\n", Value::Null, Value::Null);
+    assert_eq!(result["can_apply"], true);
+    assert_eq!(result["patch"]["changes"][0]["revit_mark"], "VEGA-01");
+    assert_eq!(result["patch"]["changes"][0]["pile"]["action"], "preserve");
+}
 #[test]
 fn coordinates_units_delimiter_and_manual_ambiguity() {
     let settings = json!({"delimiter":";","has_headers":true,"header_row":1,"first_data_row":2,"columns":[{"column":1,"field":"x","unit":"m"},{"column":2,"field":"y","unit":"m"},{"column":3,"field":"pile-size"},{"column":4,"field":"tip-level","unit":"mm"}]});

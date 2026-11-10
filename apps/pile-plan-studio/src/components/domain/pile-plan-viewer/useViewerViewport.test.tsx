@@ -81,6 +81,26 @@ test("focus waits for selection and drops a request scoped to a replaced project
   expect(handled).toHaveBeenCalledTimes(3);
 });
 
+test("focus fits the context with the inspected pile as the only active selection", () => {
+  const state = { ...fixture(), selectedLoadPointIds: [1] };
+  const changed = vi.fn(), handled = vi.fn();
+  const request = {
+    loadPointIds: [1], fitLoadPointIds: [1, 2],
+    loadPoints: state.loadPoints, planId: state.activePilePlanId,
+  };
+  render(<Harness state={state} request={request} changed={changed} handled={handled} />);
+  const next = changed.mock.calls[0][0] as ProjectState;
+  const transform = createProjectViewTransform(state.bounds, { width: 800, height: 600 });
+  for (const point of state.loadPoints) {
+    const projected = projectPointPixels(point, transform);
+    const x = projected.x * next.viewport.scale + next.viewport.offsetX;
+    expect(x).toBeGreaterThan(0);
+    expect(x).toBeLessThan(800);
+  }
+  expect(next.selectedLoadPointIds).toEqual([1]);
+  expect(handled).toHaveBeenCalledWith(request);
+});
+
 test("centering retains the latest wheel zoom and cancels its delayed stale pan commit", () => {
   vi.useFakeTimers();
   const state = fixture(), changed = vi.fn(), handled = vi.fn();

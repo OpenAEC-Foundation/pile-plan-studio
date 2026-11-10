@@ -7,6 +7,8 @@ import { usePileCapProposals } from "../derived-state/usePileCapProposals.ts";
 import {exportConfiguredPilePlanCore,exportRevitRevisionCore,prepareLoadPointRefreshCore} from "../../core/exportRevisionCoreClient.ts";
 import type {ExportOptions,RevitRevisionInput,LoadPointRefreshSelection} from "../../core/exportRevisionContract.ts";
 import { applyProjectRefresh } from "../import/projectImportApply.ts";
+import { usePileDrivingPreview } from "../import/usePileDrivingPreview.ts";
+import type { PileDrivingRecord } from "../../core/pileDrivingCoreClient.ts";
 import { previewProjectImportCore } from "../../core/projectCoreClient.ts";
 import { useManualCptSelectionEdit } from "../project/useManualCptSelectionEdit.ts";
 import { synchronizeManualCptSelection, toggleManualCpt } from "../../domain/cpt-selection/cptSettingsModel.ts";
@@ -42,6 +44,7 @@ import InterfaceScaleNotice, { type InterfaceScaleNoticeValue } from "../../comp
 import ActionNotice, { type ActionNoticeTone } from "../../components/viewer/ActionNotice";
 import PilePlanWorkspace from "../../components/domain/pile-plans/PilePlanWorkspace";
 import RightPanel, { type RightTaskPanel } from "../../components/domain/right-panel/RightPanel";
+import PileDrivingPanel from "../../components/domain/right-panel/PileDrivingPanel.tsx";
 import { usePileOptionCosts } from "../derived-state/usePileOptionCosts.ts";
 import { useLoadPointGroups } from "../derived-state/useLoadPointGroups.ts";
 import { useGroupEdit } from "../project/useGroupEdit.ts";
@@ -340,6 +343,7 @@ export default function AppSession({
   const [feedbackOpen, setFeedbackOpen] = useState(false);
   const [projectInformationOpen, setProjectInformationOpen] = useState(false);
   const [rightTaskPanel, setRightTaskPanel] = useState<RightTaskPanel | null>(null);
+  const [drivingInspection, setDrivingInspection] = useState<{ record: PileDrivingRecord; planId: string } | null>(null);
   const [viewerFocusRequest, setViewerFocusRequest] = useState<ViewerFocusRequest | null>(null);
   const [lassoSelectionActive, setLassoSelectionActive] = useState(false);
   const [activeSourceKind, setActiveSourceKind] = useState<InputSourceKind | null>(null);
@@ -1193,7 +1197,65 @@ export default function AppSession({
       ? applyIlpPreviewInteraction(projectState, ilp.displayState, next) : next;
     if (actual) handleProjectStateChange(actual);
   };
+  const drivingPlan = projectState.pilePlans.find(plan => plan.id === ilp.displayState.activePilePlanId);
+  const drivingPanelVisible = rightTaskPanel === "pile-driving" && workspaceLayout.propertiesVisible;
+  const drivingSelectionDisabled = cptEditPending || projectState.loadPointLockDraft !== null;
+  const pileDriving = usePileDrivingPreview(
+    exportMarker.project_instance_id,
+    drivingPanelVisible,
+    projectState.pileDriving,
+    update => {
+      const marker = mcpProjectMarkerRef.current!.observe(projectStateRef.current);
+      if (marker.project_instance_id !== exportMarker.project_instance_id) return false;
+      commitProjectState(current => {
+        const previous = current.pileDriving ?? { files: [] };
+        const next = update(previous);
+        if (next === previous) return current;
+        const hasContent = next.files.length > 0 || next.shared_match_by || next.shared_table || next.check_settings;
+        return { ...current, pileDriving: hasContent ? next : undefined };
+      });
+      return true;
+    },
+    ilp.displayState.loadPoints,
+    drivingPlan?.revitMarksByLoadPoint,
+    drivingPlan?.id === projectState.activePilePlanId
+      ? projectState.selectedPileConfigurationsByLoadPoint
+      : drivingPlan?.selectedPileConfigurationsByLoadPoint,
+    projectState.pileHeadLevelM,
+    projectState.selectedCptsByLoadPointId,
+  );
+  const neighborhoodRecord = drivingPanelVisible && activeSourceKind === null
+    && drivingInspection?.planId === ilp.displayState.activePilePlanId
+    && pileDriving.files.some(file => (pileDriving.selectedId === null || file.id === pileDriving.selectedId)
+      && file.result?.status === "ready" && file.result.preview.records.includes(drivingInspection.record))
+    ? drivingInspection.record : null;
+  const comparisonIds = useMemo(() => neighborhoodRecord?.neighborhood?.reference_piles.map(pile => pile.load_point_id),
+    [neighborhoodRecord]);
+  const inspectionLoadPointIds = !drivingSelectionDisabled && neighborhoodRecord?.matching.status === "matched"
+    && ilp.displayState.selectedLoadPointIds.length === 1
+    && ilp.displayState.selectedLoadPointIds[0] === neighborhoodRecord.matching.load_point_id
+    ? comparisonIds : undefined;
+  const selectAndFocusLoadPoints = (ids: number[], fitLoadPointIds?: readonly number[]) => {
+    setActiveSourceKind(null);
+    setViewerFocusRequest({
+      loadPointIds: [...ids], fitLoadPointIds,
+      loadPoints: ilp.displayState.loadPoints, planId: ilp.displayState.activePilePlanId,
+    });
+    handleViewerSelectionChange({
+      ...ilp.displayState,
+      ...setLoadPointSelection({ ...ilp.displayState, rightPanelMode: "load-point" }, ids),
+    });
+  };
+  const changeDrivingNeighborhood = (record: PileDrivingRecord | null) => {
+    if (record && !drivingSelectionDisabled && record.matching.status === "matched") {
+      const id = record.matching.load_point_id;
+      const peers = record.neighborhood?.reference_piles.map(pile => pile.load_point_id) ?? [];
+      selectAndFocusLoadPoints([id], [id, ...peers]);
+    }
+    setDrivingInspection(record ? { record, planId: ilp.displayState.activePilePlanId } : null);
+  };
   const handleViewerSelectionChange = (next: ProjectState) => {
+    setDrivingInspection(null);
     if (!projectStateRef.current.cptSelectionEditDraft) { handleDisplayedStateChange(next); return; }
     void saveCptSelection(current => ({
       ...current,
@@ -1375,7 +1437,7 @@ export default function AppSession({
           }}
           onOpenTaskPanel={(panel) => {
             updateWorkspaceLayout({ propertiesVisible: true });
-            if (panel === "pile-cap-changes") setActiveSourceKind(null);
+            if (panel === "pile-cap-changes" || panel === "pile-driving") setActiveSourceKind(null);
             setRightTaskPanel(panel);
           }}
           isLassoSelectionActive={lassoSelectionActive}
@@ -1429,7 +1491,9 @@ export default function AppSession({
           style={{
             "--explorer-width": `${workspaceLayout.explorerVisible ? workspaceLayout.explorerWidth : 0}px`,
             "--explorer-splitter-width": workspaceLayout.explorerVisible ? "5px" : "0px",
-            "--right-panel-width": `${workspaceLayout.propertiesVisible ? workspaceLayout.propertiesWidth : 0}px`,
+            "--right-panel-width": rightTaskPanel === "pile-driving" && workspaceLayout.propertiesVisible
+              ? `min(${workspaceLayout.propertiesWidth}px, 48%)`
+              : `${workspaceLayout.propertiesVisible ? workspaceLayout.propertiesWidth : 0}px`,
             "--right-panel-splitter-width": workspaceLayout.propertiesVisible ? "5px" : "0px",
           } as CSSProperties}
         >
@@ -1472,7 +1536,8 @@ export default function AppSession({
           <main className="workspace" aria-label="Pile plan workspace">
             {activeSourceKind === null ? (
               <PilePlanWorkspace
-                focusRequest={viewerFocusRequest}
+                focusRequest={viewerFocusRequest?.fitLoadPointIds && !neighborhoodRecord ? null : viewerFocusRequest}
+                inspectionLoadPointIds={inspectionLoadPointIds}
                 onFocusHandled={request => setViewerFocusRequest(current => current === request ? null : current)}
                 pileCapPreviews={pileCaps.result?.plans.find(p=>p.plan_id===ilp.displayState.activePilePlanId)?.previews??[]}
                 state={ilp.displayState}
@@ -1520,6 +1585,16 @@ export default function AppSession({
             onPointerDown={beginRightPanelResize}
           />}
           {workspaceLayout.propertiesVisible && <RightPanel
+            pileDriving={rightTaskPanel === "pile-driving" ? <PileDrivingPanel
+              planName={drivingPlan?.name}
+              driving={pileDriving}
+              selectedLoadPointIds={ilp.displayState.selectedLoadPointIds}
+              selectionDisabled={drivingSelectionDisabled}
+              neighborhoodRecord={neighborhoodRecord}
+              onNeighborhoodChange={changeDrivingNeighborhood}
+              onSelect={selectAndFocusLoadPoints}
+              onClose={() => { setDrivingInspection(null); setRightTaskPanel(null); }}
+            /> : undefined}
             pileCapResult={pileCaps.result} pileCapPending={pileCaps.pending||ilp.running} pileCapError={pileCaps.error}
             onEditPileCap={(proposal,remove)=>{if(!ilp.running&&!projectState.cptSelectionEditDraft&&!projectState.loadPointLockDraft)void pileCaps.edit(proposal,remove);}}
             onResetAllPileCaps={() => {
@@ -1586,14 +1661,7 @@ export default function AppSession({
             onApplyLoadPointGroupEdit={applyGroupEdit}
             technicalAssignment={technicalAssignment}
             onStateChange={handleDisplayedStateChange}
-            onSelectLoadPoints={ids => {
-              setActiveSourceKind(null);
-              setViewerFocusRequest({ loadPointIds: [...ids], loadPoints: ilp.displayState.loadPoints, planId: ilp.displayState.activePilePlanId });
-              handleViewerSelectionChange({
-                ...ilp.displayState,
-                ...setLoadPointSelection({ ...ilp.displayState, rightPanelMode: "load-point" }, ids),
-              });
-            }}
+            onSelectLoadPoints={selectAndFocusLoadPoints}
             pileAssignmentPending={ilp.running || pileAssignmentPending
               || !hasCompletedLoadPointGroups
               || (projectState.loadPoints.length > 0 && loadPointGroups.groups.length === 0)}

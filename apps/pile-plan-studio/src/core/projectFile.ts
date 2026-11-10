@@ -1,4 +1,5 @@
 import type { PileCapProposal } from "./pileCapProposalTypes.ts";
+import type { ProjectPileDriving } from "./pileDrivingCoreClient.ts";
 import type {
   BearingCapacity,
   Cpt,
@@ -93,6 +94,7 @@ type IfcppLoadPointGroupingSettings = {
 
 export type IfcppPilePlan = {
   pile_cap_proposals?: PileCapProposal[];
+  revit_marks_by_load_point?: Record<string, string>;
   id: string;
   name: string;
   active_pile_sizes?: number[];
@@ -138,6 +140,7 @@ export type IfcppProject = {
     load_points: LoadPoint[];
     cpts: Cpt[];
     bearing_capacities: IfcppBearingCapacity[];
+    pile_driving?: ProjectPileDriving;
   };
   settings: {
     global_cpt_selection: IfcppCptSelectionSettings;
@@ -205,10 +208,12 @@ export type LoadedProjectData = {
   selectedPileConfigurationsByLoadPoint: Map<number, PileConfigurationKey>;
   manualCptIdsByLoadPoint: Map<number, number[]>;
   importLog: IfcppImportLogEntry[];
+  pileDriving?: ProjectPileDriving;
 };
 
 export type PilePlanData = {
   pileCapProposals?: PileCapProposal[];
+  revitMarksByLoadPoint?: ReadonlyMap<number, string>;
   id: string;
   name: string;
   activePileSizes: number[];
@@ -306,6 +311,7 @@ export function hydrateProjectState(
       numberKeyedEntries(project.user_state.manual_cpt_selections),
     ),
     importLog: project.import_log!.map((entry) => structuredClone(entry)),
+    pileDriving: project.inputs.pile_driving && structuredClone(project.inputs.pile_driving),
   };
 }
 
@@ -336,6 +342,7 @@ function pilePlanDataFromWire(
     id: plan.id,
     name: plan.name,
     pileCapProposals: structuredClone(plan.pile_cap_proposals ?? []),
+    revitMarksByLoadPoint: new Map(numberKeyedEntries(plan.revit_marks_by_load_point ?? {})),
     activePileSizes: [...plan.active_pile_sizes!],
     activePileTipLevelMms: [...activePileTipLevelMms],
     selectedPileConfigurationsByLoadPoint: new Map(selectedEntries),

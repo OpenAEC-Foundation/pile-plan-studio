@@ -166,4 +166,38 @@ describe("pile plan file import", () => {
 
     assert.equal(next.pilePlans.at(-1)?.name, "Variant 3");
   });
+
+  it("stores imported Marks on the new plan independently of assignments", () => {
+    const previousMarks = new Map([[1, "OLD-1"]]);
+    const plan: PilePlanData = {
+      id: "pile-plan-1",
+      name: "Old plan",
+      activePileSizes: [],
+      activePileTipLevelMms: [],
+      selectedPileConfigurationsByLoadPoint: new Map(),
+      externalReferencesByLoadPoint: new Map(),
+      lockedLoadPointIds: [],
+      optimizationUnassignedByLoadPoint: new Map(),
+      revitMarksByLoadPoint: previousMarks,
+    };
+    const state = {
+      pilePlans: [plan],
+      activePilePlanId: plan.id,
+      selectedPileConfigurationsByLoadPoint: new Map(),
+      manualCptIdsByLoadPoint: new Map(),
+    } as ProjectState;
+
+    const next = applyPilePlanImportAsNewPlan(state, {
+      changes: [{
+        load_point_id: 1,
+        revit_mark: "001",
+        pile: { action: "preserve" },
+        manual_cpt_ids: { action: "preserve" },
+      }],
+    }, "Revit");
+
+    assert.deepEqual(next.pilePlans[1].revitMarksByLoadPoint, new Map([[1, "001"]]));
+    assert.deepEqual(next.pilePlans[0].revitMarksByLoadPoint, new Map([[1, "OLD-1"]]));
+    assert.equal(next.selectedPileConfigurationsByLoadPoint.size, 0);
+  });
 });
