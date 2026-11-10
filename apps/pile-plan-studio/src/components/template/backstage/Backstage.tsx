@@ -21,7 +21,6 @@ import type { ProjectFileCommands } from "../../../domain/project/projectPersist
 import AboutPanel from "./AboutPanel";
 import OpenProjectPanel from "./OpenProjectPanel";
 import BlueprintIcon from "../BlueprintIcon.tsx";
-import ApplicationSettingsIcon from "../ApplicationSettingsIcon.tsx";
 import "./Backstage.css";
 import "./BackstageBlueprint.css";
 
@@ -31,7 +30,7 @@ const ICONS = {
   saveAs: <BlueprintIcon id="file.save-as" size={24} />,
   export: <BlueprintIcon id="file.export" size={24} />,
   import: <BlueprintIcon id="file.import" size={24} />,
-  preferences: <ApplicationSettingsIcon size={24} />,
+  preferences: <BlueprintIcon id="ui.settings" size={24} />,
   about: <BlueprintIcon id="ui.about" size={24} />,
   exit: <BlueprintIcon id="ui.close" size={24} />,
 };

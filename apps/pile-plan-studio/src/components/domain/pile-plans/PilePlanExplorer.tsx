@@ -4,7 +4,7 @@ import { Button, IconButton, MonoLabel, OpenAECProvider, Panel, Status, TextFiel
 import spriteUrl from "../../../openaec/studioSprite.ts";
 import "../../../openaec/openaec-components.css";
 import "./PilePlanExplorer.css";
-import { SimpleIconAction, SimpleIconButton } from "../../template/SimpleIconControls.tsx";
+import { SimpleIconAction } from "../../template/SimpleIconControls.tsx";
 
 import type { PilePlanData } from "../../../core/projectFile.ts";
 import type { ProjectCostSummary } from "../../../domain/pile-plans/projectCostSummary.ts";
@@ -232,9 +232,8 @@ function ActionButton({
   label: string;
   onClick: () => void;
 }) {
-  if (kind === "edit") return <SimpleIconButton small icon="local.edit" disabled={disabled} label={label} onClick={onClick}
-    data-oa-tip={undefined} data-tooltip={disabled?undefined:label} />;
-  return <IconButton small icon={kind === "copy" ? "edit.copy" : "edit.delete"}
+  const icon = kind === "edit" ? "object.rename" : kind === "copy" ? "edit.duplicate" : "edit.delete";
+  return <IconButton small icon={icon}
     disabled={disabled} label={label} onClick={onClick}
     data-oa-tip={undefined} data-tooltip={disabled?undefined:label} />;
 }

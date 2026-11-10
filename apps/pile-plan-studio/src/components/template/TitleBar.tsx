@@ -2,7 +2,6 @@ import { useEffect, useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { Button, IconButton, OpenAECProvider, Status } from "../../openaec/react/src/index";
 import spriteUrl from "../../openaec/studioSprite.ts";
-import ApplicationSettingsIcon from "./ApplicationSettingsIcon.tsx";
 import "../../openaec/openaec-components.css";
 import "./TitleBar.css";
 
@@ -56,10 +55,9 @@ export default function TitleBar({
           <IconButton className="titlebar-quick-btn" icon="edit.redo" label={redoLabel} keys="Ctrl+Y"
             disabled={!canRedo} onClick={onRedo} data-oa-tip={undefined}
             data-tooltip={canRedo ? shortcutTip(redoLabel, "Ctrl+Y") : undefined} />
-          <Button kind="quiet" className="titlebar-quick-btn titlebar-settings-button" aria-label={t("preferences")}
-            aria-keyshortcuts="Control+," data-tooltip={shortcutTip(t("preferences"), "Ctrl+,")} onClick={onSettingsClick}>
-            <ApplicationSettingsIcon />
-          </Button>
+          <IconButton icon="ui.settings" className="titlebar-quick-btn titlebar-settings-button" label={t("preferences")}
+            aria-keyshortcuts="Control+," data-oa-tip={undefined}
+            data-tooltip={shortcutTip(t("preferences"), "Ctrl+,")} onClick={onSettingsClick} />
         </div>
       </div>
       <div className="titlebar-title">

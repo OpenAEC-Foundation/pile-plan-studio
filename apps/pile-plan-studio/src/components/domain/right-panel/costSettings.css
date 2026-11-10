@@ -8,7 +8,6 @@
 .cost-settings-table-wrap { min-width: 0; overflow-x: auto; }
 .cost-settings-table-wrap .oa-table th,
 .cost-settings-table-wrap .oa-table td { padding: 4px; white-space: nowrap; }
-.cost-settings-table-wrap .oa-number { text-align: left; }
 .cost-settings-table-wrap .oa-label { gap: 0; }
 .cost-settings-table-wrap .oa-label > label {
   position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;

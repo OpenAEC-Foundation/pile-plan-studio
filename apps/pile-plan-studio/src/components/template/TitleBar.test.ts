@@ -26,10 +26,10 @@ describe("title bar history controls", () => {
     assert.match(source, /label=\{redoLabel\}/);
   });
 
-  it("uses shared Blueprint actions and a local general-settings gear", () => {
+  it("uses shared Blueprint actions including the settings gear", () => {
     assert.match(source, /icon="edit\.undo"/);
     assert.match(source, /icon="edit\.redo"/);
-    assert.match(source, /<ApplicationSettingsIcon/);
+    assert.match(source, /icon="ui\.settings"/);
     assert.match(source, /icon="ui\.feedback"/);
     assert.match(source, /icon="file\.save"/);
     assert.match(source, /<IconButton/);

@@ -24,7 +24,6 @@ import {
 import { getAdditiveSelectionModifier } from "../../../viewer/lassoSelection.ts";
 import {Button, Heading, IconButton, OpenAECProvider, Status, TextField} from "../../../openaec/react/src/index";
 import spriteUrl from "../../../openaec/studioSprite.ts";
-import { SimpleIconButton } from "../../template/SimpleIconControls.tsx";
 import "../../../openaec/openaec-components.css";
 import SourceFileButton from "../shared/SourceFileButton.tsx";
 import "./SourceDataViewer.css";
@@ -249,7 +248,7 @@ function SourceDataView({
               className={`source-filter-menu${filters[column.key]?.value ? " is-active" : ""}${activeFilterKey === column.key ? " is-open" : ""}`}
               ref={activeFilterKey === column.key ? activeFilterMenuRef : undefined}
             >
-              <SimpleIconButton small icon="local.filter"
+              <IconButton small icon="table.column-filter"
                 aria-expanded={activeFilterKey === column.key}
                 label={t("sourceViewer.filter", { column: t(`sourceViewer.columns.${column.labelKey}`) })}
                 className="source-filter-trigger"

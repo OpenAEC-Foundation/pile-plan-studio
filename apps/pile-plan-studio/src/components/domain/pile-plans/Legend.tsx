@@ -5,7 +5,6 @@ import { Button, Icon, IconButton, OpenAECProvider } from "../../../openaec/reac
 import spriteUrl from "../../../openaec/studioSprite.ts";
 import "../../../openaec/openaec-components.css";
 import "./Legend.css";
-import { SimpleIconButton } from "../../template/SimpleIconControls.tsx";
 import { buildLegendPresentation, deriveUsedPileConfigurations } from "../../../domain/legend/legendState.ts";
 import {
   getLoadPointIdsForLegendSelection,
@@ -148,8 +147,8 @@ export default function Legend({ readOnly = false, state, onStateChange, onEdit,
           disabled={readOnly}
           onClick={enableUsedOnly}
         />
-        <SimpleIconButton
-          icon="local.edit"
+        <IconButton
+          icon="pile.legend-edit"
           label={t("legend.edit")}
           className="legend-control-button legend-control"
           data-oa-tip={undefined}

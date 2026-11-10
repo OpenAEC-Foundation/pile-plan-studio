@@ -1,3 +1,7 @@
+:root {
+  --oa-number-align: left;
+}
+
 html.compact-application-baseline {
   zoom: 0.8;
 }
@@ -55,17 +59,9 @@ textarea {
   font-family: inherit;
 }
 
-/* App-wide action typography; keep the pinned Blueprint sources unchanged. */
+/* Give native app actions the same default weight as Blueprint buttons. */
 button {
   font-weight: var(--oa-weight-regular);
-}
-
-.oa-button:not(.oa-button--primary) {
-  font-weight: var(--oa-weight-regular);
-}
-
-.oa-button.oa-button--primary {
-  font-weight: var(--oa-weight-semibold);
 }
 
 .app-shell {

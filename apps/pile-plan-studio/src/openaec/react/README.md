@@ -48,3 +48,15 @@ node scripts/check_react_components.mjs
 ```
 
 Dit doet een strikte typecontrole van `src/`, `test/` en `demo/`, en zet elk component naar HTML om om de klassen en aria-attributen na te lopen (95 controles op 31 componenten). Met `--demo` bouwt het ook [`demo/demo.tsx`](demo/demo.tsx) en toont het die op <http://127.0.0.1:4177/>. Het script leent TypeScript, React en esbuild van de Tauri-sjabloon, dus eerst `npm ci --ignore-scripts` in `style-book/project-templates/Tauri+React`.
+
+### Getalkolommen
+
+`numeric: true` kiest het cijferlettertype. Kop en waarden volgen samen `--oa-number-align` (standaard `right`). Zet dit token eenmaal op de app voor links uitgelijnde getallen. `align: "left" | "right"` overschrijft de appkeuze voor de kop en waarden van een getalkolom (`numeric: true`). Tekstkolommen vallen buiten deze keuze.
+
+```tsx
+// De app gebruikt .oa-app { --oa-number-align: left; }.
+<Table label="Palen" columns={[
+  { key: "length", label: "Lengte", numeric: true },
+  { key: "cost", label: "Kosten", numeric: true, align: "right" },
+]} rows={[{ length: "12,50", cost: "250,00" }]} />
+```

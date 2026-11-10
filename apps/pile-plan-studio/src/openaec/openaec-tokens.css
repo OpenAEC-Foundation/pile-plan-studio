@@ -49,20 +49,20 @@
 }
 :root, [data-oa-theme="light"] {
   color-scheme: light;
-  --oa-frame: #F1EEEA;
+  --oa-frame: #F4F4F5;
   --oa-panel: #FFFFFF;
   --oa-raised: #FFFFFF;
   --oa-field: #FFFFFF;
   --oa-workspace: #FFFFFF;
   --oa-workspace-text: #2A2A32;
-  --oa-docbar: #F1EEEA;
+  --oa-docbar: #E9E9EC;
   --oa-statusbar: #FFFFFF;
   --oa-statusbar-text: #5F5F65;
-  --oa-text: #2A2A32;
+  --oa-text: #2A2A31;
   --oa-text-secondary: #5F5F65;
-  --oa-text-muted: #6A6A70;
+  --oa-text-muted: #69696F;
   --oa-text-disabled: #AAAAAD;
-  --oa-border: #D6D2CC;
+  --oa-border: #D4D4D8;
   --oa-border-strong: #7F7F84;
   --oa-border-subtle: #EAEAEA;
   --oa-hover: #F2F2F3;

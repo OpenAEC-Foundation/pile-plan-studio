@@ -46,7 +46,7 @@ test("shared legend actions use named icons and keep edit and activation read-on
   const used = screen.getByRole("button", { name: t("legend.enableUsed") });
   const editor = screen.getByRole("button", { name: t("legend.edit") });
   expect(used.querySelector("use")?.getAttribute("href")).toContain("#i16-pile.legend-used");
-  expect(editor.querySelector("use")?.getAttribute("href")).toContain("#i16-local.edit");
+  expect(editor.querySelector("use")?.getAttribute("href")).toContain("#i16-pile.legend-edit");
   expect(editor.getAttribute("data-oa-tip")).toBeNull();
   expect(editor.getAttribute("data-tooltip")).toBe(t("legend.edit"));
   fireEvent.click(editor); expect(edit).toHaveBeenCalledOnce();

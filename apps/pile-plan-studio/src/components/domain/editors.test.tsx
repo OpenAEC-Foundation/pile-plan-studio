@@ -20,16 +20,16 @@ test.each(["en", "nl"])("duplicate cost rows show the specific error in %s and r
   await i18n.changeLanguage(language); const props = costProps();
   props.onEditCosts.mockRejectedValue(new Error("duplicate_pile_size"));
   render(<CostCatalogEditor {...props} />);
-  const size = screen.getByRole("textbox", { name: t("cost.size", "rightPanel") });
+  const size = screen.getByRole("spinbutton", { name: t("cost.size", "rightPanel") });
   fireEvent.change(size, { target: { value: "290" } });
-  fireEvent.change(screen.getByRole("textbox", { name: t("cost.costPerM3", "rightPanel") }), { target: { value: "500" } });
+  fireEvent.change(screen.getByRole("spinbutton", { name: t("cost.costPerM3", "rightPanel") }), { target: { value: "500" } });
   fireEvent.click(screen.getByRole("button", { name: t("cost.add", "rightPanel") }));
   expect((await screen.findByRole("alert")).textContent).toBe(t("cost.duplicateSize", "rightPanel"));
   expect((size as HTMLInputElement).value).toBe("290");
 });
 test("successful cost additions clear the draft; invalid inputs never reach the core edit callback", async () => {
   const props = costProps(); render(<CostCatalogEditor {...props} />);
-  const size = screen.getByRole("textbox", { name: t("cost.size", "rightPanel") });
+  const size = screen.getByRole("spinbutton", { name: t("cost.size", "rightPanel") });
   const add = screen.getByRole("button", { name: t("cost.add", "rightPanel") });
   fireEvent.click(add); expect(props.onEditCosts).not.toHaveBeenCalled();
   fireEvent.change(size, { target: { value: "320" } }); fireEvent.click(add);

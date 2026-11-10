@@ -12,7 +12,7 @@ test.each(["en", "nl"])("native project dialog labels its fields and associates 
   await i18n.changeLanguage(language);
   render(<ProjectInformationDialog {...props()} />);
   expect(screen.getByRole("dialog", { name: t("projectInformation.title") }).tagName).toBe("DIALOG");
-  const level = screen.getByRole("textbox", { name: t("projectInformation.pileHeadLevel") });
+  const level = screen.getByRole("spinbutton", { name: t("projectInformation.pileHeadLevel") });
   expect(document.getElementById(level.getAttribute("aria-describedby")!)?.textContent).toBe(t("projectInformation.pileHeadLevelHelp"));
   const info = screen.getByRole("button", { name: t("projectInformation.pileHeadLevelInfo") });
   expect(info.getAttribute("data-oa-tip")).toBe(t("projectInformation.pileHeadLevelHelp"));
@@ -30,7 +30,7 @@ test("native cancellation discards drafts and reopening uses current project val
   expect(screen.queryByRole("dialog")).toBeNull();
   view.rerender(<ProjectInformationDialog {...p} projectName="Restored" pileHeadLevelM={2.5} currencyCode="USD" />);
   expect((screen.getByRole("textbox", { name: t("projectInformation.projectName") }) as HTMLInputElement).value).toBe("Restored");
-  expect((screen.getByRole("textbox", { name: t("projectInformation.pileHeadLevel") }) as HTMLInputElement).value).toBe("2.5");
+  expect((screen.getByRole("spinbutton", { name: t("projectInformation.pileHeadLevel") }) as HTMLInputElement).value).toBe("2.5");
   expect((screen.getByRole("combobox", { name: t("projectInformation.currency") }) as HTMLSelectElement).value).toBe("USD");
 });
 

@@ -44,7 +44,7 @@ test("limits keep blank as unlimited and reject invalid drafts without submittin
 
 test("decimal comma drafts and pointer/keyboard stepping preserve scaled fractions", () => {
   const p = props(); render(<IlpOptimizationSettingsPanel {...p} />);
-  const budget = screen.getByRole("textbox", { name: t("ilp.extraCost") });
+  const budget = screen.getByRole("spinbutton", { name: t("ilp.extraCost") });
   fireEvent.change(budget, { target: { value: "1,25" } }); fireEvent.keyDown(budget, { key: "ArrowUp" });
   expect((budget as HTMLInputElement).value).toBe("2.25"); fireEvent.blur(budget);
   expect(p.onChange.mock.calls[p.onChange.mock.calls.length - 1][0].ilpOptimizationSettings.budget_basis_points).toBe(225);
@@ -53,7 +53,7 @@ test("decimal comma drafts and pointer/keyboard stepping preserve scaled fractio
   fireEvent.pointerDown(increase, { button: 0 }); fireEvent.pointerUp(increase);
   expect((budget as HTMLInputElement).value).toBe("3.25"); fireEvent.blur(budget);
   expect(p.onChange.mock.calls[p.onChange.mock.calls.length - 1][0].ilpOptimizationSettings.budget_basis_points).toBe(325);
-  p.onChange.mockClear(); const utilization = screen.getByRole("textbox", { name: t("ilp.utilization") });
+  p.onChange.mockClear(); const utilization = screen.getByRole("spinbutton", { name: t("ilp.utilization") });
   fireEvent.change(utilization, { target: { value: "100.01" } }); fireEvent.blur(utilization);
   expect(p.onChange).not.toHaveBeenCalled();
 });
@@ -100,11 +100,12 @@ test("candidate matrix retains partial group selection and unavailable chosen co
 
 test("holding a numeric stepper repeats and releasing stops without changing fractional precision", () => {
   vi.useFakeTimers(); const p = props(); render(<IlpOptimizationSettingsPanel {...p} />);
-  const budget = screen.getByRole("textbox", { name: t("ilp.extraCost") });
+  const budget = screen.getByRole("spinbutton", { name: t("ilp.extraCost") });
   fireEvent.change(budget, { target: { value: "1,25" } });
   const increase = within(screen.getByRole("group", { name: t("ilp.extraCost") })).getByRole("button", { name: i18n.t("numberInput.increment", { ns: "common" }) });
   fireEvent.pointerDown(increase, { button: 0 });
-  act(() => vi.advanceTimersByTime(510));
+  act(() => vi.advanceTimersByTime(430));
+  act(() => vi.advanceTimersByTime(80));
   expect((budget as HTMLInputElement).value).toBe("4.25");
   fireEvent.pointerUp(increase); act(() => vi.advanceTimersByTime(500));
   expect((budget as HTMLInputElement).value).toBe("4.25");

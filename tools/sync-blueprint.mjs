@@ -5,7 +5,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const repository = "OpenAEC-Foundation/OpenAEC-Blueprint";
-const revision = "436f3d78f02b3097000a6374c0dcdaf6854fc56b";
+const revision = "3725a5ae677a9d1f6ba73ed0584fe0e43a5b6786";
 const destination = fileURLToPath(new URL("../apps/pile-plan-studio/src/openaec/", import.meta.url));
 const manifestPath = join(destination, "manifest.json");
 const fonts = ["Inter-Regular", "Inter-Medium", "Inter-SemiBold", "SpaceGrotesk-Medium", "SpaceGrotesk-Bold",
@@ -30,7 +30,7 @@ const iconIds = ["file.save", "edit.undo", "edit.redo", "ui.settings", "ui.feedb
   "view.grid", "panel.left", "panel.right", "file.open", "file.save-as", "file.import", "file.export",
   "file.type-ifc", "file.type-project", "file.type-other", "nav.back", "ui.about",
   "status.error", "status.warning", "status.success", "status.info",
-  "object.rename", "edit.copy", "edit.delete", "pile.new", "table.column-filter",
+  "object.rename", "edit.duplicate", "edit.delete", "pile.new", "table.column-filter",
   "pile.legend-used", "pile.legend-edit", "status.hidden"];
 const iconSourceNames = ["reports", "composer", "standard", "pile-plan"];
 

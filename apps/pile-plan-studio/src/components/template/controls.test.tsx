@@ -21,10 +21,52 @@ test("text-mode arrow keys honor bounds and a caller that prevents the key event
   const change = vi.fn();
   const view = render(<ThemedNumberInput aria-label="Size" type="text" value="2" max="2"
     onValueChange={change} />);
-  fireEvent.keyDown(screen.getByRole("textbox"), { key: "ArrowUp" }); expect(change).toHaveBeenCalledWith("2");
+  fireEvent.keyDown(screen.getByRole("spinbutton"), { key: "ArrowUp" }); expect(change).toHaveBeenCalledWith("2");
   change.mockClear(); view.rerender(<ThemedNumberInput aria-label="Size" type="text" value="2"
     onValueChange={change} onKeyDown={event => event.preventDefault()} />);
-  fireEvent.keyDown(screen.getByRole("textbox"), { key: "ArrowDown" }); expect(change).not.toHaveBeenCalled();
+  fireEvent.keyDown(screen.getByRole("spinbutton"), { key: "ArrowDown" }); expect(change).not.toHaveBeenCalled();
+});
+
+test.each([
+  { start: "0.9", min: 0, max: 1, step: 0.3, expected: "0.9" },
+  { start: "3", step: 2, expected: "4" },
+  { start: "0", step: 1e-11, expected: "1e-11" },
+])("number stepper follows the native grid from $start with step $step", ({ start, expected, ...bounds }) => {
+  function Field() {
+    const [value, setValue] = useState(start);
+    return <form><ThemedNumberInput aria-label="Size" value={value} onValueChange={setValue} {...bounds} /></form>;
+  }
+  render(<Field />);
+  const input = screen.getByRole<HTMLInputElement>("spinbutton", { name: "Size" });
+  act(() => input.focus());
+  fireEvent.keyDown(input, { key: "ArrowUp" });
+  expect(input.value).toBe(expected);
+  expect(input.form?.checkValidity()).toBe(true);
+});
+
+test("number stepper starts each action from the value accepted by the caller", () => {
+  const change = vi.fn();
+  render(<ThemedNumberInput aria-label="Size" value="1" onValueChange={change} />);
+  const input = screen.getByRole("spinbutton", { name: "Size" });
+  fireEvent.keyDown(input, { key: "ArrowUp" });
+  fireEvent.keyDown(input, { key: "ArrowDown" });
+  expect(change.mock.calls).toEqual([["2"], ["0"]]);
+});
+
+test("a held stepper stops when focus moves to another field", () => {
+  vi.useFakeTimers();
+  try {
+    const change = vi.fn();
+    render(<><ThemedNumberInput aria-label="Size" value="1" onValueChange={change} /><input aria-label="Other" /></>);
+    fireEvent.pointerDown(screen.getByRole("button", { name: /increase/i }), { button: 0 });
+    const other = screen.getByRole("textbox", { name: "Other" });
+    act(() => other.focus());
+    act(() => vi.advanceTimersByTime(1000));
+    expect(change.mock.calls).toEqual([["2"]]);
+    expect(document.activeElement).toBe(other);
+  } finally {
+    vi.useRealTimers();
+  }
 });
 
 test("scale notice actions work and interaction postpones its expiry", () => {

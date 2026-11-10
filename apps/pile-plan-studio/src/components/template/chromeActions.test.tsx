@@ -81,7 +81,7 @@ test("title bar settings and feedback are keyboard reachable and retain their ac
   }
   const preferences = screen.getByRole("button", { name: i18n.t("preferences") });
   const feedbackButton = screen.getByRole("button", { name: i18n.t("sendFeedback") });
-  expect(preferences.querySelector("svg.application-settings-icon")).not.toBeNull();
+  expect(preferences.querySelector("use")?.getAttribute("href")).toContain("#i16-ui.settings");
   expect(feedbackButton.querySelector("use")?.getAttribute("href")).toMatch(/#i16-ui\.feedback$/);
   fireEvent.click(preferences); fireEvent.click(feedbackButton);
   expect(settings).toHaveBeenCalledOnce(); expect(feedback).toHaveBeenCalledOnce();

@@ -1,11 +1,11 @@
 {
   "repository": "OpenAEC-Foundation/OpenAEC-Blueprint",
-  "revision": "436f3d78f02b3097000a6374c0dcdaf6854fc56b",
+  "revision": "3725a5ae677a9d1f6ba73ed0584fe0e43a5b6786",
   "files": [
     {
       "source": "web/openaec-tokens.css",
       "path": "openaec-tokens.css",
-      "sha256": "a555d2c3b45e3d568015abe245758c9ca2c23b30b1bd3b9387a8b499e7d29946"
+      "sha256": "10741242a8c435e6697e7a45e0b4aa682d0da6ee7229a7aec181ec2afaa49121"
     },
     {
       "source": "web/openaec-fonts.css",
@@ -15,7 +15,7 @@
     {
       "source": "web/openaec-components.css",
       "path": "openaec-components.css",
-      "sha256": "ef23aa1fd8abe3451c231bb5953592306ae89368b617244eb1137b1c631a4a0d"
+      "sha256": "91f47b3c35b4948f4665cf03e0eef298b2dc90ad63cdc319841714cb33b6b774"
     },
     {
       "source": "web/react/package.json",
@@ -25,7 +25,7 @@
     {
       "source": "web/react/README.md",
       "path": "react/README.md",
-      "sha256": "8bc560c5539b35c0e04e5ad0058048004e2ab34053114f4edff5d15647bafa63"
+      "sha256": "67cad528719c23c048af879f723602995e6e73dc921a994e2dc7ab4705b054e9"
     },
     {
       "source": "web/react/src/index.ts",
@@ -50,7 +50,7 @@
     {
       "source": "web/react/src/shell.tsx",
       "path": "react/src/shell.tsx",
-      "sha256": "aafeace1b091a8f180a94fab2045931c3753a5060492ab2adb4a3f93743e67e2"
+      "sha256": "673c1a141a306ea849bb382061712703af65e1af4149d6428dd6dd75d02e5d9f"
     },
     {
       "source": "web/react/src/tiles.tsx",
@@ -65,7 +65,7 @@
     {
       "source": "web/icons/manifest.json",
       "path": "icons/upstream-manifest.json",
-      "sha256": "598bf085458bff4240449602eafa254d724f591cb110aa0d76c12adf6b488e94"
+      "sha256": "67fa6125c7db5f0b97e787e76cd048d50911989ccdde071f303a86722dfcf09b"
     },
     {
       "source": "crates/openaec-icons/LICENSE.md",
@@ -206,19 +206,19 @@
   "iconSources": [
     {
       "source": "web/icons/reports.svg",
-      "sha256": "4df0fd45c51e174414041834499249f3b2d1e1a95552f12c1bd478611ecc2f19"
+      "sha256": "d4cea154f17ba054518bb65e5a79559b96229ef72116cc7d4fa9a47591c3510c"
     },
     {
       "source": "web/icons/composer.svg",
-      "sha256": "baf811717531495a05266018faf5598e941fdd2ed6290a5f989abe8b3d0f3211"
+      "sha256": "9f01fad11fc77727e57bf233ce06eb9920fc69b8e18a7f6f23156ce0730d1838"
     },
     {
       "source": "web/icons/standard.svg",
-      "sha256": "d26974f236338f9306d010d23b97f1039e0443686ebf5be6689da2222895608f"
+      "sha256": "00a50c055a2a3df04fe036166aa95a555a43e08c4a9dc47a61dce6aaee5dba45"
     },
     {
       "source": "web/icons/pile-plan.svg",
-      "sha256": "81c5002c0bcc744bb79f0653a07655c89953a95e620fae11401ab407f03b8418"
+      "sha256": "05294ce2d4650805c63eb5e7065a4c058e03130474256467e44dea450d598366"
     }
   ],
   "iconIds": [
@@ -257,7 +257,7 @@
     "status.success",
     "status.info",
     "object.rename",
-    "edit.copy",
+    "edit.duplicate",
     "edit.delete",
     "pile.new",
     "table.column-filter",
@@ -268,11 +268,11 @@
   "generated": [
     {
       "path": "icons/studio.svg",
-      "sha256": "66a57ffa955eea9bea6b907def74a3263996fa4552766b26ed81f9c8c7a6ba97"
+      "sha256": "97551a99ac2a078ca126b76f020fbf10101a29a8b5b0db4ea704314598a52f4e"
     },
     {
       "path": "icons/studioIcons.ts",
-      "sha256": "69b9f292ee01336c7eab2d78ba38824d21f1c3c4b3fc91a8f9aa0caac16fc07f"
+      "sha256": "062db5a28afc5b318ef02772189909c0b8e8ab3e1d41dc7fb6bd77ba7b0bbc2b"
     }
   ]
 }

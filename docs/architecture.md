@@ -596,7 +596,8 @@ window and shares the normal attachment path. Only this transient draft owns
 attachment blob URLs; project state/history and saved IFCPP content are untouched.
 
 The application titlebar composes Blueprint IconButton/Button/Status controls
-around its local logo, settings gear, version lookup and responsive layout.
+around its local logo, version lookup and responsive layout. The settings gear
+comes from the same pinned sprite as the other titlebar actions.
 Existing save/download, history, settings and feedback callbacks remain the
 runtime boundary. Portal help and accessible shortcut metadata accompany the
 controls; their Enter/Space activation stays out of drawing shortcuts. The
@@ -611,7 +612,9 @@ in `src/openaec/`: shared design 0.4 tokens, offline fonts and their licences.
 tests and builds. `themes.css` maps the existing `--theme-*` names onto shared
 `--oa-*` roles, allowing components to migrate incrementally. Inter remains the
 body font, including menus and dialogs outside the shell; numeric inputs use
-Inter AEC. Existing sizes and the compact application baseline are preserved.
+Inter AEC. OPPS sets the Blueprint number alignment token to `left`. Ordinary
+Blueprint action buttons use regular weight and primary actions use semibold.
+Existing sizes and the compact application baseline are preserved.
 
 The application settings window imports the pinned Blueprint React components
 and component stylesheet without modifying their source. It composes native
@@ -627,9 +630,9 @@ PR 81 (issue 77), kept separately in `openaec/number-field-preview` while the
 pinned package stays unchanged. The translated template adapter supplies the
 same inset CSS-triangle steppers in settings, costs, project reference levels,
 import/export, location matching, optimization and ribbon percentages. Domain
-draft parsing and commit boundaries remain with existing controllers. Native
-spinners and duplicate stepper implementations are removed; OPPS's left alignment
-is a separate app style. The proposal source and CSS match upstream commit c30233c.
+draft parsing and commit boundaries remain with existing controllers. The
+reviewed proposal uses browser steps for native number fields and reports
+comma drafts as spinbuttons. Holding an arrow stops when the field loses focus.
 
 Project information also composes the pinned native Dialog, IconButton,
 TextField, Select and Button, with NumberField for the reference level.
@@ -716,13 +719,14 @@ selected, disabled and keyboard-focus states. It preserves group order,
 translated line breaks and command callbacks. Project information, lock editing,
 optimization, grid and side-panel symbols use the pinned Blueprint artwork.
 Reviewed local domain candidates are kept separately in
-`components/template/icons/pile-plan-proposals.svg` and rendered by `PilePlanIcon`
-for evaluation before the upstream icon PR. These include pile variants, CPTs,
-pile-cap changes, compression/tension, rectangular selection, confirmation,
-domain settings, regions and groups. The three settings buttons sit horizontally
+`components/template/icons/pile-plan-proposals.svg` and rendered by `PilePlanIcon`.
+These include pile variants, CPTs, pile-cap changes, compression/tension,
+rectangular selection, confirmation, regions and groups. The three settings
+buttons preview the drawings from Blueprint PR #95. A small lower-right gear
+accompanies a CPT triangle, a coin stack or the View group symbol. The buttons sit horizontally
 with short CPT/Costs/Groups labels, full translated tooltips and accessible names; their group caption remains below.
-The generic application settings gear is local to `ApplicationSettingsIcon`,
-separate from those candidates and tracked by Blueprint issue 73.
+The settings gear, rename pencil, legend pencil, duplicate and column filter
+also use the pinned sprite, following Blueprint issues 73, 82 and 84.
 The shared shell tokens preserve the existing 28 px tab strip and 94 px content
 height. Ribbon groups scroll horizontally at narrow widths. The File menu uses
 the shared open/save/save-as/import/export and file-type icons while preserving

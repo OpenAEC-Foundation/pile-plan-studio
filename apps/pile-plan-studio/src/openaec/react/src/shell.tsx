@@ -91,8 +91,10 @@ export function PropertyRow({ name, children }: { name: string; children: ReactN
 export interface Column<Row> {
   key: keyof Row & string;
   label: string;
-  /** Numbers and amounts: mono, right-aligned. */
+  /** Number font and tabular figures; alignment follows the app token by default. */
   numeric?: boolean;
+  /** Numeric columns only: override alignment for both heading and values. */
+  align?: "left" | "right";
   /** Longer text is shortened with "…"; the full text shows as tooltip. */
   maxWidth?: number;
 }
@@ -120,7 +122,7 @@ export function Table<Row extends Record<string, ReactNode>>({ label, columns, r
   return (
     <table className="oa-table" aria-label={label}>
       <thead>
-        <tr>{columns.map((c) => <th key={c.key} scope="col" style={c.numeric ? { textAlign: "right" } : undefined}>{c.label}</th>)}</tr>
+        <tr>{columns.map((c) => <th key={c.key} scope="col" className={c.numeric ? "oa-number-align" : undefined} style={c.numeric && c.align ? { textAlign: c.align } : undefined}>{c.label}</th>)}</tr>
       </thead>
       <tbody>
         {rows.map((row, i) => {
@@ -130,7 +132,7 @@ export function Table<Row extends Record<string, ReactNode>>({ label, columns, r
               onClick={onSelect && (() => onSelect(i))} onKeyDown={(e) => move(e, i)}>
               {columns.map((c) => {
                 const value = row[c.key];
-                if (c.numeric) return <td key={c.key} className="oa-number">{value}</td>;
+                if (c.numeric) return <td key={c.key} className="oa-number-font oa-number-align" style={c.align ? { textAlign: c.align } : undefined}>{value}</td>;
                 if (c.maxWidth && typeof value === "string") {
                   return <td key={c.key} data-oa-tip={value}><span className="oa-truncate" style={{ maxWidth: c.maxWidth }}>{value}</span></td>;
                 }
