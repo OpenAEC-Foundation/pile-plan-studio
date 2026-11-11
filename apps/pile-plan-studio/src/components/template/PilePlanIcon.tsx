@@ -1,4 +1,7 @@
-import spriteUrl from "./icons/pile-plan-proposals.svg?url";
+import assetUrl from "./icons/pile-plan-proposals.svg?url";
+
+// In the SuperCloud workplace build the sprite is inline in index.html (see studioSprite.ts).
+const spriteUrl = import.meta.env.MODE === "platform" ? "" : assetUrl;
 import "./BlueprintIcon.css";
 
 export type PilePlanIconId = "pile.options" | "pile.cpts" | "pile.cap-changes" |

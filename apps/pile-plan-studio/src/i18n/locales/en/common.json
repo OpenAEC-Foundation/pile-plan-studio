@@ -1033,5 +1033,9 @@
     "applyTolerance": "Match automatically",
     "toleranceHelp": "Applies tolerance to remaining locations. Existing choices are retained.",
     "tolerance": "Tolerance [mm]"
-  }
+  },
+  "supercloud.chooseFromDocs": "Which project do you want to open? Type its number.",
+  "supercloud.noDocsProjects": "There are no IFCPP projects in this Docs folder yet.",
+  "supercloud.nameInDocs": "Name in Docs",
+  "supercloud.saveFailed": "Saving to Docs failed: {{reason}}"
 }

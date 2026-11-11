@@ -3,7 +3,10 @@ import { useTranslation } from "react-i18next";
 import { ChoiceTiles, OpenAECProvider } from "../../../openaec/react/src/index";
 import type { CptSelectionSettings } from "../../../core/projectTypes.ts";
 // External SVG <use> cannot resolve symbols from an inlined data URL.
-import diagramsUrl from "./cptAlgorithmDiagrams.svg?url&no-inline";
+import diagramsAssetUrl from "./cptAlgorithmDiagrams.svg?url&no-inline";
+
+// In the SuperCloud workplace build the diagrams are inline in index.html (see studioSprite.ts).
+const diagramsUrl = import.meta.env.MODE === "platform" ? "" : diagramsAssetUrl;
 
 type Algorithm = CptSelectionSettings["algorithm"];
 

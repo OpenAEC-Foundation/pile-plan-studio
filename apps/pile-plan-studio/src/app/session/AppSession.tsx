@@ -11,6 +11,7 @@ import { previewProjectImportCore } from "../../core/projectCoreClient.ts";
 import { useManualCptSelectionEdit } from "../project/useManualCptSelectionEdit.ts";
 import { synchronizeManualCptSelection, toggleManualCpt } from "../../domain/cpt-selection/cptSettingsModel.ts";
 import { createProjectMcpSession } from "../mcp/projectSession.ts";
+import { chooseFromDocs, getSiteHost, installWorkplaceApp, PROJECT_EXTENSION, type HostFileRef } from "../supercloud/siteHost.ts";
 import { createSymbolScaleHistory } from "../project/symbolScaleHistory.ts";
 import { useCptSelectionPreview } from "../derived-state/useCptSelectionPreview.ts";
 import { useNewPilePlan } from "../project/useNewPilePlan.ts";
@@ -469,6 +470,9 @@ export default function AppSession({
   const openDesktopProjectPathRef = useRef<((path: string) => Promise<void>) | null>(null);
   const saveShortcutInFlightRef = useRef(false);
   const isDesktop = isDesktopRuntime();
+  // The SuperCloud workplace: Open, Save and Save as go to Docs (supercloud/siteHost.ts).
+  const siteHost = getSiteHost();
+  const docsFileRef = useRef<HostFileRef | null>(null);
   const { workspaceLayout } = userSettings.preferences;
   const interfaceScalePercent = userSettings.preferences.interfaceScalePercent;
   userSettingsRef.current = userSettings;
@@ -503,7 +507,7 @@ export default function AppSession({
       return next;
     });
   }, []);
-  const projectFileCommands = getProjectFileCommands(isDesktop);
+  const projectFileCommands = getProjectFileCommands(isDesktop || !!siteHost);
   const canUndo = managedProject.history.past.length > 0;
   const canRedo = managedProject.history.future.length > 0;
   const undoEntry = managedProject.history.past[managedProject.history.past.length - 1];
@@ -634,7 +638,31 @@ export default function AppSession({
     return true;
   };
 
+  const saveToDocs = async (asNew: boolean): Promise<boolean> => {
+    const host = siteHost!;
+    const current = docsFileRef.current;
+    let name: string | undefined;
+    if (asNew || !current) {
+      const answer = window.prompt(t("supercloud.nameInDocs"), current?.name ?? projectFileName(projectState.name));
+      if (!answer) return false;
+      name = answer.toLowerCase().endsWith(PROJECT_EXTENSION) ? answer : `${answer}${PROJECT_EXTENSION}`;
+    }
+    const savedSignature = projectStateSignature(projectState);
+    try {
+      const bytes = new TextEncoder().encode(await serializeProject());
+      const saved = name ? await host.save(bytes, { name }) : await host.save(bytes, { id: current!.id, expectedVersion: current!.version });
+      docsFileRef.current = saved;
+    } catch (reason) {
+      showActionNotice(t("supercloud.saveFailed", { reason: reason instanceof Error ? reason.message : String(reason) }), "error");
+      return false;
+    }
+    updateSavedProjectSignature(savedSignature);
+    setIsDirty(projectStateSignature(projectStateRef.current) !== savedSignature);
+    return true;
+  };
+
   const saveProjectAs = async (): Promise<boolean> => {
+    if (siteHost) return saveToDocs(true);
     if (!isDesktop) return downloadProject();
     const { save } = await import("@tauri-apps/plugin-dialog");
     const path = await save({
@@ -651,6 +679,7 @@ export default function AppSession({
   };
 
   const saveProject = async (): Promise<boolean> => {
+    if (siteHost) return saveToDocs(false);
     if (!isDesktop) return downloadProject();
     if (!projectPath) return saveProjectAs();
     await invokeDesktop("write_project_file", { path: projectPath, contents: await serializeProject() });
@@ -660,11 +689,11 @@ export default function AppSession({
     return true;
   };
 
-  projectActionRef.current = isDesktop ? saveProject : downloadProject;
+  projectActionRef.current = isDesktop || siteHost ? saveProject : downloadProject;
 
   useEffect(() => {
     const handleAppShortcut = createAppShortcutHandler({
-      isDesktop, saveInFlight: saveShortcutInFlightRef,
+      isDesktop: isDesktop || !!siteHost, saveInFlight: saveShortcutInFlightRef,
       save: () => projectActionRef.current, open: () => openProjectActionRef.current,
       currentScale: () => userSettingsRef.current.preferences.interfaceScalePercent,
       applyScale: applyInterfaceScale,
@@ -1282,7 +1311,38 @@ export default function AppSession({
     if (typeof path === "string") await openDesktopProjectPath(path);
   };
 
-  openProjectActionRef.current = chooseDesktopProject;
+  const openFromDocs = async (file: HostFileRef) => {
+    const opened = await siteHost!.open(file.id);
+    const bytes = opened.bytes instanceof Uint8Array ? opened.bytes : new Uint8Array(opened.bytes);
+    await openBrowserProjectContents(new TextDecoder().decode(bytes), opened.name);
+    docsFileRef.current = opened.readOnly ? null : { id: opened.id, name: opened.name, version: opened.version };
+  };
+  const chooseDocsProject = async () => {
+    const file = await chooseFromDocs(siteHost!, t("supercloud.chooseFromDocs"), t("supercloud.noDocsProjects"));
+    if (!file || !await confirmProjectReplacement()) return;
+    try { await openFromDocs(file); }
+    catch (error) { showActionNotice(describeProjectOpenError(error, t), "error"); }
+  };
+
+  openProjectActionRef.current = siteHost ? chooseDocsProject : chooseDesktopProject;
+
+  // In the workplace: open the file the user started from in Docs, once; and the assistant tools.
+  const docsStartRef = useRef(false);
+  useEffect(() => {
+    if (!siteHost || docsStartRef.current) return;
+    docsStartRef.current = true;
+    if (siteHost.initialFileId) {
+      void openFromDocs({ id: siteHost.initialFileId, name: "", version: "" })
+        .catch((error) => showActionNotice(describeProjectOpenError(error, t), "error"));
+    }
+  });
+  useEffect(() => {
+    if (!siteHost) return;
+    const session = createMcpSession(() => true);
+    const uninstall = installWorkplaceApp(session.dispatch);
+    return () => { uninstall(); session.dispose(); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     if (!isDesktop || !userSettingsReady) return;

@@ -70,9 +70,12 @@ export default function TitleBar({
       </div>
       <div className="titlebar-actions">
         <div className="titlebar-scale-anchor">{interfaceScaleControl}</div>
-        <Button kind="quiet" icon="ui.feedback" className="send-feedback-btn" onClick={onFeedbackClick}>
-          <span>{t("sendFeedback")}</span>
-        </Button>
+        {/* The SuperCloud has its own feedback button; none in the workplace build. */}
+        {import.meta.env.MODE !== "platform" && (
+          <Button kind="quiet" icon="ui.feedback" className="send-feedback-btn" onClick={onFeedbackClick}>
+            <span>{t("sendFeedback")}</span>
+          </Button>
+        )}
       </div>
     </header>
   </OpenAECProvider>;

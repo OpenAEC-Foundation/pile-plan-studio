@@ -1033,5 +1033,9 @@
     "applyTolerance": "Automatisch koppelen",
     "toleranceHelp": "Past de tolerantie toe op resterende locaties. Bestaande keuzes blijven behouden.",
     "tolerance": "Tolerantie [mm]"
-  }
+  },
+  "supercloud.chooseFromDocs": "Welk project openen? Typ het nummer.",
+  "supercloud.noDocsProjects": "Er staan nog geen IFCPP-projecten in deze map in Docs.",
+  "supercloud.nameInDocs": "Naam in Docs",
+  "supercloud.saveFailed": "Opslaan in Docs is mislukt: {{reason}}"
 }

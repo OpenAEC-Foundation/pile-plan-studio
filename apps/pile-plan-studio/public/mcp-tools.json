@@ -1,0 +1,2357 @@
+[
+  {
+    "name": "pile_project_overview",
+    "description": "Read the open pile project's name, counts, and analysis status.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {},
+      "additionalProperties": false
+    }
+  },
+  {
+    "name": "pile_get_project_settings",
+    "description": "Read project properties, CPT selection, grouping, cost, complete visual legend, and optimization settings. The optimization budget_basis_points is extra cost above the cost-only reference solution (500 means 5%), not above the current plan cost.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "manual_groups_limit": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 100
+        },
+        "manual_groups_offset": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "separated_groups_limit": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 100
+        },
+        "separated_groups_offset": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "cost_catalog_limit": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 100
+        },
+        "cost_catalog_offset": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "custom_configurations_limit": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 100
+        },
+        "custom_configurations_offset": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "selected_target_ids_limit": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 100
+        },
+        "selected_target_ids_offset": {
+          "type": "integer",
+          "minimum": 0
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  {
+    "name": "pile_list_load_points",
+    "description": "List load points and their assignments in a plan.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "plan_id": {
+          "type": "string"
+        },
+        "limit": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 100
+        },
+        "offset": {
+          "type": "integer",
+          "minimum": 0
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  {
+    "name": "pile_get_load_point",
+    "description": "Read one load point, its CPT selection, group, and assigned pile option.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "load_point_id": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "plan_id": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "load_point_id"
+      ],
+      "additionalProperties": false
+    }
+  },
+  {
+    "name": "pile_list_cpts",
+    "description": "List CPT positions and advice counts.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "limit": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 100
+        },
+        "offset": {
+          "type": "integer",
+          "minimum": 0
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  {
+    "name": "pile_get_cpt_advice",
+    "description": "Read foundation advice rows for one CPT.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "cpt_id": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "limit": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 100
+        },
+        "offset": {
+          "type": "integer",
+          "minimum": 0
+        }
+      },
+      "required": [
+        "cpt_id"
+      ],
+      "additionalProperties": false
+    }
+  },
+  {
+    "name": "pile_list_groups",
+    "description": "List current effective load-point groups.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "limit": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 100
+        },
+        "offset": {
+          "type": "integer",
+          "minimum": 0
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  {
+    "name": "pile_list_plans",
+    "description": "List pile plans and their assignment counts.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "limit": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 100
+        },
+        "offset": {
+          "type": "integer",
+          "minimum": 0
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  {
+    "name": "pile_get_plan",
+    "description": "Read one pile plan and its assignment summary.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "plan_id": {
+          "type": "string"
+        },
+        "limit": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 100
+        },
+        "offset": {
+          "type": "integer",
+          "minimum": 0
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  {
+    "name": "pile_list_pile_options",
+    "description": "List Rust-evaluated pile options for one load point.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "load_point_id": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "plan_id": {
+          "type": "string"
+        },
+        "limit": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 100
+        },
+        "offset": {
+          "type": "integer",
+          "minimum": 0
+        }
+      },
+      "required": [
+        "load_point_id"
+      ],
+      "additionalProperties": false
+    }
+  },
+  {
+    "name": "pile_get_plan_costs",
+    "description": "Calculate the current cost estimate for a plan via the Rust core.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "plan_id": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  {
+    "name": "pile_compare_plans",
+    "description": "Compare two explicit plans: assignments, locks, Rust costs, and paged load-point differences. A cost delta is omitted if either plan has missing prices.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "plan_a_id": {
+          "type": "string"
+        },
+        "plan_b_id": {
+          "type": "string"
+        },
+        "limit": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 100
+        },
+        "offset": {
+          "type": "integer",
+          "minimum": 0
+        }
+      },
+      "required": [
+        "plan_a_id",
+        "plan_b_id"
+      ],
+      "additionalProperties": false
+    }
+  },
+  {
+    "name": "pile_get_plan_optimization",
+    "description": "Read a plan's committed optimization result and diagnostics. The solution.reference.cost is from the cost-only phase without coherence optimization; solution.budget is the resulting maximum allowed cost. Check both reference and returned-plan proof fields.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "plan_id": {
+          "type": "string"
+        },
+        "limit": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 100
+        },
+        "offset": {
+          "type": "integer",
+          "minimum": 0
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  {
+    "name": "pile_get_current_optimization",
+    "description": "Read the current transient optimization run status or outcome. A solved result reports the cost-only reference and coherence budget separately, with independent optimality proofs.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "limit": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 100
+        },
+        "offset": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "solvable_limit": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 100
+        },
+        "solvable_offset": {
+          "type": "integer",
+          "minimum": 0
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  {
+    "name": "pile_get_technical_assessment",
+    "description": "Read current Rust technical issues and group assignment conflicts.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "plan_id": {
+          "type": "string"
+        },
+        "issues_limit": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 100
+        },
+        "issues_offset": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "group_conflicts_limit": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 100
+        },
+        "group_conflicts_offset": {
+          "type": "integer",
+          "minimum": 0
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  {
+    "name": "pile_start_optimization",
+    "description": "Start a cost-only reference solve, then optimize coherence within the reference cost plus budget_basis_points. Current plan assignments may seed the search but current plan cost does not set the budget. A rerun is a new search and is not guaranteed to improve the prior result. Return a run ID immediately; solved results are one Undo step.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "plan_id": {
+          "type": "string"
+        },
+        "target_load_point_ids": {
+          "type": "array",
+          "items": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "minItems": 1,
+          "maxItems": 1000,
+          "uniqueItems": true
+        },
+        "time_limit_seconds": {
+          "oneOf": [
+            {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 7200
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "local_only": {
+          "type": "boolean"
+        },
+        "create_new_plan": {
+          "type": "boolean"
+        },
+        "new_plan_name": {
+          "type": "string"
+        },
+        "limit_scope": {
+          "type": "string",
+          "enum": [
+            "target",
+            "whole-plan"
+          ]
+        },
+        "include_boundary_transitions": {
+          "type": "boolean"
+        },
+        "expected_project_instance_id": {
+          "type": "string"
+        },
+        "expected_project_revision": {
+          "type": "integer",
+          "minimum": 0
+        }
+      },
+      "required": [
+        "plan_id",
+        "expected_project_instance_id",
+        "expected_project_revision"
+      ],
+      "additionalProperties": false
+    },
+    "bevestigen": true
+  },
+  {
+    "name": "pile_stop_optimization",
+    "description": "Stop the named run and retain its best valid solution, if any.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "run_id": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "run_id"
+      ],
+      "additionalProperties": false
+    },
+    "bevestigen": true
+  },
+  {
+    "name": "pile_cancel_optimization",
+    "description": "Cancel the named run and discard its result.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "run_id": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "run_id"
+      ],
+      "additionalProperties": false
+    },
+    "bevestigen": true
+  },
+  {
+    "name": "pile_duplicate_plan",
+    "description": "Duplicate a pile plan and activate the copy. Undoable project change.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "plan_id": {
+          "type": "string"
+        },
+        "expected_project_instance_id": {
+          "type": "string"
+        },
+        "expected_project_revision": {
+          "type": "integer",
+          "minimum": 0
+        }
+      },
+      "required": [
+        "plan_id",
+        "expected_project_instance_id",
+        "expected_project_revision"
+      ],
+      "additionalProperties": false
+    },
+    "bevestigen": true
+  },
+  {
+    "name": "pile_rename_plan",
+    "description": "Rename a pile plan. Undoable project change.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "plan_id": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "expected_project_instance_id": {
+          "type": "string"
+        },
+        "expected_project_revision": {
+          "type": "integer",
+          "minimum": 0
+        }
+      },
+      "required": [
+        "plan_id",
+        "name",
+        "expected_project_instance_id",
+        "expected_project_revision"
+      ],
+      "additionalProperties": false
+    },
+    "bevestigen": true
+  },
+  {
+    "name": "pile_assign_configuration",
+    "description": "Assign a pile configuration to a load point and its effective group. Undoable project change.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "plan_id": {
+          "type": "string"
+        },
+        "load_point_id": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "pile_size_mm": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "pile_tip_level_mm": {
+          "type": "integer",
+          "minimum": -1000000
+        },
+        "expected_project_instance_id": {
+          "type": "string"
+        },
+        "expected_project_revision": {
+          "type": "integer",
+          "minimum": 0
+        }
+      },
+      "required": [
+        "plan_id",
+        "load_point_id",
+        "pile_size_mm",
+        "pile_tip_level_mm",
+        "expected_project_instance_id",
+        "expected_project_revision"
+      ],
+      "additionalProperties": false
+    },
+    "bevestigen": true
+  },
+  {
+    "name": "pile_clear_assignment",
+    "description": "Remove the pile assignment from a load point and its effective group. Undoable project change.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "plan_id": {
+          "type": "string"
+        },
+        "load_point_id": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "expected_project_instance_id": {
+          "type": "string"
+        },
+        "expected_project_revision": {
+          "type": "integer",
+          "minimum": 0
+        }
+      },
+      "required": [
+        "plan_id",
+        "load_point_id",
+        "expected_project_instance_id",
+        "expected_project_revision"
+      ],
+      "additionalProperties": false
+    },
+    "bevestigen": true
+  },
+  {
+    "name": "pile_activate_plan",
+    "description": "Activate an existing pile plan. Matches UI navigation and does not add an undo step.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "plan_id": {
+          "type": "string"
+        },
+        "expected_project_instance_id": {
+          "type": "string"
+        },
+        "expected_project_revision": {
+          "type": "integer",
+          "minimum": 0
+        }
+      },
+      "required": [
+        "plan_id",
+        "expected_project_instance_id",
+        "expected_project_revision"
+      ],
+      "additionalProperties": false
+    },
+    "bevestigen": true
+  },
+  {
+    "name": "pile_delete_plan",
+    "description": "Delete a pile plan if another plan remains. Undoable project change.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "plan_id": {
+          "type": "string"
+        },
+        "expected_project_instance_id": {
+          "type": "string"
+        },
+        "expected_project_revision": {
+          "type": "integer",
+          "minimum": 0
+        }
+      },
+      "required": [
+        "plan_id",
+        "expected_project_instance_id",
+        "expected_project_revision"
+      ],
+      "additionalProperties": false
+    },
+    "bevestigen": true
+  },
+  {
+    "name": "pile_set_load_point_lock",
+    "description": "Lock or unlock one load point in the active pile plan. Undoable project change.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "plan_id": {
+          "type": "string"
+        },
+        "load_point_id": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "locked": {
+          "type": "boolean"
+        },
+        "expected_project_instance_id": {
+          "type": "string"
+        },
+        "expected_project_revision": {
+          "type": "integer",
+          "minimum": 0
+        }
+      },
+      "required": [
+        "plan_id",
+        "load_point_id",
+        "locked",
+        "expected_project_instance_id",
+        "expected_project_revision"
+      ],
+      "additionalProperties": false
+    },
+    "bevestigen": true
+  },
+  {
+    "name": "pile_set_manual_cpts",
+    "description": "Replace manual CPT selection for one load point. An empty list explicitly selects none.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "load_point_id": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "cpt_ids": {
+          "type": "array",
+          "items": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "minItems": 0,
+          "maxItems": 1000,
+          "uniqueItems": true
+        },
+        "expected_project_instance_id": {
+          "type": "string"
+        },
+        "expected_project_revision": {
+          "type": "integer",
+          "minimum": 0
+        }
+      },
+      "required": [
+        "load_point_id",
+        "cpt_ids",
+        "expected_project_instance_id",
+        "expected_project_revision"
+      ],
+      "additionalProperties": false
+    },
+    "bevestigen": true
+  },
+  {
+    "name": "pile_use_automatic_cpts",
+    "description": "Remove manual CPT selection for one load point and use automatic selection.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "load_point_id": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "expected_project_instance_id": {
+          "type": "string"
+        },
+        "expected_project_revision": {
+          "type": "integer",
+          "minimum": 0
+        }
+      },
+      "required": [
+        "load_point_id",
+        "expected_project_instance_id",
+        "expected_project_revision"
+      ],
+      "additionalProperties": false
+    },
+    "bevestigen": true
+  },
+  {
+    "name": "pile_group_load_points",
+    "description": "Group selected effective load-point units through the Rust core. Undoable project change.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "load_point_ids": {
+          "type": "array",
+          "items": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "minItems": 2,
+          "maxItems": 1000,
+          "uniqueItems": true
+        },
+        "expected_project_instance_id": {
+          "type": "string"
+        },
+        "expected_project_revision": {
+          "type": "integer",
+          "minimum": 0
+        }
+      },
+      "required": [
+        "load_point_ids",
+        "expected_project_instance_id",
+        "expected_project_revision"
+      ],
+      "additionalProperties": false
+    },
+    "bevestigen": true
+  },
+  {
+    "name": "pile_ungroup_load_points",
+    "description": "Separate the effective group containing this load point through the Rust core.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "load_point_id": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "expected_project_instance_id": {
+          "type": "string"
+        },
+        "expected_project_revision": {
+          "type": "integer",
+          "minimum": 0
+        }
+      },
+      "required": [
+        "load_point_id",
+        "expected_project_instance_id",
+        "expected_project_revision"
+      ],
+      "additionalProperties": false
+    },
+    "bevestigen": true
+  },
+  {
+    "name": "pile_set_assignments_bulk",
+    "description": "Set or clear per-location assignments atomically in the active plan. One Undo step.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "plan_id": {
+          "type": "string"
+        },
+        "changes": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 500,
+          "items": {
+            "type": "object",
+            "properties": {
+              "load_point_id": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "configuration": {
+                "oneOf": [
+                  {
+                    "type": "object",
+                    "properties": {
+                      "pile_size_mm": {
+                        "type": "integer",
+                        "minimum": 1
+                      },
+                      "pile_tip_level_mm": {
+                        "type": "integer",
+                        "minimum": -1000000
+                      }
+                    },
+                    "required": [
+                      "pile_size_mm",
+                      "pile_tip_level_mm"
+                    ],
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              }
+            },
+            "required": [
+              "load_point_id",
+              "configuration"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "expected_project_instance_id": {
+          "type": "string"
+        },
+        "expected_project_revision": {
+          "type": "integer",
+          "minimum": 0
+        }
+      },
+      "required": [
+        "plan_id",
+        "changes",
+        "expected_project_instance_id",
+        "expected_project_revision"
+      ],
+      "additionalProperties": false
+    },
+    "bevestigen": true
+  },
+  {
+    "name": "pile_set_load_point_locks_bulk",
+    "description": "Set per-location locks atomically in the active plan. One Undo step.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "plan_id": {
+          "type": "string"
+        },
+        "changes": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 500,
+          "items": {
+            "type": "object",
+            "properties": {
+              "load_point_id": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "locked": {
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "load_point_id",
+              "locked"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "expected_project_instance_id": {
+          "type": "string"
+        },
+        "expected_project_revision": {
+          "type": "integer",
+          "minimum": 0
+        }
+      },
+      "required": [
+        "plan_id",
+        "changes",
+        "expected_project_instance_id",
+        "expected_project_revision"
+      ],
+      "additionalProperties": false
+    },
+    "bevestigen": true
+  },
+  {
+    "name": "pile_set_cpt_selections_bulk",
+    "description": "Set manual CPT lists or restore automatic selection per location atomically. One Undo step.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "changes": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 500,
+          "items": {
+            "type": "object",
+            "properties": {
+              "load_point_id": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "cpt_ids": {
+                "oneOf": [
+                  {
+                    "type": "array",
+                    "items": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "minItems": 0,
+                    "maxItems": 1000,
+                    "uniqueItems": true
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              }
+            },
+            "required": [
+              "load_point_id",
+              "cpt_ids"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "expected_project_instance_id": {
+          "type": "string"
+        },
+        "expected_project_revision": {
+          "type": "integer",
+          "minimum": 0
+        }
+      },
+      "required": [
+        "changes",
+        "expected_project_instance_id",
+        "expected_project_revision"
+      ],
+      "additionalProperties": false
+    },
+    "bevestigen": true
+  },
+  {
+    "name": "pile_ungroup_load_points_bulk",
+    "description": "Separate distinct effective groups atomically. One Undo step.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "load_point_ids": {
+          "type": "array",
+          "items": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "minItems": 1,
+          "maxItems": 500,
+          "uniqueItems": true
+        },
+        "expected_project_instance_id": {
+          "type": "string"
+        },
+        "expected_project_revision": {
+          "type": "integer",
+          "minimum": 0
+        }
+      },
+      "required": [
+        "load_point_ids",
+        "expected_project_instance_id",
+        "expected_project_revision"
+      ],
+      "additionalProperties": false
+    },
+    "bevestigen": true
+  },
+  {
+    "name": "pile_set_cpt_selection_settings",
+    "description": "Set projectwide automatic CPT rules; optionally replace manual CPT choices. One Undo step.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "settings": {
+          "type": "object",
+          "minProperties": 1,
+          "properties": {
+            "algorithm": {
+              "type": "string",
+              "enum": [
+                "quadrants",
+                "maximum-angle"
+              ]
+            },
+            "max_distance_m": {
+              "type": "number",
+              "minimum": 0
+            },
+            "monopoly_distance_m": {
+              "type": "number",
+              "minimum": 0
+            },
+            "max_angle_degrees": {
+              "type": "number",
+              "minimum": 1,
+              "maximum": 360
+            }
+          },
+          "additionalProperties": false
+        },
+        "overwrite_manual_selections": {
+          "type": "boolean"
+        },
+        "expected_project_instance_id": {
+          "type": "string"
+        },
+        "expected_project_revision": {
+          "type": "integer",
+          "minimum": 0
+        }
+      },
+      "required": [
+        "settings",
+        "expected_project_instance_id",
+        "expected_project_revision"
+      ],
+      "additionalProperties": false
+    },
+    "bevestigen": true
+  },
+  {
+    "name": "pile_set_cpt_selection_settings_bulk",
+    "description": "Set different automatic CPT rules per load point atomically. One Undo step.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "changes": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 500,
+          "items": {
+            "type": "object",
+            "properties": {
+              "load_point_id": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "settings": {
+                "type": "object",
+                "minProperties": 1,
+                "properties": {
+                  "algorithm": {
+                    "type": "string",
+                    "enum": [
+                      "quadrants",
+                      "maximum-angle"
+                    ]
+                  },
+                  "max_distance_m": {
+                    "type": "number",
+                    "minimum": 0
+                  },
+                  "monopoly_distance_m": {
+                    "type": "number",
+                    "minimum": 0
+                  },
+                  "max_angle_degrees": {
+                    "type": "number",
+                    "minimum": 1,
+                    "maximum": 360
+                  }
+                },
+                "additionalProperties": false
+              },
+              "overwrite_manual_selections": {
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "load_point_id",
+              "settings"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "expected_project_instance_id": {
+          "type": "string"
+        },
+        "expected_project_revision": {
+          "type": "integer",
+          "minimum": 0
+        }
+      },
+      "required": [
+        "changes",
+        "expected_project_instance_id",
+        "expected_project_revision"
+      ],
+      "additionalProperties": false
+    },
+    "bevestigen": true
+  },
+  {
+    "name": "pile_set_grouping_settings",
+    "description": "Set automatic grouping and/or maximum group distance. One Undo step.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "automatic": {
+          "type": "boolean"
+        },
+        "max_edge_distance_m": {
+          "type": "number",
+          "minimum": 0
+        },
+        "expected_project_instance_id": {
+          "type": "string"
+        },
+        "expected_project_revision": {
+          "type": "integer",
+          "minimum": 0
+        }
+      },
+      "required": [
+        "expected_project_instance_id",
+        "expected_project_revision"
+      ],
+      "additionalProperties": false
+    },
+    "bevestigen": true
+  },
+  {
+    "name": "pile_reset_group_overrides",
+    "description": "Clear all manual joins and explicit automatic-group separations. One Undo step.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "expected_project_instance_id": {
+          "type": "string"
+        },
+        "expected_project_revision": {
+          "type": "integer",
+          "minimum": 0
+        }
+      },
+      "required": [
+        "expected_project_instance_id",
+        "expected_project_revision"
+      ],
+      "additionalProperties": false
+    },
+    "bevestigen": true
+  },
+  {
+    "name": "pile_add_cost_item",
+    "description": "Add one pile-size cost row. One Undo step.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "item": {
+          "type": "object",
+          "properties": {
+            "pile_size_mm": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "shape": {
+              "type": "string",
+              "enum": [
+                "round",
+                "square"
+              ]
+            },
+            "cost_per_m3": {
+              "type": "number",
+              "minimum": 0
+            }
+          },
+          "required": [
+            "pile_size_mm",
+            "shape",
+            "cost_per_m3"
+          ],
+          "additionalProperties": false
+        },
+        "expected_project_instance_id": {
+          "type": "string"
+        },
+        "expected_project_revision": {
+          "type": "integer",
+          "minimum": 0
+        }
+      },
+      "required": [
+        "item",
+        "expected_project_instance_id",
+        "expected_project_revision"
+      ],
+      "additionalProperties": false
+    },
+    "bevestigen": true
+  },
+  {
+    "name": "pile_update_cost_item",
+    "description": "Change shape and/or unit cost for one pile size. One Undo step.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "pile_size_mm": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "shape": {
+          "type": "string",
+          "enum": [
+            "round",
+            "square"
+          ]
+        },
+        "cost_per_m3": {
+          "type": "number",
+          "minimum": 0
+        },
+        "expected_project_instance_id": {
+          "type": "string"
+        },
+        "expected_project_revision": {
+          "type": "integer",
+          "minimum": 0
+        }
+      },
+      "required": [
+        "pile_size_mm",
+        "expected_project_instance_id",
+        "expected_project_revision"
+      ],
+      "additionalProperties": false
+    },
+    "bevestigen": true
+  },
+  {
+    "name": "pile_remove_cost_item",
+    "description": "Remove one unused pile-size cost row. One Undo step.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "pile_size_mm": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "expected_project_instance_id": {
+          "type": "string"
+        },
+        "expected_project_revision": {
+          "type": "integer",
+          "minimum": 0
+        }
+      },
+      "required": [
+        "pile_size_mm",
+        "expected_project_instance_id",
+        "expected_project_revision"
+      ],
+      "additionalProperties": false
+    },
+    "bevestigen": true
+  },
+  {
+    "name": "pile_edit_cost_catalog_bulk",
+    "description": "Apply up to 500 add, update, or remove cost-row actions atomically. One Undo step.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "actions": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 500,
+          "items": {
+            "oneOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "action": {
+                    "type": "string",
+                    "enum": [
+                      "add"
+                    ]
+                  },
+                  "item": {
+                    "type": "object",
+                    "properties": {
+                      "pile_size_mm": {
+                        "type": "integer",
+                        "minimum": 1
+                      },
+                      "shape": {
+                        "type": "string",
+                        "enum": [
+                          "round",
+                          "square"
+                        ]
+                      },
+                      "cost_per_m3": {
+                        "type": "number",
+                        "minimum": 0
+                      }
+                    },
+                    "required": [
+                      "pile_size_mm",
+                      "shape",
+                      "cost_per_m3"
+                    ],
+                    "additionalProperties": false
+                  }
+                },
+                "required": [
+                  "action",
+                  "item"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "action": {
+                    "type": "string",
+                    "enum": [
+                      "update"
+                    ]
+                  },
+                  "pile_size_mm": {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  "shape": {
+                    "type": "string",
+                    "enum": [
+                      "round",
+                      "square"
+                    ]
+                  },
+                  "cost_per_m3": {
+                    "type": "number",
+                    "minimum": 0
+                  }
+                },
+                "required": [
+                  "action",
+                  "pile_size_mm"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "action": {
+                    "type": "string",
+                    "enum": [
+                      "remove"
+                    ]
+                  },
+                  "pile_size_mm": {
+                    "type": "integer",
+                    "minimum": 1
+                  }
+                },
+                "required": [
+                  "action",
+                  "pile_size_mm"
+                ],
+                "additionalProperties": false
+              }
+            ]
+          }
+        },
+        "expected_project_instance_id": {
+          "type": "string"
+        },
+        "expected_project_revision": {
+          "type": "integer",
+          "minimum": 0
+        }
+      },
+      "required": [
+        "actions",
+        "expected_project_instance_id",
+        "expected_project_revision"
+      ],
+      "additionalProperties": false
+    },
+    "bevestigen": true
+  },
+  {
+    "name": "pile_set_optimization_settings",
+    "description": "Patch project-owned optimization settings. budget_basis_points is extra cost above the cost-only reference, not the current plan. One Undo step.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "settings": {
+          "type": "object",
+          "minProperties": 1,
+          "properties": {
+            "max_piles_per_cap": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 20
+            },
+            "allowed_pile_counts": {
+              "type": "array",
+              "minItems": 1,
+              "maxItems": 20,
+              "uniqueItems": true,
+              "items": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 20
+              }
+            },
+            "include_tension": {
+              "type": "boolean"
+            },
+            "allow_pile_count_changes": {
+              "type": "boolean"
+            },
+            "skip_unsolvable_units": {
+              "type": "boolean"
+            },
+            "optimize_coherence": {
+              "type": "boolean"
+            },
+            "max_pile_tip_levels": {
+              "oneOf": [
+                {
+                  "type": "integer",
+                  "minimum": 1
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "max_pile_sizes": {
+              "oneOf": [
+                {
+                  "type": "integer",
+                  "minimum": 1
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "max_pile_configurations": {
+              "oneOf": [
+                {
+                  "type": "integer",
+                  "minimum": 1
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "max_utilization": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            },
+            "candidate_source": {
+              "type": "string",
+              "enum": [
+                "all_available",
+                "active_legend",
+                "custom"
+              ]
+            },
+            "custom_configurations": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "pile_size_mm": {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  "pile_tip_level_mm": {
+                    "type": "integer",
+                    "minimum": -1000000
+                  }
+                },
+                "required": [
+                  "pile_size_mm",
+                  "pile_tip_level_mm"
+                ],
+                "additionalProperties": false
+              },
+              "maxItems": 500
+            },
+            "budget_basis_points": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "transition_weights": {
+              "type": "object",
+              "minProperties": 1,
+              "properties": {
+                "tip_only_milli": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "size_only_milli": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "pile_count_milli": {
+                  "type": "integer",
+                  "minimum": 0
+                }
+              },
+              "additionalProperties": false
+            }
+          },
+          "additionalProperties": false
+        },
+        "expected_project_instance_id": {
+          "type": "string"
+        },
+        "expected_project_revision": {
+          "type": "integer",
+          "minimum": 0
+        }
+      },
+      "required": [
+        "settings",
+        "expected_project_instance_id",
+        "expected_project_revision"
+      ],
+      "additionalProperties": false
+    },
+    "bevestigen": true
+  },
+  {
+    "name": "pile_set_active_configurations",
+    "description": "Replace active pile sizes and tip levels for one plan. Values must exist in foundation advice. One Undo step.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "plan_id": {
+          "type": "string"
+        },
+        "pile_sizes_mm": {
+          "type": "array",
+          "items": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "maxItems": 1000,
+          "uniqueItems": true
+        },
+        "pile_tip_levels_mm": {
+          "type": "array",
+          "items": {
+            "type": "integer",
+            "minimum": -1000000
+          },
+          "maxItems": 1000,
+          "uniqueItems": true
+        },
+        "expected_project_instance_id": {
+          "type": "string"
+        },
+        "expected_project_revision": {
+          "type": "integer",
+          "minimum": 0
+        }
+      },
+      "required": [
+        "plan_id",
+        "pile_sizes_mm",
+        "pile_tip_levels_mm",
+        "expected_project_instance_id",
+        "expected_project_revision"
+      ],
+      "additionalProperties": false
+    },
+    "bevestigen": true
+  },
+  {
+    "name": "pile_set_legend_settings",
+    "description": "Replace the complete project legend, including mode, color schemes, symbols, colors, and automatic flags. Read the current legend first. One Undo step.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "legend": {
+          "type": "object",
+          "properties": {
+            "encoding_mode": {
+              "type": "string",
+              "enum": [
+                "size-symbol",
+                "tip-symbol",
+                "size-color-tip-region"
+              ]
+            },
+            "color_scheme": {
+              "type": "string"
+            },
+            "pile_size_color_scheme": {
+              "type": "string"
+            },
+            "pile_tip_level_color_scheme": {
+              "type": "string"
+            },
+            "pile_sizes": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "value": {
+                    "type": "number"
+                  },
+                  "symbol": {
+                    "type": "object",
+                    "properties": {
+                      "base_shape": {
+                        "type": "string"
+                      },
+                      "fill_pattern": {
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "base_shape",
+                      "fill_pattern"
+                    ],
+                    "additionalProperties": false
+                  },
+                  "color": {
+                    "type": "string"
+                  },
+                  "symbol_automatic": {
+                    "type": "boolean"
+                  },
+                  "color_automatic": {
+                    "type": "boolean"
+                  }
+                },
+                "required": [
+                  "value",
+                  "symbol",
+                  "color",
+                  "symbol_automatic",
+                  "color_automatic"
+                ],
+                "additionalProperties": false
+              },
+              "maxItems": 1000
+            },
+            "pile_tip_levels": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "value": {
+                    "type": "number"
+                  },
+                  "symbol": {
+                    "type": "object",
+                    "properties": {
+                      "base_shape": {
+                        "type": "string"
+                      },
+                      "fill_pattern": {
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "base_shape",
+                      "fill_pattern"
+                    ],
+                    "additionalProperties": false
+                  },
+                  "color": {
+                    "type": "string"
+                  },
+                  "symbol_automatic": {
+                    "type": "boolean"
+                  },
+                  "color_automatic": {
+                    "type": "boolean"
+                  }
+                },
+                "required": [
+                  "value",
+                  "symbol",
+                  "color",
+                  "symbol_automatic",
+                  "color_automatic"
+                ],
+                "additionalProperties": false
+              },
+              "maxItems": 1000
+            }
+          },
+          "required": [
+            "encoding_mode",
+            "color_scheme",
+            "pile_sizes",
+            "pile_tip_levels"
+          ],
+          "additionalProperties": false
+        },
+        "show_tip_level_regions": {
+          "type": "boolean"
+        },
+        "expected_project_instance_id": {
+          "type": "string"
+        },
+        "expected_project_revision": {
+          "type": "integer",
+          "minimum": 0
+        }
+      },
+      "required": [
+        "legend",
+        "expected_project_instance_id",
+        "expected_project_revision"
+      ],
+      "additionalProperties": false
+    },
+    "bevestigen": true
+  },
+  {
+    "name": "pile_set_project_properties",
+    "description": "Set project name, pile head level in metres, and ISO currency code together. One Undo step.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "pile_head_level_m": {
+          "type": "number"
+        },
+        "currency_code": {
+          "type": "string"
+        },
+        "expected_project_instance_id": {
+          "type": "string"
+        },
+        "expected_project_revision": {
+          "type": "integer",
+          "minimum": 0
+        }
+      },
+      "required": [
+        "name",
+        "pile_head_level_m",
+        "currency_code",
+        "expected_project_instance_id",
+        "expected_project_revision"
+      ],
+      "additionalProperties": false
+    },
+    "bevestigen": true
+  },
+  {
+    "name": "pile_edit_load_points_bulk",
+    "description": "Add, replace, or remove up to 500 load points atomically. Updates supply the complete row. Removing a point clears its plan assignments, locks, and selections. One Undo step.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "actions": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 500,
+          "items": {
+            "oneOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "action": {
+                    "type": "string",
+                    "enum": [
+                      "add"
+                    ]
+                  },
+                  "item": {
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "type": "integer",
+                        "minimum": 0
+                      },
+                      "name": {
+                        "type": "string"
+                      },
+                      "x_mm": {
+                        "type": "number"
+                      },
+                      "y_mm": {
+                        "type": "number"
+                      },
+                      "design_load_kn": {
+                        "type": "number"
+                      },
+                      "tension": {
+                        "oneOf": [
+                          {
+                            "type": "object",
+                            "properties": {
+                              "state": {
+                                "type": "string",
+                                "enum": [
+                                  "not_imported",
+                                  "missing"
+                                ]
+                              }
+                            },
+                            "required": [
+                              "state"
+                            ],
+                            "additionalProperties": false
+                          },
+                          {
+                            "type": "object",
+                            "properties": {
+                              "state": {
+                                "type": "string",
+                                "enum": [
+                                  "known"
+                                ]
+                              },
+                              "value_kn": {
+                                "type": "number",
+                                "minimum": 0
+                              }
+                            },
+                            "required": [
+                              "state",
+                              "value_kn"
+                            ],
+                            "additionalProperties": false
+                          }
+                        ]
+                      }
+                    },
+                    "required": [
+                      "id",
+                      "name",
+                      "x_mm",
+                      "y_mm",
+                      "design_load_kn"
+                    ],
+                    "additionalProperties": false
+                  }
+                },
+                "required": [
+                  "action",
+                  "item"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "action": {
+                    "type": "string",
+                    "enum": [
+                      "update"
+                    ]
+                  },
+                  "item": {
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "type": "integer",
+                        "minimum": 0
+                      },
+                      "name": {
+                        "type": "string"
+                      },
+                      "x_mm": {
+                        "type": "number"
+                      },
+                      "y_mm": {
+                        "type": "number"
+                      },
+                      "design_load_kn": {
+                        "type": "number"
+                      },
+                      "tension": {
+                        "oneOf": [
+                          {
+                            "type": "object",
+                            "properties": {
+                              "state": {
+                                "type": "string",
+                                "enum": [
+                                  "not_imported",
+                                  "missing"
+                                ]
+                              }
+                            },
+                            "required": [
+                              "state"
+                            ],
+                            "additionalProperties": false
+                          },
+                          {
+                            "type": "object",
+                            "properties": {
+                              "state": {
+                                "type": "string",
+                                "enum": [
+                                  "known"
+                                ]
+                              },
+                              "value_kn": {
+                                "type": "number",
+                                "minimum": 0
+                              }
+                            },
+                            "required": [
+                              "state",
+                              "value_kn"
+                            ],
+                            "additionalProperties": false
+                          }
+                        ]
+                      }
+                    },
+                    "required": [
+                      "id",
+                      "name",
+                      "x_mm",
+                      "y_mm",
+                      "design_load_kn"
+                    ],
+                    "additionalProperties": false
+                  }
+                },
+                "required": [
+                  "action",
+                  "item"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "action": {
+                    "type": "string",
+                    "enum": [
+                      "remove"
+                    ]
+                  },
+                  "id": {
+                    "type": "integer",
+                    "minimum": 0
+                  }
+                },
+                "required": [
+                  "action",
+                  "id"
+                ],
+                "additionalProperties": false
+              }
+            ]
+          }
+        },
+        "expected_project_instance_id": {
+          "type": "string"
+        },
+        "expected_project_revision": {
+          "type": "integer",
+          "minimum": 0
+        }
+      },
+      "required": [
+        "actions",
+        "expected_project_instance_id",
+        "expected_project_revision"
+      ],
+      "additionalProperties": false
+    },
+    "bevestigen": true
+  },
+  {
+    "name": "pile_edit_cpts_bulk",
+    "description": "Add, replace, or remove up to 500 CPTs atomically. Updates supply the complete row. Removing a CPT also removes its advice and manual references. One Undo step.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "actions": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 500,
+          "items": {
+            "oneOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "action": {
+                    "type": "string",
+                    "enum": [
+                      "add"
+                    ]
+                  },
+                  "item": {
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "type": "integer",
+                        "minimum": 0
+                      },
+                      "name": {
+                        "type": "string"
+                      },
+                      "x_mm": {
+                        "type": "number"
+                      },
+                      "y_mm": {
+                        "type": "number"
+                      }
+                    },
+                    "required": [
+                      "id",
+                      "name",
+                      "x_mm",
+                      "y_mm"
+                    ],
+                    "additionalProperties": false
+                  }
+                },
+                "required": [
+                  "action",
+                  "item"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "action": {
+                    "type": "string",
+                    "enum": [
+                      "update"
+                    ]
+                  },
+                  "item": {
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "type": "integer",
+                        "minimum": 0
+                      },
+                      "name": {
+                        "type": "string"
+                      },
+                      "x_mm": {
+                        "type": "number"
+                      },
+                      "y_mm": {
+                        "type": "number"
+                      }
+                    },
+                    "required": [
+                      "id",
+                      "name",
+                      "x_mm",
+                      "y_mm"
+                    ],
+                    "additionalProperties": false
+                  }
+                },
+                "required": [
+                  "action",
+                  "item"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "action": {
+                    "type": "string",
+                    "enum": [
+                      "remove"
+                    ]
+                  },
+                  "id": {
+                    "type": "integer",
+                    "minimum": 0
+                  }
+                },
+                "required": [
+                  "action",
+                  "id"
+                ],
+                "additionalProperties": false
+              }
+            ]
+          }
+        },
+        "expected_project_instance_id": {
+          "type": "string"
+        },
+        "expected_project_revision": {
+          "type": "integer",
+          "minimum": 0
+        }
+      },
+      "required": [
+        "actions",
+        "expected_project_instance_id",
+        "expected_project_revision"
+      ],
+      "additionalProperties": false
+    },
+    "bevestigen": true
+  },
+  {
+    "name": "pile_edit_foundation_advice_bulk",
+    "description": "Add, replace, or remove up to 500 foundation-advice rows atomically. A row key is CPT ID, pile size in mm, and tip level in mm; updates supply the complete row. One Undo step.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "actions": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 500,
+          "items": {
+            "oneOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "action": {
+                    "type": "string",
+                    "enum": [
+                      "add"
+                    ]
+                  },
+                  "item": {
+                    "type": "object",
+                    "properties": {
+                      "cpt_id": {
+                        "type": "integer",
+                        "minimum": 0
+                      },
+                      "pile_size_mm": {
+                        "type": "integer",
+                        "minimum": 1
+                      },
+                      "pile_tip_level_m": {
+                        "type": "number"
+                      },
+                      "frd_kn": {
+                        "type": "number"
+                      },
+                      "direction": {
+                        "type": "string",
+                        "enum": [
+                          "compression",
+                          "tension"
+                        ]
+                      },
+                      "pile_count": {
+                        "type": [
+                          "integer",
+                          "null"
+                        ],
+                        "minimum": 1
+                      },
+                      "missing": {
+                        "type": "boolean"
+                      }
+                    },
+                    "required": [
+                      "cpt_id",
+                      "pile_size_mm",
+                      "pile_tip_level_m",
+                      "frd_kn"
+                    ],
+                    "additionalProperties": false
+                  }
+                },
+                "required": [
+                  "action",
+                  "item"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "action": {
+                    "type": "string",
+                    "enum": [
+                      "update"
+                    ]
+                  },
+                  "item": {
+                    "type": "object",
+                    "properties": {
+                      "cpt_id": {
+                        "type": "integer",
+                        "minimum": 0
+                      },
+                      "pile_size_mm": {
+                        "type": "integer",
+                        "minimum": 1
+                      },
+                      "pile_tip_level_m": {
+                        "type": "number"
+                      },
+                      "frd_kn": {
+                        "type": "number"
+                      },
+                      "direction": {
+                        "type": "string",
+                        "enum": [
+                          "compression",
+                          "tension"
+                        ]
+                      },
+                      "pile_count": {
+                        "type": [
+                          "integer",
+                          "null"
+                        ],
+                        "minimum": 1
+                      },
+                      "missing": {
+                        "type": "boolean"
+                      }
+                    },
+                    "required": [
+                      "cpt_id",
+                      "pile_size_mm",
+                      "pile_tip_level_m",
+                      "frd_kn"
+                    ],
+                    "additionalProperties": false
+                  }
+                },
+                "required": [
+                  "action",
+                  "item"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "action": {
+                    "type": "string",
+                    "enum": [
+                      "remove"
+                    ]
+                  },
+                  "cpt_id": {
+                    "type": "integer",
+                    "minimum": 0
+                  },
+                  "pile_size_mm": {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  "pile_tip_level_mm": {
+                    "type": "integer",
+                    "minimum": -1000000
+                  },
+                  "pile_count": {
+                    "type": [
+                      "integer",
+                      "null"
+                    ],
+                    "minimum": 1
+                  },
+                  "direction": {
+                    "type": "string",
+                    "enum": [
+                      "compression",
+                      "tension"
+                    ]
+                  }
+                },
+                "required": [
+                  "action",
+                  "cpt_id",
+                  "pile_size_mm",
+                  "pile_tip_level_mm"
+                ],
+                "additionalProperties": false
+              }
+            ]
+          }
+        },
+        "expected_project_instance_id": {
+          "type": "string"
+        },
+        "expected_project_revision": {
+          "type": "integer",
+          "minimum": 0
+        }
+      },
+      "required": [
+        "actions",
+        "expected_project_instance_id",
+        "expected_project_revision"
+      ],
+      "additionalProperties": false
+    },
+    "bevestigen": true
+  }
+]

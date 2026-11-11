@@ -1,12 +1,32 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import packageJson from "./package.json" with { type: "json" };
+import { readFileSync } from "node:fs";
 import { releaseInfo } from "../../tools/release-version.mjs";
+
+/**
+ * The SuperCloud workplace build (`npm run build:platform`): the icon sprites inline in index.html, because a frame
+ * with an opaque origin refuses a <use> into a separate SVG file (studioSprite.ts, SimpleIconControls.tsx).
+ */
+function inlineSprites() {
+  return {
+    name: "openaec-inline-sprites",
+    apply: (_config: unknown, env: { mode: string }) => env.mode === "platform",
+    transformIndexHtml(html: string) {
+      const sprites = ["src/openaec/icons/studio.svg", "src/components/template/icons/simple-controls.svg",
+        "src/components/template/icons/pile-plan-proposals.svg", "src/components/domain/right-panel/cptAlgorithmDiagrams.svg"]
+        .map((path) => readFileSync(new URL(`./${path}`, import.meta.url), "utf8").replace(/<\?xml[^>]*>\s*/, "")
+          .replace("<svg", '<svg style="display:none" aria-hidden="true"'))
+        .join("");
+      return html.replace("<body>", `<body>${sprites}`);
+    },
+  };
+}
 
 const productRelease = releaseInfo(packageJson, { allowLegacy: true });
 
 export default defineConfig({
-  plugins: [react()],
+  plugins: [react(), inlineSprites()],
   define: {
     __APP_VERSION__: JSON.stringify(packageJson.version),
     __APP_RELEASE_STATUS__: JSON.stringify(productRelease.status),
