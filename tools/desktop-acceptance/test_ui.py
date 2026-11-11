@@ -51,6 +51,23 @@ class NativeCheckboxTests(unittest.TestCase):
         self.assertFalse(node["checked"])
 
 
+class NativeFileDialogTests(unittest.TestCase):
+    def test_cancel_waits_until_the_dialog_is_absent(self):
+        ui = UI.__new__(UI)
+        ui.key = Mock()
+        snapshots = iter([[{"role": "AXSheet"}], [{"role": "AXWindow"}]])
+
+        def snapshot():
+            ui.tree = next(snapshots)
+            return ui.tree
+
+        ui.snapshot = Mock(side_effect=snapshot)
+        with patch("ui.time.sleep"):
+            ui.cancel_file_dialog()
+        ui.key.assert_called_once_with("escape")
+        self.assertEqual(ui.snapshot.call_count, 2)
+
+
 class ApplicationIdentityTests(unittest.TestCase):
     def test_process_selection_excludes_workers_and_respects_the_launched_pid(self):
         binary = "/usr/bin/pile-plan-studio"

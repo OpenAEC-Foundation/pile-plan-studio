@@ -64,10 +64,8 @@ def project(path, evidence=None):
 def content(p):
     # Version/timestamps are serialization metadata, not user project content.
     return {k:v for k,v in p.items() if k not in ("application", "metadata")}
-def native_dialog():
-    ui.wait(lambda tree:[n for n in tree if n["role"] in ("AXSheet", "dialog", "file chooser")], timeout=15)
 def choose_path(path, save=False):
-    native_dialog()
+    ui.wait_for_file_dialog()
     if ui.mac:
         sheets=sum(n["role"]=="AXSheet" for n in ui.snapshot())
         ui.key("g", "meta", "shift")
@@ -98,7 +96,10 @@ def save_as(path, cancel=False):
     ui.click("File")
     ui.click("Save project as...")
     if cancel:
-        native_dialog(); ui.evidence(output, "native-save-cancel"); ui.key("escape"); return
+        ui.wait_for_file_dialog()
+        ui.evidence(output, "native-save-cancel")
+        ui.cancel_file_dialog()
+        return
     choose_path(path, save=True)
 def save_current():
     ui.shortcut("s")
@@ -162,7 +163,10 @@ try:
     passed(stage, load_point_targets=328, selection="native pointer", interface_scale="changed and reset")
 
     stage="native-files"
-    ui.shortcut("o"); native_dialog(); ui.evidence(output,"native-open-cancel"); ui.key("escape")
+    ui.shortcut("o")
+    ui.wait_for_file_dialog()
+    ui.evidence(output, "native-open-cancel")
+    ui.cancel_file_dialog()
     open_file(source)
     save_as(saved, cancel=True)
     assert not saved.exists(), "Cancelling Save As created a file"

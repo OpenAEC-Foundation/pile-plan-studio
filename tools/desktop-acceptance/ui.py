@@ -104,6 +104,14 @@ class UI:
     def wait_name(self, name, timeout=30):
         return self.wait(lambda _: self.find(name, refresh=False), timeout)
 
+    def wait_for_file_dialog(self, *, present=True):
+        roles = ("AXSheet", "dialog", "file chooser")
+        self.wait(lambda tree: any(node["role"] in roles for node in tree) == present, timeout=15)
+
+    def cancel_file_dialog(self):
+        self.key("escape")
+        self.wait_for_file_dialog(present=False)
+
     def verify_version(self, expected):
         # WebKit does not expose the decorative titlebar version on Linux.
         # The About panel provides the product version as ordinary text.

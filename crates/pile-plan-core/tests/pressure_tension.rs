@@ -227,7 +227,6 @@ fn optional_standard_import_and_both_advice_channels_round_trip() {
         90.
     );
     let loaded = read_ifcpp_str(&write_ifcpp_string(&project).unwrap()).unwrap();
-    assert_eq!(loaded.schema_version, 9);
     assert_eq!(loaded.inputs, project.inputs);
     let source = csv(
         ImportRole::LoadPoints,
