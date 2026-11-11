@@ -1,6 +1,6 @@
 # Open Pile Plan Studio Release Notes
 
-## 2026.46.2
+## 2026.46.3
 
 ### Added
 

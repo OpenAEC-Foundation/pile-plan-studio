@@ -540,7 +540,7 @@ mod tests {
                 .expect("written project reads")
                 .project
                 .schema_version,
-            8
+            validated.project.schema_version
         );
         assert!(matches!(
             read_project_document_contents("{").unwrap_err(),
