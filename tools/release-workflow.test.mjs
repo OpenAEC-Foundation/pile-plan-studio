@@ -22,6 +22,17 @@ test('an explicitly requested signed proof signs without creating a release', ()
   });
 });
 
+test('a release candidate builds signed assets and can create a draft from a branch', () => {
+  const candidate = { event: 'workflow_dispatch', ref: 'refs/heads/release-candidate',
+    tag: 'v2026.43.0', releaseCandidate: true };
+  assert.deepEqual(workflowPlan(candidate, '2026.43.0'), {
+    tag: 'v2026.43.0', mode: 'release-candidate', sign: true, create_draft: true,
+  });
+  for (const change of [{ ref: 'refs/tags/v2026.43.0' }, { signProof: true },
+    { event: 'push', ref: 'refs/tags/v2026.43.0' }, { releaseCandidate: 'false' }]) {
+    assert.throws(() => workflowPlan({ ...candidate, ...change }, '2026.43.0'), /candidate|boolean/i);
+  }
+});
 test('a signed proof still rejects an incorrect tag and invalid signing input', () => {
   assert.throws(() => workflowPlan({ event: 'workflow_dispatch', tag: 'v2026.43.1', signProof: true }, '2026.43.0'), /tag|version/i);
   assert.throws(() => workflowPlan({ event: 'workflow_dispatch', tag: 'v2026.43.0', signProof: 'false' }, '2026.43.0'), /sign|boolean/i);

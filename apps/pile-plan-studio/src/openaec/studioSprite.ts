@@ -5,13 +5,17 @@ import proposalMarkup from "../components/template/icons/pile-plan-proposals.svg
 import simpleControlsMarkup from "../components/template/icons/simple-controls.svg?raw";
 import algorithmDiagramsMarkup from "../components/domain/right-panel/cptAlgorithmDiagrams.svg?raw";
 
-const sprite = manifest.generated.find(file => file.path === "icons/studio.svg");
-if (!sprite) throw new Error("Blueprint sprite is missing from its generated manifest.");
-
-// A warm browser keeps an external SVG document when a <use> URL stays unchanged.
-// Include its content hash so newly synced symbols also appear during live updates.
 const platform = import.meta.env.MODE === "platform";
-const spriteUrl = platform ? "" : `${assetUrl}${assetUrl.includes("?") ? "&" : "?"}v=${sprite.sha256}`;
+
+function externalSpriteUrl() {
+  const sprite = manifest.generated.find(file => file.path === "icons/studio.svg");
+  if (!sprite) throw new Error("Blueprint sprite is missing from its generated manifest.");
+  // Change the URL when the generated sprite changes to invalidate a warm browser's SVG cache.
+  return `${assetUrl}${assetUrl.includes("?") ? "&" : "?"}v=${sprite.sha256}`;
+}
+
+// The platform installs the symbols inline. Its bundle can omit the external sprite manifest.
+const spriteUrl = platform ? "" : externalSpriteUrl();
 
 function installSprite(markup: string, prefix = "") {
   const svg = new DOMParser().parseFromString(markup, "image/svg+xml").documentElement;

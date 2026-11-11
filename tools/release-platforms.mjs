@@ -3,9 +3,9 @@ export function proofPlatforms(value = 'windows') {
   if (!['windows', 'linux', 'macos'].includes(value)) throw new Error('Invalid proof_platform.');
   return [value];
 }
-export function platformJobs(event, value) {
+export function platformJobs(event, value, releaseCandidate = false) {
   if (!['push', 'workflow_dispatch'].includes(event)) throw new Error('Unsupported platform event.');
-  const selected = event === 'push' ? ['windows', 'linux', 'macos'] : proofPlatforms(value);
+  const selected = event === 'push' || releaseCandidate ? proofPlatforms('all') : proofPlatforms(value);
   return Object.fromEntries(['windows', 'linux', 'macos'].map(name => [name, selected.includes(name)]));
 }
 export function macosProofRun({event, platform, signProof, runId = ''}) {

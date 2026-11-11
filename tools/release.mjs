@@ -63,18 +63,23 @@ export function main(args, {
   if (command === 'workflow' && !['', 'false', 'true'].includes(process.env.INPUT_SIGN_PROOF ?? '')) {
     throw new Error('INPUT_SIGN_PROOF must be a boolean (true or false).');
   }
+  if (command === 'workflow' && !['', 'false', 'true'].includes(process.env.INPUT_RELEASE_CANDIDATE ?? '')) {
+    throw new Error('INPUT_RELEASE_CANDIDATE must be a boolean (true or false).');
+  }
   if (values.available) assertAvailable(info.tag, readTags(root));
   if (command === 'info' || command === 'workflow') {
     const details = command === 'workflow' ? { ...info, ...workflowPlan({
       event: process.env.GITHUB_EVENT_NAME, ref: process.env.GITHUB_REF, tag: process.env.INPUT_RELEASE_TAG,
       signProof: process.env.INPUT_SIGN_PROOF === 'true',
+      releaseCandidate: process.env.INPUT_RELEASE_CANDIDATE === 'true',
     }, info.version) } : info;
     if (command === 'workflow') {
       details.macos_proof_run_id = macosProofRun({
         event: process.env.GITHUB_EVENT_NAME, platform: process.env.INPUT_PROOF_PLATFORM,
-        signProof: details.sign, runId: process.env.INPUT_MACOS_PROOF_RUN_ID || '',
+        signProof: details.mode === 'signed-proof', runId: process.env.INPUT_MACOS_PROOF_RUN_ID || '',
       });
-      const jobs = platformJobs(process.env.GITHUB_EVENT_NAME, process.env.INPUT_PROOF_PLATFORM || undefined);
+      const jobs = platformJobs(process.env.GITHUB_EVENT_NAME, process.env.INPUT_PROOF_PLATFORM || undefined,
+        details.mode === 'release-candidate');
       for (const [platform, enabled] of Object.entries(jobs)) details['build_' + platform] = enabled;
     }
     if (values['github-output']) {

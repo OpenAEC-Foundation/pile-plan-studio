@@ -7,11 +7,15 @@ on:
   workflow_dispatch:
     inputs:
       release_tag:
-        description: "Prepared tag to validate (vYYYY.W.N); proof only, no release creation"
+        description: "Prepared version in tag format (vYYYY.W.N)"
         required: true
         type: string
+      release_candidate:
+        description: "Build and verify all signed packages, then create the tag and unpublished draft"
+        type: boolean
+        default: false
       proof_platform:
-        description: "Platforms to test; new platforms are proof-only"
+        description: "Platforms for a proof run"
         type: choice
         default: windows
         options: [windows, linux, macos, all]
@@ -29,7 +33,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: release-${{ github.ref }}-${{ inputs.proof_platform || 'release' }}
+  group: release-${{ inputs.release_candidate && inputs.release_tag || github.ref_name }}-${{ (inputs.release_candidate || github.event_name == 'push') && 'release' || inputs.proof_platform }}
   cancel-in-progress: false
 
 jobs:
@@ -42,6 +46,8 @@ jobs:
       version: ${{ steps.route.outputs.version }}
       sign: ${{ steps.route.outputs.sign }}
       create_draft: ${{ steps.route.outputs.create_draft }}
+      tag: ${{ steps.route.outputs.tag }}
+      mode: ${{ steps.route.outputs.mode }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -52,10 +58,15 @@ jobs:
       - id: route
         env:
           INPUT_RELEASE_TAG: ${{ inputs.release_tag }}
+          INPUT_RELEASE_CANDIDATE: ${{ inputs.release_candidate }}
           INPUT_SIGN_PROOF: ${{ inputs.sign_proof }}
           INPUT_PROOF_PLATFORM: ${{ inputs.proof_platform }}
           INPUT_MACOS_PROOF_RUN_ID: ${{ inputs.macos_proof_run_id }}
-        run: node tools/release.mjs workflow --github-output
+        run: |
+          node tools/release.mjs workflow --github-output
+          if [[ "$INPUT_RELEASE_CANDIDATE" == 'true' ]]; then
+            node tools/release.mjs check --tag "$INPUT_RELEASE_TAG" --publish
+          fi
   windows:
     needs: route
     if: needs.route.outputs.windows == 'true'
@@ -92,6 +103,7 @@ jobs:
         working-directory: apps/pile-plan-studio
         env:
           INPUT_RELEASE_TAG: ${{ inputs.release_tag }}
+          INPUT_RELEASE_CANDIDATE: ${{ inputs.release_candidate }}
           INPUT_SIGN_PROOF: ${{ inputs.sign_proof }}
         run: npm run release:workflow -- --github-output
 
@@ -497,7 +509,7 @@ jobs:
   release-draft:
     needs: [route, windows, linux, linux-runtime, macos, macos-runtime]
     if: >-
-      always() && needs.route.outputs.create_draft == 'true' &&
+      always() && needs.route.result == 'success' && needs.route.outputs.create_draft == 'true' &&
       needs.windows.result == 'success' && needs.linux.result == 'success' &&
       needs['linux-runtime'].result == 'success' && needs.macos.result == 'success' &&
       needs['macos-runtime'].result == 'success'
@@ -528,4 +540,6 @@ jobs:
       - name: Create or complete an unpublished draft with matching assets
         env:
           GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ needs.route.outputs.tag }}
+          RELEASE_CANDIDATE: ${{ needs.route.outputs.mode == 'release-candidate' }}
         run: node tools/create_release_draft.mjs

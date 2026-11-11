@@ -1,6 +1,6 @@
 # Open Pile Plan Studio Release Notes
 
-## 2026.46.3
+## 2026.46.4
 
 ### Added
 
@@ -19,13 +19,17 @@
 
 - Update the OpenAEC Blueprint components and icons used in the explorer,
   ribbon, legend and dialogs. Improve numeric field alignment and step controls.
+- Keep internal Blueprint file metadata out of the Workplace bundle and mark
+  assistant write tools for host confirmation (#64). Workplace tools use the
+  `pileplan_*` names.
 
 ### Compatibility
 
 - IFCPP schema 9 includes embedded driving records. Supported older IFCPP
   projects remain readable in this version.
 - The SuperCloud bundle requires a host that implements the Blueprint contract.
-  Validation in the live SuperCloud workspace is tracked in #58.
+  Docs and the assistant integration were tested locally in a sandboxed frame.
+  Acceptance in the live Workplace is tracked in #63.
 
 ## 2026.46.0
 

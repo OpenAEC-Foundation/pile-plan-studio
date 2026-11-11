@@ -81,7 +81,7 @@ apps/pile-plan-studio/dist/
 ```
 
 Deploy the complete contents of this directory from one commit or release tag.
-For the 2026.46.3 alpha source, use release tag `v2026.46.3` once published.
+For the 2026.46.4 alpha source, use release tag `v2026.46.4` once published.
 This includes the Rust core WASM, HiGHS WASM and Worker assets; the browser solver
 does not load its executable code from a CDN.
 
@@ -196,16 +196,21 @@ Before tagging, run the Rust and separate Tauri tests above, then `npm test` and
 actual running executable path and product version. Prepare release notes and
 update current-release references such as the README badge at release time.
 
-The [release workflow](../.github/workflows/release.yml) has two routes:
+The [release workflow](../.github/workflows/release.yml) supports release
+candidates, tagged releases, and platform proofs:
 
-- A new `vYYYY.W.N` tag validates the prepared commit and builds all three desktop
+- A manual branch dispatch with `release_candidate=true` builds and signs all
+  three platforms from the selected commit. After native tests, signing, and
+  package acceptance pass, the final job creates the tag and attaches those
+  same packages to an unpublished GitHub prerelease.
+- A `vYYYY.W.N` tag push validates the prepared commit and builds all three desktop
   platforms. Windows uses Azure signing for the app, NSIS uninstaller and
   installer; Linux signs its downloads with OpenPGP; macOS signs/notarizes/staples
   a universal app and DMG. Native tests and package checks run before the signed
   Linux/macOS GUI scenarios. Only after every build and runtime job succeeds
   does the final job assemble a draft GitHub prerelease. Version/tag mismatches
   fail before building; package versions are checked again after the build.
-- Manual dispatch takes a `release_tag` in the same format and checks it against
+- Manual dispatch without `release_candidate` takes a `release_tag` in the same format and checks it against
   the selected prepared source. By default it builds an **unsigned proof** and performs the
   version, installation, executable-path and launch checks on the disposable
   runner. It uploads a workflow artifact, skips signing and never creates a
@@ -245,8 +250,8 @@ to `main` merely to enable it, because that also deploys the browser application
 ## Linux and macOS packages and proof builds
 
 Manual dispatch of the existing `release.yml` accepts `proof_platform`:
-`windows` (default), `linux`, `macos`, or `all`. Tag releases always build all
-platforms; manual dispatches retain their selected proof platforms.
+`windows` (default), `linux`, `macos`, or `all`. Release candidates and tag
+releases build all platforms. Proof runs use the selected platforms.
 Push and workflow execution require separate authorization.
 Independent platform selections use separate workflow concurrency groups, so a
 Linux proof does not hold a macOS proof in the queue.
@@ -261,7 +266,7 @@ frontend tests to have completed successfully on the same architecture. It runs
 the current verifier tests and repeats all package signing/startup gates. The
 report records the source tests and package commit separately from the verifier.
 Fresh builds continue to run the complete native/frontend suites.
-Tag releases and unsigned or other-platform proofs cannot use this input.
+Release candidates, tag releases and unsigned or other-platform proofs cannot use this input.
 
 Linux builds AppImage and Debian packages on Ubuntu 22.04 x64; runtime jobs
 install the Debian package and launch both formats on Ubuntu 22.04 and 24.04.
@@ -385,7 +390,7 @@ four-scenario acceptance for the tested OS versions. Public downloads remain pen
 
 ## Tagging and publication
 
-Tag builds now collect one Windows installer, one universal macOS DMG and two
+Release builds collect one Windows installer, one universal macOS DMG and two
 Linux packages from the same source commit. Producer filenames are normalized
 before Linux signing so GitHub download names match the signed checksum file.
 The final job preserves that file and signature as `SHA256SUMS-linux` and
@@ -397,25 +402,31 @@ Draft assembly refuses a published/non-alpha release and never replaces an
 existing asset. A retry skips identical assets and uploads only missing files;
 a different digest stops the job. Existing drafts are found through the complete
 authenticated release list; GitHub's tag endpoint omits unpublished drafts.
-Retry failed jobs from the same tag/run;
-do not move a tag or replace published files. Manual proof dispatches never
+Retry failed jobs in the same run to reuse successful artifacts.
+Do not move a tag or replace published files. Manual proof dispatches never
 reach this draft-creation job. Publishing the GitHub draft, integrating into
 `main` (which deploys the browser), and deploying the separate product website
 remain explicit release actions.
 
-Only tag, push or publish when requested. Use a reviewed source commit with a
-clean working tree; integration into `main` is a separate decision. From the
-repository root, obtain the centrally defined tag:
+Use the release candidate dispatch for new releases. Commit the reviewed release
+version and notes on a clean release branch, and push that branch without a tag.
+From the repository root, verify the intended version and dispatch the workflow:
 
 ```powershell
 $releaseInfo = node tools/release.mjs info | ConvertFrom-Json
 $releaseTag = $releaseInfo.tag
+$releaseBranch = git branch --show-current
 node tools/release.mjs check --release --publish --available
-git tag -a $releaseTag -m "Open Pile Plan Studio $releaseTag"
-git push origin $releaseTag
+gh workflow run release.yml --ref $releaseBranch -f "release_tag=$releaseTag" -f release_candidate=true
 ```
 
-Never reuse or move an existing release tag. Check the workflow summary and
+The workflow creates the tag on the exact commit that produced the packages.
+If tests fail before the tag exists, fix the branch and dispatch again with the
+same intended version. If the final job fails after creating the tag, rerun the
+failed job to complete the draft from the same artifacts. An existing tag on a
+different commit stops the run.
+
+Check the workflow summary and
 downloaded installer's product version, Authenticode publisher and SHA-256 hash.
 The runner checks installation and startup; manually check relevant native
 interactions as well. Replace generated notes with the prepared release notes.

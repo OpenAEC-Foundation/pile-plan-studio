@@ -10,6 +10,13 @@ test("SuperCloud advertises shared project tools with its own prefix", async () 
   assert.ok(siteToolDefinitions().every(({ name }) => name.startsWith("pileplan_")));
 });
 
+test("Workplace requests confirmation for tools that can write", () => {
+  const definitions = new Map(siteToolDefinitions().map(tool => [tool.name, tool]));
+  assert.equal(definitions.get("pileplan_rename_plan")?.bevestigen, true);
+  assert.equal(definitions.get("pileplan_apply_pile_plan_import")?.bevestigen, true);
+  assert.equal(definitions.get("pileplan_list_plans")?.bevestigen, undefined);
+});
+
 test("SuperCloud forwards validated calls to the shared dispatcher and surfaces its refusal", async () => {
   const tools = createSiteMcpTools(async (body) => {
     const { params } = JSON.parse(body);

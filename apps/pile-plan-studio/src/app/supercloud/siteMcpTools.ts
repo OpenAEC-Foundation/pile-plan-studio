@@ -11,7 +11,12 @@ const siteTools = new Map(PILE_TOOL_SCHEMAS.map(tool => [siteName(tool.name), to
 export function siteToolDefinitions() {
   return [...siteTools]
     .filter(([, tool]) => !DESKTOP_TOOLS.has(tool.name))
-    .map(([name, tool]) => ({ name, description: tool.description, inputSchema: tool.inputSchema }));
+    .map(([name, tool]) => ({
+      name,
+      description: tool.description,
+      inputSchema: tool.inputSchema,
+      ...(tool.annotations.readOnlyHint ? {} : { bevestigen: true as const }),
+    }));
 }
 
 export function createSiteMcpTools(dispatch: (body: string) => Promise<string>) {

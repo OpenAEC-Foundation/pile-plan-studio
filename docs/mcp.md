@@ -4,8 +4,9 @@
 
 The SuperCloud build exposes the shared project session through
 `window.__OPDS_APP__`. Its tool names start with `pileplan_`, and
-`mcp-tools.json` contains the same definitions as the running bridge. Start
-with `pileplan_project_overview`. Use the returned project instance and
+`mcp-tools.json` contains the same definitions as the running bridge. Write tools
+carry `bevestigen: true` so the host can ask for confirmation. Start with
+`pileplan_project_overview`. Use the returned project instance and
 revision for writes. To permit changes, enable **Allow editing through MCP**
 in the app settings for the current session. Docs read-only projects
 remain read-only for the assistant.
