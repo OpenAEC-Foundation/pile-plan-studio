@@ -5,6 +5,7 @@ import type { PileDrivingFileResult, PileDrivingRecord } from "../../../core/pil
 import PileDrivingPanel from "./PileDrivingPanel.tsx";
 
 const NO_SELECTION: readonly number[] = [];
+const warningControls = { showWarningsInViewer: false, onShowWarningsInViewerChange: vi.fn() };
 
 function drivingWith(result: PileDrivingFileResult) {
   return {
@@ -20,7 +21,7 @@ test("read-only projects can inspect driving records with file editing disabled"
   const driving = { ...drivingWith({ status: "ready", preview: { columns: ["paalnummer"], records: [{
     pile_number: "45", rows: [["45"]], matching: { status: "matched", load_point_id: 45 }, checks: [],
   }] } }), selectedId: "day-1" };
-  const { container } = render(<PileDrivingPanel driving={driving} readOnly selectionDisabled={false}
+  const { container } = render(<PileDrivingPanel {...warningControls} driving={driving} readOnly selectionDisabled={false}
     selectedLoadPointIds={NO_SELECTION} neighborhoodRecord={null}
     onNeighborhoodChange={vi.fn()} onSelect={vi.fn()} onClose={vi.fn()} />);
   expect(container.querySelector<HTMLButtonElement>(".source-file-picker button")?.disabled).toBe(true);
@@ -43,7 +44,7 @@ test("clicking a warning or the location button selects the pile and opens its d
     },
   };
   const select = vi.fn();
-  render(<PileDrivingPanel selectionDisabled={false} onSelect={select} onClose={vi.fn()}
+  render(<PileDrivingPanel {...warningControls} selectionDisabled={false} onSelect={select} onClose={vi.fn()}
     selectedLoadPointIds={NO_SELECTION}
     neighborhoodRecord={null} onNeighborhoodChange={vi.fn()}
     driving={drivingWith(result)} />);
@@ -62,7 +63,10 @@ test("clicking a warning or the location button selects the pile and opens its d
 test.each(["warning", "ok"] as const)("the comparison with status %s toggles only in the pile checks", status => {
   const record: PileDrivingRecord = {
     pile_number: "A45", rows: [["A45"]], matching: { status: "matched", load_point_id: 45 },
-    checks: [{ kind: "size", status: "warning", actual: 290, reference: 320 }, { kind: "neighborhood", status }],
+    checks: [
+      { kind: "size", status: "warning", actual: 290, reference: 320 },
+      { kind: "neighborhood", status, actual: 25, reference: 22.5, other: 11.11111, tolerance: 10 },
+    ],
     neighborhood: {
       peer_count: 3, relaxed_selection: false,
       reference_piles: [
@@ -76,7 +80,7 @@ test.each(["warning", "ok"] as const)("the comparison with status %s toggles onl
   const inspect = vi.fn();
   function Harness() {
     const [inspected, setInspected] = useState<PileDrivingRecord | null>(null);
-    return <PileDrivingPanel driving={driving} selectionDisabled={false}
+    return <PileDrivingPanel {...warningControls} driving={driving} selectionDisabled={false}
       selectedLoadPointIds={NO_SELECTION}
       neighborhoodRecord={inspected} onNeighborhoodChange={next => { inspect(next); setInspected(next); }}
       onSelect={vi.fn()} onClose={vi.fn()} />;
@@ -86,7 +90,7 @@ test.each(["warning", "ok"] as const)("the comparison with status %s toggles onl
   expect(within(overview).queryByRole("button", { name: "Show comparable piles" })).toBeNull();
   fireEvent.click(status === "warning" ? within(overview).getByText("Neighbor comparison")
     : within(overview).getByRole("button", { name: "Location 45" }));
-  expect(screen.queryByRole("table", { name: "Comparable piles · 290 mm" })).toBeNull();
+  expect(screen.queryByRole("table", { name: "Piles used for the median · 290 mm" })).toBeNull();
   expect(inspect).not.toHaveBeenCalled();
 
   const showPeers = screen.getByRole("button", { name: "Show comparable piles" });
@@ -95,15 +99,15 @@ test.each(["warning", "ok"] as const)("the comparison with status %s toggles onl
   expect(inspect).toHaveBeenLastCalledWith(record);
   const hidePeers = screen.getByRole("button", { name: "Hide comparable piles" });
   expect(hidePeers.getAttribute("aria-expanded")).toBe("true");
-  const peers = screen.getByRole("table", { name: "Comparable piles · 290 mm" });
-  expect(screen.getByText(/All piles in the table contribute to the median/)).toBeTruthy();
+  const peers = screen.getByRole("table", { name: "Piles used for the median · 290 mm" });
+  expect(screen.getByText("25 blows per 250 mm · median 22.5 · 11.11% deviation (limit 10%)")).toBeTruthy();
   expect(within(peers).getByRole("cell", { name: /^10%$/ })).toBeTruthy();
   const flagged = within(peers).getByRole("cell", { name: "25% · Outside limit" });
   expect(flagged.querySelector(".oa-status--warning")?.textContent).toBe("25%");
 
   fireEvent.click(hidePeers);
   expect(inspect).toHaveBeenLastCalledWith(null);
-  expect(screen.queryByRole("table", { name: "Comparable piles · 290 mm" })).toBeNull();
+  expect(screen.queryByRole("table", { name: "Piles used for the median · 290 mm" })).toBeNull();
 });
 
 test("follows single viewer selections and leaves the overview full-height without a matching selection", () => {
@@ -112,7 +116,7 @@ test("follows single viewer selections and leaves the overview full-height witho
     checks: [],
   }));
   const driving = drivingWith({ status: "ready", preview: { columns: ["paalnummer"], records } });
-  const renderPanel = (selectedLoadPointIds: readonly number[]) => <PileDrivingPanel driving={driving}
+  const renderPanel = (selectedLoadPointIds: readonly number[]) => <PileDrivingPanel {...warningControls} driving={driving}
     selectedLoadPointIds={selectedLoadPointIds} selectionDisabled={false} neighborhoodRecord={null}
     onNeighborhoodChange={vi.fn()} onSelect={vi.fn()} onClose={vi.fn()} />;
   const view = render(renderPanel(NO_SELECTION));
@@ -146,11 +150,17 @@ test("filters registrations with warnings while keeping the viewer selection in 
       checks: [{ kind: "size", status: "ok" }] },
   ];
   const driving = drivingWith({ status: "ready", preview: { columns: ["paalnummer"], records } });
+  const onShowWarningsInViewerChange = vi.fn();
+  const select = vi.fn();
   render(<PileDrivingPanel driving={driving} selectedLoadPointIds={[46]} selectionDisabled={false}
-    neighborhoodRecord={null} onNeighborhoodChange={vi.fn()} onSelect={vi.fn()} onClose={vi.fn()} />);
+    showWarningsInViewer={false} onShowWarningsInViewerChange={onShowWarningsInViewerChange}
+    neighborhoodRecord={null} onNeighborhoodChange={vi.fn()} onSelect={select} onClose={vi.fn()} />);
 
   const filter = screen.getByRole("checkbox", { name: "Warnings only" });
   const table = screen.getByRole("table", { name: "Pile records" });
+  fireEvent.click(screen.getByRole("checkbox", { name: "Mark warnings in viewer" }));
+  expect(onShowWarningsInViewerChange).toHaveBeenCalledExactlyOnceWith(true);
+  expect(select).not.toHaveBeenCalled();
   expect(within(table).getByRole("button", { name: "Location 46" })).toBeTruthy();
   fireEvent.click(filter);
   expect(within(table).queryByRole("button", { name: "Location 46" })).toBeNull();

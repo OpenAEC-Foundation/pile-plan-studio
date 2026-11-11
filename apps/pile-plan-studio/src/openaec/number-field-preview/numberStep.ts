@@ -31,11 +31,14 @@ export function parseNumberDraft(value: number | string | undefined): number | n
 
 /** Use the browser's step grid without changing the controlled form field. */
 export function stepNativeNumber(field: HTMLInputElement, value: string, direction: 1 | -1): string {
+  if (field.step.toLowerCase() === "any") {
+    return stepNumberDraft(value || "0", direction, { min: field.min, max: field.max });
+  }
   const stepper = field.ownerDocument.createElement("input");
   stepper.type = "number";
   stepper.min = field.min;
   stepper.max = field.max;
-  stepper.step = field.step.toLowerCase() === "any" ? "1" : field.step;
+  stepper.step = field.step;
   // A React-controlled value attribute would move the step base on every edit.
   stepper.value = value;
   if (direction === 1) stepper.stepUp();

@@ -145,6 +145,7 @@
     },
     "pileCapProposal": "Poervoorstel met {{count}} palen",
     "pileCapCrowded": "Weinig ruimte voor deze schematische opstelling; afstanden zijn niet getoetst.",
+    "drivingWarning": "Waarschuwing bij heistaat",
     "focusSelection": "Selectie in beeld",
     "focusSelectionLabel": "Focus"
   },
@@ -935,7 +936,7 @@
     }
   },
   "tableImport": {
-    "preview": "Voorbeeld",
+    "preview": "Importvoorbeeld",
     "settings": "Importinstellingen",
     "rowCount": "{{count}} gegevensrijen",
     "notAvailable": "Nog geen voorbeeld beschikbaar",

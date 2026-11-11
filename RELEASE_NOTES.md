@@ -1,5 +1,32 @@
 # Open Pile Plan Studio Release Notes
 
+## 2026.46.1
+
+### Added
+
+- Import daily CSV or Excel pile-driving records and match pile numbers by Revit
+  Mark or location ID. Inspect plan checks, end blow counts and trends, blow
+  energy, and nearby comparable piles from the driving records panel.
+- Mark matched locations with warnings in the plan viewer for the selected
+  driving log or across all imported logs.
+- Save original driving records and check settings in the IFCPP project. Remove
+  individual files and restore them through project history.
+- Add a separate SuperCloud web bundle for opening and saving IFCPP projects
+  through Docs and inspecting the project with the SuperCloud assistant (#58).
+  Read-only Docs projects can still be inspected or saved as a separate copy.
+
+### Improved
+
+- Update the OpenAEC Blueprint components and icons used in the explorer,
+  ribbon, legend and dialogs. Improve numeric field alignment and step controls.
+
+### Compatibility
+
+- IFCPP schema 9 includes embedded driving records. Supported older IFCPP
+  projects remain readable in this version.
+- The SuperCloud bundle requires a host that implements the Blueprint contract.
+  Validation in the live SuperCloud workspace is tracked in #58.
+
 ## 2026.46.0
 
 This alpha brings the application interface onto the shared OpenAEC Blueprint

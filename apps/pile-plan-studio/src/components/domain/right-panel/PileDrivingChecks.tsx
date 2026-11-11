@@ -1,7 +1,8 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { PileDrivingCheck, PileDrivingCheckSettings, PileDrivingEnergyGroup, PileDrivingEnergyRange, PileDrivingNeighborhood } from "../../../core/pileDrivingCoreClient.ts";
 import { Button, Heading, Status } from "../../../openaec/react/src/index";
+import { NumberInput, type NumberInputProps } from "../../template/NumberInput.tsx";
 
 type LimitKey = Exclude<keyof PileDrivingCheckSettings, "expected_energy">;
 type Limit = { key: LimitKey; min?: number; step?: number; max?: number };
@@ -20,6 +21,20 @@ const ENERGY_LIMITS: readonly Limit[] = [
   { key: "peer_energy_spread_kj" },
 ];
 
+type LimitInputProps = Omit<NumberInputProps, "value" | "onValueChange"> & {
+  label: string;
+  initialValue?: number;
+};
+
+function LimitInput({ label, initialValue, ...props }: LimitInputProps) {
+  const id = useId();
+  const [value, setValue] = useState(initialValue?.toString() ?? "");
+  return <div className="pile-driving-limit">
+    <label htmlFor={id}>{label}</label>
+    <NumberInput {...props} id={id} compact value={value} onValueChange={setValue} />
+  </div>;
+}
+
 export function PileDrivingSettings({ settings, pileSizes, readOnly, onApply }: {
   settings: PileDrivingCheckSettings;
   pileSizes: number[];
@@ -29,13 +44,11 @@ export function PileDrivingSettings({ settings, pileSizes, readOnly, onApply }: 
   const { t } = useTranslation("rightPanel", { keyPrefix: "pileDriving.checks" });
   const energy = new Map(settings.expected_energy.map(target => [target.pile_size_mm, target.energy_kj]));
   const sizes = [...new Set([...pileSizes, ...energy.keys()])].sort((a, b) => a - b);
-  const renderLimit = ({ key, min = 0, step, max }: Limit) => <label key={key}>
-    <span>{t(`limits.${key}`)}</span>
-    <input className="oa-field oa-field--compact" name={key} type="number" readOnly={readOnly} required min={min}
-      step={step ?? "any"} max={max} defaultValue={settings[key]} />
-  </label>;
-  return <details className="pile-driving-disclosure pile-driving-settings">
-    <summary>{t("settings")}</summary>
+  const renderLimit = ({ key, min = 0, step, max }: Limit) => <LimitInput key={key}
+    label={t(`limits.${key}`)} name={key} readOnly={readOnly} required min={min}
+    step={step ?? "any"} max={max} initialValue={settings[key]} />;
+  return <details className="source-import-disclosure pile-driving-settings">
+    <summary><strong>{t("settings")}</strong></summary>
     <form key={JSON.stringify(settings)} onSubmit={event => {
       event.preventDefault();
       if (readOnly) return;
@@ -58,11 +71,8 @@ export function PileDrivingSettings({ settings, pileSizes, readOnly, onApply }: 
       </fieldset>
       <fieldset>
         <legend>{t("energyLimits")}</legend>
-        {sizes.map(size => <label key={size}>
-          <span>{t("targetEnergy", { size })}</span>
-          <input className="oa-field oa-field--compact" name={`energy-${size}`} type="number" readOnly={readOnly} step="any" min={0.000001}
-            defaultValue={energy.get(size)} />
-        </label>)}
+        {sizes.map(size => <LimitInput key={size} label={t("targetEnergy", { size })} name={`energy-${size}`}
+          readOnly={readOnly} step="any" min={0.000001} initialValue={energy.get(size)} />)}
         {ENERGY_LIMITS.map(renderLimit)}
       </fieldset>
       <p className="oa-secondary">{t("settingsHelp")}</p>
@@ -125,11 +135,6 @@ export function PileDrivingChecks({ checks, energyRange, neighborhood, neighborh
               {t("neighborhood.peers", { count: neighborhood.peer_count })}
               {" · "}{t(neighborhood.relaxed_selection ? "neighborhood.relaxed" : "neighborhood.exact")}
             </p>
-            <p className="oa-secondary">{t("neighborhood.own", {
-              ppn: display(neighborhood.final_ppn_m),
-              energy: display(neighborhood.mean_energy_kj),
-            })}</p>
-            {canExpand && neighborhoodExpanded && <p className="oa-secondary">{t("neighborhood.included")}</p>}
             {canExpand && neighborhoodExpanded && <div className="pile-driving-table" tabIndex={0}
               role="region" aria-label={comparisonTitle}>
               <table className="oa-table">

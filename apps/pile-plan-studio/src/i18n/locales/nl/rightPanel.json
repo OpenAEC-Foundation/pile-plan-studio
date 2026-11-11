@@ -422,7 +422,8 @@
       "warnings": "Waarschuwingen",
       "unknownDate": "Datum ontbreekt of is onleesbaar",
       "noWarnings": "Geen waarschuwingen",
-      "warningsOnly": "Alleen waarschuwingen"
+      "warningsOnly": "Alleen waarschuwingen",
+      "markWarnings": "Markeer waarschuwingen in viewer"
     },
     "errors": {
       "unreadable": "De heistaat kan niet worden gelezen.",
@@ -479,12 +480,11 @@
         "end-calendar": "Gemeten {{actual}} · Minimaal {{reference}} slagen per 250 mm",
         "trend": "Laatste {{reference}} tochten · Gemiddelden per helft {{actual}} → {{other}} slagen per 250 mm · Toegestane daling {{tolerance}} slagen",
         "energy-target": "{{actual}}–{{other}} kJ · Doel {{reference}} ± {{tolerance}} kJ",
-        "neighborhood": "Gemiddelde paal {{actual}} · Referentie {{reference}} slagen per 250 mm · Afwijking {{other}} · Grens {{tolerance}}"
+        "neighborhood": "{{actual}} slagen per 250 mm · mediaan {{reference}} · {{other}} afwijking (grens {{tolerance}})"
       },
       "neighborhood": {
-        "title": "Vergelijkingspalen",
-        "titleBySize": "Vergelijkingspalen · {{size}} mm",
-        "included": "Alle palen in de tabel tellen mee voor de mediaan, ook bij een gemarkeerde afwijking boven de grens.",
+        "title": "Palen voor de mediaan",
+        "titleBySize": "Palen voor de mediaan · {{size}} mm",
         "show": "Vergelijkingspalen tonen",
         "hide": "Vergelijkingspalen verbergen",
         "location": "Locatie",
@@ -495,9 +495,8 @@
         "energy": "Gem. slagenergie (kJ)",
         "peers_one": "{{count}} vergelijkingspaal",
         "peers_other": "{{count}} vergelijkingspalen",
-        "exact": "Gelijke sonderingsselectie",
-        "relaxed": "Eén vervangen sondering toegestaan",
-        "own": "Deze paal · Eind-PPN {{ppn}} m NAP · Gem. slagenergie {{energy}} kJ"
+        "exact": "Gelijke sonderingen",
+        "relaxed": "Max. één sondering verschil"
       },
       "energyRange": "Meetbereik slagenergie {{min}}–{{max}} kJ",
       "energyBySize": {

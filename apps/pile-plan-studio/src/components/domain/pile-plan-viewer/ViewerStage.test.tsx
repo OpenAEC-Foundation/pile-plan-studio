@@ -37,4 +37,12 @@ it("preserves the marker model for viewport-only updates and routes cached hit t
   view.rerender(<ViewerStage {...props} selectedLoadPointIds={new Set([state.loadPoints[0].id])}/>);
   expect(buildViewerMarkerPresentation).toHaveBeenCalledTimes(count+1);
   expect(original.classList.contains("is-selected")).toBe(true);
+  const markedIds = new Set([state.loadPoints[0].id]);
+  view.rerender(<ViewerStage {...props} selectedLoadPointIds={markedIds} drivingWarningLoadPointIds={markedIds}/>);
+  expect(view.container.querySelectorAll(".viewer-drawing-svg .viewer-driving-warnings > g")).toHaveLength(1);
+  expect(original.getAttribute("aria-description")).toBe("Driving record warning");
+  expect(original.classList.contains("is-selected")).toBe(true);
+  view.rerender(<ViewerStage {...props} selectedLoadPointIds={markedIds}/>);
+  expect(view.container.querySelector(".viewer-driving-warnings")).toBeNull();
+  expect(original.hasAttribute("aria-description")).toBe(false);
 });

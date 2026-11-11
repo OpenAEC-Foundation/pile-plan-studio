@@ -145,6 +145,7 @@
     },
     "pileCapProposal": "Pile cap proposal with {{count}} piles",
     "pileCapCrowded": "Limited space for this schematic layout; spacing has not been checked.",
+    "drivingWarning": "Driving record warning",
     "focusSelection": "Focus selection",
     "focusSelectionLabel": "Focus"
   },
@@ -935,7 +936,7 @@
     }
   },
   "tableImport": {
-    "preview": "Preview",
+    "preview": "Import preview",
     "settings": "Import settings",
     "rowCount": "{{count}} data rows",
     "notAvailable": "No preview available yet",

@@ -58,6 +58,11 @@ are viewer-owned and fixed across application themes. The context does not
 expand the active edit targets; it shares the overview's transient selection
 context and the same projected coordinates and ring radius as active selection.
 
+Driving record warnings use a triangle anchored to the same projected point
+as the pile marker. The warning symbol is drawn above marker graphics and uses
+fixed colors on light and dark drawing backgrounds. It leaves the selection
+and hit target geometry intact.
+
 Pan and zoom are applied by the single transform on `.viewer-content`. Marker
 positions must not be recalculated during each pan or zoom frame. A whole-window
 resize or display-scale change preserves the project coordinate at the viewer

@@ -56,6 +56,10 @@ export function export_revit_revision_csv(request: any): Uint8Array;
 
 export function export_revit_revision_xlsx(request: any): Uint8Array;
 
+export function get_pile_plan_import_requirements(): any;
+
+export function get_standard_csv_requirements(): any;
+
 export function import_project_from_files(request: any): any;
 
 export function inspect_foundation_advice(request: any): any;
@@ -69,6 +73,10 @@ export function preview_configured_pile_plan_export(request: any): any;
 export function preview_import_file(request: any): any;
 
 export function preview_load_point_group_edit(request: any): any;
+
+export function preview_pile_driving_file(request: any): any;
+
+export function preview_pile_driving_files(request: any): any;
 
 export function preview_pile_plan_import_file(request: any): any;
 
@@ -117,6 +125,8 @@ export interface InitOutput {
     readonly export_pile_plan_xlsx: (a: any) => [number, number, number, number];
     readonly export_revit_revision_csv: (a: any) => [number, number, number, number];
     readonly export_revit_revision_xlsx: (a: any) => [number, number, number, number];
+    readonly get_pile_plan_import_requirements: () => [number, number, number];
+    readonly get_standard_csv_requirements: () => [number, number, number];
     readonly import_project_from_files: (a: any) => [number, number, number];
     readonly inspect_foundation_advice: (a: any) => [number, number, number];
     readonly inspect_pile_table: (a: any) => [number, number, number];
@@ -124,6 +134,8 @@ export interface InitOutput {
     readonly preview_configured_pile_plan_export: (a: any) => [number, number, number];
     readonly preview_import_file: (a: any) => [number, number, number];
     readonly preview_load_point_group_edit: (a: any) => [number, number, number];
+    readonly preview_pile_driving_file: (a: any) => [number, number, number];
+    readonly preview_pile_driving_files: (a: any) => [number, number, number];
     readonly preview_pile_plan_import_file: (a: any) => [number, number, number];
     readonly preview_project_import_files: (a: any) => [number, number, number];
     readonly preview_revit_revision: (a: any) => [number, number, number];

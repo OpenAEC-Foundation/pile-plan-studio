@@ -16,6 +16,8 @@ type Props = {
   readOnly?: boolean;
   selectedLoadPointIds: readonly number[];
   selectionDisabled: boolean;
+  showWarningsInViewer: boolean;
+  onShowWarningsInViewerChange: (show: boolean) => void;
   neighborhoodRecord: PileDrivingRecord | null;
   onNeighborhoodChange: (record: PileDrivingRecord | null) => void;
   onSelect: (ids: number[]) => void;
@@ -28,7 +30,8 @@ type PickedRecord = { fileId: string; index: number; locationId: number | null; 
 const MEASUREMENT_FIELDS = ["tochtnummer", "ppn_nap", "slagen", "energie_per_slag_kj"];
 const SUMMARY_FIELDS = ["datum", "starttijd", "stelling", "dikte_cm", "lengte_cm", "ppd_gewenst", "opmerkingen"];
 
-export default function PileDrivingPanel({ planName, driving, readOnly = false, selectedLoadPointIds, selectionDisabled, neighborhoodRecord, onNeighborhoodChange, onSelect, onClose }: Props) {
+export default function PileDrivingPanel({ planName, driving, readOnly = false, selectedLoadPointIds, selectionDisabled,
+  showWarningsInViewer, onShowWarningsInViewerChange, neighborhoodRecord, onNeighborhoodChange, onSelect, onClose }: Props) {
   const { t, i18n } = useTranslation("rightPanel", { keyPrefix: "pileDriving" });
   const [picked, setPicked] = useState<PickedRecord | null>(null);
   const [warningsOnly, setWarningsOnly] = useState(false);
@@ -135,8 +138,12 @@ export default function PileDrivingPanel({ planName, driving, readOnly = false, 
           {records.length > 0 && <section className="pile-driving-results">
             <header className="pile-driving-results-header">
               <Heading>{t("records")}</Heading>
-              <Checkbox className="pile-driving-warning-filter" label={t("overview.warningsOnly")}
-                checked={warningsOnly} onChange={event => setWarningsOnly(event.target.checked)} />
+              <div className="pile-driving-warning-controls">
+                <Checkbox label={t("overview.warningsOnly")}
+                  checked={warningsOnly} onChange={event => setWarningsOnly(event.target.checked)} />
+                <Checkbox label={t("overview.markWarnings")}
+                  checked={showWarningsInViewer} onChange={event => onShowWarningsInViewerChange(event.target.checked)} />
+              </div>
               <p role="status" className="pile-driving-result-counts oa-secondary">
                 <span>{t("summary", { linked, total: records.length })}</span>
                 <span className={warningRecords.length ? "pile-driving-warning-count" : undefined}>

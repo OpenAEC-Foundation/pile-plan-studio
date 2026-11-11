@@ -8,6 +8,7 @@ import {exportConfiguredPilePlanCore,exportRevitRevisionCore,prepareLoadPointRef
 import type {ExportOptions,RevitRevisionInput,LoadPointRefreshSelection} from "../../core/exportRevisionContract.ts";
 import { applyProjectRefresh } from "../import/projectImportApply.ts";
 import { usePileDrivingPreview } from "../import/usePileDrivingPreview.ts";
+import { getPileDrivingWarningLocationIds } from "../../domain/pile-driving/pileDrivingRows.ts";
 import type { PileDrivingRecord } from "../../core/pileDrivingCoreClient.ts";
 import { previewProjectImportCore } from "../../core/projectCoreClient.ts";
 import { useManualCptSelectionEdit } from "../project/useManualCptSelectionEdit.ts";
@@ -389,6 +390,7 @@ export default function AppSession({
   const [projectInformationOpen, setProjectInformationOpen] = useState(false);
   const [rightTaskPanel, setRightTaskPanel] = useState<RightTaskPanel | null>(null);
   const [drivingInspection, setDrivingInspection] = useState<{ record: PileDrivingRecord; planId: string } | null>(null);
+  const [drivingWarningProject, setDrivingWarningProject] = useState<string | null>(null);
   const [viewerFocusRequest, setViewerFocusRequest] = useState<ViewerFocusRequest | null>(null);
   const [lassoSelectionActive, setLassoSelectionActive] = useState(false);
   const [activeSourceKind, setActiveSourceKind] = useState<InputSourceKind | null>(null);
@@ -1354,6 +1356,10 @@ export default function AppSession({
     projectState.pileHeadLevelM,
     projectState.selectedCptsByLoadPointId,
   );
+  const showDrivingWarnings = drivingWarningProject === exportMarker.project_instance_id;
+  const drivingWarningLoadPointIds = useMemo(() => drivingPanelVisible && showDrivingWarnings
+    ? getPileDrivingWarningLocationIds(pileDriving.files, pileDriving.selectedId)
+    : undefined, [drivingPanelVisible, showDrivingWarnings, pileDriving.files, pileDriving.selectedId]);
   const neighborhoodRecord = drivingPanelVisible && activeSourceKind === null
     && drivingInspection?.planId === ilp.displayState.activePilePlanId
     && pileDriving.files.some(file => (pileDriving.selectedId === null || file.id === pileDriving.selectedId)
@@ -1710,6 +1716,7 @@ export default function AppSession({
               <PilePlanWorkspace
                 focusRequest={viewerFocusRequest?.fitLoadPointIds && !neighborhoodRecord ? null : viewerFocusRequest}
                 inspectionLoadPointIds={inspectionLoadPointIds}
+                drivingWarningLoadPointIds={drivingWarningLoadPointIds}
                 onFocusHandled={request => setViewerFocusRequest(current => current === request ? null : current)}
                 pileCapPreviews={pileCaps.result?.plans.find(p=>p.plan_id===ilp.displayState.activePilePlanId)?.previews??[]}
                 state={ilp.displayState}
@@ -1764,6 +1771,8 @@ export default function AppSession({
               selectedLoadPointIds={ilp.displayState.selectedLoadPointIds}
               selectionDisabled={drivingSelectionDisabled}
               neighborhoodRecord={neighborhoodRecord}
+              showWarningsInViewer={showDrivingWarnings}
+              onShowWarningsInViewerChange={show => setDrivingWarningProject(show ? exportMarker.project_instance_id : null)}
               onNeighborhoodChange={changeDrivingNeighborhood}
               onSelect={selectAndFocusLoadPoints}
               onClose={() => { setDrivingInspection(null); setRightTaskPanel(null); }}

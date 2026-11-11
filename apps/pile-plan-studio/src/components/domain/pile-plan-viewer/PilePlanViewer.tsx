@@ -71,6 +71,7 @@ import {
 export type PilePlanViewerProps = {
   focusRequest?: ViewerFocusRequest | null;
   inspectionLoadPointIds?: readonly number[];
+  drivingWarningLoadPointIds?: ReadonlySet<number>;
   onFocusHandled?: (request: ViewerFocusRequest) => void;
   pileCapPreviews?: PileCapPreview[];
   state: ProjectState;
@@ -88,6 +89,7 @@ const EMPTY_CAP_PREVIEWS: PileCapPreview[] = [];
 export default function PilePlanViewer({
   focusRequest,
   inspectionLoadPointIds,
+  drivingWarningLoadPointIds,
   onFocusHandled,
   pileCapPreviews:sourceCapPreviews=EMPTY_CAP_PREVIEWS,
   state,
@@ -309,6 +311,7 @@ export default function PilePlanViewer({
             pileOptionsByLoadPointId={pileOptionsByLoadPointId}
             selectedLoadPointIds={selectedLoadPointIds}
             selectionContextLoadPointIds={selectionContextLoadPointIds}
+            drivingWarningLoadPointIds={drivingWarningLoadPointIds}
             completeSelectedGroupLoadPointIds={completeSelectedGroupLoadPointIds}
             relatedLoadPointIds={relatedLoadPointIds}
             lockedLoadPointIds={lockedLoadPointIds}

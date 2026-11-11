@@ -33,6 +33,7 @@ type ViewerStageProps = {
   pileOptionsByLoadPointId: ReturnType<typeof getEffectivePileOptionsByLoadPointId>;
   selectedLoadPointIds: ReadonlySet<number>;
   selectionContextLoadPointIds: ReadonlySet<number>;
+  drivingWarningLoadPointIds?: ReadonlySet<number>;
   completeSelectedGroupLoadPointIds: ReadonlySet<number>;
   relatedLoadPointIds: ReadonlySet<number>;
   lockedLoadPointIds: ReadonlySet<number>;
@@ -58,6 +59,7 @@ export default function ViewerStage({
   pileOptionsByLoadPointId,
   selectedLoadPointIds,
   selectionContextLoadPointIds,
+  drivingWarningLoadPointIds,
   completeSelectedGroupLoadPointIds,
   relatedLoadPointIds,
   lockedLoadPointIds,
@@ -111,6 +113,10 @@ export default function ViewerStage({
   }, [capLayouts,loadPointGroupGeometry]);
   const visibleGraphics=markerPresentation.graphics.filter(g=>g.kind!=="load-point"||!replaced.has(g.id));
   const capGraphics=buildPileCapMarkerGraphics(capLayouts,state,selectedLoadPointIds);
+  const warningGraphics = drivingWarningLoadPointIds?.size
+    ? markerPresentation.graphics.filter(graphic => graphic.kind === "load-point" && drivingWarningLoadPointIds.has(graphic.id))
+    : [];
+  const warningLabel = t("viewer.drivingWarning");
   return (
     <div
       className={`viewer-content${getForegroundLayerClass(state.foregroundLayer)}${isEditingLoadPointLocks ? " is-lock-editing" : ""}`}
@@ -132,9 +138,18 @@ export default function ViewerStage({
             rx={7*effectiveSymbolScale(state.symbolScalePercent)} fill="none" stroke={conflict?"#c62828":selected?"#d97706":"#747b82"} strokeWidth="1" strokeDasharray={getDashedOutlineDasharray(effectiveSymbolScale(state.symbolScalePercent), 3)}/>;
         })}</g>
         <ViewerMarkerGraphics graphics={sortMarkerGraphics([...visibleGraphics,...capGraphics])} />
+        {warningGraphics.length > 0 && <g className="viewer-driving-warnings" aria-hidden="true">
+          {warningGraphics.map(({ key, x, y, scale }) => (
+            <g key={key} transform={`translate(${x} ${y}) scale(${scale})`}>
+              <path d="M8-15 15-3H1Z" fill="#ffc84d" stroke="#342500" strokeWidth="1.25" strokeLinejoin="round" />
+              <path d="M8-11v3.2m0 2v.1" fill="none" stroke="#342500" strokeWidth="1.6" strokeLinecap="round" />
+            </g>
+          ))}
+        </g>}
       </ViewerDrawingSvg>
       {markerPresentation.hitTargets.filter(target=>target.kind!=="load-point"||!replaced.has(target.id)).map((target) => (
-        <MarkerHitTarget key={target.key} target={target} onClick={handleMarkerClick}/>
+        <MarkerHitTarget key={target.key} target={target} onClick={handleMarkerClick}
+          warningLabel={target.kind === "load-point" && drivingWarningLoadPointIds?.has(target.id) ? warningLabel : undefined} />
       ))}
       {capLayouts.flatMap(cap=>cap.points.map((point,index)=><button
         type="button" className="load-point-marker viewer-marker-hit-target" key={`cap-hit:${cap.sourceIds.join("-")}:${index}`}
@@ -145,17 +160,19 @@ export default function ViewerStage({
   );
 }
 
-const MarkerHitTarget = memo(function MarkerHitTarget({target,onClick}:{
+const MarkerHitTarget = memo(function MarkerHitTarget({target,onClick,warningLabel}:{
   target:ViewerMarkerHitTarget;
   onClick:(event:MouseEvent<HTMLButtonElement>,target:ViewerMarkerHitTarget)=>void;
+  warningLabel?: string;
 }) {
-  return <button aria-label={target.ariaLabel} className={`${target.className} viewer-marker-hit-target`}
+  return <button aria-label={target.ariaLabel} aria-description={warningLabel}
+    className={`${target.className} viewer-marker-hit-target`}
     data-map-marker-key={target.key} style={getProjectMarkerStyle(target)} type="button"
     onClick={event=>onClick(event,target)}/>;
 }, (a,b) => a.onClick===b.onClick && a.target.key===b.target.key && a.target.kind===b.target.kind
   && a.target.id===b.target.id && a.target.x===b.target.x && a.target.y===b.target.y
   && a.target.hitDiameter===b.target.hitDiameter && a.target.className===b.target.className
-  && a.target.ariaLabel===b.target.ariaLabel);
+  && a.target.ariaLabel===b.target.ariaLabel && a.warningLabel===b.warningLabel);
 
 function getProjectMarkerStyle(target: { x: number; y: number; hitDiameter: number }): CSSProperties {
   return {

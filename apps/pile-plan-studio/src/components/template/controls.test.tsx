@@ -31,7 +31,9 @@ test.each([
   { start: "0.9", min: 0, max: 1, step: 0.3, expected: "0.9" },
   { start: "3", step: 2, expected: "4" },
   { start: "0", step: 1e-11, expected: "1e-11" },
-])("number stepper follows the native grid from $start with step $step", ({ start, expected, ...bounds }) => {
+  { start: "35.5", min: 0.000001, step: "any", expected: "36.5" },
+  { start: "", min: 0.000001, step: "any", expected: "1" },
+])("number stepper goes from $start to $expected with step $step", ({ start, expected, ...bounds }) => {
   function Field() {
     const [value, setValue] = useState(start);
     return <form><ThemedNumberInput aria-label="Size" value={value} onValueChange={setValue} {...bounds} /></form>;

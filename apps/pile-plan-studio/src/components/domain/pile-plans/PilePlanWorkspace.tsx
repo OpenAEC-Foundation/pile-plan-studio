@@ -17,6 +17,7 @@ import type { LegendEditorDraft } from "../../../domain/legend/legendEditorModel
 type Props = {
   focusRequest?: ViewerFocusRequest | null;
   inspectionLoadPointIds?: readonly number[];
+  drivingWarningLoadPointIds?: ReadonlySet<number>;
   onFocusHandled?: (request: ViewerFocusRequest) => void;
   pileCapPreviews?: PileCapPreview[];
   readOnly?: boolean;
@@ -32,7 +33,7 @@ type Props = {
 };
 
 const EMPTY_CAP_PREVIEWS: PileCapPreview[] = [];
-export default function PilePlanWorkspace({ focusRequest, inspectionLoadPointIds, onFocusHandled, pileCapPreviews=EMPTY_CAP_PREVIEWS, readOnly = false, state, loadPointGroups, loadPointGroupTopology, technicalAssignment, groupAssignmentAssessment, lassoSelectionActive, onStateChange, onSelectionChange, onLegendApply }: Props) {
+export default function PilePlanWorkspace({ focusRequest, inspectionLoadPointIds, drivingWarningLoadPointIds, onFocusHandled, pileCapPreviews=EMPTY_CAP_PREVIEWS, readOnly = false, state, loadPointGroups, loadPointGroupTopology, technicalAssignment, groupAssignmentAssessment, lassoSelectionActive, onStateChange, onSelectionChange, onLegendApply }: Props) {
   const [legendEditorOpen, setLegendEditorOpen] = useState(false);
   const effectiveRegions=useMemo(()=>{
     const assignments=new Map(state.selectedPileConfigurationsByLoadPoint),options=new Map(state.pileOptionsByLoadPointId);
@@ -64,6 +65,7 @@ export default function PilePlanWorkspace({ focusRequest, inspectionLoadPointIds
       <PilePlanViewer
         focusRequest={focusRequest}
         inspectionLoadPointIds={inspectionLoadPointIds}
+        drivingWarningLoadPointIds={drivingWarningLoadPointIds}
         onFocusHandled={onFocusHandled}
         pileCapPreviews={pileCapPreviews}
         state={state}

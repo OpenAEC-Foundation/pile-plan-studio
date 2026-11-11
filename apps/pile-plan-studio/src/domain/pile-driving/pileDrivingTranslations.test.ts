@@ -12,6 +12,10 @@ test("driving record labels and import diagnostics are available in English and 
   assert.deepEqual(Object.keys(nl.columns), Object.keys(en.columns));
   assert.deepEqual(Object.keys(nl.errors), Object.keys(en.errors));
   assert.deepEqual(Object.keys(nl.overview), Object.keys(en.overview));
+  for (const language of ["nl", "en"]) {
+    assert.ok(load(language, "common").viewer.drivingWarning.trim());
+    assert.ok(load(language, "rightPanel").pileDriving.overview.markWarnings.trim());
+  }
   for (const labels of [nl, en]) {
     for (const key of ["addFiles", "empty", "removeFile", "allFiles", "exampleFile", "settings", "importSettings", "independentSettings", "sharedHelp", "resetTable"]) {
       assert.ok(labels[key].trim());
@@ -40,9 +44,9 @@ test("driving record labels and import diagnostics are available in English and 
     assert.ok(labels.checks.neighborhood.show.trim());
     assert.ok(labels.checks.neighborhood.hide.trim());
     assert.ok(labels.checks.neighborhood.titleBySize.includes("{{size}}"));
-    assert.ok(labels.checks.neighborhood.included.trim());
     for (const value of ["reference", "actual", "other", "tolerance"]) {
       assert.ok(labels.checks.values.trend.includes(`{{${value}}}`));
+      assert.ok(labels.checks.values.neighborhood.includes(`{{${value}}}`));
     }
   }
   for (const language of ["nl", "en"]) {

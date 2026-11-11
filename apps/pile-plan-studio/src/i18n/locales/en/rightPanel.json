@@ -422,7 +422,8 @@
       "warnings": "Warnings",
       "unknownDate": "The date is missing or unreadable",
       "noWarnings": "No warnings",
-      "warningsOnly": "Warnings only"
+      "warningsOnly": "Warnings only",
+      "markWarnings": "Mark warnings in viewer"
     },
     "errors": {
       "unreadable": "The driving record could not be read.",
@@ -479,12 +480,11 @@
         "end-calendar": "Measured {{actual}} · Minimum {{reference}} blows per 250 mm",
         "trend": "Last {{reference}} increments · Half-window averages {{actual}} → {{other}} blows per 250 mm · Allowed drop {{tolerance}} blows",
         "energy-target": "{{actual}}–{{other}} kJ · Target {{reference}} ± {{tolerance}} kJ",
-        "neighborhood": "Pile average {{actual}} · Reference {{reference}} blows per 250 mm · Deviation {{other}} · Limit {{tolerance}}"
+        "neighborhood": "{{actual}} blows per 250 mm · median {{reference}} · {{other}} deviation (limit {{tolerance}})"
       },
       "neighborhood": {
-        "title": "Comparable piles",
-        "titleBySize": "Comparable piles · {{size}} mm",
-        "included": "All piles in the table contribute to the median, including those with a flagged deviation above the limit.",
+        "title": "Piles used for the median",
+        "titleBySize": "Piles used for the median · {{size}} mm",
         "show": "Show comparable piles",
         "hide": "Hide comparable piles",
         "location": "Location",
@@ -496,8 +496,7 @@
         "peers_one": "{{count}} comparable pile",
         "peers_other": "{{count}} comparable piles",
         "exact": "Same CPT selection",
-        "relaxed": "One CPT replacement allowed",
-        "own": "This pile · Final tip level {{ppn}} m NAP · Avg. blow energy {{energy}} kJ"
+        "relaxed": "Up to one different CPT"
       },
       "energyRange": "Measured blow energy range {{min}}–{{max}} kJ",
       "energyBySize": {

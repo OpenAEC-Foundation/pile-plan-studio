@@ -5,7 +5,7 @@
 </p>
 
 <p align="center">
-  <a href="RELEASE_NOTES.md"><img src="https://img.shields.io/badge/release-v2026.46.0-D97706?style=flat-square" alt="Release v2026.46.0"></a>
+  <a href="RELEASE_NOTES.md"><img src="https://img.shields.io/badge/release-v2026.46.1-D97706?style=flat-square" alt="Release v2026.46.1"></a>
   <img src="https://img.shields.io/badge/status-Alpha-D97706?style=flat-square" alt="Status: Alpha">
   <a href="https://github.com/OpenAEC-Foundation/pile-plan-studio/releases"><img src="https://img.shields.io/github/downloads/OpenAEC-Foundation/pile-plan-studio/total?style=flat-square" alt="Total downloads"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-LGPL--3.0-blue?style=flat-square" alt="LGPL-3.0 license"></a>
@@ -17,7 +17,7 @@
 <p align="center">
   <a href="https://pile-plan-studio.open-aec.com/"><strong>Try Open Pile Plan Studio in your browser</strong></a>
   &nbsp;&middot;&nbsp;
-  <a href="https://github.com/OpenAEC-Foundation/pile-plan-studio/releases/tag/v2026.46.0"><strong>Desktop downloads: Windows, macOS and Linux</strong></a>
+  <a href="https://github.com/OpenAEC-Foundation/pile-plan-studio/releases/tag/v2026.46.1"><strong>Desktop downloads: Windows, macOS and Linux</strong></a>
 </p>
 
 ---
@@ -110,13 +110,13 @@ for the model and solver details.
 The [live browser demo](https://pile-plan-studio.open-aec.com/) opens directly
 with the sample project and is the quickest way to explore the application.
 
-The 2026.46.0 alpha provides the following desktop packages when published:
+The 2026.46.1 alpha provides the following desktop packages when published:
 
 | System | Download | Signing and tested baseline |
 | --- | --- | --- |
-| Windows x64 | [NSIS installer](https://github.com/OpenAEC-Foundation/pile-plan-studio/releases/download/v2026.46.0/Open.Pile.Plan.Studio_2026.46.0_x64-setup.exe) | Azure Authenticode signing |
-| macOS 15+ | [Universal DMG](https://github.com/OpenAEC-Foundation/pile-plan-studio/releases/download/v2026.46.0/Open.Pile.Plan.Studio_2026.46.0_universal.dmg) | Apple Silicon and Intel; Developer ID signed, notarized and stapled |
-| Linux x64 | [Debian package](https://github.com/OpenAEC-Foundation/pile-plan-studio/releases/download/v2026.46.0/Open.Pile.Plan.Studio_2026.46.0_amd64.deb) · [AppImage](https://github.com/OpenAEC-Foundation/pile-plan-studio/releases/download/v2026.46.0/Open.Pile.Plan.Studio_2026.46.0_amd64.AppImage) | Ubuntu 22.04/24.04; detached OpenPGP signatures |
+| Windows x64 | [NSIS installer](https://github.com/OpenAEC-Foundation/pile-plan-studio/releases/download/v2026.46.1/Open.Pile.Plan.Studio_2026.46.1_x64-setup.exe) | Azure Authenticode signing |
+| macOS 15+ | [Universal DMG](https://github.com/OpenAEC-Foundation/pile-plan-studio/releases/download/v2026.46.1/Open.Pile.Plan.Studio_2026.46.1_universal.dmg) | Apple Silicon and Intel; Developer ID signed, notarized and stapled |
+| Linux x64 | [Debian package](https://github.com/OpenAEC-Foundation/pile-plan-studio/releases/download/v2026.46.1/Open.Pile.Plan.Studio_2026.46.1_amd64.deb) · [AppImage](https://github.com/OpenAEC-Foundation/pile-plan-studio/releases/download/v2026.46.1/Open.Pile.Plan.Studio_2026.46.1_amd64.AppImage) | Ubuntu 22.04/24.04; detached OpenPGP signatures |
 
 Release history, checksums and Linux signature/public-key files are on
 [GitHub Releases](https://github.com/OpenAEC-Foundation/pile-plan-studio/releases).
@@ -318,7 +318,9 @@ when that plan has Marks and to **Location ID** otherwise.
 Choose **All driving records** to see the day number, matched location and
 warnings for every registration. The panel numbers distinct recorded dates
 in chronological order and shows warnings first. Use **Warnings only** to
-filter the table. With the filter off, it includes records with no match or
+filter the table. **Mark warnings in viewer** adds a warning symbol to each
+matched location with a warning in the chosen file or across all files.
+With the table filter off, the table includes records with no match or
 multiple matches. Select a row's location or pile number to see its
 measurements and source file and locate the matched pile in the drawing.
 Selecting a single location in the drawing opens its first registration in

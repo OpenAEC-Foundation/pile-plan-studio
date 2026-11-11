@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import type { PileDrivingFileResult } from "../../core/pileDrivingCoreClient.ts";
-import { pileDrivingRows } from "./pileDrivingRows.ts";
+import { getPileDrivingWarningLocationIds, pileDrivingRows } from "./pileDrivingRows.ts";
 
 function file(number: string, warning: boolean, date?: string): PileDrivingFileResult {
   return { status: "ready", preview: {
@@ -41,4 +41,22 @@ test("numbers distinct driving dates in chronological order across files", () =>
     ["c", 2, "2026-11-12"],
     ["d", null, null],
   ]);
+});
+
+test("marks each matched location with a warning once, within the selected log scope", () => {
+  const unmatched: PileDrivingFileResult = { status: "ready", preview: {
+    columns: ["paalnummer"],
+    records: [{ pile_number: "999", rows: [["999"]], matching: { status: "unmatched" },
+      checks: [{ kind: "size", status: "warning" }] }],
+  } };
+  const logs = [
+    { id: "a", name: "first.csv", result: file("43", true) },
+    { id: "b", name: "second.csv", result: file("67", true) },
+    { id: "c", name: "duplicate.csv", result: file("43", true) },
+    { id: "d", name: "clean.csv", result: file("71", false) },
+    { id: "e", name: "unmatched.csv", result: unmatched },
+  ];
+  assert.deepEqual(getPileDrivingWarningLocationIds(logs, null), new Set([43, 67]));
+  assert.deepEqual(getPileDrivingWarningLocationIds(logs, "b"), new Set([67]));
+  assert.deepEqual(getPileDrivingWarningLocationIds(logs, "d"), new Set());
 });

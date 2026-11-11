@@ -334,6 +334,28 @@ export function export_revit_revision_xlsx(request) {
 }
 
 /**
+ * @returns {any}
+ */
+export function get_pile_plan_import_requirements() {
+    const ret = wasm.get_pile_plan_import_requirements();
+    if (ret[2]) {
+        throw takeFromExternrefTable0(ret[1]);
+    }
+    return takeFromExternrefTable0(ret[0]);
+}
+
+/**
+ * @returns {any}
+ */
+export function get_standard_csv_requirements() {
+    const ret = wasm.get_standard_csv_requirements();
+    if (ret[2]) {
+        throw takeFromExternrefTable0(ret[1]);
+    }
+    return takeFromExternrefTable0(ret[0]);
+}
+
+/**
  * @param {any} request
  * @returns {any}
  */
@@ -411,6 +433,30 @@ export function preview_import_file(request) {
  */
 export function preview_load_point_group_edit(request) {
     const ret = wasm.preview_load_point_group_edit(request);
+    if (ret[2]) {
+        throw takeFromExternrefTable0(ret[1]);
+    }
+    return takeFromExternrefTable0(ret[0]);
+}
+
+/**
+ * @param {any} request
+ * @returns {any}
+ */
+export function preview_pile_driving_file(request) {
+    const ret = wasm.preview_pile_driving_file(request);
+    if (ret[2]) {
+        throw takeFromExternrefTable0(ret[1]);
+    }
+    return takeFromExternrefTable0(ret[0]);
+}
+
+/**
+ * @param {any} request
+ * @returns {any}
+ */
+export function preview_pile_driving_files(request) {
+    const ret = wasm.preview_pile_driving_files(request);
     if (ret[2]) {
         throw takeFromExternrefTable0(ret[1]);
     }
@@ -795,7 +841,7 @@ function __wbg_get_imports() {
                 }
             };
             cb0._wbg_cb_unref = () => state0.a = 0;
-            // Cast intrinsic for `Closure(Closure { owned: false, function: Function { arguments: [Externref], shim_idx: 244, ret: Unit, inner_ret: Some(Unit) }, mutable: true }) -> Externref`.
+            // Cast intrinsic for `Closure(Closure { owned: false, function: Function { arguments: [Externref], shim_idx: 249, ret: Unit, inner_ret: Some(Unit) }, mutable: true }) -> Externref`.
             const ret = cb0;
             return ret;
         },
