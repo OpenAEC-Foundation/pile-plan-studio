@@ -11,7 +11,18 @@ import { releaseInfo } from "../../tools/release-version.mjs";
 function inlineSprites() {
   return {
     name: "openaec-inline-sprites",
+    enforce: "pre" as const,
     apply: (_config: unknown, env: { mode: string }) => env.mode === "platform",
+    // The sprite URL is empty in this build, so studioSprite.ts needs no generated manifest: a stub keeps the list of
+    // Blueprint file names out of the bundle (the workplace checks every file name a bundle mentions).
+    resolveId(source: string, importer?: string) {
+      return source === "./manifest.json" && importer?.replaceAll("\\", "/").endsWith("src/openaec/studioSprite.ts")
+        ? "\0openaec-manifest-stub" : null;
+    },
+    load(id: string) {
+      return id === "\0openaec-manifest-stub"
+        ? 'export default { generated: [{ path: "icons/studio.svg", sha256: "" }] };' : null;
+    },
     transformIndexHtml(html: string) {
       const sprites = ["src/openaec/icons/studio.svg", "src/components/template/icons/simple-controls.svg",
         "src/components/template/icons/pile-plan-proposals.svg", "src/components/domain/right-panel/cptAlgorithmDiagrams.svg"]
