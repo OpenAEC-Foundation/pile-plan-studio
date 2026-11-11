@@ -47,7 +47,7 @@ fn scoped_advice_round_trips_and_legacy_rows_stay_general(){
  assert!(p.inputs.bearing_capacities.iter().all(|v|v.pile_count.is_none()&&!v.missing));
  p.inputs.bearing_capacities[0].pile_count=Some(4);
  let text=write_ifcpp_string(&p).unwrap();
- assert_eq!(serde_json::from_str::<serde_json::Value>(&text).unwrap()["schema_version"],8);
+ assert_eq!(serde_json::from_str::<serde_json::Value>(&text).unwrap()["schema_version"],9);
  let restored=read_ifcpp_str(&text).unwrap();
  assert!(restored.inputs.bearing_capacities.iter().any(|v|v.pile_count==Some(4)));
  p.inputs.bearing_capacities[0].pile_count=Some(0);assert!(write_ifcpp_string(&p).is_err());
