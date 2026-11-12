@@ -9,7 +9,7 @@ import { localizeLoadPointName } from "./PanelControls.tsx";
 import "./LoadPointSelectionList.css";
 import { Button } from "../../../openaec/react/src/index";
 
-export default function LoadPointSelectionList({ restrictToContext=false,loadPoints, selectedLoadPointIds, contextLoadPointIds = selectedLoadPointIds, groups, onInspect, onSelectGroup, disabled = false, visibleRows = 4 }: {
+export default function LoadPointSelectionList({ restrictToContext=false,loadPoints, selectedLoadPointIds, contextLoadPointIds = selectedLoadPointIds, groups, pileNumbers, onInspect, onSelectGroup, disabled = false, visibleRows = 4 }: {
   restrictToContext?:boolean;
   loadPoints: LoadPoint[];
   selectedLoadPointIds: number[];
@@ -17,6 +17,7 @@ export default function LoadPointSelectionList({ restrictToContext=false,loadPoi
   disabled?: boolean;
   visibleRows?: number;
   groups: LoadPointGroup[];
+  pileNumbers?: ReadonlyMap<number, string>;
   onInspect: (id: number) => void;
   onSelectGroup: (ids: number[]) => void;
 }) {
@@ -58,7 +59,7 @@ export default function LoadPointSelectionList({ restrictToContext=false,loadPoi
               </span>
             </Button> : null}
             {block.loadPoints.map(point => {
-              const name = localizeLoadPointName(point.name, t);
+              const name = localizeLoadPointName(point.name, t, pileNumbers?.get(point.id));
               const load=directionalLoadPoint(point,mode).design_load_kn;
               const force = Number.isFinite(load)?load.toLocaleString(i18n.language, { maximumFractionDigits: 1 }):"—";
               return <Button kind="quiet" className="load-point-selection-row" key={point.id}

@@ -135,6 +135,11 @@ export default function RightPanel({
   const [pileCapOpen,setPileCapOpen]=useState(false);
   const capIds=findSelectedPileCapGroup(state.selectedLoadPointIds,loadPointGroups);
   const capPlan=state.pilePlans.find(p=>p.id===state.activePilePlanId);
+  const [showPileNumbers, setShowPileNumbers] = useState(false);
+  const activePlanNumbers = capPlan?.revitMarksByLoadPoint;
+  const hasPileNumbers = !!activePlanNumbers?.size
+    && state.loadPoints.some(point => activePlanNumbers.get(point.id)?.trim());
+  const pileNumbers = showPileNumbers && hasPileNumbers ? activePlanNumbers : undefined;
   const capProposal=capIds?capPlan?.pileCapProposals?.find(p=>pileCapGroupKey(p.load_point_ids)===pileCapGroupKey(capIds))??null:null;
   const capPreview=capProposal?pileCapResult?.plans.find(p=>p.plan_id===state.activePilePlanId)?.previews.find(p=>pileCapGroupKey(p.proposal.load_point_ids)===pileCapGroupKey(capProposal.load_point_ids))??null:null;
   const invalidCaps=(pileCapResult?.plans.find(p=>p.plan_id===state.activePilePlanId)?.previews??[]).filter(p=>p.status==='group_changed'&&(p.proposal.load_point_ids.some(id=>state.selectedLoadPointIds.includes(id))||!p.proposal.load_point_ids.some(id=>state.loadPoints.some(point=>point.id===id))));
@@ -162,6 +167,7 @@ export default function RightPanel({
       pileAssignmentPending={pileAssignmentPending}
       onApplyPileConfiguration={onApplyPileConfiguration}
       selectedLoadPoints={selectedLoadPoints}
+      pileNumbers={pileNumbers}
       loadPointGroups={loadPointGroups}
       technicalAssignment={technicalAssignment}
       groupAssignmentAssessment={groupAssignmentAssessment}
@@ -169,7 +175,7 @@ export default function RightPanel({
       onColumnLayoutChange={onColumnLayoutChange}
     />
   );
-  const cptContent = <CptPanel saving={cptEditPending} onSave={onSaveCptSelection} onApplyMethod={onApplyCptMethod} state={state} onStateChange={onStateChange} selectedLoadPoints={selectedLoadPoints} />;
+  const cptContent = <CptPanel saving={cptEditPending} onSave={onSaveCptSelection} onApplyMethod={onApplyCptMethod} state={state} onStateChange={onStateChange} selectedLoadPoints={selectedLoadPoints} pileNumbers={pileNumbers} />;
 
   return (
     <aside className="properties-panel" aria-label={t("aria.properties")}>
@@ -190,7 +196,10 @@ export default function RightPanel({
         restrictToContext={state.loadPointSelectionContext?.exclusive??false}
         onSelectOnly={id=>onStateChange({...state,...setLoadPointSelection(state,[id],{context:{loadPoints:state.loadPoints,ids:[id],exclusive:true}})})}
         contextIds={selectionContextIds} groups={loadPointGroups} rows={selectionRows} collapsed={selectionCollapsed}
-        onLayoutChange={onSelectionLayoutChange} disabled={cptEditPending}
+        onLayoutChange={onSelectionLayoutChange} disabled={cptEditPending} pileNumbers={pileNumbers}
+        labelControl={hasPileNumbers ? <Button compact onClick={() => setShowPileNumbers(show => !show)}>
+          {t(showPileNumbers ? "selectionOverview.locationNumbers" : "selectionOverview.pileNumbers")}
+        </Button> : undefined}
         onSelect={ids => onStateChange({ ...state, ...setLoadPointSelection(state, ids,
           { context: { loadPoints: state.loadPoints, ids: selectionContextIds } }) })}
         groupControl={<span className="selection-overview-actions">{selectedLoadPoints.length > 1 ? <LoadPointGroupEditButton variant="blueprint" editPending={groupEditPending || cptEditPending}

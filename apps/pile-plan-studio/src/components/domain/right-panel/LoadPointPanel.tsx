@@ -37,6 +37,7 @@ export default function LoadPointPanel({
   pileAssignmentPending,
   onApplyPileConfiguration,
   selectedLoadPoints,
+  pileNumbers,
   loadPointGroups,
   technicalAssignment,
   groupAssignmentAssessment,
@@ -56,6 +57,7 @@ export default function LoadPointPanel({
     configuration: PileConfigurationKey | null,
   ) => void;
   selectedLoadPoints: ReturnType<typeof getSelectedLoadPoints>;
+  pileNumbers?: ReadonlyMap<number, string>;
   loadPointGroups: LoadPointGroup[];
   technicalAssignment: TechnicalAssignmentSnapshot;
   groupAssignmentAssessment: GroupAssignmentAssessmentSnapshot;
@@ -142,6 +144,12 @@ export default function LoadPointPanel({
     if(assessments.length&&assessments.every(a=>a?.status==="no_load"))return "no_load";
     return null;
   }
+  const criticalLoadPointLabel = (row: (typeof rows)[number]) =>
+    localizeLoadPointName(row.criticalLoadPointLabel, t,
+      row.criticalLoadPointId === null ? undefined : pileNumbers?.get(row.criticalLoadPointId));
+  const criticalLoadPointLabels = pileNumbers && new Map(rows.map(row =>
+    [row.criticalLoadPointLabel, criticalLoadPointLabel(row)],
+  ));
   const visibleFilters = Object.fromEntries(
     columns.map(({ key }) => [key, state.pileOptionFilters[key] ?? []]),
   );
@@ -227,6 +235,7 @@ export default function LoadPointPanel({
                             : t(`columns.${column.key}`)}
                           labelText={t(`columns.${column.key}`)}
                           rows={rows}
+                          filterLabels={column.key === "criticalLoadPoint" ? criticalLoadPointLabels : undefined}
                           state={state}
                           onStateChange={onStateChange}
                         />
@@ -319,7 +328,7 @@ export default function LoadPointPanel({
                                   onStateChange({ ...state, ...selectLoadPoint(state, row.criticalLoadPointId as number) });
                                 }}
                               >
-                                {localizeLoadPointName(row.criticalLoadPointLabel, t)}
+                                {criticalLoadPointLabel(row)}
                               </Button>
                             )}
                         </td>
@@ -348,11 +357,12 @@ function toggleMissingCptPopover(current: string | null, requested: string): str
   return current === requested ? null : requested;
 }
 
-function ColumnHeader({ column, label, labelText, rows, state, onStateChange }: {
+function ColumnHeader({ column, label, labelText, rows, filterLabels, state, onStateChange }: {
   column: PileOptionTableColumn;
   label: ReactNode;
   labelText: string;
   rows: ReturnType<typeof getRenderablePileOptionRows>;
+  filterLabels?: ReadonlyMap<string, string>;
   state: ProjectState;
   onStateChange: (nextState: ProjectState) => void;
 }) {
@@ -400,7 +410,7 @@ function ColumnHeader({ column, label, labelText, rows, state, onStateChange }: 
               </Button>
             </div>
             {filterValues.map((value) => (
-              <Checkbox className="filter-value" key={value} label={value}
+              <Checkbox className="filter-value" key={value} label={filterLabels?.get(value) ?? value}
                   checked={selectedValues.has(value)}
                   onChange={(event) => {
                     const nextValues = new Set(selectedValues);

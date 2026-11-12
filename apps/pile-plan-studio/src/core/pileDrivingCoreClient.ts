@@ -34,6 +34,8 @@ export type PileDrivingMatch =
   | { status: "unmatched" | "ambiguous" };
 export type PileDrivingRecord = {
   pile_number: string;
+  matched_pile_number?: string;
+  row_numbers?: number[];
   rows: string[][];
   matching: PileDrivingMatch;
   checks: PileDrivingCheck[];
@@ -77,11 +79,12 @@ export type ProjectPileDrivingFile = {
   file_name: string;
   format: "csv" | "xlsx";
   data_base64: string;
-  overrides?: { match_by?: PileDrivingMatchField; table?: TableImportSettings };
+  overrides?: { match_by?: PileDrivingMatchField; ignore_csv_leading_zeros?: boolean; table?: TableImportSettings };
 };
 export type ProjectPileDriving = {
   files: ProjectPileDrivingFile[];
   shared_match_by?: PileDrivingMatchField;
+  shared_ignore_csv_leading_zeros?: boolean;
   shared_table?: PileDrivingSharedTable;
   check_settings?: PileDrivingCheckSettings;
 };
@@ -100,6 +103,7 @@ export async function previewPileDrivingFilesCore(request: {
     format: "csv" | "xlsx";
     bytes: Uint8Array;
     match_by: PileDrivingMatchField;
+    ignore_csv_leading_zeros?: boolean;
     independent?: boolean;
     table?: TableImportSettings;
   }>;

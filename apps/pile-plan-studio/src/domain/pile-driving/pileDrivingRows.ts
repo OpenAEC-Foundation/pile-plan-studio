@@ -33,7 +33,7 @@ function drivingDate(value: string | undefined): string | null {
     ? normalized : null;
 }
 
-export function pileDrivingRows(files: readonly PileDrivingDisplayFile[]) {
+export function pileDrivingRows<T extends PileDrivingDisplayFile>(files: readonly T[]) {
   const rows = files.flatMap(file => {
     if (file.result?.status !== "ready") return [];
     const { columns, records } = file.result.preview;

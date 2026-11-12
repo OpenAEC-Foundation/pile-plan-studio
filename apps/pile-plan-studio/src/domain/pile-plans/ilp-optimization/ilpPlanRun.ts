@@ -35,7 +35,7 @@ function currentSource(state:ProjectState,id:string) {
   return plan && (state.activePilePlanId===id?{...plan,selectedPileConfigurationsByLoadPoint:state.selectedPileConfigurationsByLoadPoint}:plan);
 }
 function runFingerprint(state:ProjectState,plan:PilePlanData) {
-  return fingerprint({basis:basis(state,plan),name:plan.name,references:plan.externalReferencesByLoadPoint,unassigned:plan.optimizationUnassignedByLoadPoint,locked:plan.lockedLoadPointIds,sizes:plan.activePileSizes,tips:plan.activePileTipLevelMms,
+  return fingerprint({basis:basis(state,plan),name:plan.name,pileNumbers:plan.revitMarksByLoadPoint,references:plan.externalReferencesByLoadPoint,unassigned:plan.optimizationUnassignedByLoadPoint,locked:plan.lockedLoadPointIds,sizes:plan.activePileSizes,tips:plan.activePileTipLevelMms,
     settings:state.ilpOptimizationSettings,scope:state.ilpOptimizationLimitScope,boundary:state.ilpIncludeBoundaryTransitions});
 }
 export function createIlpPlanRun(state:ProjectState,language:"nl"|"en",localOnly:boolean,newPlanName?:string,

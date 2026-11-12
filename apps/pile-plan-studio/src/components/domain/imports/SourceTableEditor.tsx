@@ -10,8 +10,8 @@ import type {ImportFileRole} from "../../../core/importFiles.ts";
 import "./sourceTableEditor.css";
 
 const DRIVING_FIELDS=["ignore","paalnummer","dikte_cm","lengte_cm","referentieniveau","tochtnummer","ppn_nap","slagen","mm_zakking_per_tocht","energie_per_slag_kj","paal_id","datum","stelling","starttijd","projectnummer","bloknummer","kavelnummer","ppd_gewenst","opmerkingen"];
-type Props={variant?:"blueprint";preview?:SourceTablePreview|null;settings?:TableImportSettings|null;diagnostics?:ImportDiagnostic[];sourceErrors?:Array<{row:number;column:number|null;message:string}>;role:ImportFileRole|"pile-plan"|"pile-driving";matrix?:boolean;processed?:boolean;csv?:boolean;children?:ReactNode;onChange:(settings:TableImportSettings)=>void};
-export default function SourceTableEditor({preview,settings,diagnostics=[],sourceErrors=[],role,matrix=false,processed=false,csv=false,children,onChange,variant}:Props){
+type Props={variant?:"blueprint";preview?:SourceTablePreview|null;previewColumn?:{label:string;cell:(row:number)=>ReactNode};settings?:TableImportSettings|null;diagnostics?:ImportDiagnostic[];sourceErrors?:Array<{row:number;column:number|null;message:string}>;role:ImportFileRole|"pile-plan"|"pile-driving";matrix?:boolean;processed?:boolean;csv?:boolean;children?:ReactNode;onChange:(settings:TableImportSettings)=>void};
+export default function SourceTableEditor({preview,previewColumn,settings,diagnostics=[],sourceErrors=[],role,matrix=false,processed=false,csv=false,children,onChange,variant}:Props){
  const Action=variant==="blueprint"?Button:"button";
  const {t}=useTranslation(["common","rightPanel"]);const [selected,setSelected]=useState(1);
  const errors=[...diagnostics.filter(d=>d.location?.row!=null&&d.severity==="error").map(d=>({row:d.location!.row!,column:d.location!.column,message:importDiagnosticText(d,t)})),...sourceErrors];
@@ -38,8 +38,12 @@ export default function SourceTableEditor({preview,settings,diagnostics=[],sourc
   {errors.map((d,i)=><Action className="source-error-link" type="button" key={i} title={d.message} onClick={()=>{if(previewRef.current)previewRef.current.open=true;if(d.column)setSelected(d.column);requestAnimationFrame(()=>{const row=previewRef.current?.querySelector<HTMLElement>(`[data-source-row="${d.row}"]`);row?.focus();row?.scrollIntoView?.({block:"nearest"});});}}>{t("tableImport.showError",{row:d.row,column:d.column??"—"})}</Action>)}
   <details ref={previewRef} className="source-import-disclosure">
    <summary><strong>{t("tableImport.preview")}</strong><span>{preview?t("tableImport.rowCount",{count:preview.row_count}):t("tableImport.notAvailable")}{isProcessed?` · ${t("tableImport.processed")}`:""}</span></summary>
-   {preview?<div className="source-preview-scroll"><table className={`source-preview-table${variant==="blueprint"?" oa-table":""}`}><thead><tr><th aria-label={t("tableImport.row")}>#</th>{preview.columns.map(c=><th key={c.column} className={chosen?.column===c.column&&!isProcessed?"is-selected":""}>{isProcessed?caption(c):<Action type="button" aria-label={t("tableImport.selectColumn",{name:caption(c)})} onClick={()=>select(c.column)}><strong>{caption(c)}</strong><small>{label(columns.find(m=>m.column===c.column)?.field??"ignore")}</small></Action>}</th>)}</tr></thead>
-    <tbody>{previewRows.map(r=><tr key={r.number} data-source-row={r.number} tabIndex={-1} className={errors.some(d=>d.row===r.number)?"is-error":undefined}><th scope="row">{r.number}</th>{r.cells.map((cell,i)=><td key={i} className={chosen?.column===i+1&&!isProcessed?"is-selected":""}>{cell||<span className="source-empty-cell">—</span>}</td>)}</tr>)}</tbody></table></div>:<p className="source-import-help">{t("tableImport.notAvailable")}</p>}
+   {preview?<div className="source-preview-scroll"><table className={`source-preview-table${variant==="blueprint"?" oa-table":""}`}><thead><tr><th aria-label={t("tableImport.row")}>#</th>
+    {previewColumn&&<th scope="col">{previewColumn.label}</th>}
+    {preview.columns.map(c=><th key={c.column} className={chosen?.column===c.column&&!isProcessed?"is-selected":""}>{isProcessed?caption(c):<Action type="button" aria-label={t("tableImport.selectColumn",{name:caption(c)})} onClick={()=>select(c.column)}><strong>{caption(c)}</strong><small>{label(columns.find(m=>m.column===c.column)?.field??"ignore")}</small></Action>}</th>)}</tr></thead>
+    <tbody>{previewRows.map(r=><tr key={r.number} data-source-row={r.number} tabIndex={-1} className={errors.some(d=>d.row===r.number)?"is-error":undefined}><th scope="row">{r.number}</th>
+     {previewColumn&&<td>{previewColumn.cell(r.number)??<span className="source-empty-cell">—</span>}</td>}
+     {r.cells.map((cell,i)=><td key={i} className={chosen?.column===i+1&&!isProcessed?"is-selected":""}>{cell||<span className="source-empty-cell">—</span>}</td>)}</tr>)}</tbody></table></div>:<p className="source-import-help">{t("tableImport.notAvailable")}</p>}
    {preview&&preview.row_count>preview.rows.length&&<p className="source-import-help">{t("tableImport.previewLimit",{count:preview.rows.length})}</p>}
   </details>
   <details ref={settingsRef} className="source-import-disclosure">

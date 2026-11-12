@@ -143,6 +143,7 @@ export function toWasmIfcppProject(project: IfcppProject) {
         pile_plans: (project.user_state.pile_plans ?? []).map((plan) => ({
           ...plan,
           selected_piles: toWasmNumberKeyedRecord(plan.selected_piles),
+          revit_marks_by_load_point: toWasmNumberKeyedRecord(plan.revit_marks_by_load_point ?? {}),
           optimization_unassigned: toWasmNumberKeyedRecord(plan.optimization_unassigned ?? {}),
         })),
         active_pile_plan_id: project.user_state.active_pile_plan_id,

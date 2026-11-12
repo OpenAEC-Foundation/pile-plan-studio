@@ -135,3 +135,30 @@ test("shared header buttons expose exactly one selected view and return from tas
     expect(screen.getByRole("button", {name:names[2]}).getAttribute("aria-pressed")).toBe("false");
   }
 });
+
+test("selection labels switch to pile numbers with a location fallback", () => {
+  const project = projectFixture();
+  const [first, second] = project.loadPoints;
+  const state = {
+    ...project,
+    selectedLoadPointIds: [first.id, second.id],
+    pilePlans: project.pilePlans.map(plan => plan.id === project.activePilePlanId
+      ? { ...plan, revitMarksByLoadPoint: new Map([[first.id, "001-A"]]) }
+      : plan),
+  };
+  const change = vi.fn();
+  const view = render(<RightPanel state={state} onStateChange={change} />);
+  const labels = () => Array.from(view.container.querySelectorAll(".load-point-selection-name"), row => row.textContent);
+  const toggle = screen.getByRole("button", { name: "Pile numbers" });
+  expect(labels()).toContain(first.name);
+  fireEvent.click(toggle);
+  expect(labels()).toEqual(expect.arrayContaining(["Pile 001-A", second.name]));
+  fireEvent.click(screen.getByRole("button", { name: "Location numbers" }));
+  expect(labels()).toEqual(expect.arrayContaining([first.name, second.name]));
+  fireEvent.click(screen.getByRole("button", { name: "Pile numbers" }));
+  expect(change).not.toHaveBeenCalled();
+
+  view.rerender(<RightPanel state={{ ...state, pilePlans: project.pilePlans }} onStateChange={change} />);
+  expect(screen.queryByRole("button", { name: /^(Pile|Location) numbers$/ })).toBeNull();
+  expect(labels()).toContain(first.name);
+});

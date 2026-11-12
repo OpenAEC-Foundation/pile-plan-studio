@@ -20,6 +20,19 @@ type SourceSelection = {
 };
 type PreviewResult = { preview: PileDrivingBatchPreview } | { error: PileDrivingImportError };
 
+function fileMatchField(
+  targets: Parameters<typeof resolvePileDrivingMatchField>[0],
+  source: ProjectPileDrivingFile | undefined,
+  sharedMatchBy: PileDrivingMatchField | undefined,
+) {
+  return resolvePileDrivingMatchField(targets, (source?.overrides ? source.overrides.match_by : sharedMatchBy) ?? null);
+}
+
+function fileCsvLeadingZeros(source: ProjectPileDrivingFile | undefined, shared: boolean | undefined) {
+  if (source?.format !== "csv") return undefined;
+  return source.overrides ? source.overrides.ignore_csv_leading_zeros : shared;
+}
+
 const EMPTY_FILES: ProjectPileDrivingFile[] = [];
 const SOURCE_ERRORS = new Set([
   "missing-pile-number-column", "multiple-pile-number-columns", "multiple-pile-number-tables", "no-records",
@@ -77,6 +90,7 @@ export function usePileDrivingPreview(
     : files.length === 1 ? files[0] : undefined;
   const example = selected ?? files.find(source => source.id === scoped?.exampleId) ?? files[0];
   const sharedMatchBy = project?.shared_match_by;
+  const sharedIgnoreCsvLeadingZeros = project?.shared_ignore_csv_leading_zeros;
   const sharedTable = project?.shared_table;
   const settings = project?.check_settings;
   const targets = useMemo(() => loadPoints.map(point => ({
@@ -86,8 +100,8 @@ export function usePileDrivingPreview(
     selected_cpt_ids: selectedCpts.get(point.id)?.map(selection => selection.cpt.id),
   })), [loadPoints, marks, configurations, selectedCpts]);
   const request = useMemo(() => enabled && files.length > 0
-    ? { instance, files, targets, pileHeadLevelM, settings, sharedMatchBy, sharedTable }
-    : null, [enabled, instance, files, targets, pileHeadLevelM, settings, sharedMatchBy, sharedTable]);
+    ? { instance, files, targets, pileHeadLevelM, settings, sharedMatchBy, sharedIgnoreCsvLeadingZeros, sharedTable }
+    : null, [enabled, instance, files, targets, pileHeadLevelM, settings, sharedMatchBy, sharedIgnoreCsvLeadingZeros, sharedTable]);
   const [completed, setCompleted] = useState<{ request: typeof request; result: PreviewResult } | null>(null);
 
   useEffect(() => {
@@ -99,9 +113,8 @@ export function usePileDrivingPreview(
           file_name: source.file_name,
           format: source.format,
           bytes: decodeFile(source.data_base64),
-          match_by: resolvePileDrivingMatchField(request.targets, source.overrides
-            ? source.overrides.match_by ?? null
-            : request.sharedMatchBy ?? null),
+          match_by: fileMatchField(request.targets, source, request.sharedMatchBy),
+          ignore_csv_leading_zeros: fileCsvLeadingZeros(source, request.sharedIgnoreCsvLeadingZeros),
           independent: source.overrides !== undefined,
           table: source.overrides?.table,
         }));
@@ -158,15 +171,15 @@ export function usePileDrivingPreview(
   const batch = result && "preview" in result ? result.preview : null;
   const fileResults = useMemo(() => files.map((source, index) => ({
     id: source.id, name: source.file_name, result: batch?.files[index],
-  })), [files, batch]);
+    matchBy: fileMatchField(targets, source, sharedMatchBy),
+  })), [files, batch, targets, sharedMatchBy]);
   const previousRequest = completed?.request;
   const previousResult = completed?.result;
   const exampleIndex = previousRequest?.instance === instance
     ? previousRequest.files.findIndex(source => source.id === example?.id) ?? -1 : -1;
   const exampleTable = previousResult && "preview" in previousResult
     ? previousResult.preview.files[exampleIndex]?.table : null;
-  const matchBy = resolvePileDrivingMatchField(targets, (example?.overrides
-    ? example.overrides.match_by : sharedMatchBy) ?? null);
+  const matchBy = fileMatchField(targets, example, sharedMatchBy);
   const updateSource = (update: (source: ProjectPileDrivingFile) => ProjectPileDrivingFile) =>
     updateProject(current => ({ ...current, files: current.files.map(source =>
       source.id === example?.id ? update(source) : source) }));
@@ -175,6 +188,13 @@ export function usePileDrivingPreview(
       updateSource(source => ({ ...source, overrides: { ...source.overrides, match_by: value } }));
     } else {
       updateProject(current => ({ ...current, shared_match_by: value }));
+    }
+  };
+  const setIgnoreCsvLeadingZeros = (value: boolean) => {
+    if (example?.overrides) {
+      updateSource(source => ({ ...source, overrides: { ...source.overrides, ignore_csv_leading_zeros: value } }));
+    } else {
+      updateProject(current => ({ ...current, shared_ignore_csv_leading_zeros: value }));
     }
   };
   const setTable = (settings: TableImportSettings) => {
@@ -214,10 +234,15 @@ export function usePileDrivingPreview(
       id: example.id, csv: example.format === "csv", table: exampleTable, independent: !!example.overrides,
       customTable: !!(example.overrides ? example.overrides.table : sharedTable),
     },
-    matchBy, setTable, resetTable,
+    matchBy, setTable, resetTable, setIgnoreCsvLeadingZeros,
+    ignoreCsvLeadingZeros: fileCsvLeadingZeros(example, sharedIgnoreCsvLeadingZeros) ?? true,
     setIndependent: (independent: boolean) => updateSource(source => ({
       ...source,
-      overrides: independent ? { match_by: sharedMatchBy, table: sharedTable ? exampleTable?.settings : undefined } : undefined,
+      overrides: independent ? {
+        match_by: sharedMatchBy,
+        ignore_csv_leading_zeros: fileCsvLeadingZeros(source, sharedIgnoreCsvLeadingZeros),
+        table: sharedTable ? exampleTable?.settings : undefined,
+      } : undefined,
     })),
     pileSizes, settings: settings ?? batch?.settings ?? null,
     comparison: batch && {

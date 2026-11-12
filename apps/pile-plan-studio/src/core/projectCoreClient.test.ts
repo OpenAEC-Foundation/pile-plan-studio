@@ -1,12 +1,14 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
+import { canonicalProjectForTest } from "./projectTestSupport.ts";
 
 import {
   importProjectFromFilesCore,
   previewImportSourceCore,
   readProjectDocumentCore,
   refreshProjectFromFilesCore,
+  toWasmIfcppProject,
   writeProjectDocumentCore,
 } from "./projectCoreClient.ts";
 
@@ -19,6 +21,18 @@ describe("project core client", () => {
       refreshProjectFromFilesCore,
       writeProjectDocumentCore,
     ].every((command) => typeof command === "function"), true);
+  });
+
+  it("passes pile numbers with numeric location keys to the source refresh core", () => {
+    const project = canonicalProjectForTest(readFileSync(new URL(
+      "../../../../sample_project/sample_project.ifcpp", import.meta.url,
+    ), "utf8"));
+    const plan = project.user_state.pile_plans![0];
+    const id = project.inputs.load_points[0].id;
+    plan.revit_marks_by_load_point = { [id]: "001-A" };
+
+    assert.deepEqual(toWasmIfcppProject(project).user_state.pile_plans?.[0].revit_marks_by_load_point,
+      new Map([[id, "001-A"]]));
   });
 
   it("normalizes imports and refreshes through the project-document contract", () => {

@@ -43,12 +43,32 @@ export default function PileDrivingPanel({ planName, driving, readOnly = false, 
       ? { ...picked, viewerSelection } : null);
   }
   const { example, error, files, selectedId } = driving;
+  const exampleResult = files.find(file => file.id === example?.id)?.result;
+  const exampleRecords = exampleResult?.status === "ready" ? exampleResult.preview.records : undefined;
+  const recordsBySourceRow = useMemo(() => {
+    const byRow = new Map<number, PileDrivingRecord>();
+    for (const record of exampleRecords ?? []) {
+      for (const row of record.row_numbers ?? []) byRow.set(row, record);
+    }
+    return byRow;
+  }, [exampleRecords]);
+  const previewLink = (row: number) => {
+    const record = recordsBySourceRow.get(row);
+    if (!record) return undefined;
+    if (record.matching.status !== "matched") return t(record.matching.status);
+    return record.matched_pile_number === undefined
+      ? t("location", { id: record.matching.load_point_id })
+      : t("pile", { number: record.matched_pile_number });
+  };
   const allFiles = selectedId === null;
   const visibleFiles = allFiles ? files : files.filter(file => file.id === selectedId);
   const allRecords = useMemo(() => pileDrivingRows(files), [files]);
   const records = allFiles ? allRecords : allRecords.filter(row => row.file.id === selectedId);
   const warningRecords = records.filter(row => row.warnings.length > 0);
   const visibleRecords = warningsOnly ? warningRecords : records;
+  const matchingFields = new Set(visibleRecords.map(row => row.file.matchBy));
+  const matchingColumn = matchingFields.size > 1 ? "overview.link"
+    : matchingFields.has("revit-mark") ? "mark" : "overview.location";
   const dateFormat = new Intl.DateTimeFormat(i18n.language, { dateStyle: "medium", timeZone: "UTC" });
   const pickedRow = records.find(row => row.file.id === picked?.fileId && row.rowIndex === picked.index);
   const activeRow = viewerSelection === "multiple" ? undefined : pickedRow ?? records.find(({ record }) =>
@@ -99,7 +119,8 @@ export default function PileDrivingPanel({ planName, driving, readOnly = false, 
             <div className="pile-driving-disclosure-body">
               {example && files.length > 0 && <fieldset className="pile-driving-import" aria-label={t("importSettings")} disabled={readOnly || driving.pending}>
                 <SourceTableEditor role="pile-driving" variant="blueprint" csv={example.csv}
-                  preview={example.table} onChange={table => { setPicked(null); driving.setTable(table); }}>
+                  preview={example.table} previewColumn={{ label: t("overview.link"), cell: previewLink }}
+                  onChange={table => { setPicked(null); driving.setTable(table); }}>
                   {allFiles && files.length > 1 && <Select label={t("exampleFile")} value={example.id}
                     options={fileOptions} onChange={event => driving.selectExample(event.target.value)} />}
                   <Checkbox label={t("independentSettings")} checked={example.independent}
@@ -111,6 +132,9 @@ export default function PileDrivingPanel({ planName, driving, readOnly = false, 
                       { value: "location-id", label: t("locationId") },
                     ]}
                     onChange={event => { setPicked(null); driving.setMatchBy(event.target.value as PileDrivingMatchField); }} />
+                  {example.csv && driving.matchBy === "revit-mark" && <Checkbox label={t("ignoreCsvLeadingZeros")}
+                    checked={driving.ignoreCsvLeadingZeros}
+                    onChange={event => { setPicked(null); driving.setIgnoreCsvLeadingZeros(event.target.checked); }} />}
                   {example.customTable && <div><Button compact onClick={() => { setPicked(null); driving.resetTable(); }}>
                     {t("resetTable")}
                   </Button></div>}
@@ -158,12 +182,20 @@ export default function PileDrivingPanel({ planName, driving, readOnly = false, 
               <table className="oa-table" aria-label={t("records")}>
                 <thead><tr>
                   <th scope="col">{t("overview.day")}</th>
-                  <th scope="col">{t("overview.location")}</th>
+                  <th scope="col">{t(matchingColumn)}</th>
                   <th scope="col">{t("overview.warnings")}</th>
                 </tr></thead>
                 <tbody>{visibleRecords.map(({ file, record, rowIndex, day, date, warnings, unavailable }) => {
                   const matching = record.matching;
                   const locationId = matching.status === "matched" ? matching.load_point_id : null;
+                  const showPileNumber = file.matchBy === "revit-mark" || locationId === null;
+                  const matchingLabel = showPileNumber ? t("pile", { number: record.pile_number })
+                    : t("location", { id: locationId });
+                  const identifier = showPileNumber ? record.pile_number : locationId;
+                  const linkedNumber = record.matched_pile_number;
+                  const numberLink = showPileNumber && locationId !== null && linkedNumber !== undefined
+                    && linkedNumber !== record.pile_number
+                    ? `${record.pile_number} → ${t("pile", { number: linkedNumber })}` : undefined;
                   return <tr key={`${file.id}:${rowIndex}`} onClick={() => {
                     setPicked({ fileId: file.id, index: rowIndex, locationId, viewerSelection });
                     if (neighborhoodRecord) onNeighborhoodChange(null);
@@ -174,8 +206,8 @@ export default function PileDrivingPanel({ planName, driving, readOnly = false, 
                       : <span title={t("overview.unknownDate")}>–</span>}</td>
                     <td>
                       <Button kind="quiet" compact aria-pressed={activeRow?.file.id === file.id && activeRow.rowIndex === rowIndex}
-                        aria-label={locationId === null ? t("pile", { number: record.pile_number }) : t("location", { id: locationId })}>
-                        {locationId ?? t("pile", { number: record.pile_number })}
+                        aria-label={numberLink ?? matchingLabel}>
+                        {numberLink ?? (matchingFields.size > 1 || locationId === null ? matchingLabel : identifier)}
                       </Button>
                       {locationId === null && <small className="pile-driving-match-state oa-secondary">
                         {t(matching.status === "ambiguous" ? "ambiguous" : "unmatched")}

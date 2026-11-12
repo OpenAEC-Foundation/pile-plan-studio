@@ -162,7 +162,10 @@ export function InactiveLabel() {
   return <span className="pile-option-inactive-label">{t("pileOptions.inactive")}</span>;
 }
 
-export function localizeLoadPointName(name: string, t: ReturnType<typeof useTranslation>["t"]): string {
+export function localizeLoadPointName(
+  name: string, t: ReturnType<typeof useTranslation>["t"], pileNumber?: string,
+): string {
+  if (pileNumber?.trim()) return t("loadPoints.pileName", { number: pileNumber.trim() });
   const match = name.match(/^Load point\s+(.+)$/i);
   return match ? t("loadPoints.name", { id: match[1] }) : name;
 }

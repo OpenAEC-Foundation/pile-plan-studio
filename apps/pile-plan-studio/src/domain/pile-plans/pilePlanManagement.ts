@@ -88,6 +88,7 @@ export function duplicatePilePlan(
 
   const copy: PilePlanData = {
     ...source,
+    revitMarksByLoadPoint: new Map(source.revitMarksByLoadPoint),
     pileCapProposals: structuredClone(source.pileCapProposals ?? []),
     id: nextPilePlanId(pilePlans),
     name: generatedPilePlanName(pilePlans, "duplicate", input.language, source.name),
@@ -161,6 +162,7 @@ export function createOptimizationPilePlan(
     ...planActivationFields(activationFromConfigurations(input.resolvedCandidateConfigurations)),
     selectedPileConfigurationsByLoadPoint: cloneConfigurationMap(input.optimizedChoices),
     externalReferencesByLoadPoint,
+    revitMarksByLoadPoint: new Map(source.revitMarksByLoadPoint),
     lockedLoadPointIds: [...source.lockedLoadPointIds],
     optimizationUnassignedByLoadPoint: new Map(
       input.optimizationUnassignedByLoadPoint ?? source.optimizationUnassignedByLoadPoint,

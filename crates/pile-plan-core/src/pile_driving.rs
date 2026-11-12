@@ -24,6 +24,8 @@ pub struct ProjectPileDriving {
     #[serde(skip_serializing_if = "Option::is_none")]
     shared_match_by: Option<PileDrivingMatchField>,
     #[serde(skip_serializing_if = "Option::is_none")]
+    shared_ignore_csv_leading_zeros: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     shared_table: Option<PileDrivingSharedTable>,
     #[serde(skip_serializing_if = "Option::is_none")]
     check_settings: Option<checks::CheckSettings>,
@@ -44,15 +46,21 @@ struct DrivingImportOverrides {
     #[serde(skip_serializing_if = "Option::is_none")]
     match_by: Option<PileDrivingMatchField>,
     #[serde(skip_serializing_if = "Option::is_none")]
+    ignore_csv_leading_zeros: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     table: Option<TableImportSettings>,
 }
 
 impl ProjectPileDriving {
     pub(crate) fn is_valid(&self) -> bool {
         let mut ids = std::collections::HashSet::new();
-        self.files.iter().all(|file| {
-            !file.id.is_empty() && file.id != "all" && ids.insert(&file.id)
-        }) && self.check_settings.as_ref().is_none_or(checks::CheckSettings::valid)
+        self.files
+            .iter()
+            .all(|file| !file.id.is_empty() && file.id != "all" && ids.insert(&file.id))
+            && self
+                .check_settings
+                .as_ref()
+                .is_none_or(checks::CheckSettings::valid)
     }
 }
 
@@ -71,6 +79,7 @@ pub struct PileDrivingImportRequest {
     format: SourceFormat,
     bytes: Vec<u8>,
     match_by: PileDrivingMatchField,
+    ignore_csv_leading_zeros: Option<bool>,
     targets: Vec<PileDrivingTarget>,
     pile_head_level_m: Option<f64>,
     #[serde(default)]
@@ -93,6 +102,7 @@ struct PileDrivingSource {
     format: SourceFormat,
     bytes: Vec<u8>,
     match_by: PileDrivingMatchField,
+    ignore_csv_leading_zeros: Option<bool>,
     #[serde(default)]
     independent: bool,
     table: Option<TableImportSettings>,
@@ -104,7 +114,7 @@ struct PileDrivingSharedTable {
     settings: TableImportSettings,
 }
 
-#[derive(Debug, PartialEq, Serialize)]
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq, Serialize)]
 #[serde(tag = "status", rename_all = "kebab-case")]
 pub enum PileDrivingMatch {
     Matched { load_point_id: u32 },
@@ -115,6 +125,9 @@ pub enum PileDrivingMatch {
 #[derive(Debug, Serialize)]
 pub struct PileDrivingRecord {
     pile_number: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    matched_pile_number: Option<String>,
+    row_numbers: Vec<usize>,
     rows: Vec<Vec<String>>,
     matching: PileDrivingMatch,
     checks: Vec<checks::Check>,
@@ -195,6 +208,8 @@ pub fn preview_pile_driving(
     } = inspect_driving_file(
         table,
         request.match_by,
+        request.format,
+        request.ignore_csv_leading_zeros,
         &request.targets,
         request.pile_head_level_m,
         &request.settings,
@@ -247,6 +262,8 @@ pub fn preview_pile_driving_files(
                     inspect_driving_file(
                         normalized,
                         file.match_by,
+                        file.format,
+                        file.ignore_csv_leading_zeros,
                         &request.targets,
                         request.pile_head_level_m,
                         &request.settings,
@@ -292,9 +309,19 @@ pub fn preview_pile_driving_files(
     })
 }
 
+fn numeric_pile_number(value: &str) -> Option<&str> {
+    if value.is_empty() || !value.bytes().all(|byte| byte.is_ascii_digit()) {
+        return None;
+    }
+    let digits = value.trim_start_matches('0');
+    Some(if digits.is_empty() { "0" } else { digits })
+}
+
 fn inspect_driving_file(
     table: SourceTable,
     match_by: PileDrivingMatchField,
+    format: SourceFormat,
+    ignore_csv_leading_zeros: Option<bool>,
     plan_targets: &[PileDrivingTarget],
     pile_head_level_m: Option<f64>,
     settings: &checks::CheckSettings,
@@ -325,7 +352,9 @@ fn inspect_driving_file(
         })
         .map(|(index, _)| index)
         .collect();
-    let mut targets = HashMap::<String, Vec<u32>>::new();
+    let normalize_csv = format == SourceFormat::Csv && ignore_csv_leading_zeros.unwrap_or(true);
+    let mut targets = HashMap::<String, Vec<&PileDrivingTarget>>::new();
+    let mut numeric_targets = HashMap::<String, Vec<&PileDrivingTarget>>::new();
     for target in plan_targets {
         let key = match match_by {
             PileDrivingMatchField::RevitMark => target
@@ -337,7 +366,17 @@ fn inspect_driving_file(
             PileDrivingMatchField::LocationId => Some(target.load_point_id.to_string()),
         };
         if let Some(key) = key {
-            targets.entry(key).or_default().push(target.load_point_id);
+            if match_by == PileDrivingMatchField::RevitMark
+                && (normalize_csv || format == SourceFormat::Xlsx)
+            {
+                if let Some(digits) = numeric_pile_number(&key) {
+                    numeric_targets
+                        .entry(digits.to_owned())
+                        .or_default()
+                        .push(target);
+                }
+            }
+            targets.entry(key).or_default().push(target);
         }
     }
     let mut records = Vec::<PileDrivingRecord>::new();
@@ -361,34 +400,58 @@ fn inspect_driving_file(
                 .iter()
                 .map(|&index| values[index].trim().to_owned()),
         );
-        let record_index = *record_indices.entry(recording).or_insert_with(|| {
-            let key = match match_by {
-                PileDrivingMatchField::RevitMark => Some(pile_number.to_owned()),
-                PileDrivingMatchField::LocationId => parse_nonnegative_u32(pile_number)
-                    .ok()
-                    .map(|id| id.to_string()),
-            };
-            let matching = match key
-                .as_deref()
-                .and_then(|key| targets.get(key))
-                .map(Vec::as_slice)
-            {
-                Some([id]) => PileDrivingMatch::Matched { load_point_id: *id },
-                Some(_) => PileDrivingMatch::Ambiguous,
-                None => PileDrivingMatch::Unmatched,
-            };
-            let index = records.len();
-            records.push(PileDrivingRecord {
-                pile_number: pile_number.to_owned(),
-                rows: vec![],
-                matching,
-                checks: Vec::new(),
-                energy_range: None,
-                neighborhood_reading: None,
-                neighborhood: None,
+        let candidates = match match_by {
+            PileDrivingMatchField::LocationId => parse_nonnegative_u32(pile_number)
+                .ok()
+                .and_then(|id| targets.get(&id.to_string())),
+            PileDrivingMatchField::RevitMark if format == SourceFormat::Csv => {
+                match numeric_pile_number(pile_number).filter(|_| normalize_csv) {
+                    Some(digits) => numeric_targets.get(digits),
+                    None => targets.get(pile_number),
+                }
+            }
+            PileDrivingMatchField::RevitMark => match row.cells.get(number_column) {
+                Some(TableCell::Number(value)) if *value >= 0.0 && value.fract() == 0.0 => {
+                    let digits = if *value == 0.0 { "0" } else { pile_number };
+                    numeric_targets.get(digits)
+                }
+                Some(TableCell::Text(_)) => targets.get(pile_number),
+                _ => None,
+            },
+        };
+        let matching = match candidates.map(Vec::as_slice) {
+            Some([target]) => PileDrivingMatch::Matched {
+                load_point_id: target.load_point_id,
+            },
+            Some(_) => PileDrivingMatch::Ambiguous,
+            None => PileDrivingMatch::Unmatched,
+        };
+        let record_index = *record_indices
+            .entry((recording, matching))
+            .or_insert_with(|| {
+                let matched_pile_number = match candidates.map(Vec::as_slice) {
+                    Some([target]) if match_by == PileDrivingMatchField::RevitMark => target
+                        .revit_mark
+                        .as_deref()
+                        .map(str::trim)
+                        .map(str::to_owned),
+                    _ => None,
+                };
+                let index = records.len();
+                records.push(PileDrivingRecord {
+                    pile_number: pile_number.to_owned(),
+                    matched_pile_number,
+                    row_numbers: vec![],
+                    rows: vec![],
+                    matching,
+                    checks: Vec::new(),
+                    energy_range: None,
+                    neighborhood_reading: None,
+                    neighborhood: None,
+                });
+                index
             });
-            index
-        });
+        records[record_index].row_numbers.push(row.number);
         records[record_index].rows.push(values);
     }
     if records.is_empty() {
@@ -768,6 +831,7 @@ mod tests {
             format: SourceFormat::Csv,
             bytes: bytes.to_vec(),
             match_by,
+            ignore_csv_leading_zeros: None,
             pile_head_level_m: None,
             settings: Default::default(),
             targets: vec![
@@ -841,6 +905,103 @@ mod tests {
             .records
             .iter()
             .all(|record| record.matching == PileDrivingMatch::Ambiguous));
+    }
+
+    #[test]
+    fn csv_preview_ignores_leading_zeros_by_default_and_respects_exact_matching() {
+        let source = |option: Option<bool>| {
+            let mut source = serde_json::json!({
+                "file_name": "driving.csv", "format": "csv", "match_by": "revit-mark",
+                "bytes": "paalnummer,slagen\n1,23\n001,25\n000,15\n999999999999999999999999,16\n1-A,18\n".as_bytes()
+            });
+            if let Some(option) = option {
+                source["ignore_csv_leading_zeros"] = option.into();
+            }
+            source
+        };
+        let mut input = serde_json::json!({
+            "files": [source(None), source(Some(false))],
+            "targets": [
+                {"load_point_id": 10, "revit_mark": "001"},
+                {"load_point_id": 20, "revit_mark": "0"},
+                {"load_point_id": 30, "revit_mark": "0999999999999999999999999"},
+                {"load_point_id": 40, "revit_mark": "01-A"}
+            ]
+        });
+        let preview = |input| {
+            let request = serde_json::from_value(input).unwrap();
+            serde_json::to_value(preview_pile_driving_files(&request).unwrap()).unwrap()
+        };
+        let result = preview(input.clone());
+        let automatic = &result["files"][0]["preview"]["records"];
+        let exact = &result["files"][1]["preview"]["records"];
+        assert_eq!(automatic[0]["pile_number"], "1");
+        assert_eq!(automatic[0]["matching"]["load_point_id"], 10);
+        assert_eq!(automatic[0]["matched_pile_number"], "001");
+        assert_eq!(automatic[0]["row_numbers"], serde_json::json!([2]));
+        assert_eq!(automatic[1]["pile_number"], "001");
+        assert_eq!(automatic[2]["matching"]["load_point_id"], 20);
+        assert_eq!(automatic[3]["matching"]["load_point_id"], 30);
+        assert_eq!(automatic[4]["matching"]["status"], "unmatched");
+        assert_eq!(exact[0]["matching"]["status"], "unmatched");
+        assert_eq!(exact[1]["matching"]["load_point_id"], 10);
+
+        input["targets"]
+            .as_array_mut()
+            .unwrap()
+            .push(serde_json::json!({"load_point_id": 11, "revit_mark": "1"}));
+        let result = preview(input);
+        assert_eq!(
+            result["files"][0]["preview"]["records"][0]["matching"]["status"],
+            "ambiguous"
+        );
+        assert_eq!(
+            result["files"][1]["preview"]["records"][0]["matching"]["load_point_id"],
+            11
+        );
+    }
+
+    #[test]
+    fn excel_preview_distinguishes_numeric_cells_from_identically_displayed_text() {
+        let mut workbook = rust_xlsxwriter::Workbook::new();
+        let sheet = workbook.add_worksheet();
+        sheet.write_string(0, 0, "Paalnummer").unwrap();
+        sheet.write_number(1, 0, 1).unwrap();
+        sheet.write_string(2, 0, "1").unwrap();
+        sheet.write_string(3, 0, "001").unwrap();
+        sheet.write_number(4, 0, 1.5).unwrap();
+        sheet.write_string(5, 0, "1.5").unwrap();
+        let mut request = request(&[], PileDrivingMatchField::RevitMark);
+        request.format = SourceFormat::Xlsx;
+        request.file_name = "driving.xlsx".to_owned();
+        request.bytes = workbook.save_to_buffer().unwrap();
+        request.targets[2].revit_mark = Some("1.5".to_owned());
+
+        let result = preview_pile_driving(&request).unwrap();
+        assert_eq!(result.records.len(), 5);
+        assert_eq!(
+            result.records[0].matching,
+            PileDrivingMatch::Matched { load_point_id: 2 }
+        );
+        assert_eq!(result.records[1].matching, PileDrivingMatch::Unmatched);
+        assert_eq!(
+            result.records[2].matching,
+            PileDrivingMatch::Matched { load_point_id: 2 }
+        );
+        assert_eq!(result.records[3].matching, PileDrivingMatch::Unmatched);
+        assert_eq!(
+            result.records[4].matching,
+            PileDrivingMatch::Matched { load_point_id: 3 }
+        );
+
+        request.targets[0].revit_mark = Some("1".to_owned());
+        let result = preview_pile_driving(&request).unwrap();
+        assert_eq!(result.records[0].matching, PileDrivingMatch::Ambiguous);
+        assert_eq!(
+            result.records[1].matching,
+            PileDrivingMatch::Matched { load_point_id: 1 }
+        );
+        assert_eq!(result.records[2].pile_number, "001");
     }
 
     #[test]

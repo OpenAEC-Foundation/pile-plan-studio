@@ -144,7 +144,12 @@
   font-size: 13px;
 }
 
-.viewer-hover-position,
+.viewer-hover-pile-number {
+  max-width: 120px;
+  overflow-wrap: anywhere;
+  text-align: right;
+}
+
 .viewer-hover-candidate-count {
   color: var(--theme-text-muted);
   font-size: 10px;

@@ -133,6 +133,7 @@
       "unassigned": "No pile has been assigned."
     },
     "hover": {
+      "pileNumber": "Pile",
       "loadPoint": "Load point",
       "cpt": "CPT",
       "utilization": "Utilization",
@@ -974,7 +975,7 @@
       "tension": "Tension load",
       "tip-level": "Pile tip level",
       "pile-size": "Pile size",
-      "revit-mark": "Revit Mark",
+      "revit-mark": "Pile number",
       "resistance": "Compression resistance",
       "tensionResistance": "Tension resistance",
       "selected-cpts": "Selected CPTs",

@@ -11,11 +11,13 @@ import type { ProjectState } from "../../../domain/project/projectState.ts";
 import { localizeLoadPointName } from "./PanelControls.tsx";
 import ApplicationTooltip from "../../template/ApplicationTooltip.tsx";
 
-function setup(grouped = false) {
+function setup(grouped = false, pileNumber?: string) {
   const project = projectFixture();
   const points = project.loadPoints.slice(0, grouped ? 4 : 3).map((p,index)=>({...p,x_mm:index*1000,y_mm:0})), [a, b] = project.cpts;
   const groups = grouped ? [{ load_point_ids: [points[0]!.id, points[2]!.id] }, { load_point_ids: [points[1]!.id, points[3]!.id] }] : [];
   const state: ProjectState = { ...project, rightPanelMode: "cpts", loadPoints: points, cpts: [a!, b!], manualCptIdsByLoadPoint: new Map([[points[1]!.id, [b!.id]]]),
+    pilePlans: pileNumber ? project.pilePlans.map(plan => plan.id === project.activePilePlanId
+      ? { ...plan, revitMarksByLoadPoint: new Map([[points[1]!.id, pileNumber]]) } : plan) : project.pilePlans,
     selectedLoadPointIds: points.map(p => p.id), selectedLoadPointId: points[0]!.id,
     selectedCptsByLoadPointId: new Map(points.map((p, index) => [p.id, [{ cpt: index === 1 ? b! : a!, label: "nearest", distance_mm: 1000 }]])),
   };
@@ -62,6 +64,17 @@ test("usage counts expose actual members and open that location directly in the 
   expect(h.current().cptSelectionEditLoadPointId).toBe(h.points[1]!.id);
   expect(h.current().selectedLoadPointIds).toEqual([h.points[1]!.id]);
   expect(screen.getByRole("columnheader", { name: tr("cpts.distance") })).toBeTruthy();
+});
+
+test("the selection toggle labels CPT usage members and keeps location-based editing", () => {
+  const h = setup(false, "001-A");
+  fireEvent.click(screen.getByRole("button", { name: tr("selectionOverview.pileNumbers") }));
+  const row = screen.getAllByRole("row").find(row => within(row).queryByText(h.b.name))!;
+  const usage = within(row).getByRole("button", { name: /1 \/ 3/ });
+  expect(usage.getAttribute("data-tooltip")).toContain("Pile 001-A");
+  fireEvent.click(usage);
+  fireEvent.click(within(row).getByRole("button", { name: "Edit CPTs for Pile 001-A" }));
+  expect(h.current().selectedLoadPointIds).toEqual([h.points[1]!.id]);
 });
 
 test("expanded CPT usage shows its members without retaining their tooltip", async () => {

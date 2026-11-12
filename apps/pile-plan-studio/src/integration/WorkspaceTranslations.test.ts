@@ -38,6 +38,18 @@ describe("Workspace translations", () => {
       for (const suffix of ["one", "other"]) assert.ok(copy[`selectionOverview.visibleRows_${suffix}`]?.includes("{{count}}"));
     }
   });
+  it("labels the alternate numbering mode and the pile in the hover inspector in both languages", () => {
+    for (const [language, pileNumbers, locationNumbers, pile] of [
+      ["nl", "Paalnummers", "Locatienummers", "Paal"],
+      ["en", "Pile numbers", "Location numbers", "Pile"],
+    ]) {
+      const panel = JSON.parse(readFileSync(resolve(import.meta.dirname, `../i18n/locales/${language}/rightPanel.json`), "utf8"));
+      const common = JSON.parse(readFileSync(resolve(import.meta.dirname, `../i18n/locales/${language}/common.json`), "utf8"));
+      assert.equal(panel["selectionOverview.pileNumbers"], pileNumbers);
+      assert.equal(panel["selectionOverview.locationNumbers"], locationNumbers);
+      assert.equal(common.viewer.hover.pileNumber, pile);
+    }
+  });
   it("translates scoped CPT editing and preserves its interpolation fields in both languages", () => {
     for (const language of ["en", "nl"]) {
       const copy = JSON.parse(readFileSync(resolve(import.meta.dirname, `../i18n/locales/${language}/rightPanel.json`), "utf8"));

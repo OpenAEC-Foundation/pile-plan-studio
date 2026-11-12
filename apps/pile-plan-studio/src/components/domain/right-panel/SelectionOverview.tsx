@@ -11,10 +11,11 @@ import { Button, Heading } from "../../../openaec/react/src/index";
 
 export type SelectionOverviewLayout = { rows: number; collapsed: boolean };
 
-export default function SelectionOverview({ onSelectOnly,restrictToContext=false,loadPoints, selectedIds, contextIds, groups, onSelect, rows, collapsed, onLayoutChange, disabled, groupControl, extraContent }: {
+export default function SelectionOverview({ onSelectOnly,restrictToContext=false,loadPoints, selectedIds, contextIds, groups, onSelect, rows, collapsed, onLayoutChange, disabled, groupControl, extraContent, pileNumbers, labelControl }: {
   onSelectOnly?:(id:number)=>void;restrictToContext?:boolean;
   loadPoints: LoadPoint[]; selectedIds: number[]; contextIds: number[]; groups: LoadPointGroup[];
   onSelect: (ids: number[]) => void; rows: number; collapsed: boolean;
+  pileNumbers?: ReadonlyMap<number, string>; labelControl?: ReactNode;
   onLayoutChange: (patch: Partial<SelectionOverviewLayout>) => void; disabled: boolean; groupControl: ReactNode; extraContent?: ReactNode;
 }) {
   const { t } = useTranslation("rightPanel");
@@ -48,8 +49,11 @@ export default function SelectionOverview({ onSelectOnly,restrictToContext=false
     {!collapsed ? <div id={contentId} className="selection-overview-content">
       {contextIds.length > 0 ? <>
         <LoadPointSelectionList loadPoints={loadPoints} selectedLoadPointIds={selectedIds} contextLoadPointIds={contextIds}
-          groups={groups} restrictToContext={restrictToContext} disabled={disabled} visibleRows={heightRows} onInspect={id => onSelect([id])} onSelectGroup={onSelect} />
-        <div className="selection-overview-navigation"><LoadPointSelectionNavigation ids={contextIds} selectedIds={selectedIds} onSelect={onSelect} onSelectOnly={onSelectOnly} disabled={disabled} /></div>
+          groups={groups} pileNumbers={pileNumbers} restrictToContext={restrictToContext} disabled={disabled} visibleRows={heightRows} onInspect={id => onSelect([id])} onSelectGroup={onSelect} />
+        <div className="selection-overview-navigation">
+          <LoadPointSelectionNavigation ids={contextIds} selectedIds={selectedIds} onSelect={onSelect} onSelectOnly={onSelectOnly} disabled={disabled} />
+          {labelControl}
+        </div>
         {contextIds.length > 1 ? <div className="selection-overview-resizer" role="separator" tabIndex={0} aria-orientation="horizontal"
           aria-label={t("selectionOverview.resize")} title={t("selectionOverview.resizeHelp")}
           aria-valuemin={1} aria-valuemax={maxRows} aria-valuenow={shownRows}

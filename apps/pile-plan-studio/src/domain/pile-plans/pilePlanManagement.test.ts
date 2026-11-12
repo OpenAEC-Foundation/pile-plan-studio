@@ -138,6 +138,7 @@ describe("pile plan management", () => {
 
   it("duplicates assignments, references, and locks into a new active plan", () => {
     const source = plan("pile-plan-1", "Basisplan", [[1, "290|-17500"]], [1]);
+    source.revitMarksByLoadPoint = new Map([[1, "001-A"]]);
     source.externalReferencesByLoadPoint.set(1, [{ source: "legacy" }]);
     source.optimizationUnassignedByLoadPoint.set(8, "configuration_limits");
 
@@ -151,6 +152,8 @@ describe("pile plan management", () => {
 
     assert.equal(result.activePilePlanId, "pile-plan-2");
     assert.equal(result.pilePlans[1].name, "Basisplan - kopie");
+    assert.deepEqual(result.pilePlans[1].revitMarksByLoadPoint, new Map([[1, "001-A"]]));
+    assert.notEqual(result.pilePlans[1].revitMarksByLoadPoint, source.revitMarksByLoadPoint);
     assert.deepEqual([...result.selectedPileConfigurationsByLoadPoint], [[1, configuration("320|-17500")]]);
     assert.deepEqual(result.pilePlans[1].lockedLoadPointIds, [1]);
     assert.notEqual(result.pilePlans[1].lockedLoadPointIds, source.lockedLoadPointIds);
@@ -239,6 +242,7 @@ describe("pile plan management", () => {
       [1],
       [[8, "configuration_limits"]],
     );
+    source.revitMarksByLoadPoint = new Map([[1, "001-A"], [8, "008"]]);
     const result = createOptimizationPilePlan({
       pilePlans: [source],
       activePilePlanId: "pile-plan-1",
@@ -253,6 +257,8 @@ describe("pile plan management", () => {
 
     assert.deepEqual(result.pilePlans[0].selectedPileConfigurationsByLoadPoint.get(1), configuration("current"));
     assert.equal(result.pilePlans[1].name, "Optimalisatie 1");
+    assert.deepEqual(result.pilePlans[1].revitMarksByLoadPoint, new Map([[1, "001-A"], [8, "008"]]));
+    assert.notEqual(result.pilePlans[1].revitMarksByLoadPoint, source.revitMarksByLoadPoint);
     assert.deepEqual(result.selectedPileConfigurationsByLoadPoint.get(1), configuration("optimized"));
     assert.deepEqual(result.pilePlans[1].lockedLoadPointIds, [1]);
     assert.deepEqual(result.pilePlans[1].optimizationUnassignedByLoadPoint, new Map([[8, "configuration_limits"]]));

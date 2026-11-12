@@ -9,9 +9,10 @@ const warningControls = { showWarningsInViewer: false, onShowWarningsInViewerCha
 
 function drivingWith(result: PileDrivingFileResult) {
   return {
-    files: [{ id: "day-1", name: "driving.csv", result }], selectedId: null,
+    files: [{ id: "day-1", name: "driving.csv", result, matchBy: "location-id" as const }], selectedId: null,
     example: { id: "day-1", csv: true, independent: false, customTable: false, table: null },
     matchBy: "revit-mark" as const, pileSizes: [], settings: null, comparison: null, pending: false, error: null,
+    ignoreCsvLeadingZeros: true, setIgnoreCsvLeadingZeros: vi.fn(),
     addFiles: vi.fn(), selectFile: vi.fn(), selectExample: vi.fn(), removeFile: vi.fn(),
     setMatchBy: vi.fn(), setTable: vi.fn(), resetTable: vi.fn(), setIndependent: vi.fn(), setSettings: vi.fn(),
   };
@@ -168,4 +169,66 @@ test("filters registrations with warnings while keeping the viewer selection in 
   expect(screen.getByRole("heading", { name: "Pile A46" })).toBeTruthy();
   fireEvent.click(filter);
   expect(within(table).getByRole("button", { name: "Location 46" })).toBeTruthy();
+});
+
+test("the registrations table uses each file's effective matching field", () => {
+  const result: PileDrivingFileResult = {
+    status: "ready",
+    preview: { columns: ["paalnummer"], records: [{
+      pile_number: "001-A", rows: [["001-A"]], matching: { status: "matched", load_point_id: 45 }, checks: [],
+    }] },
+  };
+  const select = vi.fn();
+  const driving = { ...drivingWith(result), files: [
+    { id: "day-1", name: "numbered.csv", result, matchBy: "revit-mark" as const },
+    { id: "day-2", name: "locations.csv", result, matchBy: "location-id" as const },
+  ] };
+  render(<PileDrivingPanel {...warningControls} driving={driving} selectionDisabled={false}
+    selectedLoadPointIds={NO_SELECTION} neighborhoodRecord={null} onNeighborhoodChange={vi.fn()}
+    onSelect={select} onClose={vi.fn()} />);
+
+  const table = within(screen.getByRole("table", { name: "Pile records" }));
+  const pile = table.getByRole("button", { name: "Pile 001-A" });
+  expect(table.getByRole("columnheader", { name: "Link" })).toBeTruthy();
+  expect(pile.textContent).toBe("Pile 001-A");
+  expect(table.getByRole("button", { name: "Location 45" }).textContent).toBe("Location 45");
+  fireEvent.click(pile);
+  expect(select).toHaveBeenCalledWith([45]);
+});
+
+test("CSV import settings allow exact matching and the preview identifies the link for each source row", () => {
+  const result: PileDrivingFileResult = {
+    status: "ready",
+    table: {
+      sheets: [], settings: { has_headers: true, header_row: 1, first_data_row: 2 },
+      columns: [{ column: 1, header: "Paalnummer", nonempty_count: 2, numeric_count: 2 }],
+      rows: [{ number: 2, cells: ["1"] }, { number: 3, cells: ["1"] }], row_count: 2, processed: false,
+    },
+    preview: { columns: ["paalnummer"], records: [
+      { pile_number: "1", matched_pile_number: "001", row_numbers: [2], rows: [["1"]],
+        matching: { status: "matched", load_point_id: 45 }, checks: [] },
+      { pile_number: "1", row_numbers: [3], rows: [["1"]], matching: { status: "ambiguous" }, checks: [] },
+    ] },
+  };
+  const base = drivingWith(result);
+  const driving = {
+    ...base, files: base.files.map(file => ({ ...file, matchBy: "revit-mark" as const })),
+    example: { ...base.example, table: result.table },
+  };
+  const props = { ...warningControls, selectionDisabled: false, selectedLoadPointIds: NO_SELECTION,
+    neighborhoodRecord: null, onNeighborhoodChange: vi.fn(), onSelect: vi.fn(), onClose: vi.fn() };
+  const { container, rerender } = render(<PileDrivingPanel {...props} driving={driving} />);
+  container.querySelectorAll<HTMLDetailsElement>(".pile-driving-disclosure, .source-import-disclosure")
+    .forEach(details => { details.open = true; });
+  const checkbox = screen.getByRole<HTMLInputElement>("checkbox", { name: "Ignore leading zeros" });
+  expect(checkbox.checked).toBe(true);
+  fireEvent.click(checkbox);
+  expect(driving.setIgnoreCsvLeadingZeros).toHaveBeenCalledExactlyOnceWith(false);
+  expect(screen.getByRole("button", { name: "1 → Pile 001" })).toBeTruthy();
+  const linked = screen.getByRole("row", { name: /2.*Pile 001.*1/ });
+  expect(within(linked).getByText("Pile 001")).toBeTruthy();
+  expect(screen.getByRole("row", { name: /3.*Multiple locations.*1/ })).toBeTruthy();
+
+  rerender(<PileDrivingPanel {...props} driving={{ ...driving, example: { ...driving.example, csv: false } }} />);
+  expect(screen.queryByRole("checkbox", { name: "Ignore leading zeros" })).toBeNull();
 });

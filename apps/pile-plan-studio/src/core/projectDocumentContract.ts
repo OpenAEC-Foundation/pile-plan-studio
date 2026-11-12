@@ -25,7 +25,8 @@ type ProjectImportLogEntry = Omit<CoreProjectImportLogEntry, "mapped_columns" | 
   profile_details: Record<string, string>;
 };
 
-type CorePilePlan = Omit<IfcppPilePlan, "selected_piles" | "optimization_unassigned"> & {
+type CorePilePlan = Omit<IfcppPilePlan, "selected_piles" | "optimization_unassigned" | "revit_marks_by_load_point"> & {
+  revit_marks_by_load_point?: NumericCollection<string>;
   selected_piles: NumericCollection<IfcppPilePlan["selected_piles"][string]>;
   optimization_unassigned: NumericCollection<unknown>;
 };
@@ -195,7 +196,8 @@ type BrowserProjectDocumentDraft = Omit<
     >;
   };
   user_state: {
-    pile_plans: Array<Omit<IfcppPilePlan, "selected_piles" | "optimization_unassigned"> & {
+    pile_plans: Array<Omit<IfcppPilePlan, "selected_piles" | "optimization_unassigned" | "revit_marks_by_load_point"> & {
+      revit_marks_by_load_point: Map<number, string>;
       selected_piles: Map<number, IfcppPilePlan["selected_piles"][string]>;
       optimization_unassigned: Map<number, unknown>;
     }>;
@@ -302,6 +304,7 @@ export function toBrowserProjectDocumentDraft(
       pile_plans: draft.user_state.pile_plans.map((plan) => ({
         ...plan,
         selected_piles: numericMap(plan.selected_piles),
+        revit_marks_by_load_point: numericMap(plan.revit_marks_by_load_point ?? {}),
         optimization_unassigned: numericMap(plan.optimization_unassigned ?? {}),
       })),
       manual_cpt_selections: numericMap(draft.user_state.manual_cpt_selections),
@@ -329,6 +332,9 @@ export function toDesktopProjectDocumentDraft(
       pile_plans: draft.user_state.pile_plans.map((plan) => ({
         ...plan,
         selected_piles: { ...plan.selected_piles },
+        ...(plan.revit_marks_by_load_point && {
+          revit_marks_by_load_point: { ...plan.revit_marks_by_load_point },
+        }),
         optimization_unassigned: { ...(plan.optimization_unassigned ?? {}) },
       })),
       manual_cpt_selections: { ...draft.user_state.manual_cpt_selections },
@@ -353,8 +359,11 @@ function projectFromCore(project: CoreCanonicalProject): IfcppProject {
     },
     user_state: {
       ...project.user_state,
-      pile_plans: project.user_state.pile_plans.map((plan) => ({
+      pile_plans: project.user_state.pile_plans.map(({ revit_marks_by_load_point, ...plan }) => ({
         ...plan,
+        ...(revit_marks_by_load_point && {
+          revit_marks_by_load_point: numericRecord(revit_marks_by_load_point),
+        }),
         selected_piles: numericRecord(plan.selected_piles),
         optimization_unassigned: numericRecord(plan.optimization_unassigned),
       })),

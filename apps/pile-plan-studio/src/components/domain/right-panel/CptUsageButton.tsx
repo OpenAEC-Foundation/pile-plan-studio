@@ -4,7 +4,8 @@ import type { ProjectState } from "../../../domain/project/projectState.ts";
 import { setManualCptEditLoadPoint, startManualCptSelectionEdit } from "../../../domain/cpt-selection/cptSettingsModel.ts";
 import { Button } from "../../../openaec/react/src/index";
 
-export default function CptUsageButton({ state, ids, children, onStateChange, disabled, tooltip }: {
+export default function CptUsageButton({ state, formatMember, ids, children, onStateChange, disabled, tooltip }: {
+  formatMember?: (id: number) => string;
   state: ProjectState; ids: number[]; children: ReactNode; tooltip?: string;
   onStateChange: (state: ProjectState) => void; disabled: boolean;
 }) {
@@ -13,9 +14,14 @@ export default function CptUsageButton({ state, ids, children, onStateChange, di
   return <details className="cpt-usage-details" onToggle={event=>setExpanded(event.currentTarget.open)}>
     <summary role="button" aria-disabled={disabled} data-tooltip={expanded?"":tooltip}>{children}</summary>
     <div className="cpt-usage-members">
-      {ids.map(id => <Button compact key={id} disabled={disabled}
-        aria-label={t("cpts.editLocation", { id })}
-        onClick={() => onStateChange(setManualCptEditLoadPoint(state.cptSelectionEditDraft ? state : startManualCptSelectionEdit(state), id))}>{id}</Button>)}
+      {ids.map(id => {
+        const label = formatMember?.(id);
+        return <Button compact key={id} disabled={disabled}
+          aria-label={label ? t("cpts.editMember", { name: label }) : t("cpts.editLocation", { id })}
+          onClick={() => onStateChange(setManualCptEditLoadPoint(state.cptSelectionEditDraft ? state : startManualCptSelectionEdit(state), id))}>
+          {label ?? id}
+        </Button>;
+      })}
     </div>
   </details>;
 }

@@ -133,6 +133,7 @@
       "unassigned": "Er is geen paal toegewezen."
     },
     "hover": {
+      "pileNumber": "Paal",
       "loadPoint": "Belastinglocatie",
       "cpt": "Sondering",
       "utilization": "Benuttingsgraad",
@@ -974,7 +975,7 @@
       "tension": "Trekbelasting",
       "tip-level": "Paalpuntniveau",
       "pile-size": "Paalafmeting",
-      "revit-mark": "Revit Mark",
+      "revit-mark": "Paalnummer",
       "resistance": "Drukweerstand",
       "tensionResistance": "Trekweerstand",
       "selected-cpts": "Geselecteerde sonderingen",

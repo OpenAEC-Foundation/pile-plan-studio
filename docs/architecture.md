@@ -253,16 +253,28 @@ group-expanded assignments outside the import patch and verifies the committed
 project before reporting success. The new plan and shared CPT edits remain one
 history entry.
 
-Pile-plan import treats Revit Mark as optional plan metadata keyed by the
-resolved load-point ID. IFCPP stores it independently of the pile assignment.
-Source refresh remaps Marks with other location references. The driving
-records panel holds open files and shared or per-file import settings in the
-session. The Rust batch preview exposes raw table previews even when a column
-assignment or worksheet needs correction. It detects known driving headers
-and resolves shared manual mappings by header, or by position for unnamed
-columns. Each file matches the displayed plan using its configured identifier.
-Missing or ambiguous matches remain visible. The all-files view combines
-registrations while retaining their source file and measurement details.
+Pile-plan import reads optional pile numbers from the Revit Mark column. IFCPP
+stores these numbers per plan, keyed by load-point ID and independent of the pile
+assignment. Source refresh remaps them with other location references. Plan
+duplicates and optimization plans inherit the numbers from the source plan.
+The viewer labels assigned numbers as **Pile** on hover. Selection, pile options
+and CPT selection share one transient display setting. The button shows the
+mode it switches to, **Pile numbers** or **Location numbers**. Unnumbered
+locations retain their load-point label.
+
+The driving records panel holds open files and shared or per-file import settings.
+The Rust batch preview exposes raw table previews even when a column assignment
+or worksheet needs correction. It detects known driving headers and resolves
+shared manual mappings by header, or by position for unnamed columns. The default
+match field is the pile number if the reference plan has one for any current load
+point, with location ID as the fallback. Stored pile numbers keep their leading
+zeros. Excel text cells match exactly. Excel cells with nonnegative integers match
+digit-only pile numbers by numeric value. CSV uses the same numeric comparison
+for digit-only values by default. The shared or per-file **Ignore leading zeros**
+setting can switch CSV back to exact matching. A numeric match requires a single
+candidate. The source preview shows the link or match status for each row, and
+the registrations table displays a changed number as `1 → Pile 001`. The all-files
+view retains each registration's source file and measurement details.
 The same Rust preview assesses the raw measurements against the committed
 reference plan and session check settings. Check results are derived and
 remain outside the project document, recovery data and undo history.

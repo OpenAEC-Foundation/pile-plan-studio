@@ -14,15 +14,16 @@ import spriteUrl from "../../../openaec/studioSprite.ts";
 import "../../../openaec/openaec-components.css";
 import "./cptPanel.css";
 import { CoordinateReadout } from "../shared/CoordinateReadout.ts";
-import { ResistanceLabel, localizeCptName, localizeCptTableValue } from "./PanelControls.tsx";
+import { ResistanceLabel, localizeCptName, localizeCptTableValue, localizeLoadPointName } from "./PanelControls.tsx";
 
-export default function CptPanel({ state, onStateChange: publishState, selectedLoadPoints, saving = false, onSave, onApplyMethod }: {
+export default function CptPanel({ state, onStateChange: publishState, selectedLoadPoints, pileNumbers, saving = false, onSave, onApplyMethod }: {
   saving?: boolean;
   onSave?: (afterSave?: CptEditCompletion) => Promise<void>;
   onApplyMethod?: (method: CptSelectionMethod) => Promise<void>;
   state: ProjectState;
   onStateChange: (nextState: ProjectState) => void;
   selectedLoadPoints: ReturnType<typeof getSelectedLoadPoints>;
+  pileNumbers?: ReadonlyMap<number, string>;
 }) {
   const { t, i18n } = useTranslation("rightPanel");
   const {t:common}=useTranslation("common");
@@ -34,11 +35,13 @@ export default function CptPanel({ state, onStateChange: publishState, selectedL
   const draft = state.cptSelectionEditDraft;
   const isEditing = draft !== null;
   const onStateChange = (next: ProjectState) => publishState(synchronizeManualCptSelection(next));
+  const formatMember = pileNumbers && ((id: number) =>
+    localizeLoadPointName(t("loadPoints.name", { id }), t, pileNumbers.get(id)));
   const actions = <CptSelectionActions state={state} onStateChange={onStateChange} selectedLoadPoints={selectedLoadPoints}
-    saving={saving} onSave={onSave} onApplyMethod={onApplyMethod} />;
+    saving={saving} formatMember={formatMember} onSave={onSave} onApplyMethod={onApplyMethod} />;
 
   if (isEditing) {
-    return <CptSelectionOverview state={state} onStateChange={onStateChange} selectedLoadPoints={selectedLoadPoints} actions={actions} editing saving={saving} />;
+    return <CptSelectionOverview state={state} onStateChange={onStateChange} selectedLoadPoints={selectedLoadPoints} formatMember={formatMember} actions={actions} editing saving={saving} />;
   }
 
   if (selectedCpt) {
@@ -71,13 +74,14 @@ export default function CptPanel({ state, onStateChange: publishState, selectedL
     );
   }
 
-  return <CptSelectionOverview state={state} onStateChange={onStateChange} selectedLoadPoints={selectedLoadPoints} actions={actions} editing={false} saving={saving} />;
+  return <CptSelectionOverview state={state} onStateChange={onStateChange} selectedLoadPoints={selectedLoadPoints} formatMember={formatMember} actions={actions} editing={false} saving={saving} />;
 }
 
-function CptSelectionOverview({ state, onStateChange, selectedLoadPoints, actions, editing, saving }: {
+function CptSelectionOverview({ state, onStateChange, selectedLoadPoints, formatMember, actions, editing, saving }: {
   state: ProjectState;
   onStateChange: (nextState: ProjectState) => void;
   selectedLoadPoints: ReturnType<typeof getSelectedLoadPoints>;
+  formatMember?: (id: number) => string;
   editing: boolean;
   saving: boolean;
   actions: ReactNode;
@@ -136,13 +140,15 @@ function CptSelectionOverview({ state, onStateChange, selectedLoadPoints, action
                 {row.values.map((value, index) => {
                   const column = overview.columns[index];
                   const usageTitle = column === "Used by" && row.usageDetails
-                    ? t("cpts.usedByDetails", { loadPoints: row.usageDetails })
+                    ? t("cpts.usedByDetails", {
+                        loadPoints: formatMember ? row.usingLoadPointIds.map(formatMember).join(", ") : row.usageDetails,
+                      })
                     : undefined;
 
                   return (
                     <td key={`${row.cpt.id}-${column}`}>
                       {column === "Used by" ? (
-                        <CptUsageButton state={state} ids={row.usingLoadPointIds} onStateChange={onStateChange} disabled={saving} tooltip={usageTitle}>
+                        <CptUsageButton state={state} ids={row.usingLoadPointIds} formatMember={formatMember} onStateChange={onStateChange} disabled={saving} tooltip={usageTitle}>
                           {localizeCptTableValue(column, value, t)}
                         </CptUsageButton>
                       ) : overview.columns[index] === "CPT" && !editing ? (
@@ -180,10 +186,11 @@ function CptSelectionOverview({ state, onStateChange, selectedLoadPoints, action
   );
 }
 
-function CptSelectionActions({ state, onStateChange, selectedLoadPoints, saving, onSave, onApplyMethod }: {
+function CptSelectionActions({ state, onStateChange, selectedLoadPoints, formatMember, saving, onSave, onApplyMethod }: {
   state: ProjectState;
   onStateChange: (nextState: ProjectState) => void;
   selectedLoadPoints: ReturnType<typeof getSelectedLoadPoints>;
+  formatMember?: (id: number) => string;
   saving: boolean;
   onSave?: (afterSave?: CptEditCompletion) => Promise<void>;
   onApplyMethod?: (method: CptSelectionMethod) => Promise<void>;
@@ -208,7 +215,7 @@ function CptSelectionActions({ state, onStateChange, selectedLoadPoints, saving,
       </> : <Button compact className="cpt-modify-button" disabled={pending || noTargets}
         onClick={() => onStateChange(startCptSelectionEdit(state))}>{t("actions.modify")}</Button>}</div>
     </div>
-    {editing ? <CptEditScope state={state} onStateChange={onStateChange} disabled={saving} /> : null}
+    {editing ? <CptEditScope state={state} formatMember={formatMember} onStateChange={onStateChange} disabled={saving} /> : null}
   </>;
 }
 

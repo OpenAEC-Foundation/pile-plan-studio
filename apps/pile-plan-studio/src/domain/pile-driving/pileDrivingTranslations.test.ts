@@ -12,8 +12,16 @@ test("driving record labels and import diagnostics are available in English and 
   assert.deepEqual(Object.keys(nl.columns), Object.keys(en.columns));
   assert.deepEqual(Object.keys(nl.errors), Object.keys(en.errors));
   assert.deepEqual(Object.keys(nl.overview), Object.keys(en.overview));
+  assert.equal(nl.ignoreCsvLeadingZeros, "Voorloopnullen negeren");
+  assert.equal(en.ignoreCsvLeadingZeros, "Ignore leading zeros");
   for (const language of ["nl", "en"]) {
-    assert.ok(load(language, "common").viewer.drivingWarning.trim());
+    const common = load(language, "common");
+    const panel = load(language, "rightPanel");
+    assert.ok(common.viewer.drivingWarning.trim());
+    assert.equal(panel.pileDriving.mark, common.tableImport.fields["revit-mark"]);
+    assert.ok(panel["selectionOverview.pileNumbers"].trim());
+    assert.ok(panel["loadPoints.pileName"].includes("{{number}}"));
+    assert.ok(panel["cpts.editMember"].includes("{{name}}"));
     assert.ok(load(language, "rightPanel").pileDriving.overview.markWarnings.trim());
   }
   for (const labels of [nl, en]) {

@@ -353,6 +353,7 @@ export default function PilePlanViewer({
       return null;
     }
 
+    const pileNumber = loadPoint ? activePilePlan?.revitMarksByLoadPoint?.get(loadPoint.id)?.trim() : undefined;
     const selectedOption = loadPoint ? getSelectedPileOption(state, loadPoint.id, pileOptionsByLoadPointId) : null;
     return (
       <section className="viewer-hover-inspector" aria-live="polite">
@@ -362,9 +363,10 @@ export default function PilePlanViewer({
             <span>{t(active.type === "load-point" ? "viewer.hover.loadPoint" : "viewer.hover.cpt")}</span>
             <strong>{stripMarkerNamePrefix(loadPoint?.name ?? getCptDisplayName(cpt!))}</strong>
           </span>
-          {candidateState.keys.length > 1 ? (
-            <span className="viewer-hover-position">
-              {candidateState.activeIndex + 1} / {candidateState.keys.length}
+          {pileNumber ? (
+            <span className="viewer-hover-title-copy viewer-hover-pile-number">
+              <span>{t("viewer.hover.pileNumber")}</span>
+              <strong>{pileNumber}</strong>
             </span>
           ) : null}
         </div>

@@ -880,11 +880,13 @@ mod tests {
         value["schema_version"] = serde_json::json!(CURRENT_SCHEMA_VERSION);
         value["inputs"]["pile_driving"] = serde_json::json!({
             "files": [
-                {"id": "day-1", "file_name": "day-1.csv", "format": "csv", "data_base64": "cGFhbG51bW1lcgoxNQo="},
+                {"id": "day-1", "file_name": "day-1.csv", "format": "csv", "data_base64": "cGFhbG51bW1lcgoxNQo=",
+                 "overrides": {"ignore_csv_leading_zeros": true}},
                 {"id": "day-2", "file_name": "day-2.xlsx", "format": "xlsx", "data_base64": "UEsDBA==",
                  "overrides": {"match_by": "location-id", "table": {"sheet_name": "Daily records"}}}
             ],
             "shared_match_by": "revit-mark",
+            "shared_ignore_csv_leading_zeros": false,
             "shared_table": {"headers": ["Pile"], "settings": {"has_headers": true}},
             "check_settings": {"neighborhood_tolerance_pct": 12.5}
         });
@@ -893,8 +895,10 @@ mod tests {
         let saved: Value = serde_json::from_str(&written).unwrap();
         let driving = &saved["inputs"]["pile_driving"];
         assert_eq!(driving["files"][0]["data_base64"], "cGFhbG51bW1lcgoxNQo=");
+        assert_eq!(driving["files"][0]["overrides"]["ignore_csv_leading_zeros"], true);
         assert_eq!(driving["files"][1]["overrides"]["table"]["sheet_name"], "Daily records");
         assert_eq!(driving["shared_match_by"], "revit-mark");
+        assert_eq!(driving["shared_ignore_csv_leading_zeros"], false);
         assert_eq!(driving["shared_table"]["settings"]["has_headers"], true);
         assert_eq!(driving["check_settings"]["neighborhood_tolerance_pct"], 12.5);
         assert_eq!(read_project_document(&written).unwrap().project.inputs, project.inputs);
