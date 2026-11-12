@@ -90,7 +90,7 @@ export function useIlpOptimization(state:ProjectState,groups:LoadPointGroup[],re
     || (!liveSolution && viewingTarget.current && displayState.activePilePlanId===run.sourceId));
   const transientOutcome=!runState.running && runState.outcome?.status!=="solved" && runState.outcome?.status!=="cancelled"
     && run && displayState.activePilePlanId===run.sourceId;
-  const resultRun:IlpRunState={running:false,stopping:false,progress:null,
+  const resultRun:IlpRunState<number | string>={running:false,stopping:false,progress:null,
     outcome:saved?{status:"solved",solution:saved.solution,diagnostics:saved.diagnostics}:null,
     context:saved?{optimizeCoherence:saved.settings.optimize_coherence,budgetBasisPoints:saved.settings.budget_basis_points,
       wholePlanLimits:saved.whole_plan_limits,boundaryTransitions:saved.boundary_transitions,localOnly:saved.local_only}:undefined};

@@ -22,7 +22,7 @@ export function applyIlpSolutionToPlan(plan: PilePlanData, solution: IlpSolution
     activePileSizes:[...new Set([...plan.activePileSizes,...solution.assignments.map(a=>a.configuration.pile_size_mm)])].sort((a,b)=>a-b),
     activePileTipLevelMms:[...new Set([...plan.activePileTipLevelMms,...solution.assignments.map(a=>a.configuration.pile_tip_level_mm)])].sort((a,b)=>b-a)};
 }
-export function canSkipUnsolvableIlpTargets(outcome: IlpOptimizationOutcome): boolean {
+export function canSkipUnsolvableIlpTargets(outcome: IlpOptimizationOutcome<number | string>): boolean {
   return outcome.status==="blocked" && outcome.solvable_load_point_ids.length>0;
 }
 export function enableSkippingUnsolvableTargets(now: ProjectState, outcome: IlpOptimizationOutcome): ProjectState {

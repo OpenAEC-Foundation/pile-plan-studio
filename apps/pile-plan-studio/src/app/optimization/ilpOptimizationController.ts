@@ -1,7 +1,7 @@
 import type { IlpOptimizationClient, IlpRunHandle } from "../../core/ilpOptimizationClient.ts";
 import type { IlpOptimizationOutcome, IlpProgress, IlpRunRequest, IlpSolution } from "../../core/ilpOptimizationTypes.ts";
 export type IlpRunContext = {optimizeCoherence:boolean;budgetBasisPoints:number;wholePlanLimits:boolean;boundaryTransitions:boolean;localOnly?:boolean};
-export type IlpRunState={running:boolean;stopping:boolean;cancelling?:boolean;progress:IlpProgress|null;outcome:IlpOptimizationOutcome|null;context?:IlpRunContext;previewSolution?:IlpSolution};
+export type IlpRunState<Counter = number>={running:boolean;stopping:boolean;cancelling?:boolean;progress:IlpProgress|null;outcome:IlpOptimizationOutcome<Counter>|null;context?:IlpRunContext;previewSolution?:IlpSolution};
 export class IlpOptimizationController {
   state:IlpRunState={running:false,stopping:false,progress:null,outcome:null};
   private client:IlpOptimizationClient;

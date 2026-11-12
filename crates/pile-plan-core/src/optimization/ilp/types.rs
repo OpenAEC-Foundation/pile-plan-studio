@@ -194,6 +194,7 @@ pub struct IlpTransitionCounts {
 }
 #[derive(Clone, Debug, Deserialize, PartialEq, Eq, Serialize)]
 pub struct IlpCostReference {
+    #[serde(with = "transport_counter")]
     pub cost: u64,
     pub proof: IlpProof,
     pub termination: IlpTermination,
@@ -203,11 +204,14 @@ pub struct IlpSolution {
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub pile_cap_proposals: Vec<crate::PileCapProposal>,
     pub assignments: Vec<IlpAssignment>,
+    #[serde(with = "transport_counter")]
     pub cost: u64,
+    #[serde(with = "transport_counter")]
     pub budget: u64,
     pub reference: IlpCostReference,
     pub counts: IlpCounts,
     pub transitions: IlpTransitionCounts,
+    #[serde(with = "transport_counter")]
     pub score_milli: u64,
     pub proof: IlpProof,
     pub termination: IlpTermination,
@@ -295,4 +299,31 @@ pub struct IlpPlanResult {
 
 fn is_zero(value: &u32) -> bool {
     *value == 0
+}
+
+// Historical results cross both a JavaScript/WASM boundary and a Tauri JSON
+// boundary. Keep the existing numeric representation for safe integers.
+mod transport_counter {
+    use serde::{Deserialize, Deserializer, Serializer};
+
+    pub fn serialize<S: Serializer>(value: &u64, serializer: S) -> Result<S::Ok, S::Error> {
+        if *value <= 9_007_199_254_740_991 {
+            serializer.serialize_u64(*value)
+        } else {
+            serializer.collect_str(value)
+        }
+    }
+
+    pub fn deserialize<'de, D: Deserializer<'de>>(deserializer: D) -> Result<u64, D::Error> {
+        #[derive(Deserialize)]
+        #[serde(untagged)]
+        enum Counter {
+            Integer(u64),
+            Decimal(String),
+        }
+        match Counter::deserialize(deserializer)? {
+            Counter::Integer(value) => Ok(value),
+            Counter::Decimal(value) => value.parse().map_err(serde::de::Error::custom),
+        }
+    }
 }

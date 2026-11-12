@@ -36,22 +36,22 @@ export type IlpTermination = "completed" | "time_limit" | "stopped" | "cancelled
 export type IlpProof = "optimal" | "feasible" | "infeasible" | "unknown";
 export type IlpCounts = { tip_levels: number; pile_sizes: number; configurations: number };
 export type IlpAssignment = { load_point_id: number; configuration: PileConfigurationKey };
-export type IlpSolution = {
+export type IlpSolution<Counter = number> = {
   pile_cap_proposals?: PileCapProposal[];
-  assignments: IlpAssignment[]; cost: number; budget: number;
-  reference: { cost: number; proof: IlpProof; termination: IlpTermination };
+  assignments: IlpAssignment[]; cost: Counter; budget: Counter;
+  reference: { cost: Counter; proof: IlpProof; termination: IlpTermination };
   counts: IlpCounts; transitions: { tip_only: number; size_only: number; both: number; pile_count?: number };
-  score_milli: number; proof: IlpProof; termination: IlpTermination;
+  score_milli: Counter; proof: IlpProof; termination: IlpTermination;
 };
 export type IlpDiagnostic = { code: string; load_point_ids: number[]; blocking: boolean };
 export type IlpPlanResult = {
-  solution: IlpSolution; diagnostics: IlpDiagnostic[]; settings: IlpOptimizationSettings;
+  solution: IlpSolution<number | string>; diagnostics: IlpDiagnostic[]; settings: IlpOptimizationSettings;
   whole_plan_limits: boolean; boundary_transitions: boolean; local_only: boolean;
   currency_code: string; basis_fingerprint: string;
 };
 export type IlpLimitProposal = { required_limits: IlpCounts; increases: IlpCounts; minimality_proven: boolean; witness: IlpAssignment[] };
-export type IlpOptimizationOutcome =
-  | { status: "solved"; solution: IlpSolution; diagnostics: IlpDiagnostic[] }
+export type IlpOptimizationOutcome<Counter = number> =
+  | { status: "solved"; solution: IlpSolution<Counter>; diagnostics: IlpDiagnostic[] }
   | { status: "blocked"; diagnostics: IlpDiagnostic[]; solvable_load_point_ids: number[] }
   | { status: "infeasible"; diagnostics: IlpDiagnostic[]; proposal: IlpLimitProposal | null }
   | { status: "no_solution"; phase: IlpPhase; termination: IlpTermination }

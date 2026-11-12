@@ -380,6 +380,8 @@ pub fn refresh_project_with_location_decisions(
         super::advice_refresh::remap_advice_ownership(&mut refreshed.import_log, &cpt_mapping);
     }
 
+    crate::ifcpp::ifcx::remap_input_identity(current, &mut refreshed, &load_point_mapping, &cpt_mapping)
+        .map_err(|error| ImportError::Validation(error.to_string()))?;
     crate::validate_ifcpp_project(&refreshed)
         .map_err(|error| ImportError::Validation(error.to_string()))?;
     Ok(refreshed)
@@ -776,6 +778,25 @@ mod tests {
             .expect("active plan")
             .selected_piles
             .contains_key(&1));
+    }
+
+    #[test]
+    fn confirmed_source_refresh_preserves_ifcx_paths_after_renumbering() {
+        let fixture = include_str!("../../../../schemas/ifcpp/fixtures/minimal.ifcpp");
+        let current = crate::read_ifcpp_str(fixture).unwrap();
+        let refreshed = refresh_project_from_profiled_sources(
+            &current,
+            &[csv_source(ImportRole::LoadPoints, "new-loads.csv", "19,1000,2000,390\n18,4000,2000,420\n")],
+        ).unwrap();
+        let written: serde_json::Value =
+            serde_json::from_str(&crate::write_ifcpp_string(&refreshed).unwrap()).unwrap();
+        let nodes = written["data"].as_array().unwrap();
+        let point = nodes.iter().find(|node| {
+            node["attributes"]["openaec::foundation::loadPoint"]["number"] == 19
+        }).unwrap();
+        assert_eq!(point["path"], "521d08b1-0212-4eab-90bb-2e42be3f7f48");
+        let pile = nodes.iter().find(|node| node["path"] == "b94c7e89-b2a7-43bf-92e3-a025022c63a9").unwrap();
+        assert_eq!(pile["attributes"]["openaec::foundation::pile"]["loadPoint"], point["path"]);
     }
 
     #[test]

@@ -1,0 +1,775 @@
+{
+  "header": {
+    "id": "602b124d-64ce-4f27-bc33-df2f2329334d",
+    "ifcxVersion": "ifcx_alpha",
+    "dataVersion": "1.0.0",
+    "author": "Open Pile Plan Studio - ontwerpvoorbeeld",
+    "timestamp": "2026-11-11T00:00:00Z"
+  },
+  "imports": [
+    {
+      "uri": "urn:example:ifcpp:1.0.0"
+    }
+  ],
+  "schemas": {},
+  "data": [
+    {
+      "path": "602b124d-64ce-4f27-bc33-df2f2329334d",
+      "children": {
+        "Fundering": "b8a03507-ce29-414f-b931-992cdcbabbe6"
+      },
+      "attributes": {
+        "bsi::ifc::prop::Name": "Synthetisch schema 9-project",
+        "bsi::ifc::class": {
+          "code": "IfcProject",
+          "uri": "https://identifier.buildingsmart.org/uri/buildingsmart/ifc/4.3/class/IfcProject"
+        },
+        "openaec::opps::document": {
+          "format": "IFCPP",
+          "application": {
+            "name": "Open Pile Plan Studio",
+            "version": "2026.46.4"
+          },
+          "legacyUnitLabels": {
+            "coordinates": "m"
+          }
+        },
+        "openaec::project::metadata": {
+          "author": "Test fixture",
+          "organization": "OpenAEC",
+          "createdAt": "2026-11-10T15:00:00Z",
+          "modifiedAt": "2026-11-11T14:00:00Z",
+          "description": "Synthetic values only"
+        },
+        "openaec::project::units": {
+          "coordinates": "mm",
+          "costs": "EUR",
+          "force": "kN",
+          "pileSize": "mm",
+          "levels": "m"
+        },
+        "openaec::source::externalReferences": [
+          {
+            "sourceFile": "model.ifc",
+            "globalId": "0viMNtM2zDD9zF3Wzkc2Xc",
+            "entity": "IfcProject",
+            "description": "Synthetic model link"
+          }
+        ]
+      }
+    },
+    {
+      "path": "b8a03507-ce29-414f-b931-992cdcbabbe6",
+      "children": {
+        "Palenplan_A": "9169891a-0163-437d-966c-b7f908115846",
+        "Palenplan_B": "df188042-8a5c-435a-8247-a6c151c5c5f2",
+        "L17": "521d08b1-0212-4eab-90bb-2e42be3f7f48",
+        "L18": "72b80cd5-e2b5-4e85-aec5-f2fe1f82b7db",
+        "S01": "2d329c7a-52a5-4616-86b3-27b771ffb487",
+        "Funderingsadvies": "60ecf013-ade5-4e10-b12e-976cb06e26a1",
+        "Excel_bron": "72b4281e-7f25-4424-9bb5-0786d7d0d398",
+        "L19": "d35974c6-25e3-4a8c-a841-2f63cf3f3afa",
+        "L20": "f1ae9d06-8306-4840-a95f-41f295b83bd6",
+        "Heistaat": "27e5aa5d-46dc-4b2f-b294-d57aff1116b9",
+        "Aanvullend_advies": "f1de843c-c3d0-4b63-9c89-d88260b7d10c"
+      },
+      "attributes": {
+        "bsi::ifc::prop::Name": "Fundering",
+        "openaec::foundation::design": {
+          "pileHeadLevel": -0.7501234567890123
+        },
+        "openaec::opps::planView": {
+          "plan": "9169891a-0163-437d-966c-b7f908115846",
+          "showGrid": true,
+          "showTipLevelRegions": true,
+          "showLoadPointGroups": true,
+          "symbolScalePercent": 110,
+          "foregroundLayer": "cpts"
+        },
+        "openaec::opps::grouping": {
+          "automatic": true,
+          "maxEdgeDistanceMm": 1200,
+          "manualGroups": [
+            [
+              "d35974c6-25e3-4a8c-a841-2f63cf3f3afa",
+              "f1ae9d06-8306-4840-a95f-41f295b83bd6"
+            ]
+          ],
+          "ungroupedGroups": [
+            [
+              "521d08b1-0212-4eab-90bb-2e42be3f7f48",
+              "72b80cd5-e2b5-4e85-aec5-f2fe1f82b7db"
+            ]
+          ]
+        },
+        "openaec::opps::cptRules": {
+          "algorithm": "quadrants",
+          "maxDistanceM": 20,
+          "monopolyDistanceM": 0.75,
+          "maxAngleDegrees": 110
+        },
+        "openaec::opps::legacyLocationSettings": [
+          {
+            "loadPointNumber": 97,
+            "rules": {
+              "algorithm": "maximum-angle",
+              "maxDistanceM": 20,
+              "monopolyDistanceM": 0.75,
+              "maxAngleDegrees": 110
+            },
+            "manualCptNumbers": [
+              1,
+              92
+            ]
+          }
+        ],
+        "openaec::opps::pileCosts": {
+          "schemaVersion": 1,
+          "items": [
+            {
+              "pileSize": 290,
+              "shape": "square",
+              "costPerM3": 130
+            },
+            {
+              "pileSize": 320,
+              "shape": "round",
+              "costPerM3": 140
+            }
+          ]
+        },
+        "openaec::opps::viewerUtilization": {
+          "minimum": 0.25,
+          "maximum": 0.95
+        },
+        "openaec::opps::legend": {
+          "encodingMode": "size-symbol-level-color",
+          "colorScheme": "tableau-extended",
+          "pileSizeColorScheme": "tableau-extended",
+          "pileTipLevelColorScheme": "tableau-extended",
+          "pileSizes": [
+            {
+              "symbol": {
+                "baseShape": "circle",
+                "fillPattern": "solid"
+              },
+              "color": "#206070",
+              "symbolAutomatic": false,
+              "colorAutomatic": true,
+              "value": 290
+            }
+          ],
+          "pileTipLevels": [
+            {
+              "symbol": {
+                "baseShape": "circle",
+                "fillPattern": "solid"
+              },
+              "color": "#206070",
+              "symbolAutomatic": false,
+              "colorAutomatic": true,
+              "value": -18
+            }
+          ]
+        },
+        "openaec::opps::optimizerSettings": {
+          "includeTension": true,
+          "allowPileCountChanges": true,
+          "maxPilesPerCap": 4,
+          "allowedPileCounts": [
+            1,
+            2,
+            4
+          ],
+          "skipUnsolvableUnits": true,
+          "optimizeCoherence": true,
+          "maxPileTipLevels": 2,
+          "maxPileSizes": 2,
+          "maxPileConfigurations": 3,
+          "maxUtilization": 0.95,
+          "candidateSource": "custom",
+          "customConfigurations": [
+            {
+              "pileSize": 290,
+              "tipLevel": -18
+            }
+          ],
+          "budgetBasisPoints": 500,
+          "transitionWeights": {
+            "tipOnlyMilli": 1000,
+            "sizeOnlyMilli": 1200,
+            "pileCountMilli": 1400
+          }
+        },
+        "openaec::opps::importLog": [
+          {
+            "source": "72b4281e-7f25-4424-9bb5-0786d7d0d398",
+            "importedAt": "2026-11-11T13:00:00Z",
+            "sheetName": "Druk",
+            "mappedColumns": [
+              {
+                "key": "Waarde",
+                "value": "frd_kn"
+              }
+            ],
+            "warnings": [
+              "Synthetic warning"
+            ],
+            "sourceRole": "bearing-capacities",
+            "sourceFormat": "xlsx",
+            "schemaVersion": "1",
+            "sourceProfile": "capacity-columns",
+            "profileDetails": [
+              {
+                "key": "advice_id",
+                "value": "advice-source-0"
+              },
+              {
+                "key": "capacity_keys",
+                "value": "[[1,290,-18000,\"compression\",null],[1,320,-17123,\"compression\",null],[1,290,-18000,\"compression\",2],[1,290,-18000,\"tension\",null],[92,290,-18000,\"compression\",null]]"
+              },
+              {
+                "key": "table_settings",
+                "value": "{\"sheet_name\":\"Druk\",\"has_headers\":true}"
+              }
+            ]
+          },
+          {
+            "source": "f1de843c-c3d0-4b63-9c89-d88260b7d10c",
+            "mappedColumns": [],
+            "warnings": [],
+            "sourceRole": "bearing-capacities",
+            "sourceFormat": "csv",
+            "profileDetails": [
+              {
+                "key": "advice_id",
+                "value": "advice-source-1"
+              },
+              {
+                "key": "capacity_keys",
+                "value": "[[1,290,-18000,\"compression\",null]]"
+              }
+            ]
+          }
+        ],
+        "openaec::opps::pileDriving": {
+          "files": [
+            {
+              "source": "27e5aa5d-46dc-4b2f-b294-d57aff1116b9",
+              "id": "driving-01",
+              "overrides": {
+                "matchBy": "revit-mark",
+                "ignoreCsvLeadingZeros": false,
+                "table": {
+                  "fixedPileSize": 290,
+                  "pileCount": 2,
+                  "sheetName": "Blad1",
+                  "hasHeaders": true,
+                  "headerRow": "1",
+                  "firstDataRow": "2",
+                  "delimiter": ";",
+                  "columns": [
+                    {
+                      "column": "1",
+                      "field": "paalnummer"
+                    },
+                    {
+                      "column": "2",
+                      "field": "slagen",
+                      "unit": "1",
+                      "pileSize": 290
+                    }
+                  ]
+                }
+              }
+            }
+          ],
+          "sharedMatchBy": "revit-mark",
+          "sharedIgnoreCsvLeadingZeros": false,
+          "sharedTable": {
+            "headers": [
+              "Paalnummer",
+              "Slagen"
+            ],
+            "settings": {
+              "fixedPileSize": 290,
+              "pileCount": 2,
+              "sheetName": "Blad1",
+              "hasHeaders": true,
+              "headerRow": "1",
+              "firstDataRow": "2",
+              "delimiter": ";",
+              "columns": [
+                {
+                  "column": "1",
+                  "field": "paalnummer"
+                },
+                {
+                  "column": "2",
+                  "field": "slagen",
+                  "unit": "1",
+                  "pileSize": 290
+                }
+              ]
+            }
+          },
+          "checkSettings": {
+            "minimumEndBlows": 15,
+            "endWindowIncrements": 6,
+            "maximumEndDrop": 2,
+            "lengthToleranceMm": 250,
+            "levelToleranceMm": 250,
+            "neighborhoodTolerancePct": 10,
+            "peerEnergySpreadKj": 5,
+            "targetEnergyToleranceKj": 2,
+            "expectedEnergy": [
+              {
+                "pileSize": 290,
+                "energyKj": 25
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "path": "9169891a-0163-437d-966c-b7f908115846",
+      "children": {
+        "Paal_L17": "b94c7e89-b2a7-43bf-92e3-a025022c63a9"
+      },
+      "attributes": {
+        "bsi::ifc::prop::Name": "Palenplan A",
+        "openaec::foundation::pilePlan": {
+          "variantId": "pile-plan-a"
+        },
+        "openaec::opps::planSettings": {
+          "order": 0,
+          "activePileSizes": [
+            290
+          ],
+          "activeTipLevels": [
+            -18
+          ],
+          "lockedLoadPoints": [
+            "521d08b1-0212-4eab-90bb-2e42be3f7f48",
+            "72b80cd5-e2b5-4e85-aec5-f2fe1f82b7db"
+          ],
+          "legacyLockedLoadPointNumbers": [
+            97
+          ]
+        },
+        "openaec::opps::pileCapProposals": [
+          {
+            "loadPoints": [
+              "d35974c6-25e3-4a8c-a841-2f63cf3f3afa",
+              "f1ae9d06-8306-4840-a95f-41f295b83bd6"
+            ],
+            "pileCount": 2,
+            "quarterTurns": 1,
+            "configuration": {
+              "pileSize": 290,
+              "tipLevel": -18
+            }
+          }
+        ],
+        "openaec::opps::legacyPileNumbers": [
+          {
+            "loadPoint": "72b80cd5-e2b5-4e85-aec5-f2fe1f82b7db",
+            "pileNumber": "001"
+          },
+          {
+            "legacyLoadPointNumber": 97,
+            "pileNumber": "P-97"
+          }
+        ],
+        "openaec::opps::unassignedChoices": [
+          {
+            "loadPoint": "72b80cd5-e2b5-4e85-aec5-f2fe1f82b7db",
+            "externalReferences": [
+              {
+                "sourceFile": "model.ifc",
+                "globalId": "0viMNtM2zDD9zF3Wzkc2Xd",
+                "entity": "IfcPile",
+                "description": "Synthetic pile link"
+              }
+            ]
+          }
+        ],
+        "openaec::opps::legacyAssignments": [
+          {
+            "loadPointNumber": 97,
+            "configuration": {
+              "pileSize": 290,
+              "tipLevel": -18
+            },
+            "externalReferences": [
+              {
+                "sourceFile": "model.ifc",
+                "globalId": "0viMNtM2zDD9zF3Wzkc2Xd",
+                "entity": "IfcPile",
+                "description": "Synthetic pile link"
+              }
+            ]
+          }
+        ],
+        "openaec::opps::optimizationUnassigned": [
+          {
+            "loadPoint": "72b80cd5-e2b5-4e85-aec5-f2fe1f82b7db",
+            "reason": "configuration_limits"
+          },
+          {
+            "legacyLoadPointNumber": 97,
+            "reason": "optimization_constraints"
+          }
+        ],
+        "openaec::opps::optimizerResult": {
+          "solution": {
+            "pileCapProposals": [
+              {
+                "loadPointNumbers": [
+                  19,
+                  20
+                ],
+                "pileCount": 2,
+                "quarterTurns": 1,
+                "configuration": {
+                  "pileSize": 290,
+                  "tipLevel": -18
+                }
+              }
+            ],
+            "assignments": [
+              {
+                "loadPointNumber": 17,
+                "configuration": {
+                  "pileSize": 290,
+                  "tipLevel": -18
+                }
+              }
+            ],
+            "cost": "9007199254740993",
+            "budget": "9457559217478042",
+            "reference": {
+              "cost": "9007199254740993",
+              "proof": "optimal",
+              "termination": "completed"
+            },
+            "counts": {
+              "tipLevels": 1,
+              "pileSizes": 1,
+              "configurations": 1
+            },
+            "transitions": {
+              "pileCount": 1,
+              "tipOnly": 0,
+              "sizeOnly": 1,
+              "both": 0
+            },
+            "scoreMilli": "9007199254740993",
+            "proof": "feasible",
+            "termination": "time_limit"
+          },
+          "diagnostics": [
+            {
+              "code": "configuration_limits",
+              "loadPointNumbers": [
+                18
+              ],
+              "blocking": false
+            }
+          ],
+          "settings": {
+            "includeTension": true,
+            "allowPileCountChanges": true,
+            "maxPilesPerCap": 4,
+            "allowedPileCounts": [
+              1,
+              2,
+              4
+            ],
+            "skipUnsolvableUnits": true,
+            "optimizeCoherence": true,
+            "maxPileTipLevels": 2,
+            "maxPileSizes": 2,
+            "maxPileConfigurations": 3,
+            "maxUtilization": 0.95,
+            "candidateSource": "custom",
+            "customConfigurations": [
+              {
+                "pileSize": 290,
+                "tipLevel": -18
+              }
+            ],
+            "budgetBasisPoints": 500,
+            "transitionWeights": {
+              "tipOnlyMilli": 1000,
+              "sizeOnlyMilli": 1200,
+              "pileCountMilli": 1400,
+              "bothMilli": 1600
+            }
+          },
+          "wholePlanLimits": true,
+          "boundaryTransitions": true,
+          "localOnly": false,
+          "currencyCode": "EUR",
+          "basisFingerprint": "fixture:history"
+        }
+      }
+    },
+    {
+      "path": "df188042-8a5c-435a-8247-a6c151c5c5f2",
+      "children": {
+        "Paal_L17": "f7542b9e-cc4d-4dc4-a8b3-c8227262d52c"
+      },
+      "attributes": {
+        "bsi::ifc::prop::Name": "Palenplan B",
+        "openaec::foundation::pilePlan": {
+          "variantId": "pile-plan-b"
+        },
+        "openaec::opps::planSettings": {
+          "order": 1,
+          "activePileSizes": [
+            320
+          ],
+          "activeTipLevels": [
+            -17.123
+          ],
+          "lockedLoadPoints": []
+        }
+      }
+    },
+    {
+      "path": "b94c7e89-b2a7-43bf-92e3-a025022c63a9",
+      "attributes": {
+        "bsi::ifc::prop::Name": "Paal A bij L17",
+        "bsi::ifc::class": {
+          "code": "IfcPile",
+          "uri": "https://identifier.buildingsmart.org/uri/buildingsmart/ifc/4.3/class/IfcPile"
+        },
+        "openaec::foundation::pile": {
+          "loadPoint": "521d08b1-0212-4eab-90bb-2e42be3f7f48",
+          "pileNumber": "001-A",
+          "pileSize": 290,
+          "tipLevel": -18
+        },
+        "openaec::source::externalReferences": [
+          {
+            "sourceFile": "model.ifc",
+            "globalId": "0viMNtM2zDD9zF3Wzkc2Xd",
+            "entity": "IfcPile",
+            "description": "Synthetic pile link"
+          }
+        ]
+      }
+    },
+    {
+      "path": "f7542b9e-cc4d-4dc4-a8b3-c8227262d52c",
+      "attributes": {
+        "bsi::ifc::prop::Name": "Paal B bij L17",
+        "bsi::ifc::class": {
+          "code": "IfcPile",
+          "uri": "https://identifier.buildingsmart.org/uri/buildingsmart/ifc/4.3/class/IfcPile"
+        },
+        "openaec::foundation::pile": {
+          "loadPoint": "521d08b1-0212-4eab-90bb-2e42be3f7f48",
+          "pileNumber": "P-17-B",
+          "pileSize": 320,
+          "tipLevel": -17.123
+        }
+      }
+    },
+    {
+      "path": "521d08b1-0212-4eab-90bb-2e42be3f7f48",
+      "attributes": {
+        "bsi::ifc::prop::Name": "L17",
+        "openaec::foundation::loadPoint": {
+          "number": 17,
+          "x": 1000,
+          "y": 2000,
+          "fed": 390,
+          "tension": {
+            "state": "known",
+            "value": 30
+          }
+        },
+        "openaec::foundation::cptSelection": {
+          "method": "manual",
+          "cpts": [
+            "2d329c7a-52a5-4616-86b3-27b771ffb487"
+          ],
+          "legacyCptNumbers": [
+            92
+          ]
+        },
+        "openaec::opps::inputOrder": 0
+      }
+    },
+    {
+      "path": "72b80cd5-e2b5-4e85-aec5-f2fe1f82b7db",
+      "attributes": {
+        "bsi::ifc::prop::Name": "L18",
+        "openaec::foundation::loadPoint": {
+          "number": 18,
+          "x": 1800,
+          "y": 2000,
+          "fed": 420,
+          "tension": {
+            "state": "missing"
+          }
+        },
+        "openaec::opps::inputOrder": 1,
+        "openaec::opps::cptRules": {
+          "algorithm": "maximum-angle",
+          "maxDistanceM": 20,
+          "monopolyDistanceM": 0.75,
+          "maxAngleDegrees": 110
+        }
+      }
+    },
+    {
+      "path": "2d329c7a-52a5-4616-86b3-27b771ffb487",
+      "attributes": {
+        "bsi::ifc::prop::Name": "S01",
+        "openaec::cpt": {
+          "number": 1,
+          "x": 900,
+          "y": 1400
+        },
+        "openaec::opps::inputOrder": 0
+      }
+    },
+    {
+      "path": "60ecf013-ade5-4e10-b12e-976cb06e26a1",
+      "attributes": {
+        "bsi::ifc::prop::Name": "Funderingsadvies",
+        "openaec::foundation::bearingAdvice": {
+          "source": "72b4281e-7f25-4424-9bb5-0786d7d0d398",
+          "entries": [
+            {
+              "cpt": "2d329c7a-52a5-4616-86b3-27b771ffb487",
+              "pileSize": 290,
+              "tipLevel": -18,
+              "direction": "compression",
+              "availability": "available",
+              "resistance": 450,
+              "order": 0,
+              "sources": [
+                "72b4281e-7f25-4424-9bb5-0786d7d0d398",
+                "f1de843c-c3d0-4b63-9c89-d88260b7d10c"
+              ]
+            },
+            {
+              "cpt": "2d329c7a-52a5-4616-86b3-27b771ffb487",
+              "pileSize": 320,
+              "tipLevel": -17.123,
+              "direction": "compression",
+              "availability": "available",
+              "resistance": 510,
+              "order": 1
+            },
+            {
+              "cpt": "2d329c7a-52a5-4616-86b3-27b771ffb487",
+              "pileSize": 290,
+              "tipLevel": -18,
+              "direction": "compression",
+              "pileCount": 2,
+              "availability": "missing",
+              "order": 2
+            },
+            {
+              "order": 3,
+              "cpt": "2d329c7a-52a5-4616-86b3-27b771ffb487",
+              "pileSize": 290,
+              "tipLevel": -18,
+              "direction": "tension",
+              "availability": "available",
+              "resistance": 0
+            },
+            {
+              "order": 4,
+              "legacyCptNumber": 92,
+              "pileSize": 290,
+              "tipLevel": -18,
+              "direction": "compression",
+              "availability": "available",
+              "resistance": 500
+            }
+          ]
+        }
+      }
+    },
+    {
+      "path": "72b4281e-7f25-4424-9bb5-0786d7d0d398",
+      "attributes": {
+        "bsi::ifc::prop::Name": "Excel-bron",
+        "openaec::source::document": {
+          "kind": "spreadsheet",
+          "fileName": "Funderingsadvies.xlsx",
+          "revision": "B",
+          "worksheets": [
+            "Druk"
+          ]
+        }
+      }
+    },
+    {
+      "path": "d35974c6-25e3-4a8c-a841-2f63cf3f3afa",
+      "attributes": {
+        "bsi::ifc::prop::Name": "L19",
+        "openaec::foundation::loadPoint": {
+          "number": 19,
+          "x": 4100,
+          "y": 2000,
+          "fed": 200,
+          "tension": {
+            "state": "not_imported"
+          }
+        },
+        "openaec::opps::inputOrder": 2
+      }
+    },
+    {
+      "path": "f1ae9d06-8306-4840-a95f-41f295b83bd6",
+      "attributes": {
+        "bsi::ifc::prop::Name": "L20",
+        "openaec::foundation::loadPoint": {
+          "number": 20,
+          "x": 4700,
+          "y": 2000,
+          "fed": 210,
+          "tension": {
+            "state": "known",
+            "value": 0
+          }
+        },
+        "openaec::opps::inputOrder": 3
+      }
+    },
+    {
+      "path": "27e5aa5d-46dc-4b2f-b294-d57aff1116b9",
+      "attributes": {
+        "bsi::ifc::prop::Name": "Heistaat CSV",
+        "openaec::source::document": {
+          "kind": "csv",
+          "fileName": "heistaat.csv",
+          "worksheets": []
+        },
+        "openaec::source::embeddedFile": {
+          "encoding": "base64",
+          "data": "UGFhbG51bW1lcjtTbGFnZW4KMDAxLUE7MTUK"
+        }
+      }
+    },
+    {
+      "path": "f1de843c-c3d0-4b63-9c89-d88260b7d10c",
+      "attributes": {
+        "bsi::ifc::prop::Name": "Aanvullend CSV-advies",
+        "openaec::source::document": {
+          "kind": "csv",
+          "fileName": "aanvullend.csv",
+          "worksheets": []
+        }
+      }
+    }
+  ]
+}

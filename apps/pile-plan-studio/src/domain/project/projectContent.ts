@@ -9,6 +9,7 @@ import { getProjectBounds } from "../../viewer/viewerGeometry.ts";
 import type { ProjectState } from "./projectState.ts";
 
 export type ProjectContent = Pick<ProjectState,
+  | "ifcxState"
   | "metadata"
   | "units"
   | "name"
@@ -43,6 +44,7 @@ export type RestoredProjectContent = {
 };
 
 const PROJECT_CONTENT_KEYS = [
+  "ifcxState",
   "metadata",
   "units",
   "name",
@@ -150,6 +152,7 @@ export function projectDocumentDraftFromContent(
   const active = content.pilePlans.find((plan) => plan.id === activePilePlanId)
     ?? content.pilePlans[0];
   return {
+    ...(content.ifcxState ? { ifcx_state: content.ifcxState } : {}),
     metadata: { ...content.metadata, name: content.name },
     units: { ...content.units, costs: content.currencyCode },
     inputs: {
@@ -229,8 +232,13 @@ function pilePlanToDocument(plan: ProjectContent["pilePlans"][number]): IfcppPil
     } : {}),
     active_pile_sizes: [...plan.activePileSizes],
     active_pile_tip_levels: plan.activePileTipLevelMms.map((value) => value / 1_000),
-    selected_piles: Object.fromEntries(
-      [...plan.selectedPileConfigurationsByLoadPoint].map(([loadPointId, pile]) => [
+    selected_piles: Object.fromEntries([
+      ...[...plan.externalReferencesByLoadPoint]
+        .filter(([id]) => !plan.selectedPileConfigurationsByLoadPoint.has(id))
+        .map(([id, externalReferences]) => [
+          String(id), { pile: null, external_references: structuredClone(externalReferences) },
+        ] as const),
+      ...[...plan.selectedPileConfigurationsByLoadPoint].map(([loadPointId, pile]) => [
         String(loadPointId),
         {
           pile: {
@@ -241,8 +249,8 @@ function pilePlanToDocument(plan: ProjectContent["pilePlans"][number]): IfcppPil
             plan.externalReferencesByLoadPoint.get(loadPointId) ?? [],
           ),
         },
-      ]),
-    ),
+      ] as const),
+    ]),
     locked_load_point_ids: [...plan.lockedLoadPointIds],
     optimization_unassigned: Object.fromEntries(plan.optimizationUnassignedByLoadPoint),
     ...(plan.ilpResult ? {ilp_result: structuredClone(plan.ilpResult)} : {}),

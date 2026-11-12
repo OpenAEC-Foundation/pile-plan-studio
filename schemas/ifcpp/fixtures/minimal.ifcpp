@@ -1,0 +1,240 @@
+{
+  "header": {
+    "id": "18ff8c7d-b816-4f97-9b75-6e63d3c15aec",
+    "ifcxVersion": "ifcx_alpha",
+    "dataVersion": "1.0.0",
+    "author": "Open Pile Plan Studio - ontwerpvoorbeeld",
+    "timestamp": "2026-11-11T00:00:00Z"
+  },
+  "imports": [
+    {
+      "uri": "urn:example:ifcpp:1.0.0"
+    }
+  ],
+  "schemas": {},
+  "data": [
+    {
+      "path": "18ff8c7d-b816-4f97-9b75-6e63d3c15aec",
+      "children": {
+        "Fundering": "b8a03507-ce29-414f-b931-992cdcbabbe6"
+      },
+      "attributes": {
+        "bsi::ifc::prop::Name": "Voorbeeldproject L17",
+        "bsi::ifc::class": {
+          "code": "IfcProject",
+          "uri": "https://identifier.buildingsmart.org/uri/buildingsmart/ifc/4.3/class/IfcProject"
+        },
+        "openaec::opps::document": {
+          "format": "IFCPP"
+        },
+        "openaec::project::units": {
+          "coordinates": "mm",
+          "costs": "EUR",
+          "force": "kN",
+          "pileSize": "mm",
+          "levels": "m"
+        }
+      }
+    },
+    {
+      "path": "b8a03507-ce29-414f-b931-992cdcbabbe6",
+      "children": {
+        "Palenplan_A": "9169891a-0163-437d-966c-b7f908115846",
+        "Palenplan_B": "df188042-8a5c-435a-8247-a6c151c5c5f2",
+        "L17": "521d08b1-0212-4eab-90bb-2e42be3f7f48",
+        "L18": "72b80cd5-e2b5-4e85-aec5-f2fe1f82b7db",
+        "S01": "2d329c7a-52a5-4616-86b3-27b771ffb487",
+        "Funderingsadvies": "60ecf013-ade5-4e10-b12e-976cb06e26a1",
+        "Excel_bron": "72b4281e-7f25-4424-9bb5-0786d7d0d398"
+      },
+      "attributes": {
+        "bsi::ifc::prop::Name": "Fundering",
+        "openaec::foundation::design": {
+          "pileHeadLevel": -0.75
+        },
+        "openaec::opps::planView": {
+          "plan": "df188042-8a5c-435a-8247-a6c151c5c5f2",
+          "showGrid": true
+        },
+        "openaec::opps::grouping": {
+          "automatic": false,
+          "maxEdgeDistanceMm": 1200
+        }
+      }
+    },
+    {
+      "path": "9169891a-0163-437d-966c-b7f908115846",
+      "children": {
+        "Paal_L17": "b94c7e89-b2a7-43bf-92e3-a025022c63a9"
+      },
+      "attributes": {
+        "bsi::ifc::prop::Name": "Palenplan A",
+        "openaec::foundation::pilePlan": {
+          "variantId": "pile-plan-a"
+        },
+        "openaec::opps::planSettings": {
+          "order": 0,
+          "activePileSizes": [
+            290
+          ],
+          "activeTipLevels": [
+            -18
+          ],
+          "lockedLoadPoints": [
+            "521d08b1-0212-4eab-90bb-2e42be3f7f48"
+          ]
+        }
+      }
+    },
+    {
+      "path": "df188042-8a5c-435a-8247-a6c151c5c5f2",
+      "children": {
+        "Paal_L17": "f7542b9e-cc4d-4dc4-a8b3-c8227262d52c"
+      },
+      "attributes": {
+        "bsi::ifc::prop::Name": "Palenplan B",
+        "openaec::foundation::pilePlan": {
+          "variantId": "pile-plan-b"
+        },
+        "openaec::opps::planSettings": {
+          "order": 1,
+          "activePileSizes": [
+            320
+          ],
+          "activeTipLevels": [
+            -17
+          ],
+          "lockedLoadPoints": []
+        }
+      }
+    },
+    {
+      "path": "b94c7e89-b2a7-43bf-92e3-a025022c63a9",
+      "attributes": {
+        "bsi::ifc::prop::Name": "Paal A bij L17",
+        "bsi::ifc::class": {
+          "code": "IfcPile",
+          "uri": "https://identifier.buildingsmart.org/uri/buildingsmart/ifc/4.3/class/IfcPile"
+        },
+        "openaec::foundation::pile": {
+          "loadPoint": "521d08b1-0212-4eab-90bb-2e42be3f7f48",
+          "pileNumber": "001",
+          "pileSize": 290,
+          "tipLevel": -18
+        }
+      }
+    },
+    {
+      "path": "f7542b9e-cc4d-4dc4-a8b3-c8227262d52c",
+      "attributes": {
+        "bsi::ifc::prop::Name": "Paal B bij L17",
+        "bsi::ifc::class": {
+          "code": "IfcPile",
+          "uri": "https://identifier.buildingsmart.org/uri/buildingsmart/ifc/4.3/class/IfcPile"
+        },
+        "openaec::foundation::pile": {
+          "loadPoint": "521d08b1-0212-4eab-90bb-2e42be3f7f48",
+          "pileNumber": "P-17",
+          "pileSize": 320,
+          "tipLevel": -17
+        }
+      }
+    },
+    {
+      "path": "521d08b1-0212-4eab-90bb-2e42be3f7f48",
+      "attributes": {
+        "bsi::ifc::prop::Name": "L17",
+        "openaec::foundation::loadPoint": {
+          "number": 17,
+          "x": 1000,
+          "y": 2000,
+          "fed": 390
+        },
+        "openaec::foundation::cptSelection": {
+          "method": "manual",
+          "cpts": [
+            "2d329c7a-52a5-4616-86b3-27b771ffb487"
+          ]
+        },
+        "openaec::opps::inputOrder": 0
+      }
+    },
+    {
+      "path": "72b80cd5-e2b5-4e85-aec5-f2fe1f82b7db",
+      "attributes": {
+        "bsi::ifc::prop::Name": "L18",
+        "openaec::foundation::loadPoint": {
+          "number": 18,
+          "x": 4000,
+          "y": 2000,
+          "fed": 420
+        },
+        "openaec::opps::inputOrder": 1
+      }
+    },
+    {
+      "path": "2d329c7a-52a5-4616-86b3-27b771ffb487",
+      "attributes": {
+        "bsi::ifc::prop::Name": "S01",
+        "openaec::cpt": {
+          "number": 1,
+          "x": 900,
+          "y": 1400
+        },
+        "openaec::opps::inputOrder": 0
+      }
+    },
+    {
+      "path": "60ecf013-ade5-4e10-b12e-976cb06e26a1",
+      "attributes": {
+        "bsi::ifc::prop::Name": "Funderingsadvies",
+        "openaec::foundation::bearingAdvice": {
+          "source": "72b4281e-7f25-4424-9bb5-0786d7d0d398",
+          "entries": [
+            {
+              "cpt": "2d329c7a-52a5-4616-86b3-27b771ffb487",
+              "pileSize": 290,
+              "tipLevel": -18,
+              "direction": "compression",
+              "availability": "available",
+              "resistance": 450,
+              "order": 0
+            },
+            {
+              "cpt": "2d329c7a-52a5-4616-86b3-27b771ffb487",
+              "pileSize": 320,
+              "tipLevel": -17,
+              "direction": "compression",
+              "availability": "available",
+              "resistance": 510,
+              "order": 1
+            },
+            {
+              "cpt": "2d329c7a-52a5-4616-86b3-27b771ffb487",
+              "pileSize": 290,
+              "tipLevel": -18,
+              "direction": "compression",
+              "pileCount": 2,
+              "availability": "missing",
+              "order": 2
+            }
+          ]
+        }
+      }
+    },
+    {
+      "path": "72b4281e-7f25-4424-9bb5-0786d7d0d398",
+      "attributes": {
+        "bsi::ifc::prop::Name": "Excel-bron",
+        "openaec::source::document": {
+          "kind": "spreadsheet",
+          "fileName": "Funderingsadvies.xlsx",
+          "revision": "B",
+          "worksheets": [
+            "Druk"
+          ]
+        }
+      }
+    }
+  ]
+}

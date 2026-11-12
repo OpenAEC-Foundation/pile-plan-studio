@@ -732,6 +732,36 @@ mod tests {
     }
 
     #[test]
+    fn desktop_ifcx_file_preserves_identity_pile_numbers_csv_settings_and_optimizer_cost() {
+        let fixture = include_str!("../../../../schemas/ifcpp/fixtures/schema-9-complete.ifcpp");
+        let opened = read_project_document(ReadProjectDocumentRequest { contents: fixture.into() }).unwrap();
+        let draft = ProjectDocumentDraft::from_project(&opened.project);
+        // Exercise the Tauri JSON request representation as well as the shared codec.
+        let draft = serde_json::from_str(&serde_json::to_string(&draft).unwrap()).unwrap();
+        let saved = write_project_document(WriteProjectDocumentRequest { draft }).unwrap();
+        let original: serde_json::Value = serde_json::from_str(fixture).unwrap();
+        let result: serde_json::Value = serde_json::from_str(&saved).unwrap();
+        assert_eq!(result["header"]["id"], original["header"]["id"]);
+        assert!(saved.contains("\"9007199254740993\""));
+        let path = std::env::temp_dir()
+            .join(format!("ifcx-pile-numbers-{}.ifcpp", std::process::id()))
+            .to_string_lossy()
+            .into_owned();
+        write_project_file(path.clone(), saved).unwrap();
+        let contents = read_project_file(path.clone()).unwrap();
+        std::fs::remove_file(path).unwrap();
+
+        let reopened = read_project_document(ReadProjectDocumentRequest { contents }).unwrap();
+        assert_eq!(reopened.project.user_state, opened.project.user_state);
+        assert_eq!(reopened.project.inputs, opened.project.inputs);
+        let plan = reopened.project.user_state.active_pile_plan().unwrap();
+        assert_eq!(plan.revit_marks_by_load_point[&17], "001-A");
+        let driving = serde_json::to_value(reopened.project.inputs.pile_driving.unwrap()).unwrap();
+        assert_eq!(driving["shared_ignore_csv_leading_zeros"], false);
+        assert_eq!(driving["files"][0]["overrides"]["ignore_csv_leading_zeros"], false);
+    }
+
+    #[test]
     fn aggregate_command_returns_authoritative_core_facts() {
         let option = PileConfigurationOption {
             compression: None,

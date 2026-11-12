@@ -15,6 +15,7 @@ mod advice_diagnostics;
 mod advice_layout;
 mod advice_merge;
 mod advice_refresh;
+pub(crate) use advice_refresh::{read_keys as advice_capacity_keys, CapacityKey as AdviceCapacityKey};
 mod capacity_columns;
 mod numeric;
 #[cfg(test)]
@@ -375,6 +376,10 @@ fn build_imported_project(
             active_pile_tip_levels,
         ),
         import_log,
+        ifcx_state: Some(
+            serde_json::to_string(&crate::ifcpp::ifcx::State::new_project())
+                .expect("IFCX identity serializes"),
+        ),
     })
 }
 

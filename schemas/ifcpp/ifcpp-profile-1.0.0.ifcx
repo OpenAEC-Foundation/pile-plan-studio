@@ -1,0 +1,1849 @@
+{
+  "header": {
+    "id": "urn:example:ifcpp:1.0.0",
+    "ifcxVersion": "ifcx_alpha",
+    "dataVersion": "1.0.0",
+    "author": "Open Pile Plan Studio - ontwerpvoorbeeld",
+    "timestamp": "2026-11-11T00:00:00Z"
+  },
+  "imports": [],
+  "schemas": {
+    "bsi::ifc::class": {
+      "value": {
+        "dataType": "Object",
+        "objectRestrictions": {
+          "values": {
+            "code": {
+              "dataType": "String"
+            },
+            "uri": {
+              "dataType": "String"
+            }
+          }
+        }
+      }
+    },
+    "bsi::ifc::prop::Name": {
+      "value": {
+        "dataType": "String"
+      }
+    },
+    "openaec::opps::document": {
+      "value": {
+        "dataType": "Object",
+        "objectRestrictions": {
+          "values": {
+            "format": {
+              "dataType": "Enum",
+              "enumRestrictions": {
+                "options": [
+                  "IFCPP"
+                ]
+              }
+            },
+            "application": {
+              "dataType": "Object",
+              "objectRestrictions": {
+                "values": {
+                  "name": {
+                    "dataType": "String"
+                  },
+                  "version": {
+                    "dataType": "String"
+                  }
+                }
+              },
+              "optional": true
+            },
+            "legacyUnitLabels": {
+              "dataType": "Object",
+              "objectRestrictions": {
+                "values": {
+                  "coordinates": {
+                    "dataType": "String",
+                    "optional": true
+                  },
+                  "designLoads": {
+                    "dataType": "String",
+                    "optional": true
+                  },
+                  "bearingCapacities": {
+                    "dataType": "String",
+                    "optional": true
+                  },
+                  "pileTipLevels": {
+                    "dataType": "String",
+                    "optional": true
+                  }
+                }
+              },
+              "optional": true
+            }
+          }
+        }
+      }
+    },
+    "openaec::project::metadata": {
+      "value": {
+        "dataType": "Object",
+        "objectRestrictions": {
+          "values": {
+            "author": {
+              "dataType": "String",
+              "optional": true
+            },
+            "organization": {
+              "dataType": "String",
+              "optional": true
+            },
+            "createdAt": {
+              "dataType": "String",
+              "optional": true
+            },
+            "modifiedAt": {
+              "dataType": "String",
+              "optional": true
+            },
+            "description": {
+              "dataType": "String",
+              "optional": true
+            }
+          }
+        }
+      }
+    },
+    "openaec::project::units": {
+      "value": {
+        "dataType": "Object",
+        "objectRestrictions": {
+          "values": {
+            "coordinates": {
+              "dataType": "Enum",
+              "enumRestrictions": {
+                "options": [
+                  "mm"
+                ]
+              }
+            },
+            "costs": {
+              "dataType": "String"
+            },
+            "force": {
+              "dataType": "Enum",
+              "enumRestrictions": {
+                "options": [
+                  "kN"
+                ]
+              }
+            },
+            "pileSize": {
+              "dataType": "Enum",
+              "enumRestrictions": {
+                "options": [
+                  "mm"
+                ]
+              }
+            },
+            "levels": {
+              "dataType": "Enum",
+              "enumRestrictions": {
+                "options": [
+                  "m"
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    "openaec::source::externalReferences": {
+      "value": {
+        "dataType": "Array",
+        "arrayRestrictions": {
+          "value": {
+            "dataType": "Object",
+            "objectRestrictions": {
+              "values": {
+                "sourceFile": {
+                  "dataType": "String",
+                  "optional": true
+                },
+                "globalId": {
+                  "dataType": "String",
+                  "optional": true
+                },
+                "entity": {
+                  "dataType": "String",
+                  "optional": true
+                },
+                "description": {
+                  "dataType": "String",
+                  "optional": true
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "openaec::foundation::design": {
+      "value": {
+        "dataType": "Object",
+        "objectRestrictions": {
+          "values": {
+            "pileHeadLevel": {
+              "dataType": "Real",
+              "optional": true,
+              "quantityKind": "Length"
+            }
+          }
+        }
+      }
+    },
+    "openaec::foundation::loadPoint": {
+      "value": {
+        "dataType": "Object",
+        "objectRestrictions": {
+          "values": {
+            "number": {
+              "dataType": "Integer"
+            },
+            "x": {
+              "dataType": "Real",
+              "quantityKind": "Length"
+            },
+            "y": {
+              "dataType": "Real",
+              "quantityKind": "Length"
+            },
+            "fed": {
+              "dataType": "Real",
+              "quantityKind": "Force"
+            },
+            "tension": {
+              "dataType": "Object",
+              "objectRestrictions": {
+                "values": {
+                  "state": {
+                    "dataType": "Enum",
+                    "enumRestrictions": {
+                      "options": [
+                        "not_imported",
+                        "missing",
+                        "known"
+                      ]
+                    }
+                  },
+                  "value": {
+                    "dataType": "Real",
+                    "optional": true,
+                    "quantityKind": "Force"
+                  }
+                }
+              },
+              "optional": true
+            }
+          }
+        }
+      }
+    },
+    "openaec::foundation::cptSelection": {
+      "value": {
+        "dataType": "Object",
+        "objectRestrictions": {
+          "values": {
+            "method": {
+              "dataType": "Enum",
+              "enumRestrictions": {
+                "options": [
+                  "manual"
+                ]
+              }
+            },
+            "cpts": {
+              "dataType": "Array",
+              "arrayRestrictions": {
+                "value": {
+                  "dataType": "Reference"
+                }
+              }
+            },
+            "legacyCptNumbers": {
+              "dataType": "Array",
+              "arrayRestrictions": {
+                "value": {
+                  "dataType": "Integer"
+                }
+              },
+              "optional": true
+            }
+          }
+        }
+      }
+    },
+    "openaec::cpt": {
+      "value": {
+        "dataType": "Object",
+        "objectRestrictions": {
+          "values": {
+            "number": {
+              "dataType": "Integer"
+            },
+            "x": {
+              "dataType": "Real",
+              "quantityKind": "Length"
+            },
+            "y": {
+              "dataType": "Real",
+              "quantityKind": "Length"
+            }
+          }
+        }
+      }
+    },
+    "openaec::foundation::pilePlan": {
+      "value": {
+        "dataType": "Object",
+        "objectRestrictions": {
+          "values": {
+            "variantId": {
+              "dataType": "String"
+            }
+          }
+        }
+      }
+    },
+    "openaec::foundation::pile": {
+      "value": {
+        "dataType": "Object",
+        "objectRestrictions": {
+          "values": {
+            "loadPoint": {
+              "dataType": "Reference"
+            },
+            "pileNumber": {
+              "dataType": "String",
+              "optional": true
+            },
+            "pileSize": {
+              "dataType": "Integer",
+              "quantityKind": "Length"
+            },
+            "tipLevel": {
+              "dataType": "Real",
+              "quantityKind": "Length"
+            }
+          }
+        }
+      }
+    },
+    "openaec::opps::legacyPileNumbers": {
+      "value": {
+        "dataType": "Array",
+        "arrayRestrictions": {
+          "value": {
+            "dataType": "Object",
+            "objectRestrictions": {
+              "values": {
+                "loadPoint": {
+                  "dataType": "Reference",
+                  "optional": true
+                },
+                "legacyLoadPointNumber": {
+                  "dataType": "Integer",
+                  "optional": true
+                },
+                "pileNumber": {
+                  "dataType": "String"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "openaec::foundation::bearingAdvice": {
+      "value": {
+        "dataType": "Object",
+        "objectRestrictions": {
+          "values": {
+            "source": {
+              "dataType": "Reference",
+              "optional": true
+            },
+            "entries": {
+              "dataType": "Array",
+              "arrayRestrictions": {
+                "value": {
+                  "dataType": "Object",
+                  "objectRestrictions": {
+                    "values": {
+                      "order": {
+                        "dataType": "Integer"
+                      },
+                      "cpt": {
+                        "dataType": "Reference",
+                        "optional": true
+                      },
+                      "legacyCptNumber": {
+                        "dataType": "Integer",
+                        "optional": true
+                      },
+                      "pileSize": {
+                        "dataType": "Integer",
+                        "quantityKind": "Length"
+                      },
+                      "tipLevel": {
+                        "dataType": "Real",
+                        "quantityKind": "Length"
+                      },
+                      "direction": {
+                        "dataType": "Enum",
+                        "enumRestrictions": {
+                          "options": [
+                            "compression",
+                            "tension"
+                          ]
+                        }
+                      },
+                      "pileCount": {
+                        "dataType": "Integer",
+                        "optional": true
+                      },
+                      "availability": {
+                        "dataType": "Enum",
+                        "enumRestrictions": {
+                          "options": [
+                            "available",
+                            "missing"
+                          ]
+                        }
+                      },
+                      "resistance": {
+                        "dataType": "Real",
+                        "optional": true,
+                        "quantityKind": "Force"
+                      },
+                      "sources": {
+                        "dataType": "Array",
+                        "arrayRestrictions": {
+                          "value": {
+                            "dataType": "Reference"
+                          }
+                        },
+                        "optional": true
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "openaec::source::document": {
+      "value": {
+        "dataType": "Object",
+        "objectRestrictions": {
+          "values": {
+            "kind": {
+              "dataType": "Enum",
+              "enumRestrictions": {
+                "options": [
+                  "spreadsheet",
+                  "csv",
+                  "unknown"
+                ]
+              }
+            },
+            "fileName": {
+              "dataType": "String"
+            },
+            "revision": {
+              "dataType": "String",
+              "optional": true
+            },
+            "worksheets": {
+              "dataType": "Array",
+              "arrayRestrictions": {
+                "value": {
+                  "dataType": "String"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "openaec::source::embeddedFile": {
+      "value": {
+        "dataType": "Object",
+        "objectRestrictions": {
+          "values": {
+            "encoding": {
+              "dataType": "Enum",
+              "enumRestrictions": {
+                "options": [
+                  "base64"
+                ]
+              }
+            },
+            "data": {
+              "dataType": "String"
+            }
+          }
+        }
+      }
+    },
+    "openaec::opps::inputOrder": {
+      "value": {
+        "dataType": "Integer"
+      }
+    },
+    "openaec::opps::cptRules": {
+      "value": {
+        "dataType": "Object",
+        "objectRestrictions": {
+          "values": {
+            "algorithm": {
+              "dataType": "Enum",
+              "enumRestrictions": {
+                "options": [
+                  "quadrants",
+                  "maximum-angle"
+                ]
+              }
+            },
+            "maxDistanceM": {
+              "dataType": "Real"
+            },
+            "monopolyDistanceM": {
+              "dataType": "Real"
+            },
+            "maxAngleDegrees": {
+              "dataType": "Real"
+            }
+          }
+        }
+      }
+    },
+    "openaec::opps::legacyLocationSettings": {
+      "value": {
+        "dataType": "Array",
+        "arrayRestrictions": {
+          "value": {
+            "dataType": "Object",
+            "objectRestrictions": {
+              "values": {
+                "loadPointNumber": {
+                  "dataType": "Integer"
+                },
+                "rules": {
+                  "dataType": "Object",
+                  "objectRestrictions": {
+                    "values": {
+                      "algorithm": {
+                        "dataType": "Enum",
+                        "enumRestrictions": {
+                          "options": [
+                            "quadrants",
+                            "maximum-angle"
+                          ]
+                        }
+                      },
+                      "maxDistanceM": {
+                        "dataType": "Real"
+                      },
+                      "monopolyDistanceM": {
+                        "dataType": "Real"
+                      },
+                      "maxAngleDegrees": {
+                        "dataType": "Real"
+                      }
+                    }
+                  },
+                  "optional": true
+                },
+                "manualCptNumbers": {
+                  "dataType": "Array",
+                  "arrayRestrictions": {
+                    "value": {
+                      "dataType": "Integer"
+                    }
+                  },
+                  "optional": true
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "openaec::opps::planView": {
+      "value": {
+        "dataType": "Object",
+        "objectRestrictions": {
+          "values": {
+            "plan": {
+              "dataType": "Reference"
+            },
+            "showGrid": {
+              "dataType": "Boolean"
+            },
+            "showTipLevelRegions": {
+              "dataType": "Boolean",
+              "optional": true
+            },
+            "showLoadPointGroups": {
+              "dataType": "Boolean",
+              "optional": true
+            },
+            "symbolScalePercent": {
+              "dataType": "Integer",
+              "optional": true
+            },
+            "foregroundLayer": {
+              "dataType": "Enum",
+              "enumRestrictions": {
+                "options": [
+                  "load-points",
+                  "cpts"
+                ]
+              },
+              "optional": true
+            }
+          }
+        }
+      }
+    },
+    "openaec::opps::planSettings": {
+      "value": {
+        "dataType": "Object",
+        "objectRestrictions": {
+          "values": {
+            "order": {
+              "dataType": "Integer"
+            },
+            "activePileSizes": {
+              "dataType": "Array",
+              "arrayRestrictions": {
+                "value": {
+                  "dataType": "Integer",
+                  "quantityKind": "Length"
+                }
+              }
+            },
+            "activeTipLevels": {
+              "dataType": "Array",
+              "arrayRestrictions": {
+                "value": {
+                  "dataType": "Real",
+                  "quantityKind": "Length"
+                }
+              }
+            },
+            "lockedLoadPoints": {
+              "dataType": "Array",
+              "arrayRestrictions": {
+                "value": {
+                  "dataType": "Reference"
+                }
+              }
+            },
+            "legacyLockedLoadPointNumbers": {
+              "dataType": "Array",
+              "arrayRestrictions": {
+                "value": {
+                  "dataType": "Integer"
+                }
+              },
+              "optional": true
+            }
+          }
+        }
+      }
+    },
+    "openaec::opps::grouping": {
+      "value": {
+        "dataType": "Object",
+        "objectRestrictions": {
+          "values": {
+            "automatic": {
+              "dataType": "Boolean"
+            },
+            "maxEdgeDistanceMm": {
+              "dataType": "Real"
+            },
+            "manualGroups": {
+              "dataType": "Array",
+              "arrayRestrictions": {
+                "value": {
+                  "dataType": "Array",
+                  "arrayRestrictions": {
+                    "value": {
+                      "dataType": "Reference"
+                    }
+                  }
+                }
+              },
+              "optional": true
+            },
+            "ungroupedGroups": {
+              "dataType": "Array",
+              "arrayRestrictions": {
+                "value": {
+                  "dataType": "Array",
+                  "arrayRestrictions": {
+                    "value": {
+                      "dataType": "Reference"
+                    }
+                  }
+                }
+              },
+              "optional": true
+            }
+          }
+        }
+      }
+    },
+    "openaec::opps::pileCosts": {
+      "value": {
+        "dataType": "Object",
+        "objectRestrictions": {
+          "values": {
+            "schemaVersion": {
+              "dataType": "Integer"
+            },
+            "items": {
+              "dataType": "Array",
+              "arrayRestrictions": {
+                "value": {
+                  "dataType": "Object",
+                  "objectRestrictions": {
+                    "values": {
+                      "pileSize": {
+                        "dataType": "Integer",
+                        "quantityKind": "Length"
+                      },
+                      "shape": {
+                        "dataType": "Enum",
+                        "enumRestrictions": {
+                          "options": [
+                            "round",
+                            "square"
+                          ]
+                        }
+                      },
+                      "costPerM3": {
+                        "dataType": "Real"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "openaec::opps::viewerUtilization": {
+      "value": {
+        "dataType": "Object",
+        "objectRestrictions": {
+          "values": {
+            "minimum": {
+              "dataType": "Real"
+            },
+            "maximum": {
+              "dataType": "Real"
+            }
+          }
+        }
+      }
+    },
+    "openaec::opps::legend": {
+      "value": {
+        "dataType": "Object",
+        "objectRestrictions": {
+          "values": {
+            "encodingMode": {
+              "dataType": "String"
+            },
+            "colorScheme": {
+              "dataType": "String"
+            },
+            "pileSizeColorScheme": {
+              "dataType": "String",
+              "optional": true
+            },
+            "pileTipLevelColorScheme": {
+              "dataType": "String",
+              "optional": true
+            },
+            "pileSizes": {
+              "dataType": "Array",
+              "arrayRestrictions": {
+                "value": {
+                  "dataType": "Object",
+                  "objectRestrictions": {
+                    "values": {
+                      "value": {
+                        "dataType": "Real"
+                      },
+                      "symbol": {
+                        "dataType": "Object",
+                        "objectRestrictions": {
+                          "values": {
+                            "baseShape": {
+                              "dataType": "String"
+                            },
+                            "fillPattern": {
+                              "dataType": "String"
+                            }
+                          }
+                        }
+                      },
+                      "color": {
+                        "dataType": "String"
+                      },
+                      "symbolAutomatic": {
+                        "dataType": "Boolean"
+                      },
+                      "colorAutomatic": {
+                        "dataType": "Boolean"
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "pileTipLevels": {
+              "dataType": "Array",
+              "arrayRestrictions": {
+                "value": {
+                  "dataType": "Object",
+                  "objectRestrictions": {
+                    "values": {
+                      "value": {
+                        "dataType": "Real",
+                        "quantityKind": "Length"
+                      },
+                      "symbol": {
+                        "dataType": "Object",
+                        "objectRestrictions": {
+                          "values": {
+                            "baseShape": {
+                              "dataType": "String"
+                            },
+                            "fillPattern": {
+                              "dataType": "String"
+                            }
+                          }
+                        }
+                      },
+                      "color": {
+                        "dataType": "String"
+                      },
+                      "symbolAutomatic": {
+                        "dataType": "Boolean"
+                      },
+                      "colorAutomatic": {
+                        "dataType": "Boolean"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "openaec::opps::optimizerSettings": {
+      "value": {
+        "dataType": "Object",
+        "objectRestrictions": {
+          "values": {
+            "includeTension": {
+              "dataType": "Boolean"
+            },
+            "allowPileCountChanges": {
+              "dataType": "Boolean"
+            },
+            "maxPilesPerCap": {
+              "dataType": "Integer"
+            },
+            "allowedPileCounts": {
+              "dataType": "Array",
+              "arrayRestrictions": {
+                "value": {
+                  "dataType": "Integer"
+                }
+              }
+            },
+            "skipUnsolvableUnits": {
+              "dataType": "Boolean"
+            },
+            "optimizeCoherence": {
+              "dataType": "Boolean"
+            },
+            "maxPileTipLevels": {
+              "dataType": "Integer",
+              "optional": true
+            },
+            "maxPileSizes": {
+              "dataType": "Integer",
+              "optional": true
+            },
+            "maxPileConfigurations": {
+              "dataType": "Integer",
+              "optional": true
+            },
+            "maxUtilization": {
+              "dataType": "Real"
+            },
+            "candidateSource": {
+              "dataType": "Enum",
+              "enumRestrictions": {
+                "options": [
+                  "all_available",
+                  "active_legend",
+                  "custom"
+                ]
+              }
+            },
+            "customConfigurations": {
+              "dataType": "Array",
+              "arrayRestrictions": {
+                "value": {
+                  "dataType": "Object",
+                  "objectRestrictions": {
+                    "values": {
+                      "pileSize": {
+                        "dataType": "Integer",
+                        "quantityKind": "Length"
+                      },
+                      "tipLevel": {
+                        "dataType": "Real",
+                        "quantityKind": "Length"
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "budgetBasisPoints": {
+              "dataType": "Integer"
+            },
+            "transitionWeights": {
+              "dataType": "Object",
+              "objectRestrictions": {
+                "values": {
+                  "tipOnlyMilli": {
+                    "dataType": "Integer"
+                  },
+                  "sizeOnlyMilli": {
+                    "dataType": "Integer"
+                  },
+                  "pileCountMilli": {
+                    "dataType": "Integer"
+                  },
+                  "bothMilli": {
+                    "dataType": "Integer",
+                    "optional": true
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "openaec::opps::pileCapProposals": {
+      "value": {
+        "dataType": "Array",
+        "arrayRestrictions": {
+          "value": {
+            "dataType": "Object",
+            "objectRestrictions": {
+              "values": {
+                "loadPoints": {
+                  "dataType": "Array",
+                  "arrayRestrictions": {
+                    "value": {
+                      "dataType": "Reference"
+                    }
+                  }
+                },
+                "legacyLoadPointNumbers": {
+                  "dataType": "Array",
+                  "arrayRestrictions": {
+                    "value": {
+                      "dataType": "Integer"
+                    }
+                  },
+                  "optional": true
+                },
+                "pileCount": {
+                  "dataType": "Integer"
+                },
+                "quarterTurns": {
+                  "dataType": "Integer"
+                },
+                "configuration": {
+                  "dataType": "Object",
+                  "objectRestrictions": {
+                    "values": {
+                      "pileSize": {
+                        "dataType": "Integer",
+                        "quantityKind": "Length"
+                      },
+                      "tipLevel": {
+                        "dataType": "Real",
+                        "quantityKind": "Length"
+                      }
+                    }
+                  },
+                  "optional": true
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "openaec::opps::unassignedChoices": {
+      "value": {
+        "dataType": "Array",
+        "arrayRestrictions": {
+          "value": {
+            "dataType": "Object",
+            "objectRestrictions": {
+              "values": {
+                "loadPoint": {
+                  "dataType": "Reference"
+                },
+                "externalReferences": {
+                  "dataType": "Array",
+                  "arrayRestrictions": {
+                    "value": {
+                      "dataType": "Object",
+                      "objectRestrictions": {
+                        "values": {
+                          "sourceFile": {
+                            "dataType": "String",
+                            "optional": true
+                          },
+                          "globalId": {
+                            "dataType": "String",
+                            "optional": true
+                          },
+                          "entity": {
+                            "dataType": "String",
+                            "optional": true
+                          },
+                          "description": {
+                            "dataType": "String",
+                            "optional": true
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "openaec::opps::legacyAssignments": {
+      "value": {
+        "dataType": "Array",
+        "arrayRestrictions": {
+          "value": {
+            "dataType": "Object",
+            "objectRestrictions": {
+              "values": {
+                "loadPointNumber": {
+                  "dataType": "Integer"
+                },
+                "configuration": {
+                  "dataType": "Object",
+                  "objectRestrictions": {
+                    "values": {
+                      "pileSize": {
+                        "dataType": "Integer",
+                        "quantityKind": "Length"
+                      },
+                      "tipLevel": {
+                        "dataType": "Real",
+                        "quantityKind": "Length"
+                      }
+                    }
+                  },
+                  "optional": true
+                },
+                "externalReferences": {
+                  "dataType": "Array",
+                  "arrayRestrictions": {
+                    "value": {
+                      "dataType": "Object",
+                      "objectRestrictions": {
+                        "values": {
+                          "sourceFile": {
+                            "dataType": "String",
+                            "optional": true
+                          },
+                          "globalId": {
+                            "dataType": "String",
+                            "optional": true
+                          },
+                          "entity": {
+                            "dataType": "String",
+                            "optional": true
+                          },
+                          "description": {
+                            "dataType": "String",
+                            "optional": true
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "openaec::opps::optimizationUnassigned": {
+      "value": {
+        "dataType": "Array",
+        "arrayRestrictions": {
+          "value": {
+            "dataType": "Object",
+            "objectRestrictions": {
+              "values": {
+                "loadPoint": {
+                  "dataType": "Reference",
+                  "optional": true
+                },
+                "legacyLoadPointNumber": {
+                  "dataType": "Integer",
+                  "optional": true
+                },
+                "reason": {
+                  "dataType": "Enum",
+                  "enumRestrictions": {
+                    "options": [
+                      "optimization_constraints",
+                      "configuration_limits"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "openaec::opps::optimizerResult": {
+      "value": {
+        "dataType": "Object",
+        "objectRestrictions": {
+          "values": {
+            "solution": {
+              "dataType": "Object",
+              "objectRestrictions": {
+                "values": {
+                  "pileCapProposals": {
+                    "dataType": "Array",
+                    "arrayRestrictions": {
+                      "value": {
+                        "dataType": "Object",
+                        "objectRestrictions": {
+                          "values": {
+                            "loadPointNumbers": {
+                              "dataType": "Array",
+                              "arrayRestrictions": {
+                                "value": {
+                                  "dataType": "Integer"
+                                }
+                              }
+                            },
+                            "pileCount": {
+                              "dataType": "Integer"
+                            },
+                            "quarterTurns": {
+                              "dataType": "Integer"
+                            },
+                            "configuration": {
+                              "dataType": "Object",
+                              "objectRestrictions": {
+                                "values": {
+                                  "pileSize": {
+                                    "dataType": "Integer",
+                                    "quantityKind": "Length"
+                                  },
+                                  "tipLevel": {
+                                    "dataType": "Real",
+                                    "quantityKind": "Length"
+                                  }
+                                }
+                              },
+                              "optional": true
+                            }
+                          }
+                        }
+                      }
+                    },
+                    "optional": true
+                  },
+                  "assignments": {
+                    "dataType": "Array",
+                    "arrayRestrictions": {
+                      "value": {
+                        "dataType": "Object",
+                        "objectRestrictions": {
+                          "values": {
+                            "loadPointNumber": {
+                              "dataType": "Integer"
+                            },
+                            "configuration": {
+                              "dataType": "Object",
+                              "objectRestrictions": {
+                                "values": {
+                                  "pileSize": {
+                                    "dataType": "Integer",
+                                    "quantityKind": "Length"
+                                  },
+                                  "tipLevel": {
+                                    "dataType": "Real",
+                                    "quantityKind": "Length"
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  },
+                  "cost": {
+                    "dataType": "String"
+                  },
+                  "budget": {
+                    "dataType": "String"
+                  },
+                  "reference": {
+                    "dataType": "Object",
+                    "objectRestrictions": {
+                      "values": {
+                        "cost": {
+                          "dataType": "String"
+                        },
+                        "proof": {
+                          "dataType": "Enum",
+                          "enumRestrictions": {
+                            "options": [
+                              "optimal",
+                              "feasible",
+                              "infeasible",
+                              "unknown"
+                            ]
+                          }
+                        },
+                        "termination": {
+                          "dataType": "Enum",
+                          "enumRestrictions": {
+                            "options": [
+                              "completed",
+                              "stopped",
+                              "time_limit",
+                              "cancelled",
+                              "solver_error"
+                            ]
+                          }
+                        }
+                      }
+                    }
+                  },
+                  "counts": {
+                    "dataType": "Object",
+                    "objectRestrictions": {
+                      "values": {
+                        "tipLevels": {
+                          "dataType": "Integer"
+                        },
+                        "pileSizes": {
+                          "dataType": "Integer"
+                        },
+                        "configurations": {
+                          "dataType": "Integer"
+                        }
+                      }
+                    }
+                  },
+                  "transitions": {
+                    "dataType": "Object",
+                    "objectRestrictions": {
+                      "values": {
+                        "pileCount": {
+                          "dataType": "Integer",
+                          "optional": true
+                        },
+                        "tipOnly": {
+                          "dataType": "Integer"
+                        },
+                        "sizeOnly": {
+                          "dataType": "Integer"
+                        },
+                        "both": {
+                          "dataType": "Integer"
+                        }
+                      }
+                    }
+                  },
+                  "scoreMilli": {
+                    "dataType": "String"
+                  },
+                  "proof": {
+                    "dataType": "Enum",
+                    "enumRestrictions": {
+                      "options": [
+                        "optimal",
+                        "feasible",
+                        "infeasible",
+                        "unknown"
+                      ]
+                    }
+                  },
+                  "termination": {
+                    "dataType": "Enum",
+                    "enumRestrictions": {
+                      "options": [
+                        "completed",
+                        "stopped",
+                        "time_limit",
+                        "cancelled",
+                        "solver_error"
+                      ]
+                    }
+                  }
+                }
+              }
+            },
+            "diagnostics": {
+              "dataType": "Array",
+              "arrayRestrictions": {
+                "value": {
+                  "dataType": "Object",
+                  "objectRestrictions": {
+                    "values": {
+                      "code": {
+                        "dataType": "String"
+                      },
+                      "loadPointNumbers": {
+                        "dataType": "Array",
+                        "arrayRestrictions": {
+                          "value": {
+                            "dataType": "Integer"
+                          }
+                        }
+                      },
+                      "blocking": {
+                        "dataType": "Boolean"
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "settings": {
+              "dataType": "Object",
+              "objectRestrictions": {
+                "values": {
+                  "includeTension": {
+                    "dataType": "Boolean"
+                  },
+                  "allowPileCountChanges": {
+                    "dataType": "Boolean"
+                  },
+                  "maxPilesPerCap": {
+                    "dataType": "Integer"
+                  },
+                  "allowedPileCounts": {
+                    "dataType": "Array",
+                    "arrayRestrictions": {
+                      "value": {
+                        "dataType": "Integer"
+                      }
+                    }
+                  },
+                  "skipUnsolvableUnits": {
+                    "dataType": "Boolean"
+                  },
+                  "optimizeCoherence": {
+                    "dataType": "Boolean"
+                  },
+                  "maxPileTipLevels": {
+                    "dataType": "Integer",
+                    "optional": true
+                  },
+                  "maxPileSizes": {
+                    "dataType": "Integer",
+                    "optional": true
+                  },
+                  "maxPileConfigurations": {
+                    "dataType": "Integer",
+                    "optional": true
+                  },
+                  "maxUtilization": {
+                    "dataType": "Real"
+                  },
+                  "candidateSource": {
+                    "dataType": "Enum",
+                    "enumRestrictions": {
+                      "options": [
+                        "all_available",
+                        "active_legend",
+                        "custom"
+                      ]
+                    }
+                  },
+                  "customConfigurations": {
+                    "dataType": "Array",
+                    "arrayRestrictions": {
+                      "value": {
+                        "dataType": "Object",
+                        "objectRestrictions": {
+                          "values": {
+                            "pileSize": {
+                              "dataType": "Integer",
+                              "quantityKind": "Length"
+                            },
+                            "tipLevel": {
+                              "dataType": "Real",
+                              "quantityKind": "Length"
+                            }
+                          }
+                        }
+                      }
+                    }
+                  },
+                  "budgetBasisPoints": {
+                    "dataType": "Integer"
+                  },
+                  "transitionWeights": {
+                    "dataType": "Object",
+                    "objectRestrictions": {
+                      "values": {
+                        "tipOnlyMilli": {
+                          "dataType": "Integer"
+                        },
+                        "sizeOnlyMilli": {
+                          "dataType": "Integer"
+                        },
+                        "pileCountMilli": {
+                          "dataType": "Integer"
+                        },
+                        "bothMilli": {
+                          "dataType": "Integer",
+                          "optional": true
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "wholePlanLimits": {
+              "dataType": "Boolean"
+            },
+            "boundaryTransitions": {
+              "dataType": "Boolean"
+            },
+            "localOnly": {
+              "dataType": "Boolean"
+            },
+            "currencyCode": {
+              "dataType": "String"
+            },
+            "basisFingerprint": {
+              "dataType": "String"
+            }
+          }
+        }
+      }
+    },
+    "openaec::opps::importLog": {
+      "value": {
+        "dataType": "Array",
+        "arrayRestrictions": {
+          "value": {
+            "dataType": "Object",
+            "objectRestrictions": {
+              "values": {
+                "source": {
+                  "dataType": "Reference"
+                },
+                "importedAt": {
+                  "dataType": "String",
+                  "optional": true
+                },
+                "sheetName": {
+                  "dataType": "String",
+                  "optional": true
+                },
+                "mappedColumns": {
+                  "dataType": "Array",
+                  "arrayRestrictions": {
+                    "value": {
+                      "dataType": "Object",
+                      "objectRestrictions": {
+                        "values": {
+                          "key": {
+                            "dataType": "String"
+                          },
+                          "value": {
+                            "dataType": "String"
+                          }
+                        }
+                      }
+                    }
+                  }
+                },
+                "warnings": {
+                  "dataType": "Array",
+                  "arrayRestrictions": {
+                    "value": {
+                      "dataType": "String"
+                    }
+                  }
+                },
+                "sourceRole": {
+                  "dataType": "Enum",
+                  "enumRestrictions": {
+                    "options": [
+                      "load-points",
+                      "cpts",
+                      "bearing-capacities"
+                    ]
+                  },
+                  "optional": true
+                },
+                "sourceFormat": {
+                  "dataType": "Enum",
+                  "enumRestrictions": {
+                    "options": [
+                      "csv",
+                      "xlsx"
+                    ]
+                  },
+                  "optional": true
+                },
+                "schemaVersion": {
+                  "dataType": "String",
+                  "optional": true
+                },
+                "sourceProfile": {
+                  "dataType": "Enum",
+                  "enumRestrictions": {
+                    "options": [
+                      "auto",
+                      "standard-table",
+                      "rfem-export",
+                      "capacity-columns"
+                    ]
+                  },
+                  "optional": true
+                },
+                "profileDetails": {
+                  "dataType": "Array",
+                  "arrayRestrictions": {
+                    "value": {
+                      "dataType": "Object",
+                      "objectRestrictions": {
+                        "values": {
+                          "key": {
+                            "dataType": "String"
+                          },
+                          "value": {
+                            "dataType": "String"
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "openaec::opps::pileDriving": {
+      "value": {
+        "dataType": "Object",
+        "objectRestrictions": {
+          "values": {
+            "files": {
+              "dataType": "Array",
+              "arrayRestrictions": {
+                "value": {
+                  "dataType": "Object",
+                  "objectRestrictions": {
+                    "values": {
+                      "source": {
+                        "dataType": "Reference"
+                      },
+                      "id": {
+                        "dataType": "String"
+                      },
+                      "overrides": {
+                        "dataType": "Object",
+                        "objectRestrictions": {
+                          "values": {
+                            "matchBy": {
+                              "dataType": "Enum",
+                              "enumRestrictions": {
+                                "options": [
+                                  "revit-mark",
+                                  "location-id"
+                                ]
+                              },
+                              "optional": true
+                            },
+                            "ignoreCsvLeadingZeros": {
+                              "dataType": "Boolean",
+                              "optional": true
+                            },
+                            "table": {
+                              "dataType": "Object",
+                              "objectRestrictions": {
+                                "values": {
+                                  "fixedPileSize": {
+                                    "dataType": "Integer",
+                                    "optional": true,
+                                    "quantityKind": "Length"
+                                  },
+                                  "pileCount": {
+                                    "dataType": "Integer",
+                                    "optional": true
+                                  },
+                                  "sheetName": {
+                                    "dataType": "String",
+                                    "optional": true
+                                  },
+                                  "hasHeaders": {
+                                    "dataType": "Boolean",
+                                    "optional": true
+                                  },
+                                  "headerRow": {
+                                    "dataType": "String",
+                                    "optional": true
+                                  },
+                                  "firstDataRow": {
+                                    "dataType": "String",
+                                    "optional": true
+                                  },
+                                  "delimiter": {
+                                    "dataType": "String",
+                                    "optional": true
+                                  },
+                                  "columns": {
+                                    "dataType": "Array",
+                                    "arrayRestrictions": {
+                                      "value": {
+                                        "dataType": "Object",
+                                        "objectRestrictions": {
+                                          "values": {
+                                            "column": {
+                                              "dataType": "String"
+                                            },
+                                            "field": {
+                                              "dataType": "String"
+                                            },
+                                            "unit": {
+                                              "dataType": "String",
+                                              "optional": true
+                                            },
+                                            "pileSize": {
+                                              "dataType": "Integer",
+                                              "optional": true,
+                                              "quantityKind": "Length"
+                                            }
+                                          }
+                                        }
+                                      }
+                                    },
+                                    "optional": true
+                                  }
+                                }
+                              },
+                              "optional": true
+                            }
+                          }
+                        },
+                        "optional": true
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "sharedMatchBy": {
+              "dataType": "Enum",
+              "enumRestrictions": {
+                "options": [
+                  "revit-mark",
+                  "location-id"
+                ]
+              },
+              "optional": true
+            },
+            "sharedIgnoreCsvLeadingZeros": {
+              "dataType": "Boolean",
+              "optional": true
+            },
+            "sharedTable": {
+              "dataType": "Object",
+              "objectRestrictions": {
+                "values": {
+                  "headers": {
+                    "dataType": "Array",
+                    "arrayRestrictions": {
+                      "value": {
+                        "dataType": "String"
+                      }
+                    }
+                  },
+                  "settings": {
+                    "dataType": "Object",
+                    "objectRestrictions": {
+                      "values": {
+                        "fixedPileSize": {
+                          "dataType": "Integer",
+                          "optional": true,
+                          "quantityKind": "Length"
+                        },
+                        "pileCount": {
+                          "dataType": "Integer",
+                          "optional": true
+                        },
+                        "sheetName": {
+                          "dataType": "String",
+                          "optional": true
+                        },
+                        "hasHeaders": {
+                          "dataType": "Boolean",
+                          "optional": true
+                        },
+                        "headerRow": {
+                          "dataType": "String",
+                          "optional": true
+                        },
+                        "firstDataRow": {
+                          "dataType": "String",
+                          "optional": true
+                        },
+                        "delimiter": {
+                          "dataType": "String",
+                          "optional": true
+                        },
+                        "columns": {
+                          "dataType": "Array",
+                          "arrayRestrictions": {
+                            "value": {
+                              "dataType": "Object",
+                              "objectRestrictions": {
+                                "values": {
+                                  "column": {
+                                    "dataType": "String"
+                                  },
+                                  "field": {
+                                    "dataType": "String"
+                                  },
+                                  "unit": {
+                                    "dataType": "String",
+                                    "optional": true
+                                  },
+                                  "pileSize": {
+                                    "dataType": "Integer",
+                                    "optional": true,
+                                    "quantityKind": "Length"
+                                  }
+                                }
+                              }
+                            }
+                          },
+                          "optional": true
+                        }
+                      }
+                    }
+                  }
+                }
+              },
+              "optional": true
+            },
+            "checkSettings": {
+              "dataType": "Object",
+              "objectRestrictions": {
+                "values": {
+                  "minimumEndBlows": {
+                    "dataType": "Integer"
+                  },
+                  "endWindowIncrements": {
+                    "dataType": "Integer"
+                  },
+                  "maximumEndDrop": {
+                    "dataType": "Integer"
+                  },
+                  "lengthToleranceMm": {
+                    "dataType": "Real"
+                  },
+                  "levelToleranceMm": {
+                    "dataType": "Real"
+                  },
+                  "neighborhoodTolerancePct": {
+                    "dataType": "Real"
+                  },
+                  "peerEnergySpreadKj": {
+                    "dataType": "Real"
+                  },
+                  "targetEnergyToleranceKj": {
+                    "dataType": "Real"
+                  },
+                  "expectedEnergy": {
+                    "dataType": "Array",
+                    "arrayRestrictions": {
+                      "value": {
+                        "dataType": "Object",
+                        "objectRestrictions": {
+                          "values": {
+                            "pileSize": {
+                              "dataType": "Integer",
+                              "quantityKind": "Length"
+                            },
+                            "energyKj": {
+                              "dataType": "Real"
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              },
+              "optional": true
+            }
+          }
+        }
+      }
+    }
+  },
+  "data": []
+}

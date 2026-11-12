@@ -172,6 +172,7 @@ export class ProjectDocumentReadError extends Error {
 }
 
 export type ProjectDocumentDraft = {
+  ifcx_state?: string;
   metadata: IfcppProject["metadata"];
   units: NonNullable<IfcppProject["units"]>;
   inputs: IfcppProject["inputs"];

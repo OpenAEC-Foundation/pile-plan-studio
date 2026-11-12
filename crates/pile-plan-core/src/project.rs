@@ -82,6 +82,9 @@ pub struct PilePlanProject {
     pub settings: ProjectSettings,
     pub user_state: ProjectUserState,
     pub import_log: Vec<ProjectImportLogEntry>,
+    /// Opaque IFCX identity, precision and provenance carried by document transports.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub ifcx_state: Option<String>,
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
@@ -96,6 +99,8 @@ pub struct ProjectDocumentDraft {
     /// the writer can keep them only when an assignment is unchanged.
     pub active_selected_piles: HashMap<u32, PileConfigurationKey>,
     pub import_log: Vec<ProjectImportLogEntry>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub ifcx_state: Option<String>,
 }
 
 impl ProjectDocumentDraft {
@@ -122,6 +127,7 @@ impl ProjectDocumentDraft {
             user_state: project.user_state.clone(),
             active_selected_piles,
             import_log: project.import_log.clone(),
+            ifcx_state: project.ifcx_state.clone(),
         }
     }
 }
@@ -186,6 +192,14 @@ pub enum ProjectPileTipLevelContext {
 pub fn validate_project_tip_levels(
     project: &PilePlanProject,
 ) -> Result<ProjectTipLevelKeys, InvalidProjectPileTipLevels> {
+    let preserved = crate::ifcpp::ifcx::preserved_tip_keys(project);
+    validate_project_tip_levels_preserving(project, preserved.as_ref())
+}
+
+pub(crate) fn validate_project_tip_levels_preserving(
+    project: &PilePlanProject,
+    preserved: Option<&ProjectTipLevelKeys>,
+) -> Result<ProjectTipLevelKeys, InvalidProjectPileTipLevels> {
     let mut invalid = Vec::new();
     let bearing_capacities = project
         .inputs
@@ -201,6 +215,8 @@ pub fn validate_project_tip_levels(
                     pile_size_mm: capacity.pile_size_mm,
                 },
                 &mut invalid,
+                preserved.map_or(&[], |keys| keys.bearing_capacities.as_slice()),
+                index,
             )
         })
         .collect();
@@ -222,6 +238,9 @@ pub fn validate_project_tip_levels(
                             index,
                         },
                         &mut invalid,
+                        preserved.and_then(|keys| keys.pile_plans.iter().find(|entry| entry.id == plan.id))
+                            .map_or(&[], |keys| keys.active.as_slice()),
+                        index,
                     )
                 })
                 .collect(),
@@ -238,6 +257,8 @@ pub fn validate_project_tip_levels(
                 item.value,
                 ProjectPileTipLevelContext::Legend { index },
                 &mut invalid,
+                preserved.map_or(&[], |keys| keys.legend.as_slice()),
+                index,
             )
         })
         .collect();
@@ -257,7 +278,12 @@ fn project_tip_level_key(
     value: f64,
     context: ProjectPileTipLevelContext,
     invalid: &mut Vec<InvalidProjectPileTipLevel>,
+    preserved: &[i64],
+    index: usize,
 ) -> Option<i64> {
+    if let Some(key) = crate::ifcpp::ifcx::projected_key(value, index, preserved) {
+        return Some(key);
+    }
     match try_pile_tip_level_mm(value) {
         Ok(key) => Some(key),
         Err(error) => {
@@ -447,7 +473,7 @@ pub struct ProjectUserState {
 pub struct PilePlan {
     pub id: String,
     pub name: String,
-    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    #[serde(default, alias = "pile_numbers_by_load_point", skip_serializing_if = "BTreeMap::is_empty")]
     pub revit_marks_by_load_point: BTreeMap<u32, String>,
     #[serde(
         default,
@@ -1133,6 +1159,7 @@ mod tests {
                 active_pile_plan_id: "pile-plan-1".to_string(),
                 manual_cpt_selections: HashMap::from([(1, vec![10, 11])]),
             },
+            ifcx_state: None,
             import_log: vec![ProjectImportLogEntry {
                 source_file: "Draagvermogens.xlsx".to_string(),
                 imported_at: None,

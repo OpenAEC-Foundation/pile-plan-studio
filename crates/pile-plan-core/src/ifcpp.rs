@@ -1,5 +1,7 @@
 use std::fmt;
 
+pub(crate) mod ifcx;
+
 use serde::{Deserialize, Serialize};
 use serde_json::{Error as JsonError, Value};
 
@@ -7,7 +9,7 @@ use crate::load_point_groups::canonicalize_load_point_grouping_settings;
 #[cfg(test)]
 use crate::ProjectPileTipLevelContext;
 use crate::{
-    validate_load_point_group_overrides, validate_pile_cost_settings, validate_project_tip_levels,
+    validate_load_point_group_overrides, validate_pile_cost_settings,
     validate_unique_load_point_positions, DuplicateLoadPointPositions,
     InvalidLoadPointGroupOverrides, InvalidPileCostSettings, InvalidProjectPileTipLevels,
     PilePlanProject, ProjectApplication, ProjectDocumentDraft, ProjectUserState,
@@ -184,8 +186,10 @@ pub fn write_project_document(
         settings: draft.settings,
         user_state: draft.user_state,
         import_log: draft.import_log,
+        ifcx_state: draft.ifcx_state,
     };
-    normalize_project(&mut project);
+    let preserve_exact_levels = ifcx::preserved_tip_keys(&project).is_some();
+    normalize_project(&mut project, preserve_exact_levels);
 
     write_ifcpp_string(&project).map_err(ProjectDocumentError::from)
 }
@@ -203,7 +207,7 @@ fn migrate_optimizer_settings(project: &mut PilePlanProject) {
     project.settings.legacy_optimization = Default::default();
 }
 
-fn normalize_project(project: &mut PilePlanProject) {
+fn normalize_project(project: &mut PilePlanProject, preserve_exact_levels: bool) {
     project.units.costs = normalize_currency_code(&project.units.costs);
     project.settings.viewer_utilization = project.settings.viewer_utilization.normalized();
     migrate_optimizer_settings(project);
@@ -226,9 +230,10 @@ fn normalize_project(project: &mut PilePlanProject) {
     for plan in &mut project.user_state.pile_plans {
         plan.active_pile_sizes.sort_unstable();
         plan.active_pile_sizes.dedup();
-        plan.active_pile_tip_levels
-            .sort_by(|left, right| right.total_cmp(left));
-        plan.active_pile_tip_levels.dedup();
+        if !preserve_exact_levels {
+            plan.active_pile_tip_levels.sort_by(|left, right| right.total_cmp(left));
+            plan.active_pile_tip_levels.dedup();
+        }
         plan.locked_load_point_ids.sort_unstable();
         plan.locked_load_point_ids.dedup();
     }
@@ -281,6 +286,11 @@ fn normalize_draft_user_state(draft: &mut ProjectDocumentDraft) {
         .expect("a non-empty normalized project has an active pile plan");
     let previous = std::mem::take(&mut active_plan.selected_piles);
     active_plan.selected_piles = selected_choices(&draft.active_selected_piles, Some(&previous));
+    for (id, choice) in previous {
+        if choice.pile.is_none() {
+            active_plan.selected_piles.entry(id).or_insert(choice);
+        }
+    }
 }
 
 fn selected_choices(
@@ -311,18 +321,36 @@ pub fn read_ifcpp_str(input: &str) -> Result<PilePlanProject, IfcppError> {
 }
 
 pub fn read_validated_ifcpp_str(input: &str) -> Result<ValidatedPilePlanProject, IfcppError> {
-    let mut value: Value = serde_json::from_str(input)?;
-    migrate_legacy_project_value(&mut value);
-    validate_project_value_pile_plan_ids(&value)?;
-    let mut project: PilePlanProject = serde_json::from_value(value)?;
+    #[derive(Default, Deserialize)]
+    #[serde(default)]
+    struct DocumentKind {
+        schema: Option<serde::de::IgnoredAny>,
+        header: Option<serde::de::IgnoredAny>,
+        data: Option<serde::de::IgnoredAny>,
+    }
+
+    let kind: DocumentKind = serde_json::from_str(input)?;
+    let is_ifcx = kind.schema.is_none() && (kind.header.is_some() || kind.data.is_some());
+    let mut project: PilePlanProject = if is_ifcx {
+        ifcx::read(input)?
+    } else {
+        let mut value: Value = serde_json::from_str(input)?;
+        migrate_legacy_project_value(&mut value);
+        validate_project_value_pile_plan_ids(&value)?;
+        if let Some(object) = value.as_object_mut() {
+            object.remove("ifcx_state");
+        }
+        serde_json::from_value(value)?
+    };
     validate_load_point_group_overrides(
         &project.inputs.load_points,
         &project.settings.load_point_grouping,
     )
     .map_err(IfcppError::InvalidLoadPointGroupOverrides)?;
     canonicalize_load_point_grouping_settings(&mut project.settings.load_point_grouping);
-    normalize_project(&mut project);
+    normalize_project(&mut project, is_ifcx);
     let tip_level_keys = validate_ifcpp_project_with_keys(&project)?;
+    ensure_ifcx_identity(&mut project)?;
 
     Ok(ValidatedPilePlanProject {
         project,
@@ -360,29 +388,16 @@ pub fn write_ifcpp_string(project: &PilePlanProject) -> Result<String, IfcppErro
         }
     }
     canonical.schema_version = canonical.schema_version.max(CURRENT_SCHEMA_VERSION);
-    validate_ifcpp_project(&canonical)?;
+    let keys = validate_ifcpp_project_with_keys(&canonical)?;
     canonicalize_load_point_grouping_settings(&mut canonical.settings.load_point_grouping);
-
-    Ok(serde_json::to_string_pretty(&sort_json_value(
-        serde_json::to_value(canonical)?,
-    ))?)
+    ifcx::write(&canonical, &keys)
 }
 
-fn sort_json_value(value: Value) -> Value {
-    match value {
-        Value::Object(values) => {
-            let mut entries = values.into_iter().collect::<Vec<_>>();
-            entries.sort_by(|left, right| left.0.cmp(&right.0));
-            Value::Object(
-                entries
-                    .into_iter()
-                    .map(|(key, value)| (key, sort_json_value(value)))
-                    .collect(),
-            )
-        }
-        Value::Array(values) => Value::Array(values.into_iter().map(sort_json_value).collect()),
-        value => value,
+fn ensure_ifcx_identity(project: &mut PilePlanProject) -> Result<(), IfcppError> {
+    if project.ifcx_state.is_none() {
+        project.ifcx_state = Some(serde_json::to_string(&ifcx::State::for_project(project)?)?);
     }
+    Ok(())
 }
 
 pub fn validate_ifcpp_project(project: &PilePlanProject) -> Result<(), IfcppError> {
@@ -406,6 +421,12 @@ fn validate_ifcpp_project_with_keys(
 
     if !(1..=CURRENT_SCHEMA_VERSION).contains(&project.schema_version) {
         return Err(IfcppError::UnsupportedSchemaVersion(project.schema_version));
+    }
+
+    if project.settings.pile_head_level_m.is_some_and(|level| !level.is_finite()) {
+        return Err(IfcppError::Json(<JsonError as serde::de::Error>::custom(
+            "Invalid pile head level",
+        )));
     }
 
     if project.inputs.pile_driving.as_ref().is_some_and(|driving| !driving.is_valid()) {
@@ -452,7 +473,9 @@ fn validate_ifcpp_project_with_keys(
     .map_err(IfcppError::InvalidLoadPointGroupOverrides)?;
     validate_pile_cost_settings(&project.settings.pile_costs)
         .map_err(IfcppError::InvalidPileCosts)?;
-    validate_project_tip_levels(project).map_err(IfcppError::InvalidPileTipLevels)
+    let preserved = if project.ifcx_state.is_some() { ifcx::State::for_project(project)?.keys } else { None };
+    crate::project::validate_project_tip_levels_preserving(project, preserved.as_ref())
+        .map_err(IfcppError::InvalidPileTipLevels)
 }
 
 fn migrate_legacy_project_value(value: &mut Value) {
@@ -640,13 +663,13 @@ mod tests {
     };
 
     #[test]
-    fn reads_and_writes_ifcpp_project_json() {
+    fn reads_and_writes_ifcx_project_json() {
         let project = project_fixture();
         let json = write_ifcpp_string(&project).expect("project writes");
-        let parsed = read_ifcpp_str(&json).expect("project reads");
-
+        let mut parsed = read_ifcpp_str(&json).expect("project reads");
+        parsed.ifcx_state = None;
         assert_eq!(parsed, project);
-        assert!(json.contains("\"schema\": \"IFCPP\""));
+        assert!(json.contains("\"format\": \"IFCPP\""));
     }
 
     #[test]
@@ -892,7 +915,7 @@ mod tests {
         });
         let project = read_project_document(&value.to_string()).unwrap().project;
         let written = write_project_document(ProjectDocumentDraft::from_project(&project)).unwrap();
-        let saved: Value = serde_json::from_str(&written).unwrap();
+        let saved = serde_json::to_value(read_ifcpp_str(&written).unwrap()).unwrap();
         let driving = &saved["inputs"]["pile_driving"];
         assert_eq!(driving["files"][0]["data_base64"], "cGFhbG51bW1lcgoxNQo=");
         assert_eq!(driving["files"][0]["overrides"]["ignore_csv_leading_zeros"], true);
@@ -1059,7 +1082,7 @@ mod tests {
 
     #[test]
     fn supported_schema_versions_keep_quarter_metre_tip_levels() {
-        for schema_version in 1..=6 {
+        for schema_version in 1..=CURRENT_SCHEMA_VERSION {
             let mut project = project_fixture();
             project.schema_version = schema_version;
             project.user_state.pile_plans[0].active_pile_tip_levels = vec![-18.25];
@@ -1080,8 +1103,8 @@ mod tests {
     }
 
     #[test]
-    fn supported_versions_produce_canonical_schema_six_semantics() {
-        for schema_version in 1..=6 {
+    fn supported_versions_produce_canonical_project_semantics() {
+        for schema_version in 1..=CURRENT_SCHEMA_VERSION {
             let mut value = serde_json::to_value(project_fixture()).expect("fixture serializes");
             value["schema_version"] = serde_json::json!(schema_version);
             value["settings"]
@@ -1331,7 +1354,7 @@ mod tests {
 
         let text = write_project_document(ProjectDocumentDraft::from_project(&project))
             .expect("document writes");
-        let value: Value = serde_json::from_str(&text).expect("written document parses");
+        let value = serde_json::to_value(read_ifcpp_str(&text).unwrap()).unwrap();
 
         assert_eq!(value["schema"], "IFCPP");
         assert_eq!(value["schema_version"], CURRENT_SCHEMA_VERSION);
@@ -1563,15 +1586,15 @@ mod tests {
     }
 
     #[test]
-    fn writing_a_legacy_project_emits_schema_version_six() {
+    fn writing_a_legacy_project_emits_the_ifcx_profile() {
         let mut project = project_fixture();
         project.schema_version = 1;
 
         let json = write_ifcpp_string(&project).expect("legacy project writes canonically");
         let value: serde_json::Value = serde_json::from_str(&json).expect("written JSON parses");
 
-        assert_eq!(value["schema_version"], CURRENT_SCHEMA_VERSION);
-        assert!(value["user_state"].get("selected_piles").is_none());
+        assert_eq!(value["header"]["dataVersion"], "1.0.0");
+        assert_eq!(read_ifcpp_str(&json).unwrap().schema_version, CURRENT_SCHEMA_VERSION);
     }
 
     #[test]
@@ -1679,11 +1702,12 @@ mod tests {
         project.user_state.pile_plans.push(second_plan);
 
         let json = write_ifcpp_string(&project).expect("schema five writes");
-        let restored = read_ifcpp_str(&json).expect("schema five reads");
+        let mut restored = read_ifcpp_str(&json).expect("IFCX reads");
+        restored.ifcx_state = None;
 
         project.schema_version = CURRENT_SCHEMA_VERSION;
         assert_eq!(restored, project);
-        let written: serde_json::Value = serde_json::from_str(&json).expect("JSON parses");
+        let written = serde_json::to_value(restored).unwrap();
         assert_eq!(written["schema_version"], CURRENT_SCHEMA_VERSION);
         assert!(written["settings"].get("active_pile_sizes").is_none());
         assert_eq!(
@@ -1712,7 +1736,7 @@ mod tests {
         assert!(restored_plan.selected_piles.is_empty());
         assert_eq!(restored_plan.revit_marks_by_load_point[&1], "001");
 
-        let mut value: serde_json::Value = serde_json::from_str(&text).unwrap();
+        let mut value = serde_json::to_value(restored).unwrap();
         value["user_state"]["pile_plans"][0]
             .as_object_mut()
             .unwrap()
@@ -1797,6 +1821,7 @@ mod tests {
                 Default::default(),
                 Default::default(),
             ),
+            ifcx_state: None,
             import_log: vec![ProjectImportLogEntry {
                 source_file: "created manually".to_string(),
                 imported_at: None,
@@ -1809,6 +1834,135 @@ mod tests {
                 source_profile: None,
                 profile_details: HashMap::new(),
             }],
+        }
+    }
+}
+
+#[cfg(test)]
+mod ifcx_contract_tests {
+    use super::*;
+    use serde_json::json;
+
+    #[test]
+    fn migrates_legacy_content_with_exact_levels_and_stable_paths() {
+        let source = include_str!("../../../sample_project/sample_project.ifcpp");
+        let mut value: Value = serde_json::from_str(source).unwrap();
+        value["settings"]["pile_head_level_m"] = json!(-0.7501234567890123_f64);
+        let plan = &mut value["user_state"]["pile_plans"][0];
+        for (id, key) in [(1, 9_007_199_254_740_990_i64), (2, 9_007_199_254_740_991_i64)] {
+            plan["selected_piles"][id.to_string()] = json!({
+                "pile": { "pile_size_mm": 290, "pile_tip_level_m_key": key },
+                "external_references": []
+            });
+            plan["revit_marks_by_load_point"][id.to_string()] = json!(format!("P-{id}"));
+        }
+        let original = read_ifcpp_str(&value.to_string()).unwrap();
+        let text = write_ifcpp_string(&original).unwrap();
+        let envelope: Value = serde_json::from_str(&text).unwrap();
+        assert_eq!(envelope["header"]["ifcxVersion"], "ifcx_alpha");
+        assert!(text.contains("9007199254740.99"));
+        assert!(text.contains("9007199254740.991"));
+        let reopened = read_ifcpp_str(&text).unwrap();
+        assert_eq!(reopened.settings.pile_head_level_m.unwrap().to_bits(), (-0.7501234567890123_f64).to_bits());
+        assert_eq!(reopened.inputs, original.inputs);
+        assert_eq!(reopened.settings, original.settings);
+        assert_eq!(reopened.user_state, original.user_state);
+        assert_eq!(reopened.metadata, original.metadata);
+        assert_eq!(reopened.units, original.units);
+        assert_eq!(reopened.import_log, original.import_log);
+        assert_eq!(write_ifcpp_string(&reopened).unwrap(), text);
+    }
+
+    #[test]
+    fn keeps_adjacent_levels_in_advice_legend_and_plan_activation() {
+        let fixture = include_str!("../../../schemas/ifcpp/fixtures/schema-9-complete.ifcpp");
+        let mut value: Value = serde_json::from_str(fixture).unwrap();
+        let data = value["data"].as_array_mut().unwrap();
+        let levels = [json!("exact-tip-a"), json!("exact-tip-b")];
+        for node in data {
+            let attributes = node["attributes"].as_object_mut().unwrap();
+            if let Some(legend) = attributes.get_mut("openaec::opps::legend") {
+                let mut second = legend["pileTipLevels"][0].clone();
+                legend["pileTipLevels"][0]["value"] = levels[0].clone();
+                second["value"] = levels[1].clone();
+                legend["pileTipLevels"].as_array_mut().unwrap().push(second);
+            }
+            if let Some(plan) = attributes.get_mut("openaec::opps::planSettings") {
+                plan["activeTipLevels"] = json!(levels);
+            }
+            if let Some(advice) = attributes.get_mut("openaec::foundation::bearingAdvice") {
+                advice["entries"][0]["tipLevel"] = levels[0].clone();
+                advice["entries"][1]["tipLevel"] = levels[1].clone();
+            }
+        }
+        let contents = value.to_string()
+            .replace(r#""exact-tip-a""#, "9007199254740.991")
+            .replace(r#""exact-tip-b""#, "9007199254740.99");
+        let project = read_validated_ifcpp_str(&contents).unwrap();
+        let expected = [9_007_199_254_740_991, 9_007_199_254_740_990];
+        assert_eq!(project.tip_level_keys.bearing_capacities[..2], expected);
+        assert_eq!(project.tip_level_keys.legend, expected);
+        assert_eq!(project.tip_level_keys.pile_plans[0].active, expected);
+        let saved = write_project_document(ProjectDocumentDraft::from_project(&project.project)).unwrap();
+        let reopened = read_validated_ifcpp_str(&saved).unwrap();
+        assert_eq!(reopened.tip_level_keys, project.tip_level_keys);
+    }
+
+    #[test]
+    fn keeps_pile_head_f64_bits_including_signed_zero() {
+        let fixture = include_str!("../../../schemas/ifcpp/fixtures/minimal.ifcpp");
+        for level in [-0.0_f64, f64::from_bits(1), -0.7501234567890123] {
+            let text = fixture.replace("\"pileHeadLevel\": -0.75", &format!("\"pileHeadLevel\": {}", json!(level)));
+            let project = read_ifcpp_str(&text).unwrap();
+            assert_eq!(project.settings.pile_head_level_m.unwrap().to_bits(), level.to_bits());
+            let saved = write_ifcpp_string(&project).unwrap();
+            assert_eq!(read_ifcpp_str(&saved).unwrap().settings.pile_head_level_m.unwrap().to_bits(), level.to_bits());
+        }
+    }
+
+    #[test]
+    fn rejects_mistyped_references_and_an_unknown_profile() {
+        let fixture = include_str!("../../../schemas/ifcpp/fixtures/minimal.ifcpp");
+        assert!(read_ifcpp_str(&fixture.replace("urn:example:ifcpp:1.0.0", "urn:example:ifcpp:2.0.0")).is_err());
+        let mut wrong_target: Value = serde_json::from_str(fixture).unwrap();
+        let selection = wrong_target["data"].as_array_mut().unwrap().iter_mut()
+            .find_map(|node| node["attributes"].get_mut("openaec::foundation::cptSelection")).unwrap();
+        selection["cpts"][0] = json!("521d08b1-0212-4eab-90bb-2e42be3f7f48");
+        assert!(read_ifcpp_str(&wrong_target.to_string()).unwrap_err().to_string().contains("must refer to openaec::cpt"));
+    }
+
+    #[test]
+    fn editing_and_duplicating_a_plan_keep_existing_paths() {
+        let fixture = include_str!("../../../schemas/ifcpp/fixtures/minimal.ifcpp");
+        let paths = |contents: &str| {
+            let value: Value = serde_json::from_str(contents).unwrap();
+            value["data"].as_array().unwrap().iter().map(|node| node["path"].as_str().unwrap().to_owned())
+                .collect::<std::collections::BTreeSet<_>>()
+        };
+        let original_paths = paths(fixture);
+        let mut project = read_ifcpp_str(fixture).unwrap();
+        project.metadata.name = "Renamed".into();
+        let mut duplicate = project.user_state.pile_plans[0].clone();
+        duplicate.id = "duplicate-plan".into();
+        project.user_state.pile_plans.push(duplicate);
+        let saved = write_ifcpp_string(&project).unwrap();
+        let new_paths = paths(&saved);
+        assert!(original_paths.is_subset(&new_paths));
+        assert_eq!(new_paths.len(), original_paths.len() + 2);
+    }
+
+    #[test]
+    fn opens_both_profile_fixtures() {
+        for source in [
+            include_str!("../../../schemas/ifcpp/fixtures/minimal.ifcpp"),
+            include_str!("../../../schemas/ifcpp/fixtures/schema-9-complete.ifcpp"),
+        ] {
+            let mut project = read_ifcpp_str(source).unwrap();
+            assert_eq!(project.user_state.pile_plans.len(), 2);
+            let saved = write_ifcpp_string(&project).unwrap();
+            let mut restored = read_ifcpp_str(&saved).unwrap();
+            assert_eq!(restored.ifcx_state.take(), project.ifcx_state.take());
+            assert_eq!(restored, project);
         }
     }
 }

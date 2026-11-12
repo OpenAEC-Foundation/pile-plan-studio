@@ -1,17 +1,22 @@
-use pile_plan_core::{read_ifcpp_str, write_ifcpp_string};
+use pile_plan_core::{read_ifcpp_str, write_ifcpp_string, PilePlanProject};
+use serde_json::Value;
+
+fn reopened_value(project: &PilePlanProject) -> Value {
+    serde_json::to_value(read_ifcpp_str(&write_ifcpp_string(project).unwrap()).unwrap()).unwrap()
+}
 
 #[test]
 fn joint_weight_is_retired_for_new_runs() {
     let project =
         read_ifcpp_str(include_str!("../../../sample_project/sample_project.ifcpp")).unwrap();
     let mut json: serde_json::Value =
-        serde_json::from_str(&write_ifcpp_string(&project).unwrap()).unwrap();
+        reopened_value(&project);
     json["settings"]["ilp_optimization"]["transition_weights"] = serde_json::json!({
         "tip_only_milli": 1500, "size_only_milli": 2500, "both_milli": 500
     });
     let loaded = read_ifcpp_str(&json.to_string()).unwrap();
     let saved: serde_json::Value =
-        serde_json::from_str(&write_ifcpp_string(&loaded).unwrap()).unwrap();
+        reopened_value(&loaded);
     assert_eq!(
         saved["settings"]["ilp_optimization"]["transition_weights"],
         serde_json::json!({
@@ -32,7 +37,7 @@ fn legacy_optimizer_settings_are_read_but_no_longer_written() {
     legacy["settings"]["optimization"]["max_pile_tip_levels"] = 3.into();
     let project = read_ifcpp_str(&legacy.to_string()).unwrap();
     let saved: serde_json::Value =
-        serde_json::from_str(&write_ifcpp_string(&project).unwrap()).unwrap();
+        reopened_value(&project);
     assert!(saved["settings"].get("optimization").is_none());
     assert_eq!(saved["settings"]["ilp_optimization"]["max_pile_sizes"], 2);
     assert_eq!(
@@ -64,10 +69,7 @@ fn legacy_projects_receive_independent_ilp_settings_with_five_percent_budget() {
     for version in 1..=4 {
         let mut json: serde_json::Value = serde_json::from_str(source).unwrap();
         if version == 4 {
-            json = serde_json::from_str(
-                &write_ifcpp_string(&read_ifcpp_str(source).unwrap()).unwrap(),
-            )
-            .unwrap();
+            json = serde_json::to_value(read_ifcpp_str(source).unwrap()).unwrap();
         }
         json["settings"]
             .as_object_mut()
@@ -79,7 +81,7 @@ fn legacy_projects_receive_independent_ilp_settings_with_five_percent_budget() {
         });
         let project = read_ifcpp_str(&json.to_string()).unwrap();
         let mut json: serde_json::Value =
-            serde_json::from_str(&write_ifcpp_string(&project).unwrap()).unwrap();
+            reopened_value(&project);
         assert_eq!(
             json["settings"]["ilp_optimization"]["budget_basis_points"],
             500
@@ -119,7 +121,7 @@ fn legacy_projects_receive_independent_ilp_settings_with_five_percent_budget() {
             .remove("skip_unsolvable_units");
         let old = read_ifcpp_str(&json.to_string()).unwrap();
         let old_json: serde_json::Value =
-            serde_json::from_str(&write_ifcpp_string(&old).unwrap()).unwrap();
+            reopened_value(&old);
         assert_eq!(
             old_json["settings"]["ilp_optimization"]["skip_unsolvable_units"],
             false
@@ -127,7 +129,7 @@ fn legacy_projects_receive_independent_ilp_settings_with_five_percent_budget() {
         json["settings"]["ilp_optimization"]["skip_unsolvable_units"] = true.into();
         let project = read_ifcpp_str(&json.to_string()).unwrap();
         let roundtrip: serde_json::Value =
-            serde_json::from_str(&write_ifcpp_string(&project).unwrap()).unwrap();
+            reopened_value(&project);
         assert_eq!(
             roundtrip["settings"]["ilp_optimization"]["skip_unsolvable_units"],
             true
@@ -155,7 +157,7 @@ fn invalid_ilp_settings_are_rejected_instead_of_silently_reset() {
     let project =
         read_ifcpp_str(include_str!("../../../sample_project/sample_project.ifcpp")).unwrap();
     let mut json: serde_json::Value =
-        serde_json::from_str(&write_ifcpp_string(&project).unwrap()).unwrap();
+        reopened_value(&project);
     json["settings"]["ilp_optimization"] = serde_json::json!({
         "max_pile_tip_levels":null,"max_pile_sizes":0,"max_pile_configurations":null,
         "max_utilization":1.0,"candidate_source":"all_available","budget_basis_points":500,
@@ -169,7 +171,7 @@ fn plan_result_roundtrips_and_is_optional_for_legacy_plans() {
     let project =
         read_ifcpp_str(include_str!("../../../sample_project/sample_project.ifcpp")).unwrap();
     let mut json: serde_json::Value =
-        serde_json::from_str(&write_ifcpp_string(&project).unwrap()).unwrap();
+        reopened_value(&project);
     let plans = json["user_state"]["pile_plans"].as_array_mut().unwrap();
     assert!(plans[0].get("ilp_result").is_none());
     let mut result = serde_json::json!({
@@ -188,7 +190,7 @@ fn plan_result_roundtrips_and_is_optional_for_legacy_plans() {
     json["user_state"]["pile_plans"][0]["ilp_result"] = result.clone();
     let loaded = read_ifcpp_str(&json.to_string()).unwrap();
     let saved: serde_json::Value =
-        serde_json::from_str(&write_ifcpp_string(&loaded).unwrap()).unwrap();
+        reopened_value(&loaded);
     assert_eq!(saved["user_state"]["pile_plans"][0]["ilp_result"], result);
     let mut legacy = saved.clone();
     legacy["schema_version"] = 6.into();
@@ -220,7 +222,7 @@ fn custom_ilp_candidates_roundtrip_without_legacy_settings() {
     let project =
         read_ifcpp_str(include_str!("../../../sample_project/sample_project.ifcpp")).unwrap();
     let mut json: serde_json::Value =
-        serde_json::from_str(&write_ifcpp_string(&project).unwrap()).unwrap();
+        reopened_value(&project);
     json["settings"]["ilp_optimization"]["candidate_source"] = "custom".into();
     let pairs = serde_json::json!([
         {"pile_size_mm": 290, "pile_tip_level_mm": -18000},
@@ -229,7 +231,7 @@ fn custom_ilp_candidates_roundtrip_without_legacy_settings() {
     json["settings"]["ilp_optimization"]["custom_configurations"] = pairs.clone();
     let project = read_ifcpp_str(&json.to_string()).unwrap();
     let saved: serde_json::Value =
-        serde_json::from_str(&write_ifcpp_string(&project).unwrap()).unwrap();
+        reopened_value(&project);
     assert_eq!(
         saved["settings"]["ilp_optimization"]["custom_configurations"],
         pairs

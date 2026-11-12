@@ -6,18 +6,18 @@ import type {IlpRunState} from "../../../../app/optimization/ilpOptimizationCont
 import {canSkipUnsolvableIlpTargets} from "../../../../domain/pile-plans/ilp-optimization/ilpResultApplication.ts";
 import IlpDisclosure from "./IlpDisclosure.tsx";
 import "./ilpOptimization.css";
-type Props={planName?:string;stale?:boolean;settings?:IlpOptimizationSettings;skipUnsolvableEnabled:boolean;detailsOpen:boolean;onToggleDetails:()=>void;run:IlpRunState;currency:string;onEnableSkipUnsolvable:()=>void;onApplyProposal:()=>void;actionsEnabled:boolean};
+type Props={planName?:string;stale?:boolean;settings?:IlpOptimizationSettings;skipUnsolvableEnabled:boolean;detailsOpen:boolean;onToggleDetails:()=>void;run:IlpRunState<number | string>;currency:string;onEnableSkipUnsolvable:()=>void;onApplyProposal:()=>void;actionsEnabled:boolean};
 export default function IlpOptimizationResultPanel({planName,stale,settings,skipUnsolvableEnabled,detailsOpen,onToggleDetails,run,currency,onEnableSkipUnsolvable,onApplyProposal,actionsEnabled}:Props){
   const {t:common}=useTranslation("common");
   const {t,i18n}=useTranslation("rightPanel");const o=run.outcome;
-  const [expandedDiagnostics,setExpandedDiagnostics]=useState<IlpOptimizationOutcome|null>(null);
+  const [expandedDiagnostics,setExpandedDiagnostics]=useState<IlpOptimizationOutcome<number | string>|null>(null);
   const skipped = o && "diagnostics" in o ? o.diagnostics.find(d=>d.code==="skipped_unsolvable_units") : undefined;
   const fallbackNotice = o?.status === "solved" ? o.diagnostics.find(d => d.code === "spatial_reference_fallback" || d.code === "spatial_current_plan_fallback" || d.code === "spatial_improved_start_fallback" || d.code === "local_optimization") : undefined;
   const coherence = run.context?.optimizeCoherence !== false;
   const weights = settings?.transition_weights;
   const legacyWeights = weights?.both_milli !== undefined
     && weights.both_milli !== weights.tip_only_milli + weights.size_only_milli;
-  const money=(v:number)=>new Intl.NumberFormat(i18n.language,{style:"currency",currency}).format(v);
+  const money=(v:number | string)=>new Intl.NumberFormat(i18n.language,{style:"currency",currency}).format(typeof v === "string" ? BigInt(v) : v);
   const number=(v:number)=>new Intl.NumberFormat(i18n.language,{maximumFractionDigits:3}).format(v);
   const [elapsed,setElapsed]=useState(0);
   useEffect(()=>{
@@ -52,7 +52,7 @@ export default function IlpOptimizationResultPanel({planName,stale,settings,skip
       <p className="ilp-help oa-secondary">{t(run.context?.localOnly?"ilp.localHelp":"ilp.searchHelp")}</p></>}
     {o?.status==="solved" && <>{coherence ? <div className="ilp-result-score" role="group" aria-label={t("ilp.score")}>
       <p className="ilp-result-score-label">{t("ilp.score")}</p>
-      <strong className="ilp-result-score-value">{number(o.solution.score_milli/1000)}</strong>
+      <strong className="ilp-result-score-value">{number(Number(o.solution.score_milli)/1000)}</strong>
       <p className="ilp-result-score-proof">{t(`ilp.proof.${o.solution.proof}`)}</p>
       <p className="ilp-result-score-help">{t("ilp.scoreHelp")}</p>
     </div> : <p>{t(`ilp.proof.${o.solution.proof}`)}</p>}

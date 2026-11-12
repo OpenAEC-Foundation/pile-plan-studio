@@ -3,7 +3,7 @@ use pile_plan_core::{
     ProjectDocumentDraft,
 };
 use pile_plan_core::{read_ifcpp_str, write_ifcpp_string};
-use serde_json::{json, Value};
+use serde_json::json;
 
 fn request() -> PileCapProposalRequest {
     let project =
@@ -164,7 +164,7 @@ fn preserves_per_plan_proposals_without_changing_source_assignments() {
         .unwrap()
         .push(other);
     let restored = read_ifcpp_str(&value.to_string()).unwrap();
-    let written: Value = serde_json::from_str(&write_ifcpp_string(&restored).unwrap()).unwrap();
+    let written = serde_json::to_value(read_ifcpp_str(&write_ifcpp_string(&restored).unwrap()).unwrap()).unwrap();
     assert_eq!(
         written["user_state"]["pile_plans"][0]["pile_cap_proposals"],
         json!([proposal])

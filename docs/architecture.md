@@ -451,12 +451,23 @@ Save: React project content -> TypeScript project draft -> Rust validation and
                               serialization -> IFCPP text
 ```
 
+New `.ifcpp` files use the [IFCX alpha profile 1.0.0](../schemas/ifcpp/README.md).
+The Rust codec resolves its versioned schema from the application bundle and
+validates the envelope, structural ownership and reference targets offline.
+Legacy schemas 1–9 pass through the existing normalization before migration.
+The project, foundation, plans, piles and shared inputs have stable UUID
+paths. Browser and desktop drafts carry an opaque Rust persistence record for
+existing paths, source provenance and exact values that need to survive the
+editable representation. Pile-tip levels use decimal metres on disk and
+integer millimetres for identity. The pile-head level retains its `f64`
+precision in metres.
+
 IndexedDB, undo/redo, and dirty-state tracking remain TypeScript application
 infrastructure. IndexedDB stores Rust-serialized IFCPP text, restored text uses
 the same Rust read path as an opened file, and undo/redo restores project-owned
 content before Rust-derived analysis is recalculated.
 
-IFCPP schema 5 stores the automatic load-point grouping settings, manual group
+Legacy IFCPP schema 5 introduced the automatic load-point grouping settings, manual group
 records, explicit separations of automatic groups, and the viewer's group-
 visibility toggle. Effective groups and their shared Gabriel topology are
 derived by Rust and remain transient. Manual grouping is accepted only when the
@@ -474,9 +485,10 @@ singleton partition.
 
 Pile tip levels remain metre values in IFCPP exchange data and physical
 calculations. The Rust core validates those values and produces exact integer
-millimetre keys for identity, equality, ordering, and deduplication. WASM and
-Tauri pass those keys through unchanged; TypeScript consumes them for discrete
-state and applies locale-aware metre formatting only for presentation.
+millimetre keys for identity, equality, ordering, and deduplication. The file
+codec supports the signed 64-bit range. The browser and desktop editors use
+JavaScript's safe integer range for their working keys and apply locale-aware
+metre formatting for presentation.
 
 ## Runtime Matrix
 
@@ -1452,7 +1464,7 @@ source cells. Supported schemas1â€“7 normalize to universal, available rows.
 Schema 8 prevents older applications from silently treating specific advice as
 universal. Application and release versions are independent of the document schema.
 
-IFCPP schema 9 stores optional driving records in `inputs.pile_driving`. Each
+Legacy IFCPP schema 9 introduced optional driving records in `inputs.pile_driving`. Each
 file retains its original CSV or XLSX bytes as base64, its name and its own
 import overrides when present. The project also stores shared import and
 check settings. File and settings edits use project history and recovery.

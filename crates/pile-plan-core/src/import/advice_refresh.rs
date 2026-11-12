@@ -6,7 +6,7 @@ use crate::{
 };
 use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 
-type CapacityKey = (u32, u32, i64, crate::ResistanceDirection, Option<u32>);
+pub(crate) type CapacityKey = (u32, u32, i64, crate::ResistanceDirection, Option<u32>);
 pub(super) fn capacity_key(value: &ProjectBearingCapacity) -> CapacityKey {
     (
         value.cpt_id,
@@ -22,7 +22,7 @@ struct StoredGroup {
     logs: Vec<ProjectImportLogEntry>,
     legacy: bool,
 }
-fn read_keys(log: &ProjectImportLogEntry) -> Option<Vec<CapacityKey>> {
+pub(crate) fn read_keys(log: &ProjectImportLogEntry) -> Option<Vec<CapacityKey>> {
     let text = log.profile_details.get("capacity_keys")?;
     serde_json::from_str(text).ok().or_else(|| {
         serde_json::from_str::<Vec<(u32,u32,i64,crate::ResistanceDirection)>>(text).ok()

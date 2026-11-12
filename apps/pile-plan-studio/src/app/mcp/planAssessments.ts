@@ -25,7 +25,7 @@ export type PlanAssessmentSnapshot = {
     runId?: string | null; timeLimitSeconds?: number | null; targetLoadPointIds?: number[] | null };
 };
 
-function solutionSummary(solution: IlpSolution) {
+function solutionSummary(solution: IlpSolution<number | string>) {
   return {
     cost: solution.cost,
     budget: solution.budget,

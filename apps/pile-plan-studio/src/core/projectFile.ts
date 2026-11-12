@@ -118,6 +118,7 @@ import type { IlpOptimizationSettings } from "./ilpOptimizationTypes.ts";
 
 export type IfcppProject = {
   schema: "IFCPP";
+  ifcx_state?: string;
   schema_version: number;
   application?: IfcppApplication;
   metadata: {
@@ -182,6 +183,7 @@ export function getImportSummary(project: IfcppProject): ImportSummary {
 }
 
 export type LoadedProjectData = {
+  ifcxState?: string;
   metadata: IfcppProject["metadata"];
   units: NonNullable<IfcppProject["units"]>;
   name: string;
@@ -267,6 +269,7 @@ export function hydrateProjectState(
   );
 
   return {
+    ifcxState: project.ifcx_state,
     metadata: structuredClone(project.metadata),
     units: structuredClone(project.units!),
     name: project.metadata.name,
