@@ -191,7 +191,7 @@ test("optimization and lock draft controls route to their callbacks", () => {
 });
 
 test("Plan shared artwork preserves named actions and the disabled selection toggle", () => {
-  const p = { ...props(), onOpenProjectInformation: vi.fn(), onOpenRightPanel: vi.fn() };
+  const p = { ...props(), onOpenProjectInformation: vi.fn() };
   const view = render(<Ribbon {...p} />);
   const project = screen.getByRole("button", { name: t("project.information") });
   expect(project.querySelector("use")?.getAttribute("href") ?? "").toMatch(/#i24-project\.properties$/);
@@ -199,16 +199,13 @@ test("Plan shared artwork preserves named actions and the disabled selection tog
   for (const [key, panel, icon] of [["plan.cptSettings", "cpt-settings", "pile.cpt-settings"], ["plan.costSettings", "cost-settings", "pile.cost-settings"], ["plan.groupingSettings", "grouping-settings", "pile.group-settings"]] as const) {
     const button = screen.getByRole("button", { name: t(key) });
     expect(button.querySelector("use")?.getAttribute("href") ?? "").toContain(`#i24-${icon}`);
-    expect(button.getAttribute("data-tooltip")).toBe(t(key));
-    expect(button.querySelector(".ribbon-btn-label")?.textContent).not.toBe(t(key));
-    expect(button.querySelector(".ribbon-btn-label")?.textContent).toBeTruthy();
+    const label = button.querySelector(".ribbon-btn-label")?.textContent;
+    expect(label).toBe(key === "plan.cptSettings" ? t(key) : t(panel === "cost-settings" ? "plan.costs" : "plan.groups"));
+    if (label !== t(key)) expect(button.getAttribute("data-tooltip")).toBe(t(key));
     fireEvent.click(button); expect(p.onOpenTaskPanel).toHaveBeenCalledWith(panel);
   }
-  for (const [key, mode, icon] of [["plan.loadPoints", "load-point", "pile.options"], ["plan.cpts", "cpts", "pile.cpts"]] as const) {
-    const button = screen.getByRole("button", { name: t(key) });
-    expect(button.querySelector("use")?.getAttribute("href") ?? "").toContain(`#i24-${icon}`);
-    fireEvent.click(button);
-    expect(p.onOpenRightPanel).toHaveBeenCalledWith(mode);
+  for (const key of ["tabs.loadPoint", "tabs.cpts"]) {
+    expect(screen.queryByRole("button", { name: i18n.t(key, { ns: "rightPanel" }) })).toBeNull();
   }
   const pileCaps = screen.getByRole("button", { name: t("plan.pileCapChanges") });
   expect(pileCaps.querySelector("use")?.getAttribute("href") ?? "").toMatch(/#i24-pile\.cap-changes$/);
@@ -217,6 +214,7 @@ test("Plan shared artwork preserves named actions and the disabled selection tog
   expect(p.onOpenTaskPanel).toHaveBeenCalledWith("pile-driving");
   view.rerender(<Ribbon {...p} isLassoSelectionActive lassoSelectionDisabled />);
   const selection = screen.getByRole("button", { name: t("plan.lassoSelection") });
+  expect(selection.compareDocumentPosition(pileCaps) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   expect(selection.querySelector("use")?.getAttribute("href") ?? "").toMatch(/#i24-edit\.select-rectangle$/);
   expect(selection.getAttribute("aria-pressed")).toBe("true");
   expect((selection as HTMLButtonElement).disabled).toBe(true);

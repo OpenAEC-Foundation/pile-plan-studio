@@ -774,30 +774,50 @@ The shared shell tokens preserve the existing 28 px tab strip and 94 px content
 height. Ribbon groups scroll horizontally at narrow widths. The File menu uses
 the shared open/save/save-as/import/export and file-type icons while preserving
 the native/browser command capabilities and routes. Its navigation uses shared
-Blueprint buttons with an accessible current-page marker. Extracted
-`backstage/OpenProjectPanel` composes shared task tiles, an empty state and
-separate keyboard-accessible open/remove controls for recent projects; relative
-dates follow the interface language. `backstage/AboutPanel` uses the shared
-heading, information-card and button components with existing product metadata.
-The browser file tile activates its file input directly from a user event;
-desktop retains the native picker callback. Navigation keyboard activation is
+Blueprint buttons with an accessible current-page marker. `backstage/AboutPanel`
+uses the shared heading, information-card and button components with existing
+product metadata. The start screen, File menu, title bar and open shortcut call
+the same session command. It activates the file input directly in the browser
+and opens the native picker on desktop. The SuperCloud build opens its Docs
+picker. Navigation keyboard activation is
 isolated from drawing handlers, and handled Escape closes the menu without
 clearing the drawing selection.
+
+The standalone start screen is a view of the current `AppSession`. Returning
+to it from the File menu retains the open project and its history. Fresh browser
+sessions show the start screen after the recovery check. Valid recovery records
+open directly, including unsaved edits to the sample. Recovery marks sample
+sessions with optional metadata so a clean example can return to the start
+screen after reload. Desktop startup registers the project-open listener and
+drains pending launch requests before showing the start screen. Subsequent
+opens use the same validation and unsaved-changes confirmation as the File menu.
+
+Guided import presents the existing new-project form in steps, with its source
+drafts and Rust-backed previews shared across those steps. Successful guided
+and regular imports install the project through the same session operation.
+The tour uses the bundled sample and keeps progress in the current view.
+A scoped focus request centers the viewer on an unlocked load point before
+selection. The tour highlights its row in the Selection overview and uses
+the property-panel buttons to switch inspection views. During CPT inspection
+the viewer frames the selected load point and the linked CPTs from core
+analysis. The overlay follows workspace controls and map markers without
+altering their geometry. The preview changes only the viewport. Highlighted
+actions use the regular selection, assignment and optimization handlers.
 
 Recent projects are application preferences owned by `AppSession`, rather than
 menu-local state. `useRecentFiles` wraps the serialized recent-project controller;
 validated opens, successful native save/save-as (including MCP saves), browser local saves, and completed
 browser downloads refresh a maximum of ten entries. Windows path spelling is
-normalized for deduplication; Unix case is preserved. The menu receives the list
-and remove/clear callbacks, so it updates immediately without remounting.
+normalized for deduplication; Unix case is preserved. Start-screen cards receive
+the list and expose separate keyboard controls for opening and removal.
 
 Desktop entries reopen their original path. Browser entries explicitly represent
 local IFCPP copies: opaque text is stored in the separate
 `pile-plan-studio-recent-projects` IndexedDB database, while names/timestamps and
 copy identities remain in preferences. Each download stores the exact completed
-output blob, not later edits. Initial browser file identities include a digest of
-filename and contents, preventing different same-name files from overwriting each
-other; subsequent local saves and downloads update the active copy identity. Recovery metadata may
+output blob, not later edits. A browser open or save without a current identity
+reuses an existing copy with the same filename and contents, or assigns a new
+identity. Saves from an identified session update that copy. Recovery metadata may
 carry that identity across reloads as an optional version-one field; it never enters
 the IFCPP document. Unsaved-session recovery remains separate from these copies.
 

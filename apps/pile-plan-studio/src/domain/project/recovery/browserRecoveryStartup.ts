@@ -34,7 +34,7 @@ export async function loadBrowserRecovery<TProject>({
     try {
       await store.clear();
     } catch {
-      // A failed cleanup must not prevent the bundled sample from opening.
+      // A failed cleanup must not prevent startup.
     }
     return { kind: "invalid" };
   } catch (error) {

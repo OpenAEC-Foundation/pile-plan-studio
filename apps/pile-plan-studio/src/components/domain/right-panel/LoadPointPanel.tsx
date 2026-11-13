@@ -261,6 +261,7 @@ export default function LoadPointPanel({
                       tabIndex={rowAssignmentPending ? -1 : 0}
                       aria-selected={row.key === chosenKey}
                       aria-disabled={rowAssignmentPending}
+                      data-tour-target={row.statusClassName === "is-ok" && row.sizeActive && row.tipActive ? "pile-option" : undefined}
                       onKeyDown={event => {
                         if (event.target === event.currentTarget && (event.key === "Enter" || event.key === " ")) {
                           event.preventDefault(); event.currentTarget.click();

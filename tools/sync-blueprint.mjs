@@ -27,12 +27,12 @@ const iconIds = ["file.save", "edit.undo", "edit.redo", "ui.settings", "ui.feedb
   "project.properties", "data.apply", "ui.close", "object.unlock",
   "pile.cpt-settings", "pile.cost-settings", "pile.group-settings",
   "pile.load-points", "pile.cpts", "pile.load-groups", "edit.select", "pile.lock-edit", "pile.optimization",
-  "view.grid", "panel.left", "panel.right", "file.open", "file.save-as", "file.import", "file.export",
-  "file.type-ifc", "file.type-project", "file.type-other", "nav.back", "ui.about",
+  "view.grid", "panel.left", "panel.right", "file.open", "file.save-as", "file.import", "ui.refresh", "file.export",
+  "file.type-ifc", "file.type-project", "file.type-other", "file.new", "nav.back", "nav.home", "ui.about",
   "status.error", "status.warning", "status.success", "status.info",
   "object.rename", "edit.duplicate", "edit.delete", "pile.new", "table.column-filter",
   "pile.legend-used", "pile.legend-edit", "status.hidden"];
-const iconSourceNames = ["reports", "composer", "standard", "pile-plan"];
+const iconSourceNames = ["energy", "reports", "composer", "standard", "pile-plan"];
 
 function downloadSource(source) {
   const response = JSON.parse(execFileSync("gh", ["api", `repos/${repository}/contents/${source}?ref=${revision}`,

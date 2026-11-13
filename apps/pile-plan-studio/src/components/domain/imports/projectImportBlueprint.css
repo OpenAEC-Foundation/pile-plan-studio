@@ -11,19 +11,41 @@
 }
 .project-import-blueprint .project-import-heading { padding: 0 0 4px; }
 .project-import-blueprint .project-import-controls { display: grid; gap: 16px; min-width: 0; }
-.project-import-blueprint .project-import-mode {
+.project-import-blueprint :is(.project-import-properties-section, .project-import-file-actions, .project-import-sources, .project-import-source-card, [role="tabpanel"])[hidden] { display: none; }
+.project-import-guided h2[tabindex="-1"]:focus { outline: none; }
+.project-import-refresh-tabs { min-width: 0; }
+.project-import-refresh-tabs .oa-tabs { flex-wrap: wrap; }
+.project-refresh-sources { display: grid; gap: 4px; margin: 0; padding: 0; list-style: none; }
+.project-refresh-sources:empty { display: none; }
+.project-refresh-sources li { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; overflow-wrap: anywhere; }
+.first-project-steps ol,
+.first-project-review {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.first-project-steps ol { display: flex; flex-wrap: wrap; gap: 4px; }
+.first-project-steps .oa-button[aria-current="step"] {
+  background: var(--oa-selected);
+  color: var(--oa-accent-text);
+  box-shadow: inset 0 -2px var(--oa-selected-bar);
+}
+.first-project-review li {
   display: flex;
   flex-wrap: wrap;
+  align-items: center;
   gap: 8px;
-  padding: 0;
-  border: 0;
-  background: transparent;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--oa-border-subtle);
 }
-.project-import-blueprint .project-import-mode .oa-button[aria-pressed="true"] {
-  color: var(--oa-accent-text);
-  border-color: var(--oa-selected-bar);
-  background: var(--oa-selected);
+.first-project-review li > span:not(.oa-status) { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.project-import-guided .project-import-submit-area {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
 }
+.project-import-guided .project-import-property-blocker { flex-basis: 100%; }
 .project-import-blueprint .project-import-mode-description { margin: 0; color: var(--oa-text-secondary); font-size: var(--oa-size-body); }
 .project-import-blueprint .project-import-properties-section,
 .project-import-blueprint .project-import-source-card {

@@ -205,6 +205,10 @@
   ],
   "iconSources": [
     {
+      "source": "web/icons/energy.svg",
+      "sha256": "bd8c75abb47722f76bb00705ea7c598f385105b644e7c043307a864c8487e073"
+    },
+    {
       "source": "web/icons/reports.svg",
       "sha256": "d4cea154f17ba054518bb65e5a79559b96229ef72116cc7d4fa9a47591c3510c"
     },
@@ -246,11 +250,14 @@
     "file.open",
     "file.save-as",
     "file.import",
+    "ui.refresh",
     "file.export",
     "file.type-ifc",
     "file.type-project",
     "file.type-other",
+    "file.new",
     "nav.back",
+    "nav.home",
     "ui.about",
     "status.error",
     "status.warning",
@@ -268,11 +275,11 @@
   "generated": [
     {
       "path": "icons/studio.svg",
-      "sha256": "97551a99ac2a078ca126b76f020fbf10101a29a8b5b0db4ea704314598a52f4e"
+      "sha256": "cad4a769bea24c429b3078470707e4dcdbf0d2e26267d72c446b4fd2edbc80d7"
     },
     {
       "path": "icons/studioIcons.ts",
-      "sha256": "062db5a28afc5b318ef02772189909c0b8e8ab3e1d41dc7fb6bd77ba7b0bbc2b"
+      "sha256": "401f328b7e8860e06b0b71ae522bb06be1ac88baecf3bc16073d9f6d63d676c8"
     }
   ]
 }

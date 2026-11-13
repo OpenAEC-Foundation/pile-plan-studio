@@ -5,7 +5,7 @@
   "save": "Project opslaan",
   "saveAs": "Project opslaan als...",
   "print": "Afdrukken",
-  "import": "Bronnen importeren",
+  "import": "Bronnen verversen",
   "importPilePlan": "Palenplan importeren",
   "export": "Download IFCPP",
   "exportMenu": "Exporteren",
@@ -82,22 +82,10 @@
   },
   "openPanel": {
     "localCopy": "Lokale kopie",
-    "localCopiesHelp": "In de browser openen recente projecten een lokale kopie van de laatst geopende, lokaal opgeslagen of gedownloade IFCPP-versie op dit apparaat. Niet-opgeslagen wijzigingen horen niet bij die kopie.",
-    "justNow": "Zojuist",
+    "localCopiesHelp": "Lokale kopieën bevatten de laatst geopende, opgeslagen of gedownloade IFCPP-versie op dit apparaat.",
     "openRecent": "{{name}} openen",
     "removeFile": "{{name}} uit recente projecten verwijderen",
-    "title": "Project openen",
-    "intro": "Open een IFCPP-project vanaf dit apparaat of ga verder met een recent project.",
-    "chooseProject": "IFCPP-project kiezen",
-    "chooseProjectDesc": "Open een volledig projectbestand van Open Pile Plan Studio.",
-    "choose": "Bestand kiezen",
-    "sampleProject": "Voorbeeldproject openen",
-    "sampleProjectDesc": "Vervang de huidige sessie door het meegeleverde voorbeeldproject.",
-    "open": "Openen",
-    "recent": "Recente projecten",
-    "clearAll": "Alles wissen",
-    "noRecent": "Geen recente projecten",
-    "remove": "Verwijderen"
+    "noRecent": "Geen recente projecten"
   },
   "exportPanel": {
     "title": "Projectgegevens exporteren",

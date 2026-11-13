@@ -4,15 +4,16 @@ import Backstage from "./Backstage.tsx";
 import i18n from "../../../i18n/config.ts";
 import { useState } from "react";
 import { normalizeUserSettings, patchUserSettings, DEFAULT_USER_SETTINGS } from "../../../domain/settings/userSettings.ts";
+import { getProjectFileCommands } from "../../../domain/project/projectPersistence.ts";
 vi.mock("../../../store", () => ({ getSetting: async (_key: string, fallback: unknown) => fallback, setSetting: vi.fn() }));
 const t = (key: string) => i18n.t(key, { ns: "backstage" });
 function props() {
-  return { open: true, onClose: vi.fn(), onOpenSettings: vi.fn(), onImportProject: vi.fn(), defaultCurrencyCode: "EUR",
+  return { open: true, onClose: vi.fn(), onOpenSettings: vi.fn(), onNewProject: vi.fn(), onRefreshSources: vi.fn(), defaultCurrencyCode: "EUR",
     loadPoints: [], cpts: [], availablePileConfigurations: [], activePilePlanName: "Plan", onImportPilePlan: vi.fn(),
-    onOpenProjectFile: vi.fn(), onOpenSampleProject: vi.fn(), onDownloadProject: vi.fn(),
-    onExportPilePlanXlsx: vi.fn(), onExportPilePlanCsv: vi.fn(), onChooseDesktopProject: vi.fn(),
+    onOpenProject: vi.fn(), onDownloadProject: vi.fn(),
+    onExportPilePlanXlsx: vi.fn(), onExportPilePlanCsv: vi.fn(),
     onSaveProject: vi.fn().mockResolvedValue(undefined), onSaveProjectAs: vi.fn().mockResolvedValue(undefined),
-    commands: { save: false, saveAs: false, download: true } };
+    commands: getProjectFileCommands(false) };
 }
 
 test("workspace review hides backstage without losing the current panel or handling Escape", () => {
@@ -28,12 +29,19 @@ test("workspace review hides backstage without losing the current panel or handl
   expect(screen.getByRole("button",{name:i18n.t("exportTools.selectColumn",{name:"Mark"})})).toBeTruthy();
 });
 
-test("save commands follow platform capabilities and close after the action finishes", async () => {
-  const p = props(); const view = render(<Backstage {...p} />);
-  expect(screen.queryByRole("button", { name: /Save/ })).toBeNull();
-  view.rerender(<Backstage {...p} commands={{ save: true, saveAs: true, download: false }} />);
+test("the browser file menu offers one Save command and closes after saving", async () => {
+  const p = props();
+  render(<Backstage {...p} />);
+  expect(screen.queryByRole("button", { name: t("saveAs") })).toBeNull();
+  expect(screen.queryByRole("button", { name: new RegExp(t("exit")) })).toBeNull();
   fireEvent.click(screen.getByRole("button", { name: `${t("save")}Ctrl+S` }));
   await waitFor(() => expect(p.onClose).toHaveBeenCalledOnce()); expect(p.onSaveProject).toHaveBeenCalledOnce();
+});
+
+test("the desktop file menu offers Save as and Exit", () => {
+  render(<Backstage {...props()} commands={getProjectFileCommands(true)} />);
+  expect(screen.getByRole("button", { name: t("saveAs") })).toBeTruthy();
+  expect(screen.getByRole("button", { name: new RegExp(t("exit")) })).toBeTruthy();
 });
 
 test("all exports are blocked during one pending export and failures restore the controls", async () => {

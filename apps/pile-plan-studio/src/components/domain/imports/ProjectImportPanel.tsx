@@ -5,9 +5,9 @@ import AdviceImportDiagnostics from "./AdviceImportDiagnostics.tsx";
 import { SourceImportError, type ProjectImportPreview } from "../../../core/adviceImportContract.ts";
 import { previewProjectImportCore } from "../../../core/coreClient.ts";
 import { useAdviceImportPreviews } from "../../../app/import/useAdviceImportPreviews.ts";
-import { addAdviceSource, createEmptyAdviceDraft, type AdviceDraft } from "../../../domain/imports/adviceImportModel.ts";
+import { addAdviceSource, createEmptyAdviceDraft, selectedAdviceSources, type AdviceDraft } from "../../../domain/imports/adviceImportModel.ts";
 import type { ImportDrafts } from "../../../domain/imports/projectImportModel.ts";
-import { useEffect, useId, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { prepareProjectImportRequest } from "../../../app/import/projectImportRequest.ts";
 import { useProjectImportPreviews } from "../../../app/import/useProjectImportPreviews.ts";
@@ -23,7 +23,7 @@ import {
   type ImportFileRole,
 } from "../../../core/importFiles.ts";
 import type { ImportSummary } from "../../../core/projectFile.ts";
-import { Banner, Button, Checkbox, Heading, IconButton, OpenAECProvider, Select, Status, TextField } from "../../../openaec/react/src/index";
+import { Banner, Button, Checkbox, Heading, IconButton, OpenAECProvider, Select, Status, Tabs, TextField } from "../../../openaec/react/src/index";
 import spriteUrl from "../../../openaec/studioSprite.ts";
 import "../../../openaec/openaec-components.css";
 import ImportFileButton from "./ImportFileButton.tsx";
@@ -32,6 +32,7 @@ import { importProfileChoices } from "./importProfileChoices.ts";
 import { normalizePileHeadLevel } from "../project/projectInformationModel.ts";
 import {
   projectImportReadiness,
+  isProjectImportRoleReady,
   createEmptyImportDrafts,
   setImportFile,
   setImportProfile,
@@ -60,11 +61,13 @@ const EMPTY_OPTIONS: ImportProfileOptions = {
 };
 
 const CURRENCY_OPTIONS = ["EUR", "GBP", "USD"].map((currency) => ({ value: currency, label: currency }));
+const GUIDED_STEPS = ["properties", "loadPoints", "cpts", "foundationAdvice", "review"] as const;
 
 export type { ProjectImportProperties } from "../../../domain/imports/projectImportModel.ts";
 
 export default function ProjectImportPanel({
   onImportProject,
+  guided = false,
   initialSource,
   defaultCurrencyCode,
   onPreviewProjectImport = (_mode, sources) => previewProjectImportCore({ sources, currentProject: null }),
@@ -80,13 +83,30 @@ export default function ProjectImportPanel({
   ) => Promise<ImportSummary | null>;
   initialSource?: { role: ImportFileRole; file: File } | null;
   defaultCurrencyCode: string;
+  guided?: boolean;
   onPreviewProjectImport?: (mode: ProjectImportMode, sources: ImportSourceInput[]) => Promise<ProjectImportPreview>;
   importPreviewContextKey?: string;
   onPrepareLoadPointRefresh?: PrepareLoadPointRefresh;
 }) {
   const { t } = useTranslation("common");
   const levelHelpId = useId();
-  const [mode, setMode] = useState<ProjectImportMode>("new-project");
+  const stepTitle = useRef<HTMLHeadingElement>(null);
+  const stepChanged = useRef(false);
+  const [stepIndex, setStepIndex] = useState(0);
+  const step = GUIDED_STEPS[stepIndex];
+  const reviewing = step === "review";
+  useEffect(() => {
+    if (guided && stepChanged.current) {
+      stepTitle.current?.focus();
+      stepTitle.current?.scrollIntoView?.({ block: "nearest" });
+    }
+  }, [guided, stepIndex]);
+  const showStep = (index: number) => {
+    stepChanged.current = true;
+    setStepIndex(index);
+  };
+  const mode: ProjectImportMode = guided ? "new-project" : "refresh";
+  const [refreshRole, setRefreshRole] = useState<ImportFileRole>(initialSource?.role ?? "load-points");
   const [projectName, setProjectName] = useState(() => t("importProject.defaultName"));
   const [pileHeadLevel, setPileHeadLevel] = useState("");
   const [currencyCode, setCurrencyCode] = useState(defaultCurrencyCode);
@@ -99,6 +119,7 @@ export default function ProjectImportPanel({
   useAdviceImportPreviews(drafts, setDrafts, mode, importPreviewContextKey, onPreviewProjectImport);
   const normalizedPileHeadLevel = normalizePileHeadLevel(pileHeadLevel);
   const { canSubmit, showPileHeadLevelBlocker } = projectImportReadiness(drafts, mode, normalizedPileHeadLevel);
+  const advice = drafts.advice!;
   const refreshReview = useLoadPointRefreshReview(importPreviewContextKey, drafts["load-points"].file,
     JSON.stringify([mode, drafts["load-points"].requestedProfile, drafts["load-points"].profileOptions]), onPrepareLoadPointRefresh);
   const needsLocationReview = mode === "refresh" && !!drafts["load-points"].file && !!onPrepareLoadPointRefresh;
@@ -122,10 +143,10 @@ export default function ProjectImportPanel({
   };
 
   useEffect(() => {
-    if (!initialSource) return;
-    setMode("refresh");
+    if (!initialSource || guided) return;
+    setRefreshRole(initialSource.role);
     assignRoleFile(initialSource.role, initialSource.file);
-  }, [initialSource]);
+  }, [initialSource, guided]);
 
   const assignFiles = (files: File[]) => {
     const currentAssignments = Object.fromEntries(
@@ -164,7 +185,7 @@ export default function ProjectImportPanel({
   };
 
   const importProject = async () => {
-    if (!canSubmit || (needsLocationReview && !refreshReview.selection)) return;
+    if (busy || !canSubmit || (needsLocationReview && !refreshReview.selection)) return;
     setBusy(true);
     setError(null);
     setFinalFailure(null);
@@ -189,34 +210,30 @@ export default function ProjectImportPanel({
   };
 
   return (
-    <OpenAECProvider sprite={spriteUrl}><div className="oa-app project-import-panel project-import-blueprint">
-      <header className="project-import-heading">
-        <Heading level="page">{t("importProject.title")}</Heading>
-      </header>
+    <OpenAECProvider sprite={spriteUrl}><div className={`oa-app project-import-panel project-import-blueprint${guided ? " project-import-guided" : ""}`}>
+      {!guided && <header className="project-import-heading">
+        <Heading level="page">{t("importProject.refreshTitle")}</Heading>
+      </header>}
       <fieldset className="project-import-controls" disabled={busy}>
-      <div className="project-import-mode" role="group" aria-label={t("importProject.modes.label")}>
-        {(["new-project", "refresh"] as const).map((value) => (
-          <Button
-            className={mode === value ? "is-active" : ""}
-            type="button"
-            key={value}
-            aria-pressed={mode === value}
-            onClick={() => {
-              setMode(value);
-              setError(null);
-              setSummary(null);
-            }}
-          >
-            {t(value === "new-project" ? "importProject.modes.newProject" : "importProject.modes.refresh")}
-          </Button>
-        ))}
-      </div>
-      <p className="project-import-mode-description">
-        {t(mode === "new-project" ? "importProject.modes.newProjectDescription" : "importProject.modes.refreshDescription")}
-      </p>
+      {guided ? <>
+        <nav aria-label={t("firstProject.steps")} className="first-project-steps">
+          <ol>
+            {GUIDED_STEPS.map((item, index) => <li key={item}>
+              <Button kind="quiet" compact aria-current={index === stepIndex ? "step" : undefined}
+                onClick={() => showStep(index)}>{t(`firstProject.${item}.title`)}</Button>
+            </li>)}
+          </ol>
+        </nav>
+        <h2 tabIndex={-1} ref={stepTitle} className="oa-heading oa-heading--panel">
+          {t(`firstProject.${step}.title`)}
+        </h2>
+        <p className="project-import-mode-description">{t(`firstProject.${step}.help`)}</p>
+      </> : <>
+        <p className="project-import-mode-description">{t("importProject.refreshHelp")}</p>
+      </>}
       {mode === "new-project" && (
-        <section className="project-import-properties-section">
-          <Heading>{t("importProject.projectProperties")}</Heading>
+        <section className="project-import-properties-section" hidden={guided && step !== "properties"}>
+          {!guided && <Heading>{t("importProject.projectProperties")}</Heading>}
           <div className="project-import-properties">
             <TextField label={t("importProject.projectName")} value={projectName} onChange={(event) => setProjectName(event.target.value)} />
             <div className="project-import-reference">
@@ -240,17 +257,26 @@ export default function ProjectImportPanel({
           </div>
         </section>
       )}
-      <div className="project-import-file-actions">
+      <div className="project-import-file-actions" hidden={guided && step !== "loadPoints"}>
         <ImportFileButton label={t("importProject.chooseFiles")} multiple onFiles={assignFiles} />
       </div>
+      {!guided && <div className="project-import-refresh-tabs">
+        <Tabs label={t("importProject.refreshTitle")} active={refreshRole}
+          tabs={ROLES.map(({ role, labelKey }) => ({ id: role, label: t(labelKey) }))}
+          onSelect={role => setRefreshRole(role as ImportFileRole)} />
+      </div>}
 
-      <div className="project-import-sources">
-        {ROLES.map(({ role, labelKey, columnsKey }) => {
-          if (role === "bearing-capacities") return <AdviceImportSources key={role} draft={drafts.advice!} onChange={updateAdvice} refresh={mode === "refresh"} />;
+      <div className="project-import-sources" hidden={guided && (step === "properties" || reviewing)}>
+        {ROLES.map(({ role, labelKey, columnsKey }, index) => {
+          const hidden = guided ? stepIndex !== index + 1 : refreshRole !== role;
+          const tabPanel = guided ? {} : { role: "tabpanel", "aria-label": t(labelKey) };
+          if (role === "bearing-capacities") return <div key={role} hidden={hidden} {...tabPanel}>
+            <AdviceImportSources draft={advice} onChange={updateAdvice} refresh={mode === "refresh"} showMapping={guided} />
+          </div>;
           const draft = drafts[role];
           const preview = draft.previewState.status === "ready" || draft.previewState.status === "analyzing" ? draft.previewState.preview??draft.lastPreview??null : draft.lastPreview??null;
           return (
-            <section className="project-import-source-card" key={role}>
+            <section className="project-import-source-card" key={role} hidden={hidden} {...tabPanel}>
               <div className="project-import-source-header">
                 <div>
                   <Heading>{t(labelKey)}</Heading>
@@ -276,7 +302,7 @@ export default function ProjectImportPanel({
               </div>
 
               <ImportStatus previewState={draft.previewState} t={t} />
-              {draft.file&&<SourceTableEditor variant="blueprint" preview={preview?.table} diagnostics={preview?.diagnostics} settings={draft.profileOptions.table} role={role} csv={draft.file.name.toLowerCase().endsWith(".csv")} processed={preview?.detectedProfile==="rfem-export"||draft.requestedProfile==="rfem-export"}
+              {draft.file&&<SourceTableEditor variant="blueprint" showMapping={guided} preview={preview?.table} diagnostics={preview?.diagnostics} settings={draft.profileOptions.table} role={role} csv={draft.file.name.toLowerCase().endsWith(".csv")} processed={preview?.detectedProfile==="rfem-export"||draft.requestedProfile==="rfem-export"}
                 onChange={table=>changeRfemOptions(role,{...draft.profileOptions,table})}>
                   <Select label={t("importProject.profile.label")}
                     value={draft.requestedProfile}
@@ -298,7 +324,31 @@ export default function ProjectImportPanel({
         })}
       </div>
 
-      {missingProjectSources && <p className="project-import-mode-description" role="status">
+      {guided && reviewing && <ul className="first-project-review" aria-label={t("firstProject.review.title")}>
+        {[
+          { ready: normalizedPileHeadLevel !== null, missing: !pileHeadLevel.trim(), files: projectName, checking: false },
+          ...ROLES.slice(0, 2).map(({ role }) => ({
+            ready: isProjectImportRoleReady(drafts[role]), missing: !drafts[role].file,
+            files: drafts[role].file?.name,
+            checking: drafts[role].previewState.status === "analyzing",
+          })),
+          {
+            ready: advice.previewState.status === "ready" && advice.previewState.preview.canApply
+              && selectedAdviceSources(advice).length > 0
+              && advice.sources.filter(source => source.selected).every(source => source.discovery.status === "ready"),
+            missing: advice.sources.length === 0,
+            files: advice.sources.map(source => source.file.name).join(", "),
+            checking: advice.previewState.status === "analyzing" || advice.sources.some(source => source.discovery.status === "analyzing"),
+          },
+        ].map(({ ready, missing, files, checking }, index) => <li key={GUIDED_STEPS[index]}>
+          <Button kind="quiet" onClick={() => showStep(index)}>{t(`firstProject.${GUIDED_STEPS[index]}.title`)}</Button>
+          {files && <span>{files}</span>}
+          <Status tone={ready ? "success" : checking ? "info" : "warning"}>
+            {t(ready ? "firstProject.ready" : missing ? "firstProject.missing" : checking ? "importProject.status.analyzing" : "firstProject.check")}
+          </Status>
+        </li>)}
+      </ul>}
+      {missingProjectSources && (!guided || reviewing || step === "foundationAdvice") && <p className="project-import-mode-description" role="status">
         {t(`importProject.advice.${missingProjectSources}`)}
       </p>}
       {shouldWarnAboutMissingFoundationAdvice(drafts, mode) && (
@@ -306,6 +356,17 @@ export default function ProjectImportPanel({
           {t("importProject.warnings.cptsWithoutFoundationAdvice")}
         </Banner>
       )}
+      {!guided && <ul className="project-refresh-sources" aria-label={t("importProject.pendingSources")}>
+        {ROLES.flatMap(({ role, labelKey }) => {
+          const files = role === "bearing-capacities"
+            ? advice.sources.map(source => source.file.name)
+            : drafts[role].file ? [drafts[role].file.name] : [];
+          return files.length ? [<li key={role}>
+            <Button kind="quiet" compact onClick={() => setRefreshRole(role)}>{t(labelKey)}</Button>
+            <span>{files.join(", ")}</span>
+          </li>] : [];
+        })}
+      </ul>}
       {error && <Banner tone="error" word="">{error}</Banner>}
       {summary && (
         <section aria-label={t("importProject.summaryAria")}><Banner tone="success" word={t("importProject.completed")}>
@@ -328,12 +389,15 @@ export default function ProjectImportPanel({
         onConfirm={refreshReview.confirm} onCancel={refreshReview.cancel} initialAutomatic={!refreshReview.selection}/>}
       {finalFailure && <AdviceImportDiagnostics preview={finalFailure} />}
       <div className="project-import-submit-area">
-        <Button kind="primary" className="project-import-submit" disabled={busy || !canSubmit || (needsLocationReview && !refreshReview.selection)} onClick={importProject}>
+        {guided && <Button disabled={busy || stepIndex === 0} onClick={() => showStep(stepIndex - 1)}>{t("firstProject.previous")}</Button>}
+        {guided && !reviewing
+          ? <Button kind="primary" disabled={busy} onClick={() => showStep(stepIndex + 1)}>{t("firstProject.next")}</Button>
+          : <Button kind="primary" className="project-import-submit" disabled={busy || !canSubmit || (needsLocationReview && !refreshReview.selection)} onClick={importProject}>
           {busy
             ? t(mode === "refresh" ? "importProject.refreshing" : "importProject.importing")
             : t(mode === "refresh" ? "importProject.refreshSubmit" : "importProject.submit")}
-        </Button>
-        {showPileHeadLevelBlocker && (
+        </Button>}
+        {showPileHeadLevelBlocker && (!guided || reviewing) && (
           <p className="project-import-property-blocker" role="status">
             {t("importProject.pileHeadLevelRequired")}
           </p>

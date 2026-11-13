@@ -7,6 +7,7 @@ interface RibbonButtonProps {
   title?: string;
   ariaLabel?: string;
   className?: string;
+  tourTarget?: string;
   size?: "large" | "small" | "medium";
   active?: boolean;
   disabled?: boolean;
@@ -20,6 +21,7 @@ export default function RibbonButton({
   title,
   ariaLabel,
   className,
+  tourTarget,
   size = "large",
   active,
   disabled,
@@ -31,6 +33,7 @@ export default function RibbonButton({
       aria-pressed={active}
       className={`ribbon-btn${size === "small" ? " small" : ""}${size === "medium" ? " medium" : ""}${wide ? " wide" : ""}${active ? " active" : ""}${className ? ` ${className}` : ""}`}
       aria-label={ariaLabel}
+      data-tour-target={tourTarget}
       data-tooltip={title?.trim() && title.trim() !== label.trim() ? title : undefined}
       disabled={disabled}
       onClick={onClick}

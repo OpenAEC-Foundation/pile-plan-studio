@@ -24,7 +24,7 @@
   gap: 2px 6px;
 }
 
-.ribbon-content--blueprint .ribbon-settings-actions .ribbon-btn {
+.ribbon-content--blueprint .ribbon-settings-actions .ribbon-btn:not(.wide) {
   width: 78px;
   min-width: 78px;
   padding: 3px 4px 1px;

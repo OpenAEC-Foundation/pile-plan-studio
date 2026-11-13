@@ -1,0 +1,121 @@
+.project-start-screen {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  background: var(--oa-frame);
+}
+
+.project-start-body {
+  box-sizing: border-box;
+  width: min(100%, 860px);
+  margin: 0 auto;
+  padding: clamp(20px, 5vw, 56px);
+}
+
+.project-start-body > h1 {
+  margin: 0 0 20px;
+  font-family: var(--theme-font-heading, inherit);
+}
+.project-start-body > h1:focus { outline: none; }
+
+.project-start-body > .oa-button { margin-bottom: 16px; }
+.project-start-body > .oa-banner { margin-bottom: 16px; }
+.project-start-body--home,
+.project-start-body--new { width: min(100%, 1100px); }
+
+.project-start-columns {
+  display: grid;
+  grid-template-columns: minmax(220px, 1fr) minmax(0, 1.65fr);
+  align-items: start;
+  gap: clamp(16px, 3vw, 32px);
+}
+
+.project-start-actions {
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.project-start-actions > legend,
+.project-start-recents h2 {
+  margin: 0 0 12px;
+  padding: 0;
+}
+
+.project-start-actions .oa-tile {
+  min-width: 0;
+  min-height: 66px;
+}
+
+.project-start-recents { min-width: 0; }
+
+.project-start-cards {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.project-start-cards .oa-project-card {
+  align-items: stretch;
+  height: 100%;
+  box-shadow: var(--oa-shadow-panel);
+}
+
+.project-start-cards > li { position: relative; min-width: 0; }
+
+.project-start-cards .project-start-remove {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+}
+
+.project-start-cards .oa-preview img {
+  width: 44px;
+  height: 44px;
+  object-fit: contain;
+}
+
+.project-start-cards .oa-card-body { min-width: 0; overflow-wrap: anywhere; }
+
+@media (max-width: 620px) {
+  .project-start-columns { grid-template-columns: minmax(0, 1fr); }
+}
+
+@media (max-width: 440px) {
+  .project-start-cards { grid-template-columns: minmax(0, 1fr); }
+}
+
+.project-start-current {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding: 12px 16px;
+  border: 1px solid var(--oa-border);
+  background: var(--oa-panel);
+}
+
+.project-start-current {
+  margin-bottom: 16px;
+  border-radius: var(--oa-radius-medium);
+  overflow-wrap: anywhere;
+}
+
+.sample-project-indicator {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 4px 12px;
+  color: var(--theme-text-secondary);
+  background: var(--theme-surface);
+  border-bottom: 1px solid var(--theme-border);
+}

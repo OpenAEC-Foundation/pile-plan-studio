@@ -498,8 +498,9 @@ Their container follows intrinsic label widths; the tip-region button also grows
 to fit long Dutch words instead of overflowing its fixed minimum width.
 The numeric editor continues to use the shared number-field proposal.
 
-The fixed shell heights, group order, reviewed icons, command callbacks and
-slider draft/commit boundaries are retained. Space and Enter stay within the
+The app orders its Plan groups as Project, Selection, Load display, Inspect,
+Settings, Locking and Optimization. Pile options and CPT inspection use the
+property-panel buttons; CPT settings remains a Plan command. Space and Enter stay within the
 ribbon so viewer keyboard handlers cannot cancel native button activation;
 application shortcuts continue to bubble. Extra help uses the application's
 tooltip portal. The overlapping two-handle utilization slider remains local:
@@ -514,21 +515,18 @@ Space/Enter activation and handled Escape stay out of the drawing keyboard
 handlers. Import/export, native capability gating and async closing routes are
 retained.
 
-`backstage/OpenProjectPanel` uses shared `Heading`, `Tile`, `MonoLabel`,
-`EmptyState`, `Button` and `IconButton`. The browser tile launches the native file
-input from its click handler; desktop uses the existing picker callback. Recent
-project rows keep open and remove as separate keyboard controls, with ellipsized
-paths exposed through the portal tooltip and dates formatted in the UI language.
-The pinned `RecentList` has no per-item remove control, so this layout composes
-shared buttons rather than changing the upstream API. `backstage/AboutPanel`
+Standalone project-opening actions use the session's shared file input or the
+desktop picker. The SuperCloud build uses its Docs picker. Start-screen project
+cards use Blueprint styles and a separate `IconButton` to remove each entry.
+Card dates follow the interface language. `backstage/AboutPanel`
 uses `Heading`, `InfoCard` and `Button`, the product icon and existing product
 metadata and external-link routes. `BackstageBlueprint.css` owns the layout and
 active navigation marker; ordinary control states remain shared.
 
 The recent-project list receives AppSession-owned state and actions. Desktop
 entries reference original files; browser entries clearly show a local-copy label
-and explain that opened, locally saved and downloaded IFCPP versions are retained. Reopening,
-removal and clearing reuse the shared controls; storage and project validation
+and explain that opened, locally saved and downloaded IFCPP versions are retained.
+Reopening and removal use separate keyboard controls. Storage and project validation
 remain application operations, independent from the Blueprint presentation.
 
 ## Shared viewer controls and action notices
@@ -555,7 +553,8 @@ The marker uses `--oa-selected-bar`, preserves row geometry, and follows each ro
 pressed state; ordinary light/dark selection colors are unchanged.
 
 The two labelled property-panel view actions and the combined-view action use
-shared compact Buttons. Their mutually exclusive pressed states are also exposed
+shared compact Buttons. The labelled actions use the reviewed pile-option and
+CPT symbols at 16 px. Their mutually exclusive pressed states are also exposed
 when no inspection view is active because a task panel is open. Activating a view
 closes the task through the existing callback and retains selection context.
 The combined-view SVG remains app-owned; its help uses the application tooltip

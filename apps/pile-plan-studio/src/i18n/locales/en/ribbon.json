@@ -18,8 +18,6 @@
     "selection": "Selection",
     "lassoSelection": "Box selection",
     "lassoSelectionTooltip": "Select load points by dragging a box. Shortcut: Shift+drag; hold Ctrl to add.",
-    "loadPoints": "Pile options",
-    "cpts": "CPTs",
     "pileCapChanges": "Pile cap changes",
     "pileDriving": "Driving records",
     "settings": "Settings",

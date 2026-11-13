@@ -24,6 +24,23 @@ describe("recent project controller",()=>{
   const t=setup();t.fail();await assert.rejects(t.controller.rememberBrowser("browser:a","a.ifcpp","text"),/quota/);assert.equal(t.controller.getSnapshot().length,0);
   await t.controller.rememberDesktop("C:/valid.ifcpp");assert.equal(t.persisted[0].name,"valid.ifcpp");
  });
+ it("reuses the active copy when the downloaded file is opened again", async () => {
+  const { controller, copies } = setup();
+  const key = await controller.rememberBrowser(null, "Maakfabriek.ifcpp", "first version");
+  await controller.rememberBrowser(key, "Maakfabriek.ifcpp", "updated version");
+  assert.equal(await controller.rememberBrowser(null, "Maakfabriek.ifcpp", "updated version"), key);
+  assert.equal(copies.size, 1);
+  assert.equal(controller.getSnapshot().length, 1);
+ });
+ it("keeps both same-name files if their content differs, even when the original is reopened", async () => {
+  const { controller } = setup();
+  const key = await controller.rememberBrowser(null, "Maakfabriek.ifcpp", "first version");
+  await controller.rememberBrowser(key, "Maakfabriek.ifcpp", "updated version");
+  const original = await controller.rememberBrowser(null, "Maakfabriek.ifcpp", "first version");
+  assert.notEqual(original, key);
+  assert.equal(await controller.readBrowser(original), "first version");
+  assert.equal(await controller.readBrowser(key), "updated version");
+ });
  it("evicts old copies at ten records and clears retained copies",async()=>{
   const t=setup();for(let i=0;i<11;i++)await t.controller.rememberBrowser(`browser:${i}`,`${i}.ifcpp`,String(i));
   assert.equal(t.copies.size,10);assert.equal(t.copies.has("browser:0"),false);assert.equal(await t.controller.readBrowser("browser:missing"),null);

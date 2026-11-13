@@ -9,6 +9,9 @@ interface TitleBarProps {
   projectAction?: () => void;
   projectActionKind: "save" | "download";
   projectActionDisabled?: boolean;
+  hideProjectActions?: boolean;
+  onNewProject?: () => void;
+  onOpenProject?: () => void;
   hideFeedback?: boolean;
   canUndo: boolean;
   canRedo: boolean;
@@ -26,12 +29,14 @@ function shortcutTip(label: string, keys: string) {
 }
 
 export default function TitleBar({
-  projectAction, projectActionKind, projectActionDisabled, hideFeedback, canUndo, canRedo, undoLabel, redoLabel,
-  onUndo, onRedo, onSettingsClick, onFeedbackClick, interfaceScaleControl,
+  projectAction, projectActionKind, projectActionDisabled, hideProjectActions, hideFeedback, canUndo, canRedo, undoLabel, redoLabel,
+  onUndo, onRedo, onNewProject, onOpenProject, onSettingsClick, onFeedbackClick, interfaceScaleControl,
 }: TitleBarProps) {
   const { t } = useTranslation();
   const [appVersion, setAppVersion] = useState("");
   const projectActionLabel = t(projectActionKind === "save" ? "save" : "saveProjectDownload");
+  const newProjectLabel = t("startScreen.newProject");
+  const openProjectLabel = t("startScreen.openProject");
   useEffect(() => {
     let active = true;
     import("@tauri-apps/api/app").then(api => api.getVersion())
@@ -47,6 +52,11 @@ export default function TitleBar({
       <div className="titlebar-left">
         <div className="titlebar-icon"><img src={`${import.meta.env.BASE_URL}pile-plan-studio-icon.png`} alt="" aria-hidden="true" /></div>
         <div className="titlebar-quick-access">
+          {onNewProject && <IconButton className="titlebar-quick-btn" icon="file.new" label={newProjectLabel}
+            data-oa-tip={undefined} data-tooltip={newProjectLabel} onClick={onNewProject} />}
+          {onOpenProject && <IconButton className="titlebar-quick-btn" icon="file.open" label={openProjectLabel}
+            data-oa-tip={undefined} data-tooltip={openProjectLabel} onClick={onOpenProject} />}
+          {!hideProjectActions && <>
           <IconButton className="titlebar-quick-btn" icon="file.save" label={projectActionLabel} keys="Ctrl+S"
             data-oa-tip={undefined} data-tooltip={shortcutTip(projectActionLabel, "Ctrl+S")} onClick={projectAction} disabled={projectActionDisabled} />
           <IconButton className="titlebar-quick-btn" icon="edit.undo" label={undoLabel} keys="Ctrl+Z"
@@ -55,6 +65,7 @@ export default function TitleBar({
           <IconButton className="titlebar-quick-btn" icon="edit.redo" label={redoLabel} keys="Ctrl+Y"
             disabled={!canRedo} onClick={onRedo} data-oa-tip={undefined}
             data-tooltip={canRedo ? shortcutTip(redoLabel, "Ctrl+Y") : undefined} />
+          </>}
           <IconButton icon="ui.settings" className="titlebar-quick-btn titlebar-settings-button" label={t("preferences")}
             aria-keyshortcuts="Control+," data-oa-tip={undefined}
             data-tooltip={shortcutTip(t("preferences"), "Ctrl+,")} onClick={onSettingsClick} />

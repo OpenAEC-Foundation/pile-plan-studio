@@ -40,6 +40,7 @@ import {
 
 export type ViewerViewportState = Pick<ProjectState, "bounds" | "viewport" | "activePilePlanId" | "selectedLoadPointIds"> & {
   loadPoints: ReadonlyArray<{id: number; x_mm: number; y_mm: number}>;
+  cpts?: Readonly<ProjectState["cpts"]>;
 };
 type UseViewerViewportOptions<State extends ViewerViewportState> = {
   state: State;
@@ -209,10 +210,12 @@ export function useViewerViewport<State extends ViewerViewportState>({
       finish();
       return;
     }
+    const preview = "previewLoadPointId" in focusRequest;
     // Selection can still be waiting for an existing CPT edit to be saved.
-    if (state.selectedLoadPointIds.length !== focusRequest.loadPointIds.length
-      || !focusRequest.loadPointIds.every(id => state.selectedLoadPointIds.includes(id))) return;
-    const ids = new Set(focusRequest.fitLoadPointIds ?? focusRequest.loadPointIds);
+    if (!preview && (state.selectedLoadPointIds.length !== focusRequest.loadPointIds.length
+      || !focusRequest.loadPointIds.every(id => state.selectedLoadPointIds.includes(id)))) return;
+    const ids = new Set(preview ? [focusRequest.previewLoadPointId]
+      : focusRequest.fitLoadPointIds ?? focusRequest.loadPointIds);
     const points = state.loadPoints.filter(point => ids.has(point.id));
     const canvas = canvasRef.current;
     if (!canvas || points.length === 0) { finish(); return; }
@@ -221,14 +224,17 @@ export function useViewerViewport<State extends ViewerViewportState>({
     const border = (value: string) => parseFloat(value) || 0;
     const size = { width: rect.width - border(style.borderLeftWidth) - border(style.borderRightWidth),
       height: rect.height - border(style.borderTopWidth) - border(style.borderBottomWidth) };
+    const cptIds = new Set(preview ? focusRequest.previewCptIds : undefined);
+    const contextPoints = cptIds.size && state.cpts ? [...points, ...state.cpts.filter(cpt => cptIds.has(cpt.id))] : points;
     const center = points.reduce((sum, point) => ({
       x_mm: sum.x_mm + point.x_mm / points.length,
       y_mm: sum.y_mm + point.y_mm / points.length,
     }), { x_mm: 0, y_mm: 0 });
-    const nextViewport = focusRequest.fitLoadPointIds
-      ? fitViewportToPoints(viewportRef.current, points.map(point => projectPointPixels(point, projectTransformRef.current)),
+    const nextViewport = (preview ? contextPoints.length > 1 : focusRequest.fitLoadPointIds)
+      ? fitViewportToPoints(viewportRef.current, contextPoints.map(point => projectPointPixels(point, projectTransformRef.current)),
         size, layoutCompensationRef.current)
-      : centerViewportAtPoint(viewportRef.current, projectPointPixels(center, projectTransformRef.current),
+      : centerViewportAtPoint(preview ? { ...viewportRef.current, scale: clampScale(2.5) } : viewportRef.current,
+        projectPointPixels(center, projectTransformRef.current),
         size, layoutCompensationRef.current);
     if (zoomCommitTimerRef.current) {
       clearTimeout(zoomCommitTimerRef.current);
@@ -238,7 +244,7 @@ export function useViewerViewport<State extends ViewerViewportState>({
     applyViewportDisplay(nextViewport);
     finish();
     onStateChange({ ...state, viewport: nextViewport });
-  }, [focusRequest, state.loadPoints, state.activePilePlanId, state.selectedLoadPointIds]);
+  }, [focusRequest, state.loadPoints, state.cpts, state.activePilePlanId, state.selectedLoadPointIds]);
 
   useEffect(() => () => {
     if (zoomCommitTimerRef.current) {

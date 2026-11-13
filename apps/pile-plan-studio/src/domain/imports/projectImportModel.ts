@@ -126,14 +126,14 @@ export function canSubmitProjectImport(
   if (drafts.advice) {
     const roles: ImportFileRole[] = mode === "new-project" ? ["load-points", "cpts"] : (["load-points", "cpts"] as ImportFileRole[]).filter(r => drafts[r].file);
     const preview = drafts.advice.previewState;
-    return roles.every(role => isReady(drafts[role])) && preview.status === "ready" && preview.preview.canApply
+    return roles.every(role => isProjectImportRoleReady(drafts[role])) && preview.status === "ready" && preview.preview.canApply
       && (mode === "refresh" || selectedAdviceSources(drafts.advice).length > 0)
       && drafts.advice.sources.filter(s => s.selected).every(s => s.discovery.status === "ready");
   }
   const roles = mode === "new-project"
     ? ROLES
     : ROLES.filter((role) => drafts[role].file !== null);
-  return roles.length > 0 && roles.every((role) => isReady(drafts[role]));
+  return roles.length > 0 && roles.every((role) => isProjectImportRoleReady(drafts[role]));
 }
 
 export function shouldWarnAboutMissingFoundationAdvice(
@@ -161,7 +161,7 @@ export function projectImportReadiness(
   };
 }
 
-function isReady<TFile extends NamedImportFile>(draft: ImportRoleDraft<TFile>): boolean {
+export function isProjectImportRoleReady<TFile extends NamedImportFile>(draft: ImportRoleDraft<TFile>): boolean {
   if (!draft.file || draft.previewState.status !== "ready") return false;
   const preview = draft.previewState.preview;
   return preview.resolvedProfile !== null

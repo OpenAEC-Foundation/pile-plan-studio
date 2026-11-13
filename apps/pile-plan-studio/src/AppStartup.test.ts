@@ -4,6 +4,17 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
 describe("React app startup", () => {
+  it("uses one project opening command for the shortcut and the standalone entry points", () => {
+    const session = readFileSync(new URL("./app/session/AppSession.tsx", import.meta.url), "utf8");
+
+    assert.match(session, /canOpen: true/);
+    assert.match(session, /openProjectActionRef\.current = chooseProject/);
+    assert.equal([...session.matchAll(/onOpenProject=\{chooseProject\}/g)].length, 2);
+    assert.match(session, /onOpenProject=\{!startPage && !matchingSurface\.active \? chooseProject : undefined\}/);
+    assert.match(session, /else projectFileInput\.current\?\.click\(\)/);
+    assert.match(session, /if \(file\) void runStartAction\(\(\) => openProjectFile\(file\)\)/);
+  });
+
   it("assesses optimization preview conflicts from the displayed assignments for both panels",()=>{
     const source=readFileSync(resolve(import.meta.dirname,"app/session/AppSession.tsx"),"utf8");
     assert.match(source,/assignments:\s*ilp\.displayState\.selectedPileConfigurationsByLoadPoint/);
@@ -36,6 +47,16 @@ describe("React app startup", () => {
     assert.doesNotMatch(source, /Restored project was not validated/);
   });
 
+  it("shows start choices on fresh standalone launches and gates recovery writes on a real project", () => {
+    const startup = readFileSync(new URL("./App.tsx", import.meta.url), "utf8");
+    const session = readFileSync(new URL("./app/session/AppSession.tsx", import.meta.url), "utf8");
+
+    assert.match(startup, /startAtHome:\s*!PLATFORM_BUILD/);
+    assert.match(startup, /startAtHome:\s*true/);
+    assert.match(session, /if \(!hasOpenedProject \|\| !recoveryWriter/);
+    assert.match(session, /<ProjectStartScreen/);
+  });
+
   it("does not run the expensive WASM initialization twice in development", () => {
     const source = readFileSync(resolve(import.meta.dirname, "main.tsx"), "utf8");
 
@@ -46,7 +67,7 @@ describe("React app startup", () => {
     const source = readFileSync(resolve(import.meta.dirname, "app/session/AppSession.tsx"), "utf8");
 
     assert.match(source, /analysisPipeline\.run/);
-    assert.match(source, /\[analysisPipeline, projectState\.analysisRequest, projectState\.loadPointGroupingSettings\]/);
+    assert.match(source, /\[hasOpenedProject, analysisPipeline, projectState\.analysisRequest, projectState\.loadPointGroupingSettings\]/);
     assert.doesNotMatch(source, /Promise\.all\(analysisLoadPoints\.map/);
     assert.doesNotMatch(source, /Promise\.all\(projectState\.cpts\.map/);
   });
@@ -122,21 +143,20 @@ describe("React app startup", () => {
   it("refreshes selected sources through Rust while retaining the open project path", () => {
     const source = readFileSync(resolve(import.meta.dirname, "app/session/AppSession.tsx"), "utf8");
     const handler = source.slice(
-      source.indexOf("onImportProject={async"),
-      source.indexOf("onOpenProjectFile=", source.indexOf("onImportProject={async")),
+      source.indexOf("onRefreshSources={async"),
+      source.indexOf("onOpenProjectFile=", source.indexOf("onRefreshSources={async")),
     );
 
     assert.match(source, /refreshProjectFromFilesCore/);
-    assert.match(source, /mode === "refresh"/);
     assert.match(handler, /return applyProjectRefresh\(\{/);
     assert.match(handler, /snapshot: async \(\) => requireValidProjectDocument\([\s\S]*?writeProjectDocumentCore\(projectDraftFromState\(projectStateRef\.current\)\)/);
     assert.match(handler, /refresh: refreshProjectFromFilesCore/);
     assert.match(source, /createInitialProjectState\(refreshed\.project, \{[\s\S]*?initializeDefaultPiles: false,[\s\S]*?\}, refreshed\.keys\)/);
     assert.match(source, /defaultSelectionKeepsDirtyRef\.current = true/);
-    assert.ok(
-      handler.indexOf('mode === "refresh"') < handler.indexOf("confirmProjectReplacement()"),
-      "refresh should run before the replacement confirmation used by new-project imports",
-    );
+    assert.doesNotMatch(handler, /confirmProjectReplacement|importNewProject/);
+    assert.match(source, /onNewProject=\{showNewProject\}/);
+    assert.match(source, /const showNewProject = \(\) => \{[\s\S]*?setStartPage\("new"\)/);
+    assert.match(source, /const importNewProject = async \([\s\S]*?confirmProjectReplacement\(\)[\s\S]*?importProjectFromFilesCore\(/);
   });
 
   it("wires new-plan creation to complete technical options", () => {

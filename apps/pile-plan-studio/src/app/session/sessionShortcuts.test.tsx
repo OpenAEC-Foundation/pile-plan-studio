@@ -21,6 +21,15 @@ test("open and desktop zoom shortcuts read current callbacks and current scale",
   current = 150; handler(new KeyboardEvent("keydown", { key: "-", ctrlKey: true })); expect(scale).toHaveBeenLastCalledWith(140);
   handler(new KeyboardEvent("keydown", { key: "0", ctrlKey: true })); expect(scale).toHaveBeenLastCalledWith(100);
 });
+test("browser Ctrl+O invokes the file picker synchronously", () => {
+  const open = vi.fn();
+  const handler = createAppShortcutHandler({ isDesktop: false, canOpen: true, saveInFlight: { current: false },
+    save: () => null, open: () => open, currentScale: () => 100, applyScale: vi.fn() });
+  const event = new KeyboardEvent("keydown", { key: "o", ctrlKey: true, cancelable: true });
+  handler(event);
+  expect(event.defaultPrevented).toBe(true);
+  expect(open).toHaveBeenCalledOnce();
+});
 test("history shortcuts respect editors, allow sliders, and recognize both redo bindings", () => {
   const request = vi.fn(); const view = render(<div onKeyDown={event => dispatchHistoryShortcut(event.nativeEvent, request)}>
     <input aria-label="Text" /><input aria-label="Slider" type="range" /><textarea /><button>Action</button>

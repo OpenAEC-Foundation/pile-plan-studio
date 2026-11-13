@@ -7,7 +7,7 @@ type Dependencies = {
   canOpen?: boolean;
   saveInFlight: { current: boolean };
   save: () => (() => Promise<unknown>) | null;
-  open: () => (() => Promise<unknown>) | null;
+  open: () => (() => void) | null;
   currentScale: () => number;
   applyScale: (scale: number) => void;
 };

@@ -107,8 +107,32 @@ for the model and solver details.
 
 ## Try or Install
 
-The [live browser demo](https://pile-plan-studio.open-aec.com/) opens directly
-with the sample project and is the quickest way to explore the application.
+On a fresh browser or desktop launch, the start screen lets you open an IFCPP
+project, explore the bundled sample, take a short tour, or create a project
+from your own sources. The guided import walks through the project details,
+load points, CPTs, and foundation advice before creating the project.
+**Open project** opens the file picker directly from the start screen, File
+menu, title bar or **Ctrl+O**. Use the **Recent projects** cards on the start
+screen to reopen projects or remove them from the list.
+Choose **File → Start screen** to return to these actions from the editor.
+In the browser, **File → Save project** saves an IFCPP file through the same
+action as the title-bar button and **Ctrl+S**.
+**File → New project** opens the same guided import. Use **File → Refresh
+sources** to prepare replacements or additions on the load-point, CPT and
+foundation-advice tabs and apply them together to the current project.
+The browser opens a valid recovery record directly in the editor, including
+unsaved changes. With no recoverable project or an unchanged bundled sample,
+it shows the start screen. Desktop starts at the start screen and opens a valid
+IFCPP passed from the operating system directly in the editor.
+
+The optional sample tour zooms in on a load point before you click it, then
+highlights its imported design load in the Selection overview. Use the CPTs
+and Pile options buttons in the right-hand panel to open foundation advice
+and assign a configuration. The drawing keeps the selected location visible
+and highlights its linked CPTs during CPT inspection. Finish by trying the
+optimizer, or skip any step and restart from the sample project.
+
+Try the [live browser demo](https://pile-plan-studio.open-aec.com/).
 
 The 2026.46.4 alpha provides the following desktop packages when published:
 

@@ -7,15 +7,14 @@ describe("browser recovery integration", () => {
   it("offers an explicit sample project command through the replacement guard", () => {
     const root = resolve(import.meta.dirname, "../../..");
     const appSource = readFileSync(resolve(root, "app/session/AppSession.tsx"), "utf8");
-    const backstageSource = readFileSync(
-      resolve(root, "components/template/backstage/Backstage.tsx"),
+    const startScreen = readFileSync(
+      resolve(root, "components/domain/project/ProjectStartScreen.tsx"),
       "utf8",
     );
 
-    assert.match(backstageSource, /onOpenSampleProject/);
-    assert.match(appSource, /const openSampleProject = async/);
-    assert.match(appSource, /if \(!await confirmProjectReplacement\(\)\) return;/);
-    assert.match(appSource, /onOpenSampleProject=\{openSampleProject\}/);
-    assert.match(appSource, /if \(!recoveryWriter \|\| projectState\.defaultPileSelectionPending\) return;/);
+    assert.match(startScreen, /onClick=\{onSample\}/);
+    assert.match(appSource, /const openSampleProject = async[\s\S]*?if \(!await confirmProjectReplacement\(\)\) return;/);
+    assert.match(appSource, /onSample=\{\(\) => void runStartAction\(\(\) => openSampleProject\(\)\)\}/);
+    assert.match(appSource, /if \(!hasOpenedProject \|\| !recoveryWriter \|\| projectState\.defaultPileSelectionPending\) return;/);
   });
 });

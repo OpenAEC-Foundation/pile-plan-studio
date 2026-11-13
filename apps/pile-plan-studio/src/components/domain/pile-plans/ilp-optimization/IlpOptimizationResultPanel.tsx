@@ -39,7 +39,9 @@ export default function IlpOptimizationResultPanel({planName,stale,settings,skip
       <strong>{t(`ilp.diagnostics.${d.code}`,{count:d.load_point_ids.length,defaultValue:t("ilp.diagnostics.unknown")})}</strong>
       {d.load_point_ids.length>0&&<div>{t("ilp.locations",{ids:d.load_point_ids.join(", ")})}</div>}
     </div>);
-  return <section className="ilp-result" aria-live="polite"><Heading>{planName?t("ilp.planResult",{name:planName}):t("ilp.title")}</Heading>
+  return <section className="ilp-result" aria-live="polite" tabIndex={-1}
+    data-tour-target={run.running ? "optimization-progress" : o ? "optimization-result" : undefined}>
+    <Heading>{planName?t("ilp.planResult",{name:planName}):t("ilp.title")}</Heading>
     {stale && <p className="panel-message">{t("ilp.resultStale")}</p>}
     {run.running?<p>{t(run.stopping?"ilp.stopping":spatial&&run.context?.localOnly?"ilp.localSearch":`ilp.phases.${run.progress?.phase??"preparation"}`)}</p>:!o?<p>{t("ilp.ready")}</p>:<p>{t(`ilp.status.${o.status}`)}</p>}
     {run.running && run.previewSolution && <p className="panel-message">{t("ilp.livePreview",{score:number(run.previewSolution.score_milli/1000)})}</p>}

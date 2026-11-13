@@ -18,18 +18,45 @@ beforeEach(() => {
     importedValueCount: 0, exactDuplicateCount: 0, orphanValueCount: 0, conflicts: [], diagnostics: [] });
 });
 
-test("project properties use labelled shared controls and mode buttons expose selection", () => {
-  const { container } = render(<ProjectImportPanel defaultCurrencyCode="GBP" onImportProject={vi.fn()} />);
+test("guided project properties use labelled shared controls", () => {
+  render(<ProjectImportPanel guided defaultCurrencyCode="GBP" onImportProject={vi.fn()} />);
   expect(screen.getByLabelText(t("importProject.projectName")).classList.contains("oa-field")).toBe(true);
   const currency = screen.getByRole("combobox", { name: t("importProject.currency") });
   expect((currency as HTMLSelectElement).value).toBe("GBP");
   expect(currency.classList.contains("oa-field")).toBe(true);
-  const newProject = screen.getByRole("button", { name: t("importProject.modes.newProject") });
-  expect(newProject.getAttribute("aria-pressed")).toBe("true");
-  fireEvent.click(screen.getByRole("button", { name: t("importProject.modes.refresh") }));
-  expect(newProject.getAttribute("aria-pressed")).toBe("false");
+  expect(screen.getByRole("button", { name: t("firstProject.next") }).classList.contains("oa-button--primary")).toBe(true);
+});
+
+test("refresh only shows the chosen source tab and retains staged files when switching", async () => {
+  const file = new File(["11,0,0"], "cpts.csv");
+  Object.defineProperty(file, "arrayBuffer", { value: async () => new ArrayBuffer(0) });
+  render(<ProjectImportPanel defaultCurrencyCode="EUR" initialSource={{ role: "cpts", file }} onImportProject={vi.fn()} />);
+  const cpts = screen.getByRole("tab", { name: t("importProject.roles.cpts") });
+  const advice = screen.getByRole("tab", { name: t("importProject.roles.foundationAdvice") });
+  expect(cpts.getAttribute("aria-selected")).toBe("true");
+  expect(screen.getByRole("tabpanel").querySelector('[title="cpts.csv"]')).not.toBeNull();
+  fireEvent.click(advice);
+  expect(advice.getAttribute("aria-selected")).toBe("true");
+  expect(screen.getByRole("tabpanel").querySelector('[title="cpts.csv"]')).toBeNull();
+  fireEvent.click(cpts);
+  expect(screen.getByRole("tabpanel").querySelector('[title="cpts.csv"]')).not.toBeNull();
   expect(screen.queryByLabelText(t("importProject.projectName"))).toBeNull();
-  expect(container.querySelector(".project-import-submit.oa-button--primary")).not.toBeNull();
+  await waitFor(() => expect(core.preview).toHaveBeenCalledOnce());
+});
+
+test("guided import keeps entered properties when navigating source steps", () => {
+  render(<ProjectImportPanel guided defaultCurrencyCode="EUR" onImportProject={vi.fn()} />);
+  expect(screen.queryByRole("tablist")).toBeNull();
+  const name = screen.getByLabelText(t("importProject.projectName"));
+  fireEvent.change(name, { target: { value: "Test project" } });
+  fireEvent.click(screen.getByRole("button", { name: t("firstProject.next") }));
+  expect(screen.getByRole("heading", { level: 2, name: t("firstProject.loadPoints.title") })).toBeTruthy();
+  expect(screen.queryByRole("heading", { name: t("importProject.roles.cpts") })).toBeNull();
+  fireEvent.click(screen.getByRole("button", { name: t("firstProject.previous") }));
+  expect(screen.getByLabelText(t("importProject.projectName"))).toHaveProperty("value", "Test project");
+  fireEvent.click(screen.getByRole("button", { name: t("firstProject.review.title") }));
+  expect(screen.getAllByText(t("firstProject.missing"))).toHaveLength(4);
+  expect(screen.getByRole("button", { name: t("importProject.submit") })).toHaveProperty("disabled", true);
 });
 
 test("the shared file action opens its native picker and clears selection after choosing", () => {

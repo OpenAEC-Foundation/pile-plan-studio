@@ -6,7 +6,6 @@ import RibbonGroup from "./RibbonGroup";
 import { Button, Slider, Tabs } from "../../../openaec/react/src/index";
 import "../../../openaec/openaec-components.css";
 import BlueprintIcon from "../BlueprintIcon.tsx";
-import type { RightPanelMode } from "../../../domain/workspace/selectionState.ts";
 import type { ForegroundLayer } from "../../../domain/settings/viewerPreferences.ts";
 import PilePlanIcon from "../PilePlanIcon.tsx";
 import { getTipLevelRegionToggle } from "./tipLevelRegionToggle.ts";
@@ -24,7 +23,6 @@ const TABS: TabId[] = ["plan", "view"];
 interface RibbonProps {
   onFileTabClick?: () => void;
   onOpenProjectInformation?: () => void;
-  onOpenRightPanel?: (mode: RightPanelMode) => void;
   onOpenTaskPanel?: (panel: RightTaskPanel) => void;
   isLassoSelectionActive: boolean;
   lassoSelectionDisabled: boolean;
@@ -58,7 +56,6 @@ interface RibbonProps {
 export default function Ribbon({
   onFileTabClick,
   onOpenProjectInformation,
-  onOpenRightPanel,
   onOpenTaskPanel,
   isLassoSelectionActive,
   lassoSelectionDisabled,
@@ -165,17 +162,6 @@ export default function Ribbon({
               <RibbonGroup label={t("project.overview")}>
                 <RibbonButton icon={<BlueprintIcon id="project.properties" size={24} />} label={t("project.information")} wide onClick={onOpenProjectInformation} />
               </RibbonGroup>
-              <RibbonGroup label={t("plan.inspect")}>
-                <RibbonButton icon={<PilePlanIcon id="pile.options" size={24} />} label={t("plan.loadPoints")} wide onClick={() => onOpenRightPanel?.("load-point")} />
-                <RibbonButton icon={<PilePlanIcon id="pile.cpts" size={24} />} label={t("plan.cpts")} onClick={() => onOpenRightPanel?.("cpts")} />
-                <RibbonButton icon={<PilePlanIcon id="pile.cap-changes" size={24} />} label={t("plan.pileCapChanges")} wide onClick={() => onOpenTaskPanel?.("pile-cap-changes")} />
-                <RibbonButton icon={<BlueprintIcon id="file.open" size={24} />} label={t("plan.pileDriving")} wide onClick={() => onOpenTaskPanel?.("pile-driving")} />
-              </RibbonGroup>
-              <RibbonGroup label={common("loadDirection.view")}>
-                <div className="ribbon-load-direction">
-                  {(["compression","tension"] as const).map(value=><RibbonButton key={value} icon={<PilePlanIcon id={value==="compression"?"pile.compression":"pile.tension"} />} active={mode===value} label={common(`loadDirection.${value}`)} title={common("loadDirection.displayOnly")} onClick={()=>setMode(value)}/>)}
-                </div>
-              </RibbonGroup>
               <RibbonGroup label={t("plan.selection")}>
                 <RibbonButton
                   active={isLassoSelectionActive}
@@ -187,9 +173,18 @@ export default function Ribbon({
                   onClick={onToggleLassoSelection}
                 />
               </RibbonGroup>
+              <RibbonGroup label={common("loadDirection.view")}>
+                <div className="ribbon-load-direction">
+                  {(["compression","tension"] as const).map(value=><RibbonButton key={value} icon={<PilePlanIcon id={value==="compression"?"pile.compression":"pile.tension"} />} active={mode===value} label={common(`loadDirection.${value}`)} title={common("loadDirection.displayOnly")} onClick={()=>setMode(value)}/>)}
+                </div>
+              </RibbonGroup>
+              <RibbonGroup label={t("plan.inspect")}>
+                <RibbonButton icon={<PilePlanIcon id="pile.cap-changes" size={24} />} label={t("plan.pileCapChanges")} wide onClick={() => onOpenTaskPanel?.("pile-cap-changes")} />
+                <RibbonButton icon={<BlueprintIcon id="file.open" size={24} />} label={t("plan.pileDriving")} wide onClick={() => onOpenTaskPanel?.("pile-driving")} />
+              </RibbonGroup>
               <RibbonGroup label={t("plan.settings")}>
                 <div className="ribbon-settings-actions">
-                  <RibbonButton icon={<PilePlanIcon id="pile.cpt-settings" />} label={t("plan.cpts")} title={t("plan.cptSettings")} ariaLabel={t("plan.cptSettings")} onClick={() => onOpenTaskPanel?.("cpt-settings")} />
+                  <RibbonButton icon={<PilePlanIcon id="pile.cpt-settings" />} label={t("plan.cptSettings")} title={t("plan.cptSettings")} wide onClick={() => onOpenTaskPanel?.("cpt-settings")} />
                   <RibbonButton icon={<PilePlanIcon id="pile.cost-settings" />} label={t("plan.costs")} title={t("plan.costSettings")} ariaLabel={t("plan.costSettings")} onClick={() => onOpenTaskPanel?.("cost-settings")} />
                   <RibbonButton icon={<PilePlanIcon id="pile.group-settings" />} label={t("plan.groups")} title={t("plan.groupingSettings")} ariaLabel={t("plan.groupingSettings")} onClick={() => onOpenTaskPanel?.("grouping-settings")} />
                 </div>
@@ -208,7 +203,7 @@ export default function Ribbon({
                 )}
               </RibbonGroup>
               <RibbonGroup label={t("optimize.ilp")}>
-                <RibbonButton icon={<BlueprintIcon id="pile.optimization" size={24} />} label={t("ilp.run")} onClick={() => onOpenTaskPanel?.("ilp-optimization")} />
+                <RibbonButton icon={<BlueprintIcon id="pile.optimization" size={24} />} label={t("ilp.run")} tourTarget="optimization" onClick={() => onOpenTaskPanel?.("ilp-optimization")} />
               </RibbonGroup>
             </div>
           </div>
@@ -326,7 +321,7 @@ export default function Ribbon({
       // Keep native control activation available when the plan viewer listens globally.
       if (event.key === " " || event.key === "Enter") event.stopPropagation();
     }}>
-      <div className="ribbon-tabs">
+      <div className="ribbon-tabs" data-tour-target="plan-tabs">
         <Button kind="primary" className="ribbon-file-button" onClick={onFileTabClick}>{t("tabs.file")}</Button>
         <Tabs label={t("tabs.label")} tabs={TABS.map(id => ({ id, label: t(`tabs.${id}`) }))}
           active={activeTab} onSelect={id => setActiveTab(id as TabId)} />

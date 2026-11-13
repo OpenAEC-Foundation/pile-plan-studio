@@ -22,10 +22,8 @@ describe("Alpha command surfaces", () => {
     const importPanel = readFileSync(resolve(import.meta.dirname, "../domain/imports/ProjectImportPanel.tsx"), "utf8");
     const styles = readFileSync(resolve(import.meta.dirname, "backstage/Backstage.css"), "utf8");
 
-    const openPanel = readFileSync(resolve(import.meta.dirname, "backstage/OpenProjectPanel.tsx"), "utf8");
-    assert.match(backstage, /<OpenProjectPanel/);
-    assert.match(openPanel, /<Tile/);
-    assert.match(openPanel, /bs-recent-item/);
+    assert.match(backstage, /else \{ onClose\(\); onOpenProject\(\); \}/);
+    assert.match(backstage, /activePanel === "open" && docsOpenPanel/);
     assert.match(importPanel, /<Heading level="page">/);
     assert.match(styles, /\.backstage-content\s*{[\s\S]*?box-sizing:\s*border-box/);
     assert.match(styles, /\.backstage-content\s*{[\s\S]*?min-height:\s*0/);

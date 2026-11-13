@@ -3,12 +3,39 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
+describe("first-project translations", () => {
+  it("provides the same start actions, import steps and tour in both languages", () => {
+    const read = (language: string) => JSON.parse(readFileSync(
+      resolve(import.meta.dirname, `../i18n/locales/${language}/common.json`), "utf8",
+    )) as Record<string, string>;
+    const nl = read("nl");
+    const en = read("en");
+    const keys = (copy: Record<string, string>) => Object.keys(copy)
+      .filter(key => /^(startScreen|firstProject|sampleTour)\./.test(key)).sort();
+    assert.ok(keys(en).length >= 30);
+    assert.deepEqual(keys(nl), keys(en));
+    for (const key of keys(en)) {
+      assert.ok(nl[key].trim() && en[key].trim(), key);
+    }
+    for (const step of ["loadPoint", "cpts", "assignment", "optimization"]) {
+      assert.ok(nl[`sampleTour.${step}.instruction`] && en[`sampleTour.${step}.instruction`]);
+    }
+    for (const key of ["skipStep", "hints.inspectLoad", "hints.inspectCpts", "hints.readResult"]) {
+      assert.ok(nl[`sampleTour.${key}`] && en[`sampleTour.${key}`], key);
+    }
+    for (const suffix of ["one", "other"]) {
+      assert.match(nl[`sampleTour.cpts.selection_${suffix}`], /\{\{count\}\}.*Sonderingsinstellingen/);
+      assert.match(en[`sampleTour.cpts.selection_${suffix}`], /\{\{count\}\}.*CPT settings/);
+    }
+  });
+});
+
 describe("Workspace translations", () => {
-  it("names recent-project actions and immediate timestamps in both languages", () => {
+  it("names recent-project actions and the empty state in both languages", () => {
     for (const language of ["nl", "en"]) {
       const copy = JSON.parse(readFileSync(resolve(import.meta.dirname, `../i18n/locales/${language}/backstage.json`), "utf8")).openPanel;
       for (const key of ["openRecent", "removeFile"]) assert.ok(copy[key].includes("{{name}}"));
-      assert.equal(copy.justNow, language === "nl" ? "Zojuist" : "Just now");
+      assert.equal(copy.noRecent, language === "nl" ? "Geen recente projecten" : "No recent projects");
     }
   });
   it("explains that saving a browser project downloads IFCPP in both languages", () => {
@@ -351,7 +378,6 @@ describe("Workspace translations", () => {
 
     assert.match(panel, /"tabs\.loadPoint":\s*"Paalopties"/);
     assert.match(ribbon, /"loadPoints":\s*"Belastinglocaties"/);
-    assert.equal(JSON.parse(ribbon).plan.loadPoints, "Paalopties");
   });
 
   it("provides complete English and Dutch copy for multi-load-point CPT settings", () => {
@@ -419,7 +445,9 @@ describe("Workspace translations", () => {
     const enCommon = readFileSync(resolve(import.meta.dirname, "../i18n/locales/en/common.json"), "utf8");
 
     assert.match(importPanel, /useTranslation\("common"\)/);
-    assert.match(importPanel, /t\("importProject\.title"\)/);
+    assert.match(importPanel, /t\("importProject\.refreshTitle"\)/);
+    assert.match(nlCommon, /"importProject\.refreshTitle": "Bronnen verversen"/);
+    assert.match(enCommon, /"importProject\.refreshTitle": "Refresh sources"/);
     assert.doesNotMatch(importPanel, />Import project data</);
     assert.match(nlCommon, /Funderingsadvies/);
     assert.match(enCommon, /Foundation advice/);

@@ -78,7 +78,7 @@ describe("browser recovery startup", () => {
     );
   });
 
-  it("opens the sample when no recovery record exists", async () => {
+  it("reports an empty session when no recovery record exists", async () => {
     const test = store(null);
     assert.deepEqual(
       await loadBrowserRecovery({

@@ -11,9 +11,9 @@ import ImportFileButton from "./ImportFileButton.tsx";
 import AdviceImportDiagnostics from "./AdviceImportDiagnostics.tsx";
 
 type Props = { draft: AdviceDraft<File>; onChange: (fn: (d: AdviceDraft<File>) => AdviceDraft<File>) => void;
-  refresh: boolean };
+  refresh: boolean; showMapping?: boolean };
 
-export default function AdviceImportSources({ draft, onChange, refresh }: Props) {
+export default function AdviceImportSources({ draft, onChange, refresh, showMapping }: Props) {
   const { t } = useTranslation("common");
   const [emptyCards, setEmptyCards] = useState<string[]>([]);
   const [emptyProfiles, setEmptyProfiles] = useState<Record<string, ImportProfile>>({});
@@ -84,7 +84,7 @@ export default function AdviceImportSources({ draft, onChange, refresh }: Props)
                   : (source!.sheetSelection ?? []).filter(v => v.sheetName!==sheet.sheetName)))} />
               <Status tone={sheet.status === "ready" ? "success" : "warning"}>{t(`importProject.advice.status.${sheet.status}`)}</Status>
             </>}
-            {(!multiple||selection)&&<SourceTableEditor variant="blueprint" key={`${source!.id}:${sheet.sheetName}`} preview={sheet.table} diagnostics={sheet.diagnostics} settings={selection?.table} role="bearing-capacities" matrix={(selection?.profile==="auto"||!selection)?sheet.resolvedProfile==="capacity-columns"||sheet.detectedProfile==="capacity-columns":selection.profile==="capacity-columns"}
+            {(!multiple||selection)&&<SourceTableEditor variant="blueprint" showMapping={showMapping} key={`${source!.id}:${sheet.sheetName}`} preview={sheet.table} diagnostics={sheet.diagnostics} settings={selection?.table} role="bearing-capacities" matrix={(selection?.profile==="auto"||!selection)?sheet.resolvedProfile==="capacity-columns"||sheet.detectedProfile==="capacity-columns":selection.profile==="capacity-columns"}
               csv={source!.file.name.toLowerCase().endsWith(".csv")}
               onChange={table=>onChange(d=>setAdviceSheetSelection(d,source!.id,(source!.sheetSelection??[{sheetName:sheet.sheetName,profile:sheet.resolvedProfile??profile}]).map(v=>v.sheetName===sheet.sheetName?{...v,table,tensionColumn:null}:v)))}>
               <Select label={t("importProject.profile.label")} value={selection?.profile??profile} options={source!.file.name.toLowerCase().endsWith(".csv")?profiles.filter(p=>p.value!=="capacity-columns"):profiles} aria-label={`${t("importProject.profile.label")} ${sheet.sheetName||fileName}`}

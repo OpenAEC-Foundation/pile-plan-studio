@@ -24,12 +24,16 @@ test("shares inspected members and grouped navigation context across the load-po
   expect(current!.selectedLoadPointIds).toEqual([points[2]!.id]);
   expect(current!.loadPointSelectionContext?.ids).toEqual([points[2]!.id, points[0]!.id, points[1]!.id, points[3]!.id]);
   expect(container.querySelector(".selection-overview-count")!.textContent).toBe("1 of 4 selected");
-  fireEvent.click(screen.getByRole("button", { name: i18n.t("tabs.loadPoint", { ns: "rightPanel" }) }));
+  const options = screen.getByRole("button", { name: i18n.t("tabs.loadPoint", { ns: "rightPanel" }) });
+  expect(options.querySelector("use")?.getAttribute("href")).toContain("#i16-pile.options");
+  fireEvent.click(options);
   expect(rows()).toHaveLength(4);
   expect(rows()[0]!.getAttribute("aria-pressed")).toBe("true");
   fireEvent.click(rows()[1]!);
   expect(current!.selectedLoadPointIds).toEqual([points[0]!.id]);
-  fireEvent.click(screen.getByRole("button", { name: i18n.t("tabs.cpts", { ns: "rightPanel" }) }));
+  const cpts = screen.getByRole("button", { name: i18n.t("tabs.cpts", { ns: "rightPanel" }) });
+  expect(cpts.querySelector("use")?.getAttribute("href")).toContain("#i16-pile.cpts");
+  fireEvent.click(cpts);
   expect(rows()).toHaveLength(4);
   fireEvent.click(screen.getByRole("button", { name: i18n.t("cpts.nextLocation", { ns: "rightPanel" }) }));
   expect(current!.selectedLoadPointIds).toEqual([points[1]!.id]);

@@ -26,7 +26,3 @@ export function createBrowserRecentProjectCache():BrowserRecentProjectCache {
   };
   return {async read(key){const db=await database();return new Promise<string|null>((resolve,reject)=>{const request=db.transaction("projects","readonly").objectStore("projects").get(key);request.onsuccess=()=>resolve(typeof request.result==="string"?request.result:null);request.onerror=()=>reject(request.error);});},write:(key,text)=>mutate(key,text),remove:key=>mutate(key)};
 }
-export async function browserRecentProjectKey(name:string,contents:string):Promise<string>{
-  const hash=await crypto.subtle.digest("SHA-256",new TextEncoder().encode(`${name}\0${contents}`));
-  return `browser:${Array.from(new Uint8Array(hash),byte=>byte.toString(16).padStart(2,"0")).join("")}`;
-}

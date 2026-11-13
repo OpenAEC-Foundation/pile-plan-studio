@@ -1,5 +1,4 @@
 import { useRecentFiles } from "../../hooks/useRecentFiles.ts";
-import { browserRecentProjectKey } from "../../domain/project/browserRecentProjects.ts";
 import { saveBrowserProjectLocally } from "../project/browserLocalSave.ts";
 import {LoadDirectionProvider} from "../derived-state/LoadDirectionContext.tsx";
 import {LocationMatchingSurfaceContext, useLocationMatchingSurface} from "../exports/locationMatchingSurface.tsx";
@@ -43,6 +42,10 @@ import type { LegendEditorDraft } from "../../domain/legend/legendEditorModel.ts
 import IlpOptimizationSettingsPanel from "../../components/domain/pile-plans/ilp-optimization/IlpOptimizationSettingsPanel.tsx";
 import IlpOptimizationResultPanel from "../../components/domain/pile-plans/ilp-optimization/IlpOptimizationResultPanel.tsx";
 import Backstage from "../../components/template/backstage/Backstage";
+import ProjectImportPanel from "../../components/domain/imports/ProjectImportPanel.tsx";
+import ProjectStartScreen, { type ProjectStartPage } from "../../components/domain/project/ProjectStartScreen.tsx";
+import SampleProjectTour from "../../components/domain/project/SampleProjectTour.tsx";
+import { Banner, Button } from "../../openaec/react/src/index";
 import SettingsDialog from "../../components/template/settings/SettingsDialog";
 import { applyTheme } from "../appearance/applyAppearance.ts";
 import FeedbackDialog from "../../components/template/feedback/FeedbackDialog";
@@ -88,7 +91,7 @@ import {
   type ProjectDocumentOutcome,
 } from "../../core/projectDocumentContract.ts";
 import { getSetting } from "../../store";
-import { setLoadPointSelection, switchRightPanelMode } from "../../domain/workspace/selectionState";
+import { setLoadPointSelection } from "../../domain/workspace/selectionState";
 import type { ViewerFocusRequest } from "../../domain/workspace/viewerFocus.ts";
 import {
   getProjectFileCommands,
@@ -197,6 +200,8 @@ function requireValidProjectDocument(
 export type AppSessionProps = {
   initialProject: Extract<ProjectDocumentOutcome, { status: "valid" }>;
   initializeDefaultPiles: boolean;
+  startAtHome?: boolean;
+  initialIsSample?: boolean;
   initialSavedProjectSignature?: string;
   initialWasDirty?: boolean;
   initialRecentProjectKey?: string;
@@ -213,6 +218,8 @@ type ActionNoticeValue = {
 export default function AppSession({
   initialProject,
   initializeDefaultPiles,
+  startAtHome = false,
+  initialIsSample = false,
   initialSavedProjectSignature,
   initialWasDirty = false,
   initialRecentProjectKey,
@@ -220,6 +227,23 @@ export default function AppSession({
   recoveryStore,
 }: AppSessionProps) {
   const { t, i18n } = useTranslation();
+  const [startPage, setStartPage] = useState<ProjectStartPage | null>(startAtHome ? "home" : null);
+  const [newProjectFromEditor, setNewProjectFromEditor] = useState(false);
+  const [hasOpenedProject, setHasOpenedProject] = useState(!startAtHome);
+  const [sampleOpen, setSampleOpen] = useState(initialIsSample);
+  const [tourOpen, setTourOpen] = useState(false);
+  const appShellRef = useRef<HTMLDivElement>(null);
+  const sampleIndicatorRef = useRef<HTMLDivElement>(null);
+  const restoreTourFocus = useRef(false);
+  useEffect(() => {
+    if (!tourOpen && restoreTourFocus.current) {
+      restoreTourFocus.current = false;
+      sampleIndicatorRef.current?.querySelector("button")?.focus();
+    }
+  }, [tourOpen]);
+  const [startActionBusy, setStartActionBusy] = useState(false);
+  const startActionRef = useRef(false);
+  const [desktopLaunchPending, setDesktopLaunchPending] = useState(() => isDesktopRuntime() && startAtHome);
   const [hostSnapshot, setHostSnapshot] = useState(() => ({ host: getSiteHost() }));
   const { host: siteHost } = hostSnapshot;
   const initialDocsFileId = siteHost?.initialFileId;
@@ -229,7 +253,7 @@ export default function AppSession({
   const docsOpening = useRef(false);
   const docsSaving = useRef(false);
   const [docsSaveAsOpen, setDocsSaveAsOpen] = useState(false);
-  const [docsOpenRequested, setDocsOpenRequested] = useState(false);
+  const [openPanelRequested, setOpenPanelRequested] = useState(false);
   const initialDocsOpen = useRef<{ host: SiteHost; id: string } | null>(null);
   const openDocsRef = useRef<((id: string) => Promise<boolean>) | null>(null);
   const readOnly = docsFile?.readOnly ?? false;
@@ -411,6 +435,7 @@ export default function AppSession({
   };
   const recentStorageError = () => showActionNotice(t("recentProjects.storageFailed"), "error");
   const rememberDesktopProject = (path: string) => { void recentProjects.addRecentFile(path).catch(recentStorageError); };
+  const removeRecentProject = (path: string) => { void recentProjects.removeRecentFile(path).catch(recentStorageError); };
 
   const projectPathRef = useRef(projectPath);
   projectPathRef.current = projectPath;
@@ -519,11 +544,15 @@ export default function AppSession({
   }, []);
   const preparedProjectRef = useRef<{ signature: string; blob: Blob } | null>(null);
   const projectActionRef = useRef<(() => Promise<boolean>) | null>(null);
-  const openProjectActionRef = useRef<(() => Promise<void>) | null>(null);
+  const openProjectActionRef = useRef<(() => void) | null>(null);
+  const projectFileInput = useRef<HTMLInputElement>(null);
   const openDesktopProjectPathRef = useRef<((path: string) => Promise<void>) | null>(null);
+  const reportProjectOpenFailureRef = useRef<(error: unknown) => void>(() => {});
   const saveShortcutInFlightRef = useRef(false);
   const isDesktop = isDesktopRuntime();
   const { workspaceLayout } = userSettings.preferences;
+  const tourActive = sampleOpen && tourOpen && !startPage;
+  const propertiesVisible = tourActive || workspaceLayout.propertiesVisible;
   const interfaceScalePercent = userSettings.preferences.interfaceScalePercent;
   userSettingsRef.current = userSettings;
 
@@ -632,17 +661,18 @@ export default function AppSession({
   }, [recoveryWriter]);
 
   useEffect(() => {
-    if (!recoveryWriter || projectState.defaultPileSelectionPending) return;
+    if (!hasOpenedProject || !recoveryWriter || projectState.defaultPileSelectionPending) return;
     recoveryWriter.schedule(async () => createBrowserRecoveryRecord({
       appVersion: __APP_VERSION__,
       ifcppText: await writeProjectDocumentCore(persistedProjectDraft),
       projectName: persistedProjectDraft.metadata.name,
       savedProjectSignature,
       isDirty,
+      isSample: sampleOpen,
       updatedAt: new Date().toISOString(),
       recentProjectKey: browserRecentPath ?? undefined,
     }));
-  }, [browserRecentPath, isDirty, persistedProjectSignature, projectState.defaultPileSelectionPending, recoveryWriter, savedProjectSignature]);
+  }, [browserRecentPath, hasOpenedProject, isDirty, persistedProjectSignature, projectState.defaultPileSelectionPending, recoveryWriter, sampleOpen, savedProjectSignature]);
 
   useEffect(() => {
     const result = managedProject.lastResult;
@@ -652,12 +682,12 @@ export default function AppSession({
 
   useEffect(() => {
     const handleHistoryShortcut = (event: KeyboardEvent) => {
-      if (matchingSurface.active) return;
+      if (matchingSurface.active || startPage) return;
       dispatchHistoryShortcut(event, type => dispatchProject({ type }));
     };
     window.addEventListener("keydown", handleHistoryShortcut);
     return () => window.removeEventListener("keydown", handleHistoryShortcut);
-  }, [matchingSurface.active]);
+  }, [matchingSurface.active, startPage]);
 
 
   const serializeProject = async () => {
@@ -690,8 +720,7 @@ export default function AppSession({
     if (!isDesktop) {
       try {
         const contents = await ((readyBlob ?? generated) as Blob).text();
-        const key = recentKeyAtStart ?? await browserRecentProjectKey(options.fileName, contents);
-        await recentProjects.rememberBrowser(key, options.fileName, contents);
+        const key = await recentProjects.rememberBrowser(recentKeyAtStart, options.fileName, contents);
         if (sameInstance()) setBrowserRecentPath(key);
       } catch { recentStorageError(); }
     }
@@ -762,11 +791,11 @@ export default function AppSession({
     return true;
   };
 
-  projectActionRef.current = isDesktop || PLATFORM_BUILD ? saveProject : downloadProject;
+  projectActionRef.current = hasOpenedProject ? saveProject : null;
 
   useEffect(() => {
     const handleAppShortcut = createAppShortcutHandler({
-      isDesktop, canOpen: isDesktop || PLATFORM_BUILD, saveInFlight: saveShortcutInFlightRef,
+      isDesktop, canOpen: true, saveInFlight: saveShortcutInFlightRef,
       save: () => projectActionRef.current, open: () => openProjectActionRef.current,
       currentScale: () => userSettingsRef.current.preferences.interfaceScalePercent,
       applyScale: applyInterfaceScale,
@@ -823,6 +852,7 @@ export default function AppSession({
 
   const confirmProjectReplacement = useCallback((): Promise<boolean> => {
     if (!isDirtyRef.current) return Promise.resolve(true);
+    if (replacementResolverRef.current) return Promise.resolve(false);
     setReplacementSaveError(null);
     setUnsavedChangesOpen(true);
     return new Promise((resolve) => {
@@ -1058,7 +1088,7 @@ export default function AppSession({
   }, [interfaceScalePercent, isDesktop]);
 
   useEffect(() => {
-    if (PLATFORM_BUILD) return;
+    if (PLATFORM_BUILD || !hasOpenedProject) return;
     let cancelled = false;
     writeProjectDocumentCore(persistedProjectDraft).then((text) => {
       if (!cancelled) {
@@ -1069,11 +1099,12 @@ export default function AppSession({
       }
     });
     return () => { cancelled = true; };
-  }, [persistedProjectSignature]);
+  }, [hasOpenedProject, persistedProjectSignature]);
 
   useCptSelectionPreview(projectState, setProjectState);
 
   useEffect(() => {
+    if (!hasOpenedProject) return;
     const analysisRequest = projectState.analysisRequest;
     const requestedIds = analysisRequest.loadPointIds;
     const analysisLoadPoints = requestedIds === null
@@ -1122,7 +1153,7 @@ export default function AppSession({
     return () => {
       analysisPipeline.invalidate();
     };
-  }, [analysisPipeline, projectState.analysisRequest, projectState.loadPointGroupingSettings]);
+  }, [hasOpenedProject, analysisPipeline, projectState.analysisRequest, projectState.loadPointGroupingSettings]);
 
   useEffect(() => {
     if (
@@ -1255,6 +1286,7 @@ export default function AppSession({
       installNewProject: (state) => {
         defaultSelectionKeepsDirtyRef.current = false;
         flushSync(() => replaceProjectState(state));
+        showOpenedProject();
         setProjectPath(null);
         setBrowserRecentPath(null);
         updateSavedProjectSignature("");
@@ -1391,6 +1423,18 @@ export default function AppSession({
       ...setLoadPointSelection({ ...ilp.displayState, rightPanelMode: "load-point" }, ids),
     });
   };
+  const focusTourLoadPoint = useCallback((id: number, cptIds?: readonly number[]) => {
+    setViewerFocusRequest({
+      previewLoadPointId: id, previewCptIds: cptIds,
+      loadPoints: ilp.displayState.loadPoints, planId: ilp.displayState.activePilePlanId,
+    });
+  }, [ilp.displayState.loadPoints, ilp.displayState.activePilePlanId]);
+  const prepareSampleTour = () => {
+    setActiveSourceKind(null);
+    setRightTaskPanel(null);
+    setLassoSelectionActive(false);
+    setDrivingInspection(null);
+  };
   const changeDrivingNeighborhood = (record: PileDrivingRecord | null) => {
     if (record && !drivingSelectionDisabled && record.matching.status === "matched") {
       const id = record.matching.load_point_id;
@@ -1415,6 +1459,32 @@ export default function AppSession({
     }));
   };
 
+  function showOpenedProject(sample = false, tour = false) {
+    setHasOpenedProject(true);
+    setSampleOpen(sample);
+    setTourOpen(tour);
+    if (tour) prepareSampleTour();
+    setStartPage(null);
+    setNewProjectFromEditor(false);
+    setBackstageOpen(false);
+    setOpenPanelRequested(false);
+    setInitialImportSource(null);
+  }
+
+  const showNewProject = () => {
+    setBackstageOpen(false);
+    setOpenPanelRequested(false);
+    setInitialImportSource(null);
+    setNewProjectFromEditor(true);
+    setStartPage("new");
+  };
+
+  const showDocsOpenPanel = () => {
+    setInitialImportSource(null);
+    setOpenPanelRequested(true);
+    setBackstageOpen(true);
+  };
+
   const installOpenedProject = (project: ProjectState, path: string | null, browserKey: string | null = null) => {
     const lifecycle = openedProjectLifecycleState(project, path);
     setLassoSelectionActive((active) => transitionLassoSelectionMode(active, { type: "dismiss" }));
@@ -1423,13 +1493,18 @@ export default function AppSession({
     updateSavedProjectSignature(lifecycle.savedSignature);
     setIsDirty(lifecycle.isDirty);
     setBrowserRecentPath(browserKey);
+    showOpenedProject();
     if (path) rememberDesktopProject(path);
     if (project.legendImportWarnings.length > 0) {
       showStatusMessage(t("legend.importWarnings", { count: project.legendImportWarnings.length }));
     }
   };
 
-  const openSampleProject = async () => {
+  const openSampleProject = async (tour = false) => {
+    if (sampleOpen && tour) {
+      showOpenedProject(true, true);
+      return;
+    }
     if (!await confirmProjectReplacement()) return;
     const sample = requireValidProjectDocument(
       await readProjectDocumentCore(sampleProjectText),
@@ -1438,6 +1513,7 @@ export default function AppSession({
       initializeDefaultPiles: true,
       defaultPilePlanName: pilePlanLanguage() === "nl" ? "Basisplan" : "Base plan",
     }, sample.keys), null);
+    showOpenedProject(true, tour);
     showStatusMessage(t("recovery.sampleOpened"));
   };
 
@@ -1458,15 +1534,13 @@ export default function AppSession({
     }
   };
   openDesktopProjectPathRef.current = openDesktopProjectPath;
+  reportProjectOpenFailureRef.current = error => showActionNotice(describeProjectOpenError(error, t), "error");
 
   const openBrowserProjectContents = async (contents: string, name: string, existingKey?: string) => {
     const project = await prepareOpenedProject(contents, { initializeDefaultPiles: false }, { readProjectDocument: readProjectDocumentCore });
     let key: string | null = existingKey ?? null;
-    try { key ??= await browserRecentProjectKey(name, contents); } catch { recentStorageError(); }
+    try { key = await recentProjects.rememberBrowser(key, name, contents); } catch { recentStorageError(); }
     installOpenedProject(project, null, key);
-    if (key) {
-      try { await recentProjects.rememberBrowser(key, name, contents); } catch { recentStorageError(); }
-    }
   };
   const openRecentProject = async (path: string) => {
     const file = recentProjects.recentFiles.find(item => item.path === path);
@@ -1487,6 +1561,60 @@ export default function AppSession({
     const { open } = await import("@tauri-apps/plugin-dialog");
     const path = await open({ multiple: false, filters: [{ name: "IFCPP project", extensions: ["ifcpp"] }] });
     if (typeof path === "string") await openDesktopProjectPath(path);
+  };
+
+  const openProjectFile = async (file: File) => {
+    if (!await confirmProjectReplacement()) return;
+    try { await openBrowserProjectContents(await file.text(), file.name); }
+    catch (error) { showActionNotice(describeProjectOpenError(error, t), "error"); }
+  };
+
+  const runStartAction = async (action: () => Promise<unknown>) => {
+    if (startActionRef.current) return;
+    startActionRef.current = true;
+    setStartActionBusy(true);
+    try {
+      await action();
+    } catch (error) {
+      showActionNotice(describeProjectOpenError(error, t), "error");
+    } finally {
+      startActionRef.current = false;
+      setStartActionBusy(false);
+    }
+  };
+
+  const importNewProject = async (
+    projectName: string | null, sources: ImportSourceInput[], properties: ProjectImportProperties | null,
+  ) => {
+    if (docsSession.file?.readOnly) return null;
+    if (!await confirmProjectReplacement()) return null;
+    const marker = mcpProjectMarkerRef.current!.observe(projectStateRef.current);
+    const imported = await importProjectFromFilesCore({
+      projectName: projectName ?? projectState.name,
+      pileHeadLevelM: properties?.pileHeadLevelM ?? 0,
+      currencyCode: properties?.currencyCode ?? userSettings.preferences.defaultCurrencyCode,
+      sources,
+    });
+    const project = imported.project;
+    const importedState = createInitialProjectState(project, {
+      initializeDefaultPiles: true,
+      defaultPilePlanName: pilePlanLanguage() === "nl" ? "Basisplan" : "Base plan",
+    }, imported.keys);
+    const costs = await prepareMergedPileCostCatalogEdit(importedState,
+      getCostImportDefault(userSettingsRef.current), BUILT_IN_PILE_COST_DEFAULTS);
+    const current = mcpProjectMarkerRef.current!.observe(projectStateRef.current);
+    if (marker.project_instance_id !== current.project_instance_id || marker.project_revision !== current.project_revision) {
+      throw new Error(t("projectEdit.projectChanged"));
+    }
+    defaultSelectionKeepsDirtyRef.current = false;
+    replaceProjectState(costs.update(importedState));
+    setProjectPath(null);
+    setBrowserRecentPath(null);
+    updateSavedProjectSignature("");
+    isDirtyRef.current = true;
+    setIsDirty(true);
+    showOpenedProject();
+    return getImportSummary(project);
   };
 
   const openDocsProject = async (id: string, reportError = (message: string) => showActionNotice(message, "error")): Promise<boolean> => {
@@ -1526,10 +1654,18 @@ export default function AppSession({
     void openDocsRef.current?.(initialDocsFileId);
   }, [initialDocsFileId, siteHost, userSettingsReady]);
 
-  openProjectActionRef.current = PLATFORM_BUILD ? async () => {
-    setDocsOpenRequested(true);
-    setBackstageOpen(true);
-  } : chooseDesktopProject;
+  const chooseProject = () => {
+    if (!userSettingsReady || desktopLaunchPending || matchingSurface.active || unsavedChangesOpen || startActionRef.current) return;
+    if (PLATFORM_BUILD) {
+      showDocsOpenPanel();
+      return;
+    }
+    setBackstageOpen(false);
+    setInitialImportSource(null);
+    if (isDesktop) void runStartAction(chooseDesktopProject);
+    else projectFileInput.current?.click();
+  };
+  openProjectActionRef.current = chooseProject;
 
   useEffect(() => {
     if (!isDesktop || !userSettingsReady) return;
@@ -1538,7 +1674,7 @@ export default function AppSession({
     let pendingDrain = Promise.resolve();
 
     const reportOpenFailure = (error: unknown) => {
-      if (!disposed) showActionNotice(describeProjectOpenError(error, t), "error");
+      if (!disposed) reportProjectOpenFailureRef.current(error);
     };
     const drainPendingProjectPaths = () => {
       pendingDrain = pendingDrain.then(async () => {
@@ -1562,15 +1698,19 @@ export default function AppSession({
         stopListening = unlisten;
         await drainPendingProjectPaths();
       })
-      .catch(reportOpenFailure);
+      .catch(reportOpenFailure)
+      .finally(() => { if (!disposed) setDesktopLaunchPending(false); });
 
     return () => {
       disposed = true;
       stopListening?.();
     };
-  }, [isDesktop, showActionNotice, t, userSettingsReady]);
+  }, [isDesktop, userSettingsReady]);
 
   if (!userSettingsReady) {
+    return <div className="app-startup-surface" role="status" />;
+  }
+  if (desktopLaunchPending) {
     return <div className="app-startup-surface" role="status" />;
   }
 
@@ -1578,6 +1718,7 @@ export default function AppSession({
     <LoadDirectionProvider><LocationMatchingSurfaceContext.Provider value={matchingSurface.value}>
       <ApplicationTooltip/>
       <div className="app-shell"
+        ref={appShellRef}
         data-testid="openaec-shell"
         onPointerUpCapture={releasePointerActivatedControlFocus}
       >
@@ -1585,6 +1726,9 @@ export default function AppSession({
           projectAction={() => void projectActionRef.current?.()}
           projectActionKind={isDesktop || PLATFORM_BUILD ? "save" : "download"}
           projectActionDisabled={PLATFORM_BUILD && (!siteHost || readOnly)}
+          hideProjectActions={!hasOpenedProject}
+          onNewProject={!startPage && !matchingSurface.active && !readOnly ? showNewProject : undefined}
+          onOpenProject={!startPage && !matchingSurface.active ? chooseProject : undefined}
           hideFeedback={PLATFORM_BUILD}
           canUndo={matchingSurface.active ? matchingSurface.history?.canUndo??false : canUndo}
           canRedo={matchingSurface.active ? matchingSurface.history?.canRedo??false : canRedo}
@@ -1610,18 +1754,40 @@ export default function AppSession({
             />
           ) : undefined}
         />
+        {!isDesktop && !PLATFORM_BUILD && <input ref={projectFileInput} hidden type="file"
+          aria-label={t("startScreen.openProject")} accept=".ifcpp,application/json"
+          onChange={event => {
+            const file = event.currentTarget.files?.[0];
+            event.currentTarget.value = "";
+            if (file) void runStartAction(() => openProjectFile(file));
+          }} />}
+        {startPage && <ProjectStartScreen
+          page={startPage}
+          fromEditor={newProjectFromEditor}
+          currentProjectName={hasOpenedProject ? projectState.name : undefined}
+          busy={startActionBusy}
+          recentFiles={recentProjects.recentFiles}
+          notice={actionNotice.message
+            ? <Banner tone={actionNotice.tone === "error" ? "error" : "info"} word="">{actionNotice.message}</Banner>
+            : initialStatusKey && !hasOpenedProject && <Banner tone="warning" word="">{t(initialStatusKey)}</Banner>}
+          onShowPage={setStartPage}
+          onResume={() => { setStartPage(null); setNewProjectFromEditor(false); }}
+          onSample={() => void runStartAction(() => openSampleProject())}
+          onTour={() => void runStartAction(() => openSampleProject(true))}
+          onOpenProject={chooseProject}
+          onOpenRecent={path => void runStartAction(() => openRecentProject(path))}
+          onRemoveRecent={removeRecentProject}
+        >
+          {startPage === "new" && <ProjectImportPanel guided
+            defaultCurrencyCode={userSettings.preferences.defaultCurrencyCode}
+            onImportProject={(_mode, name, sources, properties) => importNewProject(name, sources, properties)}
+          />}
+        </ProjectStartScreen>}
         <div className="location-matching-host" ref={matchingSurface.setElement} hidden={!matchingSurface.active}/>
-        {!matchingSurface.active && <>
+        {!matchingSurface.active && !startPage && <>
         <Ribbon
           onFileTabClick={() => setBackstageOpen(true)}
           onOpenProjectInformation={() => { if (!readOnly) setProjectInformationOpen(true); }}
-          onOpenRightPanel={(mode) => {
-            updateWorkspaceLayout({ propertiesVisible: true });
-            setRightTaskPanel(null);
-            if (mode === "load-point" && projectStateRef.current.cptSelectionEditDraft) {
-              void saveCptSelection(current => ({ ...current, ...switchRightPanelMode(current, mode) }));
-            } else setProjectState((current) => ({ ...current, ...switchRightPanelMode(current, mode) }));
-          }}
           onOpenTaskPanel={(panel) => {
             updateWorkspaceLayout({ propertiesVisible: true });
             if (panel === "pile-cap-changes" || panel === "pile-driving") setActiveSourceKind(null);
@@ -1645,7 +1811,7 @@ export default function AppSession({
           showTipLevelRegions={projectState.showTipLevelRegions}
           showLoadPointGroups={projectState.showLoadPointGroups}
           explorerVisible={workspaceLayout.explorerVisible}
-          propertiesVisible={workspaceLayout.propertiesVisible}
+          propertiesVisible={propertiesVisible}
           onSymbolScaleChangeStart={symbolScaleHistory.begin}
           onSymbolScaleChange={symbolScaleHistory.change}
           onSymbolScaleChangeEnd={symbolScaleHistory.end}
@@ -1672,16 +1838,20 @@ export default function AppSession({
           onExplorerVisibilityChange={(explorerVisible) => updateWorkspaceLayout({ explorerVisible })}
           onPropertiesVisibilityChange={(propertiesVisible) => updateWorkspaceLayout({ propertiesVisible })}
         />
+        {sampleOpen && !tourOpen && <div className="sample-project-indicator" ref={sampleIndicatorRef}>
+            <span>{t("sampleTour.example")}</span>
+            <Button compact kind="quiet" onClick={() => { prepareSampleTour(); setTourOpen(true); }}>{t("startScreen.tour")}</Button>
+          </div>}
         <div
           className="app-content"
           ref={appContentRef}
           style={{
             "--explorer-width": `${workspaceLayout.explorerVisible ? workspaceLayout.explorerWidth : 0}px`,
             "--explorer-splitter-width": workspaceLayout.explorerVisible ? "5px" : "0px",
-            "--right-panel-width": rightTaskPanel === "pile-driving" && workspaceLayout.propertiesVisible
+            "--right-panel-width": rightTaskPanel === "pile-driving" && propertiesVisible
               ? `min(${workspaceLayout.propertiesWidth}px, 48%)`
-              : `${workspaceLayout.propertiesVisible ? workspaceLayout.propertiesWidth : 0}px`,
-            "--right-panel-splitter-width": workspaceLayout.propertiesVisible ? "5px" : "0px",
+              : `${propertiesVisible ? workspaceLayout.propertiesWidth : 0}px`,
+            "--right-panel-splitter-width": propertiesVisible ? "5px" : "0px",
           } as CSSProperties}
         >
           {workspaceLayout.explorerVisible && <PilePlanExplorer
@@ -1723,7 +1893,8 @@ export default function AppSession({
           <main className="workspace" aria-label="Pile plan workspace">
             {activeSourceKind === null ? (
               <PilePlanWorkspace
-                focusRequest={viewerFocusRequest?.fitLoadPointIds && !neighborhoodRecord ? null : viewerFocusRequest}
+                focusRequest={viewerFocusRequest && "fitLoadPointIds" in viewerFocusRequest
+                  && viewerFocusRequest.fitLoadPointIds && !neighborhoodRecord ? null : viewerFocusRequest}
                 inspectionLoadPointIds={inspectionLoadPointIds}
                 drivingWarningLoadPointIds={drivingWarningLoadPointIds}
                 onFocusHandled={request => setViewerFocusRequest(current => current === request ? null : current)}
@@ -1770,13 +1941,13 @@ export default function AppSession({
               tone={actionNotice.tone}
             />
           </main>
-          {workspaceLayout.propertiesVisible && <div
+          {propertiesVisible && <div
             aria-label={t("properties")}
             className="right-panel-splitter"
             role="separator"
             onPointerDown={beginRightPanelResize}
           />}
-          {workspaceLayout.propertiesVisible && <RightPanel
+          {propertiesVisible && <RightPanel
             pileDriving={rightTaskPanel === "pile-driving" ? <PileDrivingPanel
               planName={drivingPlan?.name}
               driving={pileDriving}
@@ -1805,7 +1976,7 @@ export default function AppSession({
             }}
             splitRatio={workspaceLayout.propertiesSplitRatio}
             selectionRows={workspaceLayout.selectionOverviewRows}
-            selectionCollapsed={workspaceLayout.selectionOverviewCollapsed}
+            selectionCollapsed={!tourActive && workspaceLayout.selectionOverviewCollapsed}
             onSelectionLayoutChange={patch => updateWorkspaceLayout({
               ...(patch.rows === undefined ? {} : { selectionOverviewRows: patch.rows }),
               ...(patch.collapsed === undefined ? {} : { selectionOverviewCollapsed: patch.collapsed }),
@@ -1876,6 +2047,10 @@ export default function AppSession({
             }}
           />}
         </div>
+        {tourActive && <SampleProjectTour workspace={appShellRef.current} paused={backstageOpen || settingsOpen || projectInformationOpen}
+          selectedLoadPointIds={ilp.displayState.selectedLoadPointIds}
+          cptsByLoadPointId={ilp.displayState.selectedCptsByLoadPointId} onFocusLoadPoint={focusTourLoadPoint}
+          onClose={() => { restoreTourFocus.current = true; setTourOpen(false); }} />}
         <StatusBar
           zoomPercent={projectState.viewport.scale * 100}
           message={statusMessage || (docsFile ? t(readOnly ? "supercloud.readOnly" : "supercloud.currentFile", { name: docsFile.name }) : "")}
@@ -1887,18 +2062,21 @@ export default function AppSession({
         open={backstageOpen}
         onClose={() => {
           setBackstageOpen(false);
-          setDocsOpenRequested(false);
+          setOpenPanelRequested(false);
           setInitialImportSource(null);
         }}
         initialImportSource={initialImportSource}
+        onShowStartScreen={!PLATFORM_BUILD ? () => setStartPage("home") : undefined}
+        onNewProject={showNewProject}
+        onOpenProject={chooseProject}
         onOpenSettings={() => setSettingsOpen(true)}
         commands={projectFileCommands}
         readOnly={readOnly}
-        initialPanel={docsOpenRequested ? "open" : undefined}
+        initialPanel={openPanelRequested ? "open" : undefined}
         docsOpenPanel={PLATFORM_BUILD ? <DocsOpenPanel host={siteHost} onOpen={async (id, reportError) => {
           if (await openDocsProject(id, reportError)) {
             setBackstageOpen(false);
-            setDocsOpenRequested(false);
+            setOpenPanelRequested(false);
           }
         }} /> : undefined}
         loadPoints={projectState.loadPoints}
@@ -1924,59 +2102,24 @@ export default function AppSession({
           if (marker.project_instance_id !== current.project_instance_id || marker.project_revision !== current.project_revision) throw new Error(t("projectEdit.projectChanged"));
           return result;
         }}
-        onImportProject={async (mode, projectName: string | null, sources: ImportSourceInput[], properties: ProjectImportProperties | null, selection?: LoadPointRefreshSelection) => {
+        onRefreshSources={async (sources: ImportSourceInput[], selection?: LoadPointRefreshSelection) => {
           if (docsSession.file?.readOnly) return null;
-          if (mode === "refresh") {
-            return applyProjectRefresh({
-              context: () => JSON.stringify(mcpProjectMarkerRef.current!.observe(projectStateRef.current)),
-              snapshot: async () => requireValidProjectDocument(await readProjectDocumentCore(
-                await writeProjectDocumentCore(projectDraftFromState(projectStateRef.current)),
-              )).project,
-              refresh: refreshProjectFromFilesCore,
-              install: refreshed => {
-                defaultSelectionKeepsDirtyRef.current = true;
-                commitProjectState(createInitialProjectState(refreshed.project, {
-                  initializeDefaultPiles: false,
-                }, refreshed.keys));
-                setIsDirty(true);
-              },
-              changed: () => new Error(t("projectEdit.projectChanged")),
-            }, sources, selection);
-          }
-
-          if (!await confirmProjectReplacement()) return null;
-            const imported = await importProjectFromFilesCore({
-              projectName: projectName ?? projectState.name,
-              pileHeadLevelM: properties?.pileHeadLevelM ?? 0,
-              currencyCode: properties?.currencyCode ?? userSettings.preferences.defaultCurrencyCode,
-              sources,
-            });
-            const project = imported.project;
-          const importedState = createInitialProjectState(project, {
-            initializeDefaultPiles: true,
-            defaultPilePlanName: pilePlanLanguage() === "nl" ? "Basisplan" : "Base plan",
-          }, imported.keys);
-          const costs = await prepareMergedPileCostCatalogEdit(importedState,
-            getCostImportDefault(userSettingsRef.current), BUILT_IN_PILE_COST_DEFAULTS);
-          defaultSelectionKeepsDirtyRef.current = false;
-          replaceProjectState(costs.update(importedState));
-          setProjectPath(null);
-          setBrowserRecentPath(null);
-          updateSavedProjectSignature("");
-          setIsDirty(true);
-          return getImportSummary(project);
+          return applyProjectRefresh({
+            context: () => JSON.stringify(mcpProjectMarkerRef.current!.observe(projectStateRef.current)),
+            snapshot: async () => requireValidProjectDocument(await readProjectDocumentCore(
+              await writeProjectDocumentCore(projectDraftFromState(projectStateRef.current)),
+            )).project,
+            refresh: refreshProjectFromFilesCore,
+            install: refreshed => {
+              defaultSelectionKeepsDirtyRef.current = true;
+              commitProjectState(createInitialProjectState(refreshed.project, {
+                initializeDefaultPiles: false,
+              }, refreshed.keys));
+              setIsDirty(true);
+            },
+            changed: () => new Error(t("projectEdit.projectChanged")),
+          }, sources, selection);
         }}
-        onOpenProjectFile={async (file: File) => {
-          if (!await confirmProjectReplacement()) return;
-          try { await openBrowserProjectContents(await file.text(), file.name); }
-          catch (error) { showActionNotice(describeProjectOpenError(error, t), "error"); }
-        }}
-        onOpenSampleProject={openSampleProject}
-        recentFiles={recentProjects.recentFiles}
-        onRemoveRecentFile={path => { void recentProjects.removeRecentFile(path).catch(recentStorageError); }}
-        onClearRecentFiles={() => { void recentProjects.clearRecentFiles().catch(recentStorageError); }}
-        onOpenFile={(path) => void openRecentProject(path)}
-        onChooseDesktopProject={chooseDesktopProject}
         onDownloadProject={async () => { await downloadProject(); }}
         onExportPilePlanXlsx={(pileSizeFormat,options) => exportPilePlan("xlsx", pileSizeFormat,options)}
         onExportPilePlanCsv={(pileSizeFormat,options) => exportPilePlan("csv", pileSizeFormat,options)}
@@ -1998,7 +2141,7 @@ export default function AppSession({
           userSettingsRef.current = next;
           commitUserSettings(next);
         }}
-        onSaveProject={async () => { await saveProject(); }}
+        onSaveProject={async () => { await projectActionRef.current?.(); }}
         onSaveProjectAs={async () => { await saveProjectAs(); }}
       />
       <SettingsDialog
@@ -2010,6 +2153,7 @@ export default function AppSession({
         defaultCurrencyCode={userSettings.preferences.defaultCurrencyCode}
         onPreferencesChange={(preferences) => commitUserSettings(patchUserSettings(userSettings, preferences))}
         isDesktop={isDesktop}
+        projectAvailable={hasOpenedProject}
         interfaceScalePercent={interfaceScalePercent}
         onInterfaceScalePreview={(scale) => { void applyDesktopInterfaceScale(scale); }}
         siteAssistant={PLATFORM_BUILD && !!siteHost}

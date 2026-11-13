@@ -11,12 +11,13 @@ import {
 } from "./projectPersistence.ts";
 
 describe("project persistence", () => {
-  it("offers download only in the browser", () => {
-    assert.deepEqual(getProjectFileCommands(false), { save: false, saveAs: false, download: true });
+  it("offers one save command and IFCPP export in the browser", () => {
+    assert.deepEqual(getProjectFileCommands(false), { save: true, saveAs: false, download: true, exit: false });
   });
 
-  it("offers save and save as only on desktop", () => {
-    assert.deepEqual(getProjectFileCommands(true), { save: true, saveAs: true, download: false });
+  it("offers Save as on desktop and Docs, and Exit on desktop", () => {
+    assert.deepEqual(getProjectFileCommands(true), { save: true, saveAs: true, download: false, exit: true });
+    assert.deepEqual(getProjectFileCommands(false, true), { save: true, saveAs: true, download: false, exit: false });
   });
 
   it("creates a safe IFCPP file name", () => {

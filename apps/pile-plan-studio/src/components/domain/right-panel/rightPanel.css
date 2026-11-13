@@ -23,6 +23,8 @@
   background: var(--oa-selected);
 }
 
+.right-panel-tab .pile-plan-icon { flex: none; }
+
 .right-panel-tabs .right-panel-combined-toggle {
   padding: 4px;
 }

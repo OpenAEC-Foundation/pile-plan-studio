@@ -34,7 +34,8 @@ export default function App() {
         if (!cancelled) setBootstrap({
           kind: "ready",
           initialProject,
-          initializeDefaultPiles: !PLATFORM_BUILD,
+          initializeDefaultPiles: false,
+          startAtHome: !PLATFORM_BUILD,
         });
         return;
       }
@@ -43,7 +44,8 @@ export default function App() {
         if (!cancelled) setBootstrap({
           kind: "ready",
           initialProject,
-          initializeDefaultPiles: true,
+          initializeDefaultPiles: false,
+          startAtHome: true,
           initialStatusKey: "recovery.unavailable",
         });
         return;
@@ -57,23 +59,26 @@ export default function App() {
         }),
       });
       if (cancelled) return;
-      if (result.kind === "restored") {
+      if (result.kind === "restored" && (!result.record.isSample || result.record.isDirty)) {
         setBootstrap({
           kind: "ready",
           initialProject: result.project,
           initializeDefaultPiles: false,
           initialSavedProjectSignature: result.record.savedProjectSignature,
           initialWasDirty: result.record.isDirty,
+          initialIsSample: result.record.isSample,
           initialStatusKey: "recovery.restored",
           initialRecentProjectKey: result.record.recentProjectKey,
           recoveryStore,
         });
       } else {
         const initialProject = await loadSampleProject();
+        if (cancelled) return;
         setBootstrap({
           kind: "ready",
           initialProject,
-          initializeDefaultPiles: true,
+          initializeDefaultPiles: false,
+          startAtHome: true,
           initialStatusKey: result.kind === "invalid"
             ? "recovery.invalid"
             : result.kind === "unavailable"

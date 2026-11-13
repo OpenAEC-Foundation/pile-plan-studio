@@ -31,7 +31,8 @@ export default function SelectionOverview({ onSelectOnly,restrictToContext=false
     const next = Math.min(maxRows, clampSelectionOverviewRows(value));
     setHeightRows(next); onLayoutChange({ rows: next });
   };
-  return <section className="oa-app selection-overview" aria-label={t("selectionOverview.title")} onKeyDown={event => {
+  return <section className="oa-app selection-overview" aria-label={t("selectionOverview.title")}
+    data-tour-target="load-selection" tabIndex={-1} onKeyDown={event => {
     if ((event.key === " " || event.key === "Enter") && event.target instanceof Element && event.target.closest("button")) event.stopPropagation();
   }}>
     <header className="selection-overview-header">

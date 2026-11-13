@@ -4,6 +4,7 @@ export type ProjectFileCommands = {
   save: boolean;
   saveAs: boolean;
   download: boolean;
+  exit: boolean;
 };
 
 export type GeneratedFileOptions = {
@@ -30,9 +31,12 @@ export type BinarySaveEnvironment = {
 };
 
 export function getProjectFileCommands(isDesktop: boolean, isPlatform = false): ProjectFileCommands {
-  return isDesktop || isPlatform
-    ? { save: true, saveAs: true, download: false }
-    : { save: false, saveAs: false, download: true };
+  return {
+    save: true,
+    saveAs: isDesktop || isPlatform,
+    download: !isDesktop && !isPlatform,
+    exit: isDesktop && !isPlatform,
+  };
 }
 
 export function projectFileName(projectName: string): string {

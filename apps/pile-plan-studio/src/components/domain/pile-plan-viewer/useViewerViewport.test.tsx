@@ -101,6 +101,45 @@ test("focus fits the context with the inspected pile as the only active selectio
   expect(handled).toHaveBeenCalledWith(request);
 });
 
+test("the tour frames its first marker before the user selects it", () => {
+  const state = { ...fixture(), selectedLoadPointIds: [1], viewport: { scale: .8, offsetX: -5000, offsetY: 900 } };
+  const changed = vi.fn(), handled = vi.fn();
+  const request = { previewLoadPointId: 2, loadPoints: state.loadPoints, planId: state.activePilePlanId };
+  render(<Harness state={state} request={request} changed={changed} handled={handled} />);
+  const next = changed.mock.calls[0][0] as ProjectState;
+  const projected = projectPointPixels(state.loadPoints.find(point => point.id === 2)!,
+    createProjectViewTransform(state.bounds, { width: 800, height: 600 }));
+  expect(next.viewport.scale).toBeGreaterThan(1);
+  expect(projected.x * next.viewport.scale + next.viewport.offsetX).toBeCloseTo(400);
+  expect(projected.y * next.viewport.scale + next.viewport.offsetY).toBeCloseTo(300);
+  expect(next.selectedLoadPointIds).toBe(state.selectedLoadPointIds);
+  expect(captureProjectContent(next)).toEqual(captureProjectContent(state));
+});
+
+test("tour focus fits the load point and the CPTs used for it without changing selection", () => {
+  const cpts = [1, 2, 3, 4].map((id, index) => ({ id, name: `CPT ${id}`,
+    x_mm: 300 + index * 1000, y_mm: index % 2 * 2200 }));
+  const state = { ...fixture(), cpts, selectedLoadPointIds: [1],
+    bounds: { minX: 0, minY: 0, maxX: 3300, maxY: 2200 },
+    viewport: { scale: 10, offsetX: -5000, offsetY: 900 } };
+  const changed = vi.fn(), handled = vi.fn();
+  const request = { previewLoadPointId: 1, previewCptIds: cpts.map(cpt => cpt.id),
+    loadPoints: state.loadPoints, planId: state.activePilePlanId };
+  render(<Harness state={state} request={request} changed={changed} handled={handled} />);
+  const next = changed.mock.calls[0][0] as ProjectState;
+  const transform = createProjectViewTransform(state.bounds, { width: 800, height: 600 });
+  expect(next.viewport.scale).toBeLessThan(state.viewport.scale);
+  for (const p of [state.loadPoints[0], ...cpts]) {
+    const { x, y } = projectPointPixels(p, transform);
+    expect(x * next.viewport.scale + next.viewport.offsetX).toBeGreaterThan(0);
+    expect(x * next.viewport.scale + next.viewport.offsetX).toBeLessThan(800);
+    expect(y * next.viewport.scale + next.viewport.offsetY).toBeGreaterThan(0);
+    expect(y * next.viewport.scale + next.viewport.offsetY).toBeLessThan(600);
+  }
+  expect(next.selectedLoadPointIds).toBe(state.selectedLoadPointIds);
+  expect(captureProjectContent(next)).toEqual(captureProjectContent(state));
+});
+
 test("centering retains the latest wheel zoom and cancels its delayed stale pan commit", () => {
   vi.useFakeTimers();
   const state = fixture(), changed = vi.fn(), handled = vi.fn();

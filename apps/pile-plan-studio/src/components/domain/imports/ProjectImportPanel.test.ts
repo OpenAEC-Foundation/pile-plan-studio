@@ -34,11 +34,9 @@ describe("ProjectImportPanel", () => {
     assert.match(styles, /\.project-import-native-file\s*\{[^}]*clip-path:\s*inset\(50%\)/);
   });
 
-  it("offers explicit new-project and refresh modes", () => {
-    assert.match(panel, /"new-project"/);
-    assert.match(panel, /"refresh"/);
-    assert.match(panel, /importProject\.modes\.newProject/);
-    assert.match(panel, /importProject\.modes\.refresh/);
+  it("uses a fixed mode for the guided route and source tabs for refresh", () => {
+    assert.match(panel, /guided \? "new-project" : "refresh"/);
+    assert.match(panel, /<Tabs label=\{t\("importProject\.refreshTitle"\)\}/);
   });
 
   it("uses the shared native Select for imported project currency", () => {

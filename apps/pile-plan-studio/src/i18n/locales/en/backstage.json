@@ -5,7 +5,7 @@
   "save": "Save project",
   "saveAs": "Save project as...",
   "print": "Print",
-  "import": "Import sources",
+  "import": "Refresh sources",
   "importPilePlan": "Import pile plan",
   "export": "Download IFCPP",
   "exportMenu": "Export",
@@ -82,22 +82,10 @@
   },
   "openPanel": {
     "localCopy": "Local copy",
-    "localCopiesHelp": "In the browser, recent projects open a local copy of the last opened, locally saved or downloaded IFCPP version on this device. Unsaved changes are not part of that copy.",
-    "justNow": "Just now",
+    "localCopiesHelp": "Local copies contain the last opened, saved or downloaded IFCPP version on this device.",
     "openRecent": "Open {{name}}",
     "removeFile": "Remove {{name}} from recent projects",
-    "title": "Open project",
-    "intro": "Open an IFCPP project from this device or continue with a recent project.",
-    "chooseProject": "Choose IFCPP project",
-    "chooseProjectDesc": "Open a complete Open Pile Plan Studio project file.",
-    "choose": "Choose file",
-    "sampleProject": "Open sample project",
-    "sampleProjectDesc": "Replace the current session with the bundled example project.",
-    "open": "Open",
-    "recent": "Recent projects",
-    "clearAll": "Clear all",
-    "noRecent": "No recent projects",
-    "remove": "Remove"
+    "noRecent": "No recent projects"
   },
   "exportPanel": {
     "title": "Export project data",

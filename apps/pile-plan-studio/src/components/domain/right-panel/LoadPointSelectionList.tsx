@@ -63,6 +63,7 @@ export default function LoadPointSelectionList({ restrictToContext=false,loadPoi
               const load=directionalLoadPoint(point,mode).design_load_kn;
               const force = Number.isFinite(load)?load.toLocaleString(i18n.language, { maximumFractionDigits: 1 }):"—";
               return <Button kind="quiet" className="load-point-selection-row" key={point.id}
+                data-tour-load-point-id={point.id}
                 disabled={disabled}
                 aria-pressed={selected.has(point.id)} aria-label={t("loadPoints.inspectMember", { name, force })}
                 onClick={() => onInspect(point.id)}>

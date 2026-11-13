@@ -115,9 +115,7 @@ describe("Plan and View ribbon", () => {
   it("connects only supported project and plan commands", () => {
     const source = readFileSync(resolve(import.meta.dirname, "Ribbon.tsx"), "utf8");
     assert.match(source, /onOpenProjectInformation/);
-    assert.match(source, /onOpenRightPanel/);
-    assert.match(source, /onOpenRightPanel\?\.\("load-point"\)/);
-    assert.match(source, /onOpenRightPanel\?\.\("cpts"\)/);
+    assert.doesNotMatch(source, /onOpenRightPanel/);
     assert.match(source, /onOpenTaskPanel\?\.\("cpt-settings"\)/);
     assert.match(source, /onOpenTaskPanel\?\.\("cost-settings"\)/);
     assert.match(source, /onOpenTaskPanel\?\.\("grouping-settings"\)/);
@@ -138,7 +136,6 @@ describe("Plan and View ribbon", () => {
 
   it("uses distinct Dutch labels for information and settings commands", () => {
     const translations = JSON.parse(readFileSync(resolve(import.meta.dirname, "../../../i18n/locales/nl/ribbon.json"), "utf8"));
-    assert.equal(translations.plan.cpts, "Sonderingen");
     assert.equal(translations.plan.cptSettings, "Sonderingsinstellingen");
     assert.equal(translations.plan.costSettings, "Kosteninstellingen");
     assert.equal(translations.plan.groupingSettings, "Groeperingsinstellingen");

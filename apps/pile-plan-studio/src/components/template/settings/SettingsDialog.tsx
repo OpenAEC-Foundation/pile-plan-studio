@@ -44,6 +44,7 @@ interface SettingsDialogProps {
     defaultCurrencyCode: string;
   }) => void;
   isDesktop: boolean;
+  projectAvailable?: boolean;
   siteAssistant?: boolean;
   siteAssistantReadOnly?: boolean;
   interfaceScalePercent: number;
@@ -65,6 +66,7 @@ export default function SettingsDialog({
   defaultCurrencyCode,
   onPreferencesChange,
   isDesktop,
+  projectAvailable = true,
   siteAssistant,
   siteAssistantReadOnly,
   interfaceScalePercent,
@@ -215,7 +217,7 @@ export default function SettingsDialog({
                 <Checkbox label={t("mcp.allowEdits")} checked={mcpWriteEnabled} disabled={siteAssistantReadOnly}
                   onChange={event => onMcpWriteToggle(event.currentTarget.checked)} />
               </div>}
-              {isDesktop && <McpConnectionSection
+              {isDesktop && projectAvailable && <McpConnectionSection
                 status={mcpStatus}
                 connection={mcpConnection}
                 error={mcpError}

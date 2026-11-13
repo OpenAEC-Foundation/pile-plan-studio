@@ -88,7 +88,7 @@ export default function IlpOptimizationSettingsPanel({ groups=[],newPlanName, on
     <div className="ilp-settings-scroll" ref={scroll}>
     <p className="ilp-settings-subtitle oa-secondary">{t(s.optimize_coherence ? "ilp.subtitle" : "ilp.costOnlySubtitle")}</p>
     <div className="ilp-actions">
-      {!running && <><Button kind="primary" title={t("ilp.solverHelp")} disabled={disabled} onClick={onRun}>{t(s.optimize_coherence ? "ilp.runSolver" : "ilp.run")}</Button>
+      {!running && <><Button kind="primary" title={t("ilp.solverHelp")} data-tour-target="run-optimization" disabled={disabled} onClick={onRun}>{t(s.optimize_coherence ? "ilp.runSolver" : "ilp.run")}</Button>
         {s.optimize_coherence && <Button kind="primary" title={t("ilp.localHelp")} disabled={disabled} onClick={onRunLocal}>{t("ilp.runLocal")}</Button>}</>}
       {running && <><Button kind="quiet" className="ilp-running-plan-link"
           aria-label={panel("ilp.runningPlan",{name:runningPlanName})} title={panel("ilp.viewPlan")}

@@ -7,9 +7,7 @@ import type { ProjectImportPreview } from "../../../core/adviceImportContract.ts
 import { useState, useEffect, type ReactNode } from "react";
 import { flushSync } from "react-dom";
 import { useTranslation } from "react-i18next";
-import type { RecentFile } from "../../../hooks/useRecentFiles";
 import ProjectImportPanel from "../../domain/imports/ProjectImportPanel";
-import type { ProjectImportProperties } from "../../domain/imports/ProjectImportPanel.tsx";
 import type { ProjectImportMode } from "../../../domain/imports/projectImportModel.ts";
 import type { ImportFileRole } from "../../../core/importFiles.ts";
 import PilePlanImportPanel from "../../domain/imports/PilePlanImportPanel.tsx";
@@ -19,17 +17,19 @@ import type { PilePlanImportPatch } from "../../../core/pilePlanImportContract.t
 import type { Cpt, LoadPoint, PileConfigurationKey, PileSizeExportFormat } from "../../../core/projectTypes.ts";
 import type { ProjectFileCommands } from "../../../domain/project/projectPersistence.ts";
 import AboutPanel from "./AboutPanel";
-import OpenProjectPanel from "./OpenProjectPanel";
 import BlueprintIcon from "../BlueprintIcon.tsx";
 import "./Backstage.css";
 import "./BackstageBlueprint.css";
 
 const ICONS = {
+  home: <BlueprintIcon id="nav.home" size={24} />,
+  newProject: <BlueprintIcon id="file.new" size={24} />,
   open: <BlueprintIcon id="file.open" size={24} />,
   save: <BlueprintIcon id="file.save" size={24} />,
   saveAs: <BlueprintIcon id="file.save-as" size={24} />,
   export: <BlueprintIcon id="file.export" size={24} />,
   import: <BlueprintIcon id="file.import" size={24} />,
+  refresh: <BlueprintIcon id="ui.refresh" size={24} />,
   preferences: <BlueprintIcon id="ui.settings" size={24} />,
   about: <BlueprintIcon id="ui.about" size={24} />,
   exit: <BlueprintIcon id="ui.close" size={24} />,
@@ -75,11 +75,10 @@ interface BackstageProps extends ExportFeatureProps {
   suspended?: boolean;
   onClose: () => void;
   onOpenSettings: () => void;
-  onOpenFile?: (path: string) => void;
-  recentFiles?: RecentFile[];
-  onRemoveRecentFile?: (path: string) => void;
-  onClearRecentFiles?: () => void;
-  onImportProject: (mode: ProjectImportMode, projectName: string | null, sources: ImportSourceInput[], properties: ProjectImportProperties | null, selection?: LoadPointRefreshSelection) => Promise<ImportSummary | null>;
+  onShowStartScreen?: () => void;
+  onNewProject: () => void;
+  onOpenProject: () => void;
+  onRefreshSources: (sources: ImportSourceInput[], selection?: LoadPointRefreshSelection) => Promise<ImportSummary | null>;
   onPrepareLoadPointRefresh?: PrepareLoadPointRefresh;
   onPreviewProjectImport?: (mode: ProjectImportMode, sources: ImportSourceInput[]) => Promise<ProjectImportPreview>;
   importPreviewContextKey?: string;
@@ -89,14 +88,11 @@ interface BackstageProps extends ExportFeatureProps {
   availablePileConfigurations: PileConfigurationKey[];
   activePilePlanName: string;
   onImportPilePlan: (patch: PilePlanImportPatch, fileName: string) => void;
-  onOpenProjectFile: (file: File) => Promise<void>;
-  onOpenSampleProject: () => Promise<void>;
   onDownloadProject: () => Promise<void>;
   onExportPilePlanXlsx: (pileSizeFormat: PileSizeExportFormat, options?: ExportOptions) => Promise<void>;
   onExportPilePlanCsv: (pileSizeFormat: PileSizeExportFormat, options?: ExportOptions) => Promise<void>;
   pileSizeFormat?: PileSizeExportFormat;
   onPileSizeFormatChange?: (pileSizeFormat: PileSizeExportFormat) => void;
-  onChooseDesktopProject: () => Promise<void>;
   onSaveProject: () => Promise<void>;
   onSaveProjectAs: () => Promise<void>;
   commands: ProjectFileCommands;
@@ -106,7 +102,7 @@ interface BackstageProps extends ExportFeatureProps {
   initialImportSource?: { role: ImportFileRole; file: File } | null;
 }
 
-export default function Backstage({ open, suspended = false, onClose, onOpenSettings, onOpenFile, recentFiles = [], onRemoveRecentFile = () => {}, onClearRecentFiles = () => {}, onImportProject, onPreviewProjectImport, onPrepareLoadPointRefresh, importPreviewContextKey, defaultCurrencyCode, loadPoints, cpts, availablePileConfigurations, activePilePlanName, onImportPilePlan, onOpenProjectFile, onOpenSampleProject, onDownloadProject, onExportPilePlanXlsx, onExportPilePlanCsv, pileSizeFormat = "numeric", onPileSizeFormatChange, exportPlans, exportPlanId, onExportPlanChange, exportPlan, exportContextKey, exportOptions, onExportOptionsChange, onExportRevision, onChooseDesktopProject, onSaveProject, onSaveProjectAs, commands, docsOpenPanel, initialPanel, readOnly = false, initialImportSource = null }: BackstageProps) {
+export default function Backstage({ open, suspended = false, onClose, onOpenSettings, onShowStartScreen, onNewProject, onOpenProject, onRefreshSources, onPreviewProjectImport, onPrepareLoadPointRefresh, importPreviewContextKey, defaultCurrencyCode, loadPoints, cpts, availablePileConfigurations, activePilePlanName, onImportPilePlan, onDownloadProject, onExportPilePlanXlsx, onExportPilePlanCsv, pileSizeFormat = "numeric", onPileSizeFormatChange, exportPlans, exportPlanId, onExportPlanChange, exportPlan, exportContextKey, exportOptions, onExportOptionsChange, onExportRevision, onSaveProject, onSaveProjectAs, commands, docsOpenPanel, initialPanel, readOnly = false, initialImportSource = null }: BackstageProps) {
   const { t } = useTranslation("backstage");
   const [activePanel, setActivePanel] = useState<string>("none");
 
@@ -149,18 +145,25 @@ export default function Backstage({ open, suspended = false, onClose, onOpenSett
           <span>{t("file")}</span>
         </Button>
         <div className="backstage-items">
+          {onShowStartScreen && <MenuItem icon={ICONS.home} label={t("common:startScreen.title")}
+            onClick={() => { onClose(); onShowStartScreen(); }} />}
+          <MenuItem icon={ICONS.newProject} label={t("common:startScreen.newProject")} disabled={readOnly}
+            onClick={() => { onClose(); onNewProject(); }} />
           <MenuItem
             icon={ICONS.open}
             label={t("open")}
             shortcut="Ctrl+O"
             active={activePanel === "open"}
-            onClick={() => setActivePanel("open")}
+            onClick={() => {
+              if (docsOpenPanel) setActivePanel("open");
+              else { onClose(); onOpenProject(); }
+            }}
           />
           {commands.save ? <MenuItem icon={ICONS.save} label={t("save")} shortcut="Ctrl+S" disabled={readOnly} onClick={() => void onSaveProject().then(onClose)} /> : null}
           {commands.saveAs ? <MenuItem icon={ICONS.saveAs} label={t("saveAs")} onClick={() => void onSaveProjectAs().then(onClose)} /> : null}
           <Divider />
           <MenuItem
-            icon={ICONS.import}
+            icon={ICONS.refresh}
             label={t("import")}
             disabled={readOnly}
             active={activePanel === "import"}
@@ -196,7 +199,7 @@ export default function Backstage({ open, suspended = false, onClose, onOpenSett
             active={activePanel === "about"}
             onClick={() => setActivePanel("about")}
           />
-          {commands.save && !docsOpenPanel ? <>
+          {commands.exit ? <>
             <Divider />
             <MenuItem
               icon={ICONS.exit}
@@ -214,31 +217,16 @@ export default function Backstage({ open, suspended = false, onClose, onOpenSett
       </nav>
       {hasActivePanel && (
         <div className="backstage-content">
-          {activePanel === "open" && (docsOpenPanel ?? (
-            <OpenProjectPanel
-              recentFiles={recentFiles}
-              onOpenFile={(path) => { onClose(); onOpenFile?.(path); }}
-              onRemoveFile={onRemoveRecentFile}
-              onClearAll={onClearRecentFiles}
-              onOpenProjectFile={async (file) => {
-                await onOpenProjectFile(file);
-                onClose();
-              }}
-              isDesktop={commands.save}
-              onChooseDesktopProject={async () => {
-                await onChooseDesktopProject();
-                onClose();
-              }}
-              onOpenSampleProject={async () => {
-                await onOpenSampleProject();
-                onClose();
-              }}
-            />
-          ))}
+          {activePanel === "open" && docsOpenPanel}
           {activePanel === "about" && <AboutPanel hideLinks={!!docsOpenPanel} />}
-          {activePanel === "import" && !readOnly && <ProjectImportPanel onPrepareLoadPointRefresh={onPrepareLoadPointRefresh} onPreviewProjectImport={onPreviewProjectImport} importPreviewContextKey={importPreviewContextKey} defaultCurrencyCode={defaultCurrencyCode} initialSource={initialImportSource} onImportProject={async (mode, name, sources, properties, selection) => {
-            return selection ? onImportProject(mode, name, sources, properties, selection) : onImportProject(mode, name, sources, properties);
-          }} />}
+          {activePanel === "import" && !readOnly && <ProjectImportPanel
+            onPrepareLoadPointRefresh={onPrepareLoadPointRefresh}
+            onPreviewProjectImport={onPreviewProjectImport}
+            importPreviewContextKey={importPreviewContextKey}
+            defaultCurrencyCode={defaultCurrencyCode}
+            initialSource={initialImportSource}
+            onImportProject={(_mode, _name, sources, _properties, selection) => onRefreshSources(sources, selection)}
+          />}
           {activePanel === "pile-plan-import" && !readOnly && (
             <PilePlanImportPanel
               loadPoints={loadPoints}

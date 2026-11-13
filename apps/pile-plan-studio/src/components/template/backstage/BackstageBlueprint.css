@@ -17,17 +17,9 @@
 .backstage-blueprint .backstage-item[aria-current="page"] .blueprint-icon { --icon-accent: currentColor; }
 .backstage-blueprint .backstage-back .blueprint-icon { --icon-accent: currentColor; }
 .bs-open-panel, .bs-about-panel { min-width: 0; }
-.bs-open-project-options { display: grid; gap: 12px; margin: 20px 0; }
-.bs-open-project-options .oa-tile > span:last-child { min-width: 0; }
-.bs-open-recent-heading { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 8px; }
 .bs-recent-list { display: grid; list-style: none; margin: 0; padding: 0; }
 .bs-recent-item { display: flex; align-items: center; gap: 6px; padding: 4px 0; border-bottom: 1px solid var(--oa-border-subtle); }
 .bs-recent-open.oa-button { height: auto; min-height: 52px; flex: 1; min-width: 0; padding: 8px; gap: 10px; }
-.bs-recent-info { display: grid; flex: 1; min-width: 0; gap: 3px; text-align: left; }
-.bs-recent-name, .bs-recent-path { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.bs-recent-path, .bs-recent-date { color: var(--oa-text-secondary); font-size: var(--oa-size-label); }
-.bs-recent-date { flex: none; }
-.bs-recent-item > .oa-icon-button { flex: none; }
 .bs-about-heading { display: flex; align-items: center; gap: 16px; margin-bottom: 16px; }
 .bs-about-heading img { flex: none; }
 .bs-about-tagline { font-style: italic; }
@@ -38,5 +30,4 @@
 @media (max-width: 760px) {
   .backstage-content:has(.bs-open-panel, .bs-about-panel) { max-width: calc(100vw - 260px); padding: 20px; }
   .bs-recent-open.oa-button { flex-wrap: wrap; }
-  .bs-recent-date { margin-left: 26px; }
 }

@@ -8,6 +8,7 @@ import ThemedNumberInput from "../../template/ThemedNumberInput.tsx";
 import { commitNumberDraft } from "./numberInputModel.ts";
 import { Button, Heading } from "../../../openaec/react/src/index";
 import { NumberField } from "../../template/NumberInput.tsx";
+import PilePlanIcon from "../../template/PilePlanIcon.tsx";
 
 import "./panelControls.css";
 
@@ -131,7 +132,7 @@ export function DraftNumberField({
 export function PanelTab({ active, label, mode, state, onActivate, onStateChange }: {
   active: boolean;
   label: string;
-  mode: RightPanelMode;
+  mode: Extract<RightPanelMode, "load-point" | "cpts">;
   state: ProjectState;
   onActivate: () => void;
   onStateChange: (nextState: ProjectState) => void;
@@ -139,13 +140,15 @@ export function PanelTab({ active, label, mode, state, onActivate, onStateChange
   return (
     <Button compact
       className={`right-panel-tab${active && state.rightPanelMode === mode ? " is-active" : ""}`}
+      data-tour-target={mode === "load-point" ? "pile-options-tab" : "cpts-tab"}
       aria-pressed={active && state.rightPanelMode === mode}
       onClick={() => {
         onActivate();
         onStateChange({ ...state, ...switchRightPanelMode(state, mode) });
       }}
     >
-      {label}
+      <PilePlanIcon id={mode === "load-point" ? "pile.options" : "pile.cpts"} size={16} />
+      <span>{label}</span>
     </Button>
   );
 }

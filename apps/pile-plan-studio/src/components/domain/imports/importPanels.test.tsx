@@ -32,7 +32,7 @@ beforeEach(() => {
 test("a selected initial source enters refresh mode, previews, and submits only that source", async () => {
   const apply = vi.fn().mockResolvedValue(null), source = file("cpts.csv");
   render(<ProjectImportPanel initialSource={{ role: "cpts", file: source }} defaultCurrencyCode="EUR" onImportProject={apply} />);
-  const submit = (await screen.findAllByRole("button", { name: t("importProject.refreshSubmit") }))[1];
+  const submit = await screen.findByRole("button", { name: t("importProject.refreshSubmit") });
   await waitFor(() => expect((submit as HTMLButtonElement).disabled).toBe(false));
   expect(screen.queryByLabelText(t("importProject.projectName"))).toBeNull();
   expect(core.project).toHaveBeenCalledWith(expect.objectContaining({ role: "cpts", fileName: "cpts.csv" }));
@@ -53,33 +53,36 @@ test("load-point refresh requires a reviewed mapping and passes the confirmed pr
   });
   render(<ProjectImportPanel initialSource={{role: "load-points", file: file("load-points.csv")}} defaultCurrencyCode="EUR" onImportProject={apply} onPrepareLoadPointRefresh={prepare} importPreviewContextKey="revision-1" />);
   const review = await screen.findByRole("button", {name: t("locationMatchingEntry.open")});
-  expect((screen.getAllByRole("button", {name: t("importProject.refreshSubmit")})[1] as HTMLButtonElement).disabled).toBe(true);
+  expect((screen.getByRole("button", {name: t("importProject.refreshSubmit")}) as HTMLButtonElement).disabled).toBe(true);
   await waitFor(() => expect((review as HTMLButtonElement).disabled).toBe(false));
   fireEvent.click(review);
   await screen.findByRole("region", {name: t("exportTools.matchingTitle")});
   expect(apply).not.toHaveBeenCalled();
   expect(prepare).toHaveBeenCalledWith(expect.any(Array), 1);
   fireEvent.click(screen.getByRole("button", {name: t("exportTools.confirm")}));
-  fireEvent.click(screen.getAllByRole("button", {name: t("importProject.refreshSubmit")})[1]);
+  fireEvent.click(screen.getByRole("button", {name: t("importProject.refreshSubmit")}));
   await waitFor(() => expect(apply).toHaveBeenCalledOnce());
   expect(apply.mock.calls[0][4]).toEqual({contextKey: "revision-1", decisions: {links: [{old_id: 10, new_id: 20}], added: [], removed: []}});
 });
 
 test("new-project submission is blocked until the reference level is valid, and sends normalized properties", async () => {
   const apply = vi.fn().mockResolvedValue(null);
-  const view = render(<ProjectImportPanel defaultCurrencyCode="GBP" onImportProject={apply} />);
+  const view = render(<ProjectImportPanel guided defaultCurrencyCode="GBP" onImportProject={apply} />);
   const inputs = view.container.querySelectorAll('input[type="file"]');
   for (const [index, name] of ["load-points.csv", "cpts.csv", "bearing-capacities.csv"].entries()) {
     fireEvent.change(inputs[index + 1], { target: { files: [file(name)] } });
   }
+  fireEvent.click(screen.getByRole("button", { name: t("firstProject.review.title") }));
   const submit = screen.getByRole("button", { name: t("importProject.submit") });
   const level = view.container.querySelector('input[required]')!;
   await waitFor(() => expect(level.getAttribute("aria-invalid")).toBe("true"));
   expect((submit as HTMLButtonElement).disabled).toBe(true);
   fireEvent.click(submit); expect(apply).not.toHaveBeenCalled();
+  fireEvent.click(screen.getAllByRole("button", { name: t("firstProject.properties.title") })[0]);
   fireEvent.change(level, { target: { value: "-1,25" } });
   fireEvent.change(screen.getByLabelText(t("importProject.projectName")), { target: { value: "  P  " } });
-  fireEvent.click(submit);
+  fireEvent.click(screen.getByRole("button", { name: t("firstProject.review.title") }));
+  fireEvent.click(screen.getByRole("button", { name: t("importProject.submit") }));
   await waitFor(() => expect(apply).toHaveBeenCalledOnce());
   expect(apply.mock.calls[0][1]).toBe("P");
   expect(apply.mock.calls[0][3]).toEqual({ pileHeadLevelM: -1.25, currencyCode: "GBP" });
@@ -90,7 +93,7 @@ test("pending previews and a failed final import block submission and surface th
   core.project.mockImplementationOnce(() => new Promise(done => { resolve = done; }));
   const apply = vi.fn().mockRejectedValue(new Error("import rejected"));
   render(<ProjectImportPanel initialSource={{ role: "cpts", file: file("cpts.csv") }} defaultCurrencyCode="EUR" onImportProject={apply} />);
-  const submit = (await screen.findAllByRole("button", { name: t("importProject.refreshSubmit") }))[1];
+  const submit = await screen.findByRole("button", { name: t("importProject.refreshSubmit") });
   await waitFor(() => expect(core.project).toHaveBeenCalledOnce());
   expect((submit as HTMLButtonElement).disabled).toBe(true);
   await act(async () => resolve(projectPreview(core.project.mock.calls[0][0])));
@@ -98,7 +101,7 @@ test("pending previews and a failed final import block submission and surface th
   fireEvent.click(submit);
   expect((submit as HTMLButtonElement).disabled).toBe(true);
   expect((await screen.findByRole("alert")).textContent).toBe("import rejected");
-  expect((screen.getAllByRole("button", { name: t("importProject.refreshSubmit") })[1] as HTMLButtonElement).disabled).toBe(false);
+  expect((screen.getByRole("button", { name: t("importProject.refreshSubmit") }) as HTMLButtonElement).disabled).toBe(false);
 });
 
 test("pile-plan import delivers the eligible core patch with its filename and rejects an invalid preview", async () => {
@@ -136,7 +139,7 @@ test("successful refresh clears staged replacements so they cannot target a remo
   const apply=vi.fn().mockResolvedValue({loadPointCount:1,cptCount:1,bearingCapacityCount:1,warnings:[]});
   core.joint.mockImplementation(async ({ sources }) => ({canApply:sources.length>0,existingSources:[],uniqueValueCount:1,importedValueCount:1,exactDuplicateCount:0,orphanValueCount:0,conflicts:[],diagnostics:[]}));
   render(<ProjectImportPanel initialSource={{role:"bearing-capacities",file:file("extra.csv")}} defaultCurrencyCode="EUR" onImportProject={apply} />);
-  const submit=(await screen.findAllByRole("button",{name:t("importProject.refreshSubmit")}))[1];
+  const submit=await screen.findByRole("button",{name:t("importProject.refreshSubmit")});
   await waitFor(()=>expect((submit as HTMLButtonElement).disabled).toBe(false));
   fireEvent.click(submit);
   await waitFor(()=>expect(apply).toHaveBeenCalledOnce());
@@ -145,11 +148,13 @@ test("successful refresh clears staged replacements so they cannot target a remo
 });
 
 test("advice-only new-project selection explains missing files without reporting zero imported values", async()=>{
-  const view=render(<ProjectImportPanel defaultCurrencyCode="EUR" onImportProject={vi.fn()} />);
+  const view=render(<ProjectImportPanel guided defaultCurrencyCode="EUR" onImportProject={vi.fn()} />);
+  fireEvent.click(screen.getByRole("button", { name: t("firstProject.foundationAdvice.title") }));
   fireEvent.change(view.container.querySelectorAll('input[type="file"]')[3],{target:{files:[file("advice.csv")]}});
   await screen.findByText(i18n.t("importProject.status.validCount",{count:1}));
   expect(screen.getByText(t("importProject.advice.requiresLoadPointsAndCpts"))).toBeTruthy();
   expect(view.container.querySelector(".advice-import-diagnostics")).toBeNull();
+  fireEvent.click(screen.getByRole("button", { name: t("firstProject.review.title") }));
   expect((screen.getByRole("button",{name:t("importProject.submit")}) as HTMLButtonElement).disabled).toBe(true);
 });
 
@@ -166,7 +171,7 @@ test("pile import exposes location review directly, with tolerance outside colla
 
 test("the general source picker stages and submits every advice in a mixed multi-file batch", async () => {
   const apply=vi.fn().mockResolvedValue(null);
-  const view=render(<ProjectImportPanel defaultCurrencyCode="EUR" onImportProject={apply}/>);
+  const view=render(<ProjectImportPanel guided defaultCurrencyCode="EUR" onImportProject={apply}/>);
   const names=["120488 Amsterdam prefab betonpalen 70 cm ophoging trek diep 2paalspoer.xlsx", "120488 Amsterdam prefab betonpalen 70 cm ophoging trek diep 4paalspoer.xlsx", "120488 Amsterdam prefab betonpalen 70 cm ophoging trek ondiep.xlsx"];
   const input=view.container.querySelector('input[type="file"][multiple]') as HTMLInputElement;
   fireEvent.change(input,{target:{files:[file("Export RFEM.xlsx"),file("Sonderingen.xlsx"),...names.map(file)]}});
@@ -176,6 +181,7 @@ test("the general source picker stages and submits every advice in a mixed multi
   });
   for(const name of names)expect(screen.getByTitle(name)).toBeTruthy();
   fireEvent.change(screen.getByLabelText(t("importProject.pileHeadLevel"),{exact:false}),{target:{value:"0"}});
+  fireEvent.click(screen.getByRole("button", { name: t("firstProject.review.title") }));
   const submit=screen.getByRole("button",{name:t("importProject.submit")});
   await waitFor(()=>expect((submit as HTMLButtonElement).disabled).toBe(false));
   fireEvent.click(submit);

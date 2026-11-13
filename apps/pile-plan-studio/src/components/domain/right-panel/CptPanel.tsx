@@ -154,6 +154,7 @@ function CptSelectionOverview({ state, onStateChange, selectedLoadPoints, format
                       ) : overview.columns[index] === "CPT" && !editing ? (
                         <Button compact kind="quiet"
                           className="cpt-link"
+                          data-tour-target="cpt-link"
                           type="button"
                           onClick={() => onStateChange({ ...state, ...openCpt(state, row.cpt.id) })}
                         >
@@ -232,7 +233,7 @@ function CptTable({ label, columns, rows, highlighted=[],highlightLabel,scrollKe
   },[highlightKey,scrollKey]);
   return (
     <div className="cpt-table-wrap" ref={wrapper}>
-      <table className="oa-table cpt-table" aria-label={label}>
+      <table className="oa-table cpt-table" aria-label={label} tabIndex={-1} data-tour-target="cpt-advice">
         <thead><tr>{columns.map((column, index) => <th key={index} scope="col">{column}</th>)}</tr></thead>
         <tbody>
           {rows.map((row, rowIndex) => (
