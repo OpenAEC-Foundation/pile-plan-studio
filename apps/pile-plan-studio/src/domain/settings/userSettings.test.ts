@@ -1,6 +1,6 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { DEFAULT_USER_SETTINGS, normalizeUserSettings, patchPileCostDefaults, patchUserSettings, patchWorkspaceLayout } from "./userSettings.ts";
+import { DEFAULT_USER_SETTINGS, normalizeUserSettings, patchCostProfiles, patchUserSettings, patchWorkspaceLayout } from "./userSettings.ts";
 
 describe("user settings", () => {
   it("remembers the plan background independently of the theme", () => {
@@ -108,7 +108,7 @@ describe("user settings", () => {
           pilePlansExpanded: true,
         },
       },
-      defaults: { pileCostCatalog: null },
+      defaults: { costProfiles: [], costImportDefaultName: null, legendProfiles: [] },
     });
   });
 
@@ -151,11 +151,12 @@ describe("user settings", () => {
       schema_version: 2,
       items: [{ pile_size_mm: 350, shape: "square" as const, cost_per_m3: 245 }],
     };
-    const withCatalog = patchPileCostDefaults(DEFAULT_USER_SETTINGS, catalog);
+    const withCatalog = patchCostProfiles(DEFAULT_USER_SETTINGS, { kind: "save", name: "Standard rates", value: catalog })!;
 
-    assert.deepEqual(withCatalog.defaults.pileCostCatalog?.items, catalog.items);
+    assert.deepEqual(withCatalog.defaults.costProfiles[0].value.items, catalog.items);
+    assert.equal(withCatalog.defaults.costImportDefaultName, "Standard rates");
     assert.deepEqual(withCatalog.preferences, DEFAULT_USER_SETTINGS.preferences);
-    assert.equal(patchPileCostDefaults(withCatalog, null).defaults.pileCostCatalog, null);
+    assert.deepEqual(patchCostProfiles(withCatalog, { kind: "delete", name: "Standard rates" })?.defaults.costProfiles, []);
   });
 
   it("restores disclosure choices and defaults missing or invalid sections independently", () => {

@@ -9,18 +9,22 @@ import { Button, Heading, IconButton, OpenAECProvider, Panel, Select, Status, Ta
 import { NumberField } from "../../template/NumberInput.tsx";
 import spriteUrl from "../../../openaec/studioSprite.ts";
 import { SettingsGroup } from "./PanelControls.tsx";
+import NamedDefaults, { type NamedDefaultsBinding } from "../shared/NamedDefaults.tsx";
 import "../../../openaec/openaec-components.css";
 import "./costSettings.css";
+
+export type CostUserDefaults = NamedDefaultsBinding<PileCostSettings> & {
+  importDefaultName: string | null;
+  onImportDefaultChange: (name: string | null) => void;
+  onLoad: (settings: PileCostSettings) => Promise<boolean>;
+};
 
 type Props = {
   settings: PileCostSettings;
   bearingCapacities: BearingCapacity[];
   currencyCode: string;
-  hasPersonalDefault: boolean;
+  userDefaults?: CostUserDefaults;
   onEditCosts: (actions: CostCatalogAction[]) => Promise<boolean>;
-  onSavePersonalDefault: (settings: PileCostSettings) => void;
-  onLoadPersonalDefault: () => void;
-  onRemovePersonalDefault: () => void;
   onLoadBuiltInDefault: () => void;
   onClose: () => void;
 };
@@ -29,11 +33,8 @@ export default function CostCatalogEditor({
   settings,
   bearingCapacities,
   currencyCode,
-  hasPersonalDefault,
+  userDefaults,
   onEditCosts,
-  onSavePersonalDefault,
-  onLoadPersonalDefault,
-  onRemovePersonalDefault,
   onLoadBuiltInDefault,
   onClose,
 }: Props) {
@@ -135,13 +136,22 @@ export default function CostCatalogEditor({
 
             <SettingsGroup title={t("cost.defaults")} variant="blueprint">
               <div className="cost-default-actions">
-                <Button onClick={() => {
-                  if (hasPersonalDefault && !window.confirm(t("cost.replacePersonalDefaultConfirm"))) return;
-                  onSavePersonalDefault(settings);
-                }}>{t("cost.savePersonalDefault")}</Button>
-                <Button disabled={!hasPersonalDefault} onClick={onLoadPersonalDefault}>{t("cost.loadPersonalDefault")}</Button>
-                <Button disabled={!hasPersonalDefault} onClick={onRemovePersonalDefault}>{t("cost.removePersonalDefault")}</Button>
                 <Button onClick={onLoadBuiltInDefault}>{t("cost.loadBuiltInDefault")}</Button>
+                {userDefaults && (
+                  <NamedDefaults profiles={userDefaults.profiles} onEdit={userDefaults.onEdit} currentValue={settings}
+                    updateConfirmation={(name) => t("cost.updateDefaultConfirm", { name })}
+                    onLoad={async (catalog) => await userDefaults.onLoad(catalog)
+                      ? t("cost.defaultLoaded") : t("userDefaults.loadFailed", { ns: "common" })}>
+                    {userDefaults.profiles.length > 0 && (
+                      <Select compact label={t("cost.importDefault")} value={userDefaults.importDefaultName ?? ""}
+                        options={[
+                          { value: "", label: t("cost.builtInImportDefault") },
+                          ...userDefaults.profiles.map(({ name }) => ({ value: name, label: name })),
+                        ]}
+                        onChange={(event) => userDefaults.onImportDefaultChange(event.target.value || null)} />
+                    )}
+                  </NamedDefaults>
+                )}
               </div>
               <div className="cost-built-in-source">
                 <Heading>{t("cost.builtInSourceTitle")}</Heading>

@@ -5,7 +5,7 @@ import type { PileCapProposalResult, PileCapProposal } from "../../../core/pileC
 import { useTranslation } from "react-i18next";
 import { useState, type ReactNode } from "react";
 import type { ProjectState } from "../../../domain/project/projectState.ts";
-import type { PileConfigurationKey, PileCostSettings } from "../../../core/projectTypes.ts";
+import type { PileConfigurationKey } from "../../../core/projectTypes.ts";
 import type { CostCatalogAction } from "../../../core/settingsEditCoreClient.ts";
 import { getSelectedLoadPoints } from "./rightPanelModel.ts";
 import type {
@@ -24,6 +24,7 @@ import CptPanel from "./CptPanel.tsx";
 import LoadPointPanel from "./LoadPointPanel.tsx";
 import GroupingSettingsPanel from "./GroupingSettingsPanel.tsx";
 import CostSettingsPanel from "./CostSettingsPanel.tsx";
+import type { CostUserDefaults } from "./CostCatalogEditor.tsx";
 import CptSettingsPanel from "./CptSettingsPanel.tsx";
 import { PanelTab } from "./PanelControls.tsx";
 import { getLoadPointSelectionContext } from "../../../domain/workspace/loadPointSelectionList.ts";
@@ -77,11 +78,8 @@ export type RightPanelProps = {
   ) => void;
   taskPanel?: RightTaskPanel | null;
   onCloseTaskPanel?: () => void;
-  hasPersonalCostDefault?: boolean;
+  costUserDefaults?: CostUserDefaults;
   onEditCosts?: (actions: CostCatalogAction[]) => Promise<boolean>;
-  onSaveCostDefault?: (settings: PileCostSettings) => void;
-  onLoadCostDefault?: () => void;
-  onRemoveCostDefault?: () => void;
   onLoadBuiltInCosts?: () => void;
 };
 
@@ -123,11 +121,8 @@ export default function RightPanel({
   onApplyPileConfiguration = () => undefined,
   taskPanel = null,
   onCloseTaskPanel = () => undefined,
-  hasPersonalCostDefault = false,
+  costUserDefaults,
   onEditCosts = async () => false,
-  onSaveCostDefault = () => undefined,
-  onLoadCostDefault = () => undefined,
-  onRemoveCostDefault = () => undefined,
   onLoadBuiltInCosts = () => undefined,
 }: RightPanelProps) {
   const { t } = useTranslation("rightPanel");
@@ -227,10 +222,7 @@ export default function RightPanel({
           state={state}
           onEditCosts={onEditCosts}
           onClose={onCloseTaskPanel}
-          hasPersonalCostDefault={hasPersonalCostDefault}
-          onSaveCostDefault={onSaveCostDefault}
-          onLoadCostDefault={onLoadCostDefault}
-          onRemoveCostDefault={onRemoveCostDefault}
+          userDefaults={costUserDefaults}
           onLoadBuiltInCosts={onLoadBuiltInCosts}
         />
       ) : taskPanel === "cpt-settings" ? (

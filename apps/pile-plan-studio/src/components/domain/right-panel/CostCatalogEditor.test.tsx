@@ -11,9 +11,8 @@ function props() {
       { pile_size_mm: 290, shape: "square" as const, cost_per_m3: 545 },
       { pile_size_mm: 320, shape: "round" as const, cost_per_m3: 600 },
     ] },
-    bearingCapacities: [capacity], currencyCode: "EUR", hasPersonalDefault: false,
-    onEditCosts: vi.fn().mockResolvedValue(true), onSavePersonalDefault: vi.fn(),
-    onLoadPersonalDefault: vi.fn(), onRemovePersonalDefault: vi.fn(),
+    bearingCapacities: [capacity], currencyCode: "EUR",
+    onEditCosts: vi.fn().mockResolvedValue(true),
     onLoadBuiltInDefault: vi.fn(), onClose: vi.fn(),
   } satisfies ComponentProps<typeof CostCatalogEditor>;
 }
@@ -57,20 +56,28 @@ test("native shape edits and removing unused rows keep their existing actions", 
   await waitFor(() => expect(p.onEditCosts).toHaveBeenLastCalledWith([{ action: "remove", pile_size_mm: 320 }]));
 });
 
-test("pending edits disable catalog controls and unavailable personal-default actions stay disabled", async () => {
+test("pending catalog edits disable profile creation and an empty library offers no load or remove actions", async () => {
   const p = props();
   let finish!: (accepted: boolean) => void;
   p.onEditCosts.mockImplementation(() => new Promise<boolean>(resolve => { finish = resolve; }));
-  render(<CostCatalogEditor {...p} />);
-  expect(screen.getByRole("button", { name: "Load user default" }).matches(":disabled")).toBe(true);
-  expect(screen.getByRole("button", { name: "Remove user default" }).matches(":disabled")).toBe(true);
+  render(<CostCatalogEditor {...p} userDefaults={{
+    profiles: [], importDefaultName: null, onEdit: vi.fn(), onLoad: vi.fn(), onImportDefaultChange: vi.fn(),
+  }} />);
+  fireEvent.click(screen.getByText("User defaults", { exact: true }));
+  expect(screen.queryByRole("button", { name: /^Load$/ })).toBeNull();
+  expect(screen.queryByRole("button", { name: /^Remove$/ })).toBeNull();
+  fireEvent.change(screen.getByRole("textbox", { name: "Name" }), { target: { value: "Rates" } });
+  const save = screen.getByRole("button", { name: "Save default" });
+  expect(save.matches(":disabled")).toBe(false);
   const price = screen.getByRole("spinbutton", { name: "Cost per m³, 290 mm (EUR)" });
   fireEvent.change(price, { target: { value: "610" } });
   fireEvent.blur(price);
   expect(screen.getByRole("button", { name: "Add" }).matches(":disabled")).toBe(true);
   expect(screen.getByRole("combobox", { name: "Shape, 290 mm" }).matches(":disabled")).toBe(true);
+  expect(save.matches(":disabled")).toBe(true);
   await act(async () => finish(true));
   expect(screen.getByRole("button", { name: "Add" }).matches(":disabled")).toBe(false);
+  expect(save.matches(":disabled")).toBe(false);
 });
 
 

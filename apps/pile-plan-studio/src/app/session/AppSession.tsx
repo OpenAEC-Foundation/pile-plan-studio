@@ -151,7 +151,10 @@ import { DEFAULT_INTERFACE_SCALE, normalizeInterfaceScale, stepInterfaceScale } 
 import { applyDesktopInterfaceScale } from "../../domain/settings/interfaceScaleRuntime.ts";
 import {
   DEFAULT_USER_SETTINGS,
-  patchPileCostDefaults,
+  getCostImportDefault,
+  patchCostImportDefault,
+  patchCostProfiles,
+  patchLegendProfiles,
   patchUserSettings,
   patchWorkspaceLayout,
   type UserSettings,
@@ -525,18 +528,24 @@ export default function AppSession({
   userSettingsRef.current = userSettings;
 
   const commitUserSettings = useCallback((next: UserSettings) => {
+    userSettingsRef.current = next;
     setUserSettings(next);
     if (userSettingsStoreRef.current) {
       void saveUserSettings(userSettingsStoreRef.current, next);
     }
   }, []);
 
+  function editUserDefaults(next: UserSettings | null): boolean {
+    if (!next) return false;
+    commitUserSettings(next);
+    return true;
+  }
+
   const applyInterfaceScale = useCallback((scale: number) => {
     const normalizedScale = normalizeInterfaceScale(scale);
     const next = patchUserSettings(userSettingsRef.current, {
       interfaceScalePercent: normalizedScale,
     });
-    userSettingsRef.current = next;
     commitUserSettings(next);
     interfaceScaleNoticeIdRef.current += 1;
     setInterfaceScaleNotice({
@@ -1235,7 +1244,7 @@ export default function AppSession({
       sourceImportRequirements: async () => (await import("../../core/importRequirementsClient.ts")).sourceImportRequirements(),
       pilePlanImportRequirements: async () => (await import("../../core/importRequirementsClient.ts")).pilePlanImportRequirements(),
       isDirty: () => isDirtyRef.current,
-      personalCostDefault: () => userSettingsRef.current.defaults.pileCostCatalog,
+      personalCostDefault: () => getCostImportDefault(userSettingsRef.current),
       builtInCostDefault: BUILT_IN_PILE_COST_DEFAULTS,
       installRefresh: (state) => {
         defaultSelectionKeepsDirtyRef.current = true;
@@ -1728,6 +1737,10 @@ export default function AppSession({
                 lassoSelectionActive={lassoSelectionActive}
                 onStateChange={handleDisplayedStateChange}
                 onLegendApply={applyLegendEditor}
+                legendUserDefaults={{
+                  profiles: userSettings.defaults.legendProfiles,
+                  onEdit: (edit) => editUserDefaults(patchLegendProfiles(userSettingsRef.current, edit)),
+                }}
                 onSelectionChange={handleViewerSelectionChange}
               />
             ) : (
@@ -1850,14 +1863,13 @@ export default function AppSession({
             onApplyPileConfiguration={applyGroupedPileConfiguration}
             taskPanel={rightTaskPanel}
             onCloseTaskPanel={() => setRightTaskPanel(null)}
-            hasPersonalCostDefault={userSettings.defaults.pileCostCatalog !== null}
             onEditCosts={applyCostCatalogEdit}
-            onSaveCostDefault={(pileCostCatalog) => commitUserSettings(patchPileCostDefaults(userSettings, pileCostCatalog))}
-            onRemoveCostDefault={() => commitUserSettings(patchPileCostDefaults(userSettings, null))}
-            onLoadCostDefault={() => {
-              const catalog = userSettings.defaults.pileCostCatalog;
-              if (!catalog) return;
-              void loadCostCatalogDefault(catalog);
+            costUserDefaults={{
+              profiles: userSettings.defaults.costProfiles,
+              importDefaultName: userSettings.defaults.costImportDefaultName,
+              onEdit: (edit) => editUserDefaults(patchCostProfiles(userSettingsRef.current, edit)),
+              onLoad: loadCostCatalogDefault,
+              onImportDefaultChange: (name) => commitUserSettings(patchCostImportDefault(userSettingsRef.current, name)),
             }}
             onLoadBuiltInCosts={() => {
               void loadCostCatalogDefault(BUILT_IN_PILE_COST_DEFAULTS);
@@ -1945,7 +1957,7 @@ export default function AppSession({
             defaultPilePlanName: pilePlanLanguage() === "nl" ? "Basisplan" : "Base plan",
           }, imported.keys);
           const costs = await prepareMergedPileCostCatalogEdit(importedState,
-            userSettings.defaults.pileCostCatalog, BUILT_IN_PILE_COST_DEFAULTS);
+            getCostImportDefault(userSettingsRef.current), BUILT_IN_PILE_COST_DEFAULTS);
           defaultSelectionKeepsDirtyRef.current = false;
           replaceProjectState(costs.update(importedState));
           setProjectPath(null);

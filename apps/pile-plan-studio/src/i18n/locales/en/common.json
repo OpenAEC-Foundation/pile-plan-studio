@@ -150,6 +150,27 @@
     "focusSelection": "Focus selection",
     "focusSelectionLabel": "Focus"
   },
+  "userDefaults": {
+    "title": "User defaults",
+    "empty": "None saved",
+    "choose": "Saved default",
+    "name": "Name",
+    "nameInUse": "This name is already in use.",
+    "new": "New",
+    "save": "Save default",
+    "saveName": "Save name",
+    "update": "Update",
+    "load": "Load",
+    "manage": "Manage",
+    "rename": "Rename",
+    "remove": "Remove",
+    "removeConfirm": "Remove the default “{{name}}”?",
+    "saved": "Default saved.",
+    "renamed": "Default renamed.",
+    "removed": "Default removed.",
+    "editFailed": "The saved defaults could not be updated.",
+    "loadFailed": "The default could not be loaded."
+  },
   "legend": {
     "aria": "Pile symbol legend",
     "size": "Size",
@@ -212,6 +233,10 @@
     "noSymbolsToReassign": "Symbols already match this assignment scope",
     "noColorsToReassign": "Colors already match this assignment scope",
     "resetAppearance": "Reset default appearance",
+    "userDefaults": {
+      "updateConfirm": "Update “{{name}}” with this legend’s appearance? Saved styles for sizes and tip levels absent from this legend will be kept.",
+      "loaded": "{{matched}} loaded · {{retained}} kept in the project · {{skipped}} skipped from the default. Choose Apply to update the project legend."
+    },
     "symbolLimit": "Symbol reassignment supports up to {{count}} symbols. Reduce the scope or assign symbols manually.",
     "colorScheme": "Color scheme",
     "colorblindAid": "Designed to improve distinction for common red-green color-vision deficiencies; shape and fill remain available as additional cues.",

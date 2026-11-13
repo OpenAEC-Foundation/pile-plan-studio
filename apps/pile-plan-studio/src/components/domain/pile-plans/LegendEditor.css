@@ -27,7 +27,9 @@
 .legend-editor-plan-scope span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .legend-editor-auto-actions { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(190px, 1.25fr); align-items: center; gap: 8px; }
 .legend-editor-auto-actions.is-dual { grid-template-columns: minmax(0, 1fr) minmax(170px, 1.15fr) minmax(0, 1fr) minmax(170px, 1.15fr); }
-.legend-editor-secondary-actions { display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between; gap: 8px; }
+.legend-editor-secondary-actions { display: grid; gap: 8px; }
+.legend-editor-secondary-actions > .legend-editor-conflict-notice { justify-self: end; }
+.legend-editor-default-row { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: start; gap: 8px; }
 .legend-editor-encoding-line { display: flex; width: 100%; box-sizing: border-box; min-width: 0; align-items: stretch; flex-direction: column; gap: 8px; padding: 8px; }
 .legend-editor-color-action { display: contents; }
 .legend-editor-auto-actions > *, .legend-editor-color-action > * { min-width: 0; }
@@ -113,6 +115,7 @@
 .legend-scheme-options > button.is-active { background: var(--oa-selected); border-color: var(--oa-selected-bar); }
 .legend-palette-preview { display: grid; width: 92px; height: 12px; grid-auto-flow: column; grid-auto-columns: 1fr; overflow: hidden; border: 1px solid var(--oa-border-subtle); }
 @media (max-width: 520px) { .legend-fill-patterns { grid-template-columns: repeat(3, minmax(28px, 1fr)); } }
+@media (max-width: 400px) { .legend-editor-default-row { grid-template-columns: 1fr; } }
 @media (max-width: 760px) {
   .legend-editor-control-row { grid-template-columns: 1fr; }
   .legend-editor-auto-actions, .legend-editor-auto-actions.is-dual { grid-template-columns: 1fr; }

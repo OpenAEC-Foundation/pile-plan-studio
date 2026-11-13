@@ -1,5 +1,9 @@
 import { clampRightPanelSplit, DEFAULT_RIGHT_PANEL_SPLIT } from "../workspace/rightPanelLayout.ts";
-import type { PileCostSettings, PileSizeExportFormat } from "../../core/projectTypes.ts";
+import type { LegendItems, PileCostSettings, PileSizeExportFormat } from "../../core/projectTypes.ts";
+import { reconcileProjectLegend } from "../../viewer/legend.ts";
+import { updateLegendDefault } from "../legend/legendDefault.ts";
+import { mergePileCostCatalog } from "../pile-plans/pileCostCatalog.ts";
+import { editNamedDefaults, type NamedDefault, type NamedDefaultEdit } from "./namedDefaults.ts";
 import { normalizePileOptionColumnLayouts, type PileOptionColumnLayouts } from "../pile-options/pileOptionColumnLayout.ts";
 import { normalizeInterfaceScale } from "./interfaceScale.ts";
 import { normalizeTheme, normalizeWorkspaceAppearance, type WorkspaceAppearance } from "./appearance.ts";
@@ -49,7 +53,9 @@ export type UserSettings = {
     pileOptionColumns: PileOptionColumnLayouts;
   };
   defaults: {
-    pileCostCatalog: PileCostSettings | null;
+    costProfiles: NamedDefault<PileCostSettings>[];
+    costImportDefaultName: string | null;
+    legendProfiles: NamedDefault<LegendItems>[];
   };
 };
 
@@ -78,7 +84,7 @@ export const DEFAULT_USER_SETTINGS: UserSettings = {
       pilePlansExpanded: true,
     },
   },
-  defaults: { pileCostCatalog: null },
+  defaults: { costProfiles: [], costImportDefaultName: null, legendProfiles: [] },
 };
 
 export function normalizeUserSettings(value: unknown): UserSettings {
@@ -86,6 +92,11 @@ export function normalizeUserSettings(value: unknown): UserSettings {
   const preferences = isRecord(root.preferences) ? root.preferences : {};
   const workspace = isRecord(preferences.workspaceLayout) ? preferences.workspaceLayout : {};
   const defaults = isRecord(root.defaults) ? root.defaults : {};
+  const defaultName = preferences.language === "nl" ? "Standaard" : "Default";
+  const legacyCost = Array.isArray(defaults.costProfiles) ? null : normalizePileCostDefaults(defaults.pileCostCatalog);
+  const costProfiles = legacyCost ? [{ name: defaultName, value: legacyCost }]
+    : normalizeNamedDefaults(defaults.costProfiles, (item) => normalizePileCostDefaults(item.value));
+  const legacyLegend = Array.isArray(defaults.legendProfiles) ? null : normalizeLegendAppearance(defaults.pileLegend);
   return {
     schemaVersion: 1,
     preferences: {
@@ -117,7 +128,13 @@ export function normalizeUserSettings(value: unknown): UserSettings {
         pilePlansExpanded: booleanOr(workspace.pilePlansExpanded, true),
       },
     },
-    defaults: { pileCostCatalog: normalizePileCostDefaults(defaults.pileCostCatalog) },
+    defaults: {
+      costProfiles,
+      costImportDefaultName: legacyCost ? defaultName
+        : costProfiles.find(({ name }) => name === defaults.costImportDefaultName)?.name ?? null,
+      legendProfiles: legacyLegend ? [{ name: defaultName, value: legacyLegend }]
+        : normalizeNamedDefaults(defaults.legendProfiles, (item) => normalizeLegendAppearance(item.value ?? item.appearance)),
+    },
   };
 }
 
@@ -145,14 +162,64 @@ export function patchWorkspaceLayout(
   });
 }
 
-export function patchPileCostDefaults(
-  settings: UserSettings,
-  pileCostCatalog: PileCostSettings | null,
-): UserSettings {
+export function patchCostProfiles(settings: UserSettings, edit: NamedDefaultEdit<PileCostSettings>): UserSettings | null {
+  const current = settings.defaults;
+  const costProfiles = editNamedDefaults(current.costProfiles, edit,
+    (previous, next) => mergePileCostCatalog(previous, next, null, new Set()).catalog);
+  if (!costProfiles) return null;
+  let costImportDefaultName = current.costImportDefaultName;
+  if (edit.kind === "save" && current.costProfiles.length === 0) {
+    costImportDefaultName = costProfiles[0].name;
+  } else if (edit.kind === "rename" && edit.name === costImportDefaultName) {
+    costImportDefaultName = edit.nextName.trim();
+  } else if (edit.kind === "delete" && edit.name === costImportDefaultName) {
+    costImportDefaultName = null;
+  }
   return normalizeUserSettings({
     ...settings,
-    defaults: { ...settings.defaults, pileCostCatalog },
+    defaults: { ...current, costProfiles, costImportDefaultName },
   });
+}
+
+export function getCostImportDefault(settings: UserSettings): PileCostSettings | null {
+  const { costProfiles, costImportDefaultName } = settings.defaults;
+  return costProfiles.find(({ name }) => name === costImportDefaultName)?.value ?? null;
+}
+
+export function patchCostImportDefault(settings: UserSettings, costImportDefaultName: string | null): UserSettings {
+  return normalizeUserSettings({
+    ...settings,
+    defaults: { ...settings.defaults, costImportDefaultName },
+  });
+}
+
+export function patchLegendProfiles(settings: UserSettings, edit: NamedDefaultEdit<LegendItems>): UserSettings | null {
+  const legendProfiles = editNamedDefaults(settings.defaults.legendProfiles, edit, updateLegendDefault);
+  return legendProfiles && normalizeUserSettings({
+    ...settings,
+    defaults: { ...settings.defaults, legendProfiles },
+  });
+}
+
+function normalizeNamedDefaults<T>(value: unknown, read: (item: Record<string, unknown>) => T | null): NamedDefault<T>[] {
+  if (!Array.isArray(value)) return [];
+  const names = new Set<string>();
+  return value.flatMap((item) => {
+    if (!isRecord(item) || typeof item.name !== "string") return [];
+    const name = item.name.trim();
+    const key = name.toLowerCase();
+    if (!key || names.has(key)) return [];
+    const value = read(item);
+    if (value === null) return [];
+    names.add(key);
+    return [{ name, value }];
+  });
+}
+
+function normalizeLegendAppearance(value: unknown): LegendItems | null {
+  if (!isRecord(value) || !Array.isArray(value.pileSizes) || !Array.isArray(value.pileTipLevels)) return null;
+  const { legend, warnings } = reconcileProjectLegend(value, []);
+  return warnings.length === 0 ? legend : null;
 }
 
 function normalizeCurrencyCode(value: unknown): string {

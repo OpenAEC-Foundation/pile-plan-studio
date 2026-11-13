@@ -584,6 +584,25 @@ Native modal focus behavior replaces the legacy draggable modal/focus trap.
 Scoped Blueprint tokens/responsive layout supply chrome styling while sample
 symbol geometry and plan-owned colors remain unchanged.
 
+In the legend editor, **User defaults** saves reusable appearances by name in
+application preferences. Expand the control beside **Reset default
+appearance** to create or load a default. Use **Manage** to rename, update,
+or remove the selected default. Saving uses the current draft. Updating replaces
+styles for the pile sizes and tip levels
+in that draft and keeps saved styles for values absent from it. Each default
+stores the encoding mode, both palettes, and the automatic color and symbol
+flags. Saving, updating, renaming, and removing defaults leave project
+history and dirty state unchanged.
+
+Loading a default copies styles for exact millimetre matches into the
+current legend draft and reports how many values matched, were kept in the
+project, or were skipped from the default. Project styles for other values
+are retained. Changing a palette recalculates automatic colors, while manual
+colors keep their assigned values. **Apply** commits the draft as one
+undoable project edit. Pile-plan activation and tip-level region visibility
+are independent of the default. Browser and desktop use the same preference
+model through their existing storage adapters.
+
 Pile-plan import and the normal/revision export screens compose shared Blueprint
 controls and feedback. The import source editor uses its Blueprint variant;
 export column/source metadata retains semantic native fields with Blueprint web

@@ -3,7 +3,7 @@ import type { ViewerFocusRequest } from "../../../domain/workspace/viewerFocus.t
 import { useMemo, useState, type MouseEvent } from "react";
 import type { ProjectState } from "../../../domain/project/projectState";
 import Legend from "./Legend";
-import LegendEditor from "./legend-editor/LegendEditor";
+import LegendEditor, { type LegendEditorProps } from "./legend-editor/LegendEditor";
 import PilePlanViewer from "../pile-plan-viewer/PilePlanViewer";
 import { clearLegendSelection, shouldClearLegendSelectionFromPointerTarget } from "../../../domain/workspace/viewerInteractions";
 import "../pile-plan-viewer/viewer.css";
@@ -30,10 +30,11 @@ type Props = {
   onStateChange: (nextState: ProjectState) => void;
   onSelectionChange?: (nextState: ProjectState) => void;
   onLegendApply: (draft: LegendEditorDraft, enableTipLevelRegions: boolean) => Promise<boolean>;
+  legendUserDefaults: NonNullable<LegendEditorProps["userDefaults"]>;
 };
 
 const EMPTY_CAP_PREVIEWS: PileCapPreview[] = [];
-export default function PilePlanWorkspace({ focusRequest, inspectionLoadPointIds, drivingWarningLoadPointIds, onFocusHandled, pileCapPreviews=EMPTY_CAP_PREVIEWS, readOnly = false, state, loadPointGroups, loadPointGroupTopology, technicalAssignment, groupAssignmentAssessment, lassoSelectionActive, onStateChange, onSelectionChange, onLegendApply }: Props) {
+export default function PilePlanWorkspace({ focusRequest, inspectionLoadPointIds, drivingWarningLoadPointIds, onFocusHandled, pileCapPreviews=EMPTY_CAP_PREVIEWS, readOnly = false, state, loadPointGroups, loadPointGroupTopology, technicalAssignment, groupAssignmentAssessment, lassoSelectionActive, onStateChange, onSelectionChange, onLegendApply, legendUserDefaults }: Props) {
   const [legendEditorOpen, setLegendEditorOpen] = useState(false);
   const effectiveRegions=useMemo(()=>{
     const assignments=new Map(state.selectedPileConfigurationsByLoadPoint),options=new Map(state.pileOptionsByLoadPointId);
@@ -82,6 +83,7 @@ export default function PilePlanWorkspace({ focusRequest, inspectionLoadPointIds
         open={legendEditorOpen && !readOnly}
         state={state}
         onClose={() => setLegendEditorOpen(false)}
+        userDefaults={legendUserDefaults}
         onApply={async (draft, enableTipLevelRegions) => {
           const applied = await onLegendApply(draft, enableTipLevelRegions ?? false);
           if (applied) setLegendEditorOpen(false);

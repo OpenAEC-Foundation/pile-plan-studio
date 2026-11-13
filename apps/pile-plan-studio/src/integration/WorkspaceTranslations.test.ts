@@ -274,6 +274,10 @@ describe("Workspace translations", () => {
       assert.equal(typeof copy.assignSymbols, "string");
       assert.equal(typeof copy.assignColors, "string");
       assert.equal(typeof copy.resetAppearance, "string");
+      assert.ok(copy.userDefaults.updateConfirm.includes("{{name}}"));
+      for (const key of ["matched", "retained", "skipped"]) {
+        assert.ok(copy.userDefaults.loaded.includes(`{{${key}}}`), key);
+      }
       assert.equal(typeof copy.symbolLimit, "string");
       assert.equal(typeof copy.colorblindAid, "string");
       assert.equal(Object.keys(copy.colorSchemes).length, 6);
@@ -312,6 +316,23 @@ describe("Workspace translations", () => {
     assert.equal(nl.legend.colorSchemes.colorblindFriendly, "Kleurenblindvriendelijk");
     assert.equal(nl.legend.colorSchemes.tableauExtended, "Tableau uitgebreid");
     assert.equal(nl.legend.colorSchemes.evenHue, "Gelijkmatige tintspreiding");
+  });
+
+  it("provides English and Dutch named-default management and cost import copy", () => {
+    for (const language of ["en", "nl"]) {
+      const locale = resolve(import.meta.dirname, "../i18n/locales", language);
+      const common = JSON.parse(readFileSync(resolve(locale, "common.json"), "utf8"));
+      const costs = JSON.parse(readFileSync(resolve(locale, "rightPanel.json"), "utf8"));
+      for (const key of ["title", "empty", "choose", "name", "nameInUse", "new", "save", "saveName", "update",
+        "load", "manage", "rename", "remove", "removeConfirm", "saved", "renamed", "removed", "editFailed", "loadFailed"]) {
+        assert.ok(common.userDefaults[key]?.trim(), key);
+      }
+      assert.ok(common.userDefaults.removeConfirm.includes("{{name}}"));
+      for (const key of ["defaults", "defaultLoaded", "importDefault", "builtInImportDefault"]) {
+        assert.ok(costs[`cost.${key}`]?.trim(), key);
+      }
+      assert.ok(costs["cost.updateDefaultConfirm"].includes("{{name}}"));
+    }
   });
 
   it("describes hover candidates as objects near the pointer", () => {

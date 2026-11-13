@@ -150,6 +150,27 @@
     "focusSelection": "Selectie in beeld",
     "focusSelectionLabel": "Focus"
   },
+  "userDefaults": {
+    "title": "Gebruikersstandaarden",
+    "empty": "Geen standaarden",
+    "choose": "Opgeslagen standaard",
+    "name": "Naam",
+    "nameInUse": "Deze naam is al in gebruik.",
+    "new": "Nieuw",
+    "save": "Standaard opslaan",
+    "saveName": "Naam opslaan",
+    "update": "Bijwerken",
+    "load": "Laden",
+    "manage": "Beheren",
+    "rename": "Naam wijzigen",
+    "remove": "Verwijderen",
+    "removeConfirm": "Standaard ‘{{name}}’ verwijderen?",
+    "saved": "Standaard opgeslagen.",
+    "renamed": "Standaard hernoemd.",
+    "removed": "Standaard verwijderd.",
+    "editFailed": "De opgeslagen standaarden konden niet worden bijgewerkt.",
+    "loadFailed": "De standaard kon niet worden geladen."
+  },
   "legend": {
     "aria": "Legenda voor paalsymbolen",
     "size": "Afmeting",
@@ -212,6 +233,10 @@
     "noSymbolsToReassign": "Symbolen komen al overeen met dit toewijzingsbereik",
     "noColorsToReassign": "Kleuren komen al overeen met dit toewijzingsbereik",
     "resetAppearance": "Standaardweergave herstellen",
+    "userDefaults": {
+      "updateConfirm": "‘{{name}}’ bijwerken met deze legendavormgeving? Opgeslagen stijlen voor afmetingen en puntniveaus die hier ontbreken blijven bewaard.",
+      "loaded": "{{matched}} overgenomen · {{retained}} behouden in het project · {{skipped}} overgeslagen uit de standaard. Kies Toepassen om de projectlegenda bij te werken."
+    },
     "symbolLimit": "Opnieuw toewijzen ondersteunt maximaal {{count}} symbolen. Verklein het bereik of wijs symbolen handmatig toe.",
     "colorScheme": "Kleurenschema",
     "colorblindAid": "Ontworpen om veelvoorkomende rood-groene kleurwaarnemingsverschillen beter te onderscheiden; vorm en vulling blijven beschikbaar als extra aanwijzingen.",

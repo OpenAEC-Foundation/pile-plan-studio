@@ -1,6 +1,6 @@
 import { useEffect, useId, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import type { PileSymbol, LegendEncodingMode } from "../../../../core/projectTypes.ts";
+import type { PileSymbol, LegendEncodingMode, LegendItems } from "../../../../core/projectTypes.ts";
 import type { ProjectState } from "../../../../domain/project/projectState.ts";
 import {
   getActivePilePlan,
@@ -47,10 +47,13 @@ import {
 import "../LegendEditor.css";
 import EditorSection from "./LegendEditorItemRow.tsx";
 import LegendConflictNotice from "./LegendConflictNotice.tsx";
+import { mergeLegendDefault } from "../../../../domain/legend/legendDefault.ts";
+import NamedDefaults, { type NamedDefaultsBinding } from "../../shared/NamedDefaults.tsx";
 
 export type LegendEditorProps = {
   open: boolean;
   state: ProjectState;
+  userDefaults?: NamedDefaultsBinding<LegendItems>;
   onApply: (draft: LegendEditorDraft, enableTipLevelRegions?: boolean) => Promise<boolean>;
   onClose: () => void;
 };
@@ -64,7 +67,7 @@ export type LegendEditorItem = {
   planUsage: LegendValuePlanUsage;
 };
 
-export default function LegendEditor({ open, state, onApply, onClose }: LegendEditorProps) {
+export default function LegendEditor({ open, state, userDefaults, onApply, onClose }: LegendEditorProps) {
   const { t, i18n } = useTranslation("common");
   const [draft, setDraft] = useState(() => createLegendEditorDraft(activeFromState(state), state.pileLegend));
   const [scopePlanIds, setScopePlanIds] = useState(() => new Set([state.activePilePlanId]));
@@ -266,16 +269,26 @@ export default function LegendEditor({ open, state, onApply, onClose }: LegendEd
             ) : <ColorAction kind={colorKind} disabled={!canReassignColors} label={t("legend.assignColors")} />}
           </div>
           <div className="legend-editor-secondary-actions">
-            <Button compact
-              className="legend-editor-toolbar-button is-secondary"
-              type="button"
-              onClick={() => {
-                setDraft(resetLegendEditorAppearance(draft, state.bearingCapacities));
-                setSymbolLimitError(false);
-              }}
-            >
-              {t("legend.resetAppearance")}
-            </Button>
+            <div className="legend-editor-default-row">
+              <Button compact
+                className="legend-editor-toolbar-button is-secondary"
+                type="button"
+                onClick={() => {
+                  setDraft(resetLegendEditorAppearance(draft, state.bearingCapacities));
+                  setSymbolLimitError(false);
+                }}
+              >
+                {t("legend.resetAppearance")}
+              </Button>
+              {userDefaults && <NamedDefaults {...userDefaults} currentValue={draft.legend} disabled={applying}
+                updateConfirmation={(name) => t("legend.userDefaults.updateConfirm", { name })}
+                onLoad={(appearance) => {
+                  const { legend, ...counts } = mergeLegendDefault(draft.legend, appearance);
+                  setDraft({ ...draft, legend });
+                  setSymbolLimitError(false);
+                  return t("legend.userDefaults.loaded", counts);
+                }} />}
+            </div>
             {conflicts.length > 0 ? (
               <LegendConflictNotice conflicts={conflicts} pilePlans={state.pilePlans} />
             ) : null}

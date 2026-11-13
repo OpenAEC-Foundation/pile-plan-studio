@@ -6,7 +6,9 @@ import { canonicalProjectForTest, projectTipLevelKeysForTest } from "../../core/
 import { createInitialProjectState } from "../../domain/project/projectState.ts";
 import { createManagedProjectState, projectHistoryReducer } from "../../domain/project/history/projectHistoryReducer.ts";
 import { createLegendEditorDraft } from "../../domain/legend/legendEditorModel.ts";
+import { mergeLegendDefault } from "../../domain/legend/legendDefault.ts";
 import { prepareProjectDocumentEdit, prepareLegendEditorEdit } from "./projectEditOperations.ts";
+import { projectStateSignature } from "./projectLifecycleController.ts";
 import * as operations from "./projectEditOperations.ts";
 
 initSync({ module: readFileSync(new URL("../../core/wasm/pile-plan-wasm/pile_plan_wasm_bg.wasm", import.meta.url)) });
@@ -118,5 +120,38 @@ describe("shared project edit operations", () => {
     await assert.rejects(prepareLegendEditorEdit(state, draft, false),
       /unknown_or_duplicate_configuration/);
     assert.notEqual(state.pileLegend.pileSizes[0].color, "#123456");
+  });
+
+  it("loads a legend default in one undoable project edit without changing the plans or region visibility", async () => {
+    const initial = { ...state, showTipLevelRegions: false };
+    const plan = initial.pilePlans[0];
+    const draft = createLegendEditorDraft({
+      pileSizes: plan.activePileSizes,
+      pileTipLevelMms: plan.activePileTipLevelMms,
+    }, initial.pileLegend);
+    const firstSize = initial.pileLegend.pileSizes[0];
+    const { legend } = mergeLegendDefault(draft.legend, {
+      ...draft.legend,
+      encodingMode: "size-color-tip-region",
+      pileSizes: [
+        { ...firstSize, color: "#123456", colorAutomatic: false },
+        { ...firstSize, value: 99999, color: "#654321" },
+      ],
+      pileTipLevels: [],
+    });
+    const prepared = await prepareLegendEditorEdit(initial, { ...draft, legend }, false);
+    const history = projectHistoryReducer(createManagedProjectState(initial), { type: "commit", update: prepared.update });
+    assert.equal(history.history.past.length, 1);
+    assert.notEqual(projectStateSignature(history.present), projectStateSignature(initial));
+    assert.equal(history.present.pileLegend.encodingMode, "size-color-tip-region");
+    assert.equal(history.present.pileLegend.pileSizes[0].color, "#123456");
+    assert.deepEqual(history.present.pileLegend.pileSizes.slice(1), initial.pileLegend.pileSizes.slice(1));
+    assert.deepEqual(history.present.pilePlans, initial.pilePlans);
+    assert.equal(history.present.showTipLevelRegions, false);
+
+    const undone = projectHistoryReducer(history, { type: "undo" });
+    assert.equal(projectStateSignature(undone.present), projectStateSignature(initial));
+    const redone = projectHistoryReducer(undone, { type: "redo" });
+    assert.equal(projectStateSignature(redone.present), projectStateSignature(history.present));
   });
 });

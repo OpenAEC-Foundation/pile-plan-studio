@@ -45,6 +45,61 @@ test("reopening discards local drafts/popovers and a rejected apply retains the 
   expect(state).toEqual(before); expect(close).not.toHaveBeenCalled();
 });
 
+test("saves the legend draft as a preference and loads only its appearance into the editor", async () => {
+  await i18n.changeLanguage("en");
+  const state = { ...fixture(), showTipLevelRegions: false };
+  const apply = vi.fn().mockResolvedValue(true);
+  const editProfiles = vi.fn().mockReturnValue(true);
+  const appearance = {
+    ...state.pileLegend,
+    encodingMode: "size-color-tip-region" as const,
+    pileSizes: [{ ...state.pileLegend.pileSizes[0], color: "#123456", colorAutomatic: false }],
+    pileTipLevels: [],
+  };
+  const props = { open: true, state, onApply: apply, onClose: vi.fn() };
+  const view = render(<LegendEditor {...props} userDefaults={{ profiles: [], onEdit: editProfiles }} />);
+  fireEvent.click(screen.getByText(t("userDefaults.title")));
+  const save = screen.getByRole("button", { name: t("userDefaults.save") }) as HTMLButtonElement;
+  expect(save.disabled).toBe(true);
+  fireEvent.change(screen.getByRole("textbox", { name: t("userDefaults.name") }), { target: { value: "Atlas" } });
+  fireEvent.click(save);
+  expect(editProfiles).toHaveBeenCalledWith({ kind: "save", name: "Atlas", value: state.pileLegend });
+  expect(apply).not.toHaveBeenCalled();
+
+  view.rerender(<LegendEditor {...props} userDefaults={{ profiles: [
+    { name: "Atlas", value: state.pileLegend }, { name: "Field", value: appearance },
+  ], onEdit: editProfiles }} />);
+  fireEvent.change(screen.getByRole("combobox", { name: t("userDefaults.choose") }), { target: { value: "Field" } });
+  const manage = screen.getByRole("button", { name: t("userDefaults.manage") });
+  fireEvent.click(manage);
+  fireEvent.click(screen.getByRole("button", { name: t("userDefaults.rename") }));
+  const rename = screen.getByRole("textbox", { name: t("userDefaults.name") }) as HTMLInputElement;
+  expect(rename.value).toBe("Field");
+  expect(document.activeElement).toBe(rename);
+  expect(fireEvent.keyDown(rename, { key: "Escape" })).toBe(false);
+  expect(props.onClose).not.toHaveBeenCalled();
+  await waitFor(() => expect(document.activeElement).toBe(manage));
+  expect(editProfiles).toHaveBeenCalledTimes(1);
+  fireEvent.click(screen.getByRole("button", { name: t("userDefaults.rename") }));
+  fireEvent.change(screen.getByRole("textbox", { name: t("userDefaults.name") }), { target: { value: "Site" } });
+  fireEvent.click(screen.getByRole("button", { name: t("userDefaults.saveName") }));
+  expect(editProfiles).toHaveBeenLastCalledWith({ kind: "rename", name: "Field", nextName: "Site" });
+  view.rerender(<LegendEditor {...props} userDefaults={{ profiles: [
+    { name: "Atlas", value: state.pileLegend }, { name: "Site", value: appearance },
+  ], onEdit: editProfiles }} />);
+  fireEvent.click(screen.getByRole("button", { name: t("userDefaults.load") }));
+  await waitFor(() => expect(screen.getByRole("status").textContent).toContain("1 loaded"));
+  expect(apply).not.toHaveBeenCalled();
+  fireEvent.click(screen.getByRole("button", { name: t("apply") }));
+  await waitFor(() => expect(apply).toHaveBeenCalledOnce());
+  const [draft, enableRegions] = apply.mock.calls[0];
+  expect(draft.legend.pileSizes[0].color).toBe("#123456");
+  expect(draft.legend.pileTipLevels).toEqual(state.pileLegend.pileTipLevels);
+  expect(draft.active).toEqual({ pileSizes: state.pilePlans[0].activePileSizes,
+    pileTipLevelMms: state.pilePlans[0].activePileTipLevelMms });
+  expect(enableRegions).toBe(false);
+});
+
 test("encoding radios retain scope and region requests without editing source project content", async () => {
   const state = fixture(), apply = vi.fn().mockResolvedValue(false), view = render(<LegendEditor open state={state} onApply={apply} onClose={vi.fn()} />);
   openScope(view.container); fireEvent.click(screen.getByRole("checkbox", { name: "Other plan" }));

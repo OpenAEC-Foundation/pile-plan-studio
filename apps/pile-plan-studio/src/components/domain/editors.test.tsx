@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { expect, test, vi } from "vitest";
 import i18n from "../../i18n/config.ts";
 import CostCatalogEditor from "./right-panel/CostCatalogEditor.tsx";
@@ -11,9 +11,13 @@ import type { ProjectState } from "../../domain/project/projectState.ts";
 
 const t = (key: string, ns = "common") => i18n.t(key, { ns });
 function costProps() {
-  return { settings: { schema_version: 1, items: [{ pile_size_mm: 290, shape: "square" as const, cost_per_m3: 545 }] },
-    bearingCapacities: [], currencyCode: "EUR", hasPersonalDefault: true, onEditCosts: vi.fn().mockResolvedValue(true),
-    onSavePersonalDefault: vi.fn(), onLoadPersonalDefault: vi.fn(), onRemovePersonalDefault: vi.fn(),
+  const settings = { schema_version: 1 as const, items: [{ pile_size_mm: 290, shape: "square" as const, cost_per_m3: 545 }] };
+  return { settings, bearingCapacities: [], currencyCode: "EUR", onEditCosts: vi.fn().mockResolvedValue(true),
+    userDefaults: {
+      profiles: [{ name: "Atlas", value: settings }, { name: "Field", value: { ...settings, items: [] } }],
+      importDefaultName: "Atlas", onImportDefaultChange: vi.fn(),
+      onEdit: vi.fn().mockReturnValue(true), onLoad: vi.fn().mockResolvedValue(true),
+    },
     onLoadBuiltInDefault: vi.fn(), onClose: vi.fn() };
 }
 test.each(["en", "nl"])("duplicate cost rows show the specific error in %s and retain the draft", async language => {
@@ -36,16 +40,34 @@ test("successful cost additions clear the draft; invalid inputs never reach the 
   await waitFor(() => expect((size as HTMLInputElement).value).toBe(""));
   expect(props.onEditCosts).toHaveBeenCalledWith([{ action: "add", item: { pile_size_mm: 320, shape: "round", cost_per_m3: 0 } }]);
 });
-test("replacing a personal cost default requires confirmation, while loading and removing use their own callbacks", () => {
+test("named costs use separate actions for editing the library, loading a catalog and choosing the import default", async () => {
   const props = costProps(); render(<CostCatalogEditor {...props} />);
-  const confirm = vi.spyOn(window, "confirm").mockReturnValue(false);
-  const save = screen.getByRole("button", { name: t("cost.savePersonalDefault", "rightPanel") });
-  fireEvent.click(save); expect(props.onSavePersonalDefault).not.toHaveBeenCalled();
-  confirm.mockReturnValue(true); fireEvent.click(save); expect(props.onSavePersonalDefault).toHaveBeenCalledWith(props.settings);
-  fireEvent.click(screen.getByRole("button", { name: t("cost.loadPersonalDefault", "rightPanel") }));
-  fireEvent.click(screen.getByRole("button", { name: t("cost.removePersonalDefault", "rightPanel") }));
+  fireEvent.click(screen.getByText(t("userDefaults.title")));
+  fireEvent.change(screen.getByRole("combobox", { name: t("userDefaults.choose") }), { target: { value: "Field" } });
+  expect(props.userDefaults.onImportDefaultChange).not.toHaveBeenCalled();
+  const manage = screen.getByRole("button", { name: t("userDefaults.manage") });
+  expect(screen.queryByRole("button", { name: t("userDefaults.rename") })).toBeNull();
+  fireEvent.click(manage);
+  fireEvent.click(screen.getByRole("button", { name: t("userDefaults.update") }));
+  expect(props.userDefaults.onEdit).not.toHaveBeenCalled();
+  const updateConfirmation = screen.getByRole("group", { name: /Field/ });
+  fireEvent.click(within(updateConfirmation).getByRole("button", { name: t("userDefaults.update") }));
+  expect(props.userDefaults.onEdit).toHaveBeenCalledWith({ kind: "update", name: "Field", value: props.settings });
+  fireEvent.change(screen.getByRole("combobox", { name: t("cost.importDefault", "rightPanel") }), { target: { value: "Field" } });
+  expect(props.userDefaults.onImportDefaultChange).toHaveBeenCalledWith("Field");
+  fireEvent.click(screen.getByRole("button", { name: t("userDefaults.load") }));
+  await screen.findByText(t("cost.defaultLoaded", "rightPanel"));
+  expect(props.userDefaults.onLoad).toHaveBeenCalledWith(props.userDefaults.profiles[1].value);
+  fireEvent.click(screen.getByRole("button", { name: t("userDefaults.remove") }));
+  const removal = screen.getByRole("group", { name: /Field/ });
+  const cancel = within(removal).getByRole("button", { name: t("cancel") });
+  expect(document.activeElement).toBe(cancel);
+  fireEvent.click(cancel);
+  expect(props.userDefaults.onEdit).toHaveBeenCalledTimes(1);
+  fireEvent.click(screen.getByRole("button", { name: t("userDefaults.remove") }));
+  fireEvent.click(within(screen.getByRole("group", { name: /Field/ })).getByRole("button", { name: t("userDefaults.remove") }));
+  expect(props.userDefaults.onEdit).toHaveBeenLastCalledWith({ kind: "delete", name: "Field" });
   fireEvent.click(screen.getByRole("button", { name: t("cost.loadBuiltInDefault", "rightPanel") }));
-  expect(props.onLoadPersonalDefault).toHaveBeenCalledOnce(); expect(props.onRemovePersonalDefault).toHaveBeenCalledOnce();
   expect(props.onLoadBuiltInDefault).toHaveBeenCalledOnce();
 });
 test("project information saves normalized fields together and closes only after an accepted save", async () => {

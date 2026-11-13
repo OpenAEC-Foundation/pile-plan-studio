@@ -49,3 +49,18 @@ Actual pile costs depend on project size, production, soil conditions,
 accessibility, market conditions, pile system, and supplier. Existing projects
 and personal default catalogs retain their own values when the built-in catalog
 changes.
+
+## Personal cost catalogs
+
+In **Cost settings**, expand **User defaults** beside **Load built-in default**
+to save the current cost catalog by name or load a saved catalog. Use **Manage**
+to rename, update, or remove the selected catalog. Updating keeps saved rows
+for sizes absent from the current catalog. Loading applies the selected catalog
+as one undoable project edit and preserves existing rates for project sizes
+missing from the default.
+
+**Default for new imports** selects a saved catalog for projects created from
+source files. The built-in catalog fills gaps. An existing personal catalog
+becomes a named default and keeps its role in new imports. The first newly
+saved catalog becomes the import default when the library is empty. Select
+**Built-in default only** to use the built-in catalog for new imports.
