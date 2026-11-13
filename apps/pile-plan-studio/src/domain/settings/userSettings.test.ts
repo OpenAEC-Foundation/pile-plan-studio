@@ -3,6 +3,12 @@ import assert from "node:assert/strict";
 import { DEFAULT_USER_SETTINGS, normalizeUserSettings, patchCostProfiles, patchUserSettings, patchWorkspaceLayout } from "./userSettings.ts";
 
 describe("user settings", () => {
+  it("defaults to the start screen and preserves the explicit reopen preference", () => {
+    assert.equal(normalizeUserSettings(null).preferences.openLastProjectOnStartup, false);
+    assert.equal(normalizeUserSettings({ preferences: { openLastProjectOnStartup: "true" } }).preferences.openLastProjectOnStartup, false);
+    const enabled = patchUserSettings(DEFAULT_USER_SETTINGS, { openLastProjectOnStartup: true });
+    assert.equal(normalizeUserSettings(JSON.parse(JSON.stringify(enabled))).preferences.openLastProjectOnStartup, true);
+  });
   it("remembers the plan background independently of the theme", () => {
     for (const workspaceAppearance of ["theme", "light", "dark"]) {
       const settings = normalizeUserSettings({ preferences: { theme: "dark", workspaceAppearance } });
@@ -77,6 +83,7 @@ describe("user settings", () => {
         workspaceAppearance: "theme",
         interfaceScalePercent: 100,
         defaultCurrencyCode: "EUR",
+        openLastProjectOnStartup: false,
         optimizationTimeLimitSeconds: 600,
         pileSizeExportFormat: "numeric",
         pilePlanExportOptions: {

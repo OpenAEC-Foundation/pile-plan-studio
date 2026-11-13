@@ -12,10 +12,12 @@ export async function loadBrowserRecovery<TProject>({
   isDesktop,
   store,
   validateProject,
+  onlyUnsaved = false,
 }: {
   isDesktop: boolean;
   store: BrowserRecoveryStore;
   validateProject: (ifcppText: string) => TProject | Promise<TProject>;
+  onlyUnsaved?: boolean;
 }): Promise<BrowserRecoveryStartupResult<TProject>> {
   if (isDesktop) return { kind: "disabled" };
 
@@ -24,6 +26,7 @@ export async function loadBrowserRecovery<TProject>({
     if (stored === null) return { kind: "empty" };
     const record = parseBrowserRecoveryRecord(stored);
     if (record) {
+      if (onlyUnsaved && !record.isDirty) return { kind: "empty" };
       try {
         const project = await validateProject(record.ifcppText);
         return { kind: "restored", record, project };

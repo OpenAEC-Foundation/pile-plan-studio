@@ -36,12 +36,14 @@ interface SettingsDialogProps {
   workspaceAppearance: WorkspaceAppearance;
   language: UserLanguage;
   defaultCurrencyCode: string;
+  openLastProjectOnStartup?: boolean;
   onPreferencesChange: (preferences: {
     theme: string;
     workspaceAppearance: WorkspaceAppearance;
     language: UserLanguage;
     interfaceScalePercent: number;
     defaultCurrencyCode: string;
+    openLastProjectOnStartup?: boolean;
   }) => void;
   isDesktop: boolean;
   projectAvailable?: boolean;
@@ -64,6 +66,7 @@ export default function SettingsDialog({
   workspaceAppearance,
   language,
   defaultCurrencyCode,
+  openLastProjectOnStartup,
   onPreferencesChange,
   isDesktop,
   projectAvailable = true,
@@ -87,6 +90,7 @@ export default function SettingsDialog({
   const [draftWorkspace, setDraftWorkspace] = useState(workspaceAppearance);
   const [draftLang, setDraftLang] = useState<UserLanguage>(language);
   const [draftCurrencyCode, setDraftCurrencyCode] = useState(defaultCurrencyCode);
+  const [draftOpenLastProject, setDraftOpenLastProject] = useState(openLastProjectOnStartup ?? false);
   const [draftInterfaceScale, setDraftInterfaceScale] = useState(interfaceScalePercent);
   const [confirmResetOpen, setConfirmResetOpen] = useState(false);
 
@@ -106,10 +110,11 @@ export default function SettingsDialog({
       originalLang.current = language;
       setDraftLang(language);
       setDraftCurrencyCode(defaultCurrencyCode);
+      setDraftOpenLastProject(openLastProjectOnStartup ?? false);
       originalInterfaceScale.current = interfaceScalePercent;
       setDraftInterfaceScale(interfaceScalePercent);
     }
-  }, [defaultCurrencyCode, interfaceScalePercent, language, open, theme, workspaceAppearance]);
+  }, [defaultCurrencyCode, interfaceScalePercent, language, open, openLastProjectOnStartup, theme, workspaceAppearance]);
 
   // Live theme preview — apply immediately when the user picks one in the dropdown.
   // Saved only on Save; reverted on Cancel.
@@ -157,6 +162,7 @@ export default function SettingsDialog({
       language: draftLang,
       interfaceScalePercent: draftInterfaceScale,
       defaultCurrencyCode: draftCurrencyCode,
+      ...(openLastProjectOnStartup !== undefined && { openLastProjectOnStartup: draftOpenLastProject }),
     });
 
     onClose();
@@ -174,6 +180,7 @@ export default function SettingsDialog({
     setDraftLang("auto");
     changeLanguage("auto");
     setDraftCurrencyCode("EUR");
+    setDraftOpenLastProject(false);
     setDraftInterfaceScale(DEFAULT_INTERFACE_SCALE);
     onInterfaceScalePreview(DEFAULT_INTERFACE_SCALE);
     setConfirmResetOpen(false);
@@ -212,6 +219,11 @@ export default function SettingsDialog({
                 defaultCurrencyCode={draftCurrencyCode}
                 onDefaultCurrencyCodeChange={setDraftCurrencyCode}
               />
+              {openLastProjectOnStartup !== undefined && <div className="settings-section settings-startup-section">
+                <Heading>{t("general.startup")}</Heading>
+                <Checkbox label={t("general.openLastProject")} checked={draftOpenLastProject}
+                  onChange={event => setDraftOpenLastProject(event.currentTarget.checked)} />
+              </div>}
               {siteAssistant && <div className="settings-section settings-mcp-section">
                 <Heading>{tCommon("supercloud.assistant")}</Heading>
                 <Checkbox label={t("mcp.allowEdits")} checked={mcpWriteEnabled} disabled={siteAssistantReadOnly}

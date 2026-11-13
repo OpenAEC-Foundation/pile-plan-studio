@@ -28,6 +28,22 @@ function store(value: unknown, options?: { readError?: Error }) {
 }
 
 describe("browser recovery startup", () => {
+  it("leaves a clean recovery copy alone during normal app startup", async () => {
+    const record = createBrowserRecoveryRecord({
+      appVersion: "2026.46.4", ifcppText, projectName: "Saved project", savedProjectSignature: "saved",
+      isDirty: false, updatedAt: "2026-11-13T10:00:00.000Z",
+    });
+    const test = store(record);
+    let validations = 0;
+    const result = await loadBrowserRecovery({
+      isDesktop: false, store: test.recoveryStore, onlyUnsaved: true,
+      validateProject: () => { validations += 1; return validatedProject; },
+    });
+    assert.deepEqual(result, { kind: "empty" });
+    assert.equal(validations, 0);
+    assert.equal(test.clearCount(), 0);
+  });
+
   it("restores a valid browser recovery record", async () => {
     const record = createBrowserRecoveryRecord({
       appVersion: "0.1.7",
@@ -42,6 +58,7 @@ describe("browser recovery startup", () => {
     const result = await loadBrowserRecovery({
       isDesktop: false,
       store: test.recoveryStore,
+      onlyUnsaved: true,
       validateProject: acceptProject,
     });
 

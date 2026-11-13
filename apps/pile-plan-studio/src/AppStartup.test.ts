@@ -29,13 +29,16 @@ describe("React app startup", () => {
 
   it("drains desktop IFCPP launch requests after registering the warm-open listener", () => {
     const source = readFileSync(resolve(import.meta.dirname, "app/session/AppSession.tsx"), "utf8");
-    const effectStart = source.indexOf('void listenDesktop("project-open-requested"');
+    const effectStart = source.indexOf('const unlisten = await listenDesktop("project-open-requested"');
     const effect = source.slice(effectStart, source.indexOf("return () =>", effectStart));
     const listener = effect.indexOf('listenDesktop("project-open-requested"');
     const initialDrain = effect.indexOf("await drainPendingProjectPaths()", listener);
 
     assert.ok(listener >= 0, "desktop project-open listener is missing");
     assert.ok(initialDrain > listener, "listener must be registered before pending launch paths are drained");
+    const autoOpen = effect.indexOf("await openLastProject()", initialDrain);
+    assert.ok(autoOpen > initialDrain, "the explicit desktop launch must take precedence over the startup preference");
+    assert.match(effect, /if \(!await drainPendingProjectPaths\(\) && !disposed\) await openLastProject\(\)/);
     assert.match(source, /openDesktopProjectPathRef\.current/);
   });
 
@@ -43,6 +46,7 @@ describe("React app startup", () => {
     const source = readFileSync(new URL("./App.tsx", import.meta.url), "utf8");
 
     assert.match(source, /initialProject:\s*result\.project/);
+    assert.match(source, /onlyUnsaved:\s*true/);
     assert.doesNotMatch(source, /let recoveredProject:/);
     assert.doesNotMatch(source, /Restored project was not validated/);
   });

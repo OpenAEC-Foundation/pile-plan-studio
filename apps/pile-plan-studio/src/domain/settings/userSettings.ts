@@ -45,6 +45,7 @@ export type UserSettings = {
     workspaceAppearance: WorkspaceAppearance;
     interfaceScalePercent: number;
     defaultCurrencyCode: string;
+    openLastProjectOnStartup: boolean;
     optimizationTimeLimitSeconds: number | null;
     pileSizeExportFormat: PileSizeExportFormat;
     pilePlanExportOptions: ExportOptions;
@@ -67,6 +68,7 @@ export const DEFAULT_USER_SETTINGS: UserSettings = {
     workspaceAppearance: "theme",
     interfaceScalePercent: 100,
     defaultCurrencyCode: "EUR",
+    openLastProjectOnStartup: false,
     optimizationTimeLimitSeconds: 600,
     pileSizeExportFormat: "numeric",
     pilePlanExportOptions: DEFAULT_EXPORT_OPTIONS,
@@ -111,6 +113,7 @@ export function normalizeUserSettings(value: unknown): UserSettings {
           : DEFAULT_USER_SETTINGS.preferences.interfaceScalePercent,
       ),
       defaultCurrencyCode: normalizeCurrencyCode(preferences.defaultCurrencyCode),
+      openLastProjectOnStartup: preferences.openLastProjectOnStartup === true,
       optimizationTimeLimitSeconds: normalizeOptimizationTimeLimitSeconds(preferences.optimizationTimeLimitSeconds),
       pileSizeExportFormat: preferences.pileSizeExportFormat === "dimensions" ? "dimensions" : "numeric",
       pilePlanExportOptions: normalizeExportOptions(preferences.pilePlanExportOptions),

@@ -566,7 +566,7 @@
     "loading": "Vorige sessie herstellen...",
     "restored": "Vorige sessie hersteld",
     "sampleOpened": "Voorbeeldproject geopend",
-    "invalid": "De opgeslagen herstelgegevens waren ongeldig. Het voorbeeldproject is geopend.",
+    "invalid": "De vorige sessie kon niet worden hersteld omdat de herstelgegevens ongeldig waren.",
     "unavailable": "Automatisch browserherstel is niet beschikbaar. Download het project om je werk te bewaren."
   },
   "projectDocument": {

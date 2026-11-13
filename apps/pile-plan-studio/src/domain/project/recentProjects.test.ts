@@ -1,8 +1,19 @@
 import {describe,it} from "node:test";
 import assert from "node:assert/strict";
-import {normalizeRecentFiles,withRecentFile} from "./recentProjects.ts";
+import {getStartupRecentProject,normalizeRecentFiles,withRecentFile} from "./recentProjects.ts";
 
 describe("recent project metadata",()=>{
+ it("chooses the most recent project for the current storage, only when enabled",()=>{
+  const files = normalizeRecentFiles([
+    { path: "C:/P/notes.json", timestamp: 4 },
+    { path: "browser:cached", name: "Cached.ifcpp", timestamp: 3, storage: "browser" },
+    { path: "C:/P/Current.ifcpp", timestamp: 2 },
+    { path: "browser:old", name: "Old.ifcpp", timestamp: 1, storage: "browser" },
+  ]);
+  assert.equal(getStartupRecentProject(files, { enabled: false, isDesktop: false }), undefined);
+  assert.equal(getStartupRecentProject(files, { enabled: true, isDesktop: false })?.path, "browser:cached");
+  assert.equal(getStartupRecentProject(files, { enabled: true, isDesktop: true })?.path, "C:/P/Current.ifcpp");
+ });
  it("rejects broken records, repairs IFCPP types and limits the list",()=>{
   const files=normalizeRecentFiles([null,{path:12},...Array.from({length:12},(_,i)=>({path:`C:/P/${i}.ifcpp`,name:`${i}.ifcpp`,timestamp:20-i,type:"unknown"}))]);
   assert.equal(files.length,10);assert.equal(files[0].type,"project");assert.equal(files[0].name,"0.ifcpp");

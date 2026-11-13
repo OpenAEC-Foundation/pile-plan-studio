@@ -31,3 +31,11 @@ export function withRecentFile(files:RecentFile[],file:RecentFile):RecentFile[]{
   const key=recentFileIdentity(file);
   return [file,...files.filter(old=>recentFileIdentity(old)!==key)].slice(0,MAX_RECENT_PROJECTS);
 }
+
+export function getStartupRecentProject(files: readonly RecentFile[], { enabled, isDesktop }: {
+  enabled: boolean;
+  isDesktop: boolean;
+}): RecentFile | undefined {
+  if (!enabled) return undefined;
+  return files.find(file => file.type === "project" && (file.storage === "browser") !== isDesktop);
+}

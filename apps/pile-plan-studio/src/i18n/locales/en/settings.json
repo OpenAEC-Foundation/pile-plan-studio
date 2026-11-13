@@ -16,6 +16,7 @@
     "language": "Language",
     "defaultCurrency": "Default currency",
     "startup": "Startup",
+    "openLastProject": "Open last project on startup",
     "restoreSession": "Restore last session on startup",
     "checkUpdates": "Check for updates automatically",
     "author": "Author",

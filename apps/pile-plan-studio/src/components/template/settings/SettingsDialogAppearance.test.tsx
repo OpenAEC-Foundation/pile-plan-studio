@@ -7,16 +7,31 @@ import i18n from "../../../i18n/config.ts";
 
 afterEach(() => { document.documentElement.removeAttribute("data-oa-theme"); document.documentElement.removeAttribute("data-oa-workspace"); });
 
-function openAppearance(overrides: Partial<ComponentProps<typeof SettingsDialog>> = {}) {
+function openSettings(overrides: Partial<ComponentProps<typeof SettingsDialog>> = {}) {
   const commit = vi.fn();
   render(<SettingsDialog open onClose={vi.fn()} theme="light" workspaceAppearance="theme" language="en"
     defaultCurrencyCode="EUR" onPreferencesChange={commit} isDesktop={false}
     interfaceScalePercent={100} onInterfaceScalePreview={vi.fn()}
     mcpStatus="off" mcpConnection={null} mcpError={null} onMcpToggle={vi.fn()}
     mcpWriteEnabled={false} onMcpWriteToggle={vi.fn()} {...overrides} />);
+  return commit;
+}
+
+function openAppearance(overrides: Partial<ComponentProps<typeof SettingsDialog>> = {}) {
+  const commit = openSettings(overrides);
   fireEvent.click(screen.getByRole("tab", { name: "Appearance" }));
   return commit;
 }
+
+test.each([false, true])("the startup preference saves for desktop=%s", isDesktop => {
+  const commit = openSettings({ isDesktop, openLastProjectOnStartup: false });
+  const option = screen.getByRole<HTMLInputElement>("checkbox", { name: "Open last project on startup" });
+  expect(option.checked).toBe(false);
+  fireEvent.click(option);
+  expect(commit).not.toHaveBeenCalled();
+  fireEvent.click(screen.getByRole("button", { name: "Save" }));
+  expect(commit).toHaveBeenCalledWith(expect.objectContaining({ openLastProjectOnStartup: true }));
+});
 
 test("cancelling a live dark theme preview restores the original appearance without committing", () => {
   const commit = openAppearance();

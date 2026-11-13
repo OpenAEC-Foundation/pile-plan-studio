@@ -16,6 +16,7 @@
     "language": "Taal",
     "defaultCurrency": "Standaardvaluta",
     "startup": "Opstarten",
+    "openLastProject": "Laatste project direct openen",
     "restoreSession": "Laatste sessie herstellen bij opstarten",
     "checkUpdates": "Automatisch controleren op updates",
     "author": "Auteur",

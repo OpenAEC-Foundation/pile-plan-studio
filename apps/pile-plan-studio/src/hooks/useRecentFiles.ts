@@ -9,5 +9,7 @@ export function useRecentFiles(enabled = true){
   const [controller]=useState(()=>createRecentProjectController({readMetadata:()=>getSetting<unknown>("recentFiles",[]),writeMetadata:files=>setSetting("recentFiles",files,{requirePersistence:true}),cache:createBrowserRecentProjectCache()}));
   const recentFiles=useSyncExternalStore(controller.subscribe,controller.getSnapshot);
   useEffect(()=>{if (enabled) void controller.ready().catch(()=>{});},[controller,enabled]);
-  return {recentFiles,loaded:controller.isLoaded(),addRecentFile:controller.rememberDesktop,rememberBrowser:controller.rememberBrowser,readBrowser:controller.readBrowser,removeRecentFile:controller.remove,clearRecentFiles:controller.clear};
+  return {recentFiles,loaded:controller.isLoaded(),ready:controller.ready,getSnapshot:controller.getSnapshot,
+    addRecentFile:controller.rememberDesktop,rememberBrowser:controller.rememberBrowser,readBrowser:controller.readBrowser,
+    removeRecentFile:controller.remove,clearRecentFiles:controller.clear};
 }

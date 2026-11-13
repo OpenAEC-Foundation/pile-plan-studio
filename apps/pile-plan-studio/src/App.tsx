@@ -54,12 +54,13 @@ export default function App() {
       const result = await loadBrowserRecovery({
         isDesktop: false,
         store: recoveryStore,
+        onlyUnsaved: true,
         validateProject: (text) => validateOpenedProject(text, {
           readProjectDocument: readProjectDocumentCore,
         }),
       });
       if (cancelled) return;
-      if (result.kind === "restored" && (!result.record.isSample || result.record.isDirty)) {
+      if (result.kind === "restored") {
         setBootstrap({
           kind: "ready",
           initialProject: result.project,

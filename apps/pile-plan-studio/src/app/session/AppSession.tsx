@@ -1,4 +1,5 @@
 import { useRecentFiles } from "../../hooks/useRecentFiles.ts";
+import { getStartupRecentProject } from "../../domain/project/recentProjects.ts";
 import { saveBrowserProjectLocally } from "../project/browserLocalSave.ts";
 import {LoadDirectionProvider} from "../derived-state/LoadDirectionContext.tsx";
 import {LocationMatchingSurfaceContext, useLocationMatchingSurface} from "../exports/locationMatchingSurface.tsx";
@@ -243,7 +244,7 @@ export default function AppSession({
   }, [tourOpen]);
   const [startActionBusy, setStartActionBusy] = useState(false);
   const startActionRef = useRef(false);
-  const [desktopLaunchPending, setDesktopLaunchPending] = useState(() => isDesktopRuntime() && startAtHome);
+  const [startupProjectPending, setStartupProjectPending] = useState(startAtHome);
   const [hostSnapshot, setHostSnapshot] = useState(() => ({ host: getSiteHost() }));
   const { host: siteHost } = hostSnapshot;
   const initialDocsFileId = siteHost?.initialFileId;
@@ -427,6 +428,7 @@ export default function AppSession({
   isDirtyRef.current = isDirty;
   const [projectPath, setProjectPath] = useState<string | null>(null);
   const recentProjects = useRecentFiles(!PLATFORM_BUILD);
+  const { ready: loadRecentProjects, getSnapshot: getRecentProjects } = recentProjects;
   const [browserRecentPath, setBrowserRecentPathState] = useState<string | null>(initialRecentProjectKey ?? null);
   const browserRecentPathRef = useRef(browserRecentPath);
   const setBrowserRecentPath = (path: string | null) => {
@@ -1543,7 +1545,7 @@ export default function AppSession({
     installOpenedProject(project, null, key);
   };
   const openRecentProject = async (path: string) => {
-    const file = recentProjects.recentFiles.find(item => item.path === path);
+    const file = getRecentProjects().find(item => item.path === path);
     if (file?.storage !== "browser") {
       if (isDesktop) return openDesktopProjectPath(path);
       showActionNotice(t("recentProjects.copyMissing"), "error");
@@ -1556,6 +1558,8 @@ export default function AppSession({
       await openBrowserProjectContents(contents, file.name, path);
     } catch (error) { showActionNotice(describeProjectOpenError(error, t), "error"); }
   };
+  const openRecentProjectRef = useRef(openRecentProject);
+  openRecentProjectRef.current = openRecentProject;
 
   const chooseDesktopProject = async () => {
     const { open } = await import("@tauri-apps/plugin-dialog");
@@ -1655,7 +1659,7 @@ export default function AppSession({
   }, [initialDocsFileId, siteHost, userSettingsReady]);
 
   const chooseProject = () => {
-    if (!userSettingsReady || desktopLaunchPending || matchingSurface.active || unsavedChangesOpen || startActionRef.current) return;
+    if (!userSettingsReady || startupProjectPending || matchingSurface.active || unsavedChangesOpen || startActionRef.current) return;
     if (PLATFORM_BUILD) {
       showDocsOpenPanel();
       return;
@@ -1668,49 +1672,74 @@ export default function AppSession({
   openProjectActionRef.current = chooseProject;
 
   useEffect(() => {
-    if (!isDesktop || !userSettingsReady) return;
+    if (!userSettingsReady) return;
     let disposed = false;
     let stopListening: (() => void) | null = null;
-    let pendingDrain = Promise.resolve();
+    let pendingDrain = Promise.resolve(false);
+    let explicitProjectRequested = false;
 
     const reportOpenFailure = (error: unknown) => {
       if (!disposed) reportProjectOpenFailureRef.current(error);
     };
     const drainPendingProjectPaths = () => {
-      pendingDrain = pendingDrain.then(async () => {
+      pendingDrain = pendingDrain.catch(() => explicitProjectRequested).then(async () => {
+        if (disposed) return explicitProjectRequested;
         const paths = await invokeDesktop<string[]>("take_pending_project_paths", {});
+        explicitProjectRequested ||= paths.length > 0;
         for (const path of paths) {
-          if (disposed) return;
+          if (disposed) break;
           await openDesktopProjectPathRef.current?.(path);
         }
-      }).catch(reportOpenFailure);
+        return explicitProjectRequested;
+      });
       return pendingDrain;
     };
-
-    void listenDesktop("project-open-requested", () => {
-      void drainPendingProjectPaths();
-    })
-      .then(async (unlisten) => {
+    const openLastProject = async () => {
+      if (!startAtHome || PLATFORM_BUILD || !userSettingsRef.current.preferences.openLastProjectOnStartup) return;
+      await loadRecentProjects();
+      if (isDesktop && !disposed && await drainPendingProjectPaths()) return;
+      if (disposed) return;
+      const project = getStartupRecentProject(getRecentProjects(), { enabled: true, isDesktop });
+      if (!project) return;
+      if (!isDesktop) {
+        await openRecentProjectRef.current(project.path);
+        return;
+      }
+      // A file delivered by the OS while the recent project is opening must win.
+      pendingDrain = pendingDrain.then(async () => {
+        if (!disposed && !explicitProjectRequested) await openRecentProjectRef.current(project.path);
+        return explicitProjectRequested;
+      });
+      await pendingDrain;
+    };
+    const start = async () => {
+      if (isDesktop) {
+        const unlisten = await listenDesktop("project-open-requested", () => {
+          void drainPendingProjectPaths().catch(reportOpenFailure);
+        });
         if (disposed) {
           unlisten();
           return;
         }
         stopListening = unlisten;
-        await drainPendingProjectPaths();
-      })
-      .catch(reportOpenFailure)
-      .finally(() => { if (!disposed) setDesktopLaunchPending(false); });
+        if (!await drainPendingProjectPaths() && !disposed) await openLastProject();
+      } else {
+        await openLastProject();
+      }
+    };
+    void start().catch(reportOpenFailure)
+      .finally(() => { if (!disposed) setStartupProjectPending(false); });
 
     return () => {
       disposed = true;
       stopListening?.();
     };
-  }, [isDesktop, userSettingsReady]);
+  }, [getRecentProjects, isDesktop, loadRecentProjects, startAtHome, userSettingsReady]);
 
   if (!userSettingsReady) {
     return <div className="app-startup-surface" role="status" />;
   }
-  if (desktopLaunchPending) {
+  if (startupProjectPending) {
     return <div className="app-startup-surface" role="status" />;
   }
 
@@ -2151,6 +2180,7 @@ export default function AppSession({
         workspaceAppearance={userSettings.preferences.workspaceAppearance}
         language={hostPreferences.language ?? userSettings.preferences.language}
         defaultCurrencyCode={userSettings.preferences.defaultCurrencyCode}
+        openLastProjectOnStartup={PLATFORM_BUILD ? undefined : userSettings.preferences.openLastProjectOnStartup}
         onPreferencesChange={(preferences) => commitUserSettings(patchUserSettings(userSettings, preferences))}
         isDesktop={isDesktop}
         projectAvailable={hasOpenedProject}

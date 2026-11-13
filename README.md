@@ -120,10 +120,12 @@ action as the title-bar button and **Ctrl+S**.
 **File → New project** opens the same guided import. Use **File → Refresh
 sources** to prepare replacements or additions on the load-point, CPT and
 foundation-advice tabs and apply them together to the current project.
-The browser opens a valid recovery record directly in the editor, including
-unsaved changes. With no recoverable project or an unchanged bundled sample,
-it shows the start screen. Desktop starts at the start screen and opens a valid
-IFCPP passed from the operating system directly in the editor.
+On a normal launch the app shows the start screen. The browser restores a
+valid session with unsaved changes directly in the editor. Desktop directly
+opens a valid IFCPP passed by the operating system. In **Settings → General →
+Startup**, enable **Open last project on startup** to open the most recent
+project on ordinary launches. The browser opens its stored copy. Desktop opens
+the original file. If the project is unavailable, the start screen appears.
 
 The optional sample tour zooms in on a load point before you click it, then
 highlights its imported design load in the Selection overview. Use the CPTs

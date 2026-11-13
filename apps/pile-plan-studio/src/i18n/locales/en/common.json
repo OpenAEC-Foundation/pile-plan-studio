@@ -566,7 +566,7 @@
     "loading": "Restoring your previous session...",
     "restored": "Previous session restored",
     "sampleOpened": "Sample project opened",
-    "invalid": "Stored recovery data was invalid. The sample project was opened.",
+    "invalid": "The previous session could not be restored because the recovery data was invalid.",
     "unavailable": "Automatic browser recovery is unavailable. Download the project to keep your work."
   },
   "projectDocument": {

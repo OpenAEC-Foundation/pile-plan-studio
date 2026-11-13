@@ -784,13 +784,15 @@ isolated from drawing handlers, and handled Escape closes the menu without
 clearing the drawing selection.
 
 The standalone start screen is a view of the current `AppSession`. Returning
-to it from the File menu retains the open project and its history. Fresh browser
-sessions show the start screen after the recovery check. Valid recovery records
-open directly, including unsaved edits to the sample. Recovery marks sample
-sessions with optional metadata so a clean example can return to the start
-screen after reload. Desktop startup registers the project-open listener and
-drains pending launch requests before showing the start screen. Subsequent
-opens use the same validation and unsaved-changes confirmation as the File menu.
+to it from the File menu retains the open project and its history. At startup,
+the browser opens a valid recovery record with unsaved changes, including edits
+to the sample. Desktop registers the project-open listener and drains pending
+file requests before considering a recent project. The default for an ordinary
+launch is the start screen. The optional user preference
+`openLastProjectOnStartup` reopens the first recent project for the current
+storage, using the browser's cached copy or the native file path. A missing or
+invalid recent project leaves the app on the start screen. Project opens use
+the same validation and unsaved-changes confirmation as the File menu.
 
 Guided import presents the existing new-project form in steps, with its source
 drafts and Rust-backed previews shared across those steps. Successful guided
