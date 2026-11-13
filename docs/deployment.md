@@ -85,9 +85,18 @@ For the 2026.46.4 alpha source, use release tag `v2026.46.4` once published.
 This includes the Rust core WASM, HiGHS WASM and Worker assets; the browser solver
 does not load its executable code from a CDN.
 
-The [site workflow](../.github/workflows/live.yml) builds and deploys on every
-push to `main`, or through manual workflow dispatch. Browser publication is
-independent of the desktop release tag and draft publication.
+To publish the browser app, manually run the
+[site workflow](../.github/workflows/live.yml) on `main`:
+
+```powershell
+gh workflow run live.yml --ref main
+```
+
+The workflow builds and deploys the `main` commit selected at dispatch. Merging
+and pushing to `main`, deploying the browser app, and preparing a desktop
+release are separate operations. Desktop installer builds use
+[`release.yml`](../.github/workflows/release.yml), with release tags and manual
+dispatch as described below.
 
 The [OpenAEC product page](https://open-aec.com/open-pile-plan-studio/) is
 maintained in the separate `OpenAEC-Foundation/website` repository. Its download
@@ -243,9 +252,8 @@ uninstaller. Signature and silent-install tests do not reproduce SmartScreen
 reputation checks after an ordinary browser download.
 
 Manual dispatch is available once the workflow exists on the default branch.
-Local route/validator tests do not prove that GitHub actually received a tag
-push. An actual CI proof requires a separately authorized push/run; do not push
-to `main` merely to enable it, because that also deploys the browser application.
+Local route and validator tests exercise the release logic. To verify tag
+delivery or a manual dispatch, inspect the corresponding GitHub Actions run.
 
 ## Linux and macOS packages and proof builds
 
@@ -404,9 +412,9 @@ a different digest stops the job. Existing drafts are found through the complete
 authenticated release list; GitHub's tag endpoint omits unpublished drafts.
 Retry failed jobs in the same run to reuse successful artifacts.
 Do not move a tag or replace published files. Manual proof dispatches never
-reach this draft-creation job. Publishing the GitHub draft, integrating into
-`main` (which deploys the browser), and deploying the separate product website
-remain explicit release actions.
+reach this draft-creation job. Publish the GitHub draft when the installer
+release is ready. Browser deployment and updates to the separate product
+website each have their own workflow.
 
 Use the release candidate dispatch for new releases. Commit the reviewed release
 version and notes on a clean release branch, and push that branch without a tag.
