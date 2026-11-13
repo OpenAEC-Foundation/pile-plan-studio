@@ -136,6 +136,10 @@ and multiple load-point selection.
 - Keep work in one task by default. Do not delegate to subagents unless the
   user explicitly requests parallel work.
 - Do not commit, push, merge, publish, or create a release unless the user asks.
+- For a requested push to `main`, the user should explicitly say whether to
+  also deploy the browser app website. If the request leaves this open,
+  explicitly ask whether to deploy as part of the push. Proceed with the
+  authorized push and wait for an explicit yes before starting the deploy.
 - Do not prefix branch names with `codex/`. Use a concise feature or release
   name agreed with the user.
 - After a feature branch has been incorporated into `main`, verify that deleting
