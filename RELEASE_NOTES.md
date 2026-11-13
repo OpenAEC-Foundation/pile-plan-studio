@@ -1,5 +1,34 @@
 # Open Pile Plan Studio Release Notes
 
+## 2026.46.5
+
+### Added
+
+- Start from a dedicated screen with recent projects, a sample project and a
+  guided flow for creating a project from source files.
+- Recover unsaved browser projects after a reload. Choose how the browser and
+  desktop app open on startup.
+- Save named defaults for pile legends and costs and reuse them across projects.
+- Show and edit pile numbers in the plan and match them to driving records.
+
+### Improved
+
+- Map source columns from their headings while inspecting sample values in
+  source, pile-plan, driving-record and change-table imports (#60).
+- Edit and reorder export columns in the export preview. Change-table export
+  opens its preview after the location links are confirmed.
+- Recognize square pile sizes such as `290x290` in a Type column. Show a
+  warning next to the import button when pile assignments will be omitted.
+- Automatically select all usable foundation-advice worksheets with their table
+  settings collapsed. Set the number of piles per cap for a whole file or per
+  worksheet. Identical advice values are counted once and conflicting values
+  are reported before import.
+
+### Compatibility
+
+- New saves use the IFCX alpha profile inside `.ifcpp` files. This release
+  also reads existing IFCPP projects in legacy schemas 1 through 9.
+
 ## 2026.46.4
 
 ### Added
