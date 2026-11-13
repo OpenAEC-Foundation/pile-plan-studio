@@ -37,10 +37,24 @@ test("a different export plan can be chosen without changing the active plan",as
   expect((screen.getByLabelText(i18n.t("exportTools.exportPilePlan")) as HTMLSelectElement).value).toBe("other");
 });
 
+test("the reordered preview columns are sent to both file writers",async()=>{
+ const xlsx=vi.fn(async(_format:PileSizeExportFormat,_options?:ExportOptions)=>{});
+ const csv=vi.fn(async(_format:PileSizeExportFormat,_options?:ExportOptions)=>{});
+ render(<PilePlanExportPanel activePilePlanName="Plan" pileSizeFormat="numeric" exportPlan={input}
+  running={false} runExport={run=>void run()} onExportPilePlanXlsx={xlsx} onExportPilePlanCsv={csv}/>);
+ const grip=screen.getByRole("button",{name:i18n.t("exportTools.dragColumn",{name:i18n.t("exportTools.headers.load_point_id")})});
+ fireEvent.keyDown(grip,{key:"ArrowRight"});
+ for(const [key,writer] of [["exportExcel",xlsx],["exportCsv",csv]] as const){
+  const button=screen.getByRole<HTMLButtonElement>("button",{name:i18n.t(`exportPanel.${key}`,{ns:"backstage"})});
+  await waitFor(()=>expect(button.disabled).toBe(false));
+  fireEvent.click(button);
+  expect(writer.mock.calls[0]?.[1]?.columns?.slice(0,2).map(column=>column.field)).toEqual(["x","load_point_id"]);
+ }
+});
+
 test("proposal toggle and code add their columns once with explanatory help",async()=>{
  render(<PilePlanExportPanel activePilePlanName="Plan" pileSizeFormat="numeric" exportPlan={{...input,hasProposals:true}} exportContextKey="proposal-test" running={false} runExport={run=>void run()} onExportPilePlanXlsx={async()=>{}} onExportPilePlanCsv={async()=>{}}/>);
  fireEvent.click(screen.getByRole("checkbox",{name:i18n.t("exportTools.includeProposals")}));
- fireEvent.click(screen.getAllByText(i18n.t("exportTools.columnSettings"))[0]);
  expect(screen.getByRole("button",{name:i18n.t("exportTools.selectColumn",{name:i18n.t("exportTools.headers.export_id")})})).toBeTruthy();
  fireEvent.click(screen.getByRole("button",{name:i18n.t("exportTools.selectColumn",{name:i18n.t("exportTools.headers.export_id")})}));
  expect(screen.getByText(i18n.t("exportTools.exportIdHelp"))).toBeTruthy();

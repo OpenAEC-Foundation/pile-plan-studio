@@ -10,5 +10,11 @@ test("every selectable export field and proposal explanation is available in Dut
   for(const key of ["includeProposals","proposalCode","originalHelp","proposalHelp","proposalSummary","exportIdHelp","reviewProposalSources","statusDisplay","statusStandard","statusCustom","statusCustomHelp","coordinateSource","coordinateOldWithinTolerance","coordinateNew","coordinateSourceHelp","movementThresholdHelp"]){assert.ok(messages[key]?.trim(),`${language}: ${key}`);}
   for(const status of ["valid","insufficient","missing","no_cpts","unassigned"]){assert.ok(messages.statusLabels[status]?.trim());}
   assert.match(messages.proposalSummary,/\{\{oldCount\}\}/);assert.match(messages.proposalSummary,/\{\{newCount\}\}/);
+  assert.ok(messages.outputColumnsHelp.trim());
+  assert.ok(messages.exportPreview.trim());
+  assert.ok(messages.reviewAndConfirmLinks.trim());
+  assert.ok(messages.revisionPreviewBlocked.trim());
+  assert.match(messages.dragColumn,/\{\{name\}\}/);
+  assert.match(messages.columnMoved,/\{\{position\}\}/);
  }
 });

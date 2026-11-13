@@ -132,12 +132,35 @@ pub(super) fn inspect(
                 "selected-cpts",
             ]
         };
+        let has_headers = preview.settings.has_headers == Some(true);
+        let type_size_column = if !legacy
+            && has_headers
+            && preview.columns.iter().any(|column| field(&column.header) == "tip-level")
+            && !preview.columns.iter().any(|column| field(&column.header) == "pile-size")
+        {
+            let mut candidates = preview.columns.iter().filter(|column| {
+                column.header.trim().eq_ignore_ascii_case("type")
+                    && table.rows.iter().any(|row| {
+                        row.number >= preview.settings.first_data_row.unwrap_or(1)
+                            && Some(row.number) != preview.settings.header_row
+                            && row.cells.get(column.column - 1).is_some_and(|cell| {
+                                cell.as_text().contains(['x', 'X', '×'])
+                                    && parse_standard_pile_size(cell).is_ok()
+                            })
+                    })
+            });
+            candidates.next().filter(|_| candidates.next().is_none()).map(|column| column.column)
+        } else {
+            None
+        };
         preview.settings.columns = Some(
             preview
                 .columns
                 .iter()
                 .map(|c| {
-                    let meaning = if preview.settings.has_headers == Some(true) {
+                    let meaning = if type_size_column == Some(c.column) {
+                        "pile-size"
+                    } else if has_headers {
                         field(&c.header)
                     } else {
                         positions.get(c.column - 1).copied().unwrap_or("ignore")

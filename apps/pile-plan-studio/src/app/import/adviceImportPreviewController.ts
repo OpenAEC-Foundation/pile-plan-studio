@@ -18,7 +18,7 @@ export function createAdviceImportPreviewController(deps: Dependencies) {
     const sheetProfiles = JSON.stringify(source.sheetSelection);
     const requestId = ++serial;
     discoveries.set(sourceId, requestId);
-    const current = () => discoveries.get(sourceId) === requestId && deps.readDrafts().advice?.sources.some(s => s.id === sourceId && s.file === source.file && s.requestedProfile === source.requestedProfile && JSON.stringify(s.sheetSelection) === sheetProfiles);
+    const current = () => discoveries.get(sourceId) === requestId && deps.readDrafts().advice?.sources.some(s => s.id === sourceId && s.file === source.file && s.requestedProfile === source.requestedProfile && s.filePileCount === source.filePileCount && JSON.stringify(s.sheetSelection) === sheetProfiles);
     deps.update(d => d.advice ? { ...d, advice: beginAdviceDiscovery(d.advice, sourceId, requestId) } : d);
     try {
       const input = await prepareAdviceSource(source, true);

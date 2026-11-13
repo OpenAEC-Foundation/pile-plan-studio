@@ -110,18 +110,21 @@ test("Blueprint source mapping preserves disabled empty columns and incomplete n
   expect(container.querySelector(".source-preview-table.oa-table")).not.toBeNull();
 });
 
-test("a Blueprint source error link reveals and focuses the original source row", async () => {
+test("a Blueprint source error link focuses the original source cell and describes its error", () => {
   const preview: SourceTablePreview = { processed: false, sheets: [], row_count: 8,
     settings: { first_data_row: 7, columns: [] },
     columns: [{ column: 1, header: "Number", numeric_count: 0, nonempty_count: 1 }],
     rows: [{ number: 7, cells: ["invalid"] }] };
   const { container } = render(<SourceTableEditor variant="blueprint" preview={preview}
-    sourceErrors={[{ row: 7, column: 1, message: "Invalid identifier" }]} role="load-points" onChange={vi.fn()} />);
+    sourceErrors={[{ row: 7, column: 1, message: "Invalid identifier" }, { row: 8, column: 1, message: "Another invalid identifier" }]} role="load-points" onChange={vi.fn()} />);
   const link = screen.getByRole("button", { name: i18n.t("tableImport.showError", { row: 7, column: 1 }) });
   expect(link.classList.contains("oa-button")).toBe(true);
   fireEvent.click(link);
-  expect(container.querySelector<HTMLDetailsElement>("details")!.open).toBe(true);
-  await waitFor(() => expect(document.activeElement).toBe(container.querySelector('[data-source-row="7"]')));
+  const cell = container.querySelector('[data-source-row="7"] td');
+  expect(document.activeElement).toBe(cell);
+  expect(screen.getByText("Invalid identifier").id).toBe(cell?.getAttribute("aria-describedby"));
+  expect(screen.getByText("Another invalid identifier")).toBeTruthy();
+  expect(screen.queryByRole("button", { name: i18n.t("tableImport.showError", { row: 8, column: 1 }) })).toBeNull();
 });
 
 

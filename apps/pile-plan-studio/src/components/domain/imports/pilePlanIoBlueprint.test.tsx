@@ -64,6 +64,32 @@ test("missing mappings explain what to connect instead of referring to nonexiste
   fireEvent.change(container.querySelector('input[type="file"]')!, { target: { files: [file()] } });
   await screen.findByText(t("pilePlanImport.mapImportColumns", "backstage"));
   expect(screen.queryByText(t("pilePlanImport.invalid", "backstage"))).toBeNull();
+  expect(screen.queryByText(t("pilePlanImport.missingPileColumnsWarning", "backstage"))).toBeNull();
+});
+
+test("a partial import warns at the submit button when pile assignments lack required mappings", async () => {
+  const patch = { changes: [{ load_point_id: 1, revit_mark: "001", pile: { action: "preserve" }, manual_cpt_ids: { action: "preserve" } }] };
+  const result = { requestedProfile: "automatic", detectedProfile: "standard-table", supportsPileAssignments: false,
+    supportsCptSelections: false, canApply: true, diagnostics: [], patch,
+    summary: { sourceRows: 1, matchedRows: 1, skippedRows: 0, coordinateFallbacks: 0, conflicts: 0 } };
+  core.plan.mockResolvedValue(result);
+  const apply = vi.fn();
+  const { container } = render(<PilePlanImportPanel loadPoints={[]} cpts={[]} availablePileConfigurations={[]} onImportPilePlan={apply} />);
+  const picker = container.querySelector('input[type="file"]')!;
+  fireEvent.change(picker, { target: { files: [file()] } });
+  const warning = await screen.findByText(t("pilePlanImport.missingPileColumnsWarning", "backstage"));
+  const submit = screen.getByRole<HTMLButtonElement>("button", { name: t("pilePlanImport.import", "backstage") });
+  expect(submit.disabled).toBe(false);
+  expect(submit.getAttribute("aria-describedby")).toBe(warning.id);
+  expect(warning.closest(".oa-banner")?.parentElement?.nextElementSibling).toBe(submit);
+  fireEvent.click(submit);
+  expect(apply).toHaveBeenCalledWith(patch, "plan.csv");
+
+  core.plan.mockResolvedValue({ ...result, supportsPileAssignments: true });
+  fireEvent.change(picker, { target: { files: [file()] } });
+  await waitFor(() => expect(submit.disabled).toBe(false));
+  expect(screen.queryByText(t("pilePlanImport.missingPileColumnsWarning", "backstage"))).toBeNull();
+  expect(submit.hasAttribute("aria-describedby")).toBe(false);
 });
 
 test("deselecting every available import category names the unchecked choices", async () => {

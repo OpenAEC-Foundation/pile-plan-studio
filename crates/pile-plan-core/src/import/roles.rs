@@ -252,6 +252,7 @@ pub(super) fn reconcile_imported_inputs(
             message: "Conflicting bearing capacities".into(),
             diagnostics: vec![],
             conflicts: merged.conflicts,
+            overlapping_advice_source_ids: merged.overlapping_source_ids.into_iter().collect(),
         }));
     }
     let cpt_ids: HashSet<_> = cpts.iter().map(|item| item.id).collect();

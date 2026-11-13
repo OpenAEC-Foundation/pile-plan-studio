@@ -82,6 +82,8 @@ pub struct ProjectImportPreview {
     pub exact_duplicate_count: usize,
     pub orphan_value_count: usize,
     pub conflicts: Vec<AdviceConflict>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub overlapping_advice_source_ids: Vec<String>,
     pub diagnostics: Vec<ImportDiagnostic>,
 }
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq)]
@@ -93,6 +95,8 @@ pub struct SourceImportFailure {
     pub message: String,
     pub diagnostics: Vec<ImportDiagnostic>,
     pub conflicts: Vec<AdviceConflict>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub overlapping_advice_source_ids: Vec<String>,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq)]

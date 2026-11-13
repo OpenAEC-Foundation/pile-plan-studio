@@ -44,6 +44,7 @@ export default function PilePlanImportPanel({
   const {t:common}=useTranslation("common");
   const [matchingOpen,setMatchingOpen]=useState(false);
   const pileColumnsHelpId=useId();
+  const importWarningId = useId();
   useEffect(()=>setMatchingOpen(false),[loadPoints,cpts,availablePileConfigurations]);
   const [draft, setDraft] = useState(() => createPilePlanImportDraft<File>());
   const { preview } = usePilePlanImportPreview({ loadPoints, cpts, availablePileConfigurations }, setDraft);
@@ -62,8 +63,12 @@ export default function PilePlanImportPanel({
   };
 
   const result = draft.previewState.status === "ready" ? draft.previewState.preview : null;
+  const canImport = canApplyPilePlanImport(draft);
+  const missingPileColumns = canImport && result?.supportsPileAssignments === false;
   const shown=result??draft.lastPreview;
   const cptImportAvailable = canImportCptSelections(draft);
+  const unmatched = shown?.matching?.unmatched_new.length ?? 0;
+  const skipped = shown?.matching?.added.length ?? 0;
 
   return (
     <OpenAECProvider sprite={spriteUrl}><div className="oa-app project-import-panel project-import-blueprint pile-plan-import-panel">
@@ -93,7 +98,9 @@ export default function PilePlanImportPanel({
         </div>
 
         {draft.file&&<SourceTableEditor variant="blueprint" role="pile-plan" preview={shown?.table} settings={draft.table} csv={draft.file.name.toLowerCase().endsWith(".csv")}
-          sourceErrors={shown?.diagnostics.filter(d=>d.severity==="error"&&d.location?.row!=null).map(d=>({row:d.location!.row!,column:d.location!.column,message:diagnosticLabel(d.code,t)}))}
+          sourceErrors={shown?.diagnostics.filter(d=>d.severity==="error").map(d=>({
+            row:d.location?.row??null,column:d.location?.column??null,message:diagnosticLabel(d.code,t)+formatDiagnosticLocation(d.location,t),
+          }))}
           onChange={table=>void preview(setPilePlanImportTable(draft,table))}>
             <Select label={t("pilePlanImport.profile")}
               value={draft.requestedProfile}
@@ -129,8 +136,13 @@ export default function PilePlanImportPanel({
       </section>
 
       {shown?.matching&&<LocationMatchingEntry
-        summary={common("pilePlanMatching.summary",{linked:shown.matching.links.length,pending:shown.matching.unmatched_new.length,skipped:shown.matching.added.length})}
+        summary={common("pilePlanMatching.summary",{linked:shown.matching.links.length,pending:unmatched,skipped})}
         help={common("pilePlanMatching.matchHelp")} reviewed={!!draft.locationDecisions&&!!result?.matching?.complete}
+        reviewAction={unmatched ? common("pilePlanMatching.reviewUnmatched") : undefined}
+        notice={(unmatched>0||skipped>0) && <div className="pile-plan-matching-notice" role="status">
+          {unmatched>0&&<p>{common(draft.importPileAssignments?"pilePlanMatching.unmatchedImpact":"pilePlanMatching.unmatchedRows",{count:unmatched})}</p>}
+          {skipped>0&&<p>{common(draft.importPileAssignments?"pilePlanMatching.skippedImpact":"pilePlanMatching.skippedRows",{count:skipped})}</p>}
+        </div>}
         disabled={!result?.matching} tolerance={draft.coordinateToleranceMm} onToleranceChange={changeTolerance} onOpen={()=>setMatchingOpen(true)}/>}
       {matchingOpen&&result?.matching&&draft.file&&<PilePlanImportMatching draft={draft} result={result} loadPoints={loadPoints} cpts={cpts} availablePileConfigurations={availablePileConfigurations}
         onCancel={()=>setMatchingOpen(false)} onConfirm={(decisions,tolerance)=>{setMatchingOpen(false);void preview(setPilePlanImportDecisions(setPilePlanImportTolerance(draft,String(tolerance)),decisions));}}/>}
@@ -148,9 +160,9 @@ export default function PilePlanImportPanel({
               conflicts: result.summary.conflicts,
             })}</span>
           </div>
-          {result.diagnostics.length > 0 && (
+          {result.diagnostics.some(diagnostic => diagnostic.severity !== "error") && (
             <ul className="pile-plan-import-diagnostics">
-              {result.diagnostics.map((diagnostic, index) => (
+              {result.diagnostics.filter(diagnostic => diagnostic.severity !== "error").map((diagnostic, index) => (
                 <li className={diagnostic.severity} key={`${diagnostic.code}-${index}`}>
                   <Banner tone={diagnostic.severity === "error" ? "error" : "warning"} word="">{diagnosticLabel(diagnostic.code, t)}{formatDiagnosticLocation(diagnostic.location, t)}</Banner>
                 </li>
@@ -160,11 +172,17 @@ export default function PilePlanImportPanel({
         </section>
       )}
 
+      {missingPileColumns && <div>
+        <Banner tone="warning" word="">
+          <span id={importWarningId}>{t("pilePlanImport.missingPileColumnsWarning")}</span>
+        </Banner>
+      </div>}
       <Button kind="primary"
         className="project-import-submit"
-        disabled={!canApplyPilePlanImport(draft)}
+        disabled={!canImport}
+        aria-describedby={missingPileColumns ? importWarningId : undefined}
         onClick={() => {
-          if (result && draft.file && canApplyPilePlanImport(draft)) {
+          if (result && draft.file && canImport) {
             onImportPilePlan(result.patch, draft.file.name);
           }
         }}

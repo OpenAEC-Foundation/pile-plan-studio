@@ -287,6 +287,7 @@ pub(super) fn combine_advice_refresh(
             unique_value_count: merged.unique_values.len() + merged.conflicts.len(),
             exact_duplicate_count: merged.exact_duplicate_count,
             conflicts: merged.conflicts,
+            overlapping_advice_source_ids: merged.overlapping_source_ids.into_iter().collect(),
         }));
     }
     retained_logs.extend(new.logs);
@@ -294,6 +295,7 @@ pub(super) fn combine_advice_refresh(
     new.values = merged.unique_values;
     new.exact_duplicate_count = merged.exact_duplicate_count;
     new.sourced_values = values;
+    new.overlapping_source_ids = merged.overlapping_source_ids.into_iter().collect();
     Ok(new)
 }
 

@@ -83,8 +83,6 @@
 
 .pile-driving-import { min-width: 0; padding: 0; margin: 0; border: 0; }
 .pile-driving-import .source-table-editor { margin-top: 0; }
-.pile-driving-import .source-column-editor { display: flex; flex-wrap: wrap; }
-.pile-driving-import .source-column-editor > * { flex: 1 1 145px; min-width: 0; }
 .pile-driving-disclosure-body .source-import-disclosure > summary {
   padding-block: 4px;
   font-size: var(--oa-size-body);

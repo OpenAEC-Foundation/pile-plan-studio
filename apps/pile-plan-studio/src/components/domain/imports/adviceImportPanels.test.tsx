@@ -18,13 +18,30 @@ test("all conflicts and every physical source remain inspectable", () => {
   expect(screen.getAllByText(/D52/).length).toBe(2);
 });
 import AdviceImportSources from "./AdviceImportSources.tsx";
-import { createEmptyAdviceDraft, addAdviceSource, type AdviceDraft } from "../../../domain/imports/adviceImportModel.ts";
+import { createEmptyAdviceDraft, addAdviceSource, applyAdviceDiscovery, beginAdviceDiscovery, type AdviceDraft } from "../../../domain/imports/adviceImportModel.ts";
 import { useState } from "react";
 
 function AdviceHarness({ initial = createEmptyAdviceDraft<File>(), refresh = false }: { initial?: AdviceDraft<File>; refresh?: boolean }) {
   const [draft, setDraft] = useState(initial);
   return <AdviceImportSources draft={draft} onChange={setDraft} refresh={refresh} />;
 }
+
+test("overlapping advice shows one pile-count control per file before the worksheets", () => {
+  let initial = addAdviceSource(createEmptyAdviceDraft<File>(), "a", new File([], "advies-a.xlsx"));
+  initial = addAdviceSource(initial, "b", new File([], "advies-b.xlsx"));
+  initial.previewState = { status: "ready", requestId: 1, preview: {
+    canApply: true, uniqueValueCount: 1, importedValueCount: 1, exactDuplicateCount: 1,
+    orphanValueCount: 0, diagnostics: [], conflicts: [], overlappingAdviceSourceIds: ["a", "b"],
+  } };
+  render(<AdviceHarness initial={initial} />);
+  expect(screen.getByText(i18n.t("importProject.advice.pileCountOverlap"))).toBeTruthy();
+  const choice = screen.getByRole("combobox", { name: `${i18n.t("tableImport.adviceApplicability")} advies-a.xlsx` });
+  fireEvent.change(choice, { target: { value: "specific" } });
+  const count = screen.getByRole<HTMLInputElement>("spinbutton", { name: `${i18n.t("tableImport.capPileCount")} advies-a.xlsx` });
+  fireEvent.change(count, { target: { value: "3" } });
+  expect(count.value).toBe("3");
+  expect(screen.getByRole<HTMLSelectElement>("combobox", { name: `${i18n.t("tableImport.adviceApplicability")} advies-b.xlsx` }).value).toBe("all");
+});
 
 test("advice starts with one matching import card and adds another empty card", () => {
   render(<AdviceHarness />);
@@ -34,7 +51,7 @@ test("advice starts with one matching import card and adds another empty card", 
   expect(screen.queryByText(i18n.t("importProject.profile.label"))).toBeNull();
 });
 
-test("a single worksheet is automatic; multiple worksheets expose explicit selection", () => {
+test("a single worksheet is automatic; multiple worksheets show the automatic choices with settings closed", () => {
   let initial = addAdviceSource(createEmptyAdviceDraft<File>(), "file", new File([], "advies.xlsx"));
   const sheet = { sheetName: "diep", status: "ready" as const, detectedProfile: "standard-table" as const, resolvedProfile: "standard-table" as const,
     summary: {itemCount: 2, cptCount: 1, pileSizesMm: [290], minTipLevelMm: -15000, maxTipLevelMm: -14000, missingCellCount: 0}, diagnostics: [] };
@@ -42,12 +59,31 @@ test("a single worksheet is automatic; multiple worksheets expose explicit selec
   const { unmount } = render(<AdviceHarness initial={initial} />);
   expect(screen.queryByRole("checkbox")).toBeNull();
   unmount();
-  initial = {...initial, sources: [{...initial.sources[0], discovery:{status:"ready",requestId:1,preview:{sourceId:"file",sheets:[sheet,{...sheet,sheetName:"ondiep"}],suggestedSelection:[],diagnostics:[]}}}]};
-  render(<AdviceHarness initial={initial} />);
-  expect(screen.getAllByRole("checkbox")).toHaveLength(2);
+  initial = applyAdviceDiscovery(beginAdviceDiscovery(initial, "file", 2), "file", 2, {
+    sourceId: "file", suggestedSelection: [], diagnostics: [], sheets: [
+      sheet, { ...sheet, sheetName: "matrix", resolvedProfile: "capacity-columns" },
+      { ...sheet, sheetName: "ondiep" }, { ...sheet, sheetName: "nog instellen", status: "needs-profile" },
+    ],
+  });
+  const { container } = render(<AdviceHarness initial={initial} />);
+  const checked = (name: string) => screen.getByRole<HTMLInputElement>("checkbox", { name }).checked;
+  const bulk = screen.getByRole<HTMLButtonElement>("button", { name: i18n.t("importProject.advice.selectUsableSheets") });
+  expect(checked("diep")).toBe(true);
+  expect(checked("ondiep")).toBe(true);
+  expect(checked("matrix")).toBe(true);
+  expect(checked("nog instellen")).toBe(false);
+  expect(bulk.disabled).toBe(true);
+  expect(container.querySelectorAll(".advice-sheet-editor")).toHaveLength(3);
+  expect(container.querySelector(".advice-sheet-editor[open]")).toBeNull();
+  fireEvent.click(screen.getByRole("checkbox", { name: "diep" }));
+  expect(bulk.disabled).toBe(false);
+  fireEvent.click(bulk);
+  expect(checked("diep")).toBe(true);
+  expect(checked("matrix")).toBe(true);
+  expect(container.querySelector(".advice-sheet-editor[open]")).toBeNull();
 });
 
-test('matrix profile settings are collapsed while actionable errors stay visible',()=>{
+test('matrix profile settings and actionable errors are visible in the import editor',()=>{
  let initial=addAdviceSource(createEmptyAdviceDraft<File>(),'file',new File([],'advies.xlsx'));
  const d={severity:'error' as const,code:'advice-profile-required',count:1,nodeIds:[],loadPointNames:[],xMm:null,yMm:null,location:null,tipLevelValues:[],fallbackMessage:'Choose capacity profile',
    advice:{field:null,value:null,expectedUnit:null,pileSizesMm:[250,290],columnCount:null,requiredProfile:'capacity-columns' as const}};
@@ -58,18 +94,18 @@ test('matrix profile settings are collapsed while actionable errors stay visible
    {sheetName:'other',status:'unsupported',detectedProfile:null,resolvedProfile:null,summary,diagnostics:[d]}]}};
  const {container}=render(<AdviceHarness initial={initial}/>);
  const control=screen.getByRole('combobox',{name:`${i18n.t('importProject.profile.label')} Blad1`,hidden:true});
- expect((control.closest('details') as HTMLDetailsElement).open).toBe(false);
- const message=container.querySelector('.advice-import-primary-diagnostics');
- expect(message?.textContent).toContain('250');expect(message?.closest('details')).toBeNull();
+ expect(control.closest('[role=group]')).toBeTruthy();
+ const message=container.querySelector('.source-preview-errors li > span');
+ expect(message?.textContent).toContain('250');expect(message?.closest('details')?.open).toBe(true);
  expect(screen.getByRole('checkbox',{name:'Blad1'}).hasAttribute('disabled')).toBe(false);
  expect(screen.getByRole('checkbox',{name:'other'}).hasAttribute('disabled')).toBe(false);
  expect(container.querySelector('details')?.textContent).not.toContain(i18n.t('importProject.advice.sheetSummary',{count:0,cpts:0,sizes:'',min:'—',max:'—',missing:0}));
- expect(container.querySelectorAll('.advice-import-primary-diagnostics')).toHaveLength(1);
+ expect(container.querySelectorAll('.source-preview-errors')).toHaveLength(1);
  fireEvent.click(screen.getByRole('checkbox',{name:'Blad1'}));
- expect(container.querySelector('.advice-import-primary-diagnostics')).toBeNull();
+ expect(container.querySelector('.source-preview-errors li > span')).toBeNull();
  expect(screen.getByRole('checkbox',{name:'Blad1'})).toBeTruthy();
  fireEvent.click(screen.getByRole('checkbox',{name:'Blad1'}));
- expect(container.querySelectorAll('.advice-import-primary-diagnostics')).toHaveLength(1);
+ expect(container.querySelectorAll('.source-preview-errors')).toHaveLength(1);
 });
 test('uncomputed import counts are not shown as a final zero',()=>{
  const preview:ProjectImportPreview={countsAvailable:false,canApply:false,uniqueValueCount:0,importedValueCount:0,orphanValueCount:0,exactDuplicateCount:0,conflicts:[],diagnostics:[]};
@@ -88,7 +124,7 @@ test('a worksheet error is not repeated in the joint preview',()=>{
    {sheetName:'Blad1',status:'invalid',detectedProfile:null,resolvedProfile:null,summary:{itemCount:0,cptCount:0,pileSizesMm:[],minTipLevelMm:null,maxTipLevelMm:null,missingCellCount:0},diagnostics:[d]}]}};
  initial.previewState={status:'ready',requestId:2,preview:{countsAvailable:false,canApply:false,uniqueValueCount:0,importedValueCount:0,orphanValueCount:0,exactDuplicateCount:0,conflicts:[],diagnostics:[{...d}]}};
  const {container}=render(<AdviceHarness initial={initial}/>);
- const primary=container.querySelector('.advice-import-primary-diagnostics')!;
+ const primary=container.querySelector('.source-preview-errors li > span')!;
  expect(primary.textContent).toBeTruthy();
  expect(screen.getAllByText(primary.textContent!)).toHaveLength(1);
 });

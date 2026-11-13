@@ -16,6 +16,7 @@ pub(super) fn advice_error(
         message: d.fallback_message.clone(),
         diagnostics: vec![d],
         conflicts: vec![],
+        overlapping_advice_source_ids: vec![],
     })
 }
 

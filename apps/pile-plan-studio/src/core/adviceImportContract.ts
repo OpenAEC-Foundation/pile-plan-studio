@@ -14,7 +14,7 @@ export type AdviceSourcePreview = { sourceId: string; sheets: AdviceSheetPreview
 export type AdviceImportOperation = { kind: "append" } | { kind: "replace"; adviceId: string };
 export type StoredAdviceSource = { id: string; fileNames: string[]; sheetNames: string[]; itemCount: number; combinedLegacy: boolean };
 export type ProjectImportPreview = { existingSources?: StoredAdviceSource[]; canApply: boolean; countsAvailable?: boolean; uniqueValueCount: number; importedValueCount: number;
-  exactDuplicateCount: number; orphanValueCount: number; conflicts: AdviceConflict[]; diagnostics: ImportDiagnostic[] };
+  exactDuplicateCount: number; orphanValueCount: number; conflicts: AdviceConflict[]; diagnostics: ImportDiagnostic[]; overlappingAdviceSourceIds?: string[] };
 
 type CoreLocation = { source_id: string; file_name: string; sheet_name: string | null; row: number | null; column: number | null };
 export type CoreAdviceConflict = {pile_count?:number|null;direction?:"compression"|"tension"; cpt_id: number; pile_size_mm: number; pile_tip_level_mm: number;
@@ -25,7 +25,7 @@ export type CoreAdviceSourcePreview = { source_id: string; sheets: Array<{ table
     max_tip_level_mm: number | null; missing_cell_count: number }; diagnostics: CoreImportDiagnostic[] }>;
   suggested_selection: Array<{ sheet_name: string; profile: ImportProfile;table?:TableImportSettings|null;direction?:"compression"|"tension";tension_column?:number|null }>; diagnostics: CoreImportDiagnostic[] };
 export type CoreProjectImportPreview = { existing_sources?: Array<{id:string;file_names:string[];sheet_names:string[];item_count:number;combined_legacy:boolean}>; can_apply: boolean; counts_available?: boolean; unique_value_count: number; imported_value_count: number;
-  exact_duplicate_count: number; orphan_value_count: number; conflicts: CoreAdviceConflict[]; diagnostics: CoreImportDiagnostic[] };
+  exact_duplicate_count: number; orphan_value_count: number; conflicts: CoreAdviceConflict[]; diagnostics: CoreImportDiagnostic[]; overlapping_advice_source_ids?: string[] };
 
 function fromCoreConflict(c: CoreAdviceConflict): AdviceConflict {
   return { ...(c.pile_count!=null?{pileCount:c.pile_count}:{}),...(c.direction?{direction:c.direction}:{}), cptId: c.cpt_id, pileSizeMm: c.pile_size_mm, pileTipLevelMm: c.pile_tip_level_mm,
@@ -45,7 +45,8 @@ export function fromCoreAdviceSourcePreview(p: CoreAdviceSourcePreview): AdviceS
 export function fromCoreProjectImportPreview(p: CoreProjectImportPreview): ProjectImportPreview {
   return { existingSources: p.existing_sources?.map(s => ({id:s.id,fileNames:s.file_names,sheetNames:s.sheet_names,itemCount:s.item_count,combinedLegacy:s.combined_legacy})), canApply: p.can_apply, countsAvailable: p.counts_available ?? false, uniqueValueCount: p.unique_value_count, importedValueCount: p.imported_value_count,
     exactDuplicateCount: p.exact_duplicate_count, orphanValueCount: p.orphan_value_count,
-    conflicts: p.conflicts.map(fromCoreConflict), diagnostics: p.diagnostics.map(fromCoreImportDiagnostic) };
+    conflicts: p.conflicts.map(fromCoreConflict), diagnostics: p.diagnostics.map(fromCoreImportDiagnostic),
+    overlappingAdviceSourceIds: p.overlapping_advice_source_ids };
 }
 export class SourceImportError extends Error {
   readonly diagnostics: ImportDiagnostic[];

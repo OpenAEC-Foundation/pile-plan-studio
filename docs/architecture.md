@@ -915,11 +915,14 @@ its controls so users can correct the choice. The original
 unconfigured API/MCP writers retain their original seven-column contract.
 Configured dimension notation renders square sizes as `290x290` and round sizes
 as `Ø290`; unassigned values stay empty. Ordinary pile-plan import accepts numeric
-and equal square dimensions; custom captions can be mapped through its shared
-source-column editor. This does not alter project pile shapes.
+and equal square dimensions. When an explicit size heading is absent, a Type
+column containing square dimensions can be suggested as the size column.
+Custom captions can be mapped in the shared column editor. Pile shapes come
+from the project.
 
-Pile-plan import uses the same file-first, collapsed Preview/Import settings
-editor as project sources. `pile_plan_import/source.rs` inspects and parses mapped
+Pile-plan import uses the same file-first preview and column editor as project
+sources. The matching section explains which rows need review or will be skipped
+and when those rows' pile assignments will be omitted. `pile_plan_import/source.rs` inspects and parses mapped
 CSV/XLSX tables with original row/column diagnostics, while `matching.rs` resolves
 ID-only, X/Y-only and guarded combined matches. Optional table settings and
 location decisions extend the existing request without changing IFCPP content.
@@ -1024,10 +1027,9 @@ one-to-one decisions, nearest/separate bulk actions and numbering-rule scoring.
 `revit_revision/` retains its transport name but implements generic change tables.
 Its inspector selects worksheets/header rows, suggests known column meanings
 and units and returns an editable source layout even before full row validation.
-Revision sources show a collapsed table preview followed by collapsed import
-settings. A shared source-column selector is used by ordinary source import,
-pile-plan import and revision-table import: select a source column, then choose
-its meaning and applicable units or size interpretation. Mapping a field to a
+Revision sources show file-wide settings and sample values together. The same
+column-heading editor as in source and pile-plan imports lets users set the
+meaning, units or size interpretation beside each source column. Mapping a field to a
 new column replaces its previous assignment. The detected-numbering explanation
 and action live only in the Mark output-column settings.
 Pile-plan import keeps the user's category choices separate from their effective
@@ -1057,9 +1059,12 @@ old Marks in either mode, so a removed number may overlap an active new one.
 The export destination plan is a transient session choice, initially the viewed
 plan. Preview, writers, filenames and revision guards share this destination;
 changing it invalidates matching review without switching the viewed plan.
-Export column settings and the output preview use separate native disclosures,
-initially closed; their mounted contents preserve edits and cached presentation.
-Output projection can include, reorder, rename or omit any column. Source
+In ordinary and revision export, users edit output captions and content from the
+preview's column headings. In revision export, the preview becomes available
+after the user confirms the location matches. Dragging a heading's grip or using
+Left, Right, Home or End on the grip changes the output order for both file formats. Users can add
+and remove output columns from the same view. The preview keeps its table space
+during a recalculation and displays the latest validated output values. Source
 mappings and inherited layouts remain transient. Layout/code edits preserve
 confirmed links; source, interpretation or geometry changes invalidate them. RFEM refresh accepts the same
 validated decisions through `import/refresh.rs`; ID reuse never establishes
@@ -1428,11 +1433,13 @@ governing CPTs may differ. Known zero needs no capacity proof, passes the
 directional check and has utilization 0 (also in maximum utilization). Joint technical suitability and default choices respect all
 applicable demands. Missing demand differs from missing capacity.
 
-The source import editor appears after choosing a file. Collapsed Preview comes
-before collapsed Import settings. Standard previews retain source row numbers;
-the chosen header row is shown only as column captions. The shared column
-list/detail editor assigns source columns to fields and units, supports explicit
-headers/data start, worksheet selection and CSV delimiters. Rust `import/table_mapping.rs`
+After choosing a file, the shared import editor shows the table and file-wide
+settings together for source data, pile plans and driving records. Column headings
+show the current assignment and open an editor for its meaning, source unit or
+matrix pile size. The preview retains source row numbers and links validation
+messages to visible rows or cells. The chosen header row is shown as column
+captions. File-wide controls include worksheet, headers, data start and CSV
+delimiter. Rust `import/table_mapping.rs`
 owns inference, whole-file validation and normalization into the existing role
 parsers. Header inference uses known captions and textual rows followed by numeric
 data. A numeric fifth load column is suggested as tension. Entirely empty columns
@@ -1534,7 +1541,12 @@ inspection view without a second frontend engineering lookup.
 Foundation-advice import supports a fixed pile size per selected worksheet,
 suggested from an unambiguous `prefab <size>` worksheet name when there is no
 size column. Ordinary and matrix advice can declare universal or exact-count
-applicability per sheet. The mapper recognizes `Naam Sondering`, `PPN` and
+applicability. The import overview offers one setting per file or separate
+settings per worksheet. It flags files with overlapping advice for the same CPT,
+size, tip level, resistance direction and applicability. The interface initially
+selects all usable worksheets with the table settings collapsed, and offers a
+bulk action to restore that selection. The core merges identical advice values
+and reports conflicts between different values. The mapper recognizes `Naam Sondering`, `PPN` and
 `Rt;d Indicatief` and proposes the latter as tension resistance, ignoring the
 separate soil-block/weight/cohesive-contribution columns. Values are imported
 unchanged; the app applies no extra factors, weight addition or soil-block formula.

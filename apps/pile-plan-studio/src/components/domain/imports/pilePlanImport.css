@@ -69,6 +69,18 @@
   font-size: 11px;
 }
 
+.pile-plan-matching-notice {
+  display: grid;
+  gap: 4px;
+  padding: 8px 10px;
+  border-inline-start: 3px solid var(--theme-warning-border);
+  background: var(--theme-warning-bg);
+}
+
+.location-matching-entry .pile-plan-matching-notice p {
+  color: var(--theme-text);
+}
+
 .pile-plan-import-results {
   display: grid;
   gap: 8px;

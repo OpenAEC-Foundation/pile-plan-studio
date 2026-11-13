@@ -6,6 +6,19 @@ test("pile-plan source and matching controls are translated consistently",()=>{
  const nl=load('nl'),en=load('en');assert.deepEqual(Object.keys(nl.locationMatchingEntry).sort(),Object.keys(en.locationMatchingEntry).sort());
  for(const copy of [nl,en])for(const key of ['title','open','confirmed','unreviewed','toleranceHelp','refreshHelp','revisionHelp','refreshSummary','nearestResult','nearestUnresolved'])assert.ok(copy.locationMatchingEntry[key]?.trim());assert.deepEqual(Object.keys(nl.pilePlanMatching).sort(),Object.keys(en.pilePlanMatching).sort());
  for(const language of ['nl','en']){const copy=load(language);for(const key of ['title','source','project','skip','summary','emptyColumnHelp','clearHelp','cptHelp','matchHelp','reviewNeeded'])assert.ok(copy.pilePlanMatching[key]?.trim());for(const key of ['selected-cpts','pile-count','revit-mark'])assert.ok(copy.tableImport.fields[key]);assert.match(copy.pilePlanMatching.rowId,/{{row}}.*{{id}}/);}
+ for(const copy of [nl,en]){
+  assert.ok(copy.pilePlanMatching.reviewUnmatched.trim());
+  for(const key of ['unmatchedImpact','unmatchedRows','skippedImpact','skippedRows']){
+   assert.ok(copy.pilePlanMatching[`${key}_one`].trim());
+   assert.match(copy.pilePlanMatching[`${key}_other`],/{{count}}/);
+  }
+  assert.match(copy.tableImport.pilePlanSizeHelp,/290x290/);
+  for(const plural of ['one','other'])assert.match(copy.tableImport[`filledCount_${plural}`],/{{count}}/);
+ }
+ for(const language of ['nl','en']){
+  const backstage=JSON.parse(readFileSync(new URL(`../../i18n/locales/${language}/backstage.json`,import.meta.url),'utf8'));
+  assert.ok(backstage.pilePlanImport.missingPileColumnsWarning.trim());
+ }
 });
 
 

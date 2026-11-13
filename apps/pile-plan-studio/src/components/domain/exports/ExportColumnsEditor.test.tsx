@@ -12,7 +12,7 @@ test("users add, rename and move a column and choose its content format",()=>{
   fireEvent.change(screen.getByLabelText(i18n.t("exportTools.addColumn")),{target:{value:"mark"}});
   fireEvent.click(screen.getByRole("button",{name:i18n.t("exportTools.selectColumn",{name:"Mark"})}));
   fireEvent.change(screen.getByLabelText(i18n.t("exportTools.columnCaption")),{target:{value:"Paalnr"}});
-  fireEvent.keyDown(screen.getByRole("button",{name:i18n.t("exportTools.dragColumn",{name:"Paalnr"})}),{key:"ArrowUp"});
+  fireEvent.keyDown(screen.getByRole("button",{name:i18n.t("exportTools.dragColumn",{name:"Paalnr"})}),{key:"ArrowLeft"});
   expect(result.find(c=>c.field==="mark")).toMatchObject({enabled:true,header:"Paalnr"});
   expect(result.findIndex(c=>c.field==="mark")).toBe(6);
   fireEvent.click(screen.getByRole("button",{name:i18n.t("exportTools.selectColumn",{name:"Pile Size [mm]"})}));
@@ -24,12 +24,12 @@ test("a column can be dragged directly to another position",()=>{
   let result:ExportColumn[]=[];
   function Harness(){const [columns,set]=useState(defaultExportColumns(DEFAULT_EXPORT_OPTIONS,"numeric"));return <ExportColumnsEditor columns={columns} onChange={next=>{set(next);result=next;}} options={DEFAULT_EXPORT_OPTIONS} onOptionsChange={()=>{}}/>;}
   const view=render(<Harness/>);
-  const rows=view.container.querySelectorAll(".export-column-list li");
-  rows.forEach((row,index)=>{row.getBoundingClientRect=()=>({left:0,right:350,top:index*45,bottom:(index+1)*45,width:350,height:45,x:0,y:index*45,toJSON:()=>({})});});
+  const headers=view.container.querySelectorAll(".export-output-table th");
+  headers.forEach((header,index)=>{header.getBoundingClientRect=()=>({left:index*100,right:(index+1)*100,top:0,bottom:45,width:100,height:45,x:index*100,y:0,toJSON:()=>({})});});
   const grip=screen.getByRole("button",{name:i18n.t("exportTools.dragColumn",{name:"Load Point ID"})});
   grip.setPointerCapture=vi.fn();grip.hasPointerCapture=()=>true;grip.releasePointerCapture=vi.fn();
-  const pointer=(type:string,y:number)=>{const event=new MouseEvent(type,{bubbles:true,button:0,clientX:15,clientY:y});Object.defineProperties(event,{isPrimary:{value:true},pointerId:{value:1}});fireEvent(grip,event);};
-  pointer("pointerdown",15);pointer("pointermove",110);pointer("pointerup",110);
+  const pointer=(type:string,x:number)=>{const event=new MouseEvent(type,{bubbles:true,button:0,clientX:x,clientY:15});Object.defineProperties(event,{isPrimary:{value:true},pointerId:{value:1}});fireEvent(grip,event);};
+  pointer("pointerdown",15);pointer("pointermove",210);pointer("pointerup",210);
   expect(result.map(c=>c.field).slice(0,3)).toEqual(["x","y","load_point_id"]);
 });
 
@@ -37,6 +37,7 @@ test("removing an added column removes the entire list item",()=>{
   function Harness(){const [columns,set]=useState(defaultExportColumns(DEFAULT_EXPORT_OPTIONS,"numeric"));return <ExportColumnsEditor columns={columns} onChange={set} options={DEFAULT_EXPORT_OPTIONS} onOptionsChange={()=>{}}/>;}
   render(<Harness/>);
   fireEvent.change(screen.getByLabelText(i18n.t("exportTools.addColumn")),{target:{value:"mark"}});
+  fireEvent.click(screen.getByRole("button",{name:i18n.t("exportTools.selectColumn",{name:"Mark"})}));
   fireEvent.click(screen.getByRole("button",{name:i18n.t("exportTools.removeNamedColumn",{name:"Mark"})}));
   expect(screen.queryByRole("button",{name:i18n.t("exportTools.selectColumn",{name:"Mark"})})).toBeNull();
   expect(screen.queryByRole("checkbox")).toBeNull();
@@ -60,6 +61,7 @@ test("status display settings belong to the selected column and preserve empty c
  let result:ExportColumn[]=[];
  function Harness(){const [columns,set]=useState<ExportColumn[]>([{key:"a",field:"technical_status",header:"Status",enabled:true},{key:"b",field:"technical_status",header:"Other",enabled:true}]);return <ExportColumnsEditor columns={columns} onChange={next=>{set(next);result=next;}} options={DEFAULT_EXPORT_OPTIONS} onOptionsChange={()=>{}}/>;}
  render(<Harness/>);
+ fireEvent.click(screen.getByRole("button",{name:i18n.t("exportTools.selectColumn",{name:"Status"})}));
  fireEvent.change(screen.getByLabelText(i18n.t("exportTools.statusDisplay")),{target:{value:"custom"}});
  expect(result[0].status_values?.valid).toBe(i18n.t("exportTools.statusLabels.valid"));
  fireEvent.change(screen.getByLabelText(i18n.t("exportTools.statusLabels.valid")),{target:{value:"OK"}});
@@ -79,15 +81,33 @@ test("revision coordinate columns independently select old-within-tolerance or n
  let result:ExportColumn[]=[];
  function Harness(){const [columns,set]=useState<ExportColumn[]>([{key:"x",field:"x",header:"X",enabled:true}]);return <ExportColumnsEditor revision columns={columns} onChange={next=>{set(next);result=next;}} options={DEFAULT_EXPORT_OPTIONS} onOptionsChange={()=>{}}/>;}
  render(<Harness/>);
+ fireEvent.click(screen.getByRole("button",{name:i18n.t("exportTools.selectColumn",{name:"X"})}));
  expect((screen.getByLabelText(i18n.t("exportTools.coordinateSource")) as HTMLSelectElement).value).toBe("old_within_tolerance");
  fireEvent.change(screen.getByLabelText(i18n.t("exportTools.coordinateSource")),{target:{value:"new"}});
  fireEvent.change(screen.getByLabelText(i18n.t("exportTools.addColumn")),{target:{value:"x"}});
  expect(result.filter(c=>c.field==="x")).toHaveLength(2);
  expect(result[0].coordinate_source).toBe("new");
+ fireEvent.click(screen.getByRole("button",{name:i18n.t("exportTools.selectColumn",{name:"X [mm]"})}));
  expect((screen.getByLabelText(i18n.t("exportTools.coordinateSource")) as HTMLSelectElement).value).toBe("old_within_tolerance");
  fireEvent.change(screen.getByLabelText(i18n.t("exportTools.columnContent")),{target:{value:"pile_size"}});
  expect(screen.queryByLabelText(i18n.t("exportTools.coordinateSource"))).toBeNull();
  expect(result[1].coordinate_source).toBeUndefined();
+});
+
+test("export sample values appear under the editable output headers",()=>{
+ render(<ExportColumnsEditor columns={[{key:"x",field:"x",header:"X",enabled:true},{key:"y",field:"y",header:"Y",enabled:true}]}
+   table={{headers:["X","Y"],rows:[[12000,15000]]}} onChange={()=>{}} options={DEFAULT_EXPORT_OPTIONS} onOptionsChange={()=>{}}/>);
+ expect(screen.getByRole("cell",{name:"12000"})).toBeTruthy();
+ fireEvent.click(screen.getByRole("button",{name:i18n.t("exportTools.selectColumn",{name:"X"})}));
+ expect(screen.getByRole("dialog")).toBeTruthy();
+ expect(screen.getByRole("cell",{name:"15000"})).toBeTruthy();
+});
+
+test("empty preview cells stay blank while zero and false remain values",()=>{
+ const columns:ExportColumn[]=["Mark","Meta","Flag","Zero"].map(header=>({key:header,header,field:"literal",enabled:true}));
+ render(<ExportColumnsEditor columns={columns} table={{headers:columns.map(column=>column.header),rows:[[null,undefined as unknown as null,false,0]]}}
+  onChange={()=>{}} options={DEFAULT_EXPORT_OPTIONS} onOptionsChange={()=>{}}/>);
+ expect(screen.getAllByRole("cell").map(cell=>cell.textContent)).toEqual(["","","No","0"]);
 });
 
 

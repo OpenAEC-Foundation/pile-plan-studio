@@ -191,6 +191,7 @@ fn import_project_from_files(
             message: error.to_string(),
             diagnostics: vec![],
             conflicts: vec![],
+            overlapping_advice_source_ids: vec![],
         }
     })?;
     Ok(ValidatedPilePlanProject {
@@ -216,6 +217,7 @@ fn refresh_project_from_files(
             message: error.to_string(),
             diagnostics: vec![],
             conflicts: vec![],
+            overlapping_advice_source_ids: vec![],
         }
     })?;
     Ok(ValidatedPilePlanProject {

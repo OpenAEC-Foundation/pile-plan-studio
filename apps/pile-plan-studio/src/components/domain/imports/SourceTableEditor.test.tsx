@@ -1,4 +1,5 @@
-import {render,screen,fireEvent} from "@testing-library/react";
+import {render,screen,fireEvent,within} from "@testing-library/react";
+import {useState} from "react";
 import {test,expect,vi} from "vitest";
 import i18n from "../../../i18n/config.ts";
 import SourceTableEditor from "./SourceTableEditor.tsx";
@@ -22,19 +23,40 @@ test("the source header moves to the table head and original data row numbers re
  view.rerender(<SourceTableEditor preview={preview} settings={{...preview.settings,has_headers:false,header_row:null,first_data_row:1}} role="load-points" onChange={()=>{}}/>);
  expect(view.container.querySelectorAll("tbody tr")).toHaveLength(2);
 });
-test("preview precedes settings, both collapsed, and preview column opens its settings",()=>{
- const view=render(<SourceTableEditor preview={preview} role="load-points" onChange={()=>{}}/>);
- const details=view.container.querySelectorAll("details");expect(details).toHaveLength(2);
- expect(details[0].open).toBe(false);expect(details[1].open).toBe(false);
- expect(details[0].querySelector("summary")?.textContent).toContain(i18n.t("tableImport.preview"));
- fireEvent.click(screen.getByRole("button",{name:i18n.t("tableImport.selectColumn",{name:"Leeg"}),hidden:true}));
- expect(details[1].open).toBe(true);
- const field=screen.getByLabelText(i18n.t("tableImport.meaning")) as HTMLSelectElement;
+test("the sample and table settings stay visible while editing a column, and Escape returns focus",()=>{
+ render(<SourceTableEditor preview={preview} role="load-points" onChange={()=>{}}/>);
+ const table=screen.getByRole("table",{name:i18n.t("tableImport.preview")});
+ const name=i18n.t("tableImport.selectColumn",{name:"Leeg"});
+ const header=within(table).getByRole("button",{name});
+ expect(within(table).getByRole("cell",{name:"1"})).toBeTruthy();
+ expect(screen.getByRole("checkbox",{name:i18n.t("tableImport.hasHeaders")})).toBeTruthy();
+ fireEvent.click(header);
+ const editor=screen.getByRole("dialog",{name});
+ const field=within(editor).getByLabelText(i18n.t("tableImport.meaning")) as HTMLSelectElement;
+ expect(document.activeElement).toBe(field);
  expect(field.querySelector('option[value="tension"]')?.hasAttribute("disabled")).toBe(true);
+ expect(screen.getByRole("table")).toBe(table);
+ fireEvent.keyDown(field,{key:"Escape"});
+ expect(screen.queryByRole("dialog")).toBeNull();
+ expect(document.activeElement).toBe(header);
+});
+
+test("editing a mapping and its unit immediately updates the heading",()=>{
+ function Editor(){
+  const [settings,setSettings]=useState(preview.settings);
+  return <SourceTableEditor preview={preview} settings={settings} role="cpts" onChange={setSettings}/>;
+ }
+ render(<Editor/>);
+ const header=screen.getByRole("button",{name:i18n.t("tableImport.selectColumn",{name:"Nummer"})});
+ fireEvent.click(header);
+ fireEvent.change(screen.getByLabelText(i18n.t("tableImport.meaning")),{target:{value:"x"}});
+ fireEvent.change(screen.getByLabelText(i18n.t("tableImport.unit")),{target:{value:"m"}});
+ expect(header.textContent).toContain(`${i18n.t("tableImport.fields.x")} · m`);
+ fireEvent.pointerDown(screen.getByRole("checkbox",{name:i18n.t("tableImport.hasHeaders")}));
+ expect(screen.queryByRole("dialog")).toBeNull();
 });
 test("mapping and header settings are editable; processed RFEM has no column mapping",()=>{
  const change=vi.fn();const view=render(<SourceTableEditor preview={preview} role="load-points" onChange={change}/>);
- const details=view.container.querySelectorAll("details");details[1].open=true;
  fireEvent.click(screen.getByLabelText(i18n.t("tableImport.hasHeaders")));
  expect(change.mock.calls[0][0]).toMatchObject({has_headers:false,header_row:null,first_data_row:1});
  view.rerender(<SourceTableEditor preview={{...preview,processed:true}} role="load-points" onChange={change}/>);
@@ -53,8 +75,7 @@ test("pile-plan blank action columns can be mapped for explicit clearing while b
 
 
 test("import row numbers allow empty editing drafts without changing import settings",()=>{
- const change=vi.fn();const view=render(<SourceTableEditor preview={preview} role="load-points" onChange={change}/>);
- (view.container.querySelectorAll('details')[1] as HTMLDetailsElement).open=true;
+ const change=vi.fn();render(<SourceTableEditor preview={preview} role="load-points" onChange={change}/>);
  for(const key of ["headerRow","dataRow"]){
   const input=screen.getByLabelText(i18n.t(`tableImport.${key}`)) as HTMLInputElement;
   fireEvent.change(input,{target:{value:""}});
@@ -69,7 +90,6 @@ test("import row numbers allow empty editing drafts without changing import sett
 
 test("foundation advice can apply to one cap count and a fixed worksheet size",()=>{
  const change=vi.fn();const view=render(<SourceTableEditor preview={preview} role="bearing-capacities" onChange={change}/>);
- (view.container.querySelectorAll('details')[1] as HTMLDetailsElement).open=true;
  fireEvent.change(screen.getByLabelText(i18n.t("tableImport.adviceApplicability")),{target:{value:"specific"}});
  expect(change).toHaveBeenLastCalledWith(expect.objectContaining({pile_count:1}));
  fireEvent.change(screen.getByLabelText(i18n.t("tableImport.sizeSource")),{target:{value:"fixed"}});

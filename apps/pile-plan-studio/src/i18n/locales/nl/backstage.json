@@ -56,6 +56,7 @@
     "ready": "Gereed om te importeren",
     "invalid": "Los de gemelde fouten op voordat je importeert",
     "pileColumnsRequired": "Koppel kolommen voor paalafmeting én paalpuntniveau om paaltoewijzingen te importeren.",
+    "missingPileColumnsWarning": "Deze import neemt de paaltoewijzingen uit het bestand niet over. Koppel eerst een kolom voor paalafmeting én een kolom voor paalpuntniveau om ze mee te nemen.",
     "mapImportColumns": "Koppel eerst de kolommen voor paaltoewijzingen of sonderingselecties om te kunnen importeren.",
     "chooseCategory": "Vink Paaltoewijzingen of Sonderingselecties aan om te importeren.",
     "noChanges": "Geen importeerbare wijzigingen gevonden. Controleer de kolomkoppeling en het importvoorbeeld.",

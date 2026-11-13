@@ -118,7 +118,7 @@ test("pile-plan import delivers the eligible core patch with its filename and re
   fireEvent.change(view.container.querySelector('input[type="file"]')!, { target: { files: [file("invalid.csv")] } });
   await waitFor(() => expect(core.plan).toHaveBeenCalledTimes(2));
   await waitFor(() => expect((submit as HTMLButtonElement).disabled).toBe(true));
-  expect(view.container.querySelector(".pile-plan-import-diagnostics")?.textContent).toContain(t("pilePlanImport.diagnostics.invalid-row", "backstage"));
+  expect(view.container.querySelector(".source-preview-errors")?.textContent).toContain(t("pilePlanImport.diagnostics.invalid-row", "backstage"));
   fireEvent.click(submit); expect(apply).toHaveBeenCalledTimes(1);
 });
 
@@ -163,9 +163,19 @@ test("pile import exposes location review directly, with tolerance outside colla
   core.plan.mockResolvedValue({...planPreview,matching:{links:[],added:[],removed:[],unmatched_new:[2],unmatched_old:[],proposals:[],complete:false}});
   const view=render(<PilePlanImportPanel loadPoints={[]} cpts={[]} availablePileConfigurations={[]} onImportPilePlan={()=>{}}/>);
   fireEvent.change(view.container.querySelector('input[type="file"]')!,{target:{files:[file("plan.csv")]}});
-  const review=await screen.findByRole("button",{name:t("locationMatchingEntry.open")});
+  const review=await screen.findByRole("button",{name:t("pilePlanMatching.reviewUnmatched")});
   expect(review.closest("details")).toBeNull();
+  expect(screen.getByText(i18n.t("pilePlanMatching.unmatchedImpact",{count:1}))).toBeTruthy();
+  expect(screen.getByRole<HTMLButtonElement>("button",{name:i18n.t("pilePlanImport.import",{ns:"backstage"})}).disabled).toBe(true);
   expect(screen.getByRole("spinbutton",{name:t("exportTools.matchTolerance")})).toBeTruthy();
+});
+
+test("an explicitly skipped import row shows its impact while linked rows remain importable",async()=>{
+  core.plan.mockResolvedValue({...planPreview,matching:{links:[{old_id:1,new_id:2,distance_mm:null}],added:[3],removed:[],unmatched_new:[],unmatched_old:[],proposals:[],complete:true}});
+  const view=render(<PilePlanImportPanel loadPoints={[]} cpts={[]} availablePileConfigurations={[]} onImportPilePlan={()=>{}}/>);
+  fireEvent.change(view.container.querySelector('input[type="file"]')!,{target:{files:[file("plan.csv")]}});
+  expect(await screen.findByText(i18n.t("pilePlanMatching.skippedImpact",{count:1}))).toBeTruthy();
+  expect(screen.getByRole<HTMLButtonElement>("button",{name:i18n.t("pilePlanImport.import",{ns:"backstage"})}).disabled).toBe(false);
 });
 
 

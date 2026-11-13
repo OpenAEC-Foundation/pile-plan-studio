@@ -82,58 +82,13 @@
 
 .project-import-blueprint .advice-import-sheet-choice { gap: 12px; }
 .project-import-blueprint .advice-import-sheet { display: grid; gap: 8px; min-width: 0; }
-.project-import-blueprint .advice-import-sheet > .oa-status { justify-self: start; }
-.project-import-blueprint .advice-import-sheet > .source-table-editor { grid-column: 1 / -1; }
 .project-import-blueprint .advice-import-primary-diagnostics { margin: 0; }
 
-/* The source table stays semantic to retain source rows and disabled options. */
-.source-table-blueprint .source-preview-table.oa-table { font-size: var(--oa-size-body); }
-.source-table-blueprint .source-preview-table.oa-table th,
-.source-table-blueprint .source-preview-table.oa-table td {
-  height: auto;
-  padding: 6px 8px;
-  font-family: var(--oa-font-body);
-  font-size: var(--oa-size-body);
-  letter-spacing: normal;
-  text-transform: none;
-  text-align: left;
-  white-space: nowrap;
-}
-.source-table-blueprint .source-preview-table.oa-table th:first-child { text-align: right; }
-.source-table-blueprint .source-preview-table th .oa-button {
-  display: grid;
-  gap: 4px;
-  height: auto;
-  padding: 2px;
-  border: 0;
-  background: transparent;
-  color: inherit;
-  text-align: left;
-}
-.source-table-blueprint .source-preview-table th .oa-button strong { font-weight: var(--oa-weight-medium); }
-.source-table-blueprint .source-preview-table th small { font-size: var(--oa-size-label); }
-.source-table-blueprint .source-import-disclosure > summary,
-.source-table-blueprint .source-import-settings label,
-.source-table-blueprint .source-column-details legend { font-size: var(--oa-size-body); }
-.source-table-blueprint .source-import-settings .oa-check { display: flex; align-items: center; gap: 8px; align-self: center; }
 .source-table-blueprint .project-import-tension-options .oa-check { align-self: flex-start; }
-.source-table-blueprint .source-import-file-settings { gap: 12px; }
-.source-table-blueprint .source-import-file-settings > label:not(.oa-check),
-.source-table-blueprint .source-import-file-settings > .oa-label { flex: 1 1 140px; }
-.source-table-blueprint .source-import-settings .oa-field { min-width: 0; width: 100%; }
-.source-table-blueprint .source-import-help { font-size: var(--oa-size-label); }
-.source-table-blueprint .source-column-editor { grid-template-columns: minmax(180px, .8fr) minmax(0, 1.2fr); }
-.source-table-blueprint .source-column-list > .oa-button { height: auto; min-height: var(--oa-row); white-space: normal; font-size: var(--oa-size-body); }
-.source-table-blueprint .source-column-list strong { font-weight: var(--oa-weight-medium); }
-.source-table-blueprint .source-column-list small,
-.source-table-blueprint .source-column-number,
-.source-table-blueprint .source-column-empty { font-size: var(--oa-size-label); }
-.source-table-blueprint .source-error-link.oa-button { height: auto; min-height: var(--oa-row); white-space: normal; text-align: left; justify-self: start; }
 
 @media (max-width: 1000px) {
   .backstage-content:has(.project-import-panel) { padding: 20px; }
-  .project-import-blueprint .project-import-properties,
-  .source-table-blueprint .source-column-editor { grid-template-columns: minmax(0, 1fr); }
+  .project-import-blueprint .project-import-properties { grid-template-columns: minmax(0, 1fr); }
 }
 @media (max-width: 700px) {
   .backstage-content:has(.project-import-panel) { padding: 16px; }

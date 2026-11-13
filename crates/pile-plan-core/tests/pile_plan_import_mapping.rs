@@ -112,6 +112,26 @@ fn revit_marks_are_imported_alongside_coordinate_matched_location_ids() {
 }
 
 #[test]
+fn square_dimensions_in_type_are_detected_when_no_pile_size_column_is_named() {
+    let result = preview(
+        "Mark,Load Point ID,Type,X,Y,Level tov NAP\n001,1,320x320,1000,2000,-18\n",
+        Value::Null,
+        Value::Null,
+    );
+    assert_eq!(result["can_apply"], true, "{result}");
+    assert_eq!(result["patch"]["changes"][0]["pile"]["value"]["pile_size_mm"], 320);
+    assert_eq!(result["table"]["settings"]["columns"][2]["field"], "pile-size");
+
+    let result = preview(
+        "ID,Type,Size,Tip\n1,290x290,320,-18\n",
+        Value::Null,
+        Value::Null,
+    );
+    assert_eq!(result["can_apply"], true, "{result}");
+    assert_eq!(result["table"]["settings"]["columns"][1]["field"], "ignore");
+}
+
+#[test]
 fn marks_can_be_imported_without_pile_assignments() {
     let result = preview("ID,Revit Mark\n1,VEGA-01\n", Value::Null, Value::Null);
     assert_eq!(result["can_apply"], true);

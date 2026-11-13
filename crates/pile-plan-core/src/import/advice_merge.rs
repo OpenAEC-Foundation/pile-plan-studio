@@ -1,6 +1,6 @@
 use super::{AdviceConflict, AdviceConflictValue, AdviceValueLocation, ImportError};
 use crate::{try_pile_tip_level_mm, ProjectBearingCapacity};
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 #[derive(Clone, Debug)]
 pub(super) struct SourcedCapacity {
     pub capacity: ProjectBearingCapacity,
@@ -11,6 +11,7 @@ pub(super) struct AdviceMergeResult {
     pub unique_values: Vec<ProjectBearingCapacity>,
     pub exact_duplicate_count: usize,
     pub conflicts: Vec<AdviceConflict>,
+    pub overlapping_source_ids: BTreeSet<String>,
 }
 pub(super) fn merge_advice_values(
     values: &[SourcedCapacity],
@@ -31,6 +32,9 @@ pub(super) fn merge_advice_values(
     }
     let mut result = AdviceMergeResult::default();
     for ((cpt_id, pile_size_mm, pile_tip_level_mm, direction, pile_count), mut items) in groups {
+        if items.iter().any(|item| item.location.source_id != items[0].location.source_id) {
+            result.overlapping_source_ids.extend(items.iter().map(|item| item.location.source_id.clone()));
+        }
         items.sort_by(|a, b| {
             a.capacity
                 .frd_kn

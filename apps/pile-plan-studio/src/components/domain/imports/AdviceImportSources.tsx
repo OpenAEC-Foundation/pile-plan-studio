@@ -2,24 +2,31 @@ import SourceTableEditor from "./SourceTableEditor.tsx";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { AdviceDraft, AdviceSourceDraft } from "../../../domain/imports/adviceImportModel.ts";
-import { addAdviceSource, removeAdviceSource, replaceAdviceFile, replaceStoredAdvice, setAdviceProfile, setAdviceSheetSelection } from "../../../domain/imports/adviceImportModel.ts";
+import { addAdviceSource, removeAdviceSource, replaceAdviceFile, replaceStoredAdvice, selectUsableAdviceSheets, setAdviceFilePileCount, setAdviceProfile, setAdviceSheetSelection, unselectedUsableAdviceSheets } from "../../../domain/imports/adviceImportModel.ts";
 import type { StoredAdviceSource } from "../../../core/adviceImportContract.ts";
 import type { ImportProfile } from "../../../core/coreImportContract.ts";
 import { importDiagnosticText } from "../../../core/importDiagnosticText.ts";
 import { Banner, Button, Checkbox, Heading, Select, Status } from "../../../openaec/react/src/index";
 import ImportFileButton from "./ImportFileButton.tsx";
 import AdviceImportDiagnostics from "./AdviceImportDiagnostics.tsx";
+import NumericValueInput from "../../template/NumericValueInput.tsx";
 
 type Props = { draft: AdviceDraft<File>; onChange: (fn: (d: AdviceDraft<File>) => AdviceDraft<File>) => void;
-  refresh: boolean; showMapping?: boolean };
+  refresh: boolean };
 
-export default function AdviceImportSources({ draft, onChange, refresh, showMapping }: Props) {
+export default function AdviceImportSources({ draft, onChange, refresh }: Props) {
   const { t } = useTranslation("common");
   const [emptyCards, setEmptyCards] = useState<string[]>([]);
   const [emptyProfiles, setEmptyProfiles] = useState<Record<string, ImportProfile>>({});
   const stored = refresh ? draft.existingSources ?? [] : [];
   const sourceOrder=[...stored.map(s => `stored:${s.id}`),...draft.sources.filter(s => !s.replacementId || !refresh).map(s => s.id)];
   const sourceLabels=Object.fromEntries(sourceOrder.map((id,index) => [id,t("importProject.advice.sourceNumber",{count:index+1})]));
+  const jointPreview = draft.previewState.status === "ready" ? draft.previewState.preview : null;
+  const overlap = new Set(jointPreview?.overlappingAdviceSourceIds);
+  const canSelectMore = draft.sources.some(source => unselectedUsableAdviceSheets(source).length > 0);
+  const capLabel = (count: number | null | undefined) => count == null
+    ? t("tableImport.allPileCounts")
+    : t("importProject.advice.pilesPerCap", { count });
   const alreadyShownDiagnostics = draft.sources.flatMap(source => source.discovery.status === "ready"
     ? [...source.discovery.preview.diagnostics, ...source.discovery.preview.sheets.flatMap(sheet => sheet.diagnostics.slice(0, 1))]
     : []);
@@ -78,13 +85,19 @@ export default function AdviceImportSources({ draft, onChange, refresh, showMapp
         {sheets.map(sheet => {
           const selection = source!.sheetSelection?.find(v => v.sheetName===sheet.sheetName);
           return <div className={multiple ? "advice-import-sheet" : "advice-import-single-sheet"} key={sheet.sheetName}>
-            {multiple && <>
-              <Checkbox label={sheet.sheetName} checked={!!selection} onChange={e => onChange(d => setAdviceSheetSelection(d,source!.id,
-                e.target.checked ? [...source!.sheetSelection ?? [],{sheetName:sheet.sheetName,profile:sheet.resolvedProfile ?? profile,table:sheet.table?.settings}]
-                  : (source!.sheetSelection ?? []).filter(v => v.sheetName!==sheet.sheetName)))} />
-              <Status tone={sheet.status === "ready" ? "success" : "warning"}>{t(`importProject.advice.status.${sheet.status}`)}</Status>
-            </>}
-            {(!multiple||selection)&&<SourceTableEditor variant="blueprint" showMapping={showMapping} key={`${source!.id}:${sheet.sheetName}`} preview={sheet.table} diagnostics={sheet.diagnostics} settings={selection?.table} role="bearing-capacities" matrix={(selection?.profile==="auto"||!selection)?sheet.resolvedProfile==="capacity-columns"||sheet.detectedProfile==="capacity-columns":selection.profile==="capacity-columns"}
+            <div className="advice-sheet-summary">
+              {multiple && <Checkbox label={sheet.sheetName} checked={!!selection} onChange={e => onChange(d => {
+                const current = d.sources.find(item => item.id === source!.id)?.sheetSelection ?? [];
+                return setAdviceSheetSelection(d, source!.id, e.target.checked
+                  ? [...current, { sheetName: sheet.sheetName, profile: sheet.resolvedProfile ?? profile, table: sheet.table?.settings }]
+                  : current.filter(item => item.sheetName !== sheet.sheetName));
+              })} />}
+              {(!multiple || selection) && <span>{capLabel(selection?.table?.pile_count ?? source?.filePileCount)}</span>}
+              {multiple && <Status tone={sheet.status === "ready" ? "success" : "warning"}>{t(`importProject.advice.status.${sheet.status}`)}</Status>}
+            </div>
+            {(!multiple||selection)&&<details className="advice-sheet-editor" open={sheet.status === "ready" ? undefined : true}>
+              <summary>{t("tableImport.settings")}</summary>
+              <SourceTableEditor variant="blueprint" key={`${source!.id}:${sheet.sheetName}`} preview={sheet.table} diagnostics={sheet.diagnostics} settings={selection?.table} role="bearing-capacities" showAdvicePileCount={source?.filePileCount === undefined && multiple} matrix={(selection?.profile==="auto"||!selection)?sheet.resolvedProfile==="capacity-columns"||sheet.detectedProfile==="capacity-columns":selection.profile==="capacity-columns"}
               csv={source!.file.name.toLowerCase().endsWith(".csv")}
               onChange={table=>onChange(d=>setAdviceSheetSelection(d,source!.id,(source!.sheetSelection??[{sheetName:sheet.sheetName,profile:sheet.resolvedProfile??profile}]).map(v=>v.sheetName===sheet.sheetName?{...v,table,tensionColumn:null}:v)))}>
               <Select label={t("importProject.profile.label")} value={selection?.profile??profile} options={source!.file.name.toLowerCase().endsWith(".csv")?profiles.filter(p=>p.value!=="capacity-columns"):profiles} aria-label={`${t("importProject.profile.label")} ${sheet.sheetName||fileName}`}
@@ -93,8 +106,9 @@ export default function AdviceImportSources({ draft, onChange, refresh, showMapp
                 options={[{value:"compression",label:t("loadDirection.compressionResistance")},{value:"tension",label:t("loadDirection.tensionResistance")}]}
                 onChange={event=>{const value=event.currentTarget.value;onChange(d=>setAdviceSheetSelection(d,source!.id,(source!.sheetSelection??[{sheetName:sheet.sheetName,profile:sheet.resolvedProfile??profile}]).map(v=>v.sheetName===sheet.sheetName?{...v,direction:value as "compression"|"tension",tensionColumn:null}:v)));}}/><small>{t("tableImport.matrixHelp")}</small></div>}
               <small className="source-import-help">{t("loadDirection.designResistanceHelp")}</small>
-            </SourceTableEditor>}
-            {(!multiple || selection) && sheet.diagnostics[0] && <div className="advice-import-primary-diagnostics"><Banner tone={sheet.diagnostics[0].severity === "error" ? "error" : "warning"} word="">{importDiagnosticText(sheet.diagnostics[0],t)}</Banner></div>}
+              </SourceTableEditor>
+            </details>}
+            {(!multiple || selection) && sheet.diagnostics[0]?.severity === "warning" && <div className="advice-import-primary-diagnostics"><Banner tone="warning" word="">{importDiagnosticText(sheet.diagnostics[0],t)}</Banner></div>}
           </div>;
         })}
       </div>}
@@ -109,6 +123,48 @@ export default function AdviceImportSources({ draft, onChange, refresh, showMapp
     </section>;
   }
   return <div className="advice-import-sources">
+    {draft.sources.length > 0 && <section className="project-import-source-card advice-file-overview">
+      <div className="advice-file-overview-heading">
+        <Heading>{t("importProject.advice.filesOverview")}</Heading>
+        <Button disabled={!canSelectMore} onClick={() => onChange(selectUsableAdviceSheets)}>
+          {t("importProject.advice.selectUsableSheets")}
+        </Button>
+      </div>
+      {draft.sources.some(source => overlap.has(source.id)) && <Banner tone="warning" word="">
+        {t("importProject.advice.pileCountOverlap")}
+      </Banner>}
+      {draft.sources.map(source => {
+        const sheets = source.discovery.status === "ready" ? source.discovery.preview.sheets : source.lastPreview?.sheets;
+        const perSheet = source.filePileCount === undefined;
+        const count = source.filePileCount ?? (perSheet && sheets?.length === 1 ? source.sheetSelection?.[0]?.table?.pile_count : null);
+        const mode = count != null ? "specific" : perSheet && (sheets?.length ?? 0) > 1 ? "worksheets" : "all";
+        const fileName = source.file.name;
+        return <div className="advice-file-overview-row" key={source.id}>
+          <div><strong>{fileName}</strong>
+            {!!source.sheetSelection?.length && <small>{source.sheetSelection.map(sheet =>
+              `${sheet.sheetName || fileName}${mode === "worksheets" ? ` (${capLabel(sheet.table?.pile_count)})` : ""}`).join(", ")}</small>}
+            {overlap.has(source.id) && <Status tone="warning">{t("importProject.advice.overlappingFile")}</Status>}
+          </div>
+          <div className="advice-file-overview-controls">
+            <Select label={t("tableImport.adviceApplicability")} aria-label={`${t("tableImport.adviceApplicability")} ${fileName}`}
+              value={mode} options={[
+                ...(sheets?.length === 1 ? [] : [{ value: "worksheets", label: t("importProject.advice.pileCountBySheet") }]),
+                { value: "all", label: t("tableImport.allPileCounts") },
+                { value: "specific", label: t("tableImport.specificPileCount") },
+              ]}
+              onChange={event => {
+                const value = event.target.value;
+                onChange(d => setAdviceFilePileCount(d, source.id, value === "worksheets" ? undefined : value === "all" ? null : 1));
+              }} />
+            {mode === "specific" && <label className="oa-label"><span>{t("tableImport.capPileCount")}</span>
+              <NumericValueInput variant="blueprint" aria-label={`${t("tableImport.capPileCount")} ${fileName}`}
+                integer min={1} max={4294967295} value={count ?? 1}
+                onNumberChange={value => onChange(d => setAdviceFilePileCount(d, source.id, value))} />
+            </label>}
+          </div>
+        </div>;
+      })}
+    </section>}
     {stored.map(s => card(`stored:${s.id}`,draft.sources.find(v => v.replacementId===s.id),s))}
     {draft.sources.filter(s => !refresh || !s.replacementId).map(s => card(s.id,s))}
     {!stored.length && !draft.sources.length && card("default")}

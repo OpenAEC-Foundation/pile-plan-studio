@@ -44,6 +44,7 @@ export default function PileDrivingPanel({ planName, driving, readOnly = false, 
   }
   const { example, error, files, selectedId } = driving;
   const exampleResult = files.find(file => file.id === example?.id)?.result;
+  const exampleError = exampleResult?.status === "failed" ? exampleResult.error : null;
   const exampleRecords = exampleResult?.status === "ready" ? exampleResult.preview.records : undefined;
   const recordsBySourceRow = useMemo(() => {
     const byRow = new Map<number, PileDrivingRecord>();
@@ -120,6 +121,11 @@ export default function PileDrivingPanel({ planName, driving, readOnly = false, 
               {example && files.length > 0 && <fieldset className="pile-driving-import" aria-label={t("importSettings")} disabled={readOnly || driving.pending}>
                 <SourceTableEditor role="pile-driving" variant="blueprint" csv={example.csv}
                   preview={example.table} previewColumn={{ label: t("overview.link"), cell: previewLink }}
+                  sourceErrors={exampleError ? [{
+                    row: exampleError.code === "missing-pile-number" ? exampleError.row : null,
+                    column: null,
+                    message: t(`errors.${exampleError.code}`, exampleError.code === "missing-pile-number" ? { row: exampleError.row } : {}),
+                  }] : undefined}
                   onChange={table => { setPicked(null); driving.setTable(table); }}>
                   {allFiles && files.length > 1 && <Select label={t("exampleFile")} value={example.id}
                     options={fileOptions} onChange={event => driving.selectExample(event.target.value)} />}

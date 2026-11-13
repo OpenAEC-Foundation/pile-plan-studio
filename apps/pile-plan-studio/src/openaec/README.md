@@ -339,12 +339,12 @@ worksheet selection, immutable column mapping, refresh review and submission
 callbacks remain unchanged. Reference-level help stays in an accessible tooltip;
 the required field retains comma/point normalization and its existing blocker.
 
-SourceTableEditor and SourceColumnEditor expose an optional Blueprint variant.
-That variant uses shared Buttons, Checkbox, TextField and Select alongside
-Blueprint-styled semantic tables. SourceMeaningSelect preserves disabled mapping
-options (see the local adaptation register). Numeric drafts retain validation,
-blur and repeat-step behavior through the shared numeric adapter. Source row
-numbers, error links, column selection and collapsed disclosures remain intact.
+SourceTableEditor uses shared Buttons, Checkbox and Select alongside a semantic
+table. Import and export previews share EditableTableHeading for the column
+popup. SourceMeaningSelect preserves disabled mapping options (see the local
+adaptation register). Numeric drafts retain validation, blur and repeat-step
+behavior through the shared numeric adapter. Import errors link to the original
+source row or cell when it is visible in the preview.
 
 Import workspaces, including pile-plan import sizing, now use the same 1100 px
 maximum width as export, constrained by the viewport and File navigation. The

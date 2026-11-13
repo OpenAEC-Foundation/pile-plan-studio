@@ -56,6 +56,7 @@
     "ready": "Ready to import",
     "invalid": "Resolve the reported errors before importing",
     "pileColumnsRequired": "Map both pile size and pile tip level columns to import pile assignments.",
+    "missingPileColumnsWarning": "This import will skip the pile assignments in the file. Map both a pile size column and a pile tip level column to include them.",
     "mapImportColumns": "First map the columns for pile assignments or CPT selections to enable import.",
     "chooseCategory": "Select Pile assignments or CPT selections to import.",
     "noChanges": "No importable changes found. Check the column mapping and import preview.",

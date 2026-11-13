@@ -19,7 +19,6 @@ function props() {
 test("workspace review hides backstage without losing the current panel or handling Escape", () => {
   const p=props(), view=render(<Backstage {...p}/>);
   fireEvent.click(screen.getByRole("button",{name:t("exportMenu")}));
-  fireEvent.click(view.container.querySelector(".export-columns-disclosure > summary")!);
   fireEvent.change(screen.getByLabelText(i18n.t("exportTools.addColumn")),{target:{value:"mark"}});
   view.rerender(<Backstage {...p} suspended/>);
   expect(screen.queryByRole("button",{name:i18n.t("exportTools.selectColumn",{name:"Mark"})})).toBeNull();
@@ -59,8 +58,6 @@ test("all exports are blocked during one pending export and failures restore the
 });
 
 const selectSize = () => {
-  const disclosure=document.querySelector<HTMLDetailsElement>(".export-columns-disclosure")!;
-  if(!disclosure.open)fireEvent.click(disclosure.querySelector("summary")!);
   fireEvent.click(screen.getByRole("button", {name:i18n.t("exportTools.selectColumn",{name:"Pile Size [mm]"})}));
 };
 const notation = () => screen.getByRole("combobox",{name:i18n.t("exportTools.sizeNotation")}) as HTMLSelectElement;
@@ -74,7 +71,7 @@ test("Excel and CSV share the configured column notation", async () => {
   fireEvent.change(notation(),{target:{value:"dimensions"}});
   fireEvent.click(screen.getByRole("button",{name:t("exportPanel.exportExcel")}));
   await waitFor(()=>expect(p.onExportPilePlanXlsx).toHaveBeenCalledWith("numeric",expect.objectContaining({columns:expect.arrayContaining([expect.objectContaining({field:"pile_size",size_format:"dimensions"})])})));
-  await waitFor(()=>expect(notation().disabled).toBe(false));
+  await waitFor(()=>expect(screen.getByRole("button",{name:i18n.t("exportTools.selectColumn",{name:"Pile Size [mm]"})}).matches(":disabled")).toBe(false));
   fireEvent.click(screen.getByRole("button",{name:t("exportPanel.exportCsv")}));
   await waitFor(()=>expect(p.onExportPilePlanCsv.mock.calls[0]).toEqual(p.onExportPilePlanXlsx.mock.calls[0]));
 });

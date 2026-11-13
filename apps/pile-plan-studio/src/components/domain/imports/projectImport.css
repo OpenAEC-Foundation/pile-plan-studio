@@ -494,6 +494,22 @@
 .advice-conflict-pages { display: flex; gap: 12px; align-items: center; }
 .advice-import-diagnostics { min-width: 0; overflow-wrap: anywhere; }
 .advice-import-sources { display: grid; gap: 10px; min-width: 0; }
+.advice-file-overview-heading,
+.advice-file-overview-row,
+.advice-file-overview-controls,
+.advice-sheet-summary { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: center; }
+.advice-file-overview-heading { justify-content: space-between; }
+.advice-file-overview-row { padding-block-start: 8px; border-block-start: 1px solid var(--theme-border); }
+.advice-file-overview-row > div { flex: 1 1 240px; min-width: 0; overflow-wrap: anywhere; }
+.advice-file-overview-row small { display: block; margin-block: 3px; color: var(--theme-text-secondary); }
+.advice-file-overview-controls { align-items: end; }
+.advice-file-overview-controls > * { flex: 1 1 120px; min-width: 0; }
+.advice-file-overview-controls .oa-field { width: 100%; min-width: 0; }
+.advice-sheet-summary { grid-column: 1 / -1; }
+.advice-sheet-summary > :is(span:not(.oa-status), small) { color: var(--theme-text-secondary); }
+.advice-sheet-summary > .oa-status { margin-inline-start: auto; }
+.advice-sheet-editor { grid-column: 1 / -1; min-width: 0; }
+.advice-sheet-editor > summary { cursor: pointer; padding: 4px 0; }
 .advice-import-sources > small, .advice-import-operation { color: var(--theme-text-secondary); }
 .advice-import-add { justify-self: start; }
 .advice-import-sheet-choice { display: grid; gap: 6px; }

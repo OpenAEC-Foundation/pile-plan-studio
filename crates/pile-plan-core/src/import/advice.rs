@@ -13,6 +13,7 @@ pub(super) struct AdviceAnalysis {
     pub exact_duplicate_count: usize,
     pub logs: Vec<ProjectImportLogEntry>,
     pub sourced_values: Vec<SourcedCapacity>,
+    pub overlapping_source_ids: Vec<String>,
 }
 
 pub(super) fn diagnostic(error: &ImportError) -> ImportDiagnostic {
@@ -58,6 +59,7 @@ impl ImportError {
             message: self.to_string(),
             diagnostics: vec![diagnostic(self)],
             conflicts: vec![],
+            overlapping_advice_source_ids: vec![],
         }
     }
 }
@@ -137,6 +139,7 @@ fn parse_table(
                 &e, original,
             )],
             conflicts: vec![],
+            overlapping_advice_source_ids: vec![],
         })
     })
 }
@@ -622,6 +625,7 @@ pub(super) fn analyze_advice_sources(
             message: d.fallback_message.clone(),
             diagnostics: vec![d],
             conflicts: merged.conflicts,
+            overlapping_advice_source_ids: merged.overlapping_source_ids.into_iter().collect(),
         }));
     }
     logs.sort_by(|a, b| (&a.0, &a.1.sheet_name).cmp(&(&b.0, &b.1.sheet_name)));
@@ -643,6 +647,7 @@ pub(super) fn analyze_advice_sources(
         exact_duplicate_count: merged.exact_duplicate_count,
         logs,
         sourced_values: values,
+        overlapping_source_ids: merged.overlapping_source_ids.into_iter().collect(),
     })
 }
 
@@ -697,11 +702,13 @@ pub fn preview_project_import(request: &PreviewProjectImportRequest) -> ProjectI
             result.exact_duplicate_count = f.exact_duplicate_count;
             result.diagnostics = f.diagnostics;
             result.conflicts = f.conflicts;
+            result.overlapping_advice_source_ids = f.overlapping_advice_source_ids;
             return result;
         }
     };
     result.unique_value_count = analysis.values.len();
     result.exact_duplicate_count = analysis.exact_duplicate_count;
+    result.overlapping_advice_source_ids = analysis.overlapping_source_ids;
     let checked = (|| -> Result<(), ImportError> {
         let mut loads = request
             .current_project
@@ -875,6 +882,60 @@ mod tests {
         );
         source.profile_options.advice_sheets = Some(vec![]);
         assert!(analyze_advice_sources(&[source]).unwrap().logs.is_empty());
+    }
+    #[test]
+    fn advice_merge_validates_both_standard_and_matrix_worksheets() {
+        for resistance in [600, 601] {
+            let mut source = workbook(&[
+                ("lijst", "Sondering,PPN,Kenmerk,Waarde\n1,-18,290,500\n1,-18,320,600"),
+                ("matrix", &format!("Sondering,PPN,290,320\n1,-18,500,{resistance}")),
+            ]);
+            let preview = preview_advice_source(&source);
+            source.profile_options.advice_sheets = Some(preview.sheets.into_iter().map(|sheet| {
+                assert_eq!(sheet.status, AdviceSheetStatus::Ready);
+                AdviceSheetSelection {
+                    sheet_name: sheet.sheet_name,
+                    profile: sheet.resolved_profile.unwrap(),
+                    table: sheet.table.map(|table| table.settings),
+                    direction: Default::default(),
+                    tension_column: None,
+                }
+            }).collect());
+            match analyze_advice_sources(&[source]) {
+                Ok(analysis) => {
+                    assert_eq!(resistance, 600);
+                    assert_eq!(analysis.values.len(), 2);
+                    assert_eq!(analysis.exact_duplicate_count, 2);
+                }
+                Err(error) => {
+                    assert_eq!(resistance, 601);
+                    let failure = error.to_source_import_failure();
+                    assert_eq!(failure.exact_duplicate_count, 1);
+                    assert_eq!(failure.conflicts.len(), 1);
+                    assert_eq!(failure.conflicts[0].pile_size_mm, 320);
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn advice_preview_lists_overlapping_files_for_equal_values_and_conflicts() {
+        for resistance in [500, 501] {
+            let mut a = workbook(&[("advies", "Sondering,PPN,290,320\n1,-18,500,600")]);
+            let mut b = workbook(&[("advies", &format!("Sondering,PPN,290,320\n1,-18,{resistance},600"))]);
+            b.source_id = Some("b".into());
+            let mut request = PreviewProjectImportRequest { sources: vec![a.clone(), b.clone()], current_project: None };
+            assert_eq!(preview_project_import(&request).overlapping_advice_source_ids, ["a", "b"]);
+            for (source, count) in [(&mut a, 2), (&mut b, 3)] {
+                let mut selected = preview_advice_source(source).suggested_selection;
+                selected[0].table.as_mut().unwrap().pile_count = Some(count);
+                source.profile_options.advice_sheets = Some(selected);
+            }
+            request.sources = vec![a, b];
+            assert!(preview_project_import(&request).overlapping_advice_source_ids.is_empty());
+            let analysis = analyze_advice_sources(&request.sources).unwrap();
+            assert_eq!(analysis.values.len(), 4);
+        }
     }
     #[test]
     fn advice_excluded_invalid_sheet_does_not_block() {

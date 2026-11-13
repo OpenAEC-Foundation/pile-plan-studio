@@ -5,7 +5,6 @@ import {DEFAULT_CHANGE_CODES,DEFAULT_EXPORT_OPTIONS,type ExportOptions,type Revi
 import {defaultExportColumns,optionsWithColumns,ensureExportColumn,withoutProposalExportColumns,DEFAULT_COLUMN_HEADERS} from "../../../domain/exports/exportColumns.ts";
 import type {PilePlanExportInput,PileSizeExportFormat} from "../../../core/projectTypes.ts";
 import ExportColumnsEditor from "./ExportColumnsEditor.tsx";
-import ExportTablePreview from "./ExportTablePreview.tsx";
 import PileTableSourceEditor from "./PileTableSourceEditor.tsx";
 import LocationMatchingEntry from "../location-matching/LocationMatchingEntry.tsx";
 import LocationMatchingWorkspace from "../location-matching/LocationMatchingWorkspace.tsx";
@@ -101,23 +100,27 @@ export default function PilePlanExportPanel({activePilePlanName,pileSizeFormat,o
     {mode==="revision"&&revision&&<LocationMatchingEntry
       summary={reviewMatching?t("locationMatchingEntry.comparisonSummary",{linked:reviewMatching.links.length,pending:reviewMatching.unmatched_new.length+reviewMatching.unmatched_old.length,added:reviewMatching.added.length,removed:reviewMatching.removed.length}):undefined}
       help={t("locationMatchingEntry.revisionHelp")} reviewed={state.reviewed}
+      reviewAction={t("exportTools.reviewAndConfirmLinks")}
       disabled={disabled||state.revision.pending} onOpen={state.openReview}
       tolerance={state.tolerance} onToleranceChange={value=>changeTolerance(Number(value))}/>}
-    {(mode==="normal"||state.outputColumns.length>0)&&<details className="export-disclosure export-columns-disclosure"><summary>{t("exportTools.columnSettings")}</summary><ExportColumnsEditor columns={mode==="normal"?normalColumns:state.outputColumns}
+    {mode==="revision"&&revision&&!state.reviewed&&<div className="revision-preview-blocked" role="status">
+      <Heading>{t("exportTools.exportPreview")}</Heading>
+      <p>{t("exportTools.revisionPreviewBlocked")}</p>
+    </div>}
+    {(mode==="normal"||(state.reviewed&&(!!revision?.table||state.hasRevisionTable)))&&<ExportColumnsEditor key={mode} columns={mode==="normal"?normalColumns:state.outputColumns}
+      table={mode==="normal"?state.normalDisplay?.table:state.revisionDisplay?.table}
+      tipCodes={mode==="normal"?state.normal.result?.tip_codes:state.revision.result?.tip_codes}
+      pending={mode==="normal"?state.normal.pending:state.revision.pending}
       onChange={columns=>mode==="normal"?changeOptions(optionsWithColumns(options,columns)):state.setOutputColumns(columns)}
       numberingDetection={mode==="revision"?revision?.numbering:undefined} onUseDetectedNumbering={state.useDetected}
       defaultHeaders={headers} options={state.displayOptions} onOptionsChange={changeOptions} disabled={disabled} revision={mode==="revision"} firstNewMark={revision?.first_new_mark}
       preserveMarks={(revision?.numbering.total_positions??0)>0} sourceHeaders={mode==="revision"?state.oldInspectionForEditor?.headers:[]}
       changeCodes={options.change_codes??DEFAULT_CHANGE_CODES} onChangeCodes={codes=>changeOptions({...state.displayOptions,change_codes:codes})}
-      onReset={()=>mode==="normal"?changeOptions({...options,columns:undefined}):state.resetOutputColumns()}/></details>}
+      onReset={()=>mode==="normal"?changeOptions({...options,columns:undefined}):state.resetOutputColumns()}/>}
     {mode==="normal"&&!!state.normalDisplay?.proposed_count&&<p className="export-help">{t("exportTools.proposalSummary",{oldCount:state.normalDisplay.replaced_count,newCount:state.normalDisplay.proposed_count})}</p>}
     {error!=null&&<Banner tone="error" word="">{exportErrorText(error,t)}</Banner>}
     {exportPlan===null&&(mode==="normal"||!state.useFile)&&<p className="export-help">{t("exportTools.noNewPlan")}</p>}
     <div role="status" className="export-preview-status">{(state.normal.pending||state.revision.pending||state.reading||state.oldInspection.pending||state.newInspection.pending)&&<Status tone="info">{t("exportTools.preparing")}</Status>}</div>
-    {(mode==="normal"&&exportPlan||mode==="revision"&&state.hasRevisionTable)&&<details className="export-disclosure export-preview-disclosure"><summary>{t("exportTools.tablePreview")}</summary><div className="export-preview-slot" aria-busy={mode==="normal"?state.normal.pending:state.revision.pending}>
-      {mode==="normal"&&state.normalDisplay&&<ExportTablePreview table={state.normalDisplay.table} tipCodes={state.normalDisplay.tip_codes}/>}
-      {mode==="revision"&&state.revisionDisplay?.table&&<ExportTablePreview table={state.revisionDisplay.table} tipCodes={state.revisionDisplay.tip_codes}/>}
-    </div></details>}
     {mode==="revision"&&(revision?.matching.added.length??0)>0&&<p className="export-help">{t("exportTools.addedMetadata")}</p>}
     {mode==="revision"&&!state.oldSource&&<p className="export-help">{t("exportTools.chooseOld")}</p>}
     <div className="export-actions">

@@ -271,7 +271,7 @@ export default function ProjectImportPanel({
           const hidden = guided ? stepIndex !== index + 1 : refreshRole !== role;
           const tabPanel = guided ? {} : { role: "tabpanel", "aria-label": t(labelKey) };
           if (role === "bearing-capacities") return <div key={role} hidden={hidden} {...tabPanel}>
-            <AdviceImportSources draft={advice} onChange={updateAdvice} refresh={mode === "refresh"} showMapping={guided} />
+            <AdviceImportSources draft={advice} onChange={updateAdvice} refresh={mode === "refresh"} />
           </div>;
           const draft = drafts[role];
           const preview = draft.previewState.status === "ready" || draft.previewState.status === "analyzing" ? draft.previewState.preview??draft.lastPreview??null : draft.lastPreview??null;
@@ -302,7 +302,7 @@ export default function ProjectImportPanel({
               </div>
 
               <ImportStatus previewState={draft.previewState} t={t} />
-              {draft.file&&<SourceTableEditor variant="blueprint" showMapping={guided} preview={preview?.table} diagnostics={preview?.diagnostics} settings={draft.profileOptions.table} role={role} csv={draft.file.name.toLowerCase().endsWith(".csv")} processed={preview?.detectedProfile==="rfem-export"||draft.requestedProfile==="rfem-export"}
+              {draft.file&&<SourceTableEditor variant="blueprint" preview={preview?.table} diagnostics={preview?.table ? preview.diagnostics : undefined} settings={draft.profileOptions.table} role={role} csv={draft.file.name.toLowerCase().endsWith(".csv")} processed={preview?.detectedProfile==="rfem-export"||draft.requestedProfile==="rfem-export"}
                 onChange={table=>changeRfemOptions(role,{...draft.profileOptions,table})}>
                   <Select label={t("importProject.profile.label")}
                     value={draft.requestedProfile}
@@ -429,6 +429,7 @@ function ImportStatus({ previewState, t }: {
   if (preview.details?.kind === "rfem-export") return null;
   const errors = preview.diagnostics.filter((item) => item.severity === "error");
   if (errors.length > 0) {
+    if (preview.table) return null;
     return (
       <Banner tone="error" word="">
         {errors.map((item) => importDiagnosticText(item, t)).join(" ")}
