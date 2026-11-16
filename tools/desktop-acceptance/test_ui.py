@@ -91,8 +91,27 @@ class NativeCheckboxTests(unittest.TestCase):
 class NativeFileDialogTests(unittest.TestCase):
     def test_cancel_waits_until_the_dialog_is_absent(self):
         ui = UI.__new__(UI)
+        ui.mac = True
         ui.key = Mock()
         snapshots = iter([[{"role": "AXSheet"}], [{"role": "AXWindow"}]])
+
+        def snapshot():
+            ui.tree = next(snapshots)
+            return ui.tree
+
+        ui.snapshot = Mock(side_effect=snapshot)
+        with patch("ui.time.sleep"):
+            ui.cancel_file_dialog()
+        ui.key.assert_called_once_with("escape")
+        self.assertEqual(ui.snapshot.call_count, 2)
+
+    def test_gtk_cancel_ignores_embedded_web_dialogs(self):
+        ui = UI.__new__(UI)
+        ui.mac = False
+        ui.key = Mock()
+        embedded = {"role": "dialog", "name": "Unsaved changes", "parent": 7}
+        chooser = {"role": "file chooser", "name": "Open File", "parent": 0}
+        snapshots = iter([[embedded, chooser], [embedded]])
 
         def snapshot():
             ui.tree = next(snapshots)
