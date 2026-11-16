@@ -1,16 +1,16 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { proofPlatforms, platformJobs, macosProofRun } from './release-platforms.mjs';
+import { proofPlatforms, platformJobs, packageProofRun } from './release-platforms.mjs';
 import { spawnSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 test('existing macOS packages can only be rechecked in explicit signed macOS dispatches', () => {
-  assert.equal(macosProofRun({}), '');
-  const input={event:'workflow_dispatch',platform:'macos',signProof:true,runId:'41431616378'};
-  assert.equal(macosProofRun(input), '41431616378');
+  assert.equal(packageProofRun({}), '');
+  const input={event:'workflow_dispatch',platform:'macos',proofPlatform:'macos',signProof:true,runId:'41431616378'};
+  assert.equal(packageProofRun(input), '41431616378');
   for (const change of [{event:'push'}, {platform:'linux'}, {signProof:false},
     {runId:'../other'}, {runId:'0'}, {runId:'1\n2'}]) {
-    assert.throws(() => macosProofRun({...input,...change}));
+    assert.throws(() => packageProofRun({...input,...change}));
   }
 });
 test('proof selection defaults to Windows and expands only supported names', () => {
@@ -41,10 +41,32 @@ test('release candidate dispatch signs all platforms and rejects a reused proof'
   assert.equal(plan.create_draft, true);
   assert.equal(plan.sign, true);
   for (const platform of ['windows', 'linux', 'macos']) assert.equal(plan['build_' + platform], true);
-  for (const input of [{ INPUT_MACOS_PROOF_RUN_ID: '123' }, { INPUT_RELEASE_CANDIDATE: 'yes' }]) {
+  for (const input of [{ INPUT_MACOS_PROOF_RUN_ID: '123' }, { INPUT_LINUX_PROOF_RUN_ID: '123' }, { INPUT_RELEASE_CANDIDATE: 'yes' }]) {
     const invalid = run(input);
     assert.notEqual(invalid.status, 0);
     assert.equal(invalid.stdout, '');
+  }
+});
+test('workflow CLI reuses artifacts only for a signed proof of the selected platform', () => {
+  const root = fileURLToPath(new URL('../', import.meta.url));
+  const version = JSON.parse(readFileSync(new URL('../apps/pile-plan-studio/package.json', import.meta.url))).version;
+  const run = (overrides = {}) => spawnSync(process.execPath, ['tools/release.mjs', 'workflow'], {
+    cwd: root, encoding: 'utf8', windowsHide: true,
+    env: { ...process.env, GITHUB_EVENT_NAME: 'workflow_dispatch', GITHUB_REF: 'refs/heads/release-next',
+      INPUT_RELEASE_TAG: 'v' + version, INPUT_RELEASE_CANDIDATE: 'false', INPUT_SIGN_PROOF: 'true',
+      INPUT_PROOF_PLATFORM: 'linux', INPUT_LINUX_PROOF_RUN_ID: '123', INPUT_MACOS_PROOF_RUN_ID: '', ...overrides },
+  });
+  const result = run();
+  assert.equal(result.status, 0, result.stderr);
+  const plan = JSON.parse(result.stdout);
+  assert.equal(plan.linux_proof_run_id, '123');
+  assert.equal(plan.build_linux, true);
+  assert.equal(plan.create_draft, false);
+  for (const invalid of [{ INPUT_PROOF_PLATFORM: 'all' }, { INPUT_SIGN_PROOF: 'false' },
+    { INPUT_LINUX_PROOF_RUN_ID: '0' }, { INPUT_MACOS_PROOF_RUN_ID: '456' }]) {
+    const rejected = run(invalid);
+    assert.notEqual(rejected.status, 0);
+    assert.equal(rejected.stdout, '');
   }
 });
 test('workflow CLI transports platform selection without enabling publication', () => {

@@ -23,6 +23,10 @@ on:
         description: "Optional existing signed DMG run to recheck; signed macOS proofs only"
         type: string
         default: ""
+      linux_proof_run_id:
+        description: "Optional existing signed Linux package run to recheck; signed Linux proofs only"
+        type: string
+        default: ""
       sign_proof:
         description: "Sign selected proof packages with existing organisation credentials; never create a release"
         required: false
@@ -48,6 +52,8 @@ jobs:
       create_draft: ${{ steps.route.outputs.create_draft }}
       tag: ${{ steps.route.outputs.tag }}
       mode: ${{ steps.route.outputs.mode }}
+      linux_proof_run_id: ${{ steps.route.outputs.linux_proof_run_id }}
+      macos_proof_run_id: ${{ steps.route.outputs.macos_proof_run_id }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -62,11 +68,15 @@ jobs:
           INPUT_SIGN_PROOF: ${{ inputs.sign_proof }}
           INPUT_PROOF_PLATFORM: ${{ inputs.proof_platform }}
           INPUT_MACOS_PROOF_RUN_ID: ${{ inputs.macos_proof_run_id }}
+          INPUT_LINUX_PROOF_RUN_ID: ${{ inputs.linux_proof_run_id }}
         run: |
           node tools/release.mjs workflow --github-output
           if [[ "$INPUT_RELEASE_CANDIDATE" == 'true' ]]; then
             node tools/release.mjs check --tag "$INPUT_RELEASE_TAG" --publish
           fi
+      - name: Test release and package recheck tools
+        if: steps.route.outputs.linux_proof_run_id != '' || steps.route.outputs.macos_proof_run_id != ''
+        run: node --test tools/release-*.test.mjs
   windows:
     needs: route
     if: needs.route.outputs.windows == 'true'
@@ -88,6 +98,14 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
         with:
           targets: wasm32-unknown-unknown
+
+      - name: Cache Rust dependencies
+        uses: Swatinem/rust-cache@779680da715d629ac1d338a641029a2f4372abb5 # v2.8.2
+        with:
+          workspaces: |
+            . -> target
+            apps/pile-plan-studio/src-tauri -> target
+          cache-bin: false
 
       - name: Install wasm-pack
         uses: taiki-e/install-action@v2
@@ -204,6 +222,7 @@ jobs:
           name: windows-${{ steps.release.outputs.mode }}-${{ steps.release.outputs.version }}
           path: ${{ runner.temp }}/pile-plan-windows-proof
           if-no-files-found: error
+          overwrite: true
 
       - name: Collect Windows installer
         shell: pwsh
@@ -218,10 +237,11 @@ jobs:
           name: windows-packages-${{ github.sha }}
           path: windows-packages/
           if-no-files-found: error
+          overwrite: true
 
   linux:
     needs: route
-    if: needs.route.outputs.linux == 'true'
+    if: needs.route.outputs.linux == 'true' && !needs.route.outputs.linux_proof_run_id
     runs-on: ubuntu-22.04
     timeout-minutes: 60
     steps:
@@ -241,6 +261,13 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y build-essential cmake clang libclang-dev pkg-config libwebkit2gtk-4.1-dev libxdo-dev libssl-dev libayatana-appindicator3-dev librsvg2-dev curl wget file patchelf gnupg libfuse2 xvfb dbus-x11 xdotool
+      - name: Cache Rust dependencies
+        uses: Swatinem/rust-cache@779680da715d629ac1d338a641029a2f4372abb5 # v2.8.2
+        with:
+          workspaces: |
+            . -> target
+            apps/pile-plan-studio/src-tauri -> target
+          cache-bin: false
       - run: npm ci
         working-directory: apps/pile-plan-studio
       - run: cargo test --workspace --locked
@@ -272,9 +299,16 @@ jobs:
           name: linux-packages-${{ github.sha }}
           path: linux-packages/
           if-no-files-found: error
+          overwrite: true
 
   linux-runtime:
     needs: [route, linux]
+    if: >-
+      !cancelled() && needs.route.result == 'success' && needs.route.outputs.linux == 'true' &&
+      (needs.linux.result == 'success' || needs.route.outputs.linux_proof_run_id != '')
+    permissions:
+      contents: read
+      actions: read
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -284,18 +318,31 @@ jobs:
     timeout-minutes: 40
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/download-artifact@v4
-        with:
-          name: linux-packages-${{ github.sha }}
-          path: linux-packages
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
+      - name: Verify existing package provenance and matching application source
+        id: package_source
+        if: needs.route.outputs.linux_proof_run_id != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REUSE_RUN_ID: ${{ needs.route.outputs.linux_proof_run_id }}
+        run: bash tools/desktop-acceptance/package-source.sh ubuntu-22.04 "$REUSE_RUN_ID"
+      - uses: actions/download-artifact@v4
+        with:
+          name: linux-packages-${{ steps.package_source.outputs.sha || github.sha }}
+          run-id: ${{ needs.route.outputs.linux_proof_run_id || github.run_id }}
+          github-token: ${{ github.token }}
+          path: linux-packages
       - name: Prepare native Linux GUI checks
         run: |
           sudo apt-get update
           sudo apt-get install -y xvfb dbus-x11 python3-pyatspi at-spi2-core xdotool xclip imagemagick openbox ${{ matrix.os == 'ubuntu-24.04' && 'libfuse2t64' || 'libfuse2' }}
           mkdir -p "$RUNNER_TEMP/linux-proof"
+          if [[ -f "$RUNNER_TEMP/package-source.json" ]]; then
+            cp "$RUNNER_TEMP/package-source.json" "$RUNNER_TEMP/linux-proof/package-source.json"
+            cp "$RUNNER_TEMP/package-source-tests.json" "$RUNNER_TEMP/linux-proof/source-tests.json"
+          fi
           if [[ '${{ needs.route.outputs.sign }}' == true ]]; then
             bash tools/desktop-acceptance/verify_linux.sh linux-packages "$RUNNER_TEMP/linux-proof"
           fi
@@ -339,10 +386,11 @@ jobs:
         with:
           name: linux-runtime-${{ matrix.os }}-${{ matrix.format }}-${{ github.sha }}
           path: ${{ runner.temp }}/linux-proof/
+          overwrite: true
 
   macos:
     needs: route
-    if: needs.route.outputs.macos == 'true' && !inputs.macos_proof_run_id
+    if: needs.route.outputs.macos == 'true' && !needs.route.outputs.macos_proof_run_id
     runs-on: macos-15
     timeout-minutes: 90
     env:
@@ -364,6 +412,14 @@ jobs:
         run: |
           brew install cmake llvm
           echo "LIBCLANG_PATH=$(brew --prefix llvm)/lib" >> "$GITHUB_ENV"
+      - name: Cache Rust dependencies for the universal build
+        uses: Swatinem/rust-cache@779680da715d629ac1d338a641029a2f4372abb5 # v2.8.2
+        with:
+          workspaces: |
+            . -> target
+            apps/pile-plan-studio/src-tauri -> target
+          env-vars: MACOSX_DEPLOYMENT_TARGET LIBCLANG_PATH
+          cache-bin: false
       - run: npm ci
         working-directory: apps/pile-plan-studio
       - run: cargo test --workspace --locked
@@ -406,24 +462,18 @@ jobs:
           name: macos-packages-${{ github.sha }}
           path: macos-packages/
           if-no-files-found: error
+          overwrite: true
       - name: Remove temporary Apple credentials
         if: always()
         run: |
           security delete-keychain "$RUNNER_TEMP/pile-plan-signing.keychain-db" || true
           rm -f "$RUNNER_TEMP/pile-plan-signing.p12" "$RUNNER_TEMP/pile-plan-notary.p8"
 
-  macos-runtime:
-    needs: [route, macos]
-    if: always() && needs.route.result == 'success' && needs.route.outputs.macos == 'true' && (needs.macos.result == 'success' || inputs.macos_proof_run_id != '')
-    permissions:
-      contents: read
-      actions: read
-    runs-on: ${{ matrix.os }}
+  macos-intel-tests:
+    needs: route
+    if: needs.route.outputs.macos == 'true' && !needs.route.outputs.macos_proof_run_id
+    runs-on: macos-15-intel
     timeout-minutes: 60
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [macos-15, macos-15-intel]
     env:
       MACOSX_DEPLOYMENT_TARGET: "15.0"
     steps:
@@ -439,45 +489,55 @@ jobs:
       - uses: taiki-e/install-action@v2
         with:
           tool: wasm-pack
-      - if: ${{ !inputs.macos_proof_run_id }}
+      - name: Prepare CMake and libclang
         run: |
           brew install cmake llvm
           echo "LIBCLANG_PATH=$(brew --prefix llvm)/lib" >> "$GITHUB_ENV"
+      - name: Cache Rust dependencies
+        uses: Swatinem/rust-cache@779680da715d629ac1d338a641029a2f4372abb5 # v2.8.2
+        with:
+          workspaces: |
+            . -> target
+            apps/pile-plan-studio/src-tauri -> target
+          env-vars: MACOSX_DEPLOYMENT_TARGET LIBCLANG_PATH
+          cache-bin: false
       - run: npm ci
-        if: ${{ !inputs.macos_proof_run_id }}
         working-directory: apps/pile-plan-studio
       - run: cargo test --workspace --locked
-        if: ${{ !inputs.macos_proof_run_id }}
       - run: cargo test --locked --manifest-path apps/pile-plan-studio/src-tauri/Cargo.toml
-        if: ${{ !inputs.macos_proof_run_id }}
       - run: npm test
-        if: ${{ !inputs.macos_proof_run_id }}
         working-directory: apps/pile-plan-studio
-      - name: Test verifier tools
-        if: inputs.macos_proof_run_id
-        run: node --test tools/release-*.test.mjs
+
+  macos-runtime:
+    needs: [route, macos]
+    if: >-
+      !cancelled() && needs.route.result == 'success' && needs.route.outputs.macos == 'true' &&
+      (needs.macos.result == 'success' || needs.route.outputs.macos_proof_run_id != '')
+    permissions:
+      contents: read
+      actions: read
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-15, macos-15-intel]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
       - name: Verify package provenance and matching application source
         id: package_source
         env:
           GH_TOKEN: ${{ github.token }}
-          PACKAGE_RUN_ID: ${{ inputs.macos_proof_run_id || github.run_id }}
-          REUSE_RUN_ID: ${{ inputs.macos_proof_run_id }}
+          REUSE_RUN_ID: ${{ needs.route.outputs.macos_proof_run_id }}
           SOURCE_RUNNER: ${{ matrix.os }}
-        run: |
-          gh api "repos/$GITHUB_REPOSITORY/actions/runs/$PACKAGE_RUN_ID" > "$RUNNER_TEMP/macos-package-source.json"
-          if [[ -n "$REUSE_RUN_ID" ]]; then
-            gh api "repos/$GITHUB_REPOSITORY/actions/runs/$PACKAGE_RUN_ID/jobs?per_page=100" > "$RUNNER_TEMP/macos-package-tests.json"
-            node tools/verify_macos_proof_source.mjs "$RUNNER_TEMP/macos-package-source.json" "$RUNNER_TEMP/macos-package-tests.json" "$SOURCE_RUNNER" >> "$GITHUB_OUTPUT"
-          else
-            node tools/verify_macos_proof_source.mjs "$RUNNER_TEMP/macos-package-source.json" >> "$GITHUB_OUTPUT"
-          fi
-          source_sha=$(node -p 'JSON.parse(require("fs").readFileSync(process.env.RUNNER_TEMP+"/macos-package-source.json")).head_sha')
-          git fetch --depth=1 origin "$source_sha"
-          git diff --exit-code "$source_sha" HEAD -- apps crates Cargo.toml Cargo.lock
+        run: bash tools/desktop-acceptance/package-source.sh "$SOURCE_RUNNER" "$REUSE_RUN_ID"
       - uses: actions/download-artifact@v4
         with:
           name: macos-packages-${{ steps.package_source.outputs.sha }}
-          run-id: ${{ inputs.macos_proof_run_id || github.run_id }}
+          run-id: ${{ needs.route.outputs.macos_proof_run_id || github.run_id }}
           github-token: ${{ github.token }}
           path: macos-packages
       - name: Inspect and launch same universal package
@@ -487,8 +547,8 @@ jobs:
           APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
         run: |
           mkdir -p "$RUNNER_TEMP/macos-proof"
-          cp "$RUNNER_TEMP/macos-package-source.json" "$RUNNER_TEMP/macos-proof/package-source.json"
-          if [[ -f "$RUNNER_TEMP/macos-package-tests.json" ]]; then cp "$RUNNER_TEMP/macos-package-tests.json" "$RUNNER_TEMP/macos-proof/source-tests.json"; fi
+          cp "$RUNNER_TEMP/package-source.json" "$RUNNER_TEMP/macos-proof/package-source.json"
+          if [[ -f "$RUNNER_TEMP/package-source-tests.json" ]]; then cp "$RUNNER_TEMP/package-source-tests.json" "$RUNNER_TEMP/macos-proof/source-tests.json"; fi
           bash tools/check_macos_package.sh macos-packages/*.dmg "$EXPECTED_VERSION" "$SIGNING_MODE" "$RUNNER_TEMP/macos-proof"
           sw_vers > "$RUNNER_TEMP/macos-proof/os.txt"
           uname -m >> "$RUNNER_TEMP/macos-proof/os.txt"
@@ -505,14 +565,15 @@ jobs:
         with:
           name: macos-runtime-${{ matrix.os }}-${{ github.sha }}
           path: ${{ runner.temp }}/macos-proof/
+          overwrite: true
 
   release-draft:
-    needs: [route, windows, linux, linux-runtime, macos, macos-runtime]
+    needs: [route, windows, linux, linux-runtime, macos, macos-intel-tests, macos-runtime]
     if: >-
       always() && needs.route.result == 'success' && needs.route.outputs.create_draft == 'true' &&
       needs.windows.result == 'success' && needs.linux.result == 'success' &&
       needs['linux-runtime'].result == 'success' && needs.macos.result == 'success' &&
-      needs['macos-runtime'].result == 'success'
+      needs['macos-intel-tests'].result == 'success' && needs['macos-runtime'].result == 'success'
     name: Assemble verified draft release (never publish)
     runs-on: ubuntu-22.04
     permissions:

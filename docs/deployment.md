@@ -264,25 +264,50 @@ Push and workflow execution require separate authorization.
 Independent platform selections use separate workflow concurrency groups, so a
 Linux proof does not hold a macOS proof in the queue.
 
-A signed macOS dispatch may set `macos_proof_run_id` to recheck an existing DMG
-after a change to verification tools, without rebuilding or notarizing it.
-The source must be a dispatch of this workflow in the same repository and branch.
-CI fetches its source commit and requires identical `apps/`, `crates/` and root
-Cargo manifests/lockfile before downloading the artifact named for that commit.
-For an existing package, CI requires the source run's native workspace, Tauri and
-frontend tests to have completed successfully on the same architecture. It runs
-the current verifier tests and repeats all package signing/startup gates. The
-report records the source tests and package commit separately from the verifier.
-Fresh builds continue to run the complete native/frontend suites.
-Release candidates, tag releases and unsigned or other-platform proofs cannot use this input.
+After editing the acceptance checks, use a signed Linux or macOS proof to
+exercise packages from an existing run. Pass `linux_proof_run_id` for the Debian
+package and AppImage, or `macos_proof_run_id` for the universal DMG. For example:
+
+```powershell
+gh workflow run release.yml --ref $releaseBranch -f "release_tag=$releaseTag" -f proof_platform=linux -f sign_proof=true -f "linux_proof_run_id=$sourceRunId"
+```
+
+The source run must be a dispatch of this workflow on the same branch in this
+repository. Its packages must still be available and the build and native
+workspace, Tauri and frontend test steps must have passed. Before downloading,
+CI compares the application, Rust workspace, toolchain settings and WASM build
+helper against the source commit. It then verifies package signatures and runs
+the current acceptance checks on the selected platform. The report records the
+package commit and source test evidence alongside the verifier commit. Changed
+application source needs a fresh build. Release candidates, tag releases and
+unsigned proofs require freshly built packages.
 
 Linux builds AppImage and Debian packages on Ubuntu 22.04 x64; runtime jobs
 install the Debian package and launch both formats on Ubuntu 22.04 and 24.04.
 AppImage uses its normal FUSE route. macOS builds a universal Apple Silicon/Intel
 DMG with a configured minimum of macOS 15.0, then inspects and launches the same
-DMG on native `macos-15` and `macos-15-intel` runners. Both Mac architectures
-also run the native Rust/Tauri and frontend tests. Linux and macOS retain native
-HiGHS; they do not substitute a different solver.
+DMG on native `macos-15` and `macos-15-intel` runners. The Apple Silicon builder
+runs the native Rust/Tauri and frontend tests once. The matching Intel source
+tests run in parallel with the builder. The draft waits for both test suites
+and all package checks. Linux and macOS retain native HiGHS.
+
+### Cargo cache and build timing
+
+Windows, Linux and both macOS build jobs cache Cargo dependencies for the root
+workspace and the Tauri crate. GitHub scopes caches to the ref and lets release
+branches and tags restore compatible entries from the default branch. An
+unsigned proof of the selected platforms on `main` can seed that shared cache
+when a compatible entry is missing. Cargo dependencies are cached separately
+for each operating system, runner architecture and Rust toolchain.
+
+To measure the benefit, run the same proof twice on the same branch and commit
+and compare the Cargo test and bundle durations, including cache restore and
+save time. Use the Actions job timestamps to compare overall duration and
+runner wait time separately:
+
+```powershell
+gh run view $runId --json headSha,createdAt,updatedAt,jobs
+```
 
 `sign_proof=false` produces unsigned proofs. `sign_proof=true` requires existing
 organization credentials and fails if they are unavailable. macOS reuses
@@ -410,7 +435,17 @@ Draft assembly refuses a published/non-alpha release and never replaces an
 existing asset. A retry skips identical assets and uploads only missing files;
 a different digest stops the job. Existing drafts are found through the complete
 authenticated release list; GitHub's tag endpoint omits unpublished drafts.
-Retry failed jobs in the same run to reuse successful artifacts.
+For a transient failure, retry in the same workflow run to keep the original
+commit and reuse artifacts from successful jobs. The job retry also reruns
+dependent jobs. Use the numeric job ID (`databaseId` in the job list).
+
+```powershell
+gh run rerun $runId --failed
+# Or retry one job and its dependents.
+gh run view $runId --json jobs
+gh run rerun $runId --job $jobId
+```
+
 Do not move a tag or replace published files. Manual proof dispatches never
 reach this draft-creation job. Publish the GitHub draft when the installer
 release is ready. Browser deployment and updates to the separate product
