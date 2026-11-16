@@ -104,6 +104,17 @@ class UI:
     def wait_name(self, name, timeout=30):
         return self.wait(lambda _: self.find(name, refresh=False), timeout)
 
+    def open_sample_project(self):
+        title = "Open sample project"
+        labels = (title, f"{title} Explore a pile plan with example data.")
+        candidates = self.wait(lambda tree: [
+            node for node in tree if self.button(node)
+            and " ".join(self.label(node).split()) in labels
+            and node.get("enabled", True)
+        ], timeout=45)
+        assert len(candidates) == 1, f"Expected one sample-project action: {candidates}"
+        self.press(candidates[0])
+
     def wait_for_file_dialog(self, *, present=True):
         roles = ("AXSheet", "dialog", "file chooser")
         self.wait(lambda tree: any(node["role"] in roles for node in tree) == present, timeout=15)

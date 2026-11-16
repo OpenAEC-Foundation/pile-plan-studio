@@ -16,12 +16,14 @@ publishes. Manual proof dispatches create no release.
 
 The scenarios drive native accessibility and keyboard/pointer input:
 
-1. Inspect all 328 sample drawing targets, select with the pointer and change
+1. Open the sample project from the start screen. Inspect all 328 drawing
+   targets, select with the pointer and change
    then reset desktop interface scale. Save screenshots for visual inspection.
 2. Cancel a real native Open dialog, open an IFCPP file, cancel Save As, save,
    overwrite an existing file and reopen. Paths include spaces, accents and
-   Greek characters. Compare source data after round trip; check all 328 CSV
-   rows and the generated Excel workbook and worksheet rows.
+   Greek characters. Open a legacy IFCPP fixture and verify the saved file
+   uses IFCX. Compare source data and plan state through the shared project
+   reader. Check all 328 CSV rows and the generated Excel workbook and rows.
 3. Open two distinct projects through the installed OS file association, first
    with the app stopped and then in the same running instance. macOS uses
    LaunchServices (`open`); Linux uses GIO, as graphical file managers do. The

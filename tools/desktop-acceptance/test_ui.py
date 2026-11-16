@@ -1,8 +1,45 @@
 import unittest
+import json
+from pathlib import Path
+import subprocess
 from unittest.mock import Mock, patch
 from types import SimpleNamespace
 from ui import UI
 from process_identity import is_application_process
+
+
+class StartupTests(unittest.TestCase):
+    def test_opens_the_example_from_gtk_and_mac_webkit_accessibility_labels(self):
+        for role, label in [
+            ("push button", "Open sample project\nExplore a pile plan with example data."),
+            ("AXButton", "Open sample project"),
+            ("AXButton", "Open sample project Explore a pile plan with example data."),
+        ]:
+            with self.subTest(role=role, label=label):
+                ui = UI.__new__(UI)
+                sample = {"role": role, "name": label, "enabled": True}
+                ui.tree = [
+                    {"role": role, "name": "Open project", "enabled": True},
+                    sample,
+                ]
+                ui.snapshot = Mock(return_value=ui.tree)
+                ui.press = Mock()
+                ui.open_sample_project()
+                ui.press.assert_called_once_with(sample)
+
+
+class ProjectFileTests(unittest.TestCase):
+    def test_ifcx_reader_preserves_sources_assignments_marks_and_exact_cost(self):
+        repository = Path(__file__).resolve().parents[2]
+        fixture = repository / "schemas/ifcpp/fixtures/schema-9-complete.ifcpp"
+        result = subprocess.run(["node", str(Path(__file__).with_name("project_json.mjs"))],
+                                input=fixture.read_bytes(), stdout=subprocess.PIPE, check=True)
+        project = json.loads(result.stdout)
+        self.assertEqual(project["inputs"]["load_points"][0]["id"], 17)
+        plan = project["user_state"]["pile_plans"][0]
+        self.assertIn("17", plan["selected_piles"])
+        self.assertEqual(plan["revit_marks_by_load_point"]["17"], "001-A")
+        self.assertEqual(plan["ilp_result"]["solution"]["cost"], "9007199254740993")
 
 
 class NativeCheckboxTests(unittest.TestCase):

@@ -57,10 +57,16 @@ def wait_file(path):
             return path.read_bytes()
         time.sleep(0.2)
     raise AssertionError(f"App did not write {path}")
+def read_project(contents):
+    reader = Path(__file__).with_name("project_json.mjs")
+    result = subprocess.run(["node", str(reader)], input=contents,
+                            stdout=subprocess.PIPE, check=True, timeout=30)
+    return json.loads(result.stdout)
 def project(path, evidence=None):
     contents=wait_file(path)
     if evidence: (output/evidence).write_bytes(contents)
-    return json.loads(contents)
+    assert json.loads(contents)["header"]["ifcxVersion"], "The application did not write IFCX"
+    return read_project(contents)
 def content(p):
     # Version/timestamps are serialization metadata, not user project content.
     return {k:v for k,v in p.items() if k not in ("application", "metadata")}
@@ -124,6 +130,9 @@ def start_app():
     time.sleep(5)
     assert app.poll() is None, "Packaged process exited"
     ui=UI(app.pid)
+    ui.wait_name("Start screen", timeout=45)
+    ui.evidence(output, "start-screen")
+    ui.open_sample_project()
     ui.wait_name("Load points 328 rows", timeout=45)
     ui.verify_version(expected_version)
     ui.evidence(output,"product-version")
@@ -172,9 +181,10 @@ try:
     assert not saved.exists(), "Cancelling Save As created a file"
     save_as(saved)
     actual=project(saved,"native-roundtrip.ifcpp")
-    assert actual["metadata"]["name"] == first["metadata"]["name"]
-    assert actual["inputs"]==first["inputs"], "Native round trip changed source data"
-    for original_plan in first["user_state"]["pile_plans"]:
+    expected=read_project(source.read_bytes())
+    assert actual["metadata"]["name"] == expected["metadata"]["name"]
+    assert actual["inputs"]==expected["inputs"], "Native round trip changed source data"
+    for original_plan in expected["user_state"]["pile_plans"]:
         round_trip=next(p for p in actual["user_state"]["pile_plans"] if p["id"]==original_plan["id"])
         for field in ("selected_piles","locked_load_point_ids","active_pile_sizes","active_pile_tip_levels"):
             assert round_trip[field]==original_plan[field], f"Native save changed {field}"
