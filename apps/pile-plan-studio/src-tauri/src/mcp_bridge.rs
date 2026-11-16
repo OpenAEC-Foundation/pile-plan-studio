@@ -72,6 +72,7 @@ mod tests {
         let address = listener.local_addr().unwrap();
         let running = Arc::new(AtomicBool::new(true));
         let gate = Arc::new((Mutex::new(false), Condvar::new()));
+        let (reading_tx, reading_rx) = mpsc::channel();
         let (first_tx, first_rx) = mpsc::channel();
         let (second_tx, second_rx) = mpsc::channel();
         let server_running = Arc::clone(&running);
@@ -81,6 +82,8 @@ mod tests {
                 listener,
                 || server_running.load(Ordering::SeqCst),
                 move |mut stream| {
+                    stream.set_read_timeout(Some(Duration::from_secs(3))).unwrap();
+                    reading_tx.send(()).unwrap();
                     let mut id = [0_u8; 1];
                     stream.read_exact(&mut id).unwrap();
                     if id[0] == b'1' {
@@ -97,11 +100,17 @@ mod tests {
             );
         });
         let mut first = TcpStream::connect(address).unwrap();
+        reading_rx.recv_timeout(Duration::from_secs(3)).unwrap();
+        // Let the accepted stream wait for the client, as a real HTTP stream can.
+        assert_eq!(
+            first_rx.recv_timeout(Duration::from_millis(50)),
+            Err(mpsc::RecvTimeoutError::Timeout)
+        );
         first.write_all(b"1").unwrap();
-        first_rx.recv_timeout(Duration::from_secs(1)).unwrap();
+        first_rx.recv_timeout(Duration::from_secs(3)).unwrap();
         let mut second = TcpStream::connect(address).unwrap();
         second.write_all(b"2").unwrap();
-        let accepted_while_first_waited = second_rx.recv_timeout(Duration::from_secs(1)).is_ok();
+        let accepted_while_first_waited = second_rx.recv_timeout(Duration::from_secs(3)).is_ok();
         let (lock, wake) = &*gate;
         *lock.lock().unwrap() = true;
         wake.notify_all();
@@ -344,7 +353,10 @@ fn accept_connections(
                 let handle = Arc::clone(&handle);
                 thread::spawn(move || {
                     let _permit = permit;
-                    handle(stream);
+                    // Accepted sockets can inherit the listener's nonblocking mode.
+                    if stream.set_nonblocking(false).is_ok() {
+                        handle(stream);
+                    }
                 });
             }
             Err(error) if error.kind() == std::io::ErrorKind::WouldBlock => {

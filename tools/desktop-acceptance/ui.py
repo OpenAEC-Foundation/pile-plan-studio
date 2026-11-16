@@ -45,8 +45,11 @@ class UI:
             try: return self.linux_snapshot()
             except self.GLib.GError as error:
                 message = str(error).lower()
-                retired = "does not exist" in message or (
-                    "no such interface" in message and "org.a11y.atspi.text" in message)
+                retired = (
+                    "does not exist" in message
+                    or "atspi_error: the application no longer exists" in message
+                    or ("no such interface" in message and "org.a11y.atspi.text" in message)
+                )
                 if not retired or attempt==3: raise
                 time.sleep(0.2)
 

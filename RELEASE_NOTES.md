@@ -27,6 +27,7 @@
 ### Fixed
 
 - Align packaged desktop acceptance with the start screen and IFCX project saves.
+- Let the macOS desktop MCP connection wait for request data from the client.
 
 ### Compatibility
 

@@ -145,6 +145,19 @@ class ApplicationIdentityTests(unittest.TestCase):
 
 
 class SnapshotRetryTests(unittest.TestCase):
+    def test_reobserves_gtk_application_during_cold_open(self):
+        class AccessibilityError(Exception):
+            pass
+        ui = UI.__new__(UI)
+        ui.mac = False
+        ui.GLib = SimpleNamespace(GError=AccessibilityError)
+        project = [{"name": "Tweede proef β", "role": "label"}]
+        ui.linux_snapshot = Mock(side_effect=[
+            AccessibilityError("atspi_error: The application no longer exists (0)"), project,
+        ])
+        with patch("ui.time.sleep"):
+            self.assertEqual(ui.snapshot(), project)
+
     def test_reobserves_a_retired_text_interface_without_using_partial_state(self):
         class AccessibilityError(Exception):
             pass

@@ -63,7 +63,9 @@ controller, and set `AX_HELPER` to its path. `discover.py` can inspect a new
 platform's UI before updating selectors; its report explicitly says the
 acceptance scenarios have not been run.
 
-Linux snapshots retry a retired AT-SPI object or Text interface at most four times, collecting a fresh complete tree each time. Other accessibility errors remain failures.
+Linux snapshots retry a retired AT-SPI application, object or Text interface at
+most four times, collecting a fresh complete tree each time. Other
+accessibility errors remain failures.
 
 Native Mac checkboxes may expose their associated label twice through WebKit.
 The controller accepts that exact whole-label alias only for `AXCheckBox`; it
