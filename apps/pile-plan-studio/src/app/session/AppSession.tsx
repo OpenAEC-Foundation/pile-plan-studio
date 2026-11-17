@@ -552,7 +552,7 @@ export default function AppSession({
   const reportProjectOpenFailureRef = useRef<(error: unknown) => void>(() => {});
   const saveShortcutInFlightRef = useRef(false);
   const isDesktop = isDesktopRuntime();
-  const { workspaceLayout } = userSettings.preferences;
+  const { workspaceLayout, showGroupConflicts } = userSettings.preferences;
   const tourActive = sampleOpen && tourOpen && !startPage;
   const propertiesVisible = tourActive || workspaceLayout.propertiesVisible;
   const interfaceScalePercent = userSettings.preferences.interfaceScalePercent;
@@ -1851,6 +1851,7 @@ export default function AppSession({
           showGrid={projectState.showGrid}
           showTipLevelRegions={projectState.showTipLevelRegions}
           showLoadPointGroups={projectState.showLoadPointGroups}
+          showGroupConflicts={showGroupConflicts}
           showDrivingColors={showDrivingColors}
           explorerVisible={workspaceLayout.explorerVisible}
           propertiesVisible={propertiesVisible}
@@ -1877,6 +1878,9 @@ export default function AppSession({
             ...projectState,
             showLoadPointGroups,
           })}
+          onGroupConflictVisibilityChange={(visible) => commitUserSettings(patchUserSettings(
+            userSettingsRef.current, { showGroupConflicts: visible },
+          ))}
           onExplorerVisibilityChange={(explorerVisible) => updateWorkspaceLayout({ explorerVisible })}
           onDrivingColorVisibilityChange={setDrivingColorVisibility}
           onPropertiesVisibilityChange={(propertiesVisible) => updateWorkspaceLayout({ propertiesVisible })}
@@ -1936,6 +1940,7 @@ export default function AppSession({
           <main className="workspace" aria-label="Pile plan workspace">
             {activeSourceKind === null ? (
               <PilePlanWorkspace
+                showGroupConflicts={showGroupConflicts}
                 focusRequest={viewerFocusRequest && "fitLoadPointIds" in viewerFocusRequest
                   && viewerFocusRequest.fitLoadPointIds && !neighborhoodRecord ? null : viewerFocusRequest}
                 inspectionLoadPointIds={inspectionLoadPointIds}

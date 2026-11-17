@@ -81,6 +81,7 @@ export type PilePlanViewerProps = {
   loadPointGroupTopology: LoadPointTopology | null;
   technicalAssignment: TechnicalAssignmentSnapshot;
   groupAssignmentAssessment: GroupAssignmentAssessmentSnapshot;
+  showGroupConflicts: boolean;
   lassoSelectionActive: boolean;
   tipLevelRegionTopology: TipLevelRegionTopology | null;
   onStateChange: (nextState: ProjectState) => void;
@@ -100,6 +101,7 @@ export default function PilePlanViewer({
   loadPointGroupTopology,
   technicalAssignment,
   groupAssignmentAssessment,
+  showGroupConflicts,
   lassoSelectionActive,
   tipLevelRegionTopology,
   onStateChange,
@@ -188,8 +190,9 @@ export default function PilePlanViewer({
     [tipLevelRegionGeometry, legend, activePileConfigurations.pileTipLevelMms],
   );
   const conflictingLoadPointIds = useMemo(
-    () => new Set(groupAssignmentAssessment.conflicts.flatMap(({ load_point_ids }) => load_point_ids)),
-    [groupAssignmentAssessment.conflicts],
+    () => new Set(showGroupConflicts
+      ? groupAssignmentAssessment.conflicts.flatMap(({ load_point_ids }) => load_point_ids) : []),
+    [groupAssignmentAssessment.conflicts, showGroupConflicts],
   );
   const selectGroupGeometry = useMemo(() => createLoadPointGroupGeometrySelector(), []);
   const loadPointGroupGeometry = useMemo(() => {

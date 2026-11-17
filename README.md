@@ -442,10 +442,11 @@ in the grouping settings.
 Manual groups must be connected in the project's Gabriel graph. Ungrouping an
 automatic group stores an explicit separation; ungrouping a manual group removes
 that manual override. The grouping settings show both override counts and can
-reset them in one undoable action. **View > Show groups** draws gray contours for
-unselected groups of two or more load points. A group with conflicting
-assignments has a warning and a red contour, which becomes orange when the
-whole group is selected.
+reset them in one undoable action. **View > Groups > Groups** draws gray contours
+for unselected groups of two or more load points. **Group conflicts** in the same
+ribbon section controls conflict warnings and red contours on the map. It is
+enabled by default and saved as an application preference. The right-hand panel
+lists assignment conflicts for the selected group.
 
 In the pile-options table, click a row to assign its configuration. With
 multiple load points selected, the table shows their common options and applies

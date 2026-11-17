@@ -43,6 +43,7 @@ export type UserSettings = {
     language: UserLanguage;
     theme: string;
     workspaceAppearance: WorkspaceAppearance;
+    showGroupConflicts: boolean;
     interfaceScalePercent: number;
     defaultCurrencyCode: string;
     openLastProjectOnStartup: boolean;
@@ -66,6 +67,7 @@ export const DEFAULT_USER_SETTINGS: UserSettings = {
     language: "auto",
     theme: "light",
     workspaceAppearance: "theme",
+    showGroupConflicts: true,
     interfaceScalePercent: 100,
     defaultCurrencyCode: "EUR",
     openLastProjectOnStartup: false,
@@ -107,6 +109,7 @@ export function normalizeUserSettings(value: unknown): UserSettings {
         : "auto",
       theme: normalizeTheme(preferences.theme),
       workspaceAppearance: normalizeWorkspaceAppearance(preferences.workspaceAppearance),
+      showGroupConflicts: booleanOr(preferences.showGroupConflicts, true),
       interfaceScalePercent: normalizeInterfaceScale(
         typeof preferences.interfaceScalePercent === "number"
           ? preferences.interfaceScalePercent

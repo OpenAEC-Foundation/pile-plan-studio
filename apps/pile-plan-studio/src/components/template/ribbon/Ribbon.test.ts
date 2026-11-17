@@ -62,14 +62,17 @@ describe("Plan and View ribbon", () => {
 
   it("provides stable visibility-toggle names in both languages", () => {
     const expected = {
-      nl: ["Grid", "Puntniveaugebieden", "Groepen", "Heistaatkleuren", "Verkenner", "Eigenschappen"],
-      en: ["Grid", "Tip-level regions", "Groups", "Driving status colors", "Explorer", "Properties"],
+      nl: ["Grid", "Puntniveaugebieden", "Groepen", "Groepsconflicten", "Heistaatkleuren", "Verkenner", "Eigenschappen"],
+      en: ["Grid", "Tip-level regions", "Groups", "Group conflicts", "Driving status colors", "Explorer", "Properties"],
     };
     for (const language of ["nl", "en"] as const) {
       const {view} = JSON.parse(readFileSync(resolve(import.meta.dirname, `../../../i18n/locales/${language}/ribbon.json`), "utf8"));
-      assert.deepEqual([view.grid, view.tipLevelRegions, view.groups, view.drivingColors, view.explorer, view.properties], expected[language]);
+      assert.deepEqual([view.grid, view.tipLevelRegions, view.groups, view.groupConflicts, view.drivingColors,
+        view.explorer, view.properties], expected[language]);
       assert.ok(view.showDrivingColors.trim());
       assert.ok(view.hideDrivingColors.trim());
+      assert.ok(view.showGroupConflicts.trim());
+      assert.ok(view.hideGroupConflicts.trim());
       const panel = JSON.parse(readFileSync(resolve(import.meta.dirname, `../../../i18n/locales/${language}/rightPanel.json`), "utf8"));
       assert.ok(panel["groupingSettings.viewHelp"].includes(language === "nl" ? "Weergave > Groepen" : "View > Groups"));
       assert.doesNotMatch(panel["groupingSettings.viewHelp"], /Groepen tonen|Show groups/);

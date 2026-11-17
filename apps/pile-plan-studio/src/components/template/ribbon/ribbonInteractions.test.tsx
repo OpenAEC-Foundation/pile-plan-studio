@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import { expect, test, vi } from "vitest";
 import i18n from "../../../i18n/config.ts";
 import Ribbon from "./Ribbon.tsx";
@@ -8,6 +8,7 @@ function props() {
   return { isLassoSelectionActive: false, lassoSelectionDisabled: false, isLockEditing: false,
     symbolScalePercent: 100, viewerUtilizationMinimum: 0.5, viewerUtilizationMaximum: 0.9,
     foregroundLayer: "load-points" as const, showGrid: false, showTipLevelRegions: false, showLoadPointGroups: false,
+    showGroupConflicts: true, onGroupConflictVisibilityChange: vi.fn(),
     showDrivingColors: false, onDrivingColorVisibilityChange: vi.fn(),
     explorerVisible: true, propertiesVisible: false, onToggleLassoSelection: vi.fn(), onStartLockEditing: vi.fn(),
     onApplyLockEditing: vi.fn(), onCancelLockEditing: vi.fn(), onUnlockAll: vi.fn(),
@@ -50,6 +51,7 @@ test("view toggles retain their names while pressed states, action tips and call
     ["grid", "Grid", p.onGridVisibilityChange, false],
     ["tipLevelRegions", "TipLevelRegions", p.onTipLevelRegionVisibilityChange, false],
     ["groups", "Groups", p.onLoadPointGroupVisibilityChange, false],
+    ["groupConflicts", "GroupConflicts", p.onGroupConflictVisibilityChange, true],
     ["drivingColors", "DrivingColors", p.onDrivingColorVisibilityChange, false],
     ["explorer", "Explorer", p.onExplorerVisibilityChange, true],
     ["properties", "Properties", p.onPropertiesVisibilityChange, false],
@@ -62,7 +64,14 @@ test("view toggles retain their names while pressed states, action tips and call
   }
   expect(screen.getByRole("button", { name: t("view.drivingColors") }).querySelector("use")?.getAttribute("href"))
     .toMatch(/#i24-pile\.driving-colors$/);
-  view.rerender(<Ribbon {...p} showGrid showTipLevelRegions showLoadPointGroups showDrivingColors explorerVisible={false} propertiesVisible />);
+  const areas = within(screen.getByRole("group", { name: t("view.regions") }));
+  expect(areas.getByRole("button", { name: t("view.tipLevelRegions") })).toBeTruthy();
+  expect(areas.queryByRole("button", { name: t("view.groups") })).toBeNull();
+  const groups = within(screen.getByRole("group", { name: t("view.groups") }));
+  expect(groups.getByRole("button", { name: t("view.groups") })).toBeTruthy();
+  expect(groups.getByRole("button", { name: t("view.groupConflicts") })).toBeTruthy();
+  view.rerender(<Ribbon {...p} showGrid showTipLevelRegions showLoadPointGroups showGroupConflicts={false}
+    showDrivingColors explorerVisible={false} propertiesVisible />);
   for (const [key, action, callback, wasVisible] of toggles) {
     const button = screen.getByRole("button", { name: t(`view.${key}`) });
     expect(button.getAttribute("aria-pressed")).toBe(String(!wasVisible));

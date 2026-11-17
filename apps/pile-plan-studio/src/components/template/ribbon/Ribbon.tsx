@@ -39,6 +39,7 @@ interface RibbonProps {
   showGrid: boolean;
   showTipLevelRegions: boolean;
   showLoadPointGroups: boolean;
+  showGroupConflicts: boolean;
   showDrivingColors: boolean;
   explorerVisible: boolean;
   propertiesVisible: boolean;
@@ -50,6 +51,7 @@ interface RibbonProps {
   onGridVisibilityChange: (visible: boolean) => void;
   onTipLevelRegionVisibilityChange: (visible: boolean) => void;
   onLoadPointGroupVisibilityChange: (visible: boolean) => void;
+  onGroupConflictVisibilityChange: (visible: boolean) => void;
   onDrivingColorVisibilityChange: (visible: boolean) => void;
   onExplorerVisibilityChange: (visible: boolean) => void;
   onPropertiesVisibilityChange: (visible: boolean) => void;
@@ -74,6 +76,7 @@ export default function Ribbon({
   showGrid,
   showTipLevelRegions,
   showLoadPointGroups,
+  showGroupConflicts,
   showDrivingColors,
   explorerVisible,
   propertiesVisible,
@@ -85,6 +88,7 @@ export default function Ribbon({
   onGridVisibilityChange,
   onTipLevelRegionVisibilityChange,
   onLoadPointGroupVisibilityChange,
+  onGroupConflictVisibilityChange,
   onDrivingColorVisibilityChange,
   onExplorerVisibilityChange,
   onPropertiesVisibilityChange,
@@ -297,12 +301,21 @@ export default function Ribbon({
                   title={t(tipLevelRegionToggle.labelKey)}
                   onClick={() => onTipLevelRegionVisibilityChange(tipLevelRegionToggle.nextVisible)}
                 />
+              </RibbonGroup>
+              <RibbonGroup label={t("view.groups")}>
                 <RibbonButton
                   active={showLoadPointGroups}
                   icon={<PilePlanIcon id="pile.load-groups" />}
                   label={t("view.groups")}
                   title={showLoadPointGroups ? t("view.hideGroups") : t("view.showGroups")}
                   onClick={() => onLoadPointGroupVisibilityChange(!showLoadPointGroups)}
+                />
+                <RibbonButton
+                  active={showGroupConflicts}
+                  icon={<BlueprintIcon id="status.warning" size={24} />}
+                  label={t("view.groupConflicts")}
+                  title={t(showGroupConflicts ? "view.hideGroupConflicts" : "view.showGroupConflicts")}
+                  onClick={() => onGroupConflictVisibilityChange(!showGroupConflicts)}
                 />
               </RibbonGroup>
               <RibbonGroup label={t("view.windows")}>

@@ -28,6 +28,7 @@ type Props = {
   loadPointGroupTopology: LoadPointTopology | null;
   technicalAssignment: TechnicalAssignmentSnapshot;
   groupAssignmentAssessment: GroupAssignmentAssessmentSnapshot;
+  showGroupConflicts: boolean;
   lassoSelectionActive: boolean;
   onStateChange: (nextState: ProjectState) => void;
   onSelectionChange?: (nextState: ProjectState) => void;
@@ -36,7 +37,7 @@ type Props = {
 };
 
 const EMPTY_CAP_PREVIEWS: PileCapPreview[] = [];
-export default function PilePlanWorkspace({ focusRequest, inspectionLoadPointIds, inspectLoadPointsIndividually, drivingStatuses, onFocusHandled, pileCapPreviews=EMPTY_CAP_PREVIEWS, readOnly = false, state, loadPointGroups, loadPointGroupTopology, technicalAssignment, groupAssignmentAssessment, lassoSelectionActive, onStateChange, onSelectionChange, onLegendApply, legendUserDefaults }: Props) {
+export default function PilePlanWorkspace({ focusRequest, inspectionLoadPointIds, inspectLoadPointsIndividually, drivingStatuses, onFocusHandled, pileCapPreviews=EMPTY_CAP_PREVIEWS, readOnly = false, state, loadPointGroups, loadPointGroupTopology, technicalAssignment, groupAssignmentAssessment, showGroupConflicts, lassoSelectionActive, onStateChange, onSelectionChange, onLegendApply, legendUserDefaults }: Props) {
   const [legendEditorOpen, setLegendEditorOpen] = useState(false);
   const effectiveRegions=useMemo(()=>{
     const assignments=new Map(state.selectedPileConfigurationsByLoadPoint),options=new Map(state.pileOptionsByLoadPointId);
@@ -77,6 +78,7 @@ export default function PilePlanWorkspace({ focusRequest, inspectionLoadPointIds
         loadPointGroupTopology={loadPointGroupTopology}
         technicalAssignment={technicalAssignment}
         groupAssignmentAssessment={groupAssignmentAssessment}
+        showGroupConflicts={showGroupConflicts}
         lassoSelectionActive={lassoSelectionActive}
         tipLevelRegionTopology={tipLevelRegions.topology}
         onSelectionChange={onSelectionChange}
