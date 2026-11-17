@@ -215,6 +215,18 @@ test("heistaat bytes and exact optimizer counters stay representable", () => {
   assert.equal(solution.proof, "feasible");
 });
 
+test("the profile accepts the three optional manual driving statuses", () => {
+  const doc = structuredClone(complete);
+  const [foundationNode] = withAttribute(doc, opps + "pileDriving");
+  const driving = attribute(foundationNode, opps + "pileDriving");
+  for (const status of ["good", "doubtful", "deviation"]) {
+    driving.manualStatuses = [{ loadPointNumber: 1, status }];
+    checkProject(doc);
+  }
+  driving.manualStatuses[0].status = "automatic";
+  assert.throws(() => checkProject(doc), /manualStatuses\[0\]\.status/);
+});
+
 test("rejects an unsupported profile version", () => {
   const doc = structuredClone(minimal);
   doc.imports[0].uri = "urn:example:ifcpp:9.0.0";

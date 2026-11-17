@@ -428,8 +428,23 @@
       "warnings": "Warnings",
       "unknownDate": "The date is missing or unreadable",
       "noWarnings": "No warnings",
-      "warningsOnly": "Warnings only",
-      "markWarnings": "Mark warnings in viewer"
+      "warningsOnly": "Warnings only"
+    },
+    "assessment": {
+      "showColors": "Show driving status colors on the map",
+      "column": "Status",
+      "label": "Driving status",
+      "automatic": "Automatic · {{status}}",
+      "automaticChoice": "Automatic",
+      "unavailable": "Unassessed",
+      "good": "Good",
+      "doubtful": "Needs review",
+      "deviation": "Deviation",
+      "short": {
+        "good": "Good",
+        "doubtful": "Review",
+        "deviation": "Deviation"
+      }
     },
     "errors": {
       "unreadable": "The driving record could not be read.",

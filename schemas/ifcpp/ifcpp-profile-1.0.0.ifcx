@@ -1789,6 +1789,28 @@
               },
               "optional": true
             },
+            "manualStatuses": {
+              "dataType": "Array",
+              "arrayRestrictions": {
+                "value": {
+                  "dataType": "Object",
+                  "objectRestrictions": {
+                    "values": {
+                      "loadPointNumber": {
+                        "dataType": "Integer"
+                      },
+                      "status": {
+                        "dataType": "Enum",
+                        "enumRestrictions": {
+                          "options": ["good", "doubtful", "deviation"]
+                        }
+                      }
+                    }
+                  }
+                }
+              },
+              "optional": true
+            },
             "checkSettings": {
               "dataType": "Object",
               "objectRestrictions": {

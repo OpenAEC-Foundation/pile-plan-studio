@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { canonicalProjectForTest, projectTipLevelKeysForTest } from "../../../core/projectTestSupport.ts";
+import type { TensionDemand } from "../../../core/projectTypes.ts";
 import { createInitialProjectState } from "../../../domain/project/projectState.ts";
 import { createProjectViewTransform } from "../../../viewer/viewerGeometry.ts";
 import { buildViewerMarkerPresentation, getLoadPointRing, parseLoadPointStatusHalo, sortMarkerGraphics } from "./viewerMarkerPresentation.ts";
@@ -14,6 +15,7 @@ function sampleInput() {
   const firstId = state.loadPoints[0]!.id;
   return {
     state,
+    loadDirection: "compression" as const,
     technicalAssignment: { status: "idle" as const, assessment: null, issuesByLoadPointId: new Map(), error: null },
     projectTransform: createProjectViewTransform(state.bounds, { width: 1000, height: 600 }),
     pileOptionsByLoadPointId: state.pileOptionsByLoadPointId,
@@ -24,7 +26,6 @@ function sampleInput() {
     lockedLoadPointIds: new Set<number>(),
     contextSelectedCptIds: new Set<number>(),
     governingCptId: null,
-    isEditingLoadPointLocks: false,
     isEditingCptSelection: false,
     activeHoverCandidateKey: null,
     translate: (key: string) => key,
@@ -32,6 +33,30 @@ function sampleInput() {
 }
 
 describe("viewer marker presentation", () => {
+  it("dims points without a positive demand in the shown direction and retains their hit targets", () => {
+    const input = sampleInput();
+    const demands: (TensionDemand | undefined)[] = [
+      { state: "known", value_kn: 0 },
+      { state: "known", value_kn: 30 },
+      { state: "known", value_kn: 30 },
+      { state: "missing" },
+      undefined,
+    ];
+    const loadPoints = input.state.loadPoints.slice(0, 5).map((point, index) => ({
+      ...point,
+      design_load_kn: index === 1 ? 0 : 100,
+      tension: demands[index],
+    }));
+    input.state = { ...input.state, loadPoints };
+    const compression = buildViewerMarkerPresentation(input);
+    const tension = buildViewerMarkerPresentation({ ...input, loadDirection: "tension" });
+    const highlighted = (result: typeof compression) => loadPoints.map(point =>
+      result.graphics.find(marker => marker.key === `load-point:${point.id}`)?.demandOpacity === 1);
+    assert.deepEqual(highlighted(compression), [true, false, true, true, true]);
+    assert.deepEqual(highlighted(tension), [false, true, true, false, false]);
+    assert.deepEqual(tension.hitTargets, compression.hitTargets);
+  });
+
   it("marks the retained context in gray without changing active targets, symbols or coordinates", () => {
     const input = sampleInput();
     input.completeSelectedGroupLoadPointIds.clear();
@@ -95,14 +120,20 @@ describe("viewer marker presentation", () => {
     assert.equal(result.hitTargets.at(-1)?.kind, "load-point");
   });
 
-  it("dims a locked symbol to 45 percent while locks are being edited", () => {
+  it("marks locked points without changing directional emphasis or their status", () => {
     const input = sampleInput();
     const id = input.state.loadPoints[0]!.id;
+    const before = buildViewerMarkerPresentation(input);
     input.lockedLoadPointIds.add(id);
-    input.isEditingLoadPointLocks = true;
-    assert.equal(buildViewerMarkerPresentation(input).graphics.find((entry) => entry.key === `load-point:${id}`)?.opacity, 0.45);
-    input.isEditingLoadPointLocks = false;
-    assert.equal(buildViewerMarkerPresentation(input).graphics.find((entry) => entry.key === `load-point:${id}`)?.opacity, 0.28);
+    const after = buildViewerMarkerPresentation(input);
+    const key = `load-point:${id}`;
+    assert.deepEqual(after.graphics.find(entry => entry.key === key), {
+      ...before.graphics.find(entry => entry.key === key),
+      locked: true,
+    });
+    const target = after.hitTargets.find(entry => entry.key === key)!;
+    assert.match(target.ariaLabel, /\. viewer\.locked/);
+    assert.match(target.className, /\bis-locked\b/);
   });
   it("uses the group contour instead of an individual ring for a selected group member", () => {
     assert.equal(getLoadPointRing(true, true, false, 100), null);
@@ -128,12 +159,12 @@ describe("viewer marker presentation", () => {
       { color: "selection", radius: 7.75 });
   });
 
-  it("preserves missing-data and locked halo appearance", () => {
-    assert.deepEqual(parseLoadPointStatusHalo(" is-missing", "", true, false), {
-      kind: "missing", intensity: 0, opacity: 0.28,
+  it("preserves missing-data and utilization halo appearance", () => {
+    assert.deepEqual(parseLoadPointStatusHalo(" is-missing", ""), {
+      kind: "missing", intensity: 0,
     });
-    assert.deepEqual(parseLoadPointStatusHalo(" is-above-range", "--utilization-intensity: 0.5;", true, true), {
-      kind: "above", intensity: 0.5, opacity: 0.45,
+    assert.deepEqual(parseLoadPointStatusHalo(" is-above-range", "--utilization-intensity: 0.5;"), {
+      kind: "above", intensity: 0.5,
     });
   });
 

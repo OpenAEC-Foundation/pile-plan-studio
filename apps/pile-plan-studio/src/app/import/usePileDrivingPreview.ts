@@ -7,11 +7,13 @@ import {
   type PileDrivingCheckSettings,
   type PileDrivingImportError,
   type PileDrivingMatchField,
+  type PileDrivingStatus,
   type ProjectPileDriving,
   type ProjectPileDrivingFile,
 } from "../../core/pileDrivingCoreClient.ts";
 import type { LoadPoint, PileConfigurationKey, SelectedCpt } from "../../core/projectTypes.ts";
 import { resolvePileDrivingMatchField } from "../../domain/pile-driving/pileDrivingMatchField.ts";
+import { setManualPileDrivingStatus } from "../../domain/pile-driving/pileDrivingStatuses.ts";
 
 type SourceSelection = {
   instance: string;
@@ -245,6 +247,12 @@ export function usePileDrivingPreview(
       } : undefined,
     })),
     pileSizes, settings: settings ?? batch?.settings ?? null,
+    automaticStatuses: batch?.location_statuses,
+    setLocationStatus: (loadPointId: number, status: PileDrivingStatus | null) => {
+      if (loadPoints.some(point => point.id === loadPointId)) {
+        updateProject(current => setManualPileDrivingStatus(current, loadPointId, status));
+      }
+    },
     comparison: batch && {
       groups: batch.energy_by_size,
       limit: batch.settings.peer_energy_spread_kj,

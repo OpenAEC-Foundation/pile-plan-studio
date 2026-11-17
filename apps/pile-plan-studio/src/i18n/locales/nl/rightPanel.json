@@ -428,8 +428,23 @@
       "warnings": "Waarschuwingen",
       "unknownDate": "Datum ontbreekt of is onleesbaar",
       "noWarnings": "Geen waarschuwingen",
-      "warningsOnly": "Alleen waarschuwingen",
-      "markWarnings": "Markeer waarschuwingen in viewer"
+      "warningsOnly": "Alleen waarschuwingen"
+    },
+    "assessment": {
+      "showColors": "Toon heistaatkleuren op de kaart",
+      "column": "Status",
+      "label": "Heistaatstatus",
+      "automatic": "Automatisch · {{status}}",
+      "automaticChoice": "Automatisch",
+      "unavailable": "Onbeoordeeld",
+      "good": "Goed",
+      "doubtful": "Twijfel",
+      "deviation": "Afwijkend",
+      "short": {
+        "good": "Goed",
+        "doubtful": "Twijfel",
+        "deviation": "Afw."
+      }
     },
     "errors": {
       "unreadable": "De heistaat kan niet worden gelezen.",

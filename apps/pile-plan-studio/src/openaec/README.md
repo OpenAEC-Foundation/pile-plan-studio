@@ -603,7 +603,8 @@ the same pencil serves legend editing and plan renaming. These local drawings
 do not alter the pinned upstream artwork (Blueprint issues 82 and 84).
 
 `icons/studio.svg` is generated from the selected 16 and 24 px symbols in the
-pinned Blueprint `reports.svg`, `composer.svg`, `standard.svg` and `pile-plan.svg`
+pinned Blueprint `energy.svg`, `reports.svg`, `composer.svg`, `standard.svg`,
+`pile-plan.svg` and `field.svg`
 sprites. It contains the shared general and pile-plan icons used by the title bar
 and both ribbon tabs, plus the File menu and file-type symbols. `icons/studioIcons.ts` lists the selected action IDs. The original symbol markup is
 preserved; paths are not redrawn or simplified. `icons/upstream-manifest.json`

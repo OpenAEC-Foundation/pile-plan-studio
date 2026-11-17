@@ -5,7 +5,9 @@ import type { PileDrivingFileResult, PileDrivingRecord } from "../../../core/pil
 import PileDrivingPanel from "./PileDrivingPanel.tsx";
 
 const NO_SELECTION: readonly number[] = [];
-const warningControls = { showWarningsInViewer: false, onShowWarningsInViewerChange: vi.fn() };
+const statusControls = {
+  showStatusColors: false, onShowStatusColorsChange: vi.fn(), locationStatuses: new Map(), onStatusChange: vi.fn(),
+};
 
 function drivingWith(result: PileDrivingFileResult) {
   return {
@@ -15,6 +17,7 @@ function drivingWith(result: PileDrivingFileResult) {
     ignoreCsvLeadingZeros: true, setIgnoreCsvLeadingZeros: vi.fn(),
     addFiles: vi.fn(), selectFile: vi.fn(), selectExample: vi.fn(), removeFile: vi.fn(),
     setMatchBy: vi.fn(), setTable: vi.fn(), resetTable: vi.fn(), setIndependent: vi.fn(), setSettings: vi.fn(),
+    automaticStatuses: undefined, setLocationStatus: vi.fn(),
   };
 }
 
@@ -22,13 +25,17 @@ test("read-only projects can inspect driving records with file editing disabled"
   const driving = { ...drivingWith({ status: "ready", preview: { columns: ["paalnummer"], records: [{
     pile_number: "45", rows: [["45"]], matching: { status: "matched", load_point_id: 45 }, checks: [],
   }] } }), selectedId: "day-1" };
-  const { container } = render(<PileDrivingPanel {...warningControls} driving={driving} readOnly selectionDisabled={false}
+  const { container } = render(<PileDrivingPanel {...statusControls} driving={driving} readOnly selectionDisabled={false}
     selectedLoadPointIds={NO_SELECTION} neighborhoodRecord={null}
     onNeighborhoodChange={vi.fn()} onSelect={vi.fn()} onClose={vi.fn()} />);
   expect(container.querySelector<HTMLButtonElement>(".source-file-picker button")?.disabled).toBe(true);
   expect(screen.getByRole<HTMLButtonElement>("button", { name: "Remove selected driving record from project" }).disabled).toBe(true);
   fireEvent.click(screen.getByRole("button", { name: "Location 45" }));
   expect(screen.getByRole("heading", { name: "Pile 45" })).toBeTruthy();
+  const controls = within(screen.getByRole("group", { name: "Driving status" }));
+  const buttons = controls.getAllByRole<HTMLButtonElement>("button");
+  expect(buttons).toHaveLength(4);
+  expect(buttons.every(button => button.disabled)).toBe(true);
 });
 
 test("clicking a warning or the location button selects the pile and opens its details", () => {
@@ -45,7 +52,7 @@ test("clicking a warning or the location button selects the pile and opens its d
     },
   };
   const select = vi.fn();
-  render(<PileDrivingPanel {...warningControls} selectionDisabled={false} onSelect={select} onClose={vi.fn()}
+  render(<PileDrivingPanel {...statusControls} selectionDisabled={false} onSelect={select} onClose={vi.fn()}
     selectedLoadPointIds={NO_SELECTION}
     neighborhoodRecord={null} onNeighborhoodChange={vi.fn()}
     driving={drivingWith(result)} />);
@@ -81,7 +88,7 @@ test.each(["warning", "ok"] as const)("the comparison with status %s toggles onl
   const inspect = vi.fn();
   function Harness() {
     const [inspected, setInspected] = useState<PileDrivingRecord | null>(null);
-    return <PileDrivingPanel {...warningControls} driving={driving} selectionDisabled={false}
+    return <PileDrivingPanel {...statusControls} driving={driving} selectionDisabled={false}
       selectedLoadPointIds={NO_SELECTION}
       neighborhoodRecord={inspected} onNeighborhoodChange={next => { inspect(next); setInspected(next); }}
       onSelect={vi.fn()} onClose={vi.fn()} />;
@@ -117,7 +124,7 @@ test("follows single viewer selections and leaves the overview full-height witho
     checks: [],
   }));
   const driving = drivingWith({ status: "ready", preview: { columns: ["paalnummer"], records } });
-  const renderPanel = (selectedLoadPointIds: readonly number[]) => <PileDrivingPanel {...warningControls} driving={driving}
+  const renderPanel = (selectedLoadPointIds: readonly number[]) => <PileDrivingPanel {...statusControls} driving={driving}
     selectedLoadPointIds={selectedLoadPointIds} selectionDisabled={false} neighborhoodRecord={null}
     onNeighborhoodChange={vi.fn()} onSelect={vi.fn()} onClose={vi.fn()} />;
   const view = render(renderPanel(NO_SELECTION));
@@ -151,16 +158,18 @@ test("filters registrations with warnings while keeping the viewer selection in 
       checks: [{ kind: "size", status: "ok" }] },
   ];
   const driving = drivingWith({ status: "ready", preview: { columns: ["paalnummer"], records } });
-  const onShowWarningsInViewerChange = vi.fn();
+  const onShowStatusColorsChange = vi.fn();
   const select = vi.fn();
   render(<PileDrivingPanel driving={driving} selectedLoadPointIds={[46]} selectionDisabled={false}
-    showWarningsInViewer={false} onShowWarningsInViewerChange={onShowWarningsInViewerChange}
+    {...statusControls} onShowStatusColorsChange={onShowStatusColorsChange}
     neighborhoodRecord={null} onNeighborhoodChange={vi.fn()} onSelect={select} onClose={vi.fn()} />);
 
   const filter = screen.getByRole("checkbox", { name: "Warnings only" });
   const table = screen.getByRole("table", { name: "Pile records" });
-  fireEvent.click(screen.getByRole("checkbox", { name: "Mark warnings in viewer" }));
-  expect(onShowWarningsInViewerChange).toHaveBeenCalledExactlyOnceWith(true);
+  const mapColors = screen.getByRole("switch", { name: "Show driving status colors on the map" });
+  expect((mapColors as HTMLInputElement).checked).toBe(false);
+  fireEvent.click(mapColors);
+  expect(onShowStatusColorsChange).toHaveBeenCalledExactlyOnceWith(true);
   expect(select).not.toHaveBeenCalled();
   expect(within(table).getByRole("button", { name: "Location 46" })).toBeTruthy();
   fireEvent.click(filter);
@@ -169,6 +178,29 @@ test("filters registrations with warnings while keeping the viewer selection in 
   expect(screen.getByRole("heading", { name: "Pile A46" })).toBeTruthy();
   fireEvent.click(filter);
   expect(within(table).getByRole("button", { name: "Location 46" })).toBeTruthy();
+});
+
+test("edits and resets the selected location status while showing its automatic assessment", () => {
+  const driving = drivingWith({ status: "ready", preview: { columns: ["paalnummer"], records: [{
+    pile_number: "45", rows: [["45"]], matching: { status: "matched", load_point_id: 45 },
+    checks: [{ kind: "length", status: "warning" }],
+  }] } });
+  const setStatus = vi.fn();
+  render(<PileDrivingPanel {...statusControls} driving={driving} selectionDisabled={false}
+    selectedLoadPointIds={[45]} neighborhoodRecord={null} onNeighborhoodChange={vi.fn()}
+    locationStatuses={new Map([[45, { automatic: "deviation", manual: "good" }]])}
+    onStatusChange={setStatus} onSelect={vi.fn()} onClose={vi.fn()} />);
+
+  const controls = within(screen.getByRole("group", { name: "Driving status" }));
+  expect(controls.getAllByRole("button").map(button => button.textContent)).toEqual([
+    "Automatic", "Good", "Needs review", "Deviation",
+  ]);
+  expect(controls.getByRole("button", { name: "Good" }).getAttribute("aria-pressed")).toBe("true");
+  expect(within(screen.getByRole("table", { name: "Pile records" })).getByRole("cell", { name: "Good" })).toBeTruthy();
+  expect(screen.getByText("Automatic · Deviation")).toBeTruthy();
+  fireEvent.click(controls.getByRole("button", { name: "Needs review" }));
+  fireEvent.click(controls.getByRole("button", { name: "Automatic" }));
+  expect(setStatus.mock.calls).toEqual([[45, "doubtful"], [45, null]]);
 });
 
 test("the registrations table uses each file's effective matching field", () => {
@@ -183,7 +215,7 @@ test("the registrations table uses each file's effective matching field", () => 
     { id: "day-1", name: "numbered.csv", result, matchBy: "revit-mark" as const },
     { id: "day-2", name: "locations.csv", result, matchBy: "location-id" as const },
   ] };
-  render(<PileDrivingPanel {...warningControls} driving={driving} selectionDisabled={false}
+  render(<PileDrivingPanel {...statusControls} driving={driving} selectionDisabled={false}
     selectedLoadPointIds={NO_SELECTION} neighborhoodRecord={null} onNeighborhoodChange={vi.fn()}
     onSelect={select} onClose={vi.fn()} />);
 
@@ -215,7 +247,7 @@ test("CSV import settings allow exact matching and the preview identifies the li
     ...base, files: base.files.map(file => ({ ...file, matchBy: "revit-mark" as const })),
     example: { ...base.example, table: result.table },
   };
-  const props = { ...warningControls, selectionDisabled: false, selectedLoadPointIds: NO_SELECTION,
+  const props = { ...statusControls, selectionDisabled: false, selectedLoadPointIds: NO_SELECTION,
     neighborhoodRecord: null, onNeighborhoodChange: vi.fn(), onSelect: vi.fn(), onClose: vi.fn() };
   const { container, rerender } = render(<PileDrivingPanel {...props} driving={driving} />);
   container.querySelectorAll<HTMLDetailsElement>(".pile-driving-disclosure, .source-import-disclosure")

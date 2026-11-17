@@ -268,6 +268,9 @@ pub fn refresh_project_with_location_decisions(
     refreshed.inputs.load_points = new_load_points;
     refreshed.inputs.cpts = new_cpts;
     refreshed.inputs.bearing_capacities = new_bearing_capacities;
+    if let Some(driving) = &mut refreshed.inputs.pile_driving {
+        driving.remap_manual_statuses(&load_point_mapping);
+    }
     refreshed.settings.cpt_selection_by_load_point = current
         .settings
         .cpt_selection_by_load_point

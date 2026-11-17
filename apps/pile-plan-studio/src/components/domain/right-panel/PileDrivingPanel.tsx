@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { usePileDrivingPreview } from "../../../app/import/usePileDrivingPreview.ts";
-import type { PileDrivingMatchField, PileDrivingRecord } from "../../../core/pileDrivingCoreClient.ts";
-import { Banner, Button, Checkbox, Heading, IconButton, OpenAECProvider, Panel, Select, Status } from "../../../openaec/react/src/index";
+import type { PileDrivingMatchField, PileDrivingRecord, PileDrivingStatus } from "../../../core/pileDrivingCoreClient.ts";
+import type { PileDrivingAssessment } from "../../../domain/pile-driving/pileDrivingStatuses.ts";
+import { Banner, Button, Checkbox, Heading, IconButton, OpenAECProvider, Panel, Select, Status, Switch } from "../../../openaec/react/src/index";
 import spriteUrl from "../../../openaec/studioSprite.ts";
 import SourceFileButton from "../shared/SourceFileButton.tsx";
 import SourceTableEditor from "../imports/SourceTableEditor.tsx";
@@ -16,8 +17,10 @@ type Props = {
   readOnly?: boolean;
   selectedLoadPointIds: readonly number[];
   selectionDisabled: boolean;
-  showWarningsInViewer: boolean;
-  onShowWarningsInViewerChange: (show: boolean) => void;
+  showStatusColors: boolean;
+  onShowStatusColorsChange: (show: boolean) => void;
+  locationStatuses: ReadonlyMap<number, PileDrivingAssessment>;
+  onStatusChange: (id: number, status: PileDrivingStatus | null) => void;
   neighborhoodRecord: PileDrivingRecord | null;
   onNeighborhoodChange: (record: PileDrivingRecord | null) => void;
   onSelect: (ids: number[]) => void;
@@ -29,9 +32,12 @@ type PickedRecord = { fileId: string; index: number; locationId: number | null; 
 
 const MEASUREMENT_FIELDS = ["tochtnummer", "ppn_nap", "slagen", "energie_per_slag_kj"];
 const SUMMARY_FIELDS = ["datum", "starttijd", "stelling", "dikte_cm", "lengte_cm", "ppd_gewenst", "opmerkingen"];
+const STATUS_TONES = { good: "success", doubtful: "warning", deviation: "error" } as const;
+const DRIVING_STATUSES = ["good", "doubtful", "deviation"] as const;
 
 export default function PileDrivingPanel({ planName, driving, readOnly = false, selectedLoadPointIds, selectionDisabled,
-  showWarningsInViewer, onShowWarningsInViewerChange, neighborhoodRecord, onNeighborhoodChange, onSelect, onClose }: Props) {
+  showStatusColors, onShowStatusColorsChange, locationStatuses, onStatusChange,
+  neighborhoodRecord, onNeighborhoodChange, onSelect, onClose }: Props) {
   const { t, i18n } = useTranslation("rightPanel", { keyPrefix: "pileDriving" });
   const [picked, setPicked] = useState<PickedRecord | null>(null);
   const [warningsOnly, setWarningsOnly] = useState(false);
@@ -80,6 +86,29 @@ export default function PileDrivingPanel({ planName, driving, readOnly = false, 
     }
   }, [activeRow, warningsOnly]);
   const active = activeRow?.record;
+  const editLocationId = active
+    ? active.matching.status === "matched" ? active.matching.load_point_id : null
+    : typeof viewerSelection === "number" ? viewerSelection : null;
+  const assessment = editLocationId === null ? undefined : locationStatuses.get(editLocationId);
+  const statusEditor = editLocationId !== null && <div className="pile-driving-status-editor">
+    {!active && <Heading>{t("location", { id: editLocationId })}</Heading>}
+    <div className="pile-driving-status-heading">
+      <span>{t("assessment.label")}</span>
+      <span className="oa-secondary">{t("assessment.automatic", {
+        status: t(`assessment.${assessment?.automatic ?? "unavailable"}`),
+      })}</span>
+    </div>
+    <div className="pile-driving-status-buttons" role="group" aria-label={t("assessment.label")}>
+      {([null, ...DRIVING_STATUSES] as const).map(status => {
+        const pressed = status === (assessment?.manual ?? null);
+        return <Button key={status ?? "automatic"} compact data-tone={status === null ? undefined : STATUS_TONES[status]}
+          aria-pressed={pressed} disabled={readOnly || selectionDisabled}
+          onClick={() => onStatusChange(editLocationId, status)}>
+          {t(`assessment.${status ?? "automaticChoice"}`)}
+        </Button>;
+      })}
+    </div>
+  </div>;
   const columns = activeRow?.columns.map((label, index) => ({ label, index, key: label.trim().toLowerCase() })) ?? [];
   const measurements = MEASUREMENT_FIELDS.flatMap(key => columns.filter(column => column.key === key));
   const details = SUMMARY_FIELDS.flatMap(key => columns.filter(column => column.key === key && active?.rows[0]?.[column.index]));
@@ -113,6 +142,15 @@ export default function PileDrivingPanel({ planName, driving, readOnly = false, 
               </div>}
               <SourceFileButton multiple label={t("addFiles")} disabled={readOnly || driving.pending} onFiles={driving.addFiles} />
             </div>
+          </div>
+          <div className="pile-driving-color-control">
+            <Switch label={t("assessment.showColors")} checked={showStatusColors}
+              onChange={event => onShowStatusColorsChange(event.target.checked)} />
+            {showStatusColors && <div className="pile-driving-status-key">
+              {DRIVING_STATUSES.map(status =>
+                <Status key={status} tone={STATUS_TONES[status]}>{t(`assessment.${status}`)}</Status>
+              )}
+            </div>}
           </div>
           {files.length === 0 && !driving.pending && <p className="pile-driving-empty oa-secondary">{t("empty")}</p>}
           {((example && files.length > 0) || driving.settings) && <details className="pile-driving-disclosure">
@@ -171,8 +209,6 @@ export default function PileDrivingPanel({ planName, driving, readOnly = false, 
               <div className="pile-driving-warning-controls">
                 <Checkbox label={t("overview.warningsOnly")}
                   checked={warningsOnly} onChange={event => setWarningsOnly(event.target.checked)} />
-                <Checkbox label={t("overview.markWarnings")}
-                  checked={showWarningsInViewer} onChange={event => onShowWarningsInViewerChange(event.target.checked)} />
               </div>
               <p role="status" className="pile-driving-result-counts oa-secondary">
                 <span>{t("summary", { linked, total: records.length })}</span>
@@ -189,11 +225,15 @@ export default function PileDrivingPanel({ planName, driving, readOnly = false, 
                 <thead><tr>
                   <th scope="col">{t("overview.day")}</th>
                   <th scope="col">{t(matchingColumn)}</th>
+                  <th scope="col">{t("assessment.column")}</th>
                   <th scope="col">{t("overview.warnings")}</th>
                 </tr></thead>
                 <tbody>{visibleRecords.map(({ file, record, rowIndex, day, date, warnings, unavailable }) => {
                   const matching = record.matching;
                   const locationId = matching.status === "matched" ? matching.load_point_id : null;
+                  const assessment = locationId === null ? undefined : locationStatuses.get(locationId);
+                  const status = assessment?.manual ?? assessment?.automatic;
+                  const statusLabel = t(`assessment.${status ?? "unavailable"}`);
                   const showPileNumber = file.matchBy === "revit-mark" || locationId === null;
                   const matchingLabel = showPileNumber ? t("pile", { number: record.pile_number })
                     : t("location", { id: locationId });
@@ -219,6 +259,9 @@ export default function PileDrivingPanel({ planName, driving, readOnly = false, 
                         {t(matching.status === "ambiguous" ? "ambiguous" : "unmatched")}
                       </small>}
                     </td>
+                    <td title={statusLabel} aria-label={statusLabel}>{status
+                      ? <Status tone={STATUS_TONES[status]}>{t(`assessment.short.${status}`)}</Status>
+                      : "–"}</td>
                     <td><div className="pile-driving-record-state">
                       {warnings.map(kind => <Status key={kind} tone="warning">{t(`checks.labels.${kind}`)}</Status>)}
                       {unavailable > 0 && <Status tone="info">{t("checks.unavailable", { count: unavailable })}</Status>}
@@ -229,6 +272,7 @@ export default function PileDrivingPanel({ planName, driving, readOnly = false, 
               </table>
             </div>}
           </section>}
+          {!active && statusEditor}
           {activeRow && active && <section className="pile-driving-detail">
             <header className="pile-driving-detail-header">
               <Heading>{t("pile", { number: active.pile_number })}</Heading>
@@ -236,6 +280,7 @@ export default function PileDrivingPanel({ planName, driving, readOnly = false, 
                 {activeRow.file.name}
               </p>
             </header>
+            {statusEditor}
             <PileDrivingChecks checks={active.checks} energyRange={active.energy_range} neighborhood={active.neighborhood}
               neighborhoodExpanded={neighborhoodRecord === active}
               onToggleNeighborhood={() => onNeighborhoodChange(neighborhoodRecord === active ? null : active)} />

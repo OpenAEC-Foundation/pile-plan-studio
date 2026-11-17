@@ -58,10 +58,23 @@ are viewer-owned and fixed across application themes. The context does not
 expand the active edit targets; it shares the overview's transient selection
 context and the same projected coordinates and ring radius as active selection.
 
-Driving record warnings use a triangle anchored to the same projected point
-as the pile marker. The warning symbol is drawn above marker graphics and uses
-fixed colors on light and dark drawing backgrounds. It leaves the selection
-and hit target geometry intact.
+Driving statuses use fixed-color halos centered on their projected load points.
+In this map mode they replace utilization and missing-data halos, including
+those on pile cap previews. Selection rings and hit target geometry stay in
+their existing layers.
+
+With the driving records panel open, clicking a load point inspects that
+point individually. Explicit rectangle selection continues to use groups.
+
+The compression and tension views dim pile symbols and status halos when the
+displayed direction has no known positive demand. Pile-cap proposals use their
+per-pile demand. Selection rings and hit targets stay independent of this
+emphasis, so dimmed locations remain selectable.
+
+Locked load points show a compact padlock at the upper-right edge of the pile
+symbol. The padlock is scaled and positioned relative to the symbol and drawn
+above the marker layer. It remains fully visible when the symbol is dimmed,
+and follows the current draft during lock editing.
 
 Pan and zoom are applied by the single transform on `.viewer-content`. Marker
 positions must not be recalculated during each pan or zoom frame. A whole-window

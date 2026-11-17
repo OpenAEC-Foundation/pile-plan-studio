@@ -184,6 +184,7 @@
   "explorer": "Verkenner",
   "properties": "Eigenschappen",
   "viewer": {
+    "locked": "Vergrendeld",
     "loadPointGroups": {
       "assignmentConflict": "Een groep bevat verschillende of onvolledige paaltoewijzingen."
     },
@@ -211,7 +212,11 @@
     },
     "pileCapProposal": "Poervoorstel met {{count}} palen",
     "pileCapCrowded": "Weinig ruimte voor deze schematische opstelling; afstanden zijn niet getoetst.",
-    "drivingWarning": "Waarschuwing bij heistaat",
+    "drivingStatus": {
+      "good": "Heistaatstatus: Goed",
+      "doubtful": "Heistaatstatus: Twijfel",
+      "deviation": "Heistaatstatus: Afwijkend"
+    },
     "focusSelection": "Selectie in beeld",
     "focusSelectionLabel": "Focus"
   },

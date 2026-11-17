@@ -184,6 +184,7 @@
   "explorer": "Explorer",
   "properties": "Properties",
   "viewer": {
+    "locked": "Locked",
     "loadPointGroups": {
       "assignmentConflict": "A group contains differing or incomplete pile assignments."
     },
@@ -211,7 +212,11 @@
     },
     "pileCapProposal": "Pile cap proposal with {{count}} piles",
     "pileCapCrowded": "Limited space for this schematic layout; spacing has not been checked.",
-    "drivingWarning": "Driving record warning",
+    "drivingStatus": {
+      "good": "Driving status: Good",
+      "doubtful": "Driving status: Needs review",
+      "deviation": "Driving status: Deviation"
+    },
     "focusSelection": "Focus selection",
     "focusSelectionLabel": "Focus"
   },

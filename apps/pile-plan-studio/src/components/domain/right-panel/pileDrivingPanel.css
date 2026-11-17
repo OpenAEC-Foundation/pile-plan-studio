@@ -176,6 +176,77 @@
 }
 
 .pile-driving-match-state { display: block; }
+.pile-driving-color-control {
+  display: grid;
+  gap: 6px;
+  padding: 8px 10px;
+  border: 1px solid var(--oa-border-strong);
+  border-radius: var(--oa-radius-medium);
+  background: var(--oa-raised);
+}
+.pile-driving-color-control .oa-switch { font-weight: var(--oa-weight-semibold); }
+.pile-driving-color-control .oa-switch input { flex: none; }
+.pile-driving-color-control:has(input:checked) { border-color: var(--oa-selected-bar); }
+.pile-driving-status-key {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 8px;
+}
+.pile-driving-status-editor { display: grid; gap: 4px; padding: 6px 8px; }
+.pile-driving-status-heading {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 2px 8px;
+  font-size: var(--oa-size-label);
+}
+.pile-driving-status-buttons {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 4px;
+}
+.pile-driving-status-buttons .oa-button {
+  --status-button-color: var(--oa-text-secondary);
+  --status-button-tint: var(--oa-raised);
+  justify-content: center;
+  min-height: calc(var(--oa-row) - 4px);
+  height: auto;
+  padding: 3px 4px;
+  font-size: var(--oa-size-label);
+  text-align: center;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+.pile-driving-status-buttons [data-tone="success"] {
+  --status-button-color: var(--oa-success);
+  --status-button-tint: var(--oa-success-tint);
+}
+.pile-driving-status-buttons [data-tone="warning"] {
+  --status-button-color: var(--oa-warning);
+  --status-button-tint: color-mix(in srgb, #f8d537 24%, var(--oa-raised));
+}
+.pile-driving-status-buttons [data-tone="error"] {
+  --status-button-color: var(--oa-error);
+  --status-button-tint: var(--oa-error-tint);
+}
+.pile-driving-status-buttons [data-tone]:not(:disabled) {
+  color: var(--status-button-color);
+  border-color: var(--status-button-color);
+  background: var(--status-button-tint);
+}
+.pile-driving-status-buttons .oa-button:is([aria-pressed="true"], [data-tone]:hover):not(:disabled) {
+  background: color-mix(in srgb, var(--status-button-color) 12%, var(--status-button-tint));
+}
+.pile-driving-status-buttons [aria-pressed="true"] {
+  font-weight: var(--oa-weight-semibold);
+  box-shadow: inset 0 0 0 1px currentColor;
+}
+.pile-driving-overview td:nth-child(3) > .oa-status {
+  font-family: inherit;
+  padding-inline: 5px;
+  white-space: nowrap;
+}
 .pile-driving-record-state { display: flex; flex-wrap: wrap; gap: 2px 4px; align-items: center; }
 .pile-driving-content .oa-status { max-width: 100%; white-space: normal; overflow-wrap: anywhere; }
 .pile-driving-content :is(.pile-driving-record-state, .pile-driving-check-title, .pile-driving-disclosure) .oa-status {

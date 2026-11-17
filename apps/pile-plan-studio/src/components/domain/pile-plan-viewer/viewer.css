@@ -364,12 +364,10 @@
 
 .load-point-marker.is-locked {
   cursor: default;
-  opacity: 0.28;
 }
 
 .viewer-content.is-lock-editing .load-point-marker.is-locked {
   cursor: pointer;
-  opacity: 0.45;
 }
 
 .viewer-content.is-lock-editing .cpt-marker {
@@ -383,14 +381,6 @@
   border-radius: 50%;
   pointer-events: none;
   z-index: 5;
-}
-
-.load-point-status-halo.is-locked {
-  opacity: 0.28;
-}
-
-.viewer-content.is-lock-editing .load-point-status-halo.is-locked {
-  opacity: 0.45;
 }
 
 .load-point-status-halo.is-above-range,

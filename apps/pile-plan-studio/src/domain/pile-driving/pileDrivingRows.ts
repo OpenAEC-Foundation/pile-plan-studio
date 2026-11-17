@@ -8,19 +8,6 @@ export type PileDrivingDisplayFile = {
 
 const isWarning = (check: PileDrivingCheck) => check.status === "warning";
 
-export function getPileDrivingWarningLocationIds(
-  files: readonly PileDrivingDisplayFile[], selectedId: string | null,
-): ReadonlySet<number> {
-  const ids = new Set<number>();
-  for (const file of files) {
-    if ((selectedId !== null && file.id !== selectedId) || file.result?.status !== "ready") continue;
-    for (const { matching, checks } of file.result.preview.records) {
-      if (matching.status === "matched" && checks.some(isWarning)) ids.add(matching.load_point_id);
-    }
-  }
-  return ids;
-}
-
 function drivingDate(value: string | undefined): string | null {
   const input = value?.trim() ?? "";
   const iso = /^(\d{4})-(\d{1,2})-(\d{1,2})(?=$|[T ])/.exec(input);

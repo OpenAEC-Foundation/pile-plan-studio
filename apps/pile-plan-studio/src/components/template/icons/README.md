@@ -10,11 +10,14 @@ pinned Blueprint sprite following issues 82 and 84.
 Pile Plan Studio, separate from the generated, pinned assets in `src/openaec/icons`.
 
 Candidates cover pile options, CPTs, pile-cap changes, compression/tension,
-rectangular selection, confirmation, tip-level regions, load-point groups
+rectangular selection, confirmation, tip-level regions, load-point groups, driving status display
 and the three settings buttons in the Plan ribbon. The domain settings icons
 pair a CPT triangle, a currency-neutral coin stack or the View group symbol
 with a lower-right gear. Their six drawings come from
 [Blueprint PR #95](https://github.com/OpenAEC-Foundation/OpenAEC-Blueprint/pull/95)
 at commit `a6823481`. The application settings gear uses the pinned sprite.
+The Heistaten panel command reuses Blueprint's `field.inspections` icon.
+The local driving status display icon depicts one pile marker centered in a
+green, yellow, and red status ring.
 
 Render these assets through `PilePlanIcon`, which applies the same theme accent and active/disabled colour roles as `BlueprintIcon`. Keep a separate drawing for each supported size; do not add inherited strokes to the filled gear shapes.

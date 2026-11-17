@@ -12,17 +12,26 @@ test("driving record labels and import diagnostics are available in English and 
   assert.deepEqual(Object.keys(nl.columns), Object.keys(en.columns));
   assert.deepEqual(Object.keys(nl.errors), Object.keys(en.errors));
   assert.deepEqual(Object.keys(nl.overview), Object.keys(en.overview));
+  assert.deepEqual(Object.keys(nl.assessment), Object.keys(en.assessment));
   assert.equal(nl.ignoreCsvLeadingZeros, "Voorloopnullen negeren");
   assert.equal(en.ignoreCsvLeadingZeros, "Ignore leading zeros");
   for (const language of ["nl", "en"]) {
     const common = load(language, "common");
     const panel = load(language, "rightPanel");
-    assert.ok(common.viewer.drivingWarning.trim());
+    for (const status of ["good", "doubtful", "deviation"]) {
+      const label = panel.pileDriving.assessment[status];
+      assert.ok(label.trim());
+      assert.ok(common.viewer.drivingStatus[status].endsWith(label));
+      const short = panel.pileDriving.assessment.short[status];
+      assert.ok(short.trim() && short.length <= label.length);
+    }
     assert.equal(panel.pileDriving.mark, common.tableImport.fields["revit-mark"]);
     assert.ok(panel["selectionOverview.pileNumbers"].trim());
     assert.ok(panel["loadPoints.pileName"].includes("{{number}}"));
     assert.ok(panel["cpts.editMember"].includes("{{name}}"));
-    assert.ok(load(language, "rightPanel").pileDriving.overview.markWarnings.trim());
+    assert.ok(panel.pileDriving.assessment.showColors.trim());
+    assert.ok(panel.pileDriving.assessment.automatic.includes("{{status}}"));
+    assert.ok(panel.pileDriving.assessment.automaticChoice.trim());
   }
   for (const labels of [nl, en]) {
     for (const key of ["addFiles", "empty", "removeFile", "allFiles", "exampleFile", "settings", "importSettings", "independentSettings", "sharedHelp", "resetTable"]) {

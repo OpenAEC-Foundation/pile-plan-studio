@@ -100,4 +100,20 @@
 <symbol id="i24-pile.load-groups" viewBox="0 0 24 24">
         <use href="#i24-helper.group" y="2"/>
       </symbol>
+<symbol id="i16-pile.driving-colors" viewBox="0 0 16 16">
+  <g fill="none" stroke-width="1.75" stroke-dasharray="100.3 199.7">
+    <circle cx="8" cy="8" r="6.67" pathLength="300" stroke="light-dark(#24864a, #53bd74)"/>
+    <circle cx="8" cy="8" r="6.67" pathLength="300" stroke="light-dark(#ac8500, #ffdc38)" stroke-dashoffset="-100"/>
+    <circle cx="8" cy="8" r="6.67" pathLength="300" stroke="light-dark(#d3363e, #fb6971)" stroke-dashoffset="-200"/>
+  </g>
+  <rect x="4.75" y="4.75" width="6.5" height="6.5" rx=".9" fill="currentColor"/>
+</symbol>
+<symbol id="i24-pile.driving-colors" viewBox="0 0 24 24">
+  <g fill="none" stroke-width="2.6" stroke-dasharray="100.3 199.7">
+    <circle cx="12" cy="12" r="10" pathLength="300" stroke="light-dark(#24864a, #53bd74)"/>
+    <circle cx="12" cy="12" r="10" pathLength="300" stroke="light-dark(#ac8500, #ffdc38)" stroke-dashoffset="-100"/>
+    <circle cx="12" cy="12" r="10" pathLength="300" stroke="light-dark(#d3363e, #fb6971)" stroke-dashoffset="-200"/>
+  </g>
+  <rect x="7.1" y="7.1" width="9.8" height="9.8" rx="1.4" fill="currentColor"/>
+</symbol>
 </svg>

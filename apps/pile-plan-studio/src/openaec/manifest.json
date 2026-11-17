@@ -223,6 +223,10 @@
     {
       "source": "web/icons/pile-plan.svg",
       "sha256": "05294ce2d4650805c63eb5e7065a4c058e03130474256467e44dea450d598366"
+    },
+    {
+      "source": "web/icons/field.svg",
+      "sha256": "92683449c08a9f0627d60edd503e182a9caf9f23f1de39b14ec749b91a3beb10"
     }
   ],
   "iconIds": [
@@ -247,6 +251,7 @@
     "view.grid",
     "panel.left",
     "panel.right",
+    "field.inspections",
     "file.open",
     "file.save-as",
     "file.import",
@@ -275,11 +280,11 @@
   "generated": [
     {
       "path": "icons/studio.svg",
-      "sha256": "cad4a769bea24c429b3078470707e4dcdbf0d2e26267d72c446b4fd2edbc80d7"
+      "sha256": "f09d2506b8d98c8746b8af35d4e848505c83e6edd1ced4feac74f5af3c3674e9"
     },
     {
       "path": "icons/studioIcons.ts",
-      "sha256": "401f328b7e8860e06b0b71ae522bb06be1ac88baecf3bc16073d9f6d63d676c8"
+      "sha256": "d596bb21fd61e56f2ee699cbe6d682df36d88758d64951740024e19242d28dc4"
     }
   ]
 }

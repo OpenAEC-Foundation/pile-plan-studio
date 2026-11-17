@@ -44,9 +44,11 @@ browser.
 
 - Check supplied compression and optional tension design loads independently,
   switch their display under **Plan**, and include both in default assignment
-  and optimization. Inspect general foundation advice with overrides for
-  specific pile counts. The [bundled sample](sample_project/README.md) includes
-  explicitly fictional tension resistances for testing.
+  and optimization. The map dims locations without a known positive load in
+  the displayed direction while keeping them selectable. Inspect general
+  foundation advice with overrides for specific pile counts. The [bundled
+  sample](sample_project/README.md) includes explicitly fictional tension
+  resistances for testing.
 - Review valid, insufficient, and missing pile options, compare utilization,
   resistance, and cost, and assign configurations to one or many load points.
 - Select CPTs automatically using quadrant or maximum-angle rules, override the
@@ -344,12 +346,23 @@ when that plan has Marks and to **Location ID** otherwise.
 Choose **All driving records** to see the day number, matched location and
 warnings for every registration. The panel numbers distinct recorded dates
 in chronological order and shows warnings first. Use **Warnings only** to
-filter the table. **Mark warnings in viewer** adds a warning symbol to each
-matched location with a warning in the chosen file or across all files.
+filter the table. The location status uses the most severe result across all
+linked registrations, even when the table shows a single file. A length or
+driving level deviation gives **Deviation** (red). Other warnings give **Needs review**
+(yellow). When at least one check was performed and none warned, the status
+is **Good** (green).
+
+Select a location and use **Good**, **Needs review** or **Deviation** to override
+its automatic driving status. Use **Automatic** to clear that choice. Manual choices are saved in
+the project and support undo and redo. Turn on **Show driving status colors on
+the map** in the panel or use **View → Driving status colors** in the ribbon to
+replace the utilization and missing-data colors. Unassessed
+locations have no status color until you assign one.
 With the table filter off, the table includes records with no match or
 multiple matches. Select a row's location or pile number to see its
 measurements and source file and locate the matched pile in the drawing.
-Selecting a single location in the drawing opens its first registration in
+While the driving records panel is open, clicking a location in the drawing
+selects that location individually, including members of a group, and opens its first registration in
 the chosen file scope, even if the warnings filter hides that row. The overview
 uses a short scroll area while a registration's details are open. Saving the
 IFCPP project includes the original CSV and Excel files and their import and

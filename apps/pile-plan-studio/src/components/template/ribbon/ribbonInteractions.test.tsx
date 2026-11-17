@@ -8,6 +8,7 @@ function props() {
   return { isLassoSelectionActive: false, lassoSelectionDisabled: false, isLockEditing: false,
     symbolScalePercent: 100, viewerUtilizationMinimum: 0.5, viewerUtilizationMaximum: 0.9,
     foregroundLayer: "load-points" as const, showGrid: false, showTipLevelRegions: false, showLoadPointGroups: false,
+    showDrivingColors: false, onDrivingColorVisibilityChange: vi.fn(),
     explorerVisible: true, propertiesVisible: false, onToggleLassoSelection: vi.fn(), onStartLockEditing: vi.fn(),
     onApplyLockEditing: vi.fn(), onCancelLockEditing: vi.fn(), onUnlockAll: vi.fn(),
     onSymbolScaleChangeStart: vi.fn(), onSymbolScaleChange: vi.fn(), onSymbolScaleChangeEnd: vi.fn(),
@@ -49,6 +50,7 @@ test("view toggles retain their names while pressed states, action tips and call
     ["grid", "Grid", p.onGridVisibilityChange, false],
     ["tipLevelRegions", "TipLevelRegions", p.onTipLevelRegionVisibilityChange, false],
     ["groups", "Groups", p.onLoadPointGroupVisibilityChange, false],
+    ["drivingColors", "DrivingColors", p.onDrivingColorVisibilityChange, false],
     ["explorer", "Explorer", p.onExplorerVisibilityChange, true],
     ["properties", "Properties", p.onPropertiesVisibilityChange, false],
   ] as const;
@@ -58,7 +60,9 @@ test("view toggles retain their names while pressed states, action tips and call
     expect(button.getAttribute("data-tooltip")).toBe(t(`view.${visible ? "hide" : "show"}${action}`));
     fireEvent.click(button); expect(callback).toHaveBeenCalledExactlyOnceWith(!visible);
   }
-  view.rerender(<Ribbon {...p} showGrid showTipLevelRegions showLoadPointGroups explorerVisible={false} propertiesVisible />);
+  expect(screen.getByRole("button", { name: t("view.drivingColors") }).querySelector("use")?.getAttribute("href"))
+    .toMatch(/#i24-pile\.driving-colors$/);
+  view.rerender(<Ribbon {...p} showGrid showTipLevelRegions showLoadPointGroups showDrivingColors explorerVisible={false} propertiesVisible />);
   for (const [key, action, callback, wasVisible] of toggles) {
     const button = screen.getByRole("button", { name: t(`view.${key}`) });
     expect(button.getAttribute("aria-pressed")).toBe(String(!wasVisible));
@@ -210,7 +214,9 @@ test("Plan shared artwork preserves named actions and the disabled selection tog
   const pileCaps = screen.getByRole("button", { name: t("plan.pileCapChanges") });
   expect(pileCaps.querySelector("use")?.getAttribute("href") ?? "").toMatch(/#i24-pile\.cap-changes$/);
   fireEvent.click(pileCaps); expect(p.onOpenTaskPanel).toHaveBeenCalledWith("pile-cap-changes");
-  fireEvent.click(screen.getByRole("button", { name: t("plan.pileDriving") }));
+  const pileDriving = screen.getByRole("button", { name: t("plan.pileDriving") });
+  expect(pileDriving.querySelector("use")?.getAttribute("href")).toMatch(/#i24-field\.inspections$/);
+  fireEvent.click(pileDriving);
   expect(p.onOpenTaskPanel).toHaveBeenCalledWith("pile-driving");
   view.rerender(<Ribbon {...p} isLassoSelectionActive lassoSelectionDisabled />);
   const selection = screen.getByRole("button", { name: t("plan.lassoSelection") });

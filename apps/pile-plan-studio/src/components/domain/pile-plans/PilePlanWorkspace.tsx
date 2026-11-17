@@ -1,3 +1,4 @@
+import type { PileDrivingStatus } from "../../../core/pileDrivingCoreClient.ts";
 import type { PileCapPreview } from "../../../core/pileCapProposalTypes.ts";
 import type { ViewerFocusRequest } from "../../../domain/workspace/viewerFocus.ts";
 import { useMemo, useState, type MouseEvent } from "react";
@@ -17,7 +18,8 @@ import type { LegendEditorDraft } from "../../../domain/legend/legendEditorModel
 type Props = {
   focusRequest?: ViewerFocusRequest | null;
   inspectionLoadPointIds?: readonly number[];
-  drivingWarningLoadPointIds?: ReadonlySet<number>;
+  inspectLoadPointsIndividually?: boolean;
+  drivingStatuses?: ReadonlyMap<number, PileDrivingStatus>;
   onFocusHandled?: (request: ViewerFocusRequest) => void;
   pileCapPreviews?: PileCapPreview[];
   readOnly?: boolean;
@@ -34,7 +36,7 @@ type Props = {
 };
 
 const EMPTY_CAP_PREVIEWS: PileCapPreview[] = [];
-export default function PilePlanWorkspace({ focusRequest, inspectionLoadPointIds, drivingWarningLoadPointIds, onFocusHandled, pileCapPreviews=EMPTY_CAP_PREVIEWS, readOnly = false, state, loadPointGroups, loadPointGroupTopology, technicalAssignment, groupAssignmentAssessment, lassoSelectionActive, onStateChange, onSelectionChange, onLegendApply, legendUserDefaults }: Props) {
+export default function PilePlanWorkspace({ focusRequest, inspectionLoadPointIds, inspectLoadPointsIndividually, drivingStatuses, onFocusHandled, pileCapPreviews=EMPTY_CAP_PREVIEWS, readOnly = false, state, loadPointGroups, loadPointGroupTopology, technicalAssignment, groupAssignmentAssessment, lassoSelectionActive, onStateChange, onSelectionChange, onLegendApply, legendUserDefaults }: Props) {
   const [legendEditorOpen, setLegendEditorOpen] = useState(false);
   const effectiveRegions=useMemo(()=>{
     const assignments=new Map(state.selectedPileConfigurationsByLoadPoint),options=new Map(state.pileOptionsByLoadPointId);
@@ -66,7 +68,8 @@ export default function PilePlanWorkspace({ focusRequest, inspectionLoadPointIds
       <PilePlanViewer
         focusRequest={focusRequest}
         inspectionLoadPointIds={inspectionLoadPointIds}
-        drivingWarningLoadPointIds={drivingWarningLoadPointIds}
+        inspectLoadPointsIndividually={inspectLoadPointsIndividually}
+        drivingStatuses={drivingStatuses}
         onFocusHandled={onFocusHandled}
         pileCapPreviews={pileCapPreviews}
         state={state}

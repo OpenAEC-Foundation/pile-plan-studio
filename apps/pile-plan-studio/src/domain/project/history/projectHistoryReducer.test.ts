@@ -14,6 +14,7 @@ import {
 } from "./projectHistoryReducer.ts";
 import { createPilePlan, switchPilePlan } from "../../pile-plans/pilePlanManagement.ts";
 import { setLoadPointSelection } from "../../workspace/selectionState.ts";
+import { setManualPileDrivingStatus } from "../../pile-driving/pileDrivingStatuses.ts";
 
 const sampleProjectText = readFileSync("../../sample_project/sample_project.ifcpp", "utf8");
 
@@ -43,6 +44,29 @@ describe("project history reducer", () => {
     assert.equal(projectStateSignature(managed.present), projectStateSignature(initial));
     managed = projectHistoryReducer(managed, { type: "redo" });
     assert.deepEqual(managed.present.pileDriving, driving);
+  });
+  it("undoes a manual driving assessment without changing the embedded sources", () => {
+    const initial = { ...state(), pileDriving: { files: [
+      { id: "day-1", file_name: "day-1.csv", format: "csv" as const, data_base64: "MTU=" },
+    ] } };
+    const id = initial.loadPoints[0].id;
+    let managed = projectHistoryReducer(createManagedProjectState(initial), {
+      type: "commit", update: current => ({
+        ...current, pileDriving: setManualPileDrivingStatus(current.pileDriving!, id, "deviation"),
+      }),
+    });
+    assert.deepEqual(projectDraftFromState(managed.present).inputs.pile_driving?.manual_statuses, [
+      { load_point_id: id, status: "deviation" },
+    ]);
+    assert.notEqual(projectStateSignature(managed.present), projectStateSignature(initial));
+    const edited = managed.present.pileDriving;
+    managed = projectHistoryReducer(managed, { type: "undo" });
+    assert.deepEqual(managed.present.pileDriving, initial.pileDriving);
+    managed = projectHistoryReducer(managed, { type: "redo" });
+    assert.deepEqual(managed.present.pileDriving, edited);
+    assert.equal(setManualPileDrivingStatus(edited!, id, "deviation"), edited);
+    assert.deepEqual(setManualPileDrivingStatus(edited!, id, null).files, initial.pileDriving.files);
+    assert.equal(setManualPileDrivingStatus(edited!, id, null).manual_statuses, undefined);
   });
   it("keeps selection inspection context out of saved content and undo history", () => {
     const initial = state();

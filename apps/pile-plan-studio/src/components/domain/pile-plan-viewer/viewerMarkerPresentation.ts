@@ -1,7 +1,9 @@
 import type { TechnicalAssignmentSnapshot } from "../../../app/derived-state/technicalAssignmentController.ts";
-import type { PileSymbol } from "../../../core/projectTypes.ts";
+import type { PileSymbol, ResistanceDirection } from "../../../core/projectTypes.ts";
+import type { PileDrivingStatus } from "../../../core/pileDrivingCoreClient.ts";
 import type { ProjectState } from "../../../domain/project/projectState.ts";
 import { getConfigurationActivationPresentation } from "../../../domain/legend/legendActivationPresentation.ts";
+import { directionalLoad } from "../../../domain/pile-options/loadDirection.ts";
 import { getPilePlanActivation } from "../../../domain/pile-plans/pilePlanActivation.ts";
 import { shouldRaiseCptMarker } from "../../../domain/workspace/viewerInteractions.ts";
 import { getCptDisplayName } from "../../../domain/source-data/cptDisplayName.ts";
@@ -27,9 +29,8 @@ import { getSelectedPileOption } from "./viewerPresentation.ts";
 
 export type ViewerMarkerRing = { color: "selection" | "context"; radius: number };
 export type ViewerMarkerHalo = {
-  kind: "above" | "below" | "missing";
+  kind: "above" | "below" | "missing" | PileDrivingStatus;
   intensity: number;
-  opacity: number;
 };
 
 export type ViewerMarkerAppearance =
@@ -51,7 +52,7 @@ export type ViewerMarkerGraphic = {
   halo: ViewerMarkerHalo | null;
   appearance: ViewerMarkerAppearance;
   locked: boolean;
-  opacity: number;
+  demandOpacity?: number;
 };
 
 export type ViewerMarkerHitTarget = Pick<ViewerMarkerGraphic, "key" | "kind" | "id" | "x" | "y"> & {
@@ -62,17 +63,18 @@ export type ViewerMarkerHitTarget = Pick<ViewerMarkerGraphic, "key" | "kind" | "
 
 export type ViewerMarkerPresentationInput = {
   state: ProjectState;
+  loadDirection: ResistanceDirection;
   technicalAssignment: TechnicalAssignmentSnapshot;
   projectTransform: ProjectViewTransform;
   pileOptionsByLoadPointId: ProjectState["pileOptionsByLoadPointId"];
   selectedLoadPointIds: ReadonlySet<number>;
   selectionContextLoadPointIds: ReadonlySet<number>;
+  drivingStatuses?: ReadonlyMap<number, PileDrivingStatus>;
   completeSelectedGroupLoadPointIds: ReadonlySet<number>;
   relatedLoadPointIds: ReadonlySet<number>;
   lockedLoadPointIds: ReadonlySet<number>;
   contextSelectedCptIds: ReadonlySet<number>;
   governingCptId: number | null;
-  isEditingLoadPointLocks: boolean;
   isEditingCptSelection: boolean;
   activeHoverCandidateKey: string | null;
   translate: (key: string) => string;
@@ -107,7 +109,7 @@ export function buildViewerMarkerPresentation(input: ViewerMarkerPresentationInp
       key, kind: "cpt", id: cpt.id, ...point, scale,
       drawPriority: getMarkerDrawPriority({ kind: "cpt", foregroundLayer: state.foregroundLayer,
         selected: selected || governing, raised, hovered }),
-      ring, halo: null, locked: false, opacity: 1,
+      ring, halo: null, locked: false,
       appearance: { type: "cpt", label, labelScale: getCptLabelScale(label),
         selectedStyle: (selected || governing) && !(inspected && !contextSelected),
         inspectedOnly: inspected && !contextSelected },
@@ -143,8 +145,17 @@ export function buildViewerMarkerPresentation(input: ViewerMarkerPresentationInp
       : unselectedState ? input.translate(`viewer.unselected.${unselectedState}`) : undefined;
     const unselectedClass = unselectedState && usesNeutralUnassignedMarker(unselectedState)
       ? " is-pending" : unselectedState === "optimizer-unassigned" ? " has-optimizer-unassigned" : "";
-    const invalid = getLoadPointMarkerInvalidVisual(option, state.viewerUtilizationSettings);
-    const halo = parseLoadPointStatusHalo(invalid.className, invalid.style, locked, input.isEditingLoadPointLocks);
+    const drivingStatus = input.drivingStatuses?.get(loadPoint.id);
+    let halo: ViewerMarkerHalo | null;
+    if (input.drivingStatuses) {
+      halo = drivingStatus ? { kind: drivingStatus, intensity: 0 } : null;
+    } else {
+      const invalid = getLoadPointMarkerInvalidVisual(option, state.viewerUtilizationSettings);
+      halo = parseLoadPointStatusHalo(invalid.className, invalid.style);
+    }
+    const statusTitle = drivingStatus ? input.translate(`viewer.drivingStatus.${drivingStatus}`)
+      : input.drivingStatuses ? undefined : unselectedTitle;
+    const lockLabel = locked ? `. ${input.translate("viewer.locked")}` : "";
     const ring = getLoadPointRing(selected, groupSelected, hovered || editFocused, state.symbolScalePercent)
       ?? (inSelectionContext ? { color: "context" as const, radius: getLoadPointRingRadius(state.symbolScalePercent) } : null);
     const appearance: ViewerMarkerAppearance = style
@@ -158,16 +169,20 @@ export function buildViewerMarkerPresentation(input: ViewerMarkerPresentationInp
       drawPriority: getMarkerDrawPriority({ kind: "load-point", foregroundLayer: state.foregroundLayer,
         selected: selected || related || inSelectionContext, raised: false, hovered: hovered || editFocused }),
       ring, halo, appearance, locked,
-      opacity: locked ? input.isEditingLoadPointLocks ? 0.45 : 0.28 : 1,
+      demandOpacity: getDirectionalMarkerOpacity(directionalLoad(loadPoint, input.loadDirection)),
     });
     hitTargets.push({ key, kind: "load-point", id: loadPoint.id, ...point,
-      ariaLabel: `Load point ${loadPoint.name}${unselectedTitle ? `. ${unselectedTitle}` : ""}`,
+      ariaLabel: `Load point ${loadPoint.name}${lockLabel}${statusTitle ? `. ${statusTitle}` : ""}`,
       className: `load-point-marker${getLoadPointMarkerLayerClass(selected || related || inSelectionContext)}${selected ? " is-selected" : ""}${inSelectionContext ? " is-selection-context" : ""}${groupSelected ? " is-group-contour-selected" : ""}${editFocused ? " is-cpt-edit-focus" : ""}${related ? " is-related-group-member" : ""}${locked ? " is-locked" : ""}${unselectedClass}${hovered ? " is-hover-candidate" : ""}`,
       hitDiameter: getMarkerHitDiameter("load-point", state.symbolScalePercent, ring !== null),
     });
   }
 
   return { graphics: sortMarkerGraphics(graphics), hitTargets };
+}
+
+export function getDirectionalMarkerOpacity(demand: number | null): number {
+  return demand !== null && Number.isFinite(demand) && demand > 0 ? 1 : 0.25;
 }
 
 export function getLoadPointRing(
@@ -186,15 +201,13 @@ export function getLoadPointRing(
 export function parseLoadPointStatusHalo(
   className: string,
   style: string,
-  locked: boolean,
-  editingLocks: boolean,
 ): ViewerMarkerHalo | null {
   const kind = className.includes("is-above-range") ? "above"
     : className.includes("is-below-range") ? "below"
       : className.includes("is-missing") ? "missing" : null;
   if (!kind) return null;
   const intensity = Number(style.match(/--utilization-intensity:\s*([0-9.]+)/)?.[1] ?? 0);
-  return { kind, intensity, opacity: locked ? editingLocks ? 0.45 : 0.28 : 1 };
+  return { kind, intensity };
 }
 
 export function sortMarkerGraphics<T extends {

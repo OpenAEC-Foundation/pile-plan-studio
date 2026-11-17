@@ -4,6 +4,8 @@ import type { PileConfigurationKey } from "./projectTypes.ts";
 import type { SourceTablePreview, TableImportSettings } from "./coreImportContract.ts";
 
 export type PileDrivingMatchField = "revit-mark" | "location-id";
+export type PileDrivingStatus = "good" | "doubtful" | "deviation";
+export type PileDrivingLocationStatus = { load_point_id: number; status: PileDrivingStatus };
 export type PileDrivingTarget = {
   load_point_id: number;
   revit_mark?: string;
@@ -87,11 +89,13 @@ export type ProjectPileDriving = {
   shared_ignore_csv_leading_zeros?: boolean;
   shared_table?: PileDrivingSharedTable;
   check_settings?: PileDrivingCheckSettings;
+  manual_statuses?: PileDrivingLocationStatus[];
 };
 export type PileDrivingBatchPreview = {
   files: PileDrivingFileResult[];
   settings: PileDrivingCheckSettings;
   energy_by_size: PileDrivingEnergyGroup[];
+  location_statuses: PileDrivingLocationStatus[];
 };
 export type PileDrivingImportError =
   | { code: "missing-pile-number"; row: number }

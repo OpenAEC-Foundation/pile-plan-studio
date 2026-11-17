@@ -8,8 +8,8 @@ import {exportConfiguredPilePlanCore,exportRevitRevisionCore,prepareLoadPointRef
 import type {ExportOptions,RevitRevisionInput,LoadPointRefreshSelection} from "../../core/exportRevisionContract.ts";
 import { applyProjectRefresh } from "../import/projectImportApply.ts";
 import { usePileDrivingPreview } from "../import/usePileDrivingPreview.ts";
-import { getPileDrivingWarningLocationIds } from "../../domain/pile-driving/pileDrivingRows.ts";
-import type { PileDrivingRecord } from "../../core/pileDrivingCoreClient.ts";
+import { assessPileDrivingLocations } from "../../domain/pile-driving/pileDrivingStatuses.ts";
+import type { PileDrivingRecord, PileDrivingStatus } from "../../core/pileDrivingCoreClient.ts";
 import { previewProjectImportCore } from "../../core/projectCoreClient.ts";
 import { useManualCptSelectionEdit } from "../project/useManualCptSelectionEdit.ts";
 import { synchronizeManualCptSelection, toggleManualCpt } from "../../domain/cpt-selection/cptSettingsModel.ts";
@@ -418,7 +418,7 @@ export default function AppSession({
   const [projectInformationOpen, setProjectInformationOpen] = useState(false);
   const [rightTaskPanel, setRightTaskPanel] = useState<RightTaskPanel | null>(null);
   const [drivingInspection, setDrivingInspection] = useState<{ record: PileDrivingRecord; planId: string } | null>(null);
-  const [drivingWarningProject, setDrivingWarningProject] = useState<string | null>(null);
+  const [drivingColorProject, setDrivingColorProject] = useState<string | null>(null);
   const [viewerFocusRequest, setViewerFocusRequest] = useState<ViewerFocusRequest | null>(null);
   const [lassoSelectionActive, setLassoSelectionActive] = useState(false);
   const [activeSourceKind, setActiveSourceKind] = useState<InputSourceKind | null>(null);
@@ -1374,10 +1374,13 @@ export default function AppSession({
   };
   const drivingPlan = projectState.pilePlans.find(plan => plan.id === ilp.displayState.activePilePlanId);
   const drivingPanelVisible = rightTaskPanel === "pile-driving" && workspaceLayout.propertiesVisible;
+  const showDrivingColors = drivingColorProject === exportMarker.project_instance_id;
+  const setDrivingColorVisibility = (show: boolean) =>
+    setDrivingColorProject(show ? exportMarker.project_instance_id : null);
   const drivingSelectionDisabled = cptEditPending || projectState.loadPointLockDraft !== null;
   const pileDriving = usePileDrivingPreview(
     exportMarker.project_instance_id,
-    drivingPanelVisible,
+    drivingPanelVisible || showDrivingColors,
     projectState.pileDriving,
     update => {
       const marker = mcpProjectMarkerRef.current!.observe(projectStateRef.current);
@@ -1386,7 +1389,8 @@ export default function AppSession({
         const previous = current.pileDriving ?? { files: [] };
         const next = update(previous);
         if (next === previous) return current;
-        const hasContent = next.files.length > 0 || next.shared_match_by || next.shared_table || next.check_settings;
+        const hasContent = next.files.length > 0 || next.shared_match_by || next.shared_table || next.check_settings
+          || next.shared_ignore_csv_leading_zeros !== undefined || next.manual_statuses?.length;
         return { ...current, pileDriving: hasContent ? next : undefined };
       });
       return true;
@@ -1399,10 +1403,18 @@ export default function AppSession({
     projectState.pileHeadLevelM,
     projectState.selectedCptsByLoadPointId,
   );
-  const showDrivingWarnings = drivingWarningProject === exportMarker.project_instance_id;
-  const drivingWarningLoadPointIds = useMemo(() => drivingPanelVisible && showDrivingWarnings
-    ? getPileDrivingWarningLocationIds(pileDriving.files, pileDriving.selectedId)
-    : undefined, [drivingPanelVisible, showDrivingWarnings, pileDriving.files, pileDriving.selectedId]);
+  const drivingLocationAssessments = useMemo(() => assessPileDrivingLocations(
+    pileDriving.automaticStatuses, projectState.pileDriving?.manual_statuses,
+  ), [pileDriving.automaticStatuses, projectState.pileDriving?.manual_statuses]);
+  const drivingStatuses = useMemo(() => {
+    if (!showDrivingColors) return undefined;
+    const statuses = new Map<number, PileDrivingStatus>();
+    for (const [id, { manual, automatic }] of drivingLocationAssessments) {
+      const status = manual ?? automatic;
+      if (status) statuses.set(id, status);
+    }
+    return statuses;
+  }, [showDrivingColors, drivingLocationAssessments]);
   const neighborhoodRecord = drivingPanelVisible && activeSourceKind === null
     && drivingInspection?.planId === ilp.displayState.activePilePlanId
     && pileDriving.files.some(file => (pileDriving.selectedId === null || file.id === pileDriving.selectedId)
@@ -1839,6 +1851,7 @@ export default function AppSession({
           showGrid={projectState.showGrid}
           showTipLevelRegions={projectState.showTipLevelRegions}
           showLoadPointGroups={projectState.showLoadPointGroups}
+          showDrivingColors={showDrivingColors}
           explorerVisible={workspaceLayout.explorerVisible}
           propertiesVisible={propertiesVisible}
           onSymbolScaleChangeStart={symbolScaleHistory.begin}
@@ -1865,6 +1878,7 @@ export default function AppSession({
             showLoadPointGroups,
           })}
           onExplorerVisibilityChange={(explorerVisible) => updateWorkspaceLayout({ explorerVisible })}
+          onDrivingColorVisibilityChange={setDrivingColorVisibility}
           onPropertiesVisibilityChange={(propertiesVisible) => updateWorkspaceLayout({ propertiesVisible })}
         />
         {sampleOpen && !tourOpen && <div className="sample-project-indicator" ref={sampleIndicatorRef}>
@@ -1925,7 +1939,8 @@ export default function AppSession({
                 focusRequest={viewerFocusRequest && "fitLoadPointIds" in viewerFocusRequest
                   && viewerFocusRequest.fitLoadPointIds && !neighborhoodRecord ? null : viewerFocusRequest}
                 inspectionLoadPointIds={inspectionLoadPointIds}
-                drivingWarningLoadPointIds={drivingWarningLoadPointIds}
+                inspectLoadPointsIndividually={drivingPanelVisible}
+                drivingStatuses={drivingStatuses}
                 onFocusHandled={request => setViewerFocusRequest(current => current === request ? null : current)}
                 pileCapPreviews={pileCaps.result?.plans.find(p=>p.plan_id===ilp.displayState.activePilePlanId)?.previews??[]}
                 state={ilp.displayState}
@@ -1984,8 +1999,10 @@ export default function AppSession({
               selectedLoadPointIds={ilp.displayState.selectedLoadPointIds}
               selectionDisabled={drivingSelectionDisabled}
               neighborhoodRecord={neighborhoodRecord}
-              showWarningsInViewer={showDrivingWarnings}
-              onShowWarningsInViewerChange={show => setDrivingWarningProject(show ? exportMarker.project_instance_id : null)}
+              showStatusColors={showDrivingColors}
+              onShowStatusColorsChange={setDrivingColorVisibility}
+              locationStatuses={drivingLocationAssessments}
+              onStatusChange={pileDriving.setLocationStatus}
               onNeighborhoodChange={changeDrivingNeighborhood}
               onSelect={selectAndFocusLoadPoints}
               onClose={() => { setDrivingInspection(null); setRightTaskPanel(null); }}

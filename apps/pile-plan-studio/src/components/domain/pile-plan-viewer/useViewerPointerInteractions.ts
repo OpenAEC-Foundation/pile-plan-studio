@@ -62,6 +62,7 @@ export type ViewerInteraction =
 type UseViewerPointerInteractionsOptions = {
   state: ProjectState;
   loadPointGroups: LoadPointGroup[];
+  inspectLoadPointsIndividually?: boolean;
   onStateChange: (nextState: ProjectState) => void;
   onSelectionChange?: (nextState: ProjectState) => void;
   lassoSelectionActive: boolean;
@@ -82,6 +83,7 @@ type UseViewerPointerInteractionsOptions = {
 export function useViewerPointerInteractions({
   state,
   loadPointGroups,
+  inspectLoadPointsIndividually = false,
   onStateChange,
   onSelectionChange = onStateChange,
   lassoSelectionActive,
@@ -394,9 +396,12 @@ export function useViewerPointerInteractions({
       onStateChange({ ...nextState, viewport: viewportRef.current });
       return;
     }
+    const individual = inspectLoadPointsIndividually && !isEditingCptSelection;
     const selection = additiveKey
-      ? toggleReactViewerLoadPoint(state, item.id, loadPointGroups)
-      : selectReactViewerLoadPoint(state, item.id, loadPointGroups);
+      ? toggleReactViewerLoadPoint(state, item.id, individual ? undefined : loadPointGroups)
+      : individual
+        ? setReactViewerLoadPoints(state, [item.id])
+        : selectReactViewerLoadPoint(state, item.id, loadPointGroups);
     onSelectionChange({ ...state, ...selection, viewport: viewportRef.current });
   }
 

@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap, HashSet};
 
 use crate::import::{
     parse_nonnegative_u32, SourceFormat, SourceTable, SourceTablePreview, TableCell,
@@ -17,6 +17,20 @@ pub enum PileDrivingMatchField {
     LocationId,
 }
 
+#[derive(Clone, Copy, Debug, Deserialize, Eq, Ord, PartialEq, PartialOrd, Serialize)]
+#[serde(rename_all = "kebab-case")]
+enum PileDrivingStatus {
+    Good,
+    Doubtful,
+    Deviation,
+}
+
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+struct PileDrivingLocationStatus {
+    load_point_id: u32,
+    status: PileDrivingStatus,
+}
+
 #[derive(Clone, Debug, Default, Deserialize, PartialEq, Serialize)]
 #[serde(default)]
 pub struct ProjectPileDriving {
@@ -29,6 +43,8 @@ pub struct ProjectPileDriving {
     shared_table: Option<PileDrivingSharedTable>,
     #[serde(skip_serializing_if = "Option::is_none")]
     check_settings: Option<checks::CheckSettings>,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    manual_statuses: Vec<PileDrivingLocationStatus>,
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
@@ -52,8 +68,8 @@ struct DrivingImportOverrides {
 }
 
 impl ProjectPileDriving {
-    pub(crate) fn is_valid(&self) -> bool {
-        let mut ids = std::collections::HashSet::new();
+    pub(crate) fn is_valid(&self, load_points: &[crate::ProjectLoadPoint]) -> bool {
+        let mut ids = HashSet::new();
         self.files
             .iter()
             .all(|file| !file.id.is_empty() && file.id != "all" && ids.insert(&file.id))
@@ -61,6 +77,33 @@ impl ProjectPileDriving {
                 .check_settings
                 .as_ref()
                 .is_none_or(checks::CheckSettings::valid)
+            && self.valid_manual_statuses(load_points)
+    }
+
+    fn valid_manual_statuses(&self, load_points: &[crate::ProjectLoadPoint]) -> bool {
+        if self.manual_statuses.is_empty() {
+            return true;
+        }
+        let known: HashSet<_> = load_points.iter().map(|point| point.id).collect();
+        let mut seen = HashSet::new();
+        self.manual_statuses
+            .iter()
+            .all(|entry| known.contains(&entry.load_point_id) && seen.insert(entry.load_point_id))
+    }
+
+    pub(crate) fn remap_manual_statuses(&mut self, mapping: &HashMap<u32, u32>) {
+        self.manual_statuses.retain_mut(|entry| {
+            let Some(&new_id) = mapping.get(&entry.load_point_id) else {
+                return false;
+            };
+            entry.load_point_id = new_id;
+            true
+        });
+    }
+
+    pub(crate) fn remove_manual_status(&mut self, load_point_id: u32) {
+        self.manual_statuses
+            .retain(|entry| entry.load_point_id != load_point_id);
     }
 }
 
@@ -169,6 +212,7 @@ pub struct PileDrivingBatchPreview {
     files: Vec<PileDrivingFileResult>,
     settings: checks::CheckSettings,
     energy_by_size: Vec<checks::EnergyGroup>,
+    location_statuses: Vec<PileDrivingLocationStatus>,
 }
 
 #[derive(Debug, PartialEq, Serialize)]
@@ -302,11 +346,54 @@ pub fn preview_pile_driving_files(
         PileDrivingFileResult::Failed { .. } => None,
     });
     let energy_by_size = checks::energy_by_size(ready, request.settings.peer_energy_spread_kj);
+    let location_statuses = assess_locations(&files);
     Ok(PileDrivingBatchPreview {
         files,
         settings: request.settings.clone(),
         energy_by_size,
+        location_statuses,
     })
+}
+
+fn assess_locations(files: &[PileDrivingFileResult]) -> Vec<PileDrivingLocationStatus> {
+    use checks::{CheckKind, CheckStatus};
+
+    let mut statuses = BTreeMap::new();
+    for file in files {
+        let PileDrivingFileResult::Ready { preview, .. } = file else {
+            continue;
+        };
+        for record in &preview.records {
+            let PileDrivingMatch::Matched { load_point_id } = record.matching else {
+                continue;
+            };
+            let status = record
+                .checks
+                .iter()
+                .filter_map(|check| match (check.status, check.kind) {
+                    (CheckStatus::Unavailable, _) => None,
+                    (CheckStatus::Ok, _) => Some(PileDrivingStatus::Good),
+                    (CheckStatus::Warning, CheckKind::Length | CheckKind::Level) => {
+                        Some(PileDrivingStatus::Deviation)
+                    }
+                    (CheckStatus::Warning, _) => Some(PileDrivingStatus::Doubtful),
+                })
+                .max();
+            if let Some(status) = status {
+                statuses
+                    .entry(load_point_id)
+                    .and_modify(|current: &mut PileDrivingStatus| *current = (*current).max(status))
+                    .or_insert(status);
+            }
+        }
+    }
+    statuses
+        .into_iter()
+        .map(|(load_point_id, status)| PileDrivingLocationStatus {
+            load_point_id,
+            status,
+        })
+        .collect()
 }
 
 fn numeric_pile_number(value: &str) -> Option<&str> {
@@ -497,6 +584,40 @@ fn column_key(header: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn location_assessment_uses_the_worst_matched_record_across_files() {
+        let header =
+            "paalnummer,dikte_cm,lengte_cm,tochtnummer,ppn_nap,slagen,mm_zakking_per_tocht";
+        let first = format!("{header}\n1,29,1400,1,-17.5,20,250\n2,29,1400,1,-17.5,5,250\n3,29,1400,1,-17.5,5,250\n4,29,1400,1,-18.5,20,250\n5,,,,,,\n99,29,1400,1,-18.5,20,250\n");
+        let second = format!("{header}\n3,29,1300,1,-17.5,20,250\n");
+        let targets: Vec<_> = (1..=6)
+            .map(|id| {
+                serde_json::json!({
+                    "load_point_id": id,
+                    "configuration": {"pile_size_mm": 290, "pile_tip_level_mm": -17500}
+                })
+            })
+            .collect();
+        let request: PileDrivingBatchRequest = serde_json::from_value(serde_json::json!({
+            "files": [
+                {"file_name": "first.csv", "format": "csv", "match_by": "location-id", "bytes": first.as_bytes()},
+                {"file_name": "second.csv", "format": "csv", "match_by": "location-id", "bytes": second.as_bytes()}
+            ],
+            "targets": targets,
+            "pile_head_level_m": -3.5
+        })).unwrap();
+        let result = serde_json::to_value(preview_pile_driving_files(&request).unwrap()).unwrap();
+        assert_eq!(
+            result["location_statuses"],
+            serde_json::json!([
+                {"load_point_id": 1, "status": "good"},
+                {"load_point_id": 2, "status": "doubtful"},
+                {"load_point_id": 3, "status": "deviation"},
+                {"load_point_id": 4, "status": "deviation"}
+            ])
+        );
+    }
 
     fn neighborhood_file(piles: &[(u32, u32, u32)]) -> Vec<u8> {
         use std::fmt::Write;

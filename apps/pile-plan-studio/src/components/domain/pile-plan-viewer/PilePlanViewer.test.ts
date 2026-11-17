@@ -170,7 +170,6 @@ describe("PilePlanViewer inputs", () => {
     assert.match(source, /kind === "missing"/);
     assert.match(source, /kind === "above"/);
     assert.match(source, /className\.includes\("is-below-range"\)/);
-    assert.match(source, /editingLocks \? 0\.45 : 0\.28/);
     assert.match(css, /\.viewer-drawing-svg\s*\{[\s\S]*?pointer-events:\s*none;/);
   });
 

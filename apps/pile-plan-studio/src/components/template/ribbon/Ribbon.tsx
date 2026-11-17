@@ -39,6 +39,7 @@ interface RibbonProps {
   showGrid: boolean;
   showTipLevelRegions: boolean;
   showLoadPointGroups: boolean;
+  showDrivingColors: boolean;
   explorerVisible: boolean;
   propertiesVisible: boolean;
   onSymbolScaleChangeStart: () => void;
@@ -49,6 +50,7 @@ interface RibbonProps {
   onGridVisibilityChange: (visible: boolean) => void;
   onTipLevelRegionVisibilityChange: (visible: boolean) => void;
   onLoadPointGroupVisibilityChange: (visible: boolean) => void;
+  onDrivingColorVisibilityChange: (visible: boolean) => void;
   onExplorerVisibilityChange: (visible: boolean) => void;
   onPropertiesVisibilityChange: (visible: boolean) => void;
 }
@@ -72,6 +74,7 @@ export default function Ribbon({
   showGrid,
   showTipLevelRegions,
   showLoadPointGroups,
+  showDrivingColors,
   explorerVisible,
   propertiesVisible,
   onSymbolScaleChangeStart,
@@ -82,6 +85,7 @@ export default function Ribbon({
   onGridVisibilityChange,
   onTipLevelRegionVisibilityChange,
   onLoadPointGroupVisibilityChange,
+  onDrivingColorVisibilityChange,
   onExplorerVisibilityChange,
   onPropertiesVisibilityChange,
 }: RibbonProps) {
@@ -180,7 +184,7 @@ export default function Ribbon({
               </RibbonGroup>
               <RibbonGroup label={t("plan.inspect")}>
                 <RibbonButton icon={<PilePlanIcon id="pile.cap-changes" size={24} />} label={t("plan.pileCapChanges")} wide onClick={() => onOpenTaskPanel?.("pile-cap-changes")} />
-                <RibbonButton icon={<BlueprintIcon id="file.open" size={24} />} label={t("plan.pileDriving")} wide onClick={() => onOpenTaskPanel?.("pile-driving")} />
+                <RibbonButton icon={<BlueprintIcon id="field.inspections" size={24} />} label={t("plan.pileDriving")} wide onClick={() => onOpenTaskPanel?.("pile-driving")} />
               </RibbonGroup>
               <RibbonGroup label={t("plan.settings")}>
                 <div className="ribbon-settings-actions">
@@ -268,13 +272,20 @@ export default function Ribbon({
                   />
                 </div>
               </RibbonGroup>
-              <RibbonGroup label={t("view.grid")}>
+              <RibbonGroup label={t("view.map")}>
                 <RibbonButton
                   active={showGrid}
                   icon={<BlueprintIcon id="view.grid" size={24} />}
                   label={t("view.grid")}
                   title={showGrid ? t("view.hideGrid") : t("view.showGrid")}
                   onClick={() => onGridVisibilityChange(!showGrid)}
+                />
+                <RibbonButton
+                  active={showDrivingColors}
+                  icon={<PilePlanIcon id="pile.driving-colors" />}
+                  label={t("view.drivingColors")}
+                  title={showDrivingColors ? t("view.hideDrivingColors") : t("view.showDrivingColors")}
+                  onClick={() => onDrivingColorVisibilityChange(!showDrivingColors)}
                 />
               </RibbonGroup>
               <RibbonGroup label={t("view.regions")}>

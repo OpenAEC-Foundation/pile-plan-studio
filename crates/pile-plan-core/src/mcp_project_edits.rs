@@ -249,6 +249,9 @@ pub fn evaluate_mcp_project_edit(input: &McpProjectEditInput) -> McpProjectEditR
                         draft.settings.cpt_selection_by_load_point.remove(id);
                         draft.user_state.manual_cpt_selections.remove(id);
                         draft.active_selected_piles.remove(id);
+                        if let Some(driving) = &mut draft.inputs.pile_driving {
+                            driving.remove_manual_status(*id);
+                        }
                         for plan in &mut draft.user_state.pile_plans {
                             plan.selected_piles.remove(id);
                             plan.revit_marks_by_load_point.remove(id);

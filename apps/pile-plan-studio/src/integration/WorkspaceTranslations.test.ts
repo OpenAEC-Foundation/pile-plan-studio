@@ -31,6 +31,14 @@ describe("first-project translations", () => {
 });
 
 describe("Workspace translations", () => {
+  it("announces locked locations on the map in both languages", () => {
+    for (const [language, locked] of [["nl", "Vergrendeld"], ["en", "Locked"]]) {
+      const common = JSON.parse(readFileSync(resolve(import.meta.dirname,
+        `../i18n/locales/${language}/common.json`), "utf8"));
+      assert.equal(common.viewer.locked, locked);
+    }
+  });
+
   it("names recent-project actions and the empty state in both languages", () => {
     for (const language of ["nl", "en"]) {
       const copy = JSON.parse(readFileSync(resolve(import.meta.dirname, `../i18n/locales/${language}/backstage.json`), "utf8")).openPanel;

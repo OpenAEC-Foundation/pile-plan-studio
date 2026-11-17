@@ -1,3 +1,4 @@
+import type { PileDrivingStatus } from "../../../core/pileDrivingCoreClient.ts";
 import {useDisplayOptions,useLoadDirection} from "../../../app/derived-state/LoadDirectionContext.tsx";
 import {directionalLoad,directionalOption} from "../../../domain/pile-options/loadDirection.ts";
 import {projectPileCapPreviews} from "../../../viewer/pileCapProposalGeometry.ts";
@@ -71,7 +72,8 @@ import {
 export type PilePlanViewerProps = {
   focusRequest?: ViewerFocusRequest | null;
   inspectionLoadPointIds?: readonly number[];
-  drivingWarningLoadPointIds?: ReadonlySet<number>;
+  inspectLoadPointsIndividually?: boolean;
+  drivingStatuses?: ReadonlyMap<number, PileDrivingStatus>;
   onFocusHandled?: (request: ViewerFocusRequest) => void;
   pileCapPreviews?: PileCapPreview[];
   state: ProjectState;
@@ -89,7 +91,8 @@ const EMPTY_CAP_PREVIEWS: PileCapPreview[] = [];
 export default function PilePlanViewer({
   focusRequest,
   inspectionLoadPointIds,
-  drivingWarningLoadPointIds,
+  inspectLoadPointsIndividually,
+  drivingStatuses,
   onFocusHandled,
   pileCapPreviews:sourceCapPreviews=EMPTY_CAP_PREVIEWS,
   state,
@@ -256,6 +259,7 @@ export default function PilePlanViewer({
   } = useViewerPointerInteractions({
     state,
     loadPointGroups,
+    inspectLoadPointsIndividually,
     onStateChange,
     onSelectionChange,
     lassoSelectionActive,
@@ -296,6 +300,7 @@ export default function PilePlanViewer({
         <div className="viewer-layout-anchor" ref={layoutAnchorRef}>
           <ViewerStage
             pileCapPreviews={pileCapPreviews}
+            loadDirection={mode}
             onPileCapClick={(event,ids)=>{
               event.stopPropagation(); clearHoverCandidates();
               const additive=event.ctrlKey||event.metaKey;
@@ -311,7 +316,7 @@ export default function PilePlanViewer({
             pileOptionsByLoadPointId={pileOptionsByLoadPointId}
             selectedLoadPointIds={selectedLoadPointIds}
             selectionContextLoadPointIds={selectionContextLoadPointIds}
-            drivingWarningLoadPointIds={drivingWarningLoadPointIds}
+            drivingStatuses={drivingStatuses}
             completeSelectedGroupLoadPointIds={completeSelectedGroupLoadPointIds}
             relatedLoadPointIds={relatedLoadPointIds}
             lockedLoadPointIds={lockedLoadPointIds}

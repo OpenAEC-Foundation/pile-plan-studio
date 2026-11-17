@@ -429,9 +429,11 @@ fn validate_ifcpp_project_with_keys(
         )));
     }
 
-    if project.inputs.pile_driving.as_ref().is_some_and(|driving| !driving.is_valid()) {
+    if project.inputs.pile_driving.as_ref()
+        .is_some_and(|driving| !driving.is_valid(&project.inputs.load_points))
+    {
         return Err(IfcppError::Json(<JsonError as serde::de::Error>::custom(
-            "Invalid pile driving sources or check settings",
+            "Invalid pile driving sources, check settings or manual statuses",
         )));
     }
 
@@ -901,6 +903,9 @@ mod tests {
         assert!(legacy.inputs.pile_driving.is_none());
 
         value["schema_version"] = serde_json::json!(CURRENT_SCHEMA_VERSION);
+        value["inputs"]["load_points"] = serde_json::json!([
+            {"id": 101, "name": "101", "x_mm": 0.0, "y_mm": 0.0, "design_load_kn": 100.0}
+        ]);
         value["inputs"]["pile_driving"] = serde_json::json!({
             "files": [
                 {"id": "day-1", "file_name": "day-1.csv", "format": "csv", "data_base64": "cGFhbG51bW1lcgoxNQo=",
@@ -911,7 +916,8 @@ mod tests {
             "shared_match_by": "revit-mark",
             "shared_ignore_csv_leading_zeros": false,
             "shared_table": {"headers": ["Pile"], "settings": {"has_headers": true}},
-            "check_settings": {"neighborhood_tolerance_pct": 12.5}
+            "check_settings": {"neighborhood_tolerance_pct": 12.5},
+            "manual_statuses": [{"load_point_id": 101, "status": "doubtful"}]
         });
         let project = read_project_document(&value.to_string()).unwrap().project;
         let written = write_project_document(ProjectDocumentDraft::from_project(&project)).unwrap();
@@ -924,6 +930,7 @@ mod tests {
         assert_eq!(driving["shared_ignore_csv_leading_zeros"], false);
         assert_eq!(driving["shared_table"]["settings"]["has_headers"], true);
         assert_eq!(driving["check_settings"]["neighborhood_tolerance_pct"], 12.5);
+        assert_eq!(driving["manual_statuses"], value["inputs"]["pile_driving"]["manual_statuses"]);
         assert_eq!(read_project_document(&written).unwrap().project.inputs, project.inputs);
     }
 

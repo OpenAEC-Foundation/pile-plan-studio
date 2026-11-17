@@ -4,6 +4,7 @@ import { expect, test, vi } from "vitest";
 import { projectFixture } from "../../../test/projectFixture.ts";
 import { beginManualCptSelection } from "../../../domain/cpt-selection/cptSettingsModel.ts";
 import type { ProjectState } from "../../../domain/project/projectState.ts";
+import type { LoadPointGroup } from "../../../core/loadPointGroupContract.ts";
 import { createProjectViewTransform } from "../../../viewer/viewerGeometry.ts";
 import { useViewerPointerInteractions, type ViewerInteraction } from "./useViewerPointerInteractions.ts";
 import type { LocalCanvasRect } from "./viewerDomCoordinates.ts";
@@ -21,12 +22,14 @@ function fixture(editing: boolean, foregroundLayer: ProjectState["foregroundLaye
   return editing ? beginManualCptSelection(state) : state;
 }
 
-function Harness({ state, changed, selected, lassoActive = false }: {
+function Harness({ state, changed, selected, lassoActive = false, loadPointGroups = [], inspectLoadPointsIndividually }: {
   state: ProjectState; changed: (state: ProjectState) => void; selected: (state: ProjectState) => void;
   lassoActive?: boolean;
+  loadPointGroups?: LoadPointGroup[];
+  inspectLoadPointsIndividually?: boolean;
 }) {
   const pointer = useViewerPointerInteractions({
-    state, onStateChange: changed, onSelectionChange: selected, loadPointGroups: [],
+    state, onStateChange: changed, onSelectionChange: selected, loadPointGroups, inspectLoadPointsIndividually,
     lassoSelectionActive: lassoActive, isEditingLoadPointLocks: state.loadPointLockDraft !== null,
     isEditingCptSelection: state.cptSelectionEditDraft !== null, lockedLoadPointIds: new Set(),
     projectTransform: transform, projectTransformRef: useRef(transform),
@@ -110,6 +113,23 @@ test("the user's CPT foreground preference still applies outside editing", () =>
   setup(fixture(false, "cpts"));
   hover();
   expect(screen.getByLabelText("Candidate").textContent).toBe("cpt:66");
+});
+
+test("a click inspects one group member while driving inspection is active", () => {
+  const initial = fixture(false);
+  const state = {
+    ...initial, selectedLoadPointId: null, selectedLoadPointIds: [],
+    loadPoints: [...initial.loadPoints, { ...initial.loadPoints[0], id: 43, x_mm: 650 }],
+  };
+  const selected = vi.fn();
+  const props = { state, selected, changed: vi.fn(), loadPointGroups: [{ load_point_ids: [15, 43] }] };
+  const view = render(<Harness {...props} inspectLoadPointsIndividually />);
+  const click = () => fireEvent.click(screen.getByRole("button", { name: "Load point" }), { clientX: 500, clientY: 500 });
+  click();
+  expect(selected.mock.calls[0][0].selectedLoadPointIds).toEqual([15]);
+  view.rerender(<Harness {...props} />);
+  click();
+  expect(selected.mock.calls[1][0].selectedLoadPointIds).toEqual([15, 43]);
 });
 
 function startLasso() {

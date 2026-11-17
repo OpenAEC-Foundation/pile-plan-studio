@@ -278,6 +278,11 @@ view retains each registration's source file and measurement details.
 The same Rust preview assesses the raw measurements against the committed
 reference plan and session check settings. Check results are derived and
 remain outside the project document, recovery data and undo history.
+The batch returns the highest severity per matched location across all files.
+Manual status overrides belong to project inputs, are undoable and follow the
+location identity mapping during source refresh. The map toggle is transient
+and scoped to the current project. It selects driving status halos in place of
+utilization and missing-data halos.
 The trend check compares average blow counts across equal halves of a
 configurable window of consecutive full final increments.
 For the neighborhood check, the session passes the effective CPT IDs for each

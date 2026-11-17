@@ -4,8 +4,13 @@ import { getCptSymbolScale, getDashedOutlineDasharray } from "../../../viewer/ma
 import { renderPileSymbolSvgChildren } from "../../../viewer/pileSymbols.ts";
 import type { ViewerMarkerGraphic, ViewerMarkerHalo } from "./viewerMarkerPresentation.ts";
 
-type Props = { graphics: ViewerMarkerGraphic[] };
+type Props = { graphics: ViewerMarkerGraphic[]; additionalHalos?: ViewerMarkerGraphic[] };
 const GLOW_COLORS={above:"#c7352a",below:"#30994c",missing:"#ffc107"};
+const DRIVING_HALO_STYLES = {
+  good: { stroke: "#24864a", fill: "#24864a", dash: undefined },
+  doubtful: { stroke: "#a38100", fill: "#ffdc38", dash: [5, 3] },
+  deviation: { stroke: "#d3363e", fill: "#d3363e", dash: [1.5, 2.5] },
+} as const;
 
 function haloColors(halo: ViewerMarkerHalo) {
   if (halo.kind === "missing") {
@@ -32,11 +37,20 @@ function haloColors(halo: ViewerMarkerHalo) {
 
 const StatusHalo = memo(function StatusHalo({ graphic }: { graphic: ViewerMarkerGraphic }) {
   if (!graphic.halo) return null;
+  const opacity = graphic.demandOpacity ?? 1;
   const radius = 9 * graphic.scale;
+  const kind = graphic.halo.kind;
+  if (kind === "good" || kind === "doubtful" || kind === "deviation") {
+    const { stroke, fill, dash } = DRIVING_HALO_STYLES[kind];
+    return <g transform={`translate(${graphic.x} ${graphic.y})`} opacity={opacity} data-driving-status={kind}>
+      <circle r={radius + 2 * graphic.scale} fill={fill} fillOpacity={0.32} stroke={stroke}
+        strokeWidth={2 * graphic.scale} strokeDasharray={dash?.map(length => length * graphic.scale).join(" ")} />
+    </g>;
+  }
   const colors = haloColors(graphic.halo);
   const gradientId = `viewer-status-halo-${graphic.id}`;
   return (
-    <g transform={`translate(${graphic.x} ${graphic.y})`} opacity={graphic.halo.opacity}>
+    <g transform={`translate(${graphic.x} ${graphic.y})`} opacity={opacity}>
       <defs>
         <radialGradient id={gradientId}>
           <stop offset="42%" stopColor={colors.center} />
@@ -51,7 +65,8 @@ const StatusHalo = memo(function StatusHalo({ graphic }: { graphic: ViewerMarker
   );
 }, (a,b) => a.graphic.id===b.graphic.id && a.graphic.x===b.graphic.x && a.graphic.y===b.graphic.y
   && a.graphic.scale===b.graphic.scale && a.graphic.halo?.kind===b.graphic.halo?.kind
-  && a.graphic.halo?.intensity===b.graphic.halo?.intensity && a.graphic.halo?.opacity===b.graphic.halo?.opacity);
+  && a.graphic.halo?.intensity===b.graphic.halo?.intensity
+  && a.graphic.demandOpacity===b.graphic.demandOpacity);
 
 const PileGraphic = memo(function PileGraphic({ graphic }: { graphic: ViewerMarkerGraphic }) {
   const { appearance, scale } = graphic;
@@ -124,20 +139,34 @@ function sameSymbol(a:{graphic:ViewerMarkerGraphic}, b:{graphic:ViewerMarkerGrap
   return true;
 }
 
+function LoadPointLock({ graphic }: { graphic: ViewerMarkerGraphic }) {
+  const { x, y, scale, appearance } = graphic;
+  const lockScale = appearance.type === "pile" && !appearance.smallDot ? scale : scale / 2;
+  const cornerX = x + 3.6 * lockScale;
+  const cornerY = y - 3.5 * lockScale;
+  return <g className="viewer-load-point-lock" transform={`translate(${cornerX} ${cornerY}) scale(${lockScale})`}>
+    <path d="M-1.5-.45v-.6a1.5 1.5 0 0 1 3 0v.6h.25a.5.5 0 0 1 .5.5v1.55a.5.5 0 0 1-.5.5h-3.5a.5.5 0 0 1-.5-.5V.05a.5.5 0 0 1 .5-.5z M-.8-.45H.8v-.6a.8.8 0 0 0-1.6 0z"
+      fill="#172026" fillRule="evenodd" stroke="#f3f5f6" strokeWidth={0.65}
+      strokeLinejoin="round" paintOrder="stroke"/>
+  </g>;
+}
+
 const MarkerGraphic = memo(function MarkerGraphic({graphic}:{graphic:ViewerMarkerGraphic}) {
-  return <g className={`viewer-marker-graphic is-${graphic.kind}`} opacity={graphic.opacity}
+  const symbol = graphic.kind === "cpt" ? <CptGraphic graphic={graphic}/> : <PileGraphic graphic={graphic}/>;
+  const symbolOpacity = graphic.demandOpacity ?? 1;
+  return <g className={`viewer-marker-graphic is-${graphic.kind}`}
     transform={`translate(${graphic.x} ${graphic.y})`}>
     {graphic.ring ? <circle cx={0} cy={0} r={graphic.ring.radius} fill="none"
       stroke={graphic.ring.color === "context" ? "#738087" : "#ed7100"}
       strokeDasharray={graphic.ring.color === "context" ? getDashedOutlineDasharray(graphic.scale, 2) : undefined}
       strokeWidth={1}/> : null}
-    {graphic.kind === "cpt" ? <CptGraphic graphic={graphic}/> : <PileGraphic graphic={graphic}/>}
+    {symbolOpacity === 1 ? symbol : <g opacity={symbolOpacity}>{symbol}</g>}
   </g>;
 }, (a,b) => sameSymbol(a,b) && a.graphic.kind===b.graphic.kind && a.graphic.x===b.graphic.x
-  && a.graphic.y===b.graphic.y && a.graphic.opacity===b.graphic.opacity
+  && a.graphic.y===b.graphic.y && a.graphic.demandOpacity===b.graphic.demandOpacity
   && a.graphic.ring?.color===b.graphic.ring?.color && a.graphic.ring?.radius===b.graphic.ring?.radius);
 
-export default function ViewerMarkerGraphics({ graphics }: Props) {
+export default function ViewerMarkerGraphics({ graphics, additionalHalos }: Props) {
   return (
     <g className="viewer-marker-graphics" aria-hidden="true">
       <defs>
@@ -150,8 +179,12 @@ export default function ViewerMarkerGraphics({ graphics }: Props) {
       </defs>
       <g className="viewer-status-halos">
         {graphics.map((graphic) => graphic.halo ? <StatusHalo graphic={graphic} key={graphic.key} /> : null)}
+        {additionalHalos?.map(graphic => <StatusHalo graphic={graphic} key={graphic.key} />)}
       </g>
       {graphics.map((graphic) => <MarkerGraphic graphic={graphic} key={graphic.key}/>)}
+      <g className="viewer-load-point-locks">
+        {graphics.filter(graphic => graphic.locked).map(graphic => <LoadPointLock graphic={graphic} key={graphic.key}/>)}
+      </g>
     </g>
   );
 }

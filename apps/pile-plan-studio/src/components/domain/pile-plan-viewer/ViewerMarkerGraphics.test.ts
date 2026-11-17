@@ -13,12 +13,12 @@ describe("shared marker SVG graphics", () => {
         {
           key: "load-point:15", kind: "load-point", id: 15, x: 100.25, y: 200.5, scale: 0.75,
           drawPriority: 40, ring: { color: "selection", radius: 7.75 },
-          halo: { kind: "missing", intensity: 0, opacity: 1 }, locked: false, opacity: 1,
+          halo: { kind: "missing", intensity: 0 }, locked: false,
           appearance: { type: "pile", symbol: { baseShape: "circle", fillPattern: "top-half" }, color: "#123456", smallDot: false },
         },
         {
           key: "cpt:3", kind: "cpt", id: 3, x: 105.25, y: 205.5, scale: 0.75,
-          drawPriority: 50, ring: null, halo: null, locked: false, opacity: 1,
+          drawPriority: 50, ring: null, halo: null, locked: false,
           appearance: { type: "cpt", label: "35", labelScale: 0.34, selectedStyle: false, inspectedOnly: false },
         },
       ] })));
@@ -41,7 +41,7 @@ describe("shared marker SVG graphics", () => {
     const server = await createServer({ server: { middlewareMode: true }, appType: "custom" });
     try {
       const { default: ViewerMarkerGraphics } = await server.ssrLoadModule("/src/components/domain/pile-plan-viewer/ViewerMarkerGraphics.tsx");
-      const common={kind:"load-point",x:100.25,y:200.5,scale:0.075,drawPriority:40,halo:null,locked:false,opacity:1,appearance:{type:"neutral"}};
+      const common={kind:"load-point",x:100.25,y:200.5,scale:0.075,drawPriority:40,halo:null,locked:false,appearance:{type:"neutral"}};
       const html=renderToStaticMarkup(createElement("svg",null,createElement(ViewerMarkerGraphics,{graphics:[
         {...common,key:"load-point:1",id:1,ring:{color:"context",radius:3.025}},
         {...common,key:"load-point:2",id:2,ring:{color:"selection",radius:3.025}},

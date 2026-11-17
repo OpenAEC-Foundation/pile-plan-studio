@@ -120,3 +120,12 @@ test("twenty-pile proposals in adjacent caps have unique graphic and halo IDs", 
   assert.equal(graphics.length, 40);
   assert.equal(new Set(graphics.map(g => g.id)).size, 40);
 });
+
+test("proposal markers follow the demand per pile in the shown direction", () => {
+  const cap = layout("valid", 0.5);
+  cap.preview.tension_per_pile = { state: "known", value_kn: 0 };
+  const markers = () => buildPileCapMarkerGraphics([cap], state, new Set(), "tension");
+  assert.ok(markers().every(marker => marker.demandOpacity !== undefined && marker.demandOpacity < 0.5));
+  cap.preview.tension_per_pile = { state: "known", value_kn: 40 };
+  assert.ok(markers().every(marker => marker.demandOpacity === 1));
+});
