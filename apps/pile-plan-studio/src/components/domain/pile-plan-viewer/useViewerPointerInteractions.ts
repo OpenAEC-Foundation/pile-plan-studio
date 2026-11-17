@@ -292,10 +292,11 @@ export function useViewerPointerInteractions({
         return;
       }
       const unlockedIds = loadPointIds.filter((id) => !lockedLoadPointIds.has(id));
+      const groups = inspectLoadPointsIndividually && !isEditingCptSelection ? undefined : loadPointGroups;
       if (interaction.operation === "replace") {
-        onSelectionChange({ ...state, ...setReactViewerLoadPoints(state, unlockedIds, loadPointGroups), viewport: viewportRef.current });
+        onSelectionChange({ ...state, ...setReactViewerLoadPoints(state, unlockedIds, groups), viewport: viewportRef.current });
       } else if (unlockedIds.length > 0) {
-        onSelectionChange({ ...state, ...addReactViewerLoadPoints(state, unlockedIds, loadPointGroups), viewport: viewportRef.current });
+        onSelectionChange({ ...state, ...addReactViewerLoadPoints(state, unlockedIds, groups), viewport: viewportRef.current });
       }
       return;
     }

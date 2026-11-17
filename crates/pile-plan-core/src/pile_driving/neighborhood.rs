@@ -3,12 +3,9 @@ use std::collections::{BTreeMap, HashMap};
 use serde::Serialize;
 
 use super::{
-    checks::{Check, CheckKind, CheckStatus},
+    checks::{Check, CheckKind, CheckSettings, CheckStatus, NeighborhoodCptMatching},
     PileDrivingMatch, PileDrivingRecord, PileDrivingTarget,
 };
-
-pub(super) const WINDOW_SIZE: usize = 6;
-const MINIMUM_PEERS: usize = 3;
 
 #[derive(Clone, Copy, Debug)]
 pub(super) struct Reading {
@@ -61,8 +58,9 @@ struct Candidate<'a> {
 pub(super) fn apply(
     records: Vec<&mut PileDrivingRecord>,
     targets: &[PileDrivingTarget],
-    tolerance_pct: f64,
+    settings: &CheckSettings,
 ) {
+    let window_size = f64::from(settings.neighborhood_window_increments);
     let selections: HashMap<_, _> = targets
         .iter()
         .filter(|target| !target.selected_cpt_ids.is_empty())
@@ -107,10 +105,10 @@ pub(super) fn apply(
             status: CheckStatus::Unavailable,
             actual: record
                 .neighborhood_reading
-                .map(|reading| mean(reading.total_blows as f64)),
+                .map(|reading| reading.total_blows as f64 / window_size),
             other: None,
             reference: None,
-            tolerance: Some(tolerance_pct),
+            tolerance: Some(settings.neighborhood_tolerance_pct),
         };
         if let (PileDrivingMatch::Matched { load_point_id }, Some(reading)) =
             (&record.matching, record.neighborhood_reading)
@@ -124,6 +122,7 @@ pub(super) fn apply(
                     reading,
                     cpts,
                     candidates,
+                    settings,
                     &mut check,
                 ));
             }
@@ -137,6 +136,7 @@ fn compare(
     reading: Reading,
     cpts: &[u32],
     candidates: &[Candidate<'_>],
+    settings: &CheckSettings,
     check: &mut Check,
 ) -> Comparison {
     let others = candidates
@@ -147,16 +147,24 @@ fn compare(
         .filter(|candidate| candidate.cpts == cpts)
         .collect();
     let exact_count = peers.len();
-    if exact_count < MINIMUM_PEERS && cpts.len() > 1 {
-        peers.extend(others.filter(|candidate| {
-            candidate.cpts.len() == cpts.len()
-                && cpts
-                    .iter()
-                    .filter(|id| candidate.cpts.binary_search(id).is_err())
-                    .take(2)
-                    .count()
-                    == 1
+    let minimum_peers = settings.neighborhood_minimum_peers as usize;
+    let matching = settings.neighborhood_cpt_matching;
+    if exact_count < minimum_peers && matching != NeighborhoodCptMatching::Identical {
+        let missing_cpts = |candidate: &Candidate<'_>| {
+            cpts.iter()
+                .filter(|id| candidate.cpts.binary_search(id).is_err())
+                .take(2)
+                .count()
+        };
+        peers.extend(others.clone().filter(|candidate| {
+            candidate.cpts.len() > cpts.len() && missing_cpts(candidate) == 0
         }));
+        if peers.len() < minimum_peers
+            && matching == NeighborhoodCptMatching::AllowOneMissing
+            && cpts.len() > 1
+        {
+            peers.extend(others.filter(|candidate| missing_cpts(candidate) == 1));
+        }
     }
     let peer_count = peers.len();
     let mut result = Comparison {
@@ -166,14 +174,15 @@ fn compare(
         mean_energy_kj: reading.mean_energy_kj,
         reference_piles: Vec::new(),
     };
-    if peer_count < MINIMUM_PEERS {
+    if peer_count < minimum_peers {
         return result;
     }
 
+    let window_size = f64::from(settings.neighborhood_window_increments);
     let mut totals: Vec<_> = peers.iter().map(|peer| peer.reading.total_blows).collect();
     totals.sort_unstable();
-    let median_total = (totals[(peer_count - 1) / 2] + totals[peer_count / 2]) as f64 / 2.0;
-    check.reference = Some(mean(median_total));
+    let median_total = (totals[(peer_count - 1) / 2] as f64 + totals[peer_count / 2] as f64) / 2.0;
+    check.reference = Some(median_total / window_size);
     if median_total == 0.0 {
         return result;
     }
@@ -194,7 +203,7 @@ fn compare(
                 deviation(peer.reading.total_blows, median_total, tolerance_pct);
             ReferencePile {
                 load_point_id: peer.load_point_id,
-                mean_blows: mean(peer.reading.total_blows as f64),
+                mean_blows: peer.reading.total_blows as f64 / window_size,
                 deviation_pct,
                 exceeds_tolerance,
                 final_ppn_m: peer.reading.final_ppn_m,
@@ -211,8 +220,4 @@ fn deviation(total_blows: u64, median_total: f64, tolerance_pct: f64) -> (f64, b
         difference / median_total,
         difference > median_total * tolerance_pct,
     )
-}
-
-fn mean(total: f64) -> f64 {
-    total / WINDOW_SIZE as f64
 }

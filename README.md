@@ -337,24 +337,33 @@ to the project's locations.
 
 Open **Plan > Driving records** and add one or more CSV or Excel files. The
 panel recognizes the example format's headers, including `paalnummer` (pile
-number). Under **Settings**, expand the source preview and import settings to
-check the data, pick the header or data row, and assign column meanings. Changes apply to all open
-files by default. A file can use its own settings when its format differs.
+number). Open **Import settings** to review the source data, pick the header or data row, and assign
+column meanings. Import changes apply to all open files by default. A file can
+use its own settings when its format differs. Open **Check settings** to adjust
+the thresholds.
 The displayed pile plan is the reference. The match defaults to **Revit Mark**
 when that plan has Marks and to **Location ID** otherwise.
 
 Choose **All driving records** to see the day number, matched location and
 warnings for every registration. The panel numbers distinct recorded dates
-in chronological order and shows warnings first. Use **Warnings only** to
-filter the table. The location status uses the most severe result across all
+in chronological order and shows warnings first. Use **Filter warnings** to
+choose one or more warning types and whether to include records without warnings.
+Nonblank remarks have their own warning type, and their text is shown in the
+record details. The location status uses the most severe result across all
 linked registrations, even when the table shows a single file. A length or
 driving level deviation gives **Deviation** (red). Other warnings give **Needs review**
 (yellow). When at least one check was performed and none warned, the status
 is **Good** (green).
 
-Select a location and use **Good**, **Needs review** or **Deviation** to override
-its automatic driving status. Use **Automatic** to clear that choice. Manual choices are saved in
-the project and support undo and redo. Turn on **Show driving status colors on
+Use Ctrl/Cmd-click in the map or registration table to add or remove individual
+locations. In the table, Shift-click selects a range of visible registrations.
+**Follow filter** selects the linked locations in the currently shown registrations
+and updates the selection as the table changes. Selecting individual locations
+or turning the button off ends that behavior.
+On the map, Shift-drag selects locations inside the rectangle. Use **Good**,
+**Needs review** or **Deviation** to override the automatic driving status of
+every selected location. **Automatic** removes their overrides. Each change is
+saved in the project and can be undone or redone in one step. Turn on **Show driving status colors on
 the map** in the panel or use **View → Driving status colors** in the ribbon to
 replace the utilization and missing-data colors. Unassessed
 locations have no status color until you assign one.
@@ -363,7 +372,7 @@ multiple matches. Select a row's location or pile number to see its
 measurements and source file and locate the matched pile in the drawing.
 While the driving records panel is open, clicking a location in the drawing
 selects that location individually, including members of a group, and opens its first registration in
-the chosen file scope, even if the warnings filter hides that row. The overview
+the chosen file scope, even if the warning filter hides that row. The overview
 uses a short scroll area while a registration's details are open. Saving the
 IFCPP project includes the original CSV and Excel files and their import and
 check settings. Open the saved project and choose **Driving records** to
@@ -378,24 +387,36 @@ the average blow count of the first half and the second half of the final
 consecutive full increments. The default is six increments, and the
 window can be set to any even number of at least two. The panel shows both
 averages and warns when the drop exceeds the configured tolerance.
-The neighborhood check compares the mean blow count of the last six full
-consecutive increments with the median of other piles of the same recorded
-size across all open logs. It uses identical CPT selections first, then allows
-one CPT replacement if needed to find at least three comparable piles.
+The neighborhood check compares the mean blow count of the final consecutive
+full 250 mm increments with the median of other piles of the same recorded
+size across all open logs. Set the number of increments under **Check settings**.
+The default is six. Piles with too few usable increments cannot take part.
+Set the minimum number of reference piles (default three) and the CPT matching
+policy under **Check settings**. The check starts with identical CPT selections.
+If there are too few peers, **All selected CPTs required** and **One selected CPT
+may be missing** both allow peers containing all the checked pile's CPTs, with
+additional CPTs. If there are still too few peers, **One selected CPT may be
+missing** (the default) also allows peers missing one of those CPTs, provided
+they share at least one. **Identical selection** only uses exact matches.
 The default deviation limit is 10%. Whenever the comparison can be calculated,
 expand the neighborhood check under **Checks** to see the reference piles, their
-final measured tip level, mean blow energy over those six increments, and
-absolute deviation from the displayed median. The table identifies the shared
-recorded pile size. Every displayed pile contributes to the median, including
+final measured tip level, mean blow energy over the configured energy window,
+and absolute deviation from the displayed median. The table uses pile numbers
+when the inspected record is matched by pile number, with location IDs for
+remaining unnamed locations. It identifies the shared recorded pile size.
+Every displayed pile contributes to the median, including
 those flagged for deviations outside the configured limit.
 The viewer frames the checked pile and its reference piles, with gray rings
 for the references.
 Set an optional target per recorded pile size and a shared ± kJ tolerance.
-For sizes with a target, the energy check compares all recorded readings to
-the target band. For sizes without a target, the comparison uses every
-usable reading from the open driving logs and checks the largest energy
-difference between two distinct piles of the same size against the allowed
-spread. The panel lists any open driving logs that could not be read.
+The energy checks use the final four increments of each recording by default.
+Adjust the energy window under **Check settings**. Shorter recordings use their
+available increments, and unnumbered recordings use source row order. Missing
+readings in the window are never substituted with earlier readings. For sizes
+with a target, the energy check compares readings in the window to the target
+band. For sizes without a target, it checks the largest energy difference
+between two distinct piles of the same size against the allowed spread.
+The panel lists any open driving logs that could not be read.
 Check settings apply to all driving files in the project.
 Incomplete or inconsistent measurements are shown as unavailable checks.
 

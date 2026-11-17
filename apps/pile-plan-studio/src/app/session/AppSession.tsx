@@ -1994,6 +1994,7 @@ export default function AppSession({
           {propertiesVisible && <RightPanel
             pileDriving={rightTaskPanel === "pile-driving" ? <PileDrivingPanel
               planName={drivingPlan?.name}
+              pileNumbers={drivingPlan?.revitMarksByLoadPoint}
               driving={pileDriving}
               readOnly={readOnly}
               selectedLoadPointIds={ilp.displayState.selectedLoadPointIds}
@@ -2002,7 +2003,7 @@ export default function AppSession({
               showStatusColors={showDrivingColors}
               onShowStatusColorsChange={setDrivingColorVisibility}
               locationStatuses={drivingLocationAssessments}
-              onStatusChange={pileDriving.setLocationStatus}
+              onStatusChange={pileDriving.setLocationStatuses}
               onNeighborhoodChange={changeDrivingNeighborhood}
               onSelect={selectAndFocusLoadPoints}
               onClose={() => { setDrivingInspection(null); setRightTaskPanel(null); }}

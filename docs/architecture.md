@@ -286,17 +286,23 @@ utilization and missing-data halos.
 The trend check compares average blow counts across equal halves of a
 configurable window of consecutive full final increments.
 For the neighborhood check, the session passes the effective CPT IDs for each
-load point. Rust compares the last six full increments across open files, with
-one contribution per matched location. Conflicting blow counts or recorded sizes
-across registrations exclude that location as a reference. The check prefers
-identical CPT sets and can accept one replacement when fewer than three exact
-matches are available.
-Energy checks use all recorded increments. A configured target and shared
-tolerance determine the check for that recorded size. For sizes without a
-target, the Rust batch preview combines the usable readings from the open
-driving logs. Each physical pile contributes its measured range. The
-largest difference between readings from two distinct piles of the same
-size determines the warning. A file error leaves other previews available.
+load point. Rust compares a configurable window of final consecutive full
+increments across open files. The default is six increments. Each matched
+location contributes once. Conflicting blow counts or recorded sizes across
+registrations exclude that location as a reference. The minimum peer count
+defaults to three. Below that threshold, the configured CPT matching policy
+controls whether Rust may include supersets and then peers missing one CPT.
+Each peer shares at least one CPT.
+Energy checks use a separate window of final increments per registration,
+defaulting to four. The mean blow energy shown in neighborhood details
+uses the same energy window. A configured target and shared tolerance determine the
+target check for that recorded size. For sizes without a target, each pile
+contributes its measured range from the configured windows. The largest
+difference between two distinct piles of the same size determines the
+warning. A file error leaves other previews available.
+The batch emits one warning per registration with nonblank remarks.
+The UI filters registrations and their displayed warning badges. The
+checks and assigned driving statuses continue to use the full assessment.
 
 Both import transactions share an apply lock acquired before asynchronous
 content-digest checks. They recheck transaction lifetime and project identity

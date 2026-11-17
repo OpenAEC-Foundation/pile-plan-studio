@@ -930,8 +930,27 @@ mod tests {
         assert_eq!(driving["shared_ignore_csv_leading_zeros"], false);
         assert_eq!(driving["shared_table"]["settings"]["has_headers"], true);
         assert_eq!(driving["check_settings"]["neighborhood_tolerance_pct"], 12.5);
+        assert_eq!(driving["check_settings"]["energy_window_increments"], 4);
+        assert_eq!(driving["check_settings"]["neighborhood_window_increments"], 6);
+        assert_eq!(driving["check_settings"]["neighborhood_minimum_peers"], 3);
+        assert_eq!(driving["check_settings"]["neighborhood_cpt_matching"], "allow-one-missing");
         assert_eq!(driving["manual_statuses"], value["inputs"]["pile_driving"]["manual_statuses"]);
         assert_eq!(read_project_document(&written).unwrap().project.inputs, project.inputs);
+
+        value["inputs"]["pile_driving"]["check_settings"]["energy_window_increments"] = serde_json::json!(7);
+        value["inputs"]["pile_driving"]["check_settings"]["neighborhood_window_increments"] =
+            serde_json::json!(3);
+        value["inputs"]["pile_driving"]["check_settings"]["neighborhood_minimum_peers"] =
+            serde_json::json!(5);
+        value["inputs"]["pile_driving"]["check_settings"]["neighborhood_cpt_matching"] =
+            serde_json::json!("include-all");
+        let project = read_project_document(&value.to_string()).unwrap().project;
+        let written = write_project_document(ProjectDocumentDraft::from_project(&project)).unwrap();
+        let saved = serde_json::to_value(read_ifcpp_str(&written).unwrap()).unwrap();
+        assert_eq!(saved["inputs"]["pile_driving"]["check_settings"]["energy_window_increments"], 7);
+        assert_eq!(saved["inputs"]["pile_driving"]["check_settings"]["neighborhood_window_increments"], 3);
+        assert_eq!(saved["inputs"]["pile_driving"]["check_settings"]["neighborhood_minimum_peers"], 5);
+        assert_eq!(saved["inputs"]["pile_driving"]["check_settings"]["neighborhood_cpt_matching"], "include-all");
     }
 
     #[test]

@@ -17,9 +17,70 @@ function drivingWith(result: PileDrivingFileResult) {
     ignoreCsvLeadingZeros: true, setIgnoreCsvLeadingZeros: vi.fn(),
     addFiles: vi.fn(), selectFile: vi.fn(), selectExample: vi.fn(), removeFile: vi.fn(),
     setMatchBy: vi.fn(), setTable: vi.fn(), resetTable: vi.fn(), setIndependent: vi.fn(), setSettings: vi.fn(),
-    automaticStatuses: undefined, setLocationStatus: vi.fn(),
+    automaticStatuses: undefined, setLocationStatuses: vi.fn(),
   };
 }
+
+test("check and import settings are independently available from the panel", () => {
+  const driving = {
+    ...drivingWith({ status: "ready", preview: { columns: ["paalnummer"], records: [] } }),
+    settings: {
+      minimum_end_blows: 0,
+      end_window_increments: 2,
+      energy_window_increments: 4,
+      neighborhood_window_increments: 6,
+      neighborhood_minimum_peers: 3,
+      neighborhood_cpt_matching: "allow-one-missing" as const,
+      maximum_end_drop: 0,
+      length_tolerance_mm: 0,
+      level_tolerance_mm: 0,
+      neighborhood_tolerance_pct: 10,
+      peer_energy_spread_kj: 0,
+      target_energy_tolerance_kj: 0,
+      expected_energy: [],
+    },
+  };
+  render(<PileDrivingPanel {...statusControls} driving={driving} selectionDisabled={false}
+    selectedLoadPointIds={NO_SELECTION} neighborhoodRecord={null}
+    onNeighborhoodChange={vi.fn()} onSelect={vi.fn()} onClose={vi.fn()} />);
+
+  const checkSummary = screen.getByText("Check settings", { selector: "summary" });
+  const importSummary = screen.getByText("Import settings", { selector: "summary" });
+  const checks = checkSummary.closest("details")!;
+  const imports = importSummary.closest("details")!;
+  expect(imports.nextElementSibling).toBe(checks);
+  expect(checks.open).toBe(false);
+  expect(imports.open).toBe(false);
+
+  fireEvent.click(checkSummary);
+  const comparison = within(checks).getByRole("group", { name: "Neighbor comparison" });
+  const neighborhoodWindow = within(comparison).getByRole<HTMLInputElement>("spinbutton", {
+    name: "Number of final full increments",
+  });
+  expect(neighborhoodWindow.value).toBe("6");
+  fireEvent.change(neighborhoodWindow, { target: { value: "3" } });
+  const minimumPeers = within(comparison).getByRole<HTMLInputElement>("spinbutton", {
+    name: "Minimum number of reference piles",
+  });
+  expect(minimumPeers.value).toBe("3");
+  fireEvent.change(minimumPeers, { target: { value: "4" } });
+  const cptMatching = within(comparison).getByRole<HTMLSelectElement>("combobox", { name: "CPT matching" });
+  expect(cptMatching.value).toBe("allow-one-missing");
+  fireEvent.change(cptMatching, { target: { value: "include-all" } });
+  fireEvent.click(within(checks).getByRole("button", { name: "Apply settings" }));
+  expect(driving.setSettings).toHaveBeenCalledExactlyOnceWith({
+    ...driving.settings, neighborhood_window_increments: 3, neighborhood_minimum_peers: 4,
+    neighborhood_cpt_matching: "include-all",
+  });
+  expect(imports.open).toBe(false);
+  fireEvent.click(importSummary);
+  expect(within(imports).getByRole("checkbox", { name: "Ignore leading zeros" })).toBeTruthy();
+  expect(within(imports).queryByText("Import settings", { selector: "strong" })).toBeNull();
+  expect(checks.open).toBe(true);
+  fireEvent.click(importSummary);
+  expect(imports.open).toBe(false);
+  expect(checks.open).toBe(true);
+});
 
 test("read-only projects can inspect driving records with file editing disabled", () => {
   const driving = { ...drivingWith({ status: "ready", preview: { columns: ["paalnummer"], records: [{
@@ -68,7 +129,8 @@ test("clicking a warning or the location button selects the pile and opens its d
   expect(select).toHaveBeenCalledTimes(2);
 });
 
-test.each(["warning", "ok"] as const)("the comparison with status %s toggles only in the pile checks", status => {
+test.each([["warning", "location-id"], ["ok", "revit-mark"]] as const)(
+  "the comparison with status %s uses %s identifiers and toggles only in the pile checks", (status, matchBy) => {
   const record: PileDrivingRecord = {
     pile_number: "A45", rows: [["A45"]], matching: { status: "matched", load_point_id: 45 },
     checks: [
@@ -84,11 +146,13 @@ test.each(["warning", "ok"] as const)("the comparison with status %s toggles onl
       ],
     },
   };
-  const driving = drivingWith({ status: "ready", preview: { columns: ["paalnummer"], records: [record] } });
+  const base = drivingWith({ status: "ready", preview: { columns: ["paalnummer"], records: [record] } });
+  const driving = { ...base, files: base.files.map(file => ({ ...file, matchBy })) };
   const inspect = vi.fn();
   function Harness() {
     const [inspected, setInspected] = useState<PileDrivingRecord | null>(null);
     return <PileDrivingPanel {...statusControls} driving={driving} selectionDisabled={false}
+      pileNumbers={new Map([[16, "P-016"], [17, "P-017"]])}
       selectedLoadPointIds={NO_SELECTION}
       neighborhoodRecord={inspected} onNeighborhoodChange={next => { inspect(next); setInspected(next); }}
       onSelect={vi.fn()} onClose={vi.fn()} />;
@@ -97,7 +161,7 @@ test.each(["warning", "ok"] as const)("the comparison with status %s toggles onl
   const overview = screen.getByRole("table", { name: "Pile records" });
   expect(within(overview).queryByRole("button", { name: "Show comparable piles" })).toBeNull();
   fireEvent.click(status === "warning" ? within(overview).getByText("Neighbor comparison")
-    : within(overview).getByRole("button", { name: "Location 45" }));
+    : within(overview).getByRole("button", { name: "Pile A45" }));
   expect(screen.queryByRole("table", { name: "Piles used for the median · 290 mm" })).toBeNull();
   expect(inspect).not.toHaveBeenCalled();
 
@@ -108,6 +172,10 @@ test.each(["warning", "ok"] as const)("the comparison with status %s toggles onl
   const hidePeers = screen.getByRole("button", { name: "Hide comparable piles" });
   expect(hidePeers.getAttribute("aria-expanded")).toBe("true");
   const peers = screen.getByRole("table", { name: "Piles used for the median · 290 mm" });
+  const markBased = matchBy === "revit-mark";
+  expect(within(peers).getByRole("columnheader", { name: markBased ? "Pile number" : "Location" })).toBeTruthy();
+  expect(within(peers).getByRole("rowheader", { name: markBased ? "P-016" : "16" })).toBeTruthy();
+  expect(within(peers).getByRole("rowheader", { name: markBased ? "Location 18" : "18" })).toBeTruthy();
   expect(screen.getByText("25 blows per 250 mm · median 22.5 · 11.11% deviation (limit 10%)")).toBeTruthy();
   expect(within(peers).getByRole("cell", { name: /^10%$/ })).toBeTruthy();
   const flagged = within(peers).getByRole("cell", { name: "25% · Outside limit" });
@@ -142,6 +210,10 @@ test("follows single viewer selections and leaves the overview full-height witho
   view.rerender(renderPanel([45, 46]));
   expect(screen.queryByRole("heading", { name: /^Pile [AB]/ })).toBeNull();
   expect(overview.classList.contains("has-details")).toBe(false);
+  expect(screen.getByText("2 locations selected")).toBeTruthy();
+  const statusButtons = screen.getByRole("group", { name: "Driving status" });
+  expect(overview.compareDocumentPosition(statusButtons) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  expect(within(statusButtons).getByRole("button", { name: "Automatic", pressed: true })).toBeTruthy();
 
   view.rerender(renderPanel([46]));
   expect(screen.getByRole("heading", { name: "Pile A46" })).toBeTruthy();
@@ -156,6 +228,9 @@ test("filters registrations with warnings while keeping the viewer selection in 
       checks: [{ kind: "size", status: "warning" }] },
     { pile_number: "A46", rows: [["A46"]], matching: { status: "matched", load_point_id: 46 },
       checks: [{ kind: "size", status: "ok" }] },
+    { pile_number: "A47", rows: [["A47"]], matching: { status: "matched", load_point_id: 47 },
+      checks: [{ kind: "length", status: "warning" }, { kind: "remark", status: "warning" }],
+      remarks: ["Driving resumed after a pause."] },
   ];
   const driving = drivingWith({ status: "ready", preview: { columns: ["paalnummer"], records } });
   const onShowStatusColorsChange = vi.fn();
@@ -164,20 +239,30 @@ test("filters registrations with warnings while keeping the viewer selection in 
     {...statusControls} onShowStatusColorsChange={onShowStatusColorsChange}
     neighborhoodRecord={null} onNeighborhoodChange={vi.fn()} onSelect={select} onClose={vi.fn()} />);
 
-  const filter = screen.getByRole("checkbox", { name: "Warnings only" });
-  const table = screen.getByRole("table", { name: "Pile records" });
+  const table = () => within(screen.getByRole("table", { name: "Pile records" }));
   const mapColors = screen.getByRole("switch", { name: "Show driving status colors on the map" });
   expect((mapColors as HTMLInputElement).checked).toBe(false);
   fireEvent.click(mapColors);
   expect(onShowStatusColorsChange).toHaveBeenCalledExactlyOnceWith(true);
   expect(select).not.toHaveBeenCalled();
-  expect(within(table).getByRole("button", { name: "Location 46" })).toBeTruthy();
-  fireEvent.click(filter);
-  expect(within(table).queryByRole("button", { name: "Location 46" })).toBeNull();
-  expect(within(table).getByRole("button", { name: "Location 45" })).toBeTruthy();
+  expect(table().getByRole("button", { name: "Location 46" })).toBeTruthy();
+  fireEvent.click(screen.getByText("Filter warnings", { selector: "summary" }));
+  fireEvent.click(screen.getByRole("checkbox", { name: "Without warnings" }));
+  expect(table().queryByRole("button", { name: "Location 46" })).toBeNull();
+  expect(table().getByRole("button", { name: "Location 45" })).toBeTruthy();
   expect(screen.getByRole("heading", { name: "Pile A46" })).toBeTruthy();
-  fireEvent.click(filter);
-  expect(within(table).getByRole("button", { name: "Location 46" })).toBeTruthy();
+  fireEvent.click(screen.getByRole("button", { name: "Uncheck all" }));
+  expect(screen.queryByRole("table", { name: "Pile records" })).toBeNull();
+  fireEvent.click(screen.getByRole("checkbox", { name: "Remark" }));
+  expect(table().queryByRole("button", { name: "Location 45" })).toBeNull();
+  expect(table().queryByText("Pile length")).toBeNull();
+  expect(table().getByText("Remark")).toBeTruthy();
+  fireEvent.click(table().getByRole("button", { name: "Location 47" }));
+  expect(screen.getByText("Driving resumed after a pause.")).toBeTruthy();
+  fireEvent.click(screen.getByRole("checkbox", { name: "Pile size" }));
+  expect(table().getByRole("button", { name: "Location 45" })).toBeTruthy();
+  fireEvent.click(screen.getByRole("button", { name: "Check all" }));
+  expect(table().getByRole("button", { name: "Location 46" })).toBeTruthy();
 });
 
 test("edits and resets the selected location status while showing its automatic assessment", () => {
@@ -200,7 +285,102 @@ test("edits and resets the selected location status while showing its automatic 
   expect(screen.getByText("Automatic · Deviation")).toBeTruthy();
   fireEvent.click(controls.getByRole("button", { name: "Needs review" }));
   fireEvent.click(controls.getByRole("button", { name: "Automatic" }));
-  expect(setStatus.mock.calls).toEqual([[45, "doubtful"], [45, null]]);
+  expect(setStatus.mock.calls).toEqual([[[45], "doubtful"], [[45], null]]);
+});
+
+test("uses the visible registration order for range selection and applies one status to the whole selection", () => {
+  const records: PileDrivingRecord[] = [45, 46, null, 45, 47, 48].map((id, index) => ({
+    pile_number: String(id ?? index), rows: [[String(id ?? index)]],
+    matching: id === null ? { status: "unmatched" } : { status: "matched", load_point_id: id },
+    checks: [{ kind: "size", status: id === 46 ? "ok" : "warning" }],
+  }));
+  const driving = drivingWith({ status: "ready", preview: { columns: ["paalnummer"], records } });
+  const setStatus = vi.fn();
+  function Harness() {
+    const [selected, setSelected] = useState<number[]>([]);
+    return <PileDrivingPanel {...statusControls} driving={driving} selectionDisabled={false}
+      selectedLoadPointIds={selected} neighborhoodRecord={null} onNeighborhoodChange={vi.fn()}
+      locationStatuses={new Map([[45, { manual: "good" }]])}
+      onStatusChange={setStatus} onSelect={setSelected} onClose={vi.fn()} />;
+  }
+  render(<Harness />);
+  fireEvent.click(screen.getByText("Filter warnings", { selector: "summary" }));
+  fireEvent.click(screen.getByRole("checkbox", { name: "Without warnings" }));
+  const table = within(screen.getByRole("table", { name: "Pile records" }));
+  const locations = () => table.getAllByRole("button", { pressed: true }).map(button => button.getAttribute("aria-label"));
+  const click = (id: number, modifiers = {}) =>
+    fireEvent.click(table.getAllByRole("button", { name: `Location ${id}` })[0], modifiers);
+
+  click(45);
+  click(47, { shiftKey: true });
+  expect(locations()).toEqual(["Location 45", "Location 45", "Location 47"]);
+  const controls = within(screen.getByRole("group", { name: "Driving status" }));
+  expect(controls.queryByRole("button", { pressed: true })).toBeNull();
+  expect(screen.getByText("2 locations selected")).toBeTruthy();
+  fireEvent.click(controls.getByRole("button", { name: "Deviation" }));
+  expect(setStatus).toHaveBeenCalledExactlyOnceWith([45, 47], "deviation");
+
+  click(45, { ctrlKey: true });
+  expect(locations()).toEqual(["Location 47"]);
+  click(48, { metaKey: true });
+  expect(locations()).toEqual(["Location 47", "Location 48"]);
+  click(45, { ctrlKey: true, shiftKey: true });
+  expect(locations()).toEqual(["Location 45", "Location 45", "Location 47", "Location 48"]);
+  fireEvent.click(within(screen.getByRole("group", { name: "Driving status" })).getByRole("button", { name: "Automatic" }));
+  expect(setStatus).toHaveBeenLastCalledWith([47, 48, 45], null);
+  click(48);
+  expect(locations()).toEqual(["Location 48"]);
+});
+
+test("following the filter selects its unique locations until the selection is changed manually", () => {
+  const records: PileDrivingRecord[] = [45, 46, null, 45, 47].map((id, index) => ({
+    pile_number: String(id ?? index), rows: [[String(id ?? index)]],
+    matching: id === null ? { status: "unmatched" } : { status: "matched", load_point_id: id },
+    checks: [{ kind: "size", status: id === 46 ? "ok" : "warning" }],
+  }));
+  const driving = drivingWith({ status: "ready", preview: { columns: ["paalnummer"], records } });
+  const setStatus = vi.fn();
+  function Harness() {
+    const [selected, setSelected] = useState<number[]>([46]);
+    return <PileDrivingPanel {...statusControls} driving={driving} selectionDisabled={false}
+      selectedLoadPointIds={selected} neighborhoodRecord={null} onNeighborhoodChange={vi.fn()}
+      onStatusChange={setStatus} onSelect={setSelected} onClose={vi.fn()} />;
+  }
+  render(<Harness />);
+  const filterSummary = screen.getByText("Filter warnings", { selector: "summary" });
+  fireEvent.click(filterSummary);
+  fireEvent.click(screen.getByRole("button", { name: "Uncheck all" }));
+  const selectVisible = screen.getByRole<HTMLButtonElement>("button", { name: "Follow filter", pressed: false });
+  expect(filterSummary.closest("details")!.compareDocumentPosition(selectVisible)
+    & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  expect(selectVisible.disabled).toBe(true);
+  fireEvent.click(screen.getByRole("checkbox", { name: "Pile size" }));
+  expect(selectVisible.disabled).toBe(false);
+  fireEvent.click(selectVisible);
+
+  const table = within(screen.getByRole("table", { name: "Pile records" }));
+  expect(table.getAllByRole("button", { pressed: true }).map(button => button.getAttribute("aria-label")))
+    .toEqual(["Location 45", "Location 45", "Location 47"]);
+  expect(screen.getByText("2 locations selected")).toBeTruthy();
+  fireEvent.click(within(screen.getByRole("group", { name: "Driving status" })).getByRole("button", { name: "Deviation" }));
+  expect(setStatus).toHaveBeenCalledExactlyOnceWith([45, 47], "deviation");
+
+  fireEvent.click(screen.getByRole("checkbox", { name: "Without warnings" }));
+  expect(screen.getByText("3 locations selected")).toBeTruthy();
+  fireEvent.click(screen.getByRole("checkbox", { name: "Pile size" }));
+  expect(table.getByRole("button", { name: "Location 46", pressed: true })).toBeTruthy();
+  fireEvent.click(screen.getByRole("checkbox", { name: "Without warnings" }));
+  expect(screen.queryByRole("group", { name: "Driving status" })).toBeNull();
+  expect(screen.getByRole("button", { name: "Follow filter", pressed: true })).toBe(selectVisible);
+  fireEvent.click(screen.getByRole("checkbox", { name: "Pile size" }));
+  const filtered = within(screen.getByRole("table", { name: "Pile records" }));
+  expect(screen.getByText("2 locations selected")).toBeTruthy();
+
+  fireEvent.click(filtered.getByRole("button", { name: "Location 47" }));
+  expect(screen.getByRole("button", { name: "Follow filter", pressed: false })).toBe(selectVisible);
+  fireEvent.click(screen.getByRole("checkbox", { name: "Without warnings" }));
+  expect(filtered.getByRole("button", { name: "Location 47", pressed: true })).toBeTruthy();
+  expect(filtered.getByRole("button", { name: "Location 46", pressed: false })).toBeTruthy();
 });
 
 test("the registrations table uses each file's effective matching field", () => {

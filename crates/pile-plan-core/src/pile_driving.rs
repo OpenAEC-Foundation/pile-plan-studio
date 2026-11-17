@@ -174,6 +174,8 @@ pub struct PileDrivingRecord {
     rows: Vec<Vec<String>>,
     matching: PileDrivingMatch,
     checks: Vec<checks::Check>,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    remarks: Vec<String>,
     energy_range: Option<checks::EnergyRange>,
     #[serde(skip)]
     neighborhood_reading: Option<neighborhood::Reading>,
@@ -261,7 +263,7 @@ pub fn preview_pile_driving(
     neighborhood::apply(
         records.iter_mut().collect(),
         &request.targets,
-        request.settings.neighborhood_tolerance_pct,
+        &request.settings,
     );
     let energy_by_size = checks::energy_by_size(
         [(columns.as_slice(), records.as_slice())],
@@ -337,7 +339,7 @@ pub fn preview_pile_driving_files(
     neighborhood::apply(
         records,
         &request.targets,
-        request.settings.neighborhood_tolerance_pct,
+        &request.settings,
     );
     let ready = files.iter().filter_map(|result| match result {
         PileDrivingFileResult::Ready { preview, .. } => {
@@ -532,6 +534,7 @@ fn inspect_driving_file(
                     rows: vec![],
                     matching,
                     checks: Vec::new(),
+                    remarks: Vec::new(),
                     energy_range: None,
                     neighborhood_reading: None,
                     neighborhood: None,
@@ -567,6 +570,7 @@ fn inspect_driving_file(
             settings,
         );
         record.checks = assessment.checks;
+        record.remarks = assessment.remarks;
         record.energy_range = assessment.energy_range;
         record.neighborhood_reading = assessment.neighborhood_reading;
     }
@@ -628,7 +632,7 @@ mod tests {
                 let (blows, energy) = if increment == 1 {
                     (99, 70)
                 } else {
-                    (blows, 35 + id)
+                    (blows, if increment == 3 { 80 } else { 35 + id })
                 };
                 writeln!(csv, "{id},{size},{increment},{level},{blows},{energy},250").unwrap();
             }
@@ -636,10 +640,10 @@ mod tests {
         csv.into_bytes()
     }
 
-    fn neighborhood_preview(limit: f64, relax: bool) -> serde_json::Value {
+    fn neighborhood_preview(limit: f64, relax: bool, window: Option<u32>) -> serde_json::Value {
         let exact = [1, 2, 3, 4];
         let one_replaced = [1, 2, 3, 5];
-        let request: PileDrivingBatchRequest = serde_json::from_value(serde_json::json!({
+        let mut request = serde_json::json!({
             "files": [
                 {"file_name": "first.csv", "format": "csv", "match_by": "location-id",
                  "bytes": neighborhood_file(&[(1, 29, 30), (5, 29, 50), (6, 35, 50)])},
@@ -657,14 +661,18 @@ mod tests {
                 {"load_point_id": 6, "selected_cpt_ids": exact}
             ],
             "settings": { "neighborhood_tolerance_pct": limit, "end_window_increments": 2 }
-        }))
-        .unwrap();
+        });
+        if let Some(window) = window {
+            request["settings"]["neighborhood_window_increments"] = serde_json::json!(window);
+        }
+        let request = serde_json::from_value(request).unwrap();
         serde_json::to_value(preview_pile_driving_files(&request).unwrap()).unwrap()
     }
 
     #[test]
     fn neighborhood_uses_six_tochten_and_exact_peers_across_open_files() {
-        let result = neighborhood_preview(10.0, false);
+        let result = neighborhood_preview(10.0, false, None);
+        assert_eq!(result["settings"]["neighborhood_window_increments"], 6);
         let record = &result["files"][0]["preview"]["records"][0];
         let check = record["checks"]
             .as_array()
@@ -691,7 +699,7 @@ mod tests {
         assert_eq!(peers[0]["final_ppn_m"], -17.75);
         assert_eq!(peers[0]["mean_energy_kj"], 37.0);
 
-        let result = neighborhood_preview(50.0, false);
+        let result = neighborhood_preview(50.0, false, None);
         let record = &result["files"][0]["preview"]["records"][0];
         let check = record["checks"]
             .as_array()
@@ -710,8 +718,33 @@ mod tests {
     }
 
     #[test]
+    fn neighborhood_uses_its_own_window_for_all_displayed_blow_counts() {
+        let result = neighborhood_preview(10.0, false, Some(7));
+        assert_eq!(result["settings"]["end_window_increments"], 2);
+        assert_eq!(result["settings"]["energy_window_increments"], 4);
+        let record = &result["files"][0]["preview"]["records"][0];
+        let check = record["checks"].as_array().unwrap().iter()
+            .find(|check| check["kind"] == "neighborhood")
+            .unwrap();
+        assert_eq!(check["actual"], 279.0 / 7.0);
+        assert_eq!(check["reference"], 219.0 / 7.0);
+        assert_eq!(check["other"], 6000.0 / 219.0);
+        let peer = &record["neighborhood"]["reference_piles"][0];
+        assert_eq!(peer["mean_blows"], 207.0 / 7.0);
+        assert_eq!(peer["mean_energy_kj"], 37.0);
+
+        let result = neighborhood_preview(10.0, false, Some(8));
+        let record = &result["files"][0]["preview"]["records"][0];
+        let check = record["checks"].as_array().unwrap().iter()
+            .find(|check| check["kind"] == "neighborhood")
+            .unwrap();
+        assert_eq!(check["status"], "unavailable");
+        assert!(check["actual"].is_null());
+    }
+
+    #[test]
     fn neighborhood_relaxes_one_cpt_only_when_exact_peers_are_insufficient() {
-        let result = neighborhood_preview(10.0, true);
+        let result = neighborhood_preview(10.0, true, None);
         let record = &result["files"][0]["preview"]["records"][0];
         assert_eq!(record["neighborhood"]["relaxed_selection"], true);
         let peers = record["neighborhood"]["reference_piles"]
@@ -735,13 +768,73 @@ mod tests {
     }
 
     #[test]
+    fn neighborhood_prefers_full_cpt_coverage_and_keeps_a_shared_cpt() {
+        let cases: &[(&[&[u32]], &[u64], usize)] = &[
+            (&[&[1], &[1], &[1, 2], &[1, 2, 3], &[2, 3]], &[2, 3, 4], 3),
+            (&[&[1, 2], &[1, 2], &[1, 2, 3], &[1, 2, 4], &[2, 3]], &[2, 3, 4], 3),
+            (&[&[1, 2, 3], &[1, 2, 3], &[1, 2, 3, 4], &[1, 2], &[3, 4]], &[2, 3, 4], 3),
+            (&[&[1], &[1], &[1, 2], &[2], &[3, 4]], &[], 2),
+        ];
+        for (selections, expected, peer_count) in cases {
+            let piles: Vec<_> = (1..=selections.len() as u32).map(|id| (id, 29, 15 + id)).collect();
+            let targets: Vec<_> = selections.iter().enumerate().map(|(index, cpts)| {
+                serde_json::json!({"load_point_id": index + 1, "selected_cpt_ids": cpts})
+            }).collect();
+            let request: PileDrivingBatchRequest = serde_json::from_value(serde_json::json!({
+                "files": [{"file_name": "neighborhood.csv", "format": "csv", "match_by": "location-id",
+                    "bytes": neighborhood_file(&piles)}],
+                "targets": targets
+            })).unwrap();
+            let result = serde_json::to_value(preview_pile_driving_files(&request).unwrap()).unwrap();
+            let neighborhood = &result["files"][0]["preview"]["records"][0]["neighborhood"];
+            let peers: Vec<_> = neighborhood["reference_piles"].as_array().unwrap().iter()
+                .map(|peer| peer["load_point_id"].as_u64().unwrap()).collect();
+            assert_eq!(&peers, expected, "CPT selections: {selections:?}");
+            assert_eq!(neighborhood["peer_count"], *peer_count);
+        }
+    }
+
+    #[test]
+    fn neighborhood_respects_the_configured_peer_count_and_cpt_matching() {
+        let cases: &[(&str, u32, usize, &[u64])] = &[
+            ("identical", 1, 1, &[2]),
+            ("identical", 2, 1, &[]),
+            ("include-all", 2, 2, &[2, 3]),
+            ("include-all", 3, 2, &[]),
+            ("allow-one-missing", 1, 1, &[2]),
+            ("allow-one-missing", 3, 3, &[2, 3, 4]),
+            ("allow-one-missing", 4, 3, &[]),
+        ];
+        for &(matching, minimum, count, expected) in cases {
+            let request: PileDrivingBatchRequest = serde_json::from_value(serde_json::json!({
+                "files": [{"file_name": "neighborhood.csv", "format": "csv", "match_by": "location-id",
+                    "bytes": neighborhood_file(&[(1, 29, 20), (2, 29, 20), (3, 29, 22), (4, 29, 25), (5, 29, 40)])}],
+                "targets": [
+                    {"load_point_id": 1, "selected_cpt_ids": [1, 2]},
+                    {"load_point_id": 2, "selected_cpt_ids": [1, 2]},
+                    {"load_point_id": 3, "selected_cpt_ids": [1, 2, 3]},
+                    {"load_point_id": 4, "selected_cpt_ids": [2, 4]},
+                    {"load_point_id": 5, "selected_cpt_ids": [7]}
+                ],
+                "settings": {"neighborhood_minimum_peers": minimum, "neighborhood_cpt_matching": matching}
+            })).unwrap();
+            let result = serde_json::to_value(preview_pile_driving_files(&request).unwrap()).unwrap();
+            let neighborhood = &result["files"][0]["preview"]["records"][0]["neighborhood"];
+            let peers: Vec<_> = neighborhood["reference_piles"].as_array().unwrap().iter()
+                .map(|peer| peer["load_point_id"].as_u64().unwrap()).collect();
+            assert_eq!(neighborhood["peer_count"], count, "{matching}, minimum {minimum}");
+            assert_eq!(peers, expected, "{matching}, minimum {minimum}");
+        }
+    }
+
+    #[test]
     fn neighborhood_marks_peer_deviation_against_the_same_reference_and_limit() {
         for (limit, expected) in [
             (9.5, [true, false, true]),
             (10.0, [false, false, true]),
             (25.0, [false, false, false]),
         ] {
-            let result = neighborhood_preview(limit, false);
+            let result = neighborhood_preview(limit, false, None);
             let peers = result["files"][0]["preview"]["records"][0]["neighborhood"]
                 ["reference_piles"]
                 .as_array()
@@ -751,7 +844,7 @@ mod tests {
                 assert_eq!(peer["exceeds_tolerance"], exceeds);
             }
         }
-        let result = neighborhood_preview(10.0, false);
+        let result = neighborhood_preview(10.0, false, None);
         let below_reference = result["files"][1]["preview"]["records"][0]["checks"]
             .as_array()
             .unwrap()
@@ -782,16 +875,16 @@ mod tests {
     }
 
     #[test]
-    fn compares_all_measurements_but_excludes_pairs_from_the_same_pile() {
+    fn compares_final_energy_measurements_but_excludes_pairs_from_the_same_pile() {
         let csv = energy_example();
         let request = request(csv.as_bytes(), PileDrivingMatchField::LocationId);
         let result = serde_json::to_value(preview_pile_driving(&request).unwrap()).unwrap();
         let groups = &result["energy_by_size"];
         assert_eq!(groups[0]["pile_size_mm"], 290.0);
         assert_eq!(groups[0]["pile_count"], 2);
-        assert_eq!(groups[0]["minimum_kj"], 34.0);
+        assert_eq!(groups[0]["minimum_kj"], 35.0);
         assert_eq!(groups[0]["maximum_kj"], 42.0);
-        assert_eq!(groups[0]["spread_kj"], 6.0);
+        assert_eq!(groups[0]["spread_kj"], 5.0);
         assert_eq!(groups[0]["status"], "warning");
         assert_eq!(groups[1]["pile_size_mm"], 350.0);
         assert_eq!(groups[1]["status"], "unavailable");
@@ -918,15 +1011,15 @@ mod tests {
     }
 
     #[test]
-    fn evaluates_the_whole_record_and_falls_back_for_sizes_without_a_target() {
+    fn evaluates_final_increments_in_numeric_order_and_falls_back_for_sizes_without_a_target() {
         let mut csv = String::from(
-            "paalnummer,dikte_cm,tochtnummer,mm_zakking_per_tocht,energie_per_slag_kj\n1,29,1,250,29\n",
+            "paalnummer,dikte_cm,tochtnummer,mm_zakking_per_tocht,energie_per_slag_kj\n",
         );
         for number in 2..=7 {
             use std::fmt::Write;
             writeln!(csv, "1,29,{number},250,35").unwrap();
         }
-        csv.push_str("2,35,1,250,43\n3,35,1,250,46\n4,29,1,250,35\n4,29,2,250,\n");
+        csv.push_str("1,29,1,250,29\n2,35,1,250,43\n3,35,1,250,46\n4,29,1,250,35\n4,29,2,250,\n");
         let request: PileDrivingImportRequest = serde_json::from_value(serde_json::json!({
             "file_name": "energy.csv", "format": "csv", "bytes": csv.as_bytes(),
             "match_by": "location-id", "targets": [],
@@ -937,13 +1030,45 @@ mod tests {
         }))
         .unwrap();
         let result = serde_json::to_value(preview_pile_driving(&request).unwrap()).unwrap();
-        assert_eq!(result["records"][0]["checks"][5]["status"], "warning");
-        assert_eq!(result["records"][0]["checks"][5]["actual"], 29.0);
+        assert_eq!(result["settings"]["energy_window_increments"], 4);
+        assert_eq!(result["records"][0]["checks"][5]["status"], "ok");
+        assert_eq!(result["records"][0]["checks"][5]["actual"], 35.0);
         assert_eq!(result["records"][3]["checks"][5]["status"], "unavailable");
         let groups = result["energy_by_size"].as_array().unwrap();
         assert_eq!(groups.len(), 1);
         assert_eq!(groups[0]["pile_size_mm"], 350.0);
         assert_eq!(groups[0]["spread_kj"], 3.0);
+    }
+
+    #[test]
+    fn uses_file_order_for_unnumbered_energy_measurements_and_never_backfills() {
+        let csv = "paalnummer,dikte_cm,energie_per_slag_kj\n1,29,90\n1,29,30\n1,29,\n2,29,20\n2,29,38\n2,29,40\n";
+        let request: PileDrivingImportRequest = serde_json::from_value(serde_json::json!({
+            "file_name": "energy.csv", "format": "csv", "bytes": csv.as_bytes(),
+            "match_by": "location-id", "targets": [],
+            "settings": {"energy_window_increments": 2}
+        }))
+        .unwrap();
+        let result = serde_json::to_value(preview_pile_driving(&request).unwrap()).unwrap();
+        assert_eq!(result["records"][0]["energy_range"], serde_json::json!({"minimum_kj":30.0,"maximum_kj":30.0}));
+        assert_eq!(result["energy_by_size"][0]["spread_kj"], 10.0);
+    }
+
+    #[test]
+    fn any_nonblank_remarks_are_reported_once_and_raise_a_location_warning() {
+        let csv = "paalnummer,opmerkingen\n1,   \n1, Nageheid na onderbreking \n1,Nageheid na onderbreking\n1,Paal gecontroleerd\n2,\n";
+        let request: PileDrivingBatchRequest = serde_json::from_value(serde_json::json!({
+            "files": [{"file_name": "remarks.csv", "format": "csv", "bytes": csv.as_bytes(), "match_by": "location-id"}],
+            "targets": [{"load_point_id": 1}, {"load_point_id": 2}]
+        }))
+        .unwrap();
+        let result = serde_json::to_value(preview_pile_driving_files(&request).unwrap()).unwrap();
+        let records = &result["files"][0]["preview"]["records"];
+        assert_eq!(records[0]["remarks"], serde_json::json!(["Nageheid na onderbreking", "Paal gecontroleerd"]));
+        assert_eq!(records[0]["checks"].as_array().unwrap().iter()
+            .filter(|check| check["kind"] == "remark" && check["status"] == "warning").count(), 1);
+        assert!(records[1]["remarks"].is_null());
+        assert_eq!(result["location_statuses"], serde_json::json!([{"load_point_id":1,"status":"doubtful"}]));
     }
 
     fn request(bytes: &[u8], match_by: PileDrivingMatchField) -> PileDrivingImportRequest {

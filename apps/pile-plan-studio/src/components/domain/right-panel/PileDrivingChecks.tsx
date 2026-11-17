@@ -1,10 +1,10 @@
 import { useEffect, useId, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import type { PileDrivingCheck, PileDrivingCheckSettings, PileDrivingEnergyGroup, PileDrivingEnergyRange, PileDrivingNeighborhood } from "../../../core/pileDrivingCoreClient.ts";
-import { Button, Heading, Status } from "../../../openaec/react/src/index";
+import type { PileDrivingCheck, PileDrivingCheckSettings, PileDrivingEnergyGroup, PileDrivingEnergyRange, PileDrivingNeighborhood, PileDrivingNeighborhoodCptMatching } from "../../../core/pileDrivingCoreClient.ts";
+import { Button, Heading, Select, Status } from "../../../openaec/react/src/index";
 import { NumberInput, type NumberInputProps } from "../../template/NumberInput.tsx";
 
-type LimitKey = Exclude<keyof PileDrivingCheckSettings, "expected_energy">;
+type LimitKey = Exclude<keyof PileDrivingCheckSettings, "expected_energy" | "neighborhood_cpt_matching">;
 type Limit = { key: LimitKey; min?: number; step?: number; max?: number };
 const PLAN_LIMITS: readonly Limit[] = [
   { key: "length_tolerance_mm" },
@@ -14,9 +14,17 @@ const CALENDAR_LIMITS: readonly Limit[] = [
   { key: "minimum_end_blows", step: 1, max: 4294967295 },
   { key: "end_window_increments", min: 2, step: 2, max: 4294967294 },
   { key: "maximum_end_drop", step: 1, max: 4294967295 },
+];
+const NEIGHBORHOOD_LIMITS: readonly Limit[] = [
+  { key: "neighborhood_window_increments", min: 1, step: 1, max: 4294967295 },
+  { key: "neighborhood_minimum_peers", min: 1, step: 1, max: 4294967295 },
   { key: "neighborhood_tolerance_pct" },
 ];
+const CPT_MATCHING_OPTIONS: readonly PileDrivingNeighborhoodCptMatching[] = [
+  "identical", "include-all", "allow-one-missing",
+];
 const ENERGY_LIMITS: readonly Limit[] = [
+  { key: "energy_window_increments", min: 1, step: 1, max: 4294967295 },
   { key: "target_energy_tolerance_kj" },
   { key: "peer_energy_spread_kj" },
 ];
@@ -47,14 +55,19 @@ export function PileDrivingSettings({ settings, pileSizes, readOnly, onApply }: 
   const renderLimit = ({ key, min = 0, step, max }: Limit) => <LimitInput key={key}
     label={t(`limits.${key}`)} name={key} readOnly={readOnly} required min={min}
     step={step ?? "any"} max={max} initialValue={settings[key]} />;
-  return <details className="source-import-disclosure pile-driving-settings">
-    <summary><strong>{t("settings")}</strong></summary>
+  return <details className="pile-driving-disclosure pile-driving-settings">
+    <summary>{t("settings")}</summary>
     <form key={JSON.stringify(settings)} onSubmit={event => {
       event.preventDefault();
       if (readOnly) return;
       const fields = new FormData(event.currentTarget);
       const limits = { ...settings };
-      for (const { key } of [...PLAN_LIMITS, ...CALENDAR_LIMITS, ...ENERGY_LIMITS]) limits[key] = Number(fields.get(key));
+      for (const { key } of [...PLAN_LIMITS, ...CALENDAR_LIMITS, ...NEIGHBORHOOD_LIMITS, ...ENERGY_LIMITS]) {
+        limits[key] = Number(fields.get(key));
+      }
+      const cptMatching = fields.get("neighborhood_cpt_matching");
+      limits.neighborhood_cpt_matching = CPT_MATCHING_OPTIONS.find(option => option === cptMatching)
+        ?? settings.neighborhood_cpt_matching;
       limits.expected_energy = sizes.flatMap(size => {
         const value = fields.get(`energy-${size}`);
         return typeof value === "string" && value !== "" ? [{ pile_size_mm: size, energy_kj: Number(value) }] : [];
@@ -70,6 +83,15 @@ export function PileDrivingSettings({ settings, pileSizes, readOnly, onApply }: 
         {CALENDAR_LIMITS.map(renderLimit)}
       </fieldset>
       <fieldset>
+        <legend>{t("labels.neighborhood")}</legend>
+        {NEIGHBORHOOD_LIMITS.map(renderLimit)}
+        <Select compact name="neighborhood_cpt_matching" label={t("neighborhoodCptMatching.label")}
+          help={t("neighborhoodCptMatching.help")} defaultValue={settings.neighborhood_cpt_matching}
+          disabled={readOnly} options={CPT_MATCHING_OPTIONS.map(value => ({
+            value, label: t(`neighborhoodCptMatching.${value}`),
+          }))} />
+      </fieldset>
+      <fieldset>
         <legend>{t("energyLimits")}</legend>
         {sizes.map(size => <LimitInput key={size} label={t("targetEnergy", { size })} name={`energy-${size}`}
           readOnly={readOnly} step="any" min={0.000001} initialValue={energy.get(size)} />)}
@@ -81,10 +103,14 @@ export function PileDrivingSettings({ settings, pileSizes, readOnly, onApply }: 
   </details>;
 }
 
-export function PileDrivingChecks({ checks, energyRange, neighborhood, neighborhoodExpanded, onToggleNeighborhood }: {
+export function PileDrivingChecks({ checks, remarks, energyRange, neighborhood, showPileNumbers, pileNumbers,
+  neighborhoodExpanded, onToggleNeighborhood }: {
   checks: PileDrivingCheck[];
+  remarks?: readonly string[];
   energyRange?: PileDrivingEnergyRange | null;
   neighborhood?: PileDrivingNeighborhood | null;
+  showPileNumbers: boolean;
+  pileNumbers?: ReadonlyMap<number, string>;
   neighborhoodExpanded: boolean;
   onToggleNeighborhood: () => void;
 }) {
@@ -126,10 +152,12 @@ export function PileDrivingChecks({ checks, energyRange, neighborhood, neighborh
             </Button>}
             <strong>{t(`labels.${check.kind}`)}</strong>
             <Status tone={check.status === "warning" ? "warning" : check.status === "ok" ? "success" : "info"}>
-              {t(`status.${check.status}`)}
+              {check.kind === "remark" ? t("remarkRecorded") : t(`status.${check.status}`)}
             </Status>
           </div>
-          <p className="oa-secondary">{t(`values.${check.kind}`, values)}</p>
+          {check.kind === "remark"
+            ? remarks?.map(remark => <p className="oa-secondary" key={remark}>{remark}</p>)
+            : <p className="oa-secondary">{t(`values.${check.kind}`, values)}</p>}
           {check.kind === "neighborhood" && neighborhood && <div className="pile-driving-neighborhood">
             <p className="oa-secondary">
               {t("neighborhood.peers", { count: neighborhood.peer_count })}
@@ -140,7 +168,7 @@ export function PileDrivingChecks({ checks, energyRange, neighborhood, neighborh
               <table className="oa-table">
                 <caption>{comparisonTitle}</caption>
                 <thead><tr>
-                  <th scope="col">{t("neighborhood.location")}</th>
+                  <th scope="col">{t(showPileNumbers ? "neighborhood.pileNumber" : "neighborhood.location")}</th>
                   <th scope="col">{t("neighborhood.average")}</th>
                   <th scope="col">{t("neighborhood.deviation")}</th>
                   <th scope="col">{t("neighborhood.ppn")}</th>
@@ -149,7 +177,9 @@ export function PileDrivingChecks({ checks, energyRange, neighborhood, neighborh
                 <tbody>{neighborhood.reference_piles.map(pile => {
                   const deviation = percent.format(pile.deviation_pct / 100);
                   return <tr key={pile.load_point_id}>
-                    <th scope="row">{pile.load_point_id}</th>
+                    <th scope="row">{showPileNumbers
+                      ? pileNumbers?.get(pile.load_point_id)?.trim() || t("neighborhood.locationFallback", { id: pile.load_point_id })
+                      : pile.load_point_id}</th>
                     <td>{display(pile.mean_blows)}</td>
                     <td aria-label={pile.exceeds_tolerance ? t("neighborhood.outsideLimit", { deviation }) : undefined}>
                       {pile.exceeds_tolerance ? <Status tone="warning">{deviation}</Status> : deviation}

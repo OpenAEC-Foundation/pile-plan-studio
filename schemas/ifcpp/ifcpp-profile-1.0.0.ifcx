@@ -1821,6 +1821,10 @@
                   "endWindowIncrements": {
                     "dataType": "Integer"
                   },
+                  "energyWindowIncrements": {
+                    "dataType": "Integer",
+                    "optional": true
+                  },
                   "maximumEndDrop": {
                     "dataType": "Integer"
                   },
@@ -1832,6 +1836,25 @@
                   },
                   "neighborhoodTolerancePct": {
                     "dataType": "Real"
+                  },
+                  "neighborhoodWindowIncrements": {
+                    "dataType": "Integer",
+                    "optional": true
+                  },
+                  "neighborhoodMinimumPeers": {
+                    "dataType": "Integer",
+                    "optional": true
+                  },
+                  "neighborhoodCptMatching": {
+                    "dataType": "Enum",
+                    "enumRestrictions": {
+                      "options": [
+                        "identical",
+                        "include-all",
+                        "allow-one-missing"
+                      ]
+                    },
+                    "optional": true
                   },
                   "peerEnergySpreadKj": {
                     "dataType": "Real"

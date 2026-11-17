@@ -16,12 +16,16 @@ export function assessPileDrivingLocations(
   return assessments;
 }
 
-export function setManualPileDrivingStatus(
-  current: ProjectPileDriving, loadPointId: number, status: PileDrivingStatus | null,
+export function setManualPileDrivingStatuses(
+  current: ProjectPileDriving, loadPointIds: readonly number[], status: PileDrivingStatus | null,
 ): ProjectPileDriving {
-  const previous = current.manual_statuses?.find(entry => entry.load_point_id === loadPointId);
-  if ((previous?.status ?? null) === status) return current;
-  const manualStatuses = (current.manual_statuses ?? []).filter(entry => entry.load_point_id !== loadPointId);
-  if (status !== null) manualStatuses.push({ load_point_id: loadPointId, status });
+  const byLocation = new Map(current.manual_statuses?.map(entry => [entry.load_point_id, entry]));
+  const changedIds = [...new Set(loadPointIds)].filter(id => (byLocation.get(id)?.status ?? null) !== status);
+  if (changedIds.length === 0) return current;
+  for (const id of changedIds) {
+    if (status === null) byLocation.delete(id);
+    else byLocation.set(id, { load_point_id: id, status });
+  }
+  const manualStatuses = [...byLocation.values()];
   return { ...current, manual_statuses: manualStatuses.length ? manualStatuses : undefined };
 }

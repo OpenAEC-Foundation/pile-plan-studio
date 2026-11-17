@@ -395,7 +395,6 @@
   "cpts.allLocations_other": "Alle {{count}} locaties",
   "pileDriving": {
     "title": "Heistaten",
-    "settings": "Instellingen",
     "close": "Heistaten sluiten",
     "referencePlan": "Referentieplan · {{name}}",
     "addFiles": "Heistaten toevoegen",
@@ -403,7 +402,7 @@
     "file": "Heistaat",
     "allFiles": "Alle heistaten",
     "exampleFile": "Voorbeeldheistaat",
-    "importSettings": "Importinstellingen heistaten",
+    "importSettings": "Importinstellingen",
     "independentSettings": "Eigen importinstellingen voor dit bestand",
     "independentHelp": "Deze instellingen gelden alleen voor de getoonde heistaat.",
     "sharedHelp": "Deze instellingen gelden voor alle heistaten zonder eigen instellingen.",
@@ -428,7 +427,13 @@
       "warnings": "Waarschuwingen",
       "unknownDate": "Datum ontbreekt of is onleesbaar",
       "noWarnings": "Geen waarschuwingen",
-      "warningsOnly": "Alleen waarschuwingen"
+      "warningFilter": "Waarschuwingen filteren",
+      "withoutWarnings": "Zonder waarschuwing",
+      "followFilter": "Volg filter",
+      "checkAll": "Alles aanvinken",
+      "uncheckAll": "Alles uitvinken",
+      "filteredCount": "{{shown}} van {{total}} registraties zichtbaar",
+      "emptyFilter": "Geen registraties voor dit filter."
     },
     "assessment": {
       "showColors": "Toon heistaatkleuren op de kaart",
@@ -436,6 +441,7 @@
       "label": "Heistaatstatus",
       "automatic": "Automatisch · {{status}}",
       "automaticChoice": "Automatisch",
+      "selectedLocations_other": "{{count}} locaties geselecteerd",
       "unavailable": "Onbeoordeeld",
       "good": "Goed",
       "doubtful": "Twijfel",
@@ -461,7 +467,7 @@
       "title": "Controles",
       "settings": "Controle-instellingen",
       "planLimits": "Palenplan",
-      "calendarLimits": "Kalender en omgeving",
+      "calendarLimits": "Kalender",
       "energyLimits": "Slagenergie",
       "apply": "Instellingen toepassen",
       "settingsHelp": "De instellingen worden opgeslagen bij het project. De doeltolerantie geldt voor alle afmetingen met een doelenergie. Laat de doelenergie leeg om palen van gelijke afmeting te vergelijken.",
@@ -470,6 +476,7 @@
       "summary_other": "{{count}} registraties met waarschuwingen",
       "unavailable_one": "{{count}} niet te beoordelen",
       "unavailable_other": "{{count}} niet te beoordelen",
+      "remarkRecorded": "Aanwezig",
       "status": {
         "ok": "Binnen grens",
         "warning": "Afwijking",
@@ -482,11 +489,15 @@
         "end-calendar": "Eindkalender",
         "trend": "Verloop eindtochten",
         "energy-target": "Doelenergie",
-        "neighborhood": "Omgevingscheck"
+        "neighborhood": "Omgevingscheck",
+        "remark": "Opmerking"
       },
       "limits": {
         "minimum_end_blows": "Minimale eindkalender (slagen per 250 mm)",
         "end_window_increments": "Aantal eindtochten (even)",
+        "energy_window_increments": "Aantal laatste tochten voor slagenergie",
+        "neighborhood_window_increments": "Aantal laatste volledige tochten",
+        "neighborhood_minimum_peers": "Minimumaantal vergelijkingspalen",
         "maximum_end_drop": "Toegestane daling tussen gemiddelden (slagen)",
         "length_tolerance_mm": "Tolerantie paallengte (mm)",
         "level_tolerance_mm": "Tolerantie inheiniveau (mm)",
@@ -503,12 +514,21 @@
         "energy-target": "{{actual}}–{{other}} kJ · Doel {{reference}} ± {{tolerance}} kJ",
         "neighborhood": "{{actual}} slagen per 250 mm · mediaan {{reference}} · {{other}} afwijking (grens {{tolerance}})"
       },
+      "neighborhoodCptMatching": {
+        "label": "Overeenkomst sonderingsselectie",
+        "help": "De controle begint met identieke selecties. Deze keuze bepaalt hoe ruim de vergelijking mag worden als er te weinig palen overblijven.",
+        "identical": "Identieke selectie",
+        "include-all": "Alle gekozen sonderingen vereist",
+        "allow-one-missing": "Eén gekozen sondering mag ontbreken"
+      },
       "neighborhood": {
         "title": "Palen voor de mediaan",
         "titleBySize": "Palen voor de mediaan · {{size}} mm",
         "show": "Vergelijkingspalen tonen",
         "hide": "Vergelijkingspalen verbergen",
         "location": "Locatie",
+        "pileNumber": "Paalnummer",
+        "locationFallback": "Locatie {{id}}",
         "average": "Gem. slagen per 250 mm",
         "deviation": "Afwijking",
         "outsideLimit": "{{deviation}} · Buiten grens",
@@ -517,12 +537,12 @@
         "peers_one": "{{count}} vergelijkingspaal",
         "peers_other": "{{count}} vergelijkingspalen",
         "exact": "Gelijke sonderingen",
-        "relaxed": "Max. één sondering verschil"
+        "relaxed": "Gedeelde sonderingen"
       },
       "energyRange": "Meetbereik slagenergie {{min}}–{{max}} kJ",
       "energyBySize": {
         "title": "Slagenergie per paalafmeting",
-        "help": "Vergelijkt alle bruikbare energiemetingen tussen palen van dezelfde afmeting zonder doelenergie. Toegestane energiespreiding {{limit}} kJ.",
+        "help": "Vergelijkt slagenergie uit het ingestelde energievenster tussen palen van dezelfde afmeting zonder doelenergie. Toegestane energiespreiding {{limit}} kJ.",
         "files": "{{used}} van {{total}} geopende heistaten meegenomen",
         "skipped": "Overgeslagen heistaten · {{names}}",
         "empty": "Geen afmetingen zonder doelenergie met bruikbare slagenergiemetingen.",

@@ -4,6 +4,7 @@ import type { PileConfigurationKey } from "./projectTypes.ts";
 import type { SourceTablePreview, TableImportSettings } from "./coreImportContract.ts";
 
 export type PileDrivingMatchField = "revit-mark" | "location-id";
+export type PileDrivingNeighborhoodCptMatching = "identical" | "include-all" | "allow-one-missing";
 export type PileDrivingStatus = "good" | "doubtful" | "deviation";
 export type PileDrivingLocationStatus = { load_point_id: number; status: PileDrivingStatus };
 export type PileDrivingTarget = {
@@ -15,6 +16,10 @@ export type PileDrivingTarget = {
 export type PileDrivingCheckSettings = {
   minimum_end_blows: number;
   end_window_increments: number;
+  energy_window_increments: number;
+  neighborhood_window_increments: number;
+  neighborhood_minimum_peers: number;
+  neighborhood_cpt_matching: PileDrivingNeighborhoodCptMatching;
   maximum_end_drop: number;
   length_tolerance_mm: number;
   level_tolerance_mm: number;
@@ -24,7 +29,7 @@ export type PileDrivingCheckSettings = {
   expected_energy: Array<{ pile_size_mm: number; energy_kj: number }>;
 };
 export type PileDrivingCheck = {
-  kind: "size" | "length" | "level" | "end-calendar" | "trend" | "energy-target" | "neighborhood";
+  kind: "size" | "length" | "level" | "end-calendar" | "trend" | "energy-target" | "neighborhood" | "remark";
   status: "ok" | "warning" | "unavailable";
   actual?: number | null;
   other?: number | null;
@@ -41,6 +46,7 @@ export type PileDrivingRecord = {
   rows: string[][];
   matching: PileDrivingMatch;
   checks: PileDrivingCheck[];
+  remarks?: string[];
   energy_range?: PileDrivingEnergyRange | null;
   neighborhood?: PileDrivingNeighborhood | null;
 };

@@ -14,7 +14,7 @@ import {
 } from "./projectHistoryReducer.ts";
 import { createPilePlan, switchPilePlan } from "../../pile-plans/pilePlanManagement.ts";
 import { setLoadPointSelection } from "../../workspace/selectionState.ts";
-import { setManualPileDrivingStatus } from "../../pile-driving/pileDrivingStatuses.ts";
+import { setManualPileDrivingStatuses } from "../../pile-driving/pileDrivingStatuses.ts";
 
 const sampleProjectText = readFileSync("../../sample_project/sample_project.ifcpp", "utf8");
 
@@ -45,28 +45,38 @@ describe("project history reducer", () => {
     managed = projectHistoryReducer(managed, { type: "redo" });
     assert.deepEqual(managed.present.pileDriving, driving);
   });
-  it("undoes a manual driving assessment without changing the embedded sources", () => {
-    const initial = { ...state(), pileDriving: { files: [
-      { id: "day-1", file_name: "day-1.csv", format: "csv" as const, data_base64: "MTU=" },
-    ] } };
-    const id = initial.loadPoints[0].id;
+  it("undoes a bulk driving assessment in one step and clears only the chosen overrides", () => {
+    const base = state();
+    const [first, second, third] = base.loadPoints.slice(0, 3).map(point => point.id);
+    const retained = { load_point_id: third, status: "good" as const };
+    const initial = {
+      ...base,
+      pileDriving: {
+        files: [{ id: "day-1", file_name: "day-1.csv", format: "csv" as const, data_base64: "MTU=" }],
+        manual_statuses: [retained],
+      },
+    };
+    const ids = [first, second];
     let managed = projectHistoryReducer(createManagedProjectState(initial), {
       type: "commit", update: current => ({
-        ...current, pileDriving: setManualPileDrivingStatus(current.pileDriving!, id, "deviation"),
+        ...current, pileDriving: setManualPileDrivingStatuses(current.pileDriving!, [...ids, first], "deviation"),
       }),
     });
     assert.deepEqual(projectDraftFromState(managed.present).inputs.pile_driving?.manual_statuses, [
-      { load_point_id: id, status: "deviation" },
+      retained,
+      { load_point_id: first, status: "deviation" },
+      { load_point_id: second, status: "deviation" },
     ]);
     assert.notEqual(projectStateSignature(managed.present), projectStateSignature(initial));
+    assert.equal(managed.history.past.length, 1);
     const edited = managed.present.pileDriving;
     managed = projectHistoryReducer(managed, { type: "undo" });
     assert.deepEqual(managed.present.pileDriving, initial.pileDriving);
     managed = projectHistoryReducer(managed, { type: "redo" });
     assert.deepEqual(managed.present.pileDriving, edited);
-    assert.equal(setManualPileDrivingStatus(edited!, id, "deviation"), edited);
-    assert.deepEqual(setManualPileDrivingStatus(edited!, id, null).files, initial.pileDriving.files);
-    assert.equal(setManualPileDrivingStatus(edited!, id, null).manual_statuses, undefined);
+    assert.equal(setManualPileDrivingStatuses(edited!, ids, "deviation"), edited);
+    assert.deepEqual(setManualPileDrivingStatuses(edited!, ids, null), initial.pileDriving);
+    assert.equal(setManualPileDrivingStatuses(edited!, [...ids, third], null).manual_statuses, undefined);
   });
   it("keeps selection inspection context out of saved content and undo history", () => {
     const initial = state();

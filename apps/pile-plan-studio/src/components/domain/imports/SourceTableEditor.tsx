@@ -28,6 +28,7 @@ type Props = {
   role: Role;
   matrix?: boolean;
   showAdvicePileCount?: boolean;
+  showSettingsHeading?: boolean;
   processed?: boolean;
   csv?: boolean;
   children?: ReactNode;
@@ -58,6 +59,7 @@ function sourceUnit(mapping: ImportColumnMapping | undefined) {
 export default function SourceTableEditor({
   preview, previewColumn, settings, diagnostics = [], sourceErrors = [], role, matrix = false,
   processed = false, csv = false, children, onChange, variant, showAdvicePileCount = true,
+  showSettingsHeading = true,
 }: Props) {
   const { t } = useTranslation(["common", "rightPanel"]);
   const id = useId();
@@ -118,8 +120,9 @@ export default function SourceTableEditor({
 
   return <div className={`source-table-editor${variant === "blueprint" ? " source-table-blueprint" : ""}`}>
     {(children || (preview && !isProcessed)) && (
-      <div className="source-import-settings" role="group" aria-label={t("tableImport.settings")}>
-        <strong>{t("tableImport.settings")}</strong>
+      <div className="source-import-settings" role={showSettingsHeading ? "group" : undefined}
+        aria-label={showSettingsHeading ? t("tableImport.settings") : undefined}>
+        {showSettingsHeading && <strong>{t("tableImport.settings")}</strong>}
         <div className="source-import-options">{children}</div>
         {preview && !isProcessed && <>
           {role === "bearing-capacities" && <>

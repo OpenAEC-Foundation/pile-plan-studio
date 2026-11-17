@@ -127,9 +127,30 @@ test("a click inspects one group member while driving inspection is active", () 
   const click = () => fireEvent.click(screen.getByRole("button", { name: "Load point" }), { clientX: 500, clientY: 500 });
   click();
   expect(selected.mock.calls[0][0].selectedLoadPointIds).toEqual([15]);
+  view.rerender(<Harness {...props} state={{ ...state, selectedLoadPointIds: [43] }} inspectLoadPointsIndividually />);
+  fireEvent.click(screen.getByRole("button", { name: "Load point" }), { clientX: 500, clientY: 500, ctrlKey: true });
+  expect(selected.mock.lastCall![0].selectedLoadPointIds).toEqual([43, 15]);
+  view.rerender(<Harness {...props} state={selected.mock.lastCall![0]} inspectLoadPointsIndividually />);
+  fireEvent.click(screen.getByRole("button", { name: "Load point" }), { clientX: 500, clientY: 500, metaKey: true });
+  expect(selected.mock.lastCall![0].selectedLoadPointIds).toEqual([43]);
   view.rerender(<Harness {...props} />);
   click();
-  expect(selected.mock.calls[1][0].selectedLoadPointIds).toEqual([15, 43]);
+  expect(selected.mock.lastCall![0].selectedLoadPointIds).toEqual([15, 43]);
+});
+
+test("the driving inspection lasso selects the points it encloses individually", () => {
+  const initial = fixture(false);
+  const state = { ...initial, loadPoints: [...initial.loadPoints, { ...initial.loadPoints[0], id: 43, x_mm: 650 }] };
+  const selected = vi.fn();
+  const props = { state, selected, changed: vi.fn(), loadPointGroups: [{ load_point_ids: [15, 43] }] };
+  const view = render(<Harness {...props} inspectLoadPointsIndividually />);
+  startLasso();
+  fireEvent.mouseUp(document.body, { button: 0, clientX: 600, clientY: 600 });
+  expect(selected.mock.lastCall![0].selectedLoadPointIds).toEqual([15]);
+  view.rerender(<Harness {...props} />);
+  startLasso();
+  fireEvent.mouseUp(document.body, { button: 0, clientX: 600, clientY: 600 });
+  expect(selected.mock.lastCall![0].selectedLoadPointIds).toEqual([15, 43]);
 });
 
 function startLasso() {

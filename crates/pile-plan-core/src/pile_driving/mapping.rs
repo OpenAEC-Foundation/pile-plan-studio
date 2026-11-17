@@ -226,7 +226,7 @@ fn canonical_field(header: &str) -> Option<&'static str> {
         "bloknummer" => "bloknummer",
         "kavelnummer" => "kavelnummer",
         "ppdgewenst" => "ppd_gewenst",
-        "opmerkingen" => "opmerkingen",
+        "opmerking" | "opmerkingen" | "remark" | "remarks" | "note" | "notes" => "opmerkingen",
         _ => return None,
     })
 }

@@ -395,7 +395,6 @@
   "cpts.allLocations_other": "All {{count}} locations",
   "pileDriving": {
     "title": "Driving records",
-    "settings": "Settings",
     "close": "Close driving records",
     "referencePlan": "Reference plan · {{name}}",
     "addFiles": "Add driving records",
@@ -403,7 +402,7 @@
     "file": "Driving record file",
     "allFiles": "All driving records",
     "exampleFile": "Preview file",
-    "importSettings": "Driving record import settings",
+    "importSettings": "Import settings",
     "independentSettings": "Use separate import settings for this file",
     "independentHelp": "These settings apply to the displayed file.",
     "sharedHelp": "These settings apply to all driving records without separate settings.",
@@ -428,7 +427,13 @@
       "warnings": "Warnings",
       "unknownDate": "The date is missing or unreadable",
       "noWarnings": "No warnings",
-      "warningsOnly": "Warnings only"
+      "warningFilter": "Filter warnings",
+      "withoutWarnings": "Without warnings",
+      "followFilter": "Follow filter",
+      "checkAll": "Check all",
+      "uncheckAll": "Uncheck all",
+      "filteredCount": "{{shown}} of {{total}} records visible",
+      "emptyFilter": "No records match this filter."
     },
     "assessment": {
       "showColors": "Show driving status colors on the map",
@@ -436,6 +441,7 @@
       "label": "Driving status",
       "automatic": "Automatic · {{status}}",
       "automaticChoice": "Automatic",
+      "selectedLocations_other": "{{count}} locations selected",
       "unavailable": "Unassessed",
       "good": "Good",
       "doubtful": "Needs review",
@@ -461,7 +467,7 @@
       "title": "Checks",
       "settings": "Check settings",
       "planLimits": "Pile plan",
-      "calendarLimits": "Blow counts and comparable piles",
+      "calendarLimits": "Blow counts",
       "energyLimits": "Blow energy",
       "apply": "Apply settings",
       "settingsHelp": "These settings are saved with the project. The target tolerance applies to all sizes with a target energy. Leave target energy blank to compare piles of the same size.",
@@ -470,6 +476,7 @@
       "summary_other": "{{count}} records with warnings",
       "unavailable_one": "{{count}} unavailable check",
       "unavailable_other": "{{count}} unavailable checks",
+      "remarkRecorded": "Recorded",
       "status": {
         "ok": "Within limit",
         "warning": "Deviation",
@@ -482,11 +489,15 @@
         "end-calendar": "Final blow count",
         "trend": "Final increment trend",
         "energy-target": "Target energy",
-        "neighborhood": "Neighbor comparison"
+        "neighborhood": "Neighbor comparison",
+        "remark": "Remark"
       },
       "limits": {
         "minimum_end_blows": "Minimum final blow count per 250 mm",
         "end_window_increments": "Number of final increments (even)",
+        "energy_window_increments": "Number of final increments for blow energy",
+        "neighborhood_window_increments": "Number of final full increments",
+        "neighborhood_minimum_peers": "Minimum number of reference piles",
         "maximum_end_drop": "Allowed drop between averages (blows)",
         "length_tolerance_mm": "Pile length tolerance (mm)",
         "level_tolerance_mm": "Final driving level tolerance (mm)",
@@ -503,12 +514,21 @@
         "energy-target": "{{actual}}–{{other}} kJ · Target {{reference}} ± {{tolerance}} kJ",
         "neighborhood": "{{actual}} blows per 250 mm · median {{reference}} · {{other}} deviation (limit {{tolerance}})"
       },
+      "neighborhoodCptMatching": {
+        "label": "CPT matching",
+        "help": "The check starts with identical selections. This setting controls how far the comparison can broaden when too few piles qualify.",
+        "identical": "Identical selection",
+        "include-all": "All selected CPTs required",
+        "allow-one-missing": "One selected CPT may be missing"
+      },
       "neighborhood": {
         "title": "Piles used for the median",
         "titleBySize": "Piles used for the median · {{size}} mm",
         "show": "Show comparable piles",
         "hide": "Hide comparable piles",
         "location": "Location",
+        "pileNumber": "Pile number",
+        "locationFallback": "Location {{id}}",
         "average": "Avg. blows per 250 mm",
         "deviation": "Deviation",
         "outsideLimit": "{{deviation}} · Outside limit",
@@ -517,12 +537,12 @@
         "peers_one": "{{count}} comparable pile",
         "peers_other": "{{count}} comparable piles",
         "exact": "Same CPT selection",
-        "relaxed": "Up to one different CPT"
+        "relaxed": "Shared CPTs"
       },
       "energyRange": "Measured blow energy range {{min}}–{{max}} kJ",
       "energyBySize": {
         "title": "Blow energy by pile size",
-        "help": "Compares all usable energy readings between piles of the same size without a target energy. Allowed energy spread {{limit}} kJ.",
+        "help": "Compares blow energy from the configured energy window between piles of the same size without a target energy. Allowed energy spread {{limit}} kJ.",
         "files": "{{used}} of {{total}} open driving logs included",
         "skipped": "Skipped driving logs · {{names}}",
         "empty": "No sizes without a target energy have usable blow energy measurements.",

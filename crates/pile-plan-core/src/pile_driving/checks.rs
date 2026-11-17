@@ -8,11 +8,24 @@ use std::collections::{BTreeMap, HashMap, HashSet};
 const INCREMENT_MM: f64 = 250.0;
 const NUMERIC_NOISE: f64 = 1.0e-6;
 
+#[derive(Clone, Copy, Debug, Default, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "kebab-case")]
+pub(super) enum NeighborhoodCptMatching {
+    Identical,
+    IncludeAll,
+    #[default]
+    AllowOneMissing,
+}
+
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
 #[serde(default)]
 pub(super) struct CheckSettings {
     minimum_end_blows: u32,
     end_window_increments: u32,
+    energy_window_increments: u32,
+    pub(super) neighborhood_window_increments: u32,
+    pub(super) neighborhood_minimum_peers: u32,
+    pub(super) neighborhood_cpt_matching: NeighborhoodCptMatching,
     maximum_end_drop: u32,
     length_tolerance_mm: f64,
     level_tolerance_mm: f64,
@@ -33,6 +46,10 @@ impl Default for CheckSettings {
         Self {
             minimum_end_blows: 15,
             end_window_increments: 6,
+            energy_window_increments: 4,
+            neighborhood_window_increments: 6,
+            neighborhood_minimum_peers: 3,
+            neighborhood_cpt_matching: NeighborhoodCptMatching::default(),
             maximum_end_drop: 0,
             length_tolerance_mm: 0.0,
             level_tolerance_mm: 0.0,
@@ -56,6 +73,9 @@ impl CheckSettings {
         let mut sizes = HashSet::new();
         self.end_window_increments >= 2
             && self.end_window_increments % 2 == 0
+            && self.energy_window_increments > 0
+            && self.neighborhood_window_increments > 0
+            && self.neighborhood_minimum_peers > 0
             && tolerances
                 .into_iter()
                 .all(|value| value.is_finite() && value >= 0.0)
@@ -78,6 +98,7 @@ pub(super) enum CheckKind {
     Trend,
     EnergyTarget,
     Neighborhood,
+    Remark,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Serialize)]
@@ -294,6 +315,7 @@ fn energy_target_check(values: &[f64], complete: bool, target: f64, tolerance: f
 
 pub(super) struct Assessment {
     pub checks: Vec<Check>,
+    pub remarks: Vec<String>,
     pub energy_range: Option<EnergyRange>,
     pub neighborhood_reading: Option<neighborhood::Reading>,
 }
@@ -450,8 +472,8 @@ pub(super) fn assess(
         .zip(plan_level)
         .map(|(head, tip)| (head - tip).abs() * 1000.0)
         .filter(|value| value.is_finite() && *value > 0.0);
-    let increments = ordered_increments(columns, rows);
-    let increments = increments.as_deref().unwrap_or_default();
+    let numbered_increments = ordered_increments(columns, rows);
+    let increments = numbered_increments.as_deref().unwrap_or_default();
     let last = increments.last().copied();
     let comparable_datum = rows
         .iter()
@@ -460,22 +482,35 @@ pub(super) fn assess(
     let measured_level = last
         .filter(|_| comparable_datum)
         .and_then(|increment| increment.level);
+    let window_size = settings.energy_window_increments as usize;
+    // Choose the final increments before dropping missing readings, so earlier
+    // measurements cannot fill gaps in the energy window.
+    let energy_window: Vec<_> = match numbered_increments.as_deref() {
+        Some(numbered) => numbered
+            .iter()
+            .rev()
+            .take(window_size)
+            .map(|step| step.energy_kj)
+            .collect(),
+        None => rows
+            .iter()
+            .rev()
+            .take(window_size)
+            .map(|row| energy_kj(columns, row))
+            .collect(),
+    };
+    let energies: Vec<_> = energy_window.iter().flatten().copied().collect();
+    let energy_complete = energies.len() == energy_window.len();
+    let mean_energy_kj = (energy_complete && !energies.is_empty())
+        .then(|| energies.iter().map(|energy| energy / energies.len() as f64).sum::<f64>())
+        .filter(|energy| energy.is_finite());
     let neighborhood_reading = size
-        .zip(full_end_window(increments, neighborhood::WINDOW_SIZE))
+        .zip(full_end_window(increments, settings.neighborhood_window_increments as usize))
         .and_then(|(size_mm, window)| {
             let total_blows = window
                 .iter()
                 .map(|increment| increment.blows.map(u64::from))
                 .sum::<Option<u64>>()?;
-            let mean_energy_kj = window
-                .iter()
-                .map(|increment| {
-                    increment
-                        .energy_kj
-                        .map(|energy| energy / neighborhood::WINDOW_SIZE as f64)
-                })
-                .sum::<Option<f64>>()
-                .filter(|energy| energy.is_finite());
             Some(neighborhood::Reading {
                 size_mm,
                 total_blows,
@@ -497,11 +532,6 @@ pub(super) fn assess(
             .find(|target| !exceeds((f64::from(target.pile_size_mm) - size).abs(), 0.0))
             .map(|target| target.energy_kj)
     });
-    let energies: Vec<_> = rows
-        .iter()
-        .filter_map(|row| energy_kj(columns, row))
-        .collect();
-
     let mut checks = vec![
         Check::compare(
             CheckKind::Size,
@@ -538,7 +568,7 @@ pub(super) fn assess(
     let energy_range = if let Some(target) = target_energy {
         checks.push(energy_target_check(
             &energies,
-            energies.len() == rows.len(),
+            energy_complete,
             target,
             settings.target_energy_tolerance_kj,
         ));
@@ -554,8 +584,26 @@ pub(super) fn assess(
                 maximum_kj,
             })
     };
+    let mut seen_remarks = HashSet::new();
+    let remarks: Vec<_> = rows
+        .iter()
+        .filter_map(|row| columns.cell(row, "opmerkingen"))
+        .filter(|remark| seen_remarks.insert(*remark))
+        .map(str::to_owned)
+        .collect();
+    if !remarks.is_empty() {
+        checks.push(Check {
+            kind: CheckKind::Remark,
+            status: CheckStatus::Warning,
+            actual: None,
+            other: None,
+            reference: None,
+            tolerance: None,
+        });
+    }
     Assessment {
         checks,
+        remarks,
         energy_range,
         neighborhood_reading,
     }
@@ -658,6 +706,34 @@ mod tests {
                     .unwrap();
             assert!(!settings.valid());
         }
+    }
+
+    #[test]
+    fn requires_a_positive_energy_window_without_a_parity_constraint() {
+        for (window, valid) in [(0, false), (1, true), (3, true)] {
+            let settings: CheckSettings =
+                serde_json::from_value(serde_json::json!({"energy_window_increments": window}))
+                    .unwrap();
+            assert_eq!(settings.valid(), valid);
+        }
+    }
+
+    #[test]
+    fn requires_a_positive_neighborhood_window_without_a_parity_constraint() {
+        for (window, valid) in [(0, false), (1, true), (3, true)] {
+            let settings: CheckSettings = serde_json::from_value(serde_json::json!({
+                "neighborhood_window_increments": window
+            }))
+            .unwrap();
+            assert_eq!(settings.valid(), valid);
+        }
+    }
+
+    #[test]
+    fn requires_at_least_one_neighborhood_peer() {
+        let settings: CheckSettings =
+            serde_json::from_str(r#"{"neighborhood_minimum_peers":0}"#).unwrap();
+        assert!(!settings.valid());
     }
 
     #[test]

@@ -227,6 +227,36 @@ test("the profile accepts the three optional manual driving statuses", () => {
   assert.throws(() => checkProject(doc), /manualStatuses\[0\]\.status/);
 });
 
+test("driving check settings accept an optional final energy window", () => {
+  const doc = structuredClone(complete);
+  const [foundationNode] = withAttribute(doc, opps + "pileDriving");
+  const { checkSettings } = attribute(foundationNode, opps + "pileDriving");
+  checkProject(doc);
+  checkSettings.energyWindowIncrements = 7;
+  checkProject(doc);
+  checkSettings.energyWindowIncrements = 1.5;
+  assert.throws(() => checkProject(doc), /energyWindowIncrements/);
+});
+
+test("driving check settings can store the neighborhood window, peer count and CPT policy", () => {
+  const doc = structuredClone(complete);
+  const [foundationNode] = withAttribute(doc, opps + "pileDriving");
+  const { checkSettings } = attribute(foundationNode, opps + "pileDriving");
+  checkSettings.neighborhoodWindowIncrements = 3;
+  checkSettings.neighborhoodMinimumPeers = 5;
+  checkSettings.neighborhoodCptMatching = "include-all";
+  checkProject(doc);
+  checkSettings.neighborhoodCptMatching = "unknown";
+  assert.throws(() => checkProject(doc), /neighborhoodCptMatching/);
+  checkSettings.neighborhoodCptMatching = "identical";
+  checkProject(doc);
+  checkSettings.neighborhoodMinimumPeers = 1.5;
+  assert.throws(() => checkProject(doc), /neighborhoodMinimumPeers/);
+  checkSettings.neighborhoodMinimumPeers = 3;
+  checkSettings.neighborhoodWindowIncrements = 2.5;
+  assert.throws(() => checkProject(doc), /neighborhoodWindowIncrements/);
+});
+
 test("rejects an unsupported profile version", () => {
   const doc = structuredClone(minimal);
   doc.imports[0].uri = "urn:example:ifcpp:9.0.0";

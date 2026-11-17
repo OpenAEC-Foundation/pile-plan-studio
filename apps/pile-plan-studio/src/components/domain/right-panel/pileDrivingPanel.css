@@ -126,11 +126,26 @@
   gap: 2px 10px;
   font-size: var(--oa-size-label);
 }
+.pile-driving-warning-filter { font-size: var(--oa-size-label); }
+.pile-driving-warning-filter[open] { flex-basis: 100%; }
+.pile-driving-warning-options {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 155px), 1fr));
+  gap: 4px 8px;
+}
+.pile-driving-results-toolbar {
+  display: flex;
+  flex-basis: 100%;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
 .pile-driving-result-counts {
   display: flex;
   flex-wrap: wrap;
   gap: 2px 12px;
-  flex-basis: 100%;
+  flex: 1;
+  min-width: 0;
   font-size: var(--oa-size-label);
 }
 

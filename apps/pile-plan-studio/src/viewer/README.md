@@ -63,8 +63,8 @@ In this map mode they replace utilization and missing-data halos, including
 those on pile cap previews. Selection rings and hit target geometry stay in
 their existing layers.
 
-With the driving records panel open, clicking a load point inspects that
-point individually. Explicit rectangle selection continues to use groups.
+With the driving records panel open, clicks and rectangle selection target
+individual load points. Ctrl/Cmd-click toggles a point in the current selection.
 
 The compression and tension views dim pile symbols and status halos when the
 displayed direction has no known positive demand. Pile-cap proposals use their
