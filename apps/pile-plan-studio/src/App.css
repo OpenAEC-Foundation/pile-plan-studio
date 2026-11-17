@@ -262,17 +262,6 @@ input[type="number"]:not(.oa-field):focus-visible {
   font-size: 11px;
 }
 
-.pile-plan-tree {
-  min-height: 0;
-}
-
-.pile-plan-list {
-  display: grid;
-  gap: 3px;
-  min-height: 0;
-  overflow-y: auto;
-}
-
 .pile-plan-row {
   position: relative;
   border: 1px solid transparent;

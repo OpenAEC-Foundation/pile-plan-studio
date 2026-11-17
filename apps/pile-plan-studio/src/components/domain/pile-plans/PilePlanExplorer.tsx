@@ -116,7 +116,7 @@ export default function PilePlanExplorer({
           ))}
         </section>
 
-        <section className="project-tree-section pile-plan-tree" aria-label={t("projectExplorer.pilePlans")}>
+        <section className="project-tree-section" aria-label={t("projectExplorer.pilePlans")}>
           <GroupHeading
             expanded={pilePlansExpanded}
             label={t("projectExplorer.pilePlans")}

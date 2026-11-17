@@ -15,7 +15,7 @@
 .explorer-blueprint .project-tree-item > span { font-size: var(--oa-size-body); font-weight: var(--oa-weight-bold); }
 .explorer-blueprint .project-tree-item > small { font-size: var(--oa-size-label); }
 .explorer-blueprint .project-tree-item[aria-pressed="true"] { background: var(--oa-selected); border-color: var(--oa-border); box-shadow: inset 3px 0 var(--oa-selected-bar); }
-.explorer-blueprint .pile-plan-list { grid-auto-rows: max-content; overflow: visible; }
+.explorer-blueprint .pile-plan-list { display: grid; grid-auto-rows: max-content; gap: 3px; }
 .explorer-blueprint .pile-plan-row { border: 1px solid transparent; border-radius: var(--oa-radius-medium); }
 .explorer-blueprint .pile-plan-row.active { background: var(--oa-selected); border-color: var(--oa-border); box-shadow: inset 3px 0 var(--oa-selected-bar); }
 .explorer-blueprint .pile-plan-select.oa-button { display: grid; height: auto; min-height: 48px; padding: 8px; border: 0; white-space: normal; gap: 4px; }
