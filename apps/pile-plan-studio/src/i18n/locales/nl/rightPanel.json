@@ -441,6 +441,9 @@
       "label": "Heistaatstatus",
       "automatic": "Automatisch · {{status}}",
       "automaticChoice": "Automatisch",
+      "reason": "Reden voor handmatige status",
+      "reasonSaveFailed": "De opmerking kon niet worden opgeslagen.",
+      "mixedReasons": "Verschillende opmerkingen",
       "selectedLocations_other": "{{count}} locaties geselecteerd",
       "unavailable": "Onbeoordeeld",
       "good": "Goed",
@@ -490,7 +493,8 @@
         "trend": "Verloop eindtochten",
         "energy-target": "Doelenergie",
         "neighborhood": "Omgevingscheck",
-        "remark": "Opmerking"
+        "remark": "Opmerking",
+        "manual-status": "Handmatige status"
       },
       "limits": {
         "minimum_end_blows": "Minimale eindkalender (slagen per 250 mm)",

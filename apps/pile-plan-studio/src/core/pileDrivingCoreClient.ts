@@ -6,7 +6,7 @@ import type { SourceTablePreview, TableImportSettings } from "./coreImportContra
 export type PileDrivingMatchField = "revit-mark" | "location-id";
 export type PileDrivingNeighborhoodCptMatching = "identical" | "include-all" | "allow-one-missing";
 export type PileDrivingStatus = "good" | "doubtful" | "deviation";
-export type PileDrivingLocationStatus = { load_point_id: number; status: PileDrivingStatus };
+export type PileDrivingLocationStatus = { load_point_id: number; status: PileDrivingStatus; reason?: string };
 export type PileDrivingTarget = {
   load_point_id: number;
   revit_mark?: string;

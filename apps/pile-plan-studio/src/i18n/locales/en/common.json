@@ -143,6 +143,7 @@
       "project-name": "Changed the project name",
       "project-import": "Refreshed project data",
       "pile-driving": "Changed driving records",
+      "driving-color-visibility": "Changed driving status color visibility",
       "project-change": "Changed the project",
       "ilp-optimization-settings": "Optimization settings changed"
     }

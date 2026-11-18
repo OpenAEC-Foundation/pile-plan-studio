@@ -52,7 +52,7 @@ interface RibbonProps {
   onTipLevelRegionVisibilityChange: (visible: boolean) => void;
   onLoadPointGroupVisibilityChange: (visible: boolean) => void;
   onGroupConflictVisibilityChange: (visible: boolean) => void;
-  onDrivingColorVisibilityChange: (visible: boolean) => void;
+  onDrivingColorVisibilityChange?: (visible: boolean) => void;
   onExplorerVisibilityChange: (visible: boolean) => void;
   onPropertiesVisibilityChange: (visible: boolean) => void;
 }
@@ -289,7 +289,8 @@ export default function Ribbon({
                   icon={<PilePlanIcon id="pile.driving-colors" />}
                   label={t("view.drivingColors")}
                   title={showDrivingColors ? t("view.hideDrivingColors") : t("view.showDrivingColors")}
-                  onClick={() => onDrivingColorVisibilityChange(!showDrivingColors)}
+                  disabled={!onDrivingColorVisibilityChange}
+                  onClick={() => onDrivingColorVisibilityChange?.(!showDrivingColors)}
                 />
               </RibbonGroup>
               <RibbonGroup label={t("view.regions")}>

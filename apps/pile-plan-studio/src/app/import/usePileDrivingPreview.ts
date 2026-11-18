@@ -13,7 +13,7 @@ import {
 } from "../../core/pileDrivingCoreClient.ts";
 import type { LoadPoint, PileConfigurationKey, SelectedCpt } from "../../core/projectTypes.ts";
 import { resolvePileDrivingMatchField } from "../../domain/pile-driving/pileDrivingMatchField.ts";
-import { setManualPileDrivingStatuses } from "../../domain/pile-driving/pileDrivingStatuses.ts";
+import { setManualPileDrivingReason, setManualPileDrivingStatuses } from "../../domain/pile-driving/pileDrivingStatuses.ts";
 
 type SourceSelection = {
   instance: string;
@@ -253,6 +253,8 @@ export function usePileDrivingPreview(
       const ids = loadPointIds.filter(id => validIds.has(id));
       if (ids.length > 0) updateProject(current => setManualPileDrivingStatuses(current, ids, status));
     },
+    setLocationStatusReason: (loadPointIds: readonly number[], reason: string) =>
+      updateProject(current => setManualPileDrivingReason(current, loadPointIds, reason)),
     comparison: batch && {
       groups: batch.energy_by_size,
       limit: batch.settings.peer_energy_spread_kj,

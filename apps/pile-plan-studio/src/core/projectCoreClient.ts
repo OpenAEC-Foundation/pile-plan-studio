@@ -1,4 +1,5 @@
 import {requestImportPreview} from "./importPreviewWorkerClient.ts";
+import { writeProjectDocumentInWorker } from "./projectDocumentWriterClient.ts";
 import { fromCoreProjectImportPreview, sourceImportErrorFromUnknown, type CoreProjectImportPreview, type ProjectImportPreview } from "./adviceImportContract.ts";
 import initWasm, {
   import_project_from_files,
@@ -104,6 +105,7 @@ export async function readProjectDocumentCore(contents: string): Promise<Project
 export async function writeProjectDocumentCore(draft: ProjectDocumentDraft): Promise<string> {
   try {
     if (!isTauriRuntime()) {
+      if (typeof Worker !== "undefined") return await writeProjectDocumentInWorker(draft);
       await ensureWasm();
       return write_project_document({ draft: toBrowserProjectDocumentDraft(draft) });
     }

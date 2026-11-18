@@ -17,7 +17,7 @@ function drivingWith(result: PileDrivingFileResult) {
     ignoreCsvLeadingZeros: true, setIgnoreCsvLeadingZeros: vi.fn(),
     addFiles: vi.fn(), selectFile: vi.fn(), selectExample: vi.fn(), removeFile: vi.fn(),
     setMatchBy: vi.fn(), setTable: vi.fn(), resetTable: vi.fn(), setIndependent: vi.fn(), setSettings: vi.fn(),
-    automaticStatuses: undefined, setLocationStatuses: vi.fn(),
+    automaticStatuses: undefined, setLocationStatuses: vi.fn(), setLocationStatusReason: vi.fn(),
   };
 }
 
@@ -286,6 +286,107 @@ test("edits and resets the selected location status while showing its automatic 
   fireEvent.click(controls.getByRole("button", { name: "Needs review" }));
   fireEvent.click(controls.getByRole("button", { name: "Automatic" }));
   expect(setStatus.mock.calls).toEqual([[[45], "doubtful"], [[45], null]]);
+});
+
+test("saves the changed note once on Enter or focus loss and keeps Shift+Enter available for a new line", () => {
+  const driving = drivingWith({ status: "ready", preview: { columns: ["paalnummer"], records: [] } });
+  const panel = (reason?: string) => <PileDrivingPanel {...statusControls}
+    driving={driving} selectionDisabled={false} selectedLoadPointIds={[45]}
+    neighborhoodRecord={null} onNeighborhoodChange={vi.fn()}
+    locationStatuses={new Map([[45, { manual: "good", reason }]])}
+    onSelect={vi.fn()} onClose={vi.fn()} />;
+  const { rerender } = render(panel());
+  const note = screen.getByRole<HTMLTextAreaElement>("textbox", { name: "Reason for manual status" });
+  driving.setLocationStatusReason.mockReturnValue(true);
+
+  note.focus();
+  fireEvent.change(note, { target: { value: "Checked on site" } });
+  expect(fireEvent.keyDown(note, { key: "Enter", shiftKey: true })).toBe(true);
+  expect(fireEvent.keyDown(note, { key: "Enter", isComposing: true })).toBe(true);
+  expect(driving.setLocationStatusReason).not.toHaveBeenCalled();
+  fireEvent.change(note, { target: { value: "Checked on site\nSigned off" } });
+  fireEvent.keyDown(note, { key: "Enter" });
+  expect(driving.setLocationStatusReason).toHaveBeenCalledExactlyOnceWith([45], "Checked on site\nSigned off");
+  expect(document.activeElement).not.toBe(note);
+  expect(screen.queryByRole("button", { name: "Save note" })).toBeNull();
+
+  rerender(panel("Checked on site\nSigned off"));
+  fireEvent.blur(note);
+  expect(driving.setLocationStatusReason).toHaveBeenCalledTimes(1);
+  fireEvent.change(note, { target: { value: "" } });
+  fireEvent.blur(note);
+  expect(driving.setLocationStatusReason).toHaveBeenLastCalledWith([45], "");
+  expect(driving.setLocationStatusReason).toHaveBeenCalledTimes(2);
+});
+
+test("Escape restores the saved note and rejected saves leave the draft available", () => {
+  const driving = drivingWith({ status: "ready", preview: { columns: ["paalnummer"], records: [] } });
+  render(<PileDrivingPanel {...statusControls} driving={driving} selectionDisabled={false}
+    selectedLoadPointIds={[45]} neighborhoodRecord={null} onNeighborhoodChange={vi.fn()}
+    locationStatuses={new Map([[45, { manual: "good", reason: "Saved note" }]])}
+    onSelect={vi.fn()} onClose={vi.fn()} />);
+  const note = screen.getByRole<HTMLTextAreaElement>("textbox", { name: "Reason for manual status" });
+  note.focus();
+  fireEvent.change(note, { target: { value: "Lost focus" } });
+  fireEvent.keyDown(note, { key: "Escape" });
+  expect(note.value).toBe("Saved note");
+  expect(document.activeElement).not.toBe(note);
+  expect(driving.setLocationStatusReason).not.toHaveBeenCalled();
+
+  driving.setLocationStatusReason.mockReturnValue(false);
+  fireEvent.change(note, { target: { value: "Try again" } });
+  fireEvent.blur(note);
+  expect(screen.getByRole("alert").textContent).toBe("Could not save the note.");
+  expect(note.value).toBe("Try again");
+});
+
+test("clicking another registration saves the draft for the original location", () => {
+  const records: PileDrivingRecord[] = [45, 46].map(id => ({
+    pile_number: String(id), rows: [[String(id)]], matching: { status: "matched", load_point_id: id },
+    checks: [],
+  }));
+  const driving = drivingWith({ status: "ready", preview: { columns: ["paalnummer"], records } });
+  driving.setLocationStatusReason.mockReturnValue(true);
+  const locationStatuses = new Map([
+    [45, { manual: "good" as const }],
+    [46, { manual: "good" as const, reason: "Other location" }],
+  ]);
+  function Harness() {
+    const [selected, setSelected] = useState([45]);
+    return <PileDrivingPanel {...statusControls} driving={driving} selectionDisabled={false}
+      selectedLoadPointIds={selected} neighborhoodRecord={null} onNeighborhoodChange={vi.fn()}
+      locationStatuses={locationStatuses} onSelect={setSelected} onClose={vi.fn()} />;
+  }
+  render(<Harness />);
+  const note = () => screen.getByRole<HTMLTextAreaElement>("textbox", { name: "Reason for manual status" });
+  note().focus();
+  fireEvent.change(note(), { target: { value: "First location" } });
+  const otherLocation = screen.getByRole("button", { name: "Location 46" });
+  fireEvent.pointerDown(otherLocation, { button: 0 });
+  fireEvent.click(otherLocation);
+  expect(driving.setLocationStatusReason).toHaveBeenCalledExactlyOnceWith([45], "First location");
+  expect(note().value).toBe("Other location");
+});
+
+test("filters manual statuses independently of automatic warnings", () => {
+  const records: PileDrivingRecord[] = [45, 46].map(id => ({
+    pile_number: String(id), rows: [[String(id)]], matching: { status: "matched", load_point_id: id },
+    checks: [{ kind: "size", status: id === 45 ? "ok" : "warning" }],
+  }));
+  const driving = drivingWith({ status: "ready", preview: { columns: ["paalnummer"], records } });
+  render(<PileDrivingPanel {...statusControls} driving={driving} selectionDisabled={false}
+    selectedLoadPointIds={[45]} neighborhoodRecord={null} onNeighborhoodChange={vi.fn()}
+    locationStatuses={new Map([[45, { manual: "good", reason: "Checked on site" }]])}
+    onSelect={vi.fn()} onClose={vi.fn()} />);
+
+  fireEvent.click(screen.getByText("Filter warnings", { selector: "summary" }));
+  fireEvent.click(screen.getByRole("button", { name: "Uncheck all" }));
+  fireEvent.click(screen.getByRole("checkbox", { name: "Manual status" }));
+  const table = within(screen.getByRole("table", { name: "Pile records" }));
+  expect(table.getByText("Manual status")).toBeTruthy();
+  expect(table.getByRole("button", { name: "Location 45" })).toBeTruthy();
+  expect(table.queryByRole("button", { name: "Location 46" })).toBeNull();
+  expect(screen.getByRole<HTMLTextAreaElement>("textbox", { name: "Reason for manual status" }).value).toBe("Checked on site");
 });
 
 test("uses the visible registration order for range selection and applies one status to the whole selection", () => {

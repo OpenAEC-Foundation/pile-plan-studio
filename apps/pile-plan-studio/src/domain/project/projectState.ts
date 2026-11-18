@@ -94,6 +94,7 @@ export type ProjectState = LoadedProjectData & {
   showGrid: boolean;
   showTipLevelRegions: boolean;
   showLoadPointGroups: boolean;
+  showDrivingColors: boolean;
 };
 
 type InitialProjectStateOptions = {

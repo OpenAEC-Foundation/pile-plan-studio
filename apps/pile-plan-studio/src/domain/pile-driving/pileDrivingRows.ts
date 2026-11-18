@@ -1,4 +1,7 @@
 import type { PileDrivingCheck, PileDrivingFileResult } from "../../core/pileDrivingCoreClient.ts";
+import type { PileDrivingAssessment } from "./pileDrivingStatuses.ts";
+
+export type PileDrivingWarning = PileDrivingCheck["kind"] | "manual-status";
 
 export type PileDrivingDisplayFile = {
   id: string;
@@ -20,17 +23,24 @@ function drivingDate(value: string | undefined): string | null {
     ? normalized : null;
 }
 
-export function pileDrivingRows<T extends PileDrivingDisplayFile>(files: readonly T[]) {
+export function pileDrivingRows<T extends PileDrivingDisplayFile>(
+  files: readonly T[], assessments?: ReadonlyMap<number, PileDrivingAssessment>,
+) {
   const rows = files.flatMap(file => {
     if (file.result?.status !== "ready") return [];
     const { columns, records } = file.result.preview;
     const dateColumn = columns.indexOf("datum");
-    return records.map((record, rowIndex) => ({
-      file, columns, record, rowIndex,
-      date: drivingDate(record.rows[0]?.[dateColumn]),
-      warnings: record.checks.filter(isWarning).map(check => check.kind),
-      unavailable: record.checks.filter(check => check.status === "unavailable").length,
-    }));
+    return records.map((record, rowIndex) => {
+      const warnings: PileDrivingWarning[] = record.checks.filter(isWarning).map(check => check.kind);
+      if (record.matching.status === "matched" && assessments?.get(record.matching.load_point_id)?.manual) {
+        warnings.unshift("manual-status");
+      }
+      return {
+        file, columns, record, rowIndex, warnings,
+        date: drivingDate(record.rows[0]?.[dateColumn]),
+        unavailable: record.checks.filter(check => check.status === "unavailable").length,
+      };
+    });
   });
   const dates = [...new Set(rows.flatMap(row => row.date ? [row.date] : []))].sort();
   const dayByDate = new Map(dates.map((date, index) => [date, index + 1]));

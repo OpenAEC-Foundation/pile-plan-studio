@@ -944,6 +944,8 @@ mod tests {
             serde_json::json!(5);
         value["inputs"]["pile_driving"]["check_settings"]["neighborhood_cpt_matching"] =
             serde_json::json!("include-all");
+        let reason = serde_json::json!("Meetstaat nagekeken.\nAfwijking door landmeter bevestigd.");
+        value["inputs"]["pile_driving"]["manual_statuses"][0]["reason"] = reason.clone();
         let project = read_project_document(&value.to_string()).unwrap().project;
         let written = write_project_document(ProjectDocumentDraft::from_project(&project)).unwrap();
         let saved = serde_json::to_value(read_ifcpp_str(&written).unwrap()).unwrap();
@@ -951,6 +953,7 @@ mod tests {
         assert_eq!(saved["inputs"]["pile_driving"]["check_settings"]["neighborhood_window_increments"], 3);
         assert_eq!(saved["inputs"]["pile_driving"]["check_settings"]["neighborhood_minimum_peers"], 5);
         assert_eq!(saved["inputs"]["pile_driving"]["check_settings"]["neighborhood_cpt_matching"], "include-all");
+        assert_eq!(saved["inputs"]["pile_driving"]["manual_statuses"][0]["reason"], reason);
     }
 
     #[test]
@@ -1780,6 +1783,26 @@ mod tests {
         let parsed = read_ifcpp_str(&json).expect("project reads");
 
         assert!(!parsed.settings.viewer.show_tip_level_regions);
+    }
+
+    #[test]
+    fn defaults_and_round_trips_driving_color_visibility() {
+        let mut legacy = serde_json::to_value(project_fixture()).unwrap();
+        assert!(legacy["settings"]["viewer"]
+            .get("show_driving_colors")
+            .is_none());
+        let older_project = read_ifcpp_str(&legacy.to_string()).unwrap();
+        assert!(!older_project.settings.viewer.show_driving_colors);
+        legacy["settings"]["viewer"]["show_driving_colors"] = serde_json::json!(true);
+        let project = read_ifcpp_str(&legacy.to_string()).unwrap();
+        let mut reopened = read_ifcpp_str(&write_ifcpp_string(&project).unwrap()).unwrap();
+        assert!(reopened.settings.viewer.show_driving_colors);
+
+        reopened.settings.viewer.show_driving_colors = false;
+        let saved = write_ifcpp_string(&reopened).unwrap();
+        assert!(!saved.contains("\"showDrivingColors\""));
+        let reopened = read_ifcpp_str(&saved).unwrap();
+        assert!(!reopened.settings.viewer.show_driving_colors);
     }
 
     fn project_fixture() -> PilePlanProject {

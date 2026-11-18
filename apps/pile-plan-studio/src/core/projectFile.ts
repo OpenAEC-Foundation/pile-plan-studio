@@ -83,6 +83,7 @@ type IfcppViewerSettings = {
   show_grid?: boolean;
   show_tip_level_regions?: boolean;
   show_load_point_groups?: boolean;
+  show_driving_colors?: boolean;
 };
 
 type IfcppLoadPointGroupingSettings = {
@@ -201,6 +202,7 @@ export type LoadedProjectData = {
   showGrid: boolean;
   showTipLevelRegions: boolean;
   showLoadPointGroups: boolean;
+  showDrivingColors: boolean;
   pileLegend: LegendItems;
   legendImportWarnings: LegendImportWarning[];
   ilpOptimizationSettings: IlpOptimizationSettings;
@@ -301,6 +303,7 @@ export function hydrateProjectState(
     showGrid: project.settings.viewer!.show_grid!,
     showTipLevelRegions: project.settings.viewer!.show_tip_level_regions!,
     showLoadPointGroups: project.settings.viewer!.show_load_point_groups ?? false,
+    showDrivingColors: project.settings.viewer!.show_driving_colors ?? false,
     pileLegend,
     legendImportWarnings,
     ilpOptimizationSettings: structuredClone(project.settings.ilp_optimization!),

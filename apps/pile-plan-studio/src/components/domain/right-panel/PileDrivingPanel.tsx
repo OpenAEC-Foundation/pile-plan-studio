@@ -1,13 +1,13 @@
 import { useEffect, useMemo, useRef, useState, type MouseEvent } from "react";
 import { useTranslation } from "react-i18next";
 import type { usePileDrivingPreview } from "../../../app/import/usePileDrivingPreview.ts";
-import type { PileDrivingCheck, PileDrivingMatchField, PileDrivingRecord, PileDrivingStatus } from "../../../core/pileDrivingCoreClient.ts";
+import type { PileDrivingMatchField, PileDrivingRecord, PileDrivingStatus } from "../../../core/pileDrivingCoreClient.ts";
 import type { PileDrivingAssessment } from "../../../domain/pile-driving/pileDrivingStatuses.ts";
-import { Banner, Button, Checkbox, Heading, IconButton, OpenAECProvider, Panel, Select, Status, Switch } from "../../../openaec/react/src/index";
+import { Banner, Button, Checkbox, Heading, IconButton, OpenAECProvider, Panel, Select, Status, Switch, TextArea } from "../../../openaec/react/src/index";
 import spriteUrl from "../../../openaec/studioSprite.ts";
 import SourceFileButton from "../shared/SourceFileButton.tsx";
 import SourceTableEditor from "../imports/SourceTableEditor.tsx";
-import { pileDrivingRows } from "../../../domain/pile-driving/pileDrivingRows.ts";
+import { pileDrivingRows, type PileDrivingWarning } from "../../../domain/pile-driving/pileDrivingRows.ts";
 import { PileDrivingChecks, PileDrivingEnergyBySize, PileDrivingSettings } from "./PileDrivingChecks.tsx";
 import "./pileDrivingPanel.css";
 
@@ -35,14 +35,67 @@ const MEASUREMENT_FIELDS = ["tochtnummer", "ppn_nap", "slagen", "energie_per_sla
 const SUMMARY_FIELDS = ["datum", "starttijd", "stelling", "dikte_cm", "lengte_cm", "ppd_gewenst"];
 const STATUS_TONES = { good: "success", doubtful: "warning", deviation: "error" } as const;
 const DRIVING_STATUSES = ["good", "doubtful", "deviation"] as const;
-type WarningFilter = PileDrivingCheck["kind"] | "none";
+type WarningFilter = PileDrivingWarning | "none";
 const WARNING_OPTIONS = [
-  "none", "remark", "size", "length", "level", "end-calendar", "trend", "energy-target", "neighborhood",
+  "none", "manual-status", "remark", "size", "length", "level", "end-calendar", "trend", "energy-target", "neighborhood",
 ] as const satisfies readonly WarningFilter[];
 const ALL_WARNING_OPTIONS = new Set<WarningFilter>(WARNING_OPTIONS);
 
 function sameLocationSelection(ids: readonly number[], selected: ReadonlySet<number>) {
   return ids.length === selected.size && ids.every(id => selected.has(id));
+}
+
+function StatusReasonEditor({ initialReason, reasonVersion, readOnly, onSave }: {
+  initialReason: string | undefined;
+  reasonVersion: string;
+  readOnly: boolean;
+  onSave: (reason: string) => boolean;
+}) {
+  const { t } = useTranslation("rightPanel", { keyPrefix: "pileDriving.assessment" });
+  const fieldRef = useRef<HTMLDivElement>(null);
+  const cancelBlurSave = useRef(false);
+  const savedReason = initialReason ?? "";
+  const [edit, setEdit] = useState({ reasonVersion, draft: savedReason, saveFailed: false });
+  if (edit.reasonVersion !== reasonVersion) {
+    setEdit({ reasonVersion, draft: savedReason, saveFailed: false });
+  }
+  useEffect(() => {
+    const field = fieldRef.current;
+    if (!field || readOnly) return;
+    const doc = field.ownerDocument;
+    // Some map gestures prevent the browser's default focus change.
+    const leaveOnOutsideClick = (event: PointerEvent) => {
+      const active = doc.activeElement;
+      if (event.button === 0 && active instanceof HTMLTextAreaElement && field.contains(active)
+        && event.target instanceof Node && !field.contains(event.target)) active.blur();
+    };
+    doc.addEventListener("pointerdown", leaveOnOutsideClick, true);
+    return () => doc.removeEventListener("pointerdown", leaveOnOutsideClick, true);
+  }, [readOnly]);
+
+  return <div className="pile-driving-status-reason" ref={fieldRef}>
+    <TextArea label={t("reason")} compact rows={2} value={edit.draft} readOnly={readOnly}
+      placeholder={initialReason === undefined ? t("mixedReasons") : undefined}
+      error={edit.saveFailed && <span role="alert">{t("reasonSaveFailed")}</span>}
+      onChange={event => setEdit({ ...edit, draft: event.currentTarget.value, saveFailed: false })}
+      onBlur={event => {
+        const draft = event.currentTarget.value;
+        if (readOnly || cancelBlurSave.current || draft.trim() === savedReason) return;
+        if (!onSave(draft)) setEdit({ ...edit, saveFailed: true });
+      }}
+      onKeyDown={event => {
+        if (readOnly || (event.key !== "Escape" && (event.key !== "Enter" || event.shiftKey))) return;
+        event.stopPropagation();
+        if (event.nativeEvent.isComposing) return;
+        event.preventDefault();
+        if (event.key === "Escape") {
+          cancelBlurSave.current = true;
+          setEdit({ reasonVersion, draft: savedReason, saveFailed: false });
+        }
+        event.currentTarget.blur();
+        cancelBlurSave.current = false;
+      }} />
+  </div>;
 }
 
 export default function PileDrivingPanel({ planName, pileNumbers, driving, readOnly = false, selectedLoadPointIds, selectionDisabled,
@@ -85,7 +138,7 @@ export default function PileDrivingPanel({ planName, pileNumbers, driving, readO
   };
   const allFiles = selectedId === null;
   const visibleFiles = allFiles ? files : files.filter(file => file.id === selectedId);
-  const allRecords = useMemo(() => pileDrivingRows(files), [files]);
+  const allRecords = useMemo(() => pileDrivingRows(files, locationStatuses), [files, locationStatuses]);
   const records = useMemo(() => selectedId === null ? allRecords
     : allRecords.filter(row => row.file.id === selectedId), [allRecords, selectedId]);
   const warningRecords = records.filter(row => row.warnings.length > 0);
@@ -164,6 +217,8 @@ export default function PileDrivingPanel({ planName, pileNumbers, driving, readO
   const editIds = bulkSelection ? selectedLoadPointIds : editLocationId === null ? [] : [editLocationId];
   const manualChoice = locationStatuses.get(editIds[0])?.manual ?? null;
   const sameChoice = editIds.every(id => (locationStatuses.get(id)?.manual ?? null) === manualChoice);
+  const reasons = editIds.map(id => locationStatuses.get(id)?.reason ?? "");
+  const commonReason = reasons.every(reason => reason === reasons[0]) ? reasons[0] : undefined;
   const statusEditor = editIds.length > 0 && <div className="pile-driving-status-editor">
     {editLocationId !== null && !active && <Heading>{t("location", { id: editLocationId })}</Heading>}
     <div className="pile-driving-status-heading">
@@ -183,6 +238,9 @@ export default function PileDrivingPanel({ planName, pileNumbers, driving, readO
         </Button>;
       })}
     </div>
+    {editIds.every(id => locationStatuses.get(id)?.manual) &&
+      <StatusReasonEditor key={JSON.stringify(editIds)} initialReason={commonReason} reasonVersion={JSON.stringify(reasons)}
+        readOnly={readOnly || selectionDisabled} onSave={reason => driving.setLocationStatusReason(editIds, reason)} />}
   </div>;
   const columns = activeRow?.columns.map((label, index) => ({ label, index, key: label.trim().toLowerCase() })) ?? [];
   const measurements = MEASUREMENT_FIELDS.flatMap(key => columns.filter(column => column.key === key));
@@ -195,7 +253,7 @@ export default function PileDrivingPanel({ planName, pileNumbers, driving, readO
   return <OpenAECProvider sprite={spriteUrl}>
     <div className="pile-driving-shell" onKeyDown={event => {
       if ((event.key === " " || event.key === "Enter") && event.target instanceof Element
-        && event.target.closest("button,select,input,summary")) event.stopPropagation();
+        && event.target.closest("button,select,input,textarea,summary")) event.stopPropagation();
     }}>
       <Panel className="oa-app pile-driving-panel" title={t("title")}
         actions={<IconButton small icon="ui.close" label={t("close")} onClick={onClose} />}>
@@ -219,7 +277,7 @@ export default function PileDrivingPanel({ planName, pileNumbers, driving, readO
             </div>
           </div>
           <div className="pile-driving-color-control">
-            <Switch label={t("assessment.showColors")} checked={showStatusColors}
+            <Switch label={t("assessment.showColors")} checked={showStatusColors} disabled={readOnly}
               onChange={event => onShowStatusColorsChange(event.target.checked)} />
             {showStatusColors && <div className="pile-driving-status-key">
               {DRIVING_STATUSES.map(status =>

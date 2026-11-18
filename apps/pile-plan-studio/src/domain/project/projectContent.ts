@@ -30,6 +30,7 @@ export type ProjectContent = Pick<ProjectState,
   | "showGrid"
   | "showTipLevelRegions"
   | "showLoadPointGroups"
+  | "showDrivingColors"
   | "pilePlans"
   | "manualCptIdsByLoadPoint"
   | "importLog"
@@ -65,6 +66,7 @@ const PROJECT_CONTENT_KEYS = [
   "showGrid",
   "showTipLevelRegions",
   "showLoadPointGroups",
+  "showDrivingColors",
   "pilePlans",
   "manualCptIdsByLoadPoint",
   "importLog",
@@ -194,6 +196,7 @@ export function projectDocumentDraftFromContent(
         show_grid: content.showGrid,
         show_tip_level_regions: content.showTipLevelRegions,
         show_load_point_groups: content.showLoadPointGroups,
+        ...(content.showDrivingColors ? { show_driving_colors: true } : {}),
       },
     },
     user_state: {

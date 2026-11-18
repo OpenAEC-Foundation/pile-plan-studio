@@ -11,12 +11,10 @@ export type ProjectMarker = {
   reset: () => ProjectMarkerValue;
 };
 
-export function createProjectMarker(): ProjectMarker {
+export function createProjectMarker(selectPersistence = createProjectPersistenceSelector()): ProjectMarker {
   let instanceId = crypto.randomUUID();
   let revision = 0;
   let signature: string | null = null;
-  const selectPersistence = createProjectPersistenceSelector();
-
   return {
     observe(state) {
       const nextSignature = selectPersistence(state).signature;

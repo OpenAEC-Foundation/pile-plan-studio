@@ -441,6 +441,9 @@
       "label": "Driving status",
       "automatic": "Automatic · {{status}}",
       "automaticChoice": "Automatic",
+      "reason": "Reason for manual status",
+      "reasonSaveFailed": "Could not save the note.",
+      "mixedReasons": "Different notes",
       "selectedLocations_other": "{{count}} locations selected",
       "unavailable": "Unassessed",
       "good": "Good",
@@ -490,7 +493,8 @@
         "trend": "Final increment trend",
         "energy-target": "Target energy",
         "neighborhood": "Neighbor comparison",
-        "remark": "Remark"
+        "remark": "Remark",
+        "manual-status": "Manual status"
       },
       "limits": {
         "minimum_end_blows": "Minimum final blow count per 250 mm",

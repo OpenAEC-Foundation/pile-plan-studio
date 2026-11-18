@@ -362,10 +362,14 @@ and updates the selection as the table changes. Selecting individual locations
 or turning the button off ends that behavior.
 On the map, Shift-drag selects locations inside the rectangle. Use **Good**,
 **Needs review** or **Deviation** to override the automatic driving status of
-every selected location. **Automatic** removes their overrides. Each change is
+every selected location. Linked registrations show a filterable **Manual status**
+warning. Add or edit the optional reason under the status buttons. Press Enter or
+leave the field to save changes. Shift+Enter adds a line break and Escape restores
+the last saved text. **Automatic** removes the override and its reason. Each change is
 saved in the project and can be undone or redone in one step. Turn on **Show driving status colors on
 the map** in the panel or use **View → Driving status colors** in the ribbon to
-replace the utilization and missing-data colors. Unassessed
+replace the utilization and missing-data colors. This setting is stored in the
+project and can be undone or redone. Unassessed
 locations have no status color until you assign one.
 With the table filter off, the table includes records with no match or
 multiple matches. Select a row's location or pile number to see its

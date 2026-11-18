@@ -173,6 +173,19 @@ test("both projects resolve the separate profile and the full fixture exercises 
   assert.deepEqual(new Set(complete.data.flatMap((node) => Object.keys(node.attributes))), new Set(Object.keys(profile.schemas)));
 });
 
+test("the plan view accepts optional driving status color visibility", () => {
+  const doc = structuredClone(complete);
+  const key = opps + "planView";
+  const view = attribute(withAttribute(doc, key)[0], key);
+  assert.equal(view.showDrivingColors, undefined);
+  for (const value of [true, false]) {
+    view.showDrivingColors = value;
+    checkProject(doc);
+  }
+  view.showDrivingColors = "true";
+  assert.throws(() => checkProject(doc), /planView\.showDrivingColors/);
+});
+
 test("two variants keep different numbers on piles at one location", () => {
   const [a, b] = withAttribute(complete, foundation + "pilePlan");
   const [l17, l18] = withAttribute(complete, foundation + "loadPoint");
@@ -225,6 +238,11 @@ test("the profile accepts the three optional manual driving statuses", () => {
   }
   driving.manualStatuses[0].status = "automatic";
   assert.throws(() => checkProject(doc), /manualStatuses\[0\]\.status/);
+  driving.manualStatuses[0].status = "good";
+  driving.manualStatuses[0].reason = "Registration verified";
+  checkProject(doc);
+  driving.manualStatuses[0].reason = 123;
+  assert.throws(() => checkProject(doc), /manualStatuses\[0\]\.reason/);
 });
 
 test("driving check settings accept an optional final energy window", () => {

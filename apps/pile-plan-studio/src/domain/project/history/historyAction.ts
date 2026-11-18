@@ -22,6 +22,7 @@ export type HistoryActionKind =
   | "project-name"
   | "project-import"
   | "pile-driving"
+  | "driving-color-visibility"
   | "project-change";
 
 export type HistoryAction = {
@@ -51,6 +52,7 @@ export function inferHistoryAction(
 
   if (before.name !== after.name) return { kind: "project-name" };
   if (before.pileDriving !== after.pileDriving) return { kind: "pile-driving" };
+  if (before.showDrivingColors !== after.showDrivingColors) return { kind: "driving-color-visibility" };
   if (before.globalCptSelectionSettings !== after.globalCptSelectionSettings
     || before.cptSelectionSettingsByLoadPoint !== after.cptSelectionSettingsByLoadPoint) {
     return { kind: "cpt-settings" };

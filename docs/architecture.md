@@ -477,6 +477,9 @@ IndexedDB, undo/redo, and dirty-state tracking remain TypeScript application
 infrastructure. IndexedDB stores Rust-serialized IFCPP text, restored text uses
 the same Rust read path as an opened file, and undo/redo restores project-owned
 content before Rust-derived analysis is recalculated.
+In the browser, a worker builds the IFCPP text so editing and rendering can
+continue during serialization. Background download preparation and recovery
+reuse the serialized output of the same immutable project draft.
 
 Legacy IFCPP schema 5 introduced the automatic load-point grouping settings, manual group
 records, explicit separations of automatic groups, and the viewer's group-

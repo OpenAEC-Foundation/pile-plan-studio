@@ -599,6 +599,10 @@
               "dataType": "Boolean",
               "optional": true
             },
+            "showDrivingColors": {
+              "dataType": "Boolean",
+              "optional": true
+            },
             "symbolScalePercent": {
               "dataType": "Integer",
               "optional": true
@@ -1804,6 +1808,10 @@
                         "enumRestrictions": {
                           "options": ["good", "doubtful", "deviation"]
                         }
+                      },
+                      "reason": {
+                        "dataType": "String",
+                        "optional": true
                       }
                     }
                   }

@@ -22,6 +22,7 @@ test("driving record labels and import diagnostics are available in English and 
   for (const language of ["nl", "en"]) {
     const common = load(language, "common");
     const panel = load(language, "rightPanel");
+    assert.ok(common.history.actions["driving-color-visibility"].trim());
     for (const status of ["good", "doubtful", "deviation"]) {
       const label = panel.pileDriving.assessment[status];
       assert.ok(label.trim());
@@ -36,6 +37,10 @@ test("driving record labels and import diagnostics are available in English and 
     assert.ok(panel.pileDriving.assessment.showColors.trim());
     assert.ok(panel.pileDriving.assessment.automatic.includes("{{status}}"));
     assert.ok(panel.pileDriving.assessment.automaticChoice.trim());
+    assert.ok(panel.pileDriving.assessment.reason.trim());
+    assert.ok(panel.pileDriving.assessment.reasonSaveFailed.trim());
+    assert.ok(panel.pileDriving.assessment.mixedReasons.trim());
+    assert.ok(panel.pileDriving.checks.labels["manual-status"].trim());
     assert.ok(panel.pileDriving.assessment.selectedLocations_other.includes("{{count}}"));
   }
   for (const labels of [nl, en]) {

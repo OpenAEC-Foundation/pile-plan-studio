@@ -14,7 +14,7 @@ import {
 } from "./projectHistoryReducer.ts";
 import { createPilePlan, switchPilePlan } from "../../pile-plans/pilePlanManagement.ts";
 import { setLoadPointSelection } from "../../workspace/selectionState.ts";
-import { setManualPileDrivingStatuses } from "../../pile-driving/pileDrivingStatuses.ts";
+import { setManualPileDrivingReason, setManualPileDrivingStatuses } from "../../pile-driving/pileDrivingStatuses.ts";
 
 const sampleProjectText = readFileSync("../../sample_project/sample_project.ifcpp", "utf8");
 
@@ -27,6 +27,29 @@ function createTestProjectState(
 }
 
 describe("project history reducer", () => {
+  it("stores driving color visibility per project and restores it through undo and redo", () => {
+    const initial = state();
+    assert.equal(initial.showDrivingColors, false);
+    assert.equal(projectDraftFromState(initial).settings.viewer?.show_driving_colors, undefined);
+    let managed = projectHistoryReducer(createManagedProjectState(initial), {
+      type: "commit", update: current => ({ ...current, showDrivingColors: true }),
+    });
+    assert.equal(projectDraftFromState(managed.present).settings.viewer?.show_driving_colors, true);
+    assert.notEqual(projectStateSignature(managed.present), projectStateSignature(initial));
+    assert.equal(managed.history.past[0].action.kind, "driving-color-visibility");
+
+    managed = projectHistoryReducer(managed, {
+      type: "commit", update: current => ({ ...current, name: "Another name" }),
+    });
+    managed = projectHistoryReducer(managed, { type: "undo" });
+    assert.equal(managed.present.showDrivingColors, true);
+    managed = projectHistoryReducer(managed, { type: "undo" });
+    assert.equal(managed.present.showDrivingColors, false);
+    assert.equal(projectStateSignature(managed.present), projectStateSignature(initial));
+    managed = projectHistoryReducer(managed, { type: "redo" });
+    assert.equal(managed.present.showDrivingColors, true);
+  });
+
   it("saves embedded driving sources and restores them through undo and redo", () => {
     const initial = state();
     const driving = {
@@ -77,6 +100,22 @@ describe("project history reducer", () => {
     assert.equal(setManualPileDrivingStatuses(edited!, ids, "deviation"), edited);
     assert.deepEqual(setManualPileDrivingStatuses(edited!, ids, null), initial.pileDriving);
     assert.equal(setManualPileDrivingStatuses(edited!, [...ids, third], null).manual_statuses, undefined);
+
+    managed = projectHistoryReducer(managed, { type: "commit", update: current => ({
+      ...current, pileDriving: setManualPileDrivingReason(current.pileDriving!, ids, "  Checked on site  "),
+    }) });
+    const noted = managed.present.pileDriving!;
+    assert.deepEqual(noted.manual_statuses, [
+      retained,
+      { load_point_id: first, status: "deviation", reason: "Checked on site" },
+      { load_point_id: second, status: "deviation", reason: "Checked on site" },
+    ]);
+    assert.deepEqual(setManualPileDrivingReason(noted, ids, " "), edited);
+    assert.deepEqual(setManualPileDrivingStatuses(noted, ids, "good").manual_statuses?.[1],
+      { load_point_id: first, status: "good", reason: "Checked on site" });
+    assert.deepEqual(setManualPileDrivingStatuses(noted, ids, null), initial.pileDriving);
+    managed = projectHistoryReducer(managed, { type: "undo" });
+    assert.deepEqual(managed.present.pileDriving, edited);
   });
   it("keeps selection inspection context out of saved content and undo history", () => {
     const initial = state();

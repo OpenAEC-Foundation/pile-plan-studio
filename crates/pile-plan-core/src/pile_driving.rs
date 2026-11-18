@@ -29,6 +29,8 @@ enum PileDrivingStatus {
 struct PileDrivingLocationStatus {
     load_point_id: u32,
     status: PileDrivingStatus,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    reason: Option<String>,
 }
 
 #[derive(Clone, Debug, Default, Deserialize, PartialEq, Serialize)]
@@ -394,6 +396,7 @@ fn assess_locations(files: &[PileDrivingFileResult]) -> Vec<PileDrivingLocationS
         .map(|(load_point_id, status)| PileDrivingLocationStatus {
             load_point_id,
             status,
+            reason: None,
         })
         .collect()
 }

@@ -300,8 +300,9 @@ export default function AppSession({
   ));
   const projectStateRef = useRef(projectState);
   projectStateRef.current = projectState;
+  const [selectPersistence] = useState(() => createProjectPersistenceSelector());
   const mcpProjectMarkerRef = useRef<ReturnType<typeof createProjectMarker> | null>(null);
-  mcpProjectMarkerRef.current ??= createProjectMarker();
+  mcpProjectMarkerRef.current ??= createProjectMarker(selectPersistence);
   const mcpAnalysisBaselineRef = useRef({
     request: projectState.analysisRequest,
     options: projectState.pileOptionsByLoadPointId,
@@ -418,7 +419,6 @@ export default function AppSession({
   const [projectInformationOpen, setProjectInformationOpen] = useState(false);
   const [rightTaskPanel, setRightTaskPanel] = useState<RightTaskPanel | null>(null);
   const [drivingInspection, setDrivingInspection] = useState<{ record: PileDrivingRecord; planId: string } | null>(null);
-  const [drivingColorProject, setDrivingColorProject] = useState<string | null>(null);
   const [viewerFocusRequest, setViewerFocusRequest] = useState<ViewerFocusRequest | null>(null);
   const [lassoSelectionActive, setLassoSelectionActive] = useState(false);
   const [activeSourceKind, setActiveSourceKind] = useState<InputSourceKind | null>(null);
@@ -612,7 +612,6 @@ export default function AppSession({
     () => getAvailablePileConfigurationCatalog(projectState.pileOptionsByLoadPointId),
     [projectState.pileOptionsByLoadPointId],
   );
-  const [selectPersistence] = useState(() => createProjectPersistenceSelector());
   const {draft: persistedProjectDraft, signature: persistedProjectSignature} = selectPersistence(projectState);
   useEffect(() => {
     if (readOnly) {
@@ -693,13 +692,13 @@ export default function AppSession({
 
 
   const serializeProject = async () => {
-    return writeProjectDocumentCore(projectDraftFromState(projectState));
+    return writeProjectDocumentCore(persistedProjectDraft);
   };
 
   const downloadProject = async (): Promise<boolean> => {
     const recentKeyAtStart = browserRecentPathRef.current;
     const savedInstance = mcpProjectMarkerRef.current!.observe(projectState).project_instance_id;
-    const savedSignature = projectStateSignature(projectState);
+    const savedSignature = persistedProjectSignature;
     const sameInstance = () => mcpProjectMarkerRef.current!.observe(projectStateRef.current).project_instance_id === savedInstance;
     const options = {
       fileName: projectFileName(projectState.name),
@@ -1092,16 +1091,24 @@ export default function AppSession({
   useEffect(() => {
     if (PLATFORM_BUILD || !hasOpenedProject) return;
     let cancelled = false;
-    writeProjectDocumentCore(persistedProjectDraft).then((text) => {
-      if (!cancelled) {
-        preparedProjectRef.current = {
-          signature: persistedProjectSignature,
-          blob: new Blob([text], { type: "application/json" }),
-        };
-      }
-    });
-    return () => { cancelled = true; };
-  }, [hasOpenedProject, persistedProjectSignature]);
+    // Let edits render and coalesce before preparing the next download.
+    const timer = window.setTimeout(() => {
+      void writeProjectDocumentCore(persistedProjectDraft).then(text => {
+        if (!cancelled) {
+          preparedProjectRef.current = {
+            signature: persistedProjectSignature,
+            blob: new Blob([text], { type: "application/json" }),
+          };
+        }
+      }, () => {
+        // An explicit save can retry and report an error to the user.
+      });
+    }, 250);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timer);
+    };
+  }, [hasOpenedProject, persistedProjectDraft, persistedProjectSignature]);
 
   useCptSelectionPreview(projectState, setProjectState);
 
@@ -1374,9 +1381,9 @@ export default function AppSession({
   };
   const drivingPlan = projectState.pilePlans.find(plan => plan.id === ilp.displayState.activePilePlanId);
   const drivingPanelVisible = rightTaskPanel === "pile-driving" && workspaceLayout.propertiesVisible;
-  const showDrivingColors = drivingColorProject === exportMarker.project_instance_id;
-  const setDrivingColorVisibility = (show: boolean) =>
-    setDrivingColorProject(show ? exportMarker.project_instance_id : null);
+  const { showDrivingColors } = projectState;
+  const setDrivingColorVisibility = (showDrivingColors: boolean) =>
+    commitProjectState(current => ({ ...current, showDrivingColors }));
   const drivingSelectionDisabled = cptEditPending || projectState.loadPointLockDraft !== null;
   const pileDriving = usePileDrivingPreview(
     exportMarker.project_instance_id,
@@ -1882,7 +1889,7 @@ export default function AppSession({
             userSettingsRef.current, { showGroupConflicts: visible },
           ))}
           onExplorerVisibilityChange={(explorerVisible) => updateWorkspaceLayout({ explorerVisible })}
-          onDrivingColorVisibilityChange={setDrivingColorVisibility}
+          onDrivingColorVisibilityChange={readOnly ? undefined : setDrivingColorVisibility}
           onPropertiesVisibilityChange={(propertiesVisible) => updateWorkspaceLayout({ propertiesVisible })}
         />
         {sampleOpen && !tourOpen && <div className="sample-project-indicator" ref={sampleIndicatorRef}>
