@@ -46,9 +46,13 @@ import ViewerFocusButton from "./ViewerFocusButton";
 import { CoordinateReadout } from "../shared/CoordinateReadout.ts";
 import {
   buildTipLevelRegionGeometry,
+  FILLED_OUTLINE_MARGIN_MM,
   projectTipLevelRegionPoints,
+  projectFilledTipLevelRegions,
+  projectTipLevelRegionOutline,
 } from "../../../viewer/tipLevelRegionGeometry.ts";
 import { presentTipLevelRegionGeometry } from "../../../viewer/tipLevelRegionPresentation.ts";
+import { createRectangularRegionLayout } from "../../../viewer/rectangularTipLevelRegions.ts";
 import type { LoadPointGroup } from "../../../core/loadPointGroupContract.ts";
 import type { TechnicalAssignmentSnapshot } from "../../../app/derived-state/technicalAssignmentController.ts";
 import type { GroupAssignmentAssessmentSnapshot } from "../../../app/derived-state/groupAssignmentAssessmentController.ts";
@@ -171,16 +175,34 @@ export default function PilePlanViewer({
     () => projectTipLevelRegionPoints(state.loadPoints, projectTransform),
     [projectTransform, state.loadPoints],
   );
-  const tipLevelRegionGeometry = useMemo(() => (
-    tipLevelRegionTopology
-      ? buildTipLevelRegionGeometry({
-          topology: tipLevelRegionTopology,
-          pointsByLoadPointId: tipLevelRegionPoints,
-          pileCapLayouts: proposalLayouts,
-          symbolScalePercent: state.symbolScalePercent,
-        })
-      : []
-  ), [tipLevelRegionPoints, tipLevelRegionTopology, state.symbolScalePercent, proposalLayouts]);
+  const rectangularLayout = useMemo(() => {
+    if (!state.showTipLevelRegions || !state.filledTipLevelRegions || !loadPointGroupTopology) return undefined;
+    const sites = new Map(state.loadPoints.map(({ id, x_mm, y_mm }) => [id, [x_mm, y_mm] as [number, number]]));
+    return createRectangularRegionLayout(sites, loadPointGroupTopology, FILLED_OUTLINE_MARGIN_MM);
+  }, [state.showTipLevelRegions, state.filledTipLevelRegions, loadPointGroupTopology, state.loadPoints]);
+  const rectangularRegions = useMemo(
+    () => tipLevelRegionTopology ? rectangularLayout?.(tipLevelRegionTopology) : undefined,
+    [rectangularLayout, tipLevelRegionTopology],
+  );
+  const hasFilledRegions = rectangularRegions !== undefined;
+  const tipLevelRegionOutline = useMemo(
+    () => hasFilledRegions
+      ? projectTipLevelRegionOutline(loadPointGroupTopology, tipLevelRegionPoints, projectTransform.pixelsPerMillimeter)
+      : undefined,
+    [hasFilledRegions, loadPointGroupTopology, tipLevelRegionPoints, projectTransform.pixelsPerMillimeter],
+  );
+  const tipLevelRegionGeometry = useMemo(() => {
+    if (!tipLevelRegionTopology) return [];
+    if (rectangularRegions && tipLevelRegionOutline) {
+      return projectFilledTipLevelRegions(tipLevelRegionTopology, projectTransform, rectangularRegions);
+    }
+    return buildTipLevelRegionGeometry({
+      topology: tipLevelRegionTopology,
+      pointsByLoadPointId: tipLevelRegionPoints,
+      pileCapLayouts: proposalLayouts,
+      symbolScalePercent: state.symbolScalePercent,
+    });
+  }, [tipLevelRegionPoints, tipLevelRegionTopology, tipLevelRegionOutline, rectangularRegions, projectTransform, state.symbolScalePercent, proposalLayouts]);
   const tipLevelRegionPresentation = useMemo(
     () => presentTipLevelRegionGeometry(
       tipLevelRegionGeometry,
@@ -314,6 +336,7 @@ export default function PilePlanViewer({
             technicalAssignment={technicalAssignment}
             projectTransform={projectTransform}
             tipLevelRegionPresentation={tipLevelRegionPresentation}
+            tipLevelRegionOutline={tipLevelRegionOutline}
             loadPointGroupGeometry={loadPointGroupGeometry}
             cptConnectionSegments={cptConnectionSegments}
             pileOptionsByLoadPointId={pileOptionsByLoadPointId}

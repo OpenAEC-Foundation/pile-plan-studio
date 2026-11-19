@@ -1,7 +1,8 @@
 import type { ProjectedPileCap } from "./pileCapProposalGeometry.ts";
-import type { TipLevelRegionTopology } from "../core/tipLevelRegionContract.ts";
+import type { LoadPointTopology, TipLevelRegionTopology } from "../core/tipLevelRegionContract.ts";
 import type { LoadPoint, ViewPoint } from "../core/projectTypes.ts";
 import { loadPointMarkerDiameter } from "./hoverCandidates.ts";
+import type { RectangularTipLevelRegion } from "./rectangularTipLevelRegions.ts";
 import {
   projectPointPixels,
   type ProjectViewTransform,
@@ -35,7 +36,39 @@ export type TipLevelRegionGeometryLayer = {
   faces: TipLevelRegionFace[];
   circles: TipLevelRegionCircle[];
   segments: TipLevelRegionSegment[];
+  fillRule?: "evenodd";
+  contours?: ViewPoint[][];
 };
+
+export type ProjectedTipLevelRegionOutline = {
+  points: ViewPoint[];
+  faces: ViewPoint[][];
+  edges: [ViewPoint, ViewPoint][];
+  marginPx: number;
+};
+
+export const FILLED_OUTLINE_MARGIN_MM = 1500;
+
+export function projectTipLevelRegionOutline(
+  gabrielTopology: LoadPointTopology | null,
+  pointsByLoadPointId: ReadonlyMap<number, ViewPoint>,
+  pixelsPerMillimeter: number,
+): ProjectedTipLevelRegionOutline | undefined {
+  if (!gabrielTopology || !pointsByLoadPointId.size) return undefined;
+  return {
+    points: [...pointsByLoadPointId.values()],
+    faces: gabrielTopology.faces.flatMap(({ boundary_load_point_ids }) => {
+      const points = boundary_load_point_ids.map(id => pointsByLoadPointId.get(id));
+      return points.every((point): point is ViewPoint => point !== undefined) ? [points] : [];
+    }),
+    edges: gabrielTopology.edges.flatMap(({ from_load_point_id, to_load_point_id }) => {
+      const from = pointsByLoadPointId.get(from_load_point_id);
+      const to = pointsByLoadPointId.get(to_load_point_id);
+      return from && to ? [[from, to]] : [];
+    }),
+    marginPx: FILLED_OUTLINE_MARGIN_MM * pixelsPerMillimeter,
+  };
+}
 
 type TipLevelRegionGeometryInput = {
   topology: TipLevelRegionTopology;
@@ -54,6 +87,30 @@ export function projectTipLevelRegionPoints(
     loadPoint.id,
     projectPointPixels(loadPoint, transform),
   ]));
+}
+
+export function projectFilledTipLevelRegions(
+  topology: TipLevelRegionTopology,
+  transform: ProjectViewTransform,
+  rectangularRegions: RectangularTipLevelRegion[],
+): TipLevelRegionGeometryLayer[] {
+  const projectVertex = ([x_mm, y_mm]: [number, number]) => projectPointPixels({ x_mm, y_mm }, transform);
+  return topology.groups.flatMap((group, index) => {
+    const rectangular = rectangularRegions[index];
+    const faces = rectangular.fillRings.map(points => ({
+      boundaryLoadPointIds: [], points: points.map(projectVertex),
+    }));
+    return faces.length === 0 ? [] : [{
+      pileTipLevelMKey: group.pile_tip_level_mm,
+      legendValueM: group.legend_value_m,
+      diameterPx: 0,
+      faces,
+      circles: [],
+      segments: [],
+      fillRule: "evenodd",
+      contours: rectangular.contours.map(contour => contour.map(projectVertex)),
+    }];
+  });
 }
 
 export function buildTipLevelRegionGeometry({

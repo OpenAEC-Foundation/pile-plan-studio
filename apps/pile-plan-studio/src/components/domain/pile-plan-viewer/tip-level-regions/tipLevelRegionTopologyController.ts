@@ -45,14 +45,15 @@ export function createTipLevelRegionTopologyController(
     async update(input) {
       const requestGeneration = ++generation;
       const loadPointTopologyKey = buildLoadPointTopologyKey(input.loadPoints);
-      let loadPointTopology = completedLoadPointTopologyKey === loadPointTopologyKey
-        ? completedLoadPointTopology
-        : null;
+      if (completedLoadPointTopologyKey !== loadPointTopologyKey) {
+        completedLoadPointTopologyKey = loadPointTopologyKey;
+        completedLoadPointTopology = null;
+      }
+      let loadPointTopology = completedLoadPointTopology;
 
       if (!loadPointTopology) {
         loadPointTopology = await dependencies.buildLoadPointTopology(input.loadPoints);
         if (requestGeneration !== generation) return;
-        completedLoadPointTopologyKey = loadPointTopologyKey;
         completedLoadPointTopology = loadPointTopology;
       }
 

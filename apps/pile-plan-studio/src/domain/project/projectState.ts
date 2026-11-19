@@ -93,6 +93,7 @@ export type ProjectState = LoadedProjectData & {
   foregroundLayer: ForegroundLayer;
   showGrid: boolean;
   showTipLevelRegions: boolean;
+  filledTipLevelRegions: boolean;
   showLoadPointGroups: boolean;
   showDrivingColors: boolean;
 };

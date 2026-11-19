@@ -4,8 +4,8 @@ import assert from "node:assert/strict";
 import type {
   LoadPointTopology,
   TipLevelRegionTopology,
-} from "../../core/tipLevelRegionContract.ts";
-import type { LoadPoint, PileConfigurationOption } from "../../core/projectTypes.ts";
+} from "../../../../core/tipLevelRegionContract.ts";
+import type { LoadPoint, PileConfigurationOption } from "../../../../core/projectTypes.ts";
 import {
   createTipLevelRegionTopologyController,
   type TipLevelRegionTopologyControllerInput,
@@ -108,13 +108,13 @@ describe("tip-level region topology controller", () => {
     assert.deepEqual(emitted, [topology(-18), topology(-20)]);
   });
 
-  it("reuses a completed load-point topology until coordinates change", async () => {
-    const loadPointInputs: LoadPoint[][] = [];
+  it("reuses the Gabriel graph across assignment changes until coordinates change", async () => {
+    const loadPointInputs: number[] = [];
     const topologyInputs: number[] = [];
     const controller = createTipLevelRegionTopologyController({
-      buildLoadPointTopology: async (loadPoints) => {
-        loadPointInputs.push(loadPoints);
-        return loadPointTopology(loadPoints[0].x_mm);
+      buildLoadPointTopology: async ([point]) => {
+        loadPointInputs.push(point.x_mm);
+        return loadPointTopology(point.x_mm);
       },
       buildTopology: async ({ selectedAssignments }) => {
         const tip = (selectedAssignments.get(1)?.pile_tip_level_mm ?? 0) / 1000;
@@ -125,9 +125,10 @@ describe("tip-level region topology controller", () => {
 
     await controller.update(input(-18));
     await controller.update(input(-19));
+    await controller.update(input(-19));
     await controller.update(input(-19, 25));
 
-    assert.deepEqual(loadPointInputs.map(([point]) => point.x_mm), [0, 25]);
+    assert.deepEqual(loadPointInputs, [0, 25]);
     assert.deepEqual(topologyInputs, [-18, -19, -19]);
   });
 

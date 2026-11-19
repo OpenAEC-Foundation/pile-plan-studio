@@ -43,6 +43,7 @@ describe("tip-level region SVG model", () => {
       opacity: 0.25,
     });
     assert.equal(group.facePath, "M 10 20 L 30 20 L 20 40 Z");
+    assert.ok(!("separatorPath" in group), "same-level components do not add a visible separator");
     assert.deepEqual(group.edgePath, {
       d: "M 10 20 L 30 20",
       strokeWidth: 16.5,
@@ -54,5 +55,19 @@ describe("tip-level region SVG model", () => {
         + "M 38.25 20 A 8.25 8.25 0 1 0 21.75 20 A 8.25 8.25 0 1 0 38.25 20 Z",
     );
     assert.deepEqual(Object.keys(group).slice(-3), ["facePath", "edgePath", "nodePath"]);
+  });
+
+  it("draws ESD contours separately from the cell fills and their correction polygons", () => {
+    const [layer] = layers;
+    const [group] = buildTipLevelRegionSvgModel([{
+      ...layer,
+      fillRule: "evenodd",
+      contours: [
+        [{ x: 10, y: 20 }, { x: 30, y: 20 }, { x: 20, y: 40 }, { x: 10, y: 20 }],
+        [{ x: 40, y: 20 }, { x: 50, y: 20 }],
+      ],
+    }]).groups;
+    assert.equal(group.contourPath, "M 10 20 L 30 20 L 20 40 Z M 40 20 L 50 20");
+    assert.equal(group.facePath, "M 10 20 L 30 20 L 20 40 Z");
   });
 });

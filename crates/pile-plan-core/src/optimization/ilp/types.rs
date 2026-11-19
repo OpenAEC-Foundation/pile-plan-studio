@@ -13,8 +13,18 @@ pub enum IlpCandidateSource {
     Custom,
 }
 
+#[derive(Clone, Copy, Debug, Deserialize, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum OptimizationNeighborhoodGraph {
+    Gabriel,
+    Delaunay,
+}
+
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
 pub struct IlpOptimizationSettings {
+    /// Provenance of results saved during the neighborhood comparison experiment.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub neighborhood_graph: Option<OptimizationNeighborhoodGraph>,
     #[serde(default = "coherence_enabled_by_default")]
     pub include_tension: bool,
     #[serde(default)]
@@ -40,6 +50,7 @@ pub struct IlpOptimizationSettings {
 impl Default for IlpOptimizationSettings {
     fn default() -> Self {
         Self {
+            neighborhood_graph: None,
             include_tension: true,
             allow_pile_count_changes: false,
             max_piles_per_cap: default_max_piles_per_cap(),

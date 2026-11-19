@@ -9,6 +9,7 @@ import "./ilpOptimization.css";
 type Props={planName?:string;stale?:boolean;settings?:IlpOptimizationSettings;skipUnsolvableEnabled:boolean;detailsOpen:boolean;onToggleDetails:()=>void;run:IlpRunState<number | string>;currency:string;onEnableSkipUnsolvable:()=>void;onApplyProposal:()=>void;actionsEnabled:boolean};
 export default function IlpOptimizationResultPanel({planName,stale,settings,skipUnsolvableEnabled,detailsOpen,onToggleDetails,run,currency,onEnableSkipUnsolvable,onApplyProposal,actionsEnabled}:Props){
   const {t:common}=useTranslation("common");
+  const {t:ribbon}=useTranslation("ribbon");
   const {t,i18n}=useTranslation("rightPanel");const o=run.outcome;
   const [expandedDiagnostics,setExpandedDiagnostics]=useState<IlpOptimizationOutcome<number | string>|null>(null);
   const skipped = o && "diagnostics" in o ? o.diagnostics.find(d=>d.code==="skipped_unsolvable_units") : undefined;
@@ -73,6 +74,7 @@ export default function IlpOptimizationResultPanel({planName,stale,settings,skip
       </dl>
       <IlpDisclosure title={t("ilp.details")} open={detailsOpen} onToggle={onToggleDetails}><dl>
       <dt>{t("ilp.objective")}</dt><dd>{t(coherence ? "ilp.coherenceObjective" : "ilp.costObjective")}</dd>
+      {settings?.neighborhood_graph && <><dt>{ribbon("view.neighborhoodGraph")}</dt><dd>{ribbon(`view.${settings.neighborhood_graph}`)}</dd></>}
       {run.context&&<>{coherence && <><dt>{t("ilp.extraCost")}</dt><dd>{number(run.context.budgetBasisPoints/100)}%</dd></>}
         <dt>{t("ilp.limitScope")}</dt><dd>{t(run.context.wholePlanLimits?"ilp.wholePlan":"ilp.targetOnly")}</dd>
         {coherence && <><dt>{t("ilp.boundary")}</dt><dd>{t(run.context.boundaryTransitions?"ilp.yes":"ilp.no")}</dd></>}</>}

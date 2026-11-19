@@ -73,6 +73,10 @@ describe("Plan and View ribbon", () => {
       assert.ok(view.hideDrivingColors.trim());
       assert.ok(view.showGroupConflicts.trim());
       assert.ok(view.hideGroupConflicts.trim());
+      assert.equal(view.regionsStrips, language === "nl" ? "Verbindingsstroken" : "Connection strips");
+      assert.equal(view.regionsFilled, language === "nl" ? "Gevuld" : "Filled");
+      assert.equal(view.neighborhoodGraph, language === "nl" ? "Burengraaf" : "Neighborhood graph");
+      assert.deepEqual([view.gabriel, view.delaunay], ["Gabriel", "Delaunay"]);
       const panel = JSON.parse(readFileSync(resolve(import.meta.dirname, `../../../i18n/locales/${language}/rightPanel.json`), "utf8"));
       assert.ok(panel["groupingSettings.viewHelp"].includes(language === "nl" ? "Weergave > Groepen" : "View > Groups"));
       assert.doesNotMatch(panel["groupingSettings.viewHelp"], /Groepen tonen|Show groups/);

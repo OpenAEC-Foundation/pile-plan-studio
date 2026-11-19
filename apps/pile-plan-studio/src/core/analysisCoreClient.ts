@@ -72,14 +72,13 @@ async function ensureWasm(): Promise<void> {
 export async function buildLoadPointTopologyCore(
   loadPoints: LoadPoint[],
 ): Promise<LoadPointTopology> {
+  const request = { load_points: loadPoints };
   if (!isTauriRuntime()) {
     await ensureWasm();
-    return build_load_point_topology({ load_points: loadPoints }) as LoadPointTopology;
+    return build_load_point_topology(request) as LoadPointTopology;
   }
 
-  return invokeDesktop<LoadPointTopology>("build_load_point_topology", {
-    request: { load_points: loadPoints },
-  });
+  return invokeDesktop<LoadPointTopology>("build_load_point_topology", { request });
 }
 
 export async function buildTipLevelRegionTopologyCore(input: {

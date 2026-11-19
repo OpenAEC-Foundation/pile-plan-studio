@@ -1,6 +1,7 @@
 import { fireEvent, render, within } from "@testing-library/react";
 import { expect, test, vi } from "vitest";
 import { projectFixture } from "../../../test/projectFixture.ts";
+import { normalizePileOptionColumnLayouts, setPileOptionColumnVisible } from "../../../domain/pile-options/pileOptionColumnLayout.ts";
 import i18n from "../../../i18n/config.ts";
 import RightPanel from "./RightPanel.tsx";
 
@@ -27,24 +28,35 @@ function fixture() {
   };
 }
 
-test("dual-color rows expose tip colors beside readable numeric levels and retain size colors", () => {
+test("dual-color rows put tip colors behind size symbols and keep numeric levels readable", () => {
   const state = fixture(), apply = vi.fn();
   const view = render(<RightPanel state={state} onStateChange={() => {}} onApplyPileConfiguration={apply} />);
   const rows = view.container.querySelectorAll<HTMLElement>(".pile-option-row");
   expect(rows).toHaveLength(2);
-  expect([...rows].map(row => row.querySelector<HTMLElement>(".pile-option-tip-color")?.style.backgroundColor))
-    .toEqual(["rgb(171, 205, 239)", "rgb(254, 220, 186)"]);
+  expect([...rows].map(row => row.querySelector<HTMLElement>(".pile-option-symbol-background")?.style.getPropertyValue("--pile-option-tip-color")))
+    .toEqual(["#ABCDEF", "#FEDCBA"]);
   for (const row of rows) {
     expect(row.querySelector(".pile-option-symbol-cell [fill='#123456']")).not.toBeNull();
-    expect(row.querySelector(".pile-option-tip-color")?.getAttribute("aria-hidden")).toBe("true");
+    expect(row.querySelector(".pile-option-tip-color")).toBeNull();
   }
   fireEvent.click(within(rows[1]!).getByText("-18 m"));
   expect(apply).toHaveBeenCalledWith(state.selectedLoadPointIds, { pile_size_mm: 290, pile_tip_level_mm: -18_000 });
   for (const encodingMode of ["size-symbol", "tip-symbol"] as const) {
     view.rerender(<RightPanel state={{ ...state, pileLegend: { ...state.pileLegend, encodingMode } }} onStateChange={() => {}} />);
-    expect(view.container.querySelectorAll(".pile-option-tip-color")).toHaveLength(0);
+    expect(view.container.querySelectorAll(".pile-option-symbol-background, .pile-option-tip-color")).toHaveLength(0);
     expect(within(view.container.querySelector(".pile-option-row")!).getByText("-17.5 m")).toBeTruthy();
   }
+});
+
+test("shows a tip color swatch when the symbol column is hidden", () => {
+  const state = fixture();
+  const layouts = normalizePileOptionColumnLayouts(undefined);
+  const columnLayouts = { ...layouts, single: setPileOptionColumnVisible(layouts.single, "symbol", false) };
+  const view = render(<RightPanel state={state} columnLayouts={columnLayouts} onStateChange={() => {}} />);
+  expect(view.container.querySelector(".pile-option-symbol-cell")).toBeNull();
+  const row = view.container.querySelector<HTMLElement>(".pile-option-row")!;
+  expect(row.querySelector<HTMLElement>(".pile-option-tip-color")?.style.backgroundColor).toBe("rgb(171, 205, 239)");
+  expect(row.querySelector(".pile-option-tip-color")?.getAttribute("aria-hidden")).toBe("true");
 });
 
 test("a retained inactive tip is gray and keeps its numeric level and inactive text", () => {
@@ -56,7 +68,7 @@ test("a retained inactive tip is gray and keeps its numeric level and inactive t
   const view = render(<RightPanel state={state} onStateChange={() => {}} />);
   const row = view.container.querySelector<HTMLElement>(".pile-option-row.is-chosen")!;
   expect(within(row).getByText("-18 m")).toBeTruthy();
-  expect(row.querySelector<HTMLElement>(".pile-option-tip-color")?.style.backgroundColor).toBe("rgb(140, 152, 159)");
+  expect(row.querySelector<HTMLElement>(".pile-option-symbol-background")?.style.getPropertyValue("--pile-option-tip-color")).toBe("#8C989F");
   expect(within(row).getByText(i18n.t("pileOptions.inactive", { ns: "rightPanel" }))).toBeTruthy();
   expect(row.querySelector(".pile-option-symbol-cell [fill='#123456']")).not.toBeNull();
 });

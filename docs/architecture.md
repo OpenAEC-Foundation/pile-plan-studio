@@ -423,6 +423,37 @@ orchestration catch-alls. Its main grouped subsystems are:
 - `tip_level_regions/` owns load-point topology, Gabriel-graph construction,
   bounded faces, and pile-tip-level region grouping.
 
+Gabriel defines the neighbors for tip-level regions and optimization, as well
+as for group contours, manual group validation, and import refresh.
+The View ribbon controls area visibility and switches between Connection strips
+and Filled. The project stores both settings, and older projects default to
+Filled. Connection strips render circles, connections, and bounded faces for points that share a
+selected pile tip level.
+
+Filled mode reserves compact footprints around assigned locations
+and routes within each same-tip-level Gabriel component.
+The viewer reserves rectangular bays from repeated rows and columns before
+assigning the remaining blocks inside the rounded Gabriel outline.
+The viewer fills open space twice using horizontal and vertical rectangular
+blocks, then compares bends and narrow overhang on the two maps. A block can
+extend an existing boundary when two halves score better than any whole
+assignment. The viewer straightens narrow projections with a single attached
+end when the move simplifies the boundary and leaves the protected tiles
+and Gabriel connections intact. The viewer clips the chosen map to the
+shared rounded Gabriel outline. Aligned perimeter rows share an inward grid
+line, which takes precedence over nearby regular cuts. Cuts that separate
+locations or preserve their clearance can still be added.
+
+Filled mode searches the Gabriel connections for candidate dividers before
+assigning leftover tiles. It places smaller components
+in compact bays when there is room. A proposed division replaces only its local
+area and only if it joins the reference layout, simplifies the visible borders,
+keeps the Gabriel connections, and preserves clearance around nearby sites.
+Short steps between parallel borders can become an aligned segment, a diagonal
+transition, and another aligned segment, with the original endpoints fixed.
+Only the active display geometry is computed. Both displays share the underlying
+Gabriel topology and tip-level groups.
+
 Focused top-level modules retain concepts that do not benefit from another
 directory layer, such as `cpt_selection.rs`, `load_point_groups.rs`,
 `project.rs`, and `technical_assignment.rs`. A generic `analysis` or `spatial`
@@ -844,7 +875,11 @@ file. The original copy identity is reused (or created for a new project). The
 warning blocks duplicate submissions and dismissal during persistence. Storage
 failure keeps the current project dirty and the warning open with an inline error;
 a stale project snapshot cannot mark a newer state clean or permit replacement.
-The toolbar download remains a separate action. Recent copies are not updated
+The toolbar download remains a separate action. It serializes the requested
+snapshot after the save picker is accepted, or after the browser can paint the
+busy state for a direct download. Session recovery schedules its own delayed
+writes.
+Recent copies are not updated
 automatically by every edit. Invalid opens and cancelled saves do not refresh recents. A missing
 copy has an actionable message; cache failure does not undo a successful file open
 or download. Removing/clearing recent browser entries deletes their cached copies;
@@ -893,14 +928,13 @@ shows the group once in gray, even when the global group display is off.
 Hover highlights only the pointed-at member; clicking it selects the group.
 Conflicting groups retain their red contour during partial inspection.
 
-In `size-color-tip-region` legend mode, pile-option tables preserve the
-size-colored symbol and add a tip-level color swatch beside the numeric tip
-level. Both single-location and aggregated rows use the shared activation
-presentation, independently of viewer region visibility. Inactive tip levels
-use neutral gray and retain the inactive text label; absent legend colors also
-fall back to neutral gray. Text keeps the application theme's readable color,
-while the swatch retains the exact project legend color. Other encoding modes
-retain their existing symbol and color presentation.
+In `size-color-tip-region` legend mode, pile-option tables place a tinted
+tip-level background behind the size-colored symbol. The numeric level is
+shown in its own column. If the symbol column is hidden, the numeric level
+has a swatch in the project legend color. Both single-location and aggregated
+rows use the shared activation presentation independently of viewer region
+visibility. Inactive tip levels use neutral gray and retain the inactive text
+label. Absent legend colors also use neutral gray.
 
 The Selection overview retains an explicit transient inspection context in
 selection state. Navigating or inspecting a member keeps this context. Clicking
@@ -1237,7 +1271,8 @@ its ribbon group and its native/WASM commands have been removed.
 Rust `optimization/ilp/` owns preparation, the shared sparse linear model, typed solver
 execution, cost reference caching, cap relaxation and independent
 assignment validation. `tip_level_regions/optimization_unit_graph.rs` contracts
-the original Gabriel graph without multiplying edges or rebuilding across gaps.
+the Gabriel graph to optimization units, counting each pair of
+neighboring units once.
 
 A browser Worker owns its WASM session. Tauri owns one background job with atomic
 cancellation and retains the session between runs. `app/optimization/` rejects
@@ -1667,6 +1702,6 @@ validation or history. Cold opens remain queued until the frontend consumes them
 
 Potentially expensive owned core/IO requests in the Tauri shell use `tauri::command(async)` so command argument conversion, calculation and result serialization run on the async executor instead of the native event thread. Tauri's initial IPC JSON decoding still precedes command dispatch; moving a handler alone does not remove the cost of large payloads. The Rust core and request/response/error contracts stay unchanged. Tiny cost arithmetic, pending launch-path drains, native state and window callbacks retain their existing scheduling. Frontend generation/signature checks continue rejecting stale analysis results. Test-only MockRuntime IPC tests exercise the real registered commands and verify that their responders complete outside the invoking thread; mock support is a dev-dependency, not a shipped automation plugin.
 
-Tip-level region requests in both runtimes carry only candidates matching each assigned pile size and canonical tip-level key, instead of the whole option catalogue. Invalid and duplicate matching candidates and their raw presentation levels are retained: the Rust core still determines usability and builds the region topology. This reduces desktop serialization and IPC work without changing engineering decisions or drawing geometry. Regression checks compare full and reduced requests through the actual WASM core.
+Tip-level region requests in both runtimes carry only candidates matching each assigned pile size and canonical tip-level key, instead of the whole option catalogue. Invalid and duplicate matching candidates and their raw presentation levels are retained: the Rust core builds the topology from the assigned levels and can preserve a usable matching option's presentation value. This reduces desktop serialization and IPC work without changing engineering decisions or drawing geometry. Regression checks compare full and reduced requests through the actual WASM core.
 
 Desktop WebViews with Compression Streams send bulk pile analysis, technical assessment, aggregation, default-choice and region-topology requests through `run_analysis_payload`. The allowlisted command accepts gzip JSON bytes and decodes directly into the existing typed requests on the async executor; complete results return as gzip bytes. This avoids the usual large intermediate IPC JSON tree and repeated property conversion. Structured core errors retain their existing objects. WebViews without the stream APIs use the original commands; Tauri postMessage byte-array fallbacks are supported in both directions. Browser analysis continues using WASM directly. This transport owns no project state, persistent cache or engineering decisions; frontend stale-request guards continue to apply. Temporary performance observers and logging commands are not part of the application.

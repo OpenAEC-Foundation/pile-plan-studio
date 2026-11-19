@@ -53,12 +53,15 @@ test("saved optimization summary survives the project document roundtrip",()=>{
   state.pilePlans = state.pilePlans.map(plan => plan.id === state.activePilePlanId
     ? { ...plan, revitMarksByLoadPoint: pileNumbers } : plan);
   const run=createIlpPlanRun(state,"nl",true);
-  const finished=completeIlpPlanRun(state,run,outcome,true);
+  const historicalRun={...run,settings:{...run.settings,neighborhood_graph:"delaunay" as const}};
+  const finished=completeIlpPlanRun(state,historicalRun,outcome,true);
   const contents=write_project_document({draft:toBrowserProjectDocumentDraft(projectDocumentDraftFromContent(captureProjectContent(finished),finished.activePilePlanId))});
   const wire=projectDocumentOutcomeFromCore({status:"valid",...read_project_document({contents})});
   assert.equal(wire.status,"valid");if(wire.status!=="valid")return;
   const loaded=createInitialProjectState(wire.project,{initializeDefaultPiles:false},wire.keys);
   const target=loaded.pilePlans.find(p=>p.id===run.target.id)!;
+  assert.equal(target.ilpResult?.settings.neighborhood_graph,"delaunay");
+  assert.equal(loaded.ilpOptimizationSettings.neighborhood_graph,undefined);
   assert.deepEqual(target.ilpResult,finished.pilePlans.find(p=>p.id===run.target.id)!.ilpResult);
   assert.deepEqual(target.revitMarksByLoadPoint, pileNumbers);
   assert.deepEqual(wire.project.user_state.pile_plans?.find(p => p.id === run.target.id)?.revit_marks_by_load_point,

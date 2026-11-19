@@ -94,7 +94,7 @@ pub use optimization::{
     IlpOptimizationSession, IlpOptimizationSettings, IlpPhase, IlpProgress, IlpProof,
     IlpRunRequest, IlpSolution, IlpSolverBackend, IlpSolverModel, IlpSolverOutcome,
     IlpSolverUpdate, IlpTermination, IlpTransitionCounts, IlpTransitionWeights,
-    OptimizationCandidateSettings, OptimizationLimitScope, OptimizationPreparationDiagnostic,
+    OptimizationCandidateSettings, OptimizationLimitScope, OptimizationNeighborhoodGraph, OptimizationPreparationDiagnostic,
     OptimizationPreparationDiagnosticKind, OptimizationPreparationResult,
     OptimizationUnassignedReason, OptimizationUnit, OptimizationUnitOption,
     PrepareOptimizationUnitsInput,

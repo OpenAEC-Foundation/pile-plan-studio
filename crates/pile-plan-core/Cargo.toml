@@ -15,6 +15,7 @@ native-highs = ["dep:highs", "dep:highs-sys"]
 [dependencies]
 calamine = "0.36"
 csv = "1"
+robust = "1.2"
 rust_xlsxwriter = { version = "0.99", features = ["wasm"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = { version = "1", features = ["float_roundtrip", "raw_value"] }

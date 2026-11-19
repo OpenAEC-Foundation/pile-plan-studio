@@ -49,6 +49,21 @@ function deferred<T>() {
   return { promise, resolve };
 }
 
+test("refreshing a project without proposals needs no persistence snapshot", async () => {
+  const state = fixture();
+  const snapshots: PileCapProposalSnapshot[] = [];
+  const controller = createPileCapProposalController({
+    selectPersistence: () => assert.fail("unexpected project serialization"),
+    evaluate: async () => assert.fail("unexpected proposal assessment"),
+    currentState: () => state,
+    commit: () => assert.fail("unexpected edit"),
+    publish: snapshot => snapshots.push(snapshot),
+    failed: () => assert.fail("unexpected failure"),
+  });
+  await controller.refresh(state);
+  assert.deepEqual(snapshots.at(-1), { source: state.loadPoints, key: "", result: null, pending: false, error: false });
+});
+
 test("an accepted proposal is exactly one undoable plan edit and never a source assignment", async () => {
   let managed = createManagedProjectState(fixture());
   const before = managed.present;

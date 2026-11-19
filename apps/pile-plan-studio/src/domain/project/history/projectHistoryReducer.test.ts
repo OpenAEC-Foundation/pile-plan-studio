@@ -27,6 +27,29 @@ function createTestProjectState(
 }
 
 describe("project history reducer", () => {
+  it("stores the region style in the project and restores it through undo and redo", () => {
+    const initial = state();
+    assert.equal(initial.filledTipLevelRegions, true);
+    assert.equal(projectDraftFromState(initial).settings.viewer?.filled_tip_level_regions, undefined);
+
+    const managed = projectHistoryReducer(createManagedProjectState(initial), {
+      type: "commit", update: current => ({ ...current, filledTipLevelRegions: false }),
+    });
+    const draft = projectDraftFromState(managed.present);
+    assert.equal(draft.settings.viewer?.filled_tip_level_regions, false);
+    assert.equal(managed.present.showTipLevelRegions, initial.showTipLevelRegions);
+    assert.notEqual(projectStateSignature(managed.present), projectStateSignature(initial));
+
+    const reopened = createTestProjectState({ ...canonicalProjectForTest(sampleProjectText), settings: draft.settings },
+      { initializeDefaultPiles: false });
+    assert.equal(reopened.filledTipLevelRegions, false);
+
+    const undone = projectHistoryReducer(managed, { type: "undo" });
+    assert.equal(undone.present.filledTipLevelRegions, true);
+    assert.equal(projectStateSignature(undone.present), projectStateSignature(initial));
+    assert.equal(projectHistoryReducer(undone, { type: "redo" }).present.filledTipLevelRegions, false);
+  });
+
   it("stores driving color visibility per project and restores it through undo and redo", () => {
     const initial = state();
     assert.equal(initial.showDrivingColors, false);

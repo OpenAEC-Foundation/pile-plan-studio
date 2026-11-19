@@ -90,6 +90,28 @@ test("utilization changes stay local until pointer or keyboard completion and ca
   expect(p.onViewerUtilizationRangeChange).toHaveBeenLastCalledWith(0.6, 0.6);
 });
 
+test("filled regions toggle to strips using a plain label", () => {
+  const p = { ...props(), showTipLevelRegions: true, onFilledTipLevelRegionsChange: vi.fn() };
+  const view = render(<Ribbon {...p} filledTipLevelRegions />);
+  openView();
+  const method = screen.getByRole("button", { name: t("view.regionMethod") });
+  expect(method.getAttribute("aria-pressed")).toBe("true");
+  expect(method.textContent).toBe(t("view.regionsFilled"));
+  fireEvent.click(method);
+  expect(p.onFilledTipLevelRegionsChange).toHaveBeenCalledExactlyOnceWith(false);
+  expect(p.onTipLevelRegionVisibilityChange).not.toHaveBeenCalled();
+  view.rerender(<Ribbon {...p} filledTipLevelRegions={false} />);
+  expect(method.textContent).toBe(t("view.regionsStrips"));
+  expect(screen.queryByRole("button", { name: "Delaunay" })).toBeNull();
+  expect(screen.queryByRole("button", { name: "Gabriel" })).toBeNull();
+  expect(screen.queryByRole("combobox")).toBeNull();
+  expect(screen.queryByRole("button", { name: /filled region layout|indeling gevulde gebieden/i })).toBeNull();
+  view.rerender(<Ribbon {...p} filledTipLevelRegions showTipLevelRegions={false} />);
+  expect(method).toHaveProperty("disabled", true);
+  fireEvent.click(method);
+  expect(p.onFilledTipLevelRegionsChange).toHaveBeenCalledTimes(1);
+});
+
 test("symbol scale gestures have one keyboard start and finish on key release, pointer cancel, or blur", () => {
   const p = props(); render(<Ribbon {...p} />); openView();
   const slider = screen.getAllByRole("slider")[0];

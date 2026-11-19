@@ -2,7 +2,7 @@ import {useDisplayOptions,useLoadDirection} from "../../../app/derived-state/Loa
 import {directionalLoadPoint,directionalOption} from "../../../domain/pile-options/loadDirection.ts";
 import type { PileCapProposal, PileCapPreview } from "../../../core/pileCapProposalTypes.ts";
 import { pileConfigurationToken } from "../../../core/pileConfigurationKey.ts";
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useState, type CSSProperties, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import type { ProjectState } from "../../../domain/project/projectState.ts";
 import type { PileConfigurationKey } from "../../../core/projectTypes.ts";
@@ -83,6 +83,7 @@ export default function LoadPointPanel({
   const columnMode = columnCount > 1 ? "multiple" : "single";
   const columnLayout = columnLayouts[columnMode];
   const columns = getVisiblePileOptionColumns(columnCount, columnLayout);
+  const showTipSwatch = !columns.some(({ key }) => key === "symbol");
   const retainedConfiguration = pileCapProposal?.configuration ?? getChosenPileOptionConfigurationForSelection(state, selectedLoadPoints);
   const proposalCosts = new Map((pileCapPreview?.options??[]).map(o=>[pileConfigurationToken(o.configuration),o.cost_per_pile]));
   const proposalRows = getRenderablePileOptionRows({activeConfigurations:active,cpts:state.cpts,costsByOptionKey:proposalCosts,
@@ -277,9 +278,13 @@ export default function LoadPointPanel({
                     >
                       {columns.map(({ key }) => (
                         <td className={key === "symbol" ? "pile-option-symbol-cell" : ["size", "tip", "cost", "totalCost", "use", "maxUse", "frd", "fed"].includes(key) ? "pile-option-number" : undefined} key={key}>
-                          {key === "symbol" ? <span className={row.smallDot ? "is-small-dot" : undefined} dangerouslySetInnerHTML={{ __html: row.symbolHtml }} />
+                          {key === "symbol" ? <span
+                            className={[row.smallDot ? "is-small-dot" : "", row.tipRegionColor ? "pile-option-symbol-background" : ""].filter(Boolean).join(" ")}
+                            style={row.tipRegionColor ? { "--pile-option-tip-color": row.tipRegionColor } as CSSProperties : undefined}
+                            dangerouslySetInnerHTML={{ __html: row.symbolHtml }}
+                          />
                             : key === "size" ? <>{row.sizeLabel}{!row.sizeActive ? <InactiveLabel /> : null}</>
-                            : key === "tip" ? <>{row.tipRegionColor ? (
+                            : key === "tip" ? <>{showTipSwatch && row.tipRegionColor ? (
                               <span className="pile-option-tip-label">
                                 <span className="pile-option-tip-color" aria-hidden="true" style={{ backgroundColor: row.tipRegionColor }} />
                                 <span>{row.tipLabel}</span>

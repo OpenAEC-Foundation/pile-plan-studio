@@ -1,4 +1,4 @@
-import { useRef } from "react";
+import { useMemo, useRef } from "react";
 import type { ProjectState } from "../../domain/project/projectState.ts";
 import { buildLoadPointGroupSignature, type LoadPointGroupSnapshot } from "../derived-state/loadPointGroupController.ts";
 import { buildTechnicalAssignmentSignature, type TechnicalAssignmentSnapshot } from "../derived-state/technicalAssignmentController.ts";
@@ -20,12 +20,15 @@ export function useMcpDerivedState(
   technicalInput: Parameters<typeof buildTechnicalAssignmentSignature>[0] | null,
   conflictInput: Parameters<typeof buildGroupAssignmentAssessmentSignature>[0] | null,
 ) {
-  const groupsPending = useSnapshotPending(
-    buildLoadPointGroupSignature(state.loadPoints, state.loadPointGroupingSettings), groups);
-  const technicalPending = useSnapshotPending(
-    technicalInput ? buildTechnicalAssignmentSignature(technicalInput) : "unavailable", technical);
-  const conflictsPending = useSnapshotPending(
-    conflictInput ? buildGroupAssignmentAssessmentSignature(conflictInput) : "unavailable", conflicts);
+  const groupsSignature = useMemo(() => buildLoadPointGroupSignature(
+    state.loadPoints, state.loadPointGroupingSettings), [state.loadPoints, state.loadPointGroupingSettings]);
+  const technicalSignature = useMemo(() => technicalInput
+    ? buildTechnicalAssignmentSignature(technicalInput) : "unavailable", [technicalInput]);
+  const conflictsSignature = useMemo(() => conflictInput
+    ? buildGroupAssignmentAssessmentSignature(conflictInput) : "unavailable", [conflictInput]);
+  const groupsPending = useSnapshotPending(groupsSignature, groups);
+  const technicalPending = useSnapshotPending(technicalSignature, technical);
+  const conflictsPending = useSnapshotPending(conflictsSignature, conflicts);
   return {
     groups: groupsPending ? { ...groups, pending: true } : groups,
     technicalAssignment: technicalPending ? { ...technical, status: "loading" as const } : technical,

@@ -1786,6 +1786,30 @@ mod tests {
     }
 
     #[test]
+    fn defaults_to_filled_regions_and_round_trips_connection_strips() {
+        let mut project = project_fixture();
+        let legacy = serde_json::to_string(&project).unwrap();
+        assert!(!legacy.contains("\"filled_tip_level_regions\""));
+        assert!(read_ifcpp_str(&legacy).unwrap().settings.viewer.filled_tip_level_regions);
+
+        let default_file = write_ifcpp_string(&project).unwrap();
+        assert!(!default_file.contains("\"filledTipLevelRegions\""));
+        assert!(read_ifcpp_str(&default_file)
+            .unwrap()
+            .settings
+            .viewer
+            .filled_tip_level_regions);
+
+        project.settings.viewer.show_tip_level_regions = false;
+        project.settings.viewer.filled_tip_level_regions = false;
+        let file = write_ifcpp_string(&project).unwrap();
+        assert!(file.contains("\"filledTipLevelRegions\""));
+        let viewer = read_ifcpp_str(&file).unwrap().settings.viewer;
+        assert!(!viewer.show_tip_level_regions);
+        assert!(!viewer.filled_tip_level_regions);
+    }
+
+    #[test]
     fn defaults_and_round_trips_driving_color_visibility() {
         let mut legacy = serde_json::to_value(project_fixture()).unwrap();
         assert!(legacy["settings"]["viewer"]

@@ -19,7 +19,6 @@ import type { RightTaskPanel } from "../../domain/right-panel/RightPanel.tsx";
 type TabId = "plan" | "view";
 
 const TABS: TabId[] = ["plan", "view"];
-
 interface RibbonProps {
   onFileTabClick?: () => void;
   onOpenProjectInformation?: () => void;
@@ -38,6 +37,8 @@ interface RibbonProps {
   foregroundLayer: ForegroundLayer;
   showGrid: boolean;
   showTipLevelRegions: boolean;
+  filledTipLevelRegions?: boolean;
+  onFilledTipLevelRegionsChange?: (filled: boolean) => void;
   showLoadPointGroups: boolean;
   showGroupConflicts: boolean;
   showDrivingColors: boolean;
@@ -75,6 +76,8 @@ export default function Ribbon({
   foregroundLayer,
   showGrid,
   showTipLevelRegions,
+  filledTipLevelRegions = false,
+  onFilledTipLevelRegionsChange,
   showLoadPointGroups,
   showGroupConflicts,
   showDrivingColors,
@@ -219,7 +222,7 @@ export default function Ribbon({
       case "view":
         return (
           <div className="ribbon-content ribbon-content--blueprint">
-            <div className="ribbon-groups">
+            <div className="ribbon-groups ribbon-groups--view">
               <RibbonGroup label={t("view.symbols")}>
                 <div className="ribbon-slider-control">
                   <span>{t("view.symbolSize")}</span>
@@ -302,6 +305,18 @@ export default function Ribbon({
                   title={t(tipLevelRegionToggle.labelKey)}
                   onClick={() => onTipLevelRegionVisibilityChange(tipLevelRegionToggle.nextVisible)}
                 />
+                {onFilledTipLevelRegionsChange && (
+                  <RibbonButton
+                    className="ribbon-region-mode"
+                    active={filledTipLevelRegions}
+                    disabled={!showTipLevelRegions}
+                    icon={<PilePlanIcon id="pile.tip-regions" />}
+                    ariaLabel={t("view.regionMethod")}
+                    label={t(filledTipLevelRegions ? "view.regionsFilled" : "view.regionsStrips")}
+                    title={t(filledTipLevelRegions ? "view.showRegionStrips" : "view.showFilledRegions")}
+                    onClick={() => onFilledTipLevelRegionsChange(!filledTipLevelRegions)}
+                  />
+                )}
               </RibbonGroup>
               <RibbonGroup label={t("view.groups")}>
                 <RibbonButton

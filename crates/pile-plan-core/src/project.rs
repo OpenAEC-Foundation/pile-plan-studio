@@ -371,6 +371,8 @@ pub struct ProjectViewerSettings {
     pub show_grid: bool,
     #[serde(default = "default_true")]
     pub show_tip_level_regions: bool,
+    #[serde(default = "default_true", skip_serializing_if = "is_true")]
+    pub filled_tip_level_regions: bool,
     #[serde(default)]
     pub show_load_point_groups: bool,
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
@@ -384,6 +386,7 @@ impl Default for ProjectViewerSettings {
             foreground_layer: default_foreground_layer(),
             show_grid: true,
             show_tip_level_regions: true,
+            filled_tip_level_regions: true,
             show_load_point_groups: false,
             show_driving_colors: false,
         }
@@ -432,6 +435,10 @@ pub struct ProjectLegendSettings {
 
 fn default_true() -> bool {
     true
+}
+
+fn is_true(value: &bool) -> bool {
+    *value
 }
 
 fn default_legend_color_scheme() -> String {

@@ -4,6 +4,12 @@ import assert from "node:assert/strict";
 
 const source = readFileSync(new URL("./AppSession.tsx", import.meta.url), "utf8");
 
+it("creates an IFCPP download only inside the requested save action", () => {
+  assert.match(source, /const serializeProject = \(\) => writeProjectDocumentCore\(persistedProjectDraft\)/);
+  assert.match(source, /await saveGeneratedFile\(options, async \(\) => \{\s*contents = await serializeProject\(\)/);
+  assert.doesNotMatch(source, /preparedProjectRef|writeProjectDocumentCore\(persistedProjectDraft\)\.then/);
+});
+
 describe("App group editing and assessment wiring", () => {
   it("delegates MCP construction to the connection-scoped project factory", () => {
     assert.match(source, /createProjectMcpSession\(dependencies,/);

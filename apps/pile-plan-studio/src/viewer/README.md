@@ -164,6 +164,82 @@ below load-point markers and above tip-level-region fills.
 The **Group conflicts** preference controls conflict contours and warning
 symbols on the drawing.
 
+Filled mode uses the complete Gabriel topology for its outline. The SVG
+mask fills each bounded face and includes all edges and load points with a
+rounded 1.5 m margin in project coordinates. Assigned locations use their
+tip-level area even when capacity is insufficient or assessment data is missing.
+Unassigned locations form transparent Gabriel components. They can use smaller
+centered reservations in tight gaps, based on the space between locations.
+The mesh is reused while the locations requiring compact reservations stay the
+same. A transparent component contributes no fill. Components of the same tip
+level keep their own connections and share one drawing without internal strokes.
+
+The rectangular mesh follows the project axes fitted to Gabriel edges.
+Cuts follow gaps in the projected locations, with additional cuts along
+recognized rows, around sites with clearance, and between sites still sharing
+a tile. Each Gabriel component reserves paths between its sites. Every
+assigned site, including those inside a component with multiple sites, can
+reserve a compact footprint using the distance to the nearest site of another
+component. The layout fills a component's whole bounding rectangle if no
+other component occupies it. It then combines empty tiles into rectangular
+blocks and assigns each block along a shared edge, with a preference for
+keeping single-location areas compact. Boundary cleanup respects protected
+tiles and checks the connections of neighboring areas before transferring space.
+If a site lies almost on a grid cut and has nearby neighbors, the existing
+compact-grid budget can add space around it. Unassigned sites have first
+claim on that budget.
+The fill is drawn from the perimeter and holes of each tip level so mesh
+edges inside a filled area cannot produce visible seams when rotated.
+
+The ribbon switches between Filled and Connection strips. Connection strips
+use circles, Gabriel edges and matching faces. The project's region visibility
+flag controls both displays. Filled mode reserves aligned bays based on
+repeated rows and columns when each bay
+can belong to one Gabriel component. The usual block assignment fills the
+remaining space. If the ordinary mesh cannot represent the
+component paths, the viewer tries a finer mesh. Connection strips remain
+visible when neither mesh can represent the paths within its resolution budget.
+
+Filled mode searches the Gabriel connections for candidate dividers before
+assigning leftover tiles. It places smaller components
+in compact bays when there is room. A proposed division replaces only its local
+area and only if it joins the reference layout, simplifies the visible borders,
+keeps the Gabriel connections, and preserves clearance around nearby sites.
+Small empty offsets can also align with a continuing edge when their removal
+preserves the local connections and clearance.
+An edge can be aligned across changing neighbors when a tip level continues
+along one side. The neighboring areas retain their own locations and connections.
+When both ends of a short offset meet the same line, the boundary can also
+continue across a change of tip level on both sides. For a very small enclosed
+single-location area, the layout tries to reserve a larger rectangle based on
+local point spacing. This uses the same checks for point clearance and the
+neighboring area's Gabriel connections. For a small enclosed area with one site
+and a stepped side, it also tries to center that side on an existing cut.
+Both tile transfers must preserve clearance and Gabriel connections.
+Short steps between parallel borders can become an aligned segment, a diagonal
+transition, and another aligned segment, with the original endpoints fixed.
+Each replacement checks the direction of its joins with the surrounding lines.
+A short offset of up to 300 mm can be replaced by a single line when it is
+at most one tenth of the span. This is the only contour simplification
+allowed along compact one- or two-site components.
+When a row or bay would reserve tiles within 500 mm of a site with another assigned
+tip level, the viewer repeats the reservation and gives that site priority.
+The target is 1 m or half the gap to the nearest site at a different tip
+level, whichever is smaller, rounded to available cuts. Shared boundary
+edits preserve up to 750 mm of the resulting clearance. A short offset that
+returns to the same cut at both ends may use a 700 mm clearance limit.
+The viewer shortens narrow, unsupported ends and assigns the recovered space
+to the adjoining areas. A change must simplify the visible boundaries and
+preserve clearance, location assignments, and Gabriel connections. A strip
+can stop at the first protected part of a location's area.
+If a straight side passes within 500 mm of an assigned site, the viewer can
+shift the full side to give the site more room without adding corners. The
+shift checks site ownership, the donor's connectivity, and the original
+Gabriel segments. Shared boundaries also use the original segments when
+aligning small remaining steps. Tiny offsets in the display margin can be
+straightened when the move stays clear of the Gabriel face outline.
+Filled regions are clipped to the rounded Gabriel outline.
+
 ### Physical-pixel verification boundary
 
 The shared SVG makes the symbol, ring, halo, and region node use one coordinate

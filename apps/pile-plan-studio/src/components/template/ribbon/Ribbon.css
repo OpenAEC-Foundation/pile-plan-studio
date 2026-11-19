@@ -219,6 +219,16 @@
   justify-content: flex-start;
 }
 
+@media (max-width: 1100px) {
+  .ribbon-groups--view .ribbon-group {
+    padding-inline: 4px;
+  }
+
+  .ribbon-groups--view .ribbon-slider-control {
+    width: 145px;
+  }
+}
+
 /* Ribbon Buttons - Large (default) */
 .ribbon-btn {
   flex-direction: column;
@@ -263,6 +273,10 @@
 .ribbon-btn.tip-level-regions-toggle {
   width: min-content;
   min-width: 104px;
+}
+
+.ribbon-btn.ribbon-region-mode {
+  min-width: 110px;
 }
 
 /* Small ribbon buttons */

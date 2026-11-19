@@ -669,6 +669,16 @@
   width: 24px;
 }
 
+.pile-option-symbol-background {
+  display: inline-grid;
+  width: 24px;
+  height: 20px;
+  place-items: center;
+  vertical-align: middle;
+  border-radius: 3px;
+  background-color: color-mix(in srgb, var(--pile-option-tip-color) 44%, transparent);
+}
+
 .pile-option-symbol-cell .pile-symbol-svg {
   width: 18px;
   height: 18px;

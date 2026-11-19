@@ -29,6 +29,7 @@ export type ProjectContent = Pick<ProjectState,
   | "foregroundLayer"
   | "showGrid"
   | "showTipLevelRegions"
+  | "filledTipLevelRegions"
   | "showLoadPointGroups"
   | "showDrivingColors"
   | "pilePlans"
@@ -65,6 +66,7 @@ const PROJECT_CONTENT_KEYS = [
   "foregroundLayer",
   "showGrid",
   "showTipLevelRegions",
+  "filledTipLevelRegions",
   "showLoadPointGroups",
   "showDrivingColors",
   "pilePlans",
@@ -195,6 +197,7 @@ export function projectDocumentDraftFromContent(
         foreground_layer: content.foregroundLayer,
         show_grid: content.showGrid,
         show_tip_level_regions: content.showTipLevelRegions,
+        ...(content.filledTipLevelRegions ? {} : { filled_tip_level_regions: false }),
         show_load_point_groups: content.showLoadPointGroups,
         ...(content.showDrivingColors ? { show_driving_colors: true } : {}),
       },

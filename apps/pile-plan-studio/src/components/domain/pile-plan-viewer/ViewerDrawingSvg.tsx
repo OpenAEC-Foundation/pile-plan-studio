@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import type { CptConnectionSegment } from "../../../viewer/cptConnectionLines.ts";
 import { projectCptConnectionSegmentsToPixels } from "../../../viewer/cptConnectionLines.ts";
 import type { LoadPointGroupGeometry } from "../../../viewer/loadPointGroupGeometry.ts";
+import type { ProjectedTipLevelRegionOutline } from "../../../viewer/tipLevelRegionGeometry.ts";
 import type { PresentedTipLevelRegionLayer } from "../../../viewer/tipLevelRegionPresentation.ts";
 import LoadPointGroupOverlay from "./load-point-groups/LoadPointGroupOverlay.tsx";
 import TipLevelRegionOverlay from "./tip-level-regions/TipLevelRegionOverlay.tsx";
@@ -10,6 +11,7 @@ type Props = {
   width: number;
   height: number;
   tipLevelRegionPresentation: PresentedTipLevelRegionLayer[];
+  tipLevelRegionOutline?: ProjectedTipLevelRegionOutline;
   loadPointGroupGeometry: LoadPointGroupGeometry[];
   cptConnectionSegments: CptConnectionSegment[];
   conflictLabel?: string;
@@ -20,6 +22,7 @@ export default function ViewerDrawingSvg({
   width,
   height,
   tipLevelRegionPresentation,
+  tipLevelRegionOutline,
   loadPointGroupGeometry,
   cptConnectionSegments,
   conflictLabel,
@@ -41,7 +44,7 @@ export default function ViewerDrawingSvg({
       height={height}
     >
       {visibleConflictLabel ? <title>{visibleConflictLabel}</title> : null}
-      <TipLevelRegionOverlay layers={tipLevelRegionPresentation} />
+      <TipLevelRegionOverlay layers={tipLevelRegionPresentation} outline={tipLevelRegionOutline} />
       <LoadPointGroupOverlay geometry={loadPointGroupGeometry} />
       <g className="cpt-connection-lines">
         {pixelSegments.map((segment) => (

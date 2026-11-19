@@ -5,6 +5,7 @@ use serde::{Deserialize, Serialize};
 #[cfg(test)]
 use crate::pile_configuration::{pile_tip_level_mm, PileConfigurationKey};
 use crate::pile_options::PileConfigurationOption;
+use crate::pile_tip_level_m;
 #[cfg(test)]
 use crate::source_data::LoadPoint;
 
@@ -89,7 +90,7 @@ pub fn build_tip_level_region_topology(
     selected_assignments: &HashMap<u32, TipLevelRegionAssignment>,
     options_by_load_point: &HashMap<u32, Vec<PileConfigurationOption>>,
 ) -> TipLevelRegionTopology {
-    let valid_assignments = load_point_topology
+    let assignments_by_load_point = load_point_topology
         .load_point_ids
         .iter()
         .filter_map(|load_point_id| {
@@ -97,7 +98,9 @@ pub fn build_tip_level_region_topology(
                 return None;
             };
             let assignment_key = assignment.pile_tip_level_mm;
-            let Some(matched_option) = options_by_load_point
+            // Capacity determines the marker's assessment. The assigned level
+            // determines its region even when a capacity option is unavailable.
+            let legend_value_m = options_by_load_point
                 .get(load_point_id)
                 .into_iter()
                 .flatten()
@@ -106,18 +109,16 @@ pub fn build_tip_level_region_topology(
                         && option.pile_size_mm == assignment.pile_size_mm
                         && option.configuration.pile_tip_level_mm == assignment_key
                 })
-            else {
-                return None;
-            };
-            Some((
-                *load_point_id,
-                (assignment_key, matched_option.pile_tip_level_m),
-            ))
+                .map_or_else(
+                    || pile_tip_level_m(assignment_key),
+                    |option| option.pile_tip_level_m,
+                );
+            Some((*load_point_id, (assignment_key, legend_value_m)))
         })
         .collect::<BTreeMap<_, _>>();
 
     let mut load_point_ids_by_key: BTreeMap<i64, Vec<u32>> = BTreeMap::new();
-    for (&load_point_id, &(key, _)) in &valid_assignments {
+    for (&load_point_id, &(key, _)) in &assignments_by_load_point {
         load_point_ids_by_key
             .entry(key)
             .or_default()
@@ -126,39 +127,33 @@ pub fn build_tip_level_region_topology(
 
     let mut groups = Vec::with_capacity(load_point_ids_by_key.len());
     for (key, load_point_ids) in load_point_ids_by_key.into_iter().rev() {
+        let has_tip_level = |id| {
+            assignments_by_load_point
+                .get(id)
+                .is_some_and(|(level, _)| *level == key)
+        };
         let edges = load_point_topology
             .edges
             .iter()
             .filter(|edge| {
-                valid_assignments
-                    .get(&edge.from_load_point_id)
-                    .is_some_and(|(load_point_key, _)| *load_point_key == key)
-                    && valid_assignments
-                        .get(&edge.to_load_point_id)
-                        .is_some_and(|(load_point_key, _)| *load_point_key == key)
+                has_tip_level(&edge.from_load_point_id) && has_tip_level(&edge.to_load_point_id)
             })
             .cloned()
             .collect::<Vec<_>>();
         let faces = load_point_topology
             .faces
             .iter()
-            .filter(|face| {
-                face.boundary_load_point_ids.iter().all(|load_point_id| {
-                    valid_assignments
-                        .get(load_point_id)
-                        .is_some_and(|(load_point_key, _)| *load_point_key == key)
-                })
-            })
+            .filter(|face| face.boundary_load_point_ids.iter().all(has_tip_level))
             .cloned()
             .collect::<Vec<_>>();
         let legend_value_m = load_point_ids
             .iter()
             .find_map(|load_point_id| {
-                valid_assignments
+                assignments_by_load_point
                     .get(load_point_id)
                     .map(|(_, raw_value)| *raw_value)
             })
-            .expect("PPN group contains at least one valid load point");
+            .expect("PPN group contains at least one assigned load point");
         groups.push(TipLevelRegionGroup {
             pile_tip_level_mm: key,
             legend_value_m,
@@ -489,7 +484,7 @@ mod tests {
         }
 
         #[test]
-        fn excludes_unassigned_missing_invalid_and_size_mismatched_options() {
+        fn assigns_connection_strips_from_the_selected_tip_levels() {
             let load_point_topology = build_load_point_topology(&[
                 point(1, 0.0, 0.0),
                 point(2, 1.0, 0.0),
@@ -538,8 +533,8 @@ mod tests {
                 build_tip_level_region_topology(&load_point_topology, &assignments, &options);
 
             assert_eq!(topology.groups.len(), 1);
-            assert_eq!(topology.groups[0].load_point_ids, vec![5]);
-            assert!(topology.groups[0].edges.is_empty());
+            assert_eq!(topology.groups[0].load_point_ids, vec![2, 3, 4, 5]);
+            assert_eq!(topology.groups[0].edges.len(), 3);
         }
 
         #[test]

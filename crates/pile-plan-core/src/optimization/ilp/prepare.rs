@@ -2,7 +2,8 @@ use super::types::*;
 use crate::{
     aggregate_pile_options_for_load_points, build_load_point_topology, prepare_optimization_units,
     validate_pile_cost_settings, AggregatedPileConfigurationStatus, OptimizationCandidateSettings,
-    OptimizationLimitScope, OptimizationUnit, PileConfigurationKey, PrepareOptimizationUnitsInput,
+    OptimizationLimitScope, OptimizationUnit, PileConfigurationKey,
+    PrepareOptimizationUnitsInput,
 };
 use std::collections::{BTreeSet, HashMap};
 
@@ -343,4 +344,37 @@ pub(crate) fn prepare(
         settings: input.settings.clone(),
         current_pile_cap_proposals: caps.current_proposals,
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn uses_gabriel_even_with_a_legacy_delaunay_setting() {
+        let request: IlpRunRequest = serde_json::from_str(include_str!(
+            "../../../../../tests/fixtures/ilp-contract/request.json"
+        ))
+        .unwrap();
+        let mut input = request.input;
+        let mut point = input.load_points[0].clone();
+        point.id = 3;
+        point.y_mm = 2000.0;
+        input.load_points.push(point);
+        input.groups.push(crate::LoadPointGroup {
+            load_point_ids: vec![3],
+            origin: Default::default(),
+        });
+        input.target_load_point_ids.push(3);
+        input
+            .options_by_load_point
+            .insert(3, input.options_by_load_point[&2].clone());
+
+        input.settings.neighborhood_graph = Some(OptimizationNeighborhoodGraph::Delaunay);
+
+        assert_eq!(
+            prepare(&input).unwrap().edges,
+            [(0, Neighbor::Unit(1)), (0, Neighbor::Unit(2))],
+        );
+    }
 }

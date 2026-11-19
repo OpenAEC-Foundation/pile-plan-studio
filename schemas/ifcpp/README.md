@@ -42,7 +42,7 @@ Unqualified field names below refer to the enclosing Rust structure or IFCX attr
 | `settings.ilp_optimization`, legacy `settings.optimization` | Foundation `openaec::opps::optimizerSettings` after existing Rust normalization. The historical settings shape is used for old input. |
 | `settings.viewer_utilization` | Foundation `openaec::opps::viewerUtilization` with minimum and maximum. |
 | `settings.pile_legend` | Foundation `openaec::opps::legend`. Preserve encoding mode, general and per-dimension color schemes, and size and tip-level entries with their symbol base shape, fill pattern, color and automatic flags. Size values use millimetres. Tip-level values use decimal metres with whole-millimetre precision. |
-| `settings.viewer`, `user_state.active_pile_plan_id` | Foundation `openaec::opps::planView`. `plan` is the reference to the viewed plan. Preserve grid, tip-level regions, group visibility, symbol scale and foreground layer. Optional `showDrivingColors` defaults to false. |
+| `settings.viewer`, `user_state.active_pile_plan_id` | Foundation `openaec::opps::planView`. `plan` is the reference to the viewed plan. Preserve grid, tip-level regions, group visibility, symbol scale and foreground layer. Optional `filledTipLevelRegions` defaults to true. False selects connection strips, independent of region visibility. Optional `showDrivingColors` defaults to false. |
 
 ### Inputs, source provenance and heistaten
 
@@ -73,6 +73,10 @@ Table mapping settings retain fixed pile size, pile count, sheet name, header pr
 | `pile_cap_proposals` | `openaec::opps::pileCapProposals`. Preserve member references, legacy member IDs when unresolved, pile count, quarter turns and optional configuration. |
 | `optimization_unassigned` | `openaec::opps::optimizationUnassigned` with the location reference or original numeric ID and the exact reason. |
 | `ilp_result` | `openaec::opps::optimizerResult`. Preserve the solution, assignments, proposed caps, cost and budget, reference solution with its own proof and termination, counts, transitions, score, returned solution proof and termination, diagnostics, run settings, scope flags, currency and basis fingerprint. Historical location numbers stay as numbers in the snapshot, independent of current assignments. |
+
+Results saved during the neighborhood comparison can include the optional
+`neighborhoodGraph` enum (`gabriel` or `delaunay`) in their settings snapshot.
+This field records the graph used for that result. All new runs use Gabriel.
 
 An optimizer settings snapshot retains tension inclusion, pile-count changes, allowed and maximum counts, skip-unsolvable behavior, coherence, configuration limits, maximum utilization, candidate source and custom configurations, cost budget and transition weights. Retain historical `bothMilli` where present. Costs, budgets and optimizer scores stored as `u64` are decimal strings in IFCX to preserve values above the JSON safe-integer limit.
 

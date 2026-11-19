@@ -595,6 +595,10 @@
               "dataType": "Boolean",
               "optional": true
             },
+            "filledTipLevelRegions": {
+              "dataType": "Boolean",
+              "optional": true
+            },
             "showLoadPointGroups": {
               "dataType": "Boolean",
               "optional": true
@@ -891,6 +895,13 @@
             },
             "optimizeCoherence": {
               "dataType": "Boolean"
+            },
+            "neighborhoodGraph": {
+              "dataType": "Enum",
+              "enumRestrictions": {
+                "options": ["gabriel", "delaunay"]
+              },
+              "optional": true
             },
             "maxPileTipLevels": {
               "dataType": "Integer",
@@ -1392,6 +1403,13 @@
                   },
                   "optimizeCoherence": {
                     "dataType": "Boolean"
+                  },
+                  "neighborhoodGraph": {
+                    "dataType": "Enum",
+                    "enumRestrictions": {
+                      "options": ["gabriel", "delaunay"]
+                    },
+                    "optional": true
                   },
                   "maxPileTipLevels": {
                     "dataType": "Integer",

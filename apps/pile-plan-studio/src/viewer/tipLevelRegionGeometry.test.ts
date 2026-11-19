@@ -5,6 +5,7 @@ import type { TipLevelRegionTopology } from "../core/tipLevelRegionContract.ts";
 import type { ProjectedPileCap } from "./pileCapProposalGeometry.ts";
 import {
   buildTipLevelRegionGeometry,
+  projectTipLevelRegionOutline,
   projectTipLevelRegionPoints,
 } from "./tipLevelRegionGeometry.ts";
 
@@ -22,6 +23,30 @@ const topology: TipLevelRegionTopology = {
 };
 
 describe("tip-level region geometry", () => {
+  it("includes complete Gabriel faces, branches and isolated sites in the filled outline", () => {
+    const a = { x: 10, y: 20 };
+    const b = { x: 30, y: 20 };
+    const c = { x: 20, y: 40 };
+    const branch = { x: 50, y: 20 };
+    const isolated = { x: 80, y: 50 };
+    const points = new Map([[1, a], [2, b], [3, c], [4, branch], [5, isolated]]);
+    const gabriel = {
+      load_point_ids: [1, 2, 3, 4, 5],
+      edges: [[1, 2], [1, 3], [2, 3], [2, 4]].map(([from, to]) => ({
+        from_load_point_id: from,
+        to_load_point_id: to,
+      })),
+      faces: [{ boundary_load_point_ids: [1, 2, 3] }],
+    };
+
+    assert.deepEqual(projectTipLevelRegionOutline(gabriel, points, 0.02), {
+      points: [a, b, c, branch, isolated],
+      faces: [[a, b, c]],
+      edges: [[a, b], [a, c], [b, c], [b, branch]],
+      marginPx: 30,
+    });
+  });
+
   it("projects fractional load-point coordinates without rounding", () => {
     const projected = projectTipLevelRegionPoints([{
       id: 9,

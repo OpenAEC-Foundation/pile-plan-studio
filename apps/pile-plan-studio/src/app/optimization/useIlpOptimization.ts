@@ -55,7 +55,7 @@ export function useIlpOptimization(state:ProjectState,groups:LoadPointGroup[],re
       pileCapContext:pileCapProposalDraft(state),loadPoints:state.loadPoints,groups,optionsByLoadPoint:state.pileOptionsByLoadPointId,
       targetLoadPointIds:resolved.targetLoadPointIds,lockedLoadPointIds:active.lockedLoadPointIds,currentAssignments:state.selectedPileConfigurationsByLoadPoint,
       candidateConfigurations:candidates,pileHeadLevelM:state.pileHeadLevelM,costSettings:state.pileCostSettings,
-      settings:state.ilpOptimizationSettings,limitScope:resolved.limitScope,includeBoundaryTransitions:resolved.includeBoundaryTransitions,
+      settings:session.current.settings,limitScope:resolved.limitScope,includeBoundaryTransitions:resolved.includeBoundaryTransitions,
     }},isCurrent,apply);
     return {runId,sourcePlanId:session.current.sourceId,destinationPlanId:session.current.target.id,
       destinationPlanName:session.current.target.name,targetCount:resolved.targetLoadPointIds.length,timeLimitSeconds:options.timeLimitSeconds};

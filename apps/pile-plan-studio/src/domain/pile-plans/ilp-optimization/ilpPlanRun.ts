@@ -49,6 +49,7 @@ export function createIlpPlanRun(state:ProjectState,language:"nl"|"en",localOnly
   const inherited={...generated,pileCapProposals:structuredClone(source.pileCapProposals??[])};
   const target=transition && newPlanName?.trim()?{...inherited,name:newPlanName.trim()}:inherited;
   const settings=structuredClone(state.ilpOptimizationSettings);
+  delete settings.neighborhood_graph;
   delete settings.transition_weights.both_milli;
   return {sourceId:source.id,target,fingerprint:runFingerprint(state,source),settings,
     wholePlanLimits:limitScope==="whole-plan",boundaryTransitions:includeBoundaryTransitions,localOnly,currencyCode:state.currencyCode};

@@ -14,6 +14,7 @@ import type { getCptConnectionSegments } from "../../../viewer/cptConnectionLine
 import { getDashedOutlineDasharray } from "../../../viewer/markerGraphicGeometry.ts";
 import { effectiveSymbolScale } from "../../../viewer/hoverCandidates.ts";
 import type { LoadPointGroupGeometry } from "../../../viewer/loadPointGroupGeometry.ts";
+import type { ProjectedTipLevelRegionOutline } from "../../../viewer/tipLevelRegionGeometry.ts";
 import type { presentTipLevelRegionGeometry } from "../../../viewer/tipLevelRegionPresentation.ts";
 import type { createProjectViewTransform } from "../../../viewer/viewerGeometry.ts";
 import { getViewportTransform } from "../../../viewer/viewport.ts";
@@ -31,6 +32,7 @@ type ViewerStageProps = {
   technicalAssignment: TechnicalAssignmentSnapshot;
   projectTransform: ReturnType<typeof createProjectViewTransform>;
   tipLevelRegionPresentation: ReturnType<typeof presentTipLevelRegionGeometry>;
+  tipLevelRegionOutline?: ProjectedTipLevelRegionOutline;
   loadPointGroupGeometry: LoadPointGroupGeometry[];
   cptConnectionSegments: ReturnType<typeof getCptConnectionSegments>;
   pileOptionsByLoadPointId: ReturnType<typeof getEffectivePileOptionsByLoadPointId>;
@@ -58,6 +60,7 @@ export default function ViewerStage({
   technicalAssignment,
   projectTransform,
   tipLevelRegionPresentation,
+  tipLevelRegionOutline,
   loadPointGroupGeometry,
   cptConnectionSegments,
   pileOptionsByLoadPointId,
@@ -129,6 +132,7 @@ export default function ViewerStage({
       <ViewerDrawingSvg
         height={projectTransform.canvasSize.height}
         tipLevelRegionPresentation={tipLevelRegionPresentation}
+        tipLevelRegionOutline={tipLevelRegionOutline}
         loadPointGroupGeometry={visibleGroupGeometry}
         cptConnectionSegments={cptConnectionSegments}
         conflictLabel={t("viewer.loadPointGroups.assignmentConflict")}

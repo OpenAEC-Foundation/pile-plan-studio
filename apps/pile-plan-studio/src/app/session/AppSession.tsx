@@ -102,7 +102,6 @@ import {
   saveBinaryExport,
   downloadBlob,
   saveGeneratedFile,
-  savePreparedFile,
 } from "../../domain/project/projectPersistence.ts";
 import {
   DEFAULT_EXPLORER_WIDTH,
@@ -544,7 +543,6 @@ export default function AppSession({
     savedProjectSignatureRef.current = signature;
     setSavedProjectSignature(signature);
   }, []);
-  const preparedProjectRef = useRef<{ signature: string; blob: Blob } | null>(null);
   const projectActionRef = useRef<(() => Promise<boolean>) | null>(null);
   const openProjectActionRef = useRef<(() => void) | null>(null);
   const projectFileInput = useRef<HTMLInputElement>(null);
@@ -691,36 +689,29 @@ export default function AppSession({
   }, [matchingSurface.active, startPage]);
 
 
-  const serializeProject = async () => {
-    return writeProjectDocumentCore(persistedProjectDraft);
-  };
+  const serializeProject = () => writeProjectDocumentCore(persistedProjectDraft);
 
   const downloadProject = async (): Promise<boolean> => {
     const recentKeyAtStart = browserRecentPathRef.current;
     const savedInstance = mcpProjectMarkerRef.current!.observe(projectState).project_instance_id;
-    const savedSignature = persistedProjectSignature;
     const sameInstance = () => mcpProjectMarkerRef.current!.observe(projectStateRef.current).project_instance_id === savedInstance;
     const options = {
       fileName: projectFileName(projectState.name),
       mimeType: "application/json",
       extensions: [".ifcpp"],
     };
-    const prepared = preparedProjectRef.current;
-    const readyBlob = prepared?.signature === persistedProjectSignature ? prepared.blob : null;
-    let generated: Blob | null = null;
-    const saved = readyBlob ? await savePreparedFile(options, readyBlob)
-      : await saveGeneratedFile(options, async () => {
-        generated = new Blob([await serializeProject()], { type: "application/json" });
-        return generated;
-      });
+    let contents = "";
+    const saved = await saveGeneratedFile(options, async () => {
+      contents = await serializeProject();
+      return new Blob([contents], { type: options.mimeType });
+    });
     if (!saved) return false;
     if (sameInstance()) {
-      updateSavedProjectSignature(savedSignature);
-      setIsDirty(projectStateSignature(projectStateRef.current) !== savedSignature);
+      updateSavedProjectSignature(persistedProjectSignature);
+      setIsDirty(selectPersistence(projectStateRef.current).signature !== persistedProjectSignature);
     }
     if (!isDesktop) {
       try {
-        const contents = await ((readyBlob ?? generated) as Blob).text();
         const key = await recentProjects.rememberBrowser(recentKeyAtStart, options.fileName, contents);
         if (sameInstance()) setBrowserRecentPath(key);
       } catch { recentStorageError(); }
@@ -1087,28 +1078,6 @@ export default function AppSession({
     appliedInterfaceScaleRef.current = interfaceScalePercent;
     void applyDesktopInterfaceScale(interfaceScalePercent);
   }, [interfaceScalePercent, isDesktop]);
-
-  useEffect(() => {
-    if (PLATFORM_BUILD || !hasOpenedProject) return;
-    let cancelled = false;
-    // Let edits render and coalesce before preparing the next download.
-    const timer = window.setTimeout(() => {
-      void writeProjectDocumentCore(persistedProjectDraft).then(text => {
-        if (!cancelled) {
-          preparedProjectRef.current = {
-            signature: persistedProjectSignature,
-            blob: new Blob([text], { type: "application/json" }),
-          };
-        }
-      }, () => {
-        // An explicit save can retry and report an error to the user.
-      });
-    }, 250);
-    return () => {
-      cancelled = true;
-      window.clearTimeout(timer);
-    };
-  }, [hasOpenedProject, persistedProjectDraft, persistedProjectSignature]);
 
   useCptSelectionPreview(projectState, setProjectState);
 
@@ -1857,6 +1826,9 @@ export default function AppSession({
           foregroundLayer={projectState.foregroundLayer}
           showGrid={projectState.showGrid}
           showTipLevelRegions={projectState.showTipLevelRegions}
+          filledTipLevelRegions={projectState.filledTipLevelRegions}
+          onFilledTipLevelRegionsChange={readOnly ? undefined : filledTipLevelRegions =>
+            commitProjectState(current => ({ ...current, filledTipLevelRegions }))}
           showLoadPointGroups={projectState.showLoadPointGroups}
           showGroupConflicts={showGroupConflicts}
           showDrivingColors={showDrivingColors}
