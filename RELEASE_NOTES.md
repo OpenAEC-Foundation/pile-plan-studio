@@ -1,5 +1,27 @@
 # Open Pile Plan Studio Release Notes
 
+## 2026.47.1
+
+### Added
+
+- Choose filled tip-level regions or connection strips in the View ribbon.
+  The project saves the style and visibility separately. Existing projects
+  without a saved style open with filled regions.
+- Record driving status notes and save driving status color visibility with the
+  project. Toggle group conflict markers from the View ribbon.
+
+### Improved
+
+- Filled regions follow the plan outline and use shared boundaries around
+  neighboring areas. In the pile options list, the tip-level color appears
+  behind the size symbol, matching the viewer.
+- Review driving record checks and edit driving statuses for multiple locations
+  at once.
+
+### Fixed
+
+- Keep the New pile plan button below the list and reachable when scrolling.
+
 ## 2026.47.0
 
 ### Added
