@@ -23,8 +23,8 @@
 .titlebar-title { display: flex; align-items: center; justify-content: center; gap: 6px; min-width: 0; overflow: hidden; white-space: nowrap; color: var(--oa-accent-text); font-size: var(--oa-size-body); }
 .titlebar-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 .titlebar-version { flex: none; color: var(--oa-text-secondary); font-size: var(--oa-size-label); }
-.titlebar-alpha-badge { display: inline-flex; flex: none; border-radius: var(--oa-radius-full); text-transform: uppercase; }
-.titlebar-alpha-badge .oa-status { padding: 0 5px; }
+.titlebar-release-badge { display: inline-flex; flex: none; border-radius: var(--oa-radius-full); text-transform: uppercase; }
+.titlebar-release-badge .oa-status { padding: 0 5px; }
 .titlebar-actions { display: flex; align-items: center; justify-self: end; height: 100%; min-width: 0; }
 .titlebar-scale-anchor { position: relative; width: 0; height: 100%; flex: 0 0 0; overflow: visible; }
 .titlebar .send-feedback-btn.oa-button { height: 24px; max-width: 100%; padding: 0 6px; margin-right: 8px; color: var(--oa-accent-text); font-size: var(--oa-size-label); -webkit-app-region: no-drag; }

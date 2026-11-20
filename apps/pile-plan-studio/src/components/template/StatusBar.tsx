@@ -9,7 +9,7 @@ export default function StatusBar({ zoomPercent, message }: Props) {
   const { t } = useTranslation();
   return <div className="oa-app status-bar">
     <BlueprintStatusBar message={<span className="status-message">{message}</span>} items={[
-      <span className="status-bar-center" key="product">{t("version")}</span>,
+      <span className="status-bar-center" key="product">{t("appName")}</span>,
       <span className="status-item" key="zoom">
         <span className="status-item-label">{t("zoom")}:</span>
         <span className="status-item-value">{Math.round(zoomPercent)}%</span>

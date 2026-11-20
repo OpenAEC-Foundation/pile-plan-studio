@@ -80,7 +80,7 @@ keep their own hierarchy. This app-wide adjustment follows the proposal in
 
 The pinned package has no full titlebar component. `TitleBar.tsx` composes its
 shared IconButton, Button and Status in an app-owned responsive grid, retaining
-the application logo, centered name/Alpha/native version and the local settings
+the application logo, centered name, release status and native version, plus the local settings
 gear. Save/download, Undo/Redo, preferences and feedback keep their callbacks;
 history availability still controls disabled state. Keyboard shortcuts are
 exposed accessibly, and help uses the application tooltip overlay. Enter/Space

@@ -48,9 +48,9 @@ export function assembleReleaseAssets(input, output, version, context={}) {
     const bytes=readFileSync(join(output,name));return {name,size:bytes.length,digest:'sha256:'+hash(bytes)};
   });
 }
-export function draftUploadPlan(release, tag, assets) {
-  if(release.tagName!==tag || release.isDraft!==true || release.isPrerelease!==true)
-    throw new Error('Refusing to change a published, non-alpha or unrelated release.');
+export function draftUploadPlan(release, tag, assets, prerelease = true) {
+  if(release.tagName!==tag || release.isDraft!==true || release.isPrerelease!==prerelease)
+    throw new Error('Refusing to change a published or unrelated release, or a draft with a different release channel.');
   const planned=new Map(assets.map(a=>[a.name,a]));
   for(const existing of release.assets??[]) {
     const expected=planned.get(existing.name);

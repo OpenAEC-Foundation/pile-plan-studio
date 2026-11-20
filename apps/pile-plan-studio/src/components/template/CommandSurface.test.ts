@@ -3,16 +3,18 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
-describe("Alpha command surfaces", () => {
+describe("Application command surfaces", () => {
 
-  it("identifies the public build as an engineering alpha", () => {
+  it("identifies the release channel and retains the engineering warning", () => {
     const titleBar = readFileSync(resolve(import.meta.dirname, "TitleBar.tsx"), "utf8");
     const enCommon = readFileSync(resolve(import.meta.dirname, "../../i18n/locales/en/common.json"), "utf8");
     const nlCommon = readFileSync(resolve(import.meta.dirname, "../../i18n/locales/nl/common.json"), "utf8");
 
-    assert.match(titleBar, /t\("alphaLabel"\)/);
+    assert.match(titleBar, /t\(PRODUCT_STATUS_KEY\)/);
     assert.match(enCommon, /"alphaLabel":\s*"Alpha"/);
     assert.match(nlCommon, /"alphaLabel":\s*"Alpha"/);
+    assert.match(enCommon, /"stableLabel":\s*"Stable"/);
+    assert.match(nlCommon, /"stableLabel":\s*"Stabiel"/);
     assert.match(enCommon, /professional verification/i);
     assert.match(nlCommon, /deskundige/);
   });

@@ -81,7 +81,6 @@ apps/pile-plan-studio/dist/
 ```
 
 Deploy the complete contents of this directory from one commit or release tag.
-For the 2026.47.0 alpha source, use release tag `v2026.47.0` once published.
 This includes the Rust core WASM, HiGHS WASM and Worker assets; the browser solver
 does not load its executable code from a CDN.
 
@@ -139,10 +138,10 @@ The browser build and Windows desktop build use the same Rust calculation core.
 ## Release versions and preparation
 
 The app `package.json` is the source of the product version and release metadata:
-`version`, `release.channel` and `release.date`. The channel is currently `alpha`;
-the frontend displays **Alpha** independently of the numeric version. GitHub
-release titles include **— Alpha** and releases are marked as prereleases.
-Changing product maturity is a separate decision from choosing a date version.
+`version`, `release.channel` and `release.date`. Set `release.channel` to
+`stable` for a stable release or `alpha` for a prerelease before preparing its
+version. The app and GitHub draft use this same channel. Both channels share
+the numeric version sequence.
 
 New releases use `YYYY.W.N` and tags use `vYYYY.W.N`, without an alpha suffix or
 leading zeros. `YYYY` is the ISO week-numbering year, `W` the ISO week and `N` a
@@ -213,13 +212,13 @@ candidates, tagged releases, and platform proofs:
 - A manual branch dispatch with `release_candidate=true` builds and signs all
   three platforms from the selected commit. After native tests, signing, and
   package acceptance pass, the final job creates the tag and attaches those
-  same packages to an unpublished GitHub prerelease.
+  same packages to an unpublished GitHub release draft using the prepared channel.
 - A `vYYYY.W.N` tag push validates the prepared commit and builds all three desktop
   platforms. Windows uses Azure signing for the app, NSIS uninstaller and
   installer; Linux signs its downloads with OpenPGP; macOS signs/notarizes/staples
   a universal app and DMG. Native tests and package checks run before the signed
   Linux/macOS GUI scenarios. Only after every build and runtime job succeeds
-  does the final job assemble a draft GitHub prerelease. Version/tag mismatches
+  does the final job assemble a GitHub release draft. Version/tag mismatches
   fail before building; package versions are checked again after the build.
 - Manual dispatch without `release_candidate` takes a `release_tag` in the same format and checks it against
   the selected prepared source. By default it builds an **unsigned proof** and performs the
@@ -433,8 +432,8 @@ The final job preserves that file and signature as `SHA256SUMS-linux` and
 contains detached Linux package signatures, its public key/fingerprint and
 `release-manifest.json` recording package digests, source commit and build run.
 
-Draft assembly refuses a published/non-alpha release and never replaces an
-existing asset. A retry skips identical assets and uploads only missing files;
+Draft assembly checks that the release is an unpublished draft with the prepared
+channel and exact tag. A retry skips identical assets and uploads only missing files;
 a different digest stops the job. Existing drafts are found through the complete
 authenticated release list; GitHub's tag endpoint omits unpublished drafts.
 For a transient failure, retry in the same workflow run to keep the original
@@ -466,6 +465,11 @@ gh workflow run release.yml --ref $releaseBranch -f "release_tag=$releaseTag" -f
 ```
 
 The workflow creates the tag on the exact commit that produced the packages.
+For an in-place Windows upgrade check, also pass
+`-f windows_upgrade_from=2026.47.1` with the published version to test. The
+Windows runner checks the previous installer's signature, installs it, updates
+it in place and checks the installed version before running the clean-install
+check.
 If tests fail before the tag exists, fix the branch and dispatch again with the
 same intended version. If the final job fails after creating the tag, rerun the
 failed job to complete the draft from the same artifacts. An existing tag on a
@@ -479,7 +483,9 @@ Immediately before publishing, from the exact tagged source, run:
 
 ```powershell
 node tools/release.mjs check --tag $releaseTag --publish
-gh release edit $releaseTag --notes-file target/release-notes.md --prerelease --draft=false
+$releaseInfo = node tools/release.mjs info | ConvertFrom-Json
+$prerelease = $releaseInfo.prerelease.ToString().ToLowerInvariant()
+gh release edit $releaseTag --notes-file target/release-notes.md "--prerelease=$prerelease" --draft=false
 ```
 
 If publication has moved to another ISO week, prepare a new version, build and

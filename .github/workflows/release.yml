@@ -14,6 +14,10 @@ on:
         description: "Build and verify all signed packages, then create the tag and unpublished draft"
         type: boolean
         default: false
+      windows_upgrade_from:
+        description: "Optional published version to test an in-place Windows upgrade from (YYYY.W.N)"
+        type: string
+        default: ""
       proof_platform:
         description: "Platforms for a proof run"
         type: choice
@@ -213,8 +217,9 @@ jobs:
           INSTALLER_PATH: ${{ steps.installer.outputs.path }}
           EXPECTED_VERSION: ${{ steps.release.outputs.version }}
           UNSIGNED_PROOF: ${{ steps.release.outputs.sign != 'true' }}
+          WINDOWS_UPGRADE_FROM: ${{ inputs.windows_upgrade_from }}
         run: |
-          ./tools/test_windows_installer.ps1 -InstallerPath $env:INSTALLER_PATH -ExpectedVersion $env:EXPECTED_VERSION -UnsignedProof:($env:UNSIGNED_PROOF -eq 'true')
+          ./tools/test_windows_installer.ps1 -InstallerPath $env:INSTALLER_PATH -ExpectedVersion $env:EXPECTED_VERSION -UnsignedProof:($env:UNSIGNED_PROOF -eq 'true') -UpgradeFromVersion $env:WINDOWS_UPGRADE_FROM
 
       - name: Upload proof binaries and signature report
         uses: actions/upload-artifact@v4

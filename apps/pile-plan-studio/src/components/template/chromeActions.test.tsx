@@ -1,6 +1,7 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { expect, test, vi } from "vitest";
 import i18n from "../../i18n/config.ts";
+import { PRODUCT_STATUS_KEY } from "../../productInfo.ts";
 import TitleBar from "./TitleBar.tsx";
 import FeedbackDialog from "./feedback/FeedbackDialog.tsx";
 import StatusBar from "./StatusBar.tsx";
@@ -43,7 +44,9 @@ test("shared titlebar actions expose shortcuts and use the application tooltip l
   expect(save.getAttribute("data-oa-tip")).toBeNull();
   fireEvent.focus(save);
   expect(screen.getByRole("tooltip").textContent).toContain("Ctrl+S");
-  expect(view.container.querySelector(".titlebar-alpha-badge .oa-status")).toBeTruthy();
+  const release = view.container.querySelector(".titlebar-release-badge");
+  expect(release?.textContent).toBe(i18n.t(PRODUCT_STATUS_KEY));
+  expect(release?.getAttribute("data-tooltip")).toBe(i18n.t("engineeringDisclaimer"));
   const redo = screen.getByRole("button", { name: "Redo change" });
   expect(redo.getAttribute("data-tooltip")).toBeNull();
 });
@@ -53,7 +56,7 @@ test("shared statusbar announces messages and tracks rounded plan zoom without s
   const status = screen.getByRole("status");
   expect(status.classList.contains("oa-statusbar")).toBe(true);
   expect(status.textContent).toContain("Project opened"); expect(status.textContent).toContain("124%");
-  expect(status.textContent).toContain(i18n.t("version"));
+  expect(status.textContent).toContain(i18n.t("appName"));
   view.rerender(<StatusBar zoomPercent={75.1} />);
   expect(status.textContent).toContain("75%"); expect(status.textContent).not.toContain("124%");
   expect(status.textContent).not.toContain("Project opened");

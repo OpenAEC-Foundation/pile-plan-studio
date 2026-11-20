@@ -39,13 +39,14 @@ const notesPath=join(temp,'prepared-release-notes.md');writeFileSync(notesPath,b
 // list includes them, so retries must search every page before any mutation.
 const pages=JSON.parse(gh(['api','--paginate','--slurp',`repos/${repo}/releases?per_page=100`]));
 const release=existingReleaseForTag(pages,tag);
-const uploads=release ? draftUploadPlan(release,tag,assets) : assets;
+const uploads=release ? draftUploadPlan(release,tag,assets,info.prerelease) : assets;
 ensureReleaseTag({repo,tag,sha,create:plan.mode==='release-candidate'},(endpoint,fields)=>
   JSON.parse(gh(['api',endpoint,...Object.entries(fields??{}).flatMap(([key,value])=>['-f',`${key}=${value}`])])));
 if(!release) {
-  gh(['release','create',tag,'--draft','--prerelease','--verify-tag','--title',info.title,'--notes-file',notesPath]);
+  const channelOptions=info.prerelease ? ['--prerelease'] : [];
+  gh(['release','create',tag,'--draft',...channelOptions,'--verify-tag','--title',info.title,'--notes-file',notesPath]);
 }
 for(const asset of uploads)gh(['release','upload',tag,join(output,asset.name)]);
 const final=JSON.parse(gh(['release','view',tag,'--json','tagName,isDraft,isPrerelease,assets,url']));
-if(draftUploadPlan(final,tag,assets).length)throw new Error('Draft upload is incomplete.');
+if(draftUploadPlan(final,tag,assets,info.prerelease).length)throw new Error('Draft upload is incomplete.');
 console.log('Verified draft (unpublished): '+final.url);

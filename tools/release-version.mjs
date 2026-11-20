@@ -54,9 +54,12 @@ export function checkTag(tag, version) {
 
 export function releaseInfo(pkg, { allowLegacy = false } = {}) {
   const { version, release } = pkg;
-  if (release?.channel !== 'alpha') throw new Error(`Unsupported release channel: ${release?.channel}.`);
+  const channel = release?.channel;
+  if (channel !== 'alpha' && channel !== 'stable') throw new Error(`Unsupported release channel: ${channel}.`);
+  const prerelease = channel === 'alpha';
   const legacy = allowLegacy && typeof version === 'string' && /^0\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/.test(version);
   if (legacy) {
+    if (!prerelease) throw new Error('Legacy development versions require the alpha channel.');
     if (release.date !== null) throw new Error('Legacy development version must have a null release date.');
   } else {
     const expected = parseReleaseVersion(version);
@@ -66,8 +69,8 @@ export function releaseInfo(pkg, { allowLegacy = false } = {}) {
     }
   }
   return {
-    version, date: release.date, channel: release.channel, status: 'Alpha', prerelease: true,
-    tag: `v${version}`, title: `Open Pile Plan Studio ${version} — Alpha`,
+    version, date: release.date, channel, status: prerelease ? 'Alpha' : 'Stable', prerelease,
+    tag: `v${version}`, title: `Open Pile Plan Studio ${version}${prerelease ? ' — Alpha' : ''}`,
   };
 }
 

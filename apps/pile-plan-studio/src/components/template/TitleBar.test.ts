@@ -35,7 +35,7 @@ describe("title bar history controls", () => {
     assert.match(source, /icon="file\.new"[\s\S]*?onClick=\{onNewProject\}/);
     assert.match(source, /icon="file\.open"[\s\S]*?onClick=\{onOpenProject\}/);
     assert.match(source, /<IconButton/);
-    assert.match(source, /<Status tone="warning"/);
+    assert.match(source, /<Status tone=\{PRODUCT_STATUS_KEY/);
     assert.doesNotMatch(source, /<path|<polyline|<circle/);
   });
 

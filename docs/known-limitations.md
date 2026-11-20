@@ -1,7 +1,6 @@
-# Known Alpha Limitations
+# Known Limitations
 
-Open Pile Plan Studio is an early testing release. The following limitations are
-intentional and should be considered when evaluating its results.
+Consider these limitations when evaluating results from Open Pile Plan Studio.
 
 ## Engineering Status
 
@@ -87,8 +86,8 @@ intentional and should be considered when evaluating its results.
 
 ## Data and Projects
 
-- IFCPP is an evolving alpha project format. Later alpha releases may require
-  migrations.
+- The IFCX profile used for IFCPP projects is evolving. Profile changes may
+  require migrations for older project files.
 - One IFCPP project can contain multiple pile plans. CPT selections and legend
   appearance mappings remain shared project settings, while active pile sizes
   and pile-tip levels are stored separately for each pile plan.
@@ -148,9 +147,8 @@ intentional and should be considered when evaluating its results.
 
 ## Platforms and Deferred Features
 
-- The hosted browser demo and Windows x64 desktop package are the supported alpha
-  distributions.
-- macOS and Linux packages are not provided for this release.
+- Open Pile Plan Studio is available in the browser and as a Windows x64
+  installer, a universal macOS DMG, and Linux x64 deb and AppImage packages.
 - Browser projects store imported source information, but are not refresh-linked
   to the original files on the user's computer.
 

@@ -11,11 +11,12 @@ const packagePath = resolve(root, 'apps/pile-plan-studio/package.json');
 test('prepare dry-run selects from both local and remote tags and never writes', () => {
   const before = readFileSync(packagePath, 'utf8');
   const lines = [];
-  main(['prepare', '--date', '2026-10-21', '--dry-run'], {
+  const info = main(['prepare', '--date', '2026-10-21', '--dry-run'], {
     root, readTags: () => ['v2026.43.9', 'v2026.43.10'], output: (line) => lines.push(line),
   });
   assert.match(lines.join('\n'), /2026\.43\.11/);
-  assert.match(lines.join('\n'), /Alpha/);
+  assert.equal(info.channel, JSON.parse(before).release.channel);
+  assert.ok(lines.join('\n').includes(info.title));
   assert.match(lines.join('\n'), /dry.run/i);
   assert.equal(readFileSync(packagePath, 'utf8'), before);
   assert.equal(existsSync(resolve(root, '.release-preparation.json')), false);
@@ -55,9 +56,11 @@ test('offline consistency and info work without accessing Git or the current dat
   const output = [];
   const options = { root, readTags() { throw new Error('Unexpected network'); }, output: (line) => output.push(line) };
   main(['check'], options);
-  main(['info'], options);
-  assert.ok(output.join('\n').includes(JSON.parse(readFileSync(packagePath, 'utf8')).version));
-  assert.match(output.join('\n'), /Alpha/);
+  const info = main(['info'], options);
+  const pkg = JSON.parse(readFileSync(packagePath, 'utf8'));
+  assert.ok(output.join('\n').includes(pkg.version));
+  assert.equal(info.channel, pkg.release.channel);
+  assert.equal(JSON.parse(output.at(-1)).prerelease, pkg.release.channel === 'alpha');
 });
 
 test('workflow CLI honors an explicit signed proof and rejects ambiguous signing input', () => {

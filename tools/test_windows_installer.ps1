@@ -1,7 +1,8 @@
 param(
     [Parameter(Mandatory = $true)][string]$InstallerPath,
     [Parameter(Mandatory = $true)][string]$ExpectedVersion,
-    [switch]$UnsignedProof
+    [switch]$UnsignedProof,
+    [string]$UpgradeFromVersion
 )
 
 $ErrorActionPreference = 'Stop'
@@ -24,19 +25,55 @@ if (Test-Path -LiteralPath $installDirectory) {
     throw "Smoke-test destination already exists: $installDirectory"
 }
 
-# NSIS requires /D as the last argument, without quotes even when it has spaces.
-$setup = Start-Process -FilePath $installer.FullName -ArgumentList "/S /D=$installDirectory" -WindowStyle Hidden -PassThru
-if (-not $setup.WaitForExit(120000)) {
-    Stop-Process -Id $setup.Id
-    throw 'Silent installation timed out.'
+function Invoke-SilentInstaller([string]$Path, [string]$Arguments) {
+    $setup = Start-Process -FilePath $Path -ArgumentList $Arguments -WindowStyle Hidden -PassThru
+    if (-not $setup.WaitForExit(120000)) {
+        Stop-Process -Id $setup.Id
+        throw "Silent installation timed out: $Path"
+    }
+    if ($setup.ExitCode -ne 0) {
+        throw "Silent installer exited with $($setup.ExitCode): $Path"
+    }
 }
-if ($setup.ExitCode -ne 0) {
-    throw "Silent installation failed: $($setup.ExitCode)"
+
+function Get-VersionedExecutable([string]$InstallDirectory, [string]$VersionPattern) {
+    $file = Get-Item -LiteralPath (Join-Path $InstallDirectory 'pile-plan-studio.exe')
+    if ($file.VersionInfo.ProductVersion -notmatch $VersionPattern) {
+        throw "Unexpected installed product version: $($file.VersionInfo.ProductVersion)"
+    }
+    $file
 }
-$executable = Get-Item -LiteralPath (Join-Path $installDirectory 'pile-plan-studio.exe')
-if ($executable.VersionInfo.ProductVersion -notmatch $versionPattern) {
-    throw "Unexpected installed product version: $($executable.VersionInfo.ProductVersion)"
+
+if ($UpgradeFromVersion) {
+    if ($UpgradeFromVersion -notmatch '^\d{4}\.\d{1,2}\.(0|[1-9]\d*)$' -or
+        [version]$UpgradeFromVersion -ge [version]$ExpectedVersion) {
+        throw 'The Windows upgrade source must be an older published YYYY.W.N version.'
+    }
+    $previousName = "Open.Pile.Plan.Studio_${UpgradeFromVersion}_x64-setup.exe"
+    $previousPath = Join-Path $env:RUNNER_TEMP $previousName
+    $previousUrl = "https://github.com/OpenAEC-Foundation/pile-plan-studio/releases/download/v$UpgradeFromVersion/$previousName"
+    Invoke-WebRequest -Uri $previousUrl -OutFile $previousPath -TimeoutSec 120
+    Assert-WindowsFileSignature -Path $previousPath | Out-Null
+    $previousPattern = '^' + [regex]::Escape($UpgradeFromVersion) + '(\.0)?$'
+    if ((Get-Item -LiteralPath $previousPath).VersionInfo.ProductVersion -notmatch $previousPattern) {
+        throw 'Unexpected version in the previous installer.'
+    }
+    # NSIS requires /D last, without quotes even when the path has spaces.
+    Invoke-SilentInstaller $previousPath "/S /D=$installDirectory"
+    Get-VersionedExecutable $installDirectory $previousPattern | Out-Null
+    # Supply no /D on update to exercise the normal existing-installation lookup.
+    Invoke-SilentInstaller $installer.FullName '/S /UPDATE'
+    Get-VersionedExecutable $installDirectory $versionPattern | Out-Null
+    "- In-place update from ${UpgradeFromVersion}: passed" | Add-Content -LiteralPath $env:GITHUB_STEP_SUMMARY
+    # Run the uninstaller directly so the process we wait on does the removal.
+    Invoke-SilentInstaller (Join-Path $installDirectory 'uninstall.exe') "/S _?=$installDirectory"
+    if (Test-Path -LiteralPath (Join-Path $installDirectory 'pile-plan-studio.exe')) {
+        throw 'The upgraded executable remained after uninstall.'
+    }
 }
+
+Invoke-SilentInstaller $installer.FullName "/S /D=$installDirectory"
+$executable = Get-VersionedExecutable $installDirectory $versionPattern
 $signatureProof = @()
 if (-not $UnsignedProof) {
     $signatureProof = @(Assert-WindowsReleaseSignatures -InstallerPath $installer.FullName -InstallDirectory $installDirectory)

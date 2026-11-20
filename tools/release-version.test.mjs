@@ -44,14 +44,21 @@ test('tag checking rejects suffixes, malformed versions and version mismatches',
   }
 });
 
-test('metadata derives Alpha independently and rejects unknown channels or inconsistent dates', () => {
+test('metadata derives the release status independently and rejects invalid dates or channels', () => {
   assert.deepEqual(release.releaseInfo({ version: '2026.43.0', release: { channel: 'alpha', date: '2026-10-21' } }), {
     version: '2026.43.0', date: '2026-10-21', channel: 'alpha', status: 'Alpha', prerelease: true,
     tag: 'v2026.43.0', title: 'Open Pile Plan Studio 2026.43.0 — Alpha',
   });
-  assert.throws(() => release.releaseInfo({ version: '2026.43.0', release: { channel: 'stable', date: '2026-10-21' } }), /channel/i);
+  assert.throws(() => release.releaseInfo({ version: '2026.43.0', release: { channel: 'beta', date: '2026-10-21' } }), /channel/i);
   assert.throws(() => release.releaseInfo({ version: '2026.43.0', release: { channel: 'alpha', date: '2026-10-26' } }), /date|week/i);
   assert.throws(() => release.releaseInfo({ version: '2026.43.0', release: { channel: 'alpha', date: null } }), /date/i);
+});
+
+test('stable release metadata keeps the numeric version and marks the release as public-ready', () => {
+  assert.deepEqual(release.releaseInfo({ version: '2026.47.2', release: { channel: 'stable', date: '2026-11-20' } }), {
+    version: '2026.47.2', date: '2026-11-20', channel: 'stable', status: 'Stable', prerelease: false,
+    tag: 'v2026.47.2', title: 'Open Pile Plan Studio 2026.47.2',
+  });
 });
 
 test('legacy development remains checkable but cannot pass the release gate', () => {

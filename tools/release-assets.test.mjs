@@ -73,3 +73,11 @@ test('a draft retry only uploads missing identical assets and refuses published 
     assert.throws(()=>draftUploadPlan({...release,...change},'v'+version,[asset]));
   }
 });
+
+test('a stable draft can be retried without accepting an alpha draft or a published release', () => {
+  const tag = 'v' + version;
+  const draft = { tagName: tag, isDraft: true, isPrerelease: false, assets: [] };
+  assert.deepEqual(draftUploadPlan(draft, tag, [], false), []);
+  assert.throws(() => draftUploadPlan({ ...draft, isPrerelease: true }, tag, [], false), /channel/);
+  assert.throws(() => draftUploadPlan({ ...draft, isDraft: false }, tag, [], false), /published/);
+});

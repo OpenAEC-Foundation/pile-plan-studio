@@ -1,6 +1,7 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { isTauriRuntime } from "../../core/coreTransport.ts";
+import { PRODUCT_STATUS_KEY } from "../../productInfo.ts";
 import { Button, IconButton, OpenAECProvider, Status } from "../../openaec/react/src/index";
 import spriteUrl from "../../openaec/studioSprite.ts";
 import "../../openaec/openaec-components.css";
@@ -34,6 +35,7 @@ export default function TitleBar({
   onUndo, onRedo, onNewProject, onOpenProject, onSettingsClick, onFeedbackClick, interfaceScaleControl,
 }: TitleBarProps) {
   const { t } = useTranslation();
+  const releaseStatus = t(PRODUCT_STATUS_KEY);
   const [appVersion, setAppVersion] = useState("");
   const projectActionLabel = t(projectActionKind === "save" ? "save" : "saveProjectDownload");
   const newProjectLabel = t("startScreen.newProject");
@@ -75,9 +77,9 @@ export default function TitleBar({
       </div>
       <div className="titlebar-title">
         <span className="titlebar-name">{t("appName")}</span>
-        <span className="titlebar-alpha-badge" data-tooltip={t("engineeringDisclaimer")}
-          aria-label={t("alphaLabel") + ": " + t("engineeringDisclaimer")} tabIndex={0}>
-          <Status tone="warning">{t("alphaLabel")}</Status>
+        <span className="titlebar-release-badge" data-tooltip={t("engineeringDisclaimer")}
+          aria-label={releaseStatus + ": " + t("engineeringDisclaimer")} tabIndex={0}>
+          <Status tone={PRODUCT_STATUS_KEY === "alphaLabel" ? "warning" : "success"}>{releaseStatus}</Status>
         </span>
         {appVersion && <span className="titlebar-version">v{appVersion}</span>}
       </div>
