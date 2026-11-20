@@ -15,6 +15,7 @@ function fill() { fireEvent.change(screen.getByRole("textbox", { name: t("messag
 
 test("shared feedback form posts account-free public feedback and opens only the returned issue on request", async () => {
   const request = vi.fn().mockResolvedValue(reply({ success: true, githubIssueUrl: issueUrl }));
+  vi.stubGlobal("__TAURI_INTERNALS__", {});
   vi.stubGlobal("fetch", request); external.open.mockClear();
   const view = render(<FeedbackDialog open onClose={vi.fn()} />);
   expect(view.container.querySelector("dialog.oa-dialog")).toBeTruthy();

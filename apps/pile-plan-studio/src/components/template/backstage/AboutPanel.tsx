@@ -1,12 +1,16 @@
 import { useTranslation } from "react-i18next";
+import { isTauriRuntime } from "../../../core/coreTransport.ts";
 import { Button, Heading, InfoCard } from "../../../openaec/react/src/index";
 import { PRODUCT_INFO } from "../../../productInfo";
 
 export default function AboutPanel({ hideLinks = false }: { hideLinks?: boolean }){
   const {t}=useTranslation("backstage");
   const openExternal=async(url:string)=>{
-    try{const {openUrl}=await import("@tauri-apps/plugin-opener");await openUrl(url);}
-    catch{window.open(url,"_blank","noopener,noreferrer");}
+    if(isTauriRuntime()){
+      try{const {openUrl}=await import("@tauri-apps/plugin-opener");await openUrl(url);return;}
+      catch{/* Use the browser fallback if the desktop opener fails. */}
+    }
+    window.open(url,"_blank","noopener,noreferrer");
   };
   return <section className="bs-about-panel" aria-label={t("aboutPanel.title")}>
     <header className="bs-about-heading">

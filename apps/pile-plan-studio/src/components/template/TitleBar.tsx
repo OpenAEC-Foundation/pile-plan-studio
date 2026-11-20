@@ -1,5 +1,6 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
+import { isTauriRuntime } from "../../core/coreTransport.ts";
 import { Button, IconButton, OpenAECProvider, Status } from "../../openaec/react/src/index";
 import spriteUrl from "../../openaec/studioSprite.ts";
 import "../../openaec/openaec-components.css";
@@ -38,6 +39,7 @@ export default function TitleBar({
   const newProjectLabel = t("startScreen.newProject");
   const openProjectLabel = t("startScreen.openProject");
   useEffect(() => {
+    if (!isTauriRuntime()) return;
     let active = true;
     import("@tauri-apps/api/app").then(api => api.getVersion())
       .then(version => { if (active) setAppVersion(version); })

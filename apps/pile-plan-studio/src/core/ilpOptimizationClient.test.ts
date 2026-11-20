@@ -55,7 +55,7 @@ test("worker cancellation, late events, crash and session reuse",async()=>{
 
 test("native stop waits for interruption and retains newer progress; cancel overrides stop",async()=>{
   const previous=globalThis.window;
-  globalThis.window={crypto:globalThis.crypto} as any;
+  globalThis.window={crypto:globalThis.crypto,get top(){return this;}} as any;
   let complete!:(outcome:IlpOptimizationOutcome)=>void;
   let channel!:Channel<IlpProgress>;
   let cancellations=0;

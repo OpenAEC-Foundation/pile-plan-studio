@@ -131,6 +131,8 @@ After deployment, test in current Chrome and Edge:
 5. The WASM request returns successfully with no console or MIME errors.
 6. Optimization starts its HiGHS Worker, updates the best-found plan, and
    supports stop-and-use-best and cancel without corrupting the project.
+7. Opening the browser app in an OpenAEC Installer tab reaches the home screen
+   and opens the sample project. The tab uses the browser's WebAssembly core.
 
 The browser build and Windows desktop build use the same Rust calculation core.
 

@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 
 import { pileOptionAnalysisResultFromCore } from "./pileOptionAnalysisResult.ts";
 import { binaryResultToUint8Array } from "./binaryCoreResult.ts";
+import { isDesktopRuntime } from "../domain/project/projectPersistence.ts";
 import {
   aggregatePileOptionsCore,
   applyLoadPointGroupAssignmentCore,
@@ -75,5 +76,25 @@ describe("core client public surface", () => {
     ];
 
     assert.equal(commands.every((command) => typeof command === "function"), true);
+  });
+});
+
+describe("runtime detection", () => {
+  it("uses the desktop runtime only in a top-level Tauri window", () => {
+    const desktop = { __TAURI_INTERNALS__: {}, get top() { return this; } };
+    const browser = { get top() { return this; } };
+    const embedded = { __TAURI_INTERNALS__: {}, top: desktop };
+    const originalWindow = Object.getOwnPropertyDescriptor(globalThis, "window");
+
+    try {
+      for (const [runtimeWindow, expected] of [[desktop, true], [browser, false], [embedded, false]] as const) {
+        Object.defineProperty(globalThis, "window", { value: runtimeWindow, configurable: true });
+        assert.equal(isTauriRuntime(), expected);
+        assert.equal(isDesktopRuntime(), expected);
+      }
+    } finally {
+      if (originalWindow) Object.defineProperty(globalThis, "window", originalWindow);
+      else Reflect.deleteProperty(globalThis, "window");
+    }
   });
 });

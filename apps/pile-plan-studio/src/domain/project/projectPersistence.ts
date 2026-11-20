@@ -1,4 +1,4 @@
-import { invokeDesktop } from "../../core/coreTransport.ts";
+import { invokeDesktop, isTauriRuntime } from "../../core/coreTransport.ts";
 
 export type ProjectFileCommands = {
   save: boolean;
@@ -49,9 +49,7 @@ export function pilePlanExportFileName(pilePlanName: string, format: "xlsx" | "c
   return `${safeName}.${format}`;
 }
 
-export function isDesktopRuntime(): boolean {
-  return typeof window !== "undefined" && "__TAURI_INTERNALS__" in window;
-}
+export const isDesktopRuntime = isTauriRuntime;
 
 export async function saveGeneratedFile(
   options: GeneratedFileOptions,

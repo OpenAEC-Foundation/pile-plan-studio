@@ -1,4 +1,5 @@
 import { load, type Store } from "@tauri-apps/plugin-store";
+import { isTauriRuntime } from "./core/coreTransport.ts";
 
 let _store: Store | null = null;
 const BROWSER_STORE_PREFIX = "pile-plan-studio:";
@@ -11,32 +12,39 @@ async function getStore(): Promise<Store> {
 }
 
 export async function getSetting<T>(key: string, fallback: T): Promise<T> {
-  try {
-    const store = await getStore();
-    const value = await store.get<T>(key);
-    return value ?? fallback;
-  } catch {
+  if (isTauriRuntime()) {
     try {
-      const value = globalThis.localStorage?.getItem(`${BROWSER_STORE_PREFIX}${key}`);
-      return value === null || value === undefined ? fallback : JSON.parse(value) as T;
+      const store = await getStore();
+      const value = await store.get<T>(key);
+      return value ?? fallback;
     } catch {
-      return fallback;
+      // Keep the local fallback if the desktop store is unavailable.
     }
+  }
+  try {
+    const value = globalThis.localStorage?.getItem(`${BROWSER_STORE_PREFIX}${key}`);
+    return value === null || value === undefined ? fallback : JSON.parse(value) as T;
+  } catch {
+    return fallback;
   }
 }
 
 export async function setSetting<T>(key: string, value: T, options?: { requirePersistence?: boolean }): Promise<void> {
-  try {
-    const store = await getStore();
-    await store.set(key, value);
-  } catch {
+  if (isTauriRuntime()) {
     try {
-      const storage = globalThis.localStorage;
-      if (!storage) throw new Error("Persistent storage unavailable");
-      storage.setItem(`${BROWSER_STORE_PREFIX}${key}`, JSON.stringify(value));
-    } catch (error) {
-      if (options?.requirePersistence) throw error;
-      // Preferences are optional when no persistent store is available.
+      const store = await getStore();
+      await store.set(key, value);
+      return;
+    } catch {
+      // Keep the local fallback if the desktop store is unavailable.
     }
+  }
+  try {
+    const storage = globalThis.localStorage;
+    if (!storage) throw new Error("Persistent storage unavailable");
+    storage.setItem(`${BROWSER_STORE_PREFIX}${key}`, JSON.stringify(value));
+  } catch (error) {
+    if (options?.requirePersistence) throw error;
+    // Preferences are optional when no persistent store is available.
   }
 }

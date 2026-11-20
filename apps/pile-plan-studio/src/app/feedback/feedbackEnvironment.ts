@@ -1,7 +1,9 @@
 import html2canvas from "html2canvas";
+import { isTauriRuntime } from "../../core/coreTransport.ts";
 import { FeedbackError, MAX_FEEDBACK_IMAGE_BYTES } from "./feedbackClient.ts";
 
 export async function getFeedbackEnvironment(): Promise<{ appVersion: string; osInfo: string }> {
+  if (!isTauriRuntime()) return { appVersion: __APP_VERSION__, osInfo: navigator.platform || "Unknown" };
   const version = import("@tauri-apps/api/app").then(api => api.getVersion()).catch(() => __APP_VERSION__);
   const system = import("@tauri-apps/plugin-os").then(os =>
     `${os.type()} ${os.version()} (${os.arch()})`.replace(/\s+/g, " ").trim(),
@@ -11,12 +13,16 @@ export async function getFeedbackEnvironment(): Promise<{ appVersion: string; os
 }
 
 export async function openFeedbackIssue(url: string): Promise<void> {
-  try {
-    const { openUrl } = await import("@tauri-apps/plugin-opener");
-    await openUrl(url);
-  } catch {
-    window.open(url, "_blank", "noopener,noreferrer");
+  if (isTauriRuntime()) {
+    try {
+      const { openUrl } = await import("@tauri-apps/plugin-opener");
+      await openUrl(url);
+      return;
+    } catch {
+      // Use the browser fallback if the desktop opener fails.
+    }
   }
+  window.open(url, "_blank", "noopener,noreferrer");
 }
 
 export async function captureFeedbackScreenshot(): Promise<File> {

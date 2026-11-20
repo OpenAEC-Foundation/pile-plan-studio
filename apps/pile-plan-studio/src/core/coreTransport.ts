@@ -5,7 +5,8 @@ import { invokeCompressedAnalysis, supportsCompressedAnalysis } from "./compress
 const wasmInitializations = new WeakMap<() => Promise<unknown>, Promise<void>>();
 
 export function isTauriRuntime(): boolean {
-  return typeof window !== "undefined" && "__TAURI_INTERNALS__" in window;
+  // WebView2 can inject the host application's Tauri globals into its iframes.
+  return typeof window !== "undefined" && window.top === window && "__TAURI_INTERNALS__" in window;
 }
 
 export function initializeWasm(initialize: () => Promise<unknown>): Promise<void> {
