@@ -169,7 +169,6 @@
   "restore": "Restore",
   "appName": "Open Pile Plan Studio",
   "alphaLabel": "Alpha",
-  "stableLabel": "Stable",
   "engineeringDisclaimer": "Engineering results require professional verification.",
   "noDocumentOpen": "No project open",
   "noDocumentHint": "Open or import a pile planning project to get started.",

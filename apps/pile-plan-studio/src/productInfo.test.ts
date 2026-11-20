@@ -43,10 +43,10 @@ describe("product information", () => {
     assert.match(productInfo, /version:\s*__APP_VERSION__/);
     const expected = releaseInfo(packageJson, { allowLegacy: true });
     Object.assign(globalThis, { __APP_VERSION__: expected.version, __APP_RELEASE_STATUS__: expected.status });
-    const { PRODUCT_INFO, PRODUCT_STATUS_KEY } = await import("./productInfo.ts");
+    const { PRODUCT_INFO, IS_ALPHA_RELEASE } = await import("./productInfo.ts");
     assert.equal(PRODUCT_INFO.version, expected.version);
     assert.equal(PRODUCT_INFO.status, expected.status);
-    assert.equal(PRODUCT_STATUS_KEY, expected.prerelease ? "alphaLabel" : "stableLabel");
+    assert.equal(IS_ALPHA_RELEASE, expected.prerelease);
     assert.match(productInfo, /organization:\s*"OpenAEC Foundation"/);
     assert.match(productInfo, /license:\s*"LGPL-3\.0-or-later"/);
   });

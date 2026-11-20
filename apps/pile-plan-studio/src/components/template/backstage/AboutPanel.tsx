@@ -1,7 +1,7 @@
 import { useTranslation } from "react-i18next";
 import { isTauriRuntime } from "../../../core/coreTransport.ts";
 import { Button, Heading, InfoCard } from "../../../openaec/react/src/index";
-import { PRODUCT_INFO, PRODUCT_STATUS_KEY } from "../../../productInfo.ts";
+import { IS_ALPHA_RELEASE, PRODUCT_INFO } from "../../../productInfo.ts";
 
 export default function AboutPanel({ hideLinks = false }: { hideLinks?: boolean }){
   const {t}=useTranslation("backstage");
@@ -21,7 +21,7 @@ export default function AboutPanel({ hideLinks = false }: { hideLinks?: boolean 
     <p className="bs-about-tagline">{t("aboutPanel.tagline")}</p>
     <p>{t("aboutPanel.description")}</p>
     <InfoCard title={PRODUCT_INFO.name} facts={[
-      [t("aboutPanel.version"),`${PRODUCT_INFO.version} · ${tCommon(PRODUCT_STATUS_KEY)}`],
+      [t("aboutPanel.version"),IS_ALPHA_RELEASE ? `${PRODUCT_INFO.version} · ${tCommon("alphaLabel")}` : PRODUCT_INFO.version],
       [t("aboutPanel.license"),PRODUCT_INFO.license],
     ]}/>
     <section className="bs-about-company">

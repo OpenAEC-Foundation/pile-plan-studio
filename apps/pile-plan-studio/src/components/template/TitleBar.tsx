@@ -1,7 +1,6 @@
-import { useEffect, useState, type ReactNode } from "react";
+import type { ReactNode } from "react";
 import { useTranslation } from "react-i18next";
-import { isTauriRuntime } from "../../core/coreTransport.ts";
-import { PRODUCT_STATUS_KEY } from "../../productInfo.ts";
+import { IS_ALPHA_RELEASE, PRODUCT_INFO } from "../../productInfo.ts";
 import { Button, IconButton, OpenAECProvider, Status } from "../../openaec/react/src/index";
 import spriteUrl from "../../openaec/studioSprite.ts";
 import "../../openaec/openaec-components.css";
@@ -35,19 +34,9 @@ export default function TitleBar({
   onUndo, onRedo, onNewProject, onOpenProject, onSettingsClick, onFeedbackClick, interfaceScaleControl,
 }: TitleBarProps) {
   const { t } = useTranslation();
-  const releaseStatus = t(PRODUCT_STATUS_KEY);
-  const [appVersion, setAppVersion] = useState("");
   const projectActionLabel = t(projectActionKind === "save" ? "save" : "saveProjectDownload");
   const newProjectLabel = t("startScreen.newProject");
   const openProjectLabel = t("startScreen.openProject");
-  useEffect(() => {
-    if (!isTauriRuntime()) return;
-    let active = true;
-    import("@tauri-apps/api/app").then(api => api.getVersion())
-      .then(version => { if (active) setAppVersion(version); })
-      .catch(() => { if (active) setAppVersion(""); });
-    return () => { active = false; };
-  }, []);
 
   return <OpenAECProvider sprite={spriteUrl}>
     <header className="oa-app titlebar titlebar-blueprint" role="banner" onKeyDown={event => {
@@ -77,11 +66,11 @@ export default function TitleBar({
       </div>
       <div className="titlebar-title">
         <span className="titlebar-name">{t("appName")}</span>
-        <span className="titlebar-release-badge" data-tooltip={t("engineeringDisclaimer")}
-          aria-label={releaseStatus + ": " + t("engineeringDisclaimer")} tabIndex={0}>
-          <Status tone={PRODUCT_STATUS_KEY === "alphaLabel" ? "warning" : "success"}>{releaseStatus}</Status>
-        </span>
-        {appVersion && <span className="titlebar-version">v{appVersion}</span>}
+        <span className="titlebar-version" data-tooltip={t("engineeringDisclaimer")}
+          aria-label={`v${PRODUCT_INFO.version}. ${t("engineeringDisclaimer")}`} tabIndex={0}>v{PRODUCT_INFO.version}</span>
+        {IS_ALPHA_RELEASE && <span className="titlebar-release-badge">
+          <Status tone="warning">{t("alphaLabel")}</Status>
+        </span>}
       </div>
       <div className="titlebar-actions">
         <div className="titlebar-scale-anchor">{interfaceScaleControl}</div>

@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { LANGUAGES, changeLanguage } from "../../../i18n/config";
-import { PRODUCT_INFO, PRODUCT_STATUS_KEY } from "../../../productInfo.ts";
+import { IS_ALPHA_RELEASE, PRODUCT_INFO } from "../../../productInfo.ts";
 import type { UserLanguage } from "../../../domain/settings/userSettings.ts";
 import type { McpConnection } from "../../../app/mcp/desktopBridge.ts";
 import { applyTheme } from "../../../app/appearance/applyAppearance.ts";
@@ -423,7 +423,7 @@ function AboutTabContent() {
           {t("about.description")}
         </p>
         <p><strong>{t("about.version")}:</strong> {PRODUCT_INFO.version}</p>
-        <p><strong>{t("about.status")}:</strong> {tCommon(PRODUCT_STATUS_KEY)}</p>
+        {IS_ALPHA_RELEASE && <p><strong>{t("about.status")}:</strong> {tCommon("alphaLabel")}</p>}
         <p><strong>{t("about.organization")}:</strong> {PRODUCT_INFO.organization}</p>
         <p><strong>{t("about.license")}:</strong> {PRODUCT_INFO.license}</p>
       </div>

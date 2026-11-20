@@ -140,8 +140,9 @@ The browser build and Windows desktop build use the same Rust calculation core.
 The app `package.json` is the source of the product version and release metadata:
 `version`, `release.channel` and `release.date`. Set `release.channel` to
 `stable` for a stable release or `alpha` for a prerelease before preparing its
-version. The app and GitHub draft use this same channel. Both channels share
-the numeric version sequence.
+version. The app displays the version and adds a badge for alpha builds.
+The GitHub draft uses the selected channel. Both channels share the numeric
+version sequence.
 
 New releases use `YYYY.W.N` and tags use `vYYYY.W.N`, without an alpha suffix or
 leading zeros. `YYYY` is the ISO week-numbering year, `W` the ISO week and `N` a

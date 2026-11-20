@@ -1,7 +1,7 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { expect, test, vi } from "vitest";
 import i18n from "../../i18n/config.ts";
-import { PRODUCT_STATUS_KEY } from "../../productInfo.ts";
+import { IS_ALPHA_RELEASE, PRODUCT_INFO } from "../../productInfo.ts";
 import TitleBar from "./TitleBar.tsx";
 import FeedbackDialog from "./feedback/FeedbackDialog.tsx";
 import StatusBar from "./StatusBar.tsx";
@@ -45,8 +45,10 @@ test("shared titlebar actions expose shortcuts and use the application tooltip l
   fireEvent.focus(save);
   expect(screen.getByRole("tooltip").textContent).toContain("Ctrl+S");
   const release = view.container.querySelector(".titlebar-release-badge");
-  expect(release?.textContent).toBe(i18n.t(PRODUCT_STATUS_KEY));
-  expect(release?.getAttribute("data-tooltip")).toBe(i18n.t("engineeringDisclaimer"));
+  expect(release?.textContent ?? null).toBe(IS_ALPHA_RELEASE ? i18n.t("alphaLabel") : null);
+  const version = view.container.querySelector(".titlebar-version");
+  expect(version?.textContent).toBe(`v${PRODUCT_INFO.version}`);
+  expect(version?.getAttribute("data-tooltip")).toBe(i18n.t("engineeringDisclaimer"));
   const redo = screen.getByRole("button", { name: "Redo change" });
   expect(redo.getAttribute("data-tooltip")).toBeNull();
 });

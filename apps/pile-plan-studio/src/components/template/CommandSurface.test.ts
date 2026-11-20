@@ -10,11 +10,11 @@ describe("Application command surfaces", () => {
     const enCommon = readFileSync(resolve(import.meta.dirname, "../../i18n/locales/en/common.json"), "utf8");
     const nlCommon = readFileSync(resolve(import.meta.dirname, "../../i18n/locales/nl/common.json"), "utf8");
 
-    assert.match(titleBar, /t\(PRODUCT_STATUS_KEY\)/);
+    assert.match(titleBar, /v\{PRODUCT_INFO\.version\}/);
+    assert.match(titleBar, /IS_ALPHA_RELEASE && <span className="titlebar-release-badge"/);
+    assert.match(titleBar, /data-tooltip=\{t\("engineeringDisclaimer"\)\}/);
     assert.match(enCommon, /"alphaLabel":\s*"Alpha"/);
     assert.match(nlCommon, /"alphaLabel":\s*"Alpha"/);
-    assert.match(enCommon, /"stableLabel":\s*"Stable"/);
-    assert.match(nlCommon, /"stableLabel":\s*"Stabiel"/);
     assert.match(enCommon, /professional verification/i);
     assert.match(nlCommon, /deskundige/);
   });

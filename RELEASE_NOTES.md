@@ -5,7 +5,7 @@
 ### Stable desktop release
 
 - Publish the first stable desktop release for Windows, macOS and Linux.
-- Show the release channel in the app and retain the engineering review
+- Show the product version in the app and retain the engineering review
   notice. A qualified professional must verify results before they are used
   in foundation design, procurement or construction.
 - Open the web app inside the OpenAEC Installer tab using the browser runtime.
