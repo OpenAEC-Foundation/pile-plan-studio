@@ -84,6 +84,7 @@ type IfcppViewerSettings = {
   show_tip_level_regions?: boolean;
   filled_tip_level_regions?: boolean;
   show_load_point_groups?: boolean;
+  show_group_conflicts?: boolean;
   show_driving_colors?: boolean;
 };
 
@@ -204,6 +205,7 @@ export type LoadedProjectData = {
   showTipLevelRegions: boolean;
   filledTipLevelRegions: boolean;
   showLoadPointGroups: boolean;
+  showGroupConflicts: boolean;
   showDrivingColors: boolean;
   pileLegend: LegendItems;
   legendImportWarnings: LegendImportWarning[];
@@ -306,6 +308,7 @@ export function hydrateProjectState(
     showTipLevelRegions: project.settings.viewer!.show_tip_level_regions!,
     filledTipLevelRegions: project.settings.viewer!.filled_tip_level_regions ?? true,
     showLoadPointGroups: project.settings.viewer!.show_load_point_groups ?? false,
+    showGroupConflicts: project.settings.viewer!.show_group_conflicts ?? true,
     showDrivingColors: project.settings.viewer!.show_driving_colors ?? false,
     pileLegend,
     legendImportWarnings,

@@ -161,8 +161,8 @@ Its SVG mask/filter extracts only the outside edge, preserving concave and
 L-shaped groups instead of replacing them with a convex hull. Keep this layer
 below load-point markers and above tip-level-region fills.
 
-The **Group conflicts** preference controls conflict contours and warning
-symbols on the drawing.
+The **Group conflicts** project setting controls conflict contours and warning
+symbols on the drawing. Older projects show them by default.
 
 Filled mode uses the complete Gabriel topology for its outline. The SVG
 mask fills each bounded face and includes all edges and load points with a

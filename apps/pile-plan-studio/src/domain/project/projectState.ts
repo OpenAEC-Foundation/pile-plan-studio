@@ -95,6 +95,7 @@ export type ProjectState = LoadedProjectData & {
   showTipLevelRegions: boolean;
   filledTipLevelRegions: boolean;
   showLoadPointGroups: boolean;
+  showGroupConflicts: boolean;
   showDrivingColors: boolean;
 };
 

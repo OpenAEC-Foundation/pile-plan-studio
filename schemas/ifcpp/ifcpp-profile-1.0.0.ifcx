@@ -603,6 +603,10 @@
               "dataType": "Boolean",
               "optional": true
             },
+            "showGroupConflicts": {
+              "dataType": "Boolean",
+              "optional": true
+            },
             "showDrivingColors": {
               "dataType": "Boolean",
               "optional": true

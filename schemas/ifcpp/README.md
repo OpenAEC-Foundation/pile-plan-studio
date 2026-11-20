@@ -42,7 +42,7 @@ Unqualified field names below refer to the enclosing Rust structure or IFCX attr
 | `settings.ilp_optimization`, legacy `settings.optimization` | Foundation `openaec::opps::optimizerSettings` after existing Rust normalization. The historical settings shape is used for old input. |
 | `settings.viewer_utilization` | Foundation `openaec::opps::viewerUtilization` with minimum and maximum. |
 | `settings.pile_legend` | Foundation `openaec::opps::legend`. Preserve encoding mode, general and per-dimension color schemes, and size and tip-level entries with their symbol base shape, fill pattern, color and automatic flags. Size values use millimetres. Tip-level values use decimal metres with whole-millimetre precision. |
-| `settings.viewer`, `user_state.active_pile_plan_id` | Foundation `openaec::opps::planView`. `plan` is the reference to the viewed plan. Preserve grid, tip-level regions, group visibility, symbol scale and foreground layer. Optional `filledTipLevelRegions` defaults to true. False selects connection strips, independent of region visibility. Optional `showDrivingColors` defaults to false. |
+| `settings.viewer`, `user_state.active_pile_plan_id` | Foundation `openaec::opps::planView`. `plan` is the reference to the viewed plan. Preserve grid, tip-level regions, group visibility, symbol scale and foreground layer. Optional `filledTipLevelRegions` defaults to true. False selects connection strips, independent of region visibility. Optional `showDrivingColors` defaults to false. Optional `showGroupConflicts` defaults to true. |
 
 ### Inputs, source provenance and heistaten
 

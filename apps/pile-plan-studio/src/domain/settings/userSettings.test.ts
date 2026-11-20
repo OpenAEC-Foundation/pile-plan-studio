@@ -19,12 +19,9 @@ describe("user settings", () => {
       assert.equal(normalizeUserSettings({ preferences: { workspaceAppearance: value } }).preferences.workspaceAppearance, "theme");
     }
   });
-  it("shows group conflicts by default and persists the user's visibility choice", () => {
-    for (const showGroupConflicts of [undefined, null, "false", true]) {
-      assert.equal(normalizeUserSettings({ preferences: { showGroupConflicts } }).preferences.showGroupConflicts, true);
-    }
-    const hidden = patchUserSettings(DEFAULT_USER_SETTINGS, { showGroupConflicts: false });
-    assert.equal(normalizeUserSettings(JSON.parse(JSON.stringify(hidden))).preferences.showGroupConflicts, false);
+  it("ignores the former global group conflict visibility preference", () => {
+    const { preferences } = normalizeUserSettings({ preferences: { showGroupConflicts: false } });
+    assert.equal(Object.hasOwn(preferences, "showGroupConflicts"), false);
   });
   it("migrates legacy themes and preserves current Blueprint themes without changing other preferences", () => {
     for (const [saved, expected] of [
@@ -88,7 +85,6 @@ describe("user settings", () => {
         language: "auto",
         theme: "light",
         workspaceAppearance: "theme",
-        showGroupConflicts: true,
         interfaceScalePercent: 100,
         defaultCurrencyCode: "EUR",
         openLastProjectOnStartup: false,

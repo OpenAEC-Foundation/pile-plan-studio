@@ -50,6 +50,28 @@ describe("project history reducer", () => {
     assert.equal(projectHistoryReducer(undone, { type: "redo" }).present.filledTipLevelRegions, false);
   });
 
+  it("saves group conflict visibility independently of group visibility and supports undo and redo", () => {
+    const initial = state();
+    assert.equal(initial.showGroupConflicts, true);
+    assert.equal(projectDraftFromState(initial).settings.viewer?.show_group_conflicts, undefined);
+
+    const changed = projectHistoryReducer(createManagedProjectState(initial), {
+      type: "commit", update: current => ({ ...current, showGroupConflicts: false }),
+    });
+    const draft = projectDraftFromState(changed.present);
+    assert.equal(draft.settings.viewer?.show_group_conflicts, false);
+    assert.equal(changed.present.showLoadPointGroups, initial.showLoadPointGroups);
+    assert.notEqual(projectStateSignature(changed.present), projectStateSignature(initial));
+    const reopened = createTestProjectState({ ...canonicalProjectForTest(sampleProjectText), settings: draft.settings },
+      { initializeDefaultPiles: false });
+    assert.equal(reopened.showGroupConflicts, false);
+
+    const undone = projectHistoryReducer(changed, { type: "undo" });
+    assert.equal(undone.present.showGroupConflicts, true);
+    assert.equal(projectStateSignature(undone.present), projectStateSignature(initial));
+    assert.equal(projectHistoryReducer(undone, { type: "redo" }).present.showGroupConflicts, false);
+  });
+
   it("stores driving color visibility per project and restores it through undo and redo", () => {
     const initial = state();
     assert.equal(initial.showDrivingColors, false);

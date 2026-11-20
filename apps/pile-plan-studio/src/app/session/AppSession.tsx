@@ -550,7 +550,8 @@ export default function AppSession({
   const reportProjectOpenFailureRef = useRef<(error: unknown) => void>(() => {});
   const saveShortcutInFlightRef = useRef(false);
   const isDesktop = isDesktopRuntime();
-  const { workspaceLayout, showGroupConflicts } = userSettings.preferences;
+  const { workspaceLayout } = userSettings.preferences;
+  const { showGroupConflicts } = projectState;
   const tourActive = sampleOpen && tourOpen && !startPage;
   const propertiesVisible = tourActive || workspaceLayout.propertiesVisible;
   const interfaceScalePercent = userSettings.preferences.interfaceScalePercent;
@@ -1857,9 +1858,8 @@ export default function AppSession({
             ...projectState,
             showLoadPointGroups,
           })}
-          onGroupConflictVisibilityChange={(visible) => commitUserSettings(patchUserSettings(
-            userSettingsRef.current, { showGroupConflicts: visible },
-          ))}
+          onGroupConflictVisibilityChange={readOnly ? undefined : showGroupConflicts =>
+            commitProjectState(current => ({ ...current, showGroupConflicts }))}
           onExplorerVisibilityChange={(explorerVisible) => updateWorkspaceLayout({ explorerVisible })}
           onDrivingColorVisibilityChange={readOnly ? undefined : setDrivingColorVisibility}
           onPropertiesVisibilityChange={(propertiesVisible) => updateWorkspaceLayout({ propertiesVisible })}

@@ -1810,6 +1810,29 @@ mod tests {
     }
 
     #[test]
+    fn defaults_and_round_trips_group_conflict_visibility() {
+        let mut project = project_fixture();
+        let legacy = serde_json::to_value(&project).unwrap();
+        assert!(legacy["settings"]["viewer"].get("show_group_conflicts").is_none());
+        assert!(read_ifcpp_str(&legacy.to_string())
+            .unwrap()
+            .settings
+            .viewer
+            .show_group_conflicts);
+        let saved = write_ifcpp_string(&project).unwrap();
+        assert!(!saved.contains("\"showGroupConflicts\""));
+        assert!(read_ifcpp_str(&saved).unwrap().settings.viewer.show_group_conflicts);
+
+        project.settings.viewer.show_group_conflicts = false;
+        project.settings.viewer.show_load_point_groups = true;
+        let saved = write_ifcpp_string(&project).unwrap();
+        assert!(saved.contains("\"showGroupConflicts\""));
+        let reopened = read_ifcpp_str(&saved).unwrap().settings.viewer;
+        assert!(!reopened.show_group_conflicts);
+        assert!(reopened.show_load_point_groups);
+    }
+
+    #[test]
     fn defaults_and_round_trips_driving_color_visibility() {
         let mut legacy = serde_json::to_value(project_fixture()).unwrap();
         assert!(legacy["settings"]["viewer"]

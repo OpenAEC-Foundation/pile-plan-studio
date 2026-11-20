@@ -375,6 +375,8 @@ pub struct ProjectViewerSettings {
     pub filled_tip_level_regions: bool,
     #[serde(default)]
     pub show_load_point_groups: bool,
+    #[serde(default = "default_true", skip_serializing_if = "is_true")]
+    pub show_group_conflicts: bool,
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub show_driving_colors: bool,
 }
@@ -388,6 +390,7 @@ impl Default for ProjectViewerSettings {
             show_tip_level_regions: true,
             filled_tip_level_regions: true,
             show_load_point_groups: false,
+            show_group_conflicts: true,
             show_driving_colors: false,
         }
     }

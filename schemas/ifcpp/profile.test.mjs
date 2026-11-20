@@ -173,18 +173,20 @@ test("both projects resolve the separate profile and the full fixture exercises 
   assert.deepEqual(new Set(complete.data.flatMap((node) => Object.keys(node.attributes))), new Set(Object.keys(profile.schemas)));
 });
 
-test("the plan view accepts optional driving status color visibility", () => {
-  const doc = structuredClone(complete);
-  const key = opps + "planView";
-  const view = attribute(withAttribute(doc, key)[0], key);
-  assert.equal(view.showDrivingColors, undefined);
-  for (const value of [true, false]) {
-    view.showDrivingColors = value;
-    checkProject(doc);
-  }
-  view.showDrivingColors = "true";
-  assert.throws(() => checkProject(doc), /planView\.showDrivingColors/);
-});
+for (const field of ["showDrivingColors", "showGroupConflicts"]) {
+  test("the plan view accepts optional boolean " + field, () => {
+    const doc = structuredClone(complete);
+    const key = opps + "planView";
+    const view = attribute(withAttribute(doc, key)[0], key);
+    assert.equal(view[field], undefined);
+    for (const value of [true, false]) {
+      view[field] = value;
+      checkProject(doc);
+    }
+    view[field] = "true";
+    assert.throws(() => checkProject(doc), new RegExp("planView\\." + field));
+  });
+}
 
 test("two variants keep different numbers on piles at one location", () => {
   const [a, b] = withAttribute(complete, foundation + "pilePlan");

@@ -52,7 +52,7 @@ interface RibbonProps {
   onGridVisibilityChange: (visible: boolean) => void;
   onTipLevelRegionVisibilityChange: (visible: boolean) => void;
   onLoadPointGroupVisibilityChange: (visible: boolean) => void;
-  onGroupConflictVisibilityChange: (visible: boolean) => void;
+  onGroupConflictVisibilityChange?: (visible: boolean) => void;
   onDrivingColorVisibilityChange?: (visible: boolean) => void;
   onExplorerVisibilityChange: (visible: boolean) => void;
   onPropertiesVisibilityChange: (visible: boolean) => void;
@@ -331,7 +331,8 @@ export default function Ribbon({
                   icon={<BlueprintIcon id="status.warning" size={24} />}
                   label={t("view.groupConflicts")}
                   title={t(showGroupConflicts ? "view.hideGroupConflicts" : "view.showGroupConflicts")}
-                  onClick={() => onGroupConflictVisibilityChange(!showGroupConflicts)}
+                  disabled={!onGroupConflictVisibilityChange}
+                  onClick={() => onGroupConflictVisibilityChange?.(!showGroupConflicts)}
                 />
               </RibbonGroup>
               <RibbonGroup label={t("view.windows")}>
