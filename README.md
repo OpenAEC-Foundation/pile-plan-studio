@@ -5,7 +5,7 @@
 </p>
 
 <p align="center">
-  <a href="RELEASE_NOTES.md"><img src="https://img.shields.io/badge/release-v2026.47.2-D97706?style=flat-square" alt="Release v2026.47.2"></a>
+  <a href="RELEASE_NOTES.md"><img src="https://img.shields.io/badge/release-v2026.48.0-D97706?style=flat-square" alt="Release v2026.48.0"></a>
   <a href="https://github.com/OpenAEC-Foundation/pile-plan-studio/releases"><img src="https://img.shields.io/github/downloads/OpenAEC-Foundation/pile-plan-studio/total?style=flat-square" alt="Total downloads"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-LGPL--3.0-blue?style=flat-square" alt="LGPL-3.0 license"></a>
   <a href="https://pile-plan-studio.open-aec.com/"><img src="https://img.shields.io/badge/platform-Web%20%7C%20Windows%20%7C%20macOS%20%7C%20Linux-lightgrey?style=flat-square" alt="Web, Windows, macOS and Linux"></a>
@@ -140,9 +140,9 @@ The stable desktop release provides the following packages:
 
 | System | Download | Signing and tested baseline |
 | --- | --- | --- |
-| Windows x64 | [NSIS installer](https://github.com/OpenAEC-Foundation/pile-plan-studio/releases/download/v2026.47.2/Open.Pile.Plan.Studio_2026.47.2_x64-setup.exe) | Azure Authenticode signing |
-| macOS 15+ | [Universal DMG](https://github.com/OpenAEC-Foundation/pile-plan-studio/releases/download/v2026.47.2/Open.Pile.Plan.Studio_2026.47.2_universal.dmg) | Apple Silicon and Intel; Developer ID signed, notarized and stapled |
-| Linux x64 | [Debian package](https://github.com/OpenAEC-Foundation/pile-plan-studio/releases/download/v2026.47.2/Open.Pile.Plan.Studio_2026.47.2_amd64.deb) · [AppImage](https://github.com/OpenAEC-Foundation/pile-plan-studio/releases/download/v2026.47.2/Open.Pile.Plan.Studio_2026.47.2_amd64.AppImage) | Ubuntu 22.04/24.04; detached OpenPGP signatures |
+| Windows x64 | [NSIS installer](https://github.com/OpenAEC-Foundation/pile-plan-studio/releases/download/v2026.48.0/Open.Pile.Plan.Studio_2026.48.0_x64-setup.exe) | Azure Authenticode signing |
+| macOS 15+ | [Universal DMG](https://github.com/OpenAEC-Foundation/pile-plan-studio/releases/download/v2026.48.0/Open.Pile.Plan.Studio_2026.48.0_universal.dmg) | Apple Silicon and Intel; Developer ID signed, notarized and stapled |
+| Linux x64 | [Debian package](https://github.com/OpenAEC-Foundation/pile-plan-studio/releases/download/v2026.48.0/Open.Pile.Plan.Studio_2026.48.0_amd64.deb) · [AppImage](https://github.com/OpenAEC-Foundation/pile-plan-studio/releases/download/v2026.48.0/Open.Pile.Plan.Studio_2026.48.0_amd64.AppImage) | Ubuntu 22.04/24.04; detached OpenPGP signatures |
 
 Release history, checksums and Linux signature/public-key files are on
 [GitHub Releases](https://github.com/OpenAEC-Foundation/pile-plan-studio/releases).

@@ -1,6 +1,6 @@
 # Open Pile Plan Studio Release Notes
 
-## 2026.47.2
+## 2026.48.0
 
 ### Stable desktop release
 

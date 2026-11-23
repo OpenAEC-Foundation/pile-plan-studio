@@ -1,10 +1,10 @@
 {
   "name": "pile-plan-studio",
   "private": true,
-  "version": "2026.47.2",
+  "version": "2026.48.0",
   "release": {
     "channel": "stable",
-    "date": "2026-11-20"
+    "date": "2026-11-23"
   },
   "license": "LGPL-3.0-or-later",
   "type": "module",
