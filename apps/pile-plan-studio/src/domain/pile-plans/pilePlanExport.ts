@@ -22,16 +22,22 @@ export function buildPilePlanExportInput(state: PilePlanExportState, pileSizeFor
   };
 }
 
-export function buildPilePlanExportInputForPlan(state: ProjectState, planId: string, pileSizeFormat: PileSizeExportFormat = "numeric", configured = false): PilePlanExportInput {
+export function resolvePilePlanForExport(state: ProjectState, planId: string) {
   const plan = state.pilePlans.find((candidate) => candidate.id === planId);
+  return plan && (planId === state.activePilePlanId
+    ? { ...plan, selectedPileConfigurationsByLoadPoint: state.selectedPileConfigurationsByLoadPoint }
+    : plan);
+}
+
+export function buildPilePlanExportInputForPlan(state: ProjectState, planId: string, pileSizeFormat: PileSizeExportFormat = "numeric", configured = false): PilePlanExportInput {
+  const plan = resolvePilePlanForExport(state, planId);
   if (!plan) throw new Error("unknown_plan");
   if (!configured && plan.pileCapProposals?.length) throw new Error("pile_cap_proposals_not_exportable");
   return {
     ...buildPilePlanExportInput({
     loadPoints: state.loadPoints,
     pileCostSettings: state.pileCostSettings,
-    selectedPileConfigurationsByLoadPoint: planId === state.activePilePlanId
-      ? state.selectedPileConfigurationsByLoadPoint : plan.selectedPileConfigurationsByLoadPoint,
+    selectedPileConfigurationsByLoadPoint: plan.selectedPileConfigurationsByLoadPoint,
     selectedCptsByLoadPointId: state.selectedCptsByLoadPointId,
   }, pileSizeFormat),
     ...(configured ? {projectContext: {draft: projectDocumentDraftFromContent(captureProjectContent(state), state.activePilePlanId), plan_id: planId}, hasProposals: !!plan.pileCapProposals?.length} : {}),

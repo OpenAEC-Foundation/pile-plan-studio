@@ -37,6 +37,7 @@
     "html2canvas": "^1.4.1",
     "i18next": "^26.4.2",
     "i18next-browser-languagedetector": "^8.2.1",
+    "clipper-lib": "6.4.2",
     "react": "^19.3.0",
     "react-dom": "^19.3.0",
     "react-i18next": "^17.0.14"
@@ -44,6 +45,7 @@
   "devDependencies": {
     "@tauri-apps/cli": "^2.11.4",
     "@testing-library/react": "^16.3.3",
+    "@types/clipper-lib": "6.4.0",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
     "@vitejs/plugin-react": "^6.1.1",

@@ -794,7 +794,7 @@
     "bulkActions": "Resterende locaties in één keer behandelen",
     "previousLocation": "Vorige",
     "nextLocation": "Volgende",
-    "exportTitle": "Palenplan exporteren",
+    "exportTitle": "Exporttabel",
     "exportMode": "Soort export",
     "comparisonSources": "Tabellen vergelijken",
     "changeTableHelp": "Vergelijk een eerdere palenplantabel met het nieuwe palenplan. Bestaande paalnummers en aanvullende gegevens blijven bij gekoppelde locaties behouden.",

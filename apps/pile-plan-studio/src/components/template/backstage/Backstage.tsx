@@ -1,10 +1,12 @@
+import type { CadExportOptions, CadFormat, CadPileType, CadQuadrantSymbol } from "../../../core/cadExportCoreClient.ts";
+import CadQuadrantDialog from "../../domain/exports/CadQuadrantDialog.tsx";
 import PilePlanExportPanel, {type ExportFeatureProps} from "../../domain/exports/PilePlanExportPanel.tsx";
-import { Banner, Button, Heading, OpenAECProvider } from "../../../openaec/react/src/index";
+import { Banner, Button, Checkbox, Heading, OpenAECProvider, Select } from "../../../openaec/react/src/index";
 import spriteUrl from "../../../openaec/studioSprite.ts";
 import type {ExportOptions, LoadPointRefreshSelection} from "../../../core/exportRevisionContract.ts";
 import type {PrepareLoadPointRefresh} from "../../../app/import/useLoadPointRefreshReview.ts";
 import type { ProjectImportPreview } from "../../../core/adviceImportContract.ts";
-import { useState, useEffect, type ReactNode } from "react";
+import { useState, useEffect, useRef, type ReactNode } from "react";
 import { flushSync } from "react-dom";
 import { useTranslation } from "react-i18next";
 import ProjectImportPanel from "../../domain/imports/ProjectImportPanel";
@@ -87,8 +89,12 @@ interface BackstageProps extends ExportFeatureProps {
   cpts: Cpt[];
   availablePileConfigurations: PileConfigurationKey[];
   activePilePlanName: string;
+  activePilePlanId: string;
+  getCadPileTypes?: (planId: string) => readonly CadPileType[];
   onImportPilePlan: (patch: PilePlanImportPatch, fileName: string) => void;
   onDownloadProject: () => Promise<void>;
+  onExportCadDrawing?: (format: CadFormat, options: CadExportOptions, planId: string) => Promise<void>;
+  onOpenCadDrawing?: (options: CadExportOptions, planId: string) => Promise<void>;
   onExportPilePlanXlsx: (pileSizeFormat: PileSizeExportFormat, options?: ExportOptions) => Promise<void>;
   onExportPilePlanCsv: (pileSizeFormat: PileSizeExportFormat, options?: ExportOptions) => Promise<void>;
   pileSizeFormat?: PileSizeExportFormat;
@@ -102,7 +108,7 @@ interface BackstageProps extends ExportFeatureProps {
   initialImportSource?: { role: ImportFileRole; file: File } | null;
 }
 
-export default function Backstage({ open, suspended = false, onClose, onOpenSettings, onShowStartScreen, onNewProject, onOpenProject, onRefreshSources, onPreviewProjectImport, onPrepareLoadPointRefresh, importPreviewContextKey, defaultCurrencyCode, loadPoints, cpts, availablePileConfigurations, activePilePlanName, onImportPilePlan, onDownloadProject, onExportPilePlanXlsx, onExportPilePlanCsv, pileSizeFormat = "numeric", onPileSizeFormatChange, exportPlans, exportPlanId, onExportPlanChange, exportPlan, exportContextKey, exportOptions, onExportOptionsChange, onExportRevision, onSaveProject, onSaveProjectAs, commands, docsOpenPanel, initialPanel, readOnly = false, initialImportSource = null }: BackstageProps) {
+export default function Backstage({ open, suspended = false, onClose, onOpenSettings, onShowStartScreen, onNewProject, onOpenProject, onRefreshSources, onPreviewProjectImport, onPrepareLoadPointRefresh, importPreviewContextKey, defaultCurrencyCode, loadPoints, cpts, availablePileConfigurations, activePilePlanName, activePilePlanId, getCadPileTypes, onImportPilePlan, onDownloadProject, onExportCadDrawing, onOpenCadDrawing, onExportPilePlanXlsx, onExportPilePlanCsv, pileSizeFormat = "numeric", onPileSizeFormatChange, exportPlans, exportPlanId, onExportPlanChange, exportPlan, exportContextKey, exportOptions, onExportOptionsChange, onExportRevision, onSaveProject, onSaveProjectAs, commands, docsOpenPanel, initialPanel, readOnly = false, initialImportSource = null }: BackstageProps) {
   const { t } = useTranslation("backstage");
   const [activePanel, setActivePanel] = useState<string>("none");
 
@@ -248,7 +254,11 @@ export default function Backstage({ open, suspended = false, onClose, onOpenSett
               onExportRevision={onExportRevision}
               canDownloadProject={commands.download}
               activePilePlanName={activePilePlanName}
+              activePilePlanId={activePilePlanId}
+              getCadPileTypes={getCadPileTypes}
               onDownloadProject={onDownloadProject}
+              onExportCadDrawing={onExportCadDrawing}
+              onOpenCadDrawing={onOpenCadDrawing}
               onExportPilePlanXlsx={onExportPilePlanXlsx}
               onExportPilePlanCsv={onExportPilePlanCsv}
               pileSizeFormat={pileSizeFormat}
@@ -263,17 +273,45 @@ export default function Backstage({ open, suspended = false, onClose, onOpenSett
   );
 }
 
-function ExportPanel({ canDownloadProject, activePilePlanName, onDownloadProject, onExportPilePlanXlsx, onExportPilePlanCsv, pileSizeFormat, onPileSizeFormatChange, ...features }: ExportFeatureProps & {
+const CAD_FILE_FORMATS = ["ifccad", "dwg", "dxf"] as const;
+type CadFileFormat = typeof CAD_FILE_FORMATS[number];
+
+function ExportPanel({ canDownloadProject, activePilePlanName, activePilePlanId, getCadPileTypes, onDownloadProject, onExportCadDrawing, onOpenCadDrawing, onExportPilePlanXlsx, onExportPilePlanCsv, pileSizeFormat, onPileSizeFormatChange, ...features }: ExportFeatureProps & {
   canDownloadProject: boolean;
   activePilePlanName: string;
+  activePilePlanId: string;
+  getCadPileTypes?: BackstageProps["getCadPileTypes"];
   onDownloadProject: () => Promise<void>;
+  onExportCadDrawing?: BackstageProps["onExportCadDrawing"];
+  onOpenCadDrawing?: BackstageProps["onOpenCadDrawing"];
   onExportPilePlanXlsx: (format: PileSizeExportFormat, options?: ExportOptions) => Promise<void>;
   onExportPilePlanCsv: (format: PileSizeExportFormat, options?: ExportOptions) => Promise<void>;
   pileSizeFormat: PileSizeExportFormat;
   onPileSizeFormatChange?: (format: PileSizeExportFormat) => void;
 }) {
   const { t } = useTranslation("backstage");
+  const [cadPlanChoice, setCadPlanChoice] = useState<string | null>(null);
+  const cadPlans = features.exportPlans ?? [];
+  const cadPlanId = cadPlans.find(plan => plan.id === cadPlanChoice)?.id ?? activePilePlanId;
+  const cadPileTypes = getCadPileTypes?.(cadPlanId) ?? [];
+  const [quadrantsByPlan, setQuadrantsByPlan] = useState(() => new Map<string, CadQuadrantSymbol[]>());
+  const quadrantSymbols = quadrantsByPlan.get(cadPlanId);
+  const [cadFormat, setCadFormat] = useState<CadFileFormat>("ifccad");
+  const [cadOptions, setCadOptions] = useState<CadExportOptions>({
+    numbering: "pile_number",
+    include_cpts: true,
+    symbols: "patterned",
+    number_size: "automatic",
+    region_display: "filled",
+  });
+  const drawingOptions = quadrantSymbols ? { ...cadOptions, quadrant_symbols: quadrantSymbols } : cadOptions;
   const [runningExport, setRunningExport] = useState(false);
+  const [editingQuadrants, setEditingQuadrants] = useState(false);
+  const quadrantTrigger = useRef<HTMLButtonElement>(null);
+  const closeQuadrants = () => {
+    flushSync(() => setEditingQuadrants(false));
+    quadrantTrigger.current?.focus();
+  };
   const [exportError, setExportError] = useState<string | null>(null);
   const runExport = (action: () => Promise<void>) => {
     flushSync(() => setRunningExport(true));
@@ -287,6 +325,94 @@ function ExportPanel({ canDownloadProject, activePilePlanName, onDownloadProject
     <div className="bs-export-cards">
       {canDownloadProject && <ExportOption title={t("exportPanel.ifcpp")} description={t("exportPanel.ifcppDesc")} format="IFCPP" disabled={runningExport}
         icon="project" actionLabel={t("exportPanel.download")} onClick={() => runExport(onDownloadProject)} />}
+      {onExportCadDrawing && <section className="oa-app export-blueprint bs-export-card pile-plan-export-card">
+        <header className="bs-export-card-heading">
+          <Heading>{t("exportPanel.cad.title")}</Heading>
+        </header>
+        <p className="export-help">{t("exportPanel.cad.description")}</p>
+        {cadPlans.length > 0 && <div className="export-plan-choice">
+          <Select label={t("exportPanel.cad.plan")} value={cadPlanId} disabled={runningExport}
+            options={cadPlans.map(plan => ({ value: plan.id, label: plan.name }))}
+            onChange={event => setCadPlanChoice(event.currentTarget.value)} />
+        </div>}
+        <details className="export-settings">
+          <summary>{t("exportPanel.cad.drawingSettings")}</summary>
+          <div className="export-controls-grid">
+            <Select label={t("exportPanel.cad.numbering")} value={cadOptions.numbering} disabled={runningExport}
+              options={[
+                { value: "pile_number", label: t("exportPanel.cad.pileNumbers") },
+                { value: "location_number", label: t("exportPanel.cad.locationNumbers") },
+                { value: "none", label: t("exportPanel.cad.noNumbers") },
+              ]}
+              onChange={event => {
+                const numbering = event.currentTarget.value as CadExportOptions["numbering"];
+                setCadOptions(options => ({ ...options, numbering }));
+              }} />
+            <Select label={t("exportPanel.cad.numberSize")} value={cadOptions.number_size} disabled={runningExport || cadOptions.numbering === "none"}
+              options={[
+                { value: "automatic", label: t("exportPanel.cad.sizeAutomatic") },
+                { value: "compact", label: t("exportPanel.cad.sizeCompact") },
+              ]}
+              onChange={event => {
+                const number_size = event.currentTarget.value as CadExportOptions["number_size"];
+                setCadOptions(options => ({ ...options, number_size }));
+              }} />
+            <Select label={t("exportPanel.cad.symbols")} value={cadOptions.symbols} disabled={runningExport}
+              options={[
+                { value: "patterned", label: t("exportPanel.cad.patternedSymbols") },
+                { value: "viewer", label: t("exportPanel.cad.viewerSymbols") },
+              ]}
+              onChange={event => {
+                const symbols = event.currentTarget.value as CadExportOptions["symbols"];
+                setCadOptions(options => ({ ...options, symbols }));
+              }} />
+            <Select label={t("exportPanel.cad.regionDisplay")} value={cadOptions.region_display} disabled={runningExport}
+              options={[
+                { value: "filled", label: t("exportPanel.cad.regionsFilled") },
+                { value: "outlines", label: t("exportPanel.cad.regionsOutlines") },
+                { value: "hidden", label: t("exportPanel.cad.regionsHidden") },
+              ]}
+              onChange={event => {
+                const region_display = event.currentTarget.value as CadExportOptions["region_display"];
+                setCadOptions(options => ({ ...options, region_display }));
+              }} />
+          </div>
+          {cadOptions.symbols === "patterned" && cadPileTypes.length > 0 && <div className="cad-quadrant-edit">
+            <Button aria-haspopup="dialog" disabled={runningExport} onClick={event => {
+              quadrantTrigger.current = event.currentTarget;
+              setEditingQuadrants(true);
+            }}>
+              {t("exportPanel.cad.editQuadrants")}
+            </Button>
+          </div>}
+          <Checkbox label={t("exportPanel.cad.includeCpts")} checked={cadOptions.include_cpts} disabled={runningExport}
+            onChange={event => {
+              const include_cpts = event.currentTarget.checked;
+              setCadOptions(options => ({ ...options, include_cpts }));
+            }} />
+        </details>
+        {editingQuadrants && cadPileTypes.length > 0 && <CadQuadrantDialog types={cadPileTypes} symbols={quadrantSymbols ?? []}
+          onClose={closeQuadrants} onApply={quadrant_symbols => {
+            setQuadrantsByPlan(previous => new Map(previous).set(cadPlanId, quadrant_symbols));
+            closeQuadrants();
+          }} />}
+        <div className="export-actions cad-export-actions">
+          <div className="cad-download">
+            <Select label={t("exportPanel.cad.format")} value={cadFormat} disabled={runningExport}
+              options={CAD_FILE_FORMATS.map(value => ({ value, label: value.toUpperCase() }))}
+              onChange={event => setCadFormat(event.currentTarget.value as CadFileFormat)} />
+            <Button kind="primary" disabled={runningExport} onClick={() => runExport(() => onExportCadDrawing(cadFormat, drawingOptions, cadPlanId))}>
+              {t("exportPanel.cad.downloadCad")}
+            </Button>
+          </div>
+          <Button disabled={runningExport} onClick={() => runExport(() => onExportCadDrawing("pdf", drawingOptions, cadPlanId))}>
+            {t("exportPanel.cad.downloadPdf")}
+          </Button>
+          {onOpenCadDrawing && <Button disabled={runningExport} onClick={() => runExport(() => onOpenCadDrawing(drawingOptions, cadPlanId))}>
+            {t("exportPanel.cad.open")}
+          </Button>}
+        </div>
+      </section>}
       <PilePlanExportPanel {...features} activePilePlanName={activePilePlanName} pileSizeFormat={pileSizeFormat} onPileSizeFormatChange={onPileSizeFormatChange}
         onExportPilePlanXlsx={onExportPilePlanXlsx} onExportPilePlanCsv={onExportPilePlanCsv} running={runningExport} runExport={runExport} />
     </div>

@@ -7,7 +7,7 @@ import { getProjectFileCommands } from "../../../domain/project/projectPersisten
 const t = (key:string, values:Record<string,unknown>={}) => i18n.t(key,{ns:"backstage",...values});
 function props(){return {
   open:true,onClose:vi.fn(),onOpenSettings:vi.fn(),onNewProject:vi.fn(),onRefreshSources:vi.fn(),defaultCurrencyCode:"EUR",
-  loadPoints:[],cpts:[],availablePileConfigurations:[],activePilePlanName:"Plan",onImportPilePlan:vi.fn(),
+  loadPoints:[],cpts:[],availablePileConfigurations:[],activePilePlanName:"Plan",activePilePlanId:"active",onImportPilePlan:vi.fn(),
   onOpenProject:vi.fn(),
   onDownloadProject:vi.fn(),onExportPilePlanXlsx:vi.fn(),onExportPilePlanCsv:vi.fn(),
   onSaveProject:vi.fn(),onSaveProjectAs:vi.fn(),

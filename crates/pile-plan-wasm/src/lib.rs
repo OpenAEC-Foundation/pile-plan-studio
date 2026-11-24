@@ -185,6 +185,12 @@ pub fn preview_pile_driving_files(request: JsValue) -> Result<JsValue, JsValue> 
 }
 
 #[wasm_bindgen]
+pub fn export_cad_drawing(drawing: JsValue, format: JsValue) -> Result<Vec<u8>, JsValue> {
+    pile_plan_core::cad_export::export_drawing(&from_js_value(drawing)?, from_js_value(format)?)
+        .map_err(to_error_value)
+}
+
+#[wasm_bindgen]
 pub fn export_pile_plan_csv(request: JsValue) -> Result<Vec<u8>, JsValue> {
     let request: PilePlanExportRequest = from_js_value(request)?;
     write_pile_plan_csv(&request).map_err(to_error_value)

@@ -13,13 +13,17 @@ default = ["native-highs"]
 native-highs = ["dep:highs", "dep:highs-sys"]
 
 [dependencies]
+opencaddocument = { git = "https://github.com/HakanSeven12/opencaddocument.git", rev = "663bc3a1a2075f939eadafd7fb16683de39a473f", features = ["ifcx"] }
 calamine = "0.36"
 csv = "1"
+flate2 = "1"
+pdf-writer = "0.12.1"
 robust = "1.2"
 rust_xlsxwriter = { version = "0.99", features = ["wasm"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = { version = "1", features = ["float_roundtrip", "raw_value"] }
 time = { version = "0.3", default-features = false, features = ["formatting"] }
+ttf-parser = "0.25.1"
 uuid = { version = "1", features = ["js", "serde", "v4", "v5"] }
 web-time = "1.1.0"
 

@@ -243,6 +243,17 @@ body:has(.bs-export-panel.is-exporting) * {
   font-size: 11px;
 }
 
+.cad-export-actions,
+.cad-download {
+  align-items: flex-end;
+}
+
+.cad-download {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
 @media (max-width: 760px) {
   .bs-export-card {
     align-items: flex-start;

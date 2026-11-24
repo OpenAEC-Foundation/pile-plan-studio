@@ -496,7 +496,7 @@ Save: React project content -> TypeScript project draft -> Rust validation and
 New `.ifcpp` files use the [IFCX alpha profile 1.0.0](../schemas/ifcpp/README.md).
 The Rust codec resolves its versioned schema from the application bundle and
 validates the envelope, structural ownership and reference targets offline.
-Legacy schemas 1�9 pass through the existing normalization before migration.
+Legacy schemas 1�9 pass through the existing normalization before migration.
 The project, foundation, plans, piles and shared inputs have stable UUID
 paths. Browser and desktop drafts carry an opaque Rust persistence record for
 existing paths, source provenance and exact values that need to survive the
@@ -1705,3 +1705,64 @@ Potentially expensive owned core/IO requests in the Tauri shell use `tauri::comm
 Tip-level region requests in both runtimes carry only candidates matching each assigned pile size and canonical tip-level key, instead of the whole option catalogue. Invalid and duplicate matching candidates and their raw presentation levels are retained: the Rust core builds the topology from the assigned levels and can preserve a usable matching option's presentation value. This reduces desktop serialization and IPC work without changing engineering decisions or drawing geometry. Regression checks compare full and reduced requests through the actual WASM core.
 
 Desktop WebViews with Compression Streams send bulk pile analysis, technical assessment, aggregation, default-choice and region-topology requests through `run_analysis_payload`. The allowlisted command accepts gzip JSON bytes and decodes directly into the existing typed requests on the async executor; complete results return as gzip bytes. This avoids the usual large intermediate IPC JSON tree and repeated property conversion. Structured core errors retain their existing objects. WebViews without the stream APIs use the original commands; Tauri postMessage byte-array fallbacks are supported in both directions. Browser analysis continues using WASM directly. This transport owns no project state, persistent cache or engineering decisions; frontend stale-request guards continue to apply. Temporary performance observers and logging commands are not part of the application.
+
+### CAD drawing export
+
+**File → Export → CAD drawing** writes the selected pile plan as
+editable 2D model space in project millimetres. The drawing and export table
+have independent plan selectors. The drawing selector starts on the active
+plan and uses the chosen variant's assignments and saved numbers. Standard round and square pile
+blocks use Revit-inspired quadrant fills by size. The legend matches each
+symbol to its size and type mark. Pile labels, CPTs, the legend,
+tip-level fills, outlines and labels occupy separate CAD layers.
+The legend lists pile marks, sizes, and counts next to their symbols, followed
+by tip-level swatches and the CPT symbol. Sans-serif labels scale with the
+extents for an A0 landscape plot. Pile label placement tries progressively
+smaller plot heights, using the text widths, symbols, other labels and
+boundaries in the drawing. It keeps the largest height that places the most
+numbers, with a compact label available at individual obstructions. By
+default, assigned piles display their
+saved pile number. Gaps in saved numbering are filled at export using the
+Revit export's start value and ordering, skipping saved numbers. The drawing
+settings can show location numbers, omit numbering, or use a smaller range
+of plot heights for numbers. They can also omit the CPT layer or use the viewer's
+size symbols in monochrome. In quadrant mode the drawing settings offer a
+pattern picker for assigned sizes in the selected export plan. Within a pile shape,
+selecting a pattern already in use exchanges the two assignments. Applied
+choices are specific to the selected plan in the open panel. The legend and model reuse
+the same symbol blocks. Unassigned locations use a cross symbol. Close parallel rows place
+numbers outside the cluster. Longer rows and columns align labels along
+their edges, alternating sides where a single line is too crowded. Label
+tracks can shift to clear tip-level boundaries. Staggered and displaced
+labels use short leaders. A smaller label can fit in tight
+spaces. Labels that still have no room are omitted. Each connected
+tip-level area gets its own label. Placement
+looks for clearance around the text from area boundaries and holes, pile
+and CPT symbols, and the labels and leaders already placed. A narrow zone
+can use its Z-mark from the legend when there is too little space for the
+full level text.
+
+Tip-level regions use the viewer's fill layout and its Gabriel outline. The CAD
+export intersects the geometry with the outline in project coordinates, with
+round strokes approximated to within 1.5 mm and vertices rounded to 0.1 mm.
+Hatch boundaries and their holes are editable CAD data. The drawing settings
+can show the filled areas, keep the contours and level labels with their legend
+references, or hide the tip-level areas. The export is independent of the
+viewer's display toggles.
+
+The browser and desktop generate the same OpenCADDocument and use its adapters
+for IFCCAD, DWG and DXF in the Download CAD format selector. The IFCCAD download
+uses profile 0.12.0, matching Open CAD Studio 2026.47 via OpenCADDocument
+663bc3a and IFCCAD 96895ae. Download PDF plots that
+same drawing as vectors on one landscape A0 sheet with its legend and an
+embedded font. It fits the drawing to the page. Use the CAD files in Open CAD
+Studio for a custom paper size or plot scale. The export supports model
+space and leaves construction sheets, dimensions and pile cap proposals
+outside its scope.
+
+The development viewer also opens the generated DWG in a new browser tab
+through the Open CAD Studio web app's same-origin host bridge. Set up that
+preview by extracting the official [2026.47 web release](https://github.com/HakanSeven12/OpenCADStudio/releases/tag/v2026.47)
+into the frontend's public directory so that `app/release.json` is available
+there. The separately installed web release is ignored by Git. The handoff
+passes the drawing directly between browser windows.

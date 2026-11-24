@@ -44,7 +44,7 @@ export function projectFileName(projectName: string): string {
   return `${safeName || "pile-plan-project"}.ifcpp`;
 }
 
-export function pilePlanExportFileName(pilePlanName: string, format: "xlsx" | "csv"): string {
+export function pilePlanExportFileName(pilePlanName: string, format: "xlsx" | "csv" | "ifccad" | "dwg" | "dxf" | "pdf"): string {
   const safeName = safeProjectName(pilePlanName) || "pile-plan";
   return `${safeName}.${format}`;
 }

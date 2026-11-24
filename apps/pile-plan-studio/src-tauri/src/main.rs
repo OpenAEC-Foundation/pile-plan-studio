@@ -265,6 +265,14 @@ fn preview_pile_driving_files(
     pile_plan_core::preview_pile_driving_files(&request)
 }
 
+#[tauri::command(async)]
+fn export_cad_drawing(
+    drawing: pile_plan_core::cad_export::CadDrawing,
+    format: pile_plan_core::cad_export::CadFormat,
+) -> Result<Vec<u8>, String> {
+    pile_plan_core::cad_export::export_drawing(&drawing, format).map_err(|error| error.to_string())
+}
+
 #[tauri::command(async, rename_all = "snake_case")]
 fn export_pile_plan_csv(request: PilePlanExportRequest) -> Result<Vec<u8>, String> {
     write_pile_plan_csv_bytes(&request).map_err(|error| error.to_string())
@@ -541,6 +549,7 @@ fn main() {
             preview_pile_plan_import_file,
             preview_pile_driving_file,
             preview_pile_driving_files,
+            export_cad_drawing,
             export_pile_plan_csv,
             export_pile_plan_xlsx,
             preview_configured_pile_plan_export,

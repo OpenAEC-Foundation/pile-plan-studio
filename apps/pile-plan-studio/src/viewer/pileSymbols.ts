@@ -6,13 +6,53 @@ const SYMBOL_NEUTRAL_FILL = "#F3F5F6";
 
 type Point = readonly [number, number];
 
+const CIRCLE_RADIUS = 8.5;
+const CORNER_RADIUS = 2;
+const ROUNDED_RECTS: Partial<Record<PileBaseShape, readonly [number, number, number, number]>> = {
+  square: [5, 5, 14, 14],
+  "rectangle-horizontal": [3, 7, 18, 10],
+  "rectangle-vertical": [7, 3, 10, 18],
+};
 const TRIANGLE_POINTS: Partial<Record<PileBaseShape, readonly Point[]>> = {
   "triangle-up": [[12, 3], [21, 20], [3, 20]],
   "triangle-down": [[3, 4], [21, 4], [12, 21]],
   "triangle-left": [[4, 12], [20, 3], [20, 21]],
   "triangle-right": [[4, 3], [20, 12], [4, 21]],
 };
+const POLYGON_SHAPES = { ...TRIANGLE_POINTS, diamond: [[12, 3], [21, 12], [12, 21], [3, 12]] as const };
 const TRIANGLE_CLIP_CACHE = new Map<string, string>();
+const HALF_PLANES = { "top-half": 12, "bottom-half": -12, "left-half": 12, "right-half": -12, "diagonal-half": 24 };
+
+/** Vector paths for the symbol, centered in CAD coordinates with positive Y up. */
+export function pileSymbolGeometry({ baseShape, fillPattern }: PileSymbol) {
+  const polygon = POLYGON_SHAPES[baseShape];
+  const rectangle = ROUNDED_RECTS[baseShape];
+  const outline = polygon ?? (rectangle ? roundedOutline(rectangle) : arcPoints(12, 12, CIRCLE_RADIUS, 0, 48, Math.PI / 24));
+  let fill = outline;
+  if (fillPattern !== "full") {
+    fill = TRIANGLE_POINTS[baseShape]
+      ? equalAreaTriangleClip(outline, fillPattern)
+      : clipPolygon(outline, directionalScore(fillPattern), HALF_PLANES[fillPattern]);
+  }
+  const toCad = (points: readonly Point[]) => points.filter(([x, y], index) => {
+    const [px, py] = points[(index + points.length - 1) % points.length];
+    return Math.hypot(x - px, y - py) > 1e-9;
+  }).map(([x, y]): [number, number] => [(x - 12) / 9, (12 - y) / 9]);
+  return { outline: toCad(outline), fill: toCad(fill) };
+}
+
+function roundedOutline([x, y, width, height]: readonly [number, number, number, number]): Point[] {
+  const r = CORNER_RADIUS;
+  const centers: Point[] = [[x + width - r, y + r], [x + width - r, y + height - r], [x + r, y + height - r], [x + r, y + r]];
+  return centers.flatMap(([cx, cy], corner) => arcPoints(cx, cy, r, (corner - 1) * Math.PI / 2, 9, Math.PI / 16));
+}
+
+function arcPoints(x: number, y: number, radius: number, start: number, count: number, step: number): Point[] {
+  return Array.from({ length: count }, (_, index) => {
+    const angle = start + index * step;
+    return [x + radius * Math.cos(angle), y + radius * Math.sin(angle)];
+  });
+}
 
 export type PileSymbolRenderOptions = {
   outlineColor?: string;
@@ -200,26 +240,16 @@ function formatCoordinate(value: number): string {
 }
 
 function renderShape(baseShape: PileBaseShape, attributes: string): string {
-  switch (baseShape) {
-    case "circle":
-      return `<circle cx="12" cy="12" r="8.5" ${attributes} />`;
-    case "square":
-      return `<rect x="5" y="5" width="14" height="14" rx="2" ${attributes} />`;
-    case "diamond":
-      return `<polygon points="12,3 21,12 12,21 3,12" ${attributes} />`;
-    case "triangle-up":
-      return `<polygon points="12,3 21,20 3,20" ${attributes} />`;
-    case "triangle-down":
-      return `<polygon points="3,4 21,4 12,21" ${attributes} />`;
-    case "triangle-left":
-      return `<polygon points="4,12 20,3 20,21" ${attributes} />`;
-    case "triangle-right":
-      return `<polygon points="4,3 20,12 4,21" ${attributes} />`;
-    case "rectangle-horizontal":
-      return `<rect x="3" y="7" width="18" height="10" rx="2" ${attributes} />`;
-    case "rectangle-vertical":
-      return `<rect x="7" y="3" width="10" height="18" rx="2" ${attributes} />`;
+  const polygon = POLYGON_SHAPES[baseShape];
+  if (polygon) {
+    return `<polygon points="${polygon.map(point => point.join(",")).join(" ")}" ${attributes} />`;
   }
+  const rectangle = ROUNDED_RECTS[baseShape];
+  if (rectangle) {
+    const [x, y, width, height] = rectangle;
+    return `<rect x="${x}" y="${y}" width="${width}" height="${height}" rx="${CORNER_RADIUS}" ${attributes} />`;
+  }
+  return `<circle cx="12" cy="12" r="${CIRCLE_RADIUS}" ${attributes} />`;
 }
 
 function escapeSvgAttribute(value: string): string {

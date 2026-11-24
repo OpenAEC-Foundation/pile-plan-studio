@@ -794,7 +794,7 @@
     "bulkActions": "Resolve remaining locations in bulk",
     "previousLocation": "Previous",
     "nextLocation": "Next",
-    "exportTitle": "Export pile plan",
+    "exportTitle": "Export table",
     "exportMode": "Export type",
     "comparisonSources": "Compare tables",
     "changeTableHelp": "Compare a previous pile-plan table with the new pile plan. Linked locations retain their pile numbers and additional data.",

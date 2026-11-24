@@ -250,6 +250,21 @@ export function evaluate_pile_cost_catalog_edit(request) {
 }
 
 /**
+ * @param {any} drawing
+ * @param {any} format
+ * @returns {Uint8Array}
+ */
+export function export_cad_drawing(drawing, format) {
+    const ret = wasm.export_cad_drawing(drawing, format);
+    if (ret[3]) {
+        throw takeFromExternrefTable0(ret[2]);
+    }
+    var v1 = getArrayU8FromWasm0(ret[0], ret[1]).slice();
+    wasm.__wbindgen_free(ret[0], ret[1] * 1, 1);
+    return v1;
+}
+
+/**
  * @param {any} request
  * @returns {Uint8Array}
  */
@@ -693,6 +708,9 @@ function __wbg_get_imports() {
         __wbg_getRandomValues_9426eac2d8c03f37: function() { return handleError(function (arg0, arg1) {
             globalThis.crypto.getRandomValues(getArrayU8FromWasm0(arg0, arg1));
         }, arguments); },
+        __wbg_getRandomValues_a608c4436c19407a: function() { return handleError(function (arg0, arg1) {
+            globalThis.crypto.getRandomValues(getArrayU8FromWasm0(arg0, arg1));
+        }, arguments); },
         __wbg_get_6cf5a4d4d8ad3c5a: function() { return handleError(function (arg0, arg1) {
             const ret = Reflect.get(arg0, arg1);
             return ret;
@@ -838,13 +856,13 @@ function __wbg_get_imports() {
                 const a = state0.a;
                 state0.a = 0;
                 try {
-                    return wasm_bindgen_df0aded92f0742a8___convert__closures_____invoke___wasm_bindgen_df0aded92f0742a8___JsValue______true_(a, state0.b, arg0);
+                    return wasm_bindgen_69962eb6185f1ec6___convert__closures_____invoke___wasm_bindgen_69962eb6185f1ec6___JsValue______true_(a, state0.b, arg0);
                 } finally {
                     state0.a = a;
                 }
             };
             cb0._wbg_cb_unref = () => state0.a = 0;
-            // Cast intrinsic for `Closure(Closure { owned: false, function: Function { arguments: [Externref], shim_idx: 273, ret: Unit, inner_ret: Some(Unit) }, mutable: true }) -> Externref`.
+            // Cast intrinsic for `Closure(Closure { owned: false, function: Function { arguments: [Externref], shim_idx: 300, ret: Unit, inner_ret: Some(Unit) }, mutable: true }) -> Externref`.
             const ret = cb0;
             return ret;
         },
@@ -884,8 +902,8 @@ function __wbg_get_imports() {
     };
 }
 
-function wasm_bindgen_df0aded92f0742a8___convert__closures_____invoke___wasm_bindgen_df0aded92f0742a8___JsValue______true_(arg0, arg1, arg2) {
-    wasm.wasm_bindgen_df0aded92f0742a8___convert__closures_____invoke___wasm_bindgen_df0aded92f0742a8___JsValue______true_(arg0, arg1, arg2);
+function wasm_bindgen_69962eb6185f1ec6___convert__closures_____invoke___wasm_bindgen_69962eb6185f1ec6___JsValue______true_(arg0, arg1, arg2) {
+    wasm.wasm_bindgen_69962eb6185f1ec6___convert__closures_____invoke___wasm_bindgen_69962eb6185f1ec6___JsValue______true_(arg0, arg1, arg2);
 }
 
 const WasmIlpSessionFinalization = (typeof FinalizationRegistry === 'undefined')

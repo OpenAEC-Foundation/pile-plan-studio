@@ -44,6 +44,8 @@ export function evaluate_pile_cap_proposals(request: any): any;
 
 export function evaluate_pile_cost_catalog_edit(request: any): any;
 
+export function export_cad_drawing(drawing: any, format: any): Uint8Array;
+
 export function export_configured_pile_plan_csv(request: any): Uint8Array;
 
 export function export_configured_pile_plan_xlsx(request: any): Uint8Array;
@@ -119,6 +121,7 @@ export interface InitOutput {
     readonly evaluate_mcp_project_edit: (a: any) => [number, number, number];
     readonly evaluate_pile_cap_proposals: (a: any) => [number, number, number];
     readonly evaluate_pile_cost_catalog_edit: (a: any) => [number, number, number];
+    readonly export_cad_drawing: (a: any, b: any) => [number, number, number, number];
     readonly export_configured_pile_plan_csv: (a: any) => [number, number, number, number];
     readonly export_configured_pile_plan_xlsx: (a: any) => [number, number, number, number];
     readonly export_pile_plan_csv: (a: any) => [number, number, number, number];
@@ -147,7 +150,7 @@ export interface InitOutput {
     readonly wasmilpsession_new: () => number;
     readonly wasmilpsession_run: (a: number, b: any, c: any, d: any) => [number, number, number];
     readonly write_project_document: (a: any) => [number, number, number, number];
-    readonly wasm_bindgen_df0aded92f0742a8___convert__closures_____invoke___wasm_bindgen_df0aded92f0742a8___JsValue______true_: (a: number, b: number, c: any) => void;
+    readonly wasm_bindgen_69962eb6185f1ec6___convert__closures_____invoke___wasm_bindgen_69962eb6185f1ec6___JsValue______true_: (a: number, b: number, c: any) => void;
     readonly __wbindgen_malloc: (a: number, b: number) => number;
     readonly __wbindgen_realloc: (a: number, b: number, c: number, d: number) => number;
     readonly __wbindgen_exn_store: (a: number) => void;

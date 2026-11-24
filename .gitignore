@@ -14,3 +14,4 @@ docs/plans/
 .release-preparation.json
 
 .vite/
+/apps/pile-plan-studio/public/app/

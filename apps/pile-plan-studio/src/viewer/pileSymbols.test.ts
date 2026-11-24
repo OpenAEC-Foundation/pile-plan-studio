@@ -2,7 +2,7 @@ import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 
 import { PILE_SYMBOL_CATALOG } from "./legendSymbols.ts";
-import { renderPileSymbol, renderPileSymbolSvgChildren } from "./pileSymbols.ts";
+import { pileSymbolGeometry, renderPileSymbol, renderPileSymbolSvgChildren } from "./pileSymbols.ts";
 
 const TRIANGLES = {
   "triangle-up": {
@@ -36,6 +36,20 @@ const PARTIAL_FILLS = [
 ] as const;
 
 describe("pile symbol rendering", () => {
+  it("keeps the viewer symbol and fill direction when exporting to CAD coordinates", () => {
+    const triangle = pileSymbolGeometry({ baseShape: "triangle-up", fillPattern: "top-half" });
+    assert.equal(triangle.outline.length, 3);
+    assert.deepEqual(triangle.outline[0], [0, 1]);
+    assert.deepEqual(triangle.fill[0], triangle.outline[0]);
+    assert.ok(triangle.fill.every(([, y]) => y > triangle.outline[1][1]));
+
+    for (const symbol of PILE_SYMBOL_CATALOG) {
+      const { outline, fill } = pileSymbolGeometry(symbol);
+      assert.ok(outline.length >= 3 && fill.length >= 3);
+      assert.ok([...outline, ...fill].every(point =>
+        point.every(coordinate => Number.isFinite(coordinate) && Math.abs(coordinate) <= 1)));
+    }
+  });
   it("keeps partial-fill clip paths unique when several map symbols share one SVG", () => {
     const symbol = { baseShape: "circle", fillPattern: "top-half" } as const;
     const first = renderPileSymbolSvgChildren(symbol, "#123456", "viewer-pile-15");

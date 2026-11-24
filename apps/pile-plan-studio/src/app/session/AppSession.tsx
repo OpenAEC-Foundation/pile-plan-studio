@@ -1,3 +1,7 @@
+import { openCadStudioTab } from "../exports/openCadStudioTab.ts";
+import { exportCadDrawingCore, type CadExportOptions, type CadFormat } from "../../core/cadExportCoreClient.ts";
+import { prepareCadDrawing } from "../exports/prepareCadDrawing.ts";
+import { cadPileTypes } from "../../domain/exports/cadQuadrants.ts";
 import { useRecentFiles } from "../../hooks/useRecentFiles.ts";
 import { getStartupRecentProject } from "../../domain/project/recentProjects.ts";
 import { saveBrowserProjectLocally } from "../project/browserLocalSave.ts";
@@ -109,7 +113,7 @@ import {
   snapExplorerWidth,
   snapRightPanelWidth,
 } from "../../viewer/panelLayout.ts";
-import { buildPilePlanExportInputForPlan } from "../../domain/pile-plans/pilePlanExport.ts";
+import { buildPilePlanExportInputForPlan, resolvePilePlanForExport } from "../../domain/pile-plans/pilePlanExport.ts";
 import {
   applyPilePlanImportAsNewPlan,
   pilePlanNameFromFileName,
@@ -800,6 +804,10 @@ export default function AppSession({
   const activePilePlanName = projectState.pilePlans.find(
     (pilePlan) => pilePlan.id === projectState.activePilePlanId,
   )?.name ?? projectState.name;
+  const getCadPileTypes = (planId: string) => {
+    const plan = resolvePilePlanForExport(projectState, planId);
+    return plan ? cadPileTypes(plan.selectedPileConfigurationsByLoadPoint, projectState.pileCostSettings.items) : [];
+  };
 
   const exportMarker=mcpProjectMarkerRef.current!.observe(projectState);
   const [exportPlanChoice,setExportPlanChoice]=useState<{instance:string;id:string}|null>(null);
@@ -814,6 +822,50 @@ export default function AppSession({
   }, [projectState, exportPlanId, userSettings.preferences.pileSizeExportFormat]);
 
   const exportDestination = PLATFORM_BUILD ? { isDesktop: false, browser: { downloadFile: downloadBlob } } : undefined;
+
+  const generateCadFile = async (format: CadFormat, options: CadExportOptions, planId: string) => {
+    const plan = resolvePilePlanForExport(projectState, planId);
+    if (!plan) throw new Error(t("exportTools.projectChanged"));
+    if (plan.pileCapProposals?.length) throw new Error(t("backstage:exportPanel.cad.proposals"));
+    let bytes: Uint8Array;
+    try {
+      const drawing = await prepareCadDrawing(projectState, plan, {
+        piles_label: t("backstage:exportPanel.cad.piles"),
+        regions_label: t("backstage:exportPanel.cad.regions"),
+        unassigned_label: t("backstage:exportPanel.cad.unassigned"),
+        legend: {
+          title: t("backstage:exportPanel.cad.legendTitle"),
+          mark: t("backstage:exportPanel.cad.legendMark"),
+          size: t("backstage:exportPanel.cad.legendSize"),
+          count: t("backstage:exportPanel.cad.legendCount"),
+          cpts: t("backstage:exportPanel.cad.legendCpts"),
+        },
+      }, i18n.resolvedLanguage ?? i18n.language, userSettings.preferences.pilePlanExportOptions.mark, options);
+      bytes = await exportCadDrawingCore(drawing, format);
+    } catch (error) {
+      if (error instanceof Error && error.message === "cad_regions_unavailable") {
+        throw new Error(t("backstage:exportPanel.cad.regionsUnavailable"));
+      }
+      console.error(error);
+      throw new Error(t("backstage:exportPanel.cad.failed", { format: format.toUpperCase() }));
+    }
+    const current = mcpProjectMarkerRef.current!.observe(projectStateRef.current);
+    if (current.project_instance_id !== exportMarker.project_instance_id
+      || current.project_revision !== exportMarker.project_revision
+      || projectStateRef.current.activePilePlanId !== projectState.activePilePlanId) {
+      throw new Error(t("exportTools.projectChanged"));
+    }
+    return { fileName: pilePlanExportFileName(plan.name, format), bytes };
+  };
+
+  const exportCadDrawing = async (format: CadFormat, options: CadExportOptions, planId: string): Promise<void> => {
+    const { fileName, bytes } = await generateCadFile(format, options, planId);
+    await saveBinaryExport({
+      fileName,
+      mimeType: format === "pdf" ? "application/pdf" : format === "ifccad" ? "application/json" : "application/octet-stream",
+      extensions: ["." + format],
+    }, bytes, isDesktop ? undefined : { isDesktop: false, browser: { downloadFile: downloadBlob } });
+  };
 
   const exportPilePlan = async (format: "xlsx" | "csv", pileSizeFormat: PileSizeExportFormat = "numeric", options?: ExportOptions): Promise<void> => {
     const input = buildPilePlanExportInputForPlan(projectState, exportPlanId, pileSizeFormat, !!options);
@@ -2114,6 +2166,8 @@ export default function AppSession({
         cpts={projectState.cpts}
         availablePileConfigurations={availablePileConfigurations}
           activePilePlanName={activePilePlanName}
+          activePilePlanId={projectState.activePilePlanId}
+          getCadPileTypes={getCadPileTypes}
           defaultCurrencyCode={userSettings.preferences.defaultCurrencyCode}
         onImportPilePlan={importPilePlan}
         importPreviewContextKey={JSON.stringify(mcpProjectMarkerRef.current!.observe(projectState))}
@@ -2152,6 +2206,12 @@ export default function AppSession({
           }, sources, selection);
         }}
         onDownloadProject={async () => { await downloadProject(); }}
+        onExportCadDrawing={projectState.loadPoints.length > 0 ? exportCadDrawing : undefined}
+        onOpenCadDrawing={import.meta.env.DEV && !isDesktop && projectState.loadPoints.length > 0
+          ? (options, planId) => openCadStudioTab(() => generateCadFile("dwg", options, planId), {
+            popupBlocked: t("backstage:exportPanel.cad.popupBlocked"),
+            openFailed: t("backstage:exportPanel.cad.openFailed"),
+          }) : undefined}
         onExportPilePlanXlsx={(pileSizeFormat,options) => exportPilePlan("xlsx", pileSizeFormat,options)}
         onExportPilePlanCsv={(pileSizeFormat,options) => exportPilePlan("csv", pileSizeFormat,options)}
         exportPlans={projectState.pilePlans.map(({id,name})=>({id,name}))}
