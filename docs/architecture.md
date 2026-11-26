@@ -474,6 +474,14 @@ but have no utilization ratio. Missing selected-CPT data still takes precedence
 as `missing_capacity_data`; a present nonpositive resistance is not missing data.
 Default assignment and both optimizers consume this same core assessment.
 
+For CPT imports, the optional source coordinate transform is applied in Rust after column
+unit conversion to millimetres. The source coordinates of the drawing origin and the
+counterclockwise angle of the drawing X-axis are stored in its table import
+settings. Import, refresh, and transformed preview coordinates all use the
+same normalization. The original source coordinates remain visible in the
+preview. The import log retains the transform within the IFCPP project and
+the most recent CPT source's transform is suggested for a refresh.
+
 Foundation advice remains stored as flat rows keyed by CPT ID. The batch
 orchestrator builds one internal index and reuses it for all requested load
 points, so CPTs without advice remain representable without repeated full-row

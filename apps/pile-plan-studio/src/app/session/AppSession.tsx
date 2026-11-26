@@ -86,6 +86,7 @@ import {
 import { invokeDesktop, listenDesktop } from "../../core/coreTransport.ts";
 import type { PileCostSettings, PileSizeExportFormat } from "../../core/projectTypes.ts";
 import type { ImportSourceInput } from "../../core/coreImportContract";
+import { storedCptCoordinateTransform } from "../../domain/imports/projectImportModel.ts";
 import type { ProjectImportProperties } from "../../components/domain/imports/ProjectImportPanel.tsx";
 import type { ImportFileRole } from "../../core/importFiles.ts";
 import { getImportSummary } from "../../core/projectFile";
@@ -2171,6 +2172,7 @@ export default function AppSession({
           defaultCurrencyCode={userSettings.preferences.defaultCurrencyCode}
         onImportPilePlan={importPilePlan}
         importPreviewContextKey={JSON.stringify(mcpProjectMarkerRef.current!.observe(projectState))}
+        storedCptTransform={storedCptCoordinateTransform(projectState.importLog)}
         onPreviewProjectImport={async (mode, sources) => {
           const marker = mcpProjectMarkerRef.current!.observe(projectStateRef.current);
           const currentProject = mode === "refresh" ? requireValidProjectDocument(await readProjectDocumentCore(await writeProjectDocumentCore(projectDraftFromState(projectStateRef.current)))).project : null;

@@ -29,6 +29,20 @@ beforeEach(() => {
   core.plan.mockReset().mockResolvedValue(planPreview);
 });
 
+test("CPT refresh suggests the project's stored coordinate transform", async () => {
+  const source = file("cpts.csv");
+  const transform = { origin_x_mm:155000000, origin_y_mm:463000000, rotation_microdegrees:1500000 };
+  const apply = vi.fn().mockResolvedValue(null);
+  render(<ProjectImportPanel initialSource={{ role:"cpts", file:source }} storedCptTransform={transform} defaultCurrencyCode="EUR" onImportProject={apply}/>);
+  await waitFor(() => expect(core.project).toHaveBeenCalledWith(expect.objectContaining({
+    role:"cpts", profileOptions:expect.objectContaining({table:{cpt_transform:transform}}),
+  })));
+  const submit = await screen.findByRole("button", { name:t("importProject.refreshSubmit") });
+  await waitFor(() => expect((submit as HTMLButtonElement).disabled).toBe(false));
+  fireEvent.click(submit);
+  await waitFor(() => expect(apply.mock.calls[0][2][0].profileOptions.table.cpt_transform).toEqual(transform));
+});
+
 test("a selected initial source enters refresh mode, previews, and submits only that source", async () => {
   const apply = vi.fn().mockResolvedValue(null), source = file("cpts.csv");
   render(<ProjectImportPanel initialSource={{ role: "cpts", file: source }} defaultCurrencyCode="EUR" onImportProject={apply} />);

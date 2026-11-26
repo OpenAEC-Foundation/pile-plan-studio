@@ -49,6 +49,7 @@ pub enum ImportDiagnosticCode {
     MissingTensionDemand,
     MissingRequiredColumn,
     InvalidRequiredValue,
+    InvalidCptCoordinateTransform,
     InvalidPileTipLevelPrecision,
     ConflictingCoordinateDuplicate,
     ConflictingReactionDuplicate,

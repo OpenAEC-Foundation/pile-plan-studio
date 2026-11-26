@@ -56,7 +56,7 @@ pub use import::{
     standard_csv_requirements, ImportDiagnostic, ImportDiagnosticCode, ImportDiagnosticLocation,
     ImportDiagnosticSeverity, ImportError, ImportPreviewDetails, ImportProfile,
     ImportProfileOptions, ImportRole, ImportSource, ImportSourcePreview, RfemPreviewDetails,
-    SourceFormat,TableImportSettings,ImportColumnMapping,SourceTablePreview,SourceColumnPreview,SourcePreviewRow,
+    SourceFormat,TableImportSettings,ImportColumnMapping,SourceTablePreview,SourceColumnPreview,SourcePreviewRow,CptCoordinateTransform,TransformedCptPosition,
 };
 pub use import::{
     prepare_load_point_refresh, refresh_project_with_location_decisions, LoadPointRefreshPreview,

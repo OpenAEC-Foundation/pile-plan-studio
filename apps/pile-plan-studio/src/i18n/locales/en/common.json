@@ -463,6 +463,7 @@
       "loadPointCount": "{{count}} load points found"
     },
     "diagnostics": {
+      "invalid-cpt-coordinate-transform": "Enter both source coordinates of the drawing origin and a rotation between −360° and 360°.",
       "unsupported-profile-format": "This import profile is not available for the selected role or file format.",
       "missing-coordinate-sheet": "No RFEM worksheet with node coordinates was found.",
       "missing-reaction-sheet": "No RFEM worksheet with node reactions was found.",
@@ -1041,6 +1042,15 @@
     }
   },
   "tableImport": {
+    "coordinateSystem": "Coordinate system",
+    "localCoordinates": "Drawing coordinates",
+    "sourceCoordinates": "Transform source coordinates",
+    "sourceOriginX": "Building origin X ({{unit}})",
+    "sourceOriginY": "Building origin Y ({{unit}})",
+    "rotation": "Building rotation (°)",
+    "coordinateTransformHelp": "Enter the position of drawing (0, 0) in the source system (e.g. RD), using the units of the X and Y source columns. A positive angle turns the drawing X-axis counterclockwise from the source X-axis.",
+    "localX": "Drawing X (mm)",
+    "localY": "Drawing Y (mm)",
     "preview": "Import preview",
     "settings": "Import settings",
     "rowCount": "{{count}} data rows",

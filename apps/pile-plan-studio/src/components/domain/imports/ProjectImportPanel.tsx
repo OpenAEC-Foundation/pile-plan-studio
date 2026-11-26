@@ -13,6 +13,7 @@ import { prepareProjectImportRequest } from "../../../app/import/projectImportRe
 import { useProjectImportPreviews } from "../../../app/import/useProjectImportPreviews.ts";
 import {
   type ImportProfile,
+  type CptCoordinateTransform,
   type ImportProfileOptions,
   type ImportSourceInput,
   type ImportSourcePreview,
@@ -73,6 +74,7 @@ export default function ProjectImportPanel({
   onPreviewProjectImport = (_mode, sources) => previewProjectImportCore({ sources, currentProject: null }),
   importPreviewContextKey = "",
   onPrepareLoadPointRefresh,
+  storedCptTransform = null,
 }: {
   onImportProject: (
     mode: ProjectImportMode,
@@ -87,6 +89,7 @@ export default function ProjectImportPanel({
   onPreviewProjectImport?: (mode: ProjectImportMode, sources: ImportSourceInput[]) => Promise<ProjectImportPreview>;
   importPreviewContextKey?: string;
   onPrepareLoadPointRefresh?: PrepareLoadPointRefresh;
+  storedCptTransform?: CptCoordinateTransform | null;
 }) {
   const { t } = useTranslation("common");
   const levelHelpId = useId();
@@ -139,7 +142,11 @@ export default function ProjectImportPanel({
 
     setDrafts((current) => setImportFile(current, role, file));
     setError(null);
-    if (file) void previewFile(role, file, "auto", EMPTY_OPTIONS);
+    const transform = role === "cpts"
+      ? (drafts.cpts.file ? drafts.cpts.profileOptions.table?.cpt_transform : storedCptTransform)
+      : null;
+    const options = transform ? { ...EMPTY_OPTIONS, table: { cpt_transform: transform } } : EMPTY_OPTIONS;
+    if (file) void previewFile(role, file, "auto", options);
   };
 
   useEffect(() => {
@@ -164,7 +171,8 @@ export default function ProjectImportPanel({
   const changeProfile = (role: ImportFileRole, profile: ImportProfile) => {
     const file = drafts[role].file;
     setDrafts((current) => setImportProfile(current, role, profile));
-    if (file) void previewFile(role, file, profile, EMPTY_OPTIONS);
+    const transform = role === "cpts" ? drafts.cpts.profileOptions.table?.cpt_transform : null;
+    if (file) void previewFile(role, file, profile, transform ? {...EMPTY_OPTIONS, table:{cpt_transform:transform}} : EMPTY_OPTIONS);
   };
 
   const changeRfemOptions = (role: ImportFileRole, options: ImportProfileOptions) => {
@@ -303,6 +311,7 @@ export default function ProjectImportPanel({
 
               <ImportStatus previewState={draft.previewState} t={t} />
               {draft.file&&<SourceTableEditor variant="blueprint" preview={preview?.table} diagnostics={preview?.table ? preview.diagnostics : undefined} settings={draft.profileOptions.table} role={role} csv={draft.file.name.toLowerCase().endsWith(".csv")} processed={preview?.detectedProfile==="rfem-export"||draft.requestedProfile==="rfem-export"}
+                showCoordinatePreview={draft.previewState.status === "ready"}
                 onChange={table=>changeRfemOptions(role,{...draft.profileOptions,table})}>
                   <Select label={t("importProject.profile.label")}
                     value={draft.requestedProfile}

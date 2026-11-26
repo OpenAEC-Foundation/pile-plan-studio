@@ -9,10 +9,18 @@ import {
   setImportFile,
   setImportProfile,
   shouldWarnAboutMissingFoundationAdvice,
+  storedCptCoordinateTransform,
 } from "./projectImportModel.ts";
 import type { ImportSourcePreview } from "../../core/coreImportContract.ts";
 
 describe("project import model", () => {
+  it("suggests only the latest valid CPT source's stored coordinate transform", () => {
+    const transform = {origin_x_mm:155000000,origin_y_mm:463000000,rotation_microdegrees:1500000};
+    const log = {source_role:"cpts" as const,profile_details:{table_settings:JSON.stringify({cpt_transform:transform})}};
+    assert.deepEqual(storedCptCoordinateTransform([log]), transform);
+    assert.equal(storedCptCoordinateTransform([log, {source_role:"cpts",profile_details:{table_settings:"{}"}}]), null);
+    assert.equal(storedCptCoordinateTransform([{source_role:"cpts",profile_details:{table_settings:"bad"}}]), null);
+  });
   it("warns only when refreshing CPTs without foundation advice", () => {
     let drafts = createEmptyImportDrafts<{ name: string }>();
     drafts = setImportFile(drafts, "cpts", { name: "sonderingen.xlsx" });

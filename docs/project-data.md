@@ -35,6 +35,19 @@ converting them. See [Pile cost defaults](pile-cost-defaults.md) for the cost
 assumptions. An `.ifcpp` file stores the data, source profiles, settings, pile
 plans, and manual CPT choices.
 
+### CPT coordinate systems
+
+When the CPTs and load points share the same system, select **Drawing
+coordinates**. For a different planar coordinate system (such as RD), select
+**Transform source coordinates**. First check the X/Y source column units, then
+enter the source position of drawing (0, 0) in those same units. Optionally
+enter the counterclockwise angle from the source X-axis to the drawing X-axis
+in degrees (zero for parallel axes).
+
+The import preview displays the original coordinates and transformed drawing
+coordinates in millimetres. The project remembers the transformation for CPT
+refreshes.
+
 ### RFEM load points
 
 Use the **RFEM** Excel profile when node coordinates and reactions are in the same

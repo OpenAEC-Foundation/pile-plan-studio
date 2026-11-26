@@ -99,3 +99,27 @@ test("foundation advice can apply to one cap count and a fixed worksheet size",(
  fireEvent.change(count,{target:{value:""}});expect(count.value).toBe("");
  fireEvent.change(count,{target:{value:"2"}});expect(change).toHaveBeenLastCalledWith(expect.objectContaining({pile_count:2,fixed_pile_size_mm:320}));
 });
+
+test("CPT import lets the user enter a source origin and rotation and displays transformed positions",()=>{
+ const cptPreview={...preview,transformed_cpt_positions:[{row:2,x_mm:10000,y_mm:-20000}]};
+ const change=vi.fn();
+ const transform={origin_x_mm:155000000,origin_y_mm:463000000,rotation_microdegrees:90000000};
+ const view=render(<SourceTableEditor preview={cptPreview} role="cpts" onChange={change}/>);
+ fireEvent.change(screen.getByLabelText(i18n.t("tableImport.coordinateSystem")),{target:{value:"source"}});
+ expect(change).toHaveBeenLastCalledWith(expect.objectContaining({cpt_transform:{origin_x_mm:null,origin_y_mm:null,rotation_microdegrees:0}}));
+ view.rerender(<SourceTableEditor preview={cptPreview} role="cpts" settings={{...preview.settings,cpt_transform:transform}} onChange={change}/>);
+ expect(screen.getByLabelText(i18n.t("tableImport.sourceOriginX",{unit:"mm"}))).toHaveProperty("value","155000000");
+ expect(screen.getByLabelText(i18n.t("tableImport.sourceOriginY",{unit:"mm"}))).toHaveProperty("value","463000000");
+ expect(screen.getByLabelText(i18n.t("tableImport.rotation"))).toHaveProperty("value","90");
+ expect(screen.getByRole("columnheader",{name:i18n.t("tableImport.localX")})).toBeTruthy();
+ expect(screen.getByRole("cell",{name:"10000"})).toBeTruthy();
+ expect(screen.getByRole("cell",{name:"-20000"})).toBeTruthy();
+ fireEvent.change(screen.getByLabelText(i18n.t("tableImport.rotation")),{target:{value:"45"}});
+ expect(change).toHaveBeenLastCalledWith(expect.objectContaining({cpt_transform:{...transform,rotation_microdegrees:45000000}}));
+ const metreSettings={...preview.settings,cpt_transform:transform,columns:[{column:1,field:"x",unit:"m"},{column:2,field:"y",unit:"m"}]};
+ view.rerender(<SourceTableEditor preview={cptPreview} role="cpts" settings={metreSettings} onChange={change}/>);
+ expect(screen.getByLabelText(i18n.t("tableImport.sourceOriginX",{unit:"m"}))).toHaveProperty("value","155000");
+ expect(screen.getByLabelText(i18n.t("tableImport.sourceOriginY",{unit:"m"}))).toHaveProperty("value","463000");
+ fireEvent.change(screen.getByLabelText(i18n.t("tableImport.sourceOriginX",{unit:"m"})),{target:{value:"154999.8"}});
+ expect(change).toHaveBeenLastCalledWith(expect.objectContaining({cpt_transform:{...transform,origin_x_mm:154999800}}));
+});

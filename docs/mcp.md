@@ -526,6 +526,10 @@ the first chunk may set `import_tension`, `tension_column` (one-based, >=5),
 `has_headers`, `header_row`, `first_data_row`, `delimiter` and `columns` mappings
 with one-based `column`, `field`, optional `unit` (`m`/`mm`) and `pile_size_mm`.
 Mapped column order is free; completely empty mapped columns are invalid.
+For a CPT source, `table.cpt_transform` can specify the source coordinates of drawing
+(0, 0) as `origin_x_mm` and `origin_y_mm`, and the counterclockwise direction
+of the drawing X-axis from the source X-axis as `rotation_microdegrees` (default zero).
+The transformation follows the selected X/Y source units.
 These mappings are part of the
 validation digest and cannot be changed on later chunks. Existing permission,
 project-instance/revision and atomic-apply guards remain in force.

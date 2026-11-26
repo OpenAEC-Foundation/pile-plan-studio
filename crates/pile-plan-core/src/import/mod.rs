@@ -30,7 +30,7 @@ mod roles;
 mod table;
 mod workbook_cache;
 pub(crate) mod table_mapping;
-pub use table_mapping::{TableImportSettings,ImportColumnMapping,SourceTablePreview,SourceColumnPreview,SourcePreviewRow};
+pub use table_mapping::{TableImportSettings,ImportColumnMapping,SourceTablePreview,SourceColumnPreview,SourcePreviewRow,CptCoordinateTransform,TransformedCptPosition};
 
 pub(crate) use numeric::{parse_finite_number, parse_nonnegative_u32, NumericParseError};
 pub(crate) use table::read_xlsx_tables_with_iso_dates;
@@ -185,6 +185,7 @@ pub enum ImportError {
     },
     DuplicateLoadPointPositions(DuplicateLoadPointPositions),
     InvalidPileTipLevels(Vec<InvalidSourcePileTipLevel>),
+    InvalidCptCoordinateTransform,
     Validation(String),
 }
 
@@ -272,6 +273,7 @@ impl fmt::Display for ImportError {
                     formatter.write_str("Invalid pile tip levels.")
                 }
             }
+            Self::InvalidCptCoordinateTransform => formatter.write_str("Enter both source coordinates of the drawing origin and a rotation between -360 and 360 degrees."),
             Self::Validation(message) => formatter.write_str(message),
         }
     }

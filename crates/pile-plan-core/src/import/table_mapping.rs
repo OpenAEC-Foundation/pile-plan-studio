@@ -16,6 +16,31 @@ pub struct TableImportSettings {
     pub first_data_row: Option<usize>,
     pub delimiter: Option<String>,
     pub columns: Option<Vec<ImportColumnMapping>>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub cpt_transform: Option<CptCoordinateTransform>,
+}
+/// Position of the drawing origin in the source coordinate system and counterclockwise angle of its X-axis from the source X-axis.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct CptCoordinateTransform {
+    pub origin_x_mm: Option<i64>,
+    pub origin_y_mm: Option<i64>,
+    #[serde(default)]
+    pub rotation_microdegrees: i64,
+}
+
+impl CptCoordinateTransform {
+    fn normalized(&self, role: ImportRole) -> Result<(f64, f64, f64, f64), ImportError> {
+        const MAX_EXACT_MM: u64 = 9_007_199_254_740_991;
+        let valid_origin = |origin: Option<i64>| origin.filter(|v| v.unsigned_abs() <= MAX_EXACT_MM);
+        let (Some(x), Some(y)) = (valid_origin(self.origin_x_mm), valid_origin(self.origin_y_mm)) else {
+            return Err(ImportError::InvalidCptCoordinateTransform);
+        };
+        if role != ImportRole::Cpts || self.rotation_microdegrees.unsigned_abs() > 360_000_000 {
+            return Err(ImportError::InvalidCptCoordinateTransform);
+        }
+        let (sin, cos) = (self.rotation_microdegrees as f64 / 1_000_000.).to_radians().sin_cos();
+        Ok((x as f64, y as f64, sin, cos))
+    }
 }
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ImportColumnMapping {
@@ -32,6 +57,14 @@ pub struct SourceTablePreview {
     pub rows: Vec<SourcePreviewRow>,
     pub row_count: usize,
     pub processed: bool,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub transformed_cpt_positions: Vec<TransformedCptPosition>,
+}
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct TransformedCptPosition {
+    pub row: usize,
+    pub x_mm: f64,
+    pub y_mm: f64,
 }
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct SourceColumnPreview {
@@ -311,6 +344,7 @@ pub(crate) fn inspect_table_layout(
             .collect(),
         row_count: table.rows.iter().filter(|r| r.number >= first_data).count(),
         processed: false,
+        transformed_cpt_positions: vec![],
     }
 }
 pub(crate) fn inspect_table(
@@ -468,6 +502,7 @@ pub(crate) fn normalize_table(
     role: ImportRole,
     settings: &TableImportSettings,
 ) -> Result<SourceTable, ImportError> {
+    let transform = settings.cpt_transform.as_ref().map(|value| value.normalized(role)).transpose()?;
     if settings.pile_count == Some(0) || settings.fixed_pile_size_mm == Some(0) {
         return Err(ImportError::Validation("Pile count and fixed pile size must be greater than zero".into()));
     }
@@ -560,6 +595,20 @@ pub(crate) fn normalize_table(
     if rows.is_empty() {
         return Err(ImportError::EmptySource(table.file_name.clone()));
     }
+    if let Some((origin_x, origin_y, sin, cos)) = transform {
+        // The column mapping has already converted source X/Y to millimetres.
+        // Keep the original cells when either coordinate is invalid so the role parser reports its source location.
+        for row in &mut rows {
+            let (Ok(source_x), Ok(source_y)) = (
+                parse_finite_number(&row.cells[1].as_text()),
+                parse_finite_number(&row.cells[2].as_text()),
+            ) else { continue; };
+            let dx = source_x - origin_x;
+            let dy = source_y - origin_y;
+            row.cells[1] = TableCell::Number(cos * dx + sin * dy);
+            row.cells[2] = TableCell::Number(-sin * dx + cos * dy);
+        }
+    }
     // Existing parsers recognize a header automatically. Supply a canonical
     // header so an explicitly included first data row is never silently skipped.
     rows.insert(
@@ -578,6 +627,20 @@ pub(crate) fn normalize_table(
         rows,
         formula_cells,
     })
+}
+
+/// Preview coordinates from the exact same normalized table as the final import.
+pub(crate) fn preview_transformed_cpts(table: &SourceTable, preview: &mut SourceTablePreview) {
+    if preview.settings.cpt_transform.is_none() { return; }
+    if let Ok(normalized) = normalize_table(table, ImportRole::Cpts, &preview.settings) {
+        let visible: HashSet<_> = preview.rows.iter().map(|row| row.number).collect();
+        preview.transformed_cpt_positions = normalized.rows.iter().filter(|row| row.number > 0 && visible.contains(&row.number))
+            .filter_map(|row| Some(TransformedCptPosition {
+                row: row.number,
+                x_mm: parse_finite_number(&row.cells[1].as_text()).ok()?,
+                y_mm: parse_finite_number(&row.cells[2].as_text()).ok()?,
+            })).collect();
+    }
 }
 pub(crate) fn mapped_table(source: &ImportSource) -> Result<SourceTable, ImportError> {
     if let Some(settings) = &source.profile_options.table {

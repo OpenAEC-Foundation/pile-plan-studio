@@ -13,7 +13,7 @@ import ProjectImportPanel from "../../domain/imports/ProjectImportPanel";
 import type { ProjectImportMode } from "../../../domain/imports/projectImportModel.ts";
 import type { ImportFileRole } from "../../../core/importFiles.ts";
 import PilePlanImportPanel from "../../domain/imports/PilePlanImportPanel.tsx";
-import type { ImportSourceInput } from "../../.././core/coreImportContract";
+import type { CptCoordinateTransform, ImportSourceInput } from "../../.././core/coreImportContract";
 import type { ImportSummary } from "../../.././core/projectFile";
 import type { PilePlanImportPatch } from "../../../core/pilePlanImportContract.ts";
 import type { Cpt, LoadPoint, PileConfigurationKey, PileSizeExportFormat } from "../../../core/projectTypes.ts";
@@ -84,6 +84,7 @@ interface BackstageProps extends ExportFeatureProps {
   onPrepareLoadPointRefresh?: PrepareLoadPointRefresh;
   onPreviewProjectImport?: (mode: ProjectImportMode, sources: ImportSourceInput[]) => Promise<ProjectImportPreview>;
   importPreviewContextKey?: string;
+  storedCptTransform?: CptCoordinateTransform | null;
   defaultCurrencyCode: string;
   loadPoints: LoadPoint[];
   cpts: Cpt[];
@@ -108,7 +109,7 @@ interface BackstageProps extends ExportFeatureProps {
   initialImportSource?: { role: ImportFileRole; file: File } | null;
 }
 
-export default function Backstage({ open, suspended = false, onClose, onOpenSettings, onShowStartScreen, onNewProject, onOpenProject, onRefreshSources, onPreviewProjectImport, onPrepareLoadPointRefresh, importPreviewContextKey, defaultCurrencyCode, loadPoints, cpts, availablePileConfigurations, activePilePlanName, activePilePlanId, getCadPileTypes, onImportPilePlan, onDownloadProject, onExportCadDrawing, onOpenCadDrawing, onExportPilePlanXlsx, onExportPilePlanCsv, pileSizeFormat = "numeric", onPileSizeFormatChange, exportPlans, exportPlanId, onExportPlanChange, exportPlan, exportContextKey, exportOptions, onExportOptionsChange, onExportRevision, onSaveProject, onSaveProjectAs, commands, docsOpenPanel, initialPanel, readOnly = false, initialImportSource = null }: BackstageProps) {
+export default function Backstage({ open, suspended = false, onClose, onOpenSettings, onShowStartScreen, onNewProject, onOpenProject, onRefreshSources, onPreviewProjectImport, onPrepareLoadPointRefresh, importPreviewContextKey, storedCptTransform, defaultCurrencyCode, loadPoints, cpts, availablePileConfigurations, activePilePlanName, activePilePlanId, getCadPileTypes, onImportPilePlan, onDownloadProject, onExportCadDrawing, onOpenCadDrawing, onExportPilePlanXlsx, onExportPilePlanCsv, pileSizeFormat = "numeric", onPileSizeFormatChange, exportPlans, exportPlanId, onExportPlanChange, exportPlan, exportContextKey, exportOptions, onExportOptionsChange, onExportRevision, onSaveProject, onSaveProjectAs, commands, docsOpenPanel, initialPanel, readOnly = false, initialImportSource = null }: BackstageProps) {
   const { t } = useTranslation("backstage");
   const [activePanel, setActivePanel] = useState<string>("none");
 
@@ -229,6 +230,7 @@ export default function Backstage({ open, suspended = false, onClose, onOpenSett
             onPrepareLoadPointRefresh={onPrepareLoadPointRefresh}
             onPreviewProjectImport={onPreviewProjectImport}
             importPreviewContextKey={importPreviewContextKey}
+            storedCptTransform={storedCptTransform}
             defaultCurrencyCode={defaultCurrencyCode}
             initialSource={initialImportSource}
             onImportProject={(_mode, _name, sources, _properties, selection) => onRefreshSources(sources, selection)}

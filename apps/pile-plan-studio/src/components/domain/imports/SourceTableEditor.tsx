@@ -29,6 +29,7 @@ type Props = {
   matrix?: boolean;
   showAdvicePileCount?: boolean;
   showSettingsHeading?: boolean;
+  showCoordinatePreview?: boolean;
   processed?: boolean;
   csv?: boolean;
   children?: ReactNode;
@@ -59,7 +60,7 @@ function sourceUnit(mapping: ImportColumnMapping | undefined) {
 export default function SourceTableEditor({
   preview, previewColumn, settings, diagnostics = [], sourceErrors = [], role, matrix = false,
   processed = false, csv = false, children, onChange, variant, showAdvicePileCount = true,
-  showSettingsHeading = true,
+  showSettingsHeading = true, showCoordinatePreview = true,
 }: Props) {
   const { t } = useTranslation(["common", "rightPanel"]);
   const id = useId();
@@ -68,6 +69,13 @@ export default function SourceTableEditor({
   const value = settings ?? preview?.settings ?? {};
   const columns = value.columns ?? [];
   const isProcessed = processed || preview?.processed;
+  const transform = role === "cpts" ? value.cpt_transform : null;
+  const xUnit = sourceUnit(columns.find(mapping => mapping.field === "x")) ?? "mm";
+  const yUnit = sourceUnit(columns.find(mapping => mapping.field === "y")) ?? "mm";
+  const xFactor = xUnit === "m" ? 1000 : 1;
+  const yFactor = yUnit === "m" ? 1000 : 1;
+  const transformed = new Map((showCoordinatePreview ? preview?.transformed_cpt_positions ?? [] : []).map(position => [position.row, position]));
+  const coordinateText = (number: number | undefined) => number === undefined ? "—" : String(Number(number.toFixed(3)));
   const rows = preview?.rows.filter(row => isProcessed ||
     ((!value.has_headers || row.number !== value.header_row) && row.number >= (value.first_data_row ?? 1))) ?? [];
   const errors = [
@@ -125,6 +133,33 @@ export default function SourceTableEditor({
         {showSettingsHeading && <strong>{t("tableImport.settings")}</strong>}
         <div className="source-import-options">{children}</div>
         {preview && !isProcessed && <>
+          {role === "cpts" && <>
+            <div className="source-import-file-settings">
+              <Select label={t("tableImport.coordinateSystem")} value={transform ? "source" : "local"} onChange={event => update({
+                cpt_transform: event.target.value === "source"
+                  ? { origin_x_mm: null, origin_y_mm: null, rotation_microdegrees: 0 }
+                  : null,
+              })} options={[
+                { value: "local", label: t("tableImport.localCoordinates") },
+                { value: "source", label: t("tableImport.sourceCoordinates") },
+              ]} />
+              {transform && <>
+                <label><span>{t("tableImport.sourceOriginX", {unit: xUnit})}</span>
+                  <NumericValueInput variant={variant} step={1 / xFactor} value={transform.origin_x_mm === null ? "" : transform.origin_x_mm / xFactor}
+                    onNumberChange={x => update({cpt_transform: {...transform, origin_x_mm: Math.round(x * xFactor)}})} />
+                </label>
+                <label><span>{t("tableImport.sourceOriginY", {unit: yUnit})}</span>
+                  <NumericValueInput variant={variant} step={1 / yFactor} value={transform.origin_y_mm === null ? "" : transform.origin_y_mm / yFactor}
+                    onNumberChange={y => update({cpt_transform: {...transform, origin_y_mm: Math.round(y * yFactor)}})} />
+                </label>
+                <label><span>{t("tableImport.rotation")}</span>
+                  <NumericValueInput variant={variant} min={-360} max={360} step={0.001} value={transform.rotation_microdegrees / 1000000}
+                    onNumberChange={angle => update({cpt_transform: {...transform, rotation_microdegrees: Math.round(angle * 1000000)}})} />
+                </label>
+              </>}
+            </div>
+            {transform && <p className="source-import-help">{t("tableImport.coordinateTransformHelp")}</p>}
+          </>}
           {role === "bearing-capacities" && <>
             {showAdvicePileCount && <div className="source-import-file-settings">
               <Select label={t("tableImport.adviceApplicability")} value={value.pile_count == null ? "all" : "specific"}
@@ -151,7 +186,7 @@ export default function SourceTableEditor({
           </>}
           <div className="source-import-file-settings">
             {preview.sheets.length > 1 && <Select label={t("tableImport.sheet")} value={value.sheet_name ?? ""}
-              onChange={e => onChange({ sheet_name: e.target.value, delimiter: value.delimiter })}
+              onChange={e => onChange({ sheet_name: e.target.value, delimiter: value.delimiter, ...(transform ? { cpt_transform: transform } : {}) })}
               options={preview.sheets.map(sheet => ({ value: sheet, label: sheet }))} />}
             <Checkbox label={t("tableImport.hasHeaders")} checked={value.has_headers ?? false} onChange={e => {
               const has_headers = e.target.checked;
@@ -225,6 +260,10 @@ export default function SourceTableEditor({
                     : t("tableImport.columnSummary", { filled: nonempty_count, numeric: numeric_count })}</p>
                 </EditableTableHeading>;
               })}
+              {transform && <>
+                <th scope="col">{t("tableImport.localX")}</th>
+                <th scope="col">{t("tableImport.localY")}</th>
+              </>}
             </tr></thead>
             <tbody>{rows.map(row => {
               const rowErrors = errorsByRow.get(row.number) ?? [];
@@ -242,6 +281,10 @@ export default function SourceTableEditor({
                     {cell || <span className="source-empty-cell">—</span>}
                   </td>;
                 })}
+                {transform && <>
+                  <td>{coordinateText(transformed.get(row.number)?.x_mm)}</td>
+                  <td>{coordinateText(transformed.get(row.number)?.y_mm)}</td>
+                </>}
               </tr>;
             })}</tbody>
           </table>

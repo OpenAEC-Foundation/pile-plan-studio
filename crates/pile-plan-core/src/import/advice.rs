@@ -43,6 +43,7 @@ pub(super) fn diagnostic(error: &ImportError) -> ImportDiagnostic {
                 })
                 .collect();
         }
+        ImportError::InvalidCptCoordinateTransform => d.code = ImportDiagnosticCode::InvalidCptCoordinateTransform,
         ImportError::Validation(_) => d.code = ImportDiagnosticCode::InvalidAdviceSelection,
         _ => {}
     }

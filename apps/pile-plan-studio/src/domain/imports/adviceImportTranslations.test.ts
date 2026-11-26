@@ -8,3 +8,9 @@ test("advice applicability and per-sheet size controls are translated",()=>{
   for (const key of ["filesOverview","selectUsableSheets","pileCountBySheet","pilesPerCap_one","pilesPerCap_other","pileCountOverlap","overlappingFile"]) assert.ok(copy.importProject.advice[key]?.trim());
  }
 });
+test("CPT coordinate transform controls and validation are translated",()=>{
+ for(const lang of ["nl","en"]){const copy=JSON.parse(readFileSync(new URL(`../../i18n/locales/${lang}/common.json`,import.meta.url),"utf8"));
+  for(const key of ["coordinateSystem","localCoordinates","sourceCoordinates","sourceOriginX","sourceOriginY","rotation","coordinateTransformHelp","localX","localY"])assert.ok(copy.tableImport[key]?.trim());
+  assert.ok(copy.importProject.diagnostics["invalid-cpt-coordinate-transform"]?.trim());
+ }
+});

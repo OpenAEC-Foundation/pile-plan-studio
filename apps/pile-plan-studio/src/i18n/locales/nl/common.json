@@ -463,6 +463,7 @@
       "loadPointCount": "{{count}} belastinglocaties gevonden"
     },
     "diagnostics": {
+      "invalid-cpt-coordinate-transform": "Vul beide broncoördinaten van de gebouwoorsprong en een hoek tussen −360° en 360° in.",
       "unsupported-profile-format": "Dit importprofiel is niet beschikbaar voor de gekozen gegevensrol of bestandsindeling.",
       "missing-coordinate-sheet": "Er is geen RFEM-werkblad met knoopcoördinaten gevonden.",
       "missing-reaction-sheet": "Er is geen RFEM-werkblad met knoopreacties gevonden.",
@@ -1041,6 +1042,15 @@
     }
   },
   "tableImport": {
+    "coordinateSystem": "Coördinatenstelsel",
+    "localCoordinates": "Tekeningcoördinaten",
+    "sourceCoordinates": "Broncoördinaten omzetten",
+    "sourceOriginX": "Gebouwoorsprong X ({{unit}})",
+    "sourceOriginY": "Gebouwoorsprong Y ({{unit}})",
+    "rotation": "Gebouwrotatie (°)",
+    "coordinateTransformHelp": "Vul de positie van tekeningpunt (0, 0) in het bronstelsel in (bijv. RD), in de eenheden van de X- en Y-bronkolommen. Een positieve hoek draait de tekening-X-as tegen de klok in vanaf de bron-X-as.",
+    "localX": "Tekening X (mm)",
+    "localY": "Tekening Y (mm)",
     "preview": "Importvoorbeeld",
     "settings": "Importinstellingen",
     "rowCount": "{{count}} gegevensrijen",

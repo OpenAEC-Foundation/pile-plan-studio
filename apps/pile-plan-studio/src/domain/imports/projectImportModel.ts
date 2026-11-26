@@ -1,10 +1,12 @@
 import { selectedAdviceSources, type AdviceDraft } from "./adviceImportModel.ts";
 import type {
+  CptCoordinateTransform,
   ImportProfile,
   ImportProfileOptions,
   ImportSourcePreview,
 } from "../../core/coreImportContract.ts";
 import type { ImportFileRole, NamedImportFile } from "../../core/importFiles.ts";
+import type { IfcppImportLogEntry } from "../../core/projectFile.ts";
 
 export type ImportPreviewState =
   | { status: "empty" }
@@ -33,6 +35,22 @@ const EMPTY_OPTIONS: ImportProfileOptions = {
   coordinateSheet: null,
   reactionSheet: null,
 };
+
+export function storedCptCoordinateTransform(log: readonly IfcppImportLogEntry[]): CptCoordinateTransform | null {
+  const entry = log.slice().reverse().find(item => item.source_role === "cpts");
+  const settings = entry?.profile_details?.table_settings;
+  if (!settings) return null;
+  try {
+    const transform = JSON.parse(settings)?.cpt_transform as CptCoordinateTransform | null | undefined;
+    if (transform && Number.isSafeInteger(transform.origin_x_mm)
+        && Number.isSafeInteger(transform.origin_y_mm)
+        && Number.isSafeInteger(transform.rotation_microdegrees)
+        && Math.abs(transform.rotation_microdegrees) <= 360000000) return transform;
+  } catch {
+    return null;
+  }
+  return null;
+}
 
 export function createEmptyImportDrafts<TFile extends NamedImportFile>(): ImportDrafts<TFile> {
   return { "load-points": emptyDraft<TFile>("load-points"), cpts: emptyDraft<TFile>("cpts"), "bearing-capacities": emptyDraft<TFile>("bearing-capacities") };

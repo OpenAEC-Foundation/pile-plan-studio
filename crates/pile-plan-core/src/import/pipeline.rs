@@ -25,6 +25,7 @@ pub fn preview_import_source(source: &ImportSource) -> ImportSourcePreview {
                 sheets:vec![],settings:Default::default(),processed:true,row_count:analysis.load_points.len(),
                 columns:headers.iter().enumerate().map(|(i,h)|super::SourceColumnPreview{column:i+1,header:h.to_string(),nonempty_count:analysis.load_points.len(),numeric_count:analysis.load_points.len()}).collect(),
                 rows:analysis.load_points.iter().take(25).enumerate().map(|(i,p)|{let mut cells=vec![p.id.to_string(),p.x_mm.to_string(),p.y_mm.to_string(),p.design_load_kn.to_string()];if show_tension{cells.push(match p.tension{crate::TensionDemand::Known{value_kn}=>value_kn.to_string(),_=>String::new()});}super::SourcePreviewRow{number:i+1,cells}}).collect(),
+                transformed_cpt_positions:vec![],
             });
         }
         return preview;
@@ -37,6 +38,9 @@ pub fn preview_import_source(source: &ImportSource) -> ImportSourcePreview {
             resolved.profile_options.tension_column=resolved.profile_options.import_tension.then_some(5);
             preview=preview_import_source_raw(&resolved);
             super::table_mapping::include_diagnostic_rows(&table,&mut inspection,&preview.diagnostics);
+            if source.role == ImportRole::Cpts {
+                super::table_mapping::preview_transformed_cpts(&table, &mut inspection);
+            }
             preview.table=Some(inspection);preview
         },
         Err(_)=>preview,
@@ -594,6 +598,7 @@ fn invalid_preview_with_details(
 fn import_error_diagnostic(error: ImportError) -> ImportDiagnostic {
     let fallback_message = error.to_string();
     match error {
+        ImportError::InvalidCptCoordinateTransform => error_diagnostic(ImportDiagnosticCode::InvalidCptCoordinateTransform, fallback_message),
         ImportError::InvalidPileTipLevels(values) => ImportDiagnostic {
             advice: None,
             severity: ImportDiagnosticSeverity::Error,
@@ -882,6 +887,74 @@ mod tests {
             format: SourceFormat::Xlsx,
             bytes: include_bytes!("../../../../sample_project/Export RFEM.xlsx").to_vec(),
         }
+    }
+
+    #[test]
+    fn cpt_transform_matches_preview_import_refresh_and_ifcpp() {
+        let mut source = csv_source(
+            ImportRole::Cpts,
+            "sonderingen.csv",
+            "ID,X,Y\n11,155020000,463010000\n12,154995000,463002000\n",
+        );
+        source.profile_options.table = Some(serde_json::from_value(serde_json::json!({
+            "cpt_transform": {
+                "origin_x_mm": 155000000,
+                "origin_y_mm": 463000000,
+                "rotation_microdegrees": 90000000
+            }
+        })).unwrap());
+        let preview = preview_import_source(&source);
+        assert_eq!(preview.item_count, 2);
+        let table = serde_json::to_value(preview.table.unwrap()).unwrap();
+        let position = &table["transformed_cpt_positions"][0];
+        assert_eq!(table["rows"][1]["cells"][1], "155020000");
+        assert_eq!(position["row"], 2);
+        assert!((position["x_mm"].as_f64().unwrap() - 10000.).abs() < 1e-6);
+        assert!((position["y_mm"].as_f64().unwrap() + 20000.).abs() < 1e-6);
+        let project = import_project_from_sources(
+            "RD project",
+            &[
+                csv_source(ImportRole::LoadPoints, "load.csv", "ID,X,Y,FED\n1,10000,-20000,100\n"),
+                source.clone(),
+                csv_source(ImportRole::BearingCapacities, "advice.csv", "CPT ID,Tip,Size,FRD\n11,-15,320,200\n12,-15,320,200\n"),
+            ],
+            None,
+            "EUR",
+        ).unwrap();
+        assert!((project.inputs.cpts[0].x_mm - 10000.).abs() < 1e-6);
+        assert!((project.inputs.cpts[0].y_mm + 20000.).abs() < 1e-6);
+        let reopened = crate::read_ifcpp_str(&crate::write_ifcpp_string(&project).unwrap()).unwrap();
+        let log = reopened.import_log.iter().find(|entry| entry.source_role == Some(ImportRole::Cpts)).unwrap();
+        let settings: serde_json::Value = serde_json::from_str(&log.profile_details["table_settings"]).unwrap();
+        assert_eq!(settings["cpt_transform"]["rotation_microdegrees"], 90000000);
+        let refreshed = super::super::refresh_project_from_profiled_sources(&reopened, &[source]).unwrap();
+        assert_eq!(refreshed.inputs.cpts, project.inputs.cpts);
+    }
+
+    #[test]
+    fn cpt_transform_converts_metres_before_subtracting_origin() {
+        let mut source = csv_source(ImportRole::Cpts, "cpts.csv", "ID,X,Y\n1,155000.000,463000.000\n2,154999.750,463002.125\n");
+        source.profile_options.table = Some(serde_json::from_value(serde_json::json!({
+            "cpt_transform": { "origin_x_mm": 155000000, "origin_y_mm": 463000000 },
+            "columns": [
+                {"column":1,"field":"id"},
+                {"column":2,"field":"x","unit":"m"},
+                {"column":3,"field":"y","unit":"m"}
+            ]
+        })).unwrap());
+        let preview = preview_import_source(&source);
+        assert_eq!(preview.item_count, 2);
+        let table = preview.table.unwrap();
+        assert_eq!(table.transformed_cpt_positions[0].x_mm, 0.);
+        assert_eq!(table.transformed_cpt_positions[0].y_mm, 0.);
+        assert_eq!(table.transformed_cpt_positions[1].x_mm, -250.);
+        assert_eq!(table.transformed_cpt_positions[1].y_mm, 2125.);
+
+        source.profile_options.table.as_mut().unwrap().cpt_transform.as_mut().unwrap().origin_y_mm = None;
+        let invalid = preview_import_source(&source);
+        assert_eq!(invalid.resolved_profile, None);
+        assert_eq!(invalid.diagnostics[0].code, ImportDiagnosticCode::InvalidCptCoordinateTransform);
+        assert!(invalid.table.unwrap().transformed_cpt_positions.is_empty());
     }
 
     fn csv_source(role: ImportRole, file_name: &str, contents: &str) -> ImportSource {

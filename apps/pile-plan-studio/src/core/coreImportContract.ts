@@ -4,8 +4,9 @@ import type { PileTipLevelPrecisionReason } from "./projectDocumentContract.ts";
 
 export type ImportProfile = "auto" | "standard-table" | "rfem-export" | "capacity-columns";
 export type ImportColumnMapping={column:number;field:string;unit?:string|null;pile_size_mm?:number|null};
-export type TableImportSettings={fixed_pile_size_mm?:number|null;pile_count?:number|null;sheet_name?:string|null;has_headers?:boolean|null;header_row?:number|null;first_data_row?:number|null;delimiter?:string|null;columns?:ImportColumnMapping[]|null};
-export type SourceTablePreview={sheets:string[];settings:TableImportSettings;columns:Array<{column:number;header:string;nonempty_count:number;numeric_count:number}>;rows:Array<{number:number;cells:string[]}>;row_count:number;processed:boolean};
+export type CptCoordinateTransform = { origin_x_mm: number | null; origin_y_mm: number | null; rotation_microdegrees: number };
+export type TableImportSettings={fixed_pile_size_mm?:number|null;pile_count?:number|null;sheet_name?:string|null;has_headers?:boolean|null;header_row?:number|null;first_data_row?:number|null;delimiter?:string|null;columns?:ImportColumnMapping[]|null;cpt_transform?:CptCoordinateTransform|null};
+export type SourceTablePreview={sheets:string[];settings:TableImportSettings;columns:Array<{column:number;header:string;nonempty_count:number;numeric_count:number}>;rows:Array<{number:number;cells:string[]}>;row_count:number;processed:boolean;transformed_cpt_positions?:Array<{row:number;x_mm:number;y_mm:number}>};
 
 export type ImportProfileOptions = {
   table?:TableImportSettings|null;
